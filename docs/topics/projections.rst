@@ -2,9 +2,15 @@
 Projections
 ===========
 
-A projection is a function of application state. If the state of an application is
-event sourced, projections can operate by processing the events of an application.
-There are lots of different kinds of projection.
+A projection is a function of application state. If the state of
+an application is event sourced, projections can operate by processing
+the events of an application. There are lots of different ways of implementing
+a projection. This section discusses three approaches: subscribing directly to
+domain events as are they are published from the domain model of
+an event sourced application; reading a notification log which presents
+recorded domain events of an application in a serial order; and tracking a
+notification log with tracking records that are persisted in the same atomic
+transaction as the projected state.
 
 
 .. contents:: :local:
@@ -98,7 +104,7 @@ that uses messaging infrastructure such as an AMQP system. The decorated
 function would be called synchronously with the republishing of the event,
 but asynchronously with respect to the original application.
 
-A naive projection might consume events as they are published
+A projection might consume events as they are published
 and update the projection without considering whether the event
 was a duplicate, or if previous events were missed.
 The trouble with this approach is that, without further modification, without
@@ -111,8 +117,8 @@ Of course, it is possible to follow a fixed sequence of events, for example
 by tracking notification logs.
 
 
-Tracking notification logs
---------------------------
+Reading event notifications
+---------------------------
 
 If the events of an application are presented as a sequence of
 notifications, then the events can be projected using a notification
@@ -122,11 +128,10 @@ Getting new items can be triggered by pushing prompts to e.g. an AMQP
 messaging system, and having the remote components handle the prompts
 by pulling the new notifications.
 
-To minimise load on the messaging
-infrastructure, it may be sufficient simply to send an empty message,
-thereby prompting receivers to pull new notifications. This may
-reduce latency or avoid excessive polling for updates, but the benefit
-would be obtained at the cost of additional complexity. Prompts
+To minimise load on the messaging infrastructure, it may be sufficient
+simply to send an empty message, thereby prompting receivers to pull new
+notifications. This may reduce latency or avoid excessive polling for
+updates, but the benefit would be obtained at the cost of additional complexity. Prompts
 that include the position of the notification in its sequence would
 allow a follower to know when it is being prompted about notifications
 it already pulled, and could then skip the pulling operation.
@@ -157,8 +162,8 @@ each notification (which might then involve "null" commands). For reliability,
 the tracking records need to be written in the same atomic database
 transaction as the projection records.
 
-The library's :class:`~eventsourcing.application.process.Process` class uses
-tracking records.
+The library's :class:`~eventsourcing.application.process.ProcessApplication`
+class uses tracking records.
 
 Application state replication
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -540,30 +545,87 @@ notification log even when the notification doesn't imply a real entry in the in
     assert user1.id not in index.repository
 
 
+Reliable projections
+--------------------
 
-----
+To make projections reliable with respect to sudden restarts, make sure to record
+the position in the notification log of the last processed domain event notification
+along with the state of the projection that results from processing that domain event,
+all in the same atomic transaction. When restarting, the tracking records can be used
+to position the notification reader in the notification log sequence.
 
-Todo: Projection into a timeline view?
+Looking ahead to the next section on :doc:`distributed systems </topics/process>`, the
+``save_orm_obj()`` method of the ``WrappedRepository`` object, which is passed into the
+``policy()`` function of a :class:`~eventsourcing.application.process.ProcessApplication`
+object as the ``repository`` argument, declares support for persisting custom ORM records
+atomically with tracking information. Instead of calling, for example ``obj.save()`` on
+a Django ORM object, which would tend to record the state of the ORM in a separate
+transaction from the tracking information of the "process event", making the state of the
+projection vulnerable to sudden restarts, the ORM obj can be included in the "process event"
+by passing it an an argument to ``save_orm_obj()``.
 
-Todo: Projection into snapshots (policy determines when to snapshot)?
+.. code:: python
 
-Todo: Projection for data analytics?
+    from eventsourcing.application.process import ProcessApplication
+    from eventsourcing.application.decorators import applicationpolicy
+    from eventsourcing.domain.model.aggregate import AggregateRoot
 
-Todo: Concurrent processing of notification logs, respecting causal relations.
 
-Todo: Order reservation payments, system with many processes and many notification logs.
+    class Projection(ProcessApplication):
 
-Todo: Single process with single log.
+        @applicationpolicy
+        def policy(self, repository, event):
+            """Do nothing by default."""
 
-Todo: Single process with many logs.
+        @policy.register(AggregateRoot.Event)
+        def _(self, repository, event):
+            object1 = CustomRecord(a=1, b=2)
+            repository.save_orm_obj(object1)
+            object2 = CustomRecord(a=3, b=4)
+            repository.save_orm_obj(object2)
 
-Todo: Many processes with one log each.
 
-Todo: Many processes with many logs each (static config).
+Calling ``save_orm_obj()`` doesn't immediately update the database, but instead
+appends the ORM object to a list of ORM objects that will be passed down the stack and
+recorded within a single transaction along with other factors of the process event
+after the policy function has returned. This method can be called many times within
+a single policy function, but only needs to be called once per object. All changes
+made within a policy function to an ORM object that has been so included within a
+process event will be persisted after the policy function returns, regardless of whether
+the changes were made before or after calling ``save_orm_obj()``. Support for writing
+custom ORM objects as a factor of an atomic "process events" is implemented in the
+library's ``SQLAlchemy`` and ``Django`` infrastructure.
 
-Todo: Many processes with many logs each (dynamic config).
+Please note, using custom ORM objects of a particular kind in a system of process applications
+renders that system dependent on particular infrastructure, and so it won't be possible
+using this technique to define an entire system of process applications independently of
+infrastructure. It wouldn't be so very hard to develop some non-event sourced projection model
+classes that are independent of infrastructure, but the library doesn't include
+any support for that at the moment.
 
-Todo: Single process with state machine semantics (whatever they are)?
+.. ----
+..
+.. Todo: Projection into a timeline view?
+..
+.. Todo: Projection into snapshots (policy determines when to snapshot)?
+..
+.. Todo: Projection for data analytics?
+..
+.. Todo: Concurrent processing of notification logs, respecting causal relations.
+..
+.. Todo: Order reservation payments, system with many processes and many notification logs.
+..
+.. Todo: Single process with single log.
+..
+.. Todo: Single process with many logs.
+..
+.. Todo: Many processes with one log each.
+..
+.. Todo: Many processes with many logs each (static config).
+..
+.. Todo: Many processes with many logs each (dynamic config).
+..
+.. Todo: Single process with state machine semantics (whatever they are)?
 
 
 .. Todo: Something about pumping events to a message bus, following

@@ -300,11 +300,14 @@ Process managers
 
 A process application, specifically an aggregate combined with a policy in a process application,
 could function effectively as a "saga", or "process manager", or "workflow manager". That is, it
-could effectively control a sequence of steps involving other aggregates in other bounded contexts,
+could effectively cause a sequence of steps involving other aggregates in other applications,
 steps that might otherwise be controlled with a "long-lived transaction". It could 'maintain
 the state of the sequence and determine the next processing step based on intermediate results',
-to quote a phrase from Enterprise Integration Patterns. Exceptional "unhappy path" behaviour can
-be implemented as part of the logic of the application.
+to quote a phrase from Enterprise Integration Patterns. These terms ("saga", "process manager",
+etc.) can be used here as names for things we already have, but they add nothing in particular,
+since any reliable behaviour can be coded with combinations of events sourced aggregates and
+application policies. Exceptional "unhappy path" behaviour can be implemented as part of the
+logic of the application.
 
 
 Example
@@ -314,22 +317,32 @@ The example below is suggestive of an orders-reservations-payments system.
 The system automatically processes a new Order by making a Reservation, and
 then a Payment; facts registered with the Order as they happen.
 
-The system is run: firstly as a single threaded system; then with
-multiprocessing using a single pipeline; multiprocessing with multiple
-pipelines; and finally multiple pipelines with the actor model.
-
 The behaviour of the system is entirely defined by the combination of the
 aggregates and the policies of its process applications. This allows highly
-maintainable code, code that is easily tested, easily understood, easily
-changed, easily reconfigured for use with different infrastructure.
+maintainable code that is easily tested, easily understood, easily
+changed, and easily reconfigured for use with different infrastructure.
 
-Please note, the code presented in the example below works only with the library's
-SQLAlchemy and Django infrastructure code. Support for Cassandra is being considered
-but such applications will probably be simple replications of application state, due
-to the limited atomicity of Cassandra's lightweight transactions. For example,
-Cassandra could be used to archive events written firstly into a relational database.
-Events could be removed from the relational database before storage limits are encountered.
-Events missing in the relational database could be sourced from Cassandra.
+The system is run: firstly as a single threaded system; then with
+multiprocessing using a single pipeline; then multiprocessing with multiple
+pipelines; and finally multiple pipelines with the actor model.
+
+Please note, this example system is designed to exhibit a range of capabilities
+of the library and is not necessarily an example of good system design. In particular,
+whilst having "branches" (where one application is followed by more than one other
+application) does not introduce indeterminacy in the final system state, having "joins"
+(where one application follows more than one other) does so. Perhaps a better
+generic template for most domains is more simply to have a commands process followed
+by a core application for the domain, that is followed by a reporting application
+(``Commands | Core | Reporting``).
+
+Please also note, the code presented in the example below works with the library's
+SQLAlchemy infrastructure code, and it can work with the library's Django infrastructure
+code. Support for Cassandra is being considered but such applications will probably be
+simple replications of application state, due to the limited atomicity of Cassandra's
+lightweight transactions. For example, Cassandra could be used to archive events written
+firstly into a relational database. Events could be removed from the relational database
+before storage limits are encountered. Events missing in the relational database could be
+sourced from Cassandra.
 
 
 Aggregates
@@ -554,7 +567,7 @@ Processes
 
 A process application has a policy which defines how events are processed.
 In the code below, process applications are defined for orders, reservations,
-and payments.
+payments, and commands.
 
 The ``Orders`` process application policy responds to new commands by
 creating a new ``Order`` aggregate. It responds to new reservations by
@@ -571,11 +584,11 @@ by setting an ``Order`` as paid.
 
         @applicationpolicy
         def policy(self, repository, event):
-            pass
+            """Do nothing by default."""
 
         @policy.register(CreateOrder.Created)
         def _(self, repository, event):
-            return self.create_order(command_id=event.originator_id)
+            return self._create_order(command_id=event.originator_id)
 
         @policy.register(Reservation.Created)
         def _(self, repository, event):
@@ -586,7 +599,7 @@ by setting an ``Order`` as paid.
             self._set_order_is_paid(repository, event)
 
         @staticmethod
-        def create_order(command_id):
+        def _create_order(command_id):
             return Order.create(command_id=command_id)
 
         def _set_order_is_reserved(self, repository, event):
@@ -613,14 +626,14 @@ by creating a new ``Reservation`` aggregate.
 
         @applicationpolicy
         def policy(self, repository, event):
-            pass
+            """Do nothing by default."""
 
         @policy.register(Order.Created)
         def _(self, repository, event):
-            return self.create_reservation(event.originator_id)
+            return self._create_reservation(event.originator_id)
 
         @staticmethod
-        def create_reservation(order_id):
+        def _create_reservation(order_id):
             return Reservation.create(order_id=order_id)
 
 
@@ -633,25 +646,40 @@ by creating a new ``Payment``.
 
         @applicationpolicy
         def policy(self, repository, event):
-            pass
+            """Do nothing by default."""
 
         @policy.register(Order.Reserved)
         def _(self, repository, event):
             order_id = event.originator_id
-            return self.create_payment(order_id)
+            return self._create_payment(order_id)
 
         @staticmethod
-        def create_payment(order_id):
+        def _create_payment(order_id):
             return Payment.create(order_id=order_id)
 
 
-Additionally, the library class
-:class:`~eventsourcing.application.command.CommandProcess`
-is extended by defining a policy that responds to ``Order.Created``
-events by setting the ``order_id`` on the command, and to
-``Order.Paid`` events by setting the command as done. It also
-has a factory method ``create_order()`` which can be used to
-create new ``Order`` aggregates.
+A separate "commands application" is defined below. It extends the library class
+:class:`~eventsourcing.application.command.CommandProcess`.
+
+It has a factory method
+``create_order()`` which can be used to
+create and save new ``Order`` aggregates.
+
+The library class
+:class:`~eventsourcing.application.command.CommandProcess
+extends
+:class:`~eventsourcing.application.process.ProcessApplication`
+and so is also a
+:class:`~eventsourcing.application.simple.SimpleApplication`. It
+and has its ``persist_event_type`` set to the
+:class:`~eventsourcing.domain.model.command.Command.Event` supertype
+for domain events of :class:`~eventsourcing.domain.model.command.Command`
+aggregates, so that by default the domain events of a command aggregate
+will be persisted when a command aggregate is "saved".
+
+The ``Commands`` class below also defines a policy that responds both to
+``Order.Created`` events by setting the ``order_id`` on the command, and to
+``Order.Paid`` events by setting the command as done.
 
 .. code:: python
 
@@ -661,12 +689,16 @@ create new ``Order`` aggregates.
 
 
     class Commands(CommandProcess):
-
-        persist_event_type = CreateOrder.Event
+        @staticmethod
+        @retry((OperationalError, RecordConflictError), max_attempts=10, wait=0.01)
+        def create_order():
+            cmd = CreateOrder.create()
+            cmd.__save__()
+            return cmd.id
 
         @applicationpolicy
         def policy(self, repository, event):
-            pass
+            """Do nothing by default."""
 
         @policy.register(Order.Created)
         def _(self, repository, event):
@@ -677,13 +709,6 @@ create new ``Order`` aggregates.
         def _(self, repository, event):
             cmd = repository[event.command_id]
             cmd.done()
-
-        @staticmethod
-        @retry((OperationalError, RecordConflictError), max_attempts=10, wait=0.01)
-        def create_order():
-            cmd = CreateOrder.create()
-            cmd.__save__()
-            return cmd.id
 
 The ``@retry`` decorator overcomes contention when creating new commands
 whilst also processing domain events from the ``Orders`` application.
@@ -793,47 +818,40 @@ which contains the ``order`` aggregate expected by the policy.
 System
 ------
 
-A system of process applications can be defined using one or many pipeline expressions.
+A system of process applications can be defined using one or many "pipeline expressions",
+involving process application classes associated with Python's bitwise OR operator ``|``.
 
-The expression ``A | A`` would have a process application class called ``A`` following
-itself. The expression ``A | B | C`` would have ``A`` followed by ``B`` and ``B``
-followed by ``C``. This can perhaps be recognised as the "pipes and filters" pattern,
-where the process applications function effectively as the filters.
+For example, the pipeline expression ``A | A`` would have process application class
+``A`` following itself. The expression ``A | B | C`` would have ``A`` followed by
+``B`` and ``B`` followed by ``C``. This can perhaps be recognised as the "pipes and
+filters" pattern, where the process applications function effectively as the filters.
+(The library's process application class uses a metaclass to support this, and although
+I'm normally averse to "extending the language", this seems to add
+a certain distinctiveness to the expression of a system.).
 
-In this example, firstly the ``Orders`` process will follow the ``Commands`` process
-so that orders can be created. The ``Commands`` process will follow the ``Orders`` process,
-so that commands can be marked as done when processing is complete.
-
-.. code:: python
-
-    commands_pipeline = Commands | Orders | Commands
-
-Similarly, the ``Orders`` process and the ``Reservations`` process will follow
-each other. Also the ``Orders`` and the ``Payments`` process will follow each other.
-
-.. code:: python
-
-    reservations_pipeline = Orders | Reservations | Orders
-
-    payments_pipeline = Orders | Payments | Orders
-
-
-The orders-reservations-payments system can be defined using these pipeline expressions.
+In the system defined below, the ``Orders`` process follows the ``Commands`` process,
+and the ``Commands`` process follows the ``Orders`` process, so that each will receive
+the events that its policy has been defined to process. Similarly, ``Orders`` and
+``Reservations`` follow each other, and also ``Orders`` and ``Payments`` follow each other.
 
 .. code:: python
 
     from eventsourcing.application.system import System
 
-    system = System(commands_pipeline, reservations_pipeline, payments_pipeline)
+    system = System(
+        Commands | Orders | Commands,
+        Orders | Reservations | Orders,
+        Orders | Payments | Orders
+    )
 
-
-This is equivalent to a system defined with the following single pipeline expression.
+This system can alternatively be defined with a single pipeline expression,
+which expresses exactly the same set of relationships between the process applications.
 
 .. code:: python
 
-    pipeline = Commands | Orders | Reservations | Orders | Payments | Orders | Commands
-
-    system = System(pipeline)
+    system = System(
+        Commands | Orders | Reservations | Orders | Payments | Orders | Commands
+    )
 
 
 Although a process application class can appear many times in the pipeline
@@ -841,17 +859,16 @@ expressions, there will only be one instance of each process when the pipeline
 system is instantiated. Each application can follow one or many applications,
 and can be followed by one or many applications.
 
-In this system, application state is propagated between process
-applications through notification logs only. This can perhaps be
-recognised as the "bounded context" pattern. Each application can
+Application state is propagated between process
+applications through notification logs only. Each application can
 access only the aggregates it has created. For example, an ``Order``
 aggregate created by the ``Orders`` process is available in neither
 the repository of ``Reservations`` nor the repository of ``Payments``.
 If an application could directly use the aggregates of another
 application, then processing could produce different results at
-different times, and in consequence the processing wouldn't be
+different times, and in consequence the processing might not be
 reliable. If necessary, a process application can replicate upstream
-aggregates within its own state.
+state within its own state.
 
 
 Runners
@@ -887,12 +904,14 @@ to which applications each is followed by.
 
 In the example below, the ``system`` object is used directly as a context
 manager. Using the ``system`` object in this manner implicitly constructs
-a :class:`~eventsourcing.application.system.SingleThreadedRunner`. As a special case,
-by default this runner introduces concrete application infrastructure class
-:class:`~eventsourcing.application.popo.PopoApplication`, which
-literally uses plain old Python objects to store domain events in memory,
-and is the fastest concrete application infrastructure class
-in the library (much faster than in-memory SQLite). It can be used when proper
+a :class:`~eventsourcing.application.system.SingleThreadedRunner`, which
+uses the infrastructure class
+:class:`~eventsourcing.application.popo.PopoApplication` by default. This
+infrastructure class uses "plain old Python objects" to store domain events
+in memory, implementing atomic transactions and uniqueness constraints like
+SQLAlchemy and Django infrastructure classes, and is the fastest concrete
+application infrastructure class in the library (much faster than in-memory
+SQLite database, for example). This infrastructure can be used when proper
 disk-based durability is not required, for example during system development.
 
 .. code:: python
@@ -919,13 +938,13 @@ disk-based durability is not required, for example during system development.
         payment = system.payments.repository[order.payment_id]
 
 
-Everything happens synchronously, in a single thread, so that by the time
-``create_order()`` has returned, the command has been fully processed by
-the system.
+Using the single-threaded runner means that everything happens synchronously
+in a single thread, so that by the time ``create_order()`` has returned, the
+command has been fully processed by the system.
 
-Running the system with a single thread and an in-memory database is
-useful when developing and testing a system of process applications,
-because it runs very quickly and the behaviour is very easy to follow.
+Running the system with a single thread is useful when developing and testing
+a system of process applications, because it runs very quickly and the behaviour
+is very easy to follow.
 
 
 Multiprocess runner
@@ -1089,7 +1108,7 @@ processes altogether.
     )
 
 
-Fifteen orders will processed by the system altogether,
+Fifteen orders will be processed by the system altogether,
 five in each pipeline.
 
 .. code:: python
@@ -1143,9 +1162,14 @@ The actors will run by sending messages recursively.
 
     from eventsourcing.application.actors import ActorModelRunner
 
-    with ActorModelRunner(system=system, setup_tables=True,
-                          infrastructure_class=SQLAlchemyApplication,
-                          pipeline_ids=[0, 1, 2]) as runner:
+    runner = ActorModelRunner(
+        system=system,
+        infrastructure_class=SQLAlchemyApplication,
+        setup_tables=True,
+        pipeline_ids=[0, 1, 2]
+    )
+
+    with runner:
 
         # Create new orders.
         command_ids = []
@@ -1367,6 +1391,7 @@ library doesn't currently have any such adapter process classes or documentation
 .. been processed downstream, and also perhaps the event records.
 .. All tracking records except the last one can be removed. If
 .. processing with multiple threads, a slightly longer history of
+
 .. tracking records may help to block slow and stale threads from
 .. committing successfully. This hasn't been implemented in the library.
 

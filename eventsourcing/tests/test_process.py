@@ -2,7 +2,7 @@ from unittest import TestCase
 from uuid import uuid4
 
 from eventsourcing.application.command import CommandProcess
-from eventsourcing.application.process import ProcessApplication, ProcessApplicationWithSnapshotting, RepositoryWrapper
+from eventsourcing.application.process import ProcessApplication, ProcessApplicationWithSnapshotting, WrappedRepository
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.domain.model.aggregate import AggregateRoot, BaseAggregateRoot
 from eventsourcing.domain.model.command import Command
@@ -14,7 +14,7 @@ from eventsourcing.utils.topic import resolve_topic
 from eventsourcing.utils.transcoding import json_loads
 
 
-class TestProcess(TestCase):
+class TestProcessApplication(TestCase):
     process_class = SQLAlchemyApplication
 
     def test_process_with_example_policy(self):
@@ -40,11 +40,11 @@ class TestProcess(TestCase):
             self.assertTrue(process.repository[aggregate.id].is_moved_on)
 
             # Check the __contains__ method of the repo wrapper.
-            self.assertIn(aggregate.id, RepositoryWrapper(process.repository))
-            self.assertNotIn(uuid4(), RepositoryWrapper(process.repository))
+            self.assertIn(aggregate.id, WrappedRepository(process.repository))
+            self.assertNotIn(uuid4(), WrappedRepository(process.repository))
 
             # Check the repository wrapper tracks causal dependencies.
-            repository = RepositoryWrapper(process.repository)
+            repository = WrappedRepository(process.repository)
             aggregate = repository[aggregate.id]
             causal_dependencies = repository.causal_dependencies
             self.assertEqual(len(causal_dependencies), 1)
@@ -161,14 +161,14 @@ class TestProcess(TestCase):
 
         # Setup downstream process.
         downstream1 = process_class(
-            'downstream',
+            name='downstream',
             pipeline_id=pipeline_id1,
             policy=event_logging_policy,
             **kwargs
         )
         downstream1.follow('core', core1.notification_log)
         downstream2 = process_class(
-            'downstream',
+            name='downstream',
             pipeline_id=pipeline_id2,
             policy=event_logging_policy,
             **kwargs
@@ -241,7 +241,7 @@ class TestProcess(TestCase):
 
 
 class TestCommands(TestCase):
-    process_class = SQLAlchemyApplication
+    infrastructure_class = SQLAlchemyApplication
 
     def test_command_aggregate(self):
         # Create a command.
@@ -259,10 +259,10 @@ class TestCommands(TestCase):
         self.assertIsInstance(pending_events[1], Command.Done)
 
     def test_command_process(self):
-        commands = CommandProcess.mixin(self.process_class)(
+        commands = CommandProcess.mixin(self.infrastructure_class)(
             setup_table=True
         )
-        core = ProcessApplication.mixin(self.process_class)(
+        core = ProcessApplication.mixin(self.infrastructure_class)(
             'core',
             policy=example_policy,
             session=commands.session

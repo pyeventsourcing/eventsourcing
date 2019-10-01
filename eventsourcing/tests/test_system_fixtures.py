@@ -8,15 +8,11 @@ from eventsourcing.exceptions import OperationalError, RecordConflictError
 from eventsourcing.tests.test_process import ExampleAggregate
 
 
-# Moved this stuff here to avoid "__main__ has no
-# Reservation.Created" etc topic resolution errors.
-
 def set_db_uri():
     host = os.getenv('MYSQL_HOST', '127.0.0.1')
     user = os.getenv('MYSQL_USER', 'root')
     password = os.getenv('MYSQL_PASSWORD', '')
     db_uri = 'mysql+pymysql://{}:{}@{}/eventsourcing?charset=utf8mb4&binary_prefix=true'.format(user, password, host)
-    # raise Exception(db_uri)
     os.environ['DB_URI'] = db_uri
 
 

@@ -1,7 +1,7 @@
 import os
-from abc import ABC
 
 from eventsourcing.application.notificationlog import RecordManagerNotificationLog
+from eventsourcing.application.pipeline import Pipeable
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
@@ -13,7 +13,7 @@ from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.utils.random import decode_bytes
 
 
-class SimpleApplication(ABC):
+class SimpleApplication(Pipeable):
     """
     Base class for event sourced applications.
 
@@ -45,8 +45,8 @@ class SimpleApplication(ABC):
     def __init__(self, name='', persistence_policy=None, persist_event_type=None,
                  cipher_key=None, sequenced_item_class=None, sequenced_item_mapper_class=None,
                  record_manager_class=None, stored_event_record_class=None, event_store_class=None,
-                 snapshot_record_class=None, setup_table=True, contiguous_record_ids=True,
-                 pipeline_id=DEFAULT_PIPELINE_ID, json_encoder_class=None,
+                 snapshot_record_class=None, setup_table=True,
+                 contiguous_record_ids=True, pipeline_id=DEFAULT_PIPELINE_ID, json_encoder_class=None,
                  json_decoder_class=None, notification_log_section_size=None):
         self._datastore = None
         self._event_store = None
@@ -68,9 +68,11 @@ class SimpleApplication(ABC):
         self.record_manager_class = record_manager_class or type(self).record_manager_class
 
         self.event_store_class = event_store_class or type(self).event_store_class
-        self.stored_event_record_class = stored_event_record_class or type(self).stored_event_record_class
 
-        self.snapshot_record_class = snapshot_record_class or type(self).snapshot_record_class
+        self._stored_event_record_class = stored_event_record_class
+
+        self._snapshot_record_class = snapshot_record_class
+
         self.json_encoder_class = json_encoder_class or type(self).json_encoder_class
         self.json_decoder_class = json_decoder_class or type(self).json_decoder_class
         self.persist_event_type = persist_event_type or type(self).persist_event_type
@@ -96,11 +98,11 @@ class SimpleApplication(ABC):
         return self._datastore
 
     @property
-    def event_store(self):
+    def event_store(self) -> EventStore:
         return self._event_store
 
     @property
-    def repository(self):
+    def repository(self) -> EventSourcedRepository:
         return self._repository
 
     def construct_cipher(self, cipher_key):
@@ -119,15 +121,19 @@ class SimpleApplication(ABC):
         """
         factory_class = self.infrastructure_factory_class
         assert issubclass(factory_class, InfrastructureFactory)
+
+        integer_sequenced_record_class = self._stored_event_record_class or self.stored_event_record_class
+        snapshot_record_class = self._snapshot_record_class or self.snapshot_record_class
+
         return factory_class(
             record_manager_class=self.record_manager_class,
-            integer_sequenced_record_class=self.stored_event_record_class,
+            integer_sequenced_record_class=integer_sequenced_record_class,
+            snapshot_record_class=snapshot_record_class,
             sequenced_item_class=self.sequenced_item_class,
             sequenced_item_mapper_class=self.sequenced_item_mapper_class,
             contiguous_record_ids=self.contiguous_record_ids,
             application_name=self.name,
             pipeline_id=self.pipeline_id,
-            snapshot_record_class=self.snapshot_record_class,
             event_store_class=self.event_store_class,
             *args, **kwargs
         )
@@ -195,16 +201,8 @@ class SimpleApplication(ABC):
         pass
 
     @classmethod
-    def mixin(cls, *bases):
-        return type(cls.__name__, bases + (cls,), {})
-
-    @classmethod
-    def bind(cls, *bases, **kwargs):
-
-        process_class = cls.mixin(*bases)
-        if not issubclass(process_class, ApplicationWithConcreteInfrastructure):
-            raise Exception("Does not have infrastructure: {}, {}".format(cls, tuple(bases)))
-        return process_class(**kwargs)
+    def mixin(cls, infrastructure_class):
+        return type(cls.__name__, (infrastructure_class, cls), {})
 
 
 class ApplicationWithConcreteInfrastructure(SimpleApplication):

@@ -6,7 +6,7 @@ from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
 from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedWithIDRecord, SnapshotRecord, \
-    StoredEventRecord, TimestampSequencedNoIDRecord
+    StoredEventRecord, TimestampSequencedNoIDRecord, NotificationTrackingRecord
 
 
 class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
@@ -17,23 +17,40 @@ class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
     integer_sequenced_record_class = IntegerSequencedWithIDRecord
     timestamp_sequenced_record_class = TimestampSequencedNoIDRecord
     snapshot_record_class = SnapshotRecord
+    tracking_record_class = NotificationTrackingRecord
 
-    def __init__(self, session, uri=None, pool_size=None, *args, **kwargs):
+    def __init__(self, session, uri=None, pool_size=None, tracking_record_class=None, *args, **kwargs):
         super(SQLAlchemyInfrastructureFactory, self).__init__(*args, **kwargs)
         self.session = session
         self.uri = uri
         self.pool_size = pool_size
+        self._tracking_record_class = tracking_record_class
 
-    def construct_record_manager(self, *args, **kwargs):
+    def construct_integer_sequenced_record_manager(self, **kwargs):
         """
         Constructs SQLAlchemy record manager.
-        :param args:
-        :param kwargs:
+
         :return: An SQLAlchemy record manager.
         :rtype: SQLAlchemyRecordManager
         """
-        s = super(SQLAlchemyInfrastructureFactory, self)
-        return s.construct_record_manager(session=self.session, *args, **kwargs)
+        tracking_record_class = self._tracking_record_class or self.tracking_record_class
+        return super(SQLAlchemyInfrastructureFactory, self).construct_integer_sequenced_record_manager(
+            tracking_record_class=tracking_record_class,
+            **kwargs
+        )
+
+    def construct_record_manager(self, record_class, **kwargs):
+        """
+        Constructs SQLAlchemy record manager.
+
+        :return: An SQLAlchemy record manager.
+        :rtype: SQLAlchemyRecordManager
+        """
+        return super(SQLAlchemyInfrastructureFactory, self).construct_record_manager(
+            record_class,
+            session=self.session,
+            **kwargs
+        )
 
     def construct_datastore(self):
         """

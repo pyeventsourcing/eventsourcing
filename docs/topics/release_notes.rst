@@ -18,6 +18,19 @@ Version 7.x
 Version 7.x series refined the "process and system" code.
 
 
+Version 7.2.0 (released 1 Oct 2019)
+------------------------------------
+
+Version 7.2.0 has support for "reliable projections" into custom
+ORM objects that they can be coded as process application policies.
+
+Also a few issues were resolved: avoiding importing Django models from library
+when custom models are being used to store events prevents model conflicts;
+fixed multiprocess runner to work when an application is not being followed
+by another; process applications now reflect off the sequenced item tuple when
+reading notifications so that custom field names are used.
+
+
 Version 7.1.6 (released 2 Aug 2019)
 ------------------------------------
 

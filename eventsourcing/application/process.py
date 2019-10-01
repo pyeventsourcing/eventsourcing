@@ -3,7 +3,6 @@ from collections import OrderedDict, defaultdict
 from threading import Lock
 
 from eventsourcing.application.notificationlog import NotificationLogReader
-from eventsourcing.application.pipeline import Pipeable
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.application.snapshotting import SnapshottingApplication
 from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
@@ -14,13 +13,14 @@ from eventsourcing.utils.transcoding import json_dumps, json_loads
 
 
 class ProcessEvent(object):
-    def __init__(self, new_events, tracking_kwargs=None, causal_dependencies=None):
+    def __init__(self, new_events, tracking_kwargs=None, causal_dependencies=None, orm_objs=None):
         self.new_events = new_events
         self.tracking_kwargs = tracking_kwargs
         self.causal_dependencies = causal_dependencies
+        self.orm_objs = orm_objs
 
 
-class ProcessApplication(Pipeable, SimpleApplication):
+class ProcessApplication(SimpleApplication):
     set_notification_ids = False
     use_causal_dependencies = False
     notification_log_reader_class = NotificationLogReader
@@ -41,6 +41,10 @@ class ProcessApplication(Pipeable, SimpleApplication):
                                              type(self).notification_log_reader_class
 
         super(ProcessApplication, self).__init__(name=name, setup_table=setup_table, **kwargs)
+
+        if self.event_store:
+            self.notification_topic_key = self.event_store.record_manager.field_names.topic
+            self.notification_state_key = self.event_store.record_manager.field_names.state
 
         # Publish prompts for any domain events that we persist.
         if self.persistence_policy:
@@ -166,7 +170,7 @@ class ProcessApplication(Pipeable, SimpleApplication):
         else:
             cycle_started = None
         # Call policy with the upstream event.
-        all_aggregates, causal_dependencies = self.call_policy(event)
+        all_aggregates, causal_dependencies, orm_objs = self.call_policy(event)
         # Collect pending events.
         new_events = self.collect_pending_events(all_aggregates)
         # Record process event.
@@ -175,7 +179,10 @@ class ProcessApplication(Pipeable, SimpleApplication):
                 notification_id, upstream_name
             )
             process_event = ProcessEvent(
-                new_events, tracking_kwargs, causal_dependencies
+                new_events=new_events,
+                tracking_kwargs=tracking_kwargs,
+                causal_dependencies=causal_dependencies,
+                orm_objs=orm_objs
             )
             self.record_process_event(process_event)
 
@@ -210,8 +217,8 @@ class ProcessApplication(Pipeable, SimpleApplication):
 
     def get_event_from_notification(self, notification):
         return self.event_store.mapper.event_from_topic_and_state(
-            topic=notification['topic'],
-            state=notification['state']
+            topic=notification[self.notification_topic_key],
+            state=notification[self.notification_state_key]
         )
 
     def get_notification_generator(self, upstream_name, advance_by):
@@ -249,7 +256,7 @@ class ProcessApplication(Pipeable, SimpleApplication):
         policy = self.policy_func or self.policy
 
         # Wrap the actual repository, so we can collect aggregates.
-        repository = RepositoryWrapper(self.repository)
+        repository = WrappedRepository(self.repository)
 
         # Actually call the policy.
         new_aggregates = policy(repository, event)
@@ -260,9 +267,9 @@ class ProcessApplication(Pipeable, SimpleApplication):
         if new_aggregates is not None:
             if not isinstance(new_aggregates, (list, tuple)):
                 new_aggregates = [new_aggregates]
-                if self.repository._use_cache:
-                    for new_aggregate in new_aggregates:
-                        self.repository._cache[new_aggregate.id] = new_aggregate
+            if self.repository._use_cache:
+                for new_aggregate in new_aggregates:
+                    self.repository._cache[new_aggregate.id] = new_aggregate
             all_aggregates += new_aggregates
 
         # Identify causal dependencies.
@@ -284,7 +291,7 @@ class ProcessApplication(Pipeable, SimpleApplication):
                 })
         # Todo: Optionally reference causal dependencies in current pipeline.
         # Todo: Support processing notification from a single pipeline in parallel, according to dependencies.
-        return all_aggregates, causal_dependencies
+        return all_aggregates, causal_dependencies, repository.pending_orm_objs
 
     @staticmethod
     def policy(repository, event):
@@ -332,7 +339,7 @@ class ProcessApplication(Pipeable, SimpleApplication):
             'notification_id': notification_id,
         }
 
-    def record_process_event(self, process_event):
+    def record_process_event(self, process_event: ProcessEvent):
         # Construct event records.
         event_records = self.construct_event_records(process_event.new_events,
                                                      process_event.causal_dependencies)
@@ -341,7 +348,8 @@ class ProcessApplication(Pipeable, SimpleApplication):
         record_manager = self.event_store.record_manager
         assert isinstance(record_manager, ACIDRecordManager)
         record_manager.write_records(records=event_records,
-                                     tracking_kwargs=process_event.tracking_kwargs)
+                                     tracking_kwargs=process_event.tracking_kwargs,
+                                     orm_objs=process_event.orm_objs)
 
     def construct_event_records(self, pending_events, causal_dependencies=None):
         # Convert to event records.
@@ -383,12 +391,20 @@ class ProcessApplication(Pipeable, SimpleApplication):
             )
 
 
-class RepositoryWrapper(object):
-    def __init__(self, repository):
+class WrappedRepository(object):
+    """
+    Used to wrap an event sourced repository for use in process application
+    policy so that use of, and changes to, domain model aggregates can be
+    automatically detected and recorded.
+
+    Implements a "dictionary like" interface, so that aggregates can be
+    accessed by ID.
+    """
+    def __init__(self, repository: EventSourcedRepository):
         self.retrieved_aggregates = {}
-        assert isinstance(repository, EventSourcedRepository)
         self.repository = repository
         self.causal_dependencies = []
+        self.pending_orm_objs = []
 
     def __getitem__(self, entity_id):
         try:
@@ -401,6 +417,14 @@ class RepositoryWrapper(object):
 
     def __contains__(self, entity_id):
         return self.repository.__contains__(entity_id)
+
+    def save_orm_obj(self, orm_obj):
+        """
+        Includes orm_obj in "process event", so that projections into
+        custom ORM objects is as reliable with respect to sudden restarts
+        as "normal" domain event processing in a process application.
+        """
+        self.pending_orm_objs.append(orm_obj)
 
 
 class Prompt(object):

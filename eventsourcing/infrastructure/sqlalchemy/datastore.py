@@ -59,6 +59,7 @@ class SQLAlchemyDatastore(AbstractDatastore):
             self._engine = create_engine(
                 self.settings.uri,
                 strategy=self._connection_strategy,
+                # echo=True,
                 **kwargs
             )
             assert self._engine

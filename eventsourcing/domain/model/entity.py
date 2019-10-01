@@ -425,7 +425,13 @@ class TimeuuidedVersionedEntity(TimeuuidedEntity, VersionedEntity):
 
 
 class AbstractEventPlayer(object):
-    pass
+
+    @property
+    @abstractmethod
+    def event_store(self):
+        """
+        Returns event store object used by this repository.
+        """
 
 
 class AbstractEntityRepository(AbstractEventPlayer):
@@ -445,13 +451,6 @@ class AbstractEntityRepository(AbstractEventPlayer):
     def get_entity(self, entity_id, at=None):
         """
         Returns entity for given ID.
-        """
-
-    @property
-    @abstractmethod
-    def event_store(self):
-        """
-        Returns event store object used by this repository.
         """
 
     @abstractmethod

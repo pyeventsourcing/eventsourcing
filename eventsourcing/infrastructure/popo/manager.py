@@ -166,7 +166,7 @@ class PopoRecordManager(ACIDRecordManager):
         records = self.to_records(sequenced_item_or_items)
         self.write_records(records=records)
 
-    def write_records(self, records, tracking_kwargs=None):
+    def write_records(self, records, tracking_kwargs=None, orm_objs=None):
         with self._rw_lock.gen_wlock():
             # Write event and notification records.
             self._insert_records(records)

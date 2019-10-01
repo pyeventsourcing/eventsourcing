@@ -2,7 +2,7 @@ from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.infrastructure.datastore import AbstractDatastore
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
-from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper, AbstractSequencedItemMapper
+from eventsourcing.infrastructure.sequenceditemmapper import AbstractSequencedItemMapper, SequencedItemMapper
 
 
 class InfrastructureFactory(object):
@@ -23,44 +23,59 @@ class InfrastructureFactory(object):
     def __init__(self, record_manager_class=None, sequenced_item_class=None, event_store_class=None,
                  sequenced_item_mapper_class=None, json_encoder_class=None, json_decoder_class=None,
                  integer_sequenced_record_class=None, timestamp_sequenced_record_class=None,
-                 snapshot_record_class=None, contiguous_record_ids=False, application_name=None,
-                 pipeline_id=DEFAULT_PIPELINE_ID):
+                 snapshot_record_class=None, contiguous_record_ids=False,
+                 application_name=None, pipeline_id=DEFAULT_PIPELINE_ID):
+        self.record_manager_class = record_manager_class or type(self).record_manager_class
+        self.event_store_class = event_store_class or type(self).event_store_class
+        self.sequenced_item_class = sequenced_item_class or type(self).sequenced_item_class
+        self.sequenced_item_mapper_class = sequenced_item_mapper_class or type(self).sequenced_item_mapper_class
+        self.json_encoder_class = json_encoder_class or type(self).json_encoder_class
+        self.json_decoder_class = json_decoder_class or type(self).json_decoder_class
 
-        self.record_manager_class = record_manager_class or self.record_manager_class
-        self.event_store_class = event_store_class or self.event_store_class
-        self.sequenced_item_class = sequenced_item_class or self.sequenced_item_class
-        self.sequenced_item_mapper_class = sequenced_item_mapper_class or self.sequenced_item_mapper_class
-        self.json_encoder_class = json_encoder_class or self.json_encoder_class
-        self.json_decoder_class = json_decoder_class or self.json_decoder_class
+        self._integer_sequenced_record_class = integer_sequenced_record_class
 
-        self.integer_sequenced_record_class = integer_sequenced_record_class or self.integer_sequenced_record_class
+        self._timestamp_sequenced_record_class = timestamp_sequenced_record_class
 
-        self.timestamp_sequenced_record_class = timestamp_sequenced_record_class or \
-                                                self.timestamp_sequenced_record_class
-
-        self.snapshot_record_class = snapshot_record_class or self.snapshot_record_class
+        self._snapshot_record_class = snapshot_record_class
 
         self.contiguous_record_ids = contiguous_record_ids
         self.application_name = application_name
         self.pipeline_id = pipeline_id
 
-    def construct_integer_sequenced_record_manager(self):
+    def construct_integer_sequenced_record_manager(self, **kwargs):
         """
         Constructs an integer sequenced record manager.
         """
-        return self.construct_record_manager(self.integer_sequenced_record_class)
+        integer_sequenced_record_class = self._integer_sequenced_record_class \
+                                         or self.integer_sequenced_record_class
 
-    def construct_timestamp_sequenced_record_manager(self):
+        return self.construct_record_manager(
+            integer_sequenced_record_class,
+            **kwargs
+        )
+
+    def construct_timestamp_sequenced_record_manager(self, **kwargs):
         """
         Constructs a timestamp sequenced record manager.
         """
-        return self.construct_record_manager(self.timestamp_sequenced_record_class)
+        timestamp_sequenced_record_class = self._timestamp_sequenced_record_class \
+                                           or self.timestamp_sequenced_record_class
 
-    def construct_snapshot_record_manager(self):
+        return self.construct_record_manager(
+            timestamp_sequenced_record_class,
+            **kwargs
+        )
+
+    def construct_snapshot_record_manager(self, **kwargs):
         """
         Constructs a snapshot record manager.
         """
-        return self.construct_record_manager(self.snapshot_record_class)
+        snapshot_record_class = self._snapshot_record_class or self.snapshot_record_class
+
+        return self.construct_record_manager(
+            snapshot_record_class,
+            **kwargs
+        )
 
     def construct_record_manager(self, record_class, sequenced_item_class=None, **kwargs):
         """
@@ -98,7 +113,7 @@ class InfrastructureFactory(object):
         sequenced_item_mapper = self.construct_sequenced_item_mapper(cipher)
         record_manager = self.construct_integer_sequenced_record_manager()
         return self.event_store_class(
-            record_manager=record_manager,
+            record_manager,
             sequenced_item_mapper=sequenced_item_mapper,
         )
 
