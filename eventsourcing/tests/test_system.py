@@ -326,6 +326,11 @@ class TestSystem(TestCase):
         # Check order is reserved.
         assert order.is_reserved
 
+    def test_system_with_single_application_class(self):
+        system = System(Orders)  # this was breaking because PipeableMetaclass was not iterable
+        with system as runner:
+            self.assertIsInstance(runner.orders, Orders)
+
     def tearDown(self):
         assert_event_handlers_empty()
         clear_event_handlers()

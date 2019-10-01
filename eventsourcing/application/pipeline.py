@@ -32,6 +32,9 @@ class PipeableMetaclass(ABCMeta):
         """
         return PipelineExpression(self, other)
 
+    def __iter__(self):
+        yield self
+
 
 class Pipeable(metaclass=PipeableMetaclass):
     """
