@@ -1,4 +1,7 @@
-from eventsourcing.domain.model.timebucketedlog import Timebucketedlog, TimebucketedlogRepository
+from eventsourcing.domain.model.timebucketedlog import (
+    Timebucketedlog,
+    TimebucketedlogRepository,
+)
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 
 

@@ -1,5 +1,7 @@
 from eventsourcing.tests.example_application_tests import base
-from eventsourcing.tests.sequenced_item_tests.test_popo_record_manager import PopoTestCase
+from eventsourcing.tests.sequenced_item_tests.test_popo_record_manager import (
+    PopoTestCase,
+)
 
 
 class TestExampleApplicationWithPopo(PopoTestCase, base.ExampleApplicationTestCase):

@@ -30,7 +30,7 @@ def encode_bytes(bytes):
     Encodes bytes as Base64 unicode string.
 
     """
-    return b64encode(bytes).decode('utf-8')
+    return b64encode(bytes).decode("utf-8")
 
 
 def decode_bytes(s):
@@ -41,4 +41,4 @@ def decode_bytes(s):
     :returns: Bytes that were encoded with Base64.
     :rtype: bytes
     """
-    return b64decode(s.encode('utf-8'))
+    return b64decode(s.encode("utf-8"))

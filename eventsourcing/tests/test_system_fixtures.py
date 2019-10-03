@@ -9,11 +9,13 @@ from eventsourcing.tests.test_process import ExampleAggregate
 
 
 def set_db_uri():
-    host = os.getenv('MYSQL_HOST', '127.0.0.1')
-    user = os.getenv('MYSQL_USER', 'root')
-    password = os.getenv('MYSQL_PASSWORD', '')
-    db_uri = 'mysql+pymysql://{}:{}@{}/eventsourcing?charset=utf8mb4&binary_prefix=true'.format(user, password, host)
-    os.environ['DB_URI'] = db_uri
+    host = os.getenv("MYSQL_HOST", "127.0.0.1")
+    user = os.getenv("MYSQL_USER", "root")
+    password = os.getenv("MYSQL_PASSWORD", "")
+    db_uri = "mysql+pymysql://{}:{}@{}/eventsourcing?charset=utf8mb4&binary_prefix=true".format(
+        user, password, host
+    )
+    os.environ["DB_URI"] = db_uri
 
 
 class Order(BaseAggregateRoot):
@@ -22,9 +24,11 @@ class Order(BaseAggregateRoot):
         self.is_reserved = False
         self.is_paid = False
 
-    class Event(BaseAggregateRoot.Event): pass
+    class Event(BaseAggregateRoot.Event):
+        pass
 
-    class Created(Event, BaseAggregateRoot.Created): pass
+    class Created(Event, BaseAggregateRoot.Created):
+        pass
 
     class Reserved(Event):
         def mutate(self, order):
@@ -50,9 +54,11 @@ class Reservation(BaseAggregateRoot):
         super(Reservation, self).__init__(**kwargs)
         self.order_id = order_id
 
-    class Event(BaseAggregateRoot.Event): pass
+    class Event(BaseAggregateRoot.Event):
+        pass
 
-    class Created(Event, BaseAggregateRoot.Created): pass
+    class Created(Event, BaseAggregateRoot.Created):
+        pass
 
     @classmethod
     def create(cls, order_id):
@@ -64,9 +70,11 @@ class Payment(BaseAggregateRoot):
         super(Payment, self).__init__(**kwargs)
         self.order_id = order_id
 
-    class Event(BaseAggregateRoot.Event): pass
+    class Event(BaseAggregateRoot.Event):
+        pass
 
-    class Created(Event, BaseAggregateRoot.Created): pass
+    class Created(Event, BaseAggregateRoot.Created):
+        pass
 
     @classmethod
     def make(self, order_id):

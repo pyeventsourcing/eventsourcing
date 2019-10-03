@@ -1,6 +1,9 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity
+from eventsourcing.domain.model.entity import (
+    AbstractEntityRepository,
+    TimestampedVersionedEntity,
+)
 
 
 class Collection(TimestampedVersionedEntity):
@@ -16,7 +19,7 @@ class Collection(TimestampedVersionedEntity):
     class EventWithItem(Event):
         @property
         def item(self):
-            return self.__dict__['item']
+            return self.__dict__["item"]
 
     class ItemAdded(EventWithItem):
         def __mutate__(self, obj):

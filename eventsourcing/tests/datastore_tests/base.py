@@ -1,6 +1,9 @@
 from abc import abstractmethod
 
-from eventsourcing.infrastructure.datastore import DatastoreConnectionError, DatastoreTableError
+from eventsourcing.infrastructure.datastore import (
+    DatastoreConnectionError,
+    DatastoreTableError,
+)
 from eventsourcing.tests.base import AbstractTestCase
 
 
@@ -8,6 +11,7 @@ class AbstractDatastoreTestCase(AbstractTestCase):
     """
     Base class for test cases that use a datastore.
     """
+
     infrastructure_factory_class = None
     contiguous_record_ids = False
 
@@ -39,10 +43,10 @@ class AbstractDatastoreTestCase(AbstractTestCase):
     def factory(self):
         if not self._factory:
             kwargs = {}
-            if hasattr(self.datastore, 'session'):
-                kwargs['session'] = self.datastore.session
+            if hasattr(self.datastore, "session"):
+                kwargs["session"] = self.datastore.session
             if self.contiguous_record_ids:
-                kwargs['contiguous_record_ids'] = True
+                kwargs["contiguous_record_ids"] = True
             self._factory = self.infrastructure_factory_class(**kwargs)
         return self._factory
 
@@ -51,6 +55,7 @@ class DatastoreTestCase(AbstractDatastoreTestCase):
     """
     Test case for datastore objects.
     """
+
     def test(self):
 
         # # Check the stored event class doesn't function before the connection is setup.

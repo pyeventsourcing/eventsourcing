@@ -6,7 +6,10 @@ from eventsourcing.example.domainmodel import create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.cassandra.records import StoredEventRecord
 from eventsourcing.infrastructure.cassandra.manager import CassandraRecordManager
-from eventsourcing.infrastructure.cassandra.datastore import CassandraDatastore, CassandraSettings
+from eventsourcing.infrastructure.cassandra.datastore import (
+    CassandraDatastore,
+    CassandraSettings,
+)
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
@@ -18,24 +21,20 @@ from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 # to define the new sequenced item class, define a suitable record class,
 # and configure the other components. It's easy.
 
+
 class ExampleApplicationWithAlternativeSequencedItemType(object):
     def __init__(self):
         self.event_store = EventStore(
             record_manager=CassandraRecordManager(
-                record_class=StoredEventRecord,
-                sequenced_item_class=StoredEvent,
+                record_class=StoredEventRecord, sequenced_item_class=StoredEvent
             ),
             sequenced_item_mapper=SequencedItemMapper(
-                sequenced_item_class=StoredEvent,
-                other_attr_names=(),
-            )
+                sequenced_item_class=StoredEvent, other_attr_names=()
+            ),
         )
-        self.repository = ExampleRepository(
-            event_store=self.event_store,
-        )
+        self.repository = ExampleRepository(event_store=self.event_store)
         self.persistence_policy = PersistencePolicy(
-            event_store=self.event_store,
-            persist_event_type=DomainEvent
+            event_store=self.event_store, persist_event_type=DomainEvent
         )
 
     def __enter__(self):
@@ -58,18 +57,16 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
 
     def construct_datastore(self):
         return CassandraDatastore(
-            settings=CassandraSettings(),
-            tables=(StoredEventRecord,)
-
+            settings=CassandraSettings(), tables=(StoredEventRecord,)
         )
 
     def test(self):
         with ExampleApplicationWithAlternativeSequencedItemType() as app:
             # Create entity.
-            entity1 = create_new_example(a='a', b='b')
+            entity1 = create_new_example(a="a", b="b")
             self.assertIsInstance(entity1.id, UUID)
-            self.assertEqual(entity1.a, 'a')
-            self.assertEqual(entity1.b, 'b')
+            self.assertEqual(entity1.a, "a")
+            self.assertEqual(entity1.b, "b")
 
             # Check there is a stored event.
             all_records = list(app.event_store.record_manager.get_records(entity1.id))

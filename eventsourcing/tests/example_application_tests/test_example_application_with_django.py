@@ -1,5 +1,7 @@
 from eventsourcing.tests.example_application_tests import base
-from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import DjangoTestCase
+from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import (
+    DjangoTestCase,
+)
 
 
 class TestExampleApplicationWithDjango(DjangoTestCase, base.ExampleApplicationTestCase):
@@ -8,4 +10,3 @@ class TestExampleApplicationWithDjango(DjangoTestCase, base.ExampleApplicationTe
 
     def construct_entity_record_manager(self):
         return self.factory.construct_integer_sequenced_record_manager()
-

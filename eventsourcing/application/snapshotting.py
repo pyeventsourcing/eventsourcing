@@ -23,7 +23,7 @@ class SnapshottingApplication(SimpleApplication):
             record_manager=self.infrastructure_factory.construct_snapshot_record_manager(),
             sequenced_item_mapper=self.sequenced_item_mapper_class(
                 sequenced_item_class=self.sequenced_item_class
-            )
+            ),
         )
 
     def construct_repository(self, **kwargs):
@@ -41,7 +41,7 @@ class SnapshottingApplication(SimpleApplication):
             repository=self.repository,
             snapshot_store=self.snapshot_store,
             persist_event_type=self.persist_event_type,
-            period=self.snapshot_period
+            period=self.snapshot_period,
         )
 
     def setup_table(self):

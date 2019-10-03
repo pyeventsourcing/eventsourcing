@@ -4,14 +4,17 @@ from uuid import uuid4
 from mock import mock
 
 from eventsourcing.domain.model.decorators import mutator, retry, subscribe_to
-from eventsourcing.domain.model.events import EventHandlersNotEmptyError, \
-    assert_event_handlers_empty, publish, clear_event_handlers
+from eventsourcing.domain.model.events import (
+    EventHandlersNotEmptyError,
+    assert_event_handlers_empty,
+    publish,
+    clear_event_handlers,
+)
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.utils.topic import get_topic
 
 
 class TestDecorators(TestCase):
-
     def tearDown(self):
         clear_event_handlers()
 
@@ -52,7 +55,7 @@ class TestDecorators(TestCase):
 
         # Check TypeError is raised if args have incorrect values.
         with self.assertRaises(TypeError):
-            retry(max_attempts='')  # needs to be an int
+            retry(max_attempts="")  # needs to be an int
 
         with self.assertRaises(TypeError):
             retry(exc=TestCase)  # need to be subclass of Exception (single value)
@@ -61,14 +64,16 @@ class TestDecorators(TestCase):
             retry(exc=(TestCase,))  # need to be subclass of Exception (tuple)
 
         with self.assertRaises(TypeError):
-            retry(wait='')  # needs to be a float
+            retry(wait="")  # needs to be a float
 
     def test_mutate_without_arg(self):
         # Define an entity class, and event class, and a mutator function.
 
-        class Entity(object): pass
+        class Entity(object):
+            pass
 
-        class Event(object): pass
+        class Event(object):
+            pass
 
         @mutator
         def mutate_entity(initial, event):
@@ -93,9 +98,11 @@ class TestDecorators(TestCase):
     def test_mutate_with_arg(self):
         # Define an entity class, and event class, and a mutator function.
 
-        class Entity(object): pass
+        class Entity(object):
+            pass
 
-        class Event(object): pass
+        class Event(object):
+            pass
 
         @mutator(Entity)
         def mutate_entity(initial, event):
@@ -120,14 +127,9 @@ class TestDecorators(TestCase):
     def test_subscribe_to_decorator(self):
         entity_id1 = uuid4()
         event1 = Example.Created(
-            originator_id=entity_id1,
-            originator_topic=get_topic(Example),
-            a=1, b=2
+            originator_id=entity_id1, originator_topic=get_topic(Example), a=1, b=2
         )
-        event2 = Example.Discarded(
-            originator_id=entity_id1,
-            originator_version=1,
-        )
+        event2 = Example.Discarded(originator_id=entity_id1, originator_version=1)
         handler1 = mock.Mock()
         handler2 = mock.Mock()
         handler3 = mock.Mock()
@@ -154,9 +156,9 @@ class TestDecorators(TestCase):
             handler3(e)
 
         # Check the decorator doesn't mess with the function doc string.
-        self.assertEqual('Doc string', test_handler1.__doc__)
-        self.assertEqual('Doc string', test_handler2.__doc__)
-        self.assertEqual('Doc string', test_handler3.__doc__)
+        self.assertEqual("Doc string", test_handler1.__doc__)
+        self.assertEqual("Doc string", test_handler2.__doc__)
+        self.assertEqual("Doc string", test_handler3.__doc__)
 
         # Check can fail to assert event handlers empty.
         self.assertRaises(EventHandlersNotEmptyError, assert_event_handlers_empty)

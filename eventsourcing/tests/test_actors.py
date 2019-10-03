@@ -4,14 +4,27 @@ import time
 import unittest
 from unittest import skip
 
-from eventsourcing.application.actors import ActorModelRunner, shutdown_actor_system, start_actor_system, \
-    start_multiproc_tcp_base_system
+from eventsourcing.application.actors import (
+    ActorModelRunner,
+    shutdown_actor_system,
+    start_actor_system,
+    start_multiproc_tcp_base_system,
+)
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.application.system import System
-from eventsourcing.domain.model.events import assert_event_handlers_empty, clear_event_handlers
-from eventsourcing.tests.test_system_fixtures import Orders, Payments, Reservations, create_new_order, set_db_uri
+from eventsourcing.domain.model.events import (
+    assert_event_handlers_empty,
+    clear_event_handlers,
+)
+from eventsourcing.tests.test_system_fixtures import (
+    Orders,
+    Payments,
+    Reservations,
+    create_new_order,
+    set_db_uri,
+)
 
-logger = logging.getLogger('')
+logger = logging.getLogger("")
 logger.setLevel(logging.ERROR)
 ch = logging.StreamHandler()
 ch.setLevel(logging.ERROR)
@@ -25,8 +38,10 @@ class TestActors(unittest.TestCase):
         # Set environment.
         set_db_uri()
         # Define system.
-        self.system = System(Orders | Reservations | Orders | Payments | Orders,
-                             infrastructure_class=self.infrastructure_class)
+        self.system = System(
+            Orders | Reservations | Orders | Payments | Orders,
+            infrastructure_class=self.infrastructure_class,
+        )
 
     def test_simple_system_base(self):
         start_actor_system()
@@ -47,7 +62,9 @@ class TestActors(unittest.TestCase):
 
         self.close_connections_before_forking()
 
-        actors = ActorModelRunner(self.system, pipeline_ids=pipeline_ids, shutdown_on_close=True)
+        actors = ActorModelRunner(
+            self.system, pipeline_ids=pipeline_ids, shutdown_on_close=True
+        )
 
         # Todo: Use wakeupAfter() to poll for new notifications (see Timer Messages).
 
@@ -71,7 +88,9 @@ class TestActors(unittest.TestCase):
                 while not app.repository[order_id].is_reserved:
                     time.sleep(0.1)
                     retries -= 1
-                    assert retries, "Failed set order.is_reserved {} ({})".format(order_id, i)
+                    assert retries, "Failed set order.is_reserved {} ({})".format(
+                        order_id, i
+                    )
 
                 while retries and not app.repository[order_id].is_paid:
                     time.sleep(0.1)
@@ -85,19 +104,25 @@ class TestActors(unittest.TestCase):
             duration = last_timestamp - first_timestamp
             rate = len(order_ids) / float(duration)
             period = 1 / rate
-            print("Orders system processed {} orders in {:.3f}s at rate of {:.1f} "
-                  "orders/s, {:.3f}s each".format(len(order_ids), duration, rate, period))
+            print(
+                "Orders system processed {} orders in {:.3f}s at rate of {:.1f} "
+                "orders/s, {:.3f}s each".format(len(order_ids), duration, rate, period)
+            )
 
             # Print min, average, max duration.
             durations = [o.__last_modified__ - o.__created_on__ for o in orders]
             print("Min order processing time: {:.3f}s".format(min(durations)))
-            print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
+            print(
+                "Mean order processing time: {:.3f}s".format(
+                    sum(durations) / len(durations)
+                )
+            )
             print("Max order processing time: {:.3f}s".format(max(durations)))
 
     def tearDown(self):
         # Unset environment.
         try:
-            del (os.environ['DB_URI'])
+            del os.environ["DB_URI"]
         except KeyError:
             pass
 

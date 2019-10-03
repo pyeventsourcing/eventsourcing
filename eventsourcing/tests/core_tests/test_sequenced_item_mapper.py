@@ -39,8 +39,8 @@ class TestSequencedItemMapper(TestCase):
         # Setup the mapper, and create an event.
         mapper = SequencedItemMapper(
             sequenced_item_class=SequencedItem,
-            sequence_id_attr_name='originator_id',
-            position_attr_name='originator_version'
+            sequence_id_attr_name="originator_id",
+            position_attr_name="originator_version",
         )
         entity_id1 = uuid4()
         event1 = Event1(originator_id=entity_id1, originator_version=101)
@@ -71,12 +71,12 @@ class TestSequencedItemMapper(TestCase):
         # Setup the mapper, and create an event.
         mapper = SequencedItemMapper(
             sequenced_item_class=SequencedItem,
-            sequence_id_attr_name='originator_id',
-            position_attr_name='timestamp'
+            sequence_id_attr_name="originator_id",
+            position_attr_name="timestamp",
         )
         before = decimaltimestamp()
         sleep(0.000001)  # Avoid test failing due to timestamp having limited precision.
-        event2 = Event2(originator_id='entity2')
+        event2 = Event2(originator_id="entity2")
         sleep(0.000001)  # Avoid test failing due to timestamp having limited precision.
         after = decimaltimestamp()
 
@@ -85,7 +85,7 @@ class TestSequencedItemMapper(TestCase):
         self.assertIsInstance(sequenced_item, SequencedItem)
         self.assertGreater(sequenced_item.position, before)
         self.assertLess(sequenced_item.position, after)
-        self.assertEqual(sequenced_item.sequence_id, 'entity2')
+        self.assertEqual(sequenced_item.sequence_id, "entity2")
         self.assertEqual(sequenced_item.topic, get_topic(Event2))
         self.assertTrue(sequenced_item.state)
 
@@ -107,23 +107,23 @@ class TestSequencedItemMapper(TestCase):
         # Setup the mapper, and create an event.
         mapper = SequencedItemMapper(
             sequenced_item_class=SequencedItem,
-            sequence_id_attr_name='originator_id',
-            position_attr_name='a'
+            sequence_id_attr_name="originator_id",
+            position_attr_name="a",
         )
 
         # Check value objects can be compared ok.
-        self.assertEqual(ValueObject1('value1'), ValueObject1('value1'))
-        self.assertNotEqual(ValueObject1('value1'), ValueObject1('value2'))
+        self.assertEqual(ValueObject1("value1"), ValueObject1("value1"))
+        self.assertNotEqual(ValueObject1("value1"), ValueObject1("value2"))
 
         # Create an event with dates and datetimes.
         event3 = Event3(
-            originator_id='entity3',
+            originator_id="entity3",
             originator_version=303,
             a=datetime.datetime(2017, 3, 22, 9, 12, 14),
             b=datetime.date(2017, 3, 22),
             c=uuid4(),
             # d=Decimal(1.1),
-            e=ValueObject1('value1'),
+            e=ValueObject1("value1"),
         )
 
         # Check to_sequenced_item() method results in a sequenced item.

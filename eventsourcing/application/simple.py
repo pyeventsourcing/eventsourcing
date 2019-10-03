@@ -23,6 +23,7 @@ class SimpleApplication(Pipeable):
 
     Needs actual infrastructure classes.
     """
+
     infrastructure_factory_class = InfrastructureFactory
     is_constructed_with_session = False
 
@@ -42,12 +43,25 @@ class SimpleApplication(Pipeable):
     event_store_class = EventStore
     repository_class = EventSourcedRepository
 
-    def __init__(self, name='', persistence_policy=None, persist_event_type=None,
-                 cipher_key=None, sequenced_item_class=None, sequenced_item_mapper_class=None,
-                 record_manager_class=None, stored_event_record_class=None, event_store_class=None,
-                 snapshot_record_class=None, setup_table=True,
-                 contiguous_record_ids=True, pipeline_id=DEFAULT_PIPELINE_ID, json_encoder_class=None,
-                 json_decoder_class=None, notification_log_section_size=None):
+    def __init__(
+        self,
+        name="",
+        persistence_policy=None,
+        persist_event_type=None,
+        cipher_key=None,
+        sequenced_item_class=None,
+        sequenced_item_mapper_class=None,
+        record_manager_class=None,
+        stored_event_record_class=None,
+        event_store_class=None,
+        snapshot_record_class=None,
+        setup_table=True,
+        contiguous_record_ids=True,
+        pipeline_id=DEFAULT_PIPELINE_ID,
+        json_encoder_class=None,
+        json_decoder_class=None,
+        notification_log_section_size=None,
+    ):
         self._datastore = None
         self._event_store = None
         self._repository = None
@@ -57,15 +71,19 @@ class SimpleApplication(Pipeable):
 
         self.notification_log_section_size = notification_log_section_size
 
-        self.sequenced_item_class = sequenced_item_class \
-                                    or type(self).sequenced_item_class \
-                                    or StoredEvent
+        self.sequenced_item_class = (
+            sequenced_item_class or type(self).sequenced_item_class or StoredEvent
+        )
 
-        self.sequenced_item_mapper_class = sequenced_item_mapper_class \
-                                           or type(self).sequenced_item_mapper_class \
-                                           or SequencedItemMapper
+        self.sequenced_item_mapper_class = (
+            sequenced_item_mapper_class
+            or type(self).sequenced_item_mapper_class
+            or SequencedItemMapper
+        )
 
-        self.record_manager_class = record_manager_class or type(self).record_manager_class
+        self.record_manager_class = (
+            record_manager_class or type(self).record_manager_class
+        )
 
         self.event_store_class = event_store_class or type(self).event_store_class
 
@@ -83,7 +101,10 @@ class SimpleApplication(Pipeable):
 
         self.construct_cipher(cipher_key)
 
-        if self.record_manager_class or self.infrastructure_factory_class.record_manager_class:
+        if (
+            self.record_manager_class
+            or self.infrastructure_factory_class.record_manager_class
+        ):
             self.construct_infrastructure()
 
             if setup_table:
@@ -106,11 +127,13 @@ class SimpleApplication(Pipeable):
         return self._repository
 
     def construct_cipher(self, cipher_key):
-        cipher_key = decode_bytes(cipher_key or os.getenv('CIPHER_KEY', ''))
+        cipher_key = decode_bytes(cipher_key or os.getenv("CIPHER_KEY", ""))
         self.cipher = AESCipher(cipher_key) if cipher_key else None
 
     def construct_infrastructure(self, *args, **kwargs):
-        self.infrastructure_factory = self.construct_infrastructure_factory(*args, **kwargs)
+        self.infrastructure_factory = self.construct_infrastructure_factory(
+            *args, **kwargs
+        )
         self.construct_datastore()
         self.construct_event_store()
         self.construct_repository()
@@ -122,8 +145,12 @@ class SimpleApplication(Pipeable):
         factory_class = self.infrastructure_factory_class
         assert issubclass(factory_class, InfrastructureFactory)
 
-        integer_sequenced_record_class = self._stored_event_record_class or self.stored_event_record_class
-        snapshot_record_class = self._snapshot_record_class or self.snapshot_record_class
+        integer_sequenced_record_class = (
+            self._stored_event_record_class or self.stored_event_record_class
+        )
+        snapshot_record_class = (
+            self._snapshot_record_class or self.snapshot_record_class
+        )
 
         return factory_class(
             record_manager_class=self.record_manager_class,
@@ -135,46 +162,42 @@ class SimpleApplication(Pipeable):
             application_name=self.name,
             pipeline_id=self.pipeline_id,
             event_store_class=self.event_store_class,
-            *args, **kwargs
+            *args,
+            **kwargs
         )
 
     def construct_datastore(self):
         self._datastore = self.infrastructure_factory.construct_datastore()
 
     def construct_event_store(self):
-        self._event_store = self.infrastructure_factory.construct_integer_sequenced_event_store(self.cipher)
+        self._event_store = self.infrastructure_factory.construct_integer_sequenced_event_store(
+            self.cipher
+        )
 
     def construct_repository(self, **kwargs):
         self._repository = self.repository_class(
-            event_store=self.event_store,
-            use_cache=self.use_cache,
-            **kwargs
+            event_store=self.event_store, use_cache=self.use_cache, **kwargs
         )
 
     def setup_table(self):
         # Setup the database table using event store's record class.
         if self.datastore is not None:
-            self.datastore.setup_table(
-                self.event_store.record_manager.record_class
-            )
+            self.datastore.setup_table(self.event_store.record_manager.record_class)
 
     def drop_table(self):
         # Drop the database table using event store's record class.
         if self.datastore is not None:
-            self.datastore.drop_table(
-                self.event_store.record_manager.record_class
-            )
+            self.datastore.drop_table(self.event_store.record_manager.record_class)
 
     def construct_notification_log(self):
         self.notification_log = RecordManagerNotificationLog(
             self.event_store.record_manager,
-            section_size=self.notification_log_section_size
+            section_size=self.notification_log_section_size,
         )
 
     def construct_persistence_policy(self):
         self.persistence_policy = PersistencePolicy(
-            event_store=self.event_store,
-            persist_event_type=self.persist_event_type
+            event_store=self.event_store, persist_event_type=self.persist_event_type
         )
 
     def change_pipeline(self, pipeline_id):

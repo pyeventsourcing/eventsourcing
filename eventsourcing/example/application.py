@@ -28,17 +28,20 @@ class ApplicationWithEventStores(ABC):
     for entity events, and for snapshot events.
     """
 
-    def __init__(self, entity_record_manager=None,
-                 log_record_manager=None,
-                 snapshot_record_manager=None,
-                 cipher=None,
-                 sequenced_item_mapper_class=SequencedItemMapper):
+    def __init__(
+        self,
+        entity_record_manager=None,
+        log_record_manager=None,
+        snapshot_record_manager=None,
+        cipher=None,
+        sequenced_item_mapper_class=SequencedItemMapper,
+    ):
 
         self.entity_event_store = None
         if entity_record_manager:
             self.entity_event_store = self.construct_event_store(
-                event_sequence_id_attr='originator_id',
-                event_position_attr='originator_version',
+                event_sequence_id_attr="originator_id",
+                event_position_attr="originator_version",
                 record_manager=entity_record_manager,
                 cipher=cipher,
                 sequenced_item_mapper_class=sequenced_item_mapper_class,
@@ -47,8 +50,8 @@ class ApplicationWithEventStores(ABC):
         self.log_event_store = None
         if log_record_manager:
             self.log_event_store = self.construct_event_store(
-                event_sequence_id_attr='originator_id',
-                event_position_attr='timestamp',
+                event_sequence_id_attr="originator_id",
+                event_position_attr="timestamp",
                 record_manager=log_record_manager,
                 cipher=cipher,
                 sequenced_item_mapper_class=sequenced_item_mapper_class,
@@ -57,15 +60,21 @@ class ApplicationWithEventStores(ABC):
         self.snapshot_event_store = None
         if snapshot_record_manager:
             self.snapshot_event_store = self.construct_event_store(
-                event_sequence_id_attr='originator_id',
-                event_position_attr='originator_version',
+                event_sequence_id_attr="originator_id",
+                event_position_attr="originator_version",
                 record_manager=snapshot_record_manager,
                 cipher=cipher,
                 sequenced_item_mapper_class=sequenced_item_mapper_class,
             )
 
-    def construct_event_store(self, sequenced_item_mapper_class, event_sequence_id_attr, event_position_attr,
-                              record_manager, cipher=None):
+    def construct_event_store(
+        self,
+        sequenced_item_mapper_class,
+        event_sequence_id_attr,
+        event_position_attr,
+        record_manager,
+        cipher=None,
+    ):
         sequenced_item_mapper = self.construct_sequenced_item_mapper(
             sequenced_item_mapper_class=sequenced_item_mapper_class,
             sequenced_item_class=record_manager.sequenced_item_class,
@@ -74,19 +83,20 @@ class ApplicationWithEventStores(ABC):
             cipher=cipher,
         )
         event_store = EventStore(
-            record_manager=record_manager,
-            sequenced_item_mapper=sequenced_item_mapper,
+            record_manager=record_manager, sequenced_item_mapper=sequenced_item_mapper
         )
         return event_store
 
-    def construct_sequenced_item_mapper(self,
-                                        sequenced_item_mapper_class,
-                                        sequenced_item_class,
-                                        event_sequence_id_attr,
-                                        event_position_attr,
-                                        cipher=None,
-                                        json_encoder_class=ObjectJSONEncoder,
-                                        json_decoder_class=ObjectJSONDecoder):
+    def construct_sequenced_item_mapper(
+        self,
+        sequenced_item_mapper_class,
+        sequenced_item_class,
+        event_sequence_id_attr,
+        event_position_attr,
+        cipher=None,
+        json_encoder_class=ObjectJSONEncoder,
+        json_decoder_class=ObjectJSONDecoder,
+    ):
         return sequenced_item_mapper_class(
             sequenced_item_class=sequenced_item_class,
             sequence_id_attr_name=event_sequence_id_attr,
@@ -125,15 +135,13 @@ class ApplicationWithPersistencePolicies(ApplicationWithEventStores):
     def construct_snapshot_persistence_policy(self):
         if self.snapshot_event_store:
             return PersistencePolicy(
-                event_store=self.snapshot_event_store,
-                persist_event_type=Snapshot,
+                event_store=self.snapshot_event_store, persist_event_type=Snapshot
             )
 
     def construct_log_persistence_policy(self):
         if self.log_event_store:
             return PersistencePolicy(
-                event_store=self.log_event_store,
-                persist_event_type=Logged,
+                event_store=self.log_event_store, persist_event_type=Logged
             )
 
     def close(self):
@@ -159,7 +167,7 @@ class ExampleApplication(ApplicationWithPersistencePolicies):
         self.snapshot_strategy = None
         if self.snapshot_event_store:
             self.snapshot_strategy = EventSourcedSnapshotStrategy(
-                snapshot_store=self.snapshot_event_store,
+                snapshot_store=self.snapshot_event_store
             )
         assert self.entity_event_store is not None
         self.example_repository = ExampleRepository(
@@ -167,7 +175,7 @@ class ExampleApplication(ApplicationWithPersistencePolicies):
             snapshot_strategy=self.snapshot_strategy,
         )
 
-    def create_new_example(self, foo='', a='', b=''):
+    def create_new_example(self, foo="", a="", b=""):
         """Entity object factory."""
         return create_new_example(foo=foo, a=a, b=b)
 

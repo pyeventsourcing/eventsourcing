@@ -8,7 +8,10 @@ from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord, Base
 from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
-from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
+from eventsourcing.infrastructure.sqlalchemy.datastore import (
+    SQLAlchemyDatastore,
+    SQLAlchemySettings,
+)
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 
 
@@ -28,13 +31,11 @@ class ExampleApplicationWithAlternativeSequencedItemType(object):
             ),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=StoredEvent,
-                sequence_id_attr_name='originator_id',
-                position_attr_name='originator_version',
-            )
+                sequence_id_attr_name="originator_id",
+                position_attr_name="originator_version",
+            ),
         )
-        self.repository = ExampleRepository(
-            event_store=self.event_store,
-        )
+        self.repository = ExampleRepository(event_store=self.event_store)
         self.persistence_policy = PersistencePolicy(self.event_store)
 
     def close(self):
@@ -61,18 +62,18 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
 
     def construct_datastore(self):
         return SQLAlchemyDatastore(
-            base=Base,
-            settings=SQLAlchemySettings(),
-            tables=(StoredEventRecord,)
+            base=Base, settings=SQLAlchemySettings(), tables=(StoredEventRecord,)
         )
 
     def _test(self):
-        with ExampleApplicationWithAlternativeSequencedItemType(self.datastore.session) as app:
+        with ExampleApplicationWithAlternativeSequencedItemType(
+            self.datastore.session
+        ) as app:
             # Create entity.
-            entity1 = create_new_example(a='a', b='b')
+            entity1 = create_new_example(a="a", b="b")
             self.assertIsInstance(entity1.id, UUID)
-            self.assertEqual(entity1.a, 'a')
-            self.assertEqual(entity1.b, 'b')
+            self.assertEqual(entity1.a, "a")
+            self.assertEqual(entity1.b, "b")
 
             # Check there is a stored event.
             all_records = list(app.event_store.record_manager.get_notifications())

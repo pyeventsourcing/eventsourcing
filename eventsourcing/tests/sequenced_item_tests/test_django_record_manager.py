@@ -1,6 +1,8 @@
 import os
 
-os.environ['DJANGO_SETTINGS_MODULE'] = 'eventsourcing.tests.djangoproject.djangoproject.settings'
+os.environ[
+    "DJANGO_SETTINGS_MODULE"
+] = "eventsourcing.tests.djangoproject.djangoproject.settings"
 
 import django
 
@@ -25,7 +27,7 @@ class DjangoTestCase(TransactionTestCase):
     def setUp(self):
         super(DjangoTestCase, self).setUp()
         # Setup tables (there isn't a Django datastore object, but we can do it like this).
-        call_command('migrate', verbosity=0, interactive=False)
+        call_command("migrate", verbosity=0, interactive=False)
         sleep(1)
 
     def tearDown(self):
@@ -41,19 +43,25 @@ class DjangoTestCase(TransactionTestCase):
         close_django_connection()
 
 
-class TestDjangoRecordManagerWithIntegerSequences(DjangoTestCase, base.IntegerSequencedRecordTestCase):
+class TestDjangoRecordManagerWithIntegerSequences(
+    DjangoTestCase, base.IntegerSequencedRecordTestCase
+):
     def construct_record_manager(self):
         return self.construct_entity_record_manager()
 
 
-class TestDjangoRecordManagerWithoutContiguousRecordIDs(DjangoTestCase, base.IntegerSequencedRecordTestCase):
+class TestDjangoRecordManagerWithoutContiguousRecordIDs(
+    DjangoTestCase, base.IntegerSequencedRecordTestCase
+):
     contiguous_record_ids = False
 
     def construct_record_manager(self):
         return self.construct_entity_record_manager()
 
 
-class TestDjangoRecordManagerWithTimestampSequences(DjangoTestCase, base.TimestampSequencedItemTestCase):
+class TestDjangoRecordManagerWithTimestampSequences(
+    DjangoTestCase, base.TimestampSequencedItemTestCase
+):
     def construct_record_manager(self):
         return self.construct_timestamp_sequenced_record_manager()
 
@@ -78,7 +86,7 @@ class TestDjangoRecordManagerWithTimestampSequences(DjangoTestCase, base.Timesta
 #                                                   ThreadedSequencedItemIteratorTestCase):
 #     pass
 
-class TestConfigClass(unittest.TestCase):
 
+class TestConfigClass(unittest.TestCase):
     def test(self):
-        self.assertEqual('eventsourcing.infrastructure.django', DjangoConfig.name)
+        self.assertEqual("eventsourcing.infrastructure.django", DjangoConfig.name)

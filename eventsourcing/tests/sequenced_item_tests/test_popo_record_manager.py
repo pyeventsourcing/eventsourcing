@@ -13,16 +13,21 @@ class PopoTestCase(object):
         pass
 
 
-class TestPopoRecordManagerWithIntegerSequences(PopoTestCase, base.IntegerSequencedRecordTestCase):
+class TestPopoRecordManagerWithIntegerSequences(
+    PopoTestCase, base.IntegerSequencedRecordTestCase
+):
     def construct_record_manager(self):
         return self.construct_entity_record_manager()
 
 
-class TestPopoRecordManagerWithoutContiguousRecordIDs(PopoTestCase, base.IntegerSequencedRecordTestCase):
+class TestPopoRecordManagerWithoutContiguousRecordIDs(
+    PopoTestCase, base.IntegerSequencedRecordTestCase
+):
     contiguous_record_ids = False
 
     def construct_record_manager(self):
         return self.construct_entity_record_manager()
+
 
 #
 # class TestPopoRecordManagerWithTimestampSequences(PopoTestCase, base.TimestampSequencedItemTestCase):

@@ -4,30 +4,49 @@ import cassandra.cqlengine
 from cassandra import ConsistencyLevel, OperationTimedOut
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cluster import NoHostAvailable
-from cassandra.cqlengine.management import create_keyspace_simple, drop_keyspace, sync_table
+from cassandra.cqlengine.management import (
+    create_keyspace_simple,
+    drop_keyspace,
+    sync_table,
+)
 
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.exceptions import DatasourceSettingsError
 from eventsourcing.infrastructure.datastore import AbstractDatastore, DatastoreSettings
 
-DEFAULT_HOSTS = '127.0.0.1'
+DEFAULT_HOSTS = "127.0.0.1"
 DEFAULT_PORT = 9042
 DEFAULT_PROTOCOL_VERSION = 3
-DEFAULT_DEFAULT_KEYSPACE = 'eventsourcing'
-DEFAULT_CONSISTENCY_LEVEL = 'LOCAL_QUORUM'
+DEFAULT_DEFAULT_KEYSPACE = "eventsourcing"
+DEFAULT_CONSISTENCY_LEVEL = "LOCAL_QUORUM"
 DEFAULT_REPLICATION_FACTOR = 1
 
 
 class CassandraSettings(DatastoreSettings):
-    HOSTS = [h.strip() for h in os.getenv('CASSANDRA_HOSTS', DEFAULT_HOSTS).split(',')]
-    PORT = int(os.getenv('CASSANDRA_PORT', DEFAULT_PORT))
-    PROTOCOL_VERSION = int(os.getenv('CASSANDRA_PROTOCOL_VERSION', DEFAULT_PROTOCOL_VERSION))
-    DEFAULT_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', DEFAULT_DEFAULT_KEYSPACE)
-    CONSISTENCY_LEVEL = os.getenv('CASSANDRA_CONSISTENCY_LEVEL', DEFAULT_CONSISTENCY_LEVEL)
-    REPLICATION_FACTOR = os.getenv('CASSANDRA_REPLICATION_FACTOR', DEFAULT_REPLICATION_FACTOR)
+    HOSTS = [h.strip() for h in os.getenv("CASSANDRA_HOSTS", DEFAULT_HOSTS).split(",")]
+    PORT = int(os.getenv("CASSANDRA_PORT", DEFAULT_PORT))
+    PROTOCOL_VERSION = int(
+        os.getenv("CASSANDRA_PROTOCOL_VERSION", DEFAULT_PROTOCOL_VERSION)
+    )
+    DEFAULT_KEYSPACE = os.getenv("CASSANDRA_KEYSPACE", DEFAULT_DEFAULT_KEYSPACE)
+    CONSISTENCY_LEVEL = os.getenv(
+        "CASSANDRA_CONSISTENCY_LEVEL", DEFAULT_CONSISTENCY_LEVEL
+    )
+    REPLICATION_FACTOR = os.getenv(
+        "CASSANDRA_REPLICATION_FACTOR", DEFAULT_REPLICATION_FACTOR
+    )
 
-    def __init__(self, hosts=None, port=None, protocol_version=None, default_keyspace=None,
-                 consistency=None, replication_factor=None, username=None, password=None):
+    def __init__(
+        self,
+        hosts=None,
+        port=None,
+        protocol_version=None,
+        default_keyspace=None,
+        consistency=None,
+        replication_factor=None,
+        username=None,
+        password=None,
+    ):
         self.hosts = hosts or self.HOSTS
         self.port = port or self.PORT
         self.protocol_version = protocol_version or self.PROTOCOL_VERSION
@@ -50,8 +69,7 @@ class CassandraDatastore(AbstractDatastore):
         # Optionally construct an "auth provider" object.
         if self.settings.username and self.settings.password:
             auth_provider = PlainTextAuthProvider(
-                username=self.settings.username,
-                password=self.settings.password
+                username=self.settings.username, password=self.settings.password
             )
         else:
             auth_provider = None
@@ -61,8 +79,9 @@ class CassandraDatastore(AbstractDatastore):
             consistency_level_name = self.settings.consistency.upper()
             consistency_level = ConsistencyLevel.name_to_value[consistency_level_name]
         except KeyError:
-            msg = ("Cassandra consistency level name '{}' not found."
-                   "".format(self.settings.consistency))
+            msg = "Cassandra consistency level name '{}' not found." "".format(
+                self.settings.consistency
+            )
             raise DatasourceSettingsError(msg)
 
         # Use the other self.settings directly.
@@ -86,7 +105,7 @@ class CassandraDatastore(AbstractDatastore):
     @retry((NoHostAvailable, OperationTimedOut), max_attempts=10, wait=0.5)
     def setup_tables(self):
         # Avoid warnings about this variable not being set.
-        os.environ['CQLENG_ALLOW_SCHEMA_MANAGEMENT'] = '1'
+        os.environ["CQLENG_ALLOW_SCHEMA_MANAGEMENT"] = "1"
 
         # Attempt to create the keyspace.
         create_keyspace_simple(

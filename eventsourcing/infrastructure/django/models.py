@@ -19,7 +19,7 @@ class IntegerSequencedRecord(models.Model):
 
     class Meta:
         unique_together = (("sequence_id", "position"),)
-        db_table = 'integer_sequenced_items'
+        db_table = "integer_sequenced_items"
 
 
 class TimestampSequencedRecord(models.Model):
@@ -40,10 +40,8 @@ class TimestampSequencedRecord(models.Model):
 
     class Meta:
         unique_together = (("sequence_id", "position"),)
-        db_table = 'timestamp_sequenced_items'
-        indexes = [
-            models.Index(fields=['position'], name='position_idx'),
-        ]
+        db_table = "timestamp_sequenced_items"
+        indexes = [models.Index(fields=["position"], name="position_idx")]
 
 
 class SnapshotRecord(models.Model):
@@ -64,7 +62,7 @@ class SnapshotRecord(models.Model):
 
     class Meta:
         unique_together = (("sequence_id", "position"),)
-        db_table = 'snapshots'
+        db_table = "snapshots"
 
 
 class EntitySnapshotRecord(models.Model):
@@ -87,10 +85,8 @@ class EntitySnapshotRecord(models.Model):
     state = models.TextField()
 
     class Meta:
-        unique_together = (
-            ("application_name", "originator_id", "originator_version"),
-        )
-        db_table = 'entity_snapshots'
+        unique_together = (("application_name", "originator_id", "originator_version"),)
+        db_table = "entity_snapshots"
 
 
 class StoredEventRecord(models.Model):
@@ -126,7 +122,7 @@ class StoredEventRecord(models.Model):
             ("application_name", "originator_id", "originator_version"),
             ("application_name", "pipeline_id", "notification_id"),
         )
-        db_table = 'stored_events'
+        db_table = "stored_events"
 
 
 class NotificationTrackingRecord(models.Model):
@@ -151,7 +147,7 @@ class NotificationTrackingRecord(models.Model):
                 "application_name",
                 "upstream_application_name",
                 "pipeline_id",
-                "notification_id"
+                "notification_id",
             ),
         )
-        db_table = 'notification_tracking'
+        db_table = "notification_tracking"

@@ -13,7 +13,9 @@ from eventsourcing.utils.transcoding import json_dumps, json_loads
 
 
 class ProcessEvent(object):
-    def __init__(self, new_events, tracking_kwargs=None, causal_dependencies=None, orm_objs=None):
+    def __init__(
+        self, new_events, tracking_kwargs=None, causal_dependencies=None, orm_objs=None
+    ):
         self.new_events = new_events
         self.tracking_kwargs = tracking_kwargs
         self.causal_dependencies = causal_dependencies
@@ -25,10 +27,15 @@ class ProcessApplication(SimpleApplication):
     use_causal_dependencies = False
     notification_log_reader_class = NotificationLogReader
 
-    def __init__(self, name=None, policy=None, setup_table=False,
-                 use_direct_query_if_available=False,
-                 notification_log_reader_class=None,
-                 **kwargs):
+    def __init__(
+        self,
+        name=None,
+        policy=None,
+        setup_table=False,
+        use_direct_query_if_available=False,
+        notification_log_reader_class=None,
+        **kwargs,
+    ):
         self.policy_func = policy
         self.readers = OrderedDict()
         self.is_reader_position_ok = defaultdict(bool)
@@ -37,27 +44,32 @@ class ProcessApplication(SimpleApplication):
         self.clock_event = None
         self.tick_interval = None
         self.use_direct_query_if_available = use_direct_query_if_available
-        self.notification_log_reader_class = notification_log_reader_class or \
-                                             type(self).notification_log_reader_class
+        self.notification_log_reader_class = (
+            notification_log_reader_class or type(self).notification_log_reader_class
+        )
 
-        super(ProcessApplication, self).__init__(name=name, setup_table=setup_table, **kwargs)
+        super(ProcessApplication, self).__init__(
+            name=name, setup_table=setup_table, **kwargs
+        )
 
         if self.event_store:
-            self.notification_topic_key = self.event_store.record_manager.field_names.topic
-            self.notification_state_key = self.event_store.record_manager.field_names.state
+            self.notification_topic_key = (
+                self.event_store.record_manager.field_names.topic
+            )
+            self.notification_state_key = (
+                self.event_store.record_manager.field_names.state
+            )
 
         # Publish prompts for any domain events that we persist.
         if self.persistence_policy:
             subscribe(
-                predicate=self.persistence_policy.is_event,
-                handler=self.publish_prompt,
+                predicate=self.persistence_policy.is_event, handler=self.publish_prompt
             )
 
     def close(self):
         if self.persistence_policy:
             unsubscribe(
-                predicate=self.persistence_policy.is_event,
-                handler=self.publish_prompt,
+                predicate=self.persistence_policy.is_event, handler=self.publish_prompt
             )
         super(ProcessApplication, self).close()
 
@@ -86,7 +98,7 @@ class ProcessApplication(SimpleApplication):
         # Create a reader.
         reader = self.notification_log_reader_class(
             notification_log,
-            use_direct_query_if_available=self.use_direct_query_if_available
+            use_direct_query_if_available=self.use_direct_query_if_available,
         )
         self.readers[upstream_application_name] = reader
 
@@ -109,7 +121,9 @@ class ProcessApplication(SimpleApplication):
             while True:
                 with self._policy_lock:
                     # Get notification generator.
-                    generator = self.get_notification_generator(upstream_name, advance_by)
+                    generator = self.get_notification_generator(
+                        upstream_name, advance_by
+                    )
                     try:
                         notification = next(generator)
                     except StopIteration:
@@ -122,38 +136,44 @@ class ProcessApplication(SimpleApplication):
                     event = self.get_event_from_notification(notification)
 
                     # Decode causal dependencies of the domain event.
-                    causal_dependencies = notification.get('causal_dependencies') or '[]'
+                    causal_dependencies = (
+                        notification.get("causal_dependencies") or "[]"
+                    )
                     causal_dependencies = json_loads(causal_dependencies) or []
 
                     # Check causal dependencies are satisfied.
                     for causal_dependency in causal_dependencies:
-                        pipeline_id = causal_dependency['pipeline_id']
-                        notification_id = causal_dependency['notification_id']
+                        pipeline_id = causal_dependency["pipeline_id"]
+                        notification_id = causal_dependency["notification_id"]
 
                         _manager = self.event_store.record_manager
                         has_tracking_record = _manager.has_tracking_record(
                             upstream_application_name=upstream_name,
                             pipeline_id=pipeline_id,
-                            notification_id=notification_id
+                            notification_id=notification_id,
                         )
                         if not has_tracking_record:
                             # Invalidate reader position.
                             self.is_reader_position_ok[upstream_name] = False
 
                             # Raise exception.
-                            raise CausalDependencyFailed({
-                                'application_name': self.name,
-                                'upstream_name': upstream_name,
-                                'pipeline_id': pipeline_id,
-                                'notification_id': notification_id
-                            })
+                            raise CausalDependencyFailed(
+                                {
+                                    "application_name": self.name,
+                                    "upstream_name": upstream_name,
+                                    "pipeline_id": pipeline_id,
+                                    "notification_id": notification_id,
+                                }
+                            )
 
                     # Wait on the clock event, if there is one.
                     if self.clock_event is not None:
                         self.clock_event.wait()
 
                     # print("Processing upstream event: ", event)
-                    new_events = self.process_upstream_event(event, notification['id'], upstream_name)
+                    new_events = self.process_upstream_event(
+                        event, notification["id"], upstream_name
+                    )
 
                 self.take_snapshots(new_events)
 
@@ -182,7 +202,7 @@ class ProcessApplication(SimpleApplication):
                 new_events=new_events,
                 tracking_kwargs=tracking_kwargs,
                 causal_dependencies=causal_dependencies,
-                orm_objs=orm_objs
+                orm_objs=orm_objs,
             )
             self.record_process_event(process_event)
 
@@ -218,7 +238,7 @@ class ProcessApplication(SimpleApplication):
     def get_event_from_notification(self, notification):
         return self.event_store.mapper.event_from_topic_and_state(
             topic=notification[self.notification_topic_key],
-            state=notification[self.notification_state_key]
+            state=notification[self.notification_state_key],
         )
 
     def get_notification_generator(self, upstream_name, advance_by):
@@ -247,7 +267,9 @@ class ProcessApplication(SimpleApplication):
         pass
 
     def set_reader_position_from_tracking_records(self, upstream_name):
-        max_record_id = self.event_store.record_manager.get_max_tracking_record_id(upstream_name)
+        max_record_id = self.event_store.record_manager.get_max_tracking_record_id(
+            upstream_name
+        )
         reader = self.readers[upstream_name]
         reader.seek(max_record_id or 0)
 
@@ -285,10 +307,9 @@ class ProcessApplication(SimpleApplication):
 
             causal_dependencies = []
             for pipeline_id, notification_id in highest.items():
-                causal_dependencies.append({
-                    'pipeline_id': pipeline_id,
-                    'notification_id': notification_id
-                })
+                causal_dependencies.append(
+                    {"pipeline_id": pipeline_id, "notification_id": notification_id}
+                )
         # Todo: Optionally reference causal dependencies in current pipeline.
         # Todo: Support processing notification from a single pipeline in parallel, according to dependencies.
         return all_aggregates, causal_dependencies, repository.pending_orm_objs
@@ -333,23 +354,26 @@ class ProcessApplication(SimpleApplication):
 
     def construct_tracking_kwargs(self, notification_id, upstream_application_name):
         return {
-            'application_name': self.name,
-            'upstream_application_name': upstream_application_name,
-            'pipeline_id': self.pipeline_id,
-            'notification_id': notification_id,
+            "application_name": self.name,
+            "upstream_application_name": upstream_application_name,
+            "pipeline_id": self.pipeline_id,
+            "notification_id": notification_id,
         }
 
     def record_process_event(self, process_event: ProcessEvent):
         # Construct event records.
-        event_records = self.construct_event_records(process_event.new_events,
-                                                     process_event.causal_dependencies)
+        event_records = self.construct_event_records(
+            process_event.new_events, process_event.causal_dependencies
+        )
 
         # Write event records with tracking record.
         record_manager = self.event_store.record_manager
         assert isinstance(record_manager, ACIDRecordManager)
-        record_manager.write_records(records=event_records,
-                                     tracking_kwargs=process_event.tracking_kwargs,
-                                     orm_objs=process_event.orm_objs)
+        record_manager.write_records(
+            records=event_records,
+            tracking_kwargs=process_event.tracking_kwargs,
+            orm_objs=process_event.orm_objs,
+        )
 
     def construct_event_records(self, pending_events, causal_dependencies=None):
         # Convert to event records.
@@ -366,10 +390,12 @@ class ProcessApplication(SimpleApplication):
                         current_max += 1
                         event_record.id = current_max
                     else:
-                        event_record.id = 'event-not-notifiable'
+                        event_record.id = "event-not-notifiable"
 
             if self.use_causal_dependencies:
-                assert hasattr(self.event_store.record_manager.record_class, 'causal_dependencies')
+                assert hasattr(
+                    self.event_store.record_manager.record_class, "causal_dependencies"
+                )
                 causal_dependencies = json_dumps(causal_dependencies)
                 # Only need first event to carry the dependencies.
                 event_records[0].causal_dependencies = causal_dependencies
@@ -400,6 +426,7 @@ class WrappedRepository(object):
     Implements a "dictionary like" interface, so that aggregates can be
     accessed by ID.
     """
+
     def __init__(self, repository: EventSourcedRepository):
         self.retrieved_aggregates = {}
         self.repository = repository
@@ -443,8 +470,10 @@ class Prompt(object):
     def __repr__(self):
         return "{}({}={}, {}={})".format(
             type(self).__name__,
-            'process_name', self.process_name,
-            'pipeline_id', self.pipeline_id
+            "process_name",
+            self.process_name,
+            "pipeline_id",
+            self.pipeline_id,
         )
 
 

@@ -4,30 +4,39 @@ from uuid import UUID
 
 from eventsourcing.application.process import ProcessApplication, ProcessEvent
 from eventsourcing.application.system import System
-from eventsourcing.contrib.paxos.composable import PaxosInstance, PaxosMessage, Resolution
+from eventsourcing.contrib.paxos.composable import (
+    PaxosInstance,
+    PaxosMessage,
+    Resolution,
+)
 from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.decorators import retry
-from eventsourcing.exceptions import OperationalError, RecordConflictError, RepositoryKeyError
+from eventsourcing.exceptions import (
+    OperationalError,
+    RecordConflictError,
+    RepositoryKeyError,
+)
 
 
 class PaxosAggregate(AggregateRoot):
     """
     Event-sourced Paxos participant.
     """
+
     paxos_variables = [
-        'proposed_value',
-        'proposal_id',
-        'promised_id',
-        'accepted_id',
-        'accepted_value',
-        'highest_proposal_id',
-        'promises_received',
-        'nacks_received',
-        'highest_accepted_id',
-        'leader',
-        'proposals',
-        'acceptors',
-        'final_value',
+        "proposed_value",
+        "proposal_id",
+        "promised_id",
+        "accepted_id",
+        "accepted_value",
+        "highest_proposal_id",
+        "promises_received",
+        "nacks_received",
+        "highest_accepted_id",
+        "leader",
+        "proposals",
+        "acceptors",
+        "final_value",
     ]
     is_verbose = False
 
@@ -71,12 +80,14 @@ class PaxosAggregate(AggregateRoot):
         """
         Published when a PaxosAggregate is started.
         """
+
         __notifiable__ = False
 
     class AttributesChanged(Event):
         """
         Published when attributes of paxos_instance are changed.
         """
+
         __notifiable__ = False
 
         def __init__(self, changes=None, **kwargs):
@@ -86,7 +97,7 @@ class PaxosAggregate(AggregateRoot):
 
         @property
         def changes(self):
-            return self.__dict__['changes']
+            return self.__dict__["changes"]
 
         def mutate(self, obj):
             for name, value in self.changes.items():
@@ -99,7 +110,7 @@ class PaxosAggregate(AggregateRoot):
 
         @property
         def msg(self):
-            return self.__dict__['msg']
+            return self.__dict__["msg"]
 
     @classmethod
     def start(cls, originator_id, quorum_size, network_uid):
@@ -111,7 +122,7 @@ class PaxosAggregate(AggregateRoot):
             event_class=cls.Started,
             originator_id=originator_id,
             quorum_size=quorum_size,
-            network_uid=network_uid
+            network_uid=network_uid,
         )
 
     def propose_value(self, value, assume_leader=False):
@@ -138,10 +149,16 @@ class PaxosAggregate(AggregateRoot):
         paxos = self.paxos_instance
         while msg:
             if isinstance(msg, Resolution):
-                self.print_if_verbose("{} resolved value {}".format(self.network_uid, msg.value))
+                self.print_if_verbose(
+                    "{} resolved value {}".format(self.network_uid, msg.value)
+                )
                 break
             else:
-                self.print_if_verbose("{} <- {} <- {}".format(self.network_uid, msg.__class__.__name__, msg.from_uid))
+                self.print_if_verbose(
+                    "{} <- {} <- {}".format(
+                        self.network_uid, msg.__class__.__name__, msg.from_uid
+                    )
+                )
                 msg = paxos.receive(msg)
                 # Todo: Make it optional not to announce resolution (without which it's hard to see final value).
                 do_announce_resolution = True
@@ -154,11 +171,10 @@ class PaxosAggregate(AggregateRoot):
         """
         Announces a Paxos message.
         """
-        self.print_if_verbose("{} -> {}".format(self.network_uid, msg.__class__.__name__))
-        self.__trigger_event__(
-            event_class=self.MessageAnnounced,
-            msg=msg,
+        self.print_if_verbose(
+            "{} -> {}".format(self.network_uid, msg.__class__.__name__)
         )
+        self.__trigger_event__(event_class=self.MessageAnnounced, msg=msg)
 
     def setattrs_from_paxos(self, paxos):
         """
@@ -168,26 +184,27 @@ class PaxosAggregate(AggregateRoot):
         for name in self.paxos_variables:
             paxos_value = getattr(paxos, name)
             if paxos_value != getattr(self, name, None):
-                self.print_if_verbose("{} {}: {}".format(self.network_uid, name, paxos_value))
+                self.print_if_verbose(
+                    "{} {}: {}".format(self.network_uid, name, paxos_value)
+                )
                 changes[name] = paxos_value
                 setattr(self, name, paxos_value)
         if changes:
-            self.__trigger_event__(
-                event_class=self.AttributesChanged,
-                changes=changes
-            )
+            self.__trigger_event__(event_class=self.AttributesChanged, changes=changes)
 
     def print_if_verbose(self, param):
         if self.is_verbose:
             print(param)
 
     def __str__(self):
-        return ("PaxosAggregate("
-                "network_uid='{network_uid}', "
-                "proposal_id='{proposal_id}', "
-                "promised_id='{promised_id}', "
-                "promises_received='{promises_received}'"
-                ")").format(**self.__dict__)
+        return (
+            "PaxosAggregate("
+            "network_uid='{network_uid}', "
+            "proposal_id='{proposal_id}', "
+            "promised_id='{promised_id}', "
+            "promises_received='{promises_received}'"
+            ")"
+        ).format(**self.__dict__)
 
 
 class PaxosProcess(ProcessApplication):
@@ -209,9 +226,7 @@ class PaxosProcess(ProcessApplication):
         """
         assert isinstance(key, UUID)
         paxos_aggregate = PaxosAggregate.start(
-            originator_id=key,
-            quorum_size=self.quorum_size,
-            network_uid=self.name
+            originator_id=key, quorum_size=self.quorum_size, network_uid=self.name
         )
         msg = paxos_aggregate.propose_value(value, assume_leader=assume_leader)
         while msg:
@@ -233,17 +248,17 @@ class PaxosProcess(ProcessApplication):
                 paxos = PaxosAggregate.start(
                     originator_id=event.originator_id,
                     quorum_size=self.quorum_size,
-                    network_uid=self.name
+                    network_uid=self.name,
                 )
                 # Needs to go in the cache now, otherwise we get
                 # "Duplicate" errors (for some unknown reason).
                 self.repository._cache[paxos.id] = paxos
             assert isinstance(paxos, PaxosAggregate), type(paxos)
             # Absolutely make sure the participant aggregates aren't getting confused.
-            assert paxos.network_uid == self.name, (
-                "Wrong paxos aggregate: required network_uid {}, got {}".format(
-                    self.name, paxos.network_uid
-                )
+            assert (
+                paxos.network_uid == self.name
+            ), "Wrong paxos aggregate: required network_uid {}, got {}".format(
+                self.name, paxos.network_uid
             )
             # Only receive messages until resolution is
             # obtained. Followers will process our previous
@@ -261,10 +276,11 @@ class PaxosSystem(System):
         self.quorum_size = (num_participants + 2) // 2
         classes = [
             type(
-                'PaxosProcess{}'.format(i),
+                "PaxosProcess{}".format(i),
                 (PaxosProcess,),
-                {'quorum_size': self.quorum_size}
-            ) for i in range(num_participants)
+                {"quorum_size": self.quorum_size},
+            )
+            for i in range(num_participants)
         ]
         if num_participants > 1:
             pipelines = [[c[0], c[1], c[0]] for c in itertools.combinations(classes, 2)]

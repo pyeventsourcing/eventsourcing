@@ -2,7 +2,11 @@ import unittest
 from uuid import uuid4
 
 from eventsourcing.application.policies import PersistencePolicy, SnapshottingPolicy
-from eventsourcing.domain.model.entity import VersionedEntity, TimestampedEntity, AbstractEntityRepository
+from eventsourcing.domain.model.entity import (
+    VersionedEntity,
+    TimestampedEntity,
+    AbstractEntityRepository,
+)
 from eventsourcing.domain.model.events import publish
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
@@ -17,8 +21,7 @@ class TestPersistencePolicy(unittest.TestCase):
     def setUp(self):
         self.event_store = mock.Mock(spec=AbstractEventStore)
         self.persistence_policy = PersistencePolicy(
-            event_store=self.event_store,
-            persist_event_type=VersionedEntity.Event
+            event_store=self.event_store, persist_event_type=VersionedEntity.Event
         )
 
     def tearDown(self):
@@ -32,8 +35,7 @@ class TestPersistencePolicy(unittest.TestCase):
         # Publish a versioned entity event.
         entity_id = uuid4()
         domain_event1 = VersionedEntity.Event(
-            originator_id=entity_id,
-            originator_version=0,
+            originator_id=entity_id, originator_version=0
         )
         publish(domain_event1)
 
@@ -41,9 +43,7 @@ class TestPersistencePolicy(unittest.TestCase):
         self.event_store.store.assert_called_once_with(domain_event1)
 
         # Publish a timestamped entity event (should be ignored).
-        domain_event2 = TimestampedEntity.Event(
-            originator_id=entity_id,
-        )
+        domain_event2 = TimestampedEntity.Event(originator_id=entity_id)
         publish(domain_event2)
 
         # Check the append() has still only been called once with the first domain event.
@@ -55,9 +55,7 @@ class TestSnapshottingPolicy(unittest.TestCase):
         self.repository = mock.Mock(spec=AbstractEntityRepository)
         self.snapshot_store = mock.Mock(spec=AbstractEventStore)
         self.policy = SnapshottingPolicy(
-            repository=self.repository,
-            snapshot_store=self.snapshot_store,
-            period=2,
+            repository=self.repository, snapshot_store=self.snapshot_store, period=2
         )
 
     def tearDown(self):
@@ -71,12 +69,10 @@ class TestSnapshottingPolicy(unittest.TestCase):
         # Publish a versioned entity event.
         entity_id = uuid4()
         domain_event1 = VersionedEntity.Event(
-            originator_id=entity_id,
-            originator_version=0,
+            originator_id=entity_id, originator_version=0
         )
         domain_event2 = VersionedEntity.Event(
-            originator_id=entity_id,
-            originator_version=1,
+            originator_id=entity_id, originator_version=1
         )
 
         # Check take_snapshot is called once for each event.
@@ -88,4 +84,3 @@ class TestSnapshottingPolicy(unittest.TestCase):
         # Check take_snapshot is called once for each list.
         publish([domain_event1, domain_event2])
         self.assertEqual(2, self.repository.take_snapshot.call_count)
-

@@ -14,13 +14,9 @@ logger = logging.getLogger()
 
 
 DEFAULT_ACTORS_LOGCFG = {
-    'version': 1,
-    'formatters': {
-        'normal': {
-            'format': '%(levelname)-8s %(message)s'
-        }
-    },
-    'handlers': {
+    "version": 1,
+    "formatters": {"normal": {"format": "%(levelname)-8s %(message)s"}},
+    "handlers": {
         # 'h': {
         #     'class': 'logging.FileHandler',
         #     'filename': 'hello.log',
@@ -28,17 +24,14 @@ DEFAULT_ACTORS_LOGCFG = {
         #     'level': logging.INFO
         # }
     },
-    'loggers': {
+    "loggers": {
         # '': {'handlers': ['h'], 'level': logging.DEBUG}
-    }
+    },
 }
 
 
 def start_actor_system(system_base=None, logcfg=DEFAULT_ACTORS_LOGCFG):
-    ActorSystem(
-        systemBase=system_base,
-        logDefs=logcfg,
-    )
+    ActorSystem(systemBase=system_base, logDefs=logcfg)
 
 
 def shutdown_actor_system():
@@ -46,7 +39,7 @@ def shutdown_actor_system():
 
 
 def start_multiproc_tcp_base_system():
-    start_actor_system(system_base='multiprocTCPBase')
+    start_actor_system(system_base="multiprocTCPBase")
 
 
 # def start_multiproc_udp_base_system():
@@ -61,15 +54,22 @@ class ActorModelRunner(SystemRunner):
     """
     Uses actor model framework to run a system of process applications.
     """
-    def __init__(self, system: System, pipeline_ids, system_actor_name='system', shutdown_on_close=False, **kwargs):
+
+    def __init__(
+        self,
+        system: System,
+        pipeline_ids,
+        system_actor_name="system",
+        shutdown_on_close=False,
+        **kwargs
+    ):
         super(ActorModelRunner, self).__init__(system=system, **kwargs)
         self.pipeline_ids = list(pipeline_ids)
         self.pipeline_actors = {}
         self.system_actor_name = system_actor_name
         # Create the system actor (singleton).
         self.system_actor = self.actor_system.createActor(
-            actorClass=SystemActor,
-            globalName=self.system_actor_name
+            actorClass=SystemActor, globalName=self.system_actor_name
         )
         self.shutdown_on_close = shutdown_on_close
 
@@ -90,7 +90,7 @@ class ActorModelRunner(SystemRunner):
             self.system.process_classes,
             self.infrastructure_class,
             self.system.followings,
-            self.pipeline_ids
+            self.pipeline_ids,
         )
         response = self.actor_system.ask(self.system_actor, msg)
 
@@ -98,9 +98,8 @@ class ActorModelRunner(SystemRunner):
         assert isinstance(response, SystemInitResponse), type(response)
 
         assert list(response.pipeline_actors.keys()) == self.pipeline_ids, (
-            "Configured pipeline IDs mismatch initialised system {} {}").format(
-            list(self.pipeline_actors.keys()), self.pipeline_ids
-        )
+            "Configured pipeline IDs mismatch initialised system {} {}"
+        ).format(list(self.pipeline_actors.keys()), self.pipeline_ids)
 
         self.pipeline_actors = response.pipeline_actors
 
@@ -156,7 +155,7 @@ class SystemActor(Actor):
                 self.process_classes,
                 self.infrastructure_class,
                 self.system_followings,
-                pipeline_id
+                pipeline_id,
             )
             self.send(pipeline_actor, msg)
 
@@ -200,7 +199,9 @@ class PipelineActor(Actor):
 
         for process_class_name in process_class_names:
             process_name = process_class_name.lower()
-            upstream_application_names = [c.lower() for c in self.system_followings[process_class_name]]
+            upstream_application_names = [
+                c.lower() for c in self.system_followings[process_class_name]
+            ]
             downstream_actors = {}
             for downstream_class_name in self.followers[process_name]:
                 downstream_name = downstream_class_name.lower()
@@ -214,7 +215,7 @@ class PipelineActor(Actor):
                 self.pipeline_id,
                 upstream_application_names,
                 downstream_actors,
-                self.myAddress
+                self.myAddress,
             )
             self.send(self.process_actors[process_name], msg)
 
@@ -263,7 +264,9 @@ class ProcessMaster(Actor):
         # probably get blocked while sending the message and have
         # to wait until the slave runs its loop (thespian design).
         if self.slave_actor and not self.is_slave_running:
-            self.send(self.slave_actor, SlaveRunRequest(self.last_prompts, self.myAddress))
+            self.send(
+                self.slave_actor, SlaveRunRequest(self.last_prompts, self.myAddress)
+            )
             self.is_slave_running = True
             self.last_prompts = {}
 
@@ -299,19 +302,14 @@ class ProcessSlave(Actor):
         process_class.reset_connection_after_forking()
 
         # Construct the process application.
-        self.process = process_class(
-            pipeline_id=self.pipeline_id,
-        )
+        self.process = process_class(pipeline_id=self.pipeline_id)
         assert isinstance(self.process, ProcessApplication)
 
         # Subscribe the slave actor's send_prompt() method.
         #  - the process application will call publish_prompt()
         #    and the actor will receive the prompt and send it
         #    as a message.
-        subscribe(
-            predicate=self.is_my_prompt,
-            handler=self.send_prompt
-        )
+        subscribe(predicate=self.is_my_prompt, handler=self.send_prompt)
 
         # Close the process application persistence policy.
         #  - slave actor process application doesn't publish
@@ -323,9 +321,8 @@ class ProcessSlave(Actor):
         #    events, so we don't need this
         unsubscribe(
             predicate=self.process.persistence_policy.is_event,
-            handler=self.process.publish_prompt
+            handler=self.process.publish_prompt,
         )
-
 
         # Construct and follow upstream notification logs.
         for upstream_application_name in self.upstream_application_names:
@@ -334,9 +331,9 @@ class ProcessSlave(Actor):
             notification_log = RecordManagerNotificationLog(
                 record_manager=record_manager.clone(
                     application_name=upstream_application_name,
-                    pipeline_id=self.pipeline_id
+                    pipeline_id=self.pipeline_id,
                 ),
-                section_size=self.process.notification_log_section_size
+                section_size=self.process.notification_log_section_size,
             )
             self.process.follow(upstream_application_name, notification_log)
 
@@ -349,25 +346,28 @@ class ProcessSlave(Actor):
         try:
             if msg.last_prompts:
                 for prompt in msg.last_prompts.values():
-                    notification_count += self.process.run(prompt, advance_by=advance_by)
+                    notification_count += self.process.run(
+                        prompt, advance_by=advance_by
+                    )
             else:
                 notification_count += self.process.run(advance_by=advance_by)
         except RecordConflictError:
             # Run again.
-            self.send(self.myAddress, SlaveRunRequest(last_prompts={}, master=msg.master))
+            self.send(
+                self.myAddress, SlaveRunRequest(last_prompts={}, master=msg.master)
+            )
         else:
             if notification_count:
                 # Run again, until nothing was done.
-                self.send(self.myAddress, SlaveRunRequest(last_prompts={}, master=msg.master))
+                self.send(
+                    self.myAddress, SlaveRunRequest(last_prompts={}, master=msg.master)
+                )
             else:
                 # Report back to master.
                 self.send(msg.master, SlaveRunResponse())
 
     def close(self):
-        unsubscribe(
-            predicate=self.is_my_prompt,
-            handler=self.send_prompt
-        )
+        unsubscribe(predicate=self.is_my_prompt, handler=self.send_prompt)
 
         self.process.close()
 
@@ -384,7 +384,9 @@ class ProcessSlave(Actor):
 
 
 class SystemInitRequest(object):
-    def __init__(self, process_classes, infrastructure_class, system_followings, pipeline_ids):
+    def __init__(
+        self, process_classes, infrastructure_class, system_followings, pipeline_ids
+    ):
         self.process_classes = process_classes
         self.infrastructure_class = infrastructure_class
         self.system_followings = system_followings
@@ -397,7 +399,9 @@ class SystemInitResponse(object):
 
 
 class PipelineInitRequest(object):
-    def __init__(self, process_classes, infrastructure_class, system_followings, pipeline_id):
+    def __init__(
+        self, process_classes, infrastructure_class, system_followings, pipeline_id
+    ):
         self.process_classes = process_classes
         self.infrastructure_class = infrastructure_class
         self.system_followings = system_followings
@@ -405,10 +409,15 @@ class PipelineInitRequest(object):
 
 
 class ProcessInitRequest(object):
-    def __init__(self, process_application_class, infrastructure_class, pipeline_id,
-                 upstream_application_names,
-                 downstream_actors,
-                 pipeline_actor):
+    def __init__(
+        self,
+        process_application_class,
+        infrastructure_class,
+        pipeline_id,
+        upstream_application_names,
+        downstream_actors,
+        pipeline_actor,
+    ):
         self.process_application_class = process_application_class
         self.infrastructure_class = infrastructure_class
         self.pipeline_id = pipeline_id

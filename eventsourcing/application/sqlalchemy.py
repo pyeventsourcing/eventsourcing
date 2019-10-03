@@ -1,6 +1,11 @@
 from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
-from eventsourcing.infrastructure.sqlalchemy.factory import SQLAlchemyInfrastructureFactory
-from eventsourcing.infrastructure.sqlalchemy.records import EntitySnapshotRecord, StoredEventRecord
+from eventsourcing.infrastructure.sqlalchemy.factory import (
+    SQLAlchemyInfrastructureFactory,
+)
+from eventsourcing.infrastructure.sqlalchemy.records import (
+    EntitySnapshotRecord,
+    StoredEventRecord,
+)
 
 
 class SQLAlchemyApplication(ApplicationWithConcreteInfrastructure):
@@ -13,14 +18,18 @@ class SQLAlchemyApplication(ApplicationWithConcreteInfrastructure):
     def __init__(self, uri=None, session=None, tracking_record_class=None, **kwargs):
         self.uri = uri
         self.session = session
-        self.tracking_record_class = tracking_record_class or type(self).tracking_record_class
+        self.tracking_record_class = (
+            tracking_record_class or type(self).tracking_record_class
+        )
         super(SQLAlchemyApplication, self).__init__(**kwargs)
 
     def construct_infrastructure(self, *args, **kwargs):
         super(SQLAlchemyApplication, self).construct_infrastructure(
-            session=self.session, uri=self.uri,
+            session=self.session,
+            uri=self.uri,
             tracking_record_class=self.tracking_record_class,
-            *args, **kwargs
+            *args,
+            **kwargs
         )
         if self.datastore and self.session is None:
             self.session = self.datastore.session

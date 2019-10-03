@@ -7,9 +7,21 @@ from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
 class AbstractSequencedItemIterator(ABC):
     DEFAULT_PAGE_SIZE = 1000
 
-    def __init__(self, record_manager, sequence_id, page_size=None, gt=None, gte=None, lt=None, lte=None,
-                 limit=None, is_ascending=True):
-        assert isinstance(record_manager, AbstractSequencedItemRecordManager), type(record_manager)
+    def __init__(
+        self,
+        record_manager,
+        sequence_id,
+        page_size=None,
+        gt=None,
+        gte=None,
+        lt=None,
+        lte=None,
+        limit=None,
+        is_ascending=True,
+    ):
+        assert isinstance(record_manager, AbstractSequencedItemRecordManager), type(
+            record_manager
+        )
         assert isinstance(page_size, (int, type(None)))
         assert isinstance(limit, (int, type(None)))
         self.record_manager = record_manager
@@ -47,8 +59,12 @@ class AbstractSequencedItemIterator(ABC):
         self.all_item_counter += 1
 
     def _update_position(self, sequenced_item):
-        assert isinstance(sequenced_item, self.record_manager.sequenced_item_class), type(sequenced_item)
-        self._position = getattr(sequenced_item, self.record_manager.field_names.position)
+        assert isinstance(
+            sequenced_item, self.record_manager.sequenced_item_class
+        ), type(sequenced_item)
+        self._position = getattr(
+            sequenced_item, self.record_manager.field_names.position
+        )
 
     @abstractmethod
     def __iter__(self):
@@ -148,11 +164,9 @@ class ThreadedSequencedItemIterator(AbstractSequencedItemIterator):
                 self._inc_page_counter()
 
             # Decide if this is the last page.
-            is_last_page = (
-                               num_stored_events != self.page_size
-                           ) or (
-                               self.all_item_counter + num_stored_events == self.limit
-                           )
+            is_last_page = (num_stored_events != self.page_size) or (
+                self.all_item_counter + num_stored_events == self.limit
+            )
 
             if not is_last_page:
                 # Update loop variables.
@@ -201,17 +215,30 @@ class ThreadedSequencedItemIterator(AbstractSequencedItemIterator):
             lt=lt,
             lte=lte,
             page_size=self.page_size,
-            is_ascending=self.is_ascending
+            is_ascending=self.is_ascending,
         )
         thread.start()
         return thread
 
 
 class GetEntityEventsThread(Thread):
-    def __init__(self, record_manager, sequence_id, gt=None, gte=None, lt=None, lte=None, page_size=None,
-                 is_ascending=True, *args, **kwargs):
+    def __init__(
+        self,
+        record_manager,
+        sequence_id,
+        gt=None,
+        gte=None,
+        lt=None,
+        lte=None,
+        page_size=None,
+        is_ascending=True,
+        *args,
+        **kwargs
+    ):
         super(GetEntityEventsThread, self).__init__(*args, **kwargs)
-        assert isinstance(record_manager, AbstractSequencedItemRecordManager), type(record_manager)
+        assert isinstance(record_manager, AbstractSequencedItemRecordManager), type(
+            record_manager
+        )
         self.record_manager = record_manager
         self.stored_entity_id = sequence_id
         self.gt = gt
@@ -223,13 +250,15 @@ class GetEntityEventsThread(Thread):
         self.stored_events = None
 
     def run(self):
-        self.stored_events = list(self.record_manager.get_items(
-            sequence_id=self.stored_entity_id,
-            gt=self.gt,
-            gte=self.gte,
-            lt=self.lt,
-            lte=self.lte,
-            limit=self.page_size,
-            query_ascending=self.is_ascending,
-            results_ascending=self.is_ascending,
-        ))
+        self.stored_events = list(
+            self.record_manager.get_items(
+                sequence_id=self.stored_entity_id,
+                gt=self.gt,
+                gte=self.gte,
+                lt=self.lt,
+                lte=self.lte,
+                limit=self.page_size,
+                query_ascending=self.is_ascending,
+                results_ascending=self.is_ascending,
+            )
+        )
