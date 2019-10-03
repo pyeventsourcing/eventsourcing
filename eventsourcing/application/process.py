@@ -34,7 +34,7 @@ class ProcessApplication(SimpleApplication):
         setup_table=False,
         use_direct_query_if_available=False,
         notification_log_reader_class=None,
-        **kwargs,
+        **kwargs
     ):
         self.policy_func = policy
         self.readers = OrderedDict()
