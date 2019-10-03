@@ -7,7 +7,7 @@ from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic
 from eventsourcing.utils.transcoding import ObjectJSONEncoder
 
-GENESIS_HASH = os.getenv('GENESIS_HASH', '')
+GENESIS_HASH = os.getenv("GENESIS_HASH", "")
 
 
 def create_timesequenced_event_id():
@@ -25,6 +25,7 @@ class DomainEvent(object):
     implements a method to create a cryptographic hash
     of the state of the event.
     """
+
     __json_encoder_class__ = ObjectJSONEncoder
     __notifiable__ = True
 
@@ -42,7 +43,7 @@ class DomainEvent(object):
         """
         sorted_items = tuple(sorted(self.__dict__.items()))
         args_strings = ("{0}={1!r}".format(*item) for item in sorted_items)
-        args_string = ', '.join(args_strings)
+        args_string = ", ".join(args_strings)
         return "{}({})".format(self.__class__.__qualname__, args_string)
 
     def __mutate__(self, obj):
@@ -110,7 +111,7 @@ class DomainEvent(object):
 
         # Involve the topic in the hash, so that different types
         # with same attribute values have different hash values.
-        state['__event_topic__'] = get_topic(type(self))
+        state["__event_topic__"] = get_topic(type(self))
 
         # Calculate the cryptographic hash of the event.
         sha256_hash = self.__hash_object__(state)
@@ -144,10 +145,10 @@ class EventWithHash(DomainEvent):
 
         # Set __event_topic__ to differentiate events of
         # different types with otherwise equal attributes.
-        self.__dict__['__event_topic__'] = get_topic(type(self))
+        self.__dict__["__event_topic__"] = get_topic(type(self))
 
         # Set __event_hash__ with a SHA-256 hash of the event.
-        self.__dict__['__event_hash__'] = self.__hash_object__(self.__dict__)
+        self.__dict__["__event_hash__"] = self.__hash_object__(self.__dict__)
 
     @property
     def __event_hash__(self):
@@ -157,7 +158,7 @@ class EventWithHash(DomainEvent):
         :return: SHA-256 as hexadecimal string.
         :rtype: str
         """
-        return self.__dict__.get('__event_hash__')
+        return self.__dict__.get("__event_hash__")
 
     def __hash__(self):
         """
@@ -195,7 +196,7 @@ class EventWithHash(DomainEvent):
         be derived from the current state of the event object.
         """
         state = self.__dict__.copy()
-        event_hash = state.pop('__event_hash__')
+        event_hash = state.pop("__event_hash__")
         if event_hash != self.__hash_object__(state):
             raise EventHashError()
 
@@ -204,8 +205,9 @@ class EventWithOriginatorID(DomainEvent):
     """
     For events that have an originator ID.
     """
+
     def __init__(self, originator_id, **kwargs):
-        kwargs['originator_id'] = originator_id
+        kwargs["originator_id"] = originator_id
         super(EventWithOriginatorID, self).__init__(**kwargs)
 
     @property
@@ -217,7 +219,7 @@ class EventWithOriginatorID(DomainEvent):
         :return: A UUID representing the identity of the originator.
         :rtype: UUID
         """
-        return self.__dict__['originator_id']
+        return self.__dict__["originator_id"]
 
 
 class EventWithTimestamp(DomainEvent):
@@ -226,7 +228,7 @@ class EventWithTimestamp(DomainEvent):
     """
 
     def __init__(self, timestamp=None, **kwargs):
-        kwargs['timestamp'] = timestamp or decimaltimestamp()
+        kwargs["timestamp"] = timestamp or decimaltimestamp()
         super(EventWithTimestamp, self).__init__(**kwargs)
 
     @property
@@ -236,7 +238,7 @@ class EventWithTimestamp(DomainEvent):
 
         :rtype: Decimal
         """
-        return self.__dict__['timestamp']
+        return self.__dict__["timestamp"]
 
 
 class EventWithOriginatorVersion(DomainEvent):
@@ -247,7 +249,7 @@ class EventWithOriginatorVersion(DomainEvent):
     def __init__(self, originator_version, **kwargs):
         if not isinstance(originator_version, int):
             raise TypeError("Version must be an integer: {}".format(originator_version))
-        kwargs['originator_version'] = originator_version
+        kwargs["originator_version"] = originator_version
         super(EventWithOriginatorVersion, self).__init__(**kwargs)
 
     @property
@@ -259,7 +261,7 @@ class EventWithOriginatorVersion(DomainEvent):
         :return: A integer representing the version of the originator.
         :rtype: int
         """
-        return self.__dict__['originator_version']
+        return self.__dict__["originator_version"]
 
 
 class EventWithTimeuuid(DomainEvent):
@@ -268,12 +270,12 @@ class EventWithTimeuuid(DomainEvent):
     """
 
     def __init__(self, event_id=None, **kwargs):
-        kwargs['event_id'] = event_id or uuid1()
+        kwargs["event_id"] = event_id or uuid1()
         super(EventWithTimeuuid, self).__init__(**kwargs)
 
     @property
     def event_id(self):
-        return self.__dict__['event_id']
+        return self.__dict__["event_id"]
 
 
 class Created(DomainEvent):
@@ -289,11 +291,11 @@ class AttributeChanged(DomainEvent):
 
     @property
     def name(self):
-        return self.__dict__['name']
+        return self.__dict__["name"]
 
     @property
     def value(self):
-        return self.__dict__['value']
+        return self.__dict__["value"]
 
 
 class Discarded(DomainEvent):

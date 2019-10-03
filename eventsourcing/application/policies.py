@@ -1,4 +1,8 @@
-from eventsourcing.domain.model.events import EventWithOriginatorVersion, subscribe, unsubscribe
+from eventsourcing.domain.model.events import (
+    EventWithOriginatorVersion,
+    subscribe,
+    unsubscribe,
+)
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 
 
@@ -26,9 +30,16 @@ class PersistencePolicy(object):
     def store_event(self, event):
         self.event_store.store(event)
 
+
 # Todo: Separate PeriodicSnapshottingPolicy from base class? Make usage more configurable.
 class SnapshottingPolicy(object):
-    def __init__(self, repository, snapshot_store, persist_event_type=EventWithOriginatorVersion, period=2):
+    def __init__(
+        self,
+        repository,
+        snapshot_store,
+        persist_event_type=EventWithOriginatorVersion,
+        period=2,
+    ):
         self.repository = repository
         assert isinstance(snapshot_store, AbstractEventStore)
         self.snapshot_store = snapshot_store

@@ -12,8 +12,13 @@ from eventsourcing.application.process import ProcessApplication, Prompt
 from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
-from eventsourcing.exceptions import CausalDependencyFailed, EventSourcingError, \
-    OperationalError, ProgrammingError, RecordConflictError
+from eventsourcing.exceptions import (
+    CausalDependencyFailed,
+    EventSourcingError,
+    OperationalError,
+    ProgrammingError,
+    RecordConflictError,
+)
 
 DEFAULT_POLL_INTERVAL = 5
 
@@ -24,6 +29,7 @@ class System(object):
     process application classes. A system object can be run using
     a system runner.
     """
+
     def __init__(self, *pipeline_exprs, **kwargs):
         """
         Initialises a "process network" system object.
@@ -43,11 +49,13 @@ class System(object):
         The pipeline expressions ((A | B | A), (A | C | A)) are equivalent to (A | B | A | C | A).
         """
         self.pipelines_exprs = pipeline_exprs
-        self.setup_tables = kwargs.get('setup_tables', False)
-        self.infrastructure_class = kwargs.get('infrastructure_class', None)
-        self.use_direct_query_if_available = kwargs.get('use_direct_query_if_available', False)
+        self.setup_tables = kwargs.get("setup_tables", False)
+        self.infrastructure_class = kwargs.get("infrastructure_class", None)
+        self.use_direct_query_if_available = kwargs.get(
+            "use_direct_query_if_available", False
+        )
 
-        self.session = kwargs.get('session', None)
+        self.session = kwargs.get("session", None)
 
         self.process_classes = OrderedDict()
         for pipeline_expr in self.pipelines_exprs:
@@ -92,10 +100,10 @@ class System(object):
         Constructs process application from given ``process_class``.
         """
         kwargs = dict(kwargs)
-        if 'session' not in kwargs and process_class.is_constructed_with_session:
-            kwargs['session'] = self.session or self.shared_session
-        if 'setup_tables' not in kwargs and self.setup_tables:
-            kwargs['setup_table'] = self.setup_tables
+        if "session" not in kwargs and process_class.is_constructed_with_session:
+            kwargs["session"] = self.session or self.shared_session
+        if "setup_tables" not in kwargs and self.setup_tables:
+            kwargs["setup_table"] = self.setup_tables
 
         if not isinstance(process_class, ApplicationWithConcreteInfrastructure):
 
@@ -104,10 +112,14 @@ class System(object):
             if infrastructure_class is None:
                 infrastructure_class = self.infrastructure_class or PopoApplication
 
-            if not issubclass(infrastructure_class, ApplicationWithConcreteInfrastructure):
+            if not issubclass(
+                infrastructure_class, ApplicationWithConcreteInfrastructure
+            ):
                 raise ProgrammingError(
-                    'Given infrastructure_class {} is not subclass of {}'
-                    ''.format(infrastructure_class, ApplicationWithConcreteInfrastructure)
+                    "Given infrastructure_class {} is not subclass of {}"
+                    "".format(
+                        infrastructure_class, ApplicationWithConcreteInfrastructure
+                    )
                 )
 
             # Subclass the process application class with the infrastructure class.
@@ -137,7 +149,6 @@ class System(object):
         runner = SingleThreadedRunner(
             system=self,
             use_direct_query_if_available=self.use_direct_query_if_available,
-
         )
         self.__runner = weakref.ref(runner)
         self.__runner().__enter__()
@@ -148,7 +159,7 @@ class System(object):
         Supports usage of a system object as a context manager.
         """
         self.__runner().__exit__(exc_type, exc_val, exc_tb)
-        del (self.__runner)
+        del self.__runner
 
     def __getattr__(self, process_name, infrastructure_class=None):
         """
@@ -190,7 +201,7 @@ class System(object):
         """
         # Check system doesn't already have an infrastructure class.
         if self.infrastructure_class:
-            raise ProgrammingError('System already has an infrastructure class')
+            raise ProgrammingError("System already has an infrastructure class")
 
         # Clone the system object, and set the infrastructure class.
         system = object.__new__(type(self))
@@ -200,14 +211,21 @@ class System(object):
 
 
 class SystemRunner(ABC):
-
-    def __init__(self, system: System, infrastructure_class=None, setup_tables=False,
-                 use_direct_query_if_available=False):
+    def __init__(
+        self,
+        system: System,
+        infrastructure_class=None,
+        setup_tables=False,
+        use_direct_query_if_available=False,
+    ):
         self.system = system
-        self.infrastructure_class = infrastructure_class or self.system.infrastructure_class
+        self.infrastructure_class = (
+            infrastructure_class or self.system.infrastructure_class
+        )
         self.setup_tables = setup_tables
-        self.use_direct_query_if_available = use_direct_query_if_available or \
-                                             system.use_direct_query_if_available
+        self.use_direct_query_if_available = (
+            use_direct_query_if_available or system.use_direct_query_if_available
+        )
 
         # Todo: Move to having process application instances on runner only.
         self.processes = self.system.processes
@@ -254,9 +272,13 @@ class SystemRunner(ABC):
         """
 
         # Todo: Move to having process application instances on runner only.
-        return self.system.__getattr__(process_name, infrastructure_class=self.infrastructure_class)
+        return self.system.__getattr__(
+            process_name, infrastructure_class=self.infrastructure_class
+        )
+
 
 # Todo: Support passing SQLAlchemy session into runner.
+
 
 class InProcessRunner(SystemRunner):
     """
@@ -287,10 +309,7 @@ class InProcessRunner(SystemRunner):
                 follower.follow(followed_name, followed_log)
 
         # Do something to propagate prompts.
-        subscribe(
-            predicate=self.system.is_prompt,
-            handler=self.handle_prompt,
-        )
+        subscribe(predicate=self.system.is_prompt, handler=self.handle_prompt)
 
     @abstractmethod
     def handle_prompt(self, prompt):
@@ -303,10 +322,7 @@ class InProcessRunner(SystemRunner):
     def close(self):
         super(InProcessRunner, self).close()
 
-        unsubscribe(
-            predicate=self.system.is_prompt,
-            handler=self.handle_prompt,
-        )
+        unsubscribe(predicate=self.system.is_prompt, handler=self.handle_prompt)
 
 
 class SingleThreadedRunner(InProcessRunner):
@@ -403,7 +419,9 @@ class MultiThreadedRunner(InProcessRunner):
                 if outbox_id not in self.outboxes:
                     self.outboxes[outbox_id] = PromptOutbox()
                 if inbox_id not in self.outboxes[outbox_id].downstream_inboxes:
-                    self.outboxes[outbox_id].downstream_inboxes[inbox_id] = self.inboxes[inbox_id]
+                    self.outboxes[outbox_id].downstream_inboxes[
+                        inbox_id
+                    ] = self.inboxes[inbox_id]
 
         # Construct application threads.
         for process_name, process in self.system.processes.items():
@@ -449,14 +467,20 @@ class MultiThreadedRunner(InProcessRunner):
                 tick_oversize = tick_size - tick_interval
                 tick_oversize_percentage = 100 * (tick_oversize) / tick_interval
                 if tick_oversize_percentage > 300:
-                    print(f"Warning: Tick over size: {tick_size :.6f}s {tick_oversize_percentage:.2f}%")
+                    print(
+                        f"Warning: Tick over size: {tick_size :.6f}s {tick_oversize_percentage:.2f}%"
+                    )
 
                 if abs(tick_oversize_percentage) < 300:
                     self.tick_adjustment += 0.5 * tick_interval * tick_oversize
                     max_tick_adjustment = 0.5 * tick_interval
                     min_tick_adjustment = 0
-                    self.tick_adjustment = min(self.tick_adjustment, max_tick_adjustment)
-                    self.tick_adjustment = max(self.tick_adjustment, min_tick_adjustment)
+                    self.tick_adjustment = min(
+                        self.tick_adjustment, max_tick_adjustment
+                    )
+                    self.tick_adjustment = max(
+                        self.tick_adjustment, min_tick_adjustment
+                    )
 
             self.last_tick = self.this_tick
 
@@ -500,7 +524,7 @@ class MultiThreadedRunner(InProcessRunner):
             self.stop_clock_event.set()
 
         for thread in self.threads.values():
-            thread.inbox.put('QUIT')
+            thread.inbox.put("QUIT")
 
         for thread in self.threads.values():
             thread.join(timeout=10)
@@ -516,8 +540,14 @@ class PromptQueuedApplicationThread(Thread):
     adds its prompts to an "outbox" queue.
     """
 
-    def __init__(self, process: ProcessApplication, poll_interval=DEFAULT_POLL_INTERVAL,
-                 inbox=None, outbox=None, clock_event=None):
+    def __init__(
+        self,
+        process: ProcessApplication,
+        poll_interval=DEFAULT_POLL_INTERVAL,
+        inbox=None,
+        outbox=None,
+        clock_event=None,
+    ):
         super(PromptQueuedApplicationThread, self).__init__(daemon=True)
         self.process = process
         self.poll_interval = poll_interval
@@ -544,7 +574,7 @@ class PromptQueuedApplicationThread(Thread):
             else:
                 self.inbox.task_done()
 
-                if prompt == 'QUIT':
+                if prompt == "QUIT":
                     self.process.close()
                     break
 
@@ -559,9 +589,13 @@ class PromptQueuedApplicationThread(Thread):
                         ended = time.time()
                         duration = ended - started
                         if self.clock_event.is_set():
-                            print(f"Warning: Process {self.process.name} overran clock cycle: {duration}")
+                            print(
+                                f"Warning: Process {self.process.name} overran clock cycle: {duration}"
+                            )
                         else:
-                            print(f"Info: Process {self.process.name} ran within clock cycle: {duration}")
+                            print(
+                                f"Info: Process {self.process.name} ran within clock cycle: {duration}"
+                            )
 
     def run_process(self, prompt=None):
         try:
@@ -595,8 +629,9 @@ class PromptOutbox(object):
 
 
 class SteppingRunner(InProcessRunner):
-
-    def __init__(self, normal_speed=1, scale_factor=1, is_verbose=False, *args, **kwargs):
+    def __init__(
+        self, normal_speed=1, scale_factor=1, is_verbose=False, *args, **kwargs
+    ):
         super(SteppingRunner, self).__init__(*args, **kwargs)
         self.normal_speed = normal_speed
         self.scale_factor = scale_factor
@@ -614,7 +649,6 @@ class SteppingRunner(InProcessRunner):
 
 
 class SteppingSingleThreadedRunner(SteppingRunner):
-
     def __init__(self, *args, **kwargs):
         super(SteppingSingleThreadedRunner, self).__init__(*args, **kwargs)
         self.seen_prompt_events = {}
@@ -630,7 +664,7 @@ class SteppingSingleThreadedRunner(SteppingRunner):
             is_verbose=self.is_verbose,
             seen_prompt_events=self.seen_prompt_events,
             processes=self.system.processes,
-            use_direct_query_if_available=self.use_direct_query_if_available
+            use_direct_query_if_available=self.use_direct_query_if_available,
         )
         self.clock_thread.start()
 
@@ -663,9 +697,16 @@ class ClockThread(Thread):
 
 
 class ProcessRunningClockThread(ClockThread):
-    def __init__(self, normal_speed, scale_factor, stop_event: Event,
-                 is_verbose=False, seen_prompt_events=None, processes=None,
-                 use_direct_query_if_available=False):
+    def __init__(
+        self,
+        normal_speed,
+        scale_factor,
+        stop_event: Event,
+        is_verbose=False,
+        seen_prompt_events=None,
+        processes=None,
+        use_direct_query_if_available=False,
+    ):
         super(ProcessRunningClockThread, self).__init__(daemon=True)
         self.normal_speed = normal_speed
         self.scale_factor = scale_factor
@@ -684,7 +725,9 @@ class ProcessRunningClockThread(ClockThread):
             self.tick_interval = None
         if self.tick_interval:
 
-            self.tick_durations_window_size = max(100, int(round(1 / self.tick_interval, 0)))
+            self.tick_durations_window_size = max(
+                100, int(round(1 / self.tick_interval, 0))
+            )
         else:
             self.tick_durations_window_size = 1000
         # Construct lists of followers for each process.
@@ -700,7 +743,7 @@ class ProcessRunningClockThread(ClockThread):
         for process_name, process in self.processes.items():
             reader = process.notification_log_reader_class(
                 notification_log=process.notification_log,
-                use_direct_query_if_available=self.use_direct_query_if_available
+                use_direct_query_if_available=self.use_direct_query_if_available,
             )
             self.readers[process_name] = reader
 
@@ -740,7 +783,7 @@ class ProcessRunningClockThread(ClockThread):
                         process = self.processes[process_name]
                         # It's not the follower process, but the method does the same thing.
                         event = process.get_event_from_notification(notification)
-                        notification_id = notification['id']
+                        notification_id = notification["id"]
                         events.append((notification_id, event))
                     all_events[process_name] = events
 
@@ -751,7 +794,9 @@ class ProcessRunningClockThread(ClockThread):
                         # print(f"Follower: {follower_name}")
                         for notification_id, event in events:
                             # print(f"Notification: {notification_id}, {event}")
-                            follower_process.process_upstream_event(event, notification_id, process_name)
+                            follower_process.process_upstream_event(
+                                event, notification_id, process_name
+                            )
                 # Call commands delayed until this clock tick.
                 self.call_commands()
 
@@ -776,14 +821,17 @@ class ProcessRunningClockThread(ClockThread):
                         intensity = 100 * process_duration / tick_duration
                         clock_speed = 1 / tick_duration
                         real_time = self.tick_count / self.normal_speed
-                        print(f"Tick {self.tick_count:4}: {real_time:4.2f}s  {tick_duration:.6f}s, "
-                              f"{intensity:6.2f}%, {clock_speed:6.1f}Hz, "
-                              f"{self.actual_clock_speed:6.1f}Hz, {self.tick_adjustment:.6f}s"
-                              )
+                        print(
+                            f"Tick {self.tick_count:4}: {real_time:4.2f}s  {tick_duration:.6f}s, "
+                            f"{intensity:6.2f}%, {clock_speed:6.1f}Hz, "
+                            f"{self.actual_clock_speed:6.1f}Hz, {self.tick_adjustment:.6f}s"
+                        )
 
                     if self.tick_interval:
                         tick_oversize = tick_duration - self.tick_interval
-                        tick_oversize_percentage = 100 * (tick_oversize) / self.tick_interval
+                        tick_oversize_percentage = (
+                            100 * (tick_oversize) / self.tick_interval
+                        )
                         # if tick_oversize_percentage > 300:
                         #     print(f"Warning: Tick over size: { tick_duration :.6f}s {tick_oversize_percentage:.2f}%")
 
@@ -795,8 +843,12 @@ class ProcessRunningClockThread(ClockThread):
                             self.tick_adjustment += weight * tick_oversize
                             max_tick_adjustment = 1.0 * self.tick_interval
                             min_tick_adjustment = 0
-                            self.tick_adjustment = min(self.tick_adjustment, max_tick_adjustment)
-                            self.tick_adjustment = max(self.tick_adjustment, min_tick_adjustment)
+                            self.tick_adjustment = min(
+                                self.tick_adjustment, max_tick_adjustment
+                            )
+                            self.tick_adjustment = max(
+                                self.tick_adjustment, min_tick_adjustment
+                            )
 
                 self.last_tick_time = tick_time
                 self.last_process_time = process_time
@@ -893,7 +945,9 @@ class SteppingMultiThreadedRunner(SteppingRunner):
         for thread in self.application_threads.values():
             thread.join(timeout=1)
             if thread.isAlive():
-                print(f"Warning: application thread '{thread.process.name}' was still alive: {thread.state}")
+                print(
+                    f"Warning: application thread '{thread.process.name}' was still alive: {thread.state}"
+                )
 
         self.application_threads.clear()
 
@@ -903,8 +957,13 @@ class SteppingMultiThreadedRunner(SteppingRunner):
 
 
 class BarrierControlledApplicationThread(Thread):
-    def __init__(self, process: ProcessApplication, fetch_barrier: Barrier,
-                 execute_barrier: Barrier, stop_event: Event):
+    def __init__(
+        self,
+        process: ProcessApplication,
+        fetch_barrier: Barrier,
+        execute_barrier: Barrier,
+        stop_event: Event,
+    ):
         super(BarrierControlledApplicationThread, self).__init__(daemon=True)
         self.process_application = process
         self.fetch_barrier = fetch_barrier
@@ -931,7 +990,9 @@ class BarrierControlledApplicationThread(Thread):
                 try:
                     # Get all notifications.
                     for upstream_name in self.process_application.readers:
-                        notifications = list(self.process_application.read_reader(upstream_name))
+                        notifications = list(
+                            self.process_application.read_reader(upstream_name)
+                        )
                         all_notifications.append((upstream_name, notifications))
 
                 except:
@@ -950,8 +1011,12 @@ class BarrierControlledApplicationThread(Thread):
                     # Process all notifications.
                     for upstream_name, notifications in all_notifications:
                         for notification in notifications:
-                            event = self.process_application.get_event_from_notification(notification)
-                            self.process_application.process_upstream_event(event, notification['id'], upstream_name)
+                            event = self.process_application.get_event_from_notification(
+                                notification
+                            )
+                            self.process_application.process_upstream_event(
+                                event, notification["id"], upstream_name
+                            )
                 except:
                     self.abort()
                     raise
@@ -968,9 +1033,16 @@ class BarrierControlledApplicationThread(Thread):
 
 
 class BarrierControllingClockThread(ClockThread):
-    def __init__(self, normal_speed, scale_factor, tick_interval,
-                 fetch_barrier: Barrier, execute_barrier: Barrier,
-                 stop_event: Event, is_verbose=False):
+    def __init__(
+        self,
+        normal_speed,
+        scale_factor,
+        tick_interval,
+        fetch_barrier: Barrier,
+        execute_barrier: Barrier,
+        stop_event: Event,
+        is_verbose=False,
+    ):
         super(BarrierControllingClockThread, self).__init__(daemon=True)
         # Todo: Remove the redundancy here.
         self.normal_speed = normal_speed
@@ -986,7 +1058,9 @@ class BarrierControllingClockThread(ClockThread):
         self.is_verbose = is_verbose
         if self.tick_interval:
 
-            self.tick_durations_window_size = max(1, int(round(1 / self.tick_interval, 0)))
+            self.tick_durations_window_size = max(
+                1, int(round(1 / self.tick_interval, 0))
+            )
         else:
             self.tick_durations_window_size = 100
 
@@ -1024,14 +1098,17 @@ class BarrierControllingClockThread(ClockThread):
                         intensity = 100 * process_duration / tick_duration
                         clock_speed = 1 / tick_duration
                         real_time = self.tick_count / self.normal_speed
-                        print(f"Tick {self.tick_count:4}: {real_time:4.2f}s  {tick_duration:.6f}s, "
-                              f"{intensity:6.2f}%, {clock_speed:6.1f}Hz, "
-                              f"{self.actual_clock_speed:6.1f}Hz, {self.tick_adjustment:.6f}s"
-                              )
+                        print(
+                            f"Tick {self.tick_count:4}: {real_time:4.2f}s  {tick_duration:.6f}s, "
+                            f"{intensity:6.2f}%, {clock_speed:6.1f}Hz, "
+                            f"{self.actual_clock_speed:6.1f}Hz, {self.tick_adjustment:.6f}s"
+                        )
 
                     if self.tick_interval:
                         tick_oversize = tick_duration - self.tick_interval
-                        tick_oversize_percentage = 100 * (tick_oversize) / self.tick_interval
+                        tick_oversize_percentage = (
+                            100 * (tick_oversize) / self.tick_interval
+                        )
                         # if tick_oversize_percentage > 300:
                         #     print(f"Warning: Tick over size: { tick_duration :.6f}s {tick_oversize_percentage:.2f}%")
 
@@ -1043,8 +1120,12 @@ class BarrierControllingClockThread(ClockThread):
                             self.tick_adjustment += weight * tick_oversize
                             max_tick_adjustment = 1.0 * self.tick_interval
                             min_tick_adjustment = 0
-                            self.tick_adjustment = min(self.tick_adjustment, max_tick_adjustment)
-                            self.tick_adjustment = max(self.tick_adjustment, min_tick_adjustment)
+                            self.tick_adjustment = min(
+                                self.tick_adjustment, max_tick_adjustment
+                            )
+                            self.tick_adjustment = max(
+                                self.tick_adjustment, min_tick_adjustment
+                            )
 
                 self.last_tick_time = tick_time
                 self.last_process_time = process_time

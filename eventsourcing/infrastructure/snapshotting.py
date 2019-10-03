@@ -39,7 +39,9 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
 
         :rtype: Snapshot
         """
-        snapshots = self.snapshot_store.get_domain_events(entity_id, lt=lt, lte=lte, limit=1, is_ascending=False)
+        snapshots = self.snapshot_store.get_domain_events(
+            entity_id, lt=lt, lte=lte, limit=1, is_ascending=False
+        )
         if len(snapshots) == 1:
             return snapshots[0]
 
@@ -57,7 +59,7 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
             originator_id=entity_id,
             originator_version=last_event_version,
             topic=get_topic(entity.__class__),
-            state=None if entity is None else deepcopy(entity.__dict__)
+            state=None if entity is None else deepcopy(entity.__dict__),
         )
 
         self.snapshot_store.store(snapshot)

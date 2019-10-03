@@ -5,15 +5,28 @@ import datetime
 import time
 
 from eventsourcing.domain.model.decorators import attribute
-from eventsourcing.domain.model.entity import AttributeChanged, VersionedEntity, TimestampedVersionedEntity
+from eventsourcing.domain.model.entity import (
+    AttributeChanged,
+    VersionedEntity,
+    TimestampedVersionedEntity,
+)
 from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
 from eventsourcing.example.domainmodel import Example, create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
-from eventsourcing.exceptions import ConcurrencyError, OriginatorIDError, OriginatorVersionError, \
-    ProgrammingError, RepositoryKeyError
+from eventsourcing.exceptions import (
+    ConcurrencyError,
+    OriginatorIDError,
+    OriginatorVersionError,
+    ProgrammingError,
+    RepositoryKeyError,
+)
 from eventsourcing.tests.sequenced_item_tests.base import WithEventPersistence
-from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import WithCassandraRecordManagers
-from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import SQLAlchemyRecordManagerTestCase
+from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import (
+    WithCassandraRecordManagers,
+)
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import (
+    SQLAlchemyRecordManagerTestCase,
+)
 from eventsourcing.utils.times import datetime_from_timestamp
 from eventsourcing.utils.topic import get_topic
 
@@ -57,7 +70,8 @@ class TestExampleEntity(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
         self.assertGreater(dt, datetime.datetime.utcnow() - datetime.timedelta(1))
 
         # Check a different type with the same values is not "equal" to the first.
-        class Subclass(Example): pass
+        class Subclass(Example):
+            pass
 
         other = object.__new__(Subclass)
         other.__dict__.update(example1.__dict__)
@@ -120,8 +134,7 @@ class TestExampleEntity(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
         # Should fail to validate event with wrong entity ID.
         with self.assertRaises(OriginatorIDError):
             VersionedEntity.Event(
-                originator_id=uuid4(),
-                originator_version=0,
+                originator_id=uuid4(), originator_version=0
             ).__check_obj__(entity2)
         # Should fail to validate event with wrong entity version.
         with self.assertRaises(OriginatorVersionError):
@@ -140,17 +153,14 @@ class TestExampleEntity(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
 
         # Check an entity cannot be reregistered with the ID of a discarded entity.
         replacement_event = Example.Created(
-            originator_id=entity1.id,
-            a=11,
-            b=12,
-            originator_topic=get_topic(Example),
+            originator_id=entity1.id, a=11, b=12, originator_topic=get_topic(Example)
         )
         with self.assertRaises(ConcurrencyError):
             publish(event=replacement_event)
 
     def test_attribute(self):
         # Check we get an error when called with something other than a function.
-        self.assertRaises(ProgrammingError, attribute, 'not a getter')
+        self.assertRaises(ProgrammingError, attribute, "not a getter")
         self.assertRaises(ProgrammingError, attribute, 123)
         self.assertRaises(ProgrammingError, attribute, None)
 
@@ -168,18 +178,18 @@ class TestExampleEntity(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
         # Pretend we decorated an object.
         entity_id = uuid4()
         o = VersionedEntity(id=entity_id, __version__=0)
-        o.__dict__['_<lambda>'] = 'value1'
+        o.__dict__["_<lambda>"] = "value1"
 
         # Call the property's getter function.
         value = p.fget(o)
-        self.assertEqual(value, 'value1')
+        self.assertEqual(value, "value1")
 
         # Call the property's setter function.
-        p.fset(o, 'value2')
+        p.fset(o, "value2")
 
         # Check the attribute has changed.
         value = p.fget(o)
-        self.assertEqual(value, 'value2')
+        self.assertEqual(value, "value2")
 
         # Check the property's getter function isn't the getter function we passed in.
         self.assertNotEqual(p.fget, getter)
@@ -204,8 +214,8 @@ class TestExampleEntity(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
         try:
             aaa = Aaa(id=entity_id, __version__=1, a=1)
             self.assertEqual(aaa.a, 1)
-            aaa.a = 'value1'
-            self.assertEqual(aaa.a, 'value1')
+            aaa.a = "value1"
+            self.assertEqual(aaa.a, "value1")
         finally:
             unsubscribe(*subscription)
 
@@ -215,8 +225,8 @@ class TestExampleEntity(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
         # Check the published event was an AttributeChanged event, with the expected attribute values.
         published_event = published_events[0]
         self.assertIsInstance(published_event, AttributeChanged)
-        self.assertEqual(published_event.name, '_a')
-        self.assertEqual(published_event.value, 'value1')
+        self.assertEqual(published_event.name, "_a")
+        self.assertEqual(published_event.value, "value1")
         self.assertTrue(published_event.originator_version, 1)
         self.assertEqual(published_event.originator_id, entity_id)
 
@@ -250,8 +260,8 @@ class TestExampleEntity(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
             __with_data_integrity__ = False
 
         event = SubclassEvent(originator_id=1, originator_version=0, timestamp=1)
-        self.assertFalse(hasattr(event, '__previous_hash__'))
-        self.assertFalse(hasattr(event, '__event_hash__'))
+        self.assertFalse(hasattr(event, "__previous_hash__"))
+        self.assertFalse(hasattr(event, "__event_hash__"))
 
         # Check the Python hash still works.
         self.assertIsInstance(hash(event), int)
@@ -259,15 +269,14 @@ class TestExampleEntity(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
         class SubclassCreated(TimestampedVersionedEntity.Created):
             __with_data_integrity__ = False
 
-        event = SubclassCreated(originator_id=1, originator_topic='', timestamp=1)
-        self.assertFalse(hasattr(event, '__previous_hash__'))
+        event = SubclassCreated(originator_id=1, originator_topic="", timestamp=1)
+        self.assertFalse(hasattr(event, "__previous_hash__"))
 
         entity = SubclassEntity.__create__()
-        self.assertFalse(hasattr(entity, '__head__'))
+        self.assertFalse(hasattr(entity, "__head__"))
 
 
 class SubclassEntity(TimestampedVersionedEntity):
-
     class Event(TimestampedVersionedEntity.Event):
         pass
 

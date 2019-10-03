@@ -8,14 +8,22 @@ from uuid import uuid1
 import sys
 
 from eventsourcing.utils.random import encode_random_bytes, decode_bytes
-from eventsourcing.utils.times import decimaltimestamp_from_uuid, utc_timezone, decimaltimestamp
+from eventsourcing.utils.times import (
+    decimaltimestamp_from_uuid,
+    utc_timezone,
+    decimaltimestamp,
+)
 
 
 class TestUtils(TestCase):
     def test_decimaltimestamp(self):
         # Check a given float is correctly converted to a Decimal.
-        self.assertEqual(decimaltimestamp(123456789.1234560), Decimal('123456789.123456'))
-        self.assertEqual(decimaltimestamp(1234567890.1234560), Decimal('1234567890.123456'))
+        self.assertEqual(
+            decimaltimestamp(123456789.1234560), Decimal("123456789.123456")
+        )
+        self.assertEqual(
+            decimaltimestamp(1234567890.1234560), Decimal("1234567890.123456")
+        )
 
         # Generate a series of timestamps.
         timestamps = [decimaltimestamp() for _ in range(100)]
@@ -45,7 +53,7 @@ class TestUtils(TestCase):
         self.assertGreater(timestamps[-1], timestamps[0])
 
     def test_decimaltimestamp_corresponds_with_decimaltimestamp_from_uuid(self):
-        if os.getenv('TRAVIS_PYTHON_VERSION') in ['3.6', '3.7', '3.7-dev', 'pypy3.5']:
+        if os.getenv("TRAVIS_PYTHON_VERSION") in ["3.6", "3.7", "3.7-dev", "pypy3.5"]:
             self.skipTest("Somehow this fails on Travis dist:xenial.")
 
             # This is the weird error that happens in Python 3.7.1 on Travis Xenial dist.

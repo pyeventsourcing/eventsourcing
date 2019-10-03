@@ -50,6 +50,7 @@ class EventPlayer(AbstractEventPlayer):
             event.__check_obj__(initial)
         return event.__mutate__(initial)
 
+
 # def clone_object(initial_state):
 #     initial_state_copy = object.__new__(type(initial_state))
 #     initial_state_copy.__dict__.update(deepcopy(initial_state.__dict__))

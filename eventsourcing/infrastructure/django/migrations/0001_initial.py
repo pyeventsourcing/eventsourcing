@@ -7,124 +7,116 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='EntitySnapshotRecord',
+            name="EntitySnapshotRecord",
             fields=[
-                ('uid', models.BigAutoField(primary_key=True, serialize=False)),
-                ('application_name', models.CharField(max_length=32)),
-                ('originator_id', models.UUIDField()),
-                ('originator_version', models.BigIntegerField()),
-                ('topic', models.TextField()),
-                ('state', models.TextField()),
+                ("uid", models.BigAutoField(primary_key=True, serialize=False)),
+                ("application_name", models.CharField(max_length=32)),
+                ("originator_id", models.UUIDField()),
+                ("originator_version", models.BigIntegerField()),
+                ("topic", models.TextField()),
+                ("state", models.TextField()),
             ],
-            options={
-                'db_table': 'entity_snapshots',
-            },
+            options={"db_table": "entity_snapshots"},
         ),
         migrations.CreateModel(
-            name='IntegerSequencedRecord',
+            name="IntegerSequencedRecord",
             fields=[
-                ('id', models.BigAutoField(primary_key=True, serialize=False)),
-                ('sequence_id', models.UUIDField()),
-                ('position', models.BigIntegerField()),
-                ('topic', models.TextField()),
-                ('state', models.TextField()),
+                ("id", models.BigAutoField(primary_key=True, serialize=False)),
+                ("sequence_id", models.UUIDField()),
+                ("position", models.BigIntegerField()),
+                ("topic", models.TextField()),
+                ("state", models.TextField()),
             ],
-            options={
-                'db_table': 'integer_sequenced_items',
-            },
+            options={"db_table": "integer_sequenced_items"},
         ),
         migrations.CreateModel(
-            name='NotificationTrackingRecord',
+            name="NotificationTrackingRecord",
             fields=[
-                ('uid', models.BigAutoField(primary_key=True, serialize=False)),
-                ('application_name', models.CharField(max_length=32)),
-                ('upstream_application_name', models.CharField(max_length=32)),
-                ('pipeline_id', models.IntegerField()),
-                ('notification_id', models.BigIntegerField()),
+                ("uid", models.BigAutoField(primary_key=True, serialize=False)),
+                ("application_name", models.CharField(max_length=32)),
+                ("upstream_application_name", models.CharField(max_length=32)),
+                ("pipeline_id", models.IntegerField()),
+                ("notification_id", models.BigIntegerField()),
             ],
-            options={
-                'db_table': 'notification_tracking',
-            },
+            options={"db_table": "notification_tracking"},
         ),
         migrations.CreateModel(
-            name='SnapshotRecord',
+            name="SnapshotRecord",
             fields=[
-                ('uid', models.BigAutoField(primary_key=True, serialize=False)),
-                ('sequence_id', models.UUIDField()),
-                ('position', models.BigIntegerField()),
-                ('topic', models.TextField()),
-                ('state', models.TextField()),
+                ("uid", models.BigAutoField(primary_key=True, serialize=False)),
+                ("sequence_id", models.UUIDField()),
+                ("position", models.BigIntegerField()),
+                ("topic", models.TextField()),
+                ("state", models.TextField()),
             ],
-            options={
-                'db_table': 'snapshots',
-            },
+            options={"db_table": "snapshots"},
         ),
         migrations.CreateModel(
-            name='StoredEventRecord',
+            name="StoredEventRecord",
             fields=[
-                ('uid', models.BigAutoField(primary_key=True, serialize=False)),
-                ('application_name', models.CharField(max_length=32)),
-                ('originator_id', models.UUIDField()),
-                ('originator_version', models.BigIntegerField()),
-                ('pipeline_id', models.IntegerField()),
-                ('notification_id', models.BigIntegerField()),
-                ('topic', models.TextField()),
-                ('state', models.TextField()),
-                ('causal_dependencies', models.TextField()),
+                ("uid", models.BigAutoField(primary_key=True, serialize=False)),
+                ("application_name", models.CharField(max_length=32)),
+                ("originator_id", models.UUIDField()),
+                ("originator_version", models.BigIntegerField()),
+                ("pipeline_id", models.IntegerField()),
+                ("notification_id", models.BigIntegerField()),
+                ("topic", models.TextField()),
+                ("state", models.TextField()),
+                ("causal_dependencies", models.TextField()),
             ],
-            options={
-                'db_table': 'stored_events',
-            },
+            options={"db_table": "stored_events"},
         ),
         migrations.CreateModel(
-            name='TimestampSequencedRecord',
+            name="TimestampSequencedRecord",
             fields=[
-                ('id', models.BigAutoField(primary_key=True, serialize=False)),
-                ('sequence_id', models.UUIDField()),
-                ('position', models.DecimalField(decimal_places=6, max_digits=24)),
-                ('topic', models.TextField()),
-                ('state', models.TextField()),
+                ("id", models.BigAutoField(primary_key=True, serialize=False)),
+                ("sequence_id", models.UUIDField()),
+                ("position", models.DecimalField(decimal_places=6, max_digits=24)),
+                ("topic", models.TextField()),
+                ("state", models.TextField()),
             ],
-            options={
-                'db_table': 'timestamp_sequenced_items',
-            },
+            options={"db_table": "timestamp_sequenced_items"},
         ),
         migrations.AddIndex(
-            model_name='timestampsequencedrecord',
-            index=models.Index(fields=['position'], name='position_idx'),
+            model_name="timestampsequencedrecord",
+            index=models.Index(fields=["position"], name="position_idx"),
         ),
         migrations.AlterUniqueTogether(
-            name='timestampsequencedrecord',
-            unique_together={('sequence_id', 'position')},
+            name="timestampsequencedrecord",
+            unique_together={("sequence_id", "position")},
         ),
         migrations.AlterUniqueTogether(
-            name='storedeventrecord',
+            name="storedeventrecord",
             unique_together={
-                ('application_name', 'originator_id', 'originator_version'),
-                ('application_name', 'pipeline_id', 'notification_id')
+                ("application_name", "originator_id", "originator_version"),
+                ("application_name", "pipeline_id", "notification_id"),
             },
         ),
         migrations.AlterUniqueTogether(
-            name='snapshotrecord',
-            unique_together={('sequence_id', 'position')},
+            name="snapshotrecord", unique_together={("sequence_id", "position")}
         ),
         migrations.AlterUniqueTogether(
-            name='notificationtrackingrecord',
+            name="notificationtrackingrecord",
             unique_together={
-                ('application_name', 'upstream_application_name', 'pipeline_id', 'notification_id')
+                (
+                    "application_name",
+                    "upstream_application_name",
+                    "pipeline_id",
+                    "notification_id",
+                )
             },
         ),
         migrations.AlterUniqueTogether(
-            name='integersequencedrecord',
-            unique_together={('sequence_id', 'position')},
+            name="integersequencedrecord", unique_together={("sequence_id", "position")}
         ),
         migrations.AlterUniqueTogether(
-            name='entitysnapshotrecord',
-            unique_together={('application_name', 'originator_id', 'originator_version')},
+            name="entitysnapshotrecord",
+            unique_together={
+                ("application_name", "originator_id", "originator_version")
+            },
         ),
     ]

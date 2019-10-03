@@ -2,9 +2,17 @@ from __future__ import unicode_literals
 
 from abc import ABC, abstractmethod
 
-from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
+from eventsourcing.infrastructure.sequenceditem import (
+    SequencedItem,
+    SequencedItemFieldNames,
+)
 from eventsourcing.utils.topic import get_topic, resolve_topic
-from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder, json_dumps, json_loads
+from eventsourcing.utils.transcoding import (
+    ObjectJSONDecoder,
+    ObjectJSONEncoder,
+    json_dumps,
+    json_loads,
+)
 
 
 class AbstractSequencedItemMapper(ABC):
@@ -26,15 +34,24 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
     Uses JSON to transcode domain events.
     """
 
-    def __init__(self, sequenced_item_class=SequencedItem, sequence_id_attr_name=None,
-                 position_attr_name=None, json_encoder_class=None, json_decoder_class=None,
-                 cipher=None, other_attr_names=()):
+    def __init__(
+        self,
+        sequenced_item_class=SequencedItem,
+        sequence_id_attr_name=None,
+        position_attr_name=None,
+        json_encoder_class=None,
+        json_decoder_class=None,
+        cipher=None,
+        other_attr_names=(),
+    ):
         self.sequenced_item_class = sequenced_item_class
         self.json_encoder_class = json_encoder_class or ObjectJSONEncoder
         self.json_decoder_class = json_decoder_class or ObjectJSONDecoder
         self.cipher = cipher
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
-        self.sequence_id_attr_name = sequence_id_attr_name or self.field_names.sequence_id
+        self.sequence_id_attr_name = (
+            sequence_id_attr_name or self.field_names.sequence_id
+        )
         self.position_attr_name = position_attr_name or self.field_names.position
         self.other_attr_names = other_attr_names or self.field_names.other_names
 
@@ -57,14 +74,15 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
 
         # Get topic and data.
         topic, state = self.get_item_topic_and_state(
-            domain_event.__class__,
-            domain_event.__dict__
+            domain_event.__class__, domain_event.__dict__
         )
 
         # Get the 'other' args.
         # - these are meant to be derivative of the other attributes,
         #   to populate database fields, and shouldn't affect the hash.
-        other_args = tuple((getattr(domain_event, name) for name in self.other_attr_names))
+        other_args = tuple(
+            (getattr(domain_event, name) for name in self.other_attr_names)
+        )
 
         return (sequence_id, position, topic, state) + other_args
 
@@ -90,7 +108,8 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         event attrs. Used in the event store when getting domain events.
         """
         assert isinstance(sequenced_item, self.sequenced_item_class), (
-            self.sequenced_item_class, type(sequenced_item)
+            self.sequenced_item_class,
+            type(sequenced_item),
         )
 
         # Get the topic and state.

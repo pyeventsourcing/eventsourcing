@@ -12,7 +12,11 @@ def get_topic(domain_class):
     Returns:
         A string describing the class.
     """
-    return domain_class.__module__ + '#' + getattr(domain_class, '__qualname__', domain_class.__name__)
+    return (
+        domain_class.__module__
+        + "#"
+        + getattr(domain_class, "__qualname__", domain_class.__name__)
+    )
 
 
 # Todo: Document this.
@@ -36,7 +40,7 @@ def resolve_topic(topic):
     topic = substitutions.get(topic, topic)
 
     # Partition topic into module and class names.
-    module_name, _, class_name = topic.partition('#')
+    module_name, _, class_name = topic.partition("#")
 
     # Import the module.
     try:
@@ -67,6 +71,6 @@ def resolve_attr(obj, path):
     """
     if not path:
         return obj
-    head, _, tail = path.partition('.')
+    head, _, tail = path.partition(".")
     head_obj = getattr(obj, head)
     return resolve_attr(head_obj, tail)

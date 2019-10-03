@@ -20,8 +20,17 @@ class AbstractEventStore(ABC):
         """
 
     @abstractmethod
-    def get_domain_events(self, originator_id, gt=None, gte=None, lt=None, lte=None, limit=None, is_ascending=True,
-                          page_size=None):
+    def get_domain_events(
+        self,
+        originator_id,
+        gt=None,
+        gte=None,
+        lt=None,
+        lte=None,
+        limit=None,
+        is_ascending=True,
+        page_size=None,
+    ):
         """
         Returns domain events for given entity ID.
         """
@@ -47,6 +56,7 @@ class AbstractEventStore(ABC):
 
 # Todo: Unify iterators in EventStore and in NotificationLog, by pushing behaviour down to record manager?
 
+
 class EventStore(AbstractEventStore):
     """
     Event store appends domain events to stored sequences. It uses
@@ -54,6 +64,7 @@ class EventStore(AbstractEventStore):
     records, and it uses a sequenced item mapper to map named
     tuples to application-level objects.
     """
+
     iterator_class = SequencedItemIterator
 
     def __init__(self, record_manager, sequenced_item_mapper):
@@ -64,8 +75,12 @@ class EventStore(AbstractEventStore):
         :param record_manager: record manager
         :param sequenced_item_mapper: sequenced item mapper
         """
-        assert isinstance(record_manager, AbstractSequencedItemRecordManager), record_manager
-        assert isinstance(sequenced_item_mapper, AbstractSequencedItemMapper), sequenced_item_mapper
+        assert isinstance(
+            record_manager, AbstractSequencedItemRecordManager
+        ), record_manager
+        assert isinstance(
+            sequenced_item_mapper, AbstractSequencedItemMapper
+        ), sequenced_item_mapper
         self.record_manager = record_manager
         self.mapper = sequenced_item_mapper
 
@@ -98,8 +113,17 @@ class EventStore(AbstractEventStore):
         else:
             return self.mapper.item_from_event(domain_event_or_events)
 
-    def get_domain_events(self, originator_id, gt=None, gte=None, lt=None, lte=None, limit=None, is_ascending=True,
-                          page_size=None):
+    def get_domain_events(
+        self,
+        originator_id,
+        gt=None,
+        gte=None,
+        lt=None,
+        lte=None,
+        limit=None,
+        is_ascending=True,
+        page_size=None,
+    ):
         """
         Gets domain events from the sequence identified by `originator_id`.
 
@@ -152,8 +176,7 @@ class EventStore(AbstractEventStore):
         """
 
         sequenced_item = self.record_manager.get_item(
-            sequence_id=originator_id,
-            position=position,
+            sequence_id=originator_id, position=position
         )
         return self.mapper.event_from_item(sequenced_item)
 
@@ -167,7 +190,9 @@ class EventStore(AbstractEventStore):
         :param lte: get highest at or before this position
         :return: domain event
         """
-        events = self.get_domain_events(originator_id=originator_id, lt=lt, lte=lte, limit=1, is_ascending=False)
+        events = self.get_domain_events(
+            originator_id=originator_id, lt=lt, lte=lte, limit=1, is_ascending=False
+        )
         events = list(events)
         try:
             return events[0]
@@ -179,5 +204,7 @@ class EventStore(AbstractEventStore):
         Yields all domain events in the event store.
         """
         for originator_id in self.record_manager.all_sequence_ids():
-            for domain_event in self.get_domain_events(originator_id=originator_id, page_size=100):
+            for domain_event in self.get_domain_events(
+                originator_id=originator_id, page_size=100
+            ):
                 yield domain_event

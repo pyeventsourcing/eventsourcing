@@ -2,12 +2,21 @@ from unittest import TestCase
 from uuid import uuid4
 
 from eventsourcing.application.command import CommandProcess
-from eventsourcing.application.process import ProcessApplication, ProcessApplicationWithSnapshotting, WrappedRepository
+from eventsourcing.application.process import (
+    ProcessApplication,
+    ProcessApplicationWithSnapshotting,
+    WrappedRepository,
+)
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.domain.model.aggregate import AggregateRoot, BaseAggregateRoot
 from eventsourcing.domain.model.command import Command
-from eventsourcing.domain.model.events import EventHandlersNotEmptyError, assert_event_handlers_empty, \
-    clear_event_handlers, subscribe, unsubscribe
+from eventsourcing.domain.model.events import (
+    EventHandlersNotEmptyError,
+    assert_event_handlers_empty,
+    clear_event_handlers,
+    subscribe,
+    unsubscribe,
+)
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed
 from eventsourcing.utils.topic import resolve_topic
@@ -21,13 +30,13 @@ class TestProcessApplication(TestCase):
         # Construct example process.
         process_class = ProcessApplication.mixin(self.process_class)
         with process_class(
-            name='test',
+            name="test",
             policy=example_policy,
             persist_event_type=ExampleAggregate.Event,
             setup_table=True,
         ) as process:
             # Make the process follow itself.
-            process.follow('test', process.notification_log)
+            process.follow("test", process.notification_log)
 
             # Create an aggregate.
             aggregate = ExampleAggregate.__create__()
@@ -56,14 +65,14 @@ class TestProcessApplication(TestCase):
     def test_process_application_with_snapshotting(self):
         # Construct example process.
         with ProcessApplicationWithSnapshotting.mixin(self.process_class)(
-            name='test',
+            name="test",
             policy=example_policy,
             persist_event_type=ExampleAggregate.Event,
             setup_table=True,
             snapshot_period=2,
         ) as process:
             # Make the process follow itself.
-            process.follow('test', process.notification_log)
+            process.follow("test", process.notification_log)
 
             # Create an aggregate.
             aggregate = ExampleAggregate.__create__()
@@ -83,7 +92,9 @@ class TestProcessApplication(TestCase):
             self.assertIsInstance(snapshot, Snapshot)
             self.assertEqual(snapshot.originator_version, 1)
 
-            snapshot_v0 = process.snapshot_strategy.get_snapshot(aggregate.id, lt=snapshot.originator_version)
+            snapshot_v0 = process.snapshot_strategy.get_snapshot(
+                aggregate.id, lt=snapshot.originator_version
+            )
             self.assertIsNone(snapshot_v0, Snapshot)
 
     def test_causal_dependencies(self):
@@ -94,7 +105,7 @@ class TestProcessApplication(TestCase):
         # Create two events, one has causal dependency on the other.
         process_class = ProcessApplication.mixin(self.process_class)
         core1 = process_class(
-            name='core',
+            name="core",
             # persist_event_type=ExampleAggregate.Created,
             persist_event_type=BaseAggregateRoot.Event,
             setup_table=True,
@@ -103,13 +114,10 @@ class TestProcessApplication(TestCase):
         core1.use_causal_dependencies = True
 
         # Needed for SQLAlchemy only.
-        kwargs = {'session': core1.session} if hasattr(core1, 'session') else {}
+        kwargs = {"session": core1.session} if hasattr(core1, "session") else {}
 
         core2 = process_class(
-            name='core',
-            pipeline_id=pipeline_id2,
-            policy=example_policy,
-            **kwargs
+            name="core", pipeline_id=pipeline_id2, policy=example_policy, **kwargs
         )
         core2.use_causal_dependencies = True
 
@@ -119,7 +127,7 @@ class TestProcessApplication(TestCase):
 
         # Second event in pipeline 2.
         # - it's important this is done in a policy so the causal dependencies are identified
-        core2.follow('core', core1.notification_log)
+        core2.follow("core", core1.notification_log)
         core2.run()
 
         # Check the aggregate exists.
@@ -133,7 +141,9 @@ class TestProcessApplication(TestCase):
 
         # Check the events have different pipeline IDs.
         aggregate_records = core1.event_store.record_manager.get_records(aggregate.id)
-        second_entity_records = core1.event_store.record_manager.get_records(aggregate.second_id)
+        second_entity_records = core1.event_store.record_manager.get_records(
+            aggregate.second_id
+        )
 
         self.assertEqual(2, len(aggregate_records))
         self.assertEqual(1, len(second_entity_records))
@@ -147,10 +157,7 @@ class TestProcessApplication(TestCase):
         self.assertFalse(aggregate_records[0].causal_dependencies)
 
         # - the second 'Created' event depends on the Created event in another pipeline.
-        expect = [{
-            'notification_id': 1,
-            'pipeline_id': pipeline_id1
-        }]
+        expect = [{"notification_id": 1, "pipeline_id": pipeline_id1}]
         actual = json_loads(second_entity_records[0].causal_dependencies)
 
         self.assertEqual(expect, actual)
@@ -161,38 +168,50 @@ class TestProcessApplication(TestCase):
 
         # Setup downstream process.
         downstream1 = process_class(
-            name='downstream',
+            name="downstream",
             pipeline_id=pipeline_id1,
             policy=event_logging_policy,
             **kwargs
         )
-        downstream1.follow('core', core1.notification_log)
+        downstream1.follow("core", core1.notification_log)
         downstream2 = process_class(
-            name='downstream',
+            name="downstream",
             pipeline_id=pipeline_id2,
             policy=event_logging_policy,
             **kwargs
         )
-        downstream2.follow('core', core2.notification_log)
+        downstream2.follow("core", core2.notification_log)
 
         # Try to process pipeline 2, should fail due to causal dependency.
         with self.assertRaises(CausalDependencyFailed):
             downstream2.run()
 
-        self.assertEqual(0, len(downstream1.event_store.record_manager.get_notifications()))
-        self.assertEqual(0, len(downstream2.event_store.record_manager.get_notifications()))
+        self.assertEqual(
+            0, len(downstream1.event_store.record_manager.get_notifications())
+        )
+        self.assertEqual(
+            0, len(downstream2.event_store.record_manager.get_notifications())
+        )
 
         # Try to process pipeline 1, should work.
         downstream1.run()
 
-        self.assertEqual(1, len(downstream1.event_store.record_manager.get_notifications()))
-        self.assertEqual(0, len(downstream2.event_store.record_manager.get_notifications()))
+        self.assertEqual(
+            1, len(downstream1.event_store.record_manager.get_notifications())
+        )
+        self.assertEqual(
+            0, len(downstream2.event_store.record_manager.get_notifications())
+        )
 
         # Try again to process pipeline 2, should work this time.
         downstream2.run()
 
-        self.assertEqual(1, len(downstream1.event_store.record_manager.get_notifications()))
-        self.assertEqual(2, len(downstream2.event_store.record_manager.get_notifications()))
+        self.assertEqual(
+            1, len(downstream1.event_store.record_manager.get_notifications())
+        )
+        self.assertEqual(
+            2, len(downstream2.event_store.record_manager.get_notifications())
+        )
 
         core1.close()
         core2.close()
@@ -201,7 +220,7 @@ class TestProcessApplication(TestCase):
 
     def test_handle_prompt_failed(self):
         process = ProcessApplication.mixin(self.process_class)(
-            name='test',
+            name="test",
             policy=example_policy,
             persist_event_type=ExampleAggregate.Event,
             setup_table=True,
@@ -259,13 +278,9 @@ class TestCommands(TestCase):
         self.assertIsInstance(pending_events[1], Command.Done)
 
     def test_command_process(self):
-        commands = CommandProcess.mixin(self.infrastructure_class)(
-            setup_table=True
-        )
+        commands = CommandProcess.mixin(self.infrastructure_class)(setup_table=True)
         core = ProcessApplication.mixin(self.infrastructure_class)(
-            'core',
-            policy=example_policy,
-            session=commands.session
+            "core", policy=example_policy, session=commands.session
         )
 
         self.assertFalse(list(commands.event_store.all_domain_events()))
@@ -280,7 +295,7 @@ class TestCommands(TestCase):
 
         self.assertFalse(list(core.event_store.all_domain_events()))
 
-        core.follow('commands', commands.notification_log)
+        core.follow("commands", commands.notification_log)
         core.run()
 
         self.assertTrue(list(core.event_store.all_domain_events()))
@@ -293,6 +308,7 @@ class TestCommands(TestCase):
 
 
 # Example aggregate (used in the test).
+
 
 class ExampleAggregate(BaseAggregateRoot):
     def __init__(self, **kwargs):
@@ -312,7 +328,7 @@ class ExampleAggregate(BaseAggregateRoot):
     class MovedOn(Event):
         @property
         def second_id(self):
-            return self.__dict__['second_id']
+            return self.__dict__["second_id"]
 
         def mutate(self, aggregate):
             assert isinstance(aggregate, ExampleAggregate)
@@ -342,8 +358,7 @@ def example_policy(repository, event):
 
 
 class LogMessage(BaseAggregateRoot):
-
-    def __init__(self, message='', **kwargs):
+    def __init__(self, message="", **kwargs):
         super(LogMessage, self).__init__(**kwargs)
         self.message = message
 

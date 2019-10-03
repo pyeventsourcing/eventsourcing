@@ -1,12 +1,9 @@
 from functools import reduce
 
 from eventsourcing.tests.example_application_tests.base import WithExampleApplication
-from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
-    SQLAlchemyRecordManagerTestCase
-
-
-
-
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import (
+    SQLAlchemyRecordManagerTestCase,
+)
 
 
 #
@@ -17,15 +14,18 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager imp
 
 # Todo: Support stopping and resuming when iterating over all events.
 
-class TestGetAllEventFromSQLAlchemy(SQLAlchemyRecordManagerTestCase, WithExampleApplication):
+
+class TestGetAllEventFromSQLAlchemy(
+    SQLAlchemyRecordManagerTestCase, WithExampleApplication
+):
     drop_tables = True
 
     def test(self):
         with self.construct_application() as app:
             # Create three domain entities.
-            entity1 = app.create_new_example('a1', 'b1')
-            entity2 = app.create_new_example('a2', 'b2')
-            entity3 = app.create_new_example('a3', 'b3')
+            entity1 = app.create_new_example("a1", "b1")
+            entity2 = app.create_new_example("a2", "b2")
+            entity3 = app.create_new_example("a3", "b3")
 
             # Get all the domain events
             es = app.entity_event_store

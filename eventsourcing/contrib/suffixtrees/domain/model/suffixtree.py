@@ -5,7 +5,12 @@ import datetime
 from uuid import uuid4
 
 from eventsourcing.domain.model.decorators import attribute
-from eventsourcing.domain.model.entity import AttributeChanged, Created, Discarded, TimestampedVersionedEntity
+from eventsourcing.domain.model.entity import (
+    AttributeChanged,
+    Created,
+    Discarded,
+    TimestampedVersionedEntity,
+)
 from eventsourcing.domain.model.events import publish
 from eventsourcing.example.application import ExampleApplication
 from eventsourcing.exceptions import RepositoryKeyError
@@ -90,14 +95,22 @@ class SuffixTree(TimestampedVersionedEntity):
         while True:
             parent_node_id = self.active.source_node_id
             if self.active.explicit():
-                edge_id = make_edge_id(self.active.source_node_id, self.string[last_char_index])
+                edge_id = make_edge_id(
+                    self.active.source_node_id, self.string[last_char_index]
+                )
                 if edge_id in self.edges:
                     # prefix is already in tree
                     break
             else:
-                edge_id = make_edge_id(self.active.source_node_id, self.string[self.active.first_char_index])
+                edge_id = make_edge_id(
+                    self.active.source_node_id,
+                    self.string[self.active.first_char_index],
+                )
                 e = self.edges[edge_id]
-                if self.string[e.first_char_index + self.active.length + 1] == self.string[last_char_index]:
+                if (
+                    self.string[e.first_char_index + self.active.length + 1]
+                    == self.string[last_char_index]
+                ):
                     # prefix is already in tree
                     break
                 parent_node_id = self._split_edge(e, self.active)
@@ -121,7 +134,9 @@ class SuffixTree(TimestampedVersionedEntity):
             if self.active.source_node_id == self.root_node_id:
                 self.active.first_char_index += 1
             else:
-                self.active.source_node_id = self.nodes[self.active.source_node_id].suffix_node_id
+                self.active.source_node_id = self.nodes[
+                    self.active.source_node_id
+                ].suffix_node_id
             self._canonize_suffix(self.active)
         if last_parent_node_id is not None:
             self.nodes[last_parent_node_id].suffix_node_id = parent_node_id
@@ -150,7 +165,9 @@ class SuffixTree(TimestampedVersionedEntity):
         second_edge_last_char_index = first_edge.last_char_index
 
         # Create a new edge, from the middle node to the original destination.
-        second_edge_id = make_edge_id(new_node.id, self.string[first_edge.first_char_index + suffix.length + 1])
+        second_edge_id = make_edge_id(
+            new_node.id, self.string[first_edge.first_char_index + suffix.length + 1]
+        )
         second_edge = register_new_edge(
             edge_id=second_edge_id,
             first_char_index=second_edge_first_char_index,
@@ -172,7 +189,9 @@ class SuffixTree(TimestampedVersionedEntity):
         is explicit or there are no more matched nodes.
         """
         if not suffix.explicit():
-            edge_id = make_edge_id(suffix.source_node_id, self.string[suffix.first_char_index])
+            edge_id = make_edge_id(
+                suffix.source_node_id, self.string[suffix.first_char_index]
+            )
             e = self.edges[edge_id]
             if e.length <= suffix.length:
                 suffix.first_char_index += e.length + 1
@@ -184,11 +203,14 @@ class Node(TimestampedVersionedEntity):
     """A node in the suffix tree.
     """
 
-    class Created(Created): pass
+    class Created(Created):
+        pass
 
-    class AttributeChanged(AttributeChanged): pass
+    class AttributeChanged(AttributeChanged):
+        pass
 
-    class Discarded(Discarded): pass
+    class Discarded(Discarded):
+        pass
 
     def __init__(self, suffix_node_id=None, *args, **kwargs):
         super(Node, self).__init__(*args, **kwargs)
@@ -210,13 +232,18 @@ class Edge(TimestampedVersionedEntity):
     """An edge in the suffix tree.
     """
 
-    class Created(Created): pass
+    class Created(Created):
+        pass
 
-    class AttributeChanged(AttributeChanged): pass
+    class AttributeChanged(AttributeChanged):
+        pass
 
-    class Discarded(Discarded): pass
+    class Discarded(Discarded):
+        pass
 
-    def __init__(self, first_char_index, last_char_index, source_node_id, dest_node_id, **kwargs):
+    def __init__(
+        self, first_char_index, last_char_index, source_node_id, dest_node_id, **kwargs
+    ):
         super(Edge, self).__init__(**kwargs)
         self._first_char_index = first_char_index
         self._last_char_index = last_char_index
@@ -254,8 +281,12 @@ class Edge(TimestampedVersionedEntity):
         return self.last_char_index - self.first_char_index
 
     def __repr__(self):
-        return 'Edge(%d, %d, %d, %d)' % (self.source_node_id, self.dest_node_id
-                                         , self.first_char_index, self.last_char_index)
+        return "Edge(%d, %d, %d, %d)" % (
+            self.source_node_id,
+            self.dest_node_id,
+            self.first_char_index,
+            self.last_char_index,
+        )
 
 
 class Suffix(object):
@@ -315,6 +346,7 @@ class Suffix(object):
 
 # Factory methods.
 
+
 def register_new_node(suffix_node_id=None):
     """Factory method, registers new node.
     """
@@ -331,7 +363,9 @@ def make_edge_id(source_node_index, first_char):
     return "{}::{}".format(source_node_index, first_char)
 
 
-def register_new_edge(edge_id, first_char_index, last_char_index, source_node_id, dest_node_id):
+def register_new_edge(
+    edge_id, first_char_index, last_char_index, source_node_id, dest_node_id
+):
     """Factory method, registers new edge.
     """
     event = Edge.Created(
@@ -371,6 +405,7 @@ def register_new_suffix_tree(case_insensitive=False):
 
 # Domain services
 
+
 def find_substring(substring, suffix_tree, edge_repo):
     """Returns the index if substring in tree, otherwise -1.
     """
@@ -390,7 +425,10 @@ def find_substring(substring, suffix_tree, edge_repo):
         except RepositoryKeyError:
             return -1
         ln = min(edge.length + 1, len(substring) - i)
-        if substring[i:i + ln] != suffix_tree.string[edge.first_char_index:edge.first_char_index + ln]:
+        if (
+            substring[i : i + ln]
+            != suffix_tree.string[edge.first_char_index : edge.first_char_index + ln]
+        ):
             return -1
         i += edge.length + 1
         curr_node_id = edge.dest_node_id
@@ -402,15 +440,22 @@ def has_substring(substring, suffix_tree, edge_repo):
 
 
 class SuffixTreeApplication(ExampleApplication):
-
     def register_new_suffixtree(self, case_insensitive=False):
         return register_new_suffix_tree(case_insensitive)
 
     def find_substring(self, substring, suffix_tree_id):
         suffix_tree = self.example_repository[suffix_tree_id]
         started = datetime.datetime.now()
-        result = find_substring(substring=substring, suffix_tree=suffix_tree, edge_repo=self.example_repository)
-        print("- found substring '{}' in: {}".format(substring, datetime.datetime.now() - started))
+        result = find_substring(
+            substring=substring,
+            suffix_tree=suffix_tree,
+            edge_repo=self.example_repository,
+        )
+        print(
+            "- found substring '{}' in: {}".format(
+                substring, datetime.datetime.now() - started
+            )
+        )
         return result
 
     def has_substring(self, substring, suffix_tree_id):

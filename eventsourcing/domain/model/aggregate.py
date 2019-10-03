@@ -1,6 +1,9 @@
 from collections import deque
 
-from eventsourcing.domain.model.entity import TimestampedVersionedEntity, EntityWithHashchain
+from eventsourcing.domain.model.entity import (
+    TimestampedVersionedEntity,
+    EntityWithHashchain,
+)
 
 
 class BaseAggregateRoot(TimestampedVersionedEntity):

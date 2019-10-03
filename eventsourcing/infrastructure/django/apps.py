@@ -2,4 +2,4 @@ from django.apps import AppConfig
 
 
 class DjangoConfig(AppConfig):
-    name = 'eventsourcing.infrastructure.django'
+    name = "eventsourcing.infrastructure.django"

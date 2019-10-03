@@ -3,8 +3,13 @@ from uuid import uuid4
 
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.infrastructure.eventstore import EventStore
-from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
-from eventsourcing.infrastructure.sqlalchemy.factory import construct_sqlalchemy_eventstore
+from eventsourcing.infrastructure.sqlalchemy.datastore import (
+    SQLAlchemyDatastore,
+    SQLAlchemySettings,
+)
+from eventsourcing.infrastructure.sqlalchemy.factory import (
+    construct_sqlalchemy_eventstore,
+)
 from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord
 
 
@@ -27,9 +32,7 @@ class TestFactory(TestCase):
         aggregate_id = uuid4()
         aggregate_version = 0
         domain_event = DomainEvent(
-            a=1,
-            originator_id=aggregate_id,
-            originator_version=aggregate_version,
+            a=1, originator_id=aggregate_id, originator_version=aggregate_version
         )
         event_store.store(domain_event)
 
