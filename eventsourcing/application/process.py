@@ -231,7 +231,9 @@ class ProcessApplication(SimpleApplication):
                 cycle_time = cycle_ended - cycle_started
                 cycle_perc = 100 * (cycle_time) / self.tick_interval
                 if cycle_perc > 100:
-                    msg = f"Warning: {self.name} cycle exceeded tick interval by: {cycle_perc - 100:.2f}%"
+                    msg = "Warning: {} cycle exceeded tick interval by: {:.2f}%".format(
+                        self.name, cycle_perc - 100
+                    )
                     print(msg)
         return new_events
 
@@ -298,8 +300,9 @@ class ProcessApplication(SimpleApplication):
         causal_dependencies = []
         if self.use_causal_dependencies:
             highest = defaultdict(int)
+            rm = self.event_store.record_manager
             for entity_id, entity_version in repository.causal_dependencies:
-                pipeline_id, notification_id = self.event_store.record_manager.get_pipeline_and_notification_id(
+                pipeline_id, notification_id = rm.get_pipeline_and_notification_id(
                     entity_id, entity_version
                 )
                 if pipeline_id is not None and pipeline_id != self.pipeline_id:
@@ -310,8 +313,9 @@ class ProcessApplication(SimpleApplication):
                 causal_dependencies.append(
                     {"pipeline_id": pipeline_id, "notification_id": notification_id}
                 )
-        # Todo: Optionally reference causal dependencies in current pipeline.
-        # Todo: Support processing notification from a single pipeline in parallel, according to dependencies.
+        # Todo: Optionally reference causal dependencies in current pipeline
+        #  and then support processing notification from a single pipeline in
+        #  parallel, according to dependencies.
         return all_aggregates, causal_dependencies, repository.pending_orm_objs
 
     @staticmethod
