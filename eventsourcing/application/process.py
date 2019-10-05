@@ -1,10 +1,12 @@
 import time
 from collections import OrderedDict, defaultdict
 from threading import Lock
+from typing import Dict, List, Tuple, Any
 
 from eventsourcing.application.notificationlog import NotificationLogReader
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.application.snapshotting import SnapshottingApplication
+from eventsourcing.domain.model.entity import DomainEntity
 from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed
 from eventsourcing.infrastructure.base import ACIDRecordManager
@@ -447,6 +449,11 @@ class ProcessApplication(SimpleApplication):
             )
 
 
+EntityId = str
+EntityVersion = str
+OrmObject = Any
+
+
 class WrappedRepository(object):
     """
     Used to wrap an event sourced repository for use in process application
@@ -458,13 +465,13 @@ class WrappedRepository(object):
     """
 
     def __init__(self, repository: EventSourcedRepository):
-        self.retrieved_aggregates = {}
+        self.retrieved_aggregates: Dict[EntityId, DomainEntity] = {}
         self.repository = repository
-        self.causal_dependencies = []
-        self.orm_objs_pending_save = []
-        self.orm_objs_pending_delete = []
+        self.causal_dependencies: List[Tuple[EntityId, EntityVersion]] = []
+        self.orm_objs_pending_save: List[OrmObject] = []
+        self.orm_objs_pending_delete: List[OrmObject] = []
 
-    def __getitem__(self, entity_id):
+    def __getitem__(self, entity_id: EntityId) -> DomainEntity:
         try:
             return self.retrieved_aggregates[entity_id]
         except KeyError:
@@ -473,10 +480,10 @@ class WrappedRepository(object):
             self.causal_dependencies.append((entity.id, entity.__version__))
             return entity
 
-    def __contains__(self, entity_id):
+    def __contains__(self, entity_id: EntityId) -> bool:
         return self.repository.__contains__(entity_id)
 
-    def save_orm_obj(self, orm_obj):
+    def save_orm_obj(self, orm_obj: OrmObject):
         """
         Includes orm_obj in "process event", so that projections into
         custom ORM objects is as reliable with respect to sudden restarts

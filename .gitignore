@@ -2,6 +2,9 @@
 __pycache__/
 *.py[cod]
 
+# Type checking
+.mypy_cache
+
 # C extensions
 *.so
 

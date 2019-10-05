@@ -1,18 +1,9 @@
 from abc import abstractmethod
+from typing import Optional, Type, Union
 from uuid import uuid4
 
-from eventsourcing.domain.model.events import (
-    AttributeChanged,
-    Created,
-    Discarded,
-    DomainEvent,
-    EventWithHash,
-    EventWithOriginatorID,
-    EventWithOriginatorVersion,
-    EventWithTimestamp,
-    GENESIS_HASH,
-    publish,
-)
+from eventsourcing.domain.model import events
+from eventsourcing.domain.model.events import GENESIS_HASH, publish, T
 from eventsourcing.exceptions import (
     EntityIsDiscarded,
     HeadHashError,
@@ -28,7 +19,7 @@ class DomainEntity(object):
     Supertype for domain model entity.
     """
 
-    class Event(EventWithOriginatorID, DomainEvent):
+    class Event(events.EventWithOriginatorID, events.DomainEvent):
         """
         Supertype for events of domain model entities.
         """
@@ -79,7 +70,7 @@ class DomainEntity(object):
         obj.__publish__(event)
         return obj
 
-    class Created(Event, Created):
+    class Created(Event, events.Created):
         """
         Triggered when an entity is created.
         """
@@ -98,7 +89,7 @@ class DomainEntity(object):
             """
             return self.__dict__["originator_topic"]
 
-        def __mutate__(self, entity_class=None):
+        def __mutate__(self, entity_class: Optional[Type[T]]) -> T:
             """
             Constructs object from an entity class,
             which is obtained by resolving the originator topic,
@@ -108,6 +99,7 @@ class DomainEntity(object):
             """
             if entity_class is None:
                 entity_class = resolve_topic(self.originator_topic)
+
             return entity_class(**self.__entity_kwargs__)
 
         @property
@@ -145,7 +137,7 @@ class DomainEntity(object):
         """
         self.__trigger_event__(self.AttributeChanged, name=name, value=value)
 
-    class AttributeChanged(Event, AttributeChanged):
+    class AttributeChanged(Event, events.AttributeChanged):
         """
         Triggered when a named attribute is assigned a new value.
         """
@@ -161,7 +153,7 @@ class DomainEntity(object):
         """
         self.__trigger_event__(self.Discarded)
 
-    class Discarded(Discarded, Event):
+    class Discarded(events.Discarded, Event):
         """
         Triggered when a DomainEntity is discarded.
         """
@@ -203,7 +195,9 @@ class DomainEntity(object):
         """
         publish(event)
 
-    __hash__ = None  # For Python 2.7, so hash(obj) raises TypeError.
+    # Ignore type for now:
+    # Incompatible types in assignment (expression has type "None", base class "object" defined the type as "Callable[[object], int]")
+    __hash__ = None  # type: ignore # For Python 2.7, so hash(obj) raises TypeError.
 
     def __eq__(self, other):
         return type(self) == type(other) and self.__dict__ == other.__dict__
@@ -219,7 +213,7 @@ class EntityWithHashchain(DomainEntity):
         super(EntityWithHashchain, self).__init__(*args, **kwargs)
         self.__head__ = type(self).__genesis_hash__
 
-    class Event(EventWithHash, DomainEntity.Event):
+    class Event(events.EventWithHash, DomainEntity.Event):
         """
         Supertype for events of domain entities.
         """
@@ -260,7 +254,7 @@ class EntityWithHashchain(DomainEntity):
 
             return kwargs
 
-        def __mutate__(self, entity_class=None):
+        def __mutate__(self, entity_class: Optional[Type[T]] = None):
             # Call super method.
             return super(EntityWithHashchain.Created, self).__mutate__(entity_class)
 
@@ -311,7 +305,7 @@ class VersionedEntity(DomainEntity):
             event_class=event_class, originator_version=self.__version__ + 1, **kwargs
         )
 
-    class Event(EventWithOriginatorVersion, DomainEntity.Event):
+    class Event(events.EventWithOriginatorVersion, DomainEntity.Event):
         """Supertype for events of versioned entities."""
 
         def __mutate__(self, obj):
@@ -377,7 +371,7 @@ class TimestampedEntity(DomainEntity):
     def __last_modified__(self):
         return self.___last_modified__
 
-    class Event(DomainEntity.Event, EventWithTimestamp):
+    class Event(DomainEntity.Event, events.EventWithTimestamp):
         """Supertype for events of timestamped entities."""
 
         def __mutate__(self, obj):

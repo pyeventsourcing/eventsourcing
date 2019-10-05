@@ -34,7 +34,9 @@ class MultiprocessRunner(SystemRunner):
         *args,
         **kwargs
     ):
-        super(MultiprocessRunner, self).__init__(system=system, *args, **kwargs)
+        super(  # type: ignore # multiple values for keyword argument "system"
+            MultiprocessRunner, self
+        ).__init__(system=system, *args, **kwargs)
         self.pipeline_ids = pipeline_ids
         self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
         assert isinstance(system, System)

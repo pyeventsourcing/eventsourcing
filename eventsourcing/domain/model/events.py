@@ -1,6 +1,19 @@
 import os
+from typing import (
+    Callable,
+    Any,
+    List,
+    Tuple,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+    Generic,
+    Dict,
+)
 from uuid import uuid1
 
+from eventsourcing.domain.model.entity import DomainEntity
 from eventsourcing.exceptions import EventHashError
 from eventsourcing.utils.hashing import hash_object
 from eventsourcing.utils.times import decimaltimestamp
@@ -8,13 +21,14 @@ from eventsourcing.utils.topic import get_topic
 from eventsourcing.utils.transcoding import ObjectJSONEncoder
 
 GENESIS_HASH = os.getenv("GENESIS_HASH", "")
+T = TypeVar("T", bound=DomainEntity)
 
 
 def create_timesequenced_event_id():
     return uuid1()
 
 
-class DomainEvent(object):
+class DomainEvent(object, Generic[T]):
     """
     Base class for domain model events.
 
@@ -46,7 +60,9 @@ class DomainEvent(object):
         args_string = ", ".join(args_strings)
         return "{}({})".format(self.__class__.__qualname__, args_string)
 
-    def __mutate__(self, obj):
+    def __mutate__(
+        self, obj: Optional[Union[Type[T], T]]
+    ) -> Optional[Union[Type[T], T]]:
         """
         Updates 'obj' with values from 'self'.
 
@@ -58,6 +74,7 @@ class DomainEvent(object):
         :param obj: object (normally a domain entity) to be mutated
         :return: mutated object
         """
+
         self.mutate(obj)
         return obj
 
@@ -310,10 +327,12 @@ class Logged(DomainEvent):
     """
 
 
-_subscriptions = []
+Predicate = Callable[[DomainEvent], bool]
+Handler = Callable[[DomainEvent], Any]
+_subscriptions: List[Tuple[Optional[Predicate], Handler]] = []
 
 
-def subscribe(handler, predicate=None):
+def subscribe(handler: Handler, predicate: Optional[Predicate] = None):
     """
     Adds 'handler' to list of event handlers
     to be called if 'predicate' is satisfied.
@@ -328,7 +347,7 @@ def subscribe(handler, predicate=None):
         _subscriptions.append((predicate, handler))
 
 
-def unsubscribe(handler, predicate=None):
+def unsubscribe(handler: Handler, predicate: Optional[Predicate] = None):
     """
     Removes 'handler' from list of event handlers
     to be called if 'predicate' is satisfied.
@@ -340,7 +359,7 @@ def unsubscribe(handler, predicate=None):
         _subscriptions.remove((predicate, handler))
 
 
-def publish(event):
+def publish(event: DomainEvent):
     """
     Published given 'event' by calling subscribed event
     handlers with the given 'event', except those with
@@ -352,7 +371,7 @@ def publish(event):
     """
     # A cache of conditions means predicates aren't evaluated
     # more than once for each event.
-    cache = {}
+    cache: Dict[Predicate, bool] = {}
     for predicate, handler in _subscriptions[:]:
         if predicate is None:
             handler(event)

@@ -1,4 +1,5 @@
 from functools import reduce
+from typing import Optional
 
 from eventsourcing.domain.model.entity import AbstractEventPlayer
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
@@ -9,7 +10,7 @@ class EventPlayer(AbstractEventPlayer):
     # value is set to a positive integer, the events of
     # the entity will be retrieved in pages, using a series
     # of queries, rather than with one potentially large query.
-    __page_size__ = None
+    __page_size__: Optional[int] = None
 
     def __init__(self, event_store, snapshot_strategy=None, mutator_func=None):
         super(EventPlayer, self).__init__()

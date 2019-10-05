@@ -1,4 +1,5 @@
 import importlib
+from typing import Dict, TypeVar, Type
 
 from eventsourcing.exceptions import TopicResolutionError
 
@@ -20,10 +21,12 @@ def get_topic(domain_class):
 
 
 # Todo: Document this.
-substitutions = {}
+TopicName = str
+substitutions: Dict[TopicName, TopicName] = {}
+T = TypeVar("T")
 
 
-def resolve_topic(topic):
+def resolve_topic(topic: TopicName) -> Type[T]:
     """Return class described by given topic.
 
     Args:

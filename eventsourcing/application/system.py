@@ -6,7 +6,9 @@ from copy import deepcopy
 from queue import Empty, Queue
 from threading import Barrier, BrokenBarrierError, Event, Lock, Thread, Timer
 from time import sleep
+from typing import List, Deque, Optional, Dict
 
+from eventsourcing.application.notificationlog import NotificationLogReader
 from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.process import ProcessApplication, Prompt
 from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
@@ -331,10 +333,12 @@ class SingleThreadedRunner(InProcessRunner):
     """
 
     def __init__(self, system: System, infrastructure_class=None, *args, **kwargs):
-        super(SingleThreadedRunner, self).__init__(
+        super(  # type: ignore # multiple values for keyword argument "system" and "infrastructure_class"
+            SingleThreadedRunner, self
+        ).__init__(
             system=system, infrastructure_class=infrastructure_class, *args, **kwargs
         )
-        self.pending_prompts = Queue()
+        self.pending_prompts: Queue[Prompt] = Queue()
         self.iteration_lock = Lock()
 
     def handle_prompt(self, prompt):
@@ -392,11 +396,11 @@ class MultiThreadedRunner(InProcessRunner):
         super(MultiThreadedRunner, self).__init__(system=system, **kwargs)
         self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
         assert isinstance(system, System)
-        self.threads = {}
+        self.threads: Dict[str, Thread] = {}
         self.clock_speed = clock_speed
         if self.clock_speed:
-            self.clock_event = Event()
-            self.stop_clock_event = Event()
+            self.clock_event: Optional[Event] = Event()
+            self.stop_clock_event: Optional[Event] = Event()
         else:
             self.clock_event = None
             self.stop_clock_event = None
@@ -714,9 +718,9 @@ class ProcessRunningClockThread(ClockThread):
         self.seen_prompt_events = seen_prompt_events
         self.processes = processes
         self.use_direct_query_if_available = use_direct_query_if_available
-        self.last_tick_time = None
-        self.last_process_time = None
-        self.all_tick_durations = deque()
+        self.last_tick_time: Optional[float] = None
+        self.last_process_time: Optional[float] = None
+        self.all_tick_durations: Deque[float] = deque()
         self.tick_adjustment = 0.0
         self.is_verbose = is_verbose
         if normal_speed and scale_factor:
@@ -731,7 +735,7 @@ class ProcessRunningClockThread(ClockThread):
         else:
             self.tick_durations_window_size = 1000
         # Construct lists of followers for each process.
-        self.followers = {}
+        self.followers: Dict[str, List[str]] = {}
         for process_name, process in self.processes.items():
             self.followers[process_name] = []
         for process_name, process in self.processes.items():
@@ -739,7 +743,7 @@ class ProcessRunningClockThread(ClockThread):
                 self.followers[upstream_process_name].append(process_name)
 
         # Construct a notification log reader for each process.
-        self.readers = {}
+        self.readers: Dict[str, NotificationLogReader] = {}
         for process_name, process in self.processes.items():
             reader = process.notification_log_reader_class(
                 notification_log=process.notification_log,
@@ -1051,9 +1055,9 @@ class BarrierControllingClockThread(ClockThread):
         self.fetch_barrier = fetch_barrier
         self.execute_barrier = execute_barrier
         self.stop_event = stop_event
-        self.last_tick_time = None
-        self.last_process_time = None
-        self.all_tick_durations = deque()
+        self.last_tick_time: Optional[float] = None
+        self.last_process_time: Optional[float] = None
+        self.all_tick_durations: Deque[float] = deque()
         self.tick_adjustment = 0.0
         self.is_verbose = is_verbose
         if self.tick_interval:

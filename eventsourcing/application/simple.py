@@ -1,8 +1,10 @@
 import os
+from typing import Optional, Type
 
 from eventsourcing.application.notificationlog import RecordManagerNotificationLog
 from eventsourcing.application.pipeline import Pipeable
 from eventsourcing.application.policies import PersistencePolicy
+from eventsourcing.domain.model.entity import DomainEntity
 from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
@@ -36,7 +38,7 @@ class SimpleApplication(Pipeable):
     json_encoder_class = None
     json_decoder_class = None
 
-    persist_event_type = None
+    persist_event_type: Optional[Type[DomainEntity.Event]] = None
     notification_log_section_size = None
     use_cache = False
 

@@ -1,10 +1,10 @@
 from sqlalchemy import DECIMAL, String
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
 from sqlalchemy.sql.schema import Column, Index
 from sqlalchemy.sql.sqltypes import BigInteger, Integer, Text
 from sqlalchemy_utils.types.uuid import UUIDType
 
-Base = declarative_base()
+Base: DeclarativeMeta = declarative_base()
 
 
 # Please note, the record classes without an indexed ID ('WithID') are
