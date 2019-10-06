@@ -18,6 +18,12 @@ Version 7.x
 Version 7.x series refined the "process and system" code.
 
 
+Version 7.2.2 (released 6 Oct 2019)
+------------------------------------
+
+Version 7.2.2 has improved documentation for "reliable projections".
+
+
 Version 7.2.1 (released 6 Oct 2019)
 ------------------------------------
 
