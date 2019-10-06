@@ -11,7 +11,7 @@ Steps to make a new release.
 1. Increase version number to 'rc1', 'rc2' in case of failure.
 1. Try to fix and push changes to GitHub.
 1. Make changes until built distribution is working.
-1. When all tests passing, increase version number to release version.
+1. When all tests passing, increase version number to release version (edit and commit).
 1. Finish release (merge into master and develop). Tag master 'vX.Y.Z'.
 1. Push all changes to GitHub.
 1. Checkout master branch (at the tag).
