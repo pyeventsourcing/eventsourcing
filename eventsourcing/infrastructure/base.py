@@ -148,9 +148,11 @@ class AbstractSequencedItemRecordManager(ABC):
     @abstractmethod
     def get_notifications(self, start=None, stop=None, *args, **kwargs):
         """
-        Returns records sequenced by notification ID, from application, for pipeline, in given range.
+        Returns records sequenced by notification ID, from
+        application, for pipeline, in given range.
 
-        Args 'start' and 'stop' are positions in a zero-based integer sequence.
+        Args 'start' and 'stop' are positions in a zero-based
+        integer sequence.
         """
 
     @abstractmethod
@@ -210,10 +212,17 @@ class ACIDRecordManager(AbstractSequencedItemRecordManager):
         )
 
     @abstractmethod
-    def write_records(self, records, tracking_kwargs=None, orm_objs=None):
+    def write_records(
+        self,
+        records,
+        tracking_kwargs=None,
+        orm_objs_pending_save=None,
+        orm_objs_pending_delete=None,
+    ):
         """
         Writes tracking, event and notification records for a process event.
-        :param orm_objs:
+        :param orm_objs_pending_delete:
+        :param orm_objs_pending_save:
         """
 
     @abstractmethod
@@ -222,7 +231,8 @@ class ACIDRecordManager(AbstractSequencedItemRecordManager):
 
     @abstractmethod
     def get_max_tracking_record_id(self, upstream_application_name):
-        """Return maximum tracking record ID for notification from upstream application in pipeline."""
+        """Return maximum tracking record ID for notification from upstream
+        application in pipeline."""
 
     @abstractmethod
     def has_tracking_record(
@@ -237,7 +247,8 @@ class ACIDRecordManager(AbstractSequencedItemRecordManager):
         Returns pipeline ID and notification ID for
         event at given position in given sequence.
         """
-        # Todo: Optimise query by selecting only two columns, pipeline_id and id (notification ID)?
+        # Todo: Optimise query by selecting only two columns,
+        #  pipeline_id and id (notification ID)?
         record = self.get_record(sequence_id, position)
         notification_id = getattr(record, self.notification_id_name)
         return record.pipeline_id, notification_id
@@ -245,14 +256,16 @@ class ACIDRecordManager(AbstractSequencedItemRecordManager):
 
 class SQLRecordManager(ACIDRecordManager):
     """
-    This is has code common to (extracted from) the SQLAlchemy and Django record managers.
-
-    This makes the subclasses harder to read and probably more brittle. So it might be better
-    to inline this with the subclasses, so that each looks more like normal Django or SQLAlchemy
-    code. Also, the record manager test cases don't cover the notification log and tracking record
-    functionality needed by ProcessApplication, and should so that other record managers can more
-    easily be developed.
+    Common aspects of SQL record managers, such as SQLAlchemy and Django record
+    managers.
     """
+
+    # Todo: This makes the subclasses harder to read and probably more brittle. So it
+    #  might be better to inline this with the subclasses, so that each looks more
+    #  like normal Django or SQLAlchemy code.
+    # Todo: Also, the record manager test cases don't cover the notification log and
+    #  tracking record functionality needed by ProcessApplication, and should so
+    #  that other record managers can more easily be developed.
 
     def __init__(self, *args, **kwargs):
         super(SQLRecordManager, self).__init__(*args, **kwargs)

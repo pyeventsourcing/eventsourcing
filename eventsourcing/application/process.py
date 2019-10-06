@@ -14,12 +14,18 @@ from eventsourcing.utils.transcoding import json_dumps, json_loads
 
 class ProcessEvent(object):
     def __init__(
-        self, new_events, tracking_kwargs=None, causal_dependencies=None, orm_objs=None
+        self,
+        new_events,
+        tracking_kwargs=None,
+        causal_dependencies=None,
+        orm_objs_pending_save=None,
+        orm_objs_pending_delete=None,
     ):
         self.new_events = new_events
         self.tracking_kwargs = tracking_kwargs
         self.causal_dependencies = causal_dependencies
-        self.orm_objs = orm_objs
+        self.orm_objs_pending_save = orm_objs_pending_save
+        self.orm_objs_pending_delete = orm_objs_pending_delete
 
 
 class ProcessApplication(SimpleApplication):
@@ -178,7 +184,8 @@ class ProcessApplication(SimpleApplication):
                 self.take_snapshots(new_events)
 
                 # Publish a prompt if there are new notifications.
-                # Todo: Optionally send events as prompts, saves pulling event if it arrives in order.
+                # Todo: Optionally send events as prompts, saves pulling
+                #  event if it arrives in order.
                 if any([event.__notifiable__ for event in new_events]):
                     self.publish_prompt()
 
@@ -190,7 +197,13 @@ class ProcessApplication(SimpleApplication):
         else:
             cycle_started = None
         # Call policy with the upstream event.
-        all_aggregates, causal_dependencies, orm_objs = self.call_policy(event)
+        (
+            all_aggregates,
+            causal_dependencies,
+            orm_objs_pending_save,
+            orm_objs_pending_delete,
+        ) = self.call_policy(event)
+
         # Collect pending events.
         new_events = self.collect_pending_events(all_aggregates)
         # Record process event.
@@ -202,12 +215,13 @@ class ProcessApplication(SimpleApplication):
                 new_events=new_events,
                 tracking_kwargs=tracking_kwargs,
                 causal_dependencies=causal_dependencies,
-                orm_objs=orm_objs,
+                orm_objs_pending_save=orm_objs_pending_save,
+                orm_objs_pending_delete=orm_objs_pending_delete,
             )
             self.record_process_event(process_event)
 
             # Todo: Maybe write one tracking record at the end of a run, if
-            # necessary, or only during a period of time when nothing happens?
+            #  necessary, or only during a period of time when nothing happens?
         except Exception as exc:
             # Need to invalidate reader position, so it is refreshed.
             self.is_reader_position_ok[upstream_name] = False
@@ -226,7 +240,8 @@ class ProcessApplication(SimpleApplication):
             raise exc
         else:
             if self.tick_interval is not None:
-                # Todo: Change this to use the full cycle time (improve getting notifications first).
+                # Todo: Change this to use the full cycle time
+                #  (improve getting notifications first).
                 cycle_ended = time.process_time()
                 cycle_time = cycle_ended - cycle_started
                 cycle_perc = 100 * (cycle_time) / self.tick_interval
@@ -251,7 +266,8 @@ class ProcessApplication(SimpleApplication):
         try:
             generator = self._notification_generators[upstream_name]
         except KeyError:
-            # Todo: Rename as 'iterator'? We use an iterator, doesn't matter whether or not it is a generator.
+            # Todo: Rename as 'iterator'? We use an iterator, doesn't matter
+            #  whether or not it is a generator.
             generator = self.read_reader(upstream_name, advance_by)
             self._notification_generators[upstream_name] = generator
         return generator
@@ -316,11 +332,18 @@ class ProcessApplication(SimpleApplication):
         # Todo: Optionally reference causal dependencies in current pipeline
         #  and then support processing notification from a single pipeline in
         #  parallel, according to dependencies.
-        return all_aggregates, causal_dependencies, repository.pending_orm_objs
+        return (
+            all_aggregates,
+            causal_dependencies,
+            repository.orm_objs_pending_save,
+            repository.orm_objs_pending_delete,
+        )
 
     @staticmethod
     def policy(repository, event):
-        """Empty method, can be overridden in subclasses to implement concrete policy."""
+        """
+        Empty method, can be overridden in subclasses to implement concrete policy.
+        """
 
     def collect_pending_events(self, aggregates):
         pending_events = []
@@ -345,13 +368,14 @@ class ProcessApplication(SimpleApplication):
             #    and could potentially cause processing errors in a downstream process
             #    application that depends on the correct causal ordering of events. In
             #    the worst case, the events will still be placed correctly in the
-            #    aggregate sequence, but if timestamps are skewed and so do not correctly
-            #    order the events, the events may be out of order in their notification log.
-            #    It is expected in normal usage that these events are created in the same
-            #    operating system thread, with timestamps from the same operating system clock,
-            #    and so the timestamps will provide the correct order. However, if somehow
-            #    different events are timestamped from different clocks, then problems may occur
-            #    if those clocks give timestamps that skew the correct causal order.
+            #    aggregate sequence, but if timestamps are skewed and so do not
+            #    correctly order the events, the events may be out of order in their
+            #    notification log. It is expected in normal usage that these events
+            #    are created in the same operating system thread, with timestamps
+            #    from the same operating system clock, and so the timestamps will
+            #    provide the correct order. However, if somehow different events are
+            #    timestamped from different clocks, then problems may occur if those
+            #    clocks give timestamps that skew the correct causal order.
             pending_events.sort(key=lambda x: x.timestamp)
 
         return pending_events
@@ -376,7 +400,8 @@ class ProcessApplication(SimpleApplication):
         record_manager.write_records(
             records=event_records,
             tracking_kwargs=process_event.tracking_kwargs,
-            orm_objs=process_event.orm_objs,
+            orm_objs_pending_save=process_event.orm_objs_pending_save,
+            orm_objs_pending_delete=process_event.orm_objs_pending_delete,
         )
 
     def construct_event_records(self, pending_events, causal_dependencies=None):
@@ -386,7 +411,8 @@ class ProcessApplication(SimpleApplication):
 
         # Set notification log IDs, and causal dependencies.
         if len(event_records):
-            # Todo: Maybe keep track of what this probably is, to avoid query. Like log reader, invalidate on error.
+            # Todo: Maybe keep track of what this probably is, to
+            #  avoid query. Like log reader, invalidate on error.
             if self.set_notification_ids:
                 current_max = self.event_store.record_manager.get_max_record_id() or 0
                 for domain_event, event_record in zip(pending_events, event_records):
@@ -435,7 +461,8 @@ class WrappedRepository(object):
         self.retrieved_aggregates = {}
         self.repository = repository
         self.causal_dependencies = []
-        self.pending_orm_objs = []
+        self.orm_objs_pending_save = []
+        self.orm_objs_pending_delete = []
 
     def __getitem__(self, entity_id):
         try:
@@ -455,7 +482,15 @@ class WrappedRepository(object):
         custom ORM objects is as reliable with respect to sudden restarts
         as "normal" domain event processing in a process application.
         """
-        self.pending_orm_objs.append(orm_obj)
+        self.orm_objs_pending_save.append(orm_obj)
+
+    def delete_orm_obj(self, orm_obj):
+        """
+        Includes orm_obj in "process event", so that projections into
+        custom ORM objects is as reliable with respect to sudden restarts
+        as "normal" domain event processing in a process application.
+        """
+        self.orm_objs_pending_delete.append(orm_obj)
 
 
 class Prompt(object):

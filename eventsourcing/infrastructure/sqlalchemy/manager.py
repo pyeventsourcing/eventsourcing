@@ -64,7 +64,13 @@ class SQLAlchemyRecordManager(SQLRecordManager):
 
         return statement
 
-    def write_records(self, records, tracking_kwargs=None, orm_objs=None):
+    def write_records(
+        self,
+        records,
+        tracking_kwargs=None,
+        orm_objs_pending_save=None,
+        orm_objs_pending_delete=None,
+    ):
         all_params = []
         statement = None
         if records:
@@ -117,9 +123,14 @@ class SQLAlchemyRecordManager(SQLRecordManager):
             nothing_to_commit = True
 
             # Commit custom ORM objects.
-            if orm_objs:
-                for orm_obj in orm_objs:
+            if orm_objs_pending_save:
+                for orm_obj in orm_objs_pending_save:
                     self.session.add(orm_obj)
+                nothing_to_commit = False
+
+            if orm_objs_pending_delete:
+                for orm_obj in orm_objs_pending_delete:
+                    self.session.delete(orm_obj)
                 nothing_to_commit = False
 
             # Insert tracking record.

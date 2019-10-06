@@ -1,5 +1,9 @@
+from decimal import Decimal
 from unittest import TestCase
 from uuid import uuid4
+
+from sqlalchemy import Column, Text
+from sqlalchemy_utils import UUIDType
 
 from eventsourcing.application.command import CommandProcess
 from eventsourcing.application.process import (
@@ -19,6 +23,7 @@ from eventsourcing.domain.model.events import (
 )
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed
+from eventsourcing.infrastructure.sqlalchemy.records import Base
 from eventsourcing.utils.topic import resolve_topic
 from eventsourcing.utils.transcoding import json_loads
 
@@ -126,7 +131,8 @@ class TestProcessApplication(TestCase):
         aggregate.__save__()
 
         # Second event in pipeline 2.
-        # - it's important this is done in a policy so the causal dependencies are identified
+        # - it's important this is done in a policy so the causal dependencies are
+        # identified
         core2.follow("core", core1.notification_log)
         core2.run()
 
@@ -217,6 +223,93 @@ class TestProcessApplication(TestCase):
         core2.close()
         downstream1.close()
         downstream2.close()
+
+    def test_projection_into_custom_orm_obj(self):
+
+        self.define_projection_record_class()
+
+        projection_id = uuid4()
+
+        def projection_policy(repository: WrappedRepository, event):
+            if isinstance(event, ExampleAggregate.Created):
+                projection = self.projection_record_class(
+                    projection_id=projection_id, state=str(event.timestamp)
+                )
+                repository.save_orm_obj(projection)
+            elif isinstance(event, ExampleAggregate.MovedOn):
+                projection = self.get_projection_record(
+                    projection_record_class=self.projection_record_class,
+                    projection_id=projection_id,
+                    record_manager=repository.repository.event_store.record_manager,
+                )
+                assert projection is not None
+                repository.delete_orm_obj(projection)
+
+        # Construct example process.
+        process_class = ProcessApplication.mixin(self.process_class)
+        with process_class(
+            name="test",
+            policy=projection_policy,
+            persist_event_type=ExampleAggregate.Event,
+            setup_table=True,
+        ) as process:
+            assert isinstance(process, ProcessApplication)
+
+            self.setup_projections_table(process)
+
+            # Make the process follow itself.
+            process.follow("test", process.notification_log)
+
+            # Create an aggregate.
+            aggregate = ExampleAggregate.__create__()
+            aggregate.__save__()
+
+            # Run the process.
+            process.run()
+
+            # Check the projection has been created.
+            projection = self.get_projection_record(
+                projection_record_class=self.projection_record_class,
+                projection_id=projection_id,
+                record_manager=process.event_store.record_manager,
+            )
+            self.assertIsInstance(projection, self.projection_record_class)
+            self.assertEqual(Decimal(projection.state), aggregate.___created_on__)
+
+            # Move aggregate on.
+            aggregate.move_on()
+            aggregate.__save__()
+
+            # Run the process.
+            process.run()
+
+            # Check the projection has been deleted.
+            projection = self.get_projection_record(
+                projection_record_class=self.projection_record_class,
+                projection_id=projection_id,
+                record_manager=process.event_store.record_manager,
+            )
+            self.assertIsNone(projection)
+
+    def define_projection_record_class(self):
+        class ProjectionRecord(Base):
+            __tablename__ = "projections"
+
+            # Projection ID.
+            projection_id = Column(UUIDType(), primary_key=True)
+
+            # State of the projection (serialized dict, possibly encrypted).
+            state = Column(Text())
+
+        self.projection_record_class = ProjectionRecord
+
+    def setup_projections_table(self, process):
+        process.datastore.setup_table(self.projection_record_class)
+
+    def get_projection_record(
+        self, projection_record_class, projection_id, record_manager
+    ):
+        return record_manager.session.query(projection_record_class).get(projection_id)
 
     def test_handle_prompt_failed(self):
         process = ProcessApplication.mixin(self.process_class)(
@@ -374,4 +467,12 @@ def event_logging_policy(_, event):
 
 
 class CreateExample(Command):
+    pass
+
+
+class SaveOrmObject(Command):
+    pass
+
+
+class DeleteOrmObject(Command):
     pass

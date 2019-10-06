@@ -1,13 +1,18 @@
-from django.db import IntegrityError, connection, transaction, ProgrammingError
+from django.db import IntegrityError, ProgrammingError, connection, transaction
 
 from eventsourcing.infrastructure.base import SQLRecordManager
 
 
 class DjangoRecordManager(SQLRecordManager):
-
     _where_application_name_tmpl = " WHERE application_name = %s AND pipeline_id = %s"
 
-    def write_records(self, records, tracking_kwargs=None, orm_objs=None):
+    def write_records(
+        self,
+        records,
+        tracking_kwargs=None,
+        orm_objs_pending_save=None,
+        orm_objs_pending_delete=None,
+    ):
         try:
             with transaction.atomic(self.record_class.objects.db):
                 with connection.cursor() as cursor:
@@ -22,7 +27,8 @@ class DjangoRecordManager(SQLRecordManager):
                         # Use cursor to execute insert select max statement.
                         for record in records:
                             # Get values from record obj.
-                            # List of params, because dict doesn't work with Django and SQLite.
+                            # List of params, because dict doesn't work with Django
+                            # and SQLite.
                             params = []
 
                             for col_name in self.field_names:
@@ -35,7 +41,8 @@ class DjangoRecordManager(SQLRecordManager):
                                 )
                                 params.append(param)
 
-                            # Notification logs fields, to be inserted with event fields.
+                            # Notification logs fields, to be inserted with event
+                            # fields.
                             if hasattr(self.record_class, "application_name"):
                                 params.append(self.application_name)
                             if hasattr(self.record_class, "pipeline_id"):
@@ -51,21 +58,30 @@ class DjangoRecordManager(SQLRecordManager):
 
                             # Execute insert statement.
                             cursor.execute(self.insert_select_max, params)
-                            # Todo: Use insert_values when records have IDs (like SQLAlchemy manager).
-                            # Todo: Support 'event-not-notifiable' by setting pipeline ID and notification ID to None.
+                            # Todo: Use insert_values when records have IDs (like
+                            #  SQLAlchemy manager).
+                            # Todo: Support 'event-not-notifiable' by setting
+                            #  pipeline ID and notification ID to None.
 
                     else:
                         # This can only work for simple models, without application_name
-                        # and pipeline_id, because it relies on the auto-incrementing ID.
-                        # Todo: If it's faster, change to use an "insert_values" raw query.
+                        # and pipeline_id, because it relies on the auto-incrementing
+                        # ID.
+                        # Todo: If it's faster, change to use an "insert_values" raw
+                        #  query.
                         # Save record objects.
                         for record in records:
                             record.save()
 
-                    # Call 'save()' on each of the ORM objects.
-                    if orm_objs:
-                        for orm_obj in orm_objs:
+                    # Call 'save()' on each of the ORM objects pending save.
+                    if orm_objs_pending_save:
+                        for orm_obj in orm_objs_pending_save:
                             orm_obj.save()
+
+                    # Call 'delete()' on each of the ORM objects pending delete.
+                    if orm_objs_pending_delete:
+                        for orm_obj in orm_objs_pending_delete:
+                            orm_obj.delete()
 
         except IntegrityError as e:
             self.raise_record_integrity_error(e)
@@ -175,7 +191,8 @@ class DjangoRecordManager(SQLRecordManager):
         Returns all records in the table.
         """
         filter_kwargs = {}
-        # Todo: Also support sequencing by 'position' if items are sequenced by timestamp?
+        # Todo: Also support sequencing by 'position' if items are sequenced by
+        #  timestamp?
         if start is not None:
             filter_kwargs["%s__gte" % self.notification_id_name] = start + 1
         if stop is not None:
