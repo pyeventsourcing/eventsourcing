@@ -562,7 +562,7 @@ atomically with tracking information. Instead of calling, for example ``obj.save
 a Django ORM object, which would tend to record the state of the ORM in a separate
 transaction from the tracking information of the "process event", making the state of the
 projection vulnerable to sudden restarts, the ORM obj can be included in the "process event"
-by passing it an an argument to ``save_orm_obj()``. Similarly, the method ``delete_orm_obj()``
+by passing it as an argument to ``save_orm_obj()``. Similarly, the method ``delete_orm_obj()``
 can be used to delete custom ORM object records.
 
 The example below works with SQLAlchemy. Django is
