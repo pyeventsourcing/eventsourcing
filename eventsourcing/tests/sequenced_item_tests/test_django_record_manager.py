@@ -1,23 +1,21 @@
 import os
+import unittest
+from time import sleep
+
+import django
+from django.core.management import call_command
+from django.test import TransactionTestCase
+
+from eventsourcing.infrastructure.django.apps import DjangoConfig
+from eventsourcing.infrastructure.django.factory import DjangoInfrastructureFactory
+from eventsourcing.infrastructure.django.utils import close_django_connection
+from eventsourcing.tests.sequenced_item_tests import base
 
 os.environ[
     "DJANGO_SETTINGS_MODULE"
 ] = "eventsourcing.tests.djangoproject.djangoproject.settings"
 
-import django
-
 django.setup()
-
-import unittest
-from time import sleep
-
-from django.core.management import call_command
-from django.test import TransactionTestCase
-
-from eventsourcing.infrastructure.django.utils import close_django_connection
-from eventsourcing.infrastructure.django.apps import DjangoConfig
-from eventsourcing.infrastructure.django.factory import DjangoInfrastructureFactory
-from eventsourcing.tests.sequenced_item_tests import base
 
 
 class DjangoTestCase(TransactionTestCase):
@@ -26,12 +24,14 @@ class DjangoTestCase(TransactionTestCase):
 
     def setUp(self):
         super(DjangoTestCase, self).setUp()
-        # Setup tables (there isn't a Django datastore object, but we can do it like this).
+        # Setup tables (there isn't a Django datastore object, but we can do it like
+        # this).
         call_command("migrate", verbosity=0, interactive=False)
         sleep(1)
 
     def tearDown(self):
-        # Drop tables (there isn't a Django datastore object, but we can do it like this).
+        # Drop tables (there isn't a Django datastore object, but we can do it like
+        # this).
         # call_command('migrate', 'django', 'zero', verbosity=0, interactive=False)
         super(DjangoTestCase, self).tearDown()
 
