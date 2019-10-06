@@ -15,17 +15,20 @@ from requests.models import Response
 import eventsourcing.example.interface
 from eventsourcing.domain.model.events import assert_event_handlers_empty
 from eventsourcing.example.application import close_example_application
-from eventsourcing.infrastructure.sqlalchemy.datastore import SQLAlchemyDatastore, SQLAlchemySettings
+from eventsourcing.infrastructure.sqlalchemy.datastore import (
+    SQLAlchemyDatastore,
+    SQLAlchemySettings,
+)
 from eventsourcing.tests.base import notquick
 
 path_to_virtualenv = None
-if hasattr(sys, 'real_prefix'):
+if hasattr(sys, "real_prefix"):
     path_to_virtualenv = sys.prefix
 
 path_to_eventsourcing = dirname(dirname(abspath(eventsourcing.__file__)))
 path_to_interface_module = dirname(abspath(eventsourcing.example.interface.__file__))
-path_to_flaskapp = join(path_to_interface_module, 'flaskapp.py')
-path_to_flaskwsgi = join(dirname(path_to_flaskapp), 'flaskwsgi.py')
+path_to_flaskapp = join(path_to_interface_module, "flaskapp.py")
+path_to_flaskwsgi = join(dirname(path_to_flaskapp), "flaskwsgi.py")
 
 
 @notquick
@@ -54,38 +57,45 @@ class TestFlaskApp(unittest.TestCase):
         patience = 100
         while True:
             try:
-                response = requests.get('http://localhost:{}'.format(self.port))
+                response = requests.get("http://localhost:{}".format(self.port))
                 break
             except ConnectionError:
                 patience -= 1
                 if not patience:
-                    self.fail("Couldn't get response from app, (Python executable {})".format(sys.executable))
+                    self.fail(
+                        "Couldn't get response from app, (Python executable {})".format(
+                            sys.executable
+                        )
+                    )
                 else:
                     sleep(0.1)
 
         self.assertIsInstance(response, Response)
-        self.assertIn('Hello There!', response.text)
+        self.assertIn("Hello There!", response.text)
 
 
 @notquick
-@skipIf(platform.python_implementation() == 'PyPy', 'uWSGI needs special plugin to run with PyPy')
+@skipIf(
+    platform.python_implementation() == "PyPy",
+    "uWSGI needs special plugin to run with PyPy",
+)
 class TestFlaskWsgi(TestFlaskApp):
     port = 9001
 
     def start_app(self):
         # Make up a DB URI using a named temporary file.
         self.tempfile = NamedTemporaryFile()
-        uri = 'sqlite:///{}'.format(self.tempfile.name)
+        uri = "sqlite:///{}".format(self.tempfile.name)
 
         from eventsourcing.example.interface.flaskapp import IntegerSequencedItem
+
         # Close application, importing the module constructed
         # the application, which will leave event handlers subscribed.
         close_example_application()
 
         # Setup tables.
         datastore = SQLAlchemyDatastore(
-            settings=SQLAlchemySettings(uri=uri),
-            tables=(IntegerSequencedItem,),
+            settings=SQLAlchemySettings(uri=uri), tables=(IntegerSequencedItem,)
         )
         datastore.setup_connection()
         datastore.setup_tables()
@@ -93,23 +103,22 @@ class TestFlaskWsgi(TestFlaskApp):
 
         # Run uwsgi.
         if path_to_virtualenv:
-            path_to_uwsgi = join(path_to_virtualenv, 'bin', 'uwsgi')
+            path_to_uwsgi = join(path_to_virtualenv, "bin", "uwsgi")
             assert os.path.exists(path_to_uwsgi), path_to_uwsgi
         else:
             # In a container, without a virtualenv?
-            path_to_uwsgi = '/usr/local/bin/uwsgi'
+            path_to_uwsgi = "/usr/local/bin/uwsgi"
             # Todo: Maybe use shutil.which, after dropping support for Python 2.7.
 
         cmd = [path_to_uwsgi]
         if path_to_virtualenv is not None:
-            cmd += ['-H', path_to_virtualenv]
-        cmd += ['--master']
-        cmd += ['--processes', '4']
-        cmd += ['--threads', '2']
-        cmd += ['--wsgi-file', path_to_flaskwsgi]
-        cmd += ['--http', ':{}'.format(self.port)]
-        pythonpath = ':'.join(os.getenv('PYTHONPATH', '').split(':') + [path_to_eventsourcing])
-        return Popen(cmd, env={
-            'PYTHONPATH': pythonpath,
-            'DB_URI': uri
-        })
+            cmd += ["-H", path_to_virtualenv]
+        cmd += ["--master"]
+        cmd += ["--processes", "4"]
+        cmd += ["--threads", "2"]
+        cmd += ["--wsgi-file", path_to_flaskwsgi]
+        cmd += ["--http", ":{}".format(self.port)]
+        pythonpath = ":".join(
+            os.getenv("PYTHONPATH", "").split(":") + [path_to_eventsourcing]
+        )
+        return Popen(cmd, env={"PYTHONPATH": pythonpath, "DB_URI": uri})

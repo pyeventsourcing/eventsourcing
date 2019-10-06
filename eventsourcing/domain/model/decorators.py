@@ -136,12 +136,13 @@ def attribute(getter):
     AttributeChanged event.
     """
     if isfunction(getter):
+
         def setter(self, value):
-            name = '_' + getter.__name__
+            name = "_" + getter.__name__
             self.__change_attribute__(name=name, value=value)
 
         def new_getter(self):
-            name = '_' + getter.__name__
+            name = "_" + getter.__name__
             return getattr(self, name, None)
 
         return property(fget=new_getter, fset=setter, doc=getter.__doc__)
@@ -160,8 +161,8 @@ def retry(exc=Exception, max_attempts=1, wait=0, stall=0, verbose=False):
     :param verbose: If True, prints a message to STDOUT when retries occur.
     :return: Returns the value returned by decorated function.
     """
-    def _retry(func):
 
+    def _retry(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
             if stall:

@@ -1,4 +1,7 @@
-from eventsourcing.domain.model.collection import AbstractCollectionRepository, Collection
+from eventsourcing.domain.model.collection import (
+    AbstractCollectionRepository,
+    Collection,
+)
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 
 

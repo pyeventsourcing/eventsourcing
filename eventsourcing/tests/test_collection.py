@@ -5,12 +5,19 @@ from uuid import uuid4
 
 from eventsourcing.domain.model.collection import Collection, register_new_collection
 from eventsourcing.domain.model.entity import EntityIsDiscarded
-from eventsourcing.domain.model.events import assert_event_handlers_empty, subscribe, unsubscribe
+from eventsourcing.domain.model.events import (
+    assert_event_handlers_empty,
+    subscribe,
+    unsubscribe,
+)
 from eventsourcing.exceptions import RepositoryKeyError
-from eventsourcing.infrastructure.repositories.collection_repo import CollectionRepository
+from eventsourcing.infrastructure.repositories.collection_repo import (
+    CollectionRepository,
+)
 from eventsourcing.tests.sequenced_item_tests.base import WithEventPersistence
-from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import \
-    SQLAlchemyRecordManagerTestCase
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import (
+    SQLAlchemyRecordManagerTestCase,
+)
 
 
 class TestCollection(TestCase):
@@ -26,15 +33,15 @@ class TestCollection(TestCase):
 
     def test(self):
         # Register a new collection entity.
-        collection_id = 'collection1'
+        collection_id = "collection1"
         collection = register_new_collection(collection_id=collection_id)
 
         # Check collection ID is set.
         self.assertEqual(collection.id, collection_id)
 
         # Declare items.
-        item1 = 'item1'
-        item2 = 'item2'
+        item1 = "item1"
+        item2 = "item2"
 
         # Check the collection is empty.
         self.assertNotIn(item1, collection)
@@ -101,7 +108,7 @@ class TestCollection(TestCase):
         self.assertIsInstance(last_event, Collection.Discarded)
         self.assertEqual(last_event.originator_id, collection_id)
 
-        self.assertRaises(EntityIsDiscarded, getattr, collection, 'items')
+        self.assertRaises(EntityIsDiscarded, getattr, collection, "items")
 
 
 class TestCollectionRepo(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
@@ -123,7 +130,7 @@ class TestCollectionRepo(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
         self.assertEqual(len(collection.items), 0)
 
         # Add item.
-        item1 = 'item1'
+        item1 = "item1"
         collection.add_item(item1)
 
         # Check the collection is in the repo.

@@ -1,33 +1,45 @@
 from abc import ABC, abstractmethod
 
 from eventsourcing.exceptions import OperationalError, RecordConflictError
-from eventsourcing.infrastructure.sequenceditem import SequencedItem, SequencedItemFieldNames
+from eventsourcing.infrastructure.sequenceditem import (
+    SequencedItem,
+    SequencedItemFieldNames,
+)
 
 DEFAULT_PIPELINE_ID = 0
 
 
 class AbstractSequencedItemRecordManager(ABC):
-    def __init__(self, record_class, sequenced_item_class=SequencedItem,
-                 contiguous_record_ids=False, application_name=None,
-                 pipeline_id=DEFAULT_PIPELINE_ID):
+    def __init__(
+        self,
+        record_class,
+        sequenced_item_class=SequencedItem,
+        contiguous_record_ids=False,
+        application_name=None,
+        pipeline_id=DEFAULT_PIPELINE_ID,
+    ):
         self.record_class = record_class
         self.sequenced_item_class = sequenced_item_class
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
 
-        if hasattr(self.record_class, 'id'):
-            self.notification_id_name = 'id'
-        elif hasattr(self.record_class, 'notification_id'):
-            self.notification_id_name = 'notification_id'
+        if hasattr(self.record_class, "id"):
+            self.notification_id_name = "id"
+        elif hasattr(self.record_class, "notification_id"):
+            self.notification_id_name = "notification_id"
         else:
-            self.notification_id_name = ''
+            self.notification_id_name = ""
 
         self.contiguous_record_ids = contiguous_record_ids and self.notification_id_name
-        if hasattr(self.record_class, 'application_name'):
+        if hasattr(self.record_class, "application_name"):
             assert application_name, "'application_name' not set when required"
-            assert contiguous_record_ids, "'contiguous_record_ids' not set when required"
+            assert (
+                contiguous_record_ids
+            ), "'contiguous_record_ids' not set when required"
         self.application_name = application_name
-        if hasattr(self.record_class, 'pipeline_id'):
-            assert hasattr(self.record_class, 'application_name'), "'application_name' column not defined"
+        if hasattr(self.record_class, "pipeline_id"):
+            assert hasattr(
+                self.record_class, "application_name"
+            ), "'application_name' column not defined"
         self.pipeline_id = pipeline_id
 
     def clone(self, application_name, pipeline_id, **kwargs):
@@ -64,8 +76,17 @@ class AbstractSequencedItemRecordManager(ABC):
         Gets record at position in sequence.
         """
 
-    def get_items(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
-                  query_ascending=True, results_ascending=True):
+    def get_items(
+        self,
+        sequence_id,
+        gt=None,
+        gte=None,
+        lt=None,
+        lte=None,
+        limit=None,
+        query_ascending=True,
+        results_ascending=True,
+    ):
         """
         Returns sequenced item generator.
         """
@@ -78,7 +99,6 @@ class AbstractSequencedItemRecordManager(ABC):
             limit=limit,
             query_ascending=query_ascending,
             results_ascending=results_ascending,
-
         )
         for item in map(self.from_record, records):
             yield item
@@ -90,8 +110,17 @@ class AbstractSequencedItemRecordManager(ABC):
         return list(self.get_items(*args, **kwargs))
 
     @abstractmethod
-    def get_records(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
-                    query_ascending=True, results_ascending=True):
+    def get_records(
+        self,
+        sequence_id,
+        gt=None,
+        gte=None,
+        lt=None,
+        lte=None,
+        limit=None,
+        query_ascending=True,
+        results_ascending=True,
+    ):
         """
         Returns records for a sequence.
         """
@@ -102,11 +131,11 @@ class AbstractSequencedItemRecordManager(ABC):
         """
         kwargs = self.get_field_kwargs(sequenced_item)
         # Supply application_name, if needed.
-        if hasattr(self.record_class, 'application_name'):
-            kwargs['application_name'] = self.application_name
+        if hasattr(self.record_class, "application_name"):
+            kwargs["application_name"] = self.application_name
         # Supply pipeline_id, if needed.
-        if hasattr(self.record_class, 'pipeline_id'):
-            kwargs['pipeline_id'] = self.pipeline_id
+        if hasattr(self.record_class, "pipeline_id"):
+            kwargs["pipeline_id"] = self.pipeline_id
         return self.record_class(**kwargs)
 
     def from_record(self, record):
@@ -119,9 +148,11 @@ class AbstractSequencedItemRecordManager(ABC):
     @abstractmethod
     def get_notifications(self, start=None, stop=None, *args, **kwargs):
         """
-        Returns records sequenced by notification ID, from application, for pipeline, in given range.
+        Returns records sequenced by notification ID, from
+        application, for pipeline, in given range.
 
-        Args 'start' and 'stop' are positions in a zero-based integer sequence.
+        Args 'start' and 'stop' are positions in a zero-based
+        integer sequence.
         """
 
     @abstractmethod
@@ -162,11 +193,12 @@ class ACIDRecordManager(AbstractSequencedItemRecordManager):
     in an atomic transaction, needed for atomic processing in process
     applications.
     """
+
     tracking_record_field_names = [
-        'application_name',
-        'upstream_application_name',
-        'pipeline_id',
-        'notification_id',
+        "application_name",
+        "upstream_application_name",
+        "pipeline_id",
+        "notification_id",
     ]
 
     def __init__(self, tracking_record_class=None, *args, **kwargs):
@@ -180,10 +212,17 @@ class ACIDRecordManager(AbstractSequencedItemRecordManager):
         )
 
     @abstractmethod
-    def write_records(self, records, tracking_kwargs=None, orm_objs=None):
+    def write_records(
+        self,
+        records,
+        tracking_kwargs=None,
+        orm_objs_pending_save=None,
+        orm_objs_pending_delete=None,
+    ):
         """
         Writes tracking, event and notification records for a process event.
-        :param orm_objs:
+        :param orm_objs_pending_delete:
+        :param orm_objs_pending_save:
         """
 
     @abstractmethod
@@ -192,10 +231,13 @@ class ACIDRecordManager(AbstractSequencedItemRecordManager):
 
     @abstractmethod
     def get_max_tracking_record_id(self, upstream_application_name):
-        """Return maximum tracking record ID for notification from upstream application in pipeline."""
+        """Return maximum tracking record ID for notification from upstream
+        application in pipeline."""
 
     @abstractmethod
-    def has_tracking_record(self, upstream_application_name, pipeline_id, notification_id):
+    def has_tracking_record(
+        self, upstream_application_name, pipeline_id, notification_id
+    ):
         """
         True if tracking record exists for notification from upstream in pipeline.
         """
@@ -205,7 +247,8 @@ class ACIDRecordManager(AbstractSequencedItemRecordManager):
         Returns pipeline ID and notification ID for
         event at given position in given sequence.
         """
-        # Todo: Optimise query by selecting only two columns, pipeline_id and id (notification ID)?
+        # Todo: Optimise query by selecting only two columns,
+        #  pipeline_id and id (notification ID)?
         record = self.get_record(sequence_id, position)
         notification_id = getattr(record, self.notification_id_name)
         return record.pipeline_id, notification_id
@@ -213,14 +256,17 @@ class ACIDRecordManager(AbstractSequencedItemRecordManager):
 
 class SQLRecordManager(ACIDRecordManager):
     """
-    This is has code common to (extracted from) the SQLAlchemy and Django record managers.
-
-    This makes the subclasses harder to read and probably more brittle. So it might be better
-    to inline this with the subclasses, so that each looks more like normal Django or SQLAlchemy
-    code. Also, the record manager test cases don't cover the notification log and tracking record
-    functionality needed by ProcessApplication, and should so that other record managers can more
-    easily be developed.
+    Common aspects of SQL record managers, such as SQLAlchemy and Django record
+    managers.
     """
+
+    # Todo: This makes the subclasses harder to read and probably more brittle. So it
+    #  might be better to inline this with the subclasses, so that each looks more
+    #  like normal Django or SQLAlchemy code.
+    # Todo: Also, the record manager test cases don't cover the notification log and
+    #  tracking record functionality needed by ProcessApplication, and should so
+    #  that other record managers can more easily be developed.
+
     def __init__(self, *args, **kwargs):
         super(SQLRecordManager, self).__init__(*args, **kwargs)
         self._insert_select_max = None
@@ -248,9 +294,9 @@ class SQLRecordManager(ACIDRecordManager):
         by selecting max ID from indexed table records.
         """
         if self._insert_select_max is None:
-            if hasattr(self.record_class, 'application_name'):
+            if hasattr(self.record_class, "application_name"):
                 # Todo: Maybe make it support application_name without pipeline_id?
-                assert hasattr(self.record_class, 'pipeline_id'), self.record_class
+                assert hasattr(self.record_class, "pipeline_id"), self.record_class
                 tmpl = self._insert_select_max_tmpl + self._where_application_name_tmpl
             else:
                 tmpl = self._insert_select_max_tmpl
@@ -262,7 +308,9 @@ class SQLRecordManager(ACIDRecordManager):
         return self._insert_select_max
 
     @abstractmethod
-    def _prepare_insert(self, tmpl, record_class, field_names, placeholder_for_id=False):
+    def _prepare_insert(
+        self, tmpl, record_class, field_names, placeholder_for_id=False
+    ):
         """
         Compile SQL statement with placeholders for bind parameters.
         """
@@ -270,7 +318,8 @@ class SQLRecordManager(ACIDRecordManager):
     _insert_select_max_tmpl = (
         "INSERT INTO {tablename} ({notification_id}, {columns}) "
         "SELECT COALESCE(MAX({tablename}.{notification_id}), 0) + 1, {placeholders} "
-        "FROM ""{tablename}"
+        "FROM "
+        "{tablename}"
     )
 
     _where_application_name_tmpl = None
@@ -304,8 +353,7 @@ class SQLRecordManager(ACIDRecordManager):
         return self._insert_tracking_record
 
     _insert_values_tmpl = (
-        "INSERT INTO {tablename} ({columns}) "
-        "VALUES ({placeholders});"
+        "INSERT INTO {tablename} ({columns}) " "VALUES ({placeholders});"
     )
 
     @abstractmethod

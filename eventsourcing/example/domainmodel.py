@@ -1,16 +1,22 @@
 from eventsourcing.domain.model.decorators import attribute
-from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity, \
-    EntityWithHashchain
+from eventsourcing.domain.model.entity import (
+    AbstractEntityRepository,
+    TimestampedVersionedEntity,
+    EntityWithHashchain,
+)
 
 
 class Example(EntityWithHashchain, TimestampedVersionedEntity):
     """
     An example event sourced domain model entity.
     """
+
     class Event(EntityWithHashchain.Event, TimestampedVersionedEntity.Event):
         """Supertype for events of example entities."""
 
-    class Created(Event, EntityWithHashchain.Created, TimestampedVersionedEntity.Created):
+    class Created(
+        Event, EntityWithHashchain.Created, TimestampedVersionedEntity.Created
+    ):
         """Published when an Example is created."""
 
     class AttributeChanged(Event, TimestampedVersionedEntity.AttributeChanged):
@@ -21,12 +27,13 @@ class Example(EntityWithHashchain, TimestampedVersionedEntity):
 
     class Heartbeat(Event, TimestampedVersionedEntity.Event):
         """Published when a heartbeat in the entity occurs (see below)."""
+
         def mutate(self, obj):
             """Updates 'obj' with values from self."""
             assert isinstance(obj, Example), obj
             obj._count_heartbeats += 1
 
-    def __init__(self, foo='', a='', b='', **kwargs):
+    def __init__(self, foo="", a="", b="", **kwargs):
         super(Example, self).__init__(**kwargs)
         self._foo = foo
         self._a = a
@@ -59,7 +66,7 @@ class AbstractExampleRepository(AbstractEntityRepository):
     pass
 
 
-def create_new_example(foo='', a='', b=''):
+def create_new_example(foo="", a="", b=""):
     """
     Factory method for example entities.
 

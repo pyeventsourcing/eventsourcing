@@ -557,32 +557,91 @@ to position the notification reader in the notification log sequence.
 Looking ahead to the next section on :doc:`distributed systems </topics/process>`, the
 ``save_orm_obj()`` method of the ``WrappedRepository`` object, which is passed into the
 ``policy()`` function of a :class:`~eventsourcing.application.process.ProcessApplication`
-object as the ``repository`` argument, declares support for persisting custom ORM records
+object as the ``repository`` argument, can be used to persist custom ORM records
 atomically with tracking information. Instead of calling, for example ``obj.save()`` on
 a Django ORM object, which would tend to record the state of the ORM in a separate
 transaction from the tracking information of the "process event", making the state of the
 projection vulnerable to sudden restarts, the ORM obj can be included in the "process event"
-by passing it an an argument to ``save_orm_obj()``.
+by passing it an an argument to ``save_orm_obj()``. Similarly, the method ``delete_orm_obj()``
+can be used to delete custom ORM object records.
+
+The example below works with SQLAlchemy. Django is
 
 .. code:: python
 
     from eventsourcing.application.process import ProcessApplication
     from eventsourcing.application.decorators import applicationpolicy
     from eventsourcing.domain.model.aggregate import AggregateRoot
+    from eventsourcing.infrastructure.sqlalchemy.records import Base
+    from sqlalchemy import Column, Text
+    from sqlalchemy_utils import UUIDType
+
+    # Define a custom ORM object for "reliable projection" records.
+    class ProjectionRecord(Base):
+        __tablename__ = "projections"
+
+        # Projection ID.
+        projection_id = Column(UUIDType(), primary_key=True)
+
+        # Some values.
+        state = Column(Text())
 
 
-    class Projection(ProcessApplication):
+    # Define a process application to do "reliable projections".
+    class ProjectionApplication(SQLAlchemyApplication, ProcessApplication):
 
+        # This is just so we can __save__() AggregateRoot events.
+        persist_event_type = AggregateRoot.Event
+
+        # Define process application policy, to create a projection
+        # record whenever an aggregate is created, and to delete the
+        # projection record whever an aggregate is discarded.
         @applicationpolicy
         def policy(self, repository, event):
             """Do nothing by default."""
 
-        @policy.register(AggregateRoot.Event)
+        @policy.register(AggregateRoot.Created)
         def _(self, repository, event):
-            object1 = CustomRecord(a=1, b=2)
-            repository.save_orm_obj(object1)
-            object2 = CustomRecord(a=3, b=4)
-            repository.save_orm_obj(object2)
+            projection_record = ProjectionRecord(projection_id=event.originator_id)
+            repository.save_orm_obj(projection_record)
+
+        @policy.register(AggregateRoot.Discarded)
+        def _(self, repository, event):
+            projection_record = self.session.query(ProjectionRecord).get(event.originator_id)
+            repository.delete_orm_obj(projection_record)
+
+    # Start the process application.
+    with ProjectionApplication(setup_table=True) as app:
+
+        # Setup the projections table.
+        app.datastore.setup_table(ProjectionRecord)
+
+        # Configure the process application to follow itself.
+        app.follow(app.name, app.notification_log)
+
+        # Create a new aggregate.
+        aggregate = AggregateRoot.__create__()
+        aggregate.__save__()
+        assert aggregate.id in app.repository
+
+        # Check the projection record does not exist.
+        assert app.session.query(ProjectionRecord).get(aggregate.id) is None
+
+        # Run the process application policy (creates projection record).
+        app.run()
+
+        # Check the project record has been created.
+        assert app.session.query(ProjectionRecord).get(aggregate.id) is not None
+
+        # Discard the aggregate.
+        aggregate.__discard__()
+        aggregate.__save__()
+
+        # Run the process application policy (deletes projection record).
+        app.run()
+
+        # Check the projection record has been deleted.
+        assert app.session.query(ProjectionRecord).get(aggregate.id) is None
 
 
 Calling ``save_orm_obj()`` doesn't immediately update the database, but instead
@@ -596,12 +655,13 @@ the changes were made before or after calling ``save_orm_obj()``. Support for wr
 custom ORM objects as a factor of an atomic "process events" is implemented in the
 library's ``SQLAlchemy`` and ``Django`` infrastructure.
 
-Please note, using custom ORM objects of a particular kind in a system of process applications
-renders that system dependent on particular infrastructure, and so it won't be possible
-using this technique to define an entire system of process applications independently of
-infrastructure. It wouldn't be so very hard to develop some non-event sourced projection model
-classes that are independent of infrastructure, but the library doesn't include
-any support for that at the moment.
+Please note, using custom ORM objects of a particular kind (ie. Django or SQLAlchemy) in
+a system of process applications renders that system dependent on particular infrastructure,
+and so it won't be possible using this technique to define an entire system of process
+applications independently of infrastructure. It wouldn't be so very hard to develop some
+non-event sourced projection model classes that are independent of infrastructure, but the
+library doesn't include any support for that at the moment. Nevertheless, it is still possible
+to run with different system runners (ie single-threaded, multiprocessing, etc.).
 
 .. ----
 ..

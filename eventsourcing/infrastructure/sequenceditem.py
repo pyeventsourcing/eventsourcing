@@ -1,8 +1,12 @@
 from collections import namedtuple
 
-SequencedItem = namedtuple('SequencedItem', ['sequence_id', 'position', 'topic', 'state'])
+SequencedItem = namedtuple(
+    "SequencedItem", ["sequence_id", "position", "topic", "state"]
+)
 
-StoredEvent = namedtuple('StoredEvent', ['originator_id', 'originator_version', 'topic', 'state'])
+StoredEvent = namedtuple(
+    "StoredEvent", ["originator_id", "originator_version", "topic", "state"]
+)
 
 
 class SequencedItemFieldNames(object):

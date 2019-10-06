@@ -1,6 +1,10 @@
 from abc import ABC, abstractmethod
 
-from eventsourcing.domain.model.events import EventWithOriginatorID, EventWithOriginatorVersion, EventWithTimestamp
+from eventsourcing.domain.model.events import (
+    EventWithOriginatorID,
+    EventWithOriginatorVersion,
+    EventWithTimestamp,
+)
 
 
 class AbstractSnapshop(ABC):
@@ -33,7 +37,12 @@ class AbstractSnapshop(ABC):
         """
 
 
-class Snapshot(EventWithTimestamp, EventWithOriginatorVersion, EventWithOriginatorID, AbstractSnapshop):
+class Snapshot(
+    EventWithTimestamp,
+    EventWithOriginatorVersion,
+    EventWithOriginatorID,
+    AbstractSnapshop,
+):
     def __init__(self, originator_id, originator_version, topic, state):
         super(Snapshot, self).__init__(
             originator_id=originator_id,
@@ -47,11 +56,11 @@ class Snapshot(EventWithTimestamp, EventWithOriginatorVersion, EventWithOriginat
         """
         Path to the class of the snapshotted entity.
         """
-        return self.__dict__['topic']
+        return self.__dict__["topic"]
 
     @property
     def state(self):
         """
         State of the snapshotted entity.
         """
-        return self.__dict__['state']
+        return self.__dict__["state"]

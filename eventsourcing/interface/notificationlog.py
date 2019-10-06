@@ -4,13 +4,24 @@ import json
 
 import requests
 
-from eventsourcing.application.notificationlog import Section, AbstractNotificationLog, LocalNotificationLog
-from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder, json_dumps
+from eventsourcing.application.notificationlog import (
+    Section,
+    AbstractNotificationLog,
+    LocalNotificationLog,
+)
+from eventsourcing.utils.transcoding import (
+    ObjectJSONDecoder,
+    ObjectJSONEncoder,
+    json_dumps,
+)
 
 
 # These classes are imported here only to avoid breaking backwards compatibility.
 # Todo: Remove this import statement >= v8.x
-from eventsourcing.application.notificationlog import RecordManagerNotificationLog, BigArrayNotificationLog
+from eventsourcing.application.notificationlog import (
+    RecordManagerNotificationLog,
+    BigArrayNotificationLog,
+)
 
 
 class RemoteNotificationLog(AbstractNotificationLog):
@@ -19,6 +30,7 @@ class RemoteNotificationLog(AbstractNotificationLog):
     that presents notification log sections in JSON format,
     for example by using a NotificationLogView.
     """
+
     def __init__(self, base_url, json_decoder_class=None):
         """
         Initialises remote notification log object.
@@ -45,8 +57,10 @@ class RemoteNotificationLog(AbstractNotificationLog):
             decoder_class = self.json_decoder_class or ObjectJSONDecoder
             section = Section(**json.loads(section_json, cls=decoder_class))
         except ValueError as e:
-            raise ValueError("Couldn't deserialize notification log section: "
-                             "{}: {}".format(e, section_json))
+            raise ValueError(
+                "Couldn't deserialize notification log section: "
+                "{}: {}".format(e, section_json)
+            )
         return section
 
     def get_json(self, section_id):
@@ -55,12 +69,12 @@ class RemoteNotificationLog(AbstractNotificationLog):
 
     def get_resource(self, doc_url):
         representation = requests.get(doc_url).content
-        if isinstance(representation, type(b'')):
-            representation = representation.decode('utf8')
+        if isinstance(representation, type(b"")):
+            representation = representation.decode("utf8")
         return representation
 
     def make_notification_log_url(self, section_id):
-        return '{}/{}/'.format(self.base_url.strip('/'), section_id)
+        return "{}/{}/".format(self.base_url.strip("/"), section_id)
 
 
 class NotificationLogView(object):
@@ -70,6 +84,7 @@ class NotificationLogView(object):
     Can be used to make an HTTP API that can be used
     remotely, for example by a RemoteNotificationLog.
     """
+
     def __init__(self, notification_log: LocalNotificationLog, json_encoder_class=None):
         """
         Initialises notification log view object.
@@ -77,7 +92,9 @@ class NotificationLogView(object):
         :param LocalNotificationLog notification_log: A notification log object
         :param JSONEncoder json_encoder_class: JSON encoder class
         """
-        assert isinstance(notification_log, LocalNotificationLog), type(notification_log)
+        assert isinstance(notification_log, LocalNotificationLog), type(
+            notification_log
+        )
         self.notification_log = notification_log
         self.json_encoder_class = json_encoder_class or ObjectJSONEncoder
 

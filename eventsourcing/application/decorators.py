@@ -15,7 +15,7 @@ def applicationpolicy(arg=None):
 
         @wraps(wrapped)
         def wrapper(*args, **kwargs):
-            event = kwargs.get('event') or args[-1]
+            event = kwargs.get("event") or args[-1]
             return wrapped.dispatch(type(event))(*args, **kwargs)
 
         wrapper.register = wrapped.register

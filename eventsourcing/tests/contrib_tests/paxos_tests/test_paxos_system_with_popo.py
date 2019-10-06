@@ -1,6 +1,8 @@
 from unittest import skip
 
-from eventsourcing.tests.sequenced_item_tests.test_popo_record_manager import PopoTestCase
+from eventsourcing.tests.sequenced_item_tests.test_popo_record_manager import (
+    PopoTestCase,
+)
 from eventsourcing.tests.contrib_tests.paxos_tests import test_paxos_system
 from eventsourcing.application.popo import PopoApplication
 

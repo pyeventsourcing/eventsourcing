@@ -6,21 +6,34 @@ from uuid import uuid4
 from eventsourcing.application.multiprocess import MultiprocessRunner
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.application.system import MultiThreadedRunner, System
-from eventsourcing.domain.model.events import assert_event_handlers_empty, clear_event_handlers
+from eventsourcing.domain.model.events import (
+    assert_event_handlers_empty,
+    clear_event_handlers,
+)
 from eventsourcing.tests.test_process import ExampleAggregate
-from eventsourcing.tests.test_system_fixtures import Examples, Order, Orders, Payment, Payments, Reservation, \
-    Reservations, create_new_order, set_db_uri
+from eventsourcing.tests.test_system_fixtures import (
+    Examples,
+    Order,
+    Orders,
+    Payment,
+    Payments,
+    Reservation,
+    Reservations,
+    create_new_order,
+    set_db_uri,
+)
 
 
 class TestSystem(TestCase):
     infrastructure_class = SQLAlchemyApplication
 
     def test___getattr__(self):
-        system = System(Orders | Reservations | Orders,
-                        Orders | Payments | Orders,
-                        setup_tables=True,
-                        infrastructure_class=self.infrastructure_class
-                        )
+        system = System(
+            Orders | Reservations | Orders,
+            Orders | Payments | Orders,
+            setup_tables=True,
+            infrastructure_class=self.infrastructure_class,
+        )
         with system.orders as app:
             self.assertIsInstance(app, Orders)
             self.assertEqual(app, system.orders)
@@ -34,14 +47,16 @@ class TestSystem(TestCase):
             self.assertEqual(app, system.reservations)
 
         with self.assertRaises(AttributeError):
-            with system.notaprocess as _: pass
+            with system.notaprocess as _:
+                pass
 
     def test_singlethreaded_runner_with_multiapp_system(self):
-        system = System(Orders | Reservations | Orders,
-                        Orders | Payments | Orders,
-                        setup_tables=True,
-                        infrastructure_class=self.infrastructure_class
-                        )
+        system = System(
+            Orders | Reservations | Orders,
+            Orders | Payments | Orders,
+            setup_tables=True,
+            infrastructure_class=self.infrastructure_class,
+        )
 
         with system as runner:
             # Create new Order aggregate.
@@ -53,12 +68,13 @@ class TestSystem(TestCase):
             assert repository[order_id].is_paid
 
     def test_singlethreaded_runner_with_direct_query(self):
-        system = System(Orders | Reservations | Orders,
-                        Orders | Payments | Orders,
-                        setup_tables=True,
-                        infrastructure_class=self.infrastructure_class,
-                        use_direct_query_if_available=True,
-                        )
+        system = System(
+            Orders | Reservations | Orders,
+            Orders | Payments | Orders,
+            setup_tables=True,
+            infrastructure_class=self.infrastructure_class,
+            use_direct_query_if_available=True,
+        )
 
         with system:
             # Create new Order aggregate.
@@ -71,9 +87,11 @@ class TestSystem(TestCase):
 
     def test_multithreaded_runner_with_singleapp_system(self):
 
-        system = System(Examples | Examples,
-                        setup_tables=True,
-                        infrastructure_class=self.infrastructure_class)
+        system = System(
+            Examples | Examples,
+            setup_tables=True,
+            infrastructure_class=self.infrastructure_class,
+        )
 
         self.set_db_uri()
 
@@ -99,7 +117,7 @@ class TestSystem(TestCase):
             Orders | Reservations | Orders,
             Orders | Payments | Orders,
             setup_tables=True,
-            infrastructure_class=self.infrastructure_class
+            infrastructure_class=self.infrastructure_class,
         )
 
         self.set_db_uri()
@@ -136,7 +154,7 @@ class TestSystem(TestCase):
             Orders | Reservations | Orders,
             Orders | Payments | Orders,
             setup_tables=True,
-            infrastructure_class=self.infrastructure_class
+            infrastructure_class=self.infrastructure_class,
         )
 
         self.set_db_uri()
@@ -164,16 +182,20 @@ class TestSystem(TestCase):
                 while retries and not orders.repository[order_id].is_paid:
                     sleep(0.1)
                     retries -= 1
-                    assert retries, "Failed set order.is_paid (after %s completed)" % num_completed
+                    assert retries, (
+                        "Failed set order.is_paid (after %s completed)" % num_completed
+                    )
                 num_completed += 1
 
         print(f"Duration: { time() - started :.4f}s")
 
     def test_multiprocessing_singleapp_system(self):
 
-        system = System(Examples | Examples,
-                        setup_tables=True,
-                        infrastructure_class=self.infrastructure_class)
+        system = System(
+            Examples | Examples,
+            setup_tables=True,
+            infrastructure_class=self.infrastructure_class,
+        )
 
         self.set_db_uri()
 
@@ -199,7 +221,7 @@ class TestSystem(TestCase):
             Orders | Reservations | Orders,
             Orders | Payments | Orders,
             setup_tables=True,
-            infrastructure_class=self.infrastructure_class
+            infrastructure_class=self.infrastructure_class,
         )
 
         self.set_db_uri()
@@ -233,7 +255,7 @@ class TestSystem(TestCase):
         system = System(
             (Orders, Reservations, Orders, Payments, Orders),
             setup_tables=True,
-            infrastructure_class=self.infrastructure_class
+            infrastructure_class=self.infrastructure_class,
         )
 
         num_pipelines = 2
@@ -269,7 +291,9 @@ class TestSystem(TestCase):
                 while not orders.repository[order_id].is_reserved:
                     sleep(0.1)
                     retries -= 1
-                    assert retries, "Failed set order.is_reserved {} ({})".format(order_id, i)
+                    assert retries, "Failed set order.is_reserved {} ({})".format(
+                        order_id, i
+                    )
 
                 while retries and not orders.repository[order_id].is_paid:
                     sleep(0.1)
@@ -283,13 +307,21 @@ class TestSystem(TestCase):
             duration = last_timestamp - first_timestamp
             rate = len(order_ids) / float(duration)
             period = 1 / rate
-            print("Orders system processed {} orders in {:.3f}s at rate of {:.1f} "
-                  "orders/s, {:.3f}s each".format(len(order_ids), duration, rate, period))
+            print(
+                "Orders system processed {} orders in {:.3f}s at rate of {:.1f} "
+                "orders/s, {:.3f}s each".format(len(order_ids), duration, rate, period)
+            )
 
             # Print min, average, max duration.
-            durations = [o.__last_modified__ - o.__created_on__ for o in order_aggregates]
+            durations = [
+                o.__last_modified__ - o.__created_on__ for o in order_aggregates
+            ]
             print("Min order processing time: {:.3f}s".format(min(durations)))
-            print("Mean order processing time: {:.3f}s".format(sum(durations) / len(durations)))
+            print(
+                "Mean order processing time: {:.3f}s".format(
+                    sum(durations) / len(durations)
+                )
+            )
             print("Max order processing time: {:.3f}s".format(max(durations)))
 
     def set_db_uri(self):
@@ -320,16 +352,25 @@ class TestSystem(TestCase):
         assert not order.is_reserved
 
         # Reservation created.
-        event = Reservation.Created(originator_id=uuid4(), originator_topic='', order_id=order.id)
+        event = Reservation.Created(
+            originator_id=uuid4(), originator_topic="", order_id=order.id
+        )
         Orders.policy(repository=fake_repository, event=event)
 
         # Check order is reserved.
         assert order.is_reserved
 
+    def test_system_with_single_application_class(self):
+        system = System(
+            Orders
+        )  # this was breaking because PipeableMetaclass was not iterable
+        with system as runner:
+            self.assertIsInstance(runner.orders, Orders)
+
     def tearDown(self):
         assert_event_handlers_empty()
         clear_event_handlers()
         try:
-            del (os.environ['DB_URI'])
+            del os.environ["DB_URI"]
         except KeyError:
             pass

@@ -48,7 +48,7 @@ class LocalNotificationLog(AbstractNotificationLog):
     def __getitem__(self, section_id):
         # Get section of notification log.
         next_position = None
-        if section_id == 'current':
+        if section_id == "current":
 
             # Get start of the last section.
             next_position = self.get_next_position()
@@ -56,7 +56,7 @@ class LocalNotificationLog(AbstractNotificationLog):
         else:
 
             try:
-                first_item_number, _ = section_id.split(',')
+                first_item_number, _ = section_id.split(",")
             except ValueError as e:
                 raise ValueError("Couldn't split '{}': {}".format(section_id, e))
 
@@ -90,10 +90,7 @@ class LocalNotificationLog(AbstractNotificationLog):
         # Return a section of the notification log.
         section_id = self.format_section_id(start + 1, start + self.section_size)
         return Section(
-            section_id=section_id,
-            items=items,
-            previous_id=previous_id,
-            next_id=next_id,
+            section_id=section_id, items=items, previous_id=previous_id, next_id=next_id
         )
 
     @abstractmethod
@@ -119,7 +116,7 @@ class LocalNotificationLog(AbstractNotificationLog):
 
     @staticmethod
     def format_section_id(first_item_number, last_item_number):
-        return '{},{}'.format(first_item_number, last_item_number)
+        return "{},{}".format(first_item_number, last_item_number)
 
 
 class RecordManagerNotificationLog(LocalNotificationLog):
@@ -133,12 +130,12 @@ class RecordManagerNotificationLog(LocalNotificationLog):
         notifications = []
         for record in self.record_manager.get_notifications(start, stop):
             notification = {
-                'id': getattr(record, self.record_manager.notification_id_name)
+                "id": getattr(record, self.record_manager.notification_id_name)
             }
             for field_name in self.record_manager.field_names:
                 notification[field_name] = getattr(record, field_name)
-            if hasattr(record, 'causal_dependencies'):
-                notification['causal_dependencies'] = record.causal_dependencies
+            if hasattr(record, "causal_dependencies"):
+                notification["causal_dependencies"] = record.causal_dependencies
             notifications.append(notification)
         return notifications
 
@@ -161,13 +158,17 @@ class BigArrayNotificationLog(LocalNotificationLog):
         super(BigArrayNotificationLog, self).__init__(section_size)
         assert isinstance(big_array, BigArray)
         if big_array.repo.array_size % section_size:
-            raise ValueError("Section size {} doesn't divide array size {}".format(
-                section_size, big_array.repo.array_size
-            ))
+            raise ValueError(
+                "Section size {} doesn't divide array size {}".format(
+                    section_size, big_array.repo.array_size
+                )
+            )
         self.big_array = big_array
 
     def get_items(self, start, stop, next_position=None):
-        next_position = self.get_next_position() if next_position is None else next_position
+        next_position = (
+            self.get_next_position() if next_position is None else next_position
+        )
         stop = min(stop, next_position)
         return self.big_array[start:stop]
 
@@ -236,13 +237,16 @@ class NotificationLogReader(ABC):
             raise ValueError("Position less than zero: {}".format(self.position))
 
         if self.use_direct_query_if_available and isinstance(
-                self.notification_log, RecordManagerNotificationLog):
+            self.notification_log, RecordManagerNotificationLog
+        ):
             if advance_by is not None:
                 stop_item_num = start_item_num + advance_by
             else:
                 stop_item_num = None
             # Directly query for notifications.
-            for item in self.notification_log.get_items(start_item_num - 1, stop_item_num):
+            for item in self.notification_log.get_items(
+                start_item_num - 1, stop_item_num
+            ):
                 yield item
                 self.position += 1
 
@@ -255,7 +259,7 @@ class NotificationLogReader(ABC):
 
                 # Break if we can go forward from here.
                 if start_item_num is not None:
-                    if int(section.section_id.split(',')[0]) <= start_item_num:
+                    if int(section.section_id.split(",")[0]) <= start_item_num:
                         break
 
                 # Get the previous document.
@@ -266,7 +270,7 @@ class NotificationLogReader(ABC):
             self.section_count += 1
             items = section.items
             if start_item_num is not None:
-                section_start_num = int(section.section_id.split(',')[0])
+                section_start_num = int(section.section_id.split(",")[0])
                 from_index = start_item_num - section_start_num
                 items = items[from_index:]
 
@@ -326,7 +330,7 @@ class NotificationLogReader(ABC):
         :rtype: str
         """
         # initial_section_id = 'current'
-        if hasattr(self.notification_log, 'section_size'):
+        if hasattr(self.notification_log, "section_size"):
             # Todo: Implement this attribute on the remote notification
             #  log class, because that's when we might want to avoid
             #  hitting the server by keeping all section IDs actual
@@ -340,14 +344,14 @@ class NotificationLogReader(ABC):
             #  - 'position' is equal to zero-based index of next item
             #  - section IDs use 1-based start and end values.
             start = self.position // section_size * section_size
-            section_id = '%d,%d' % (start + 1, start + section_size)
+            section_id = "%d,%d" % (start + 1, start + section_size)
         else:
             # Special section ID that indicates next position.
             #  - is used by the notification log to identify the
             #    section which includes the given position
             #  - 'position' is 1-based, but 1 behind the next position
             #  - section IDs use 1-based start and end values.
-            section_id = '%d,' % (self.position + 1)
+            section_id = "%d," % (self.position + 1)
 
         return section_id
 

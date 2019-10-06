@@ -17,7 +17,9 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         super(SQLAlchemyRecordManager, self).__init__(*args, **kwargs)
         self.session = session
 
-    def _prepare_insert(self, tmpl, record_class, field_names, placeholder_for_id=False):
+    def _prepare_insert(
+        self, tmpl, record_class, field_names, placeholder_for_id=False
+    ):
         """
         With transaction isolation level of "read committed" this should
         generate records with a contiguous sequence of integer IDs, assumes
@@ -25,23 +27,31 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         insert-select-from form, and optimistic concurrency control.
         """
         field_names = list(field_names)
-        if hasattr(record_class, 'application_name') and 'application_name' not in field_names:
-            field_names.append('application_name')
-        if hasattr(record_class, 'pipeline_id') and 'pipeline_id' not in field_names:
-            field_names.append('pipeline_id')
-        if hasattr(record_class, 'causal_dependencies') and 'causal_dependencies' not in field_names:
-            field_names.append('causal_dependencies')
+        if (
+            hasattr(record_class, "application_name")
+            and "application_name" not in field_names
+        ):
+            field_names.append("application_name")
+        if hasattr(record_class, "pipeline_id") and "pipeline_id" not in field_names:
+            field_names.append("pipeline_id")
+        if (
+            hasattr(record_class, "causal_dependencies")
+            and "causal_dependencies" not in field_names
+        ):
+            field_names.append("causal_dependencies")
         if self.notification_id_name:
             if placeholder_for_id:
                 if self.notification_id_name not in field_names:
                     field_names.append(self.notification_id_name)
 
-        statement = text(tmpl.format(
-            tablename=self.get_record_table_name(record_class),
-            columns=", ".join(field_names),
-            placeholders=", ".join([":{}".format(f) for f in field_names]),
-            notification_id=self.notification_id_name
-        ))
+        statement = text(
+            tmpl.format(
+                tablename=self.get_record_table_name(record_class),
+                columns=", ".join(field_names),
+                placeholders=", ".join([":{}".format(f) for f in field_names]),
+                notification_id=self.notification_id_name,
+            )
+        )
 
         # Define bind parameters with explicit types taken from record column types.
         bindparams = []
@@ -54,7 +64,13 @@ class SQLAlchemyRecordManager(SQLRecordManager):
 
         return statement
 
-    def write_records(self, records, tracking_kwargs=None, orm_objs=None):
+    def write_records(
+        self,
+        records,
+        tracking_kwargs=None,
+        orm_objs_pending_save=None,
+        orm_objs_pending_delete=None,
+    ):
         all_params = []
         statement = None
         if records:
@@ -71,37 +87,35 @@ class SQLAlchemyRecordManager(SQLRecordManager):
                         # Do an "insert select max" from existing.
                         statement = self.insert_select_max
 
-                    elif hasattr(self.record_class, 'application_name'):
+                    elif hasattr(self.record_class, "application_name"):
                         # Can't allow auto-incrementing ID if table has field
                         # application_name. We need values and don't have them.
                         raise ProgrammingError("record ID not set when required")
 
             for record in records:
                 # Params for stored item itself (e.g. event).
-                params = {
-                    name: getattr(record, name) for name in self.field_names
-                }
+                params = {name: getattr(record, name) for name in self.field_names}
 
                 # Params for application partition (bounded context).
-                if hasattr(self.record_class, 'application_name'):
-                    params['application_name'] = self.application_name
+                if hasattr(self.record_class, "application_name"):
+                    params["application_name"] = self.application_name
 
                 # Params for notification log.
                 if self.notification_id_name:
                     notification_id = getattr(record, self.notification_id_name)
-                    if notification_id == 'event-not-notifiable':
+                    if notification_id == "event-not-notifiable":
                         params[self.notification_id_name] = None
                     else:
                         params[self.notification_id_name] = notification_id
 
-                    if hasattr(self.record_class, 'pipeline_id'):
-                        if notification_id == 'event-not-notifiable':
-                            params['pipeline_id'] = None
+                    if hasattr(self.record_class, "pipeline_id"):
+                        if notification_id == "event-not-notifiable":
+                            params["pipeline_id"] = None
                         else:
-                            params['pipeline_id'] = self.pipeline_id
+                            params["pipeline_id"] = self.pipeline_id
 
-                if hasattr(record, 'causal_dependencies'):
-                    params['causal_dependencies'] = record.causal_dependencies
+                if hasattr(record, "causal_dependencies"):
+                    params["causal_dependencies"] = record.causal_dependencies
 
                 all_params.append(params)
 
@@ -109,9 +123,14 @@ class SQLAlchemyRecordManager(SQLRecordManager):
             nothing_to_commit = True
 
             # Commit custom ORM objects.
-            if orm_objs:
-                for orm_obj in orm_objs:
+            if orm_objs_pending_save:
+                for orm_obj in orm_objs_pending_save:
                     self.session.add(orm_obj)
+                nothing_to_commit = False
+
+            if orm_objs_pending_delete:
+                for orm_obj in orm_objs_pending_delete:
+                    self.session.delete(orm_obj)
                 nothing_to_commit = False
 
             # Insert tracking record.
@@ -144,18 +163,24 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         finally:
             self.session.close()
 
-
-    def get_records(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
-                    query_ascending=True, results_ascending=True):
+    def get_records(
+        self,
+        sequence_id,
+        gt=None,
+        gte=None,
+        lt=None,
+        lte=None,
+        limit=None,
+        query_ascending=True,
+        results_ascending=True,
+    ):
         assert limit is None or limit >= 1, limit
         try:
             # Filter by sequence_id.
-            filter_kwargs = {
-                self.field_names.sequence_id: sequence_id
-            }
+            filter_kwargs = {self.field_names.sequence_id: sequence_id}
             # Optionally, filter by application_name.
-            if hasattr(self.record_class, 'application_name'):
-                filter_kwargs['application_name'] = self.application_name
+            if hasattr(self.record_class, "application_name"):
+                filter_kwargs["application_name"] = self.application_name
             query = self.filter_by(**filter_kwargs)
 
             # Filter and order by position.
@@ -195,14 +220,18 @@ class SQLAlchemyRecordManager(SQLRecordManager):
     def get_notifications(self, start=None, stop=None, *args, **kwargs):
         try:
             query = self.orm_query()
-            if hasattr(self.record_class, 'application_name'):
-                query = query.filter(self.record_class.application_name == self.application_name)
-            if hasattr(self.record_class, 'pipeline_id'):
+            if hasattr(self.record_class, "application_name"):
+                query = query.filter(
+                    self.record_class.application_name == self.application_name
+                )
+            if hasattr(self.record_class, "pipeline_id"):
                 query = query.filter(self.record_class.pipeline_id == self.pipeline_id)
             if self.notification_id_name:
                 query = query.order_by(asc(self.notification_id_name))
                 # NB '+1' because record IDs start from 1.
-                notification_id_col = getattr(self.record_class, self.notification_id_name)
+                notification_id_col = getattr(
+                    self.record_class, self.notification_id_name
+                )
                 if start is not None:
                     query = query.filter(notification_id_col >= start + 1)
                 if stop is not None:
@@ -215,12 +244,10 @@ class SQLAlchemyRecordManager(SQLRecordManager):
 
     def get_record(self, sequence_id, position):
         try:
-            filter_args = {
-                self.field_names.sequence_id: sequence_id
-            }
+            filter_args = {self.field_names.sequence_id: sequence_id}
 
             query = self.filter_by(**filter_args)
-            if hasattr(self.record_class, 'application_name'):
+            if hasattr(self.record_class, "application_name"):
                 query = query.filter(
                     self.record_class.application_name == self.application_name
                 )
@@ -242,9 +269,11 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         try:
             notification_id_col = getattr(self.record_class, self.notification_id_name)
             query = self.session.query(func.max(notification_id_col))
-            if hasattr(self.record_class, 'application_name'):
-                query = query.filter(self.record_class.application_name == self.application_name)
-            if hasattr(self.record_class, 'pipeline_id'):
+            if hasattr(self.record_class, "application_name"):
+                query = query.filter(
+                    self.record_class.application_name == self.application_name
+                )
+            if hasattr(self.record_class, "pipeline_id"):
                 query = query.filter(self.record_class.pipeline_id == self.pipeline_id)
 
             return query.scalar()
@@ -253,17 +282,31 @@ class SQLAlchemyRecordManager(SQLRecordManager):
 
     def get_max_tracking_record_id(self, upstream_application_name):
         query = self.session.query(func.max(self.tracking_record_class.notification_id))
-        query = query.filter(self.tracking_record_class.application_name == self.application_name)
-        query = query.filter(self.tracking_record_class.upstream_application_name == upstream_application_name)
+        query = query.filter(
+            self.tracking_record_class.application_name == self.application_name
+        )
+        query = query.filter(
+            self.tracking_record_class.upstream_application_name
+            == upstream_application_name
+        )
         query = query.filter(self.tracking_record_class.pipeline_id == self.pipeline_id)
         return query.scalar()
 
-    def has_tracking_record(self, upstream_application_name, pipeline_id, notification_id):
+    def has_tracking_record(
+        self, upstream_application_name, pipeline_id, notification_id
+    ):
         query = self.session.query(self.tracking_record_class)
-        query = query.filter(self.tracking_record_class.application_name == self.application_name)
-        query = query.filter(self.tracking_record_class.upstream_application_name == upstream_application_name)
+        query = query.filter(
+            self.tracking_record_class.application_name == self.application_name
+        )
+        query = query.filter(
+            self.tracking_record_class.upstream_application_name
+            == upstream_application_name
+        )
         query = query.filter(self.tracking_record_class.pipeline_id == pipeline_id)
-        query = query.filter(self.tracking_record_class.notification_id == notification_id)
+        query = query.filter(
+            self.tracking_record_class.notification_id == notification_id
+        )
         try:
             query.one()
         except (MultipleResultsFound, NoResultFound):
@@ -276,7 +319,7 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         sequence_id_col = getattr(c, self.field_names.sequence_id)
         expr = select([sequence_id_col], distinct=True)
 
-        if hasattr(self.record_class, 'application_name'):
+        if hasattr(self.record_class, "application_name"):
             expr = expr.where(c.application_name == self.application_name)
 
         try:
@@ -302,4 +345,6 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         return record_class.__table__.name
 
     def clone(self, **kwargs):
-        return super(SQLAlchemyRecordManager, self).clone(session=self.session, **kwargs)
+        return super(SQLAlchemyRecordManager, self).clone(
+            session=self.session, **kwargs
+        )

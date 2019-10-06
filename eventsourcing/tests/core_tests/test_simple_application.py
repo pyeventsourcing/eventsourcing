@@ -1,6 +1,8 @@
 from unittest import TestCase
 
-from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import DjangoTestCase
+from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import (
+    DjangoTestCase,
+)
 
 from eventsourcing.application.django import DjangoApplication
 from eventsourcing.application.notificationlog import NotificationLogReader
@@ -34,16 +36,14 @@ class TestSimpleApplication(TestCase):
             reader = NotificationLogReader(app.notification_log)
             notifications = reader.read_list()
             self.assertEqual(1, len(notifications))
-            topic = 'eventsourcing.tests.core_tests.test_aggregate_root#ExampleAggregateRoot.Created'
-            self.assertEqual(topic, notifications[0]['topic'])
+            topic = "eventsourcing.tests.core_tests.test_aggregate_root#ExampleAggregateRoot.Created"
+            self.assertEqual(topic, notifications[0]["topic"])
 
             app.drop_table()
 
     def get_application(self):
         return self.application_class(
-            cipher_key=encode_random_bytes(16),
-            persist_event_type=DomainEvent,
-
+            cipher_key=encode_random_bytes(16), persist_event_type=DomainEvent
         )
 
     def tearDown(self):

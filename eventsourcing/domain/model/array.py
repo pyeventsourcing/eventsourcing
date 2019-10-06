@@ -3,7 +3,10 @@ from math import ceil, log
 from uuid import uuid5
 
 from eventsourcing.domain.model.decorators import retry
-from eventsourcing.domain.model.entity import AbstractEntityRepository, TimestampedVersionedEntity
+from eventsourcing.domain.model.entity import (
+    AbstractEntityRepository,
+    TimestampedVersionedEntity,
+)
 from eventsourcing.domain.model.events import publish
 from eventsourcing.exceptions import ArrayIndexError, ConcurrencyError
 
@@ -12,12 +15,12 @@ class ItemAssigned(TimestampedVersionedEntity.Event):
     """Occurs when an item is set at a position in an array."""
 
     def __init__(self, item, index, *args, **kwargs):
-        kwargs['item'] = item
+        kwargs["item"] = item
         super(ItemAssigned, self).__init__(originator_version=index, *args, **kwargs)
 
     @property
     def item(self):
-        return self.__dict__['item']
+        return self.__dict__["item"]
 
     @property
     def index(self):
@@ -45,11 +48,7 @@ class Array(object):
         size = self.repo.array_size
         if size and index >= size:
             raise ArrayIndexError("Index is {}, but size is {}".format(index, size))
-        event = ItemAssigned(
-            originator_id=self.id,
-            index=index,
-            item=item,
-        )
+        event = ItemAssigned(originator_id=self.id, index=index, item=item)
         publish(event)
 
     def __getitem__(self, item):
@@ -91,7 +90,9 @@ class Array(object):
                 if array_size is not None:
                     stop_index = min(stop_index, self.repo.array_size)
 
-            items_assigned = self.get_items_assigned(stop_index=stop_index, start_index=start_index)
+            items_assigned = self.get_items_assigned(
+                stop_index=stop_index, start_index=start_index
+            )
             items_dict = {str(i.originator_version): i.item for i in items_assigned}
             items = [items_dict.get(str(i)) for i in range(start_index, stop_index)]
             return items
@@ -121,7 +122,9 @@ class Array(object):
         next_postion = item_assigned.index + 1
         return item_assigned.item, next_postion
 
-    def get_items_assigned(self, start_index=None, stop_index=None, limit=None, is_ascending=True):
+    def get_items_assigned(
+        self, start_index=None, stop_index=None, limit=None, is_ascending=True
+    ):
         return self.repo.event_store.get_domain_events(
             originator_id=self.id,
             gte=start_index,
@@ -133,8 +136,7 @@ class Array(object):
     def get_item_assigned(self, index):
         try:
             item_assigned = self.repo.event_store.get_domain_event(
-                originator_id=self.id,
-                position=index,
+                originator_id=self.id, position=index
             )
         except IndexError as e:
             raise ArrayIndexError(e)
@@ -266,7 +268,9 @@ class BigArray(Array):
         if isinstance(item, int):
             return self.get_item(item)
         elif isinstance(item, slice):
-            assert item.step in (None, 1), "Slice step must be 1: {}".format(str(item.step))
+            assert item.step in (None, 1), "Slice step must be 1: {}".format(
+                str(item.step)
+            )
             return self.get_slice(item.start, item.stop)
 
     def get_item(self, position):
@@ -400,8 +404,8 @@ class BigArray(Array):
         p_i = p_n * span
         p_j = p_i + span
         # Check the parent i,j bounds the child i,j, ie child span is contained by parent span.
-        assert p_i <= c_i, 'i greater on parent than child: {}'.format(p_i, p_j)
-        assert p_j >= c_j, 'j less on parent than child: {}'.format(p_i, p_j)
+        assert p_i <= c_i, "i greater on parent than child: {}".format(p_i, p_j)
+        assert p_j >= c_j, "j less on parent than child: {}".format(p_i, p_j)
         # Return parent i, j, h, p.
         return p_i, p_j, p_h, p_p
 

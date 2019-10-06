@@ -6,7 +6,9 @@ from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepo
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
+from eventsourcing.tests.datastore_tests.test_sqlalchemy import (
+    SQLAlchemyDatastoreTestCase,
+)
 from eventsourcing.utils.topic import get_topic
 
 
@@ -28,9 +30,9 @@ class TestEventSourcedRepository(SQLAlchemyDatastoreTestCase):
             record_manager=self.factory.construct_integer_sequenced_record_manager(),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
-                sequence_id_attr_name='originator_id',
-                position_attr_name='originator_version',
-            )
+                sequence_id_attr_name="originator_id",
+                position_attr_name="originator_version",
+            ),
         )
         return event_store
 
@@ -40,12 +42,11 @@ class TestEventSourcedRepository(SQLAlchemyDatastoreTestCase):
 
         # Put an event in the event store.
         entity_id = uuid4()
-        event_store.store(Example.Created(
-            a=1,
-            b=2,
-            originator_id=entity_id,
-            originator_topic=get_topic(Example),
-        ))
+        event_store.store(
+            Example.Created(
+                a=1, b=2, originator_id=entity_id, originator_topic=get_topic(Example)
+            )
+        )
 
         # Construct a repository.
         event_sourced_repo = EventSourcedRepository(event_store=event_store)

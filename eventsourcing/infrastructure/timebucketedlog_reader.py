@@ -1,5 +1,10 @@
-from eventsourcing.domain.model.timebucketedlog import MessageLogged, Timebucketedlog, make_timebucket_id, \
-    next_bucket_starts, previous_bucket_starts
+from eventsourcing.domain.model.timebucketedlog import (
+    MessageLogged,
+    Timebucketedlog,
+    make_timebucket_id,
+    next_bucket_starts,
+    previous_bucket_starts,
+)
 from eventsourcing.infrastructure.eventstore import AbstractEventStore
 from eventsourcing.utils.times import decimaltimestamp
 
@@ -21,15 +26,40 @@ class TimebucketedlogReader(object):
         self.page_size = page_size
         self.position = None
 
-    def get_messages(self, gt=None, gte=None, lt=None, lte=None, limit=None, is_ascending=False, page_size=None):
-        events = self.get_events(gt=gt, gte=gte, lt=lt, lte=lte, limit=limit, is_ascending=is_ascending,
-                                 page_size=page_size)
+    def get_messages(
+        self,
+        gt=None,
+        gte=None,
+        lt=None,
+        lte=None,
+        limit=None,
+        is_ascending=False,
+        page_size=None,
+    ):
+        events = self.get_events(
+            gt=gt,
+            gte=gte,
+            lt=lt,
+            lte=lte,
+            limit=limit,
+            is_ascending=is_ascending,
+            page_size=page_size,
+        )
         for event in events:
             if isinstance(event, MessageLogged):
                 self.position = event.timestamp
                 yield event.message
 
-    def get_events(self, gt=None, gte=None, lt=None, lte=None, limit=None, is_ascending=False, page_size=None):
+    def get_events(
+        self,
+        gt=None,
+        gte=None,
+        lt=None,
+        lte=None,
+        limit=None,
+        is_ascending=False,
+        page_size=None,
+    ):
         assert limit is None or limit > 0
 
         # Identify the first time bucket.
@@ -46,7 +76,9 @@ class TimebucketedlogReader(object):
         count_events = 0
 
         while True:
-            bucket_id = make_timebucket_id(self.log.name, position, self.log.bucket_size)
+            bucket_id = make_timebucket_id(
+                self.log.name, position, self.log.bucket_size
+            )
             for message_logged_event in self.event_store.get_domain_events(
                 originator_id=bucket_id,
                 gt=gt,

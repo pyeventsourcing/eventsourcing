@@ -8,23 +8,31 @@ from sqlalchemy.pool import StaticPool
 from eventsourcing.infrastructure.datastore import AbstractDatastore, DatastoreSettings
 from eventsourcing.infrastructure.sqlalchemy.records import Base
 
-SQLITE_IN_MEMORY = 'sqlite:///:memory:'
+SQLITE_IN_MEMORY = "sqlite:///:memory:"
 DEFAULT_SQLALCHEMY_DB_URI = SQLITE_IN_MEMORY
 # DEFAULT_SQLALCHEMY_DB_URI = 'sqlite:///FILE_SYSTEM_PATH'
 # DEFAULT_SQLALCHEMY_DB_URI = 'mysql://username:password@localhost/eventsourcing'
 # DEFAULT_SQLALCHEMY_DB_URI = 'postgresql://username:password@localhost:5432/eventsourcing'
 DEFAULT_SQLALCHEMY_DB_POOL_SIZE = 5
 
+
 class SQLAlchemySettings(DatastoreSettings):
     def __init__(self, uri=None, pool_size=None):
-        self.uri = uri or os.getenv('DB_URI', DEFAULT_SQLALCHEMY_DB_URI)
-        self.pool_size = int(pool_size or os.getenv('DB_POOL_SIZE', DEFAULT_SQLALCHEMY_DB_POOL_SIZE))
+        self.uri = uri or os.getenv("DB_URI", DEFAULT_SQLALCHEMY_DB_URI)
+        self.pool_size = int(
+            pool_size or os.getenv("DB_POOL_SIZE", DEFAULT_SQLALCHEMY_DB_POOL_SIZE)
+        )
 
 
 class SQLAlchemyDatastore(AbstractDatastore):
-
-    def __init__(self, base=Base, tables=None, connection_strategy='plain',
-                 session=None, **kwargs):
+    def __init__(
+        self,
+        base=Base,
+        tables=None,
+        connection_strategy="plain",
+        session=None,
+        **kwargs
+    ):
         super(SQLAlchemyDatastore, self).__init__(**kwargs)
         self._session = session
         self._engine = session.bind if session else None
@@ -45,17 +53,11 @@ class SQLAlchemyDatastore(AbstractDatastore):
         assert isinstance(self.settings, SQLAlchemySettings), self.settings
         if self._engine is None:
             if self.is_sqlite():
-                kwargs = {
-                    'connect_args': {'check_same_thread': False},
-                }
+                kwargs = {"connect_args": {"check_same_thread": False}}
             elif self.settings.pool_size == 1:
-                kwargs = {
-                    'poolclass': StaticPool
-                }
+                kwargs = {"poolclass": StaticPool}
             else:
-                kwargs = {
-                    'pool_size': self.settings.pool_size,
-                }
+                kwargs = {"pool_size": self.settings.pool_size}
             self._engine = create_engine(
                 self.settings.uri,
                 strategy=self._connection_strategy,
@@ -109,7 +111,7 @@ class SQLAlchemyDatastore(AbstractDatastore):
     #         assert self._engine
 
     def is_sqlite(self):
-        return self.settings.uri.startswith('sqlite')
+        return self.settings.uri.startswith("sqlite")
 
     def setup_tables(self, tables=None):
         if self._tables is not None:

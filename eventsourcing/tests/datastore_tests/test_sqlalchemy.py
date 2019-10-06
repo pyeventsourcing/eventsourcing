@@ -4,11 +4,22 @@ from uuid import uuid4
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from eventsourcing.infrastructure.datastore import DatastoreTableError
-from eventsourcing.infrastructure.sqlalchemy.datastore import DEFAULT_SQLALCHEMY_DB_URI, SQLAlchemyDatastore, \
-    SQLAlchemySettings
-from eventsourcing.infrastructure.sqlalchemy.factory import SQLAlchemyInfrastructureFactory
-from eventsourcing.infrastructure.sqlalchemy.records import Base, IntegerSequencedNoIDRecord, \
-    IntegerSequencedWithIDRecord, SnapshotRecord, TimestampSequencedNoIDRecord, TimestampSequencedWithIDRecord
+from eventsourcing.infrastructure.sqlalchemy.datastore import (
+    DEFAULT_SQLALCHEMY_DB_URI,
+    SQLAlchemyDatastore,
+    SQLAlchemySettings,
+)
+from eventsourcing.infrastructure.sqlalchemy.factory import (
+    SQLAlchemyInfrastructureFactory,
+)
+from eventsourcing.infrastructure.sqlalchemy.records import (
+    Base,
+    IntegerSequencedNoIDRecord,
+    IntegerSequencedWithIDRecord,
+    SnapshotRecord,
+    TimestampSequencedNoIDRecord,
+    TimestampSequencedWithIDRecord,
+)
 from eventsourcing.tests.datastore_tests import base
 
 
@@ -18,14 +29,14 @@ class SQLAlchemyDatastoreTestCase(base.AbstractDatastoreTestCase):
     """
 
     use_named_temporary_file = False
-    connection_strategy = 'plain'
+    connection_strategy = "plain"
     infrastructure_factory_class = SQLAlchemyInfrastructureFactory
     contiguous_record_ids = True
 
     def construct_datastore(self):
         if self.use_named_temporary_file:
-            self.temp_file = NamedTemporaryFile('a', delete=True)
-            uri = 'sqlite:///' + self.temp_file.name
+            self.temp_file = NamedTemporaryFile("a", delete=True)
+            uri = "sqlite:///" + self.temp_file.name
         else:
             uri = DEFAULT_SQLALCHEMY_DB_URI
 
@@ -42,7 +53,7 @@ class SQLAlchemyDatastoreTestCase(base.AbstractDatastoreTestCase):
                 IntegerSequencedNoIDRecord,
                 TimestampSequencedWithIDRecord,
                 TimestampSequencedNoIDRecord,
-                SnapshotRecord
+                SnapshotRecord,
             ),
             connection_strategy=self.connection_strategy,
             # **kwargs
@@ -53,6 +64,7 @@ class TestSQLAlchemyDatastore(SQLAlchemyDatastoreTestCase, base.DatastoreTestCas
     """
     Test case for SQLAlchemy datastore.
     """
+
     def list_records(self):
         try:
             query = self.datastore.session.query(IntegerSequencedNoIDRecord)
@@ -67,10 +79,7 @@ class TestSQLAlchemyDatastore(SQLAlchemyDatastoreTestCase, base.DatastoreTestCas
     def create_record(self):
         try:
             record = IntegerSequencedNoIDRecord(
-                sequence_id=uuid4(),
-                position=0,
-                topic='topic',
-                state='{}'
+                sequence_id=uuid4(), position=0, topic="topic", state="{}"
             )
             self.datastore.session.add(record)
             self.datastore.session.commit()

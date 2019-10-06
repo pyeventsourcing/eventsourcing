@@ -4,7 +4,9 @@ from eventsourcing.example.domainmodel import Example
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.tests.datastore_tests.test_sqlalchemy import SQLAlchemyDatastoreTestCase
+from eventsourcing.tests.datastore_tests.test_sqlalchemy import (
+    SQLAlchemyDatastoreTestCase,
+)
 from eventsourcing.utils.topic import get_topic
 
 
@@ -26,9 +28,9 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
             record_manager=self.factory.construct_integer_sequenced_record_manager(),
             sequenced_item_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
-                sequence_id_attr_name='originator_id',
-                position_attr_name='originator_version'
-            )
+                sequence_id_attr_name="originator_id",
+                position_attr_name="originator_version",
+            ),
         )
         return event_store
 
@@ -42,15 +44,15 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
         self.assertEqual(0, len(entity_events))
 
         # Check there are zero events in the event store, using iterator.
-        entity_events = event_store.get_domain_events(originator_id=entity_id1, page_size=1)
+        entity_events = event_store.get_domain_events(
+            originator_id=entity_id1, page_size=1
+        )
         entity_events = list(entity_events)
         self.assertEqual(0, len(entity_events))
 
         # Store a domain event.
         event1 = Example.Created(
-            a=1, b=2,
-            originator_id=entity_id1,
-            originator_topic=get_topic(Example)
+            a=1, b=2, originator_id=entity_id1, originator_topic=get_topic(Example)
         )
         event_store.store(event1)
 
@@ -60,15 +62,15 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
         self.assertEqual(1, len(entity_events))
 
         # Check there are two events in the event store, using iterator.
-        entity_events = event_store.get_domain_events(originator_id=entity_id1, page_size=1)
+        entity_events = event_store.get_domain_events(
+            originator_id=entity_id1, page_size=1
+        )
         entity_events = list(entity_events)
         self.assertEqual(1, len(entity_events))
 
         # Store another domain event.
         event1 = Example.AttributeChanged(
-            a=1, b=2,
-            originator_id=entity_id1,
-            originator_version=1,
+            a=1, b=2, originator_id=entity_id1, originator_version=1
         )
         event_store.store(event1)
 
@@ -78,7 +80,9 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
         self.assertEqual(2, len(entity_events))
 
         # Check there are two events in the event store, using iterator.
-        entity_events = event_store.get_domain_events(originator_id=entity_id1, page_size=1)
+        entity_events = event_store.get_domain_events(
+            originator_id=entity_id1, page_size=1
+        )
         entity_events = list(entity_events)
         self.assertEqual(2, len(entity_events))
 
@@ -92,10 +96,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
 
         # Store a domain event.
         event1 = Example.Created(
-            a=1,
-            b=2,
-            originator_id=entity_id1,
-            originator_topic=get_topic(Example),
+            a=1, b=2, originator_id=entity_id1, originator_topic=get_topic(Example)
         )
         event_store.store(event1)
 
@@ -114,17 +115,14 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
         # Store a domain event.
         entity_id1 = uuid4()
         event1 = Example.Created(
-            a=1,
-            b=2,
-            originator_id=entity_id1,
-            originator_topic=get_topic(Example)
-
+            a=1, b=2, originator_id=entity_id1, originator_topic=get_topic(Example)
         )
         event_store.store(event1)
 
         # Store another domain event for the same entity.
         event1 = Example.AttributeChanged(
-            a=1, b=2,
+            a=1,
+            b=2,
             originator_id=entity_id1,
             originator_version=1,
             __previous_hash__=event1.__event_hash__,
@@ -134,9 +132,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
         # Store a domain event for a different entity.
         entity_id2 = uuid4()
         event1 = Example.Created(
-            originator_topic=get_topic(Example),
-            originator_id=entity_id2,
-            a=1, b=2,
+            originator_topic=get_topic(Example), originator_id=entity_id2, a=1, b=2
         )
         event_store.store(event1)
 

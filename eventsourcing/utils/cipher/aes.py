@@ -25,7 +25,7 @@ class AESCipher(object):
         """Return ciphertext for given plaintext."""
 
         # String to bytes.
-        plainbytes = plaintext.encode('utf8')
+        plainbytes = plaintext.encode("utf8")
 
         # Compress plaintext bytes.
         compressed = zlib.compress(plainbytes)
@@ -43,7 +43,7 @@ class AESCipher(object):
         cipherbytes = base64.b64encode(combined)
 
         # Bytes to string.
-        ciphertext = cipherbytes.decode('utf8')
+        ciphertext = cipherbytes.decode("utf8")
 
         # Return ciphertext.
         return ciphertext
@@ -52,7 +52,7 @@ class AESCipher(object):
         """Return plaintext for given ciphertext."""
 
         # String to bytes.
-        cipherbytes = ciphertext.encode('utf8')
+        cipherbytes = ciphertext.encode("utf8")
 
         # Decode from Base64.
         try:
@@ -86,7 +86,7 @@ class AESCipher(object):
         plainbytes = zlib.decompress(compressed)
 
         # Bytes to string.
-        plaintext = plainbytes.decode('utf8')
+        plaintext = plainbytes.decode("utf8")
 
         # Return plaintext.
         return plaintext

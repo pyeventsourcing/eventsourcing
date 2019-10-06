@@ -8,16 +8,33 @@ from eventsourcing.example.domainmodel import Example, create_new_example
 from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
-from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedNoIDRecord, IntegerSequencedWithIDRecord, \
-    TimestampSequencedNoIDRecord, TimestampSequencedWithIDRecord
-from eventsourcing.infrastructure.timebucketedlog_reader import TimebucketedlogReader, get_timebucketedlog_reader
+from eventsourcing.infrastructure.sqlalchemy.records import (
+    IntegerSequencedNoIDRecord,
+    IntegerSequencedWithIDRecord,
+    TimestampSequencedNoIDRecord,
+    TimestampSequencedWithIDRecord,
+)
+from eventsourcing.infrastructure.timebucketedlog_reader import (
+    TimebucketedlogReader,
+    get_timebucketedlog_reader,
+)
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.example_application_tests import base
-from eventsourcing.tests.example_application_tests.test_example_application_with_encryption import WithEncryption
-from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import WithCassandraRecordManagers
-from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import DjangoTestCase
-from eventsourcing.tests.sequenced_item_tests.test_popo_record_manager import PopoTestCase
-from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import SQLAlchemyRecordManagerTestCase
+from eventsourcing.tests.example_application_tests.test_example_application_with_encryption import (
+    WithEncryption,
+)
+from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import (
+    WithCassandraRecordManagers,
+)
+from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import (
+    DjangoTestCase,
+)
+from eventsourcing.tests.sequenced_item_tests.test_popo_record_manager import (
+    PopoTestCase,
+)
+from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import (
+    SQLAlchemyRecordManagerTestCase,
+)
 
 
 @notquick
@@ -71,16 +88,31 @@ class PerformanceTestCase(base.WithExampleApplication):
                 try:
                     beats_per_second = total_beats / time_beating
                 except ZeroDivisionError as e:
-                    print("Warning: beats per second {} / {}: {}".format(total_beats, time_beating, e))
+                    print(
+                        "Warning: beats per second {} / {}: {}".format(
+                            total_beats, time_beating, e
+                        )
+                    )
                     beats_per_second = -999999999999.99999999
                 try:
                     beat_period = time_beating / total_beats
                 except ZeroDivisionError as e:
-                    print("Warning: beat period {} / {}: {}".format(time_beating, total_beats, e))
+                    print(
+                        "Warning: beat period {} / {}: {}".format(
+                            time_beating, total_beats, e
+                        )
+                    )
                     beat_period = -999999999999.9999999
 
-                print("Time to beat {} times: {:.4f}s ({:.0f} beats/s, {:.6f}s each)"
-                      "".format(num_beats, time_beating / (1 + num_other_entities), beats_per_second, beat_period))
+                print(
+                    "Time to beat {} times: {:.4f}s ({:.0f} beats/s, {:.6f}s each)"
+                    "".format(
+                        num_beats,
+                        time_beating / (1 + num_other_entities),
+                        beats_per_second,
+                        beat_period,
+                    )
+                )
 
                 # Get the last n events from the repo.
                 def last_n(n):
@@ -103,9 +135,14 @@ class PerformanceTestCase(base.WithExampleApplication):
 
                     num_retrieved_events = len(last_n_stored_events)
                     events_per_second = num_retrieved_events / time_last_n
-                    print(("Time to get last {:>" + str(i + 1) + "} events after {} events: {:.6f}s ({:.0f} events/s)"
-                                                                 "").format(n, num_beats + 1, time_last_n,
-                                                                            events_per_second))
+                    print(
+                        (
+                            "Time to get last {:>"
+                            + str(i + 1)
+                            + "} events after {} events: {:.6f}s ({:.0f} events/s)"
+                            ""
+                        ).format(n, num_beats + 1, time_last_n, events_per_second)
+                    )
 
                 for j in range(0, i + 1):
                     last_n(10 ** j)
@@ -119,8 +156,15 @@ class PerformanceTestCase(base.WithExampleApplication):
                     assert heartbeats == num_beats, (heartbeats, num_beats)
 
                 time_replaying = (time.time() - start_replay) / repetitions
-                print("Time to replay {} beats: {:.2f}s ({:.0f} beats/s, {:.6f}s each)"
-                      "".format(num_beats, time_replaying, num_beats / time_replaying, time_replaying / num_beats))
+                print(
+                    "Time to replay {} beats: {:.2f}s ({:.0f} beats/s, {:.6f}s each)"
+                    "".format(
+                        num_beats,
+                        time_replaying,
+                        num_beats / time_replaying,
+                        time_replaying / num_beats,
+                    )
+                )
 
                 # Take snapshot, and beat heart a few more times.
                 app.example_repository.take_snapshot(example.id, lt=example.__version__)
@@ -136,10 +180,16 @@ class PerformanceTestCase(base.WithExampleApplication):
                     example = app.example_repository[example.id]
                 time_replaying = (time.time() - start_replay) / repetitions
 
-                events_per_second = (extra_beats + 1) / time_replaying  # +1 for the snapshot event
+                events_per_second = (
+                    extra_beats + 1
+                ) / time_replaying  # +1 for the snapshot event
                 beats_per_second = num_beats / time_replaying
-                print("Time to replay snapshot with {} extra beats: {:.6f}s ({:.0f} events/s, {:.0f} beats/s)"
-                      "".format(extra_beats, time_replaying, events_per_second, beats_per_second))
+                print(
+                    "Time to replay snapshot with {} extra beats: {:.6f}s ({:.0f} events/s, {:.0f} beats/s)"
+                    "".format(
+                        extra_beats, time_replaying, events_per_second, beats_per_second
+                    )
+                )
 
                 print("")
 
@@ -147,7 +197,7 @@ class PerformanceTestCase(base.WithExampleApplication):
 
         with self.construct_application() as app:
             example_id = uuid4()
-            log = start_new_timebucketedlog(example_id, bucket_size='year')
+            log = start_new_timebucketedlog(example_id, bucket_size="year")
             log_reader = get_timebucketedlog_reader(log, app.log_event_store)
 
             # Write a load of messages.
@@ -155,12 +205,18 @@ class PerformanceTestCase(base.WithExampleApplication):
             number_of_messages = 111
             events = []
             for i in range(number_of_messages):
-                event = log.log_message('Logger message number {}'.format(i))
+                event = log.log_message("Logger message number {}".format(i))
                 events.append(event)
-            time_to_write = (time.time() - start_write)
-            print("Time to log {} messages: {:.2f}s ({:.0f} messages/s, {:.6f}s each)"
-                  "".format(number_of_messages, time_to_write, number_of_messages / time_to_write,
-                            time_to_write / number_of_messages))
+            time_to_write = time.time() - start_write
+            print(
+                "Time to log {} messages: {:.2f}s ({:.0f} messages/s, {:.6f}s each)"
+                "".format(
+                    number_of_messages,
+                    time_to_write,
+                    number_of_messages / time_to_write,
+                    time_to_write / number_of_messages,
+                )
+            )
 
             # Read pages of messages in descending order.
             # - get a limited number until a time, then use the earliest in that list as the position
@@ -175,9 +231,10 @@ class PerformanceTestCase(base.WithExampleApplication):
             total_num_reads = 0
             while True:
                 start_read = time.time()
-                page_of_events, next_position = self.get_message_logged_events_and_next_position(log_reader, position,
-                                                                                                 page_size)
-                time_to_read = (time.time() - start_read)
+                page_of_events, next_position = self.get_message_logged_events_and_next_position(
+                    log_reader, position, page_size
+                )
+                time_to_read = time.time() - start_read
                 total_time_to_read += time_to_read
                 total_num_reads += 1
                 count_pages += 1
@@ -196,10 +253,10 @@ class PerformanceTestCase(base.WithExampleApplication):
             position = None
             while True:
                 start_read = time.time()
-                page_of_events, next_position = self.get_message_logged_events_and_next_position(log_reader, position,
-                                                                                                 page_size,
-                                                                                                 is_ascending=True)
-                time_to_read = (time.time() - start_read)
+                page_of_events, next_position = self.get_message_logged_events_and_next_position(
+                    log_reader, position, page_size, is_ascending=True
+                )
+                time_to_read = time.time() - start_read
                 total_time_to_read += time_to_read
                 total_num_reads += 1
                 count_pages += 1
@@ -214,10 +271,19 @@ class PerformanceTestCase(base.WithExampleApplication):
 
             reads_per_second = total_num_reads / total_time_to_read
             messages_per_second = reads_per_second * number_of_messages
-            print("Time to read {} pages of logged messages: {:.6f}s ({:.0f} pages/s, {:.0f} messages/s))"
-                  "".format(total_num_reads, total_time_to_read, reads_per_second, messages_per_second))
+            print(
+                "Time to read {} pages of logged messages: {:.6f}s ({:.0f} pages/s, {:.0f} messages/s))"
+                "".format(
+                    total_num_reads,
+                    total_time_to_read,
+                    reads_per_second,
+                    messages_per_second,
+                )
+            )
 
-    def get_message_logged_events_and_next_position(self, log_reader, position, page_size, is_ascending=False):
+    def get_message_logged_events_and_next_position(
+        self, log_reader, position, page_size, is_ascending=False
+    ):
         assert isinstance(log_reader, TimebucketedlogReader), type(log_reader)
         assert isinstance(page_size, int), type(page_size)
         assert isinstance(is_ascending, bool)
@@ -228,7 +294,9 @@ class PerformanceTestCase(base.WithExampleApplication):
             lt = position
             gt = None
 
-        events = log_reader.get_events(gt=gt, lt=lt, limit=page_size + 1, is_ascending=is_ascending)
+        events = log_reader.get_events(
+            gt=gt, lt=lt, limit=page_size + 1, is_ascending=is_ascending
+        )
         events = list(events)
         if len(events) == page_size + 1:
             next_position = events.pop().timestamp
@@ -279,7 +347,6 @@ class TestSQLAlchemyPerformance(SQLAlchemyRecordManagerTestCase, PerformanceTest
 
 @notquick
 class TestSQLAlchemyPerformanceNoID(TestSQLAlchemyPerformance):
-
     def construct_entity_record_manager(self):
         return self.factory.construct_record_manager(
             record_class=IntegerSequencedNoIDRecord
@@ -292,9 +359,11 @@ class TestSQLAlchemyPerformanceNoID(TestSQLAlchemyPerformance):
 
 
 @notquick
-class TestSQLAlchemyPerformanceWithEncryption(WithEncryption, TestSQLAlchemyPerformance):
+class TestSQLAlchemyPerformanceWithEncryption(
+    WithEncryption, TestSQLAlchemyPerformance
+):
     pass
 
 
 # Avoid running abstract test case.
-del (PerformanceTestCase)
+del PerformanceTestCase

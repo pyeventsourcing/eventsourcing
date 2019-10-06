@@ -1,35 +1,52 @@
 from time import sleep, time, process_time
 from unittest import skip
 
-from eventsourcing.application.system import SteppingMultiThreadedRunner, System, SteppingSingleThreadedRunner
-from eventsourcing.tests.sequenced_item_tests.test_popo_record_manager import PopoTestCase
+from eventsourcing.application.system import (
+    SteppingMultiThreadedRunner,
+    System,
+    SteppingSingleThreadedRunner,
+)
+from eventsourcing.tests.sequenced_item_tests.test_popo_record_manager import (
+    PopoTestCase,
+)
 
 from eventsourcing.application.popo import PopoApplication
 from eventsourcing.tests.test_system import TestSystem
-from eventsourcing.tests.test_system_fixtures import create_new_order, Orders, Reservations, Payments
+from eventsourcing.tests.test_system_fixtures import (
+    create_new_order,
+    Orders,
+    Reservations,
+    Payments,
+)
 
 
 class TestSystemWithPopo(PopoTestCase, TestSystem):
     infrastructure_class = PopoApplication
 
     def test_singlethreaded_runner_with_multiapp_system(self):
-        super(TestSystemWithPopo, self).test_singlethreaded_runner_with_multiapp_system()
+        super(
+            TestSystemWithPopo, self
+        ).test_singlethreaded_runner_with_multiapp_system()
 
     def test_multithreaded_runner_with_singleapp_system(self):
-        super(TestSystemWithPopo, self).test_multithreaded_runner_with_singleapp_system()
+        super(
+            TestSystemWithPopo, self
+        ).test_multithreaded_runner_with_singleapp_system()
 
     def test_multithreaded_runner_with_multiapp_system(self):
         super(TestSystemWithPopo, self).test_multithreaded_runner_with_multiapp_system()
 
     def test_clocked_multithreaded_runner_with_multiapp_system(self):
-        super(TestSystemWithPopo, self).test_clocked_multithreaded_runner_with_multiapp_system()
+        super(
+            TestSystemWithPopo, self
+        ).test_clocked_multithreaded_runner_with_multiapp_system()
 
     def test_stepping_singlethreaded_runner_with_multiapp_system(self):
         system = System(
             Orders | Reservations | Orders,
             Orders | Payments | Orders,
             setup_tables=True,
-            infrastructure_class=self.infrastructure_class
+            infrastructure_class=self.infrastructure_class,
         )
 
         self.set_db_uri()
@@ -48,16 +65,18 @@ class TestSystemWithPopo(PopoTestCase, TestSystem):
 
         with runner:
 
-            orders = system.processes['orders']
+            orders = system.processes["orders"]
 
             # Create a new order.
             num_orders = 120
             order_ids = []
             for i in range(num_orders):
+
                 def cmd():
                     order_id = create_new_order()
                     assert order_id in orders.repository
                     order_ids.append(order_id)
+
                 runner.call_in_future(cmd, 20 * (i + 1))
                 # sleep(0.1)
                 # sleep(tick_interval / 3)
@@ -86,7 +105,9 @@ class TestSystemWithPopo(PopoTestCase, TestSystem):
         if runner.clock_thread.is_alive():
             self.fail("Clock thread still alive")
         final_time = runner.clock_thread.tick_count / runner.normal_speed
-        print(f"Runner: average clock speed {runner.clock_thread.actual_clock_speed:.1f}Hz")
+        print(
+            f"Runner: average clock speed {runner.clock_thread.actual_clock_speed:.1f}Hz"
+        )
         print(f"Runner: total tick count {runner.clock_thread.tick_count}")
         print(f"Runner: total time in simulation {final_time:.2f}s")
 
@@ -103,7 +124,7 @@ class TestSystemWithPopo(PopoTestCase, TestSystem):
             Orders | Reservations | Orders,
             Orders | Payments | Orders,
             setup_tables=True,
-            infrastructure_class=self.infrastructure_class
+            infrastructure_class=self.infrastructure_class,
         )
 
         self.set_db_uri()
@@ -121,16 +142,18 @@ class TestSystemWithPopo(PopoTestCase, TestSystem):
             start_time = time()
             start_process_time = process_time()
 
-            orders = system.processes['orders']
+            orders = system.processes["orders"]
 
             # Create a new order.
             num_orders = 12
             order_ids = []
             for i in range(num_orders):
+
                 def cmd():
                     order_id = create_new_order()
                     assert order_id in orders.repository
                     order_ids.append(order_id)
+
                 runner.call_in_future(cmd, 20 * (i + 1))
                 # sleep(0.1)
                 # sleep(tick_interval / 3)
@@ -152,7 +175,9 @@ class TestSystemWithPopo(PopoTestCase, TestSystem):
                     retries -= 1
 
         final_time = runner.clock_thread.tick_count / runner.normal_speed
-        print(f"Runner: average clock speed {runner.clock_thread.actual_clock_speed:.0f}Hz")
+        print(
+            f"Runner: average clock speed {runner.clock_thread.actual_clock_speed:.0f}Hz"
+        )
         print(f"Runner: total tick count {runner.clock_thread.tick_count}")
         print(f"Runner: total time in simulation {final_time:.2f}s")
 

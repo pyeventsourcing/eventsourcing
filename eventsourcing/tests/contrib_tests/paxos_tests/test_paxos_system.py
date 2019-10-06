@@ -9,7 +9,10 @@ from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.application.system import MultiThreadedRunner
 from eventsourcing.contrib.paxos.application import PaxosSystem, PaxosProcess
 from eventsourcing.domain.model.decorators import retry
-from eventsourcing.domain.model.events import assert_event_handlers_empty, clear_event_handlers
+from eventsourcing.domain.model.events import (
+    assert_event_handlers_empty,
+    clear_event_handlers,
+)
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.test_system_fixtures import set_db_uri
 
@@ -65,24 +68,25 @@ class TestPaxosSystem(unittest.TestCase):
 
     def test_multi_threaded(self):
 
-        if 'TRAVIS_PYTHON_VERSION' in os.environ:
+        if "TRAVIS_PYTHON_VERSION" in os.environ:
             if self.infrastructure_class is SQLAlchemyApplication:
-                self.skipTest("There's an intermittent problem with the multi-threaded"
-                              "runner with SQLAlchemy and Python 3.7 on Travis. Fix me :).")
+                self.skipTest(
+                    "There's an intermittent problem with the multi-threaded"
+                    "runner with SQLAlchemy and Python 3.7 on Travis. Fix me :)."
+                )
         set_db_uri()
 
         key1, key2, key3 = uuid4(), uuid4(), uuid4()
         value1, value2, value3 = 11111, 22222, 33333
 
         runner = MultiThreadedRunner(
-            system=self.system,
-            infrastructure_class=self.infrastructure_class
+            system=self.system, infrastructure_class=self.infrastructure_class
         )
 
         with runner:
-            paxosprocess0 = runner.processes['paxosprocess0']
-            paxosprocess1 = runner.processes['paxosprocess1']
-            paxosprocess2 = runner.processes['paxosprocess2']
+            paxosprocess0 = runner.processes["paxosprocess0"]
+            paxosprocess1 = runner.processes["paxosprocess1"]
+            paxosprocess2 = runner.processes["paxosprocess2"]
 
             started1 = datetime.datetime.now()
             assert isinstance(paxosprocess0, PaxosProcess)
@@ -127,7 +131,7 @@ class TestPaxosSystem(unittest.TestCase):
         runner = MultiprocessRunner(
             system=self.system,
             pipeline_ids=pipeline_ids,
-            infrastructure_class=self.infrastructure_class
+            infrastructure_class=self.infrastructure_class,
         )
 
         # Start running operating system processes.
@@ -187,7 +191,7 @@ class TestPaxosSystem(unittest.TestCase):
             system=self.system,
             pipeline_ids=pipeline_ids,
             infrastructure_class=self.infrastructure_class,
-            setup_tables = True
+            setup_tables=True,
         )
 
         num_proposals = 50
@@ -241,7 +245,7 @@ class TestPaxosSystem(unittest.TestCase):
 
     def tearDown(self):
         try:
-            del (os.environ['DB_URI'])
+            del os.environ["DB_URI"]
         except KeyError:
             pass
         try:

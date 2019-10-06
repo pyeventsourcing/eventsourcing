@@ -18,11 +18,22 @@ Version 7.x
 Version 7.x series refined the "process and system" code.
 
 
+Version 7.2.1 (released 6 Oct 2019)
+------------------------------------
+
+Version 7.2.1 has improved support for "reliable projections",
+which allows custom records to be deleted (previously only
+create and update was supported). The documentation for
+"reliable projections" was improved. The previous code
+snippet, which was merely suggestive, was replaced by a
+working example.
+
+
 Version 7.2.0 (released 1 Oct 2019)
 ------------------------------------
 
 Version 7.2.0 has support for "reliable projections" into custom
-ORM objects that they can be coded as process application policies.
+ORM objects that can be coded as process application policies.
 
 Also a few issues were resolved: avoiding importing Django models from library
 when custom models are being used to store events prevents model conflicts;

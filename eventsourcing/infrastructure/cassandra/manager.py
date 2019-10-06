@@ -13,7 +13,10 @@ class CassandraRecordManager(AbstractSequencedItemRecordManager):
             if len(sequenced_item_or_items):
                 b = BatchQuery()
                 for item in sequenced_item_or_items:
-                    assert isinstance(item, self.sequenced_item_class), (type(item), self.sequenced_item_class)
+                    assert isinstance(item, self.sequenced_item_class), (
+                        type(item),
+                        self.sequenced_item_class,
+                    )
                     kwargs = self.get_field_kwargs(item)
                     self.record_class.batch(b).if_not_exists().create(**kwargs)
                 try:
@@ -30,7 +33,7 @@ class CassandraRecordManager(AbstractSequencedItemRecordManager):
     def get_record(self, sequence_id, position):
         kwargs = {
             self.field_names.sequence_id: sequence_id,
-            '{}__eq'.format(self.field_names.position): position
+            "{}__eq".format(self.field_names.position): position,
         }
         query = self.filter(**kwargs)
         try:
@@ -39,8 +42,17 @@ class CassandraRecordManager(AbstractSequencedItemRecordManager):
             self.raise_index_error(position)
         return record
 
-    def get_records(self, sequence_id, gt=None, gte=None, lt=None, lte=None, limit=None,
-                    query_ascending=True, results_ascending=True):
+    def get_records(
+        self,
+        sequence_id,
+        gt=None,
+        gte=None,
+        lt=None,
+        lte=None,
+        limit=None,
+        query_ascending=True,
+        results_ascending=True,
+    ):
 
         assert limit is None or limit >= 1, limit
         assert not (gte and gt)
@@ -54,16 +66,16 @@ class CassandraRecordManager(AbstractSequencedItemRecordManager):
 
         position_name = self.field_names.position
         if gt is not None:
-            kwargs = {'{}__gt'.format(position_name): gt}
+            kwargs = {"{}__gt".format(position_name): gt}
             query = query.filter(**kwargs)
         if gte is not None:
-            kwargs = {'{}__gte'.format(position_name): gte}
+            kwargs = {"{}__gte".format(position_name): gte}
             query = query.filter(**kwargs)
         if lt is not None:
-            kwargs = {'{}__lt'.format(position_name): lt}
+            kwargs = {"{}__lt".format(position_name): lt}
             query = query.filter(**kwargs)
         if lte is not None:
-            kwargs = {'{}__lte'.format(position_name): lte}
+            kwargs = {"{}__lte".format(position_name): lte}
             query = query.filter(**kwargs)
 
         if limit is not None:
@@ -80,7 +92,7 @@ class CassandraRecordManager(AbstractSequencedItemRecordManager):
         """Not implemented."""
 
     def all_sequence_ids(self):
-        sequence_id_page_size = int(os.getenv('SEQUENCE_ID_PAGE_SIZE') or '1')
+        sequence_id_page_size = int(os.getenv("SEQUENCE_ID_PAGE_SIZE") or "1")
         assert sequence_id_page_size > 0, sequence_id_page_size
         query = self.record_class.objects.all().limit(sequence_id_page_size)
 
