@@ -434,7 +434,7 @@ class MultiThreadedRunner(InProcessRunner):
                 process=process,
                 poll_interval=self.poll_interval,
                 inbox=self.inboxes[process_instance_id],
-                outbox=self.outboxes[process_instance_id],
+                outbox=self.outboxes.get(process_instance_id),
                 # Todo: Is it better to clock the prompts or the notifications?
                 # clock_event=clock_event
             )
@@ -511,8 +511,9 @@ class MultiThreadedRunner(InProcessRunner):
 
     def broadcast_prompt(self, prompt):
         outbox_id = prompt.process_name
-        assert outbox_id in self.outboxes, (outbox_id, self.outboxes.keys())
-        self.outboxes[outbox_id].put(prompt)
+        outbox = self.outboxes.get(outbox_id)
+        if outbox:
+            outbox.put(prompt)
 
     def close(self):
         super(MultiThreadedRunner, self).close()

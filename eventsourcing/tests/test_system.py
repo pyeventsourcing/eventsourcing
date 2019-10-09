@@ -3,6 +3,7 @@ from time import sleep, time
 from unittest import TestCase
 from uuid import uuid4
 
+from eventsourcing.application.command import CommandProcess
 from eventsourcing.application.multiprocess import MultiprocessRunner
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.application.system import MultiThreadedRunner, System
@@ -49,6 +50,84 @@ class TestSystem(TestCase):
         with self.assertRaises(AttributeError):
             with system.notaprocess as _:
                 pass
+
+    def test_singlethreaded_runner_with_single_application_class(self):
+        system = System(
+            Orders,
+            setup_tables=True,
+            infrastructure_class=self.infrastructure_class,
+        )
+        with system as runner:
+            self.assertIsInstance(runner.orders, Orders)
+            order_id = create_new_order()
+
+            repository = runner.orders.repository
+            self.assertEqual(repository[order_id].id, order_id)
+
+    def test_multithreaded_runner_with_single_application_class(self):
+        system = System(
+            Orders,
+            setup_tables=True,
+            infrastructure_class=self.infrastructure_class,
+        )
+        with MultiThreadedRunner(system) as runner:
+            self.assertIsInstance(runner.orders, Orders)
+            order_id = create_new_order()
+
+            repository = runner.orders.repository
+            self.assertEqual(repository[order_id].id, order_id)
+
+    def test_multiprocess_runner_with_single_application_class(self):
+        system = System(
+            Orders,
+            setup_tables=True,
+            infrastructure_class=self.infrastructure_class,
+        )
+        with MultiprocessRunner(system) as runner:
+            self.assertIsInstance(runner.orders, Orders)
+            order_id = create_new_order()
+
+            repository = runner.orders.repository
+            self.assertEqual(repository[order_id].id, order_id)
+
+    def test_singlethreaded_runner_with_single_pipe(self):
+        system = System(
+            Orders | Reservations,
+            setup_tables=True,
+            infrastructure_class=self.infrastructure_class,
+        )
+        with system as runner:
+            self.assertIsInstance(runner.orders, Orders)
+            order_id = create_new_order()
+
+            repository = runner.orders.repository
+            self.assertEqual(repository[order_id].id, order_id)
+
+    def test_multithreaded_runner_with_single_pipe(self):
+        system = System(
+            Orders | Reservations,
+            setup_tables=True,
+            infrastructure_class=self.infrastructure_class,
+        )
+        with MultiThreadedRunner(system) as runner:
+            self.assertIsInstance(runner.orders, Orders)
+            order_id = create_new_order()
+
+            repository = runner.orders.repository
+            self.assertEqual(repository[order_id].id, order_id)
+
+    def test_multiprocess_runner_with_single_pipe(self):
+        system = System(
+            Orders | Reservations,
+            setup_tables=True,
+            infrastructure_class=self.infrastructure_class,
+        )
+        with MultiprocessRunner(system) as runner:
+            self.assertIsInstance(runner.orders, Orders)
+            order_id = create_new_order()
+
+            repository = runner.orders.repository
+            self.assertEqual(repository[order_id].id, order_id)
 
     def test_singlethreaded_runner_with_multiapp_system(self):
         system = System(
@@ -359,13 +438,6 @@ class TestSystem(TestCase):
 
         # Check order is reserved.
         assert order.is_reserved
-
-    def test_system_with_single_application_class(self):
-        system = System(
-            Orders
-        )  # this was breaking because PipeableMetaclass was not iterable
-        with system as runner:
-            self.assertIsInstance(runner.orders, Orders)
 
     def tearDown(self):
         assert_event_handlers_empty()
