@@ -66,6 +66,20 @@ class MultiprocessRunner(SystemRunner):
                             inbox_id
                         ] = self.inboxes[inbox_id]
 
+        # Check we have the infrastructure classes we need.
+        for process_class in self.system.process_classes:
+            if not isinstance(process_class, ApplicationWithConcreteInfrastructure):
+                if not self.infrastructure_class:
+                    raise ProgrammingError("infrastructure_class is not set")
+                elif not issubclass(
+                    self.infrastructure_class, ApplicationWithConcreteInfrastructure
+                ):
+                    raise ProgrammingError(
+                        "infrastructure_class is not a subclass of {}".format(
+                            ApplicationWithConcreteInfrastructure
+                        )
+                    )
+
         # Subscribe to broadcast prompts published by a process
         # application in the parent operating system process.
         subscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
