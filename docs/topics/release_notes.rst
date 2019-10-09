@@ -18,6 +18,18 @@ Version 7.x
 Version 7.x series refined the "process and system" code.
 
 
+Version 7.2.4 (released 9 Oct 2019)
+------------------------------------
+
+Version 7.2.4 fixed an issue in running the test suite.
+
+
+Version 7.2.3 (released 9 Oct 2019)
+------------------------------------
+
+Version 7.2.3 fixed a bug in MultiThreadedRunner.
+
+
 Version 7.2.2 (released 6 Oct 2019)
 ------------------------------------
 
