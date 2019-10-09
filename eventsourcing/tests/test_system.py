@@ -83,6 +83,10 @@ class TestSystem(TestCase):
             setup_tables=True,
             infrastructure_class=self.infrastructure_class,
         )
+
+        self.set_db_uri()
+        self.close_connections_before_forking()
+
         with MultiprocessRunner(system) as runner:
             self.assertIsInstance(runner.orders, Orders)
             order_id = create_new_order()
@@ -122,6 +126,10 @@ class TestSystem(TestCase):
             setup_tables=True,
             infrastructure_class=self.infrastructure_class,
         )
+
+        self.set_db_uri()
+        self.close_connections_before_forking()
+
         with MultiprocessRunner(system) as runner:
             self.assertIsInstance(runner.orders, Orders)
             order_id = create_new_order()
