@@ -63,9 +63,13 @@ class TestObjectJSONEncoder(TestCase):
         expected = '{"__tuple__": {"state": [1, 2, 4], "topic": "builtins#tuple"}}'
         self.assertEqual(encoded, expected)
 
-        value = MyNamedTuple(a=1, b=2, c=4)
-        expected = '{"__tuple__": {"state": [1, 2, 4], "topic": ' \
-                   '"eventsourcing.tests.test_transcoding#MyNamedTuple"}}'
+        value = MyNamedTuple(a=1, b="2", c=Object([3, "4"]))
+        expected = (
+            '{"__tuple__": {"state": [1, "2", {"__class__": {"state": '
+            '{"a": [3, "4"]}, "topic": "eventsourcing.tests.test_trans'
+            'coding#Object"}}], "topic": "eventsourcing.tests.test_tra'
+            'nscoding#MyNamedTuple"}}'
+        )
         self.assertEqual(encoder.encode(value), expected)
 
         value = deque()
@@ -123,8 +127,8 @@ class TestObjectJSONDecoder(TestCase):
         self.assertEqual(decoder.decode(value), expect)
 
         value = (
-            '{"__class__": {"state": {"a": {"UUID": "6ba7b8119dad11d180b400c04fd430c8"}}, '
-            '"topic": "eventsourcing.tests.test_transcoding#Object"}}'
+            '{"__class__": {"state": {"a": {"UUID": "6ba7b8119dad11d180b400c04fd4'
+            '30c8"}}, "topic": "eventsourcing.tests.test_transcoding#Object"}}'
         )
         expect = Object(NAMESPACE_URL)
         self.assertEqual(decoder.decode(value), expect)
@@ -134,9 +138,13 @@ class TestObjectJSONDecoder(TestCase):
         decoded = decoder.decode(value)
         self.assertEqual(decoded, expect)
 
-        value = '{"__tuple__": {"state": [1, 2, 4], "topic": ' \
-            '"eventsourcing.tests.test_transcoding#MyNamedTuple"}}'
-        expect = MyNamedTuple(a=1, b=2, c=4)
+        value = (
+            '{"__tuple__": {"state": [1, "2", {"__class__": {"state": '
+            '{"a": [3, "4"]}, "topic": "eventsourcing.tests.test_trans'
+            'coding#Object"}}], "topic": "eventsourcing.tests.test_tra'
+            'nscoding#MyNamedTuple"}}'
+        )
+        expect = MyNamedTuple(a=1, b="2", c=Object([3, "4"]))
         decoded = decoder.decode(value)
         self.assertEqual(decoded, expect)
 
@@ -161,7 +169,4 @@ class Object(object):
         return not self.__eq__(other)
 
 
-class MyNamedTuple(NamedTuple):
-    a: int
-    b: int
-    c: int
+MyNamedTuple = NamedTuple("MyNamedTuple", a=int, b=str, c=Object)

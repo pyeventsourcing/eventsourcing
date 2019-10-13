@@ -118,8 +118,10 @@ class ObjectJSONDecoder(JSONDecoder):
         state = d["__tuple__"]["state"]
         tuple_type = resolve_topic(topic)
         if topic == 'builtins#tuple':
+            # For standard tuple objects.
             obj = tuple_type(state)
         else:
+            # For NamedTuple objects.
             obj = tuple_type(*state)
         return obj
 
