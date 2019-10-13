@@ -404,8 +404,8 @@ class BigArray(Array):
         p_i = p_n * span
         p_j = p_i + span
         # Check the parent i,j bounds the child i,j, ie child span is contained by parent span.
-        assert p_i <= c_i, "i greater on parent than child: {}".format(p_i, p_j)
-        assert p_j >= c_j, "j less on parent than child: {}".format(p_i, p_j)
+        assert p_i <= c_i, "i greater on parent than child: {}".format((p_i, p_j))
+        assert p_j >= c_j, "j less on parent than child: {}".format((p_i, p_j))
         # Return parent i, j, h, p.
         return p_i, p_j, p_h, p_p
 
