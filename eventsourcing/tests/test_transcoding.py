@@ -1,6 +1,7 @@
 import datetime
 from collections import deque
 from decimal import Decimal
+from typing import NamedTuple
 from unittest import TestCase
 from uuid import NAMESPACE_URL
 
@@ -55,7 +56,17 @@ class TestObjectJSONEncoder(TestCase):
             '{"__class__": {"state": {"a": {"UUID": "6ba7b8119dad11d180b400c04fd430c8"}}, '
             '"topic": "eventsourcing.tests.test_transcoding#Object"}}'
         )
-        self.check_encoded_value(encoder, value, expect)
+        self.assertEqual(encoder.encode(value), expect)
+
+        value = tuple([1, 2, 4])
+        encoded = encoder.encode(value)
+        expected = '{"__tuple__": {"state": [1, 2, 4], "topic": "builtins#tuple"}}'
+        self.assertEqual(encoded, expected)
+
+        value = MyNamedTuple(a=1, b=2, c=4)
+        expected = '{"__tuple__": {"state": [1, 2, 4], "topic": ' \
+                   '"eventsourcing.tests.test_transcoding#MyNamedTuple"}}'
+        self.assertEqual(encoder.encode(value), expected)
 
         value = deque()
         expect = '{"__deque__": []}'
@@ -118,6 +129,17 @@ class TestObjectJSONDecoder(TestCase):
         expect = Object(NAMESPACE_URL)
         self.assertEqual(decoder.decode(value), expect)
 
+        value = '{"__tuple__": {"state": [1, 2, 4], "topic": "builtins#tuple"}}'
+        expect = tuple([1, 2, 4])
+        decoded = decoder.decode(value)
+        self.assertEqual(decoded, expect)
+
+        value = '{"__tuple__": {"state": [1, 2, 4], "topic": ' \
+            '"eventsourcing.tests.test_transcoding#MyNamedTuple"}}'
+        expect = MyNamedTuple(a=1, b=2, c=4)
+        decoded = decoder.decode(value)
+        self.assertEqual(decoded, expect)
+
         # Check raises ValueError when JSON string is invalid.
         with self.assertRaises(ValueError):
             decoder.decode("{")
@@ -137,3 +159,9 @@ class Object(object):
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+
+class MyNamedTuple(NamedTuple):
+    a: int
+    b: int
+    c: int

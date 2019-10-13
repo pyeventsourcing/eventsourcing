@@ -14,10 +14,11 @@ class ObjectJSONEncoder(JSONEncoder):
         super(ObjectJSONEncoder, self).__init__(sort_keys=sort_keys, *args, **kwargs)
 
     def iterencode(self, o, _one_shot=False):
-        try:
-            return super(ObjectJSONEncoder, self).iterencode(o, _one_shot=_one_shot)
-        except:
-            raise
+        if isinstance(o, tuple):
+            topic = get_topic(o.__class__)
+            state = list(o)
+            o = {"__tuple__": {"topic": topic, "state": state}}
+        return super(ObjectJSONEncoder, self).iterencode(o, _one_shot=_one_shot)
 
     def default(self, obj):
         if isinstance(obj, UUID):
@@ -68,6 +69,8 @@ class ObjectJSONDecoder(JSONDecoder):
             return cls._decode_time(d)
         elif "__class__" in d:
             return cls._decode_object(d)
+        elif "__tuple__" in d:
+            return cls._decode_tuple(d)
         elif "__deque__" in d:
             return deque([])
         elif "__set__" in d:
@@ -107,6 +110,17 @@ class ObjectJSONDecoder(JSONDecoder):
         else:
             for k, v in state.items():
                 object.__setattr__(obj, k, v)
+        return obj
+
+    @staticmethod
+    def _decode_tuple(d):
+        topic = d["__tuple__"]["topic"]
+        state = d["__tuple__"]["state"]
+        tuple_type = resolve_topic(topic)
+        if topic == 'builtins#tuple':
+            obj = tuple_type(state)
+        else:
+            obj = tuple_type(*state)
         return obj
 
 
