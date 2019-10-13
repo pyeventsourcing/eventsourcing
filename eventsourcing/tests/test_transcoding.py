@@ -1,7 +1,6 @@
 import datetime
-from collections import deque
+from collections import deque, namedtuple
 from decimal import Decimal
-from typing import NamedTuple
 from unittest import TestCase
 from uuid import NAMESPACE_URL
 
@@ -169,4 +168,4 @@ class Object(object):
         return not self.__eq__(other)
 
 
-MyNamedTuple = NamedTuple("MyNamedTuple", a=int, b=str, c=Object)
+MyNamedTuple = namedtuple("MyNamedTuple", field_names=['a', 'b', 'c'])
