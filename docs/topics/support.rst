@@ -16,7 +16,7 @@ Community support
 The library has a growing community that may be able to help.
 
 - You can ask questions on the `Slack channel
-  <https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTUwZGQ4MDk0ZDJmZmU0MjM4MjdmOTBlZGI0ZTY4NWIxMGFkZTcwNmUxM2U4NGM3YjY5MTVmZTBiYzljZjI3ZTE>`__.
+  <https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTJjMmJjYTc3ODQ3M2YwOTMwMDJlODJkMjk3ZmE1MGYyZDM4MjIxODZmYmVkZmJkODRhZDg5N2MwZjk1YzU3NmY>`__.
 
 - You can also register issues and requests on our
   `issue tracker <https://github.com/johnbywater/eventsourcing/issues>`__.
