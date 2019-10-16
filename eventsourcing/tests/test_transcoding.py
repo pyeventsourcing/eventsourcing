@@ -1,5 +1,11 @@
 import datetime
 from collections import deque, namedtuple
+
+import sys
+
+if sys.version_info >= (3, 7):
+    from dataclasses import dataclass
+
 from decimal import Decimal
 from unittest import TestCase
 from uuid import NAMESPACE_URL
@@ -44,7 +50,7 @@ class TestObjectJSONEncoder(TestCase):
         expect = '{"UUID": "6ba7b8119dad11d180b400c04fd430c8"}'
         self.assertEqual(encoder.encode(value), expect)
 
-        value = Object(NAMESPACE_URL)
+        value = MyObjectClass(NAMESPACE_URL)
         self.assertEqual(
             value.__class__.__module__,
             "eventsourcing.tests.test_transcoding",
@@ -52,8 +58,9 @@ class TestObjectJSONEncoder(TestCase):
             " (need to run test from root dir",
         )
         expect = (
-            '{"__class__": {"state": {"a": {"UUID": "6ba7b8119dad11d180b400c04fd430c8"}}, '
-            '"topic": "eventsourcing.tests.test_transcoding#Object"}}'
+            '{"__class__": {"state": {"a": {"UUID": "6ba7b8119dad11d18'
+            '0b400c04fd430c8"}}, "topic": "eventsourcing.tests.test_tr'
+            'anscoding#MyObjectClass"}}'
         )
         self.assertEqual(encoder.encode(value), expect)
 
@@ -62,14 +69,23 @@ class TestObjectJSONEncoder(TestCase):
         expected = '{"__tuple__": {"state": [1, 2, 4], "topic": "builtins#tuple"}}'
         self.assertEqual(encoded, expected)
 
-        value = MyNamedTuple(a=1, b="2", c=Object([3, "4"]))
+        value = MyNamedTuple(a=1, b="2", c=MyObjectClass([3, "4"]))
         expected = (
             '{"__tuple__": {"state": [1, "2", {"__class__": {"state": '
             '{"a": [3, "4"]}, "topic": "eventsourcing.tests.test_trans'
-            'coding#Object"}}], "topic": "eventsourcing.tests.test_tra'
-            'nscoding#MyNamedTuple"}}'
+            'coding#MyObjectClass"}}], "topic": "eventsourcing.tests.t'
+            'est_transcoding#MyNamedTuple"}}'
         )
         self.assertEqual(encoder.encode(value), expected)
+
+        if sys.version_info >= (3, 7):
+            value = MyDataClass(1, "2", Decimal("3.0"))
+            expected = (
+                '{"__class__": {"state": {"a": 1, "b": "2", "c": {'
+                '"__decimal__": "3.0"}}, "topic": "eventsourcing.t'
+                'ests.test_transcoding#MyDataClass"}}'
+            )
+            self.assertEqual(encoder.encode(value), expected)
 
         value = deque()
         expect = '{"__deque__": []}'
@@ -126,10 +142,11 @@ class TestObjectJSONDecoder(TestCase):
         self.assertEqual(decoder.decode(value), expect)
 
         value = (
-            '{"__class__": {"state": {"a": {"UUID": "6ba7b8119dad11d180b400c04fd4'
-            '30c8"}}, "topic": "eventsourcing.tests.test_transcoding#Object"}}'
+            '{"__class__": {"state": {"a": {"UUID": "6ba7b8119dad11d180b400c04'
+            'fd430c8"}}, "topic": "eventsourcing.tests.test_transcoding#MyObje'
+            'ctClass"}}'
         )
-        expect = Object(NAMESPACE_URL)
+        expect = MyObjectClass(NAMESPACE_URL)
         self.assertEqual(decoder.decode(value), expect)
 
         value = '{"__tuple__": {"state": [1, 2, 4], "topic": "builtins#tuple"}}'
@@ -140,12 +157,21 @@ class TestObjectJSONDecoder(TestCase):
         value = (
             '{"__tuple__": {"state": [1, "2", {"__class__": {"state": '
             '{"a": [3, "4"]}, "topic": "eventsourcing.tests.test_trans'
-            'coding#Object"}}], "topic": "eventsourcing.tests.test_tra'
-            'nscoding#MyNamedTuple"}}'
+            'coding#MyObjectClass"}}], "topic": "eventsourcing.tests.t'
+            'est_transcoding#MyNamedTuple"}}'
         )
-        expect = MyNamedTuple(a=1, b="2", c=Object([3, "4"]))
+        expect = MyNamedTuple(a=1, b="2", c=MyObjectClass([3, "4"]))
         decoded = decoder.decode(value)
         self.assertEqual(decoded, expect)
+
+        if sys.version_info >= (3, 7):
+            value = (
+                '{"__class__": {"state": {"a": 1, "b": "2", "c": {'
+                '"__decimal__": "3.0"}}, "topic": "eventsourcing.t'
+                'ests.test_transcoding#MyDataClass"}}'
+            )
+            expected = MyDataClass(1, "2", Decimal("3.0"))
+            self.assertEqual(decoder.decode(value), expected)
 
         # Check raises ValueError when JSON string is invalid.
         with self.assertRaises(ValueError):
@@ -157,7 +183,7 @@ class TestObjectJSONDecoder(TestCase):
             json_loads("{")
 
 
-class Object(object):
+class MyObjectClass(object):
     def __init__(self, a):
         self.a = a
 
@@ -168,4 +194,12 @@ class Object(object):
         return not self.__eq__(other)
 
 
-MyNamedTuple = namedtuple("MyNamedTuple", field_names=['a', 'b', 'c'])
+MyNamedTuple = namedtuple("MyNamedTuple", field_names=["a", "b", "c"])
+
+
+if sys.version_info >= (3, 7):
+    @dataclass
+    class MyDataClass(object):
+        a: int
+        b: str
+        c: Decimal
