@@ -4,7 +4,7 @@ from collections import deque, namedtuple
 import sys
 
 if sys.version_info >= (3, 7):
-    from dataclasses import dataclass
+    from dataclasses import make_dataclass
 
 from decimal import Decimal
 from unittest import TestCase
@@ -198,8 +198,4 @@ MyNamedTuple = namedtuple("MyNamedTuple", field_names=["a", "b", "c"])
 
 
 if sys.version_info >= (3, 7):
-    @dataclass
-    class MyDataClass(object):
-        a: int
-        b: str
-        c: Decimal
+    MyDataClass = make_dataclass('MyDataClass', ['a', 'b', 'c'])
