@@ -1,37 +1,55 @@
 import datetime
 from collections import deque
 from decimal import Decimal
+from functools import singledispatch, wraps
+from inspect import isfunction
 from json import JSONDecodeError, JSONDecoder, JSONEncoder, dumps, loads
 from uuid import UUID
 
 import dateutil.parser
 
+from eventsourcing.exceptions import ProgrammingError
 from eventsourcing.utils.topic import get_topic, resolve_topic
+
+
+def encoderpolicy(arg=None):
+    """
+    Singledispatch Decorator for encoder default method.
+
+    Allows default behaviour to be built up from methods
+    registered for different event classes, rather than
+    chain of isinstance() calls in a long if-else block.
+    """
+
+    def _mutator(func):
+        wrapped = singledispatch(func)
+
+        @wraps(wrapped)
+        def wrapper(*args, **kwargs):
+            obj = kwargs.get("obj") or args[-1]
+            return wrapped.dispatch(type(obj))(*args, **kwargs)
+
+        wrapper.register = wrapped.register
+
+        return wrapper
+
+    assert isfunction(arg), arg
+    return _mutator(arg)
 
 
 class ObjectJSONEncoder(JSONEncoder):
     def __init__(self, sort_keys=True, *args, **kwargs):
         super(ObjectJSONEncoder, self).__init__(sort_keys=sort_keys, *args, **kwargs)
 
+    @encoderpolicy
     def iterencode(self, o, _one_shot=False):
         if isinstance(o, tuple):
-            topic = get_topic(o.__class__)
-            state = list(o)
-            o = {"__tuple__": {"topic": topic, "state": state}}
+            o = {"__tuple__": {"topic": (get_topic(o.__class__)), "state": (list(o))}}
         return super(ObjectJSONEncoder, self).iterencode(o, _one_shot=_one_shot)
 
+    @encoderpolicy
     def default(self, obj):
-        if isinstance(obj, UUID):
-            return {"UUID": obj.hex}
-        elif isinstance(obj, datetime.datetime):
-            return {"ISO8601_datetime": obj.strftime("%Y-%m-%dT%H:%M:%S.%f%z")}
-        elif isinstance(obj, datetime.date):
-            return {"ISO8601_date": obj.isoformat()}
-        elif isinstance(obj, datetime.time):
-            return {"ISO8601_time": obj.strftime("%H:%M:%S.%f")}
-        elif isinstance(obj, Decimal):
-            return {"__decimal__": str(obj)}
-        elif hasattr(obj, "__class__") and hasattr(obj, "__dict__"):
+        if hasattr(obj, "__class__") and hasattr(obj, "__dict__"):
             topic = get_topic(obj.__class__)
             state = obj.__dict__.copy()
             return {"__class__": {"topic": topic, "state": state}}
@@ -39,14 +57,40 @@ class ObjectJSONEncoder(JSONEncoder):
             topic = get_topic(obj.__class__)
             state = {k: getattr(obj, k) for k in obj.__slots__}
             return {"__class__": {"topic": topic, "state": state}}
-        elif isinstance(obj, set):
-            return {"__set__": sorted(list(obj))}
-        elif isinstance(obj, deque):
-            assert list(obj) == []
-            return {"__deque__": []}
+        else:
+            # Let the base class default method raise the TypeError.
+            return JSONEncoder.default(self, obj)
 
-        # Let the base class default method raise the TypeError.
-        return JSONEncoder.default(self, obj)
+    @default.register(UUID)
+    def _(self, obj):
+        return {"UUID": obj.hex}
+
+    @default.register(datetime.datetime)
+    def _(self, obj):
+        return {"ISO8601_datetime": obj.strftime("%Y-%m-%dT%H:%M:%S.%f%z")}
+
+    @default.register(datetime.date)
+    def _(self, obj):
+        return {"ISO8601_date": obj.isoformat()}
+
+    @default.register(datetime.time)
+    def _(self, obj):
+        return {"ISO8601_time": obj.strftime("%H:%M:%S.%f")}
+
+    @default.register(Decimal)
+    def _(self, obj):
+        return {"__decimal__": str(obj)}
+
+    @default.register(set)
+    def _(self, obj):
+        return {"__set__": sorted(list(obj))}
+
+    @default.register(deque)
+    def _(self, obj):
+        if list(obj):
+            raise ProgrammingError("Only empty deques are supported at the moment")
+        else:
+            return {"__deque__": []}
 
 
 class ObjectJSONDecoder(JSONDecoder):
@@ -117,7 +161,7 @@ class ObjectJSONDecoder(JSONDecoder):
         topic = d["__tuple__"]["topic"]
         state = d["__tuple__"]["state"]
         tuple_type = resolve_topic(topic)
-        if topic == 'builtins#tuple':
+        if topic == "builtins#tuple":
             # For standard tuple objects.
             obj = tuple_type(state)
         else:
