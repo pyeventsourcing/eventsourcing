@@ -9,7 +9,6 @@ from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed
 from eventsourcing.infrastructure.base import ACIDRecordManager
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
-from eventsourcing.utils.transcoding import json_dumps, json_loads
 
 
 class ProcessEvent(object):
@@ -145,7 +144,8 @@ class ProcessApplication(SimpleApplication):
                     causal_dependencies = (
                         notification.get("causal_dependencies") or "[]"
                     )
-                    causal_dependencies = json_loads(causal_dependencies) or []
+                    causal_dependencies = self.event_store.mapper.json_loads(
+                        causal_dependencies) or []
 
                     # Check causal dependencies are satisfied.
                     for causal_dependency in causal_dependencies:
@@ -426,7 +426,8 @@ class ProcessApplication(SimpleApplication):
                 assert hasattr(
                     self.event_store.record_manager.record_class, "causal_dependencies"
                 )
-                causal_dependencies = json_dumps(causal_dependencies)
+                causal_dependencies = self.event_store.mapper.json_dumps(
+                    causal_dependencies)
                 # Only need first event to carry the dependencies.
                 event_records[0].causal_dependencies = causal_dependencies
 

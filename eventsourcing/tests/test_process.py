@@ -25,7 +25,7 @@ from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed
 from eventsourcing.infrastructure.sqlalchemy.records import Base
 from eventsourcing.utils.topic import resolve_topic
-from eventsourcing.utils.transcoding import json_loads
+from eventsourcing.utils.transcoding import ObjectJSONDecoder
 
 
 class TestProcessApplication(TestCase):
@@ -164,7 +164,7 @@ class TestProcessApplication(TestCase):
 
         # - the second 'Created' event depends on the Created event in another pipeline.
         expect = [{"notification_id": 1, "pipeline_id": pipeline_id1}]
-        actual = json_loads(second_entity_records[0].causal_dependencies)
+        actual = ObjectJSONDecoder().decode(second_entity_records[0].causal_dependencies)
 
         self.assertEqual(expect, actual)
 

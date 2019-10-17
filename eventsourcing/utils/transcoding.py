@@ -1,12 +1,42 @@
 import datetime
 from collections import deque
 from decimal import Decimal
-from json import JSONDecodeError, JSONDecoder, JSONEncoder, dumps, loads
+from functools import singledispatch, wraps
+from inspect import isfunction
+from json import JSONDecoder, JSONEncoder
+from types import FunctionType, MethodType
 from uuid import UUID
 
 import dateutil.parser
 
 from eventsourcing.utils.topic import get_topic, resolve_topic
+
+JSON_SEPARATORS = (",", ":")
+
+
+def encoderpolicy(arg=None):
+    """
+    Singledispatch Decorator for encoder default method.
+
+    Allows default behaviour to be built up from methods
+    registered for different event classes, rather than
+    chain of isinstance() calls in a long if-else block.
+    """
+
+    def _mutator(func):
+        wrapped = singledispatch(func)
+
+        @wraps(wrapped)
+        def wrapper(*args, **kwargs):
+            obj = kwargs.get("obj") or args[-1]
+            return wrapped.dispatch(type(obj))(*args, **kwargs)
+
+        wrapper.register = wrapped.register
+
+        return wrapper
+
+    assert isfunction(arg), arg
+    return _mutator(arg)
 
 
 class ObjectJSONEncoder(JSONEncoder):
@@ -14,37 +44,68 @@ class ObjectJSONEncoder(JSONEncoder):
         super(ObjectJSONEncoder, self).__init__(sort_keys=sort_keys, *args, **kwargs)
 
     def iterencode(self, o, _one_shot=False):
-        try:
-            return super(ObjectJSONEncoder, self).iterencode(o, _one_shot=_one_shot)
-        except:
-            raise
+        if isinstance(o, tuple):
+            o = {"__tuple__": {"topic": (get_topic(o.__class__)), "state": (list(o))}}
+        return super(ObjectJSONEncoder, self).iterencode(o, _one_shot=_one_shot)
 
+    @encoderpolicy
     def default(self, obj):
-        if isinstance(obj, UUID):
-            return {"UUID": obj.hex}
-        elif isinstance(obj, datetime.datetime):
-            return {"ISO8601_datetime": obj.strftime("%Y-%m-%dT%H:%M:%S.%f%z")}
-        elif isinstance(obj, datetime.date):
-            return {"ISO8601_date": obj.isoformat()}
-        elif isinstance(obj, datetime.time):
-            return {"ISO8601_time": obj.strftime("%H:%M:%S.%f")}
-        elif isinstance(obj, Decimal):
-            return {"__decimal__": str(obj)}
-        elif hasattr(obj, "__class__") and hasattr(obj, "__dict__"):
-            topic = get_topic(obj.__class__)
-            state = obj.__dict__.copy()
-            return {"__class__": {"topic": topic, "state": state}}
-        elif hasattr(obj, "__class__") and hasattr(obj, "__slots__"):
+        return JSONEncoder.default(self, obj)
+
+    @default.register(UUID)
+    def _(self, obj):
+        return {"UUID": obj.hex}
+
+    @default.register(datetime.datetime)
+    def _(self, obj):
+        return {"ISO8601_datetime": obj.strftime("%Y-%m-%dT%H:%M:%S.%f%z")}
+
+    @default.register(datetime.date)
+    def _(self, obj):
+        return {"ISO8601_date": obj.isoformat()}
+
+    @default.register(datetime.time)
+    def _(self, obj):
+        return {"ISO8601_time": obj.strftime("%H:%M:%S.%f")}
+
+    @default.register(Decimal)
+    def _(self, obj):
+        return {"__decimal__": str(obj)}
+
+    @default.register(set)
+    def _(self, obj):
+        return {"__set__": sorted(list(obj))}
+
+    @default.register(deque)
+    def _(self, obj):
+        if list(obj):
+            raise ValueError("Only empty deques are supported at the moment")
+        else:
+            return {"__deque__": []}
+
+    @default.register(object)
+    def _(self, obj):
+        if hasattr(obj, "__slots__"):
             topic = get_topic(obj.__class__)
             state = {k: getattr(obj, k) for k in obj.__slots__}
             return {"__class__": {"topic": topic, "state": state}}
-        elif isinstance(obj, set):
-            return {"__set__": sorted(list(obj))}
-        elif isinstance(obj, deque):
-            assert list(obj) == []
-            return {"__deque__": []}
+        elif hasattr(obj, "__dict__"):
+            topic = get_topic(obj.__class__)
+            state = obj.__dict__.copy()
+            return {"__class__": {"topic": topic, "state": state}}
+        else:
+            return JSONEncoder.default(self, obj)
 
-        # Let the base class default method raise the TypeError.
+    @default.register(type)
+    def _(self, obj):
+        return {"__type__": get_topic(obj)}
+
+    @default.register(MethodType)
+    def _(self, obj):
+        return JSONEncoder.default(self, obj)
+
+    @default.register(FunctionType)
+    def _(self, obj):
         return JSONEncoder.default(self, obj)
 
 
@@ -66,8 +127,12 @@ class ObjectJSONDecoder(JSONDecoder):
             return cls._decode_decimal(d)
         elif "ISO8601_time" in d:
             return cls._decode_time(d)
+        elif "__type__" in d:
+            return cls._decode_type(d)
         elif "__class__" in d:
             return cls._decode_object(d)
+        elif "__tuple__" in d:
+            return cls._decode_tuple(d)
         elif "__deque__" in d:
             return deque([])
         elif "__set__" in d:
@@ -97,6 +162,10 @@ class ObjectJSONDecoder(JSONDecoder):
         return UUID(d["UUID"])
 
     @staticmethod
+    def _decode_type(d):
+        return resolve_topic(d["__type__"])
+
+    @staticmethod
     def _decode_object(d):
         topic = d["__class__"]["topic"]
         state = d["__class__"]["state"]
@@ -109,13 +178,15 @@ class ObjectJSONDecoder(JSONDecoder):
                 object.__setattr__(obj, k, v)
         return obj
 
-
-def json_dumps(obj, cls=None):
-    return dumps(obj, separators=(",", ":"), sort_keys=True, cls=cls)
-
-
-def json_loads(s, cls=None):
-    try:
-        return loads(s, cls=cls)
-    except JSONDecodeError:
-        raise ValueError("Couldn't load JSON string: {}".format(s))
+    @staticmethod
+    def _decode_tuple(d):
+        topic = d["__tuple__"]["topic"]
+        state = d["__tuple__"]["state"]
+        tuple_type = resolve_topic(topic)
+        if topic == "builtins#tuple":
+            # For standard tuple objects.
+            obj = tuple_type(state)
+        else:
+            # For NamedTuple objects.
+            obj = tuple_type(*state)
+        return obj
