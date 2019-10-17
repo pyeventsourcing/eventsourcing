@@ -3,13 +3,15 @@ from collections import deque
 from decimal import Decimal
 from functools import singledispatch, wraps
 from inspect import isfunction
-from json import JSONDecodeError, JSONDecoder, JSONEncoder, dumps, loads
+from json import JSONDecoder, JSONEncoder
 from types import FunctionType, MethodType
 from uuid import UUID
 
 import dateutil.parser
 
 from eventsourcing.utils.topic import get_topic, resolve_topic
+
+JSON_SEPARATORS = (",", ":")
 
 
 def encoderpolicy(arg=None):
@@ -188,17 +190,3 @@ class ObjectJSONDecoder(JSONDecoder):
             # For NamedTuple objects.
             obj = tuple_type(*state)
         return obj
-
-
-JSON_SEPARATORS = (",", ":")
-
-
-def json_dumps(obj, cls=None):
-    return dumps(obj, separators=JSON_SEPARATORS, sort_keys=True, cls=cls)
-
-
-def json_loads(s, cls=None):
-    try:
-        return loads(s, cls=cls)
-    except JSONDecodeError:
-        raise ValueError("Couldn't load JSON string: {}".format(s))
