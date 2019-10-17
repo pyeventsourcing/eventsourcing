@@ -4,11 +4,11 @@ from decimal import Decimal
 from functools import singledispatch, wraps
 from inspect import isfunction
 from json import JSONDecodeError, JSONDecoder, JSONEncoder, dumps, loads
+from types import FunctionType, MethodType
 from uuid import UUID
 
 import dateutil.parser
 
-from eventsourcing.exceptions import ProgrammingError
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
 
@@ -41,7 +41,6 @@ class ObjectJSONEncoder(JSONEncoder):
     def __init__(self, sort_keys=True, *args, **kwargs):
         super(ObjectJSONEncoder, self).__init__(sort_keys=sort_keys, *args, **kwargs)
 
-    @encoderpolicy
     def iterencode(self, o, _one_shot=False):
         if isinstance(o, tuple):
             o = {"__tuple__": {"topic": (get_topic(o.__class__)), "state": (list(o))}}
@@ -49,17 +48,7 @@ class ObjectJSONEncoder(JSONEncoder):
 
     @encoderpolicy
     def default(self, obj):
-        if hasattr(obj, "__class__") and hasattr(obj, "__dict__"):
-            topic = get_topic(obj.__class__)
-            state = obj.__dict__.copy()
-            return {"__class__": {"topic": topic, "state": state}}
-        elif hasattr(obj, "__class__") and hasattr(obj, "__slots__"):
-            topic = get_topic(obj.__class__)
-            state = {k: getattr(obj, k) for k in obj.__slots__}
-            return {"__class__": {"topic": topic, "state": state}}
-        else:
-            # Let the base class default method raise the TypeError.
-            return JSONEncoder.default(self, obj)
+        return JSONEncoder.default(self, obj)
 
     @default.register(UUID)
     def _(self, obj):
@@ -88,9 +77,34 @@ class ObjectJSONEncoder(JSONEncoder):
     @default.register(deque)
     def _(self, obj):
         if list(obj):
-            raise ProgrammingError("Only empty deques are supported at the moment")
+            raise ValueError("Only empty deques are supported at the moment")
         else:
             return {"__deque__": []}
+
+    @default.register(object)
+    def _(self, obj):
+        if hasattr(obj, "__slots__"):
+            topic = get_topic(obj.__class__)
+            state = {k: getattr(obj, k) for k in obj.__slots__}
+            return {"__class__": {"topic": topic, "state": state}}
+        elif hasattr(obj, "__dict__"):
+            topic = get_topic(obj.__class__)
+            state = obj.__dict__.copy()
+            return {"__class__": {"topic": topic, "state": state}}
+        else:
+            return JSONEncoder.default(self, obj)
+
+    @default.register(type)
+    def _(self, obj):
+        return {"__type__": get_topic(obj)}
+
+    @default.register(MethodType)
+    def _(self, obj):
+        return JSONEncoder.default(self, obj)
+
+    @default.register(FunctionType)
+    def _(self, obj):
+        return JSONEncoder.default(self, obj)
 
 
 class ObjectJSONDecoder(JSONDecoder):
@@ -111,6 +125,8 @@ class ObjectJSONDecoder(JSONDecoder):
             return cls._decode_decimal(d)
         elif "ISO8601_time" in d:
             return cls._decode_time(d)
+        elif "__type__" in d:
+            return cls._decode_type(d)
         elif "__class__" in d:
             return cls._decode_object(d)
         elif "__tuple__" in d:
@@ -144,6 +160,10 @@ class ObjectJSONDecoder(JSONDecoder):
         return UUID(d["UUID"])
 
     @staticmethod
+    def _decode_type(d):
+        return resolve_topic(d["__type__"])
+
+    @staticmethod
     def _decode_object(d):
         topic = d["__class__"]["topic"]
         state = d["__class__"]["state"]
@@ -171,7 +191,7 @@ class ObjectJSONDecoder(JSONDecoder):
 
 
 def json_dumps(obj, cls=None):
-    return dumps(obj, separators=(",", ":"), sort_keys=True, cls=cls)
+    return dumps(obj, separators=(", ", ": "), sort_keys=True, cls=cls)
 
 
 def json_loads(s, cls=None):
