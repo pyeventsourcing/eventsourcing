@@ -962,10 +962,9 @@ The library class :class:`~eventsourcing.interface.notificationlog.NotificationL
 presents sections from a local notification log, and can be used to implement a Web API.
 
 The :class:`~eventsourcing.interface.notificationlog.NotificationLogView`
-class is constructed with a local ``notification_log`` object and an optional
-``json_encoder_class`` (which defaults to the library's
-:class:`~eventsourcing.utils.transcoding.ObjectJSONEncoder` class, used explicitly
-in the example below).
+class is constructed with a local ``notification_log`` object and a
+``json_encoder`` (for example an instance of the library's
+:class:`~eventsourcing.utils.transcoding.ObjectJSONEncoder` class).
 
 The example below uses the record notification log, constructed above.
 
@@ -978,12 +977,12 @@ The example below uses the record notification log, constructed above.
 
     view = NotificationLogView(
         notification_log=notification_log,
-        json_encoder_class=ObjectJSONEncoder
+        json_encoder=ObjectJSONEncoder()
     )
 
     section_json, is_archived = view.present_section('1,5')
 
-    section_dict = json.loads(section_json, cls=ObjectJSONDecoder)
+    section_dict = ObjectJSONDecoder().decode(section_json)
 
     assert section_dict['section_id'] == '1,5'
     assert section_dict['next_id'] == '6,10'

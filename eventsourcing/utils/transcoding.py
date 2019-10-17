@@ -190,8 +190,11 @@ class ObjectJSONDecoder(JSONDecoder):
         return obj
 
 
+JSON_SEPARATORS = (",", ":")
+
+
 def json_dumps(obj, cls=None):
-    return dumps(obj, separators=(", ", ": "), sort_keys=True, cls=cls)
+    return dumps(obj, separators=JSON_SEPARATORS, sort_keys=True, cls=cls)
 
 
 def json_loads(s, cls=None):
