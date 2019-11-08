@@ -1,11 +1,12 @@
-from sqlalchemy import DECIMAL, String
+from sqlalchemy import DECIMAL, String, LargeBinary
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql.schema import Column, Index
 from sqlalchemy.sql.sqltypes import BigInteger, Integer, Text
 from sqlalchemy_utils.types.uuid import UUIDType
 
-Base = declarative_base()
+from eventsourcing.utils.cipher.aes import STORE_BYTES
 
+Base = declarative_base()
 
 # Please note, the record classes without an indexed ID ('WithID') are
 # more or less equivalent to the similarly named Django classes. The
@@ -42,7 +43,10 @@ class IntegerSequencedWithIDRecord(Base):
     topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
-    state = Column(Text())
+    if STORE_BYTES:
+        state = Column(LargeBinary())
+    else:
+        state = Column(Text())
 
     __table_args__ = (
         Index(
@@ -67,7 +71,10 @@ class IntegerSequencedNoIDRecord(Base):
     topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
-    state = Column(Text())
+    if STORE_BYTES:
+        state = Column(LargeBinary())
+    else:
+        state = Column(Text())
 
 
 IntegerSequencedRecord = IntegerSequencedWithIDRecord
@@ -95,7 +102,10 @@ class TimestampSequencedWithIDRecord(Base):
     topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
-    state = Column(Text())
+    if STORE_BYTES:
+        state = Column(LargeBinary())
+    else:
+        state = Column(Text())
 
     __table_args__ = (
         Index(
@@ -121,7 +131,10 @@ class TimestampSequencedNoIDRecord(Base):
     topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
-    state = Column(Text())
+    if STORE_BYTES:
+        state = Column(LargeBinary())
+    else:
+        state = Column(Text())
 
     __table_args__ = (
         Index(
@@ -146,7 +159,10 @@ class SnapshotRecord(Base):
     topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
-    state = Column(Text())
+    if STORE_BYTES:
+        state = Column(LargeBinary())
+    else:
+        state = Column(Text())
 
 
 class EntitySnapshotRecord(Base):
@@ -167,7 +183,10 @@ class EntitySnapshotRecord(Base):
     topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
-    state = Column(Text())
+    if STORE_BYTES:
+        state = Column(LargeBinary())
+    else:
+        state = Column(Text())
 
 
 class StoredEventRecord(Base):
@@ -196,7 +215,10 @@ class StoredEventRecord(Base):
     topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
-    state = Column(Text())
+    if STORE_BYTES:
+        state = Column(LargeBinary())
+    else:
+        state = Column(Text())
 
     # Causal dependencies.
     causal_dependencies = Column(Text())

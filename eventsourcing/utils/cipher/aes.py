@@ -7,6 +7,9 @@ from eventsourcing.exceptions import DataIntegrityError
 from eventsourcing.utils.random import random_bytes
 
 
+STORE_BYTES = True
+
+
 class AESCipher(object):
     """
     Cipher strategy that uses Crypto library AES cipher in GCM mode.
@@ -37,41 +40,49 @@ class AESCipher(object):
         encrypted, tag = cipher.encrypt_and_digest(compressed)
 
         # Combine with nonce.
-        combined = cipher.nonce + tag + encrypted
+        cipherbytes = cipher.nonce + tag + encrypted
 
-        # Encode as Base64.
-        cipherbytes = base64.b64encode(combined)
+        if STORE_BYTES:
+            # Just return the bytes.
+            return cipherbytes
+        else:
+            # Encode as Base64.
+            base64bytes = base64.b64encode(cipherbytes)
 
-        # Bytes to string.
-        ciphertext = cipherbytes.decode("utf8")
+            # Bytes to string.
+            ciphertext = base64bytes.decode("utf8")
 
-        # Return ciphertext.
-        return ciphertext
+            # Return ciphertext.
+            return ciphertext
 
     def decrypt(self, ciphertext):
         """Return plaintext for given ciphertext."""
 
-        # String to bytes.
-        cipherbytes = ciphertext.encode("utf8")
+        if STORE_BYTES:
+            # Just assume its bytes.
+            cipherbytes = ciphertext
+        else:
+            # String to bytes.
+            base64bytes = ciphertext.encode("utf8")
 
-        # Decode from Base64.
-        try:
-            combined = base64.b64decode(cipherbytes)
-        except (base64.binascii.Error, TypeError) as e:
-            # base64.binascii.Error for Python 3.
-            # TypeError for Python 2.
-            raise DataIntegrityError("Cipher text is damaged: {}".format(e))
+            # Decode from Base64.
+            try:
+                cipherbytes = base64.b64decode(base64bytes)
+            except (base64.binascii.Error, TypeError) as e:
+                # base64.binascii.Error for Python 3.
+                # TypeError for Python 2.
+                raise DataIntegrityError("Cipher text is damaged: {}".format(e))
 
         # Split out the nonce, tag, and encrypted data.
-        nonce = combined[:12]
+        nonce = cipherbytes[:12]
         if len(nonce) != 12:
             raise DataIntegrityError("Cipher text is damaged: invalid nonce length")
 
-        tag = combined[12:28]
+        tag = cipherbytes[12:28]
         if len(tag) != 16:
             raise DataIntegrityError("Cipher text is damaged: invalid tag length")
 
-        encrypted = combined[28:]
+        encrypted = cipherbytes[28:]
 
         # Construct AES cipher, with old nonce.
         cipher = AES.new(self.cipher_key, AES.MODE_GCM, nonce)

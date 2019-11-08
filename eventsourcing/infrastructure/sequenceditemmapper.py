@@ -7,6 +7,7 @@ from eventsourcing.infrastructure.sequenceditem import (
     SequencedItem,
     SequencedItemFieldNames,
 )
+from eventsourcing.utils.cipher.aes import STORE_BYTES
 from eventsourcing.utils.topic import get_topic, resolve_topic
 from eventsourcing.utils.transcoding import (
     ObjectJSONDecoder,
@@ -110,6 +111,8 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         # Compress and encrypt serialised state.
         if self.cipher:
             state = self.cipher.encrypt(state)
+        elif STORE_BYTES:
+            state = state.encode()
 
         return topic, state
 
@@ -148,6 +151,9 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         # Decrypt and decompress state.
         if self.cipher:
             state = self.cipher.decrypt(state)
+        elif STORE_BYTES:
+            if isinstance(state, bytes):
+                state = state.decode('utf-8')
 
         # Deserialize data.
         event_attrs = self.json_loads(state)
@@ -157,7 +163,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         try:
             return self.json_decoder.decode(state)
         except JSONDecodeError:
-            raise ValueError("Couldn't load JSON string: {}".format(s))
+            raise ValueError("Couldn't load JSON string: {}".format(state))
 
 
 
