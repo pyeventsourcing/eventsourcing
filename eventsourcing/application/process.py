@@ -340,6 +340,9 @@ class ProcessApplication(SimpleApplication):
         # Translate causal dependencies from version of entity to position in pipeline.
         causal_dependencies = []
         if self.use_causal_dependencies:
+            # Todo: Optionally reference causal dependencies in current pipeline
+            #  and then support processing notification from a single pipeline in
+            #  parallel, according to dependencies.
             highest = defaultdict(int)
             rm = self.event_store.record_manager
             for entity_id, entity_version in repository.causal_dependencies:
@@ -354,11 +357,6 @@ class ProcessApplication(SimpleApplication):
                 causal_dependencies.append(
                     {"pipeline_id": pipeline_id, "notification_id": notification_id}
                 )
-        # Todo: Optionally reference causal dependencies in current pipeline
-        #  and then support processing notification from a single pipeline in
-        #  parallel, according to dependencies.
-
-
         return (
             all_new_events,
             causal_dependencies,
