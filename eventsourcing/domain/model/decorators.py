@@ -209,13 +209,13 @@ def retry(exc=Exception, max_attempts=1, wait=0, stall=0, verbose=False):
         return _retry
 
 
-def classifyevents(cls: type):
+def subclassevents(cls: type):
     """
     Decorator that avoids "boilerplate" subclassing of domain events.
 
     For example, this:
 
-    @classifyevents
+    @subclassevents
     class Example(AggregateRoot):
         class SomethingHappened(DomainEvent): pass
 

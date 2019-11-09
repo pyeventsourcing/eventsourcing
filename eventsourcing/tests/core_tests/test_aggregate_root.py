@@ -3,7 +3,7 @@ from unittest.case import TestCase
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.aggregate import AggregateRoot
-from eventsourcing.domain.model.decorators import attribute, classifyevents
+from eventsourcing.domain.model.decorators import attribute, subclassevents
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.exceptions import EventHashError, HeadHashError
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
@@ -216,7 +216,7 @@ class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
             event.__check_obj__(aggregate)
 
 
-@classifyevents
+@subclassevents
 class ExampleAggregateRoot(AggregateRoot):
     # class Event(AggregateRoot.Event):
     #     """Supertype for events of example aggregates."""
@@ -247,7 +247,7 @@ class ExampleAggregateRoot(AggregateRoot):
             return aggregate
 
 
-@classifyevents
+@subclassevents
 class Aggregate1(ExampleAggregateRoot):
     def __init__(self, foo="", **kwargs):
         super(Aggregate1, self).__init__(**kwargs)
