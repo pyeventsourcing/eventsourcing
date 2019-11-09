@@ -32,6 +32,7 @@ class ProcessApplication(SimpleApplication):
     set_notification_ids = False
     use_causal_dependencies = False
     notification_log_reader_class = NotificationLogReader
+    apply_policy_to_generated_events = False
 
     def __init__(
         self,
@@ -54,7 +55,10 @@ class ProcessApplication(SimpleApplication):
         self.notification_log_reader_class = (
             notification_log_reader_class or type(self).notification_log_reader_class
         )
-        self.apply_policy_to_generated_events = apply_policy_to_generated_events
+        self.apply_policy_to_generated_events = (
+            apply_policy_to_generated_events
+            or type(self).apply_policy_to_generated_events
+        )
 
         super(ProcessApplication, self).__init__(
             name=name, setup_table=setup_table, **kwargs
