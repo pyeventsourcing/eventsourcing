@@ -3,7 +3,7 @@
 # take a little while to download and build everything, but then tests which
 # do not depend on other services such as MySQL and Cassandra should pass.
 # To run containers needed to pass the full test suite, see docker-compose.yaml.
-FROM python:3.6
+FROM python:3.7
 
 WORKDIR /app
 
