@@ -62,7 +62,7 @@ def decoderpolicy(arg=None):
 
             if len(keys) == 1:
                 try:
-                    decoder_func = decoder_map[list(d.keys())[0]]
+                    decoder_func = decoder_map[keys[0]]
                 except KeyError:
                     return d
                 else:
