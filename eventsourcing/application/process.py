@@ -301,7 +301,7 @@ class ProcessApplication(SimpleApplication):
         fifo = deque()
         fifo.append(domain_event)
 
-        all_domain_events = []
+        pending_events = []
 
         while len(fifo):
 
@@ -328,14 +328,12 @@ class ProcessApplication(SimpleApplication):
                 all_aggregates += new_aggregates
 
             # Collect pending events.
-            domain_events = self.collect_pending_events(all_aggregates)
+            generated_events = self.collect_pending_events(all_aggregates)
+            pending_events.extend(generated_events)
 
+            # Enqueue generated events.
             if self.apply_policy_to_generated_events:
-                # Enqueue generated events.
-                fifo.extend(domain_events)
-
-            # Extend 'new events' with these generated events.
-            all_domain_events.extend(domain_events)
+                fifo.extend(generated_events)
 
         # Translate causal dependencies from version of entity to position in pipeline.
         causal_dependencies = []
@@ -359,7 +357,7 @@ class ProcessApplication(SimpleApplication):
                 )
 
         return (
-            all_domain_events,
+            pending_events,
             causal_dependencies,
             repository.orm_objs_pending_save,
             repository.orm_objs_pending_delete,
