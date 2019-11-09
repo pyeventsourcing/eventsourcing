@@ -29,15 +29,14 @@ class BaseAggregateRoot(TimestampedVersionedEntity):
 
     def __publish__(self, event):
         """
-        Overrides super method by adding event
-        to internal collection of pending events,
-        rather than actually publishing the event.
+        Defers publishing event to subscribers, by adding
+        event to internal collection of pending events.
         """
         self.__pending_events__.append(event)
 
     def __save__(self):
         """
-        Actually publishes all pending events.
+        Publishes all pending events to subscribers.
         """
         batch_of_events = self.__batch_pending_events__()
         if batch_of_events:

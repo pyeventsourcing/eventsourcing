@@ -158,6 +158,8 @@ class SimpleApplication(Pipeable):
             snapshot_record_class=snapshot_record_class,
             sequenced_item_class=self.sequenced_item_class,
             sequenced_item_mapper_class=self.sequenced_item_mapper_class,
+            json_encoder_class=self.json_encoder_class,
+            json_decoder_class=self.json_decoder_class,
             contiguous_record_ids=self.contiguous_record_ids,
             application_name=self.name,
             pipeline_id=self.pipeline_id,
