@@ -3,7 +3,7 @@ from functools import singledispatch, wraps
 from inspect import isfunction
 from time import sleep
 
-from eventsourcing.domain.model.events import subscribe
+from eventsourcing.domain.model.events import subscribe, DomainEvent
 from eventsourcing.exceptions import ProgrammingError
 
 
@@ -207,3 +207,102 @@ def retry(exc=Exception, max_attempts=1, wait=0, stall=0, verbose=False):
         if not isinstance(wait, (float, int)):
             raise TypeError("'wait' must be a float: {}".format(max_attempts))
         return _retry
+
+
+def subclassevents(cls: type):
+    """
+    Decorator that avoids "boilerplate" subclassing of domain events.
+
+    For example, this:
+
+    @subclassevents
+    class Example(AggregateRoot):
+        class SomethingHappened(DomainEvent): pass
+
+    rather than this:
+
+    class Example(AggregateRoot):
+        class Event(AggregateRoot.Event): pass
+        class Created(Event, AggregateRoot.Created): pass
+        class Discarded(Event, AggregateRoot.Discarded): pass
+        class AttributeChanged(Event, AggregateRoot.AttributeChanged): pass
+        class SomethingHappened(Event): pass
+
+    You can apply this to a tree of domain event classes by defining
+    the base class with attribute 'subclassevents = True'.
+    """
+
+    bases_event_attrs = []
+    super_event_class_names = set()
+    for base_cls in cls.__bases__:
+        base_event_attrs = {}
+        bases_event_attrs.append(base_event_attrs)
+        for base_attr_name in dir(base_cls):
+            base_attr = getattr(base_cls, base_attr_name)
+            if isinstance(base_attr, type) and issubclass(base_attr, DomainEvent):
+                base_event_attrs[base_attr_name] = base_attr
+                if base_attr_name != "Event":
+                    super_event_class_names.add(base_attr_name)
+
+    # Define base Event subclass including super Event classes.
+    if "Event" in cls.__dict__:
+        event_event_subclass = cls.__dict__["Event"]
+    else:
+        base_event_classes = []
+        for base_event_attrs in bases_event_attrs:
+            try:
+                event_cls = base_event_attrs["Event"]
+            except KeyError:
+                pass
+            else:
+                base_event_classes.append(event_cls)
+
+        event_event_subclass = type(
+            "Event",
+            tuple(base_event_classes or [DomainEvent]),
+            {"__qualname__": cls.__name__ + ".Event"},
+        )
+        event_event_subclass.__module__ = cls.__module__
+        setattr(cls, "Event", event_event_subclass)
+        print(event_event_subclass)
+
+    # Define subclasses for super event classes, including Event subclass as base.
+    for super_event_class_name in super_event_class_names:
+
+        base_event_classes = [event_event_subclass]
+        if super_event_class_name in cls.__dict__:
+            continue
+
+        for base_event_attrs in bases_event_attrs:
+            try:
+                event_cls = base_event_attrs[super_event_class_name]
+            except KeyError:
+                pass
+            else:
+                base_event_classes.append(event_cls)
+        event_subclass = type(
+            super_event_class_name,
+            tuple(base_event_classes),
+            {"__qualname__": cls.__name__ + "." + super_event_class_name},
+        )
+        event_subclass.__module__ = cls.__module__
+        setattr(cls, super_event_class_name, event_subclass)
+        print(event_subclass)
+
+
+    # Redefine event classes in cls.__dict__ that are not subclasses of Event.
+    for cls_attr_name in cls.__dict__.keys():
+        base_attr = getattr(cls, cls_attr_name)
+        if isinstance(base_attr, type):
+            if not issubclass(base_attr, event_event_subclass):
+                event_subclass = type(
+                    cls_attr_name,
+                    (base_attr,),
+                    {"__qualname__": cls.__name__ + "." + base_attr.__name__},
+                )
+                event_subclass.__module__ = cls.__module__
+                event_subclass.__doc__ = cls.__doc__
+                setattr(cls, cls_attr_name, event_subclass)
+                print(event_subclass)
+
+    return cls
