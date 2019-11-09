@@ -184,8 +184,31 @@ class DomainEntity(object):
         """
         self.__assert_not_discarded__()
         event = event_class(originator_id=self._id, **kwargs)
-        event.__mutate__(self)
+        self.__mutate__(event)
         self.__publish__(event)
+
+    def __mutate__(self, event):
+        """
+        Mutates this entity with the given event.
+
+        This method calls on the event object to mutate this
+        entity, because the mutation behaviour of different types
+        of events was nicely factored onto the event classes, and
+        the event mutate() method is the most convenient way to
+        defined behaviour in domain models.
+
+        However, as an alternative to implementing the mutate()
+        method on domain model events, this method can be extended
+        in domain model entities by implementing a mutator function
+        that is capable of mutating this entity for all its domain event
+        types.
+
+        Similarly, this method can be overridden entirely in subclasses,
+        so long as all entity mutation behaviour is implemented in the
+        mutator function, including the mutation behaviour of the different
+        types of event defined in the library that would otherwise be invoked.
+        """
+        event.__mutate__(self)
 
     def __publish__(self, event):
         """
