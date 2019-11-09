@@ -9,7 +9,7 @@ from eventsourcing.tests.test_process import TestProcessApplication
 
 
 class TestProcessWithPopos(PopoTestCase, TestProcessApplication):
-    process_class = PopoApplication
+    infrastructure_class = PopoApplication
 
     @skip("Popo record manager doesn't support pipelines")
     def test_causal_dependencies(self):
