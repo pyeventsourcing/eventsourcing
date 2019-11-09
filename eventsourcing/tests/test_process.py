@@ -29,11 +29,11 @@ from eventsourcing.utils.transcoding import ObjectJSONDecoder
 
 
 class TestProcessApplication(TestCase):
-    process_class = SQLAlchemyApplication
+    infrastructure_class = SQLAlchemyApplication
 
     def test_process_with_example_policy(self):
         # Construct example process.
-        process_class = ProcessApplication.mixin(self.process_class)
+        process_class = ProcessApplication.mixin(self.infrastructure_class)
         with process_class(
             name="test",
             policy=example_policy,
@@ -69,7 +69,7 @@ class TestProcessApplication(TestCase):
 
     def test_process_application_with_snapshotting(self):
         # Construct example process.
-        with ProcessApplicationWithSnapshotting.mixin(self.process_class)(
+        with ProcessApplicationWithSnapshotting.mixin(self.infrastructure_class)(
             name="test",
             policy=example_policy,
             persist_event_type=ExampleAggregate.Event,
@@ -108,7 +108,7 @@ class TestProcessApplication(TestCase):
         pipeline_id2 = 1
 
         # Create two events, one has causal dependency on the other.
-        process_class = ProcessApplication.mixin(self.process_class)
+        process_class = ProcessApplication.mixin(self.infrastructure_class)
         core1 = process_class(
             name="core",
             # persist_event_type=ExampleAggregate.Created,
@@ -246,7 +246,7 @@ class TestProcessApplication(TestCase):
                 repository.delete_orm_obj(projection)
 
         # Construct example process.
-        process_class = ProcessApplication.mixin(self.process_class)
+        process_class = ProcessApplication.mixin(self.infrastructure_class)
         with process_class(
             name="test",
             policy=projection_policy,
@@ -312,7 +312,7 @@ class TestProcessApplication(TestCase):
         return record_manager.session.query(projection_record_class).get(projection_id)
 
     def test_handle_prompt_failed(self):
-        process = ProcessApplication.mixin(self.process_class)(
+        process = ProcessApplication.mixin(self.infrastructure_class)(
             name="test",
             policy=example_policy,
             persist_event_type=ExampleAggregate.Event,
@@ -378,7 +378,8 @@ class TestCommands(TestCase):
 
         self.assertFalse(list(commands.event_store.all_domain_events()))
 
-        cmd = CreateExample.__create__()
+        example_id = uuid4()
+        cmd = CreateExample.__create__(example_id=example_id)
         # cmd = Command.__create__(cmd_method='create_example', cmd_args={})
         cmd.__save__()
 
@@ -392,9 +393,51 @@ class TestCommands(TestCase):
         core.run()
 
         self.assertTrue(list(core.event_store.all_domain_events()))
+        self.assertIn(example_id, core.repository)
+
+        # Example shouldn't be "moved on" because core isn't following itself,
+        # or applying its policy to generated events.
+        self.assertFalse(core.repository[example_id].is_moved_on)
 
         commands.close()
         core.close()
+
+    def test_apply_policy_to_generated_domain_events(self):
+        commands = CommandProcess.mixin(self.infrastructure_class)(
+            setup_table=True
+        )
+        core = ProcessApplication.mixin(self.infrastructure_class)(
+            name="core",
+            policy=example_policy,
+            session=commands.session,
+            apply_policy_to_generated_events=True,
+        )
+
+        with core, commands:
+            self.assertFalse(list(commands.event_store.all_domain_events()))
+
+            example_id = uuid4()
+            cmd = CreateExample.__create__(example_id=example_id)
+            cmd.__save__()
+
+            domain_events = list(commands.event_store.all_domain_events())
+            self.assertEqual(len(domain_events), 1)
+
+            self.assertFalse(list(core.event_store.all_domain_events()))
+
+            core.follow("commands", commands.notification_log)
+            core.run()
+
+            self.assertTrue(list(core.event_store.all_domain_events()))
+            self.assertIn(example_id, core.repository)
+
+            # Example should be "moved on" because core is
+            # applying its policy to generated events.
+            example = core.repository[example_id]
+            self.assertTrue(example.is_moved_on)
+
+            # Check the "second" aggregate exists.
+            self.assertIn(example.second_id, core.repository)
 
     def tearDown(self):
         assert_event_handlers_empty()
@@ -430,24 +473,24 @@ class ExampleAggregate(BaseAggregateRoot):
 
 
 def example_policy(repository, event):
-    # Whenever an aggregate is created, then "move it on".
     if isinstance(event, ExampleAggregate.Created):
-        # Get aggregate and move it on.
-        aggregate = repository[event.originator_id]
-
-        assert isinstance(aggregate, ExampleAggregate)
-
-        # Also create a second entity, allows test to check that
+        # Create a second aggregate, allowing test to check that
         # events from more than one entity are stored.
         second_id = uuid4()
-        other_entity = AggregateRoot.__create__(originator_id=second_id)
-        aggregate.move_on(second_id=second_id)
-        return other_entity
+        second = AggregateRoot.__create__(originator_id=second_id)
+
+        # Get first aggregate and move it on, allowing test to
+        # check that the first aggregate was mutated by the policy.
+        first = repository[event.originator_id]
+        assert isinstance(first, ExampleAggregate)
+        first.move_on(second_id=second_id)
+
+        return second
 
     elif isinstance(event, Command.Created):
         command_class = resolve_topic(event.originator_topic)
         if command_class is CreateExample:
-            return ExampleAggregate.__create__()
+            return ExampleAggregate.__create__(event.example_id)
 
 
 class LogMessage(BaseAggregateRoot):
@@ -467,7 +510,9 @@ def event_logging_policy(_, event):
 
 
 class CreateExample(Command):
-    pass
+    def __init__(self, example_id=None, **kwargs):
+        super().__init__(**kwargs)
+        self.example_id = example_id
 
 
 class SaveOrmObject(Command):

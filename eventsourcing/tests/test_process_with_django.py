@@ -10,7 +10,7 @@ from eventsourcing.tests.test_process import TestProcessApplication
 
 
 class TestProcessWithDjango(DjangoTestCase, TestProcessApplication):
-    process_class = DjangoApplication
+    infrastructure_class = DjangoApplication
 
     def test_projection_into_custom_orm_obj(self):
         super(TestProcessWithDjango, self).test_projection_into_custom_orm_obj()
