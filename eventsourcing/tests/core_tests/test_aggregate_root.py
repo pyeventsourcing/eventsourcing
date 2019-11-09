@@ -3,7 +3,8 @@ from unittest.case import TestCase
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.aggregate import AggregateRoot
-from eventsourcing.domain.model.decorators import attribute
+from eventsourcing.domain.model.decorators import attribute, classifyevents
+from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.exceptions import EventHashError, HeadHashError
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
@@ -13,7 +14,7 @@ from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedNoID
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import (
     SQLAlchemyRecordManagerTestCase,
 )
-from eventsourcing.utils.topic import get_topic
+from eventsourcing.utils.topic import get_topic, resolve_topic
 
 
 class TestAggregateRootEvent(TestCase):
@@ -63,6 +64,13 @@ class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
     def tearDown(self):
         self.app.close()
         super(TestExampleAggregateRoot, self).tearDown()
+
+    def test_aggregate1_event_classes(self):
+        resolve_topic(get_topic(Aggregate1))
+        self.assertIn("Event", Aggregate1.__dict__)
+        self.assertIn("Created", Aggregate1.__dict__)
+        self.assertIn("Discarded", Aggregate1.__dict__)
+        self.assertIn("AttributeChanged", Aggregate1.__dict__)
 
     def test_aggregate1_lifecycle(self):
         # Create a new aggregate.
@@ -208,38 +216,38 @@ class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
             event.__check_obj__(aggregate)
 
 
+@classifyevents
 class ExampleAggregateRoot(AggregateRoot):
-    class Event(AggregateRoot.Event):
-        """Supertype for events of example aggregates."""
+    # class Event(AggregateRoot.Event):
+    #     """Supertype for events of example aggregates."""
 
-    class Created(Event, AggregateRoot.Created):
-        """Published when an ExampleAggregateRoot is created."""
+    # class Created(Event, AggregateRoot.Created):
+    #     """Published when an ExampleAggregateRoot is created."""
+    #
+    # class AttributeChanged(Event, AggregateRoot.AttributeChanged):
+    #     """Published when an ExampleAggregateRoot is changed."""
+    #
+    # class Discarded(Event, AggregateRoot.Discarded):
+    #     """Published when an ExampleAggregateRoot is discarded."""
 
-    class AttributeChanged(Event, AggregateRoot.AttributeChanged):
-        """Published when an ExampleAggregateRoot is changed."""
-
-    class Discarded(Event, AggregateRoot.Discarded):
-        """Published when an ExampleAggregateRoot is discarded."""
-
-    class ExampleCreated(Event):
+    class ExampleCreated(DomainEvent):
         """Published when an example entity is created within the aggregate."""
 
         def __init__(self, entity_id, **kwargs):
-            super(ExampleAggregateRoot.ExampleCreated, self).__init__(
-                entity_id=entity_id, **kwargs
-            )
+            super().__init__(entity_id=entity_id, **kwargs)
 
         @property
         def entity_id(self):
             return self.__dict__["entity_id"]
 
         def __mutate__(self, aggregate):
-            super(ExampleAggregateRoot.ExampleCreated, self).__mutate__(aggregate)
+            super().__mutate__(aggregate)
             entity = Example(entity_id=self.entity_id)
             aggregate._entities[entity.id] = entity
             return aggregate
 
 
+@classifyevents
 class Aggregate1(ExampleAggregateRoot):
     def __init__(self, foo="", **kwargs):
         super(Aggregate1, self).__init__(**kwargs)
