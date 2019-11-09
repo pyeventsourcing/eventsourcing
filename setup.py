@@ -36,6 +36,7 @@ testing_requires = (
         "redis<=3.2.99999",
         "celery<=4.3.99999",
         "pymysql<=0.9.99999",
+        "cryptography",
         "thespian<=3.9.99999",
         # Tests use Django with PostgreSQL.
         "psycopg2cffi<=2.8.99999" if is_pypy else "psycopg2-binary<=2.7.99999",
