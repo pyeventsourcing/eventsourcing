@@ -1,5 +1,5 @@
 import time
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict, defaultdict, deque
 from threading import Lock
 
 from eventsourcing.application.notificationlog import NotificationLogReader
@@ -15,13 +15,13 @@ from eventsourcing.utils.transcoding import json_dumps, json_loads
 class ProcessEvent(object):
     def __init__(
         self,
-        new_events,
+        domain_events,
         tracking_kwargs=None,
         causal_dependencies=None,
         orm_objs_pending_save=None,
         orm_objs_pending_delete=None,
     ):
-        self.new_events = new_events
+        self.domain_events = domain_events
         self.tracking_kwargs = tracking_kwargs
         self.causal_dependencies = causal_dependencies
         self.orm_objs_pending_save = orm_objs_pending_save
@@ -40,6 +40,7 @@ class ProcessApplication(SimpleApplication):
         setup_table=False,
         use_direct_query_if_available=False,
         notification_log_reader_class=None,
+        apply_policy_to_generated_events=False,
         **kwargs
     ):
         self.policy_func = policy
@@ -53,6 +54,7 @@ class ProcessApplication(SimpleApplication):
         self.notification_log_reader_class = (
             notification_log_reader_class or type(self).notification_log_reader_class
         )
+        self.apply_policy_to_generated_events = apply_policy_to_generated_events
 
         super(ProcessApplication, self).__init__(
             name=name, setup_table=setup_table, **kwargs
@@ -191,28 +193,26 @@ class ProcessApplication(SimpleApplication):
 
         return notification_count
 
-    def process_upstream_event(self, event, notification_id, upstream_name):
+    def process_upstream_event(self, domain_event, notification_id, upstream_name):
         if self.tick_interval is not None:
             cycle_started = time.process_time()
         else:
             cycle_started = None
         # Call policy with the upstream event.
         (
-            all_aggregates,
+            domain_events,
             causal_dependencies,
             orm_objs_pending_save,
             orm_objs_pending_delete,
-        ) = self.call_policy(event)
+        ) = self.call_policy(domain_event)
 
-        # Collect pending events.
-        new_events = self.collect_pending_events(all_aggregates)
         # Record process event.
         try:
             tracking_kwargs = self.construct_tracking_kwargs(
                 notification_id, upstream_name
             )
             process_event = ProcessEvent(
-                new_events=new_events,
+                domain_events=domain_events,
                 tracking_kwargs=tracking_kwargs,
                 causal_dependencies=causal_dependencies,
                 orm_objs_pending_save=orm_objs_pending_save,
@@ -231,7 +231,7 @@ class ProcessApplication(SimpleApplication):
             # otherwise strange errors (about version mismatches, or
             # when identifying causal dependencies) can arise.
             if self.repository._cache:
-                originator_ids = set([event.originator_id for event in new_events])
+                originator_ids = set([event.originator_id for event in domain_events])
                 for originator_id in originator_ids:
                     try:
                         del self.repository._cache[originator_id]
@@ -250,7 +250,7 @@ class ProcessApplication(SimpleApplication):
                         self.name, cycle_perc - 100
                     )
                     print(msg)
-        return new_events
+        return domain_events
 
     def get_event_from_notification(self, notification):
         return self.event_store.mapper.event_from_topic_and_state(
@@ -291,30 +291,58 @@ class ProcessApplication(SimpleApplication):
         reader = self.readers[upstream_name]
         reader.seek(max_record_id or 0)
 
-    def call_policy(self, event):
+    def call_policy(self, domain_event):
         # Get the application policy.
         policy = self.policy_func or self.policy
 
         # Wrap the actual repository, so we can collect aggregates.
         repository = WrappedRepository(self.repository)
 
-        # Actually call the policy.
-        new_aggregates = policy(repository, event)
+        fifo = deque()
+        fifo.append(domain_event)
 
-        # Collect all aggregates.
-        repo_aggregates = list(repository.retrieved_aggregates.values())
-        all_aggregates = repo_aggregates[:]
-        if new_aggregates is not None:
-            if not isinstance(new_aggregates, (list, tuple)):
-                new_aggregates = [new_aggregates]
-            if self.repository._use_cache:
-                for new_aggregate in new_aggregates:
-                    self.repository._cache[new_aggregate.id] = new_aggregate
-            all_aggregates += new_aggregates
+        all_domain_events = []
 
-        # Identify causal dependencies.
+        while len(fifo):
+
+            # Get the next unprocessed domain event.
+            domain_event = fifo.popleft()
+
+            # Call the policy with this domain event.
+            new_aggregates = policy(repository, domain_event)
+
+            # Collect all aggregates.
+            repo_aggregates = list(repository.retrieved_aggregates.values())
+            all_aggregates = repo_aggregates[:]
+            if new_aggregates is not None:
+                if not isinstance(new_aggregates, (list, tuple)):
+                    new_aggregates = [new_aggregates]
+                for aggregate in new_aggregates:
+                    if self.repository._use_cache:
+                        # Cache new aggregates in repository (avoids replay).
+                        self.repository._cache[aggregate.id] = aggregate
+
+                    if self.apply_policy_to_generated_events:
+                        # Make new aggregates available in subsequent policy calls.
+                        repository.retrieved_aggregates[aggregate.id] = aggregate
+                all_aggregates += new_aggregates
+
+            # Collect pending events.
+            domain_events = self.collect_pending_events(all_aggregates)
+
+            if self.apply_policy_to_generated_events:
+                # Enqueue generated events.
+                fifo.extend(domain_events)
+
+            # Extend 'new events' with these generated events.
+            all_domain_events.extend(domain_events)
+
+        # Translate causal dependencies from version of entity to position in pipeline.
         causal_dependencies = []
         if self.use_causal_dependencies:
+            # Todo: Optionally reference causal dependencies in current pipeline
+            #  and then support processing notification from a single pipeline in
+            #  parallel, according to dependencies.
             highest = defaultdict(int)
             rm = self.event_store.record_manager
             for entity_id, entity_version in repository.causal_dependencies:
@@ -329,11 +357,9 @@ class ProcessApplication(SimpleApplication):
                 causal_dependencies.append(
                     {"pipeline_id": pipeline_id, "notification_id": notification_id}
                 )
-        # Todo: Optionally reference causal dependencies in current pipeline
-        #  and then support processing notification from a single pipeline in
-        #  parallel, according to dependencies.
+
         return (
-            all_aggregates,
+            all_domain_events,
             causal_dependencies,
             repository.orm_objs_pending_save,
             repository.orm_objs_pending_delete,
@@ -391,7 +417,7 @@ class ProcessApplication(SimpleApplication):
     def record_process_event(self, process_event: ProcessEvent):
         # Construct event records.
         event_records = self.construct_event_records(
-            process_event.new_events, process_event.causal_dependencies
+            process_event.domain_events, process_event.causal_dependencies
         )
 
         # Write event records with tracking record.
