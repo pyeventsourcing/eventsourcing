@@ -54,7 +54,8 @@ class AbstractEventStore(ABC):
         """
 
 
-# Todo: Unify iterators in EventStore and in NotificationLog, by pushing behaviour down to record manager?
+# Todo: Unify iterators in EventStore and in NotificationLog,
+#  by pushing behaviour down to record manager?
 
 
 class EventStore(AbstractEventStore):

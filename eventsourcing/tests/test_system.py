@@ -3,7 +3,6 @@ from time import sleep, time
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.application.command import CommandProcess
 from eventsourcing.application.multiprocess import MultiprocessRunner
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.application.system import MultiThreadedRunner, System
@@ -11,8 +10,9 @@ from eventsourcing.domain.model.events import (
     assert_event_handlers_empty,
     clear_event_handlers,
 )
+from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.tests.test_process import ExampleAggregate
-from eventsourcing.tests.test_system_fixtures import (
+from eventsourcing.tests.system_test_fixtures import (
     Examples,
     Order,
     Orders,
@@ -104,8 +104,10 @@ class TestSystem(TestCase):
             self.assertIsInstance(runner.orders, Orders)
             order_id = create_new_order()
 
-            repository = runner.orders.repository
-            self.assertEqual(repository[order_id].id, order_id)
+            self.assertEqual(runner.orders.repository[order_id].id, order_id)
+            reservation_id = Reservation.create_reservation_id(order_id)
+            reservations_repo = runner.reservations.repository
+            self.assertEqual(reservations_repo[reservation_id].order_id, order_id)
 
     def test_multithreaded_runner_with_single_pipe(self):
         system = System(
@@ -113,12 +115,29 @@ class TestSystem(TestCase):
             setup_tables=True,
             infrastructure_class=self.infrastructure_class,
         )
+        self.set_db_uri()
+
+        # with system as runner:
         with MultiThreadedRunner(system) as runner:
             self.assertIsInstance(runner.orders, Orders)
             order_id = create_new_order()
+            orders_repo = runner.orders.repository
+            self.assertEqual(orders_repo[order_id].id, order_id)
+            reservations_repo = runner.reservations.repository
+            reservation_id = Reservation.create_reservation_id(order_id)
 
-            repository = runner.orders.repository
-            self.assertEqual(repository[order_id].id, order_id)
+            patience = 10
+            while True:
+                try:
+                    self.assertEqual(reservations_repo[reservation_id].order_id, order_id)
+                except (RepositoryKeyError, AssertionError):
+                    if patience:
+                        patience -= 1
+                        sleep(.1)
+                    else:
+                        raise
+                else:
+                    break
 
     def test_multiprocess_runner_with_single_pipe(self):
         system = System(
@@ -247,7 +266,6 @@ class TestSystem(TestCase):
         self.set_db_uri()
 
         clock_speed = 10
-        tick_interval = 1 / clock_speed
         with MultiThreadedRunner(system, clock_speed=clock_speed):
 
             started = time()

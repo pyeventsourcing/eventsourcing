@@ -564,7 +564,8 @@ class PromptQueuedApplicationThread(Thread):
         # Loop on getting prompts.
         while True:
             try:
-                # Todo: Make the poll interval gradually increase if there are only timeouts?
+                # Todo: Make the poll interval gradually
+                #  increase if there are only timeouts?
                 prompt = self.inbox.get(timeout=self.poll_interval)
 
             except Empty:

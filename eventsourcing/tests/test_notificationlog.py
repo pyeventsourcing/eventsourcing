@@ -24,6 +24,7 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager imp
     SQLAlchemyRecordManagerTestCase,
 )
 from eventsourcing.utils.topic import get_topic
+from eventsourcing.utils.transcoding import ObjectJSONEncoder, JSON_SEPARATORS
 
 
 class NotificationLogTestCase(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
@@ -283,7 +284,8 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
             notification_log = self.create_notification_log(section_size)
 
             # Get serialized section.
-            view = NotificationLogView(notification_log)
+            json_encoder = ObjectJSONEncoder(separators=JSON_SEPARATORS)
+            view = NotificationLogView(notification_log, json_encoder)
             section, is_archived = view.present_section(section_id)
             # Todo: Maybe redirect if the section ID is a mismatch, so
             # the URL is good for cacheing.

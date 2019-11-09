@@ -12,7 +12,7 @@ from eventsourcing.tests.sequenced_item_tests.test_popo_record_manager import (
 
 from eventsourcing.application.popo import PopoApplication
 from eventsourcing.tests.test_system import TestSystem
-from eventsourcing.tests.test_system_fixtures import (
+from eventsourcing.tests.system_test_fixtures import (
     create_new_order,
     Orders,
     Reservations,

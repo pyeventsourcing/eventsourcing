@@ -1,5 +1,6 @@
 import logging
 import os
+from uuid import uuid5, NAMESPACE_OID
 
 from eventsourcing.application.process import ProcessApplication
 from eventsourcing.domain.model.aggregate import BaseAggregateRoot
@@ -62,7 +63,14 @@ class Reservation(BaseAggregateRoot):
 
     @classmethod
     def create(cls, order_id):
-        return cls.__create__(order_id=order_id)
+        return cls.__create__(
+            originator_id=Reservation.create_reservation_id(order_id),
+            order_id=order_id
+        )
+
+    @classmethod
+    def create_reservation_id(cls, order_id):
+        return uuid5(NAMESPACE_OID, str(order_id))
 
 
 class Payment(BaseAggregateRoot):
@@ -114,6 +122,7 @@ class Orders(ProcessApplication):
 
 
 class Reservations(ProcessApplication):
+
     @staticmethod
     def policy(repository, event):
         if isinstance(event, Order.Created):
