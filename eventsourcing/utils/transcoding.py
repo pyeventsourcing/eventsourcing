@@ -17,10 +17,10 @@ JSON_SEPARATORS = (",", ":")
 
 def encoderpolicy(arg=None):
     """
-    Singledispatch Decorator for encoder default method.
+    Decorator for encoder policy.
 
     Allows default behaviour to be built up from methods
-    registered for different event classes, rather than
+    registered for different types of things, rather than
     chain of isinstance() calls in a long if-else block.
     """
 
@@ -40,6 +40,50 @@ def encoderpolicy(arg=None):
     return _mutator(arg)
 
 
+def decoderpolicy(arg=None):
+    """
+    Decorator for decoder policy.
+
+    Allows default behaviour to be built up from methods
+    registered for different named keys, rather than
+    chain of "in dict" queries in a long if-else block.
+    """
+
+    def _mutator(func):
+        wrapped = func
+
+        decoder_map = {}
+
+        @wraps(wrapped)
+        def wrapper(*args, **kwargs):
+
+            d = kwargs.get("d") or args[-1]
+            keys = list(d.keys())
+
+            if len(keys) == 1:
+                try:
+                    decoder_func = decoder_map[list(d.keys())[0]]
+                except KeyError:
+                    return d
+                else:
+                    return decoder_func(d)
+            else:
+                return d
+
+        def register(key):
+            def decorator(decoder_func):
+                decoder_map[key] = decoder_func
+                return decoder_func
+            return decorator
+
+        wrapper.register = register
+
+        return wrapper
+
+    assert isfunction(arg), arg
+    return _mutator(arg)
+
+
 class ObjectJSONEncoder(JSONEncoder):
     def __init__(self, sort_keys=True, *args, **kwargs):
         super(ObjectJSONEncoder, self).__init__(sort_keys=sort_keys, *args, **kwargs)
@@ -49,164 +93,187 @@ class ObjectJSONEncoder(JSONEncoder):
             o = {"__tuple__": {"topic": (get_topic(o.__class__)), "state": (list(o))}}
         return super(ObjectJSONEncoder, self).iterencode(o, _one_shot=_one_shot)
 
-    @encoderpolicy
     def default(self, obj):
-        return JSONEncoder.default(self, obj)
-
-    @default.register(UUID)
-    def _(self, obj):
-        return {"UUID": obj.hex}
-
-    @default.register(datetime.datetime)
-    def _(self, obj):
-        return {"ISO8601_datetime": obj.strftime("%Y-%m-%dT%H:%M:%S.%f%z")}
-
-    @default.register(datetime.date)
-    def _(self, obj):
-        return {"ISO8601_date": obj.isoformat()}
-
-    @default.register(datetime.time)
-    def _(self, obj):
-        return {"ISO8601_time": obj.strftime("%H:%M:%S.%f")}
-
-    @default.register(Decimal)
-    def _(self, obj):
-        return {"__decimal__": str(obj)}
-
-    @default.register(Enum)
-    def _(self, obj):
-        return {
-            "__enum__": {
-                "topic": get_topic(type(obj)),
-                "name": obj.name,
-            }
-        }
-
-    @default.register(set)
-    def _(self, obj):
-        return {"__set__": sorted(list(obj))}
-
-    @default.register(deque)
-    def _(self, obj):
-        if list(obj):
-            raise ValueError("Only empty deques are supported at the moment")
-        else:
-            return {"__deque__": []}
-
-    @default.register(object)
-    def _(self, obj):
-        if hasattr(obj, "__slots__"):
-            topic = get_topic(obj.__class__)
-            state = {k: getattr(obj, k) for k in obj.__slots__}
-            return {"__class__": {"topic": topic, "state": state}}
-        elif hasattr(obj, "__dict__"):
-            topic = get_topic(obj.__class__)
-            state = obj.__dict__.copy()
-            return {"__class__": {"topic": topic, "state": state}}
-        else:
+        try:
+            return encoder(obj)
+        except EncoderTypeError:
             return JSONEncoder.default(self, obj)
 
-    @default.register(type)
-    def _(self, obj):
-        return {"__type__": get_topic(obj)}
 
-    @default.register(MethodType)
-    def _(self, obj):
-        return JSONEncoder.default(self, obj)
+class EncoderTypeError(TypeError):
+    pass
 
-    @default.register(FunctionType)
-    def _(self, obj):
-        return JSONEncoder.default(self, obj)
+
+@encoderpolicy
+def encoder(obj):
+    raise EncoderTypeError(obj)
 
 
 class ObjectJSONDecoder(JSONDecoder):
     def __init__(self, object_hook=None, **kwargs):
         super(ObjectJSONDecoder, self).__init__(
-            object_hook=object_hook or self.from_jsonable, **kwargs
+            object_hook=object_hook or decoder, **kwargs
         )
 
-    @classmethod
-    def from_jsonable(cls, d):
-        if "ISO8601_datetime" in d:
-            return cls._decode_datetime(d)
-        elif "ISO8601_date" in d:
-            return cls._decode_date(d)
-        elif "UUID" in d:
-            return cls._decode_uuid(d)
-        elif "__decimal__" in d:
-            return cls._decode_decimal(d)
-        elif "ISO8601_time" in d:
-            return cls._decode_time(d)
-        elif "__type__" in d:
-            return cls._decode_type(d)
-        elif "__class__" in d:
-            return cls._decode_object(d)
-        elif "__tuple__" in d:
-            return cls._decode_tuple(d)
-        elif "__deque__" in d:
-            return deque([])
-        elif "__set__" in d:
-            return set(d["__set__"])
-        elif "__enum__" in d:
-            return cls._decode_enum(d)
-        return d
 
-    @classmethod
-    def _decode_time(cls, d):
-        hour, minute, seconds = d["ISO8601_time"].split(":")
-        second, microsecond = seconds.split(".")
-        return datetime.time(int(hour), int(minute), int(second), int(microsecond))
+@decoderpolicy
+def decoder(d):
+    return d
 
-    @classmethod
-    def _decode_decimal(cls, d):
-        return Decimal(d["__decimal__"])
 
-    @staticmethod
-    def _decode_date(d):
-        return datetime.datetime.strptime(d["ISO8601_date"], "%Y-%m-%d").date()
+@encoder.register(type)
+def _(obj):
+    return {"__type__": get_topic(obj)}
 
-    @staticmethod
-    def _decode_datetime(d):
-        return dateutil.parser.parse(d["ISO8601_datetime"])
 
-    @staticmethod
-    def _decode_uuid(d):
-        return UUID(d["UUID"])
+@encoder.register(MethodType)
+def _(obj):
+    raise EncoderTypeError(obj)
 
-    @staticmethod
-    def _decode_type(d):
-        return resolve_topic(d["__type__"])
 
-    @staticmethod
-    def _decode_object(d):
-        topic = d["__class__"]["topic"]
-        state = d["__class__"]["state"]
-        obj_class = resolve_topic(topic)
-        obj = object.__new__(obj_class)
-        if hasattr(obj, "__dict__"):
-            obj.__dict__.update(state)
-        else:
-            for k, v in state.items():
-                object.__setattr__(obj, k, v)
-        return obj
+@encoder.register(FunctionType)
+def _(obj):
+    raise EncoderTypeError(obj)
 
-    @staticmethod
-    def _decode_tuple(d):
-        topic = d["__tuple__"]["topic"]
-        state = d["__tuple__"]["state"]
-        tuple_type = resolve_topic(topic)
-        if topic == "builtins#tuple":
-            # For standard tuple objects.
-            obj = tuple_type(state)
-        else:
-            # For NamedTuple objects.
-            obj = tuple_type(*state)
-        return obj
 
-    @staticmethod
-    def _decode_enum(d):
-        topic = d["__enum__"]["topic"]
-        name = d["__enum__"]["name"]
-        enum = resolve_topic(topic)
-        return getattr(enum, name)
+@decoder.register("__type__")
+def _decode_type(d):
+    return resolve_topic(d["__type__"])
 
+
+@encoder.register(object)
+def _(obj):
+    if hasattr(obj, "__slots__"):
+        topic = get_topic(obj.__class__)
+        state = {k: getattr(obj, k) for k in obj.__slots__}
+        return {"__class__": {"topic": topic, "state": state}}
+    elif hasattr(obj, "__dict__"):
+        topic = get_topic(obj.__class__)
+        state = obj.__dict__.copy()
+        return {"__class__": {"topic": topic, "state": state}}
+    else:
+        raise EncoderTypeError(obj)
+
+
+@decoder.register("__class__")
+def _decode_object(d):
+    topic = d["__class__"]["topic"]
+    state = d["__class__"]["state"]
+    obj_class = resolve_topic(topic)
+    obj = object.__new__(obj_class)
+    if hasattr(obj, "__dict__"):
+        obj.__dict__.update(state)
+    else:
+        for k, v in state.items():
+            object.__setattr__(obj, k, v)
+    return obj
+
+
+@encoder.register(UUID)
+def _(obj):
+    return {"UUID": obj.hex}
+
+
+@decoder.register("UUID")
+def _decode_uuid(d):
+    return UUID(d["UUID"])
+
+
+@encoder.register(datetime.datetime)
+def _(obj):
+    return {"ISO8601_datetime": obj.strftime("%Y-%m-%dT%H:%M:%S.%f%z")}
+
+
+@decoder.register("ISO8601_datetime")
+def _decode_datetime(d):
+    return dateutil.parser.parse(d["ISO8601_datetime"])
+
+
+@encoder.register(datetime.date)
+def _(obj):
+    return {"ISO8601_date": obj.isoformat()}
+
+
+@decoder.register("ISO8601_date")
+def _decode_date(d):
+    return datetime.datetime.strptime(d["ISO8601_date"], "%Y-%m-%d").date()
+
+
+@encoder.register(datetime.time)
+def _(obj):
+    return {"ISO8601_time": obj.strftime("%H:%M:%S.%f")}
+
+
+@decoder.register("ISO8601_time")
+def _decode_time(d):
+    hour, minute, seconds = d["ISO8601_time"].split(":")
+    second, microsecond = seconds.split(".")
+    return datetime.time(int(hour), int(minute), int(second), int(microsecond))
+
+
+@encoder.register(Decimal)
+def _(obj):
+    return {"__decimal__": str(obj)}
+
+
+@decoder.register("__decimal__")
+def _decode_decimal(d):
+    return Decimal(d["__decimal__"])
+
+
+@encoder.register(Enum)
+def _(obj):
+    return {
+        "__enum__": {
+            "topic": get_topic(type(obj)),
+            "name": obj.name,
+        }
+    }
+
+
+@decoder.register("__enum__")
+def _decode_enum(d):
+    topic = d["__enum__"]["topic"]
+    name = d["__enum__"]["name"]
+    enum = resolve_topic(topic)
+    return getattr(enum, name)
+
+
+@encoder.register(deque)
+def _(obj):
+    return {"__deque__": {
+        "topic": get_topic(type(obj)),
+        "values": list(obj)}
+    }
+
+
+@decoder.register("__deque__")
+def _decode_deque(d):
+    topic = d["__deque__"]["topic"]
+    values = d["__deque__"]["values"]
+    deque = resolve_topic(topic)
+    return deque(values)
+
+
+@decoder.register("__tuple__")
+def _decode_tuple(d):
+    topic = d["__tuple__"]["topic"]
+    state = d["__tuple__"]["state"]
+    tuple_type = resolve_topic(topic)
+    if topic == "builtins#tuple":
+        # For standard tuple objects.
+        obj = tuple_type(state)
+    else:
+        # For NamedTuple objects.
+        obj = tuple_type(*state)
+    return obj
+
+
+@encoder.register(set)
+def _(obj):
+    return {"__set__": sorted(list(obj))}
+
+
+@decoder.register("__set__")
+def _decode_set(d):
+    return set(d["__set__"])
