@@ -5,7 +5,7 @@ from eventsourcing.exceptions import EventHashError
 from eventsourcing.utils.hashing import hash_object
 from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic
-from eventsourcing.utils.transcoding import ObjectJSONEncoder
+from eventsourcing.utils.transcoding import JSON_SEPARATORS, ObjectJSONEncoder
 
 GENESIS_HASH = os.getenv("GENESIS_HASH", "")
 
@@ -26,7 +26,7 @@ class DomainEvent(object):
     of the state of the event.
     """
 
-    __json_encoder_class__ = ObjectJSONEncoder
+    __json_encoder__ = ObjectJSONEncoder(separators=JSON_SEPARATORS)
     __notifiable__ = True
 
     def __init__(self, **kwargs):
@@ -128,7 +128,7 @@ class DomainEvent(object):
         :return: SHA-256 as hexadecimal string.
         :rtype: str
         """
-        return hash_object(cls.__json_encoder_class__, obj)
+        return hash_object(cls.__json_encoder__, obj)
 
 
 class EventWithHash(DomainEvent):

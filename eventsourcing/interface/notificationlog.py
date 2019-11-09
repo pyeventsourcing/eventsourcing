@@ -1,27 +1,19 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import json
+from json import JSONDecodeError
 
 import requests
 
 from eventsourcing.application.notificationlog import (
-    Section,
     AbstractNotificationLog,
     LocalNotificationLog,
-)
-from eventsourcing.utils.transcoding import (
-    ObjectJSONDecoder,
-    ObjectJSONEncoder,
-    json_dumps,
-)
+    Section,
+    RecordManagerNotificationLog)
+from eventsourcing.utils.transcoding import ObjectJSONDecoder
 
 
 # These classes are imported here only to avoid breaking backwards compatibility.
 # Todo: Remove this import statement >= v8.x
-from eventsourcing.application.notificationlog import (
-    RecordManagerNotificationLog,
-    BigArrayNotificationLog,
-)
 
 
 class RemoteNotificationLog(AbstractNotificationLog):
@@ -36,10 +28,17 @@ class RemoteNotificationLog(AbstractNotificationLog):
         Initialises remote notification log object.
 
         :param str base_url: A URL for the HTTP API.
-        :param JSONDecoder json_decoder_class: JSON decoder class used to decode remote sections.
+        :param JSONDecoder json_decoder_class: used to deserialize remote sections.
         """
         self.base_url = base_url
-        self.json_decoder_class = json_decoder_class
+        json_decoder_class = json_decoder_class or ObjectJSONDecoder
+        self.json_decoder = json_decoder_class()
+
+    def json_loads(self, value: str):
+        try:
+            return self.json_decoder.decode(value)
+        except JSONDecodeError:
+            raise ValueError("Couldn't load JSON string: {}".format(value))
 
     def __getitem__(self, section_id):
         """
@@ -54,8 +53,7 @@ class RemoteNotificationLog(AbstractNotificationLog):
 
     def deserialize_section(self, section_json):
         try:
-            decoder_class = self.json_decoder_class or ObjectJSONDecoder
-            section = Section(**json.loads(section_json, cls=decoder_class))
+            section = Section(**self.json_loads(section_json))
         except ValueError as e:
             raise ValueError(
                 "Couldn't deserialize notification log section: "
@@ -85,7 +83,7 @@ class NotificationLogView(object):
     remotely, for example by a RemoteNotificationLog.
     """
 
-    def __init__(self, notification_log: LocalNotificationLog, json_encoder_class=None):
+    def __init__(self, notification_log: RecordManagerNotificationLog, json_encoder):
         """
         Initialises notification log view object.
 
@@ -96,7 +94,7 @@ class NotificationLogView(object):
             notification_log
         )
         self.notification_log = notification_log
-        self.json_encoder_class = json_encoder_class or ObjectJSONEncoder
+        self.json_encoder = json_encoder
 
     def present_section(self, section_id):
         """
@@ -110,5 +108,5 @@ class NotificationLogView(object):
         """
         section = self.notification_log[section_id]
         is_archived = bool(section.next_id)
-        section_json = json_dumps(section.__dict__, self.json_encoder_class)
+        section_json = self.json_encoder.encode(section.__dict__)
         return section_json, is_archived

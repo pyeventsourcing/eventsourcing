@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 from abc import ABC, abstractmethod
+from json import JSONDecodeError
 
 from eventsourcing.infrastructure.sequenceditem import (
     SequencedItem,
@@ -10,9 +11,7 @@ from eventsourcing.utils.topic import get_topic, resolve_topic
 from eventsourcing.utils.transcoding import (
     ObjectJSONDecoder,
     ObjectJSONEncoder,
-    json_dumps,
-    json_loads,
-)
+    JSON_SEPARATORS)
 
 
 class AbstractSequencedItemMapper(ABC):
@@ -26,6 +25,18 @@ class AbstractSequencedItemMapper(ABC):
     def event_from_item(self, sequenced_item):
         """
         Constructs and returns a domain event for given sequenced item.
+        """
+
+    @abstractmethod
+    def json_dumps(self, event_attrs):
+        """
+        Encodes given object as JSON.
+        """
+
+    @abstractmethod
+    def json_loads(self, event_attrs):
+        """
+        Decodes given JSON as object.
         """
 
 
@@ -46,7 +57,10 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
     ):
         self.sequenced_item_class = sequenced_item_class
         self.json_encoder_class = json_encoder_class or ObjectJSONEncoder
+        self.json_encoder = self.json_encoder_class(separators=JSON_SEPARATORS,
+                                                    sort_keys=True)
         self.json_decoder_class = json_decoder_class or ObjectJSONDecoder
+        self.json_decoder = self.json_decoder_class()
         self.cipher = cipher
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
         self.sequence_id_attr_name = (
@@ -91,13 +105,16 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         topic = get_topic(domain_event_class)
 
         # Serialise the event attributes.
-        state = json_dumps(event_attrs, cls=self.json_encoder_class)
+        state = self.json_dumps(event_attrs)
 
-        # Encrypt serialised state.
+        # Compress and encrypt serialised state.
         if self.cipher:
             state = self.cipher.encrypt(state)
 
         return topic, state
+
+    def json_dumps(self, event_attrs):
+        return self.json_encoder.encode(event_attrs)
 
     def construct_sequenced_item(self, item_args):
         return self.sequenced_item_class(*item_args)
@@ -128,13 +145,20 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         # Resolve topic to event class.
         domain_event_class = resolve_topic(topic)
 
-        # Decrypt state.
+        # Decrypt and decompress state.
         if self.cipher:
             state = self.cipher.decrypt(state)
 
         # Deserialize data.
-        event_attrs = json_loads(state, cls=self.json_decoder_class)
+        event_attrs = self.json_loads(state)
         return domain_event_class, event_attrs
+
+    def json_loads(self, state):
+        try:
+            return self.json_decoder.decode(state)
+        except JSONDecodeError:
+            raise ValueError("Couldn't load JSON string: {}".format(s))
+
 
 
 def reconstruct_object(obj_class, obj_state):

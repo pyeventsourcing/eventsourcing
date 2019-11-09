@@ -16,7 +16,7 @@ from eventsourcing.domain.model.events import (
     assert_event_handlers_empty,
     clear_event_handlers,
 )
-from eventsourcing.tests.test_system_fixtures import (
+from eventsourcing.tests.system_test_fixtures import (
     Orders,
     Payments,
     Reservations,

@@ -14,7 +14,7 @@ from eventsourcing.domain.model.events import (
     clear_event_handlers,
 )
 from eventsourcing.tests.base import notquick
-from eventsourcing.tests.test_system_fixtures import set_db_uri
+from eventsourcing.tests.system_test_fixtures import set_db_uri
 
 
 class TestPaxosSystem(unittest.TestCase):
