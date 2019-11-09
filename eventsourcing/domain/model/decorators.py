@@ -228,6 +228,8 @@ def subclassevents(cls: type):
         class AttributeChanged(Event, AggregateRoot.AttributeChanged): pass
         class SomethingHappened(Event): pass
 
+    You can apply this to a tree of domain event classes by defining
+    the base class with attribute 'subclassevents = True'.
     """
 
     bases_event_attrs = []
@@ -256,10 +258,13 @@ def subclassevents(cls: type):
                 base_event_classes.append(event_cls)
 
         event_event_subclass = type(
-            cls.__name__ + ".Event", tuple(base_event_classes), {}
+            "Event",
+            tuple(base_event_classes or [DomainEvent]),
+            {"__qualname__": cls.__name__ + ".Event"},
         )
         event_event_subclass.__module__ = cls.__module__
         setattr(cls, "Event", event_event_subclass)
+        print(event_event_subclass)
 
     # Define subclasses for super event classes, including Event subclass as base.
     for super_event_class_name in super_event_class_names:
@@ -276,10 +281,14 @@ def subclassevents(cls: type):
             else:
                 base_event_classes.append(event_cls)
         event_subclass = type(
-            cls.__name__ + "." + super_event_class_name, tuple(base_event_classes), {}
+            super_event_class_name,
+            tuple(base_event_classes),
+            {"__qualname__": cls.__name__ + "." + super_event_class_name},
         )
         event_subclass.__module__ = cls.__module__
         setattr(cls, super_event_class_name, event_subclass)
+        print(event_subclass)
+
 
     # Redefine event classes in cls.__dict__ that are not subclasses of Event.
     for cls_attr_name in cls.__dict__.keys():
@@ -287,11 +296,13 @@ def subclassevents(cls: type):
         if isinstance(base_attr, type):
             if not issubclass(base_attr, event_event_subclass):
                 event_subclass = type(
-                    cls.__name__ + "." + base_attr.__name__,
-                    (base_attr, ), {}
+                    cls_attr_name,
+                    (base_attr,),
+                    {"__qualname__": cls.__name__ + "." + base_attr.__name__},
                 )
                 event_subclass.__module__ = cls.__module__
                 event_subclass.__doc__ = cls.__doc__
                 setattr(cls, cls_attr_name, event_subclass)
+                print(event_subclass)
 
     return cls

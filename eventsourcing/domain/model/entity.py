@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from uuid import uuid4
 
+from eventsourcing.domain.model.decorators import subclassevents
 from eventsourcing.domain.model.events import (
     AttributeChanged,
     Created,
@@ -23,10 +24,21 @@ from eventsourcing.utils.times import decimaltimestamp_from_uuid
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
 
-class DomainEntity(object):
+class DomainEntityMeta(type):
+
+    subclassevents = False
+
+    def __init__(cls, name, bases, attrs):
+        super().__init__(name, bases, attrs)
+        if cls.subclassevents:
+            subclassevents(cls)
+
+
+class DomainEntity(metaclass=DomainEntityMeta):
     """
     Supertype for domain model entity.
     """
+    subclassevents = True
 
     class Event(EventWithOriginatorID, DomainEvent):
         """

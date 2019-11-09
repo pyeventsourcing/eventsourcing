@@ -66,11 +66,70 @@ class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
         super(TestExampleAggregateRoot, self).tearDown()
 
     def test_aggregate1_event_classes(self):
-        resolve_topic(get_topic(Aggregate1))
         self.assertIn("Event", Aggregate1.__dict__)
         self.assertIn("Created", Aggregate1.__dict__)
         self.assertIn("Discarded", Aggregate1.__dict__)
         self.assertIn("AttributeChanged", Aggregate1.__dict__)
+
+        self.assertEqual(Aggregate1.Event.__name__, "Event")
+        self.assertEqual(Aggregate1.Event.__qualname__, "Aggregate1.Event")
+        topic = "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate1.Event"
+        self.assertEqual(get_topic(Aggregate1.Event), topic)
+        self.assertEqual(resolve_topic(topic), Aggregate1.Event)
+
+        self.assertEqual(Aggregate1.Created.__name__, "Created")
+        self.assertEqual(Aggregate1.Created.__qualname__, "Aggregate1.Created")
+        topic = "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate1.Created"
+        self.assertEqual(get_topic(Aggregate1.Created), topic)
+        self.assertEqual(resolve_topic(topic), Aggregate1.Created)
+        self.assertTrue(issubclass(Aggregate1.Created, Aggregate1.Event))
+
+        self.assertEqual(Aggregate1.Discarded.__name__, "Discarded")
+        self.assertEqual(Aggregate1.Discarded.__qualname__, "Aggregate1.Discarded")
+        topic = "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate1.Discarded"
+        self.assertEqual(get_topic(Aggregate1.Discarded), topic)
+        self.assertEqual(resolve_topic(topic), Aggregate1.Discarded)
+        self.assertTrue(issubclass(Aggregate1.Discarded, Aggregate1.Event))
+
+        self.assertEqual(Aggregate1.ExampleCreated.__name__, "ExampleCreated")
+        self.assertEqual(Aggregate1.ExampleCreated.__qualname__, "Aggregate1.ExampleCreated")
+        topic = "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate1.ExampleCreated"
+        self.assertEqual(get_topic(Aggregate1.ExampleCreated), topic)
+        self.assertEqual(resolve_topic(topic), Aggregate1.ExampleCreated)
+        self.assertTrue(issubclass(Aggregate1.ExampleCreated, Aggregate1.Event))
+
+    def test_aggregate2_event_classes(self):
+        self.assertIn("Event", Aggregate2.__dict__)
+        self.assertIn("Created", Aggregate2.__dict__)
+        self.assertIn("Discarded", Aggregate2.__dict__)
+        self.assertIn("AttributeChanged", Aggregate2.__dict__)
+
+        self.assertEqual(Aggregate2.Event.__name__, "Event")
+        self.assertEqual(Aggregate2.Event.__qualname__, "Aggregate2.Event")
+        topic = "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate2.Event"
+        self.assertEqual(get_topic(Aggregate2.Event), topic)
+        self.assertEqual(resolve_topic(topic), Aggregate2.Event)
+
+        self.assertEqual(Aggregate2.Created.__name__, "Created")
+        self.assertEqual(Aggregate2.Created.__qualname__, "Aggregate2.Created")
+        topic = "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate2.Created"
+        self.assertEqual(get_topic(Aggregate2.Created), topic)
+        self.assertEqual(resolve_topic(topic), Aggregate2.Created)
+        self.assertTrue(issubclass(Aggregate2.Created, Aggregate2.Event))
+
+        self.assertEqual(Aggregate2.Discarded.__name__, "Discarded")
+        self.assertEqual(Aggregate2.Discarded.__qualname__, "Aggregate2.Discarded")
+        topic = "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate2.Discarded"
+        self.assertEqual(get_topic(Aggregate2.Discarded), topic)
+        self.assertEqual(resolve_topic(topic), Aggregate2.Discarded)
+        self.assertTrue(issubclass(Aggregate2.Discarded, Aggregate2.Event))
+
+        self.assertEqual(Aggregate2.ExampleCreated.__name__, "ExampleCreated")
+        self.assertEqual(Aggregate2.ExampleCreated.__qualname__, "Aggregate2.ExampleCreated")
+        topic = "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate2.ExampleCreated"
+        self.assertEqual(get_topic(Aggregate2.ExampleCreated), topic)
+        self.assertEqual(resolve_topic(topic), Aggregate2.ExampleCreated)
+        self.assertTrue(issubclass(Aggregate2.ExampleCreated, Aggregate2.Event))
 
     def test_aggregate1_lifecycle(self):
         # Create a new aggregate.
@@ -267,6 +326,8 @@ class Aggregate1(ExampleAggregateRoot):
 
 
 class Aggregate2(ExampleAggregateRoot):
+    subclassevents = True
+
     def __init__(self, foo="", **kwargs):
         super(Aggregate2, self).__init__(**kwargs)
         self._entities = {}
