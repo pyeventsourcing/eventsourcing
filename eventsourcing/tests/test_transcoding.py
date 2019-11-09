@@ -216,16 +216,17 @@ class TestTranscoding(TestCase):
         encoded = '{"__type__": "eventsourcing.tests.test_transcoding#MyDataClass"}'
         self.assertTranscoding(value, encoded)
 
-    def test_deque_empty(self):
-        value = deque()
-        encoded = '{"__deque__": []}'
+    def test_deque(self):
+        value = deque([1, 3, 2])
+        encoded = '{"__deque__": {"topic": "collections#deque", "values": [1, 3, 2]}}'
         self.assertTranscoding(value, encoded)
 
-    def test_encode_exception_non_empty_deque(self):
-        # Check defers to base class to raise TypeError.
-        # - a type isn't supported at the moment, hence this test works
-        with self.assertRaises(ValueError):
-            self.encode(deque([1]))
+        value = MyDeque([1, 3, 2])
+        encoded = (
+            '{"__deque__": {"topic": "eventsourcing.tests.test_transcoding#MyDeque", '
+            '"values": [1, 3, 2]}}'
+        )
+        self.assertTranscoding(value, encoded)
 
     def test_encode_exception_method(self):
         # Check defers to base class to raise TypeError.
@@ -245,7 +246,7 @@ class TestTranscoding(TestCase):
 
     def test_encode_exception_lambda(self):
         # Check defers to base class to raise TypeError.
-        # - a type isn't supported at the moment, hence this test works
+        # - a lambda function isn't supported at the moment, hence this test works
 
         with self.assertRaises(TypeError):
             self.encode(lambda: 1)
@@ -328,3 +329,7 @@ class Colour(Enum):
     RED = 1
     GREEN = 2
     BLUE = 3
+
+
+class MyDeque(deque):
+    pass
