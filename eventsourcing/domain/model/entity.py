@@ -38,7 +38,7 @@ class DomainEntity(metaclass=DomainEntityMeta):
     """
     Supertype for domain model entity.
     """
-    subclassevents = True
+    subclassevents = False
 
     class Event(EventWithOriginatorID, DomainEvent):
         """
