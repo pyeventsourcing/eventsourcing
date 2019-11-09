@@ -26,11 +26,11 @@ from eventsourcing.utils.topic import get_topic, resolve_topic
 
 class DomainEntityMeta(type):
 
-    subclassevents = False
+    __subclassevents__ = False
 
     def __init__(cls, name, bases, attrs):
         super().__init__(name, bases, attrs)
-        if cls.subclassevents:
+        if cls.__subclassevents__:
             subclassevents(cls)
 
 
@@ -38,7 +38,7 @@ class DomainEntity(metaclass=DomainEntityMeta):
     """
     Supertype for domain model entity.
     """
-    subclassevents = False
+    __subclassevents__ = False
 
     class Event(EventWithOriginatorID, DomainEvent):
         """

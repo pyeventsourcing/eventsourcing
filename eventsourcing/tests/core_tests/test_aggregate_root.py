@@ -326,7 +326,7 @@ class Aggregate1(ExampleAggregateRoot):
 
 
 class Aggregate2(ExampleAggregateRoot):
-    subclassevents = True
+    __subclassevents__ = True
 
     def __init__(self, foo="", **kwargs):
         super(Aggregate2, self).__init__(**kwargs)
