@@ -228,7 +228,6 @@ def subclassevents(cls: type):
         class AttributeChanged(Event, AggregateRoot.AttributeChanged): pass
         class SomethingHappened(Event): pass
 
-
     """
 
     bases_event_attrs = []
