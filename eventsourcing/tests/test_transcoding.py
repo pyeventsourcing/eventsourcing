@@ -1,5 +1,7 @@
 import datetime
 from collections import deque, namedtuple
+from enum import Enum
+from fractions import Fraction
 
 try:
     from dataclasses import make_dataclass
@@ -11,9 +13,7 @@ from unittest import TestCase, skipIf
 from uuid import NAMESPACE_URL, UUID
 
 from eventsourcing.utils.times import utc_timezone
-from eventsourcing.utils.transcoding import (
-    ObjectJSONDecoder,
-    ObjectJSONEncoder)
+from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
 
 
 class TestTranscoding(TestCase):
@@ -90,6 +90,27 @@ class TestTranscoding(TestCase):
     def test_decimal_type(self):
         value = Decimal
         encoded = '{"__type__": "decimal#Decimal"}'
+        self.assertTranscoding(value, encoded)
+
+    def test_fraction(self):
+        value = Fraction(1, 3)
+        encoded = (
+            '{"__class__": {"state": {"_denominator": 3, "_numerator": 1}, '
+            '"topic": "fractions#Fraction"}}'
+        )
+        self.assertTranscoding(value, encoded)
+
+    def test_fraction_type(self):
+        value = Fraction
+        encoded = '{"__type__": "fractions#Fraction"}'
+        self.assertTranscoding(value, encoded)
+
+    def test_enum(self):
+        value = Colour.GREEN
+        encoded = (
+            '{"__enum__": {"name": "GREEN", "topic": '
+            '"eventsourcing.tests.test_transcoding#Colour"}}'
+        )
         self.assertTranscoding(value, encoded)
 
     def test_uuid(self):
@@ -301,3 +322,9 @@ if make_dataclass:
     #
     MyDataClass = make_dataclass("MyDataClass", ["a", "b", "c"])
     MyDataClass.__module__ = __name__
+
+
+class Colour(Enum):
+    RED = 1
+    GREEN = 2
+    BLUE = 3

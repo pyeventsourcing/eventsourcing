@@ -1,6 +1,7 @@
 import datetime
 from collections import deque
 from decimal import Decimal
+from enum import Enum
 from functools import singledispatch, wraps
 from inspect import isfunction
 from json import JSONDecoder, JSONEncoder
@@ -72,6 +73,15 @@ class ObjectJSONEncoder(JSONEncoder):
     def _(self, obj):
         return {"__decimal__": str(obj)}
 
+    @default.register(Enum)
+    def _(self, obj):
+        return {
+            "__enum__": {
+                "topic": get_topic(type(obj)),
+                "name": obj.name,
+            }
+        }
+
     @default.register(set)
     def _(self, obj):
         return {"__set__": sorted(list(obj))}
@@ -137,6 +147,8 @@ class ObjectJSONDecoder(JSONDecoder):
             return deque([])
         elif "__set__" in d:
             return set(d["__set__"])
+        elif "__enum__" in d:
+            return cls._decode_enum(d)
         return d
 
     @classmethod
@@ -190,3 +202,11 @@ class ObjectJSONDecoder(JSONDecoder):
             # For NamedTuple objects.
             obj = tuple_type(*state)
         return obj
+
+    @staticmethod
+    def _decode_enum(d):
+        topic = d["__enum__"]["topic"]
+        name = d["__enum__"]["name"]
+        enum = resolve_topic(topic)
+        return getattr(enum, name)
+
