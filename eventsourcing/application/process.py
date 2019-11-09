@@ -1,5 +1,5 @@
 import time
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict, defaultdict, deque
 from threading import Lock
 
 from eventsourcing.application.notificationlog import NotificationLogReader
@@ -40,6 +40,7 @@ class ProcessApplication(SimpleApplication):
         setup_table=False,
         use_direct_query_if_available=False,
         notification_log_reader_class=None,
+        apply_policy_to_generated_events=False,
         **kwargs
     ):
         self.policy_func = policy
@@ -53,6 +54,7 @@ class ProcessApplication(SimpleApplication):
         self.notification_log_reader_class = (
             notification_log_reader_class or type(self).notification_log_reader_class
         )
+        self.apply_policy_to_generated_events = apply_policy_to_generated_events
 
         super(ProcessApplication, self).__init__(
             name=name, setup_table=setup_table, **kwargs
@@ -198,14 +200,12 @@ class ProcessApplication(SimpleApplication):
             cycle_started = None
         # Call policy with the upstream event.
         (
-            all_aggregates,
+            new_events,
             causal_dependencies,
             orm_objs_pending_save,
             orm_objs_pending_delete,
         ) = self.call_policy(event)
 
-        # Collect pending events.
-        new_events = self.collect_pending_events(all_aggregates)
         # Record process event.
         try:
             tracking_kwargs = self.construct_tracking_kwargs(
@@ -298,21 +298,46 @@ class ProcessApplication(SimpleApplication):
         # Wrap the actual repository, so we can collect aggregates.
         repository = WrappedRepository(self.repository)
 
-        # Actually call the policy.
-        new_aggregates = policy(repository, event)
+        fifo = deque()
+        fifo.append(event)
 
-        # Collect all aggregates.
-        repo_aggregates = list(repository.retrieved_aggregates.values())
-        all_aggregates = repo_aggregates[:]
-        if new_aggregates is not None:
-            if not isinstance(new_aggregates, (list, tuple)):
-                new_aggregates = [new_aggregates]
-            if self.repository._use_cache:
-                for new_aggregate in new_aggregates:
-                    self.repository._cache[new_aggregate.id] = new_aggregate
-            all_aggregates += new_aggregates
+        all_new_events = []
 
-        # Identify causal dependencies.
+        while len(fifo):
+
+            # Get the next unprocessed event.
+            event = fifo.popleft()
+
+            # Actually call the policy.
+            new_aggregates = policy(repository, event)
+
+            # Collect all aggregates.
+            repo_aggregates = list(repository.retrieved_aggregates.values())
+            all_aggregates = repo_aggregates[:]
+            if new_aggregates is not None:
+                if not isinstance(new_aggregates, (list, tuple)):
+                    new_aggregates = [new_aggregates]
+                for aggregate in new_aggregates:
+                    if self.repository._use_cache:
+                        # Cache new aggregates in repository (avoids replay).
+                        self.repository._cache[aggregate.id] = aggregate
+
+                    if self.apply_policy_to_generated_events:
+                        # Make new aggregates available in subsequent policy calls.
+                        repository.retrieved_aggregates[aggregate.id] = aggregate
+                all_aggregates += new_aggregates
+
+            # Collect pending events.
+            new_events = self.collect_pending_events(all_aggregates)
+
+            # Enqueue these new events, if policy is being applied to generated events.
+            if self.apply_policy_to_generated_events:
+                fifo.extend(new_events)
+
+            # Extend 'all events' with these new events.
+            all_new_events.extend(new_events)
+
+        # Translate causal dependencies from version of entity to position in pipeline.
         causal_dependencies = []
         if self.use_causal_dependencies:
             highest = defaultdict(int)
@@ -332,8 +357,10 @@ class ProcessApplication(SimpleApplication):
         # Todo: Optionally reference causal dependencies in current pipeline
         #  and then support processing notification from a single pipeline in
         #  parallel, according to dependencies.
+
+
         return (
-            all_aggregates,
+            all_new_events,
             causal_dependencies,
             repository.orm_objs_pending_save,
             repository.orm_objs_pending_delete,
