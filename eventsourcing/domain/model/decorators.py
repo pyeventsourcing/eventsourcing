@@ -2,9 +2,11 @@ import random
 from functools import singledispatch, wraps
 from inspect import isfunction
 from time import sleep
+from typing import Dict, Type
 
 from eventsourcing.domain.model.events import subscribe, DomainEvent
 from eventsourcing.exceptions import ProgrammingError
+from eventsourcing.types import V, N, M
 
 
 def subscribe_to(*event_classes):
@@ -209,7 +211,7 @@ def retry(exc=Exception, max_attempts=1, wait=0, stall=0, verbose=False):
         return _retry
 
 
-def subclassevents(cls: type):
+def subclassevents(cls: M):
     """
     Decorator that avoids "boilerplate" subclassing of domain events.
 
@@ -235,7 +237,7 @@ def subclassevents(cls: type):
     bases_event_attrs = []
     super_event_class_names = set()
     for base_cls in cls.__bases__:
-        base_event_attrs = {}
+        base_event_attrs: Dict[str, Type[DomainEvent]] = {}
         bases_event_attrs.append(base_event_attrs)
         for base_attr_name in dir(base_cls):
             base_attr = getattr(base_cls, base_attr_name)
@@ -264,7 +266,6 @@ def subclassevents(cls: type):
         )
         event_event_subclass.__module__ = cls.__module__
         setattr(cls, "Event", event_event_subclass)
-        print(event_event_subclass)
 
     # Define subclasses for super event classes, including Event subclass as base.
     for super_event_class_name in super_event_class_names:
@@ -287,7 +288,6 @@ def subclassevents(cls: type):
         )
         event_subclass.__module__ = cls.__module__
         setattr(cls, super_event_class_name, event_subclass)
-        print(event_subclass)
 
 
     # Redefine event classes in cls.__dict__ that are not subclasses of Event.
@@ -303,6 +303,5 @@ def subclassevents(cls: type):
                 event_subclass.__module__ = cls.__module__
                 event_subclass.__doc__ = cls.__doc__
                 setattr(cls, cls_attr_name, event_subclass)
-                print(event_subclass)
 
     return cls

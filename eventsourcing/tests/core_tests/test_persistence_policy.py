@@ -5,11 +5,10 @@ from eventsourcing.application.policies import PersistencePolicy, SnapshottingPo
 from eventsourcing.domain.model.entity import (
     VersionedEntity,
     TimestampedEntity,
-    AbstractEntityRepository,
 )
 from eventsourcing.domain.model.events import publish
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
-from eventsourcing.infrastructure.eventstore import AbstractEventStore
+from eventsourcing.types import AbstractEventStore, AbstractEntityRepository
 
 try:
     from unittest import mock

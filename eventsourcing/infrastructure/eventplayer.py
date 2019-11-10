@@ -1,7 +1,6 @@
 from functools import reduce
 
-from eventsourcing.domain.model.entity import AbstractEventPlayer
-from eventsourcing.infrastructure.eventstore import AbstractEventStore
+from eventsourcing.types import AbstractEventStore, AbstractEventPlayer
 
 
 class EventPlayer(AbstractEventPlayer):

@@ -1,7 +1,14 @@
-from eventsourcing.domain.model.entity import AbstractEntityRepository
+from typing import Optional
+from uuid import UUID
+
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.eventplayer import EventPlayer
 from eventsourcing.infrastructure.snapshotting import entity_from_snapshot
+from eventsourcing.types import (
+    AbstractEntityRepository,
+    AbstractSnapshop,
+    AbstractDomainEntity,
+)
 
 
 class EventSourcedRepository(EventPlayer, AbstractEntityRepository):
@@ -31,7 +38,7 @@ class EventSourcedRepository(EventPlayer, AbstractEntityRepository):
         """
         return self.get_entity(entity_id) is not None
 
-    def __getitem__(self, entity_id):
+    def __getitem__(self, entity_id) -> AbstractDomainEntity:
         """
         Returns entity with given ID.
         """
@@ -54,7 +61,7 @@ class EventSourcedRepository(EventPlayer, AbstractEntityRepository):
         # Return entity.
         return entity
 
-    def get_entity(self, entity_id, at=None):
+    def get_entity(self, entity_id, at=None) -> Optional[AbstractDomainEntity]:
         """
         Returns entity with given ID, optionally until position.
         """
@@ -134,7 +141,9 @@ class EventSourcedRepository(EventPlayer, AbstractEntityRepository):
         return self.project_events(initial_state, domain_events)
 
     # Todo: Does this method belong on this class?
-    def take_snapshot(self, entity_id, lt=None, lte=None):
+    def take_snapshot(
+        self, entity_id: UUID, lt: int = None, lte: int = None
+    ) -> Optional[AbstractSnapshop]:
         """
         Takes a snapshot of the entity as it existed after the most recent
         event, optionally less than, or less than or equal to, a particular position.

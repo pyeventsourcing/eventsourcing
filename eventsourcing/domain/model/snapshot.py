@@ -1,40 +1,9 @@
-from abc import ABC, abstractmethod
-
 from eventsourcing.domain.model.events import (
     EventWithOriginatorID,
     EventWithOriginatorVersion,
     EventWithTimestamp,
 )
-
-
-class AbstractSnapshop(ABC):
-    @property
-    @abstractmethod
-    def topic(self):
-        """
-        Path to the class of the snapshotted entity.
-        """
-
-    @property
-    @abstractmethod
-    def state(self):
-        """
-        State of the snapshotted entity.
-        """
-
-    @property
-    @abstractmethod
-    def originator_id(self):
-        """
-        ID of the snapshotted entity.
-        """
-
-    @property
-    @abstractmethod
-    def originator_version(self):
-        """
-        Version of the last event applied to the entity.
-        """
+from eventsourcing.types import AbstractSnapshop
 
 
 class Snapshot(

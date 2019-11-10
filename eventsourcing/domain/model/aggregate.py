@@ -1,9 +1,12 @@
 from collections import deque
+from typing import List
 
 from eventsourcing.domain.model.entity import (
     TimestampedVersionedEntity,
     EntityWithHashchain,
 )
+from eventsourcing.domain.model.events import DomainEvent
+from eventsourcing.types import V
 
 
 class BaseAggregateRoot(TimestampedVersionedEntity):
@@ -27,14 +30,14 @@ class BaseAggregateRoot(TimestampedVersionedEntity):
         super(BaseAggregateRoot, self).__init__(**kwargs)
         self.__pending_events__ = deque()
 
-    def __publish__(self, event):
+    def __publish__(self, event: V) -> None:
         """
         Defers publishing event to subscribers, by adding
         event to internal collection of pending events.
         """
         self.__pending_events__.append(event)
 
-    def __save__(self):
+    def __save__(self) -> None:
         """
         Publishes all pending events to subscribers.
         """
@@ -55,7 +58,7 @@ class BaseAggregateRoot(TimestampedVersionedEntity):
             # commands have been executed, it is important to know which
             # commands to retry.
 
-    def __batch_pending_events__(self):
+    def __batch_pending_events__(self) -> List[V]:
         batch_of_events = []
         try:
             while True:

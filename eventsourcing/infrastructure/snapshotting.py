@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from copy import deepcopy
 
-from eventsourcing.domain.model.snapshot import AbstractSnapshop, Snapshot
+from eventsourcing.domain.model.snapshot import Snapshot
+from eventsourcing.types import AbstractSnapshop
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import reconstruct_object
 from eventsourcing.utils.topic import get_topic, resolve_topic
@@ -20,8 +21,6 @@ class AbstractSnapshotStrategy(ABC):
     def take_snapshot(self, entity_id, entity, last_event_version):
         """
         Takes a snapshot of entity, using given ID, state and version number.
-
-        :rtype: AbstractSnapshop
         """
 
 

@@ -1,14 +1,15 @@
-from abc import abstractproperty
+from abc import abstractproperty, abstractmethod
 from math import ceil, log
+from typing import Any
 from uuid import uuid5
 
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.entity import (
-    AbstractEntityRepository,
     TimestampedVersionedEntity,
 )
 from eventsourcing.domain.model.events import publish
 from eventsourcing.exceptions import ArrayIndexError, ConcurrencyError
+from eventsourcing.types import N, AbstractDomainEntity, AbstractEntityRepository
 
 
 class ItemAssigned(TimestampedVersionedEntity.Event):
@@ -422,11 +423,11 @@ class AbstractArrayRepository(AbstractEntityRepository):
         super(AbstractArrayRepository, self).__init__(*args, **kwargs)
         self.array_size = array_size
 
-    def __getitem__(self, array_id):
+    def __getitem__(self, entity_id) -> Any:
         """
         Returns sequence for given ID.
         """
-        return Array(array_id=array_id, repo=self)
+        return Array(array_id=entity_id, repo=self)
 
 
 class AbstractBigArrayRepository(AbstractEntityRepository):
@@ -434,12 +435,13 @@ class AbstractBigArrayRepository(AbstractEntityRepository):
     Repository for compound sequence objects.
     """
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def subrepo(self):
         """Sub-sequence repository."""
 
-    def __getitem__(self, array_id):
+    def __getitem__(self, entity_id) -> Any:
         """
         Returns sequence for given ID.
         """
-        return BigArray(array_id=array_id, repo=self.subrepo)
+        return BigArray(array_id=entity_id, repo=self.subrepo)

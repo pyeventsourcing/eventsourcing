@@ -1,5 +1,7 @@
 import uuid
+from typing import cast, Union, Optional, Dict
 from unittest.case import TestCase
+from uuid import UUID
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.aggregate import AggregateRoot
@@ -14,6 +16,7 @@ from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedNoID
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import (
     SQLAlchemyRecordManagerTestCase,
 )
+from eventsourcing.types import N, M
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
 
@@ -277,17 +280,21 @@ class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
 
 @subclassevents
 class ExampleAggregateRoot(AggregateRoot):
-    # class Event(AggregateRoot.Event):
-    #     """Supertype for events of example aggregates."""
+    def __init__(self, foo="", **kwargs):
+        super(ExampleAggregateRoot, self).__init__(**kwargs)
+        self._entities: Dict[UUID, Example] = {}
+        self._foo = foo
 
-    # class Created(Event, AggregateRoot.Created):
-    #     """Published when an ExampleAggregateRoot is created."""
-    #
-    # class AttributeChanged(Event, AggregateRoot.AttributeChanged):
-    #     """Published when an ExampleAggregateRoot is changed."""
-    #
-    # class Discarded(Event, AggregateRoot.Discarded):
-    #     """Published when an ExampleAggregateRoot is discarded."""
+    @attribute
+    def foo(self):
+        """Simple event sourced attribute called 'foo'."""
+
+    def create_new_example(self):
+        assert not self.__is_discarded__
+        self.__trigger_event__(self.ExampleCreated, entity_id=uuid.uuid4())
+
+    def count_examples(self):
+        return len(self._entities)
 
     class ExampleCreated(DomainEvent):
         """Published when an example entity is created within the aggregate."""
@@ -299,50 +306,21 @@ class ExampleAggregateRoot(AggregateRoot):
         def entity_id(self):
             return self.__dict__["entity_id"]
 
-        def __mutate__(self, aggregate):
-            super().__mutate__(aggregate)
+        def __mutate__(self, obj: Optional[N] = None) -> Optional[N]:
+            obj = super().__mutate__(obj)
             entity = Example(entity_id=self.entity_id)
+            aggregate = cast(ExampleAggregateRoot, obj)
             aggregate._entities[entity.id] = entity
-            return aggregate
+            return obj
 
 
 @subclassevents
 class Aggregate1(ExampleAggregateRoot):
-    def __init__(self, foo="", **kwargs):
-        super(Aggregate1, self).__init__(**kwargs)
-        self._entities = {}
-        self._foo = foo
-
-    @attribute
-    def foo(self):
-        """Simple event sourced attribute called 'foo'."""
-
-    def create_new_example(self):
-        assert not self.__is_discarded__
-        self.__trigger_event__(self.ExampleCreated, entity_id=uuid.uuid4())
-
-    def count_examples(self):
-        return len(self._entities)
+    pass
 
 
 class Aggregate2(ExampleAggregateRoot):
     __subclassevents__ = True
-
-    def __init__(self, foo="", **kwargs):
-        super(Aggregate2, self).__init__(**kwargs)
-        self._entities = {}
-        self._foo = foo
-
-    @attribute
-    def foo(self):
-        """Simple event sourced attribute called 'foo'."""
-
-    def create_new_example(self):
-        assert not self.__is_discarded__
-        self.__trigger_event__(self.ExampleCreated, entity_id=uuid.uuid4())
-
-    def count_examples(self):
-        return len(self._entities)
 
 
 class AggregateRepository(EventSourcedRepository):

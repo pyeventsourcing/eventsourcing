@@ -1,10 +1,12 @@
 import time
 from collections import OrderedDict, defaultdict, deque
 from threading import Lock
+from typing import List
 
 from eventsourcing.application.notificationlog import NotificationLogReader
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.application.snapshotting import SnapshottingApplication
+from eventsourcing.domain.model.aggregate import BaseAggregateRoot
 from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed
 from eventsourcing.infrastructure.base import ACIDRecordManager
@@ -378,6 +380,7 @@ class ProcessApplication(SimpleApplication):
         num_changed_aggregates = 0
         # This doesn't necessarily obtain events in causal order...
         for aggregate in aggregates:
+            aggregate: BaseAggregateRoot
             batch = aggregate.__batch_pending_events__()
             if len(batch):
                 num_changed_aggregates += 1

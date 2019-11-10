@@ -1,20 +1,23 @@
 import os
+from decimal import Decimal
+from typing import Callable, List, Tuple, Optional, Dict, Union, cast
 from uuid import uuid1
 
 from eventsourcing.exceptions import EventHashError
+from eventsourcing.types import AbstractDomainEvent, V, N, M
 from eventsourcing.utils.hashing import hash_object
 from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic
 from eventsourcing.utils.transcoding import JSON_SEPARATORS, ObjectJSONEncoder
 
-GENESIS_HASH = os.getenv("GENESIS_HASH", "")
+GENESIS_HASH: str = os.getenv("GENESIS_HASH", "")
 
 
 def create_timesequenced_event_id():
     return uuid1()
 
 
-class DomainEvent(object):
+class DomainEvent(AbstractDomainEvent):
     """
     Base class for domain model events.
 
@@ -46,7 +49,7 @@ class DomainEvent(object):
         args_string = ", ".join(args_strings)
         return "{}({})".format(self.__class__.__qualname__, args_string)
 
-    def __mutate__(self, obj):
+    def __mutate__(self, obj: Optional[N] = None) -> Optional[N]:
         """
         Updates 'obj' with values from 'self'.
 
@@ -61,7 +64,7 @@ class DomainEvent(object):
         self.mutate(obj)
         return obj
 
-    def mutate(self, obj):
+    def mutate(self, obj: Optional[N]) -> None:
         """
         Updates ("mutates") given 'obj'.
 
@@ -173,7 +176,7 @@ class EventWithHash(DomainEvent):
         # Return the Python hash of the cryptographic hash.
         return hash(self.__event_hash__)
 
-    def __mutate__(self, obj):
+    def __mutate__(self, obj: Optional[N] = None) -> Optional[N]:
         """
         Updates 'obj' with values from self.
 
@@ -188,7 +191,7 @@ class EventWithHash(DomainEvent):
         self.__check_hash__()
 
         # Call super and return value.
-        return super(EventWithHash, self).__mutate__(obj)
+        return super().__mutate__(obj)
 
     def __check_hash__(self):
         """
@@ -227,12 +230,12 @@ class EventWithTimestamp(DomainEvent):
     For events that have a timestamp value.
     """
 
-    def __init__(self, timestamp=None, **kwargs):
+    def __init__(self, timestamp: Decimal = None, **kwargs):
         kwargs["timestamp"] = timestamp or decimaltimestamp()
         super(EventWithTimestamp, self).__init__(**kwargs)
 
     @property
-    def timestamp(self):
+    def timestamp(self) -> Decimal:
         """
         A UNIX timestamp as a Decimal object.
 
@@ -310,10 +313,13 @@ class Logged(DomainEvent):
     """
 
 
-_subscriptions = []
+Predicate = Callable[[V], bool]
+Handler = Callable[[V], None]
+
+_subscriptions: List[Tuple[Optional[Predicate], Handler]] = []
 
 
-def subscribe(handler, predicate=None):
+def subscribe(handler: Handler, predicate: Optional[Predicate] = None) -> None:
     """
     Adds 'handler' to list of event handlers
     to be called if 'predicate' is satisfied.
@@ -328,7 +334,7 @@ def subscribe(handler, predicate=None):
         _subscriptions.append((predicate, handler))
 
 
-def unsubscribe(handler, predicate=None):
+def unsubscribe(handler: Handler, predicate: Optional[Predicate] = None) -> None:
     """
     Removes 'handler' from list of event handlers
     to be called if 'predicate' is satisfied.
@@ -340,7 +346,7 @@ def unsubscribe(handler, predicate=None):
         _subscriptions.remove((predicate, handler))
 
 
-def publish(event):
+def publish(event: V) -> None:
     """
     Published given 'event' by calling subscribed event
     handlers with the given 'event', except those with
@@ -352,7 +358,7 @@ def publish(event):
     """
     # A cache of conditions means predicates aren't evaluated
     # more than once for each event.
-    cache = {}
+    cache: Dict[Predicate, bool] = {}
     for predicate, handler in _subscriptions[:]:
         if predicate is None:
             handler(event)

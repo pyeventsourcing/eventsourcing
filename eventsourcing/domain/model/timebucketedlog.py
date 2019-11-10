@@ -4,9 +4,9 @@ from uuid import UUID, uuid5
 from dateutil.relativedelta import relativedelta
 
 from eventsourcing.domain.model.entity import (
-    AbstractEntityRepository,
     TimestampedVersionedEntity,
 )
+from eventsourcing.types import AbstractEntityRepository
 from eventsourcing.domain.model.events import (
     EventWithOriginatorID,
     EventWithTimestamp,
