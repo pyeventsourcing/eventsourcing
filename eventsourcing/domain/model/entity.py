@@ -19,7 +19,11 @@ from eventsourcing.exceptions import (
     OriginatorIDError,
     OriginatorVersionError,
 )
-from eventsourcing.types import AbstractDomainEntity, MetaAbstractDomainEntity, N
+from eventsourcing.types import (
+    AbstractDomainEntity,
+    AbstractDomainEvent,
+    MetaAbstractDomainEntity,
+)
 from eventsourcing.utils.times import decimaltimestamp_from_uuid
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
@@ -45,7 +49,7 @@ class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
         Supertype for events of domain model entities.
         """
 
-        def __check_obj__(self, obj: "DomainEntity") -> None:
+        def __check_obj__(self, obj: AbstractDomainEntity) -> None:
             """
             Checks state of obj before mutating.
 
@@ -66,8 +70,11 @@ class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
 
     @classmethod
     def __create__(
-        cls, originator_id: UUID = None, event_class: Type[DomainEvent] = None, **kwargs
-    ) -> N:
+        cls,
+        originator_id: UUID = None,
+        event_class: Type[AbstractDomainEvent] = None,
+        **kwargs
+    ) -> AbstractDomainEntity:
         """
         Creates a new domain entity.
 
@@ -83,7 +90,7 @@ class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
         """
         if originator_id is None:
             originator_id = uuid4()
-        event: DomainEvent = (event_class or cls.Created)(
+        event: AbstractDomainEvent = (event_class or cls.Created)(
             originator_id=originator_id, originator_topic=get_topic(cls), **kwargs
         )
         obj = event.__mutate__(None)
@@ -112,7 +119,9 @@ class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
             """
             return self.__dict__["originator_topic"]
 
-        def __mutate__(self, obj: Optional[N] = None) -> Optional[N]:
+        def __mutate__(
+            self, obj: Optional[AbstractDomainEntity] = None
+        ) -> Optional[AbstractDomainEntity]:
             """
             Constructs object from an entity class,
             which is obtained by resolving the originator topic,
@@ -168,7 +177,9 @@ class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
         Triggered when a named attribute is assigned a new value.
         """
 
-        def __mutate__(self, obj: Optional[N] = None) -> Optional[N]:
+        def __mutate__(
+            self, obj: Optional[AbstractDomainEntity] = None
+        ) -> Optional[AbstractDomainEntity]:
             obj = super(DomainEntity.AttributeChanged, self).__mutate__(obj)
             setattr(obj, self.name, self.value)
             return obj
@@ -184,7 +195,9 @@ class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
         Triggered when a DomainEntity is discarded.
         """
 
-        def __mutate__(self, obj: Optional[N] = None) -> Optional[N]:
+        def __mutate__(
+            self, obj: Optional[AbstractDomainEntity] = None
+        ) -> Optional[AbstractDomainEntity]:
             obj = super(DomainEntity.Discarded, self).__mutate__(obj)
             entity = cast(DomainEntity, obj)
             entity.__is_discarded__ = True
@@ -229,7 +242,7 @@ class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
         """
         event.__mutate__(self)
 
-    def __publish__(self, event: Union[DomainEvent, List[DomainEvent]]):
+    def __publish__(self, event: Union[AbstractDomainEvent, List[AbstractDomainEvent]]):
         """
         Publishes given event for subscribers in the application.
 
@@ -237,7 +250,9 @@ class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
         """
         self.__publish_to_subscribers__(event)
 
-    def __publish_to_subscribers__(self, event: Union[DomainEvent, List[DomainEvent]]):
+    def __publish_to_subscribers__(
+        self, event: Union[AbstractDomainEvent, List[AbstractDomainEvent]]
+    ):
         """
         Actually dispatches given event to publish-subscribe mechanism.
 
@@ -264,7 +279,9 @@ class EntityWithHashchain(DomainEntity):
         Supertype for events of domain entities.
         """
 
-        def __mutate__(self, obj: Optional[N] = None) -> Optional[N]:
+        def __mutate__(
+            self, obj: Optional[AbstractDomainEntity] = None
+        ) -> Optional[AbstractDomainEntity]:
             # Call super method.
             obj = super(EntityWithHashchain.Event, self).__mutate__(obj)
 
@@ -276,7 +293,7 @@ class EntityWithHashchain(DomainEntity):
 
             return obj
 
-        def __check_obj__(self, obj: DomainEntity):
+        def __check_obj__(self, obj: AbstractDomainEntity) -> None:
             """
             Extends superclass method by checking the __previous_hash__
             of this event matches the __head__ hash of the entity obj.
@@ -302,7 +319,9 @@ class EntityWithHashchain(DomainEntity):
 
             return kwargs
 
-        def __mutate__(self, obj: Optional[N] = None) -> Optional[N]:
+        def __mutate__(
+            self, obj: Optional[AbstractDomainEntity] = None
+        ) -> Optional[AbstractDomainEntity]:
             # Call super method.
             return super(EntityWithHashchain.Created, self).__mutate__(obj)
 
@@ -310,7 +329,9 @@ class EntityWithHashchain(DomainEntity):
         pass
 
     class Discarded(Event, DomainEntity.Discarded):
-        def __mutate__(self, obj: Optional[N] = None) -> Optional[N]:
+        def __mutate__(
+            self, obj: Optional[AbstractDomainEntity] = None
+        ) -> Optional[AbstractDomainEntity]:
             # Set entity head from event hash.
             entity = cast(EntityWithHashchain, obj)
             entity.__head__ = self.__event_hash__
@@ -319,7 +340,7 @@ class EntityWithHashchain(DomainEntity):
             return super(EntityWithHashchain.Discarded, self).__mutate__(obj)
 
     @classmethod
-    def __create__(cls, *args, **kwargs) -> N:
+    def __create__(cls, *args, **kwargs) -> AbstractDomainEntity:
         kwargs["__previous_hash__"] = getattr(cls, "__genesis_hash__", GENESIS_HASH)
         return super(EntityWithHashchain, cls).__create__(*args, **kwargs)
 
@@ -357,14 +378,16 @@ class VersionedEntity(DomainEntity):
     class Event(EventWithOriginatorVersion, DomainEntity.Event):
         """Supertype for events of versioned entities."""
 
-        def __mutate__(self, obj: Optional[N] = None) -> Optional[N]:
+        def __mutate__(
+            self, obj: Optional[AbstractDomainEntity] = None
+        ) -> Optional[AbstractDomainEntity]:
             obj = super(VersionedEntity.Event, self).__mutate__(obj)
             if obj is not None:
                 entity = cast(EventWithOriginatorVersion, obj)
                 entity.___version__ = self.originator_version
             return obj
 
-        def __check_obj__(self, obj: "DomainEntity") -> None:
+        def __check_obj__(self, obj: AbstractDomainEntity) -> None:
             """
             Extends superclass method by checking the event's
             originator version follows (1 +) this entity's version.
@@ -426,7 +449,9 @@ class TimestampedEntity(DomainEntity):
     class Event(DomainEntity.Event, EventWithTimestamp):
         """Supertype for events of timestamped entities."""
 
-        def __mutate__(self, obj: Optional[N] = None) -> Optional[N]:
+        def __mutate__(
+            self, obj: Optional[AbstractDomainEntity] = None
+        ) -> Optional[AbstractDomainEntity]:
             """Updates 'obj' with values from self."""
             obj = super(TimestampedEntity.Event, self).__mutate__(obj)
             if obj is not None:
@@ -454,6 +479,7 @@ class TimestampedEntity(DomainEntity):
 # Todo: Move stuff from "test_customise_with_alternative_domain_event_type" in here (
 #  to define event classes
 #  and update ___last_event_id__ in mutate method).
+
 
 class TimeuuidedEntity(DomainEntity):
     def __init__(self, event_id, **kwargs):

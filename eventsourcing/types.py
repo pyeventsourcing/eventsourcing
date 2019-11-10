@@ -1,5 +1,5 @@
 from abc import ABC, ABCMeta, abstractmethod
-from typing import TypeVar, Optional, Generic
+from typing import List, Optional, Union
 from uuid import UUID
 
 
@@ -8,15 +8,21 @@ class MetaAbstractDomainEntity(ABCMeta):
 
 
 class AbstractDomainEntity(ABC, metaclass=MetaAbstractDomainEntity):
-    pass
-
-
-N = TypeVar('N', bound=AbstractDomainEntity)
+    @abstractmethod
+    def __publish__(
+        self, event: Union["AbstractDomainEvent", List["AbstractDomainEvent"]]
+    ):
+        pass
 
 
 class AbstractDomainEvent(ABC):
+    def __init__(self, *args, **kwargs) -> None:
+        pass
+
     @abstractmethod
-    def __mutate__(self, obj: Optional[N] = None) -> Optional[N]:
+    def __mutate__(
+        self, obj: Optional[AbstractDomainEntity] = None
+    ) -> Optional[AbstractDomainEntity]:
         pass
 
 

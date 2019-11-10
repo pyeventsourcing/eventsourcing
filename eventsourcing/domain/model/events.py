@@ -4,7 +4,7 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 from uuid import UUID, uuid1
 
 from eventsourcing.exceptions import EventHashError
-from eventsourcing.types import AbstractDomainEvent, N
+from eventsourcing.types import AbstractDomainEntity, AbstractDomainEvent
 from eventsourcing.utils.hashing import hash_object
 from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic
@@ -49,7 +49,9 @@ class DomainEvent(AbstractDomainEvent):
         args_string = ", ".join(args_strings)
         return "{}({})".format(self.__class__.__qualname__, args_string)
 
-    def __mutate__(self, obj: Optional[N] = None) -> Optional[N]:
+    def __mutate__(
+        self, obj: Optional[AbstractDomainEntity] = None
+    ) -> Optional[AbstractDomainEntity]:
         """
         Updates 'obj' with values from 'self'.
 
@@ -64,7 +66,7 @@ class DomainEvent(AbstractDomainEvent):
         self.mutate(obj)
         return obj
 
-    def mutate(self, obj: Optional[N]) -> None:
+    def mutate(self, obj: Optional[AbstractDomainEntity]) -> None:
         """
         Updates ("mutates") given 'obj'.
 
@@ -176,7 +178,9 @@ class EventWithHash(DomainEvent):
         # Return the Python hash of the cryptographic hash.
         return hash(self.__event_hash__)
 
-    def __mutate__(self, obj: Optional[N] = None) -> Optional[N]:
+    def __mutate__(
+        self, obj: Optional[AbstractDomainEntity] = None
+    ) -> Optional[AbstractDomainEntity]:
         """
         Updates 'obj' with values from self.
 
@@ -315,8 +319,8 @@ class Logged(DomainEvent):
     """
 
 
-Predicate = Callable[[Union[DomainEvent, List[DomainEvent]]], bool]
-Handler = Callable[[Union[DomainEvent, List[DomainEvent]]], None]
+Predicate = Callable[[Union[AbstractDomainEvent, List[AbstractDomainEvent]]], bool]
+Handler = Callable[[Union[AbstractDomainEvent, List[AbstractDomainEvent]]], None]
 
 _subscriptions: List[Tuple[Optional[Predicate], Handler]] = []
 
@@ -348,7 +352,7 @@ def unsubscribe(handler: Handler, predicate: Optional[Predicate] = None) -> None
         _subscriptions.remove((predicate, handler))
 
 
-def publish(event: Union[DomainEvent, List[DomainEvent]]) -> None:
+def publish(event: Union[AbstractDomainEvent, List[AbstractDomainEvent]]) -> None:
     """
     Published given 'event' by calling subscribed event
     handlers with the given 'event', except those with

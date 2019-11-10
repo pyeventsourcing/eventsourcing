@@ -5,7 +5,7 @@ from eventsourcing.domain.model.entity import (
     EntityWithHashchain,
     TimestampedVersionedEntity,
 )
-from eventsourcing.domain.model.events import DomainEvent
+from eventsourcing.types import AbstractDomainEvent
 
 
 class BaseAggregateRoot(TimestampedVersionedEntity):
@@ -29,7 +29,7 @@ class BaseAggregateRoot(TimestampedVersionedEntity):
         super(BaseAggregateRoot, self).__init__(**kwargs)
         self.__pending_events__ = deque()
 
-    def __publish__(self, event: Union[DomainEvent, List[DomainEvent]]):
+    def __publish__(self, event: Union[AbstractDomainEvent, List[AbstractDomainEvent]]):
         """
         Defers publishing event to subscribers, by adding
         event to internal collection of pending events.
@@ -40,7 +40,7 @@ class BaseAggregateRoot(TimestampedVersionedEntity):
         """
         Publishes all pending events to subscribers.
         """
-        batch_of_events: List[DomainEvent] = self.__batch_pending_events__()
+        batch_of_events: List[AbstractDomainEvent] = self.__batch_pending_events__()
         if batch_of_events:
             self.__publish_to_subscribers__(batch_of_events)
             # Don't catch exception and put the events back on the queue.
@@ -57,8 +57,8 @@ class BaseAggregateRoot(TimestampedVersionedEntity):
             # commands have been executed, it is important to know which
             # commands to retry.
 
-    def __batch_pending_events__(self) -> List[DomainEvent]:
-        batch_of_events: List[DomainEvent] = []
+    def __batch_pending_events__(self) -> List[AbstractDomainEvent]:
+        batch_of_events: List[AbstractDomainEvent] = []
         try:
             while True:
                 batch_of_events.append(self.__pending_events__.popleft())

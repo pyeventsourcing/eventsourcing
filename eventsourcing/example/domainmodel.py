@@ -1,9 +1,11 @@
 from typing import Optional, cast
 
 from eventsourcing.domain.model.decorators import attribute
-from eventsourcing.domain.model.entity import (EntityWithHashchain,
-                                               TimestampedVersionedEntity)
-from eventsourcing.types import AbstractEntityRepository, N
+from eventsourcing.domain.model.entity import (
+    EntityWithHashchain,
+    TimestampedVersionedEntity,
+)
+from eventsourcing.types import AbstractDomainEntity, AbstractEntityRepository
 
 
 class Example(EntityWithHashchain, TimestampedVersionedEntity):
@@ -28,7 +30,7 @@ class Example(EntityWithHashchain, TimestampedVersionedEntity):
     class Heartbeat(Event, TimestampedVersionedEntity.Event):
         """Published when a heartbeat in the entity occurs (see below)."""
 
-        def mutate(self, obj: Optional[N]) -> None:
+        def mutate(self, obj: Optional[AbstractDomainEntity]) -> None:
             """Updates 'obj' with values from self."""
             # assert isinstance(obj, Example), obj
             obj = cast(Example, obj)
