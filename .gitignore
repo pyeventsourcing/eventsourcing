@@ -57,5 +57,5 @@ docs/_build/
 target/
 
 .idea/
-/.README.py
-/eventsourcing/tests/djangoproject/db.sqlite3
+eventsourcing/tests/djangoproject/db.sqlite3
+.mypy_cache/
