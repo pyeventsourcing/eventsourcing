@@ -16,6 +16,7 @@ from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedNoID
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import (
     SQLAlchemyRecordManagerTestCase,
 )
+from eventsourcing.types import AbstractDomainEntity
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
 
