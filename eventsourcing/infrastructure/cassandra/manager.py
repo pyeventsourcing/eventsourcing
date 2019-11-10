@@ -4,10 +4,10 @@ from cassandra.cqlengine.functions import Token
 from cassandra.cqlengine.query import BatchQuery, LWTException
 
 from eventsourcing.exceptions import ProgrammingError
-from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
+from eventsourcing.infrastructure.base import BaseRecordManager
 
 
-class CassandraRecordManager(AbstractSequencedItemRecordManager):
+class CassandraRecordManager(BaseRecordManager):
     def record_sequenced_items(self, sequenced_item_or_items):
         if isinstance(sequenced_item_or_items, list):
             if len(sequenced_item_or_items):

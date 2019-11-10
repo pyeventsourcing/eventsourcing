@@ -1,10 +1,9 @@
 # coding=utf-8
 
 from eventsourcing.exceptions import ConcurrencyError, RecordConflictError
-from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
+from eventsourcing.infrastructure.base import BaseRecordManager
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
-from eventsourcing.infrastructure.sequenceditemmapper import AbstractSequencedItemMapper
-from eventsourcing.types import AbstractEventStore
+from eventsourcing.types import AbstractEventStore, AbstractSequencedItemMapper
 
 
 # Todo: Unify iterators in EventStore and in NotificationLog,
@@ -30,7 +29,7 @@ class EventStore(AbstractEventStore):
         :param sequenced_item_mapper: sequenced item mapper
         """
         assert isinstance(
-            record_manager, AbstractSequencedItemRecordManager
+            record_manager, BaseRecordManager
         ), record_manager
         assert isinstance(
             sequenced_item_mapper, AbstractSequencedItemMapper

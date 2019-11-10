@@ -1,10 +1,10 @@
 import os
 from decimal import Decimal
-from typing import Callable, List, Tuple, Optional, Dict, Union, cast
-from uuid import uuid1
+from typing import Callable, Dict, List, Optional, Tuple, Union
+from uuid import UUID, uuid1
 
 from eventsourcing.exceptions import EventHashError
-from eventsourcing.types import AbstractDomainEvent, V, N, M
+from eventsourcing.types import AbstractDomainEvent, N
 from eventsourcing.utils.hashing import hash_object
 from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic
@@ -209,9 +209,10 @@ class EventWithOriginatorID(DomainEvent):
     For events that have an originator ID.
     """
 
-    def __init__(self, originator_id, **kwargs):
-        kwargs["originator_id"] = originator_id
-        super(EventWithOriginatorID, self).__init__(**kwargs)
+    def __init__(self, originator_id: UUID, **kwargs):
+        super(EventWithOriginatorID, self).__init__(
+            originator_id=originator_id, **kwargs
+        )
 
     @property
     def originator_id(self):
@@ -249,11 +250,12 @@ class EventWithOriginatorVersion(DomainEvent):
     For events that have an originator version number.
     """
 
-    def __init__(self, originator_version, **kwargs):
+    def __init__(self, originator_version: int, **kwargs):
         if not isinstance(originator_version, int):
             raise TypeError("Version must be an integer: {}".format(originator_version))
-        kwargs["originator_version"] = originator_version
-        super(EventWithOriginatorVersion, self).__init__(**kwargs)
+        super(EventWithOriginatorVersion, self).__init__(
+            originator_version=originator_version, **kwargs
+        )
 
     @property
     def originator_version(self):
@@ -313,8 +315,8 @@ class Logged(DomainEvent):
     """
 
 
-Predicate = Callable[[V], bool]
-Handler = Callable[[V], None]
+Predicate = Callable[[Union[DomainEvent, List[DomainEvent]]], bool]
+Handler = Callable[[Union[DomainEvent, List[DomainEvent]]], None]
 
 _subscriptions: List[Tuple[Optional[Predicate], Handler]] = []
 
@@ -346,7 +348,7 @@ def unsubscribe(handler: Handler, predicate: Optional[Predicate] = None) -> None
         _subscriptions.remove((predicate, handler))
 
 
-def publish(event: V) -> None:
+def publish(event: Union[DomainEvent, List[DomainEvent]]) -> None:
     """
     Published given 'event' by calling subscribed event
     handlers with the given 'event', except those with

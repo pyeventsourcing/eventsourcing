@@ -1,5 +1,5 @@
 import uuid
-from typing import cast, Union, Optional, Dict
+from typing import Dict, Optional, cast
 from unittest.case import TestCase
 from uuid import UUID
 
@@ -16,7 +16,7 @@ from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedNoID
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import (
     SQLAlchemyRecordManagerTestCase,
 )
-from eventsourcing.types import N, M
+from eventsourcing.types import N
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
 
@@ -89,14 +89,17 @@ class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
 
         self.assertEqual(Aggregate1.Discarded.__name__, "Discarded")
         self.assertEqual(Aggregate1.Discarded.__qualname__, "Aggregate1.Discarded")
-        topic = "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate1.Discarded"
+        topic = "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate1" \
+                ".Discarded"
         self.assertEqual(get_topic(Aggregate1.Discarded), topic)
         self.assertEqual(resolve_topic(topic), Aggregate1.Discarded)
         self.assertTrue(issubclass(Aggregate1.Discarded, Aggregate1.Event))
 
         self.assertEqual(Aggregate1.ExampleCreated.__name__, "ExampleCreated")
-        self.assertEqual(Aggregate1.ExampleCreated.__qualname__, "Aggregate1.ExampleCreated")
-        topic = "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate1.ExampleCreated"
+        self.assertEqual(Aggregate1.ExampleCreated.__qualname__,
+                         "Aggregate1.ExampleCreated")
+        topic = "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate1" \
+                ".ExampleCreated"
         self.assertEqual(get_topic(Aggregate1.ExampleCreated), topic)
         self.assertEqual(resolve_topic(topic), Aggregate1.ExampleCreated)
         self.assertTrue(issubclass(Aggregate1.ExampleCreated, Aggregate1.Event))
@@ -122,14 +125,17 @@ class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
 
         self.assertEqual(Aggregate2.Discarded.__name__, "Discarded")
         self.assertEqual(Aggregate2.Discarded.__qualname__, "Aggregate2.Discarded")
-        topic = "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate2.Discarded"
+        topic = "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate2" \
+                ".Discarded"
         self.assertEqual(get_topic(Aggregate2.Discarded), topic)
         self.assertEqual(resolve_topic(topic), Aggregate2.Discarded)
         self.assertTrue(issubclass(Aggregate2.Discarded, Aggregate2.Event))
 
         self.assertEqual(Aggregate2.ExampleCreated.__name__, "ExampleCreated")
-        self.assertEqual(Aggregate2.ExampleCreated.__qualname__, "Aggregate2.ExampleCreated")
-        topic = "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate2.ExampleCreated"
+        self.assertEqual(Aggregate2.ExampleCreated.__qualname__,
+                         "Aggregate2.ExampleCreated")
+        topic = "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate2" \
+                ".ExampleCreated"
         self.assertEqual(get_topic(Aggregate2.ExampleCreated), topic)
         self.assertEqual(resolve_topic(topic), Aggregate2.ExampleCreated)
         self.assertTrue(issubclass(Aggregate2.ExampleCreated, Aggregate2.Event))

@@ -11,13 +11,13 @@ class AbstractDomainEntity(ABC, metaclass=MetaAbstractDomainEntity):
     pass
 
 
-class AbstractDomainEvent(ABC):
-    pass
-
-
-M = TypeVar('M', bound=MetaAbstractDomainEntity)
 N = TypeVar('N', bound=AbstractDomainEntity)
-V = TypeVar('V', bound=AbstractDomainEvent)
+
+
+class AbstractDomainEvent(ABC):
+    @abstractmethod
+    def __mutate__(self, obj: Optional[N] = None) -> Optional[N]:
+        pass
 
 
 class AbstractEventStore(ABC):
@@ -135,4 +135,82 @@ class AbstractEntityRepository(AbstractEventPlayer):
     ) -> Optional[AbstractSnapshop]:
         """
         Takes snapshot of entity state, using stored events.
+        """
+
+
+class AbstractRecordManager(ABC):
+    @abstractmethod
+    def record_sequenced_items(self, sequenced_item_or_items):
+        """
+        Writes sequenced item(s) into the datastore.
+        """
+
+    @abstractmethod
+    def get_record(self, sequence_id, position):
+        """
+        Gets record at position in sequence.
+        """
+
+    @abstractmethod
+    def get_records(
+        self,
+        sequence_id,
+        gt=None,
+        gte=None,
+        lt=None,
+        lte=None,
+        limit=None,
+        query_ascending=True,
+        results_ascending=True,
+    ):
+        """
+        Returns records for a sequence.
+        """
+
+    @abstractmethod
+    def get_notifications(self, start=None, stop=None, *args, **kwargs):
+        """
+        Returns records sequenced by notification ID, from
+        application, for pipeline, in given range.
+
+        Args 'start' and 'stop' are positions in a zero-based
+        integer sequence.
+        """
+
+    @abstractmethod
+    def all_sequence_ids(self):
+        """
+        Returns all sequence IDs.
+        """
+
+    @abstractmethod
+    def delete_record(self, record):
+        """
+        Removes permanently given record from the table.
+        """
+
+
+class AbstractSequencedItemMapper(ABC):
+    @abstractmethod
+    def item_from_event(self, domain_event):
+        """
+        Constructs and returns a sequenced item for given domain event.
+        """
+
+    @abstractmethod
+    def event_from_item(self, sequenced_item):
+        """
+        Constructs and returns a domain event for given sequenced item.
+        """
+
+    @abstractmethod
+    def json_dumps(self, event_attrs):
+        """
+        Encodes given object as JSON.
+        """
+
+    @abstractmethod
+    def json_loads(self, event_attrs):
+        """
+        Decodes given JSON as object.
         """

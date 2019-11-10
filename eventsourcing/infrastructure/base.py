@@ -1,15 +1,16 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 from eventsourcing.exceptions import OperationalError, RecordConflictError
 from eventsourcing.infrastructure.sequenceditem import (
     SequencedItem,
     SequencedItemFieldNames,
 )
+from eventsourcing.types import AbstractRecordManager
 
 DEFAULT_PIPELINE_ID = 0
 
 
-class AbstractSequencedItemRecordManager(ABC):
+class BaseRecordManager(AbstractRecordManager):
     def __init__(
         self,
         record_class,
@@ -52,12 +53,6 @@ class AbstractSequencedItemRecordManager(ABC):
             **kwargs
         )
 
-    @abstractmethod
-    def record_sequenced_items(self, sequenced_item_or_items):
-        """
-        Writes sequenced item(s) into the datastore.
-        """
-
     def record_sequenced_item(self, sequenced_item):
         """
         Writes sequenced item into the datastore.
@@ -69,12 +64,6 @@ class AbstractSequencedItemRecordManager(ABC):
         Gets sequenced item from the datastore.
         """
         return self.from_record(self.get_record(sequence_id, position))
-
-    @abstractmethod
-    def get_record(self, sequence_id, position):
-        """
-        Gets record at position in sequence.
-        """
 
     def get_items(
         self,
@@ -109,22 +98,6 @@ class AbstractSequencedItemRecordManager(ABC):
         """
         return list(self.get_items(*args, **kwargs))
 
-    @abstractmethod
-    def get_records(
-        self,
-        sequence_id,
-        gt=None,
-        gte=None,
-        lt=None,
-        lte=None,
-        limit=None,
-        query_ascending=True,
-        results_ascending=True,
-    ):
-        """
-        Returns records for a sequence.
-        """
-
     def to_record(self, sequenced_item):
         """
         Constructs a record object from given sequenced item object.
@@ -145,30 +118,8 @@ class AbstractSequencedItemRecordManager(ABC):
         kwargs = self.get_field_kwargs(record)
         return self.sequenced_item_class(**kwargs)
 
-    @abstractmethod
-    def get_notifications(self, start=None, stop=None, *args, **kwargs):
-        """
-        Returns records sequenced by notification ID, from
-        application, for pipeline, in given range.
-
-        Args 'start' and 'stop' are positions in a zero-based
-        integer sequence.
-        """
-
-    @abstractmethod
-    def all_sequence_ids(self):
-        """
-        Returns all sequence IDs.
-        """
-
     def list_sequence_ids(self):
         return list(self.all_sequence_ids())
-
-    @abstractmethod
-    def delete_record(self, record):
-        """
-        Removes permanently given record from the table.
-        """
 
     def get_field_kwargs(self, item):
         return {name: getattr(item, name) for name in self.field_names}
@@ -187,7 +138,7 @@ class AbstractSequencedItemRecordManager(ABC):
         raise OperationalError(e)
 
 
-class ACIDRecordManager(AbstractSequencedItemRecordManager):
+class ACIDRecordManager(BaseRecordManager):
     """
     ACID record managers can write tracking records and event records
     in an atomic transaction, needed for atomic processing in process

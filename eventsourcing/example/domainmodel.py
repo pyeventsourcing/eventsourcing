@@ -1,11 +1,9 @@
-from typing import cast, Optional, Union
+from typing import Optional, cast
 
 from eventsourcing.domain.model.decorators import attribute
-from eventsourcing.domain.model.entity import (
-    TimestampedVersionedEntity,
-    EntityWithHashchain,
-)
-from eventsourcing.types import N, M, AbstractEntityRepository
+from eventsourcing.domain.model.entity import (EntityWithHashchain,
+                                               TimestampedVersionedEntity)
+from eventsourcing.types import AbstractEntityRepository, N
 
 
 class Example(EntityWithHashchain, TimestampedVersionedEntity):

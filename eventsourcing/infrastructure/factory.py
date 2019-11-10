@@ -3,9 +3,9 @@ from eventsourcing.infrastructure.datastore import AbstractDatastore
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import (
-    AbstractSequencedItemMapper,
     SequencedItemMapper,
 )
+from eventsourcing.types import AbstractSequencedItemMapper
 
 
 class InfrastructureFactory(object):

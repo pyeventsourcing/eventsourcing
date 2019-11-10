@@ -1,6 +1,6 @@
 from decimal import Decimal
-from typing import Callable, Optional, cast, Type, Dict, Any
-from uuid import uuid4, UUID
+from typing import Any, Callable, Dict, List, Optional, Type, Union, cast
+from uuid import UUID, uuid4
 
 import eventsourcing.domain.model.events as events
 from eventsourcing.domain.model.decorators import subclassevents
@@ -19,7 +19,7 @@ from eventsourcing.exceptions import (
     OriginatorIDError,
     OriginatorVersionError,
 )
-from eventsourcing.types import M, MetaAbstractDomainEntity, N
+from eventsourcing.types import AbstractDomainEntity, MetaAbstractDomainEntity, N
 from eventsourcing.utils.times import decimaltimestamp_from_uuid
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
@@ -33,7 +33,7 @@ class MetaDomainEntity(MetaAbstractDomainEntity):
             subclassevents(cls)
 
 
-class DomainEntity(metaclass=MetaDomainEntity):
+class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
     """
     Supertype for domain model entity.
     """
@@ -66,7 +66,7 @@ class DomainEntity(metaclass=MetaDomainEntity):
 
     @classmethod
     def __create__(
-        cls, originator_id: UUID = None, event_class: M = None, **kwargs
+        cls, originator_id: UUID = None, event_class: Type[DomainEvent] = None, **kwargs
     ) -> N:
         """
         Creates a new domain entity.
@@ -83,7 +83,7 @@ class DomainEntity(metaclass=MetaDomainEntity):
         """
         if originator_id is None:
             originator_id = uuid4()
-        event = (event_class or cls.Created)(
+        event: DomainEvent = (event_class or cls.Created)(
             originator_id=originator_id, originator_topic=get_topic(cls), **kwargs
         )
         obj = event.__mutate__(None)
@@ -98,7 +98,7 @@ class DomainEntity(metaclass=MetaDomainEntity):
         Triggered when an entity is created.
         """
 
-        def __init__(self, originator_topic, **kwargs):
+        def __init__(self, originator_topic: str, **kwargs):
             super(DomainEntity.Created, self).__init__(
                 originator_topic=originator_topic, **kwargs
             )
@@ -160,7 +160,8 @@ class DomainEntity(metaclass=MetaDomainEntity):
         Changes named attribute with the given value,
         by triggering an AttributeChanged event.
         """
-        self.__trigger_event__(self.AttributeChanged, name=name, value=value)
+        event_class: Type[DomainEvent] = self.AttributeChanged
+        self.__trigger_event__(event_class=event_class, name=name, value=value)
 
     class AttributeChanged(Event, events.AttributeChanged):
         """
@@ -205,7 +206,7 @@ class DomainEntity(metaclass=MetaDomainEntity):
         self.__mutate__(event)
         self.__publish__(event)
 
-    def __mutate__(self, event):
+    def __mutate__(self, event: DomainEvent):
         """
         Mutates this entity with the given event.
 
@@ -228,7 +229,7 @@ class DomainEntity(metaclass=MetaDomainEntity):
         """
         event.__mutate__(self)
 
-    def __publish__(self, event):
+    def __publish__(self, event: Union[DomainEvent, List[DomainEvent]]):
         """
         Publishes given event for subscribers in the application.
 
@@ -236,7 +237,7 @@ class DomainEntity(metaclass=MetaDomainEntity):
         """
         self.__publish_to_subscribers__(event)
 
-    def __publish_to_subscribers__(self, event):
+    def __publish_to_subscribers__(self, event: Union[DomainEvent, List[DomainEvent]]):
         """
         Actually dispatches given event to publish-subscribe mechanism.
 
@@ -256,7 +257,7 @@ class EntityWithHashchain(DomainEntity):
 
     def __init__(self, *args, **kwargs):
         super(EntityWithHashchain, self).__init__(*args, **kwargs)
-        self.__head__ : str = type(self).__genesis_hash__
+        self.__head__: str = type(self).__genesis_hash__
 
     class Event(EventWithHash, DomainEntity.Event):
         """
@@ -389,9 +390,9 @@ class VersionedEntity(DomainEntity):
     class Created(DomainEntity.Created, Event):
         """Published when a VersionedEntity is created."""
 
-        def __init__(self, originator_version=0, **kwargs):
+        def __init__(self, originator_version=0, *args, **kwargs):
             super(VersionedEntity.Created, self).__init__(
-                originator_version=originator_version, **kwargs
+                originator_version=originator_version, *args, **kwargs
             )
 
         @property
@@ -429,8 +430,8 @@ class TimestampedEntity(DomainEntity):
             """Updates 'obj' with values from self."""
             obj = super(TimestampedEntity.Event, self).__mutate__(obj)
             if obj is not None:
-                assert isinstance(obj, TimestampedEntity), obj
-                obj.___last_modified__ = self.timestamp
+                entity = cast(TimestampedEntity, obj)
+                entity.___last_modified__ = self.timestamp
             return obj
 
     class Created(DomainEntity.Created, Event):
