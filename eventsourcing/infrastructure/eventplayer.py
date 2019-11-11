@@ -45,6 +45,7 @@ class EventPlayer(AbstractEventPlayer):
         :param event: Event that causes the initial state to be mutated.
         :return: Returns the mutated state.
         """
+        # Check obj is not None.
         if initial is not None:
             event.__check_obj__(initial)
         return event.__mutate__(initial)

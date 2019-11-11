@@ -1,36 +1,38 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from eventsourcing.domain.model.entity import (
-    TimestampedVersionedEntity,
-)
-from eventsourcing.types import AbstractEntityRepository
+from typing import Optional, cast
+
+from eventsourcing.domain.model.entity import TimestampedVersionedEntity
+from eventsourcing.types import AbstractEntityRepository, T
 
 
-class Collection(TimestampedVersionedEntity):
-    class Event(TimestampedVersionedEntity.Event):
+class Collection(TimestampedVersionedEntity[T]):
+    class Event(TimestampedVersionedEntity.Event[T]):
         """Supertype for events of collection entities."""
 
-    class Created(Event, TimestampedVersionedEntity.Created):
+    class Created(Event[T], TimestampedVersionedEntity.Created[T]):
         """Published when collection is created."""
 
-    class Discarded(Event, TimestampedVersionedEntity.Discarded):
+    class Discarded(Event[T], TimestampedVersionedEntity.Discarded[T]):
         """Published when collection is discarded."""
 
-    class EventWithItem(Event):
+    class EventWithItem(Event[T]):
         @property
         def item(self):
             return self.__dict__["item"]
 
-    class ItemAdded(EventWithItem):
-        def __mutate__(self, obj):
+    class ItemAdded(EventWithItem[T]):
+        def __mutate__(self, obj: Optional[T]) -> Optional[T]:
             obj = super(Collection.ItemAdded, self).__mutate__(obj)
-            obj._items.add(self.item)
+            collection = cast(Collection, obj)
+            collection._items.add(self.item)
             return obj
 
-    class ItemRemoved(EventWithItem):
-        def __mutate__(self, obj):
+    class ItemRemoved(EventWithItem[T]):
+        def __mutate__(self, obj: Optional[T]) -> Optional[T]:
             obj = super(Collection.ItemRemoved, self).__mutate__(obj)
-            obj._items.remove(self.item)
+            collection = cast(Collection, obj)
+            collection._items.remove(self.item)
             return obj
 
     def __init__(self, **kwargs):

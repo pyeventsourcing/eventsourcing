@@ -1,10 +1,10 @@
 import os
 from decimal import Decimal
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union, Type
 from uuid import UUID, uuid1
 
 from eventsourcing.exceptions import EventHashError
-from eventsourcing.types import AbstractDomainEntity, AbstractDomainEvent
+from eventsourcing.types import AbstractDomainEvent, T
 from eventsourcing.utils.hashing import hash_object
 from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic
@@ -17,7 +17,7 @@ def create_timesequenced_event_id():
     return uuid1()
 
 
-class DomainEvent(AbstractDomainEvent):
+class DomainEvent(AbstractDomainEvent[T]):
     """
     Base class for domain model events.
 
@@ -36,6 +36,7 @@ class DomainEvent(AbstractDomainEvent):
         """
         Initialises event attribute values directly from constructor kwargs.
         """
+        super().__init__()
         self.__dict__.update(kwargs)
 
     def __repr__(self):
@@ -49,9 +50,7 @@ class DomainEvent(AbstractDomainEvent):
         args_string = ", ".join(args_strings)
         return "{}({})".format(self.__class__.__qualname__, args_string)
 
-    def __mutate__(
-        self, obj: Optional[AbstractDomainEntity] = None
-    ) -> Optional[AbstractDomainEntity]:
+    def __mutate__(self, obj: Optional[T]) -> Optional[T]:
         """
         Updates 'obj' with values from 'self'.
 
@@ -66,7 +65,7 @@ class DomainEvent(AbstractDomainEvent):
         self.mutate(obj)
         return obj
 
-    def mutate(self, obj: Optional[AbstractDomainEntity]) -> None:
+    def mutate(self, obj: Optional[T]) -> None:
         """
         Updates ("mutates") given 'obj'.
 
@@ -136,7 +135,7 @@ class DomainEvent(AbstractDomainEvent):
         return hash_object(cls.__json_encoder__, obj)
 
 
-class EventWithHash(DomainEvent):
+class EventWithHash(DomainEvent[T]):
     """
     Base class for domain events with a cryptographic event hash.
 
@@ -178,9 +177,7 @@ class EventWithHash(DomainEvent):
         # Return the Python hash of the cryptographic hash.
         return hash(self.__event_hash__)
 
-    def __mutate__(
-        self, obj: Optional[AbstractDomainEntity] = None
-    ) -> Optional[AbstractDomainEntity]:
+    def __mutate__(self, obj: Optional[T]) -> Optional[T]:
         """
         Updates 'obj' with values from self.
 
@@ -208,7 +205,7 @@ class EventWithHash(DomainEvent):
             raise EventHashError()
 
 
-class EventWithOriginatorID(DomainEvent):
+class EventWithOriginatorID(DomainEvent[T]):
     """
     For events that have an originator ID.
     """
@@ -230,7 +227,7 @@ class EventWithOriginatorID(DomainEvent):
         return self.__dict__["originator_id"]
 
 
-class EventWithTimestamp(DomainEvent):
+class EventWithTimestamp(DomainEvent[T]):
     """
     For events that have a timestamp value.
     """
@@ -249,7 +246,7 @@ class EventWithTimestamp(DomainEvent):
         return self.__dict__["timestamp"]
 
 
-class EventWithOriginatorVersion(DomainEvent):
+class EventWithOriginatorVersion(DomainEvent[T]):
     """
     For events that have an originator version number.
     """
@@ -273,7 +270,7 @@ class EventWithOriginatorVersion(DomainEvent):
         return self.__dict__["originator_version"]
 
 
-class EventWithTimeuuid(DomainEvent):
+class EventWithTimeuuid(DomainEvent[T]):
     """
     For events that have an UUIDv1 event ID.
     """
@@ -287,13 +284,13 @@ class EventWithTimeuuid(DomainEvent):
         return self.__dict__["event_id"]
 
 
-class Created(DomainEvent):
+class Created(DomainEvent[T]):
     """
     Happens when something is created.
     """
 
 
-class AttributeChanged(DomainEvent):
+class AttributeChanged(DomainEvent[T]):
     """
     Happens when the value of an attribute changes.
     """
@@ -307,13 +304,13 @@ class AttributeChanged(DomainEvent):
         return self.__dict__["value"]
 
 
-class Discarded(DomainEvent):
+class Discarded(DomainEvent[T]):
     """
     Happens when something is discarded.
     """
 
 
-class Logged(DomainEvent):
+class Logged(DomainEvent[T]):
     """
     Happens when something is logged.
     """
