@@ -1,16 +1,29 @@
 from abc import ABC, ABCMeta, abstractmethod
-from typing import List, Optional, Union, TypeVar, Generic, Type
+from typing import Generic, List, Optional, TypeVar, Union
 from uuid import UUID
 
+# Need to deal with the fact that Python3.6 had GenericMeta.
+try:
+    from typing import GenericMeta
+except ImportError:
+    # In Python 3.7, we can just do this:
+    class MetaAbstractDomainEntity(ABCMeta):
+        pass
 
-class MetaAbstractDomainEntity(ABCMeta):
-    pass
+
+else:
+    # But in Python3.6 we must instead do this:
+    class MetaAbstractDomainEntity(GenericMeta):
+        pass
 
 
-T = TypeVar("T", bound='AbstractDomainEntity')
+# Todo: Revert above complications when dropping support for Python 3.6.
 
 
-class AbstractDomainEntity(Generic[T], ABC, metaclass=MetaAbstractDomainEntity):
+T = TypeVar("T", bound="AbstractDomainEntity")
+
+
+class AbstractDomainEntity(Generic[T], metaclass=MetaAbstractDomainEntity):
     @abstractmethod
     def __publish__(
         self, event: Union["AbstractDomainEvent", List["AbstractDomainEvent"]]
@@ -18,7 +31,7 @@ class AbstractDomainEntity(Generic[T], ABC, metaclass=MetaAbstractDomainEntity):
         pass
 
 
-class AbstractDomainEvent(Generic[T], ABC):
+class AbstractDomainEvent(Generic[T]):
     def __init__(self, *args, **kwargs) -> None:
         pass
 

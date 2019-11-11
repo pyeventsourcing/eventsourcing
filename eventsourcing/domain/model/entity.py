@@ -23,7 +23,8 @@ from eventsourcing.types import (
     AbstractDomainEntity,
     AbstractDomainEvent,
     MetaAbstractDomainEntity,
-    T)
+    T,
+)
 from eventsourcing.utils.times import decimaltimestamp_from_uuid
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
@@ -31,9 +32,20 @@ from eventsourcing.utils.topic import get_topic, resolve_topic
 class MetaDomainEntity(MetaAbstractDomainEntity):
     __subclassevents__ = False
 
-    def __init__(cls, name, bases, attrs):
+    # Todo: Drop '**kwargs' when no longer supporting Python3.6.
+    #  - When we started using typing.Generic, started getting
+    #    an error in 3.6 (only) "unexpected keyword argument 'tvars'"
+    #    which was cured by adding **kwargs here. It's not needed
+    #    for Python3.7, and only supports backward compatibility.
+    def __init__(cls, name, bases, attrs, **kwargs):
         super().__init__(name, bases, attrs)
-        if cls.__subclassevents__:
+        if name == "_gorg":
+            # Needed in 3.6 only, stops infinite recursion between typing and abc
+            # doing subclass checks. Don't know why. Seems issue fixed in Python 3.7.
+            # Todo: Remove this when dropping support for Python 3.6.
+            pass
+        elif cls.__subclassevents__ is True:
+            # print("Subclssing events on:", cls)
             subclassevents(cls)
 
 
@@ -492,13 +504,15 @@ class TimestampedVersionedEntity(TimestampedEntity[T], VersionedEntity[T]):
         """Published when a TimestampedVersionedEntity is created."""
 
     class AttributeChanged(
-        Event[T], TimestampedEntity.AttributeChanged[T],
-        VersionedEntity.AttributeChanged[T]
+        Event[T],
+        TimestampedEntity.AttributeChanged[T],
+        VersionedEntity.AttributeChanged[T],
     ):
         """Published when a TimestampedVersionedEntity is created."""
 
-    class Discarded(Event[T], TimestampedEntity.Discarded[T],
-                    VersionedEntity.Discarded[T]):
+    class Discarded(
+        Event[T], TimestampedEntity.Discarded[T], VersionedEntity.Discarded[T]
+    ):
         """Published when a TimestampedVersionedEntity is discarded."""
 
 

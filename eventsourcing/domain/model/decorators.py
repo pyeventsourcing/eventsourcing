@@ -304,11 +304,10 @@ def subclassevents(cls: MetaAbstractDomainEntity):
         base_attr = getattr(cls, cls_attr_name)
         if isinstance(base_attr, type):
             if not issubclass(base_attr, event_event_subclass):
-                event_subclass = type(
-                    cls_attr_name,
-                    (base_attr,),
-                    {"__qualname__": cls.__name__ + "." + base_attr.__name__},
-                )
+                cls_dict = {"__qualname__": cls.__name__ + "." + base_attr.__name__}
+                cls_bases = (base_attr,)
+                event_subclass = type(cls_attr_name, cls_bases, cls_dict)
+                event_subclass.__qualname__ = cls.__name__ + "." + base_attr.__name__
                 event_subclass.__module__ = cls.__module__
                 event_subclass.__doc__ = cls.__doc__
                 setattr(cls, cls_attr_name, event_subclass)
