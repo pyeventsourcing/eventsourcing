@@ -453,7 +453,7 @@ determining which class to instantiate.
 
 .. code:: python
 
-    entity = created.__mutate__()
+    entity = created.__mutate__(None)
 
     assert entity.id == entity_id
 

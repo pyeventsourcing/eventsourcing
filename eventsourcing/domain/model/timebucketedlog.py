@@ -102,7 +102,7 @@ def start_new_timebucketedlog(name, bucket_size=None):
         bucket_size=bucket_size,
         originator_topic=get_topic(Timebucketedlog),
     )
-    entity = event.__mutate__()
+    entity = event.__mutate__(None)
     publish(event)
     return entity
 
