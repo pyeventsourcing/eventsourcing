@@ -1,6 +1,6 @@
 import os
 from decimal import Decimal
-from typing import Callable, Dict, List, Optional, Tuple, Union, Type
+from typing import Callable, Dict, List, Optional, Tuple, Union, Type, Sequence
 from uuid import UUID, uuid1
 
 from eventsourcing.exceptions import EventHashError
@@ -316,8 +316,8 @@ class Logged(DomainEvent[T]):
     """
 
 
-Predicate = Callable[[Union[AbstractDomainEvent, List[AbstractDomainEvent]]], bool]
-Handler = Callable[[Union[AbstractDomainEvent, List[AbstractDomainEvent]]], None]
+Predicate = Callable[[Union[AbstractDomainEvent, Sequence[AbstractDomainEvent]]], bool]
+Handler = Callable[[Union[AbstractDomainEvent, Sequence[AbstractDomainEvent]]], None]
 
 _subscriptions: List[Tuple[Optional[Predicate], Handler]] = []
 
@@ -349,7 +349,7 @@ def unsubscribe(handler: Handler, predicate: Optional[Predicate] = None) -> None
         _subscriptions.remove((predicate, handler))
 
 
-def publish(event: Union[AbstractDomainEvent, List[AbstractDomainEvent]]) -> None:
+def publish(event: Union[AbstractDomainEvent, Sequence[AbstractDomainEvent]]) -> None:
     """
     Published given 'event' by calling subscribed event
     handlers with the given 'event', except those with

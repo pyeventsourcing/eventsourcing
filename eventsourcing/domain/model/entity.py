@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import Any, Callable, Dict, List, Optional, Type, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Type, Union, cast, Sequence
 from uuid import UUID, uuid4
 
 import eventsourcing.domain.model.events as events
@@ -32,19 +32,21 @@ from eventsourcing.utils.topic import get_topic, resolve_topic
 class MetaDomainEntity(MetaAbstractDomainEntity):
     __subclassevents__ = False
 
-    # Todo: Drop '**kwargs' when no longer supporting Python3.6.
-    #  - When we started using typing.Generic, started getting
+    # Todo: Delete the '**kwargs' when library no longer supports Python3.6.
+    #  - When we started using typing.Generic, we started getting
     #    an error in 3.6 (only) "unexpected keyword argument 'tvars'"
     #    which was cured by adding **kwargs here. It's not needed
     #    for Python3.7, and only supports backward compatibility.
+    #    So it can be removed when support for Python 3.6 dropped.
     def __init__(cls, name, bases, attrs, **kwargs):
         super().__init__(name, bases, attrs)
         if name == "_gorg":
+            # Todo: Also Remove this block when dropping support for Python 3.6.
             # Needed in 3.6 only, stops infinite recursion between typing and abc
             # doing subclass checks. Don't know why. Seems issue fixed in Python 3.7.
-            # Todo: Remove this when dropping support for Python 3.6.
             pass
         elif cls.__subclassevents__ is True:
+            # Define (or redefined) subclass domain events.
             # print("Subclssing events on:", cls)
             subclassevents(cls)
 
@@ -262,7 +264,7 @@ class DomainEntity(AbstractDomainEntity[T], metaclass=MetaDomainEntity):
         self.__publish_to_subscribers__(event)
 
     def __publish_to_subscribers__(
-        self, event: Union[AbstractDomainEvent, List[AbstractDomainEvent]]
+        self, event: Union[AbstractDomainEvent, Sequence[AbstractDomainEvent]]
     ):
         """
         Actually dispatches given event to publish-subscribe mechanism.

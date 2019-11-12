@@ -1,5 +1,5 @@
 from collections import deque
-from typing import List, Union
+from typing import List, Union, Sequence
 
 from eventsourcing.domain.model.entity import (
     EntityWithHashchain,
@@ -40,7 +40,9 @@ class BaseAggregateRoot(TimestampedVersionedEntity[T]):
         """
         Publishes all pending events to subscribers.
         """
-        batch_of_events: List[AbstractDomainEvent] = self.__batch_pending_events__()
+        batch_of_events: Sequence[
+            BaseAggregateRoot.Event
+        ] = self.__batch_pending_events__()
         if batch_of_events:
             self.__publish_to_subscribers__(batch_of_events)
             # Don't catch exception and put the events back on the queue.
@@ -57,8 +59,8 @@ class BaseAggregateRoot(TimestampedVersionedEntity[T]):
             # commands have been executed, it is important to know which
             # commands to retry.
 
-    def __batch_pending_events__(self) -> List[AbstractDomainEvent]:
-        batch_of_events: List[AbstractDomainEvent] = []
+    def __batch_pending_events__(self) -> List[Event]:
+        batch_of_events: List[BaseAggregateRoot.Event] = []
         try:
             while True:
                 batch_of_events.append(self.__pending_events__.popleft())

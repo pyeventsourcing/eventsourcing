@@ -1,7 +1,8 @@
 import time
 from collections import OrderedDict, defaultdict, deque
 from threading import Lock
-from typing import List
+from typing import Any, Dict, Generic, List, Sequence, Tuple
+from uuid import UUID
 
 from eventsourcing.application.notificationlog import NotificationLogReader
 from eventsourcing.application.simple import SimpleApplication
@@ -11,6 +12,7 @@ from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
 from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed
 from eventsourcing.infrastructure.base import ACIDRecordManager
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
+from eventsourcing.types import T
 
 
 class ProcessEvent(object):
@@ -152,8 +154,9 @@ class ProcessApplication(SimpleApplication):
                     causal_dependencies = (
                         notification.get("causal_dependencies") or "[]"
                     )
-                    causal_dependencies = self.event_store.mapper.json_loads(
-                        causal_dependencies) or []
+                    causal_dependencies = (
+                        self.event_store.mapper.json_loads(causal_dependencies) or []
+                    )
 
                     # Check causal dependencies are satisfied.
                     for causal_dependency in causal_dependencies:
@@ -375,12 +378,13 @@ class ProcessApplication(SimpleApplication):
         Empty method, can be overridden in subclasses to implement concrete policy.
         """
 
-    def collect_pending_events(self, aggregates):
-        pending_events = []
+    def collect_pending_events(
+        self, aggregates: List[BaseAggregateRoot]
+    ) -> Sequence[BaseAggregateRoot.Event]:
+        pending_events: List[BaseAggregateRoot.Event] = []
         num_changed_aggregates = 0
         # This doesn't necessarily obtain events in causal order...
         for aggregate in aggregates:
-            aggregate: BaseAggregateRoot
             batch = aggregate.__batch_pending_events__()
             if len(batch):
                 num_changed_aggregates += 1
@@ -458,7 +462,8 @@ class ProcessApplication(SimpleApplication):
                     self.event_store.record_manager.record_class, "causal_dependencies"
                 )
                 causal_dependencies = self.event_store.mapper.json_dumps(
-                    causal_dependencies)
+                    causal_dependencies
+                )
                 # Only need first event to carry the dependencies.
                 event_records[0].causal_dependencies = causal_dependencies
 
@@ -479,7 +484,7 @@ class ProcessApplication(SimpleApplication):
             )
 
 
-class WrappedRepository(object):
+class WrappedRepository(Generic[T]):
     """
     Used to wrap an event sourced repository for use in process application
     policy so that use of, and changes to, domain model aggregates can be
@@ -489,26 +494,26 @@ class WrappedRepository(object):
     accessed by ID.
     """
 
-    def __init__(self, repository: EventSourcedRepository):
-        self.retrieved_aggregates = {}
-        self.repository = repository
-        self.causal_dependencies = []
-        self.orm_objs_pending_save = []
-        self.orm_objs_pending_delete = []
+    def __init__(self, repository: EventSourcedRepository[BaseAggregateRoot]):
+        self.repository: EventSourcedRepository[BaseAggregateRoot] = repository
+        self.retrieved_aggregates: Dict[UUID, BaseAggregateRoot] = {}
+        self.causal_dependencies: List[Tuple[UUID, int]] = []
+        self.orm_objs_pending_save: List[Any] = []
+        self.orm_objs_pending_delete: List[Any] = []
 
-    def __getitem__(self, entity_id):
+    def __getitem__(self, entity_id) -> BaseAggregateRoot:
         try:
             return self.retrieved_aggregates[entity_id]
         except KeyError:
-            entity = self.repository.__getitem__(entity_id)
-            self.retrieved_aggregates[entity_id] = entity
-            self.causal_dependencies.append((entity.id, entity.__version__))
-            return entity
+            aggregate: BaseAggregateRoot = self.repository.__getitem__(entity_id)
+            self.retrieved_aggregates[entity_id] = aggregate
+            self.causal_dependencies.append((aggregate.id, aggregate.__version__))
+            return aggregate
 
-    def __contains__(self, entity_id):
+    def __contains__(self, entity_id: UUID) -> bool:
         return self.repository.__contains__(entity_id)
 
-    def save_orm_obj(self, orm_obj):
+    def save_orm_obj(self, orm_obj: Any) -> None:
         """
         Includes orm_obj in "process event", so that projections into
         custom ORM objects is as reliable with respect to sudden restarts
@@ -516,7 +521,7 @@ class WrappedRepository(object):
         """
         self.orm_objs_pending_save.append(orm_obj)
 
-    def delete_orm_obj(self, orm_obj):
+    def delete_orm_obj(self, orm_obj: Any) -> None:
         """
         Includes orm_obj in "process event", so that projections into
         custom ORM objects is as reliable with respect to sudden restarts

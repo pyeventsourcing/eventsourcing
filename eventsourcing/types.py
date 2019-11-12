@@ -2,22 +2,22 @@ from abc import ABC, ABCMeta, abstractmethod
 from typing import Generic, List, Optional, TypeVar, Union
 from uuid import UUID
 
+
+class MetaAbstractDomainEntity(ABCMeta):
+    pass
+
+
 # Need to deal with the fact that Python3.6 had GenericMeta.
 try:
     from typing import GenericMeta
+
+    class MetaAbstractDomainEntity(GenericMeta):  # type: ignore
+        pass
+
+
 except ImportError:
-    # In Python 3.7, we can just do this:
-    class MetaAbstractDomainEntity(ABCMeta):
-        pass
-
-
-else:
-    # But in Python3.6 we must instead do this:
-    class MetaAbstractDomainEntity(GenericMeta):
-        pass
-
-
-# Todo: Revert above complications when dropping support for Python 3.6.
+    pass
+# Todo: Delete above try/except when dropping support for Python 3.6.
 
 
 T = TypeVar("T", bound="AbstractDomainEntity")
@@ -87,13 +87,27 @@ class AbstractEventStore(ABC):
         """
 
 
-class AbstractEventPlayer(object):
+class AbstractEventPlayer(Generic[T]):
     @property
     @abstractmethod
     def event_store(self) -> AbstractEventStore:
         """
         Returns event store object used by this repository.
         """
+
+    @abstractmethod
+    def get_and_project_events(
+        self,
+        entity_id,
+        gt=None,
+        gte=None,
+        lt=None,
+        lte=None,
+        limit=None,
+        initial_state=None,
+        query_descending=False,
+    ):
+        pass
 
 
 class AbstractSnapshop(ABC):
@@ -126,9 +140,9 @@ class AbstractSnapshop(ABC):
         """
 
 
-class AbstractEntityRepository(AbstractEventPlayer):
+class AbstractEntityRepository(AbstractEventPlayer[T]):
     @abstractmethod
-    def __getitem__(self, entity_id) -> AbstractDomainEntity:
+    def __getitem__(self, entity_id) -> T:
         """
         Returns entity for given ID.
 
@@ -142,7 +156,7 @@ class AbstractEntityRepository(AbstractEventPlayer):
         """
 
     @abstractmethod
-    def get_entity(self, entity_id, at=None) -> Optional[AbstractDomainEntity]:
+    def get_entity(self, entity_id, at=None) -> Optional[T]:
         """
         Returns entity for given ID.
 

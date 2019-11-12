@@ -227,7 +227,7 @@ def subclassevents(cls: MetaAbstractDomainEntity):
 
     For example, this:
 
-    @subclassevents
+    @subclassdomainevents
     class Example(AggregateRoot):
         class SomethingHappened(DomainEvent): pass
 

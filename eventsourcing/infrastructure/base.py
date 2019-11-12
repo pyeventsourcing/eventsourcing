@@ -273,7 +273,10 @@ class SQLRecordManager(ACIDRecordManager):
         "{tablename}"
     )
 
-    _where_application_name_tmpl = None
+    @property
+    @abstractmethod
+    def _where_application_name_tmpl(self) -> str:
+        pass
 
     @property
     def insert_values(self):

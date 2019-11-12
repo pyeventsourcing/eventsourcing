@@ -1,3 +1,5 @@
+from typing import Optional, Type
+
 from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.infrastructure.datastore import AbstractDatastore
 from eventsourcing.infrastructure.eventstore import EventStore
@@ -13,15 +15,15 @@ class InfrastructureFactory(object):
     Base class for infrastructure factories.
     """
 
-    record_manager_class = None
+    record_manager_class: Optional[type] = None
     sequenced_item_class = SequencedItem
     sequenced_item_mapper_class = SequencedItemMapper
-    integer_sequenced_record_class = None
-    integer_sequenced_noid_record_class = None
-    timestamp_sequenced_record_class = None
-    snapshot_record_class = None
-    json_encoder_class = None
-    json_decoder_class = None
+    integer_sequenced_record_class: Optional[type] = None
+    integer_sequenced_noid_record_class: Optional[type] = None
+    timestamp_sequenced_record_class: Optional[type] = None
+    snapshot_record_class: Optional[type] = None
+    json_encoder_class: Optional[type] = None
+    json_decoder_class: Optional[type] = None
     event_store_class = EventStore
 
     def __init__(

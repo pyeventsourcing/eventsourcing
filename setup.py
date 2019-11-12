@@ -52,7 +52,7 @@ docs_requires = testing_requires + [
     "sphinx-autobuild",
 ]
 
-dev_requires = docs_requires + ["black"]
+dev_requires = docs_requires + ["black", "mypy"]
 
 long_description = """
 A library for event sourcing in Python.
