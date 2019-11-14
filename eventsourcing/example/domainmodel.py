@@ -5,34 +5,33 @@ from eventsourcing.domain.model.entity import (
     EntityWithHashchain,
     TimestampedVersionedEntity,
 )
-from eventsourcing.types import AbstractDomainEntity, AbstractEntityRepository
+from eventsourcing.types import AbstractEntityRepository, T
 
 
-class Example(EntityWithHashchain, TimestampedVersionedEntity):
+class Example(EntityWithHashchain[T], TimestampedVersionedEntity[T]):
     """
     An example event sourced domain model entity.
     """
 
-    class Event(EntityWithHashchain.Event, TimestampedVersionedEntity.Event):
+    class Event(EntityWithHashchain.Event[T], TimestampedVersionedEntity.Event[T]):
         """Supertype for events of example entities."""
 
     class Created(
-        Event, EntityWithHashchain.Created, TimestampedVersionedEntity.Created
+        Event, EntityWithHashchain.Created[T], TimestampedVersionedEntity.Created[T]
     ):
         """Published when an Example is created."""
 
-    class AttributeChanged(Event, TimestampedVersionedEntity.AttributeChanged):
+    class AttributeChanged(Event[T], TimestampedVersionedEntity.AttributeChanged[T]):
         """Published when an Example is created."""
 
-    class Discarded(Event, TimestampedVersionedEntity.Discarded):
+    class Discarded(Event[T], TimestampedVersionedEntity.Discarded[T]):
         """Published when an Example is discarded."""
 
-    class Heartbeat(Event, TimestampedVersionedEntity.Event):
+    class Heartbeat(Event[T], TimestampedVersionedEntity.Event[T]):
         """Published when a heartbeat in the entity occurs (see below)."""
 
-        def mutate(self, obj: Optional[AbstractDomainEntity]) -> None:
+        def mutate(self, obj: Optional[T]) -> None:
             """Updates 'obj' with values from self."""
-            # assert isinstance(obj, Example), obj
             obj = cast(Example, obj)
             obj._count_heartbeats += 1
 
