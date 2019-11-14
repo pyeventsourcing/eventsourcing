@@ -264,7 +264,6 @@ def subclassevents(cls: type):
         )
         event_event_subclass.__module__ = cls.__module__
         setattr(cls, "Event", event_event_subclass)
-        print(event_event_subclass)
 
     # Define subclasses for super event classes, including Event subclass as base.
     for super_event_class_name in super_event_class_names:
@@ -287,22 +286,19 @@ def subclassevents(cls: type):
         )
         event_subclass.__module__ = cls.__module__
         setattr(cls, super_event_class_name, event_subclass)
-        print(event_subclass)
-
 
     # Redefine event classes in cls.__dict__ that are not subclasses of Event.
     for cls_attr_name in cls.__dict__.keys():
-        base_attr = getattr(cls, cls_attr_name)
-        if isinstance(base_attr, type):
-            if not issubclass(base_attr, event_event_subclass):
+        cls_attr = getattr(cls, cls_attr_name)
+        if isinstance(cls_attr, type):
+            if not issubclass(cls_attr, event_event_subclass):
                 event_subclass = type(
                     cls_attr_name,
-                    (base_attr,),
-                    {"__qualname__": cls.__name__ + "." + base_attr.__name__},
+                    (cls_attr, event_event_subclass),
+                    {"__qualname__": cls.__name__ + "." + cls_attr.__name__},
                 )
                 event_subclass.__module__ = cls.__module__
                 event_subclass.__doc__ = cls.__doc__
                 setattr(cls, cls_attr_name, event_subclass)
-                print(event_subclass)
 
     return cls
