@@ -6,7 +6,7 @@ from uuid import UUID
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.decorators import attribute, subclassevents
-from eventsourcing.domain.model.events import DomainEvent
+from eventsourcing.domain.model.events import DomainEvent, assert_event_handlers_empty
 from eventsourcing.exceptions import EventHashError, HeadHashError
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
@@ -60,13 +60,48 @@ class TestAggregateRootEvent(TestCase):
 
 
 class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
-    def setUp(self):
+    def setUp(self) -> None:
+        assert_event_handlers_empty()
         super(TestExampleAggregateRoot, self).setUp()
         self.app: ExampleDDDApplication = ExampleDDDApplication(self.datastore)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.app.close()
         super(TestExampleAggregateRoot, self).tearDown()
+        assert_event_handlers_empty()
+
+    def test_example_aggregate_event_classes(self):
+        self.assertIn("Event", ExampleAggregateRoot.__dict__)
+        self.assertIn("Created", ExampleAggregateRoot.__dict__)
+        self.assertIn("Discarded", ExampleAggregateRoot.__dict__)
+        self.assertIn("AttributeChanged", ExampleAggregateRoot.__dict__)
+
+        self.assertEqual(ExampleAggregateRoot.Event.__name__, "Event")
+        self.assertEqual(ExampleAggregateRoot.Event.__qualname__, "ExampleAggregateRoot.Event")
+        topic = "eventsourcing.tests.core_tests.test_aggregate_root#ExampleAggregateRoot.Event"
+        self.assertEqual(get_topic(ExampleAggregateRoot.Event), topic)
+        self.assertEqual(resolve_topic(topic), ExampleAggregateRoot.Event)
+
+        self.assertEqual(ExampleAggregateRoot.Created.__name__, "Created")
+        self.assertEqual(ExampleAggregateRoot.Created.__qualname__, "ExampleAggregateRoot.Created")
+        topic = "eventsourcing.tests.core_tests.test_aggregate_root#ExampleAggregateRoot.Created"
+        self.assertEqual(get_topic(ExampleAggregateRoot.Created), topic)
+        self.assertEqual(resolve_topic(topic), ExampleAggregateRoot.Created)
+        self.assertTrue(issubclass(ExampleAggregateRoot.Created, ExampleAggregateRoot.Event))
+
+        self.assertEqual(ExampleAggregateRoot.Discarded.__name__, "Discarded")
+        self.assertEqual(ExampleAggregateRoot.Discarded.__qualname__, "ExampleAggregateRoot.Discarded")
+        topic = "eventsourcing.tests.core_tests.test_aggregate_root#ExampleAggregateRoot.Discarded"
+        self.assertEqual(get_topic(ExampleAggregateRoot.Discarded), topic)
+        self.assertEqual(resolve_topic(topic), ExampleAggregateRoot.Discarded)
+        self.assertTrue(issubclass(ExampleAggregateRoot.Discarded, ExampleAggregateRoot.Event))
+
+        self.assertEqual(ExampleAggregateRoot.ExampleCreated.__name__, "ExampleCreated")
+        self.assertEqual(ExampleAggregateRoot.ExampleCreated.__qualname__, "ExampleAggregateRoot.ExampleCreated")
+        topic = "eventsourcing.tests.core_tests.test_aggregate_root#ExampleAggregateRoot.ExampleCreated"
+        self.assertEqual(get_topic(ExampleAggregateRoot.ExampleCreated), topic)
+        self.assertEqual(resolve_topic(topic), ExampleAggregateRoot.ExampleCreated)
+        self.assertTrue(issubclass(ExampleAggregateRoot.ExampleCreated, ExampleAggregateRoot.Event))
 
     def test_aggregate1_event_classes(self):
         self.assertIn("Event", Aggregate1.__dict__)
@@ -107,6 +142,7 @@ class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
         self.assertEqual(get_topic(Aggregate1.ExampleCreated), topic)
         self.assertEqual(resolve_topic(topic), Aggregate1.ExampleCreated)
         self.assertTrue(issubclass(Aggregate1.ExampleCreated, Aggregate1.Event))
+        self.assertTrue(issubclass(Aggregate1.SomethingElseOccurred, Aggregate1.Event))
 
     def test_aggregate2_event_classes(self):
         self.assertIn("Event", Aggregate2.__dict__)
@@ -336,6 +372,9 @@ class ExampleAggregateRoot(AggregateRoot[T]):
             aggregate = cast(ExampleAggregateRoot, obj)
             aggregate._entities[entity.id] = entity
             return obj
+
+    class SomethingElseOccurred(DomainEvent):
+        pass
 
 
 @subclassevents

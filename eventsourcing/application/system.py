@@ -6,6 +6,7 @@ from copy import deepcopy
 from queue import Empty, Queue
 from threading import Barrier, BrokenBarrierError, Event, Lock, Thread, Timer
 from time import sleep
+from typing import Optional, Type
 
 from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.process import ProcessApplication, Prompt
@@ -34,7 +35,8 @@ class System(object):
         """
         Initialises a "process network" system object.
 
-        :param pipeline_exprs: Pipeline expressions involving process application classes.
+        :param pipeline_exprs: Pipeline expressions involving process application
+        classes.
 
         Each pipeline expression of process classes shows directly which process
         follows which other process in the system.
@@ -46,7 +48,8 @@ class System(object):
 
         The pipeline expression (A | B | A) shows that B follows A, and A follows B.
 
-        The pipeline expressions ((A | B | A), (A | C | A)) are equivalent to (A | B | A | C | A).
+        The pipeline expressions ((A | B | A), (A | C | A)) are equivalent to (A | B
+        | A | C | A).
         """
         self.pipelines_exprs = pipeline_exprs
         self.setup_tables = kwargs.get("setup_tables", False)
@@ -214,9 +217,11 @@ class SystemRunner(ABC):
     def __init__(
         self,
         system: System,
-        infrastructure_class=None,
-        setup_tables=False,
-        use_direct_query_if_available=False,
+        infrastructure_class: Optional[
+            Type[ApplicationWithConcreteInfrastructure]
+        ] = None,
+        setup_tables: bool = False,
+        use_direct_query_if_available: bool = False,
     ):
         self.system = system
         self.infrastructure_class = (
@@ -468,7 +473,8 @@ class MultiThreadedRunner(InProcessRunner):
                 tick_oversize_percentage = 100 * (tick_oversize) / tick_interval
                 if tick_oversize_percentage > 300:
                     print(
-                        f"Warning: Tick over size: {tick_size :.6f}s {tick_oversize_percentage:.2f}%"
+                        f"Warning: Tick over size: {tick_size :.6f}s "
+                        f"{tick_oversize_percentage:.2f}%"
                     )
 
                 if abs(tick_oversize_percentage) < 300:
@@ -592,11 +598,13 @@ class PromptQueuedApplicationThread(Thread):
                         duration = ended - started
                         if self.clock_event.is_set():
                             print(
-                                f"Warning: Process {self.process.name} overran clock cycle: {duration}"
+                                f"Warning: Process {self.process.name} overran clock "
+                                f"cycle: {duration}"
                             )
                         else:
                             print(
-                                f"Info: Process {self.process.name} ran within clock cycle: {duration}"
+                                f"Info: Process {self.process.name} ran within clock "
+                                f"cycle: {duration}"
                             )
 
     def run_process(self, prompt=None):
@@ -752,7 +760,8 @@ class ProcessRunningClockThread(ClockThread):
     @property
     def actual_clock_speed(self):
         if self.all_tick_durations:
-            # Todo: Might need to lock this, to avoid "RuntimeError: deque mutated during iteration".
+            # Todo: Might need to lock this, to avoid "RuntimeError: deque mutated
+            #  during iteration".
             durations = list(self.all_tick_durations)
             return len(durations) / sum(durations)
         else:
@@ -783,7 +792,8 @@ class ProcessRunningClockThread(ClockThread):
                     for notification in notifications:
                         # print(process_name, notification)
                         process = self.processes[process_name]
-                        # It's not the follower process, but the method does the same thing.
+                        # It's not the follower process, but the method does the same
+                        # thing.
                         event = process.get_event_from_notification(notification)
                         notification_id = notification["id"]
                         events.append((notification_id, event))
@@ -824,9 +834,11 @@ class ProcessRunningClockThread(ClockThread):
                         clock_speed = 1 / tick_duration
                         real_time = self.tick_count / self.normal_speed
                         print(
-                            f"Tick {self.tick_count:4}: {real_time:4.2f}s  {tick_duration:.6f}s, "
+                            f"Tick {self.tick_count:4}: {real_time:4.2f}s  "
+                            f"{tick_duration:.6f}s, "
                             f"{intensity:6.2f}%, {clock_speed:6.1f}Hz, "
-                            f"{self.actual_clock_speed:6.1f}Hz, {self.tick_adjustment:.6f}s"
+                            f"{self.actual_clock_speed:6.1f}Hz, "
+                            f"{self.tick_adjustment:.6f}s"
                         )
 
                     if self.tick_interval:
@@ -835,11 +847,14 @@ class ProcessRunningClockThread(ClockThread):
                             100 * (tick_oversize) / self.tick_interval
                         )
                         # if tick_oversize_percentage > 300:
-                        #     print(f"Warning: Tick over size: { tick_duration :.6f}s {tick_oversize_percentage:.2f}%")
+                        #     print(f"Warning: Tick over size: { tick_duration :.6f}s
+                        #     {tick_oversize_percentage:.2f}%")
 
                         if abs(tick_oversize_percentage) < 300:
-                            # Weight falls from 1 as reciprocal of count, to tick interval.
-                            # weight = max(1 / self.tick_count, min(.1, self.tick_interval))
+                            # Weight falls from 1 as reciprocal of count, to tick
+                            # interval.
+                            # weight = max(1 / self.tick_count, min(.1,
+                            # self.tick_interval))
                             weight = 1 / (1 + self.tick_count * self.tick_interval) ** 2
                             # print(f"Weight: {weight:.4f}")
                             self.tick_adjustment += weight * tick_oversize
@@ -881,9 +896,11 @@ class SteppingMultiThreadedRunner(SteppingRunner):
 
 
     Todo:
-    Receive prompts, but set an event for the prompting process, to avoid unnecessary runs.
+    Receive prompts, but set an event for the prompting process, to avoid unnecessary
+    runs.
 
-    Allow commands to be scheduled at future clock tick number, and execute when reached.
+    Allow commands to be scheduled at future clock tick number, and execute when
+    reached.
 
     """
 
@@ -948,7 +965,8 @@ class SteppingMultiThreadedRunner(SteppingRunner):
             thread.join(timeout=1)
             if thread.isAlive():
                 print(
-                    f"Warning: application thread '{thread.process.name}' was still alive: {thread.state}"
+                    f"Warning: application thread '{thread.process.name}' was still "
+                    f"alive: {thread.state}"
                 )
 
         self.application_threads.clear()
@@ -1013,7 +1031,8 @@ class BarrierControlledApplicationThread(Thread):
                     # Process all notifications.
                     for upstream_name, notifications in all_notifications:
                         for notification in notifications:
-                            event = self.process_application.get_event_from_notification(
+                            event = \
+                                self.process_application.get_event_from_notification(
                                 notification
                             )
                             self.process_application.process_upstream_event(
@@ -1101,9 +1120,11 @@ class BarrierControllingClockThread(ClockThread):
                         clock_speed = 1 / tick_duration
                         real_time = self.tick_count / self.normal_speed
                         print(
-                            f"Tick {self.tick_count:4}: {real_time:4.2f}s  {tick_duration:.6f}s, "
+                            f"Tick {self.tick_count:4}: {real_time:4.2f}s  "
+                            f"{tick_duration:.6f}s, "
                             f"{intensity:6.2f}%, {clock_speed:6.1f}Hz, "
-                            f"{self.actual_clock_speed:6.1f}Hz, {self.tick_adjustment:.6f}s"
+                            f"{self.actual_clock_speed:6.1f}Hz, "
+                            f"{self.tick_adjustment:.6f}s"
                         )
 
                     if self.tick_interval:
@@ -1112,11 +1133,14 @@ class BarrierControllingClockThread(ClockThread):
                             100 * (tick_oversize) / self.tick_interval
                         )
                         # if tick_oversize_percentage > 300:
-                        #     print(f"Warning: Tick over size: { tick_duration :.6f}s {tick_oversize_percentage:.2f}%")
+                        #     print(f"Warning: Tick over size: { tick_duration :.6f}s
+                        #     {tick_oversize_percentage:.2f}%")
 
                         if abs(tick_oversize_percentage) < 300:
-                            # Weight falls from 1 as reciprocal of count, to tick interval.
-                            # weight = max(1 / self.tick_count, min(.1, self.tick_interval))
+                            # Weight falls from 1 as reciprocal of count, to tick
+                            # interval.
+                            # weight = max(1 / self.tick_count, min(.1,
+                            # self.tick_interval))
                             weight = 1 / (1 + self.tick_count * self.tick_interval) ** 2
                             # print(f"Weight: {weight:.4f}")
                             self.tick_adjustment += weight * tick_oversize

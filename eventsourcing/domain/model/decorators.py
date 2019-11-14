@@ -227,7 +227,7 @@ def subclassevents(cls: MetaAbstractDomainEntity):
 
     For example, this:
 
-    @subclassdomainevents
+    @subclassevents
     class Example(AggregateRoot):
         class SomethingHappened(DomainEvent): pass
 
@@ -301,15 +301,21 @@ def subclassevents(cls: MetaAbstractDomainEntity):
 
     # Redefine event classes in cls.__dict__ that are not subclasses of Event.
     for cls_attr_name in cls.__dict__.keys():
-        base_attr = getattr(cls, cls_attr_name)
-        if isinstance(base_attr, type):
-            if not issubclass(base_attr, event_event_subclass):
-                cls_dict = {"__qualname__": cls.__name__ + "." + base_attr.__name__}
-                cls_bases = (base_attr,)
-                event_subclass = type(cls_attr_name, cls_bases, cls_dict)
-                event_subclass.__qualname__ = cls.__name__ + "." + base_attr.__name__
-                event_subclass.__module__ = cls.__module__
-                event_subclass.__doc__ = cls.__doc__
+        cls_attr = getattr(cls, cls_attr_name)
+        if isinstance(cls_attr, type) and issubclass(cls_attr, DomainEvent):
+            if not issubclass(cls_attr, event_event_subclass):
+                try:
+                    event_subclass = type(
+                        cls_attr_name,
+                        (cls_attr, event_event_subclass),
+                        {
+                            "__qualname__": cls_attr.__qualname__,
+                            "__module__": cls_attr.__module__,
+                            "__doc__": cls_attr.__doc__,
+                        },
+                    )
+                except TypeError:
+                    raise Exception(cls_attr_name, cls_attr, event_event_subclass)
                 setattr(cls, cls_attr_name, event_subclass)
 
     return cls
