@@ -16,10 +16,16 @@ from eventsourcing.exceptions import RepositoryKeyError
 
 class TestDDDCargoShippingExample(TestCase):
     def setUp(self) -> None:
-        system = System(BookingApplication)
-        runner = SingleThreadedRunner(system, PopoApplication, setup_tables=True)
-        runner.start()
-        self.client = LocalClient(runner)
+        self.runner = SingleThreadedRunner(
+            system=System(BookingApplication),
+            infrastructure_class=PopoApplication,
+            setup_tables=True
+        )
+        self.runner.start()
+        self.client = LocalClient(self.runner)
+
+    def tearDown(self) -> None:
+        self.runner.close()
 
     def test_admin_can_book_new_cargo(self):
         arrival_deadline = datetime.now() + timedelta(weeks=3)

@@ -276,7 +276,6 @@ def subclassevents(cls: MetaAbstractDomainEntity):
         )
         event_event_subclass.__module__ = cls.__module__
         setattr(cls, "Event", event_event_subclass)
-        print(event_event_subclass)
 
     # Define subclasses for super event classes, including Event subclass as base.
     for super_event_class_name in super_event_class_names:
@@ -299,8 +298,6 @@ def subclassevents(cls: MetaAbstractDomainEntity):
         )
         event_subclass.__module__ = cls.__module__
         setattr(cls, super_event_class_name, event_subclass)
-        print(event_subclass)
-
 
     # Redefine event classes in cls.__dict__ that are not subclasses of Event.
     for cls_attr_name in cls.__dict__.keys():
@@ -311,9 +308,9 @@ def subclassevents(cls: MetaAbstractDomainEntity):
                     cls_attr_name,
                     (cls_attr, event_event_subclass),
                     {
-                        "__qualname__": cls.__qualname__,
-                        "__module__": cls.__module__,
-                        "__doc__": cls.__doc__,
+                        "__qualname__": cls_attr.__qualname__,
+                        "__module__": cls_attr.__module__,
+                        "__doc__": cls_attr.__doc__,
                     },
                 )
                 setattr(cls, cls_attr_name, event_subclass)

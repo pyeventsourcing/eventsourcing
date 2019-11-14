@@ -20,6 +20,9 @@ base_dir = dirname(dirname(os.path.abspath(eventsourcing.__file__)))
 
 
 class TestDocs(TestCase):
+    def setUp(self) -> None:
+        assert_event_handlers_empty()
+
     def tearDown(self):
         clear_event_handlers()
 

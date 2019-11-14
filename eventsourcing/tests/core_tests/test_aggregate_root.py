@@ -6,7 +6,7 @@ from uuid import UUID
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.domain.model.decorators import attribute, subclassevents
-from eventsourcing.domain.model.events import DomainEvent
+from eventsourcing.domain.model.events import DomainEvent, assert_event_handlers_empty
 from eventsourcing.exceptions import EventHashError, HeadHashError
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
@@ -60,13 +60,15 @@ class TestAggregateRootEvent(TestCase):
 
 
 class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
-    def setUp(self):
+    def setUp(self) -> None:
+        assert_event_handlers_empty()
         super(TestExampleAggregateRoot, self).setUp()
         self.app: ExampleDDDApplication = ExampleDDDApplication(self.datastore)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.app.close()
         super(TestExampleAggregateRoot, self).tearDown()
+        assert_event_handlers_empty()
 
     def test_example_aggregate_event_classes(self):
         self.assertIn("Event", ExampleAggregateRoot.__dict__)
