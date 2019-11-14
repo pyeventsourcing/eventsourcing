@@ -14,7 +14,7 @@ from eventsourcing.domain.model.events import (
 )
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.exceptions import OperationalError, RecordConflictError
-from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
+from eventsourcing.infrastructure.base import BaseRecordManager
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import (
     SequencedItemIterator,
@@ -330,7 +330,7 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
     @property
     def record_manager(self):
         """
-        :rtype: AbstractSequencedItemRecordManager
+        :rtype: BaseRecordManager
         """
         if self._record_manager is None:
             self._record_manager = self.construct_record_manager()
@@ -483,7 +483,7 @@ class AbstractSequencedItemIteratorTestCase(WithRecordManagers):
         self.setup_sequenced_items()
 
         assert isinstance(
-            self.entity_record_manager, AbstractSequencedItemRecordManager
+            self.entity_record_manager, BaseRecordManager
         )
         stored_events = self.entity_record_manager.list_items(
             sequence_id=self.entity_id

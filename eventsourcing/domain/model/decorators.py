@@ -2,27 +2,39 @@ import random
 from functools import singledispatch, wraps
 from inspect import isfunction
 from time import sleep
+from typing import Dict, Type
 
-from eventsourcing.domain.model.events import subscribe, DomainEvent
+from eventsourcing.domain.model.events import DomainEvent, subscribe
 from eventsourcing.exceptions import ProgrammingError
+from eventsourcing.types import MetaAbstractDomainEntity
 
 
 def subscribe_to(*event_classes):
     """
-    Decorator for making a custom event handler function subscribe to a certain class of event.
+    Decorator for making a custom event handler function subscribe to a certain class
+    of event.
 
-    The decorated function will be called once for each matching event that is published, and will
-    be given one argument, the event, when it is called. If events are published in lists, for
-    example the AggregateRoot publishes a list of pending events when its __save__() method is called,
-    then the decorated function will be called once for each event that is an instance of the given event_class.
+    The decorated function will be called once for each matching event that is
+    published, and will
+    be given one argument, the event, when it is called. If events are published in
+    lists, for
+    example the AggregateRoot publishes a list of pending events when its __save__()
+    method is called,
+    then the decorated function will be called once for each event that is an
+    instance of the given event_class.
 
-    Please note, this decorator isn't suitable for use with object class methods. The decorator receives
-    in Python 3 an unbound function, and defines a handler which it subscribes that calls the decorated
-    function for each matching event. However the method isn't called on the object, so the object instance
-    is never available in the decorator, so the decorator can't call a normal object method because it
+    Please note, this decorator isn't suitable for use with object class methods. The
+    decorator receives
+    in Python 3 an unbound function, and defines a handler which it subscribes that
+    calls the decorated
+    function for each matching event. However the method isn't called on the object,
+    so the object instance
+    is never available in the decorator, so the decorator can't call a normal object
+    method because it
     doesn't have a value for 'self'.
 
-    event_class: type used to match published events, an event matches if it is an instance of this type
+    event_class: type used to match published events, an event matches if it is an
+    instance of this type
 
     The following example shows a custom handler that reacts to Todo.Created
     event and saves a projection of a Todo model object.
@@ -209,13 +221,13 @@ def retry(exc=Exception, max_attempts=1, wait=0, stall=0, verbose=False):
         return _retry
 
 
-def subclassevents(cls: type):
+def subclassevents(cls: MetaAbstractDomainEntity):
     """
     Decorator that avoids "boilerplate" subclassing of domain events.
 
     For example, this:
 
-    @subclassevents
+    @subclassdomainevents
     class Example(AggregateRoot):
         class SomethingHappened(DomainEvent): pass
 
@@ -235,7 +247,7 @@ def subclassevents(cls: type):
     bases_event_attrs = []
     super_event_class_names = set()
     for base_cls in cls.__bases__:
-        base_event_attrs = {}
+        base_event_attrs: Dict[str, Type[DomainEvent]] = {}
         bases_event_attrs.append(base_event_attrs)
         for base_attr_name in dir(base_cls):
             base_attr = getattr(base_cls, base_attr_name)
@@ -264,7 +276,6 @@ def subclassevents(cls: type):
         )
         event_event_subclass.__module__ = cls.__module__
         setattr(cls, "Event", event_event_subclass)
-        print(event_event_subclass)
 
     # Define subclasses for super event classes, including Event subclass as base.
     for super_event_class_name in super_event_class_names:
@@ -287,22 +298,18 @@ def subclassevents(cls: type):
         )
         event_subclass.__module__ = cls.__module__
         setattr(cls, super_event_class_name, event_subclass)
-        print(event_subclass)
-
 
     # Redefine event classes in cls.__dict__ that are not subclasses of Event.
     for cls_attr_name in cls.__dict__.keys():
         base_attr = getattr(cls, cls_attr_name)
         if isinstance(base_attr, type):
             if not issubclass(base_attr, event_event_subclass):
-                event_subclass = type(
-                    cls_attr_name,
-                    (base_attr,),
-                    {"__qualname__": cls.__name__ + "." + base_attr.__name__},
-                )
+                cls_dict = {"__qualname__": cls.__name__ + "." + base_attr.__name__}
+                cls_bases = (base_attr,)
+                event_subclass = type(cls_attr_name, cls_bases, cls_dict)
+                event_subclass.__qualname__ = cls.__name__ + "." + base_attr.__name__
                 event_subclass.__module__ = cls.__module__
                 event_subclass.__doc__ = cls.__doc__
                 setattr(cls, cls_attr_name, event_subclass)
-                print(event_subclass)
 
     return cls

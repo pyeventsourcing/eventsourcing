@@ -1,6 +1,7 @@
 import logging
+from typing import Dict
 
-from thespian.actors import *
+from thespian.actors import Actor, ActorSystem, ActorExitRequest
 
 from eventsourcing.application.notificationlog import RecordManagerNotificationLog
 from eventsourcing.application.process import ProcessApplication, Prompt
@@ -65,7 +66,7 @@ class ActorModelRunner(SystemRunner):
     ):
         super(ActorModelRunner, self).__init__(system=system, **kwargs)
         self.pipeline_ids = list(pipeline_ids)
-        self.pipeline_actors = {}
+        self.pipeline_actors: Dict[int, PipelineActor] = {}
         self.system_actor_name = system_actor_name
         # Create the system actor (singleton).
         self.system_actor = self.actor_system.createActor(

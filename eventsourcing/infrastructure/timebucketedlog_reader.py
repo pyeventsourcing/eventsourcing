@@ -5,7 +5,7 @@ from eventsourcing.domain.model.timebucketedlog import (
     next_bucket_starts,
     previous_bucket_starts,
 )
-from eventsourcing.infrastructure.eventstore import AbstractEventStore
+from eventsourcing.types import AbstractEventStore
 from eventsourcing.utils.times import decimaltimestamp
 
 

@@ -3,7 +3,7 @@ from eventsourcing.domain.model.events import (
     subscribe,
     unsubscribe,
 )
-from eventsourcing.infrastructure.eventstore import AbstractEventStore
+from eventsourcing.types import AbstractEventStore
 
 
 class PersistencePolicy(object):

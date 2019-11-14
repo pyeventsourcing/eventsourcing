@@ -1,31 +1,38 @@
 from functools import reduce
+from types import FunctionType
+from typing import Optional
 
-from eventsourcing.domain.model.entity import AbstractEventPlayer
-from eventsourcing.infrastructure.eventstore import AbstractEventStore
+from eventsourcing.infrastructure.snapshotting import AbstractSnapshotStrategy
+from eventsourcing.types import AbstractEventStore, AbstractEventPlayer, T
 
 
-class EventPlayer(AbstractEventPlayer):
+class EventPlayer(AbstractEventPlayer[T]):
     # The page size by which events are retrieved. If this
     # value is set to a positive integer, the events of
     # the entity will be retrieved in pages, using a series
     # of queries, rather than with one potentially large query.
     __page_size__ = None
 
-    def __init__(self, event_store, snapshot_strategy=None, mutator_func=None):
+    def __init__(
+        self,
+        event_store: AbstractEventStore,
+        snapshot_strategy: AbstractSnapshotStrategy = None,
+        mutator_func: Optional[FunctionType] = None,
+    ):
         super(EventPlayer, self).__init__()
         # Check we got an event store.
         assert isinstance(event_store, AbstractEventStore), type(event_store)
-        self._event_store = event_store
+        self._event_store: AbstractEventStore = event_store
         self._snapshot_strategy = snapshot_strategy
         self._mutator_func = mutator_func
 
     @property
-    def event_store(self):
+    def event_store(self) -> AbstractEventStore:
         return self._event_store
 
-    def project_events(self, initial_state, domain_events):
+    def project_events(self, initial_state, domain_events) -> Optional[T]:
         """
-        Evolves initial state using the sequence of domain events, and a mutator function.
+        Evolves initial_state using the domain_events and a mutator function.
 
         Applies a mutator function cumulatively to a sequence of domain
         events, so as to mutate the initial value to a mutated value.
@@ -37,7 +44,7 @@ class EventPlayer(AbstractEventPlayer):
         return reduce(self._mutator_func or self.mutate, domain_events, initial_state)
 
     @staticmethod
-    def mutate(initial, event):
+    def mutate(initial, event) -> Optional[T]:
         """
         Default mutator function, which uses __mutate__()
         method on event object to mutate initial state.
@@ -46,6 +53,7 @@ class EventPlayer(AbstractEventPlayer):
         :param event: Event that causes the initial state to be mutated.
         :return: Returns the mutated state.
         """
+        # Check obj is not None.
         if initial is not None:
             event.__check_obj__(initial)
         return event.__mutate__(initial)

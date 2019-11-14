@@ -122,27 +122,27 @@ def decoder(d):
 
 
 @encoder.register(type)
-def _(obj):
+def encode_type(obj):
     return {"__type__": get_topic(obj)}
 
 
 @encoder.register(MethodType)
-def _(obj):
+def encode_method(obj):
     raise EncoderTypeError(obj)
 
 
 @encoder.register(FunctionType)
-def _(obj):
+def encode_function(obj):
     raise EncoderTypeError(obj)
 
 
 @decoder.register("__type__")
-def _decode_type(d):
+def decode_type(d):
     return resolve_topic(d["__type__"])
 
 
 @encoder.register(object)
-def _(obj):
+def encode_object(obj):
     if hasattr(obj, "__slots__"):
         topic = get_topic(obj.__class__)
         state = {k: getattr(obj, k) for k in obj.__slots__}
@@ -156,7 +156,7 @@ def _(obj):
 
 
 @decoder.register("__class__")
-def _decode_object(d):
+def decode_object(d):
     topic = d["__class__"]["topic"]
     state = d["__class__"]["state"]
     obj_class = resolve_topic(topic)
@@ -170,59 +170,59 @@ def _decode_object(d):
 
 
 @encoder.register(UUID)
-def _(obj):
+def encode_uuid(obj):
     return {"UUID": obj.hex}
 
 
 @decoder.register("UUID")
-def _decode_uuid(d):
+def decode_uuid(d):
     return UUID(d["UUID"])
 
 
 @encoder.register(datetime.datetime)
-def _(obj):
+def encode_datetime(obj):
     return {"ISO8601_datetime": obj.strftime("%Y-%m-%dT%H:%M:%S.%f%z")}
 
 
 @decoder.register("ISO8601_datetime")
-def _decode_datetime(d):
+def decode_datetime(d):
     return dateutil.parser.parse(d["ISO8601_datetime"])
 
 
 @encoder.register(datetime.date)
-def _(obj):
+def encode_date(obj):
     return {"ISO8601_date": obj.isoformat()}
 
 
 @decoder.register("ISO8601_date")
-def _decode_date(d):
+def decode_date(d):
     return datetime.datetime.strptime(d["ISO8601_date"], "%Y-%m-%d").date()
 
 
 @encoder.register(datetime.time)
-def _(obj):
+def encode_time(obj):
     return {"ISO8601_time": obj.strftime("%H:%M:%S.%f")}
 
 
 @decoder.register("ISO8601_time")
-def _decode_time(d):
+def decode_time(d):
     hour, minute, seconds = d["ISO8601_time"].split(":")
     second, microsecond = seconds.split(".")
     return datetime.time(int(hour), int(minute), int(second), int(microsecond))
 
 
 @encoder.register(Decimal)
-def _(obj):
+def encode_decimal(obj):
     return {"__decimal__": str(obj)}
 
 
 @decoder.register("__decimal__")
-def _decode_decimal(d):
+def decode_decimal(d):
     return Decimal(d["__decimal__"])
 
 
 @encoder.register(Enum)
-def _(obj):
+def encode_enum(obj):
     return {
         "__enum__": {
             "topic": get_topic(type(obj)),
@@ -232,7 +232,7 @@ def _(obj):
 
 
 @decoder.register("__enum__")
-def _decode_enum(d):
+def decode_enum(d):
     topic = d["__enum__"]["topic"]
     name = d["__enum__"]["name"]
     enum = resolve_topic(topic)
@@ -240,7 +240,7 @@ def _decode_enum(d):
 
 
 @encoder.register(deque)
-def _(obj):
+def encode_deque(obj):
     return {"__deque__": {
         "topic": get_topic(type(obj)),
         "values": list(obj)}
@@ -248,7 +248,7 @@ def _(obj):
 
 
 @decoder.register("__deque__")
-def _decode_deque(d):
+def decode_deque(d):
     topic = d["__deque__"]["topic"]
     values = d["__deque__"]["values"]
     deque = resolve_topic(topic)
@@ -256,7 +256,7 @@ def _decode_deque(d):
 
 
 @decoder.register("__tuple__")
-def _decode_tuple(d):
+def decode_tuple(d):
     topic = d["__tuple__"]["topic"]
     state = d["__tuple__"]["state"]
     tuple_type = resolve_topic(topic)
@@ -270,10 +270,10 @@ def _decode_tuple(d):
 
 
 @encoder.register(set)
-def _(obj):
+def encode_set(obj):
     return {"__set__": sorted(list(obj))}
 
 
 @decoder.register("__set__")
-def _decode_set(d):
+def decode_set(d):
     return set(d["__set__"])

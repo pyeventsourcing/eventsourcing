@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from threading import Thread
 
-from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
+from eventsourcing.infrastructure.base import BaseRecordManager
 
 
 class AbstractSequencedItemIterator(ABC):
@@ -19,7 +19,7 @@ class AbstractSequencedItemIterator(ABC):
         limit=None,
         is_ascending=True,
     ):
-        assert isinstance(record_manager, AbstractSequencedItemRecordManager), type(
+        assert isinstance(record_manager, BaseRecordManager), type(
             record_manager
         )
         assert isinstance(page_size, (int, type(None)))
@@ -236,7 +236,7 @@ class GetEntityEventsThread(Thread):
         **kwargs
     ):
         super(GetEntityEventsThread, self).__init__(*args, **kwargs)
-        assert isinstance(record_manager, AbstractSequencedItemRecordManager), type(
+        assert isinstance(record_manager, BaseRecordManager), type(
             record_manager
         )
         self.record_manager = record_manager

@@ -1,14 +1,22 @@
 import os
+from typing import List, Optional, Type, Union
 
 from eventsourcing.application.notificationlog import RecordManagerNotificationLog
 from eventsourcing.application.pipeline import Pipeable
 from eventsourcing.application.policies import PersistencePolicy
+from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.factory import InfrastructureFactory
 from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
+from eventsourcing.types import (
+    AbstractEntityRepository,
+    AbstractEventStore,
+    AbstractRecordManager,
+    AbstractSequencedItemMapper,
+)
 from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.utils.random import decode_bytes
 
@@ -24,24 +32,26 @@ class SimpleApplication(Pipeable):
     Needs actual infrastructure classes.
     """
 
-    infrastructure_factory_class = InfrastructureFactory
-    is_constructed_with_session = False
+    infrastructure_factory_class: Type[InfrastructureFactory] = InfrastructureFactory
+    is_constructed_with_session: bool = False
 
-    record_manager_class = None
-    stored_event_record_class = None
-    snapshot_record_class = None
+    record_manager_class: Optional[Type[AbstractRecordManager]] = None
+    stored_event_record_class: Optional[type] = None
+    snapshot_record_class: Optional[type] = None
 
-    sequenced_item_class = None
-    sequenced_item_mapper_class = None
-    json_encoder_class = None
-    json_decoder_class = None
+    sequenced_item_class: Optional[type] = None
+    sequenced_item_mapper_class: Optional[Type[AbstractSequencedItemMapper]] = None
+    json_encoder_class: Optional[type] = None
+    json_decoder_class: Optional[type] = None
 
-    persist_event_type = None
-    notification_log_section_size = None
-    use_cache = False
+    persist_event_type: Optional[
+        Union[Type[DomainEvent], List[Type[DomainEvent]]]
+    ] = None
+    notification_log_section_size: Optional[int] = None
+    use_cache: bool = False
 
-    event_store_class = EventStore
-    repository_class = EventSourcedRepository
+    event_store_class: Type[AbstractEventStore] = EventStore
+    repository_class: Type[AbstractEntityRepository] = EventSourcedRepository
 
     def __init__(
         self,

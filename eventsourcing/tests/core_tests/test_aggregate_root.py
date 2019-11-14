@@ -1,5 +1,7 @@
 import uuid
+from typing import Dict, Optional, cast, Generic
 from unittest.case import TestCase
+from uuid import UUID
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.aggregate import AggregateRoot
@@ -14,6 +16,7 @@ from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedNoID
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import (
     SQLAlchemyRecordManagerTestCase,
 )
+from eventsourcing.types import T
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
 
@@ -59,7 +62,7 @@ class TestAggregateRootEvent(TestCase):
 class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
     def setUp(self):
         super(TestExampleAggregateRoot, self).setUp()
-        self.app = ExampleDDDApplication(self.datastore)
+        self.app: ExampleDDDApplication = ExampleDDDApplication(self.datastore)
 
     def tearDown(self):
         self.app.close()
@@ -86,14 +89,21 @@ class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
 
         self.assertEqual(Aggregate1.Discarded.__name__, "Discarded")
         self.assertEqual(Aggregate1.Discarded.__qualname__, "Aggregate1.Discarded")
-        topic = "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate1.Discarded"
+        topic = (
+            "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate1" ".Discarded"
+        )
         self.assertEqual(get_topic(Aggregate1.Discarded), topic)
         self.assertEqual(resolve_topic(topic), Aggregate1.Discarded)
         self.assertTrue(issubclass(Aggregate1.Discarded, Aggregate1.Event))
 
         self.assertEqual(Aggregate1.ExampleCreated.__name__, "ExampleCreated")
-        self.assertEqual(Aggregate1.ExampleCreated.__qualname__, "Aggregate1.ExampleCreated")
-        topic = "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate1.ExampleCreated"
+        self.assertEqual(
+            Aggregate1.ExampleCreated.__qualname__, "Aggregate1.ExampleCreated"
+        )
+        topic = (
+            "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate1"
+            ".ExampleCreated"
+        )
         self.assertEqual(get_topic(Aggregate1.ExampleCreated), topic)
         self.assertEqual(resolve_topic(topic), Aggregate1.ExampleCreated)
         self.assertTrue(issubclass(Aggregate1.ExampleCreated, Aggregate1.Event))
@@ -119,19 +129,36 @@ class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
 
         self.assertEqual(Aggregate2.Discarded.__name__, "Discarded")
         self.assertEqual(Aggregate2.Discarded.__qualname__, "Aggregate2.Discarded")
-        topic = "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate2.Discarded"
+        topic = (
+            "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate2" ".Discarded"
+        )
         self.assertEqual(get_topic(Aggregate2.Discarded), topic)
         self.assertEqual(resolve_topic(topic), Aggregate2.Discarded)
         self.assertTrue(issubclass(Aggregate2.Discarded, Aggregate2.Event))
 
         self.assertEqual(Aggregate2.ExampleCreated.__name__, "ExampleCreated")
-        self.assertEqual(Aggregate2.ExampleCreated.__qualname__, "Aggregate2.ExampleCreated")
-        topic = "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate2.ExampleCreated"
+        self.assertEqual(
+            Aggregate2.ExampleCreated.__qualname__, "Aggregate2.ExampleCreated"
+        )
+        topic = (
+            "eventsourcing.tests.core_tests.test_aggregate_root#Aggregate2"
+            ".ExampleCreated"
+        )
         self.assertEqual(get_topic(Aggregate2.ExampleCreated), topic)
         self.assertEqual(resolve_topic(topic), Aggregate2.ExampleCreated)
         self.assertTrue(issubclass(Aggregate2.ExampleCreated, Aggregate2.Event))
 
+    def test_aggregate3_lifecycle(self):
+        # type: () -> None
+
+        # Create a new aggregate.
+        aggregate = self.app.create_aggregate3()
+
+        self.assertIsInstance(aggregate, Aggregate3)
+
     def test_aggregate1_lifecycle(self):
+        # type: () -> None
+
         # Create a new aggregate.
         aggregate = self.app.create_aggregate1()
 
@@ -276,20 +303,24 @@ class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
 
 
 @subclassevents
-class ExampleAggregateRoot(AggregateRoot):
-    # class Event(AggregateRoot.Event):
-    #     """Supertype for events of example aggregates."""
+class ExampleAggregateRoot(AggregateRoot[T]):
+    def __init__(self, foo="", **kwargs):
+        super(ExampleAggregateRoot, self).__init__(**kwargs)
+        self._entities: Dict[UUID, Example] = {}
+        self._foo = foo
 
-    # class Created(Event, AggregateRoot.Created):
-    #     """Published when an ExampleAggregateRoot is created."""
-    #
-    # class AttributeChanged(Event, AggregateRoot.AttributeChanged):
-    #     """Published when an ExampleAggregateRoot is changed."""
-    #
-    # class Discarded(Event, AggregateRoot.Discarded):
-    #     """Published when an ExampleAggregateRoot is discarded."""
+    @attribute
+    def foo(self):
+        """Simple event sourced attribute called 'foo'."""
 
-    class ExampleCreated(DomainEvent):
+    def create_new_example(self):
+        assert not self.__is_discarded__
+        self.__trigger_event__(self.ExampleCreated, entity_id=uuid.uuid4())
+
+    def count_examples(self):
+        return len(self._entities)
+
+    class ExampleCreated(DomainEvent[T]):
         """Published when an example entity is created within the aggregate."""
 
         def __init__(self, entity_id, **kwargs):
@@ -299,50 +330,25 @@ class ExampleAggregateRoot(AggregateRoot):
         def entity_id(self):
             return self.__dict__["entity_id"]
 
-        def __mutate__(self, aggregate):
-            super().__mutate__(aggregate)
+        def __mutate__(self, obj: Optional[T]) -> Optional[T]:
+            obj = super().__mutate__(obj)
             entity = Example(entity_id=self.entity_id)
+            aggregate = cast(ExampleAggregateRoot, obj)
             aggregate._entities[entity.id] = entity
-            return aggregate
+            return obj
 
 
 @subclassevents
-class Aggregate1(ExampleAggregateRoot):
-    def __init__(self, foo="", **kwargs):
-        super(Aggregate1, self).__init__(**kwargs)
-        self._entities = {}
-        self._foo = foo
-
-    @attribute
-    def foo(self):
-        """Simple event sourced attribute called 'foo'."""
-
-    def create_new_example(self):
-        assert not self.__is_discarded__
-        self.__trigger_event__(self.ExampleCreated, entity_id=uuid.uuid4())
-
-    def count_examples(self):
-        return len(self._entities)
+class Aggregate1(ExampleAggregateRoot[T]):
+    pass
 
 
-class Aggregate2(ExampleAggregateRoot):
+class Aggregate2(ExampleAggregateRoot[T]):
     __subclassevents__ = True
 
-    def __init__(self, foo="", **kwargs):
-        super(Aggregate2, self).__init__(**kwargs)
-        self._entities = {}
-        self._foo = foo
 
-    @attribute
-    def foo(self):
-        """Simple event sourced attribute called 'foo'."""
-
-    def create_new_example(self):
-        assert not self.__is_discarded__
-        self.__trigger_event__(self.ExampleCreated, entity_id=uuid.uuid4())
-
-    def count_examples(self):
-        return len(self._entities)
+class Aggregate3(Aggregate2):
+    pass
 
 
 class AggregateRepository(EventSourcedRepository):
@@ -362,7 +368,7 @@ class Example(object):
         return self._id
 
 
-class ExampleDDDApplication(object):
+class ExampleDDDApplication(Generic[T]):
     def __init__(self, datastore):
         event_store = EventStore(
             record_manager=SQLAlchemyRecordManager(
@@ -380,21 +386,26 @@ class ExampleDDDApplication(object):
             persist_event_type=ExampleAggregateRoot.Event, event_store=event_store
         )
 
-    def create_aggregate1(self):
+    def create_aggregate1(self) -> Aggregate1:
         """
         Factory method, creates and returns a new aggregate1 root entity.
-
-        :rtype: Aggregate1
         """
-        return Aggregate1.__create__()
+        a: Aggregate1 = Aggregate1.__create__()
+        return a
 
-    def create_aggregate2(self):
+    def create_aggregate2(self)-> Aggregate2:
         """
         Factory method, creates and returns a new aggregate1 root entity.
-
-        :rtype: Aggregate2
         """
-        return Aggregate2.__create__()
+        a: Aggregate2 = Aggregate2.__create__()
+        return a
+
+    def create_aggregate3(self)-> Aggregate3:
+        """
+        Factory method, creates and returns a new aggregate1 root entity.
+        """
+        a = Aggregate3.__create__()
+        return a
 
     def close(self):
         self.persistence_policy.close()

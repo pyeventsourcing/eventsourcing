@@ -1,9 +1,11 @@
 from abc import abstractmethod
+from typing import Type, Optional
 
 from eventsourcing.infrastructure.datastore import (
     DatastoreConnectionError,
     DatastoreTableError,
 )
+from eventsourcing.infrastructure.factory import InfrastructureFactory
 from eventsourcing.tests.base import AbstractTestCase
 
 
@@ -12,7 +14,7 @@ class AbstractDatastoreTestCase(AbstractTestCase):
     Base class for test cases that use a datastore.
     """
 
-    infrastructure_factory_class = None
+    infrastructure_factory_class: Optional[Type[InfrastructureFactory]] = None
     contiguous_record_ids = False
 
     def __init__(self, *args, **kwargs):

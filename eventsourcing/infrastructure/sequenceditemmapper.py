@@ -1,43 +1,17 @@
 from __future__ import unicode_literals
 
-from abc import ABC, abstractmethod
 from json import JSONDecodeError
 
 from eventsourcing.infrastructure.sequenceditem import (
     SequencedItem,
     SequencedItemFieldNames,
 )
+from eventsourcing.types import AbstractSequencedItemMapper
 from eventsourcing.utils.topic import get_topic, resolve_topic
 from eventsourcing.utils.transcoding import (
     ObjectJSONDecoder,
     ObjectJSONEncoder,
     JSON_SEPARATORS)
-
-
-class AbstractSequencedItemMapper(ABC):
-    @abstractmethod
-    def item_from_event(self, domain_event):
-        """
-        Constructs and returns a sequenced item for given domain event.
-        """
-
-    @abstractmethod
-    def event_from_item(self, sequenced_item):
-        """
-        Constructs and returns a domain event for given sequenced item.
-        """
-
-    @abstractmethod
-    def json_dumps(self, event_attrs):
-        """
-        Encodes given object as JSON.
-        """
-
-    @abstractmethod
-    def json_loads(self, event_attrs):
-        """
-        Decodes given JSON as object.
-        """
 
 
 class SequencedItemMapper(AbstractSequencedItemMapper):
