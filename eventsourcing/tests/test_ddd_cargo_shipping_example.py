@@ -242,9 +242,11 @@ class Itinerary(object):
         self.legs = legs
 
 
-class Cargo(BaseAggregateRoot):
+class AggregateRoot(BaseAggregateRoot):
     __subclassevents__ = True
 
+
+class Cargo(AggregateRoot):
     @classmethod
     def new_booking(
         cls, origin: Location, destination: Location, arrival_deadline: datetime
