@@ -1,57 +1,9 @@
 # coding=utf-8
-from abc import ABC, abstractmethod
 
 from eventsourcing.exceptions import ConcurrencyError, RecordConflictError
-from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
+from eventsourcing.infrastructure.base import BaseRecordManager
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
-from eventsourcing.infrastructure.sequenceditemmapper import AbstractSequencedItemMapper
-
-
-class AbstractEventStore(ABC):
-    """
-    Abstract base class for event stores. Defines the methods
-    expected of an event store by other classes in the library.
-    """
-
-    @abstractmethod
-    def store(self, domain_event_or_events):
-        """
-        Put domain event in event store for later retrieval.
-        """
-
-    @abstractmethod
-    def get_domain_events(
-        self,
-        originator_id,
-        gt=None,
-        gte=None,
-        lt=None,
-        lte=None,
-        limit=None,
-        is_ascending=True,
-        page_size=None,
-    ):
-        """
-        Returns domain events for given entity ID.
-        """
-
-    @abstractmethod
-    def get_domain_event(self, originator_id, position):
-        """
-        Returns a single domain event.
-        """
-
-    @abstractmethod
-    def get_most_recent_event(self, originator_id, lt=None, lte=None):
-        """
-        Returns most recent domain event for given entity ID.
-        """
-
-    @abstractmethod
-    def all_domain_events(self):
-        """
-        Returns all domain events in the event store.
-        """
+from eventsourcing.types import AbstractEventStore, AbstractSequencedItemMapper
 
 
 # Todo: Unify iterators in EventStore and in NotificationLog,
@@ -77,7 +29,7 @@ class EventStore(AbstractEventStore):
         :param sequenced_item_mapper: sequenced item mapper
         """
         assert isinstance(
-            record_manager, AbstractSequencedItemRecordManager
+            record_manager, BaseRecordManager
         ), record_manager
         assert isinstance(
             sequenced_item_mapper, AbstractSequencedItemMapper

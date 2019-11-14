@@ -1,44 +1,48 @@
 from collections import deque
+from typing import List, Union, Sequence
 
 from eventsourcing.domain.model.entity import (
-    TimestampedVersionedEntity,
     EntityWithHashchain,
+    TimestampedVersionedEntity,
 )
+from eventsourcing.types import AbstractDomainEvent, T
 
 
-class BaseAggregateRoot(TimestampedVersionedEntity):
+class BaseAggregateRoot(TimestampedVersionedEntity[T]):
     """
     Root entity for an aggregate in a domain driven design.
     """
 
-    class Event(TimestampedVersionedEntity.Event):
+    class Event(TimestampedVersionedEntity.Event[T]):
         """Supertype for base aggregate root events."""
 
-    class Created(Event, TimestampedVersionedEntity.Created):
+    class Created(Event[T], TimestampedVersionedEntity.Created[T]):
         """Triggered when an aggregate root is created."""
 
-    class AttributeChanged(Event, TimestampedVersionedEntity.AttributeChanged):
+    class AttributeChanged(Event[T], TimestampedVersionedEntity.AttributeChanged[T]):
         """Triggered when an aggregate root attribute is changed."""
 
-    class Discarded(Event, TimestampedVersionedEntity.Discarded):
+    class Discarded(Event[T], TimestampedVersionedEntity.Discarded[T]):
         """Triggered when an aggregate root is discarded."""
 
     def __init__(self, **kwargs):
         super(BaseAggregateRoot, self).__init__(**kwargs)
         self.__pending_events__ = deque()
 
-    def __publish__(self, event):
+    def __publish__(self, event: Union[AbstractDomainEvent, List[AbstractDomainEvent]]):
         """
         Defers publishing event to subscribers, by adding
         event to internal collection of pending events.
         """
         self.__pending_events__.append(event)
 
-    def __save__(self):
+    def __save__(self) -> None:
         """
         Publishes all pending events to subscribers.
         """
-        batch_of_events = self.__batch_pending_events__()
+        batch_of_events: Sequence[
+            BaseAggregateRoot.Event
+        ] = self.__batch_pending_events__()
         if batch_of_events:
             self.__publish_to_subscribers__(batch_of_events)
             # Don't catch exception and put the events back on the queue.
@@ -55,8 +59,8 @@ class BaseAggregateRoot(TimestampedVersionedEntity):
             # commands have been executed, it is important to know which
             # commands to retry.
 
-    def __batch_pending_events__(self):
-        batch_of_events = []
+    def __batch_pending_events__(self) -> List[Event]:
+        batch_of_events: List[BaseAggregateRoot.Event] = []
         try:
             while True:
                 batch_of_events.append(self.__pending_events__.popleft())
@@ -65,33 +69,39 @@ class BaseAggregateRoot(TimestampedVersionedEntity):
         return batch_of_events
 
 
-class AggregateRootWithHashchainedEvents(EntityWithHashchain, BaseAggregateRoot):
+class AggregateRootWithHashchainedEvents(EntityWithHashchain[T], BaseAggregateRoot[T]):
     """Extends aggregate root base class with hash-chained events."""
 
-    class Event(EntityWithHashchain.Event, BaseAggregateRoot.Event):
+    class Event(EntityWithHashchain.Event[T], BaseAggregateRoot.Event[T]):
         """Supertype for aggregate events."""
 
-    class Created(Event, EntityWithHashchain.Created, BaseAggregateRoot.Created):
+    class Created(
+        Event[T], EntityWithHashchain.Created[T], BaseAggregateRoot.Created[T]
+    ):
         """Triggered when an aggregate root is created."""
 
-    class AttributeChanged(Event, BaseAggregateRoot.AttributeChanged):
+    class AttributeChanged(Event[T], BaseAggregateRoot.AttributeChanged[T]):
         """Triggered when an aggregate root attribute is changed."""
 
-    class Discarded(Event, EntityWithHashchain.Discarded, BaseAggregateRoot.Discarded):
+    class Discarded(
+        Event[T], EntityWithHashchain.Discarded[T], BaseAggregateRoot.Discarded[T]
+    ):
         """Triggered when an aggregate root is discarded."""
 
 
-class AggregateRoot(AggregateRootWithHashchainedEvents):
+class AggregateRoot(AggregateRootWithHashchainedEvents[T]):
     """Original name for aggregate root base class with hash-chained events."""
 
-    class Event(AggregateRootWithHashchainedEvents.Event):
+    class Event(AggregateRootWithHashchainedEvents.Event[T]):
         """Supertype for aggregate events."""
 
-    class Created(Event, AggregateRootWithHashchainedEvents.Created):
+    class Created(Event[T], AggregateRootWithHashchainedEvents.Created[T]):
         """Triggered when an aggregate root is created."""
 
-    class AttributeChanged(Event, AggregateRootWithHashchainedEvents.AttributeChanged):
+    class AttributeChanged(
+        Event[T], AggregateRootWithHashchainedEvents.AttributeChanged[T]
+    ):
         """Triggered when an aggregate root attribute is changed."""
 
-    class Discarded(Event, AggregateRootWithHashchainedEvents.Discarded):
+    class Discarded(Event[T], AggregateRootWithHashchainedEvents.Discarded[T]):
         """Triggered when an aggregate root is discarded."""

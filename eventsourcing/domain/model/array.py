@@ -1,22 +1,23 @@
-from abc import abstractproperty
+from abc import abstractmethod
 from math import ceil, log
+from typing import Any
 from uuid import uuid5
 
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.entity import (
-    AbstractEntityRepository,
     TimestampedVersionedEntity,
 )
 from eventsourcing.domain.model.events import publish
 from eventsourcing.exceptions import ArrayIndexError, ConcurrencyError
+from eventsourcing.types import AbstractEntityRepository
 
 
 class ItemAssigned(TimestampedVersionedEntity.Event):
     """Occurs when an item is set at a position in an array."""
 
-    def __init__(self, item, index, *args, **kwargs):
+    def __init__(self, item, index, **kwargs):
         kwargs["item"] = item
-        super(ItemAssigned, self).__init__(originator_version=index, *args, **kwargs)
+        super(ItemAssigned, self).__init__(originator_version=index, **kwargs)
 
     @property
     def item(self):
@@ -384,7 +385,8 @@ class BigArray(Array):
 
     def calc_parent(self, i, j, h):
         """
-        Returns get_big_array and end of span of parent sequence that contains given child.
+        Returns get_big_array and end of span of parent sequence that contains given
+        child.
         """
         N = self.repo.array_size
         c_i = i
@@ -403,7 +405,8 @@ class BigArray(Array):
         # Calculate parent i and j.
         p_i = p_n * span
         p_j = p_i + span
-        # Check the parent i,j bounds the child i,j, ie child span is contained by parent span.
+        # Check the parent i,j bounds the child i,j, ie child span is contained by
+        # parent span.
         assert p_i <= c_i, "i greater on parent than child: {}".format((p_i, p_j))
         assert p_j >= c_j, "j less on parent than child: {}".format((p_i, p_j))
         # Return parent i, j, h, p.
@@ -422,11 +425,11 @@ class AbstractArrayRepository(AbstractEntityRepository):
         super(AbstractArrayRepository, self).__init__(*args, **kwargs)
         self.array_size = array_size
 
-    def __getitem__(self, array_id):
+    def __getitem__(self, entity_id) -> Any:
         """
         Returns sequence for given ID.
         """
-        return Array(array_id=array_id, repo=self)
+        return Array(array_id=entity_id, repo=self)
 
 
 class AbstractBigArrayRepository(AbstractEntityRepository):
@@ -434,12 +437,13 @@ class AbstractBigArrayRepository(AbstractEntityRepository):
     Repository for compound sequence objects.
     """
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def subrepo(self):
         """Sub-sequence repository."""
 
-    def __getitem__(self, array_id):
+    def __getitem__(self, entity_id) -> Any:
         """
         Returns sequence for given ID.
         """
-        return BigArray(array_id=array_id, repo=self.subrepo)
+        return BigArray(array_id=entity_id, repo=self.subrepo)

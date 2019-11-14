@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from eventsourcing.domain.model.timebucketedlog import start_new_timebucketedlog
 from eventsourcing.example.domainmodel import Example, create_new_example
-from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
+from eventsourcing.infrastructure.base import BaseRecordManager
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
 from eventsourcing.infrastructure.sqlalchemy.records import (
@@ -119,7 +119,7 @@ class PerformanceTestCase(base.WithExampleApplication):
                     n = min(n, num_beats + 1)
                     assert isinstance(app.example_repository.event_store, EventStore)
                     ars = app.example_repository.event_store.record_manager
-                    assert isinstance(ars, AbstractSequencedItemRecordManager)
+                    assert isinstance(ars, BaseRecordManager)
 
                     start_last_n = time.time()
                     last_n_stored_events = []

@@ -1,20 +1,23 @@
 import os
-from uuid import uuid1
+from decimal import Decimal
+from typing import Callable, Dict, List, Optional, Tuple, Union, Type, Sequence
+from uuid import UUID, uuid1
 
 from eventsourcing.exceptions import EventHashError
+from eventsourcing.types import AbstractDomainEvent, T
 from eventsourcing.utils.hashing import hash_object
 from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic
 from eventsourcing.utils.transcoding import JSON_SEPARATORS, ObjectJSONEncoder
 
-GENESIS_HASH = os.getenv("GENESIS_HASH", "")
+GENESIS_HASH: str = os.getenv("GENESIS_HASH", "")
 
 
 def create_timesequenced_event_id():
     return uuid1()
 
 
-class DomainEvent(object):
+class DomainEvent(AbstractDomainEvent[T]):
     """
     Base class for domain model events.
 
@@ -33,6 +36,7 @@ class DomainEvent(object):
         """
         Initialises event attribute values directly from constructor kwargs.
         """
+        super().__init__()
         self.__dict__.update(kwargs)
 
     def __repr__(self):
@@ -46,7 +50,7 @@ class DomainEvent(object):
         args_string = ", ".join(args_strings)
         return "{}({})".format(self.__class__.__qualname__, args_string)
 
-    def __mutate__(self, obj):
+    def __mutate__(self, obj: Optional[T]) -> Optional[T]:
         """
         Updates 'obj' with values from 'self'.
 
@@ -61,7 +65,7 @@ class DomainEvent(object):
         self.mutate(obj)
         return obj
 
-    def mutate(self, obj):
+    def mutate(self, obj: Optional[T]) -> None:
         """
         Updates ("mutates") given 'obj'.
 
@@ -131,7 +135,7 @@ class DomainEvent(object):
         return hash_object(cls.__json_encoder__, obj)
 
 
-class EventWithHash(DomainEvent):
+class EventWithHash(DomainEvent[T]):
     """
     Base class for domain events with a cryptographic event hash.
 
@@ -173,7 +177,7 @@ class EventWithHash(DomainEvent):
         # Return the Python hash of the cryptographic hash.
         return hash(self.__event_hash__)
 
-    def __mutate__(self, obj):
+    def __mutate__(self, obj: Optional[T]) -> Optional[T]:
         """
         Updates 'obj' with values from self.
 
@@ -188,7 +192,7 @@ class EventWithHash(DomainEvent):
         self.__check_hash__()
 
         # Call super and return value.
-        return super(EventWithHash, self).__mutate__(obj)
+        return super().__mutate__(obj)
 
     def __check_hash__(self):
         """
@@ -201,14 +205,15 @@ class EventWithHash(DomainEvent):
             raise EventHashError()
 
 
-class EventWithOriginatorID(DomainEvent):
+class EventWithOriginatorID(DomainEvent[T]):
     """
     For events that have an originator ID.
     """
 
-    def __init__(self, originator_id, **kwargs):
-        kwargs["originator_id"] = originator_id
-        super(EventWithOriginatorID, self).__init__(**kwargs)
+    def __init__(self, originator_id: UUID, **kwargs):
+        super(EventWithOriginatorID, self).__init__(
+            originator_id=originator_id, **kwargs
+        )
 
     @property
     def originator_id(self):
@@ -222,17 +227,17 @@ class EventWithOriginatorID(DomainEvent):
         return self.__dict__["originator_id"]
 
 
-class EventWithTimestamp(DomainEvent):
+class EventWithTimestamp(DomainEvent[T]):
     """
     For events that have a timestamp value.
     """
 
-    def __init__(self, timestamp=None, **kwargs):
+    def __init__(self, timestamp: Decimal = None, **kwargs):
         kwargs["timestamp"] = timestamp or decimaltimestamp()
         super(EventWithTimestamp, self).__init__(**kwargs)
 
     @property
-    def timestamp(self):
+    def timestamp(self) -> Decimal:
         """
         A UNIX timestamp as a Decimal object.
 
@@ -241,16 +246,17 @@ class EventWithTimestamp(DomainEvent):
         return self.__dict__["timestamp"]
 
 
-class EventWithOriginatorVersion(DomainEvent):
+class EventWithOriginatorVersion(DomainEvent[T]):
     """
     For events that have an originator version number.
     """
 
-    def __init__(self, originator_version, **kwargs):
+    def __init__(self, originator_version: int, **kwargs):
         if not isinstance(originator_version, int):
             raise TypeError("Version must be an integer: {}".format(originator_version))
-        kwargs["originator_version"] = originator_version
-        super(EventWithOriginatorVersion, self).__init__(**kwargs)
+        super(EventWithOriginatorVersion, self).__init__(
+            originator_version=originator_version, **kwargs
+        )
 
     @property
     def originator_version(self):
@@ -264,7 +270,7 @@ class EventWithOriginatorVersion(DomainEvent):
         return self.__dict__["originator_version"]
 
 
-class EventWithTimeuuid(DomainEvent):
+class EventWithTimeuuid(DomainEvent[T]):
     """
     For events that have an UUIDv1 event ID.
     """
@@ -278,13 +284,13 @@ class EventWithTimeuuid(DomainEvent):
         return self.__dict__["event_id"]
 
 
-class Created(DomainEvent):
+class Created(DomainEvent[T]):
     """
     Happens when something is created.
     """
 
 
-class AttributeChanged(DomainEvent):
+class AttributeChanged(DomainEvent[T]):
     """
     Happens when the value of an attribute changes.
     """
@@ -298,22 +304,25 @@ class AttributeChanged(DomainEvent):
         return self.__dict__["value"]
 
 
-class Discarded(DomainEvent):
+class Discarded(DomainEvent[T]):
     """
     Happens when something is discarded.
     """
 
 
-class Logged(DomainEvent):
+class Logged(DomainEvent[T]):
     """
     Happens when something is logged.
     """
 
 
-_subscriptions = []
+Predicate = Callable[[Union[AbstractDomainEvent, Sequence[AbstractDomainEvent]]], bool]
+Handler = Callable[[Union[AbstractDomainEvent, Sequence[AbstractDomainEvent]]], None]
+
+_subscriptions: List[Tuple[Optional[Predicate], Handler]] = []
 
 
-def subscribe(handler, predicate=None):
+def subscribe(handler: Handler, predicate: Optional[Predicate] = None) -> None:
     """
     Adds 'handler' to list of event handlers
     to be called if 'predicate' is satisfied.
@@ -328,7 +337,7 @@ def subscribe(handler, predicate=None):
         _subscriptions.append((predicate, handler))
 
 
-def unsubscribe(handler, predicate=None):
+def unsubscribe(handler: Handler, predicate: Optional[Predicate] = None) -> None:
     """
     Removes 'handler' from list of event handlers
     to be called if 'predicate' is satisfied.
@@ -340,7 +349,7 @@ def unsubscribe(handler, predicate=None):
         _subscriptions.remove((predicate, handler))
 
 
-def publish(event):
+def publish(event: Union[AbstractDomainEvent, Sequence[AbstractDomainEvent]]) -> None:
     """
     Published given 'event' by calling subscribed event
     handlers with the given 'event', except those with
@@ -352,7 +361,7 @@ def publish(event):
     """
     # A cache of conditions means predicates aren't evaluated
     # more than once for each event.
-    cache = {}
+    cache: Dict[Predicate, bool] = {}
     for predicate, handler in _subscriptions[:]:
         if predicate is None:
             handler(event)
