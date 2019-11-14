@@ -302,17 +302,20 @@ def subclassevents(cls: MetaAbstractDomainEntity):
     # Redefine event classes in cls.__dict__ that are not subclasses of Event.
     for cls_attr_name in cls.__dict__.keys():
         cls_attr = getattr(cls, cls_attr_name)
-        if isinstance(cls_attr, type):
+        if isinstance(cls_attr, type) and issubclass(cls_attr, DomainEvent):
             if not issubclass(cls_attr, event_event_subclass):
-                event_subclass = type(
-                    cls_attr_name,
-                    (cls_attr, event_event_subclass),
-                    {
-                        "__qualname__": cls_attr.__qualname__,
-                        "__module__": cls_attr.__module__,
-                        "__doc__": cls_attr.__doc__,
-                    },
-                )
+                try:
+                    event_subclass = type(
+                        cls_attr_name,
+                        (cls_attr, event_event_subclass),
+                        {
+                            "__qualname__": cls_attr.__qualname__,
+                            "__module__": cls_attr.__module__,
+                            "__doc__": cls_attr.__doc__,
+                        },
+                    )
+                except TypeError:
+                    raise Exception(cls_attr_name, cls_attr, event_event_subclass)
                 setattr(cls, cls_attr_name, event_subclass)
 
     return cls
