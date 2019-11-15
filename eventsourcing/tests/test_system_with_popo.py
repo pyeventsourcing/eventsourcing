@@ -65,7 +65,7 @@ class TestSystemWithPopo(PopoTestCase, TestSystem):
 
         with runner:
 
-            orders = system.processes["orders"]
+            orders = runner.orders
 
             # Create a new order.
             num_orders = 120
@@ -142,7 +142,7 @@ class TestSystemWithPopo(PopoTestCase, TestSystem):
             start_time = time()
             start_process_time = process_time()
 
-            orders = system.processes["orders"]
+            orders = runner.orders
 
             # Create a new order.
             num_orders = 12

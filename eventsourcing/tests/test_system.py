@@ -35,21 +35,14 @@ class TestSystem(TestCase):
             setup_tables=True,
             infrastructure_class=self.infrastructure_class,
         )
-        with system.orders as app:
+        with system.construct_app(Orders) as app:
             self.assertIsInstance(app, Orders)
-            self.assertEqual(app, system.orders)
 
-        with system.payments as app:
+        with system.construct_app(Payments) as app:
             self.assertIsInstance(app, Payments)
-            self.assertEqual(app, system.payments)
 
-        with system.reservations as app:
+        with system.construct_app(Reservations) as app:
             self.assertIsInstance(app, Reservations)
-            self.assertEqual(app, system.reservations)
-
-        with self.assertRaises(AttributeError):
-            with system.notaprocess as _:
-                pass
 
     def test_singlethreaded_runner_with_single_application_class(self):
         system = System(
@@ -182,14 +175,14 @@ class TestSystem(TestCase):
             use_direct_query_if_available=True,
         )
 
-        with system:
+        with system as runner:
+            orders = runner.orders
             # Create new Order aggregate.
             order_id = create_new_order()
 
             # Check the order is reserved and paid.
-            repository = system.orders.repository
-            assert repository[order_id].is_reserved
-            assert repository[order_id].is_paid
+            assert orders.repository[order_id].is_reserved
+            assert orders.repository[order_id].is_paid
 
     def test_multithreaded_runner_with_singleapp_system(self):
 
@@ -201,9 +194,9 @@ class TestSystem(TestCase):
 
         self.set_db_uri()
 
-        with MultiThreadedRunner(system):
+        with MultiThreadedRunner(system) as runner:
 
-            app = system.examples
+            app = runner.examples
 
             aggregate = ExampleAggregate.__create__()
             aggregate.__save__()
@@ -228,11 +221,10 @@ class TestSystem(TestCase):
 
         self.set_db_uri()
 
-        with MultiThreadedRunner(system):
+        with MultiThreadedRunner(system) as runner:
 
+            orders = runner.orders
             started = time()
-
-            orders = system.orders
 
             # Create new orders.
             num_orders = 10
@@ -266,11 +258,9 @@ class TestSystem(TestCase):
         self.set_db_uri()
 
         clock_speed = 10
-        with MultiThreadedRunner(system, clock_speed=clock_speed):
+        with MultiThreadedRunner(system, clock_speed=clock_speed) as runner:
 
             started = time()
-
-            orders = system.orders
 
             # Create a new order.
             num_orders = 10
@@ -279,12 +269,12 @@ class TestSystem(TestCase):
                 order_id = create_new_order()
                 order_ids.append(order_id)
                 # sleep(tick_interval / 3)
-                # sleep(tick_interval * 10)
+                # sleep(tick_interval )
 
             retries = 30 * num_orders
             num_completed = 0
             for order_id in order_ids:
-                while retries and not orders.repository[order_id].is_paid:
+                while retries and not runner.orders.repository[order_id].is_paid:
                     sleep(0.1)
                     retries -= 1
                     assert retries, (
@@ -306,16 +296,18 @@ class TestSystem(TestCase):
 
         self.close_connections_before_forking()
 
-        with MultiprocessRunner(system), system.examples as app:
+        with MultiprocessRunner(system) as runner:
+
+            examples = runner.examples
 
             aggregate = ExampleAggregate.__create__()
             aggregate.__save__()
 
-            assert aggregate.id in app.repository
+            assert aggregate.id in examples.repository
 
             # Check the aggregate is moved on.
             retries = 50
-            while not app.repository[aggregate.id].is_moved_on:
+            while not examples.repository[aggregate.id].is_moved_on:
 
                 sleep(0.1)
                 retries -= 1

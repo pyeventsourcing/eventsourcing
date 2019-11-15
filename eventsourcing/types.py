@@ -30,6 +30,11 @@ class AbstractDomainEntity(Generic[T], metaclass=MetaAbstractDomainEntity):
     ):
         pass
 
+    @property
+    @abstractmethod
+    def id(self) -> UUID:
+        pass
+
 
 class AbstractDomainEvent(Generic[T]):
     def __init__(self, *args, **kwargs) -> None:
