@@ -62,10 +62,11 @@ class DomainEvent(AbstractDomainEvent[T]):
         :param obj: object (normally a domain entity) to be mutated
         :return: mutated object
         """
-        self.mutate(obj)
+        if obj is not None:
+            self.mutate(obj)
         return obj
 
-    def mutate(self, obj: Optional[T]) -> None:
+    def mutate(self, obj: T) -> None:
         """
         Updates ("mutates") given 'obj'.
 

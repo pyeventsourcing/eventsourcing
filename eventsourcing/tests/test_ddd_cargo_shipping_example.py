@@ -341,9 +341,7 @@ class Cargo(AggregateRoot):
         self.__trigger_event__(self.DestinationChanged, destination=destination)
 
     class DestinationChanged(DomainEvent):
-        def mutate(self, obj: Optional["Cargo"]) -> None:
-            assert obj is not None
-            # cargo = cast(Cargo, obj)
+        def mutate(self, obj: "Cargo") -> None:
             obj._destination = self.destination
 
         @property
@@ -354,13 +352,12 @@ class Cargo(AggregateRoot):
         self.__trigger_event__(self.RouteAssigned, route=itinerary)
 
     class RouteAssigned(DomainEvent):
-        def mutate(self, obj) -> None:
-            cargo: Cargo = obj
-            cargo._route = self.route
-            cargo._routing_status = "ROUTED"
-            cargo._estimated_time_of_arrival = datetime.now() + timedelta(weeks=1)
-            cargo._next_expected_activity = (HandlingActivity.RECEIVE, cargo.origin)
-            cargo._is_misdirected = False
+        def mutate(self, obj: "Cargo") -> None:
+            obj._route = self.route
+            obj._routing_status = "ROUTED"
+            obj._estimated_time_of_arrival = datetime.now() + timedelta(weeks=1)
+            obj._next_expected_activity = (HandlingActivity.RECEIVE, obj.origin)
+            obj._is_misdirected = False
 
         @property
         def route(self) -> Itinerary:
@@ -382,26 +379,24 @@ class Cargo(AggregateRoot):
         )
 
     class HandlingEventRegistered(DomainEvent):
-        def mutate(self, obj: Optional["Cargo"]) -> None:
-            cargo = obj
-            assert cargo is not None
-            assert cargo.route is not None
+        def mutate(self, obj: "Cargo") -> None:
+            assert obj.route is not None
             if self.handling_activity == HandlingActivity.RECEIVE:
-                cargo._transport_status = "IN_PORT"
-                cargo._last_known_location = self.location
-                cargo._next_expected_activity = (
+                obj._transport_status = "IN_PORT"
+                obj._last_known_location = self.location
+                obj._next_expected_activity = (
                     HandlingActivity.LOAD,
                     self.location,
-                    cargo.route.legs[0].voyage_number,
+                    obj.route.legs[0].voyage_number,
                 )
             elif self.handling_activity == HandlingActivity.LOAD:
-                cargo._transport_status = "ONBOARD_CARRIER"
-                cargo._current_voyage_number = self.voyage_number
-                assert cargo._route is not None
-                for leg in cargo._route.legs:
+                obj._transport_status = "ONBOARD_CARRIER"
+                obj._current_voyage_number = self.voyage_number
+                assert obj._route is not None
+                for leg in obj._route.legs:
                     if leg.origin == self.location.value:
                         if leg.voyage_number == self.voyage_number:
-                            cargo._next_expected_activity = (
+                            obj._next_expected_activity = (
                                 HandlingActivity.UNLOAD,
                                 Location[leg.destination],
                                 self.voyage_number,
@@ -414,35 +409,35 @@ class Cargo(AggregateRoot):
                     )
 
             elif self.handling_activity == HandlingActivity.UNLOAD:
-                assert cargo._route is not None
-                cargo._current_voyage_number = None
-                cargo._last_known_location = self.location
-                cargo._transport_status = "IN_PORT"
-                if self.location == cargo.destination:
-                    cargo._next_expected_activity = (
+                assert obj._route is not None
+                obj._current_voyage_number = None
+                obj._last_known_location = self.location
+                obj._transport_status = "IN_PORT"
+                if self.location == obj.destination:
+                    obj._next_expected_activity = (
                         HandlingActivity.CLAIM,
                         self.location,
                     )
                 elif self.location.value in [
-                    leg.destination for leg in cargo._route.legs
+                    leg.destination for leg in obj._route.legs
                 ]:
-                    for i, leg in enumerate(cargo._route.legs):
+                    for i, leg in enumerate(obj._route.legs):
                         if leg.voyage_number == self.voyage_number:
-                            next_leg: Leg = cargo._route.legs[i + 1]
+                            next_leg: Leg = obj._route.legs[i + 1]
                             assert Location[next_leg.origin] == self.location
-                            cargo._next_expected_activity = (
+                            obj._next_expected_activity = (
                                 HandlingActivity.LOAD,
                                 self.location,
                                 next_leg.voyage_number,
                             )
                             break
                 else:
-                    cargo._is_misdirected = True
-                    cargo._next_expected_activity = None
+                    obj._is_misdirected = True
+                    obj._next_expected_activity = None
 
             elif self.handling_activity == HandlingActivity.CLAIM:
-                cargo._next_expected_activity = None
-                cargo._transport_status = "CLAIMED"
+                obj._next_expected_activity = None
+                obj._transport_status = "CLAIMED"
 
             else:
                 raise Exception(

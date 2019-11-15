@@ -30,9 +30,8 @@ class Example(EntityWithHashchain[T], TimestampedVersionedEntity[T]):
     class Heartbeat(Event[T], TimestampedVersionedEntity.Event[T]):
         """Published when a heartbeat in the entity occurs (see below)."""
 
-        def mutate(self, obj: Optional[T]) -> None:
+        def mutate(self, obj: "Example") -> None:
             """Updates 'obj' with values from self."""
-            obj = cast(Example, obj)
             obj._count_heartbeats += 1
 
     def __init__(self, foo="", a="", b="", **kwargs):
