@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import List, Optional, Tuple, cast
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 from unittest import TestCase
 from uuid import UUID
 
@@ -14,7 +14,6 @@ from eventsourcing.application.system import (
 from eventsourcing.domain.model.aggregate import BaseAggregateRoot
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.exceptions import RepositoryKeyError
-from eventsourcing.types import T
 
 
 # This is a port of the original Cargo Shipping example
@@ -121,7 +120,7 @@ class TestDDDCargoShippingExample(TestCase):
         # specfied tracking id, the attempt is rejected.
         #
         # Handling begins: cargo is received in Hongkong.
-        self.client.register_handling_event(tracking_id, None, "HONGKONG", "RECEIVED")
+        self.client.register_handling_event(tracking_id, None, "HONGKONG", "RECEIVE")
         cargo_details = self.client.get_cargo_details(tracking_id)
         self.assertEqual(cargo_details["transport_status"], "IN_PORT")
         self.assertEqual(cargo_details["last_known_location"], "HONGKONG")
@@ -130,7 +129,7 @@ class TestDDDCargoShippingExample(TestCase):
         )
 
         # Load onto voyage V1.
-        self.client.register_handling_event(tracking_id, "V1", "HONGKONG", "LOADED")
+        self.client.register_handling_event(tracking_id, "V1", "HONGKONG", "LOAD")
         cargo_details = self.client.get_cargo_details(tracking_id)
         self.assertEqual(cargo_details["current_voyage_number"], "V1")
         self.assertEqual(cargo_details["last_known_location"], "HONGKONG")
@@ -140,7 +139,7 @@ class TestDDDCargoShippingExample(TestCase):
         )
 
         # Incorrectly unload in Tokyo.
-        self.client.register_handling_event(tracking_id, "V1", "TOKYO", "UNLOADED")
+        self.client.register_handling_event(tracking_id, "V1", "TOKYO", "UNLOAD")
         cargo_details = self.client.get_cargo_details(tracking_id)
         self.assertEqual(cargo_details["current_voyage_number"], None)
         self.assertEqual(cargo_details["last_known_location"], "TOKYO")
@@ -154,8 +153,7 @@ class TestDDDCargoShippingExample(TestCase):
         self.client.assign_route(tracking_id, route_details)
 
         # Load in Tokyo.
-        self.client.register_handling_event(tracking_id, "V3", "TOKYO", "LOADED")
-
+        self.client.register_handling_event(tracking_id, "V3", "TOKYO", "LOAD")
         cargo_details = self.client.get_cargo_details(tracking_id)
         self.assertEqual(cargo_details["current_voyage_number"], "V3")
         self.assertEqual(cargo_details["last_known_location"], "TOKYO")
@@ -166,8 +164,7 @@ class TestDDDCargoShippingExample(TestCase):
         )
 
         # Unload in Hamburg.
-        self.client.register_handling_event(tracking_id, "V3", "HAMBURG", "UNLOADED")
-
+        self.client.register_handling_event(tracking_id, "V3", "HAMBURG", "UNLOAD")
         cargo_details = self.client.get_cargo_details(tracking_id)
         self.assertEqual(cargo_details["current_voyage_number"], None)
         self.assertEqual(cargo_details["last_known_location"], "HAMBURG")
@@ -178,8 +175,7 @@ class TestDDDCargoShippingExample(TestCase):
         )
 
         # Load in Hamburg
-        self.client.register_handling_event(tracking_id, "V4", "HAMBURG", "LOADED")
-
+        self.client.register_handling_event(tracking_id, "V4", "HAMBURG", "LOAD")
         cargo_details = self.client.get_cargo_details(tracking_id)
         self.assertEqual(cargo_details["current_voyage_number"], "V4")
         self.assertEqual(cargo_details["last_known_location"], "HAMBURG")
@@ -190,8 +186,7 @@ class TestDDDCargoShippingExample(TestCase):
         )
 
         # Unload in Stockholm
-        self.client.register_handling_event(tracking_id, "V4", "STOCKHOLM", "UNLOADED")
-
+        self.client.register_handling_event(tracking_id, "V4", "STOCKHOLM", "UNLOAD")
         cargo_details = self.client.get_cargo_details(tracking_id)
         self.assertEqual(cargo_details["current_voyage_number"], None)
         self.assertEqual(cargo_details["last_known_location"], "STOCKHOLM")
@@ -202,8 +197,7 @@ class TestDDDCargoShippingExample(TestCase):
         )
 
         # Finally, cargo is claimed in Stockholm.
-        self.client.register_handling_event(tracking_id, None, "STOCKHOLM", "CLAIMED")
-
+        self.client.register_handling_event(tracking_id, None, "STOCKHOLM", "CLAIM")
         cargo_details = self.client.get_cargo_details(tracking_id)
         self.assertEqual(cargo_details["current_voyage_number"], None)
         self.assertEqual(cargo_details["last_known_location"], "STOCKHOLM")
@@ -212,10 +206,12 @@ class TestDDDCargoShippingExample(TestCase):
         self.assertEqual(cargo_details["next_expected_activity"], None)
 
 
+# Stub funtion that picks an itineraries from a list of possible itineraries.
 def select_preferred_itinerary(itineraries):
     return itineraries[0]
 
 
+# Locations in the world.
 class Location(Enum):
     HAMBURG = "HAMBURG"
     HONGKONG = "HONGKONG"
@@ -228,13 +224,30 @@ class Location(Enum):
     AUMEL = "AUMEL"
 
 
+# Handling activities.
+class HandlingActivity(Enum):
+    RECEIVE = "RECEIVE"
+    LOAD = "LOAD"
+    UNLOAD = "UNLOAD"
+    CLAIM = "CLAIM"
+
+
+# Custom types.
+NextExpectedActivity = Optional[
+    Union[Tuple[HandlingActivity, Location], Tuple[HandlingActivity, Location, str]]
+]
+CargoDetails = Dict[str, Optional[Union[str, bool, datetime, Tuple]]]
+
+
+# Leg of an Itinerary.
 class Leg(object):
-    def __init__(self, origin: str, destination: str, voyage_number):
-        self.origin = origin
-        self.destination = destination
-        self.voyage_number = voyage_number
+    def __init__(self, origin: str, destination: str, voyage_number: str):
+        self.origin: str = origin
+        self.destination: str = destination
+        self.voyage_number: str = voyage_number
 
 
+# Itinerary.
 class Itinerary(object):
     def __init__(self, origin: str, destination: str, legs: List[Leg]):
         self.origin = origin
@@ -242,10 +255,14 @@ class Itinerary(object):
         self.legs = legs
 
 
+# Custom aggregate root class.
 class AggregateRoot(BaseAggregateRoot):
     __subclassevents__ = True
 
 
+# The Cargo aggregate is an event sourced domain model aggregate that
+# specifies the routing from origin to destination, and can track what
+# happens to the cargo after it has been booked.
 class Cargo(AggregateRoot):
     @classmethod
     def new_booking(
@@ -271,7 +288,7 @@ class Cargo(AggregateRoot):
         self._routing_status: str = "NOT_ROUTED"
         self._is_misdirected: bool = False
         self._estimated_time_of_arrival: Optional[datetime] = None
-        self._next_expected_activity: Optional[tuple] = None
+        self._next_expected_activity: NextExpectedActivity = None
         self._route: Optional[Itinerary] = None
         self._last_known_location: Optional[Location] = None
         self._current_voyage_number: Optional[str] = None
@@ -309,6 +326,10 @@ class Cargo(AggregateRoot):
         return self._next_expected_activity
 
     @property
+    def route(self) -> Optional[Itinerary]:
+        return self._route
+
+    @property
     def last_known_location(self) -> Optional[Location]:
         return self._last_known_location
 
@@ -320,9 +341,10 @@ class Cargo(AggregateRoot):
         self.__trigger_event__(self.DestinationChanged, destination=destination)
 
     class DestinationChanged(DomainEvent):
-        def mutate(self, obj: Optional[T]) -> None:
-            cargo = cast(Cargo, obj)
-            cargo._destination = self.destination
+        def mutate(self, obj: Optional["Cargo"]) -> None:
+            assert obj is not None
+            # cargo = cast(Cargo, obj)
+            obj._destination = self.destination
 
         @property
         def destination(self) -> Location:
@@ -337,7 +359,7 @@ class Cargo(AggregateRoot):
             cargo._route = self.route
             cargo._routing_status = "ROUTED"
             cargo._estimated_time_of_arrival = datetime.now() + timedelta(weeks=1)
-            cargo._next_expected_activity = ("RECEIVE", cargo.origin)
+            cargo._next_expected_activity = (HandlingActivity.RECEIVE, cargo.origin)
             cargo._is_misdirected = False
 
         @property
@@ -345,28 +367,34 @@ class Cargo(AggregateRoot):
             return self.__dict__["route"]
 
     def register_handling_event(
-        self, tracking_id: UUID, voyage_number: str, location: Location, event_name: str
+        self,
+        tracking_id: UUID,
+        voyage_number: Optional[str],
+        location: Location,
+        handling_activity: HandlingActivity,
     ) -> None:
         self.__trigger_event__(
             self.HandlingEventRegistered,
             tracking_id=tracking_id,
             voyage_number=voyage_number,
             location=location,
-            event_name=event_name,
+            handling_activity=handling_activity,
         )
 
     class HandlingEventRegistered(DomainEvent):
-        def mutate(self, obj: Optional[T]) -> None:
-            cargo: Cargo = obj
-            if self.event_name == "RECEIVED":
+        def mutate(self, obj: Optional["Cargo"]) -> None:
+            cargo = obj
+            assert cargo is not None
+            assert cargo.route is not None
+            if self.handling_activity == HandlingActivity.RECEIVE:
                 cargo._transport_status = "IN_PORT"
                 cargo._last_known_location = self.location
                 cargo._next_expected_activity = (
-                    "LOAD",
+                    HandlingActivity.LOAD,
                     self.location,
-                    cargo._route.legs[0].voyage_number,
+                    cargo.route.legs[0].voyage_number,
                 )
-            elif self.event_name == "LOADED":
+            elif self.handling_activity == HandlingActivity.LOAD:
                 cargo._transport_status = "ONBOARD_CARRIER"
                 cargo._current_voyage_number = self.voyage_number
                 assert cargo._route is not None
@@ -374,7 +402,7 @@ class Cargo(AggregateRoot):
                     if leg.origin == self.location.value:
                         if leg.voyage_number == self.voyage_number:
                             cargo._next_expected_activity = (
-                                "UNLOAD",
+                                HandlingActivity.UNLOAD,
                                 Location[leg.destination],
                                 self.voyage_number,
                             )
@@ -385,13 +413,16 @@ class Cargo(AggregateRoot):
                         "voyage_number={}".format(self.location, self.voyage_number)
                     )
 
-            elif self.event_name == "UNLOADED":
+            elif self.handling_activity == HandlingActivity.UNLOAD:
                 assert cargo._route is not None
                 cargo._current_voyage_number = None
                 cargo._last_known_location = self.location
                 cargo._transport_status = "IN_PORT"
                 if self.location == cargo.destination:
-                    cargo._next_expected_activity = ("CLAIM", self.location)
+                    cargo._next_expected_activity = (
+                        HandlingActivity.CLAIM,
+                        self.location,
+                    )
                 elif self.location.value in [
                     leg.destination for leg in cargo._route.legs
                 ]:
@@ -400,7 +431,7 @@ class Cargo(AggregateRoot):
                             next_leg: Leg = cargo._route.legs[i + 1]
                             assert Location[next_leg.origin] == self.location
                             cargo._next_expected_activity = (
-                                "LOAD",
+                                HandlingActivity.LOAD,
                                 self.location,
                                 next_leg.voyage_number,
                             )
@@ -409,13 +440,13 @@ class Cargo(AggregateRoot):
                     cargo._is_misdirected = True
                     cargo._next_expected_activity = None
 
-            elif self.event_name == "CLAIMED":
+            elif self.handling_activity == HandlingActivity.CLAIM:
                 cargo._next_expected_activity = None
                 cargo._transport_status = "CLAIMED"
 
             else:
                 raise Exception(
-                    "Unsupported handling event: {}".format(self.event_name)
+                    "Unsupported handling event: {}".format(self.handling_activity)
                 )
 
         @property
@@ -427,14 +458,16 @@ class Cargo(AggregateRoot):
             return self.__dict__["location"]
 
         @property
-        def event_name(self) -> str:
-            return self.__dict__["event_name"]
+        def handling_activity(self) -> str:
+            return self.__dict__["handling_activity"]
 
 
 class CargoNotFound(Exception):
     pass
 
 
+# The Cargo aggregate is situation in an event sourced application,
+# which provides application services for clients.
 class BookingApplication(ProcessApplication):
     persist_event_type = Cargo.Event
 
@@ -481,17 +514,21 @@ class BookingApplication(ProcessApplication):
         tracking_id: UUID,
         voyage_number: Optional[str],
         location: Location,
-        event_name: str,
+        handing_activity: HandlingActivity,
     ) -> None:
         cargo: Cargo = self.get_cargo(tracking_id)
-        cargo.register_handling_event(tracking_id, voyage_number, location, event_name)
+        cargo.register_handling_event(tracking_id, voyage_number, location, handing_activity)
         cargo.__save__()
 
 
+# The application services are presented in a client interface that
+# deals with simple types of object (str, bool, datetime).
 class LocalClient(object):
     def __init__(self, runner: InProcessRunner):
         self.runner: InProcessRunner = runner
-        self.bookingapplication: BookingApplication = self.runner.bookingapplication
+        self.bookingapplication: BookingApplication = cast(
+            BookingApplication, self.runner.bookingapplication
+        )
 
     def book_new_cargo(
         self, origin: str, destination: str, arrival_deadline: datetime
@@ -501,17 +538,38 @@ class LocalClient(object):
         )
         return str(tracking_id)
 
-    def get_cargo_details(self, tracking_id: str) -> dict:
+    def get_cargo_details(self, tracking_id: str) -> CargoDetails:
         cargo = self.bookingapplication.get_cargo(UUID(tracking_id))
+
+        # Present 'next_expected_activity'.
+        next_expected_activity: Optional[Union[Tuple[Any, Any], Tuple[Any, Any, Any]]]
         if cargo.next_expected_activity is None:
             next_expected_activity = None
+        elif len(cargo.next_expected_activity) == 2:
+            next_expected_activity = (
+                cargo.next_expected_activity[0].value,
+                cargo.next_expected_activity[1].value,
+            )
+        elif len(cargo.next_expected_activity) == 3:
+            next_expected_activity = (
+                cargo.next_expected_activity[0].value,
+                cargo.next_expected_activity[1].value,
+                cargo.next_expected_activity[2],
+            )
         else:
-            next_expected_activity = list(cargo.next_expected_activity)
-            try:
-                next_expected_activity[1] = next_expected_activity[1].value
-            except AttributeError:
-                raise Exception(next_expected_activity)
-            next_expected_activity = tuple(next_expected_activity)
+            raise Exception(
+                "Invalid next expected activity: {}".format(
+                    cargo.next_expected_activity
+                )
+            )
+
+        # Present 'last_known_location'.
+        if cargo.last_known_location is None:
+            last_known_location = None
+        else:
+            last_known_location = cargo.last_known_location.value
+
+        # Present the cargo details.
         return {
             "id": str(cargo.id),
             "origin": cargo.origin.value,
@@ -521,12 +579,8 @@ class LocalClient(object):
             "routing_status": cargo.routing_status,
             "is_misdirected": cargo.is_misdirected,
             "estimated_time_of_arrival": cargo.estimated_time_of_arrival,
-            "next_expected_activity": next_expected_activity
-            if cargo.next_expected_activity
-            else None,
-            "last_known_location": cargo.last_known_location.value
-            if cargo.last_known_location
-            else None,
+            "next_expected_activity": next_expected_activity,
+            "last_known_location": last_known_location,
             "current_voyage_number": cargo.current_voyage_number,
         }
 
@@ -567,10 +621,13 @@ class LocalClient(object):
         tracking_id: str,
         voyage_number: Optional[str],
         location: str,
-        event_name: str,
+        handling_activity: str,
     ) -> None:
         self.bookingapplication.register_handling_event(
-            UUID(tracking_id), voyage_number, Location[location], event_name
+            UUID(tracking_id),
+            voyage_number,
+            Location[location],
+            HandlingActivity[handling_activity],
         )
 
 
