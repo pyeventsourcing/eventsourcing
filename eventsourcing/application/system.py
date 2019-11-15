@@ -6,7 +6,7 @@ from copy import deepcopy
 from queue import Empty, Queue
 from threading import Barrier, BrokenBarrierError, Event, Lock, Thread, Timer
 from time import sleep
-from typing import Optional, Type
+from typing import Optional, Type, TypeVar, Dict, Generic
 
 from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.process import ProcessApplication, Prompt
@@ -67,7 +67,6 @@ class System(object):
                 if process_name not in self.process_classes:
                     self.process_classes[process_name] = process_class
 
-        self.processes = {}
         self.is_session_shared = True
         self.shared_session = None
 
@@ -164,33 +163,6 @@ class System(object):
         self.__runner().__exit__(exc_type, exc_val, exc_tb)
         del self.__runner
 
-    def __getattr__(self, process_name, infrastructure_class=None):
-        """
-        Supports accessing process application by name as object attribute.
-
-        :param process_name:
-        :param infrastructure_class:
-        :return: A process application object.
-        :rtype: ProcessApplication
-        """
-        if self.processes and process_name in self.processes:
-            # Todo: Move to having process application instances on runner only.
-            process = self.processes[process_name]
-        else:
-            try:
-                process_class = self.process_classes[process_name]
-            except KeyError:
-                raise AttributeError(process_name)
-            else:
-                process = self.construct_app(
-                    process_class=process_class,
-                    setup_table=self.setup_tables,
-                    infrastructure_class=infrastructure_class,
-                )
-                # Todo: Move to having process application instances on runner only.
-                self.processes[process_name] = process
-        return process
-
     def bind(self, infrastructure_class):
         """
         Constructs a system object that has an infrastructure class
@@ -213,7 +185,10 @@ class System(object):
         return system
 
 
-class SystemRunner(ABC):
+PA = TypeVar('PA', bound=ProcessApplication)
+
+
+class SystemRunner(ABC, Generic[PA]):
     def __init__(
         self,
         system: System,
@@ -231,9 +206,7 @@ class SystemRunner(ABC):
         self.use_direct_query_if_available = (
             use_direct_query_if_available or system.use_direct_query_if_available
         )
-
-        # Todo: Move to having process application instances on runner only.
-        self.processes = self.system.processes
+        self.processes: Dict[PA] = {}
 
     def __enter__(self):
         """
@@ -261,30 +234,37 @@ class SystemRunner(ABC):
         Closes a running system.
         """
         self.system.shared_session = None
-        if self.system.processes:
-            for process_name, process in self.system.processes.items():
+        if self.processes:
+            process: ProcessApplication
+            for process_name, process in self.processes.items():
                 process.close()
-            self.system.processes.clear()
+            self.processes.clear()
 
-    def __getattr__(self, process_name):
+    def __getattr__(self, process_name: str) -> ProcessApplication:
         """
         Supports accessing process application by name as object attribute.
 
         :param process_name:
-        :param infrastructure_class:
         :return: A process application object.
-        :rtype: ProcessApplication
         """
-
-        # Todo: Move to having process application instances on runner only.
-        return self.system.__getattr__(
-            process_name, infrastructure_class=self.infrastructure_class
-        )
+        if self.processes and process_name in self.processes:
+            process = self.processes[process_name]
+        else:
+            try:
+                process_class = self.system.process_classes[process_name]
+            except KeyError:
+                raise AttributeError(process_name)
+            else:
+                process = self.system.construct_app(
+                    process_class=process_class,
+                    setup_table=self.setup_tables,
+                    infrastructure_class=self.infrastructure_class,
+                )
+                self.processes[process_name] = process
+        return process
 
 
 # Todo: Support passing SQLAlchemy session into runner.
-
-
 class InProcessRunner(SystemRunner):
     """
     Runs a system in the current process,
@@ -293,7 +273,7 @@ class InProcessRunner(SystemRunner):
     """
 
     def start(self):
-        assert len(self.system.processes) == 0, "Already running"
+        assert len(self.processes) == 0, "Already running"
 
         # Construct the processes.
         for process_class in self.system.process_classes.values():
@@ -303,14 +283,14 @@ class InProcessRunner(SystemRunner):
                 setup_table=self.setup_tables or self.system.setup_tables,
                 use_direct_query_if_available=self.use_direct_query_if_available,
             )
-            self.system.processes[process.name] = process
+            self.processes[process.name] = process
 
         # Tell each process about the processes it follows.
         for followed_name, followers in self.system.followers.items():
-            followed = self.system.processes[followed_name]
+            followed = self.processes[followed_name]
             followed_log = followed.notification_log
             for follower_name in followers:
-                follower = self.system.processes[follower_name]
+                follower = self.processes[follower_name]
                 follower.follow(followed_name, followed_log)
 
         # Do something to propagate prompts.
@@ -370,7 +350,7 @@ class SingleThreadedRunner(InProcessRunner):
                     else:
                         followers = self.system.followers[prompt.process_name]
                         for follower_name in followers:
-                            follower = self.system.processes[follower_name]
+                            follower = self.processes[follower_name]
                             follower.run(prompt)
                             i += 1
                         self.pending_prompts.task_done()
@@ -429,7 +409,7 @@ class MultiThreadedRunner(InProcessRunner):
                     ] = self.inboxes[inbox_id]
 
         # Construct application threads.
-        for process_name, process in self.system.processes.items():
+        for process_name, process in self.processes.items():
             process_instance_id = process_name
             if self.clock_event:
                 process.clock_event = self.clock_event
@@ -673,7 +653,7 @@ class SteppingSingleThreadedRunner(SteppingRunner):
             stop_event=self.stop_event,
             is_verbose=self.is_verbose,
             seen_prompt_events=self.seen_prompt_events,
-            processes=self.system.processes,
+            processes=self.processes,
             use_direct_query_if_available=self.use_direct_query_if_available,
         )
         self.clock_thread.start()
@@ -919,16 +899,16 @@ class SteppingMultiThreadedRunner(SteppingRunner):
 
     def start(self):
         super(SteppingMultiThreadedRunner, self).start()
-        parties = 1 + len(self.system.processes)
+        parties = 1 + len(self.processes)
         self.fetch_barrier = Barrier(parties)
         self.execute_barrier = Barrier(parties)
 
         # Create an event for each process.
-        for process_name in self.system.processes:
+        for process_name in self.processes:
             self.seen_prompt_events[process_name] = Event()
 
         # Construct application threads.
-        for process_name, process in self.system.processes.items():
+        for process_name, process in self.processes.items():
             process_instance_id = process_name
 
             thread = BarrierControlledApplicationThread(

@@ -916,26 +916,26 @@ disk-based durability is not required, for example during system development.
 
 .. code:: python
 
-    with system:
+    with system as runner:
 
         # Create "create order" command.
-        cmd_id = system.commands.create_order()
+        cmd_id = runner.commands.create_order()
 
         # Check the command has an order ID and is done.
-        cmd = system.commands.repository[cmd_id]
+        cmd = runner.commands.repository[cmd_id]
         assert cmd.order_id
         assert cmd.is_done
 
         # Check the order is reserved and paid.
-        order = system.orders.repository[cmd.order_id]
+        order = runner.orders.repository[cmd.order_id]
         assert order.is_reserved
         assert order.is_paid
 
         # Check the reservation exists.
-        reservation = system.reservations.repository[order.reservation_id]
+        reservation = runner.reservations.repository[order.reservation_id]
 
         # Check the payment exists.
-        payment = system.payments.repository[order.payment_id]
+        payment = runner.payments.repository[order.payment_id]
 
 
 Using the single-threaded runner means that everything happens synchronously
@@ -1042,7 +1042,7 @@ as a context manager.
         cmd_id = runner.commands.create_order()
 
         # Wait for the processing to complete....
-        assert_eventually_done(system.commands.repository, cmd_id)
+        assert_eventually_done(runner.commands.repository, cmd_id)
 
         # Check the command has an order ID and is done.
         cmd = runner.commands.repository[cmd_id]
