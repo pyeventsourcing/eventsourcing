@@ -6,7 +6,7 @@ from copy import deepcopy
 from queue import Empty, Queue
 from threading import Barrier, BrokenBarrierError, Event, Lock, Thread, Timer
 from time import sleep
-from typing import Optional, Type
+from typing import Optional, Type, TypeVar, Dict, Generic
 
 from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.process import ProcessApplication, Prompt
@@ -185,7 +185,10 @@ class System(object):
         return system
 
 
-class SystemRunner(ABC):
+PA = TypeVar('PA', bound=ProcessApplication)
+
+
+class SystemRunner(ABC, Generic[PA]):
     def __init__(
         self,
         system: System,
@@ -203,7 +206,7 @@ class SystemRunner(ABC):
         self.use_direct_query_if_available = (
             use_direct_query_if_available or system.use_direct_query_if_available
         )
-        self.processes = {}
+        self.processes: Dict[PA] = {}
 
     def __enter__(self):
         """
@@ -232,6 +235,7 @@ class SystemRunner(ABC):
         """
         self.system.shared_session = None
         if self.processes:
+            process: ProcessApplication
             for process_name, process in self.processes.items():
                 process.close()
             self.processes.clear()
