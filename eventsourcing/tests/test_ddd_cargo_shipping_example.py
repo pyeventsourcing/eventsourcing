@@ -206,7 +206,7 @@ class TestDDDCargoShippingExample(TestCase):
         self.assertEqual(cargo_details["next_expected_activity"], None)
 
 
-# Stub funtion that picks an itineraries from a list of possible itineraries.
+# Stub function that picks an itineraries from a list of possible itineraries.
 def select_preferred_itinerary(itineraries):
     return itineraries[0]
 
