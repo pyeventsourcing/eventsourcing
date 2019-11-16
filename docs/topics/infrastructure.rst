@@ -237,6 +237,24 @@ Please note, it is required of these application-level objects that the  "topic"
     assert topic == 'eventsourcing.domain.model.events#Created'
 
 
+Substitutions
+-------------
+
+The module ``eventsourcing.utils.topic`` has a module level ``dict`` called
+``substitutions`` which can be configured to substitute one topic for another.
+If an entity or event is moved or renamed, then any stored events that refer
+to the old position will fail to resolve, unless a mapping from the old topic
+to the new topic is added to the ``substitutions`` dict.
+
+
+.. code:: python
+
+    from eventsourcing.utils.topic import substitutions
+
+
+    substitutions['old_topic'] = 'new_topic'
+
+
 Custom JSON transcoding
 -----------------------
 
