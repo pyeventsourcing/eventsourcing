@@ -480,6 +480,112 @@ is mutated by one of its events, the ``__last_modified__`` attribute of the
 entity is set to the event's ``timestamp`` value.
 
 
+Subclassing events
+------------------
+
+In order to distinguish between events of different entity classes that inherit their
+events from a common entity base class, it is necessary to subclass the event classes
+on each of the entity classes.
+
+.. code:: python
+
+    class Example1(DomainEntity):
+        pass
+
+
+    class Example2(DomainEntity):
+        pass
+
+
+    assert Example1.Event == Example2.Event
+    assert Example1.Created  == Example2.Created
+    assert Example1.Discarded  == Example2.Discarded
+    assert Example1.AttributeChanged  == Example2.AttributeChanged
+
+
+    class Example3(DomainEntity):
+        class Event(DomainEntity.Event): pass
+        class Created(Event, DomainEntity.Created): pass
+        class Discarded(Event, DomainEntity.Discarded): pass
+        class AttributeChanged(Event, DomainEntity.AttributeChanged): pass
+        class SomethingHappened(Event): pass
+
+
+    class Example4(DomainEntity):
+        class Event(DomainEntity.Event): pass
+        class Created(Event, DomainEntity.Created): pass
+        class Discarded(Event, DomainEntity.Discarded): pass
+        class AttributeChanged(Event, DomainEntity.AttributeChanged): pass
+        class SomethingHappened(Event): pass
+
+
+    assert Example3.Event != Example4.Event
+    assert Example3.Created != Example4.Created
+    assert Example3.Discarded != Example4.Discarded
+    assert Example3.AttributeChanged != Example4.AttributeChanged
+
+
+To avoid the appearance of "boilerplate", it is possible to achieve the
+same results by decorating the entity class with the ``@subclassevents``
+decorator. In this case, custom events need only to inherit from the
+base ``DomainEvent`` class, and will then be subclassed automatically
+as an ``Event`` of the entity class.
+
+.. code:: python
+
+    from eventsourcing.domain.model.decorators import subclassevents
+
+
+    @subclassevents
+    class Example5(DomainEntity):
+        class SomethingHappened(DomainEvent):
+            pass
+
+
+    @subclassevents
+    class Example6(DomainEntity):
+        class SomethingHappened(DomainEvent):
+            pass
+
+
+    assert Example5.Event != Example6.Event
+    assert Example5.Created != Example6.Created
+    assert Example5.Discarded != Example6.Discarded
+    assert Example5.AttributeChanged != Example6.AttributeChanged
+
+    assert issubclass(Example5.SomethingHappened, Example5.Event)
+    assert issubclass(Example6.SomethingHappened, Example6.Event)
+
+
+To avoid having to use the decorator on all entity classes, which
+may itself start to feel like "boilerplate", it is possible to set
+``__subclassevents__`` on a common custom base entity class.
+
+.. code:: python
+
+    class BaseExample(DomainEntity):
+        __subclassevents__ = True
+
+
+    class Example5(BaseExample):
+        class SomethingHappened(DomainEvent):
+            pass
+
+
+    class Example6(BaseExample):
+        class SomethingHappened(DomainEvent):
+            pass
+
+
+    assert Example5.Event != Example6.Event
+    assert Example5.Created != Example6.Created
+    assert Example5.Discarded != Example6.Discarded
+    assert Example5.AttributeChanged != Example6.AttributeChanged
+
+    assert issubclass(Example5.SomethingHappened, Example5.Event)
+    assert issubclass(Example6.SomethingHappened, Example6.Event)
+
+
 Hash-chained events
 -------------------
 
