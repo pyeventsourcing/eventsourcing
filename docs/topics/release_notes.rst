@@ -30,9 +30,9 @@ been processed, with all generated events stored in the same atomic
 process event, as if all generated events were generated in a single
 policy function).
 
-Please note, the transcoding now supports encoding tuples and named tuples.
-Previously tuples and lists were encoded by the JSON transcoding as lists,
-which is the default behaviour on the core `json` package. So if you have
+Please note, the transcoding now supports encoding tuples and named tuples
+as tuples. Previously tuples and lists were encoded by the JSON transcoding as
+lists, which is the default behaviour on the core `json` package. So if you have
 code that depends on the transcoder converting tuples to lists, then attention
 will have to paid to the fact that tuples will now be encoded and returned as
 tuples. However, any existing stored events generated with an earlier version
@@ -42,8 +42,8 @@ as lists not tuples.
 Please note, the system runner class was changed to keep references to
 constructed process application classes, rather than having them in the
 system object. So if you have code that accesses the process applications
-on the system object, then switch to access the process applications on the
-runner.
+as attributes on the system object, then attention will need to be paid to
+accessing the process applications as attributes on the runner object.
 
 
 Version 7.2.4 (released 9 Oct 2019)
