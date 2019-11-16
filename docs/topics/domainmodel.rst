@@ -841,7 +841,7 @@ In order to distinguish between events of different entity classes that inherit 
 events from a common entity base class, it is necessary to subclass the event classes
 on each of the entity classes.
 
-Without subclassing the domain events of an inherited entity class, the the custom
+Without subclassing the domain events of an inherited entity class, the custom
 entity classes will have exactly the same domain event classes.
 
 .. code:: python
@@ -860,7 +860,7 @@ entity classes will have exactly the same domain event classes.
     assert Example1.AttributeChanged  == Example2.AttributeChanged
 
 
-With subclassing the domain events of an inherited entity class, the the custom
+With subclassing the domain events of an inherited entity class, the custom
 entity classes will have distinct domain event classes.
 
 .. code:: python
