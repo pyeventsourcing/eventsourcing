@@ -134,7 +134,6 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
             raise ValueError("Couldn't load JSON string: {}".format(s))
 
 
-
 def reconstruct_object(obj_class, obj_state):
     obj = object.__new__(obj_class)
     obj.__dict__.update(obj_state)

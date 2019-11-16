@@ -266,7 +266,8 @@ The defaults are the library's
 can be extended to support types of value objects that are not
 currently supported by the library.
 
-The code below extends the JSON transcoding to support sets.
+The code below shows how to extend the JSON transcoding to support sets. The library
+now supports encoding and decoding sets, but the example is still demonstrative.
 
 
 .. code:: python
@@ -314,6 +315,24 @@ The code below extends the JSON transcoding to support sets.
 
     sequenced_item = customized_sequenced_item_mapper.item_from_event(domain_event)
     assert sequenced_item.state.startswith('{"foo":{"__set__":["ba')
+
+
+It is also possible to extend the encoder and decoder classes by registering
+encode and decode functions using function decorators. This is a more convenient
+way to add support for particular types.
+
+.. code:: python
+
+    from eventsourcing.utils.transcoding import encoder, decoder
+
+    @encoder.register(set)
+    def encode_set(obj):
+        return {"__set__": sorted(list(obj))}
+
+
+    @decoder.register("__set__")
+    def decode_set(d):
+        return set(d["__set__"])
 
 
 Application-level encryption
