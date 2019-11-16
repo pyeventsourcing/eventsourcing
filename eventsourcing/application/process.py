@@ -9,7 +9,11 @@ from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.application.snapshotting import SnapshottingApplication
 from eventsourcing.domain.model.aggregate import BaseAggregateRoot
 from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
-from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed
+from eventsourcing.exceptions import (
+    CausalDependencyFailed,
+    PromptFailed,
+    ProgrammingError,
+)
 from eventsourcing.infrastructure.base import ACIDRecordManager
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.types import T
@@ -110,6 +114,14 @@ class ProcessApplication(SimpleApplication):
             raise PromptFailed("{}: {}".format(type(e), str(e)))
 
     def follow(self, upstream_application_name, notification_log):
+        if (
+            upstream_application_name == self.name
+            and self.apply_policy_to_generated_events
+        ):
+            raise ProgrammingError(
+                "Process application not allowed to follow itself because "
+                "its 'apply_policy_to_generated_events' attribute is True.")
+
         # Create a reader.
         reader = self.notification_log_reader_class(
             notification_log,
