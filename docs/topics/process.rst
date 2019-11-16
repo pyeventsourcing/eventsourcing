@@ -815,6 +815,7 @@ which contains the ``order`` aggregate expected by the policy.
 .. rather than the original process application's repository (``self.repository``)
 .. which doesn't detect which aggregates were used when your policy was called.
 
+
 Apply policy to generated events
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
