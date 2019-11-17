@@ -2,7 +2,7 @@ from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.types import T
 
 
-class Command(AggregateRoot[T]):
+class Command(AggregateRoot):
     def __init__(self, **kwargs):
         super(Command, self).__init__(**kwargs)
         self._is_done = False

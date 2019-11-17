@@ -23,7 +23,7 @@ except ImportError:
 T = TypeVar("T", bound="AbstractDomainEntity")
 
 
-class AbstractDomainEntity(Generic[T], metaclass=MetaAbstractDomainEntity):
+class AbstractDomainEntity(metaclass=MetaAbstractDomainEntity):
     @abstractmethod
     def __publish__(
         self, event: Union["AbstractDomainEvent", List["AbstractDomainEvent"]]

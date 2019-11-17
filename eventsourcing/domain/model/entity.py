@@ -51,7 +51,7 @@ class MetaDomainEntity(MetaAbstractDomainEntity):
             subclassevents(cls)
 
 
-class DomainEntity(AbstractDomainEntity[T], metaclass=MetaDomainEntity):
+class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
     """
     Supertype for domain model entity.
     """
@@ -280,7 +280,7 @@ class DomainEntity(AbstractDomainEntity[T], metaclass=MetaDomainEntity):
         return not self.__eq__(other)
 
 
-class EntityWithHashchain(DomainEntity[T]):
+class EntityWithHashchain(DomainEntity):
     __genesis_hash__ = GENESIS_HASH
 
     def __init__(self, *args, **kwargs):
@@ -356,7 +356,7 @@ class EntityWithHashchain(DomainEntity[T]):
         super(EntityWithHashchain, self).__trigger_event__(event_class, **kwargs)
 
 
-class VersionedEntity(DomainEntity[T]):
+class VersionedEntity(DomainEntity):
     def __init__(self, __version__: int, **kwargs):
         super().__init__(**kwargs)
         self.___version__: int = __version__
@@ -436,7 +436,7 @@ class VersionedEntity(DomainEntity[T]):
         """Published when a VersionedEntity is discarded."""
 
 
-class TimestampedEntity(DomainEntity[T]):
+class TimestampedEntity(DomainEntity):
     def __init__(self, __created_on__: Decimal, **kwargs):
         super(TimestampedEntity, self).__init__(**kwargs)
         self.___created_on__ = __created_on__
@@ -483,7 +483,7 @@ class TimestampedEntity(DomainEntity[T]):
 #  and update ___last_event_id__ in mutate method).
 
 
-class TimeuuidedEntity(DomainEntity[T]):
+class TimeuuidedEntity(DomainEntity):
     def __init__(self, event_id, **kwargs):
         super(TimeuuidedEntity, self).__init__(**kwargs)
         self.___initial_event_id__ = event_id
@@ -498,7 +498,7 @@ class TimeuuidedEntity(DomainEntity[T]):
         return decimaltimestamp_from_uuid(self.___last_event_id__)
 
 
-class TimestampedVersionedEntity(TimestampedEntity[T], VersionedEntity[T]):
+class TimestampedVersionedEntity(TimestampedEntity, VersionedEntity):
     class Event(TimestampedEntity.Event[T], VersionedEntity.Event[T]):
         """Supertype for events of timestamped, versioned entities."""
 
@@ -518,5 +518,5 @@ class TimestampedVersionedEntity(TimestampedEntity[T], VersionedEntity[T]):
         """Published when a TimestampedVersionedEntity is discarded."""
 
 
-class TimeuuidedVersionedEntity(TimeuuidedEntity[T], VersionedEntity[T]):
+class TimeuuidedVersionedEntity(TimeuuidedEntity, VersionedEntity):
     pass

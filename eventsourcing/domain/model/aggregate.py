@@ -8,7 +8,7 @@ from eventsourcing.domain.model.entity import (
 from eventsourcing.types import AbstractDomainEvent, T
 
 
-class BaseAggregateRoot(TimestampedVersionedEntity[T]):
+class BaseAggregateRoot(TimestampedVersionedEntity):
     """
     Root entity for an aggregate in a domain driven design.
     """
@@ -69,7 +69,7 @@ class BaseAggregateRoot(TimestampedVersionedEntity[T]):
         return batch_of_events
 
 
-class AggregateRootWithHashchainedEvents(EntityWithHashchain[T], BaseAggregateRoot[T]):
+class AggregateRootWithHashchainedEvents(EntityWithHashchain, BaseAggregateRoot):
     """Extends aggregate root base class with hash-chained events."""
 
     class Event(EntityWithHashchain.Event[T], BaseAggregateRoot.Event[T]):
@@ -89,7 +89,7 @@ class AggregateRootWithHashchainedEvents(EntityWithHashchain[T], BaseAggregateRo
         """Triggered when an aggregate root is discarded."""
 
 
-class AggregateRoot(AggregateRootWithHashchainedEvents[T]):
+class AggregateRoot(AggregateRootWithHashchainedEvents):
     """Original name for aggregate root base class with hash-chained events."""
 
     class Event(AggregateRootWithHashchainedEvents.Event[T]):

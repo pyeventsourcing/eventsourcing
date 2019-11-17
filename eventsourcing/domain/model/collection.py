@@ -6,7 +6,7 @@ from eventsourcing.domain.model.entity import TimestampedVersionedEntity
 from eventsourcing.types import AbstractEntityRepository, T
 
 
-class Collection(TimestampedVersionedEntity[T]):
+class Collection(TimestampedVersionedEntity):
     class Event(TimestampedVersionedEntity.Event[T]):
         """Supertype for events of collection entities."""
 
