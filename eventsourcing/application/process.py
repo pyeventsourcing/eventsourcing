@@ -1,13 +1,19 @@
 import time
 from collections import OrderedDict, defaultdict, deque
 from threading import Lock
-from typing import Any, Dict, Generic, List, Sequence, Tuple
+from typing import Any, Dict, List, Tuple, Deque, Optional, Union
 from uuid import UUID
 
 from eventsourcing.application.notificationlog import NotificationLogReader
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.application.snapshotting import SnapshottingApplication
-from eventsourcing.domain.model.aggregate import BaseAggregateRoot
+from eventsourcing.domain.model.aggregate import (
+    BaseAggregateRoot,
+    T_ag,
+    T_ags,
+    T_ag_ev,
+    T_ag_evs,
+)
 from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
 from eventsourcing.exceptions import (
     CausalDependencyFailed,
@@ -16,7 +22,6 @@ from eventsourcing.exceptions import (
 )
 from eventsourcing.infrastructure.base import ACIDRecordManager
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
-from eventsourcing.types import T
 
 
 class ProcessEvent(object):
@@ -35,7 +40,7 @@ class ProcessEvent(object):
         self.orm_objs_pending_delete = orm_objs_pending_delete
 
 
-class ProcessApplication(SimpleApplication):
+class ProcessApplication(SimpleApplication[T_ag_ev]):
     set_notification_ids = False
     use_causal_dependencies = False
     notification_log_reader_class = NotificationLogReader
@@ -120,7 +125,8 @@ class ProcessApplication(SimpleApplication):
         ):
             raise ProgrammingError(
                 "Process application not allowed to follow itself because "
-                "its 'apply_policy_to_generated_events' attribute is True.")
+                "its 'apply_policy_to_generated_events' attribute is True."
+            )
 
         # Create a reader.
         reader = self.notification_log_reader_class(
@@ -129,7 +135,7 @@ class ProcessApplication(SimpleApplication):
         )
         self.readers[upstream_application_name] = reader
 
-    def run(self, prompt=None, advance_by=None):
+    def run(self, prompt=None, advance_by=None) -> int:
 
         if prompt:
             assert isinstance(prompt, Prompt)
@@ -175,8 +181,8 @@ class ProcessApplication(SimpleApplication):
                         pipeline_id = causal_dependency["pipeline_id"]
                         notification_id = causal_dependency["notification_id"]
 
-                        _manager = self.event_store.record_manager
-                        has_tracking_record = _manager.has_tracking_record(
+                        rm: ACIDRecordManager = self.event_store.record_manager
+                        has_tracking_record = rm.has_tracking_record(
                             upstream_application_name=upstream_name,
                             pipeline_id=pipeline_id,
                             notification_id=notification_id,
@@ -200,7 +206,7 @@ class ProcessApplication(SimpleApplication):
                         self.clock_event.wait()
 
                     # print("Processing upstream event: ", event)
-                    new_events = self.process_upstream_event(
+                    new_events: T_ag_evs = self.process_upstream_event(
                         event, notification["id"], upstream_name
                     )
 
@@ -214,11 +220,12 @@ class ProcessApplication(SimpleApplication):
 
         return notification_count
 
-    def process_upstream_event(self, domain_event, notification_id, upstream_name):
+    def process_upstream_event(
+        self, domain_event: T_ag_ev, notification_id: int, upstream_name: str
+    ) -> List[T_ag_ev]:
+        cycle_started: Optional[float] = None
         if self.tick_interval is not None:
             cycle_started = time.process_time()
-        else:
-            cycle_started = None
         # Call policy with the upstream event.
         (
             domain_events,
@@ -260,7 +267,7 @@ class ProcessApplication(SimpleApplication):
                         pass
             raise exc
         else:
-            if self.tick_interval is not None:
+            if cycle_started is not None:
                 # Todo: Change this to use the full cycle time
                 #  (improve getting notifications first).
                 cycle_ended = time.process_time()
@@ -273,7 +280,7 @@ class ProcessApplication(SimpleApplication):
                     print(msg)
         return domain_events
 
-    def get_event_from_notification(self, notification):
+    def get_event_from_notification(self, notification) -> T_ag_ev:
         return self.event_store.mapper.event_from_topic_and_state(
             topic=notification[self.notification_topic_key],
             state=notification[self.notification_state_key],
@@ -302,27 +309,29 @@ class ProcessApplication(SimpleApplication):
         except KeyError:
             pass
 
-    def take_snapshots(self, new_events):
+    def take_snapshots(self, new_events: T_ag_evs):
         pass
 
-    def set_reader_position_from_tracking_records(self, upstream_name):
-        max_record_id = self.event_store.record_manager.get_max_tracking_record_id(
-            upstream_name
-        )
-        reader = self.readers[upstream_name]
-        reader.seek(max_record_id or 0)
+    def set_reader_position_from_tracking_records(self, upstream_name: str) -> None:
+        try:
+            reader = self.readers[upstream_name]
+        except KeyError:
+            raise Exception(list(self.readers.keys()))
+        rm: ACIDRecordManager = self.event_store.record_manager
+        max_record_id = rm.get_max_tracking_record_id(upstream_name)
+        reader.seek(max_record_id)
 
-    def call_policy(self, domain_event):
+    def call_policy(self, domain_event: T_ag_ev) -> Tuple:
         # Get the application policy.
         policy = self.policy_func or self.policy
 
         # Wrap the actual repository, so we can collect aggregates.
         repository = WrappedRepository(self.repository)
 
-        fifo = deque()
+        fifo: Deque[T_ag_ev] = deque()
         fifo.append(domain_event)
 
-        pending_events = []
+        pending_events: List[T_ag_ev] = []
 
         while len(fifo):
 
@@ -332,24 +341,27 @@ class ProcessApplication(SimpleApplication):
             # Call the policy with this domain event.
             new_aggregates = policy(repository, domain_event)
 
-            # Collect all aggregates.
-            repo_aggregates = list(repository.retrieved_aggregates.values())
-            all_aggregates = repo_aggregates[:]
+            # Collect aggregates retrieved by the policy.
+            aggregates = list(repository.retrieved_aggregates.values())
+
             if new_aggregates is not None:
+                # Convert to list, if necessary.
                 if not isinstance(new_aggregates, (list, tuple)):
                     new_aggregates = [new_aggregates]
+
                 for aggregate in new_aggregates:
+                    # Put new aggregates in repository cache (avoids replay).
                     if self.repository._use_cache:
-                        # Cache new aggregates in repository (avoids replay).
                         self.repository._cache[aggregate.id] = aggregate
 
+                    # Make new aggregates available in subsequent policy calls.
                     if self.apply_policy_to_generated_events:
-                        # Make new aggregates available in subsequent policy calls.
                         repository.retrieved_aggregates[aggregate.id] = aggregate
-                all_aggregates += new_aggregates
+
+                aggregates.extend(new_aggregates)
 
             # Collect pending events.
-            generated_events = self.collect_pending_events(all_aggregates)
+            generated_events: List[T_ag_ev] = self.collect_pending_events(aggregates)
             pending_events.extend(generated_events)
 
             # Enqueue generated events.
@@ -357,13 +369,13 @@ class ProcessApplication(SimpleApplication):
                 fifo.extend(generated_events)
 
         # Translate causal dependencies from version of entity to position in pipeline.
-        causal_dependencies = []
+        causal_dependencies: List[Dict[str, int]] = []
         if self.use_causal_dependencies:
             # Todo: Optionally reference causal dependencies in current pipeline
             #  and then support processing notification from a single pipeline in
             #  parallel, according to dependencies.
-            highest = defaultdict(int)
-            rm = self.event_store.record_manager
+            highest: Dict[int, int] = defaultdict(int)
+            rm: ACIDRecordManager = self.event_store.record_manager
             for entity_id, entity_version in repository.causal_dependencies:
                 pipeline_id, notification_id = rm.get_pipeline_and_notification_id(
                     entity_id, entity_version
@@ -371,7 +383,6 @@ class ProcessApplication(SimpleApplication):
                 if pipeline_id is not None and pipeline_id != self.pipeline_id:
                     highest[pipeline_id] = max(notification_id, highest[pipeline_id])
 
-            causal_dependencies = []
             for pipeline_id, notification_id in highest.items():
                 causal_dependencies.append(
                     {"pipeline_id": pipeline_id, "notification_id": notification_id}
@@ -390,10 +401,8 @@ class ProcessApplication(SimpleApplication):
         Empty method, can be overridden in subclasses to implement concrete policy.
         """
 
-    def collect_pending_events(
-        self, aggregates: List[BaseAggregateRoot]
-    ) -> Sequence[BaseAggregateRoot.Event]:
-        pending_events: List[BaseAggregateRoot.Event] = []
+    def collect_pending_events(self, aggregates: T_ags) -> List[T_ag_ev]:
+        pending_events: List[T_ag_ev] = []
         num_changed_aggregates = 0
         # This doesn't necessarily obtain events in causal order...
         for aggregate in aggregates:
@@ -423,11 +432,17 @@ class ProcessApplication(SimpleApplication):
             #    provide the correct order. However, if somehow different events are
             #    timestamped from different clocks, then problems may occur if those
             #    clocks give timestamps that skew the correct causal order.
-            pending_events.sort(key=lambda x: x.timestamp)
+
+            def pick_timestamp(event: BaseAggregateRoot.Event):
+                return event.timestamp
+
+            pending_events.sort(key=pick_timestamp)
 
         return pending_events
 
-    def construct_tracking_kwargs(self, notification_id, upstream_application_name):
+    def construct_tracking_kwargs(
+        self, notification_id: int, upstream_application_name: str
+    ) -> Dict[str, Union[str, int]]:
         return {
             "application_name": self.name,
             "upstream_application_name": upstream_application_name,
@@ -435,7 +450,7 @@ class ProcessApplication(SimpleApplication):
             "notification_id": notification_id,
         }
 
-    def record_process_event(self, process_event: ProcessEvent):
+    def record_process_event(self, process_event: ProcessEvent) -> None:
         # Construct event records.
         event_records = self.construct_event_records(
             process_event.domain_events, process_event.causal_dependencies
@@ -451,7 +466,7 @@ class ProcessApplication(SimpleApplication):
             orm_objs_pending_delete=process_event.orm_objs_pending_delete,
         )
 
-    def construct_event_records(self, pending_events, causal_dependencies=None):
+    def construct_event_records(self, pending_events, causal_dependencies=None) -> List:
         # Convert to event records.
         sequenced_items = self.event_store.item_from_event(pending_events)
         event_records = self.event_store.record_manager.to_records(sequenced_items)
@@ -481,14 +496,14 @@ class ProcessApplication(SimpleApplication):
 
         return event_records
 
-    def setup_table(self):
+    def setup_table(self) -> None:
         super(ProcessApplication, self).setup_table()
         if self.datastore is not None:
             self.datastore.setup_table(
                 self.event_store.record_manager.tracking_record_class
             )
 
-    def drop_table(self):
+    def drop_table(self) -> None:
         super(ProcessApplication, self).drop_table()
         if self.datastore is not None:
             self.datastore.drop_table(
@@ -496,7 +511,7 @@ class ProcessApplication(SimpleApplication):
             )
 
 
-class WrappedRepository(Generic[T]):
+class WrappedRepository(object):
     """
     Used to wrap an event sourced repository for use in process application
     policy so that use of, and changes to, domain model aggregates can be
@@ -506,21 +521,21 @@ class WrappedRepository(Generic[T]):
     accessed by ID.
     """
 
-    def __init__(self, repository: EventSourcedRepository[BaseAggregateRoot]):
-        self.repository: EventSourcedRepository[BaseAggregateRoot] = repository
-        self.retrieved_aggregates: Dict[UUID, BaseAggregateRoot] = {}
+    def __init__(self, repository: EventSourcedRepository[T_ag]) -> None:
+        self.repository: EventSourcedRepository[T_ag] = repository
+        self.retrieved_aggregates: Dict[UUID, T_ag] = {}
         self.causal_dependencies: List[Tuple[UUID, int]] = []
         self.orm_objs_pending_save: List[Any] = []
         self.orm_objs_pending_delete: List[Any] = []
 
-    def __getitem__(self, entity_id) -> BaseAggregateRoot:
+    def __getitem__(self, entity_id: UUID) -> T_ag:
         try:
-            return self.retrieved_aggregates[entity_id]
+            aggregate = self.retrieved_aggregates[entity_id]
         except KeyError:
-            aggregate: BaseAggregateRoot = self.repository.__getitem__(entity_id)
+            aggregate = self.repository.__getitem__(entity_id)
             self.retrieved_aggregates[entity_id] = aggregate
             self.causal_dependencies.append((aggregate.id, aggregate.__version__))
-            return aggregate
+        return aggregate
 
     def __contains__(self, entity_id: UUID) -> bool:
         return self.repository.__contains__(entity_id)
@@ -543,19 +558,19 @@ class WrappedRepository(Generic[T]):
 
 
 class Prompt(object):
-    def __init__(self, process_name, pipeline_id):
-        self.process_name = process_name
-        self.pipeline_id = pipeline_id
+    def __init__(self, process_name: str, pipeline_id: int):
+        self.process_name: str = process_name
+        self.pipeline_id: int = pipeline_id
 
-    def __eq__(self, other):
-        return (
+    def __eq__(self, other: object) -> bool:
+        return bool(
             other
             and isinstance(other, type(self))
             and self.process_name == other.process_name
             and self.pipeline_id == other.pipeline_id
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "{}({}={}, {}={})".format(
             type(self).__name__,
             "process_name",
@@ -566,7 +581,7 @@ class Prompt(object):
 
 
 class ProcessApplicationWithSnapshotting(SnapshottingApplication, ProcessApplication):
-    def take_snapshots(self, new_events):
+    def take_snapshots(self, new_events: T_ag_evs) -> None:
         for event in new_events:
             if self.snapshotting_policy.condition(event):
                 self.snapshotting_policy.take_snapshot(event)

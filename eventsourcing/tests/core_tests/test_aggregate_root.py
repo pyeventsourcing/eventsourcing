@@ -16,7 +16,7 @@ from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedNoID
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import (
     SQLAlchemyRecordManagerTestCase,
 )
-from eventsourcing.types import T
+from eventsourcing.types import T_en
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
 
@@ -339,7 +339,7 @@ class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
 
 
 @subclassevents
-class ExampleAggregateRoot(AggregateRoot[T]):
+class ExampleAggregateRoot(AggregateRoot):
     def __init__(self, foo="", **kwargs):
         super(ExampleAggregateRoot, self).__init__(**kwargs)
         self._entities: Dict[UUID, Example] = {}
@@ -356,7 +356,7 @@ class ExampleAggregateRoot(AggregateRoot[T]):
     def count_examples(self):
         return len(self._entities)
 
-    class ExampleCreated(DomainEvent[T]):
+    class ExampleCreated(DomainEvent[T_en]):
         """Published when an example entity is created within the aggregate."""
 
         def __init__(self, entity_id, **kwargs):
@@ -366,7 +366,7 @@ class ExampleAggregateRoot(AggregateRoot[T]):
         def entity_id(self):
             return self.__dict__["entity_id"]
 
-        def __mutate__(self, obj: Optional[T]) -> Optional[T]:
+        def __mutate__(self, obj: Optional[T_en]) -> Optional[T_en]:
             obj = super().__mutate__(obj)
             entity = Example(entity_id=self.entity_id)
             aggregate = cast(ExampleAggregateRoot, obj)
@@ -378,11 +378,11 @@ class ExampleAggregateRoot(AggregateRoot[T]):
 
 
 @subclassevents
-class Aggregate1(ExampleAggregateRoot[T]):
+class Aggregate1(ExampleAggregateRoot):
     pass
 
 
-class Aggregate2(ExampleAggregateRoot[T]):
+class Aggregate2(ExampleAggregateRoot):
     __subclassevents__ = True
 
 
@@ -407,7 +407,7 @@ class Example(object):
         return self._id
 
 
-class ExampleDDDApplication(Generic[T]):
+class ExampleDDDApplication(Generic[T_en]):
     def __init__(self, datastore):
         event_store = EventStore(
             record_manager=SQLAlchemyRecordManager(

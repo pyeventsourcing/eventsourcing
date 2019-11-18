@@ -16,7 +16,7 @@
 
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Union, cast, Type
 from unittest import TestCase
 from uuid import UUID
 
@@ -30,9 +30,13 @@ from eventsourcing.application.system import (
 from eventsourcing.domain.model.aggregate import BaseAggregateRoot
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.exceptions import RepositoryKeyError
+from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 
 
 # Locations in the world.
+from eventsourcing.types import T
+
+
 class Location(Enum):
     HAMBURG = "HAMBURG"
     HONGKONG = "HONGKONG"
@@ -87,12 +91,12 @@ class AggregateRoot(BaseAggregateRoot):
 class Cargo(AggregateRoot):
     @classmethod
     def new_booking(
-        cls, origin: Location, destination: Location, arrival_deadline: datetime
-    ) -> "Cargo":
-        cargo = cls.__create__(
+        cls: Type[T], origin: Location, destination: Location, arrival_deadline:
+        datetime
+    ) -> T:
+        return cls.__create__(
             origin=origin, destination=destination, arrival_deadline=arrival_deadline
         )
-        return cargo
 
     def __init__(
         self,
@@ -295,12 +299,13 @@ class BookingApplication(ProcessApplication):
         return cargo.id
 
     def get_cargo(self, tracking_id: UUID) -> Cargo:
+        repository: EventSourcedRepository[Cargo] = self.repository
         try:
-            entity = self.repository[tracking_id]
+            cargo = repository[tracking_id]
         except RepositoryKeyError:
-            raise CargoNotFound(tracking_id)
+            raise Exception("Cargo not found: {}".format(tracking_id))
         else:
-            return cast(Cargo, entity)
+            return cargo
 
     def change_destination(self, tracking_id: UUID, destination: Location) -> None:
         cargo = self.get_cargo(tracking_id)
@@ -342,20 +347,18 @@ class BookingApplication(ProcessApplication):
 class LocalClient(object):
     def __init__(self, runner: InProcessRunner):
         self.runner: InProcessRunner = runner
-        self.bookingapplication: BookingApplication = cast(
-            BookingApplication, self.runner.bookingapplication
-        )
+        self.bookingapp: BookingApplication = self.runner.getapp(BookingApplication)
 
     def book_new_cargo(
         self, origin: str, destination: str, arrival_deadline: datetime
     ) -> str:
-        tracking_id = self.bookingapplication.book_new_cargo(
+        tracking_id = self.bookingapp.book_new_cargo(
             Location[origin], Location[destination], arrival_deadline
         )
         return str(tracking_id)
 
     def get_cargo_details(self, tracking_id: str) -> CargoDetails:
-        cargo = self.bookingapplication.get_cargo(UUID(tracking_id))
+        cargo = self.bookingapp.get_cargo(UUID(tracking_id))
 
         # Present 'next_expected_activity'.
         next_expected_activity: Optional[Union[Tuple[Any, Any], Tuple[Any, Any, Any]]]
@@ -401,12 +404,12 @@ class LocalClient(object):
         }
 
     def change_destination(self, tracking_id: str, destination: str) -> None:
-        self.bookingapplication.change_destination(
+        self.bookingapp.change_destination(
             UUID(tracking_id), Location[destination]
         )
 
     def request_possible_routes_for_cargo(self, tracking_id: str) -> List[dict]:
-        routes = self.bookingapplication.request_possible_routes_for_cargo(
+        routes = self.bookingapp.request_possible_routes_for_cargo(
             UUID(tracking_id)
         )
         return [self.dict_from_itinerary(route) for route in routes]
@@ -425,12 +428,12 @@ class LocalClient(object):
         return route_details
 
     def assign_route(self, tracking_id: str, route_details) -> None:
-        routes = self.bookingapplication.request_possible_routes_for_cargo(
+        routes = self.bookingapp.request_possible_routes_for_cargo(
             UUID(tracking_id)
         )
         for route in routes:
             if route_details == self.dict_from_itinerary(route):
-                self.bookingapplication.assign_route(UUID(tracking_id), route)
+                self.bookingapp.assign_route(UUID(tracking_id), route)
 
     def register_handling_event(
         self,
@@ -439,7 +442,7 @@ class LocalClient(object):
         location: str,
         handling_activity: str,
     ) -> None:
-        self.bookingapplication.register_handling_event(
+        self.bookingapp.register_handling_event(
             UUID(tracking_id),
             voyage_number,
             Location[location],

@@ -1,9 +1,12 @@
 # coding=utf-8
-
 from eventsourcing.exceptions import ConcurrencyError, RecordConflictError
-from eventsourcing.infrastructure.base import BaseRecordManager
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
-from eventsourcing.types import AbstractEventStore, AbstractSequencedItemMapper
+from eventsourcing.types import (
+    AbstractEventStore,
+    AbstractSequencedItemMapper,
+    T_ev_evs,
+    T_evs,
+)
 
 
 # Todo: Unify iterators in EventStore and in NotificationLog,
@@ -20,7 +23,11 @@ class EventStore(AbstractEventStore):
 
     iterator_class = SequencedItemIterator
 
-    def __init__(self, record_manager, sequenced_item_mapper):
+    def __init__(
+        self,
+        record_manager,
+        sequenced_item_mapper: AbstractSequencedItemMapper,
+    ):
         """
         Initialises event store object.
 
@@ -28,16 +35,10 @@ class EventStore(AbstractEventStore):
         :param record_manager: record manager
         :param sequenced_item_mapper: sequenced item mapper
         """
-        assert isinstance(
-            record_manager, BaseRecordManager
-        ), record_manager
-        assert isinstance(
-            sequenced_item_mapper, AbstractSequencedItemMapper
-        ), sequenced_item_mapper
         self.record_manager = record_manager
         self.mapper = sequenced_item_mapper
 
-    def store(self, domain_event_or_events):
+    def store(self, domain_event_or_events: T_ev_evs) -> None:
         """
         Appends given domain event, or list of domain events, to their sequence.
 
@@ -53,7 +54,7 @@ class EventStore(AbstractEventStore):
         except RecordConflictError as e:
             raise ConcurrencyError(e)
 
-    def item_from_event(self, domain_event_or_events):
+    def item_from_event(self, domain_event_or_events: T_ev_evs):
         """
         Maps domain event to sequenced item namedtuple.
 
@@ -76,7 +77,7 @@ class EventStore(AbstractEventStore):
         limit=None,
         is_ascending=True,
         page_size=None,
-    ):
+    ) -> T_evs:
         """
         Gets domain events from the sequence identified by `originator_id`.
 

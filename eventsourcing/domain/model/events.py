@@ -4,7 +4,9 @@ from typing import Callable, Dict, List, Optional, Tuple, Union, Type, Sequence
 from uuid import UUID, uuid1
 
 from eventsourcing.exceptions import EventHashError
-from eventsourcing.types import AbstractDomainEvent, T
+from eventsourcing.types import AbstractDomainEvent, T_en, T_ev_evs, \
+    AbstractEventWithOriginatorVersion, AbstractEventWithTimestamp, \
+    AbstractEventWithOriginatorID
 from eventsourcing.utils.hashing import hash_object
 from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic
@@ -17,7 +19,7 @@ def create_timesequenced_event_id():
     return uuid1()
 
 
-class DomainEvent(AbstractDomainEvent[T]):
+class DomainEvent(AbstractDomainEvent[T_en]):
     """
     Base class for domain model events.
 
@@ -50,7 +52,7 @@ class DomainEvent(AbstractDomainEvent[T]):
         args_string = ", ".join(args_strings)
         return "{}({})".format(self.__class__.__qualname__, args_string)
 
-    def __mutate__(self, obj: Optional[T]) -> Optional[T]:
+    def __mutate__(self, obj: Optional[T_en]) -> Optional[T_en]:
         """
         Updates 'obj' with values from 'self'.
 
@@ -66,7 +68,7 @@ class DomainEvent(AbstractDomainEvent[T]):
             self.mutate(obj)
         return obj
 
-    def mutate(self, obj: T) -> None:
+    def mutate(self, obj: T_en) -> None:
         """
         Updates ("mutates") given 'obj'.
 
@@ -136,7 +138,7 @@ class DomainEvent(AbstractDomainEvent[T]):
         return hash_object(cls.__json_encoder__, obj)
 
 
-class EventWithHash(DomainEvent[T]):
+class EventWithHash(DomainEvent[T_en]):
     """
     Base class for domain events with a cryptographic event hash.
 
@@ -178,7 +180,7 @@ class EventWithHash(DomainEvent[T]):
         # Return the Python hash of the cryptographic hash.
         return hash(self.__event_hash__)
 
-    def __mutate__(self, obj: Optional[T]) -> Optional[T]:
+    def __mutate__(self, obj: Optional[T_en]) -> Optional[T_en]:
         """
         Updates 'obj' with values from self.
 
@@ -206,7 +208,7 @@ class EventWithHash(DomainEvent[T]):
             raise EventHashError()
 
 
-class EventWithOriginatorID(DomainEvent[T]):
+class EventWithOriginatorID(AbstractEventWithOriginatorID, DomainEvent[T_en]):
     """
     For events that have an originator ID.
     """
@@ -228,7 +230,7 @@ class EventWithOriginatorID(DomainEvent[T]):
         return self.__dict__["originator_id"]
 
 
-class EventWithTimestamp(DomainEvent[T]):
+class EventWithTimestamp(AbstractEventWithTimestamp, DomainEvent[T_en]):
     """
     For events that have a timestamp value.
     """
@@ -247,7 +249,7 @@ class EventWithTimestamp(DomainEvent[T]):
         return self.__dict__["timestamp"]
 
 
-class EventWithOriginatorVersion(DomainEvent[T]):
+class EventWithOriginatorVersion(AbstractEventWithOriginatorVersion, DomainEvent[T_en]):
     """
     For events that have an originator version number.
     """
@@ -271,7 +273,7 @@ class EventWithOriginatorVersion(DomainEvent[T]):
         return self.__dict__["originator_version"]
 
 
-class EventWithTimeuuid(DomainEvent[T]):
+class EventWithTimeuuid(DomainEvent[T_en]):
     """
     For events that have an UUIDv1 event ID.
     """
@@ -285,13 +287,13 @@ class EventWithTimeuuid(DomainEvent[T]):
         return self.__dict__["event_id"]
 
 
-class Created(DomainEvent[T]):
+class Created(DomainEvent[T_en]):
     """
     Happens when something is created.
     """
 
 
-class AttributeChanged(DomainEvent[T]):
+class AttributeChanged(DomainEvent[T_en]):
     """
     Happens when the value of an attribute changes.
     """
@@ -305,20 +307,20 @@ class AttributeChanged(DomainEvent[T]):
         return self.__dict__["value"]
 
 
-class Discarded(DomainEvent[T]):
+class Discarded(DomainEvent[T_en]):
     """
     Happens when something is discarded.
     """
 
 
-class Logged(DomainEvent[T]):
+class Logged(DomainEvent[T_en]):
     """
     Happens when something is logged.
     """
 
 
-Predicate = Callable[[Union[AbstractDomainEvent, Sequence[AbstractDomainEvent]]], bool]
-Handler = Callable[[Union[AbstractDomainEvent, Sequence[AbstractDomainEvent]]], None]
+Predicate = Callable[[T_ev_evs], bool]
+Handler = Callable[[T_ev_evs], None]
 
 _subscriptions: List[Tuple[Optional[Predicate], Handler]] = []
 
@@ -350,7 +352,7 @@ def unsubscribe(handler: Handler, predicate: Optional[Predicate] = None) -> None
         _subscriptions.remove((predicate, handler))
 
 
-def publish(event: Union[AbstractDomainEvent, Sequence[AbstractDomainEvent]]) -> None:
+def publish(event: T_ev_evs) -> None:
     """
     Published given 'event' by calling subscribed event
     handlers with the given 'event', except those with

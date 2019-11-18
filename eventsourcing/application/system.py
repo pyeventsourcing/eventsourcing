@@ -6,8 +6,9 @@ from copy import deepcopy
 from queue import Empty, Queue
 from threading import Barrier, BrokenBarrierError, Event, Lock, Thread, Timer
 from time import sleep
-from typing import Optional, Type, TypeVar, Dict, Generic
+from typing import Optional, Type, TypeVar, Dict, Deque, Union, List
 
+from eventsourcing.application.notificationlog import NotificationLogReader
 from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.process import ProcessApplication, Prompt
 from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
@@ -185,10 +186,10 @@ class System(object):
         return system
 
 
-PA = TypeVar('PA', bound=ProcessApplication)
+T_proc_app = TypeVar('T_proc_app', bound=ProcessApplication)
 
 
-class SystemRunner(ABC, Generic[PA]):
+class SystemRunner(ABC):
     def __init__(
         self,
         system: System,
@@ -206,7 +207,7 @@ class SystemRunner(ABC, Generic[PA]):
         self.use_direct_query_if_available = (
             use_direct_query_if_available or system.use_direct_query_if_available
         )
-        self.processes: Dict[PA] = {}
+        self.processes: Dict[Type[ProcessApplication], ProcessApplication] = {}
 
     def __enter__(self):
         """
@@ -236,31 +237,34 @@ class SystemRunner(ABC, Generic[PA]):
         self.system.shared_session = None
         if self.processes:
             process: ProcessApplication
-            for process_name, process in self.processes.items():
+            for process in self.processes.values():
                 process.close()
             self.processes.clear()
 
-    def __getattr__(self, process_name: str) -> ProcessApplication:
+    def __getattr__(self, process_name: str) -> T_proc_app:
         """
         Supports accessing process application by name as object attribute.
 
         :param process_name:
         :return: A process application object.
         """
-        if self.processes and process_name in self.processes:
+        return self.construct_app(process_name)
+
+    def getapp(self, process_class: Type[T_proc_app]) -> T_proc_app:
+        return self.construct_app(process_class.__name__.lower())
+
+    def construct_app(self, process_name):
+        if process_name in self.processes:
             process = self.processes[process_name]
         else:
-            try:
-                process_class = self.system.process_classes[process_name]
-            except KeyError:
-                raise AttributeError(process_name)
-            else:
-                process = self.system.construct_app(
-                    process_class=process_class,
-                    setup_table=self.setup_tables,
-                    infrastructure_class=self.infrastructure_class,
-                )
-                self.processes[process_name] = process
+            process_class = self.system.process_classes[process_name]
+            process = self.system.construct_app(
+                process_class=process_class,
+                infrastructure_class=self.infrastructure_class,
+                setup_table=self.setup_tables or self.system.setup_tables,
+                use_direct_query_if_available=self.use_direct_query_if_available,
+            )
+            self.processes[process.name] = process
         return process
 
 
@@ -276,14 +280,8 @@ class InProcessRunner(SystemRunner):
         assert len(self.processes) == 0, "Already running"
 
         # Construct the processes.
-        for process_class in self.system.process_classes.values():
-            process = self.system.construct_app(
-                process_class=process_class,
-                infrastructure_class=self.infrastructure_class,
-                setup_table=self.setup_tables or self.system.setup_tables,
-                use_direct_query_if_available=self.use_direct_query_if_available,
-            )
-            self.processes[process.name] = process
+        for process_name in self.system.process_classes.keys():
+            self.construct_app(process_name)
 
         # Tell each process about the processes it follows.
         for followed_name, followers in self.system.followers.items():
@@ -315,11 +313,11 @@ class SingleThreadedRunner(InProcessRunner):
     Runs a system in the current thread.
     """
 
-    def __init__(self, system: System, infrastructure_class=None, *args, **kwargs):
+    def __init__(self, system: System, infrastructure_class=None, **kwargs):
         super(SingleThreadedRunner, self).__init__(
-            system=system, infrastructure_class=infrastructure_class, *args, **kwargs
+            system, infrastructure_class=infrastructure_class, **kwargs
         )
-        self.pending_prompts = Queue()
+        self.pending_prompts: Queue[Prompt] = Queue()
         self.iteration_lock = Lock()
 
     def handle_prompt(self, prompt):
@@ -377,14 +375,11 @@ class MultiThreadedRunner(InProcessRunner):
         super(MultiThreadedRunner, self).__init__(system=system, **kwargs)
         self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
         assert isinstance(system, System)
-        self.threads = {}
-        self.clock_speed = clock_speed
+        self.threads: Dict[str, PromptQueuedApplicationThread] = {}
+        self.clock_speed: Optional[Union[float, int]] = clock_speed
         if self.clock_speed:
             self.clock_event = Event()
             self.stop_clock_event = Event()
-        else:
-            self.clock_event = None
-            self.stop_clock_event = None
 
     def start(self):
         super(MultiThreadedRunner, self).start()
@@ -410,20 +405,19 @@ class MultiThreadedRunner(InProcessRunner):
 
         # Construct application threads.
         for process_name, process in self.processes.items():
-            process_instance_id = process_name
-            if self.clock_event:
+            if self.clock_speed:
                 process.clock_event = self.clock_event
                 process.tick_interval = 1 / self.clock_speed
 
             thread = PromptQueuedApplicationThread(
                 process=process,
                 poll_interval=self.poll_interval,
-                inbox=self.inboxes[process_instance_id],
-                outbox=self.outboxes.get(process_instance_id),
+                inbox=self.inboxes[process_name],
+                outbox=self.outboxes.get(process_name),
                 # Todo: Is it better to clock the prompts or the notifications?
                 # clock_event=clock_event
             )
-            self.threads[process_instance_id] = thread
+            self.threads[process_name] = thread
 
         # Start application threads.
         for thread in self.threads.values():
@@ -504,10 +498,8 @@ class MultiThreadedRunner(InProcessRunner):
     def close(self):
         super(MultiThreadedRunner, self).close()
 
-        if self.clock_event is not None:
+        if self.clock_speed:
             self.clock_event.set()
-
-        if self.stop_clock_event is not None:
             self.stop_clock_event.set()
 
         for thread in self.threads.values():
@@ -706,7 +698,7 @@ class ProcessRunningClockThread(ClockThread):
         self.use_direct_query_if_available = use_direct_query_if_available
         self.last_tick_time = None
         self.last_process_time = None
-        self.all_tick_durations = deque()
+        self.all_tick_durations: Deque = deque()
         self.tick_adjustment = 0.0
         self.is_verbose = is_verbose
         if normal_speed and scale_factor:
@@ -721,21 +713,21 @@ class ProcessRunningClockThread(ClockThread):
         else:
             self.tick_durations_window_size = 1000
         # Construct lists of followers for each process.
-        self.followers = {}
-        for process_name, process in self.processes.items():
-            self.followers[process_name] = []
-        for process_name, process in self.processes.items():
+        self.followers: Dict[str, List[str]] = {}
+        for process in self.processes.values():
+            self.followers[process.name] = []
+        for process in self.processes.values():
             for upstream_process_name in process.readers:
-                self.followers[upstream_process_name].append(process_name)
+                self.followers[upstream_process_name].append(process.name)
 
         # Construct a notification log reader for each process.
-        self.readers = {}
-        for process_name, process in self.processes.items():
+        self.readers: Dict[str, NotificationLogReader] = {}
+        for process in self.processes.values():
             reader = process.notification_log_reader_class(
                 notification_log=process.notification_log,
                 use_direct_query_if_available=self.use_direct_query_if_available,
             )
-            self.readers[process_name] = reader
+            self.readers[process.name] = reader
 
     @property
     def actual_clock_speed(self):
@@ -1054,7 +1046,7 @@ class BarrierControllingClockThread(ClockThread):
         self.stop_event = stop_event
         self.last_tick_time = None
         self.last_process_time = None
-        self.all_tick_durations = deque()
+        self.all_tick_durations: Deque = deque()
         self.tick_adjustment = 0.0
         self.is_verbose = is_verbose
         if self.tick_interval:

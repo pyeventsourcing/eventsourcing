@@ -1,5 +1,5 @@
 import os
-from typing import List, Optional, Type, Union
+from typing import Generic, List, Optional, Type, Union
 
 from eventsourcing.application.notificationlog import RecordManagerNotificationLog
 from eventsourcing.application.pipeline import Pipeable
@@ -16,12 +16,13 @@ from eventsourcing.types import (
     AbstractEventStore,
     AbstractRecordManager,
     AbstractSequencedItemMapper,
+    T_ev,
 )
 from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.utils.random import decode_bytes
 
 
-class SimpleApplication(Pipeable):
+class SimpleApplication(Pipeable, Generic[T_ev]):
     """
     Base class for event sourced applications.
 
@@ -191,12 +192,12 @@ class SimpleApplication(Pipeable):
             event_store=self.event_store, use_cache=self.use_cache, **kwargs
         )
 
-    def setup_table(self):
+    def setup_table(self) -> None:
         # Setup the database table using event store's record class.
         if self.datastore is not None:
             self.datastore.setup_table(self.event_store.record_manager.record_class)
 
-    def drop_table(self):
+    def drop_table(self) -> None:
         # Drop the database table using event store's record class.
         if self.datastore is not None:
             self.datastore.drop_table(self.event_store.record_manager.record_class)

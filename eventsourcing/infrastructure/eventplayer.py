@@ -3,10 +3,10 @@ from types import FunctionType
 from typing import Optional
 
 from eventsourcing.infrastructure.snapshotting import AbstractSnapshotStrategy
-from eventsourcing.types import AbstractEventStore, AbstractEventPlayer, T
+from eventsourcing.types import AbstractEventStore, AbstractEventPlayer, T_en
 
 
-class EventPlayer(AbstractEventPlayer[T]):
+class EventPlayer(AbstractEventPlayer[T_en]):
     # The page size by which events are retrieved. If this
     # value is set to a positive integer, the events of
     # the entity will be retrieved in pages, using a series
@@ -30,7 +30,7 @@ class EventPlayer(AbstractEventPlayer[T]):
     def event_store(self) -> AbstractEventStore:
         return self._event_store
 
-    def project_events(self, initial_state, domain_events) -> Optional[T]:
+    def project_events(self, initial_state, domain_events) -> Optional[T_en]:
         """
         Evolves initial_state using the domain_events and a mutator function.
 
@@ -44,7 +44,7 @@ class EventPlayer(AbstractEventPlayer[T]):
         return reduce(self._mutator_func or self.mutate, domain_events, initial_state)
 
     @staticmethod
-    def mutate(initial, event) -> Optional[T]:
+    def mutate(initial, event) -> Optional[T_en]:
         """
         Default mutator function, which uses __mutate__()
         method on event object to mutate initial state.

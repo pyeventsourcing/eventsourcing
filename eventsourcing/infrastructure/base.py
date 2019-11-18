@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from typing import Tuple
 
 from eventsourcing.exceptions import OperationalError, RecordConflictError
 from eventsourcing.infrastructure.sequenceditem import (
@@ -177,23 +178,23 @@ class ACIDRecordManager(BaseRecordManager):
         """
 
     @abstractmethod
-    def get_max_record_id(self):
+    def get_max_record_id(self) -> int:
         """Return maximum notification ID in pipeline."""
 
     @abstractmethod
-    def get_max_tracking_record_id(self, upstream_application_name):
+    def get_max_tracking_record_id(self, upstream_application_name: str) -> int:
         """Return maximum tracking record ID for notification from upstream
         application in pipeline."""
 
     @abstractmethod
     def has_tracking_record(
-        self, upstream_application_name, pipeline_id, notification_id
-    ):
+        self, upstream_application_name: str, pipeline_id: int, notification_id: int
+    ) -> bool:
         """
         True if tracking record exists for notification from upstream in pipeline.
         """
 
-    def get_pipeline_and_notification_id(self, sequence_id, position):
+    def get_pipeline_and_notification_id(self, sequence_id, position: int) -> Tuple:
         """
         Returns pipeline ID and notification ID for
         event at given position in given sequence.

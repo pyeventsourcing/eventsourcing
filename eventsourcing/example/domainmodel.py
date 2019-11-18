@@ -5,29 +5,29 @@ from eventsourcing.domain.model.entity import (
     EntityWithHashchain,
     TimestampedVersionedEntity,
 )
-from eventsourcing.types import AbstractEntityRepository, T
+from eventsourcing.types import AbstractEntityRepository, T_en
 
 
-class Example(EntityWithHashchain[T], TimestampedVersionedEntity[T]):
+class Example(EntityWithHashchain[T_en], TimestampedVersionedEntity[T_en]):
     """
     An example event sourced domain model entity.
     """
 
-    class Event(EntityWithHashchain.Event[T], TimestampedVersionedEntity.Event[T]):
+    class Event(EntityWithHashchain.Event[T_en], TimestampedVersionedEntity.Event[T_en]):
         """Supertype for events of example entities."""
 
     class Created(
-        Event, EntityWithHashchain.Created[T], TimestampedVersionedEntity.Created[T]
+        Event, EntityWithHashchain.Created[T_en], TimestampedVersionedEntity.Created[T_en]
     ):
         """Published when an Example is created."""
 
-    class AttributeChanged(Event[T], TimestampedVersionedEntity.AttributeChanged[T]):
+    class AttributeChanged(Event[T_en], TimestampedVersionedEntity.AttributeChanged[T_en]):
         """Published when an Example is created."""
 
-    class Discarded(Event[T], TimestampedVersionedEntity.Discarded[T]):
+    class Discarded(Event[T_en], TimestampedVersionedEntity.Discarded[T_en]):
         """Published when an Example is discarded."""
 
-    class Heartbeat(Event[T], TimestampedVersionedEntity.Event[T]):
+    class Heartbeat(Event[T_en], TimestampedVersionedEntity.Event[T_en]):
         """Published when a heartbeat in the entity occurs (see below)."""
 
         def mutate(self, obj: "Example") -> None:

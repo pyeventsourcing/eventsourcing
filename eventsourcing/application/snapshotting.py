@@ -1,3 +1,5 @@
+from typing import Optional
+
 from eventsourcing.application.policies import SnapshottingPolicy
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.infrastructure.eventstore import EventStore
@@ -13,7 +15,7 @@ class SnapshottingApplication(SimpleApplication):
         self.snapshotting_policy = None
         self.snapshot_store = None
         self.snapshot_strategy = None
-        self.snapshotting_policy = None
+        self.snapshotting_policy: Optional[SnapshottingPolicy] = None
         super(SnapshottingApplication, self).__init__(**kwargs)
 
     def construct_event_store(self):
@@ -44,12 +46,12 @@ class SnapshottingApplication(SimpleApplication):
             period=self.snapshot_period,
         )
 
-    def setup_table(self):
+    def setup_table(self) -> None:
         super(SnapshottingApplication, self).setup_table()
         if self.datastore is not None:
             self.datastore.setup_table(self.snapshot_store.record_manager.record_class)
 
-    def drop_table(self):
+    def drop_table(self) -> None:
         super(SnapshottingApplication, self).drop_table()
         if self.datastore is not None:
             self.datastore.drop_table(self.snapshot_store.record_manager.record_class)

@@ -1,5 +1,6 @@
 from abc import ABC, ABCMeta, abstractmethod
-from typing import Generic, List, Optional, TypeVar, Union
+from decimal import Decimal
+from typing import Generic, List, Optional, TypeVar, Union, Sequence
 from uuid import UUID
 
 
@@ -19,15 +20,22 @@ except ImportError:
     pass
 # Todo: Delete above try/except when dropping support for Python 3.6.
 
+T = TypeVar("T")
 
-T = TypeVar("T", bound="AbstractDomainEntity")
+T_id = TypeVar("T_id")
+
+T_en = TypeVar("T_en", bound="AbstractDomainEntity")
+
+T_ev = TypeVar("T_ev", bound="AbstractDomainEvent")
+
+T_evs = Sequence[T_ev]
+
+T_ev_evs = Union[T_ev, T_evs]
 
 
-class AbstractDomainEntity(metaclass=MetaAbstractDomainEntity):
+class AbstractDomainEntity(Generic[T_ev], metaclass=MetaAbstractDomainEntity):
     @abstractmethod
-    def __publish__(
-        self, event: Union["AbstractDomainEvent", List["AbstractDomainEvent"]]
-    ):
+    def __publish__(self, event: T_ev_evs):
         pass
 
     @property
@@ -36,12 +44,36 @@ class AbstractDomainEntity(metaclass=MetaAbstractDomainEntity):
         pass
 
 
-class AbstractDomainEvent(Generic[T]):
+class AbstractDomainEvent(Generic[T_en]):
     def __init__(self, *args, **kwargs) -> None:
         pass
 
     @abstractmethod
-    def __mutate__(self, obj: Optional[T]) -> Optional[T]:
+    def __mutate__(self, obj: Optional[T_en]) -> Optional[T_en]:
+        pass
+
+
+class AbstractEventWithTimestamp(AbstractDomainEvent[T_en]):
+
+    @property
+    @abstractmethod
+    def timestamp(self) -> Decimal:
+        pass
+
+
+class AbstractEventWithOriginatorID(AbstractDomainEvent[T_en], Generic[T_en, T_id]):
+
+    @property
+    @abstractmethod
+    def originator_id(self) -> T_id:
+        pass
+
+
+class AbstractEventWithOriginatorVersion(AbstractDomainEvent[T_en]):
+
+    @property
+    @abstractmethod
+    def originator_version(self) -> int:
         pass
 
 
@@ -52,7 +84,7 @@ class AbstractEventStore(ABC):
     """
 
     @abstractmethod
-    def store(self, domain_event_or_events):
+    def store(self, domain_event_or_events: T_ev_evs) -> None:
         """
         Put domain event in event store for later retrieval.
         """
@@ -68,7 +100,7 @@ class AbstractEventStore(ABC):
         limit=None,
         is_ascending=True,
         page_size=None,
-    ):
+    ) -> T_evs:
         """
         Returns domain events for given entity ID.
         """
@@ -92,7 +124,7 @@ class AbstractEventStore(ABC):
         """
 
 
-class AbstractEventPlayer(Generic[T]):
+class AbstractEventPlayer(Generic[T_en]):
     @property
     @abstractmethod
     def event_store(self) -> AbstractEventStore:
@@ -145,9 +177,9 @@ class AbstractSnapshop(ABC):
         """
 
 
-class AbstractEntityRepository(AbstractEventPlayer[T]):
+class AbstractEntityRepository(AbstractEventPlayer[T_en]):
     @abstractmethod
-    def __getitem__(self, entity_id) -> T:
+    def __getitem__(self, entity_id) -> T_en:
         """
         Returns entity for given ID.
 
@@ -161,7 +193,7 @@ class AbstractEntityRepository(AbstractEventPlayer[T]):
         """
 
     @abstractmethod
-    def get_entity(self, entity_id, at=None) -> Optional[T]:
+    def get_entity(self, entity_id, at=None) -> Optional[T_en]:
         """
         Returns entity for given ID.
 
@@ -179,9 +211,15 @@ class AbstractEntityRepository(AbstractEventPlayer[T]):
 
 class AbstractRecordManager(ABC):
     @abstractmethod
-    def record_sequenced_items(self, sequenced_item_or_items):
+    def record_sequenced_items(self, sequenced_item_or_items: List):
         """
         Writes sequenced item(s) into the datastore.
+        """
+
+    @abstractmethod
+    def get_items(self, sequence_id, position):
+        """
+        Gets record at position in sequence.
         """
 
     @abstractmethod
@@ -229,7 +267,10 @@ class AbstractRecordManager(ABC):
         """
 
 
-class AbstractSequencedItemMapper(ABC):
+T_rm = TypeVar('T_rm', bound=AbstractRecordManager)
+
+
+class AbstractSequencedItemMapper(Generic[T_ev], ABC):
     @abstractmethod
     def item_from_event(self, domain_event):
         """
@@ -252,4 +293,10 @@ class AbstractSequencedItemMapper(ABC):
     def json_loads(self, event_attrs):
         """
         Decodes given JSON as object.
+        """
+
+    @abstractmethod
+    def event_from_topic_and_state(self, topic, state) -> T_ev:
+        """
+        Resolves topic to an event class, decodes state, and constructs an event.
         """

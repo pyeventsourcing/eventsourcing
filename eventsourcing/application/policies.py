@@ -3,7 +3,7 @@ from eventsourcing.domain.model.events import (
     subscribe,
     unsubscribe,
 )
-from eventsourcing.types import AbstractEventStore
+from eventsourcing.types import AbstractEntityRepository, AbstractEventStore, T_ev_evs
 
 
 class PersistencePolicy(object):
@@ -11,31 +11,31 @@ class PersistencePolicy(object):
     Stores events of given type to given event store, whenever they are published.
     """
 
-    def __init__(self, event_store, persist_event_type=None):
-        assert isinstance(event_store, AbstractEventStore), type(event_store)
+    def __init__(self, event_store: AbstractEventStore, persist_event_type=None):
         self.event_store = event_store
         self.persist_event_type = persist_event_type
         subscribe(self.store_event, self.is_event)
 
-    def close(self):
+    def close(self) -> None:
         unsubscribe(self.store_event, self.is_event)
 
-    def is_event(self, event):
+    def is_event(self, event: T_ev_evs) -> bool:
         if self.persist_event_type is None:
             return False
         if isinstance(event, (list, tuple)):
             return all(map(self.is_event, event))
         return isinstance(event, self.persist_event_type)
 
-    def store_event(self, event):
+    def store_event(self, event: T_ev_evs) -> None:
         self.event_store.store(event)
 
 
-# Todo: Separate PeriodicSnapshottingPolicy from base class? Make usage more configurable.
+# Todo: Separate PeriodicSnapshottingPolicy from base class? Make usage more
+#  configurable.
 class SnapshottingPolicy(object):
     def __init__(
         self,
-        repository,
+        repository: AbstractEntityRepository,
         snapshot_store,
         persist_event_type=EventWithOriginatorVersion,
         period=2,
@@ -47,10 +47,10 @@ class SnapshottingPolicy(object):
         self.persist_event_type = persist_event_type
         subscribe(predicate=self.condition, handler=self.take_snapshot)
 
-    def close(self):
+    def close(self) -> None:
         unsubscribe(predicate=self.condition, handler=self.take_snapshot)
 
-    def condition(self, event):
+    def condition(self, event: T_ev_evs) -> bool:
         # Periodically by default.
         if self.period:
             if isinstance(event, (list, tuple)):
@@ -63,8 +63,9 @@ class SnapshottingPolicy(object):
                 if self.persist_event_type:
                     if isinstance(event, self.persist_event_type):
                         return (event.originator_version + 1) % self.period == 0
+        return False
 
-    def take_snapshot(self, event):
+    def take_snapshot(self, event: T_ev_evs) -> None:
         if isinstance(event, (list, tuple)):
             event = event[-1]  # snapshot at the last version
         self.repository.take_snapshot(event.originator_id, lte=event.originator_version)

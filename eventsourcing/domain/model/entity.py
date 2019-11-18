@@ -23,8 +23,8 @@ from eventsourcing.types import (
     AbstractDomainEntity,
     AbstractDomainEvent,
     MetaAbstractDomainEntity,
-    T,
-)
+    T_en,
+    T_ev_evs, T_ev)
 from eventsourcing.utils.times import decimaltimestamp_from_uuid
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
@@ -51,19 +51,19 @@ class MetaDomainEntity(MetaAbstractDomainEntity):
             subclassevents(cls)
 
 
-class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
+class DomainEntity(AbstractDomainEntity[T_ev], metaclass=MetaDomainEntity):
     """
     Supertype for domain model entity.
     """
 
     __subclassevents__ = False
 
-    class Event(EventWithOriginatorID[T], DomainEvent[T]):
+    class Event(EventWithOriginatorID[T_en], DomainEvent[T_en]):
         """
         Supertype for events of domain model entities.
         """
 
-        def __check_obj__(self, obj: T) -> None:
+        def __check_obj__(self, obj: T_en) -> None:
             """
             Checks state of obj before mutating.
 
@@ -85,7 +85,7 @@ class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
         originator_id: UUID = None,
         event_class: Type[AbstractDomainEvent] = None,
         **kwargs
-    ) -> T:
+    ) -> T_en:
         """
         Creates a new domain entity.
 
@@ -111,7 +111,7 @@ class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
         obj.__publish__(event)
         return obj
 
-    class Created(Event, events.Created[T]):
+    class Created(Event, events.Created[T_en]):
         """
         Triggered when an entity is created.
         """
@@ -130,7 +130,7 @@ class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
             """
             return self.__dict__["originator_topic"]
 
-        def __mutate__(self, obj: Optional[T]) -> Optional[T]:
+        def __mutate__(self, obj: Optional[T_en]) -> Optional[T_en]:
             """
             Constructs object from an entity class,
             which is obtained by resolving the originator topic,
@@ -181,12 +181,12 @@ class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
         event_class: Type[DomainEvent] = self.AttributeChanged
         self.__trigger_event__(event_class=event_class, name=name, value=value)
 
-    class AttributeChanged(Event, events.AttributeChanged[T]):
+    class AttributeChanged(Event, events.AttributeChanged[T_en]):
         """
         Triggered when a named attribute is assigned a new value.
         """
 
-        def __mutate__(self, obj: Optional[T]) -> Optional[T]:
+        def __mutate__(self, obj: Optional[T_en]) -> Optional[T_en]:
             obj = super(DomainEntity.AttributeChanged, self).__mutate__(obj)
             setattr(obj, self.name, self.value)
             return obj
@@ -197,12 +197,12 @@ class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
         """
         self.__trigger_event__(self.Discarded)
 
-    class Discarded(events.Discarded[T], Event):
+    class Discarded(events.Discarded[T_en], Event):
         """
         Triggered when a DomainEntity is discarded.
         """
 
-        def __mutate__(self, obj: Optional[T]) -> Optional[T]:
+        def __mutate__(self, obj: Optional[T_en]) -> Optional[T_en]:
             obj = super(DomainEntity.Discarded, self).__mutate__(obj)
             entity = cast(DomainEntity, obj)
             entity.__is_discarded__ = True
@@ -255,7 +255,7 @@ class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
         """
         event.__mutate__(self)
 
-    def __publish__(self, event: Union[AbstractDomainEvent, List[AbstractDomainEvent]]):
+    def __publish__(self, event: T_ev_evs):
         """
         Publishes given event for subscribers in the application.
 
@@ -263,9 +263,7 @@ class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
         """
         self.__publish_to_subscribers__(event)
 
-    def __publish_to_subscribers__(
-        self, event: Union[AbstractDomainEvent, Sequence[AbstractDomainEvent]]
-    ):
+    def __publish_to_subscribers__(self, event: T_ev_evs):
         """
         Actually dispatches given event to publish-subscribe mechanism.
 
@@ -280,19 +278,19 @@ class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
         return not self.__eq__(other)
 
 
-class EntityWithHashchain(DomainEntity):
+class EntityWithHashchain(DomainEntity[T_ev]):
     __genesis_hash__ = GENESIS_HASH
 
     def __init__(self, *args, **kwargs):
         super(EntityWithHashchain, self).__init__(*args, **kwargs)
         self.__head__: str = type(self).__genesis_hash__
 
-    class Event(EventWithHash[T], DomainEntity.Event[T]):
+    class Event(EventWithHash[T_en], DomainEntity.Event[T_en]):
         """
         Supertype for events of domain entities.
         """
 
-        def __mutate__(self, obj: Optional[T]) -> Optional[T]:
+        def __mutate__(self, obj: Optional[T_en]) -> Optional[T_en]:
             # Call super method.
             obj = super(EntityWithHashchain.Event, self).__mutate__(obj)
 
@@ -304,7 +302,7 @@ class EntityWithHashchain(DomainEntity):
 
             return obj
 
-        def __check_obj__(self, obj: T) -> None:
+        def __check_obj__(self, obj: T_en) -> None:
             """
             Extends superclass method by checking the __previous_hash__
             of this event matches the __head__ hash of the entity obj.
@@ -317,7 +315,7 @@ class EntityWithHashchain(DomainEntity):
             if entity.__head__ != self.__dict__.get("__previous_hash__"):
                 raise HeadHashError(entity.id, entity.__head__, type(self))
 
-    class Created(Event[T], DomainEntity.Created[T]):
+    class Created(Event[T_en], DomainEntity.Created[T_en]):
         @property
         def __entity_kwargs__(self) -> Dict[str, Any]:
             # Get super property.
@@ -329,15 +327,15 @@ class EntityWithHashchain(DomainEntity):
 
             return kwargs
 
-        def __mutate__(self, obj: Optional[T]) -> Optional[T]:
+        def __mutate__(self, obj: Optional[T_en]) -> Optional[T_en]:
             # Call super method.
             return super(EntityWithHashchain.Created, self).__mutate__(obj)
 
-    class AttributeChanged(Event, DomainEntity.AttributeChanged[T]):
+    class AttributeChanged(Event, DomainEntity.AttributeChanged[T_en]):
         pass
 
-    class Discarded(Event[T], DomainEntity.Discarded[T]):
-        def __mutate__(self, obj: Optional[T]) -> Optional[T]:
+    class Discarded(Event[T_en], DomainEntity.Discarded[T_en]):
+        def __mutate__(self, obj: Optional[T_en]) -> Optional[T_en]:
             # Set entity head from event hash.
             entity = cast(EntityWithHashchain, obj)
             entity.__head__ = self.__event_hash__
@@ -346,7 +344,7 @@ class EntityWithHashchain(DomainEntity):
             return super(EntityWithHashchain.Discarded, self).__mutate__(obj)
 
     @classmethod
-    def __create__(cls, *args, **kwargs) -> T:
+    def __create__(cls, *args, **kwargs) -> T_en:
         kwargs["__previous_hash__"] = getattr(cls, "__genesis_hash__", GENESIS_HASH)
         return super(EntityWithHashchain, cls).__create__(*args, **kwargs)
 
@@ -356,7 +354,7 @@ class EntityWithHashchain(DomainEntity):
         super(EntityWithHashchain, self).__trigger_event__(event_class, **kwargs)
 
 
-class VersionedEntity(DomainEntity):
+class VersionedEntity(DomainEntity[T_ev]):
     def __init__(self, __version__: int, **kwargs):
         super().__init__(**kwargs)
         self.___version__: int = __version__
@@ -381,17 +379,17 @@ class VersionedEntity(DomainEntity):
             event_class=event_class, originator_version=self.__version__ + 1, **kwargs
         )
 
-    class Event(EventWithOriginatorVersion[T], DomainEntity.Event[T]):
+    class Event(EventWithOriginatorVersion[T_en], DomainEntity.Event[T_en]):
         """Supertype for events of versioned entities."""
 
-        def __mutate__(self, obj: Optional[T]) -> Optional[T]:
+        def __mutate__(self, obj: Optional[T_en]) -> Optional[T_en]:
             obj = super(VersionedEntity.Event, self).__mutate__(obj)
             if obj is not None:
                 entity = cast(EventWithOriginatorVersion, obj)
                 entity.___version__ = self.originator_version
             return obj
 
-        def __check_obj__(self, obj: T) -> None:
+        def __check_obj__(self, obj: T_en) -> None:
             """
             Extends superclass method by checking the event's
             originator version follows (1 +) this entity's version.
@@ -414,7 +412,7 @@ class VersionedEntity(DomainEntity):
                     )
                 )
 
-    class Created(DomainEntity.Created[T], Event[T]):
+    class Created(DomainEntity.Created[T_en], Event[T_en]):
         """Published when a VersionedEntity is created."""
 
         def __init__(self, originator_version=0, *args, **kwargs):
@@ -429,14 +427,14 @@ class VersionedEntity(DomainEntity):
             kwargs["__version__"] = kwargs.pop("originator_version")
             return kwargs
 
-    class AttributeChanged(Event[T], DomainEntity.AttributeChanged[T]):
+    class AttributeChanged(Event[T_en], DomainEntity.AttributeChanged[T_en]):
         """Published when a VersionedEntity is changed."""
 
-    class Discarded(Event[T], DomainEntity.Discarded[T]):
+    class Discarded(Event[T_en], DomainEntity.Discarded[T_en]):
         """Published when a VersionedEntity is discarded."""
 
 
-class TimestampedEntity(DomainEntity):
+class TimestampedEntity(DomainEntity[T_ev]):
     def __init__(self, __created_on__: Decimal, **kwargs):
         super(TimestampedEntity, self).__init__(**kwargs)
         self.___created_on__ = __created_on__
@@ -450,10 +448,10 @@ class TimestampedEntity(DomainEntity):
     def __last_modified__(self) -> Decimal:
         return self.___last_modified__
 
-    class Event(DomainEntity.Event[T], EventWithTimestamp[T]):
+    class Event(DomainEntity.Event[T_en], EventWithTimestamp[T_en]):
         """Supertype for events of timestamped entities."""
 
-        def __mutate__(self, obj: Optional[T]) -> Optional[T]:
+        def __mutate__(self, obj: Optional[T_en]) -> Optional[T_en]:
             """Updates 'obj' with values from self."""
             obj = super(TimestampedEntity.Event, self).__mutate__(obj)
             if obj is not None:
@@ -461,7 +459,7 @@ class TimestampedEntity(DomainEntity):
                 entity.___last_modified__ = self.timestamp
             return obj
 
-    class Created(DomainEntity.Created[T], Event[T]):
+    class Created(DomainEntity.Created[T_en], Event[T_en]):
         """Published when a TimestampedEntity is created."""
 
         @property
@@ -471,10 +469,10 @@ class TimestampedEntity(DomainEntity):
             kwargs["__created_on__"] = kwargs.pop("timestamp")
             return kwargs
 
-    class AttributeChanged(Event[T], DomainEntity.AttributeChanged[T]):
+    class AttributeChanged(Event[T_en], DomainEntity.AttributeChanged[T_en]):
         """Published when a TimestampedEntity is changed."""
 
-    class Discarded(Event[T], DomainEntity.Discarded[T]):
+    class Discarded(Event[T_en], DomainEntity.Discarded[T_en]):
         """Published when a TimestampedEntity is discarded."""
 
 
@@ -483,7 +481,7 @@ class TimestampedEntity(DomainEntity):
 #  and update ___last_event_id__ in mutate method).
 
 
-class TimeuuidedEntity(DomainEntity):
+class TimeuuidedEntity(DomainEntity[T_ev]):
     def __init__(self, event_id, **kwargs):
         super(TimeuuidedEntity, self).__init__(**kwargs)
         self.___initial_event_id__ = event_id
@@ -498,25 +496,25 @@ class TimeuuidedEntity(DomainEntity):
         return decimaltimestamp_from_uuid(self.___last_event_id__)
 
 
-class TimestampedVersionedEntity(TimestampedEntity, VersionedEntity):
-    class Event(TimestampedEntity.Event[T], VersionedEntity.Event[T]):
+class TimestampedVersionedEntity(TimestampedEntity[T_ev], VersionedEntity[T_ev]):
+    class Event(TimestampedEntity.Event[T_en], VersionedEntity.Event[T_en]):
         """Supertype for events of timestamped, versioned entities."""
 
-    class Created(TimestampedEntity.Created[T], VersionedEntity.Created, Event[T]):
+    class Created(TimestampedEntity.Created[T_en], VersionedEntity.Created, Event[T_en]):
         """Published when a TimestampedVersionedEntity is created."""
 
     class AttributeChanged(
-        Event[T],
-        TimestampedEntity.AttributeChanged[T],
-        VersionedEntity.AttributeChanged[T],
+        Event[T_en],
+        TimestampedEntity.AttributeChanged[T_en],
+        VersionedEntity.AttributeChanged[T_en],
     ):
         """Published when a TimestampedVersionedEntity is created."""
 
     class Discarded(
-        Event[T], TimestampedEntity.Discarded[T], VersionedEntity.Discarded[T]
+        Event[T_en], TimestampedEntity.Discarded[T_en], VersionedEntity.Discarded[T_en]
     ):
         """Published when a TimestampedVersionedEntity is discarded."""
 
 
-class TimeuuidedVersionedEntity(TimeuuidedEntity, VersionedEntity):
+class TimeuuidedVersionedEntity(TimeuuidedEntity[T_ev], VersionedEntity[T_ev]):
     pass

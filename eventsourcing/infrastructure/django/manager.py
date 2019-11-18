@@ -226,8 +226,8 @@ class DjangoRecordManager(SQLRecordManager):
         except (self.record_class.DoesNotExist, ProgrammingError):
             return None
 
-    def get_max_tracking_record_id(self, upstream_application_name):
-        notification_id = None
+    def get_max_tracking_record_id(self, upstream_application_name: str) -> int:
+        notification_id = 0
         try:
             objects = self.tracking_record_class.objects
             objects = objects.filter(application_name=self.application_name)
@@ -241,8 +241,8 @@ class DjangoRecordManager(SQLRecordManager):
         return notification_id
 
     def has_tracking_record(
-        self, upstream_application_name, pipeline_id, notification_id
-    ):
+        self, upstream_application_name: str, pipeline_id: int, notification_id: int
+    ) -> bool:
         objects = self.tracking_record_class.objects
         objects = objects.filter(application_name=self.application_name)
         objects = objects.filter(upstream_application_name=upstream_application_name)

@@ -1,20 +1,27 @@
 from __future__ import unicode_literals
 
 from json import JSONDecodeError
+from typing import Type, Tuple, Dict
 
 from eventsourcing.infrastructure.sequenceditem import (
     SequencedItem,
     SequencedItemFieldNames,
 )
-from eventsourcing.types import AbstractSequencedItemMapper
+from eventsourcing.types import (
+    AbstractSequencedItemMapper,
+    T_ev,
+    T,
+    AbstractDomainEvent,
+)
 from eventsourcing.utils.topic import get_topic, resolve_topic
 from eventsourcing.utils.transcoding import (
     ObjectJSONDecoder,
     ObjectJSONEncoder,
-    JSON_SEPARATORS)
+    JSON_SEPARATORS,
+)
 
 
-class SequencedItemMapper(AbstractSequencedItemMapper):
+class SequencedItemMapper(AbstractSequencedItemMapper[T_ev]):
     """
     Uses JSON to transcode domain events.
     """
@@ -31,8 +38,9 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
     ):
         self.sequenced_item_class = sequenced_item_class
         self.json_encoder_class = json_encoder_class or ObjectJSONEncoder
-        self.json_encoder = self.json_encoder_class(separators=JSON_SEPARATORS,
-                                                    sort_keys=True)
+        self.json_encoder = self.json_encoder_class(
+            separators=JSON_SEPARATORS, sort_keys=True
+        )
         self.json_decoder_class = json_decoder_class or ObjectJSONDecoder
         self.json_decoder = self.json_decoder_class()
         self.cipher = cipher
@@ -109,32 +117,33 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
 
         return self.event_from_topic_and_state(topic, state)
 
-    def event_from_topic_and_state(self, topic, state):
+    def event_from_topic_and_state(self, topic, state) -> T_ev:
         domain_event_class, event_attrs = self.get_event_class_and_attrs(topic, state)
 
         # Reconstruct domain event object.
         return reconstruct_object(domain_event_class, event_attrs)
 
-    def get_event_class_and_attrs(self, topic, state):
+    def get_event_class_and_attrs(self, topic, state) -> Tuple[Type[T_ev], Dict]:
         # Resolve topic to event class.
-        domain_event_class = resolve_topic(topic)
+        domain_event_class: Type[T_ev] = resolve_topic(topic)
+        assert issubclass(domain_event_class, AbstractDomainEvent)
 
         # Decrypt and decompress state.
         if self.cipher:
             state = self.cipher.decrypt(state)
 
         # Deserialize data.
-        event_attrs = self.json_loads(state)
+        event_attrs: Dict = self.json_loads(state)
         return domain_event_class, event_attrs
 
-    def json_loads(self, state):
+    def json_loads(self, state: str) -> Dict:
         try:
             return self.json_decoder.decode(state)
         except JSONDecodeError:
-            raise ValueError("Couldn't load JSON string: {}".format(s))
+            raise ValueError("Couldn't load JSON string: {}".format(state))
 
 
-def reconstruct_object(obj_class, obj_state):
+def reconstruct_object(obj_class: Type[T], obj_state) -> T:
     obj = object.__new__(obj_class)
     obj.__dict__.update(obj_state)
     return obj

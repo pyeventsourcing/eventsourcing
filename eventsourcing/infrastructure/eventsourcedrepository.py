@@ -7,13 +7,12 @@ from eventsourcing.infrastructure.snapshotting import entity_from_snapshot
 from eventsourcing.types import (
     AbstractEntityRepository,
     AbstractSnapshop,
-    AbstractDomainEntity,
-    T,
+    T_en,
     AbstractEventStore,
 )
 
 
-class EventSourcedRepository(EventPlayer[T], AbstractEntityRepository[T]):
+class EventSourcedRepository(EventPlayer[T_en], AbstractEntityRepository[T_en]):
     def __init__(
         self, event_store: AbstractEventStore, use_cache: bool = False, **kwargs
     ):
@@ -23,7 +22,7 @@ class EventSourcedRepository(EventPlayer[T], AbstractEntityRepository[T]):
         # when records fail to write otherwise the cache will
         # give an entity that is ahead of the event records,
         # and writing more records will give a broken sequence.
-        self._cache: Dict[UUID, Optional[T]] = {}
+        self._cache: Dict[UUID, Optional[T_en]] = {}
         self._use_cache = use_cache
 
     @property
@@ -42,14 +41,14 @@ class EventSourcedRepository(EventPlayer[T], AbstractEntityRepository[T]):
         """
         return self.get_entity(entity_id) is not None
 
-    def __getitem__(self, entity_id: UUID) -> T:
+    def __getitem__(self, entity_id: UUID) -> T_en:
         """
         Returns entity with given ID.
         """
         if self._use_cache:
             try:
                 # Get entity from the cache.
-                entity: Optional[T] = self._cache[entity_id]
+                entity: Optional[T_en] = self._cache[entity_id]
             except KeyError:
                 # Reconstitute the entity.
                 entity = self.get_entity(entity_id)
@@ -66,7 +65,7 @@ class EventSourcedRepository(EventPlayer[T], AbstractEntityRepository[T]):
         assert entity is not None
         return entity
 
-    def get_entity(self, entity_id: UUID, at=None) -> Optional[T]:
+    def get_entity(self, entity_id: UUID, at=None) -> Optional[T_en]:
         """
         Returns entity with given ID, optionally until position.
         """
@@ -101,7 +100,7 @@ class EventSourcedRepository(EventPlayer[T], AbstractEntityRepository[T]):
         limit=None,
         initial_state=None,
         query_descending=False,
-    ) -> Optional[T]:
+    ) -> Optional[T_en]:
         """
         Reconstitutes requested domain entity from domain events found in event store.
         """
