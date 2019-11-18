@@ -126,7 +126,6 @@ class SequencedItemMapper(AbstractSequencedItemMapper[T_ev]):
     def get_event_class_and_attrs(self, topic, state) -> Tuple[Type[T_ev], Dict]:
         # Resolve topic to event class.
         domain_event_class: Type[T_ev] = resolve_topic(topic)
-        assert issubclass(domain_event_class, AbstractDomainEvent)
 
         # Decrypt and decompress state.
         if self.cipher:
