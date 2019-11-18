@@ -16,7 +16,7 @@
 
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union, cast, Type
+from typing import Any, Dict, List, Optional, Tuple, Union, Type, TypeVar
 from unittest import TestCase
 from uuid import UUID
 
@@ -88,12 +88,15 @@ class AggregateRoot(BaseAggregateRoot):
 # The Cargo aggregate is an event sourced domain model aggregate that
 # specifies the routing from origin to destination, and can track what
 # happens to the cargo after it has been booked.
+T_cargo = TypeVar('T_cargo', bound='Cargo')
+
+
 class Cargo(AggregateRoot):
     @classmethod
     def new_booking(
-        cls: Type[T], origin: Location, destination: Location, arrival_deadline:
+        cls: Type[T_cargo], origin: Location, destination: Location, arrival_deadline:
         datetime
-    ) -> T:
+    ) -> T_cargo:
         return cls.__create__(
             origin=origin, destination=destination, arrival_deadline=arrival_deadline
         )
@@ -282,11 +285,7 @@ class Cargo(AggregateRoot):
             return self.__dict__["handling_activity"]
 
 
-class CargoNotFound(Exception):
-    pass
-
-
-# The Cargo aggregate is situation in an event sourced application,
+# The Cargo aggregate is situated in an event sourced application,
 # which provides application services for clients.
 class BookingApplication(ProcessApplication):
     persist_event_type = Cargo.Event
