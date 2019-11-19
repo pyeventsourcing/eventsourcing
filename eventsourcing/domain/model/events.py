@@ -240,7 +240,7 @@ class EventWithTimestamp(AbstractEventWithTimestamp, DomainEvent[T_en]):
     For events that have a timestamp value.
     """
 
-    def __init__(self, timestamp: Decimal = None, **kwargs):
+    def __init__(self, timestamp: Optional[Decimal] = None, **kwargs):
         kwargs["timestamp"] = timestamp or decimaltimestamp()
         super(EventWithTimestamp, self).__init__(**kwargs)
 

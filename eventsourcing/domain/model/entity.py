@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import Any, Callable, Dict, List, Optional, Type, Union, cast, Sequence
+from typing import Any, Callable, Dict, Optional, Type, cast
 from uuid import UUID, uuid4
 
 import eventsourcing.domain.model.events as events
@@ -24,8 +24,8 @@ from eventsourcing.types import (
     AbstractDomainEvent,
     MetaAbstractDomainEntity,
     T_en,
-    T_ev_evs,
     T_ev,
+    T_ev_evs,
 )
 from eventsourcing.utils.times import decimaltimestamp_from_uuid
 from eventsourcing.utils.topic import get_topic, resolve_topic
@@ -40,7 +40,7 @@ class MetaDomainEntity(MetaAbstractDomainEntity):
     #    which was cured by adding **kwargs here. It's not needed
     #    for Python3.7, and only supports backward compatibility.
     #    So it can be removed when support for Python 3.6 dropped.
-    def __init__(cls, name, bases, attrs, **kwargs):
+    def __init__(cls, name, bases, attrs, **_):
         super().__init__(name, bases, attrs)
         if name == "_gorg":
             # Todo: Also Remove this block when dropping support for Python 3.6.
@@ -84,8 +84,8 @@ class DomainEntity(AbstractDomainEntity[T_ev], metaclass=MetaDomainEntity):
     @classmethod
     def __create__(
         cls: Type[T_en],
-        originator_id: UUID = None,
-        event_class: Type[T_ev] = None,
+        originator_id: Optional[UUID] = None,
+        event_class: Optional[Type[T_ev]] = None,
         **kwargs
     ) -> T_en:
         """
@@ -348,10 +348,7 @@ class EntityWithHashchain(DomainEntity[T_ev]):
             return super(EntityWithHashchain.Discarded, self).__mutate__(obj)
 
     @classmethod
-    def __create__(
-        cls: Type[T_en],
-        *args, **kwargs
-    ) -> T_en:
+    def __create__(cls: Type[T_en], *args, **kwargs) -> T_en:
         # Insert a "genesis hash" as __previous_hash__ in initial event.
         kwargs["__previous_hash__"] = getattr(cls, "__genesis_hash__", GENESIS_HASH)
         return super(EntityWithHashchain, cls).__create__(*args, **kwargs)

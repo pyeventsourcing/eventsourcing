@@ -16,7 +16,7 @@ class EventPlayer(AbstractEventPlayer[T_en]):
     def __init__(
         self,
         event_store: AbstractEventStore,
-        snapshot_strategy: AbstractSnapshotStrategy = None,
+        snapshot_strategy: Optional[AbstractSnapshotStrategy] = None,
         mutator_func: Optional[FunctionType] = None,
     ):
         super(EventPlayer, self).__init__()

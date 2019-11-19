@@ -146,7 +146,7 @@ class EventSourcedRepository(EventPlayer[T_en], AbstractEntityRepository[T_en]):
 
     # Todo: Does this method belong on this class?
     def take_snapshot(
-        self, entity_id: UUID, lt: int = None, lte: int = None
+        self, entity_id: UUID, lt: Optional[int] = None, lte: Optional[int] = None
     ) -> Optional[AbstractSnapshop]:
         """
         Takes a snapshot of the entity as it existed after the most recent
