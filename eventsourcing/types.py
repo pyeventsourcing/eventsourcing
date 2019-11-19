@@ -114,7 +114,6 @@ class AbstractDomainEvent(Generic[T_en]):
 
 
 class AbstractEventWithTimestamp(AbstractDomainEvent[T_en]):
-
     @property
     @abstractmethod
     def timestamp(self) -> Decimal:
@@ -122,7 +121,6 @@ class AbstractEventWithTimestamp(AbstractDomainEvent[T_en]):
 
 
 class AbstractEventWithOriginatorID(AbstractDomainEvent[T_en], Generic[T_en, T_id]):
-
     @property
     @abstractmethod
     def originator_id(self) -> T_id:
@@ -130,7 +128,6 @@ class AbstractEventWithOriginatorID(AbstractDomainEvent[T_en], Generic[T_en, T_i
 
 
 class AbstractEventWithOriginatorVersion(AbstractDomainEvent[T_en]):
-
     @property
     @abstractmethod
     def originator_version(self) -> int:
@@ -253,7 +250,7 @@ class AbstractEntityRepository(AbstractEventPlayer[T_en]):
         """
 
     @abstractmethod
-    def get_entity(self, entity_id, at: Optional[int]=None) -> Optional[T_en]:
+    def get_entity(self, entity_id, at: Optional[int] = None) -> Optional[T_en]:
         """
         Returns entity for given ID.
 
@@ -325,9 +322,6 @@ class AbstractRecordManager(ABC):
         """
         Removes permanently given record from the table.
         """
-
-
-T_rm = TypeVar('T_rm', bound=AbstractRecordManager)
 
 
 class AbstractSequencedItemMapper(Generic[T_ev], ABC):
