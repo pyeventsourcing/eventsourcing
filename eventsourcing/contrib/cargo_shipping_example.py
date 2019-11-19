@@ -34,9 +34,6 @@ from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepo
 
 
 # Locations in the world.
-from eventsourcing.types import T
-
-
 class Location(Enum):
     HAMBURG = "HAMBURG"
     HONGKONG = "HONGKONG"

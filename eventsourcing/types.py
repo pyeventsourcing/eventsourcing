@@ -1,6 +1,6 @@
 from abc import ABC, ABCMeta, abstractmethod
 from decimal import Decimal
-from typing import Generic, List, Optional, TypeVar, Union, Sequence
+from typing import Generic, List, Optional, Sequence, Type, TypeVar, Union
 from uuid import UUID
 
 
@@ -34,14 +34,70 @@ T_ev_evs = Union[T_ev, T_evs]
 
 
 class AbstractDomainEntity(Generic[T_ev], metaclass=MetaAbstractDomainEntity):
-    @abstractmethod
-    def __publish__(self, event: T_ev_evs):
-        pass
-
     @property
     @abstractmethod
     def id(self) -> UUID:
         pass
+
+    @classmethod
+    @abstractmethod
+    def __create__(
+        cls: Type[T_en],
+        originator_id: Optional[UUID] = None,
+        event_class: Optional[Type[T_ev]] = None,
+        **kwargs
+    ) -> T_en:
+        """
+        Constructs, applies, and publishes a domain event.
+        """
+
+    @abstractmethod
+    def __trigger_event__(self, event_class: Type[T_ev], **kwargs) -> None:
+        """
+        Constructs, applies, and publishes a domain event.
+        """
+
+    @abstractmethod
+    def __mutate__(self, event: T_ev) -> None:
+        """
+        Mutates this entity with the given event.
+        """
+
+    @abstractmethod
+    def __publish__(self, event: T_ev_evs) -> None:
+        """
+        Publishes given event for subscribers in the application.
+        """
+
+    @abstractmethod
+    def __assert_not_discarded__(self) -> None:
+        """
+        Asserts that this entity has not been discarded.
+        """
+
+    # @property
+    # @classmethod
+    # @abstractmethod
+    # def Event(cls) -> Type[T_ev]:
+    #     pass
+    #
+    # @property
+    # @classmethod
+    # @abstractmethod
+    # def Created(cls) -> Type[T_ev]:
+    #     pass
+
+    # @property
+    # @classmethod
+    # @abstractmethod
+    # def AttributeChanged(cls) -> Type[T_ev]:
+    #     pass
+    #
+    # @property
+    # @classmethod
+    # @abstractmethod
+    # def Discarded(self) -> Type[T_ev]:
+    #     pass
 
 
 class AbstractDomainEvent(Generic[T_en]):
@@ -50,6 +106,10 @@ class AbstractDomainEvent(Generic[T_en]):
 
     @abstractmethod
     def __mutate__(self, obj: Optional[T_en]) -> Optional[T_en]:
+        pass
+
+    @abstractmethod
+    def mutate(self: T_ev, obj: T_en) -> None:
         pass
 
 
@@ -193,7 +253,7 @@ class AbstractEntityRepository(AbstractEventPlayer[T_en]):
         """
 
     @abstractmethod
-    def get_entity(self, entity_id, at=None) -> Optional[T_en]:
+    def get_entity(self, entity_id, at: Optional[int]=None) -> Optional[T_en]:
         """
         Returns entity for given ID.
 
@@ -202,7 +262,7 @@ class AbstractEntityRepository(AbstractEventPlayer[T_en]):
 
     @abstractmethod
     def take_snapshot(
-        self, entity_id: UUID, lt: int = None, lte: int = None
+        self, entity_id: UUID, lt: Optional[int] = None, lte: Optional[int] = None
     ) -> Optional[AbstractSnapshop]:
         """
         Takes snapshot of entity state, using stored events.

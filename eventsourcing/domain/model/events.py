@@ -1,12 +1,17 @@
 import os
 from decimal import Decimal
-from typing import Callable, Dict, List, Optional, Tuple, Union, Type, Sequence
+from typing import Callable, Dict, List, Optional, Tuple
 from uuid import UUID, uuid1
 
 from eventsourcing.exceptions import EventHashError
-from eventsourcing.types import AbstractDomainEvent, T_en, T_ev_evs, \
-    AbstractEventWithOriginatorVersion, AbstractEventWithTimestamp, \
-    AbstractEventWithOriginatorID
+from eventsourcing.types import (
+    AbstractDomainEvent,
+    AbstractEventWithOriginatorID,
+    AbstractEventWithOriginatorVersion,
+    AbstractEventWithTimestamp,
+    T_en,
+    T_ev_evs,
+)
 from eventsourcing.utils.hashing import hash_object
 from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic

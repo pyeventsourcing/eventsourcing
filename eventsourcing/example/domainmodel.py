@@ -1,5 +1,3 @@
-from typing import Optional, cast
-
 from eventsourcing.domain.model.decorators import attribute
 from eventsourcing.domain.model.entity import (
     EntityWithHashchain,
@@ -13,15 +11,21 @@ class Example(EntityWithHashchain[T_en], TimestampedVersionedEntity[T_en]):
     An example event sourced domain model entity.
     """
 
-    class Event(EntityWithHashchain.Event[T_en], TimestampedVersionedEntity.Event[T_en]):
+    class Event(
+        EntityWithHashchain.Event[T_en], TimestampedVersionedEntity.Event[T_en]
+    ):
         """Supertype for events of example entities."""
 
     class Created(
-        Event, EntityWithHashchain.Created[T_en], TimestampedVersionedEntity.Created[T_en]
+        Event,
+        EntityWithHashchain.Created[T_en],
+        TimestampedVersionedEntity.Created[T_en],
     ):
         """Published when an Example is created."""
 
-    class AttributeChanged(Event[T_en], TimestampedVersionedEntity.AttributeChanged[T_en]):
+    class AttributeChanged(
+        Event[T_en], TimestampedVersionedEntity.AttributeChanged[T_en]
+    ):
         """Published when an Example is created."""
 
     class Discarded(Event[T_en], TimestampedVersionedEntity.Discarded[T_en]):

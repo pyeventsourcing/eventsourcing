@@ -24,7 +24,9 @@ from eventsourcing.types import (
     AbstractDomainEvent,
     MetaAbstractDomainEntity,
     T_en,
-    T_ev_evs, T_ev)
+    T_ev_evs,
+    T_ev,
+)
 from eventsourcing.utils.times import decimaltimestamp_from_uuid
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
@@ -81,9 +83,9 @@ class DomainEntity(AbstractDomainEntity[T_ev], metaclass=MetaDomainEntity):
 
     @classmethod
     def __create__(
-        cls,
+        cls: Type[T_en],
         originator_id: UUID = None,
-        event_class: Type[AbstractDomainEvent] = None,
+        event_class: Type[T_ev] = None,
         **kwargs
     ) -> T_en:
         """
@@ -173,12 +175,12 @@ class DomainEntity(AbstractDomainEntity[T_ev], metaclass=MetaDomainEntity):
         """
         return self._id
 
-    def __change_attribute__(self, name: str, value: Any) -> None:
+    def __change_attribute__(self: "DomainEntity", name: str, value: Any) -> None:
         """
         Changes named attribute with the given value,
         by triggering an AttributeChanged event.
         """
-        event_class: Type[DomainEvent] = self.AttributeChanged
+        event_class = self.AttributeChanged
         self.__trigger_event__(event_class=event_class, name=name, value=value)
 
     class AttributeChanged(Event, events.AttributeChanged[T_en]):
@@ -210,21 +212,23 @@ class DomainEntity(AbstractDomainEntity[T_ev], metaclass=MetaDomainEntity):
 
     def __assert_not_discarded__(self):
         """
-        Raises exception if entity has been discarded already.
+        Asserts that this entity has not been discarded.
+
+        Raises EntityIsDiscarded exception if entity has been discarded already.
         """
         if self.__is_discarded__:
             raise EntityIsDiscarded("Entity is discarded")
 
-    def __trigger_event__(self, event_class: Type[DomainEvent], **kwargs) -> None:
+    def __trigger_event__(self, event_class: Type[T_ev], **kwargs) -> None:
         """
         Constructs, applies, and publishes a domain event.
         """
         self.__assert_not_discarded__()
-        event = event_class(originator_id=self._id, **kwargs)
+        event: T_ev = event_class(originator_id=self.id, **kwargs)
         self.__mutate__(event)
         self.__publish__(event)
 
-    def __mutate__(self, event: DomainEvent):
+    def __mutate__(self, event: T_ev):
         """
         Mutates this entity with the given event.
 
@@ -297,8 +301,8 @@ class EntityWithHashchain(DomainEntity[T_ev]):
             # Set entity head from event hash.
             #  - unless just discarded...
             if obj is not None:
-                entity_with_hashchain = cast(EntityWithHashchain, obj)
-                entity_with_hashchain.__head__ = self.__event_hash__
+                entity = cast(EntityWithHashchain, obj)
+                entity.__head__ = self.__event_hash__
 
             return obj
 
@@ -344,11 +348,15 @@ class EntityWithHashchain(DomainEntity[T_ev]):
             return super(EntityWithHashchain.Discarded, self).__mutate__(obj)
 
     @classmethod
-    def __create__(cls, *args, **kwargs) -> T_en:
+    def __create__(
+        cls: Type[T_en],
+        *args, **kwargs
+    ) -> T_en:
+        # Insert a "genesis hash" as __previous_hash__ in initial event.
         kwargs["__previous_hash__"] = getattr(cls, "__genesis_hash__", GENESIS_HASH)
         return super(EntityWithHashchain, cls).__create__(*args, **kwargs)
 
-    def __trigger_event__(self, event_class: Type[DomainEvent], **kwargs) -> None:
+    def __trigger_event__(self, event_class: Type[T_ev], **kwargs) -> None:
         assert isinstance(event_class, type), type(event_class)
         kwargs["__previous_hash__"] = self.__head__
         super(EntityWithHashchain, self).__trigger_event__(event_class, **kwargs)
@@ -363,7 +371,7 @@ class VersionedEntity(DomainEntity[T_ev]):
     def __version__(self) -> int:
         return self.___version__
 
-    def __trigger_event__(self, event_class: Type[DomainEvent], **kwargs) -> None:
+    def __trigger_event__(self, event_class: Type[T_ev], **kwargs) -> None:
         """
         Triggers domain event with entity's next version number.
 
@@ -500,7 +508,9 @@ class TimestampedVersionedEntity(TimestampedEntity[T_ev], VersionedEntity[T_ev])
     class Event(TimestampedEntity.Event[T_en], VersionedEntity.Event[T_en]):
         """Supertype for events of timestamped, versioned entities."""
 
-    class Created(TimestampedEntity.Created[T_en], VersionedEntity.Created, Event[T_en]):
+    class Created(
+        TimestampedEntity.Created[T_en], VersionedEntity.Created, Event[T_en]
+    ):
         """Published when a TimestampedVersionedEntity is created."""
 
     class AttributeChanged(
