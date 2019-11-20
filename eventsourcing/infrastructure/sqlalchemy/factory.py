@@ -80,7 +80,9 @@ class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
             settings=SQLAlchemySettings(uri=self.uri, pool_size=self.pool_size),
             session=self.session,
         )
-        self.session = datastore.session
+        if self.session is None:
+            assert datastore.session, "Datastore object session is None"
+            self.session = datastore.session
         return datastore
 
 

@@ -119,8 +119,10 @@ class TestProcessApplication(TestCase):
         )
         core1.use_causal_dependencies = True
 
-        # Needed for SQLAlchemy only.
-        kwargs = {"session": core1.session} if hasattr(core1, "session") else {}
+        kwargs = {}
+        if self.infrastructure_class.is_constructed_with_session:
+            # Needed for SQLAlchemy only.
+            kwargs["session"] = core1.session
 
         core2 = process_class(
             name="core", pipeline_id=pipeline_id2, policy=example_policy, **kwargs

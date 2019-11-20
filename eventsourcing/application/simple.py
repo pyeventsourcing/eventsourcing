@@ -127,6 +127,10 @@ class SimpleApplication(Pipeable, Generic[T_en, T_ev]):
         return self._datastore
 
     @property
+    def session(self) -> Optional[Any]:
+        return None
+
+    @property
     def event_store(self) -> Optional[EventStore[T_ev, BaseRecordManager[T_ev]]]:
         return self._event_store
 

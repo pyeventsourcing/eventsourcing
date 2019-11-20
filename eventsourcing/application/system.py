@@ -6,7 +6,7 @@ from copy import deepcopy
 from queue import Empty, Queue
 from threading import Barrier, BrokenBarrierError, Event, Lock, Thread, Timer
 from time import sleep
-from typing import Optional, Type, TypeVar, Dict, Deque, Union, List
+from typing import Optional, Type, TypeVar, Dict, Deque, Union, List, Any
 
 from eventsourcing.application.notificationlog import NotificationLogReader
 from eventsourcing.application.popo import PopoApplication
@@ -32,7 +32,7 @@ class System(object):
     a system runner.
     """
 
-    def __init__(self, *pipeline_exprs, **kwargs):
+    def __init__(self, *pipeline_exprs: Any, **kwargs: Any):
         """
         Initialises a "process network" system object.
 
@@ -60,8 +60,9 @@ class System(object):
         )
 
         self.session = kwargs.get("session", None)
+        self.shared_session = None
 
-        self.process_classes = OrderedDict()
+        self.process_classes: OrderedDict[str, Type[ProcessApplication]] = OrderedDict()
         for pipeline_expr in self.pipelines_exprs:
             for process_class in pipeline_expr:
                 process_name = process_class.__name__.lower()
@@ -72,10 +73,10 @@ class System(object):
         self.shared_session = None
 
         # Determine which process follows which.
-        self.followers = OrderedDict()
+        self.followers: OrderedDict[str, List[str]] = OrderedDict()
         # A following is a list of process classes followed by a process class.
         # Todo: Factor this out, it's confusing. (Only used in ActorModelRunner now).
-        self.followings = OrderedDict()
+        self.followings: OrderedDict[str, List[str]] = OrderedDict()
         for pipeline_expr in self.pipelines_exprs:
             previous_name = None
             for process_class in pipeline_expr:
@@ -98,23 +99,27 @@ class System(object):
 
                 previous_name = process_name
 
-    def construct_app(self, process_class, infrastructure_class=None, **kwargs):
+    def construct_app(
+        self,
+        process_class: Type[ProcessApplication],
+        infrastructure_class: Optional[
+            Type[ApplicationWithConcreteInfrastructure]
+        ] = None,
+        **kwargs: Any,
+    ) -> ApplicationWithConcreteInfrastructure:
         """
         Constructs process application from given ``process_class``.
         """
-        kwargs = dict(kwargs)
-        if "session" not in kwargs and process_class.is_constructed_with_session:
-            kwargs["session"] = self.session or self.shared_session
-        if "setup_tables" not in kwargs and self.setup_tables:
-            kwargs["setup_table"] = self.setup_tables
 
-        if not isinstance(process_class, ApplicationWithConcreteInfrastructure):
+        # If process class isn't already an infrastructure class, then
+        # subclass the process class with concrete infrastructure.
+        if not issubclass(process_class, ApplicationWithConcreteInfrastructure):
 
-            # If process class isn't already an infrastructure class, then
-            # use given arg, or attribute of this object, or PopoApplication.
+            # Default to PopoApplication infrastructure.
             if infrastructure_class is None:
                 infrastructure_class = self.infrastructure_class or PopoApplication
 
+            # Assert that we now have an application with concrete infrastructure.
             if not issubclass(
                 infrastructure_class, ApplicationWithConcreteInfrastructure
             ):
@@ -128,11 +133,20 @@ class System(object):
             # Subclass the process application class with the infrastructure class.
             process_class = process_class.mixin(infrastructure_class)
 
+        assert issubclass(process_class, ApplicationWithConcreteInfrastructure)
+
+        # Set 'session' and 'setup_table' in kwargs.
+        kwargs = dict(kwargs)
+        if "session" not in kwargs and process_class.is_constructed_with_session:
+            kwargs["session"] = self.session or self.shared_session
+        if "setup_tables" not in kwargs and self.setup_tables:
+            kwargs["setup_table"] = self.setup_tables
+
         # Construct the process application.
         process = process_class(**kwargs)
 
         # Catch the session, so it can be shared.
-        if self.session is None:
+        if self.session is None and self.shared_session is None:
             if process_class.is_constructed_with_session and self.is_session_shared:
                 if self.shared_session is None:
                     self.shared_session = process.session
@@ -186,7 +200,7 @@ class System(object):
         return system
 
 
-T_proc_app = TypeVar('T_proc_app', bound=ProcessApplication)
+T_proc_app = TypeVar("T_proc_app", bound=ProcessApplication)
 
 
 class SystemRunner(ABC):
@@ -1008,8 +1022,7 @@ class BarrierControlledApplicationThread(Thread):
                     # Process all notifications.
                     for upstream_name, notifications in all_notifications:
                         for notification in notifications:
-                            event = \
-                                self.process_application.get_event_from_notification(
+                            event = self.process_application.get_event_from_notification(
                                 notification
                             )
                             self.process_application.process_upstream_event(
