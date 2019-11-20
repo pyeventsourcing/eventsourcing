@@ -1,6 +1,17 @@
 from abc import ABCMeta
 from typing import Iterator, Union
 
+# Need to deal with the fact that Python3.6 had GenericMeta.
+try:
+    from typing import GenericMeta
+
+    ABCMeta = GenericMeta
+
+except ImportError:
+    pass
+# Todo: Delete above try/except when dropping support for Python 3.6.
+
+
 PipeableExpression = Union["PipelineExpression", "PipeableMetaclass"]
 
 

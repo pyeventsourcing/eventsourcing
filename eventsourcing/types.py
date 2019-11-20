@@ -1,5 +1,6 @@
 from abc import ABC, ABCMeta, abstractmethod
 from decimal import Decimal
+
 from typing import (
     Any,
     Generic,
@@ -15,21 +16,20 @@ from typing import (
 from uuid import UUID
 
 
-class MetaAbstractDomainEntity(ABCMeta):
-    pass
-
-
+# Todo: Delete this try/except when dropping support for Python 3.6.
 # Need to deal with the fact that Python3.6 had GenericMeta.
 try:
     from typing import GenericMeta
 
-    class MetaAbstractDomainEntity(GenericMeta):  # type: ignore
-        pass
-
+    ABCMeta = GenericMeta
 
 except ImportError:
     pass
-# Todo: Delete above try/except when dropping support for Python 3.6.
+
+
+class MetaAbstractDomainEntity(ABCMeta):
+    pass
+
 
 T = TypeVar("T")
 
@@ -271,7 +271,6 @@ class AbstractSnapshop(AbstractDomainEvent):
 
 
 class AbstractEntityRepository(AbstractEventPlayer[T_en, T_ev]):
-
     @abstractmethod
     def __getitem__(self, entity_id: UUID) -> T_en:
         """
@@ -304,7 +303,6 @@ class AbstractEntityRepository(AbstractEventPlayer[T_en, T_ev]):
 
 
 class AbstractRecordManager(ABC, Generic[T_ev]):
-
     @property
     @abstractmethod
     def record_class(self) -> Any:
@@ -392,7 +390,6 @@ class AbstractRecordManager(ABC, Generic[T_ev]):
 
 
 class AbstractSequencedItemMapper(Generic[T_ev], ABC):
-
     @abstractmethod
     def item_from_event(self, domain_event: T_ev) -> Tuple:
         """

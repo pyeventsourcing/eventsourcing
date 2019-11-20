@@ -423,6 +423,9 @@ class MultiThreadedRunner(InProcessRunner):
         for thread in self.threads.values():
             thread.start()
 
+        for thread in self.threads.values():
+            thread.is_running.wait()
+
         # Start clock.
         if self.clock_speed:
             self.start_clock()
@@ -533,6 +536,7 @@ class PromptQueuedApplicationThread(Thread):
         self.inbox = inbox
         self.outbox = outbox
         self.clock_event = clock_event
+        self.is_running = Event()
 
     def run(self):
         self.loop_on_prompts()
@@ -540,6 +544,7 @@ class PromptQueuedApplicationThread(Thread):
     def loop_on_prompts(self):
 
         # Loop on getting prompts.
+        self.is_running.set()
         while True:
             try:
                 # Todo: Make the poll interval gradually
