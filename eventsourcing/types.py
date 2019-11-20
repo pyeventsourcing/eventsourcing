@@ -21,7 +21,7 @@ from uuid import UUID
 try:
     from typing import GenericMeta
 
-    ABCMeta = GenericMeta
+    ABCMeta = GenericMeta  # type: ignore
 
 except ImportError:
     pass

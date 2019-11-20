@@ -5,7 +5,7 @@ from typing import Iterator, Union
 try:
     from typing import GenericMeta
 
-    ABCMeta = GenericMeta
+    ABCMeta = GenericMeta  # type: ignore
 
 except ImportError:
     pass
