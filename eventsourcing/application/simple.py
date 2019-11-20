@@ -1,4 +1,5 @@
 import os
+from json import JSONEncoder, JSONDecoder
 from typing import Any, Generic, Optional, Tuple, Type, Union
 
 from eventsourcing.application.notificationlog import RecordManagerNotificationLog
@@ -6,14 +7,18 @@ from eventsourcing.application.pipeline import Pipeable
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.infrastructure.base import BaseRecordManager, DEFAULT_PIPELINE_ID
+from eventsourcing.infrastructure.datastore import AbstractDatastore
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.factory import InfrastructureFactory
 from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.types import AbstractRecordManager, T_en, T_ev
+from eventsourcing.types import AbstractRecordManager, T_en, T_ev, T
 from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.utils.random import decode_bytes
+
+
+PersistEventType = Optional[Union[Type[DomainEvent], Tuple[Type[DomainEvent]]]]
 
 
 class SimpleApplication(Pipeable, Generic[T_en, T_ev]):
@@ -39,9 +44,7 @@ class SimpleApplication(Pipeable, Generic[T_en, T_ev]):
     json_encoder_class: Optional[type] = None
     json_decoder_class: Optional[type] = None
 
-    persist_event_type: Optional[
-        Union[Type[DomainEvent], Tuple[Type[DomainEvent]]]
-    ] = None
+    persist_event_type: Optional[PersistEventType] = None
     notification_log_section_size: Optional[int] = None
     use_cache: bool = False
 
@@ -50,24 +53,24 @@ class SimpleApplication(Pipeable, Generic[T_en, T_ev]):
 
     def __init__(
         self,
-        name="",
-        persistence_policy=None,
-        persist_event_type=None,
-        cipher_key=None,
-        sequenced_item_class=None,
+        name: str = "",
+        persistence_policy: Optional[PersistencePolicy] = None,
+        persist_event_type: PersistEventType = None,
+        cipher_key: Optional[str] = None,
+        sequenced_item_class: Optional[Type[Tuple]] = None,
         sequenced_item_mapper_class: Optional[Type[SequencedItemMapper]] = None,
-        record_manager_class=None,
+        record_manager_class: Optional[Type[AbstractRecordManager]] = None,
         stored_event_record_class: Optional[type] = None,
-        event_store_class=None,
-        snapshot_record_class=None,
-        setup_table=True,
-        contiguous_record_ids=True,
-        pipeline_id=DEFAULT_PIPELINE_ID,
-        json_encoder_class=None,
-        json_decoder_class=None,
-        notification_log_section_size=None,
+        event_store_class: Optional[Type[EventStore]] = None,
+        snapshot_record_class: Optional[type] = None,
+        setup_table: bool = True,
+        contiguous_record_ids: bool = True,
+        pipeline_id: int = DEFAULT_PIPELINE_ID,
+        json_encoder_class: Optional[Type[JSONEncoder]] = None,
+        json_decoder_class: Optional[Type[JSONDecoder]] = None,
+        notification_log_section_size: Optional[int] = None,
     ):
-        self._datastore = None
+        self._datastore: Optional[AbstractDatastore] = None
         self._event_store: Optional[EventStore] = None
         self._repository: Optional[EventSourcedRepository] = None
         self.infrastructure_factory: Optional[InfrastructureFactory] = None
@@ -120,7 +123,7 @@ class SimpleApplication(Pipeable, Generic[T_en, T_ev]):
                 self.construct_persistence_policy()
 
     @property
-    def datastore(self):
+    def datastore(self) -> Optional[AbstractDatastore]:
         return self._datastore
 
     @property
@@ -131,11 +134,13 @@ class SimpleApplication(Pipeable, Generic[T_en, T_ev]):
     def repository(self) -> Optional[EventSourcedRepository[T_en, T_ev]]:
         return self._repository
 
-    def construct_cipher(self, cipher_key):
-        cipher_key = decode_bytes(cipher_key or os.getenv("CIPHER_KEY", ""))
-        self.cipher = AESCipher(cipher_key) if cipher_key else None
+    def construct_cipher(self, cipher_key_str: Optional[str]) -> None:
+        cipher_key_bytes = decode_bytes(
+            cipher_key_str or os.getenv("CIPHER_KEY", "") or ""
+        )
+        self.cipher = AESCipher(cipher_key_bytes) if cipher_key_bytes else None
 
-    def construct_infrastructure(self, *args, **kwargs):
+    def construct_infrastructure(self, *args: Any, **kwargs: Any) -> None:
         self.infrastructure_factory = self.construct_infrastructure_factory(
             *args, **kwargs
         )
@@ -143,7 +148,9 @@ class SimpleApplication(Pipeable, Generic[T_en, T_ev]):
         self.construct_event_store()
         self.construct_repository()
 
-    def construct_infrastructure_factory(self, *args, **kwargs):
+    def construct_infrastructure_factory(
+        self, *args: Any, **kwargs: Any
+    ) -> InfrastructureFactory:
         """
         :rtype: InfrastructureFactory
         """
@@ -157,7 +164,7 @@ class SimpleApplication(Pipeable, Generic[T_en, T_ev]):
             self._snapshot_record_class or self.snapshot_record_class
         )
 
-        return factory_class(
+        return factory_class( # type:ignore  # multiple values for keyword argument
             record_manager_class=self.record_manager_class,
             integer_sequenced_record_class=integer_sequenced_record_class,
             snapshot_record_class=snapshot_record_class,
@@ -173,7 +180,8 @@ class SimpleApplication(Pipeable, Generic[T_en, T_ev]):
             **kwargs
         )
 
-    def construct_datastore(self):
+    def construct_datastore(self) -> None:
+        assert self.infrastructure_factory
         self._datastore = self.infrastructure_factory.construct_datastore()
 
     def construct_event_store(self) -> None:
@@ -230,18 +238,18 @@ class SimpleApplication(Pipeable, Generic[T_en, T_ev]):
         if self.datastore is not None:
             self.datastore.close_connection()
 
-    def __enter__(self):
+    def __enter__(self: T) -> T:
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.close()
 
     @classmethod
-    def reset_connection_after_forking(cls):
+    def reset_connection_after_forking(cls) -> None:
         pass
 
     @classmethod
-    def mixin(cls, infrastructure_class):
+    def mixin(cls, infrastructure_class: type) -> type:
         return type(cls.__name__, (infrastructure_class, cls), {})
 
 

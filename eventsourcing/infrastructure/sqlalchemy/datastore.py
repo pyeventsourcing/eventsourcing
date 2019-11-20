@@ -113,12 +113,12 @@ class SQLAlchemyDatastore(AbstractDatastore):
     def is_sqlite(self):
         return self.settings.uri.startswith("sqlite")
 
-    def setup_tables(self, tables=None):
+    def setup_tables(self):
         if self._tables is not None:
             for table in self._tables:
                 self.setup_table(table)
 
-    def setup_table(self, table):
+    def setup_table(self, table) -> None:
         if self._engine is None:
             raise Exception("Engine not set when required: {}".format(self))
         try:
@@ -136,7 +136,7 @@ class SQLAlchemyDatastore(AbstractDatastore):
             for table in self._tables:
                 self.drop_table(table)
 
-    def drop_table(self, table):
+    def drop_table(self, table) -> None:
         table.__table__.drop(self._engine, checkfirst=True)
 
     def truncate_tables(self):

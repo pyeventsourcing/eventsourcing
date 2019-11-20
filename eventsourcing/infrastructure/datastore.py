@@ -10,6 +10,10 @@ class AbstractDatastore(ABC):
         # assert isinstance(settings, DatastoreSettings), settings
         self.settings = settings
 
+    @property
+    def session(self):
+        return None
+
     @abstractmethod
     def setup_connection(self):
         """Sets up a connection to a datastore."""
@@ -23,8 +27,16 @@ class AbstractDatastore(ABC):
         """Sets up tables used to store events."""
 
     @abstractmethod
+    def setup_table(self, table) -> None:
+        """Sets up given table."""
+
+    @abstractmethod
     def drop_tables(self):
         """Drops tables used to store events."""
+
+    @abstractmethod
+    def drop_table(self, table) -> None:
+        """Drops given table."""
 
     @abstractmethod
     def truncate_tables(self):

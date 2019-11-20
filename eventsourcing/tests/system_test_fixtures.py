@@ -13,9 +13,9 @@ def set_db_uri():
     host = os.getenv("MYSQL_HOST", "127.0.0.1")
     user = os.getenv("MYSQL_USER", "root")
     password = os.getenv("MYSQL_PASSWORD", "")
-    db_uri = "mysql+pymysql://{}:{}@{}/eventsourcing?charset=utf8mb4&binary_prefix=true".format(
-        user, password, host
-    )
+    db_uri = (
+        "mysql+pymysql://{}:{}@{}/eventsourcing?charset=utf8mb4&binary_prefix=true"
+    ).format(user, password, host)
     os.environ["DB_URI"] = db_uri
 
 
@@ -64,8 +64,7 @@ class Reservation(BaseAggregateRoot):
     @classmethod
     def create(cls, order_id):
         return cls.__create__(
-            originator_id=Reservation.create_reservation_id(order_id),
-            order_id=order_id
+            originator_id=Reservation.create_reservation_id(order_id), order_id=order_id
         )
 
     @classmethod
@@ -122,7 +121,6 @@ class Orders(ProcessApplication):
 
 
 class Reservations(ProcessApplication):
-
     @staticmethod
     def policy(repository, event):
         if isinstance(event, Order.Created):
