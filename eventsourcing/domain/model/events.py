@@ -1,6 +1,6 @@
 import os
 from decimal import Decimal
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple, Any
 from uuid import UUID, uuid1
 
 from eventsourcing.exceptions import EventHashError
@@ -20,7 +20,7 @@ from eventsourcing.utils.transcoding import JSON_SEPARATORS, ObjectJSONEncoder
 GENESIS_HASH: str = os.getenv("GENESIS_HASH", "")
 
 
-def create_timesequenced_event_id():
+def create_timesequenced_event_id() -> UUID:
     return uuid1()
 
 
@@ -36,17 +36,17 @@ class DomainEvent(AbstractDomainEvent[T_en]):
     of the state of the event.
     """
 
-    __json_encoder__ = ObjectJSONEncoder(separators=JSON_SEPARATORS)
+    __json_encoder__ = ObjectJSONEncoder(separators=JSON_SEPARATORS, sort_keys=True)
     __notifiable__ = True
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any):
         """
         Initialises event attribute values directly from constructor kwargs.
         """
         super().__init__()
         self.__dict__.update(kwargs)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """
         Creates a string representing the type and attribute values of the event.
 
@@ -88,13 +88,13 @@ class DomainEvent(AbstractDomainEvent[T_en]):
         :param obj: domain entity to be mutated
         """
 
-    def __setattr__(self, key, value):
+    def __setattr__(self, key: Any, value: Any) -> None:
         """
         Inhibits event attributes from being updated by assignment.
         """
         raise AttributeError("DomainEvent attributes are read-only")
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         """
         Tests for equality of two event objects.
 
@@ -102,7 +102,8 @@ class DomainEvent(AbstractDomainEvent[T_en]):
         """
         return isinstance(other, DomainEvent) and self.__hash__() == other.__hash__()
 
-    def __ne__(self, other):
+    # Todo: Do we need this in Python 3?
+    def __ne__(self, other: object) -> bool:
         """
         Negates the equality test.
 
@@ -110,7 +111,7 @@ class DomainEvent(AbstractDomainEvent[T_en]):
         """
         return not (self == other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         """
         Computes a Python integer hash for an event.
 
@@ -119,20 +120,20 @@ class DomainEvent(AbstractDomainEvent[T_en]):
         :return: Python integer hash
         :rtype: int
         """
-        state = self.__dict__.copy()
+        attrs = self.__dict__.copy()
 
         # Involve the topic in the hash, so that different types
         # with same attribute values have different hash values.
-        state["__event_topic__"] = get_topic(type(self))
+        attrs["__event_topic__"] = get_topic(type(self))
 
         # Calculate the cryptographic hash of the event.
-        sha256_hash = self.__hash_object__(state)
+        sha256_hash = self.__hash_object__(attrs)
 
         # Return the Python hash of the cryptographic hash.
         return hash(sha256_hash)
 
     @classmethod
-    def __hash_object__(cls, obj):
+    def __hash_object__(cls, obj: dict) -> str:
         """
         Calculates SHA-256 hash of JSON encoded 'obj'.
 
@@ -152,7 +153,7 @@ class EventWithHash(DomainEvent[T_en]):
     whenever its default projection mutates an object.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any):
         super(EventWithHash, self).__init__(**kwargs)
 
         # Set __event_topic__ to differentiate events of
@@ -163,7 +164,7 @@ class EventWithHash(DomainEvent[T_en]):
         self.__dict__["__event_hash__"] = self.__hash_object__(self.__dict__)
 
     @property
-    def __event_hash__(self):
+    def __event_hash__(self) -> Any:
         """
         Returns SHA-256 hash of the original state of the event.
 
@@ -172,7 +173,7 @@ class EventWithHash(DomainEvent[T_en]):
         """
         return self.__dict__.get("__event_hash__")
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         """
         Computes a Python integer hash for an event,
         using its pre-computed event hash.
@@ -202,7 +203,7 @@ class EventWithHash(DomainEvent[T_en]):
         # Call super and return value.
         return super().__mutate__(obj)
 
-    def __check_hash__(self):
+    def __check_hash__(self) -> None:
         """
         Raises EventHashError, unless self.__event_hash__ can
         be derived from the current state of the event object.
@@ -218,13 +219,13 @@ class EventWithOriginatorID(AbstractEventWithOriginatorID, DomainEvent[T_en]):
     For events that have an originator ID.
     """
 
-    def __init__(self, originator_id: UUID, **kwargs):
+    def __init__(self, originator_id: UUID, **kwargs: Any):
         super(EventWithOriginatorID, self).__init__(
             originator_id=originator_id, **kwargs
         )
 
     @property
-    def originator_id(self):
+    def originator_id(self) -> UUID:
         """
         Originator ID is the identity of the object
         that originated this event.
@@ -240,7 +241,7 @@ class EventWithTimestamp(AbstractEventWithTimestamp, DomainEvent[T_en]):
     For events that have a timestamp value.
     """
 
-    def __init__(self, timestamp: Optional[Decimal] = None, **kwargs):
+    def __init__(self, timestamp: Optional[Decimal] = None, **kwargs: Any):
         kwargs["timestamp"] = timestamp or decimaltimestamp()
         super(EventWithTimestamp, self).__init__(**kwargs)
 
@@ -248,8 +249,6 @@ class EventWithTimestamp(AbstractEventWithTimestamp, DomainEvent[T_en]):
     def timestamp(self) -> Decimal:
         """
         A UNIX timestamp as a Decimal object.
-
-        :rtype: Decimal
         """
         return self.__dict__["timestamp"]
 
@@ -259,7 +258,7 @@ class EventWithOriginatorVersion(AbstractEventWithOriginatorVersion, DomainEvent
     For events that have an originator version number.
     """
 
-    def __init__(self, originator_version: int, **kwargs):
+    def __init__(self, originator_version: int, **kwargs: Any):
         if not isinstance(originator_version, int):
             raise TypeError("Version must be an integer: {}".format(originator_version))
         super(EventWithOriginatorVersion, self).__init__(
@@ -267,13 +266,12 @@ class EventWithOriginatorVersion(AbstractEventWithOriginatorVersion, DomainEvent
         )
 
     @property
-    def originator_version(self):
+    def originator_version(self) -> int:
         """
         Originator version is the version of the object
         that originated this event.
 
         :return: A integer representing the version of the originator.
-        :rtype: int
         """
         return self.__dict__["originator_version"]
 
@@ -283,12 +281,12 @@ class EventWithTimeuuid(DomainEvent[T_en]):
     For events that have an UUIDv1 event ID.
     """
 
-    def __init__(self, event_id=None, **kwargs):
+    def __init__(self, event_id: Optional[UUID]=None, **kwargs: Any):
         kwargs["event_id"] = event_id or uuid1()
         super(EventWithTimeuuid, self).__init__(**kwargs)
 
     @property
-    def event_id(self):
+    def event_id(self) -> UUID:
         return self.__dict__["event_id"]
 
 
@@ -304,11 +302,11 @@ class AttributeChanged(DomainEvent[T_en]):
     """
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self.__dict__["name"]
 
     @property
-    def value(self):
+    def value(self) -> Any:
         return self.__dict__["value"]
 
 
@@ -388,7 +386,7 @@ class EventHandlersNotEmptyError(Exception):
     pass
 
 
-def assert_event_handlers_empty():
+def assert_event_handlers_empty() -> None:
     """
     Raises EventHandlersNotEmptyError, unless
     there are no event handlers subscribed.
@@ -398,7 +396,7 @@ def assert_event_handlers_empty():
         raise EventHandlersNotEmptyError(msg)
 
 
-def clear_event_handlers():
+def clear_event_handlers() -> None:
     """
     Removes all previously subscribed event handlers.
     """

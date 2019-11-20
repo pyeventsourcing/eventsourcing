@@ -3,10 +3,10 @@ from types import FunctionType
 from typing import Optional
 
 from eventsourcing.infrastructure.snapshotting import AbstractSnapshotStrategy
-from eventsourcing.types import AbstractEventStore, AbstractEventPlayer, T_en
+from eventsourcing.types import AbstractEventStore, AbstractEventPlayer, T_en, T_ev
 
 
-class EventPlayer(AbstractEventPlayer[T_en]):
+class EventPlayer(AbstractEventPlayer[T_en, T_ev]):
     # The page size by which events are retrieved. If this
     # value is set to a positive integer, the events of
     # the entity will be retrieved in pages, using a series

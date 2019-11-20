@@ -113,10 +113,10 @@ with a suitable AES key (16, 24, or 32 random bytes encoded as Base64).
 
 .. code:: python
 
-    from eventsourcing.utils.random import encode_random_bytes
+    from eventsourcing.utils.random import encoded_random_bytes
 
     # Keep this safe (random bytes encoded with Base64).
-    cipher_key = encode_random_bytes(num_bytes=32)
+    cipher_key = encoded_random_bytes(num_bytes=32)
 
 
 These values can be given to the application object as constructor arguments
@@ -387,13 +387,14 @@ exist will cause a ``KeyError`` to be raised.
 Stored events
 -------------
 
-It is always possible to get the domain events for an aggregate,
-by using the application's event store method
-:func:`~eventsourcing.infrastructure.eventstore.EventStore.get_domain_events`.
+You can list the domain events of an aggregate
+by using the method
+:func:`~eventsourcing.infrastructure.eventstore.EventStore.list_domain_events`
+of the event store of the application.
 
 .. code:: python
 
-    events = application.event_store.get_domain_events(originator_id=aggregate.id)
+    events = application.event_store.list_domain_events(originator_id=aggregate.id)
     assert len(events) == 4
 
     assert events[0].originator_id == aggregate.id

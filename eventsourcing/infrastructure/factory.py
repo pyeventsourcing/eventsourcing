@@ -1,4 +1,4 @@
-from typing import Optional, Type
+from typing import Optional
 
 from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.infrastructure.datastore import AbstractDatastore
@@ -126,7 +126,7 @@ class InfrastructureFactory(object):
             json_decoder_class=self.json_decoder_class,
         )
 
-    def construct_integer_sequenced_event_store(self, cipher):
+    def construct_integer_sequenced_event_store(self, cipher) -> EventStore:
         """
         Constructs an integer sequenced event store.
         """

@@ -10,7 +10,7 @@ from eventsourcing.application.snapshotting import SnapshottingApplication
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.domain.model.events import assert_event_handlers_empty, DomainEvent
 from eventsourcing.tests.core_tests.test_aggregate_root import ExampleAggregateRoot
-from eventsourcing.utils.random import encode_random_bytes
+from eventsourcing.utils.random import encoded_random_bytes
 
 
 class TestSimpleApplication(TestCase):
@@ -34,7 +34,7 @@ class TestSimpleApplication(TestCase):
 
             # Check the notifications.
             reader = NotificationLogReader(app.notification_log)
-            notifications = reader.read_list()
+            notifications = reader.list_notifications()
             self.assertEqual(1, len(notifications))
             topic = "eventsourcing.tests.core_tests.test_aggregate_root#ExampleAggregateRoot.Created"
             self.assertEqual(topic, notifications[0]["topic"])
@@ -43,7 +43,7 @@ class TestSimpleApplication(TestCase):
 
     def get_application(self):
         return self.application_class(
-            cipher_key=encode_random_bytes(16), persist_event_type=DomainEvent
+            cipher_key=encoded_random_bytes(16), persist_event_type=DomainEvent
         )
 
     def tearDown(self):

@@ -1,17 +1,18 @@
 from abc import abstractmethod
-from typing import Tuple
+from typing import Generator, Optional, Tuple, Iterator, Any
+from uuid import UUID
 
 from eventsourcing.exceptions import OperationalError, RecordConflictError
 from eventsourcing.infrastructure.sequenceditem import (
     SequencedItem,
     SequencedItemFieldNames,
 )
-from eventsourcing.types import AbstractRecordManager
+from eventsourcing.types import AbstractRecordManager, T_ev, T_evs
 
 DEFAULT_PIPELINE_ID = 0
 
 
-class BaseRecordManager(AbstractRecordManager):
+class BaseRecordManager(AbstractRecordManager[T_ev]):
     def __init__(
         self,
         record_class,
@@ -20,7 +21,7 @@ class BaseRecordManager(AbstractRecordManager):
         application_name=None,
         pipeline_id=DEFAULT_PIPELINE_ID,
     ):
-        self.record_class = record_class
+        self._record_class = record_class
         self.sequenced_item_class = sequenced_item_class
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
 
@@ -44,6 +45,10 @@ class BaseRecordManager(AbstractRecordManager):
             ), "'application_name' column not defined"
         self.pipeline_id = pipeline_id
 
+    @property
+    def record_class(self):
+        return self._record_class
+
     def clone(self, application_name, pipeline_id, **kwargs):
         return type(self)(
             record_class=self.record_class,
@@ -60,7 +65,7 @@ class BaseRecordManager(AbstractRecordManager):
         """
         return self.record_sequenced_items(sequenced_item)
 
-    def get_item(self, sequence_id, position):
+    def get_item(self, sequence_id: UUID, position: int) -> Tuple:
         """
         Gets sequenced item from the datastore.
         """
@@ -68,15 +73,15 @@ class BaseRecordManager(AbstractRecordManager):
 
     def get_items(
         self,
-        sequence_id,
-        gt=None,
-        gte=None,
-        lt=None,
-        lte=None,
-        limit=None,
-        query_ascending=True,
-        results_ascending=True,
-    ):
+        sequence_id: UUID,
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        limit: Optional[int] = None,
+        query_ascending: bool = True,
+        results_ascending: bool = True,
+    ) -> Iterator[T_evs]:
         """
         Returns sequenced item generator.
         """
@@ -112,7 +117,7 @@ class BaseRecordManager(AbstractRecordManager):
             kwargs["pipeline_id"] = self.pipeline_id
         return self.record_class(**kwargs)
 
-    def from_record(self, record):
+    def from_record(self, record: Any) -> Tuple:
         """
         Constructs and returns a sequenced item object, from given ORM object.
         """
@@ -139,7 +144,7 @@ class BaseRecordManager(AbstractRecordManager):
         raise OperationalError(e)
 
 
-class ACIDRecordManager(BaseRecordManager):
+class ACIDRecordManager(BaseRecordManager[T_ev]):
     """
     ACID record managers can write tracking records and event records
     in an atomic transaction, needed for atomic processing in process
@@ -176,6 +181,13 @@ class ACIDRecordManager(BaseRecordManager):
         :param orm_objs_pending_delete:
         :param orm_objs_pending_save:
         """
+
+    def to_records(self, sequenced_item_or_items):
+        if isinstance(sequenced_item_or_items, list):
+            records = [self.to_record(i) for i in sequenced_item_or_items]
+        else:
+            records = [self.to_record(sequenced_item_or_items)]
+        return records
 
     @abstractmethod
     def get_max_record_id(self) -> int:
@@ -231,13 +243,6 @@ class SQLRecordManager(ACIDRecordManager):
 
         # Write records.
         self.write_records(records)
-
-    def to_records(self, sequenced_item_or_items):
-        if isinstance(sequenced_item_or_items, list):
-            records = [self.to_record(i) for i in sequenced_item_or_items]
-        else:
-            records = [self.to_record(sequenced_item_or_items)]
-        return records
 
     @property
     def insert_select_max(self):

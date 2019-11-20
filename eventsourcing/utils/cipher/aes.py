@@ -1,5 +1,7 @@
-import base64
 import zlib
+
+import binascii
+from base64 import b64decode, b64encode
 
 from Crypto.Cipher import AES
 
@@ -12,7 +14,7 @@ class AESCipher(object):
     Cipher strategy that uses Crypto library AES cipher in GCM mode.
     """
 
-    def __init__(self, cipher_key):
+    def __init__(self, cipher_key: bytes):
         """
         Initialises AES cipher strategy with ``cipher_key``.
 
@@ -21,7 +23,7 @@ class AESCipher(object):
         assert len(cipher_key) in [16, 24, 32]
         self.cipher_key = cipher_key
 
-    def encrypt(self, plaintext):
+    def encrypt(self, plaintext: str) -> str:
         """Return ciphertext for given plaintext."""
 
         # String to bytes.
@@ -34,13 +36,13 @@ class AESCipher(object):
         cipher = AES.new(self.cipher_key, AES.MODE_GCM, nonce=random_bytes(12))
 
         # Encrypt and digest.
-        encrypted, tag = cipher.encrypt_and_digest(compressed)
+        encrypted, tag = cipher.encrypt_and_digest(compressed)  # type: ignore
 
         # Combine with nonce.
-        combined = cipher.nonce + tag + encrypted
+        combined = cipher.nonce + tag + encrypted  # type: ignore
 
         # Encode as Base64.
-        cipherbytes = base64.b64encode(combined)
+        cipherbytes = b64encode(combined)
 
         # Bytes to string.
         ciphertext = cipherbytes.decode("utf8")
@@ -48,7 +50,7 @@ class AESCipher(object):
         # Return ciphertext.
         return ciphertext
 
-    def decrypt(self, ciphertext):
+    def decrypt(self, ciphertext: str) -> str:
         """Return plaintext for given ciphertext."""
 
         # String to bytes.
@@ -56,8 +58,8 @@ class AESCipher(object):
 
         # Decode from Base64.
         try:
-            combined = base64.b64decode(cipherbytes)
-        except (base64.binascii.Error, TypeError) as e:
+            combined = b64decode(cipherbytes)
+        except (binascii.Error, TypeError) as e:
             # base64.binascii.Error for Python 3.
             # TypeError for Python 2.
             raise DataIntegrityError("Cipher text is damaged: {}".format(e))
@@ -78,7 +80,7 @@ class AESCipher(object):
 
         # Decrypt and verify.
         try:
-            compressed = cipher.decrypt_and_verify(encrypted, tag)
+            compressed = cipher.decrypt_and_verify(encrypted, tag)  # type: ignore
         except ValueError as e:
             raise DataIntegrityError("Cipher text is damaged: {}".format(e))
 

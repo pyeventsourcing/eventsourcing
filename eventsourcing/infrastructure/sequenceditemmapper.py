@@ -95,8 +95,8 @@ class SequencedItemMapper(AbstractSequencedItemMapper[T_ev]):
 
         return topic, state
 
-    def json_dumps(self, event_attrs):
-        return self.json_encoder.encode(event_attrs)
+    def json_dumps(self, o):
+        return self.json_encoder.encode(o)
 
     def construct_sequenced_item(self, item_args):
         return self.sequenced_item_class(*item_args)
@@ -135,11 +135,11 @@ class SequencedItemMapper(AbstractSequencedItemMapper[T_ev]):
         event_attrs: Dict = self.json_loads(state)
         return domain_event_class, event_attrs
 
-    def json_loads(self, state: str) -> Dict:
+    def json_loads(self, s: str) -> Dict:
         try:
-            return self.json_decoder.decode(state)
+            return self.json_decoder.decode(s)
         except JSONDecodeError:
-            raise ValueError("Couldn't load JSON string: {}".format(state))
+            raise ValueError("Couldn't load JSON string: {}".format(s))
 
 
 def reconstruct_object(obj_class: Type[T], obj_state) -> T:

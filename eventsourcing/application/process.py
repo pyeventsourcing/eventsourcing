@@ -40,7 +40,7 @@ class ProcessEvent(object):
         self.orm_objs_pending_delete = orm_objs_pending_delete
 
 
-class ProcessApplication(SimpleApplication[T_ag_ev]):
+class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
     set_notification_ids = False
     use_causal_dependencies = False
     notification_log_reader_class = NotificationLogReader
@@ -90,7 +90,7 @@ class ProcessApplication(SimpleApplication[T_ag_ev]):
                 predicate=self.persistence_policy.is_event, handler=self.publish_prompt
             )
 
-    def close(self):
+    def close(self) -> None:
         if self.persistence_policy:
             unsubscribe(
                 predicate=self.persistence_policy.is_event, handler=self.publish_prompt
@@ -144,6 +144,11 @@ class ProcessApplication(SimpleApplication[T_ag_ev]):
             upstream_names = self.readers.keys()
 
         notification_count = 0
+
+        assert self.event_store
+        record_manager = self.event_store.record_manager
+        assert isinstance(record_manager, ACIDRecordManager)
+
         for upstream_name in upstream_names:
 
             if not self.is_reader_position_ok[upstream_name]:
@@ -170,19 +175,20 @@ class ProcessApplication(SimpleApplication[T_ag_ev]):
 
                     # Decode causal dependencies of the domain event.
                     causal_dependencies = (
-                        notification.get("causal_dependencies") or "[]"
-                    )
-                    causal_dependencies = (
-                        self.event_store.mapper.json_loads(causal_dependencies) or []
+                        self.event_store.mapper.json_loads(
+                            notification.get("causal_dependencies") or "[]"
+                        )
+                        or []
                     )
 
                     # Check causal dependencies are satisfied.
+                    assert isinstance(causal_dependencies, list)
                     for causal_dependency in causal_dependencies:
+                        assert isinstance(causal_dependency, dict)
                         pipeline_id = causal_dependency["pipeline_id"]
                         notification_id = causal_dependency["notification_id"]
 
-                        rm: ACIDRecordManager = self.event_store.record_manager
-                        has_tracking_record = rm.has_tracking_record(
+                        has_tracking_record = record_manager.has_tracking_record(
                             upstream_application_name=upstream_name,
                             pipeline_id=pipeline_id,
                             notification_id=notification_id,
@@ -235,6 +241,7 @@ class ProcessApplication(SimpleApplication[T_ag_ev]):
         ) = self.call_policy(domain_event)
 
         # Record process event.
+        assert self.repository
         try:
             tracking_kwargs = self.construct_tracking_kwargs(
                 notification_id, upstream_name
@@ -281,6 +288,7 @@ class ProcessApplication(SimpleApplication[T_ag_ev]):
         return domain_events
 
     def get_event_from_notification(self, notification) -> T_ag_ev:
+        assert self.event_store
         return self.event_store.mapper.event_from_topic_and_state(
             topic=notification[self.notification_topic_key],
             state=notification[self.notification_state_key],
@@ -317,8 +325,10 @@ class ProcessApplication(SimpleApplication[T_ag_ev]):
             reader = self.readers[upstream_name]
         except KeyError:
             raise Exception(list(self.readers.keys()))
-        rm: ACIDRecordManager = self.event_store.record_manager
-        max_record_id = rm.get_max_tracking_record_id(upstream_name)
+        assert self.event_store
+        record_manager = self.event_store.record_manager
+        assert isinstance(record_manager, ACIDRecordManager)
+        max_record_id = record_manager.get_max_tracking_record_id(upstream_name)
         reader.seek(max_record_id)
 
     def call_policy(self, domain_event: T_ag_ev) -> Tuple:
@@ -326,7 +336,9 @@ class ProcessApplication(SimpleApplication[T_ag_ev]):
         policy = self.policy_func or self.policy
 
         # Wrap the actual repository, so we can collect aggregates.
-        repository = WrappedRepository(self.repository)
+        assert self.repository
+        real_repository: EventSourcedRepository[T_ag, T_ag_ev] = self.repository
+        repository = WrappedRepository(real_repository)
 
         fifo: Deque[T_ag_ev] = deque()
         fifo.append(domain_event)
@@ -375,7 +387,9 @@ class ProcessApplication(SimpleApplication[T_ag_ev]):
             #  and then support processing notification from a single pipeline in
             #  parallel, according to dependencies.
             highest: Dict[int, int] = defaultdict(int)
-            rm: ACIDRecordManager = self.event_store.record_manager
+            assert self.event_store
+            rm = self.event_store.record_manager
+            assert isinstance(rm, ACIDRecordManager)
             for entity_id, entity_version in repository.causal_dependencies:
                 pipeline_id, notification_id = rm.get_pipeline_and_notification_id(
                     entity_id, entity_version
@@ -457,6 +471,7 @@ class ProcessApplication(SimpleApplication[T_ag_ev]):
         )
 
         # Write event records with tracking record.
+        assert self.event_store
         record_manager = self.event_store.record_manager
         assert isinstance(record_manager, ACIDRecordManager)
         record_manager.write_records(
@@ -468,15 +483,19 @@ class ProcessApplication(SimpleApplication[T_ag_ev]):
 
     def construct_event_records(self, pending_events, causal_dependencies=None) -> List:
         # Convert to event records.
+        assert self.event_store
         sequenced_items = self.event_store.item_from_event(pending_events)
-        event_records = self.event_store.record_manager.to_records(sequenced_items)
+        record_manager = self.event_store.record_manager
+        assert record_manager
+        assert isinstance(record_manager, ACIDRecordManager)
+        event_records = record_manager.to_records(sequenced_items)
 
         # Set notification log IDs, and causal dependencies.
         if len(event_records):
             # Todo: Maybe keep track of what this probably is, to
             #  avoid query. Like log reader, invalidate on error.
             if self.set_notification_ids:
-                current_max = self.event_store.record_manager.get_max_record_id() or 0
+                current_max = record_manager.get_max_record_id() or 0
                 for domain_event, event_record in zip(pending_events, event_records):
                     if type(domain_event).__notifiable__:
                         current_max += 1
@@ -486,7 +505,7 @@ class ProcessApplication(SimpleApplication[T_ag_ev]):
 
             if self.use_causal_dependencies:
                 assert hasattr(
-                    self.event_store.record_manager.record_class, "causal_dependencies"
+                    record_manager.record_class, "causal_dependencies"
                 )
                 causal_dependencies = self.event_store.mapper.json_dumps(
                     causal_dependencies
@@ -499,15 +518,21 @@ class ProcessApplication(SimpleApplication[T_ag_ev]):
     def setup_table(self) -> None:
         super(ProcessApplication, self).setup_table()
         if self.datastore is not None:
+            assert self.event_store
+            record_manager = self.event_store.record_manager
+            assert isinstance(record_manager, ACIDRecordManager)
             self.datastore.setup_table(
-                self.event_store.record_manager.tracking_record_class
+                record_manager.tracking_record_class
             )
 
     def drop_table(self) -> None:
         super(ProcessApplication, self).drop_table()
         if self.datastore is not None:
+            assert self.event_store
+            record_manager = self.event_store.record_manager
+            assert isinstance(record_manager, ACIDRecordManager)
             self.datastore.drop_table(
-                self.event_store.record_manager.tracking_record_class
+                record_manager.tracking_record_class
             )
 
 
@@ -521,8 +546,8 @@ class WrappedRepository(object):
     accessed by ID.
     """
 
-    def __init__(self, repository: EventSourcedRepository[T_ag]) -> None:
-        self.repository: EventSourcedRepository[T_ag] = repository
+    def __init__(self, repository: EventSourcedRepository[T_ag, T_ag_ev]) -> None:
+        self.repository = repository
         self.retrieved_aggregates: Dict[UUID, T_ag] = {}
         self.causal_dependencies: List[Tuple[UUID, int]] = []
         self.orm_objs_pending_save: List[Any] = []
@@ -582,6 +607,7 @@ class Prompt(object):
 
 class ProcessApplicationWithSnapshotting(SnapshottingApplication, ProcessApplication):
     def take_snapshots(self, new_events: T_ag_evs) -> None:
+        assert self.snapshotting_policy
         for event in new_events:
             if self.snapshotting_policy.condition(event):
                 self.snapshotting_policy.take_snapshot(event)

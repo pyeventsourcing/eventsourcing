@@ -1156,10 +1156,10 @@ perhaps with random bytes encoded as Base64.
 
 .. code:: python
 
-    from eventsourcing.utils.random import encode_random_bytes
+    from eventsourcing.utils.random import encoded_random_bytes
 
     # Keep this safe.
-    salt = encode_random_bytes(num_bytes=32)
+    salt = encoded_random_bytes(num_bytes=32)
 
     # Configure environment (before importing library).
     import os

@@ -9,7 +9,7 @@ from eventsourcing.contrib.paxos.composable import (
     PaxosMessage,
     Resolution,
 )
-from eventsourcing.domain.model.aggregate import AggregateRoot
+from eventsourcing.domain.model.aggregate import BaseAggregateRoot
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.exceptions import (
     OperationalError,
@@ -18,7 +18,7 @@ from eventsourcing.exceptions import (
 )
 
 
-class PaxosAggregate(AggregateRoot):
+class PaxosAggregate(BaseAggregateRoot):
     """
     Event-sourced Paxos participant.
     """
@@ -71,12 +71,12 @@ class PaxosAggregate(AggregateRoot):
         # Return the instance.
         return instance
 
-    class Event(AggregateRoot.Event):
+    class Event(BaseAggregateRoot.Event):
         """
         Base event class for PaxosAggregate.
         """
 
-    class Started(Event, AggregateRoot.Created):
+    class Started(Event, BaseAggregateRoot.Created):
         """
         Published when a PaxosAggregate is started.
         """

@@ -6,10 +6,10 @@ from eventsourcing.exceptions import DataIntegrityError
 class TestAESCipher(TestCase):
     def test_encrypt_mode_gcm(self):
         from eventsourcing.utils.cipher.aes import AESCipher
-        from eventsourcing.utils.random import encode_random_bytes, decode_bytes
+        from eventsourcing.utils.random import encoded_random_bytes, decode_bytes
 
         # Unicode string representing 256 random bits encoded with Base64.
-        cipher_key = encode_random_bytes(num_bytes=32)
+        cipher_key = encoded_random_bytes(num_bytes=32)
 
         # Construct AES cipher.
         cipher = AESCipher(cipher_key=decode_bytes(cipher_key))

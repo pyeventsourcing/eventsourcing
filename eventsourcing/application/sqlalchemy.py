@@ -1,3 +1,5 @@
+from typing import Any, Optional
+
 from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
 from eventsourcing.infrastructure.sqlalchemy.factory import (
     SQLAlchemyInfrastructureFactory,
@@ -15,7 +17,13 @@ class SQLAlchemyApplication(ApplicationWithConcreteInfrastructure):
     is_constructed_with_session = True
     tracking_record_class = None
 
-    def __init__(self, uri=None, session=None, tracking_record_class=None, **kwargs):
+    def __init__(
+        self,
+        uri: Optional[str] = None,
+        session: Optional[Any] = None,
+        tracking_record_class: Any = None,
+        **kwargs: Any
+    ):
         self.uri = uri
         self.session = session
         self.tracking_record_class = (
@@ -23,7 +31,7 @@ class SQLAlchemyApplication(ApplicationWithConcreteInfrastructure):
         )
         super(SQLAlchemyApplication, self).__init__(**kwargs)
 
-    def construct_infrastructure(self, *args, **kwargs):
+    def construct_infrastructure(self, *args: Any, **kwargs: Any) -> None:
         super(SQLAlchemyApplication, self).construct_infrastructure(
             session=self.session,
             uri=self.uri,

@@ -1,5 +1,5 @@
 from collections import deque
-from typing import Deque, List, Sequence, TypeVar
+from typing import Deque, List, Sequence, TypeVar, Any
 
 from eventsourcing.domain.model.entity import (
     EntityWithHashchain,
@@ -34,7 +34,7 @@ class BaseAggregateRoot(TimestampedVersionedEntity[T_ag_ev]):
     class Discarded(Event[T_en], TimestampedVersionedEntity.Discarded[T_en]):
         """Triggered when an aggregate root is discarded."""
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         super(BaseAggregateRoot, self).__init__(**kwargs)
         self.__pending_events__: Deque[T_ag_ev] = deque()
 

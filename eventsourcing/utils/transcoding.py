@@ -74,6 +74,7 @@ def decoderpolicy(arg=None):
             def decorator(decoder_func):
                 decoder_map[key] = decoder_func
                 return decoder_func
+
             return decorator
 
         wrapper.register = register
@@ -85,9 +86,6 @@ def decoderpolicy(arg=None):
 
 
 class ObjectJSONEncoder(JSONEncoder):
-    def __init__(self, sort_keys=True, *args, **kwargs):
-        super(ObjectJSONEncoder, self).__init__(sort_keys=sort_keys, *args, **kwargs)
-
     def iterencode(self, o, _one_shot=False):
         if isinstance(o, tuple):
             o = {"__tuple__": {"topic": (get_topic(o.__class__)), "state": (list(o))}}
@@ -223,12 +221,7 @@ def decode_decimal(d):
 
 @encoder.register(Enum)
 def encode_enum(obj):
-    return {
-        "__enum__": {
-            "topic": get_topic(type(obj)),
-            "name": obj.name,
-        }
-    }
+    return {"__enum__": {"topic": get_topic(type(obj)), "name": obj.name}}
 
 
 @decoder.register("__enum__")
@@ -241,10 +234,7 @@ def decode_enum(d):
 
 @encoder.register(deque)
 def encode_deque(obj):
-    return {"__deque__": {
-        "topic": get_topic(type(obj)),
-        "values": list(obj)}
-    }
+    return {"__deque__": {"topic": get_topic(type(obj)), "values": list(obj)}}
 
 
 @decoder.register("__deque__")

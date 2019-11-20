@@ -60,6 +60,9 @@ NextExpectedActivity = Optional[
 ]
 CargoDetails = Dict[str, Optional[Union[str, bool, datetime, Tuple]]]
 
+LegDetails = Dict[str, str]
+
+ItineraryDetails = Dict[str, Union[str, List[LegDetails]]]
 
 # Leg of an Itinerary.
 class Leg(object):
@@ -85,14 +88,16 @@ class AggregateRoot(BaseAggregateRoot):
 # The Cargo aggregate is an event sourced domain model aggregate that
 # specifies the routing from origin to destination, and can track what
 # happens to the cargo after it has been booked.
-T_cargo = TypeVar('T_cargo', bound='Cargo')
+T_cargo = TypeVar("T_cargo", bound="Cargo")
 
 
 class Cargo(AggregateRoot):
     @classmethod
     def new_booking(
-        cls: Type[T_cargo], origin: Location, destination: Location, arrival_deadline:
-        datetime
+        cls: Type[T_cargo],
+        origin: Location,
+        destination: Location,
+        arrival_deadline: datetime,
     ) -> T_cargo:
         return cls.__create__(
             origin=origin, destination=destination, arrival_deadline=arrival_deadline
@@ -103,7 +108,7 @@ class Cargo(AggregateRoot):
         origin: Location,
         destination: Location,
         arrival_deadline: datetime,
-        **kwargs
+        **kwargs: Any
     ) -> None:
         super().__init__(**kwargs)
         self._origin: Location = origin
@@ -173,7 +178,7 @@ class Cargo(AggregateRoot):
         def destination(self) -> Location:
             return self.__dict__["destination"]
 
-    def assign_route(self, itinerary) -> None:
+    def assign_route(self, itinerary: Itinerary) -> None:
         self.__trigger_event__(self.RouteAssigned, route=itinerary)
 
     class RouteAssigned(DomainEvent):
@@ -295,12 +300,13 @@ class BookingApplication(ProcessApplication):
         return cargo.id
 
     def get_cargo(self, tracking_id: UUID) -> Cargo:
-        repository: EventSourcedRepository[Cargo] = self.repository
+        assert self.repository
         try:
-            cargo = repository[tracking_id]
+            cargo = self.repository[tracking_id]
         except RepositoryKeyError:
             raise Exception("Cargo not found: {}".format(tracking_id))
         else:
+            assert isinstance(cargo, Cargo)
             return cargo
 
     def change_destination(self, tracking_id: UUID, destination: Location) -> None:
@@ -334,7 +340,9 @@ class BookingApplication(ProcessApplication):
         handing_activity: HandlingActivity,
     ) -> None:
         cargo: Cargo = self.get_cargo(tracking_id)
-        cargo.register_handling_event(tracking_id, voyage_number, location, handing_activity)
+        cargo.register_handling_event(
+            tracking_id, voyage_number, location, handing_activity
+        )
         cargo.__save__()
 
 
@@ -400,33 +408,30 @@ class LocalClient(object):
         }
 
     def change_destination(self, tracking_id: str, destination: str) -> None:
-        self.bookingapp.change_destination(
-            UUID(tracking_id), Location[destination]
-        )
+        self.bookingapp.change_destination(UUID(tracking_id), Location[destination])
 
     def request_possible_routes_for_cargo(self, tracking_id: str) -> List[dict]:
-        routes = self.bookingapp.request_possible_routes_for_cargo(
-            UUID(tracking_id)
-        )
+        routes = self.bookingapp.request_possible_routes_for_cargo(UUID(tracking_id))
         return [self.dict_from_itinerary(route) for route in routes]
 
-    def dict_from_itinerary(self, route):
-        route_details = {"origin": route.origin, "destination": route.destination}
+    def dict_from_itinerary(self, itinerary: Itinerary) -> ItineraryDetails:
         legs_details = []
-        for leg in route.legs:
-            leg_details = {
+        for leg in itinerary.legs:
+            leg_details: LegDetails = {
                 "origin": leg.origin,
                 "destination": leg.destination,
                 "voyage_number": leg.voyage_number,
             }
             legs_details.append(leg_details)
-        route_details["legs"] = legs_details
+        route_details: ItineraryDetails = {
+            "origin": itinerary.origin,
+            "destination": itinerary.destination,
+            "legs": legs_details
+        }
         return route_details
 
-    def assign_route(self, tracking_id: str, route_details) -> None:
-        routes = self.bookingapp.request_possible_routes_for_cargo(
-            UUID(tracking_id)
-        )
+    def assign_route(self, tracking_id: str, route_details: ItineraryDetails) -> None:
+        routes = self.bookingapp.request_possible_routes_for_cargo(UUID(tracking_id))
         for route in routes:
             if route_details == self.dict_from_itinerary(route):
                 self.bookingapp.assign_route(UUID(tracking_id), route)
@@ -471,7 +476,7 @@ REGISTERED_ROUTES = {
 
 
 # Stub function that picks an itineraries from a list of possible itineraries.
-def select_preferred_itinerary(itineraries):
+def select_preferred_itinerary(itineraries: List[ItineraryDetails]) -> ItineraryDetails:
     return itineraries[0]
 
 

@@ -40,8 +40,8 @@ class MetaDomainEntity(MetaAbstractDomainEntity):
     #    which was cured by adding **kwargs here. It's not needed
     #    for Python3.7, and only supports backward compatibility.
     #    So it can be removed when support for Python 3.6 dropped.
-    def __init__(cls, name, bases, attrs, **_):
-        super().__init__(name, bases, attrs)
+    def __init__(cls, name: str, *args: Any, **kwargs: Any) -> None:
+        super().__init__(name, *args, **kwargs)
         if name == "_gorg":
             # Todo: Also Remove this block when dropping support for Python 3.6.
             # Needed in 3.6 only, stops infinite recursion between typing and abc
@@ -86,7 +86,7 @@ class DomainEntity(AbstractDomainEntity[T_ev], metaclass=MetaDomainEntity):
         cls: Type[T_en],
         originator_id: Optional[UUID] = None,
         event_class: Optional[Type[T_ev]] = None,
-        **kwargs
+        **kwargs: Any
     ) -> T_en:
         """
         Creates a new domain entity.
@@ -118,7 +118,7 @@ class DomainEntity(AbstractDomainEntity[T_ev], metaclass=MetaDomainEntity):
         Triggered when an entity is created.
         """
 
-        def __init__(self, originator_topic: str, **kwargs):
+        def __init__(self, originator_topic: str, **kwargs: Any):
             super(DomainEntity.Created, self).__init__(
                 originator_topic=originator_topic, **kwargs
             )
@@ -155,7 +155,7 @@ class DomainEntity(AbstractDomainEntity[T_ev], metaclass=MetaDomainEntity):
             kwargs.pop("__event_topic__", None)
             return kwargs
 
-    def __init__(self, id):
+    def __init__(self, id: UUID):
         self._id = id
         self.__is_discarded__ = False
 
@@ -193,11 +193,11 @@ class DomainEntity(AbstractDomainEntity[T_ev], metaclass=MetaDomainEntity):
             setattr(obj, self.name, self.value)
             return obj
 
-    def __discard__(self):
+    def __discard__(self) -> None:
         """
         Discards self, by triggering a Discarded event.
         """
-        self.__trigger_event__(self.Discarded)
+        self.__trigger_event__(self.Discarded)  # type: ignore
 
     class Discarded(events.Discarded[T_en], Event):
         """
@@ -210,7 +210,7 @@ class DomainEntity(AbstractDomainEntity[T_ev], metaclass=MetaDomainEntity):
             entity.__is_discarded__ = True
             return None
 
-    def __assert_not_discarded__(self):
+    def __assert_not_discarded__(self) -> None:
         """
         Asserts that this entity has not been discarded.
 
@@ -219,7 +219,7 @@ class DomainEntity(AbstractDomainEntity[T_ev], metaclass=MetaDomainEntity):
         if self.__is_discarded__:
             raise EntityIsDiscarded("Entity is discarded")
 
-    def __trigger_event__(self, event_class: Type[T_ev], **kwargs) -> None:
+    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
         """
         Constructs, applies, and publishes a domain event.
         """
@@ -228,7 +228,7 @@ class DomainEntity(AbstractDomainEntity[T_ev], metaclass=MetaDomainEntity):
         self.__mutate__(event)
         self.__publish__(event)
 
-    def __mutate__(self, event: T_ev):
+    def __mutate__(self, event: T_ev) -> None:
         """
         Mutates this entity with the given event.
 
@@ -259,7 +259,7 @@ class DomainEntity(AbstractDomainEntity[T_ev], metaclass=MetaDomainEntity):
         """
         event.__mutate__(self)
 
-    def __publish__(self, event: T_ev_evs):
+    def __publish__(self, event: T_ev_evs) -> None:
         """
         Publishes given event for subscribers in the application.
 
@@ -267,7 +267,7 @@ class DomainEntity(AbstractDomainEntity[T_ev], metaclass=MetaDomainEntity):
         """
         self.__publish_to_subscribers__(event)
 
-    def __publish_to_subscribers__(self, event: T_ev_evs):
+    def __publish_to_subscribers__(self, event: T_ev_evs) -> None:
         """
         Actually dispatches given event to publish-subscribe mechanism.
 
@@ -275,17 +275,17 @@ class DomainEntity(AbstractDomainEntity[T_ev], metaclass=MetaDomainEntity):
         """
         publish(event)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         return type(self) == type(other) and self.__dict__ == other.__dict__
 
-    def __ne__(self, other):
+    def __ne__(self, other: object) -> bool:
         return not self.__eq__(other)
 
 
 class EntityWithHashchain(DomainEntity[T_ev]):
     __genesis_hash__ = GENESIS_HASH
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super(EntityWithHashchain, self).__init__(*args, **kwargs)
         self.__head__: str = type(self).__genesis_hash__
 
@@ -348,19 +348,20 @@ class EntityWithHashchain(DomainEntity[T_ev]):
             return super(EntityWithHashchain.Discarded, self).__mutate__(obj)
 
     @classmethod
-    def __create__(cls: Type[T_en], *args, **kwargs) -> T_en:
-        # Insert a "genesis hash" as __previous_hash__ in initial event.
+    def __create__(cls: Type[T_en], *args: Any, **kwargs: Any) -> T_en:
+        # Initialise the hash-chain with "genesis hash".
         kwargs["__previous_hash__"] = getattr(cls, "__genesis_hash__", GENESIS_HASH)
-        return super(EntityWithHashchain, cls).__create__(*args, **kwargs)
+        return super().__create__(*args, **kwargs)  # type: ignore
+        # Error from mypy: Argument 2 for "super" not an instance of argument 1
 
-    def __trigger_event__(self, event_class: Type[T_ev], **kwargs) -> None:
+    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
         assert isinstance(event_class, type), type(event_class)
         kwargs["__previous_hash__"] = self.__head__
         super(EntityWithHashchain, self).__trigger_event__(event_class, **kwargs)
 
 
 class VersionedEntity(DomainEntity[T_ev]):
-    def __init__(self, __version__: int, **kwargs):
+    def __init__(self, __version__: int, **kwargs: Any):
         super().__init__(**kwargs)
         self.___version__: int = __version__
 
@@ -368,7 +369,7 @@ class VersionedEntity(DomainEntity[T_ev]):
     def __version__(self) -> int:
         return self.___version__
 
-    def __trigger_event__(self, event_class: Type[T_ev], **kwargs) -> None:
+    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
         """
         Triggers domain event with entity's next version number.
 
@@ -420,7 +421,7 @@ class VersionedEntity(DomainEntity[T_ev]):
     class Created(DomainEntity.Created[T_en], Event[T_en]):
         """Published when a VersionedEntity is created."""
 
-        def __init__(self, originator_version=0, *args, **kwargs):
+        def __init__(self, originator_version: int = 0, *args: Any, **kwargs: Any):
             super(VersionedEntity.Created, self).__init__(
                 originator_version=originator_version, *args, **kwargs
             )
@@ -440,7 +441,7 @@ class VersionedEntity(DomainEntity[T_ev]):
 
 
 class TimestampedEntity(DomainEntity[T_ev]):
-    def __init__(self, __created_on__: Decimal, **kwargs):
+    def __init__(self, __created_on__: Decimal, **kwargs: Any):
         super(TimestampedEntity, self).__init__(**kwargs)
         self.___created_on__ = __created_on__
         self.___last_modified__ = __created_on__
@@ -487,7 +488,7 @@ class TimestampedEntity(DomainEntity[T_ev]):
 
 
 class TimeuuidedEntity(DomainEntity[T_ev]):
-    def __init__(self, event_id, **kwargs):
+    def __init__(self, event_id: UUID, **kwargs: Any) -> None:
         super(TimeuuidedEntity, self).__init__(**kwargs)
         self.___initial_event_id__ = event_id
         self.___last_event_id__ = event_id

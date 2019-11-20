@@ -990,14 +990,14 @@ appended to sequence ``aggregate1`` at position ``1``.
     )
 
 
-The method :func:`~eventsourcing.infrastructure.eventstore.EventStore.get_domain_events` can
+The method :func:`~eventsourcing.infrastructure.eventstore.EventStore.list_domain_events` can
 be used to get events that have previously been stored. The event store uses its
 ``record_manager`` to get the sequenced items from database records, and it uses
 its ``sequenced_item_mapper`` to obtain domain events from the sequenced items.
 
 .. code:: python
 
-    results = event_store.get_domain_events(aggregate1)
+    results = event_store.list_domain_events(aggregate1)
 
 
 Since by now two domain events have been stored, so there are two domain events in the results.
@@ -1012,7 +1012,7 @@ Since by now two domain events have been stored, so there are two domain events 
 
 
 The optional arguments of
-:func:`~eventsourcing.infrastructure.eventstore.EventStore.get_domain_events`
+:func:`~eventsourcing.infrastructure.eventstore.EventStore.list_domain_events`
 can be used to select some of the items in the sequence.
 
 The ``lt`` arg is used to select items below the given position in the sequence.
@@ -1032,22 +1032,22 @@ order of the results. Hence, it can affect both the content of the results and t
 .. code:: python
 
     # Get events below and at position 0.
-    result = event_store.get_domain_events(aggregate1, lte=0)
+    result = event_store.list_domain_events(aggregate1, lte=0)
     assert len(result) == 1, result
     assert result[0].foo == 'bar'
 
     # Get events at and above position 1.
-    result = event_store.get_domain_events(aggregate1, gte=1)
+    result = event_store.list_domain_events(aggregate1, gte=1)
     assert len(result) == 1, result
     assert result[0].foo == 'baz'
 
     # Get the first event in the sequence.
-    result = event_store.get_domain_events(aggregate1, limit=1)
+    result = event_store.list_domain_events(aggregate1, limit=1)
     assert len(result) == 1, result
     assert result[0].foo == 'bar'
 
     # Get the last event in the sequence.
-    result = event_store.get_domain_events(aggregate1, limit=1, is_ascending=False)
+    result = event_store.list_domain_events(aggregate1, limit=1, is_ascending=False)
     assert len(result) == 1, result
     assert result[0].foo == 'baz'
 
@@ -1192,7 +1192,7 @@ helps with Cassandra.
 ..     timestamped_event_store.store(event)
 ..
 ..     # Check the event was stored.
-..     events = timestamped_event_store.get_domain_events(aggregate_id)
+..     events = timestamped_event_store.list_domain_events(aggregate_id)
 ..     assert len(events) == 1
 ..     assert events[0].originator_id == aggregate_id
 ..     assert events[0].timestamp < decimaltimestamp()

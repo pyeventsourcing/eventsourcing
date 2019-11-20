@@ -754,7 +754,7 @@ class ProcessRunningClockThread(ClockThread):
                     # if seen_prompt.is_set():
                     #     seen_prompt.clear()
                     reader = self.readers[process_name]
-                    notifications = reader.read_list()
+                    notifications = reader.list_notifications()
                     all_notifications[process_name] = notifications
 
                 # Process all notifications.

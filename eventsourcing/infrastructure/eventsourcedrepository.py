@@ -1,6 +1,7 @@
 from typing import Optional, Dict
 from uuid import UUID
 
+from eventsourcing.domain.model.entity import VersionedEntity
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.eventplayer import EventPlayer
 from eventsourcing.infrastructure.snapshotting import entity_from_snapshot
@@ -9,10 +10,13 @@ from eventsourcing.types import (
     AbstractSnapshop,
     T_en,
     AbstractEventStore,
+    T_ev,
 )
 
 
-class EventSourcedRepository(EventPlayer[T_en], AbstractEntityRepository[T_en]):
+class EventSourcedRepository(
+    AbstractEntityRepository[T_en, T_ev], EventPlayer[T_en, T_ev]
+):
     def __init__(
         self, event_store: AbstractEventStore, use_cache: bool = False, **kwargs
     ):
@@ -24,6 +28,10 @@ class EventSourcedRepository(EventPlayer[T_en], AbstractEntityRepository[T_en]):
         # and writing more records will give a broken sequence.
         self._cache: Dict[UUID, Optional[T_en]] = {}
         self._use_cache = use_cache
+
+    @property
+    def event_store(self) -> AbstractEventStore[VersionedEntity.Event]:
+        return self._event_store
 
     @property
     def use_cache(self):
@@ -126,7 +134,7 @@ class EventSourcedRepository(EventPlayer[T_en], AbstractEntityRepository[T_en]):
             is_ascending = not query_descending
 
         # Get entity's domain events from the event store.
-        domain_events = self.event_store.get_domain_events(
+        domain_events = self.event_store.iter_domain_events(
             originator_id=entity_id,
             gt=gt,
             gte=gte,

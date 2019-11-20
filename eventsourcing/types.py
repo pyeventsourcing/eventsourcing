@@ -1,6 +1,17 @@
 from abc import ABC, ABCMeta, abstractmethod
 from decimal import Decimal
-from typing import Generic, List, Optional, Sequence, Type, TypeVar, Union
+from typing import (
+    Any,
+    Generic,
+    Iterable,
+    Iterator,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 from uuid import UUID
 
 
@@ -32,6 +43,10 @@ T_evs = Sequence[T_ev]
 
 T_ev_evs = Union[T_ev, T_evs]
 
+T_rm = TypeVar("T_rm", bound="AbstractRecordManager")
+
+T_es = TypeVar("T_es", bound="AbstractEventStore")
+
 
 class AbstractDomainEntity(Generic[T_ev], metaclass=MetaAbstractDomainEntity):
     @property
@@ -45,14 +60,14 @@ class AbstractDomainEntity(Generic[T_ev], metaclass=MetaAbstractDomainEntity):
         cls: Type[T_en],
         originator_id: Optional[UUID] = None,
         event_class: Optional[Type[T_ev]] = None,
-        **kwargs
+        **kwargs: Any
     ) -> T_en:
         """
         Constructs, applies, and publishes a domain event.
         """
 
     @abstractmethod
-    def __trigger_event__(self, event_class: Type[T_ev], **kwargs) -> None:
+    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
         """
         Constructs, applies, and publishes a domain event.
         """
@@ -100,8 +115,9 @@ class AbstractDomainEntity(Generic[T_ev], metaclass=MetaAbstractDomainEntity):
     #     pass
 
 
-class AbstractDomainEvent(Generic[T_en]):
-    def __init__(self, *args, **kwargs) -> None:
+class AbstractDomainEvent(ABC, Generic[T_en]):
+    @abstractmethod
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         pass
 
     @abstractmethod
@@ -134,7 +150,7 @@ class AbstractEventWithOriginatorVersion(AbstractDomainEvent[T_en]):
         pass
 
 
-class AbstractEventStore(ABC):
+class AbstractEventStore(ABC, Generic[T_ev]):
     """
     Abstract base class for event stores. Defines the methods
     expected of an event store by other classes in the library.
@@ -149,39 +165,59 @@ class AbstractEventStore(ABC):
     @abstractmethod
     def get_domain_events(
         self,
-        originator_id,
-        gt=None,
-        gte=None,
-        lt=None,
-        lte=None,
-        limit=None,
-        is_ascending=True,
-        page_size=None,
-    ) -> T_evs:
+        originator_id: UUID,
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        limit: Optional[int] = None,
+        is_ascending: bool = True,
+        page_size: Optional[int] = None,
+    ) -> Iterable[T_ev]:
+        """
+        Deprecated. Please use iter_domain_events() instead.
+
+        Returns domain events for given entity ID.
+        """
+
+    @abstractmethod
+    def iter_domain_events(
+        self,
+        originator_id: UUID,
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        limit: Optional[int] = None,
+        is_ascending: bool = True,
+        page_size: Optional[int] = None,
+    ) -> Iterable[T_ev]:
         """
         Returns domain events for given entity ID.
         """
 
     @abstractmethod
-    def get_domain_event(self, originator_id, position):
+    def get_domain_event(self, originator_id: UUID, position: int) -> T_ev:
         """
         Returns a single domain event.
         """
 
     @abstractmethod
-    def get_most_recent_event(self, originator_id, lt=None, lte=None):
+    def get_most_recent_event(
+        self, originator_id: UUID, lt: Optional[int] = None, lte: Optional[int] = None
+    ) -> Optional[T_ev]:
         """
         Returns most recent domain event for given entity ID.
         """
 
     @abstractmethod
-    def all_domain_events(self):
+    def all_domain_events(self) -> Iterable[T_ev]:
         """
         Returns all domain events in the event store.
         """
 
 
-class AbstractEventPlayer(Generic[T_en]):
+class AbstractEventPlayer(Generic[T_en, T_ev]):
     @property
     @abstractmethod
     def event_store(self) -> AbstractEventStore:
@@ -192,51 +228,52 @@ class AbstractEventPlayer(Generic[T_en]):
     @abstractmethod
     def get_and_project_events(
         self,
-        entity_id,
-        gt=None,
-        gte=None,
-        lt=None,
-        lte=None,
-        limit=None,
-        initial_state=None,
-        query_descending=False,
-    ):
+        entity_id: UUID,
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        limit: Optional[int] = None,
+        initial_state: Optional[T_en] = None,
+        query_descending: bool = False,
+    ) -> Optional[T_en]:
         pass
 
 
-class AbstractSnapshop(ABC):
+class AbstractSnapshop(AbstractDomainEvent):
     @property
     @abstractmethod
-    def topic(self):
+    def topic(self) -> str:
         """
         Path to the class of the snapshotted entity.
         """
 
     @property
     @abstractmethod
-    def state(self):
+    def state(self) -> str:
         """
         State of the snapshotted entity.
         """
 
     @property
     @abstractmethod
-    def originator_id(self):
+    def originator_id(self) -> UUID:
         """
         ID of the snapshotted entity.
         """
 
     @property
     @abstractmethod
-    def originator_version(self):
+    def originator_version(self) -> int:
         """
         Version of the last event applied to the entity.
         """
 
 
-class AbstractEntityRepository(AbstractEventPlayer[T_en]):
+class AbstractEntityRepository(AbstractEventPlayer[T_en, T_ev]):
+
     @abstractmethod
-    def __getitem__(self, entity_id) -> T_en:
+    def __getitem__(self, entity_id: UUID) -> T_en:
         """
         Returns entity for given ID.
 
@@ -244,13 +281,13 @@ class AbstractEntityRepository(AbstractEventPlayer[T_en]):
         """
 
     @abstractmethod
-    def __contains__(self, entity_id) -> bool:
+    def __contains__(self, entity_id: UUID) -> bool:
         """
         Returns True or False, according to whether or not entity exists.
         """
 
     @abstractmethod
-    def get_entity(self, entity_id, at: Optional[int] = None) -> Optional[T_en]:
+    def get_entity(self, entity_id: UUID, at: Optional[int] = None) -> Optional[T_en]:
         """
         Returns entity for given ID.
 
@@ -266,21 +303,45 @@ class AbstractEntityRepository(AbstractEventPlayer[T_en]):
         """
 
 
-class AbstractRecordManager(ABC):
+class AbstractRecordManager(ABC, Generic[T_ev]):
+
+    @property
     @abstractmethod
-    def record_sequenced_items(self, sequenced_item_or_items: List):
+    def record_class(self) -> Any:
+        pass
+
+    @abstractmethod
+    def record_sequenced_items(
+        self, sequenced_item_or_items: Union[Sequence[Tuple], Tuple]
+    ) -> None:
         """
         Writes sequenced item(s) into the datastore.
         """
 
     @abstractmethod
-    def get_items(self, sequence_id, position):
+    def get_item(self, sequence_id: UUID, position: int) -> Tuple:
         """
-        Gets record at position in sequence.
+        Gets sequenced item from the datastore.
         """
 
     @abstractmethod
-    def get_record(self, sequence_id, position):
+    def get_items(
+        self,
+        sequence_id: UUID,
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        limit: Optional[int] = None,
+        query_ascending: bool = True,
+        results_ascending: bool = True,
+    ) -> Iterator[T_evs]:
+        """
+        Iterates over records in sequence.
+        """
+
+    @abstractmethod
+    def get_record(self, sequence_id: UUID, position: int) -> Any:
         """
         Gets record at position in sequence.
         """
@@ -288,21 +349,27 @@ class AbstractRecordManager(ABC):
     @abstractmethod
     def get_records(
         self,
-        sequence_id,
-        gt=None,
-        gte=None,
-        lt=None,
-        lte=None,
-        limit=None,
-        query_ascending=True,
-        results_ascending=True,
-    ):
+        sequence_id: UUID,
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        limit: Optional[int] = None,
+        query_ascending: bool = True,
+        results_ascending: bool = True,
+    ) -> Sequence[Any]:
         """
         Returns records for a sequence.
         """
 
     @abstractmethod
-    def get_notifications(self, start=None, stop=None, *args, **kwargs):
+    def get_notifications(
+        self,
+        start: Optional[int] = None,
+        stop: Optional[int] = None,
+        *args: Any,
+        **kwargs: Any
+    ) -> Any:
         """
         Returns records sequenced by notification ID, from
         application, for pipeline, in given range.
@@ -312,45 +379,46 @@ class AbstractRecordManager(ABC):
         """
 
     @abstractmethod
-    def all_sequence_ids(self):
+    def all_sequence_ids(self) -> Sequence[UUID]:
         """
         Returns all sequence IDs.
         """
 
     @abstractmethod
-    def delete_record(self, record):
+    def delete_record(self, record: Any) -> None:
         """
         Removes permanently given record from the table.
         """
 
 
 class AbstractSequencedItemMapper(Generic[T_ev], ABC):
+
     @abstractmethod
-    def item_from_event(self, domain_event):
+    def item_from_event(self, domain_event: T_ev) -> Tuple:
         """
         Constructs and returns a sequenced item for given domain event.
         """
 
     @abstractmethod
-    def event_from_item(self, sequenced_item):
+    def event_from_item(self, sequenced_item: Tuple) -> T_ev:
         """
         Constructs and returns a domain event for given sequenced item.
         """
 
     @abstractmethod
-    def json_dumps(self, event_attrs):
+    def json_dumps(self, o: object) -> str:
         """
         Encodes given object as JSON.
         """
 
     @abstractmethod
-    def json_loads(self, event_attrs):
+    def json_loads(self, s: str) -> object:
         """
         Decodes given JSON as object.
         """
 
     @abstractmethod
-    def event_from_topic_and_state(self, topic, state) -> T_ev:
+    def event_from_topic_and_state(self, topic: str, state: str) -> T_ev:
         """
         Resolves topic to an event class, decodes state, and constructs an event.
         """
