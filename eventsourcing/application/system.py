@@ -6,7 +6,18 @@ from copy import deepcopy
 from queue import Empty, Queue
 from threading import Barrier, BrokenBarrierError, Event, Lock, Thread, Timer
 from time import sleep
-from typing import Optional, Type, TypeVar, Dict, Deque, Union, List, Any
+from typing import (
+    Optional,
+    Type,
+    TypeVar,
+    Dict,
+    Deque,
+    Union,
+    List,
+    Any,
+    Callable,
+    no_type_check,
+)
 
 from eventsourcing.application.notificationlog import NotificationLogReader
 from eventsourcing.application.popo import PopoApplication
@@ -23,6 +34,10 @@ from eventsourcing.exceptions import (
 )
 
 DEFAULT_POLL_INTERVAL = 5
+
+
+T_proc_app = TypeVar("T_proc_app", bound=ProcessApplication)
+T_s = TypeVar("T_s", bound="System")
 
 
 class System(object):
@@ -101,12 +116,12 @@ class System(object):
 
     def construct_app(
         self,
-        process_class: Type[ProcessApplication],
+        process_class: Type[T_proc_app],
         infrastructure_class: Optional[
             Type[ApplicationWithConcreteInfrastructure]
         ] = None,
         **kwargs: Any,
-    ) -> ApplicationWithConcreteInfrastructure:
+    ) -> T_proc_app:
         """
         Constructs process application from given ``process_class``.
         """
@@ -143,45 +158,53 @@ class System(object):
             kwargs["setup_table"] = self.setup_tables
 
         # Construct the process application.
-        process = process_class(**kwargs)
+        process_application = process_class(**kwargs)
 
         # Catch the session, so it can be shared.
         if self.session is None and self.shared_session is None:
             if process_class.is_constructed_with_session and self.is_session_shared:
                 if self.shared_session is None:
-                    self.shared_session = process.session
+                    self.shared_session = process_application.session
 
-        return process
+        assert isinstance(process_application, ProcessApplication), process_application
+        return process_application
 
-    def is_prompt(self, event):
+    def is_prompt(self, event: object) -> bool:
         """
         Predicate for subscribing to publication of Prompt objects.
         """
         return isinstance(event, Prompt)
 
-    def __enter__(self):
+    def __enter__(self) -> "SingleThreadedRunner":
         """
-        Supports usage of a system object as a context manager.
+        Supports running a system object directly as a context manager.
+
+        The system is run with the SingleThreadedRunner.
         """
         runner = SingleThreadedRunner(
             system=self,
             use_direct_query_if_available=self.use_direct_query_if_available,
         )
+        # self.__runner: ReferenceType[SingleThreadedRunner] = weakref.ref(runner)
         self.__runner = weakref.ref(runner)
-        self.__runner().__enter__()
+        runner.__enter__()
         return runner
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """
         Supports usage of a system object as a context manager.
         """
-        self.__runner().__exit__(exc_type, exc_val, exc_tb)
-        del self.__runner
+        runner = self.__runner()
+        if runner is not None:
+            runner.__exit__(exc_type, exc_val, exc_tb)
+            del self.__runner
 
-    def bind(self, infrastructure_class):
+    def bind(
+        self: T_s, infrastructure_class: Type[ApplicationWithConcreteInfrastructure]
+    ) -> T_s:
         """
         Constructs a system object that has an infrastructure class
-        from system object constructed without infrastructure class.
+        from a system object constructed without infrastructure class.
 
         Raises ProgrammingError if already have an infrastructure class.
 
@@ -190,17 +213,19 @@ class System(object):
         :rtype: System
         """
         # Check system doesn't already have an infrastructure class.
+
         if self.infrastructure_class:
             raise ProgrammingError("System already has an infrastructure class")
 
         # Clone the system object, and set the infrastructure class.
-        system = object.__new__(type(self))
+        # system = object.__new__(type(self))
+        system = type(self).__new__(type(self))
         system.__dict__.update(dict(deepcopy(self.__dict__)))
         system.__dict__.update(infrastructure_class=infrastructure_class)
         return system
 
 
-T_proc_app = TypeVar("T_proc_app", bound=ProcessApplication)
+T_runner = TypeVar("T_runner", bound="SystemRunner")
 
 
 class SystemRunner(ABC):
@@ -221,30 +246,30 @@ class SystemRunner(ABC):
         self.use_direct_query_if_available = (
             use_direct_query_if_available or system.use_direct_query_if_available
         )
-        self.processes: Dict[Type[ProcessApplication], ProcessApplication] = {}
+        self.processes: Dict[str, ProcessApplication] = {}
 
-    def __enter__(self):
+    def __enter__(self: T_runner) -> T_runner:
         """
         Supports usage of a system runner as a context manager.
         """
         self.start()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """
         Supports usage of a system runner as a context manager.
         """
         self.close()
 
     @abstractmethod
-    def start(self):
+    def start(self) -> None:
         """
         Starts running the system.
 
         Abstract method which must be implemented on concrete descendants.
         """
 
-    def close(self):
+    def close(self) -> None:
         """
         Closes a running system.
         """
@@ -255,7 +280,7 @@ class SystemRunner(ABC):
                 process.close()
             self.processes.clear()
 
-    def __getattr__(self, process_name: str) -> T_proc_app:
+    def __getattr__(self, process_name: str) -> ProcessApplication:
         """
         Supports accessing process application by name as object attribute.
 
@@ -264,21 +289,25 @@ class SystemRunner(ABC):
         """
         return self.construct_app(process_name)
 
-    def getapp(self, process_class: Type[T_proc_app]) -> T_proc_app:
-        return self.construct_app(process_class.__name__.lower())
+    def getapp(self, process_class: Type[ProcessApplication]) -> ProcessApplication:
+        return self.construct_app_by_class(process_class)
 
-    def construct_app(self, process_name):
+    def construct_app(self, process_name: str) -> ProcessApplication:
         if process_name in self.processes:
             process = self.processes[process_name]
         else:
             process_class = self.system.process_classes[process_name]
-            process = self.system.construct_app(
-                process_class=process_class,
-                infrastructure_class=self.infrastructure_class,
-                setup_table=self.setup_tables or self.system.setup_tables,
-                use_direct_query_if_available=self.use_direct_query_if_available,
-            )
-            self.processes[process.name] = process
+            process = self.construct_app_by_class(process_class)
+        return process
+
+    def construct_app_by_class(self, process_class: Type[T_proc_app]) -> T_proc_app:
+        process = self.system.construct_app(
+            process_class=process_class,
+            infrastructure_class=self.infrastructure_class,
+            setup_table=self.setup_tables or self.system.setup_tables,
+            use_direct_query_if_available=self.use_direct_query_if_available,
+        )
+        self.processes[process.name] = process
         return process
 
 
@@ -290,7 +319,7 @@ class InProcessRunner(SystemRunner):
     one thread for each process in the system.
     """
 
-    def start(self):
+    def start(self) -> None:
         assert len(self.processes) == 0, "Already running"
 
         # Construct the processes.
@@ -309,14 +338,14 @@ class InProcessRunner(SystemRunner):
         subscribe(predicate=self.system.is_prompt, handler=self.handle_prompt)
 
     @abstractmethod
-    def handle_prompt(self, prompt):
+    def handle_prompt(self, prompt: Any) -> None:
         """
         Handles publication of a prompt.
 
         Abstract method which must be implemented on concrete descendants.
         """
 
-    def close(self):
+    def close(self) -> None:
         super(InProcessRunner, self).close()
 
         unsubscribe(predicate=self.system.is_prompt, handler=self.handle_prompt)
@@ -327,17 +356,25 @@ class SingleThreadedRunner(InProcessRunner):
     Runs a system in the current thread.
     """
 
-    def __init__(self, system: System, infrastructure_class=None, **kwargs):
+    def __init__(
+        self,
+        system: System,
+        infrastructure_class: Optional[
+            Type[ApplicationWithConcreteInfrastructure]
+        ] = None,
+        **kwargs: Any,
+    ):
         super(SingleThreadedRunner, self).__init__(
             system, infrastructure_class=infrastructure_class, **kwargs
         )
         self.pending_prompts: Queue[Prompt] = Queue()
         self.iteration_lock = Lock()
 
-    def handle_prompt(self, prompt):
+    def handle_prompt(self, prompt: Any) -> None:
+        assert isinstance(prompt, Prompt), prompt
         self.run_followers(prompt)
 
-    def run_followers(self, prompt):
+    def run_followers(self, prompt: Prompt) -> None:
         """
         First caller adds a prompt to queue and
         runs followers until there are no more
@@ -346,7 +383,6 @@ class SingleThreadedRunner(InProcessRunner):
         Subsequent callers just add a prompt
         to the queue, avoiding recursion.
         """
-        assert isinstance(prompt, Prompt)
         # Put the prompt on the queue.
         self.pending_prompts.put(prompt)
 
@@ -385,7 +421,13 @@ class MultiThreadedRunner(InProcessRunner):
     Runs a system with a thread for each process.
     """
 
-    def __init__(self, system: System, poll_interval=None, clock_speed=None, **kwargs):
+    def __init__(
+        self,
+        system: System,
+        poll_interval: Optional[int] = None,
+        clock_speed: Optional[Union[int, float]] = None,
+        **kwargs: Any,
+    ):
         super(MultiThreadedRunner, self).__init__(system=system, **kwargs)
         self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
         assert isinstance(system, System)
@@ -395,13 +437,12 @@ class MultiThreadedRunner(InProcessRunner):
             self.clock_event = Event()
             self.stop_clock_event = Event()
 
-    def start(self):
+    def start(self) -> None:
         super(MultiThreadedRunner, self).start()
         assert not self.threads, "Already started"
 
-        self.inboxes = {}
-        self.outboxes = {}
-        self.clock_events = []
+        self.inboxes: Dict[str, Queue] = {}
+        self.outboxes: Dict[str, PromptOutbox] = {}
 
         # Setup queues.
         for process_name, upstream_names in self.system.followings.items():
@@ -444,14 +485,15 @@ class MultiThreadedRunner(InProcessRunner):
         if self.clock_speed:
             self.start_clock()
 
-    def start_clock(self):
+    def start_clock(self) -> None:
+        assert self.clock_speed, self.clock_speed
         tick_interval = 1 / self.clock_speed
         # print(f"Tick interval: {tick_interval:.6f}s")
         self.last_tick = None
         self.this_tick = None
         self.tick_adjustment = 0
 
-        def set_clock_event():
+        def set_clock_event() -> None:
             if self.stop_clock_event.is_set():
                 return
 
@@ -487,7 +529,7 @@ class MultiThreadedRunner(InProcessRunner):
             if not self.stop_clock_event.is_set():
                 set_timer()
 
-        def set_timer():
+        def set_timer() -> None:
             # print(f"Tick adjustment: {self.tick_adjustment:.6f}")
             if self.last_tick is not None:
                 time_since_last_tick = time.process_time() - self.last_tick
@@ -503,16 +545,17 @@ class MultiThreadedRunner(InProcessRunner):
 
         set_timer()
 
-    def handle_prompt(self, prompt):
+    def handle_prompt(self, prompt: Any) -> None:
+        assert isinstance(prompt, Prompt), prompt
         self.broadcast_prompt(prompt)
 
-    def broadcast_prompt(self, prompt):
+    def broadcast_prompt(self, prompt: Prompt) -> None:
         outbox_id = prompt.process_name
         outbox = self.outboxes.get(outbox_id)
         if outbox:
             outbox.put(prompt)
 
-    def close(self):
+    def close(self) -> None:
         super(MultiThreadedRunner, self).close()
 
         if self.clock_speed:
@@ -528,6 +571,23 @@ class MultiThreadedRunner(InProcessRunner):
         self.threads.clear()
 
 
+class PromptOutbox(object):
+    """
+    Has a collection of downstream prompt inboxes.
+
+    """
+
+    def __init__(self) -> None:
+        self.downstream_inboxes: Dict[str, Queue] = {}
+
+    def put(self, prompt: Union[Prompt, str]) -> None:
+        """
+        Puts prompt in each downstream inbox (an actual queue).
+        """
+        for queue in self.downstream_inboxes.values():
+            queue.put(prompt)
+
+
 class PromptQueuedApplicationThread(Thread):
     """
     Application thread which uses queues of prompts.
@@ -538,11 +598,12 @@ class PromptQueuedApplicationThread(Thread):
 
     def __init__(
         self,
+        *,
         process: ProcessApplication,
-        poll_interval=DEFAULT_POLL_INTERVAL,
-        inbox=None,
-        outbox=None,
-        clock_event=None,
+        poll_interval: int = DEFAULT_POLL_INTERVAL,
+        inbox: Queue[Union[Prompt, str]],
+        outbox: Optional[PromptOutbox],
+        clock_event: Optional[Event] = None,
     ):
         super(PromptQueuedApplicationThread, self).__init__(daemon=True)
         self.process = process
@@ -552,10 +613,10 @@ class PromptQueuedApplicationThread(Thread):
         self.clock_event = clock_event
         self.is_running = Event()
 
-    def run(self):
+    def run(self) -> None:
         self.loop_on_prompts()
 
-    def loop_on_prompts(self):
+    def loop_on_prompts(self) -> None:
 
         # Loop on getting prompts.
         self.is_running.set()
@@ -578,6 +639,8 @@ class PromptQueuedApplicationThread(Thread):
                     break
 
                 else:
+                    assert isinstance(prompt, Prompt)
+                    started = None
                     if self.clock_event is not None:
                         self.clock_event.wait()
                         started = time.time()
@@ -585,6 +648,7 @@ class PromptQueuedApplicationThread(Thread):
                     self.run_process(prompt)
 
                     if self.clock_event is not None:
+                        assert started
                         ended = time.time()
                         duration = ended - started
                         if self.clock_event.is_set():
@@ -598,7 +662,7 @@ class PromptQueuedApplicationThread(Thread):
                                 f"cycle: {duration}"
                             )
 
-    def run_process(self, prompt=None):
+    def run_process(self, prompt: Optional[Prompt] = None) -> None:
         try:
             self._run_process(prompt)
         except CausalDependencyFailed:
@@ -608,30 +672,18 @@ class PromptQueuedApplicationThread(Thread):
 
     @retry(CausalDependencyFailed, max_attempts=100, wait=0.2)
     @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.01)
-    def _run_process(self, prompt=None):
+    def _run_process(self, prompt: Optional[Prompt] = None) -> None:
         self.process.run(prompt)
-
-
-class PromptOutbox(object):
-    """
-    Has a collection of downstream prompt inboxes.
-
-    """
-
-    def __init__(self):
-        self.downstream_inboxes = {}
-
-    def put(self, prompt):
-        """
-        Puts prompt in each downstream inbox (an actual queue).
-        """
-        for queue in self.downstream_inboxes.values():
-            queue.put(prompt)
 
 
 class SteppingRunner(InProcessRunner):
     def __init__(
-        self, normal_speed=1, scale_factor=1, is_verbose=False, *args, **kwargs
+        self,
+        normal_speed: int = 1,
+        scale_factor: int = 1,
+        is_verbose: bool = False,
+        *args: Any,
+        **kwargs: Any,
     ):
         super(SteppingRunner, self).__init__(*args, **kwargs)
         self.normal_speed = normal_speed
@@ -643,19 +695,20 @@ class SteppingRunner(InProcessRunner):
             self.tick_interval = 0
         if self.is_verbose:
             print(f"Tick interval: {self.tick_interval:.6f}s")
-        self.clock_thread = None
+        self.clock_thread: Optional[ClockThread] = None
 
-    def call_in_future(self, cmd, ticks_delay):
+    def call_in_future(self, cmd: Callable, ticks_delay: int) -> None:
+        assert self.clock_thread
         self.clock_thread.call_in_future(cmd, ticks_delay)
 
 
 class SteppingSingleThreadedRunner(SteppingRunner):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super(SteppingSingleThreadedRunner, self).__init__(*args, **kwargs)
-        self.seen_prompt_events = {}
+        self.seen_prompt_events: Dict[str, Event] = {}
         self.stop_event = Event()
 
-    def start(self):
+    def start(self) -> None:
         super(SteppingSingleThreadedRunner, self).start()
 
         self.clock_thread = ProcessRunningClockThread(
@@ -669,44 +722,85 @@ class SteppingSingleThreadedRunner(SteppingRunner):
         )
         self.clock_thread.start()
 
-    def handle_prompt(self, prompt):
+    def handle_prompt(self, prompt: Any) -> None:
         """
         Ignores prompts.
         """
 
-    def close(self):
+    def close(self) -> None:
         self.stop_event.set()
         super(SteppingSingleThreadedRunner, self).close()
-        self.clock_thread.join(5)
-        if self.clock_thread.isAlive():
-            print("Warning: clock thread was still alive")
+        if self.clock_thread:
+            self.clock_thread.join(5)
+            if self.clock_thread.isAlive():
+                print("Warning: clock thread was still alive")
 
 
 class ClockThread(Thread):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super(ClockThread, self).__init__()
-        self.future_cmds = defaultdict(list)
+        self.future_cmds: Dict[int, List[Callable]] = defaultdict(list)
         self.tick_count = 0
 
-    def call_in_future(self, cmd, ticks_delay):
+    def call_in_future(self, cmd: Callable, ticks_delay: int) -> None:
         ticks_delay = max(ticks_delay, 1)
         self.future_cmds[ticks_delay + self.tick_count].append(cmd)
 
-    def call_commands(self):
+    def call_commands(self) -> None:
         for future_cmd in self.future_cmds.get(self.tick_count, []):
             future_cmd()
+
+    @no_type_check
+    def do_tick(self, process_time: float, tick_time: float) -> None:
+        # Todo: Pull these members up from subclasses.
+        tick_duration = tick_time - self.last_tick_time
+        self.all_tick_durations.append(tick_duration)
+        if len(self.all_tick_durations) > self.tick_durations_window_size:
+            self.all_tick_durations.popleft()
+        if self.is_verbose:
+            process_duration = process_time - self.last_process_time
+            intensity = 100 * process_duration / tick_duration
+            clock_speed = 1 / tick_duration
+            real_time = self.tick_count / self.normal_speed
+            print(
+                f"Tick {self.tick_count:4}: {real_time:4.2f}s  "
+                f"{tick_duration:.6f}s, "
+                f"{intensity:6.2f}%, {clock_speed:6.1f}Hz, "
+                f"{self.actual_clock_speed:6.1f}Hz, "
+                f"{self.tick_adjustment:.6f}s"
+            )
+        if self.tick_interval:
+            tick_oversize = tick_duration - self.tick_interval
+            tick_oversize_percentage = 100 * (tick_oversize) / self.tick_interval
+            # if tick_oversize_percentage > 300:
+            #     print(f"Warning: Tick over size: { tick_duration :.6f}s
+            #     {tick_oversize_percentage:.2f}%")
+
+            if abs(tick_oversize_percentage) < 300:
+                # Weight falls from 1 as reciprocal of count, to tick
+                # interval.
+                # weight = max(1 / self.tick_count, min(.1,
+                # self.tick_interval))
+                weight = 1 / (1 + self.tick_count * self.tick_interval) ** 2
+                # print(f"Weight: {weight:.4f}")
+                self.tick_adjustment += weight * tick_oversize
+                max_tick_adjustment = 1.0 * self.tick_interval
+                min_tick_adjustment = 0
+                self.tick_adjustment = min(self.tick_adjustment, max_tick_adjustment)
+                self.tick_adjustment = max(self.tick_adjustment, min_tick_adjustment)
 
 
 class ProcessRunningClockThread(ClockThread):
     def __init__(
         self,
-        normal_speed,
-        scale_factor,
+        *,
+        normal_speed: int,
+        scale_factor: int,
         stop_event: Event,
-        is_verbose=False,
-        seen_prompt_events=None,
-        processes=None,
-        use_direct_query_if_available=False,
+        is_verbose: bool = False,
+        seen_prompt_events: Dict[str, Event],
+        processes: Dict[str, ProcessApplication],
+        use_direct_query_if_available: bool = False,
     ):
         super(ProcessRunningClockThread, self).__init__(daemon=True)
         self.normal_speed = normal_speed
@@ -715,21 +809,18 @@ class ProcessRunningClockThread(ClockThread):
         self.seen_prompt_events = seen_prompt_events
         self.processes = processes
         self.use_direct_query_if_available = use_direct_query_if_available
-        self.last_tick_time = None
-        self.last_process_time = None
+        self.last_tick_time: Union[float, int] = 0
+        self.last_process_time = 0.0
         self.all_tick_durations: Deque = deque()
-        self.tick_adjustment = 0.0
+        self.tick_adjustment: float = 0.0
         self.is_verbose = is_verbose
         if normal_speed and scale_factor:
             self.tick_interval = 1 / normal_speed / scale_factor
-        else:
-            self.tick_interval = None
-        if self.tick_interval:
-
             self.tick_durations_window_size = max(
                 100, int(round(1 / self.tick_interval, 0))
             )
         else:
+            self.tick_interval = 0
             self.tick_durations_window_size = 1000
         # Construct lists of followers for each process.
         self.followers: Dict[str, List[str]] = {}
@@ -749,7 +840,7 @@ class ProcessRunningClockThread(ClockThread):
             self.readers[process.name] = reader
 
     @property
-    def actual_clock_speed(self):
+    def actual_clock_speed(self) -> Union[int, float]:
         if self.all_tick_durations:
             # Todo: Might need to lock this, to avoid "RuntimeError: deque mutated
             #  during iteration".
@@ -758,7 +849,7 @@ class ProcessRunningClockThread(ClockThread):
         else:
             return 0
 
-    def run(self):
+    def run(self) -> None:
         # Get new notifications once.
 
         # loop_counter = 0
@@ -811,52 +902,10 @@ class ProcessRunningClockThread(ClockThread):
                     self.stop_event.set()
                     raise
             else:
-                tick_time = time.time()
+                tick_time: float = time.time()
                 process_time = time.process_time()
-                if self.last_tick_time is not None:
-                    tick_duration = tick_time - self.last_tick_time
-                    self.all_tick_durations.append(tick_duration)
-                    if len(self.all_tick_durations) > self.tick_durations_window_size:
-                        self.all_tick_durations.popleft()
-
-                    if self.is_verbose:
-                        process_duration = process_time - self.last_process_time
-                        intensity = 100 * process_duration / tick_duration
-                        clock_speed = 1 / tick_duration
-                        real_time = self.tick_count / self.normal_speed
-                        print(
-                            f"Tick {self.tick_count:4}: {real_time:4.2f}s  "
-                            f"{tick_duration:.6f}s, "
-                            f"{intensity:6.2f}%, {clock_speed:6.1f}Hz, "
-                            f"{self.actual_clock_speed:6.1f}Hz, "
-                            f"{self.tick_adjustment:.6f}s"
-                        )
-
-                    if self.tick_interval:
-                        tick_oversize = tick_duration - self.tick_interval
-                        tick_oversize_percentage = (
-                            100 * (tick_oversize) / self.tick_interval
-                        )
-                        # if tick_oversize_percentage > 300:
-                        #     print(f"Warning: Tick over size: { tick_duration :.6f}s
-                        #     {tick_oversize_percentage:.2f}%")
-
-                        if abs(tick_oversize_percentage) < 300:
-                            # Weight falls from 1 as reciprocal of count, to tick
-                            # interval.
-                            # weight = max(1 / self.tick_count, min(.1,
-                            # self.tick_interval))
-                            weight = 1 / (1 + self.tick_count * self.tick_interval) ** 2
-                            # print(f"Weight: {weight:.4f}")
-                            self.tick_adjustment += weight * tick_oversize
-                            max_tick_adjustment = 1.0 * self.tick_interval
-                            min_tick_adjustment = 0
-                            self.tick_adjustment = min(
-                                self.tick_adjustment, max_tick_adjustment
-                            )
-                            self.tick_adjustment = max(
-                                self.tick_adjustment, min_tick_adjustment
-                            )
+                if self.last_tick_time:
+                    self.do_tick(process_time, tick_time)
 
                 self.last_tick_time = tick_time
                 self.last_process_time = process_time
@@ -895,20 +944,21 @@ class SteppingMultiThreadedRunner(SteppingRunner):
 
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super(SteppingMultiThreadedRunner, self).__init__(*args, **kwargs)
-        self.seen_prompt_events = {}
-        self.fetch_barrier = None
-        self.execute_barrier = None
-        self.application_threads = {}
+        self.seen_prompt_events: Dict[str, Event] = {}
+        self.fetch_barrier: Optional[Barrier] = None
+        self.execute_barrier: Optional[Barrier] = None
+        self.application_threads: Dict[str, BarrierControlledApplicationThread] = {}
         self.clock_thread = None
         self.stop_event = Event()
 
-    def handle_prompt(self, prompt):
+    def handle_prompt(self, prompt: Any) -> None:
+        assert isinstance(prompt, Prompt)
         seen_prompt = self.seen_prompt_events[prompt.process_name]
         seen_prompt.set()
 
-    def start(self):
+    def start(self) -> None:
         super(SteppingMultiThreadedRunner, self).start()
         parties = 1 + len(self.processes)
         self.fetch_barrier = Barrier(parties)
@@ -946,25 +996,29 @@ class SteppingMultiThreadedRunner(SteppingRunner):
         )
         self.clock_thread.start()
 
-    def close(self):
+    def close(self) -> None:
         self.stop_event.set()
         super(SteppingMultiThreadedRunner, self).close()
-        self.execute_barrier.abort()
-        self.fetch_barrier.abort()
+        if self.execute_barrier:
+            self.execute_barrier.abort()
+        if self.fetch_barrier:
+            self.fetch_barrier.abort()
 
         for thread in self.application_threads.values():
             thread.join(timeout=1)
             if thread.isAlive():
                 print(
-                    f"Warning: application thread '{thread.process.name}' was still "
-                    f"alive: {thread.state}"
+                    f"Warning: application thread '"
+                    f"{thread.process_application.name}"
+                    f"' was still alive."
                 )
 
         self.application_threads.clear()
 
-        self.clock_thread.join()
-        if self.clock_thread.isAlive():
-            print(f"Warning: clock thread was still alive")
+        if self.clock_thread:
+            self.clock_thread.join(timeout=1)
+            if self.clock_thread.isAlive():
+                print(f"Warning: clock thread was still alive")
 
 
 class BarrierControlledApplicationThread(Thread):
@@ -981,7 +1035,7 @@ class BarrierControlledApplicationThread(Thread):
         self.execute_barrier = execute_barrier
         self.stop_event = stop_event
 
-    def run(self):
+    def run(self) -> None:
         while not self.stop_event.is_set():
             # Isolate "fetch" and "execute" steps, to avoid
             # events created in one application being processed by
@@ -1037,7 +1091,7 @@ class BarrierControlledApplicationThread(Thread):
             except BrokenBarrierError:
                 self.abort()
 
-    def abort(self):
+    def abort(self) -> None:
         self.stop_event.set()
         self.fetch_barrier.abort()
         self.execute_barrier.abort()
@@ -1046,13 +1100,13 @@ class BarrierControlledApplicationThread(Thread):
 class BarrierControllingClockThread(ClockThread):
     def __init__(
         self,
-        normal_speed,
-        scale_factor,
-        tick_interval,
+        normal_speed: int,
+        scale_factor: int,
+        tick_interval: Optional[Union[int, float]],
         fetch_barrier: Barrier,
         execute_barrier: Barrier,
         stop_event: Event,
-        is_verbose=False,
+        is_verbose: bool = False,
     ):
         super(BarrierControllingClockThread, self).__init__(daemon=True)
         # Todo: Remove the redundancy here.
@@ -1062,10 +1116,10 @@ class BarrierControllingClockThread(ClockThread):
         self.fetch_barrier = fetch_barrier
         self.execute_barrier = execute_barrier
         self.stop_event = stop_event
-        self.last_tick_time = None
-        self.last_process_time = None
+        self.last_tick_time = 0.0
+        self.last_process_time = 0.0
         self.all_tick_durations: Deque = deque()
-        self.tick_adjustment = 0.0
+        self.tick_adjustment: float = 0.0
         self.is_verbose = is_verbose
         if self.tick_interval:
 
@@ -1076,14 +1130,14 @@ class BarrierControllingClockThread(ClockThread):
             self.tick_durations_window_size = 100
 
     @property
-    def actual_clock_speed(self):
+    def actual_clock_speed(self) -> float:
         if self.all_tick_durations:
             durations = self.all_tick_durations
             return len(durations) / sum(durations)
         else:
-            return 0
+            return 0.0
 
-    def run(self):
+    def run(self) -> None:
         while not self.stop_event.is_set():
 
             try:
@@ -1098,50 +1152,8 @@ class BarrierControllingClockThread(ClockThread):
             else:
                 tick_time = time.time()
                 process_time = time.process_time()
-                if self.last_tick_time is not None:
-                    tick_duration = tick_time - self.last_tick_time
-                    self.all_tick_durations.append(tick_duration)
-                    if len(self.all_tick_durations) > self.tick_durations_window_size:
-                        self.all_tick_durations.popleft()
-
-                    if self.is_verbose:
-                        process_duration = process_time - self.last_process_time
-                        intensity = 100 * process_duration / tick_duration
-                        clock_speed = 1 / tick_duration
-                        real_time = self.tick_count / self.normal_speed
-                        print(
-                            f"Tick {self.tick_count:4}: {real_time:4.2f}s  "
-                            f"{tick_duration:.6f}s, "
-                            f"{intensity:6.2f}%, {clock_speed:6.1f}Hz, "
-                            f"{self.actual_clock_speed:6.1f}Hz, "
-                            f"{self.tick_adjustment:.6f}s"
-                        )
-
-                    if self.tick_interval:
-                        tick_oversize = tick_duration - self.tick_interval
-                        tick_oversize_percentage = (
-                            100 * (tick_oversize) / self.tick_interval
-                        )
-                        # if tick_oversize_percentage > 300:
-                        #     print(f"Warning: Tick over size: { tick_duration :.6f}s
-                        #     {tick_oversize_percentage:.2f}%")
-
-                        if abs(tick_oversize_percentage) < 300:
-                            # Weight falls from 1 as reciprocal of count, to tick
-                            # interval.
-                            # weight = max(1 / self.tick_count, min(.1,
-                            # self.tick_interval))
-                            weight = 1 / (1 + self.tick_count * self.tick_interval) ** 2
-                            # print(f"Weight: {weight:.4f}")
-                            self.tick_adjustment += weight * tick_oversize
-                            max_tick_adjustment = 1.0 * self.tick_interval
-                            min_tick_adjustment = 0
-                            self.tick_adjustment = min(
-                                self.tick_adjustment, max_tick_adjustment
-                            )
-                            self.tick_adjustment = max(
-                                self.tick_adjustment, min_tick_adjustment
-                            )
+                if self.last_tick_time:
+                    self.do_tick(process_time, tick_time)
 
                 self.last_tick_time = tick_time
                 self.last_process_time = process_time

@@ -1,7 +1,7 @@
 import time
 from collections import OrderedDict, defaultdict, deque
 from decimal import Decimal
-from threading import Lock
+from threading import Lock, Event
 from types import FunctionType
 from typing import (
     Any,
@@ -153,8 +153,8 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
         self.is_reader_position_ok: Dict[str, bool] = defaultdict(bool)
         self._notification_generators: Dict[str, Iterator[Dict[str, Any]]] = {}
         self._policy_lock = Lock()
-        self.clock_event = None
-        self.tick_interval: Optional[int] = None
+        self.clock_event: Optional[Event] = None
+        self.tick_interval: Optional[Union[float, int]] = None
         self.use_direct_query_if_available = use_direct_query_if_available
         self.notification_log_reader_class = (
             notification_log_reader_class or type(self).notification_log_reader_class
