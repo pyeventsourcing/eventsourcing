@@ -7,15 +7,16 @@ from queue import Empty, Queue
 from threading import Barrier, BrokenBarrierError, Event, Lock, Thread, Timer
 from time import sleep
 from typing import (
-    Optional,
-    Type,
-    TypeVar,
-    Dict,
-    Deque,
-    Union,
-    List,
     Any,
     Callable,
+    Deque,
+    Dict,
+    List,
+    Optional,
+    TYPE_CHECKING,
+    Type,
+    TypeVar,
+    Union,
     no_type_check,
 )
 
@@ -34,7 +35,6 @@ from eventsourcing.exceptions import (
 )
 
 DEFAULT_POLL_INTERVAL = 5
-
 
 T_proc_app = TypeVar("T_proc_app", bound=ProcessApplication)
 T_s = TypeVar("T_s", bound="System")
@@ -246,7 +246,7 @@ class SystemRunner(ABC):
         self.use_direct_query_if_available = (
             use_direct_query_if_available or system.use_direct_query_if_available
         )
-        self.processes: Dict[str, ProcessApplication] = {}
+        self.processes: Dict[str, Any] = {}
 
     def __enter__(self: T_runner) -> T_runner:
         """
@@ -289,10 +289,16 @@ class SystemRunner(ABC):
         """
         return self.construct_app(process_name)
 
-    def getapp(self, process_class: Type[ProcessApplication]) -> ProcessApplication:
-        return self.construct_app_by_class(process_class)
+    def getapp(self, process_class: Type[T_proc_app]) -> T_proc_app:
+        process_name = process_class.__name__.lower()
+        try:
+            process = self.processes[process_name]
+        except KeyError:
+            process = self.construct_app_by_class(process_class)
+            self.processes[process_name] = process
+        return process
 
-    def construct_app(self, process_name: str) -> ProcessApplication:
+    def construct_app(self, process_name: str) -> T_proc_app:
         if process_name in self.processes:
             process = self.processes[process_name]
         else:
@@ -367,7 +373,10 @@ class SingleThreadedRunner(InProcessRunner):
         super(SingleThreadedRunner, self).__init__(
             system, infrastructure_class=infrastructure_class, **kwargs
         )
-        self.pending_prompts: Queue[Prompt] = Queue()
+        if TYPE_CHECKING:
+            self.pending_prompts: Queue[Prompt]
+        self.pending_prompts = Queue()
+
         self.iteration_lock = Lock()
 
     def handle_prompt(self, prompt: Any) -> None:
@@ -601,13 +610,15 @@ class PromptQueuedApplicationThread(Thread):
         *,
         process: ProcessApplication,
         poll_interval: int = DEFAULT_POLL_INTERVAL,
-        inbox: Queue[Union[Prompt, str]],
+        inbox: Queue,
         outbox: Optional[PromptOutbox],
         clock_event: Optional[Event] = None,
     ):
         super(PromptQueuedApplicationThread, self).__init__(daemon=True)
         self.process = process
         self.poll_interval = poll_interval
+        if TYPE_CHECKING:
+            self.inbox: Queue[Union[Prompt, str]]
         self.inbox = inbox
         self.outbox = outbox
         self.clock_event = clock_event
