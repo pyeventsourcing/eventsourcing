@@ -39,5 +39,5 @@ class SQLAlchemyApplication(ApplicationWithConcreteInfrastructure):
             *args,
             **kwargs
         )
-        if self.datastore and self.session is None:
+        if self.datastore and self.datastore.session and self.session is None:
             self.session = self.datastore.session
