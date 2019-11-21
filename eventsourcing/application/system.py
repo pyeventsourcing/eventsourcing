@@ -218,7 +218,6 @@ class System(object):
             raise ProgrammingError("System already has an infrastructure class")
 
         # Clone the system object, and set the infrastructure class.
-        # system = object.__new__(type(self))
         system = type(self).__new__(type(self))
         system.__dict__.update(dict(deepcopy(self.__dict__)))
         system.__dict__.update(infrastructure_class=infrastructure_class)
@@ -287,26 +286,25 @@ class SystemRunner(ABC):
         :param process_name:
         :return: A process application object.
         """
-        return self.construct_app(process_name)
+        return self._construct_app_by_name(process_name)
 
-    def getapp(self, process_class: Type[T_proc_app]) -> T_proc_app:
-        process_name = process_class.__name__.lower()
-        try:
-            process = self.processes[process_name]
-        except KeyError:
-            process = self.construct_app_by_class(process_class)
-            self.processes[process_name] = process
-        return process
-
-    def construct_app(self, process_name: str) -> T_proc_app:
+    def _construct_app_by_name(self, process_name: str) -> T_proc_app:
         if process_name in self.processes:
             process = self.processes[process_name]
         else:
             process_class = self.system.process_classes[process_name]
-            process = self.construct_app_by_class(process_class)
+            process = self._construct_app_by_class(process_class)
         return process
 
-    def construct_app_by_class(self, process_class: Type[T_proc_app]) -> T_proc_app:
+    def get(self, process_class: Type[T_proc_app]) -> T_proc_app:
+        process_name = process_class.__name__.lower()
+        try:
+            process = self.processes[process_name]
+        except KeyError:
+            process = self._construct_app_by_class(process_class)
+        return process
+
+    def _construct_app_by_class(self, process_class: Type[T_proc_app]) -> T_proc_app:
         process = self.system.construct_app(
             process_class=process_class,
             infrastructure_class=self.infrastructure_class,
@@ -330,7 +328,7 @@ class InProcessRunner(SystemRunner):
 
         # Construct the processes.
         for process_name in self.system.process_classes.keys():
-            self.construct_app(process_name)
+            self._construct_app_by_name(process_name)
 
         # Tell each process about the processes it follows.
         for followed_name, followers in self.system.followers.items():
