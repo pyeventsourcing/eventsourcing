@@ -16,7 +16,7 @@
 
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union, Type, TypeVar
+from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
 from unittest import TestCase
 from uuid import UUID
 
@@ -27,13 +27,13 @@ from eventsourcing.application.system import (
     SingleThreadedRunner,
     System,
 )
-from eventsourcing.domain.model.aggregate import BaseAggregateRoot
-from eventsourcing.domain.model.events import DomainEvent
+from eventsourcing.domain.model.aggregate import BaseAggregateRoot, T_ag_ev
 from eventsourcing.exceptions import RepositoryKeyError
-from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 
 
 # Locations in the world.
+
+
 class Location(Enum):
     HAMBURG = "HAMBURG"
     HONGKONG = "HONGKONG"
@@ -64,6 +64,7 @@ LegDetails = Dict[str, str]
 
 ItineraryDetails = Dict[str, Union[str, List[LegDetails]]]
 
+
 # Leg of an Itinerary.
 class Leg(object):
     def __init__(self, origin: str, destination: str, voyage_number: str):
@@ -81,7 +82,7 @@ class Itinerary(object):
 
 
 # Custom aggregate root class.
-class AggregateRoot(BaseAggregateRoot):
+class AggregateRoot(BaseAggregateRoot[T_ag_ev]):
     __subclassevents__ = True
 
 
@@ -91,14 +92,11 @@ class AggregateRoot(BaseAggregateRoot):
 T_cargo = TypeVar("T_cargo", bound="Cargo")
 
 
-class Cargo(AggregateRoot):
+class Cargo(AggregateRoot["Cargo.Event"]):
     @classmethod
     def new_booking(
-        cls: Type[T_cargo],
-        origin: Location,
-        destination: Location,
-        arrival_deadline: datetime,
-    ) -> T_cargo:
+        cls, origin: Location, destination: Location, arrival_deadline: datetime
+    ) -> "Cargo":
         return cls.__create__(
             origin=origin, destination=destination, arrival_deadline=arrival_deadline
         )
@@ -170,7 +168,10 @@ class Cargo(AggregateRoot):
     def change_destination(self, destination: Location) -> None:
         self.__trigger_event__(self.DestinationChanged, destination=destination)
 
-    class DestinationChanged(DomainEvent):
+    class Event(AggregateRoot.Event):
+        pass
+
+    class DestinationChanged(Event):
         def mutate(self, obj: "Cargo") -> None:
             obj._destination = self.destination
 
@@ -181,7 +182,7 @@ class Cargo(AggregateRoot):
     def assign_route(self, itinerary: Itinerary) -> None:
         self.__trigger_event__(self.RouteAssigned, route=itinerary)
 
-    class RouteAssigned(DomainEvent):
+    class RouteAssigned(Event):
         def mutate(self, obj: "Cargo") -> None:
             obj._route = self.route
             obj._routing_status = "ROUTED"
@@ -208,7 +209,7 @@ class Cargo(AggregateRoot):
             handling_activity=handling_activity,
         )
 
-    class HandlingEventRegistered(DomainEvent):
+    class HandlingEventRegistered(Event):
         def mutate(self, obj: "Cargo") -> None:
             assert obj.route is not None
             if self.handling_activity == HandlingActivity.RECEIVE:
@@ -289,7 +290,7 @@ class Cargo(AggregateRoot):
 
 # The Cargo aggregate is situated in an event sourced application,
 # which provides application services for clients.
-class BookingApplication(ProcessApplication):
+class BookingApplication(ProcessApplication[Cargo, Cargo.Event]):
     persist_event_type = Cargo.Event
 
     def book_new_cargo(
@@ -306,7 +307,6 @@ class BookingApplication(ProcessApplication):
         except RepositoryKeyError:
             raise Exception("Cargo not found: {}".format(tracking_id))
         else:
-            assert isinstance(cargo, Cargo)
             return cargo
 
     def change_destination(self, tracking_id: UUID, destination: Location) -> None:
@@ -328,7 +328,7 @@ class BookingApplication(ProcessApplication):
         return possible_routes
 
     def assign_route(self, tracking_id: UUID, itinerary: Itinerary) -> None:
-        cargo: Cargo = self.get_cargo(tracking_id)
+        cargo = self.get_cargo(tracking_id)
         cargo.assign_route(itinerary)
         cargo.__save__()
 
@@ -339,7 +339,7 @@ class BookingApplication(ProcessApplication):
         location: Location,
         handing_activity: HandlingActivity,
     ) -> None:
-        cargo: Cargo = self.get_cargo(tracking_id)
+        cargo = self.get_cargo(tracking_id)
         cargo.register_handling_event(
             tracking_id, voyage_number, location, handing_activity
         )
@@ -351,7 +351,7 @@ class BookingApplication(ProcessApplication):
 class LocalClient(object):
     def __init__(self, runner: InProcessRunner):
         self.runner: InProcessRunner = runner
-        self.bookingapp: BookingApplication = self.runner.getapp(BookingApplication)
+        self.bookingapp = self.runner.get(BookingApplication)
 
     def book_new_cargo(
         self, origin: str, destination: str, arrival_deadline: datetime
@@ -426,7 +426,7 @@ class LocalClient(object):
         route_details: ItineraryDetails = {
             "origin": itinerary.origin,
             "destination": itinerary.destination,
-            "legs": legs_details
+            "legs": legs_details,
         }
         return route_details
 
