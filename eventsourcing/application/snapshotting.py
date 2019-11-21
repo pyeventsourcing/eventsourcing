@@ -54,15 +54,15 @@ class SnapshottingApplication(SimpleApplication[T_en, T_ev]):
 
     def setup_table(self) -> None:
         super(SnapshottingApplication, self).setup_table()
-        if self.datastore is not None:
+        if self._datastore is not None:
             assert self.snapshot_store
-            self.datastore.setup_table(self.snapshot_store.record_manager.record_class)
+            self._datastore.setup_table(self.snapshot_store.record_manager.record_class)
 
     def drop_table(self) -> None:
         super(SnapshottingApplication, self).drop_table()
-        if self.datastore is not None:
+        if self._datastore is not None:
             assert self.snapshot_store
-            self.datastore.drop_table(self.snapshot_store.record_manager.record_class)
+            self._datastore.drop_table(self.snapshot_store.record_manager.record_class)
 
     def close(self) -> None:
         super(SnapshottingApplication, self).close()

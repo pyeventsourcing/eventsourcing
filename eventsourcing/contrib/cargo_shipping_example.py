@@ -223,8 +223,7 @@ class Cargo(AggregateRoot["Cargo.Event"]):
             elif self.handling_activity == HandlingActivity.LOAD:
                 obj._transport_status = "ONBOARD_CARRIER"
                 obj._current_voyage_number = self.voyage_number
-                assert obj._route is not None
-                for leg in obj._route.legs:
+                for leg in obj.route.legs:
                     if leg.origin == self.location.value:
                         if leg.voyage_number == self.voyage_number:
                             obj._next_expected_activity = (
@@ -240,7 +239,6 @@ class Cargo(AggregateRoot["Cargo.Event"]):
                     )
 
             elif self.handling_activity == HandlingActivity.UNLOAD:
-                assert obj._route is not None
                 obj._current_voyage_number = None
                 obj._last_known_location = self.location
                 obj._transport_status = "IN_PORT"
@@ -250,11 +248,11 @@ class Cargo(AggregateRoot["Cargo.Event"]):
                         self.location,
                     )
                 elif self.location.value in [
-                    leg.destination for leg in obj._route.legs
+                    leg.destination for leg in obj.route.legs
                 ]:
-                    for i, leg in enumerate(obj._route.legs):
+                    for i, leg in enumerate(obj.route.legs):
                         if leg.voyage_number == self.voyage_number:
-                            next_leg: Leg = obj._route.legs[i + 1]
+                            next_leg: Leg = obj.route.legs[i + 1]
                             assert Location[next_leg.origin] == self.location
                             obj._next_expected_activity = (
                                 HandlingActivity.LOAD,
@@ -301,7 +299,6 @@ class BookingApplication(ProcessApplication[Cargo, Cargo.Event]):
         return cargo.id
 
     def get_cargo(self, tracking_id: UUID) -> Cargo:
-        assert self.repository
         try:
             cargo = self.repository[tracking_id]
         except RepositoryKeyError:

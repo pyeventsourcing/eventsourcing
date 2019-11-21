@@ -70,11 +70,6 @@ class SimpleApplication(Pipeable, Generic[T_en, T_ev]):
         json_decoder_class: Optional[Type[JSONDecoder]] = None,
         notification_log_section_size: Optional[int] = None,
     ):
-        self._datastore: Optional[AbstractDatastore] = None
-        self._event_store: Optional[EventStore] = None
-        self._repository: Optional[EventSourcedRepository] = None
-        self.infrastructure_factory: Optional[InfrastructureFactory] = None
-
         self.name = name or type(self).__name__.lower()
 
         self.notification_log_section_size = notification_log_section_size
@@ -92,12 +87,10 @@ class SimpleApplication(Pipeable, Generic[T_en, T_ev]):
         self.record_manager_class = (
             record_manager_class or type(self).record_manager_class
         )
+        self._stored_event_record_class = stored_event_record_class
+        self._snapshot_record_class = snapshot_record_class
 
         self.event_store_class = event_store_class or type(self).event_store_class
-
-        self._stored_event_record_class = stored_event_record_class
-
-        self._snapshot_record_class = snapshot_record_class
 
         self.json_encoder_class = json_encoder_class or type(self).json_encoder_class
         self.json_decoder_class = json_decoder_class or type(self).json_decoder_class
@@ -107,12 +100,18 @@ class SimpleApplication(Pipeable, Generic[T_en, T_ev]):
         self.pipeline_id = pipeline_id
         self.persistence_policy = persistence_policy
 
-        self.construct_cipher(cipher_key)
+        self.cipher = self.construct_cipher(cipher_key)
+
+        self.infrastructure_factory: Optional[InfrastructureFactory] = None
+        self._datastore: Optional[AbstractDatastore] = None
+        self._event_store: Optional[EventStore] = None
+        self._repository: Optional[EventSourcedRepository] = None
 
         if (
             self.record_manager_class
             or self.infrastructure_factory_class.record_manager_class
         ):
+
             self.construct_infrastructure()
 
             if setup_table:
@@ -123,7 +122,8 @@ class SimpleApplication(Pipeable, Generic[T_en, T_ev]):
                 self.construct_persistence_policy()
 
     @property
-    def datastore(self) -> Optional[AbstractDatastore]:
+    def datastore(self) -> AbstractDatastore:
+        assert self._datastore
         return self._datastore
 
     @property
@@ -131,18 +131,20 @@ class SimpleApplication(Pipeable, Generic[T_en, T_ev]):
         return None
 
     @property
-    def event_store(self) -> Optional[EventStore[T_ev, BaseRecordManager[T_ev]]]:
+    def event_store(self) -> EventStore[T_ev, BaseRecordManager[T_ev]]:
+        assert self._event_store
         return self._event_store
 
     @property
-    def repository(self) -> Optional[EventSourcedRepository[T_en, T_ev]]:
+    def repository(self) -> EventSourcedRepository[T_en, T_ev]:
+        assert self._repository
         return self._repository
 
-    def construct_cipher(self, cipher_key_str: Optional[str]) -> None:
+    def construct_cipher(self, cipher_key_str: Optional[str]) -> Optional[AESCipher]:
         cipher_key_bytes = decode_bytes(
             cipher_key_str or os.getenv("CIPHER_KEY", "") or ""
         )
-        self.cipher = AESCipher(cipher_key_bytes) if cipher_key_bytes else None
+        return AESCipher(cipher_key_bytes) if cipher_key_bytes else None
 
     def construct_infrastructure(self, *args: Any, **kwargs: Any) -> None:
         self.infrastructure_factory = self.construct_infrastructure_factory(
@@ -168,7 +170,7 @@ class SimpleApplication(Pipeable, Generic[T_en, T_ev]):
             self._snapshot_record_class or self.snapshot_record_class
         )
 
-        return factory_class( # type:ignore  # multiple values for keyword argument
+        return factory_class(  # type:ignore  # multiple values for keyword argument
             record_manager_class=self.record_manager_class,
             integer_sequenced_record_class=integer_sequenced_record_class,
             snapshot_record_class=snapshot_record_class,
@@ -195,21 +197,20 @@ class SimpleApplication(Pipeable, Generic[T_en, T_ev]):
 
     def construct_repository(self, **kwargs: Any) -> None:
         assert self.repository_class
-        assert self.event_store
         self._repository = self.repository_class(
             event_store=self.event_store, use_cache=self.use_cache, **kwargs
         )
 
     def setup_table(self) -> None:
         # Setup the database table using event store's record class.
-        if self.datastore is not None:
+        if self._datastore is not None:
             assert self.event_store
             record_class = self.event_store.record_manager.record_class
             self.datastore.setup_table(record_class)
 
     def drop_table(self) -> None:
         # Drop the database table using event store's record class.
-        if self.datastore is not None:
+        if self._datastore is not None:
             assert self.event_store
             record_class = self.event_store.record_manager.record_class
             self.datastore.drop_table(record_class)
@@ -239,8 +240,8 @@ class SimpleApplication(Pipeable, Generic[T_en, T_ev]):
             self.persistence_policy.close()
 
         # Close database connection.
-        if self.datastore is not None:
-            self.datastore.close_connection()
+        if self._datastore is not None:
+            self._datastore.close_connection()
 
     def __enter__(self: T) -> T:
         return self

@@ -168,12 +168,12 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
             name=name, setup_table=setup_table, **kwargs
         )
 
-        if self.event_store:
+        if self._event_store:
             self.notification_topic_key = (
-                self.event_store.record_manager.field_names.topic
+                self._event_store.record_manager.field_names.topic
             )
             self.notification_state_key = (
-                self.event_store.record_manager.field_names.state
+                self._event_store.record_manager.field_names.state
             )
 
         # Publish prompts for any domain events that we persist.
@@ -620,11 +620,10 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
 
     def setup_table(self) -> None:
         super(ProcessApplication, self).setup_table()
-        if self.datastore is not None:
-            assert self.event_store
+        if self._datastore is not None:
             record_manager = self.event_store.record_manager
             assert isinstance(record_manager, ACIDRecordManager)
-            self.datastore.setup_table(record_manager.tracking_record_class)
+            self._datastore.setup_table(record_manager.tracking_record_class)
 
     def drop_table(self) -> None:
         super(ProcessApplication, self).drop_table()
