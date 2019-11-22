@@ -16,7 +16,7 @@
 
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union, Type
+from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
 from unittest import TestCase
 from uuid import UUID
 
@@ -27,7 +27,7 @@ from eventsourcing.application.system import (
     SingleThreadedRunner,
     System,
 )
-from eventsourcing.domain.model.aggregate import BaseAggregateRoot, T_ag_ev
+from eventsourcing.domain.model.aggregate import AggregateRoot
 from eventsourcing.exceptions import RepositoryKeyError
 
 
@@ -82,7 +82,7 @@ class Itinerary(object):
 
 
 # Custom aggregate root class.
-class AggregateRoot(BaseAggregateRoot):
+class BaseCargoShippingAggregate(AggregateRoot):
     __subclassevents__ = True
 
 
@@ -93,8 +93,7 @@ class AggregateRoot(BaseAggregateRoot):
 T_cargo = TypeVar("T_cargo", bound="Cargo")
 
 
-class Cargo(AggregateRoot):
-
+class Cargo(BaseCargoShippingAggregate):
     @classmethod
     def new_booking(
         cls: Type[T_cargo],
@@ -172,11 +171,11 @@ class Cargo(AggregateRoot):
     def current_voyage_number(self) -> Optional[str]:
         return self._current_voyage_number
 
+    class Event(BaseCargoShippingAggregate.Event):
+        pass
+
     def change_destination(self, destination: Location) -> None:
         self.__trigger_event__(self.DestinationChanged, destination=destination)
-
-    class Event(AggregateRoot.Event):
-        pass
 
     class DestinationChanged(Event):
         def mutate(self, obj: "Cargo") -> None:

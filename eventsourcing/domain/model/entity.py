@@ -22,8 +22,8 @@ from eventsourcing.exceptions import (
 from eventsourcing.types import (
     AbstractDomainEntity,
     MetaAbstractDomainEntity,
-    T_ev_evs,
     T_aev,
+    T_ev_evs,
 )
 from eventsourcing.utils.times import decimaltimestamp_from_uuid
 from eventsourcing.utils.topic import get_topic, resolve_topic
@@ -55,7 +55,7 @@ T_ev = TypeVar("T_ev", bound="DomainEntity.Event")
 T_ev_created = TypeVar("T_ev_created", bound="DomainEntity.Created")
 
 
-class DomainEntity(AbstractDomainEntity[T_aev], metaclass=MetaDomainEntity):
+class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
     """
     Supertype for domain model entity.
     """
@@ -365,12 +365,17 @@ class EntityWithHashchain(DomainEntity):
 
     @classmethod
     def __create__(
-        cls: Type[T_en_hashchain], *args: Any, **kwargs: Any
+        cls: Type[T_en_hashchain],
+        originator_id: Optional[UUID] = None,
+        event_class: Optional[Type["DomainEntity.Created[T_en_hashchain]"]] = None,
+        **kwargs: Any,
     ) -> T_en_hashchain:
-        assert issubclass(cls, EntityWithHashchain)
         # Initialise the hash-chain with "genesis hash".
         kwargs["__previous_hash__"] = getattr(cls, "__genesis_hash__", GENESIS_HASH)
-        obj = super(EntityWithHashchain, cls).__create__(*args, **kwargs)
+        assert issubclass(cls, EntityWithHashchain)  # For PyCharm navigation.
+        obj = super(EntityWithHashchain, cls).__create__(
+            originator_id=originator_id, event_class=event_class, **kwargs
+        )
         assert isinstance(obj, EntityWithHashchain)  # For PyCharm type checking.
         return obj
 

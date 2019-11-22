@@ -8,7 +8,6 @@ from eventsourcing.types import (
     AbstractDomainEvent,
     AbstractEventWithOriginatorID,
     AbstractEventWithOriginatorVersion,
-    AbstractEventWithTimestamp,
     T_aen,
     T_ev_evs,
 )
@@ -236,7 +235,7 @@ class EventWithOriginatorID(AbstractEventWithOriginatorID[T_aen], DomainEvent[T_
         return self.__dict__["originator_id"]
 
 
-class EventWithTimestamp(AbstractEventWithTimestamp[T_aen], DomainEvent[T_aen]):
+class EventWithTimestamp(DomainEvent[T_aen]):
     """
     For events that have a timestamp value.
     """

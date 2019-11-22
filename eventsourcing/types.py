@@ -9,7 +9,6 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
-    Type,
     TypeVar,
     Union,
 )
@@ -49,10 +48,6 @@ class AbstractDomainEvent(ABC, Generic[T_aen]):
     def __mutate__(self, obj: Optional[T_aen]) -> Optional[T_aen]:
         pass
 
-    @abstractmethod
-    def mutate(self, obj: T_aen) -> None:
-        pass
-
 
 T_aev = TypeVar("T_aev", bound=AbstractDomainEvent)
 
@@ -61,71 +56,11 @@ T_evs = Sequence[T_aev]
 T_ev_evs = Union[T_aev, T_evs]
 
 
-class AbstractDomainEntity(Generic[T_aev], metaclass=MetaAbstractDomainEntity):
+class AbstractDomainEntity(metaclass=MetaAbstractDomainEntity):
     @property
     @abstractmethod
     def id(self) -> UUID:
         pass
-
-    # @classmethod
-    # @abstractmethod
-    # def __create__(
-    #     cls: Type[T_aen],
-    #     originator_id: Optional[UUID] = None,
-    #     event_class: Optional[Type[T_aev]] = None,
-    #     **kwargs: Any
-    # ) -> T_aen:
-    #     """
-    #     Constructs, applies, and publishes a domain event.
-    #     """
-
-    @abstractmethod
-    def __trigger_event__(self, event_class: Type[T_aev], **kwargs: Any) -> None:
-        """
-        Constructs, applies, and publishes a domain event.
-        """
-
-    # @abstractmethod
-    # def __mutate__(self, event: T_aev) -> None:
-    #     """
-    #     Mutates this entity with the given event.
-    #     """
-
-    @abstractmethod
-    def __publish__(self, event: T_ev_evs) -> None:
-        """
-        Publishes given event for subscribers in the application.
-        """
-
-    @abstractmethod
-    def __assert_not_discarded__(self) -> None:
-        """
-        Asserts that this entity has not been discarded.
-        """
-
-    # @property
-    # @classmethod
-    # @abstractmethod
-    # def Event(cls) -> Type[T_ev]:
-    #     pass
-    #
-    # @property
-    # @classmethod
-    # @abstractmethod
-    # def Created(cls) -> Type[T_ev]:
-    #     pass
-
-    # @property
-    # @classmethod
-    # @abstractmethod
-    # def AttributeChanged(cls) -> Type[T_ev]:
-    #     pass
-    #
-    # @property
-    # @classmethod
-    # @abstractmethod
-    # def Discarded(self) -> Type[T_ev]:
-    #     pass
 
 
 class AbstractEventWithTimestamp(AbstractDomainEvent[T_aen]):
