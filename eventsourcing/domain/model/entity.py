@@ -50,8 +50,8 @@ class MetaDomainEntity(MetaAbstractDomainEntity):
 
 
 T_en = TypeVar("T_en", bound="DomainEntity")
+
 T_ev = TypeVar("T_ev", bound="DomainEntity.Event")
-T_ev_created = TypeVar("T_ev_created", bound="DomainEntity.Created")
 
 
 class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
