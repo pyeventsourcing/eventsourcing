@@ -194,7 +194,7 @@ class DomainEntity(AbstractDomainEntity[T_aev], metaclass=MetaDomainEntity):
         assert isinstance(self, DomainEntity)  # For PyCharm navigation.
         self.__trigger_event__(event_class=event_class, name=name, value=value)
 
-    class AttributeChanged(Event, events.AttributeChanged[T_en]):
+    class AttributeChanged(Event[T_en], events.AttributeChanged[T_en]):
         """
         Triggered when a named attribute is assigned a new value.
         """
@@ -212,7 +212,7 @@ class DomainEntity(AbstractDomainEntity[T_aev], metaclass=MetaDomainEntity):
         assert isinstance(self, DomainEntity)  # For PyCharm navigation.
         self.__trigger_event__(event_class=event_class)
 
-    class Discarded(events.Discarded[T_en], Event):
+    class Discarded(events.Discarded[T_en], Event[T_en]):
         """
         Triggered when a DomainEntity is discarded.
         """
