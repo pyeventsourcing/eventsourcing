@@ -22,7 +22,6 @@ from eventsourcing.exceptions import (
 from eventsourcing.types import (
     EnduringObject,
     MetaAbstractDomainEntity,
-    T_ao,
     T_ev_evs,
 )
 from eventsourcing.utils.times import decimaltimestamp_from_uuid
@@ -242,7 +241,7 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
         self.__mutate__(event)
         self.__publish__(event)
 
-    def __mutate__(self, event: T_ao) -> None:
+    def __mutate__(self, event: T_ev) -> None:
         """
         Mutates this entity with the given event.
 
