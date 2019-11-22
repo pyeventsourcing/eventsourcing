@@ -280,6 +280,9 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
                     # Check causal dependencies are satisfied.
                     assert isinstance(causal_dependencies, list)
                     for causal_dependency in causal_dependencies:
+                        # Todo: Check causal dependency on system software version?
+
+                        # Check causal dependencies on event notifications.
                         assert isinstance(causal_dependency, dict)
                         pipeline_id = causal_dependency["pipeline_id"]
                         notification_id = causal_dependency["notification_id"]
@@ -336,6 +339,9 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
             orm_objs_pending_save,
             orm_objs_pending_delete,
         ) = self.call_policy(domain_event)
+
+        # Todo: Supplement causal dependencies with system software version?
+        #  - this may help to inhibit premature processing when upgrading
 
         # Record process event.
         assert self.repository
