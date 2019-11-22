@@ -13,7 +13,7 @@ from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.factory import InfrastructureFactory
 from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.types import AbstractRecordManager, T_aen, T_aev, T
+from eventsourcing.types import AbstractRecordManager, T_eo, T_ao, T
 from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.utils.random import decode_bytes
 
@@ -21,7 +21,7 @@ from eventsourcing.utils.random import decode_bytes
 PersistEventType = Optional[Union[Type[DomainEvent], Tuple[Type[DomainEvent]]]]
 
 
-class SimpleApplication(Pipeable, Generic[T_aen, T_aev]):
+class SimpleApplication(Pipeable, Generic[T_eo, T_ao]):
     """
     Base class for event sourced applications.
 
@@ -131,12 +131,12 @@ class SimpleApplication(Pipeable, Generic[T_aen, T_aev]):
         return None
 
     @property
-    def event_store(self) -> EventStore[T_aev, BaseRecordManager[T_aev]]:
+    def event_store(self) -> EventStore[T_ao, BaseRecordManager[T_ao]]:
         assert self._event_store
         return self._event_store
 
     @property
-    def repository(self) -> EventSourcedRepository[T_aen, T_aev]:
+    def repository(self) -> EventSourcedRepository[T_eo, T_ao]:
         assert self._repository
         return self._repository
 

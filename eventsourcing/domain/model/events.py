@@ -5,8 +5,8 @@ from uuid import UUID, uuid1
 
 from eventsourcing.exceptions import EventHashError
 from eventsourcing.types import (
-    AbstractDomainEvent,
-    T_aen,
+    ActualOccasion,
+    T_eo,
     T_ev_evs,
 )
 from eventsourcing.utils.hashing import hash_object
@@ -21,7 +21,7 @@ def create_timesequenced_event_id() -> UUID:
     return uuid1()
 
 
-class DomainEvent(AbstractDomainEvent[T_aen]):
+class DomainEvent(ActualOccasion[T_eo]):
     """
     Base class for domain model events.
 
@@ -54,7 +54,7 @@ class DomainEvent(AbstractDomainEvent[T_aen]):
         args_string = ", ".join(args_strings)
         return "{}({})".format(self.__class__.__qualname__, args_string)
 
-    def __mutate__(self, obj: Optional[T_aen]) -> Optional[T_aen]:
+    def __mutate__(self, obj: Optional[T_eo]) -> Optional[T_eo]:
         """
         Updates 'obj' with values from 'self'.
 
@@ -70,7 +70,7 @@ class DomainEvent(AbstractDomainEvent[T_aen]):
             self.mutate(obj)
         return obj
 
-    def mutate(self, obj: T_aen) -> None:
+    def mutate(self, obj: T_eo) -> None:
         """
         Updates ("mutates") given 'obj'.
 
@@ -141,7 +141,7 @@ class DomainEvent(AbstractDomainEvent[T_aen]):
         return hash_object(cls.__json_encoder__, obj)
 
 
-class EventWithHash(DomainEvent[T_aen]):
+class EventWithHash(DomainEvent[T_eo]):
     """
     Base class for domain events with a cryptographic event hash.
 
@@ -183,7 +183,7 @@ class EventWithHash(DomainEvent[T_aen]):
         # Return the Python hash of the cryptographic hash.
         return hash(self.__event_hash__)
 
-    def __mutate__(self, obj: Optional[T_aen]) -> Optional[T_aen]:
+    def __mutate__(self, obj: Optional[T_eo]) -> Optional[T_eo]:
         """
         Updates 'obj' with values from self.
 
@@ -211,7 +211,7 @@ class EventWithHash(DomainEvent[T_aen]):
             raise EventHashError()
 
 
-class EventWithOriginatorID(DomainEvent[T_aen]):
+class EventWithOriginatorID(DomainEvent[T_eo]):
     """
     For events that have an originator ID.
     """
@@ -233,7 +233,7 @@ class EventWithOriginatorID(DomainEvent[T_aen]):
         return self.__dict__["originator_id"]
 
 
-class EventWithTimestamp(DomainEvent[T_aen]):
+class EventWithTimestamp(DomainEvent[T_eo]):
     """
     For events that have a timestamp value.
     """
@@ -250,7 +250,7 @@ class EventWithTimestamp(DomainEvent[T_aen]):
         return self.__dict__["timestamp"]
 
 
-class EventWithOriginatorVersion(DomainEvent[T_aen]):
+class EventWithOriginatorVersion(DomainEvent[T_eo]):
     """
     For events that have an originator version number.
     """
@@ -273,7 +273,7 @@ class EventWithOriginatorVersion(DomainEvent[T_aen]):
         return self.__dict__["originator_version"]
 
 
-class EventWithTimeuuid(DomainEvent[T_aen]):
+class EventWithTimeuuid(DomainEvent[T_eo]):
     """
     For events that have an UUIDv1 event ID.
     """
@@ -287,13 +287,13 @@ class EventWithTimeuuid(DomainEvent[T_aen]):
         return self.__dict__["event_id"]
 
 
-class Created(DomainEvent[T_aen]):
+class Created(DomainEvent[T_eo]):
     """
     Happens when something is created.
     """
 
 
-class AttributeChanged(DomainEvent[T_aen]):
+class AttributeChanged(DomainEvent[T_eo]):
     """
     Happens when the value of an attribute changes.
     """
@@ -307,13 +307,13 @@ class AttributeChanged(DomainEvent[T_aen]):
         return self.__dict__["value"]
 
 
-class Discarded(DomainEvent[T_aen]):
+class Discarded(DomainEvent[T_eo]):
     """
     Happens when something is discarded.
     """
 
 
-class Logged(DomainEvent[T_aen]):
+class Logged(DomainEvent[T_eo]):
     """
     Happens when something is logged.
     """

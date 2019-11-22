@@ -20,9 +20,9 @@ from eventsourcing.exceptions import (
     OriginatorVersionError,
 )
 from eventsourcing.types import (
-    AbstractDomainEntity,
+    EnduringObject,
     MetaAbstractDomainEntity,
-    T_aev,
+    T_ao,
     T_ev_evs,
 )
 from eventsourcing.utils.times import decimaltimestamp_from_uuid
@@ -55,7 +55,7 @@ T_ev = TypeVar("T_ev", bound="DomainEntity.Event")
 T_ev_created = TypeVar("T_ev_created", bound="DomainEntity.Created")
 
 
-class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
+class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
     """
     Supertype for domain model entity.
     """
@@ -233,16 +233,16 @@ class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
         if self.__is_discarded__:
             raise EntityIsDiscarded("Entity is discarded")
 
-    def __trigger_event__(self, event_class: Type[T_aev], **kwargs: Any) -> None:
+    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
         """
         Constructs, applies, and publishes a domain event.
         """
         self.__assert_not_discarded__()
-        event: T_aev = event_class(originator_id=self.id, **kwargs)
+        event: T_ev = event_class(originator_id=self.id, **kwargs)
         self.__mutate__(event)
         self.__publish__(event)
 
-    def __mutate__(self, event: T_aev) -> None:
+    def __mutate__(self, event: T_ao) -> None:
         """
         Mutates this entity with the given event.
 
@@ -379,7 +379,7 @@ class EntityWithHashchain(DomainEntity):
         assert isinstance(obj, EntityWithHashchain)  # For PyCharm type checking.
         return obj
 
-    def __trigger_event__(self, event_class: Type[T_aev], **kwargs: Any) -> None:
+    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
         kwargs["__previous_hash__"] = self.__head__
         super(EntityWithHashchain, self).__trigger_event__(event_class, **kwargs)
 
@@ -396,7 +396,7 @@ class VersionedEntity(DomainEntity):
     def __version__(self) -> int:
         return self.___version__
 
-    def __trigger_event__(self, event_class: Type[T_aev], **kwargs: Any) -> None:
+    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
         """
         Increments the version number when an event is triggered.
 

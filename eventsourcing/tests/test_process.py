@@ -24,7 +24,7 @@ from eventsourcing.domain.model.events import (
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed
 from eventsourcing.infrastructure.sqlalchemy.records import Base
-from eventsourcing.types import T_aen
+from eventsourcing.types import T_eo
 from eventsourcing.utils.topic import resolve_topic
 from eventsourcing.utils.transcoding import ObjectJSONDecoder
 
@@ -455,16 +455,16 @@ class ExampleAggregate(BaseAggregateRoot):
         self.is_moved_on = False
         self.second_id = None
 
-    class Event(BaseAggregateRoot.Event[T_aen]):
+    class Event(BaseAggregateRoot.Event[T_eo]):
         pass
 
-    class Created(Event[T_aen], BaseAggregateRoot.Created[T_aen]):
+    class Created(Event[T_eo], BaseAggregateRoot.Created[T_eo]):
         pass
 
     def move_on(self, second_id=None):
         self.__trigger_event__(ExampleAggregate.MovedOn, second_id=second_id)
 
-    class MovedOn(Event[T_aen]):
+    class MovedOn(Event[T_eo]):
         @property
         def second_id(self):
             return self.__dict__["second_id"]
@@ -501,10 +501,10 @@ class LogMessage(BaseAggregateRoot):
         super(LogMessage, self).__init__(**kwargs)
         self.message = message
 
-    class Event(BaseAggregateRoot.Event[T_aen]):
+    class Event(BaseAggregateRoot.Event[T_eo]):
         pass
 
-    class Created(Event[T_aen], BaseAggregateRoot.Created[T_aen]):
+    class Created(Event[T_eo], BaseAggregateRoot.Created[T_eo]):
         pass
 
 
