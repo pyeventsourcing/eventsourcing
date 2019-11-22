@@ -368,9 +368,10 @@ class ExampleAggregateRoot(AggregateRoot):
 
         def __mutate__(self, obj: Optional[T_aen]) -> Optional[T_aen]:
             obj = super().__mutate__(obj)
-            entity = Example(entity_id=self.entity_id)
-            aggregate = cast(ExampleAggregateRoot, obj)
-            aggregate._entities[entity.id] = entity
+            if obj:
+                assert isinstance(obj, ExampleAggregateRoot)
+                entity = Example(entity_id=self.entity_id)
+                obj._entities[entity.id] = entity
             return obj
 
     class SomethingElseOccurred(DomainEvent):

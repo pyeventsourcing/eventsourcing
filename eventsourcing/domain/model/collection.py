@@ -1,20 +1,24 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from eventsourcing.domain.model.entity import TimestampedVersionedEntity, T_en
+from eventsourcing.domain.model.entity import TimestampedVersionedEntity, T_en_tim_ver
 from eventsourcing.types import AbstractEntityRepository
 
 
 class Collection(TimestampedVersionedEntity):
-    class Event(TimestampedVersionedEntity.Event[T_en]):
+    class Event(TimestampedVersionedEntity.Event[T_en_tim_ver]):
         """Supertype for events of collection entities."""
 
-    class Created(Event[T_en], TimestampedVersionedEntity.Created[T_en]):
+    class Created(
+        Event[T_en_tim_ver], TimestampedVersionedEntity.Created[T_en_tim_ver]
+    ):
         """Published when collection is created."""
 
-    class Discarded(Event[T_en], TimestampedVersionedEntity.Discarded[T_en]):
+    class Discarded(
+        Event[T_en_tim_ver], TimestampedVersionedEntity.Discarded[T_en_tim_ver]
+    ):
         """Published when collection is discarded."""
 
-    class EventWithItem(Event[T_en]):
+    class EventWithItem(Event[T_en_tim_ver]):
         @property
         def item(self):
             return self.__dict__["item"]

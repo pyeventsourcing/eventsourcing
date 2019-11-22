@@ -102,7 +102,7 @@ class Cargo(AggregateRoot):
         destination: Location,
         arrival_deadline: datetime,
     ) -> T_cargo:
-        assert issubclass(cls, Cargo)  # for type hinting PyCharm
+        assert issubclass(cls, Cargo)  # For PyCharm navigation.
         obj = cls.__create__(
             origin=origin, destination=destination, arrival_deadline=arrival_deadline
         )

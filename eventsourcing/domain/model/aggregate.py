@@ -23,7 +23,7 @@ class BaseAggregateRoot(TimestampedVersionedEntity):
     class Event(TimestampedVersionedEntity.Event[T_ag]):
         """Supertype for base aggregate root events."""
 
-    class Created(Event[T_ag], TimestampedVersionedEntity.Created[T_ag]):
+    class Created(TimestampedVersionedEntity.Created[T_ag], Event[T_ag]):
         """Triggered when an aggregate root is created."""
 
     class AttributeChanged(
@@ -92,9 +92,9 @@ class AggregateRootWithHashchainedEvents(EntityWithHashchain, BaseAggregateRoot)
         """Supertype for aggregate events."""
 
     class Created(
-        Event[T_ag_hashchain],
         EntityWithHashchain.Created[T_ag_hashchain],
         BaseAggregateRoot.Created[T_ag_hashchain],
+        Event[T_ag_hashchain],
     ):
         """Triggered when an aggregate root is created."""
 

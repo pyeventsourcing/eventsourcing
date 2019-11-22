@@ -214,7 +214,7 @@ class EventWithHash(DomainEvent[T_aen]):
             raise EventHashError()
 
 
-class EventWithOriginatorID(AbstractEventWithOriginatorID, DomainEvent[T_aen]):
+class EventWithOriginatorID(AbstractEventWithOriginatorID[T_aen], DomainEvent[T_aen]):
     """
     For events that have an originator ID.
     """
@@ -236,7 +236,7 @@ class EventWithOriginatorID(AbstractEventWithOriginatorID, DomainEvent[T_aen]):
         return self.__dict__["originator_id"]
 
 
-class EventWithTimestamp(AbstractEventWithTimestamp, DomainEvent[T_aen]):
+class EventWithTimestamp(AbstractEventWithTimestamp[T_aen], DomainEvent[T_aen]):
     """
     For events that have a timestamp value.
     """
@@ -254,7 +254,7 @@ class EventWithTimestamp(AbstractEventWithTimestamp, DomainEvent[T_aen]):
 
 
 class EventWithOriginatorVersion(
-    AbstractEventWithOriginatorVersion, DomainEvent[T_aen]
+    AbstractEventWithOriginatorVersion[T_aen], DomainEvent[T_aen]
 ):
     """
     For events that have an originator version number.

@@ -52,29 +52,29 @@ class AbstractDomainEntity(metaclass=MetaAbstractDomainEntity):
     def id(self) -> UUID:
         pass
 
-    @classmethod
-    @abstractmethod
-    def __create__(
-        cls: Type[T_aen],
-        originator_id: Optional[UUID] = None,
-        event_class: Optional[Type[T_aev]] = None,
-        **kwargs: Any
-    ) -> T_aen:
-        """
-        Constructs, applies, and publishes a domain event.
-        """
+    # @classmethod
+    # @abstractmethod
+    # def __create__(
+    #     cls: Type[T_aen],
+    #     originator_id: Optional[UUID] = None,
+    #     event_class: Optional[Type[T_aev]] = None,
+    #     **kwargs: Any
+    # ) -> T_aen:
+    #     """
+    #     Constructs, applies, and publishes a domain event.
+    #     """
 
-    @abstractmethod
-    def __trigger_event__(self, event_class: Type[T_aev], **kwargs: Any) -> None:
-        """
-        Constructs, applies, and publishes a domain event.
-        """
+    # @abstractmethod
+    # def __trigger_event__(self, event_class: Type[T_aev], **kwargs: Any) -> None:
+    #     """
+    #     Constructs, applies, and publishes a domain event.
+    #     """
 
-    @abstractmethod
-    def __mutate__(self, event: T_aev) -> None:
-        """
-        Mutates this entity with the given event.
-        """
+    # @abstractmethod
+    # def __mutate__(self, event: T_aev) -> None:
+    #     """
+    #     Mutates this entity with the given event.
+    #     """
 
     @abstractmethod
     def __publish__(self, event: T_ev_evs) -> None:
@@ -127,21 +127,21 @@ class AbstractDomainEvent(ABC, Generic[T_aen]):
         pass
 
 
-class AbstractEventWithTimestamp(AbstractDomainEvent):
+class AbstractEventWithTimestamp(AbstractDomainEvent[T_aen]):
     @property
     @abstractmethod
     def timestamp(self) -> Decimal:
         pass
 
 
-class AbstractEventWithOriginatorID(AbstractDomainEvent):
+class AbstractEventWithOriginatorID(AbstractDomainEvent[T_aen]):
     @property
     @abstractmethod
     def originator_id(self) -> UUID:
         pass
 
 
-class AbstractEventWithOriginatorVersion(AbstractDomainEvent):
+class AbstractEventWithOriginatorVersion(AbstractDomainEvent[T_aen]):
     @property
     @abstractmethod
     def originator_version(self) -> int:

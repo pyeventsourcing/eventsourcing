@@ -496,7 +496,7 @@ def example_policy(repository, event):
             return ExampleAggregate.__create__(event.example_id)
 
 
-class LogMessage(BaseAggregateRoot[T_aen]):
+class LogMessage(BaseAggregateRoot):
     def __init__(self, message="", **kwargs):
         super(LogMessage, self).__init__(**kwargs)
         self.message = message
