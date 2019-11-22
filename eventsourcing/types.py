@@ -35,18 +35,33 @@ T = TypeVar("T")
 
 T_aen = TypeVar("T_aen", bound="AbstractDomainEntity")
 
-T_aev = TypeVar("T_aev", bound="AbstractDomainEvent")
-
-T_evs = Sequence[T_aev]
-
-T_ev_evs = Union[T_aev, T_evs]
-
 T_rm = TypeVar("T_rm", bound="AbstractRecordManager")
 
 T_es = TypeVar("T_es", bound="AbstractEventStore")
 
 
-class AbstractDomainEntity(metaclass=MetaAbstractDomainEntity):
+class AbstractDomainEvent(ABC, Generic[T_aen]):
+    @abstractmethod
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    @abstractmethod
+    def __mutate__(self, obj: Optional[T_aen]) -> Optional[T_aen]:
+        pass
+
+    @abstractmethod
+    def mutate(self, obj: T_aen) -> None:
+        pass
+
+
+T_aev = TypeVar("T_aev", bound=AbstractDomainEvent)
+
+T_evs = Sequence[T_aev]
+
+T_ev_evs = Union[T_aev, T_evs]
+
+
+class AbstractDomainEntity(Generic[T_aev], metaclass=MetaAbstractDomainEntity):
     @property
     @abstractmethod
     def id(self) -> UUID:
@@ -64,11 +79,11 @@ class AbstractDomainEntity(metaclass=MetaAbstractDomainEntity):
     #     Constructs, applies, and publishes a domain event.
     #     """
 
-    # @abstractmethod
-    # def __trigger_event__(self, event_class: Type[T_aev], **kwargs: Any) -> None:
-    #     """
-    #     Constructs, applies, and publishes a domain event.
-    #     """
+    @abstractmethod
+    def __trigger_event__(self, event_class: Type[T_aev], **kwargs: Any) -> None:
+        """
+        Constructs, applies, and publishes a domain event.
+        """
 
     # @abstractmethod
     # def __mutate__(self, event: T_aev) -> None:
@@ -111,20 +126,6 @@ class AbstractDomainEntity(metaclass=MetaAbstractDomainEntity):
     # @abstractmethod
     # def Discarded(self) -> Type[T_ev]:
     #     pass
-
-
-class AbstractDomainEvent(ABC, Generic[T_aen]):
-    @abstractmethod
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        pass
-
-    @abstractmethod
-    def __mutate__(self, obj: Optional[T_aen]) -> Optional[T_aen]:
-        pass
-
-    @abstractmethod
-    def mutate(self, obj: T_aen) -> None:
-        pass
 
 
 class AbstractEventWithTimestamp(AbstractDomainEvent[T_aen]):

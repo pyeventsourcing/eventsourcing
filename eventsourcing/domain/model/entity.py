@@ -19,7 +19,12 @@ from eventsourcing.exceptions import (
     OriginatorIDError,
     OriginatorVersionError,
 )
-from eventsourcing.types import AbstractDomainEntity, MetaAbstractDomainEntity, T_ev_evs
+from eventsourcing.types import (
+    AbstractDomainEntity,
+    MetaAbstractDomainEntity,
+    T_ev_evs,
+    T_aev,
+)
 from eventsourcing.utils.times import decimaltimestamp_from_uuid
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
@@ -50,7 +55,7 @@ T_ev = TypeVar("T_ev", bound="DomainEntity.Event")
 T_ev_created = TypeVar("T_ev_created", bound="DomainEntity.Created")
 
 
-class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
+class DomainEntity(AbstractDomainEntity[T_aev], metaclass=MetaDomainEntity):
     """
     Supertype for domain model entity.
     """
@@ -180,12 +185,13 @@ class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
         """
         return self._id
 
-    def __change_attribute__(self, name: str, value: Any) -> None:
+    def __change_attribute__(self: T_en, name: str, value: Any) -> None:
         """
         Changes named attribute with the given value,
         by triggering an AttributeChanged event.
         """
-        event_class = self.AttributeChanged
+        event_class: Type["DomainEntity.AttributeChanged[T_en]"] = self.AttributeChanged
+        assert isinstance(self, DomainEntity)  # For PyCharm navigation.
         self.__trigger_event__(event_class=event_class, name=name, value=value)
 
     class AttributeChanged(Event, events.AttributeChanged[T_en]):
@@ -198,11 +204,13 @@ class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
             setattr(obj, self.name, self.value)
             return obj
 
-    def __discard__(self) -> None:
+    def __discard__(self: T_en) -> None:
         """
         Discards self, by triggering a Discarded event.
         """
-        self.__trigger_event__(self.Discarded)
+        event_class: Type["DomainEntity.Discarded[T_en]"] = self.Discarded
+        assert isinstance(self, DomainEntity)  # For PyCharm navigation.
+        self.__trigger_event__(event_class=event_class)
 
     class Discarded(events.Discarded[T_en], Event):
         """
@@ -225,16 +233,16 @@ class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
         if self.__is_discarded__:
             raise EntityIsDiscarded("Entity is discarded")
 
-    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
+    def __trigger_event__(self, event_class: Type[T_aev], **kwargs: Any) -> None:
         """
         Constructs, applies, and publishes a domain event.
         """
         self.__assert_not_discarded__()
-        event = event_class(originator_id=self.id, **kwargs)
+        event: T_aev = event_class(originator_id=self.id, **kwargs)
         self.__mutate__(event)
         self.__publish__(event)
 
-    def __mutate__(self, event: T_ev) -> None:
+    def __mutate__(self, event: T_aev) -> None:
         """
         Mutates this entity with the given event.
 
@@ -263,6 +271,7 @@ class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
         having a mutator function that can project the entity events
         into an entity.
         """
+        assert isinstance(event, DomainEntity.Event)
         event.__mutate__(self)
 
     def __publish__(self, event: T_ev_evs) -> None:
@@ -365,7 +374,7 @@ class EntityWithHashchain(DomainEntity):
         assert isinstance(obj, EntityWithHashchain)  # For PyCharm type checking.
         return obj
 
-    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
+    def __trigger_event__(self, event_class: Type[T_aev], **kwargs: Any) -> None:
         kwargs["__previous_hash__"] = self.__head__
         super(EntityWithHashchain, self).__trigger_event__(event_class, **kwargs)
 
@@ -382,7 +391,7 @@ class VersionedEntity(DomainEntity):
     def __version__(self) -> int:
         return self.___version__
 
-    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
+    def __trigger_event__(self, event_class: Type[T_aev], **kwargs: Any) -> None:
         """
         Increments the version number when an event is triggered.
 
