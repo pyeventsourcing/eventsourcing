@@ -1,5 +1,4 @@
 from abc import ABC, ABCMeta, abstractmethod
-from decimal import Decimal
 
 from typing import (
     Any,
@@ -40,14 +39,7 @@ T_es = TypeVar("T_es", bound="AbstractEventStore")
 
 
 class AbstractDomainEvent(ABC, Generic[T_aen]):
-    @abstractmethod
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        pass
-
-    @abstractmethod
-    def __mutate__(self, obj: Optional[T_aen]) -> Optional[T_aen]:
-        pass
-
+    pass
 
 T_aev = TypeVar("T_aev", bound=AbstractDomainEvent)
 
@@ -57,31 +49,7 @@ T_ev_evs = Union[T_aev, T_evs]
 
 
 class AbstractDomainEntity(metaclass=MetaAbstractDomainEntity):
-    @property
-    @abstractmethod
-    def id(self) -> UUID:
-        pass
-
-
-class AbstractEventWithTimestamp(AbstractDomainEvent[T_aen]):
-    @property
-    @abstractmethod
-    def timestamp(self) -> Decimal:
-        pass
-
-
-class AbstractEventWithOriginatorID(AbstractDomainEvent[T_aen]):
-    @property
-    @abstractmethod
-    def originator_id(self) -> UUID:
-        pass
-
-
-class AbstractEventWithOriginatorVersion(AbstractDomainEvent[T_aen]):
-    @property
-    @abstractmethod
-    def originator_version(self) -> int:
-        pass
+    pass
 
 
 class AbstractEventStore(ABC, Generic[T_aev]):

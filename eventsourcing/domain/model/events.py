@@ -6,8 +6,6 @@ from uuid import UUID, uuid1
 from eventsourcing.exceptions import EventHashError
 from eventsourcing.types import (
     AbstractDomainEvent,
-    AbstractEventWithOriginatorID,
-    AbstractEventWithOriginatorVersion,
     T_aen,
     T_ev_evs,
 )
@@ -213,7 +211,7 @@ class EventWithHash(DomainEvent[T_aen]):
             raise EventHashError()
 
 
-class EventWithOriginatorID(AbstractEventWithOriginatorID[T_aen], DomainEvent[T_aen]):
+class EventWithOriginatorID(DomainEvent[T_aen]):
     """
     For events that have an originator ID.
     """
@@ -252,9 +250,7 @@ class EventWithTimestamp(DomainEvent[T_aen]):
         return self.__dict__["timestamp"]
 
 
-class EventWithOriginatorVersion(
-    AbstractEventWithOriginatorVersion[T_aen], DomainEvent[T_aen]
-):
+class EventWithOriginatorVersion(DomainEvent[T_aen]):
     """
     For events that have an originator version number.
     """
