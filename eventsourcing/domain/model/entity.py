@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import Any, Callable, Dict, Optional, Type, cast
+from typing import Any, Callable, Dict, Optional, Type, TypeVar, cast
 from uuid import UUID, uuid4
 
 import eventsourcing.domain.model.events as events
@@ -23,8 +23,7 @@ from eventsourcing.types import (
     AbstractDomainEntity,
     AbstractDomainEvent,
     MetaAbstractDomainEntity,
-    T_en,
-    T_ev,
+    T_aev,
     T_ev_evs,
 )
 from eventsourcing.utils.times import decimaltimestamp_from_uuid
@@ -53,7 +52,10 @@ class MetaDomainEntity(MetaAbstractDomainEntity):
             subclassevents(cls)
 
 
-class DomainEntity(AbstractDomainEntity[T_ev], metaclass=MetaDomainEntity):
+T_en = TypeVar("T_en", bound="DomainEntity")
+
+
+class DomainEntity(AbstractDomainEntity, metaclass=MetaDomainEntity):
     """
     Supertype for domain model entity.
     """
@@ -85,7 +87,7 @@ class DomainEntity(AbstractDomainEntity[T_ev], metaclass=MetaDomainEntity):
     def __create__(
         cls: Type[T_en],
         originator_id: Optional[UUID] = None,
-        event_class: Optional[Type[T_ev]] = None,
+        event_class: Optional[Type[T_aev]] = None,
         **kwargs: Any
     ) -> T_en:
         """
@@ -95,12 +97,15 @@ class DomainEntity(AbstractDomainEntity[T_ev], metaclass=MetaDomainEntity):
         from the event, publishes the "created" event, and returns
         the new domain entity object.
 
+        :param cls DomainEntity: Class of domain event
         :param originator_id: ID of the new domain entity (defaults to ``uuid4()``).
         :param event_class: Domain event class to be used for the "created" event.
         :param kwargs: Other named attribute values of the "created" event.
         :return: New domain entity object.
         :rtype: DomainEntity
         """
+        assert issubclass(cls, DomainEntity)  # For navigation in PyCharm.
+
         if originator_id is None:
             originator_id = uuid4()
         event: AbstractDomainEvent = (event_class or cls.Created)(
@@ -197,7 +202,7 @@ class DomainEntity(AbstractDomainEntity[T_ev], metaclass=MetaDomainEntity):
         """
         Discards self, by triggering a Discarded event.
         """
-        self.__trigger_event__(self.Discarded)  # type: ignore
+        self.__trigger_event__(self.Discarded)
 
     class Discarded(events.Discarded[T_en], Event):
         """
@@ -219,16 +224,16 @@ class DomainEntity(AbstractDomainEntity[T_ev], metaclass=MetaDomainEntity):
         if self.__is_discarded__:
             raise EntityIsDiscarded("Entity is discarded")
 
-    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
+    def __trigger_event__(self, event_class: Type[T_aev], **kwargs: Any) -> None:
         """
         Constructs, applies, and publishes a domain event.
         """
         self.__assert_not_discarded__()
-        event: T_ev = event_class(originator_id=self.id, **kwargs)
+        event: T_aev = event_class(originator_id=self.id, **kwargs)
         self.__mutate__(event)
         self.__publish__(event)
 
-    def __mutate__(self, event: T_ev) -> None:
+    def __mutate__(self, event: T_aev) -> None:
         """
         Mutates this entity with the given event.
 
@@ -282,31 +287,34 @@ class DomainEntity(AbstractDomainEntity[T_ev], metaclass=MetaDomainEntity):
         return not self.__eq__(other)
 
 
-class EntityWithHashchain(DomainEntity[T_ev]):
+T_en_hashchain = TypeVar("T_en_hashchain", bound="EntityWithHashchain")
+
+
+class EntityWithHashchain(DomainEntity):
     __genesis_hash__ = GENESIS_HASH
 
     def __init__(self, *args: Any, **kwargs: Any):
         super(EntityWithHashchain, self).__init__(*args, **kwargs)
         self.__head__: str = type(self).__genesis_hash__
 
-    class Event(EventWithHash[T_en], DomainEntity.Event[T_en]):
+    class Event(EventWithHash[T_en_hashchain], DomainEntity.Event[T_en_hashchain]):
         """
         Supertype for events of domain entities.
         """
 
-        def __mutate__(self, obj: Optional[T_en]) -> Optional[T_en]:
+        def __mutate__(self, obj: Optional[T_en_hashchain]) -> Optional[T_en_hashchain]:
             # Call super method.
             obj = super(EntityWithHashchain.Event, self).__mutate__(obj)
 
             # Set entity head from event hash.
             #  - unless just discarded...
             if obj is not None:
-                entity = cast(EntityWithHashchain, obj)
-                entity.__head__ = self.__event_hash__
+                assert isinstance(obj, EntityWithHashchain)
+                obj.__head__ = self.__event_hash__
 
             return obj
 
-        def __check_obj__(self, obj: T_en) -> None:
+        def __check_obj__(self, obj: T_en_hashchain) -> None:
             """
             Extends superclass method by checking the __previous_hash__
             of this event matches the __head__ hash of the entity obj.
@@ -315,11 +323,12 @@ class EntityWithHashchain(DomainEntity[T_ev]):
             super(EntityWithHashchain.Event, self).__check_obj__(obj)
 
             # Check __head__ matches previous hash.
-            entity = cast(EntityWithHashchain, obj)
-            if entity.__head__ != self.__dict__.get("__previous_hash__"):
-                raise HeadHashError(entity.id, entity.__head__, type(self))
+            # entity = cast(EntityWithHashchain, obj)
+            assert isinstance(obj, EntityWithHashchain)
+            if obj.__head__ != self.__dict__.get("__previous_hash__"):
+                raise HeadHashError(obj.id, obj.__head__, type(self))
 
-    class Created(Event[T_en], DomainEntity.Created[T_en]):
+    class Created(Event[T_en_hashchain], DomainEntity.Created[T_en_hashchain]):
         @property
         def __entity_kwargs__(self) -> Dict[str, Any]:
             # Get super property.
@@ -331,36 +340,40 @@ class EntityWithHashchain(DomainEntity[T_ev]):
 
             return kwargs
 
-        def __mutate__(self, obj: Optional[T_en]) -> Optional[T_en]:
+        def __mutate__(self, obj: Optional[T_en_hashchain]) -> Optional[T_en_hashchain]:
             # Call super method.
             return super(EntityWithHashchain.Created, self).__mutate__(obj)
 
-    class AttributeChanged(Event, DomainEntity.AttributeChanged[T_en]):
+    class AttributeChanged(
+        Event[T_en_hashchain], DomainEntity.AttributeChanged[T_en_hashchain]
+    ):
         pass
 
-    class Discarded(Event[T_en], DomainEntity.Discarded[T_en]):
-        def __mutate__(self, obj: Optional[T_en]) -> Optional[T_en]:
+    class Discarded(Event[T_en_hashchain], DomainEntity.Discarded[T_en_hashchain]):
+        def __mutate__(self, obj: Optional[T_en_hashchain]) -> Optional[T_en_hashchain]:
             # Set entity head from event hash.
-            entity = cast(EntityWithHashchain, obj)
-            entity.__head__ = self.__event_hash__
+            # entity = cast(EntityWithHashchain, obj)
+            if obj:
+                assert isinstance(obj, EntityWithHashchain)
+                obj.__head__ = self.__event_hash__
 
             # Call super method.
             return super(EntityWithHashchain.Discarded, self).__mutate__(obj)
 
     @classmethod
-    def __create__(cls: Type[T_en], *args: Any, **kwargs: Any) -> T_en:
+    def __create__(
+        cls: Type[T_en_hashchain], *args: Any, **kwargs: Any
+    ) -> T_en_hashchain:
         # Initialise the hash-chain with "genesis hash".
         kwargs["__previous_hash__"] = getattr(cls, "__genesis_hash__", GENESIS_HASH)
-        return super().__create__(*args, **kwargs)  # type: ignore
-        # Error from mypy: Argument 2 for "super" not an instance of argument 1
+        return super(EntityWithHashchain, cls).__create__(*args, **kwargs)
 
-    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
-        assert isinstance(event_class, type), type(event_class)
+    def __trigger_event__(self, event_class: Type[T_aev], **kwargs: Any) -> None:
         kwargs["__previous_hash__"] = self.__head__
         super(EntityWithHashchain, self).__trigger_event__(event_class, **kwargs)
 
 
-class VersionedEntity(DomainEntity[T_ev]):
+class VersionedEntity(DomainEntity):
     def __init__(self, __version__: int, **kwargs: Any):
         super().__init__(**kwargs)
         self.___version__: int = __version__
@@ -369,7 +382,7 @@ class VersionedEntity(DomainEntity[T_ev]):
     def __version__(self) -> int:
         return self.___version__
 
-    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
+    def __trigger_event__(self, event_class: Type[T_aev], **kwargs: Any) -> None:
         """
         Triggers domain event with entity's next version number.
 
@@ -440,7 +453,7 @@ class VersionedEntity(DomainEntity[T_ev]):
         """Published when a VersionedEntity is discarded."""
 
 
-class TimestampedEntity(DomainEntity[T_ev]):
+class TimestampedEntity(DomainEntity):
     def __init__(self, __created_on__: Decimal, **kwargs: Any):
         super(TimestampedEntity, self).__init__(**kwargs)
         self.___created_on__ = __created_on__
@@ -487,7 +500,7 @@ class TimestampedEntity(DomainEntity[T_ev]):
 #  and update ___last_event_id__ in mutate method).
 
 
-class TimeuuidedEntity(DomainEntity[T_ev]):
+class TimeuuidedEntity(DomainEntity):
     def __init__(self, event_id: UUID, **kwargs: Any) -> None:
         super(TimeuuidedEntity, self).__init__(**kwargs)
         self.___initial_event_id__ = event_id
@@ -502,7 +515,7 @@ class TimeuuidedEntity(DomainEntity[T_ev]):
         return decimaltimestamp_from_uuid(self.___last_event_id__)
 
 
-class TimestampedVersionedEntity(TimestampedEntity[T_ev], VersionedEntity[T_ev]):
+class TimestampedVersionedEntity(TimestampedEntity, VersionedEntity):
     class Event(TimestampedEntity.Event[T_en], VersionedEntity.Event[T_en]):
         """Supertype for events of timestamped, versioned entities."""
 
@@ -524,5 +537,5 @@ class TimestampedVersionedEntity(TimestampedEntity[T_ev], VersionedEntity[T_ev])
         """Published when a TimestampedVersionedEntity is discarded."""
 
 
-class TimeuuidedVersionedEntity(TimeuuidedEntity[T_ev], VersionedEntity[T_ev]):
+class TimeuuidedVersionedEntity(TimeuuidedEntity, VersionedEntity):
     pass

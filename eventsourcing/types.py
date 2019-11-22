@@ -33,22 +33,20 @@ class MetaAbstractDomainEntity(ABCMeta):
 
 T = TypeVar("T")
 
-T_id = TypeVar("T_id")
+T_aen = TypeVar("T_aen", bound="AbstractDomainEntity")
 
-T_en = TypeVar("T_en", bound="AbstractDomainEntity")
+T_aev = TypeVar("T_aev", bound="AbstractDomainEvent")
 
-T_ev = TypeVar("T_ev", bound="AbstractDomainEvent")
+T_evs = Sequence[T_aev]
 
-T_evs = Sequence[T_ev]
-
-T_ev_evs = Union[T_ev, T_evs]
+T_ev_evs = Union[T_aev, T_evs]
 
 T_rm = TypeVar("T_rm", bound="AbstractRecordManager")
 
 T_es = TypeVar("T_es", bound="AbstractEventStore")
 
 
-class AbstractDomainEntity(Generic[T_ev], metaclass=MetaAbstractDomainEntity):
+class AbstractDomainEntity(metaclass=MetaAbstractDomainEntity):
     @property
     @abstractmethod
     def id(self) -> UUID:
@@ -57,23 +55,23 @@ class AbstractDomainEntity(Generic[T_ev], metaclass=MetaAbstractDomainEntity):
     @classmethod
     @abstractmethod
     def __create__(
-        cls: Type[T_en],
+        cls: Type[T_aen],
         originator_id: Optional[UUID] = None,
-        event_class: Optional[Type[T_ev]] = None,
+        event_class: Optional[Type[T_aev]] = None,
         **kwargs: Any
-    ) -> T_en:
+    ) -> T_aen:
         """
         Constructs, applies, and publishes a domain event.
         """
 
     @abstractmethod
-    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
+    def __trigger_event__(self, event_class: Type[T_aev], **kwargs: Any) -> None:
         """
         Constructs, applies, and publishes a domain event.
         """
 
     @abstractmethod
-    def __mutate__(self, event: T_ev) -> None:
+    def __mutate__(self, event: T_aev) -> None:
         """
         Mutates this entity with the given event.
         """
@@ -115,42 +113,42 @@ class AbstractDomainEntity(Generic[T_ev], metaclass=MetaAbstractDomainEntity):
     #     pass
 
 
-class AbstractDomainEvent(ABC, Generic[T_en]):
+class AbstractDomainEvent(ABC, Generic[T_aen]):
     @abstractmethod
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         pass
 
     @abstractmethod
-    def __mutate__(self, obj: Optional[T_en]) -> Optional[T_en]:
+    def __mutate__(self, obj: Optional[T_aen]) -> Optional[T_aen]:
         pass
 
     @abstractmethod
-    def mutate(self: T_ev, obj: T_en) -> None:
+    def mutate(self, obj: T_aen) -> None:
         pass
 
 
-class AbstractEventWithTimestamp(AbstractDomainEvent[T_en]):
+class AbstractEventWithTimestamp(AbstractDomainEvent):
     @property
     @abstractmethod
     def timestamp(self) -> Decimal:
         pass
 
 
-class AbstractEventWithOriginatorID(AbstractDomainEvent[T_en], Generic[T_en, T_id]):
+class AbstractEventWithOriginatorID(AbstractDomainEvent):
     @property
     @abstractmethod
-    def originator_id(self) -> T_id:
+    def originator_id(self) -> UUID:
         pass
 
 
-class AbstractEventWithOriginatorVersion(AbstractDomainEvent[T_en]):
+class AbstractEventWithOriginatorVersion(AbstractDomainEvent):
     @property
     @abstractmethod
     def originator_version(self) -> int:
         pass
 
 
-class AbstractEventStore(ABC, Generic[T_ev]):
+class AbstractEventStore(ABC, Generic[T_aev]):
     """
     Abstract base class for event stores. Defines the methods
     expected of an event store by other classes in the library.
@@ -173,7 +171,7 @@ class AbstractEventStore(ABC, Generic[T_ev]):
         limit: Optional[int] = None,
         is_ascending: bool = True,
         page_size: Optional[int] = None,
-    ) -> Iterable[T_ev]:
+    ) -> Iterable[T_aev]:
         """
         Deprecated. Please use iter_domain_events() instead.
 
@@ -191,13 +189,13 @@ class AbstractEventStore(ABC, Generic[T_ev]):
         limit: Optional[int] = None,
         is_ascending: bool = True,
         page_size: Optional[int] = None,
-    ) -> Iterable[T_ev]:
+    ) -> Iterable[T_aev]:
         """
         Returns domain events for given entity ID.
         """
 
     @abstractmethod
-    def get_domain_event(self, originator_id: UUID, position: int) -> T_ev:
+    def get_domain_event(self, originator_id: UUID, position: int) -> T_aev:
         """
         Returns a single domain event.
         """
@@ -205,19 +203,19 @@ class AbstractEventStore(ABC, Generic[T_ev]):
     @abstractmethod
     def get_most_recent_event(
         self, originator_id: UUID, lt: Optional[int] = None, lte: Optional[int] = None
-    ) -> Optional[T_ev]:
+    ) -> Optional[T_aev]:
         """
         Returns most recent domain event for given entity ID.
         """
 
     @abstractmethod
-    def all_domain_events(self) -> Iterable[T_ev]:
+    def all_domain_events(self) -> Iterable[T_aev]:
         """
         Returns all domain events in the event store.
         """
 
 
-class AbstractEventPlayer(Generic[T_en, T_ev]):
+class AbstractEventPlayer(Generic[T_aen, T_aev]):
     @property
     @abstractmethod
     def event_store(self) -> AbstractEventStore:
@@ -234,9 +232,9 @@ class AbstractEventPlayer(Generic[T_en, T_ev]):
         lt: Optional[int] = None,
         lte: Optional[int] = None,
         limit: Optional[int] = None,
-        initial_state: Optional[T_en] = None,
+        initial_state: Optional[T_aen] = None,
         query_descending: bool = False,
-    ) -> Optional[T_en]:
+    ) -> Optional[T_aen]:
         pass
 
 
@@ -270,9 +268,9 @@ class AbstractSnapshop(AbstractDomainEvent):
         """
 
 
-class AbstractEntityRepository(AbstractEventPlayer[T_en, T_ev]):
+class AbstractEntityRepository(AbstractEventPlayer[T_aen, T_aev]):
     @abstractmethod
-    def __getitem__(self, entity_id: UUID) -> T_en:
+    def __getitem__(self, entity_id: UUID) -> T_aen:
         """
         Returns entity for given ID.
 
@@ -286,7 +284,7 @@ class AbstractEntityRepository(AbstractEventPlayer[T_en, T_ev]):
         """
 
     @abstractmethod
-    def get_entity(self, entity_id: UUID, at: Optional[int] = None) -> Optional[T_en]:
+    def get_entity(self, entity_id: UUID, at: Optional[int] = None) -> Optional[T_aen]:
         """
         Returns entity for given ID.
 
@@ -302,7 +300,7 @@ class AbstractEntityRepository(AbstractEventPlayer[T_en, T_ev]):
         """
 
 
-class AbstractRecordManager(ABC, Generic[T_ev]):
+class AbstractRecordManager(ABC, Generic[T_aev]):
     @property
     @abstractmethod
     def record_class(self) -> Any:
@@ -389,15 +387,15 @@ class AbstractRecordManager(ABC, Generic[T_ev]):
         """
 
 
-class AbstractSequencedItemMapper(Generic[T_ev], ABC):
+class AbstractSequencedItemMapper(Generic[T_aev], ABC):
     @abstractmethod
-    def item_from_event(self, domain_event: T_ev) -> Tuple:
+    def item_from_event(self, domain_event: T_aev) -> Tuple:
         """
         Constructs and returns a sequenced item for given domain event.
         """
 
     @abstractmethod
-    def event_from_item(self, sequenced_item: Tuple) -> T_ev:
+    def event_from_item(self, sequenced_item: Tuple) -> T_aev:
         """
         Constructs and returns a domain event for given sequenced item.
         """
@@ -415,7 +413,7 @@ class AbstractSequencedItemMapper(Generic[T_ev], ABC):
         """
 
     @abstractmethod
-    def event_from_topic_and_state(self, topic: str, state: str) -> T_ev:
+    def event_from_topic_and_state(self, topic: str, state: str) -> T_aev:
         """
         Resolves topic to an event class, decodes state, and constructs an event.
         """

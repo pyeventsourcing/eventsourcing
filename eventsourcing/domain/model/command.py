@@ -1,7 +1,6 @@
 from typing import Any
 
-from eventsourcing.domain.model.aggregate import BaseAggregateRoot
-from eventsourcing.types import T_en
+from eventsourcing.domain.model.aggregate import BaseAggregateRoot, T_ag
 
 
 class Command(BaseAggregateRoot):
@@ -9,16 +8,16 @@ class Command(BaseAggregateRoot):
         super(Command, self).__init__(**kwargs)
         self._is_done = False
 
-    class Event(BaseAggregateRoot.Event[T_en]):
+    class Event(BaseAggregateRoot.Event[T_ag]):
         pass
 
-    class Created(Event[T_en], BaseAggregateRoot.Created[T_en]):
+    class Created(Event[T_ag], BaseAggregateRoot.Created[T_ag]):
         pass
 
-    class AttributeChanged(Event[T_en], BaseAggregateRoot.AttributeChanged[T_en]):
+    class AttributeChanged(Event[T_ag], BaseAggregateRoot.AttributeChanged[T_ag]):
         pass
 
-    class Discarded(Event[T_en], BaseAggregateRoot.Discarded[T_en]):
+    class Discarded(Event[T_ag], BaseAggregateRoot.Discarded[T_ag]):
         pass
 
     @property

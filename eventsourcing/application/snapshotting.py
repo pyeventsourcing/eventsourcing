@@ -5,10 +5,10 @@ from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.infrastructure.base import BaseRecordManager
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
-from eventsourcing.types import T_ev, AbstractSnapshop, T_en
+from eventsourcing.types import T_aev, AbstractSnapshop, T_aen
 
 
-class SnapshottingApplication(SimpleApplication[T_en, T_ev]):
+class SnapshottingApplication(SimpleApplication[T_aen, T_aev]):
     # Todo: Change this to default to None?
     snapshot_period = 2
 
@@ -28,7 +28,7 @@ class SnapshottingApplication(SimpleApplication[T_en, T_ev]):
         sequenced_item_mapper = self.sequenced_item_mapper_class(
             sequenced_item_class=self.sequenced_item_class
         )
-        self.snapshot_store = EventStore[AbstractSnapshop, BaseRecordManager[T_ev]](
+        self.snapshot_store = EventStore[AbstractSnapshop, BaseRecordManager[T_aev]](
             record_manager=record_manager, sequenced_item_mapper=sequenced_item_mapper
         )
 

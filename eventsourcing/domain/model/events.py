@@ -1,6 +1,6 @@
 import os
 from decimal import Decimal
-from typing import Callable, Dict, List, Optional, Tuple, Any
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from uuid import UUID, uuid1
 
 from eventsourcing.exceptions import EventHashError
@@ -9,7 +9,7 @@ from eventsourcing.types import (
     AbstractEventWithOriginatorID,
     AbstractEventWithOriginatorVersion,
     AbstractEventWithTimestamp,
-    T_en,
+    T_aen,
     T_ev_evs,
 )
 from eventsourcing.utils.hashing import hash_object
@@ -24,7 +24,7 @@ def create_timesequenced_event_id() -> UUID:
     return uuid1()
 
 
-class DomainEvent(AbstractDomainEvent[T_en]):
+class DomainEvent(AbstractDomainEvent[T_aen]):
     """
     Base class for domain model events.
 
@@ -57,7 +57,7 @@ class DomainEvent(AbstractDomainEvent[T_en]):
         args_string = ", ".join(args_strings)
         return "{}({})".format(self.__class__.__qualname__, args_string)
 
-    def __mutate__(self, obj: Optional[T_en]) -> Optional[T_en]:
+    def __mutate__(self, obj: Optional[T_aen]) -> Optional[T_aen]:
         """
         Updates 'obj' with values from 'self'.
 
@@ -73,7 +73,7 @@ class DomainEvent(AbstractDomainEvent[T_en]):
             self.mutate(obj)
         return obj
 
-    def mutate(self, obj: T_en) -> None:
+    def mutate(self, obj: T_aen) -> None:
         """
         Updates ("mutates") given 'obj'.
 
@@ -144,7 +144,7 @@ class DomainEvent(AbstractDomainEvent[T_en]):
         return hash_object(cls.__json_encoder__, obj)
 
 
-class EventWithHash(DomainEvent[T_en]):
+class EventWithHash(DomainEvent[T_aen]):
     """
     Base class for domain events with a cryptographic event hash.
 
@@ -186,7 +186,7 @@ class EventWithHash(DomainEvent[T_en]):
         # Return the Python hash of the cryptographic hash.
         return hash(self.__event_hash__)
 
-    def __mutate__(self, obj: Optional[T_en]) -> Optional[T_en]:
+    def __mutate__(self, obj: Optional[T_aen]) -> Optional[T_aen]:
         """
         Updates 'obj' with values from self.
 
@@ -214,7 +214,7 @@ class EventWithHash(DomainEvent[T_en]):
             raise EventHashError()
 
 
-class EventWithOriginatorID(AbstractEventWithOriginatorID, DomainEvent[T_en]):
+class EventWithOriginatorID(AbstractEventWithOriginatorID, DomainEvent[T_aen]):
     """
     For events that have an originator ID.
     """
@@ -236,7 +236,7 @@ class EventWithOriginatorID(AbstractEventWithOriginatorID, DomainEvent[T_en]):
         return self.__dict__["originator_id"]
 
 
-class EventWithTimestamp(AbstractEventWithTimestamp, DomainEvent[T_en]):
+class EventWithTimestamp(AbstractEventWithTimestamp, DomainEvent[T_aen]):
     """
     For events that have a timestamp value.
     """
@@ -253,7 +253,9 @@ class EventWithTimestamp(AbstractEventWithTimestamp, DomainEvent[T_en]):
         return self.__dict__["timestamp"]
 
 
-class EventWithOriginatorVersion(AbstractEventWithOriginatorVersion, DomainEvent[T_en]):
+class EventWithOriginatorVersion(
+    AbstractEventWithOriginatorVersion, DomainEvent[T_aen]
+):
     """
     For events that have an originator version number.
     """
@@ -276,12 +278,12 @@ class EventWithOriginatorVersion(AbstractEventWithOriginatorVersion, DomainEvent
         return self.__dict__["originator_version"]
 
 
-class EventWithTimeuuid(DomainEvent[T_en]):
+class EventWithTimeuuid(DomainEvent[T_aen]):
     """
     For events that have an UUIDv1 event ID.
     """
 
-    def __init__(self, event_id: Optional[UUID]=None, **kwargs: Any):
+    def __init__(self, event_id: Optional[UUID] = None, **kwargs: Any):
         kwargs["event_id"] = event_id or uuid1()
         super(EventWithTimeuuid, self).__init__(**kwargs)
 
@@ -290,13 +292,13 @@ class EventWithTimeuuid(DomainEvent[T_en]):
         return self.__dict__["event_id"]
 
 
-class Created(DomainEvent[T_en]):
+class Created(DomainEvent[T_aen]):
     """
     Happens when something is created.
     """
 
 
-class AttributeChanged(DomainEvent[T_en]):
+class AttributeChanged(DomainEvent[T_aen]):
     """
     Happens when the value of an attribute changes.
     """
@@ -310,13 +312,13 @@ class AttributeChanged(DomainEvent[T_en]):
         return self.__dict__["value"]
 
 
-class Discarded(DomainEvent[T_en]):
+class Discarded(DomainEvent[T_aen]):
     """
     Happens when something is discarded.
     """
 
 
-class Logged(DomainEvent[T_en]):
+class Logged(DomainEvent[T_aen]):
     """
     Happens when something is logged.
     """

@@ -7,12 +7,12 @@ from eventsourcing.infrastructure.sequenceditem import (
     SequencedItem,
     SequencedItemFieldNames,
 )
-from eventsourcing.types import AbstractRecordManager, T_ev, T_evs
+from eventsourcing.types import AbstractRecordManager, T_aev, T_evs
 
 DEFAULT_PIPELINE_ID = 0
 
 
-class BaseRecordManager(AbstractRecordManager[T_ev]):
+class BaseRecordManager(AbstractRecordManager[T_aev]):
     def __init__(
         self,
         record_class,
@@ -144,7 +144,7 @@ class BaseRecordManager(AbstractRecordManager[T_ev]):
         raise OperationalError(e)
 
 
-class ACIDRecordManager(BaseRecordManager[T_ev]):
+class ACIDRecordManager(BaseRecordManager[T_aev]):
     """
     ACID record managers can write tracking records and event records
     in an atomic transaction, needed for atomic processing in process

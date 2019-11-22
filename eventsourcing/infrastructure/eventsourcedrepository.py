@@ -8,14 +8,14 @@ from eventsourcing.infrastructure.snapshotting import entity_from_snapshot
 from eventsourcing.types import (
     AbstractEntityRepository,
     AbstractSnapshop,
-    T_en,
+    T_aen,
     AbstractEventStore,
-    T_ev,
+    T_aev,
 )
 
 
 class EventSourcedRepository(
-    AbstractEntityRepository[T_en, T_ev], EventPlayer[T_en, T_ev]
+    AbstractEntityRepository[T_aen, T_aev], EventPlayer[T_aen, T_aev]
 ):
     def __init__(
         self, event_store: AbstractEventStore, use_cache: bool = False, **kwargs
@@ -26,7 +26,7 @@ class EventSourcedRepository(
         # when records fail to write otherwise the cache will
         # give an entity that is ahead of the event records,
         # and writing more records will give a broken sequence.
-        self._cache: Dict[UUID, Optional[T_en]] = {}
+        self._cache: Dict[UUID, Optional[T_aen]] = {}
         self._use_cache = use_cache
 
     @property
@@ -49,14 +49,14 @@ class EventSourcedRepository(
         """
         return self.get_entity(entity_id) is not None
 
-    def __getitem__(self, entity_id: UUID) -> T_en:
+    def __getitem__(self, entity_id: UUID) -> T_aen:
         """
         Returns entity with given ID.
         """
         if self._use_cache:
             try:
                 # Get entity from the cache.
-                entity: Optional[T_en] = self._cache[entity_id]
+                entity: Optional[T_aen] = self._cache[entity_id]
             except KeyError:
                 # Reconstitute the entity.
                 entity = self.get_entity(entity_id)
@@ -73,7 +73,7 @@ class EventSourcedRepository(
         assert entity is not None
         return entity
 
-    def get_entity(self, entity_id: UUID, at=None) -> Optional[T_en]:
+    def get_entity(self, entity_id: UUID, at=None) -> Optional[T_aen]:
         """
         Returns entity with given ID, optionally until position.
         """
@@ -108,7 +108,7 @@ class EventSourcedRepository(
         limit=None,
         initial_state=None,
         query_descending=False,
-    ) -> Optional[T_en]:
+    ) -> Optional[T_aen]:
         """
         Reconstitutes requested domain entity from domain events found in event store.
         """

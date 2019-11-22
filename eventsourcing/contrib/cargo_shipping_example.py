@@ -16,7 +16,7 @@
 
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union, Type
 from unittest import TestCase
 from uuid import UUID
 
@@ -82,24 +82,31 @@ class Itinerary(object):
 
 
 # Custom aggregate root class.
-class AggregateRoot(BaseAggregateRoot[T_ag_ev]):
+class AggregateRoot(BaseAggregateRoot):
     __subclassevents__ = True
 
 
 # The Cargo aggregate is an event sourced domain model aggregate that
 # specifies the routing from origin to destination, and can track what
 # happens to the cargo after it has been booked.
+
 T_cargo = TypeVar("T_cargo", bound="Cargo")
 
 
-class Cargo(AggregateRoot["Cargo.Event"]):
+class Cargo(AggregateRoot):
+
     @classmethod
     def new_booking(
-        cls, origin: Location, destination: Location, arrival_deadline: datetime
-    ) -> "Cargo":
-        return cls.__create__(
+        cls: Type[T_cargo],
+        origin: Location,
+        destination: Location,
+        arrival_deadline: datetime,
+    ) -> T_cargo:
+        assert issubclass(cls, Cargo)  # for type hinting PyCharm
+        obj = cls.__create__(
             origin=origin, destination=destination, arrival_deadline=arrival_deadline
         )
+        return obj
 
     def __init__(
         self,
@@ -247,9 +254,7 @@ class Cargo(AggregateRoot["Cargo.Event"]):
                         HandlingActivity.CLAIM,
                         self.location,
                     )
-                elif self.location.value in [
-                    leg.destination for leg in obj.route.legs
-                ]:
+                elif self.location.value in [leg.destination for leg in obj.route.legs]:
                     for i, leg in enumerate(obj.route.legs):
                         if leg.voyage_number == self.voyage_number:
                             next_leg: Leg = obj.route.legs[i + 1]

@@ -1,7 +1,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from eventsourcing.domain.model.entity import TimestampedVersionedEntity
-from eventsourcing.types import AbstractEntityRepository, T_en
+from eventsourcing.domain.model.entity import TimestampedVersionedEntity, T_en
+from eventsourcing.types import AbstractEntityRepository
 
 
 class Collection(TimestampedVersionedEntity):

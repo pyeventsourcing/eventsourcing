@@ -8,7 +8,7 @@ from eventsourcing.types import (
     AbstractEventStore,
     AbstractSequencedItemMapper,
     T_ev_evs,
-    T_ev,
+    T_aev,
     T_rm)
 
 
@@ -16,7 +16,7 @@ from eventsourcing.types import (
 #  by pushing behaviour down to record manager?
 
 
-class EventStore(AbstractEventStore[T_ev], Generic[T_ev, T_rm]):
+class EventStore(AbstractEventStore[T_aev], Generic[T_aev, T_rm]):
     """
     Event store appends domain events to stored sequences. It uses
     a record manager to map named tuples to database
@@ -79,7 +79,7 @@ class EventStore(AbstractEventStore[T_ev], Generic[T_ev, T_rm]):
         limit: Optional[int] = None,
         is_ascending: bool = True,
         page_size: Optional[int] = None,
-    ) -> Iterable[T_ev]:
+    ) -> Iterable[T_aev]:
         """
         Deprecated. Please use iter_domain_events() instead.
 
@@ -116,7 +116,7 @@ class EventStore(AbstractEventStore[T_ev], Generic[T_ev, T_rm]):
         limit: Optional[int] = None,
         is_ascending: bool = True,
         page_size: Optional[int] = None,
-    ) -> Iterable[T_ev]:
+    ) -> Iterable[T_aev]:
         """
         Gets domain events from the sequence identified by `originator_id`.
 
@@ -167,7 +167,7 @@ class EventStore(AbstractEventStore[T_ev], Generic[T_ev, T_rm]):
         limit: Optional[int] = None,
         is_ascending: bool = True,
         page_size: Optional[int] = None,
-    ) -> List[T_ev]:
+    ) -> List[T_aev]:
         """
         Returns a list of domain events from the sequence identified by `originator_id`.
 
@@ -210,7 +210,7 @@ class EventStore(AbstractEventStore[T_ev], Generic[T_ev, T_rm]):
         )
         return self.mapper.event_from_item(sequenced_item)
 
-    def get_most_recent_event(self, originator_id, lt=None, lte=None) -> Optional[T_ev]:
+    def get_most_recent_event(self, originator_id, lt=None, lte=None) -> Optional[T_aev]:
         """
         Gets a domain event from the sequence identified by `originator_id`
         at the highest position.
@@ -228,7 +228,7 @@ class EventStore(AbstractEventStore[T_ev], Generic[T_ev, T_rm]):
         except IndexError:
             return None
 
-    def all_domain_events(self) -> Iterable[T_ev]:
+    def all_domain_events(self) -> Iterable[T_aev]:
         """
         Yields all domain events in the event store.
 

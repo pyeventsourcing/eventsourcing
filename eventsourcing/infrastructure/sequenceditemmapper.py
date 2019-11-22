@@ -9,7 +9,7 @@ from eventsourcing.infrastructure.sequenceditem import (
 )
 from eventsourcing.types import (
     AbstractSequencedItemMapper,
-    T_ev,
+    T_aev,
     T,
     AbstractDomainEvent,
 )
@@ -21,7 +21,7 @@ from eventsourcing.utils.transcoding import (
 )
 
 
-class SequencedItemMapper(AbstractSequencedItemMapper[T_ev]):
+class SequencedItemMapper(AbstractSequencedItemMapper[T_aev]):
     """
     Uses JSON to transcode domain events.
     """
@@ -117,15 +117,15 @@ class SequencedItemMapper(AbstractSequencedItemMapper[T_ev]):
 
         return self.event_from_topic_and_state(topic, state)
 
-    def event_from_topic_and_state(self, topic, state) -> T_ev:
+    def event_from_topic_and_state(self, topic, state) -> T_aev:
         domain_event_class, event_attrs = self.get_event_class_and_attrs(topic, state)
 
         # Reconstruct domain event object.
         return reconstruct_object(domain_event_class, event_attrs)
 
-    def get_event_class_and_attrs(self, topic, state) -> Tuple[Type[T_ev], Dict]:
+    def get_event_class_and_attrs(self, topic, state) -> Tuple[Type[T_aev], Dict]:
         # Resolve topic to event class.
-        domain_event_class: Type[T_ev] = resolve_topic(topic)
+        domain_event_class: Type[T_aev] = resolve_topic(topic)
 
         # Decrypt and decompress state.
         if self.cipher:

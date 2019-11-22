@@ -24,7 +24,7 @@ from eventsourcing.domain.model.events import (
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed
 from eventsourcing.infrastructure.sqlalchemy.records import Base
-from eventsourcing.types import T_en
+from eventsourcing.types import T_aen
 from eventsourcing.utils.topic import resolve_topic
 from eventsourcing.utils.transcoding import ObjectJSONDecoder
 
@@ -449,22 +449,22 @@ class TestCommands(TestCase):
 # Example aggregate (used in the test).
 
 
-class ExampleAggregate(BaseAggregateRoot[T_en]):
+class ExampleAggregate(BaseAggregateRoot):
     def __init__(self, **kwargs):
         super(ExampleAggregate, self).__init__(**kwargs)
         self.is_moved_on = False
         self.second_id = None
 
-    class Event(BaseAggregateRoot.Event[T_en]):
+    class Event(BaseAggregateRoot.Event[T_aen]):
         pass
 
-    class Created(Event[T_en], BaseAggregateRoot.Created[T_en]):
+    class Created(Event[T_aen], BaseAggregateRoot.Created[T_aen]):
         pass
 
     def move_on(self, second_id=None):
         self.__trigger_event__(ExampleAggregate.MovedOn, second_id=second_id)
 
-    class MovedOn(Event[T_en]):
+    class MovedOn(Event[T_aen]):
         @property
         def second_id(self):
             return self.__dict__["second_id"]
@@ -496,15 +496,15 @@ def example_policy(repository, event):
             return ExampleAggregate.__create__(event.example_id)
 
 
-class LogMessage(BaseAggregateRoot[T_en]):
+class LogMessage(BaseAggregateRoot[T_aen]):
     def __init__(self, message="", **kwargs):
         super(LogMessage, self).__init__(**kwargs)
         self.message = message
 
-    class Event(BaseAggregateRoot.Event[T_en]):
+    class Event(BaseAggregateRoot.Event[T_aen]):
         pass
 
-    class Created(Event[T_en], BaseAggregateRoot.Created[T_en]):
+    class Created(Event[T_aen], BaseAggregateRoot.Created[T_aen]):
         pass
 
 

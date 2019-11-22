@@ -5,7 +5,7 @@ from eventsourcing.domain.model.events import (
     subscribe,
     unsubscribe)
 from eventsourcing.domain.model.snapshot import Snapshot
-from eventsourcing.types import AbstractEntityRepository, AbstractEventStore, T_ev, \
+from eventsourcing.types import AbstractEntityRepository, AbstractEventStore, T_aev, \
     T_ev_evs
 
 
@@ -37,7 +37,7 @@ class PersistencePolicy(object):
 
 # Todo: Separate PeriodicSnapshottingPolicy from base class? Make usage more
 #  configurable.
-class SnapshottingPolicy(Generic[T_ev]):
+class SnapshottingPolicy(Generic[T_aev]):
     def __init__(
         self,
         repository: AbstractEntityRepository,
