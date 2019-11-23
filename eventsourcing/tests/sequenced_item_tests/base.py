@@ -10,7 +10,7 @@ from eventsourcing.domain.model.events import (
     EventWithOriginatorID,
     EventWithOriginatorVersion,
     EventWithTimestamp,
-    Logged,
+    LoggedEvent,
 )
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.exceptions import OperationalError, RecordConflictError
@@ -663,7 +663,7 @@ class WithEventPersistence(WithRecordManagers):
         self.timestamp_sequenced_event_policy = None
         if self.log_event_store is not None:
             self.timestamp_sequenced_event_policy = PersistencePolicy(
-                event_store=self.log_event_store, persist_event_type=Logged
+                event_store=self.log_event_store, persist_event_type=LoggedEvent
             )
 
         self.snapshot_policy = None

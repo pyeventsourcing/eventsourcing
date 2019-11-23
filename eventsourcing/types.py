@@ -31,7 +31,7 @@ class Event(object):
 T_eo = TypeVar("T_eo", bound="EnduringObject")
 
 
-class ActualOccasion(Event, Generic[T_eo]):
+class ActualOccasion(Event):
     """
     "'Actual entities' - also termed 'actual occasions' — are the final real things
     of which the world is made up. There is no going behind actual entities
@@ -51,6 +51,11 @@ class ActualOccasion(Event, Generic[T_eo]):
 
 
 T_ao = TypeVar("T_ao", bound=ActualOccasion)
+
+
+class AbstractDomainEvent(ActualOccasion, Generic[T_eo]):
+    pass
+
 
 T_evs = Sequence[T_ao]
 T_ev_evs = Union[T_ao, T_evs]

@@ -2,9 +2,11 @@ from decimal import Decimal
 from typing import Any, Dict, Optional, Type, TypeVar
 from uuid import UUID, uuid4
 
-import eventsourcing.domain.model.events as events
 from eventsourcing.domain.model.decorators import subclassevents
 from eventsourcing.domain.model.events import (
+    AttributeChangedEvent,
+    CreatedEvent,
+    DiscardedEvent,
     DomainEvent,
     EventWithHash,
     EventWithOriginatorID,
@@ -19,11 +21,7 @@ from eventsourcing.exceptions import (
     OriginatorIDError,
     OriginatorVersionError,
 )
-from eventsourcing.types import (
-    EnduringObject,
-    MetaAbstractDomainEntity,
-    T_ev_evs,
-)
+from eventsourcing.types import EnduringObject, MetaAbstractDomainEntity, T_ev_evs
 from eventsourcing.utils.times import decimaltimestamp_from_uuid
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
@@ -51,7 +49,7 @@ class MetaDomainEntity(MetaAbstractDomainEntity):
 
 T_en = TypeVar("T_en", bound="DomainEntity")
 
-T_ev = TypeVar("T_ev", bound="DomainEntity.Event")
+T_en_ev = TypeVar("T_en_ev", bound="DomainEntity.Event")
 
 
 class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
@@ -126,7 +124,7 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
         obj.__publish__(event)
         return obj
 
-    class Created(events.Created[T_en], Event[T_en]):
+    class Created(CreatedEvent[T_en], Event[T_en]):
         """
         Triggered when an entity is created.
         """
@@ -193,7 +191,7 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
         assert isinstance(self, DomainEntity)  # For PyCharm navigation.
         self.__trigger_event__(event_class=event_class, name=name, value=value)
 
-    class AttributeChanged(Event[T_en], events.AttributeChanged[T_en]):
+    class AttributeChanged(Event[T_en], AttributeChangedEvent[T_en]):
         """
         Triggered when a named attribute is assigned a new value.
         """
@@ -211,7 +209,7 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
         assert isinstance(self, DomainEntity)  # For PyCharm navigation.
         self.__trigger_event__(event_class=event_class)
 
-    class Discarded(events.Discarded[T_en], Event[T_en]):
+    class Discarded(DiscardedEvent[T_en], Event[T_en]):
         """
         Triggered when a DomainEntity is discarded.
         """
@@ -232,16 +230,16 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
         if self.__is_discarded__:
             raise EntityIsDiscarded("Entity is discarded")
 
-    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
+    def __trigger_event__(self, event_class: Type[T_en_ev], **kwargs: Any) -> None:
         """
         Constructs, applies, and publishes a domain event.
         """
         self.__assert_not_discarded__()
-        event: T_ev = event_class(originator_id=self.id, **kwargs)
+        event: T_en_ev = event_class(originator_id=self.id, **kwargs)
         self.__mutate__(event)
         self.__publish__(event)
 
-    def __mutate__(self, event: T_ev) -> None:
+    def __mutate__(self, event: T_en_ev) -> None:
         """
         Mutates this entity with the given event.
 
@@ -378,7 +376,7 @@ class EntityWithHashchain(DomainEntity):
         assert isinstance(obj, EntityWithHashchain)  # For PyCharm type checking.
         return obj
 
-    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
+    def __trigger_event__(self, event_class: Type[T_en_ev], **kwargs: Any) -> None:
         kwargs["__previous_hash__"] = self.__head__
         super(EntityWithHashchain, self).__trigger_event__(event_class, **kwargs)
 
@@ -395,7 +393,7 @@ class VersionedEntity(DomainEntity):
     def __version__(self) -> int:
         return self.___version__
 
-    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
+    def __trigger_event__(self, event_class: Type[T_en_ev], **kwargs: Any) -> None:
         """
         Increments the version number when an event is triggered.
 

@@ -229,12 +229,12 @@ Please note, it is required of these application-level objects that the  "topic"
 
 .. code:: python
 
-    from eventsourcing.domain.model.events import Created
+    from eventsourcing.domain.model.events import CreatedEvent
     from eventsourcing.utils.topic import get_topic, resolve_topic
 
-    topic = get_topic(Created)
-    assert resolve_topic(topic) == Created
-    assert topic == 'eventsourcing.domain.model.events#Created'
+    topic = get_topic(CreatedEvent)
+    assert resolve_topic(topic) == CreatedEvent
+    assert topic == 'eventsourcing.domain.model.events#CreatedEvent'
 
 
 Substitutions

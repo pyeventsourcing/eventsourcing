@@ -8,7 +8,7 @@ from eventsourcing.domain.model.entity import (
     VersionedEntity,
 )
 from eventsourcing.domain.model.events import (
-    AttributeChanged,
+    AttributeChangedEvent,
     publish,
     subscribe,
     unsubscribe,
@@ -228,7 +228,7 @@ class TestExampleEntity(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
         # Check the published event was an AttributeChanged event, with the expected
         # attribute values.
         published_event = published_events[0]
-        self.assertIsInstance(published_event, AttributeChanged)
+        self.assertIsInstance(published_event, AttributeChangedEvent)
         self.assertEqual(published_event.name, "_a")
         self.assertEqual(published_event.value, "value1")
         self.assertTrue(published_event.originator_version, 1)

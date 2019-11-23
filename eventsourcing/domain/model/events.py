@@ -1,14 +1,10 @@
 import os
 from decimal import Decimal
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
 from uuid import UUID, uuid1
 
 from eventsourcing.exceptions import EventHashError
-from eventsourcing.types import (
-    ActualOccasion,
-    T_eo,
-    T_ev_evs,
-)
+from eventsourcing.types import T_eo, T_ev_evs, AbstractDomainEvent
 from eventsourcing.utils.hashing import hash_object
 from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic
@@ -21,7 +17,10 @@ def create_timesequenced_event_id() -> UUID:
     return uuid1()
 
 
-class DomainEvent(ActualOccasion[T_eo]):
+T_ev = TypeVar("T_ev", bound="DomainEvent")
+
+
+class DomainEvent(AbstractDomainEvent[T_eo]):
     """
     Base class for domain model events.
 
@@ -287,13 +286,13 @@ class EventWithTimeuuid(DomainEvent[T_eo]):
         return self.__dict__["event_id"]
 
 
-class Created(DomainEvent[T_eo]):
+class CreatedEvent(DomainEvent[T_eo]):
     """
     Happens when something is created.
     """
 
 
-class AttributeChanged(DomainEvent[T_eo]):
+class AttributeChangedEvent(DomainEvent[T_eo]):
     """
     Happens when the value of an attribute changes.
     """
@@ -307,13 +306,13 @@ class AttributeChanged(DomainEvent[T_eo]):
         return self.__dict__["value"]
 
 
-class Discarded(DomainEvent[T_eo]):
+class DiscardedEvent(DomainEvent[T_eo]):
     """
     Happens when something is discarded.
     """
 
 
-class Logged(DomainEvent[T_eo]):
+class LoggedEvent(DomainEvent[T_eo]):
     """
     Happens when something is logged.
     """
