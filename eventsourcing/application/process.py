@@ -44,7 +44,7 @@ from eventsourcing.exceptions import (
 )
 from eventsourcing.infrastructure.base import ACIDRecordManager
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
-from eventsourcing.types import T_ev_evs
+from eventsourcing.types import T_ev_evs, ActualOccasion
 
 
 class ProcessEvent(object):
@@ -63,7 +63,7 @@ class ProcessEvent(object):
         self.orm_objs_pending_delete = orm_objs_pending_delete
 
 
-class Prompt(object):
+class Prompt(ActualOccasion):
     def __init__(self, process_name: str, pipeline_id: int):
         self.process_name: str = process_name
         self.pipeline_id: int = pipeline_id
@@ -203,6 +203,7 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
         """
 
         prompt = Prompt(self.name, self.pipeline_id)
+        publish(prompt)
         try:
             publish(prompt)
         except PromptFailed:
