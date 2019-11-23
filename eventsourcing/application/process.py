@@ -1,50 +1,50 @@
 import time
 from collections import OrderedDict, defaultdict, deque
 from decimal import Decimal
-from threading import Lock, Event
+from threading import Event, Lock
 from types import FunctionType
 from typing import (
     Any,
-    Dict,
-    List,
-    Tuple,
     Deque,
-    Optional,
-    Union,
-    Sequence,
-    Generator,
-    Type,
+    Dict,
+    Generic,
     Iterator,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
 )
 from uuid import UUID
 
 from eventsourcing.application.notificationlog import (
-    NotificationLogReader,
     AbstractNotificationLog,
+    NotificationLogReader,
 )
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.application.snapshotting import SnapshottingApplication
 from eventsourcing.domain.model.aggregate import (
     BaseAggregateRoot,
     T_ag,
-    T_ags,
     T_ag_ev,
     T_ag_evs,
+    T_ags,
 )
 from eventsourcing.domain.model.events import (
+    DomainEvent,
     publish,
     subscribe,
     unsubscribe,
-    DomainEvent,
 )
 from eventsourcing.exceptions import (
     CausalDependencyFailed,
-    PromptFailed,
     ProgrammingError,
+    PromptFailed,
 )
 from eventsourcing.infrastructure.base import ACIDRecordManager
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
-from eventsourcing.types import T_ev_evs, ActualOccasion
+from eventsourcing.types import ActualOccasion, T_ev_evs
 
 
 class ProcessEvent(object):
@@ -86,7 +86,7 @@ class Prompt(ActualOccasion):
         )
 
 
-class WrappedRepository(object):
+class WrappedRepository(Generic[T_ag, T_ag_ev]):
     """
     Used to wrap an event sourced repository for use in process application
     policy so that use of, and changes to, domain model aggregates can be
@@ -444,49 +444,56 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
         policy = self.policy_func or self.policy
 
         # Wrap the actual repository, so we can collect aggregates.
-        assert self.repository
-        real_repository: EventSourcedRepository[T_ag, T_ag_ev] = self.repository
-        repository = WrappedRepository(real_repository)
+        repository = WrappedRepository(self.repository)
 
-        fifo: Deque[T_ag_ev] = deque()
-        fifo.append(domain_event)
+        # Initialise a deque for FIFO queue of unprocessed events.
+        unprocessed: Deque[T_ag_ev] = deque()
+        unprocessed.append(domain_event)
 
-        pending_events: List[T_ag_ev] = []
+        # Initialise a list to collect and return all the generated events.
+        all_generated: List[T_ag_ev] = []
 
-        while len(fifo):
+        # Iterate on the FIFO queue of unprocessed events.
+        while len(unprocessed):
 
             # Get the next unprocessed domain event.
-            domain_event = fifo.popleft()
+            domain_event = unprocessed.popleft()
 
             # Call the policy with this domain event.
-            new_aggregates = policy(repository, domain_event)
+            returned = policy(repository, domain_event)
 
             # Collect aggregates retrieved by the policy.
-            aggregates = list(repository.retrieved_aggregates.values())
+            touched = list(repository.retrieved_aggregates.values())
 
-            if new_aggregates is not None:
-                # Convert to list, if necessary.
-                if not isinstance(new_aggregates, (list, tuple)):
-                    new_aggregates = [new_aggregates]
+            if returned is not None:
+                # Convert returned item to list, if necessary.
+                if isinstance(returned, (list, tuple)):
+                    new_aggregates: List[T_ag] = [a for a in returned]
+                else:
+                    new_aggregates = [returned]
 
                 for aggregate in new_aggregates:
                     # Put new aggregates in repository cache (avoids replay).
-                    if self.repository._use_cache:
-                        self.repository._cache[aggregate.id] = aggregate
+                    if repository.repository._use_cache:
+                        repository.repository._cache[aggregate.id] = aggregate
 
                     # Make new aggregates available in subsequent policy calls.
                     if self.apply_policy_to_generated_events:
                         repository.retrieved_aggregates[aggregate.id] = aggregate
 
-                aggregates.extend(new_aggregates)
+                # Extend the list of touched aggregates with
+                # the new ones returned from the policy.
+                touched.extend(new_aggregates)
 
-            # Collect pending events.
-            generated_events: List[T_ag_ev] = self.collect_pending_events(aggregates)
-            pending_events.extend(generated_events)
+            # Collect all the new_events events.
+            new_events: List[T_ag_ev] = self.collect_pending_events(touched)
 
-            # Enqueue generated events.
+            # Extend the list of new_events events.
+            all_generated.extend(new_events)
+
+            # Enqueue the new events for subsequence processing.
             if self.apply_policy_to_generated_events:
-                fifo.extend(generated_events)
+                unprocessed.extend(new_events)
 
         # Translate causal dependencies from version of entity to position in pipeline.
         causal_dependencies: List[Dict[str, int]] = []
@@ -511,16 +518,15 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
                 )
 
         return (
-            pending_events,
+            all_generated,
             causal_dependencies,
             repository.orm_objs_pending_save,
             repository.orm_objs_pending_delete,
         )
 
-    @staticmethod
     def policy(
-        repository: WrappedRepository, event: T_ag_ev
-    ) -> Optional[Union[Sequence[Any], Any]]:
+        self, repository: WrappedRepository[T_ag, T_ag_ev], event: T_ag_ev
+    ) -> Optional[Union[List[T_ag], T_ag]]:
         """
         Empty method, can be overridden in subclasses to implement concrete policy.
         """
@@ -592,7 +598,8 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
         )
 
     def construct_event_records(
-        self, pending_events: Sequence[DomainEvent], causal_dependencies: Sequence[Dict]) -> List:
+        self, pending_events: Sequence[DomainEvent], causal_dependencies: Sequence[Dict]
+    ) -> List:
         # Convert to event records.
         assert self.event_store
         sequenced_items = self.event_store.item_from_event(pending_events)

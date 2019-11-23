@@ -11,7 +11,7 @@ class EventPlayer(AbstractEventPlayer[T_eo, T_ao]):
     # value is set to a positive integer, the events of
     # the entity will be retrieved in pages, using a series
     # of queries, rather than with one potentially large query.
-    __page_size__ = None
+    __page_size__: Optional[int] = None
 
     def __init__(
         self,

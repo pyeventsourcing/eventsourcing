@@ -101,11 +101,11 @@ logger = logging.getLogger()
 class Orders(ProcessApplication):
     persist_event_type = Order.Created
 
-    @staticmethod
-    def policy(repository, event):
+    def policy(self, repository, event):
         if isinstance(event, Reservation.Created):
             # Set the order as reserved.
             order = repository[event.order_id]
+            assert isinstance(order, Order)
             assert not order.is_reserved
             order.set_is_reserved(event.originator_id)
             # logger.info('set Order as reserved')
@@ -114,6 +114,7 @@ class Orders(ProcessApplication):
         elif isinstance(event, Payment.Created):
             # Set the order as paid.
             order = repository[event.order_id]
+            assert isinstance(order, Order)
             assert not order.is_paid
             order.set_is_paid(event.originator_id)
             # logger.info('set Order as paid')
@@ -121,8 +122,7 @@ class Orders(ProcessApplication):
 
 
 class Reservations(ProcessApplication):
-    @staticmethod
-    def policy(repository, event):
+    def policy(self, repository, event):
         if isinstance(event, Order.Created):
             # Create a reservation.
             # time.sleep(0.5)
@@ -132,8 +132,7 @@ class Reservations(ProcessApplication):
 
 
 class Payments(ProcessApplication):
-    @staticmethod
-    def policy(repository, event):
+    def policy(self, repository, event):
         if isinstance(event, Order.Reserved):
             # Make a payment.
             # time.sleep(0.5)
@@ -145,7 +144,8 @@ class Payments(ProcessApplication):
 class Examples(ProcessApplication):
     persist_event_type = ExampleAggregate.Created
 
-    @staticmethod
-    def policy(repository, event):
+    def policy(self, repository, event):
         if isinstance(event, ExampleAggregate.Created):
-            repository[event.originator_id].move_on()
+            example_aggregate = repository[event.originator_id]
+            assert isinstance(example_aggregate, ExampleAggregate)
+            example_aggregate.move_on()

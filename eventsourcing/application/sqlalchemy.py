@@ -16,7 +16,7 @@ class SQLAlchemyApplication(ApplicationWithConcreteInfrastructure):
     stored_event_record_class = StoredEventRecord
     snapshot_record_class = EntitySnapshotRecord
     is_constructed_with_session = True
-    tracking_record_class = None
+    tracking_record_class: Any = None
 
     def __init__(
         self,

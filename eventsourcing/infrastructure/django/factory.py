@@ -1,3 +1,5 @@
+from typing import Any
+
 from eventsourcing.infrastructure.django.manager import DjangoRecordManager
 from eventsourcing.infrastructure.factory import InfrastructureFactory
 
@@ -8,7 +10,7 @@ class DjangoInfrastructureFactory(InfrastructureFactory):
     """
 
     record_manager_class = DjangoRecordManager
-    tracking_record_class = None
+    tracking_record_class: Any = None
 
     def __init__(self, tracking_record_class=None, *args, **kwargs):
         super(DjangoInfrastructureFactory, self).__init__(*args, **kwargs)

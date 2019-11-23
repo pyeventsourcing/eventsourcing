@@ -227,7 +227,7 @@ class Proposer(MessageHandler):
                 )
                 return self.current_accept_msg
 
-    def prepare(self):
+    def prepare(self) -> Prepare:
         """
         Returns a new Prepare message with a proposal id higher than
         that of any observed proposals. A side effect of this method is
