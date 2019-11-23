@@ -2,7 +2,7 @@ from abc import ABC
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.entity import VersionedEntity
-from eventsourcing.domain.model.events import Logged
+from eventsourcing.domain.model.events import LoggedEvent
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.example.domainmodel import create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
@@ -141,7 +141,7 @@ class ApplicationWithPersistencePolicies(ApplicationWithEventStores):
     def construct_log_persistence_policy(self):
         if self.log_event_store:
             return PersistencePolicy(
-                event_store=self.log_event_store, persist_event_type=Logged
+                event_store=self.log_event_store, persist_event_type=LoggedEvent
             )
 
     def close(self):

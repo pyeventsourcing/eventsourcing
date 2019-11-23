@@ -29,8 +29,7 @@ class ItemAssigned(TimestampedVersionedEntity.Event):
 
 
 class Array(object):
-    def __init__(self, array_id, repo):
-        assert isinstance(repo, AbstractArrayRepository)
+    def __init__(self, array_id, repo: "AbstractArrayRepository"):
         self.id = array_id
         self.repo = repo
 
@@ -115,7 +114,7 @@ class Array(object):
 
     def get_last_item_and_next_position(self):
         # Get last assigned item.
-        items_assigned = self.get_items_assigned(limit=1, is_ascending=False)
+        items_assigned = list(self.get_items_assigned(limit=1, is_ascending=False))
         if len(items_assigned) == 0:
             return None, 0
         item_assigned = items_assigned[0]
@@ -126,7 +125,7 @@ class Array(object):
     def get_items_assigned(
         self, start_index=None, stop_index=None, limit=None, is_ascending=True
     ):
-        return self.repo.event_store.get_domain_events(
+        return self.repo.event_store.iter_domain_events(
             originator_id=self.id,
             gte=start_index,
             lt=stop_index,
@@ -416,7 +415,7 @@ class BigArray(Array):
         return uuid5(self.id, str((i, j)))
 
 
-class AbstractArrayRepository(AbstractEntityRepository):
+class AbstractArrayRepository(AbstractEntityRepository[Any, ItemAssigned]):
     """
     Repository for sequence objects.
     """

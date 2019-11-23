@@ -1,19 +1,22 @@
 from typing import Optional, Dict
 from uuid import UUID
 
+from eventsourcing.domain.model.entity import VersionedEntity
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.eventplayer import EventPlayer
 from eventsourcing.infrastructure.snapshotting import entity_from_snapshot
 from eventsourcing.types import (
     AbstractEntityRepository,
     AbstractSnapshop,
-    AbstractDomainEntity,
-    T,
+    T_eo,
     AbstractEventStore,
+    T_ao,
 )
 
 
-class EventSourcedRepository(EventPlayer[T], AbstractEntityRepository[T]):
+class EventSourcedRepository(
+    AbstractEntityRepository[T_eo, T_ao], EventPlayer[T_eo, T_ao]
+):
     def __init__(
         self, event_store: AbstractEventStore, use_cache: bool = False, **kwargs
     ):
@@ -23,8 +26,12 @@ class EventSourcedRepository(EventPlayer[T], AbstractEntityRepository[T]):
         # when records fail to write otherwise the cache will
         # give an entity that is ahead of the event records,
         # and writing more records will give a broken sequence.
-        self._cache: Dict[UUID, Optional[T]] = {}
+        self._cache: Dict[UUID, Optional[T_eo]] = {}
         self._use_cache = use_cache
+
+    @property
+    def event_store(self) -> AbstractEventStore[VersionedEntity.Event]:
+        return self._event_store
 
     @property
     def use_cache(self):
@@ -42,14 +49,14 @@ class EventSourcedRepository(EventPlayer[T], AbstractEntityRepository[T]):
         """
         return self.get_entity(entity_id) is not None
 
-    def __getitem__(self, entity_id: UUID) -> T:
+    def __getitem__(self, entity_id: UUID) -> T_eo:
         """
         Returns entity with given ID.
         """
         if self._use_cache:
             try:
                 # Get entity from the cache.
-                entity: Optional[T] = self._cache[entity_id]
+                entity: Optional[T_eo] = self._cache[entity_id]
             except KeyError:
                 # Reconstitute the entity.
                 entity = self.get_entity(entity_id)
@@ -66,7 +73,7 @@ class EventSourcedRepository(EventPlayer[T], AbstractEntityRepository[T]):
         assert entity is not None
         return entity
 
-    def get_entity(self, entity_id: UUID, at=None) -> Optional[T]:
+    def get_entity(self, entity_id: UUID, at=None) -> Optional[T_eo]:
         """
         Returns entity with given ID, optionally until position.
         """
@@ -101,7 +108,7 @@ class EventSourcedRepository(EventPlayer[T], AbstractEntityRepository[T]):
         limit=None,
         initial_state=None,
         query_descending=False,
-    ) -> Optional[T]:
+    ) -> Optional[T_eo]:
         """
         Reconstitutes requested domain entity from domain events found in event store.
         """
@@ -127,7 +134,7 @@ class EventSourcedRepository(EventPlayer[T], AbstractEntityRepository[T]):
             is_ascending = not query_descending
 
         # Get entity's domain events from the event store.
-        domain_events = self.event_store.get_domain_events(
+        domain_events = self.event_store.iter_domain_events(
             originator_id=entity_id,
             gt=gt,
             gte=gte,
@@ -147,7 +154,7 @@ class EventSourcedRepository(EventPlayer[T], AbstractEntityRepository[T]):
 
     # Todo: Does this method belong on this class?
     def take_snapshot(
-        self, entity_id: UUID, lt: int = None, lte: int = None
+        self, entity_id: UUID, lt: Optional[int] = None, lte: Optional[int] = None
     ) -> Optional[AbstractSnapshop]:
         """
         Takes a snapshot of the entity as it existed after the most recent

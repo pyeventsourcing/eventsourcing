@@ -10,7 +10,7 @@ from eventsourcing.types import AbstractEntityRepository
 from eventsourcing.domain.model.events import (
     EventWithOriginatorID,
     EventWithTimestamp,
-    Logged,
+    LoggedEvent,
     publish,
 )
 from eventsourcing.exceptions import RepositoryKeyError
@@ -107,7 +107,7 @@ def start_new_timebucketedlog(name, bucket_size=None):
     return entity
 
 
-class MessageLogged(EventWithTimestamp, EventWithOriginatorID, Logged):
+class MessageLogged(EventWithTimestamp, EventWithOriginatorID, LoggedEvent):
     def __init__(self, message, originator_id):
         super(MessageLogged, self).__init__(
             originator_id=originator_id, message=message

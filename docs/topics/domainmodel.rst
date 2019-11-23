@@ -164,28 +164,33 @@ The event classes are useful for their distinct type, for example in subscriptio
 
 .. code:: python
 
-    from eventsourcing.domain.model.events import Created, AttributeChanged, Discarded
+    from eventsourcing.domain.model.events import (
+        CreatedEvent, AttributeChangedEvent, DiscardedEvent
+    )
 
     def is_created(event):
-        return isinstance(event, Created)
+        return isinstance(event, CreatedEvent)
+
 
     def is_attribute_changed(event):
-        return isinstance(event, AttributeChanged)
+        return isinstance(event, AttributeChangedEvent)
+
 
     def is_discarded(event):
-        return isinstance(event, Discarded)
+        return isinstance(event, DiscardedEvent)
 
-    assert is_created(Created()) is True
-    assert is_created(Discarded()) is False
-    assert is_created(DomainEvent()) is False
 
-    assert is_discarded(Created()) is False
-    assert is_discarded(Discarded()) is True
-    assert is_discarded(DomainEvent()) is False
+    assert is_domain_event(CreatedEvent()) is True
+    assert is_created(CreatedEvent()) is True
+    assert is_discarded(CreatedEvent()) is False
 
-    assert is_domain_event(Created()) is True
-    assert is_domain_event(Discarded()) is True
+    assert is_domain_event(DiscardedEvent()) is True
+    assert is_created(DiscardedEvent()) is False
+    assert is_discarded(DiscardedEvent()) is True
+
     assert is_domain_event(DomainEvent()) is True
+    assert is_discarded(DomainEvent()) is False
+    assert is_created(DomainEvent()) is False
 
 
 Custom events
@@ -377,9 +382,9 @@ have an ``originator_id`` attribute.
     assert issubclass(DomainEntity.AttributeChanged, DomainEntity.Event)
     assert issubclass(DomainEntity.Discarded, DomainEntity.Event)
 
-    assert issubclass(DomainEntity.Created, Created)
-    assert issubclass(DomainEntity.AttributeChanged, AttributeChanged)
-    assert issubclass(DomainEntity.Discarded, Discarded)
+    assert issubclass(DomainEntity.Created, CreatedEvent)
+    assert issubclass(DomainEntity.AttributeChanged, AttributeChangedEvent)
+    assert issubclass(DomainEntity.Discarded, DiscardedEvent)
 
     assert issubclass(DomainEntity.Event, DomainEvent)
 
@@ -1156,10 +1161,10 @@ perhaps with random bytes encoded as Base64.
 
 .. code:: python
 
-    from eventsourcing.utils.random import encode_random_bytes
+    from eventsourcing.utils.random import encoded_random_bytes
 
     # Keep this safe.
-    salt = encode_random_bytes(num_bytes=32)
+    salt = encoded_random_bytes(num_bytes=32)
 
     # Configure environment (before importing library).
     import os

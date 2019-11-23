@@ -1,15 +1,21 @@
 import itertools
 from copy import deepcopy
+from typing import Any, Dict, List, Optional, Set, Type, TypeVar, Union
 from uuid import UUID
 
-from eventsourcing.application.process import ProcessApplication, ProcessEvent
+from eventsourcing.application.process import (
+    ProcessApplication,
+    ProcessEvent,
+    WrappedRepository,
+)
 from eventsourcing.application.system import System
 from eventsourcing.contrib.paxos.composable import (
     PaxosInstance,
     PaxosMessage,
+    ProposalStatus,
     Resolution,
 )
-from eventsourcing.domain.model.aggregate import AggregateRoot
+from eventsourcing.domain.model.aggregate import BaseAggregateRoot
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.exceptions import (
     OperationalError,
@@ -17,8 +23,11 @@ from eventsourcing.exceptions import (
     RepositoryKeyError,
 )
 
+T_pa = TypeVar("T_pa", bound="PaxosAggregate")
+T_pa_ev = TypeVar("T_pa_ev", bound="PaxosAggregate.Event")
 
-class PaxosAggregate(AggregateRoot):
+
+class PaxosAggregate(BaseAggregateRoot):
     """
     Event-sourced Paxos participant.
     """
@@ -40,20 +49,20 @@ class PaxosAggregate(AggregateRoot):
     ]
     is_verbose = False
 
-    def __init__(self, quorum_size, network_uid, **kwargs):
+    def __init__(self, quorum_size: int, network_uid: str, **kwargs: Any):
         assert isinstance(quorum_size, int)
         self.quorum_size = quorum_size
         self.network_uid = network_uid
-        self.promises_received = set()
-        self.nacks_received = set()
+        self.promises_received: Set[str] = set()
+        self.nacks_received: Set[str] = set()
         self.leader = False
-        self.proposals = {}
-        self.acceptors = {}
+        self.proposals: Dict[str, ProposalStatus] = {}
+        self.acceptors: Dict[str, str] = {}
         self.final_value = None
         super(PaxosAggregate, self).__init__(**kwargs)
 
     @property
-    def paxos_instance(self):
+    def paxos_instance(self) -> PaxosInstance:
         """
         Returns instance of PaxosInstance (protocol implementation).
         """
@@ -71,61 +80,56 @@ class PaxosAggregate(AggregateRoot):
         # Return the instance.
         return instance
 
-    class Event(AggregateRoot.Event):
+    class Event(BaseAggregateRoot.Event[T_pa]):
         """
         Base event class for PaxosAggregate.
         """
 
-    class Started(Event, AggregateRoot.Created):
+    class Started(Event[T_pa], BaseAggregateRoot.Created[T_pa]):
         """
         Published when a PaxosAggregate is started.
         """
 
         __notifiable__ = False
 
-    class AttributesChanged(Event):
+    class AttributesChanged(Event[T_pa]):
         """
         Published when attributes of paxos_instance are changed.
         """
 
         __notifiable__ = False
 
-        def __init__(self, changes=None, **kwargs):
+        def __init__(self, changes: Optional[Dict[str, Any]] = None, **kwargs: Any):
             super(PaxosAggregate.AttributesChanged, self).__init__(
                 changes=changes, **kwargs
             )
 
         @property
-        def changes(self):
+        def changes(self) -> Dict[str, Any]:
             return self.__dict__["changes"]
 
-        def mutate(self, obj):
+        def mutate(self, obj: T_pa) -> None:
             for name, value in self.changes.items():
                 setattr(obj, name, value)
 
-    class MessageAnnounced(Event):
-        """
-        Published when a Paxos message is announced.
-        """
-
-        @property
-        def msg(self):
-            return self.__dict__["msg"]
-
     @classmethod
-    def start(cls, originator_id, quorum_size, network_uid):
+    def start(
+        cls: Type[T_pa], originator_id: UUID, quorum_size: int, network_uid: str
+    ) -> T_pa:
         """
         Factory method that returns a new Paxos aggregate.
         """
         assert isinstance(quorum_size, int), "Not an integer: {}".format(quorum_size)
+        assert issubclass(cls, PaxosAggregate)
+        started_class: Type[PaxosAggregate.Started[T_pa]] = cls.Started
         return cls.__create__(
-            event_class=cls.Started,
             originator_id=originator_id,
+            event_class=started_class,
             quorum_size=quorum_size,
             network_uid=network_uid,
         )
 
-    def propose_value(self, value, assume_leader=False):
+    def propose_value(self, value: Any, assume_leader: bool = False) -> PaxosMessage:
         """
         Proposes a value to the network.
         """
@@ -140,7 +144,7 @@ class PaxosAggregate(AggregateRoot):
         self.announce(msg)
         return msg
 
-    def receive_message(self, msg):
+    def receive_message(self, msg: PaxosMessage) -> None:
         """
         Responds to messages from other participants.
         """
@@ -160,14 +164,15 @@ class PaxosAggregate(AggregateRoot):
                     )
                 )
                 msg = paxos.receive(msg)
-                # Todo: Make it optional not to announce resolution (without which it's hard to see final value).
+                # Todo: Make it optional not to announce resolution
+                #  (without which it's hard to see final value).
                 do_announce_resolution = True
                 if msg and (do_announce_resolution or not isinstance(msg, Resolution)):
                     self.announce(msg)
 
         self.setattrs_from_paxos(paxos)
 
-    def announce(self, msg):
+    def announce(self, msg: PaxosMessage) -> None:
         """
         Announces a Paxos message.
         """
@@ -176,7 +181,16 @@ class PaxosAggregate(AggregateRoot):
         )
         self.__trigger_event__(event_class=self.MessageAnnounced, msg=msg)
 
-    def setattrs_from_paxos(self, paxos):
+    class MessageAnnounced(Event[T_pa]):
+        """
+        Published when a Paxos message is announced.
+        """
+
+        @property
+        def msg(self) -> str:
+            return self.__dict__["msg"]
+
+    def setattrs_from_paxos(self, paxos: PaxosInstance) -> None:
         """
         Registers changes of attribute value on Paxos instance.
         """
@@ -192,11 +206,11 @@ class PaxosAggregate(AggregateRoot):
         if changes:
             self.__trigger_event__(event_class=self.AttributesChanged, changes=changes)
 
-    def print_if_verbose(self, param):
+    def print_if_verbose(self, param: Any) -> None:
         if self.is_verbose:
             print(param)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             "PaxosAggregate("
             "network_uid='{network_uid}', "
@@ -207,9 +221,9 @@ class PaxosAggregate(AggregateRoot):
         ).format(**self.__dict__)
 
 
-class PaxosProcess(ProcessApplication):
+class PaxosProcess(ProcessApplication[T_pa, T_pa_ev]):
     persist_event_type = PaxosAggregate.Event
-    quorum_size = None
+    quorum_size: int = 0
     notification_log_section_size = 5
     use_cache = True
 
@@ -217,27 +231,31 @@ class PaxosProcess(ProcessApplication):
     # set_notification_ids = True
 
     @retry((RecordConflictError, OperationalError), max_attempts=10, wait=0)
-    def propose_value(self, key, value, assume_leader=False):
+    def propose_value(
+        self, key: UUID, value: Any, assume_leader: bool = False
+    ) -> PaxosAggregate:
         """
         Starts new Paxos aggregate and proposes a value for a key.
 
         Decorated with retry in case of notification log conflict
         or operational error.
         """
+        assert self.quorum_size > 0
         assert isinstance(key, UUID)
         paxos_aggregate = PaxosAggregate.start(
             originator_id=key, quorum_size=self.quorum_size, network_uid=self.name
         )
         msg = paxos_aggregate.propose_value(value, assume_leader=assume_leader)
-        while msg:
-            msg = paxos_aggregate.receive_message(msg)
+        paxos_aggregate.receive_message(msg)
         new_events = paxos_aggregate.__batch_pending_events__()
         self.record_process_event(ProcessEvent(new_events))
         self.repository.take_snapshot(paxos_aggregate.id)
         self.publish_prompt()
         return paxos_aggregate  # in case it's new
 
-    def policy(self, repository, event):
+    def policy(
+        self, repository: WrappedRepository[T_pa, T_pa_ev], event: T_pa_ev
+    ) -> Optional[Union[List[T_pa], T_pa]]:
         if isinstance(event, PaxosAggregate.MessageAnnounced):
             msg = event.msg
             assert isinstance(msg, PaxosMessage)
@@ -268,10 +286,12 @@ class PaxosProcess(ProcessApplication):
                 paxos.receive_message(msg)
 
             return paxos
+        else:
+            return None
 
 
 class PaxosSystem(System):
-    def __init__(self, num_participants=3, **kwargs):
+    def __init__(self, num_participants: int = 3, **kwargs: Any):
         self.num_participants = num_participants
         self.quorum_size = (num_participants + 2) // 2
         classes = [

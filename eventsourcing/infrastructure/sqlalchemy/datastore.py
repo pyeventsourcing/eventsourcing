@@ -1,8 +1,10 @@
 import os
+from typing import Optional, Union
 
 from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
 from sqlalchemy.exc import InternalError
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import scoped_session, sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 
 from eventsourcing.infrastructure.datastore import AbstractDatastore, DatastoreSettings
@@ -30,23 +32,28 @@ class SQLAlchemyDatastore(AbstractDatastore):
         base=Base,
         tables=None,
         connection_strategy="plain",
-        session=None,
+        session: Optional[Union[Session, scoped_session]] = None,
         **kwargs
     ):
         super(SQLAlchemyDatastore, self).__init__(**kwargs)
+        self._was_session_created_here = False
         self._session = session
-        self._engine = session.bind if session else None
+        if session:
+            self._engine: Optional[Engine] = session.get_bind()
+        else:
+            self._engine = None
         self._base = base
         self._tables = tables
         self._connection_strategy = connection_strategy
 
     @property
-    def session(self):
+    def session(self) -> Union[Session, scoped_session]:
         if self._session is None:
             if self._engine is None:
                 self.setup_connection()
             session_factory = sessionmaker(bind=self._engine)
             self._session = scoped_session(session_factory)
+            self._was_session_created_here = True
         return self._session
 
     def setup_connection(self):
@@ -113,12 +120,12 @@ class SQLAlchemyDatastore(AbstractDatastore):
     def is_sqlite(self):
         return self.settings.uri.startswith("sqlite")
 
-    def setup_tables(self, tables=None):
+    def setup_tables(self):
         if self._tables is not None:
             for table in self._tables:
                 self.setup_table(table)
 
-    def setup_table(self, table):
+    def setup_table(self, table) -> None:
         if self._engine is None:
             raise Exception("Engine not set when required: {}".format(self))
         try:
@@ -136,19 +143,20 @@ class SQLAlchemyDatastore(AbstractDatastore):
             for table in self._tables:
                 self.drop_table(table)
 
-    def drop_table(self, table):
+    def drop_table(self, table) -> None:
         table.__table__.drop(self._engine, checkfirst=True)
 
     def truncate_tables(self):
         self.drop_tables()
 
     def close_connection(self):
-        if self._session:
-            self._session.close()
-            self._session = None
-        if self._engine:
-            # Call dispose(), unless sqlite (to avoid error 'stored_events'
-            # table does not exist in projections.rst doc).
-            if not self.is_sqlite():
-                self._engine.dispose()
-            self._engine = None
+        if self._was_session_created_here:
+            if self._session:
+                self._session.close()
+                self._session = None
+            if self._engine:
+                # Call dispose(), unless sqlite (to avoid error 'stored_events'
+                # table does not exist in projections.rst doc).
+                if not self.is_sqlite():
+                    self._engine.dispose()
+                self._engine = None

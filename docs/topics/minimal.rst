@@ -504,7 +504,7 @@ Now, let's firstly write the events we received earlier into the event store.
         event_store.store(event)
 
     # Check the events exist in the event store.
-    stored_events = event_store.get_domain_events(entity.id)
+    stored_events = event_store.list_domain_events(entity.id)
     assert len(stored_events) == 2, (received_events, stored_events)
 
 The entity can now be retrieved from the repository, using its dictionary-like interface.

@@ -89,17 +89,18 @@ class PopoRecordManager(ACIDRecordManager):
 
         return notifications
 
-    def get_max_tracking_record_id(self, upstream_application_name):
+    def get_max_tracking_record_id(self, upstream_application_name: str) -> int:
+        max_id = 0
         with self._rw_lock.gen_rlock():
             try:
-                tracking_records = self._all_tracking_records[self.application_name][
-                    upstream_application_name
-                ]
+                app_records = self._all_tracking_records[self.application_name]
+                upstream_records = app_records[upstream_application_name]
             except KeyError:
                 pass
             else:
-                if tracking_records:
-                    return max(tracking_records)
+                if len(upstream_records):
+                    max_id = max(upstream_records)
+        return max_id
 
     def get_record(self, sequence_id, position):
         with self._rw_lock.gen_rlock():
@@ -178,8 +179,8 @@ class PopoRecordManager(ACIDRecordManager):
             return {}
 
     def has_tracking_record(
-        self, upstream_application_name, pipeline_id, notification_id
-    ):
+        self, upstream_application_name: str, pipeline_id: int, notification_id: int
+    ) -> bool:
         raise NotImplementedError()
 
     def record_sequenced_items(self, sequenced_item_or_items):

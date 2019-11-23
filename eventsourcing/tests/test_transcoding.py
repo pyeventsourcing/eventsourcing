@@ -279,7 +279,7 @@ class TestTranscoding(TestCase):
         return self.encoder.encode(value)
 
     def setUp(self):
-        self.encoder = ObjectJSONEncoder()
+        self.encoder = ObjectJSONEncoder(sort_keys=True)
         self.decoder = ObjectJSONDecoder()
 
 

@@ -197,7 +197,7 @@ class TestNotificationLogReader(NotificationLogTestCase):
         advance_by = 3
         reader.seek(saved_position)
         self.assertEqual(reader.position, saved_position)
-        reader.read_list(advance_by=advance_by)
+        reader.list_notifications(advance_by=advance_by)
         self.assertEqual(reader.position, saved_position + advance_by)
 
         # Read items between particular positions.
@@ -286,7 +286,8 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
             # Get serialized section.
             json_encoder = ObjectJSONEncoder(separators=JSON_SEPARATORS)
             view = NotificationLogView(notification_log, json_encoder)
-            section, is_archived = view.present_section(section_id)
+
+            resource = view.present_resource(section_id)
             # Todo: Maybe redirect if the section ID is a mismatch, so
             # the URL is good for cacheing.
 
@@ -296,7 +297,7 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
             start_response(status, headers)
 
             # Return a list of lines.
-            return [(line + "\n").encode("utf8") for line in section.split("\n")]
+            return [(line + "\n").encode("utf8") for line in resource.split("\n")]
 
         httpd = make_server("", port, simple_app)
         print("Serving on port {}...".format(port))
@@ -311,7 +312,7 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
             notification_log_reader = NotificationLogReader(
                 notification_log=notification_log
             )
-            items_from_start = notification_log_reader.read_list()
+            items_from_start = notification_log_reader.list_notifications()
 
             # Check we got all the items.
             self.assertEqual(len(items_from_start), num_notifications)

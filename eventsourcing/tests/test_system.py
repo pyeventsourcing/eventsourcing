@@ -436,7 +436,7 @@ class TestSystem(TestCase):
         # Check policy makes payment whenever order is reserved.
         event = Order.Reserved(originator_id=order.id, originator_version=1)
 
-        payment = Payments.policy(repository=fake_repository, event=event)
+        payment = Payments().policy(repository=fake_repository, event=event)
         assert isinstance(payment, Payment), payment
         assert payment.order_id == order.id
 
@@ -452,7 +452,7 @@ class TestSystem(TestCase):
         event = Reservation.Created(
             originator_id=uuid4(), originator_topic="", order_id=order.id
         )
-        Orders.policy(repository=fake_repository, event=event)
+        Orders().policy(repository=fake_repository, event=event)
 
         # Check order is reserved.
         assert order.is_reserved

@@ -6,7 +6,7 @@ from typing import Dict, Type
 
 from eventsourcing.domain.model.events import DomainEvent, subscribe
 from eventsourcing.exceptions import ProgrammingError
-from eventsourcing.types import MetaAbstractDomainEntity
+from eventsourcing.types import MetaEnduringObject
 
 
 def subscribe_to(*event_classes):
@@ -221,7 +221,7 @@ def retry(exc=Exception, max_attempts=1, wait=0, stall=0, verbose=False):
         return _retry
 
 
-def subclassevents(cls: MetaAbstractDomainEntity):
+def subclassevents(cls: MetaEnduringObject):
     """
     Decorator that avoids "boilerplate" subclassing of domain events.
 

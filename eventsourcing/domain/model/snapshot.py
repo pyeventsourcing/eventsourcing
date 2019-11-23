@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from eventsourcing.domain.model.events import (
     EventWithOriginatorID,
     EventWithOriginatorVersion,
@@ -12,7 +14,9 @@ class Snapshot(
     EventWithOriginatorID,
     AbstractSnapshop,
 ):
-    def __init__(self, originator_id, originator_version, topic, state):
+    def __init__(
+        self, originator_id: UUID, originator_version: int, topic: str, state: str
+    ):
         super(Snapshot, self).__init__(
             originator_id=originator_id,
             originator_version=originator_version,
@@ -21,14 +25,14 @@ class Snapshot(
         )
 
     @property
-    def topic(self):
+    def topic(self) -> str:
         """
         Path to the class of the snapshotted entity.
         """
         return self.__dict__["topic"]
 
     @property
-    def state(self):
+    def state(self) -> str:
         """
         State of the snapshotted entity.
         """

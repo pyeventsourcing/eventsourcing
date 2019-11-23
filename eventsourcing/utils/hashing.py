@@ -1,13 +1,15 @@
 import hashlib
 import os
+from json import JSONEncoder
 
 SALT_FOR_DATA_INTEGRITY = os.getenv("SALT_FOR_DATA_INTEGRITY", "")
 
 
-def hash_object(json_encoder, obj):
+def hash_object(json_encoder: JSONEncoder, obj: dict) -> str:
     """
     Calculates SHA-256 hash of JSON encoded 'obj'.
 
+    :param json_encoder: JSON encoder object.
     :param obj: Object to be hashed.
     :return: SHA-256 as hexadecimal string.
     :rtype str

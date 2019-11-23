@@ -280,7 +280,7 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         finally:
             self.session.close()
 
-    def get_max_tracking_record_id(self, upstream_application_name):
+    def get_max_tracking_record_id(self, upstream_application_name: str) -> int:
         query = self.session.query(func.max(self.tracking_record_class.notification_id))
         query = query.filter(
             self.tracking_record_class.application_name == self.application_name
@@ -290,11 +290,12 @@ class SQLAlchemyRecordManager(SQLRecordManager):
             == upstream_application_name
         )
         query = query.filter(self.tracking_record_class.pipeline_id == self.pipeline_id)
-        return query.scalar()
+        value = query.scalar() or 0
+        return value
 
     def has_tracking_record(
-        self, upstream_application_name, pipeline_id, notification_id
-    ):
+        self, upstream_application_name: str, pipeline_id: int, notification_id: int
+    ) -> bool:
         query = self.session.query(self.tracking_record_class)
         query = query.filter(
             self.tracking_record_class.application_name == self.application_name

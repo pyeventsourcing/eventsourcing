@@ -113,7 +113,10 @@ class CassandraDatastore(AbstractDatastore):
             replication_factor=self.settings.replication_factor,
         )
         for table in self.tables:
-            sync_table(table)
+            self.setup_table(table)
+
+    def setup_table(self, table) -> None:
+        sync_table(table)
 
     @retry(NoHostAvailable, max_attempts=10, wait=0.5)
     def drop_tables(self):

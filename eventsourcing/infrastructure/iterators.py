@@ -1,10 +1,11 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from threading import Thread
+from typing import Iterable
 
 from eventsourcing.infrastructure.base import BaseRecordManager
 
 
-class AbstractSequencedItemIterator(ABC):
+class AbstractSequencedItemIterator(Iterable):
     DEFAULT_PAGE_SIZE = 1000
 
     def __init__(

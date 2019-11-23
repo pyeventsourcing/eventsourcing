@@ -980,7 +980,7 @@ The example below uses the record notification log, constructed above.
         json_encoder=ObjectJSONEncoder()
     )
 
-    section_json, is_archived = view.present_section('1,5')
+    section_json = view.present_resource('1,5')
 
     section_dict = ObjectJSONDecoder().decode(section_json)
 
@@ -1028,7 +1028,7 @@ serialize the sections of the record notification log (see above).
         view = NotificationLogView(notification_log)
 
         # Get serialized section.
-        section, is_archived = view.present_section(section_id)
+        section = view.present_resource(section_id)
 
         # Start HTTP response.
         status = '200 OK'

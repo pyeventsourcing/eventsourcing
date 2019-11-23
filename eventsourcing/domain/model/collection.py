@@ -1,39 +1,35 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from typing import Optional, cast
-
-from eventsourcing.domain.model.entity import TimestampedVersionedEntity
-from eventsourcing.types import AbstractEntityRepository, T
+from eventsourcing.domain.model.entity import TimestampedVersionedEntity, T_en_tim_ver
+from eventsourcing.types import AbstractEntityRepository
 
 
-class Collection(TimestampedVersionedEntity[T]):
-    class Event(TimestampedVersionedEntity.Event[T]):
+class Collection(TimestampedVersionedEntity):
+    class Event(TimestampedVersionedEntity.Event[T_en_tim_ver]):
         """Supertype for events of collection entities."""
 
-    class Created(Event[T], TimestampedVersionedEntity.Created[T]):
+    class Created(
+        Event[T_en_tim_ver], TimestampedVersionedEntity.Created[T_en_tim_ver]
+    ):
         """Published when collection is created."""
 
-    class Discarded(Event[T], TimestampedVersionedEntity.Discarded[T]):
+    class Discarded(
+        Event[T_en_tim_ver], TimestampedVersionedEntity.Discarded[T_en_tim_ver]
+    ):
         """Published when collection is discarded."""
 
-    class EventWithItem(Event[T]):
+    class EventWithItem(Event[T_en_tim_ver]):
         @property
         def item(self):
             return self.__dict__["item"]
 
-    class ItemAdded(EventWithItem[T]):
-        def __mutate__(self, obj: Optional[T]) -> Optional[T]:
-            obj = super(Collection.ItemAdded, self).__mutate__(obj)
-            collection = cast(Collection, obj)
-            collection._items.add(self.item)
-            return obj
+    class ItemAdded(EventWithItem):
+        def mutate(self, obj: "Collection") -> None:
+            obj._items.add(self.item)
 
-    class ItemRemoved(EventWithItem[T]):
-        def __mutate__(self, obj: Optional[T]) -> Optional[T]:
-            obj = super(Collection.ItemRemoved, self).__mutate__(obj)
-            collection = cast(Collection, obj)
-            collection._items.remove(self.item)
-            return obj
+    class ItemRemoved(EventWithItem):
+        def mutate(self, obj: "Collection") -> None:
+            obj._items.remove(self.item)
 
     def __init__(self, **kwargs):
         super(Collection, self).__init__(**kwargs)

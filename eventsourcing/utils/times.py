@@ -1,37 +1,38 @@
 import datetime
 import time
 from decimal import Decimal
+from typing import Optional, Union
 from uuid import UUID
 
 utc_timezone = datetime.timezone.utc
 
 
-def decimaltimestamp_from_uuid(uuid_arg) -> Decimal:
+def decimaltimestamp_from_uuid(value: UUID) -> Decimal:
     """
-    Return a floating point unix timestamp.
+    Return a floating point unix timestamp from UUID value.
 
-    :param uuid_arg:
+    :param value:
     :return: Unix timestamp in seconds, with microsecond precision.
     :rtype: Decimal
     """
-    return decimaltimestamp(timestamp_long_from_uuid(uuid_arg) / 1e7)
+    return decimaltimestamp(timestamp_long_from_uuid(value) / 1e7)
 
 
-def timestamp_long_from_uuid(uuid_arg) -> int:
+def timestamp_long_from_uuid(value: UUID) -> int:
     """
     Returns an integer value representing a unix timestamp in tenths of microseconds.
 
-    :param uuid_arg:
+    :param value:
     :return: Unix timestamp integer in tenths of microseconds.
     :rtype: int
     """
-    if isinstance(uuid_arg, str):
-        uuid_arg = UUID(uuid_arg)
-    assert isinstance(uuid_arg, UUID), uuid_arg
-    return uuid_arg.time - 0x01B21DD213814000
+    if isinstance(value, str):
+        value = UUID(value)
+    assert isinstance(value, UUID), value
+    return value.time - 0x01B21DD213814000
 
 
-def decimaltimestamp(t=None) -> Decimal:
+def decimaltimestamp(t: Optional[float] = None) -> Decimal:
     """
     A UNIX timestamp as a Decimal object (exact number type).
 
@@ -48,7 +49,7 @@ def decimaltimestamp(t=None) -> Decimal:
     return Decimal("{:.6f}".format(t))
 
 
-def datetime_from_timestamp(t) -> datetime.datetime:
+def datetime_from_timestamp(t: Union[Decimal, float]) -> datetime.datetime:
     """
     Returns naive UTC datetime from decimal UNIX
     timestamps such as time.time().

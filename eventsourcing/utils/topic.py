@@ -25,7 +25,8 @@ def get_topic(domain_class: type) -> str:
 substitutions: Dict[str, str] = {}
 
 
-def resolve_topic(topic: str) -> type:
+def resolve_topic(topic: str) -> Any:
+# def resolve_topic(topic: str) -> Type[object]:
     """Return class described by given topic.
 
     Args:

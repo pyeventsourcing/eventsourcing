@@ -79,6 +79,7 @@ setup(
     url="https://github.com/johnbywater/eventsourcing",
     license="BSD-3-Clause",
     packages=packages,
+    package_data={"eventsourcing": ["py.typed"]},
     install_requires=install_requires,
     extras_require={
         "cassandra": cassandra_requires,

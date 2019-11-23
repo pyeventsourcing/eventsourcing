@@ -1,32 +1,39 @@
+from typing import Any, Optional
+
 from eventsourcing.application.policies import SnapshottingPolicy
 from eventsourcing.application.simple import SimpleApplication
+from eventsourcing.domain.model.entity import T_en, T_ev
+from eventsourcing.infrastructure.base import BaseRecordManager
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
+from eventsourcing.types import AbstractSnapshop
 
 
-class SnapshottingApplication(SimpleApplication):
+class SnapshottingApplication(SimpleApplication[T_en, T_ev]):
     # Todo: Change this to default to None?
     snapshot_period = 2
 
-    def __init__(self, snapshot_period=None, **kwargs):
+    def __init__(self, snapshot_period: Optional[int] = None, **kwargs: Any):
         self.snapshot_period = snapshot_period or self.snapshot_period
-        self.snapshotting_policy = None
-        self.snapshot_store = None
-        self.snapshot_strategy = None
-        self.snapshotting_policy = None
+        self.snapshot_store: Optional[EventStore] = None
+        self.snapshot_strategy: Optional[EventSourcedSnapshotStrategy] = None
+        self.snapshotting_policy: Optional[SnapshottingPolicy] = None
         super(SnapshottingApplication, self).__init__(**kwargs)
 
-    def construct_event_store(self):
+    def construct_event_store(self) -> None:
         super(SnapshottingApplication, self).construct_event_store()
         # Setup event store for snapshots.
-        self.snapshot_store = EventStore(
-            record_manager=self.infrastructure_factory.construct_snapshot_record_manager(),
-            sequenced_item_mapper=self.sequenced_item_mapper_class(
-                sequenced_item_class=self.sequenced_item_class
-            ),
+        assert self.infrastructure_factory
+        record_manager = self.infrastructure_factory.construct_snapshot_record_manager()
+        assert self.sequenced_item_mapper_class is not None
+        sequenced_item_mapper = self.sequenced_item_mapper_class(
+            sequenced_item_class=self.sequenced_item_class
+        )
+        self.snapshot_store = EventStore[AbstractSnapshop, BaseRecordManager[T_ev]](
+            record_manager=record_manager, sequenced_item_mapper=sequenced_item_mapper
         )
 
-    def construct_repository(self, **kwargs):
+    def construct_repository(self, **kwargs: Any) -> None:
         # Setup repository with a snapshot strategy.
         self.snapshot_strategy = EventSourcedSnapshotStrategy(
             snapshot_store=self.snapshot_store
@@ -35,8 +42,10 @@ class SnapshottingApplication(SimpleApplication):
             snapshot_strategy=self.snapshot_strategy, **kwargs
         )
 
-    def construct_persistence_policy(self):
+    def construct_persistence_policy(self) -> None:
         super(SnapshottingApplication, self).construct_persistence_policy()
+        assert self.repository
+        assert self.snapshot_store
         self.snapshotting_policy = SnapshottingPolicy(
             repository=self.repository,
             snapshot_store=self.snapshot_store,
@@ -44,17 +53,19 @@ class SnapshottingApplication(SimpleApplication):
             period=self.snapshot_period,
         )
 
-    def setup_table(self):
+    def setup_table(self) -> None:
         super(SnapshottingApplication, self).setup_table()
-        if self.datastore is not None:
-            self.datastore.setup_table(self.snapshot_store.record_manager.record_class)
+        if self._datastore is not None:
+            assert self.snapshot_store
+            self._datastore.setup_table(self.snapshot_store.record_manager.record_class)
 
-    def drop_table(self):
+    def drop_table(self) -> None:
         super(SnapshottingApplication, self).drop_table()
-        if self.datastore is not None:
-            self.datastore.drop_table(self.snapshot_store.record_manager.record_class)
+        if self._datastore is not None:
+            assert self.snapshot_store
+            self._datastore.drop_table(self.snapshot_store.record_manager.record_class)
 
-    def close(self):
+    def close(self) -> None:
         super(SnapshottingApplication, self).close()
         if self.snapshotting_policy is not None:
             self.snapshotting_policy.close()

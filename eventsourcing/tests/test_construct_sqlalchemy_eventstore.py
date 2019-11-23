@@ -37,7 +37,7 @@ class TestFactory(TestCase):
         event_store.store(domain_event)
 
         # Get the domain events.
-        events = event_store.get_domain_events(originator_id=aggregate_id)
+        events = event_store.list_domain_events(originator_id=aggregate_id)
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0], domain_event)
 

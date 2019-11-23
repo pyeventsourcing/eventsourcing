@@ -16,7 +16,7 @@
 
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
 from unittest import TestCase
 from uuid import UUID
 
@@ -27,8 +27,7 @@ from eventsourcing.application.system import (
     SingleThreadedRunner,
     System,
 )
-from eventsourcing.domain.model.aggregate import BaseAggregateRoot
-from eventsourcing.domain.model.events import DomainEvent
+from eventsourcing.domain.model.aggregate import AggregateRoot, T_ag, T_ag_ev
 from eventsourcing.exceptions import RepositoryKeyError
 
 
@@ -43,21 +42,6 @@ class Location(Enum):
     NLRTM = "NLRTM"
     USDAL = "USDAL"
     AUMEL = "AUMEL"
-
-
-# Handling activities.
-class HandlingActivity(Enum):
-    RECEIVE = "RECEIVE"
-    LOAD = "LOAD"
-    UNLOAD = "UNLOAD"
-    CLAIM = "CLAIM"
-
-
-# Custom types.
-NextExpectedActivity = Optional[
-    Union[Tuple[HandlingActivity, Location], Tuple[HandlingActivity, Location, str]]
-]
-CargoDetails = Dict[str, Optional[Union[str, bool, datetime, Tuple]]]
 
 
 # Leg of an Itinerary.
@@ -76,30 +60,81 @@ class Itinerary(object):
         self.legs = legs
 
 
+# Some routes from one location to another.
+REGISTERED_ROUTES = {
+    ("HONGKONG", "STOCKHOLM"): [
+        Itinerary(
+            origin="HONGKONG",
+            destination="STOCKHOLM",
+            legs=[
+                Leg(origin="HONGKONG", destination="NEWYORK", voyage_number="V1"),
+                Leg(origin="NEWYORK", destination="STOCKHOLM", voyage_number="V2"),
+            ],
+        )
+    ],
+    ("TOKYO", "STOCKHOLM"): [
+        Itinerary(
+            origin="TOKYO",
+            destination="STOCKHOLM",
+            legs=[
+                Leg(origin="TOKYO", destination="HAMBURG", voyage_number="V3"),
+                Leg(origin="HAMBURG", destination="STOCKHOLM", voyage_number="V4"),
+            ],
+        )
+    ],
+}
+
+
+# Handling activities.
+class HandlingActivity(Enum):
+    RECEIVE = "RECEIVE"
+    LOAD = "LOAD"
+    UNLOAD = "UNLOAD"
+    CLAIM = "CLAIM"
+
+
+# Custom static types.
+NextExpectedActivity = Optional[
+    Union[Tuple[HandlingActivity, Location], Tuple[HandlingActivity, Location, str]]
+]
+CargoDetails = Dict[str, Optional[Union[str, bool, datetime, Tuple]]]
+LegDetails = Dict[str, str]
+ItineraryDetails = Dict[str, Union[str, List[LegDetails]]]
+
+# Type variable for Cargo aggregate class.
+T_cargo = TypeVar("T_cargo", bound="Cargo")
+
+
 # Custom aggregate root class.
-class AggregateRoot(BaseAggregateRoot):
+class Aggregate(AggregateRoot):
     __subclassevents__ = True
 
 
 # The Cargo aggregate is an event sourced domain model aggregate that
 # specifies the routing from origin to destination, and can track what
 # happens to the cargo after it has been booked.
-class Cargo(AggregateRoot):
+
+
+class Cargo(Aggregate):
     @classmethod
     def new_booking(
-        cls, origin: Location, destination: Location, arrival_deadline: datetime
-    ) -> "Cargo":
-        cargo = cls.__create__(
+        cls: Type[T_cargo],
+        origin: Location,
+        destination: Location,
+        arrival_deadline: datetime,
+    ) -> T_cargo:
+        assert issubclass(cls, Cargo)  # For PyCharm navigation.
+        obj = cls.__create__(
             origin=origin, destination=destination, arrival_deadline=arrival_deadline
         )
-        return cargo
+        return obj
 
     def __init__(
         self,
         origin: Location,
         destination: Location,
         arrival_deadline: datetime,
-        **kwargs
+        **kwargs: Any
     ) -> None:
         super().__init__(**kwargs)
         self._origin: Location = origin
@@ -158,10 +193,13 @@ class Cargo(AggregateRoot):
     def current_voyage_number(self) -> Optional[str]:
         return self._current_voyage_number
 
+    class Event(Aggregate.Event):
+        pass
+
     def change_destination(self, destination: Location) -> None:
         self.__trigger_event__(self.DestinationChanged, destination=destination)
 
-    class DestinationChanged(DomainEvent):
+    class DestinationChanged(Event):
         def mutate(self, obj: "Cargo") -> None:
             obj._destination = self.destination
 
@@ -169,10 +207,10 @@ class Cargo(AggregateRoot):
         def destination(self) -> Location:
             return self.__dict__["destination"]
 
-    def assign_route(self, itinerary) -> None:
+    def assign_route(self, itinerary: Itinerary) -> None:
         self.__trigger_event__(self.RouteAssigned, route=itinerary)
 
-    class RouteAssigned(DomainEvent):
+    class RouteAssigned(Event):
         def mutate(self, obj: "Cargo") -> None:
             obj._route = self.route
             obj._routing_status = "ROUTED"
@@ -199,7 +237,7 @@ class Cargo(AggregateRoot):
             handling_activity=handling_activity,
         )
 
-    class HandlingEventRegistered(DomainEvent):
+    class HandlingEventRegistered(Event):
         def mutate(self, obj: "Cargo") -> None:
             assert obj.route is not None
             if self.handling_activity == HandlingActivity.RECEIVE:
@@ -213,8 +251,7 @@ class Cargo(AggregateRoot):
             elif self.handling_activity == HandlingActivity.LOAD:
                 obj._transport_status = "ONBOARD_CARRIER"
                 obj._current_voyage_number = self.voyage_number
-                assert obj._route is not None
-                for leg in obj._route.legs:
+                for leg in obj.route.legs:
                     if leg.origin == self.location.value:
                         if leg.voyage_number == self.voyage_number:
                             obj._next_expected_activity = (
@@ -230,7 +267,6 @@ class Cargo(AggregateRoot):
                     )
 
             elif self.handling_activity == HandlingActivity.UNLOAD:
-                assert obj._route is not None
                 obj._current_voyage_number = None
                 obj._last_known_location = self.location
                 obj._transport_status = "IN_PORT"
@@ -239,12 +275,10 @@ class Cargo(AggregateRoot):
                         HandlingActivity.CLAIM,
                         self.location,
                     )
-                elif self.location.value in [
-                    leg.destination for leg in obj._route.legs
-                ]:
-                    for i, leg in enumerate(obj._route.legs):
+                elif self.location.value in [leg.destination for leg in obj.route.legs]:
+                    for i, leg in enumerate(obj.route.legs):
                         if leg.voyage_number == self.voyage_number:
-                            next_leg: Leg = obj._route.legs[i + 1]
+                            next_leg: Leg = obj.route.legs[i + 1]
                             assert Location[next_leg.origin] == self.location
                             obj._next_expected_activity = (
                                 HandlingActivity.LOAD,
@@ -278,29 +312,18 @@ class Cargo(AggregateRoot):
             return self.__dict__["handling_activity"]
 
 
-class CargoNotFound(Exception):
-    pass
-
-
-# The Cargo aggregate is situation in an event sourced application,
-# which provides application services for clients.
-class BookingApplication(ProcessApplication):
+# Cargo aggregates exist within an application, which
+# provides "application service" methods for clients.
+class BookingApplication(ProcessApplication[T_ag, T_ag_ev]):
     persist_event_type = Cargo.Event
 
+    @staticmethod
     def book_new_cargo(
-        self, origin: Location, destination: Location, arrival_deadline: datetime
+        origin: Location, destination: Location, arrival_deadline: datetime
     ) -> UUID:
         cargo = Cargo.new_booking(origin, destination, arrival_deadline)
         cargo.__save__()
         return cargo.id
-
-    def get_cargo(self, tracking_id: UUID) -> Cargo:
-        try:
-            entity = self.repository[tracking_id]
-        except RepositoryKeyError:
-            raise CargoNotFound(tracking_id)
-        else:
-            return cast(Cargo, entity)
 
     def change_destination(self, tracking_id: UUID, destination: Location) -> None:
         cargo = self.get_cargo(tracking_id)
@@ -321,7 +344,7 @@ class BookingApplication(ProcessApplication):
         return possible_routes
 
     def assign_route(self, tracking_id: UUID, itinerary: Itinerary) -> None:
-        cargo: Cargo = self.get_cargo(tracking_id)
+        cargo = self.get_cargo(tracking_id)
         cargo.assign_route(itinerary)
         cargo.__save__()
 
@@ -332,9 +355,22 @@ class BookingApplication(ProcessApplication):
         location: Location,
         handing_activity: HandlingActivity,
     ) -> None:
-        cargo: Cargo = self.get_cargo(tracking_id)
-        cargo.register_handling_event(tracking_id, voyage_number, location, handing_activity)
+        cargo = self.get_cargo(tracking_id)
+        cargo.register_handling_event(
+            tracking_id, voyage_number, location, handing_activity
+        )
         cargo.__save__()
+
+    def get_cargo(self, tracking_id: UUID) -> Cargo:
+        try:
+            cargo = self.repository[tracking_id]
+        except RepositoryKeyError:
+            raise Exception("Cargo not found: {}".format(tracking_id))
+        else:
+            if isinstance(cargo, Cargo):
+                return cargo
+            else:
+                raise Exception("Cargo not found: {}".format(tracking_id))
 
 
 # The application services are presented in a client interface that
@@ -342,20 +378,18 @@ class BookingApplication(ProcessApplication):
 class LocalClient(object):
     def __init__(self, runner: InProcessRunner):
         self.runner: InProcessRunner = runner
-        self.bookingapplication: BookingApplication = cast(
-            BookingApplication, self.runner.bookingapplication
-        )
+        self.booking_application = self.runner.get(BookingApplication)
 
     def book_new_cargo(
         self, origin: str, destination: str, arrival_deadline: datetime
     ) -> str:
-        tracking_id = self.bookingapplication.book_new_cargo(
+        tracking_id = self.booking_application.book_new_cargo(
             Location[origin], Location[destination], arrival_deadline
         )
         return str(tracking_id)
 
     def get_cargo_details(self, tracking_id: str) -> CargoDetails:
-        cargo = self.bookingapplication.get_cargo(UUID(tracking_id))
+        cargo = self.booking_application.get_cargo(UUID(tracking_id))
 
         # Present 'next_expected_activity'.
         next_expected_activity: Optional[Union[Tuple[Any, Any], Tuple[Any, Any, Any]]]
@@ -401,36 +435,39 @@ class LocalClient(object):
         }
 
     def change_destination(self, tracking_id: str, destination: str) -> None:
-        self.bookingapplication.change_destination(
+        self.booking_application.change_destination(
             UUID(tracking_id), Location[destination]
         )
 
     def request_possible_routes_for_cargo(self, tracking_id: str) -> List[dict]:
-        routes = self.bookingapplication.request_possible_routes_for_cargo(
+        routes = self.booking_application.request_possible_routes_for_cargo(
             UUID(tracking_id)
         )
         return [self.dict_from_itinerary(route) for route in routes]
 
-    def dict_from_itinerary(self, route):
-        route_details = {"origin": route.origin, "destination": route.destination}
+    def dict_from_itinerary(self, itinerary: Itinerary) -> ItineraryDetails:
         legs_details = []
-        for leg in route.legs:
-            leg_details = {
+        for leg in itinerary.legs:
+            leg_details: LegDetails = {
                 "origin": leg.origin,
                 "destination": leg.destination,
                 "voyage_number": leg.voyage_number,
             }
             legs_details.append(leg_details)
-        route_details["legs"] = legs_details
+        route_details: ItineraryDetails = {
+            "origin": itinerary.origin,
+            "destination": itinerary.destination,
+            "legs": legs_details,
+        }
         return route_details
 
-    def assign_route(self, tracking_id: str, route_details) -> None:
-        routes = self.bookingapplication.request_possible_routes_for_cargo(
+    def assign_route(self, tracking_id: str, route_details: ItineraryDetails) -> None:
+        routes = self.booking_application.request_possible_routes_for_cargo(
             UUID(tracking_id)
         )
         for route in routes:
             if route_details == self.dict_from_itinerary(route):
-                self.bookingapplication.assign_route(UUID(tracking_id), route)
+                self.booking_application.assign_route(UUID(tracking_id), route)
 
     def register_handling_event(
         self,
@@ -439,7 +476,7 @@ class LocalClient(object):
         location: str,
         handling_activity: str,
     ) -> None:
-        self.bookingapplication.register_handling_event(
+        self.booking_application.register_handling_event(
             UUID(tracking_id),
             voyage_number,
             Location[location],
@@ -447,32 +484,8 @@ class LocalClient(object):
         )
 
 
-REGISTERED_ROUTES = {
-    ("HONGKONG", "STOCKHOLM"): [
-        Itinerary(
-            origin="HONGKONG",
-            destination="STOCKHOLM",
-            legs=[
-                Leg(origin="HONGKONG", destination="NEWYORK", voyage_number="V1"),
-                Leg(origin="NEWYORK", destination="STOCKHOLM", voyage_number="V2"),
-            ],
-        )
-    ],
-    ("TOKYO", "STOCKHOLM"): [
-        Itinerary(
-            origin="TOKYO",
-            destination="STOCKHOLM",
-            legs=[
-                Leg(origin="TOKYO", destination="HAMBURG", voyage_number="V3"),
-                Leg(origin="HAMBURG", destination="STOCKHOLM", voyage_number="V4"),
-            ],
-        )
-    ],
-}
-
-
 # Stub function that picks an itineraries from a list of possible itineraries.
-def select_preferred_itinerary(itineraries):
+def select_preferred_itinerary(itineraries: List[ItineraryDetails]) -> ItineraryDetails:
     return itineraries[0]
 
 

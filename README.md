@@ -102,10 +102,10 @@ class World(AggregateRoot):
 Generate a cipher key (optional).
 
 ```python
-from eventsourcing.utils.random import encode_random_bytes
+from eventsourcing.utils.random import encoded_random_bytes
 
 # Keep this safe.
-cipher_key = encode_random_bytes(num_bytes=32)
+cipher_key = encoded_random_bytes(num_bytes=32)
 ```
 
 Configure environment variables (optional).
@@ -196,7 +196,7 @@ with SQLAlchemyApplication(persist_event_type=World.Event) as app:
         raise Exception("Shouldn't get here")
 
     # Check domain event data integrity (happens also during replay).
-    events = app.event_store.get_domain_events(world.id)
+    events = app.event_store.list_domain_events(world.id)
     last_hash = ''
     for event in events:
         event.__check_hash__()
