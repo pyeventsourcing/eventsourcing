@@ -21,12 +21,12 @@ from eventsourcing.exceptions import (
     OriginatorIDError,
     OriginatorVersionError,
 )
-from eventsourcing.types import EnduringObject, MetaAbstractDomainEntity, T_ev_evs
+from eventsourcing.types import EnduringObject, MetaEnduringObject, T_ev_evs
 from eventsourcing.utils.times import decimaltimestamp_from_uuid
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
 
-class MetaDomainEntity(MetaAbstractDomainEntity):
+class MetaDomainEntity(MetaEnduringObject):
     __subclassevents__ = False
 
     # Todo: Delete the '**kwargs' when library no longer supports Python3.6.
@@ -49,7 +49,7 @@ class MetaDomainEntity(MetaAbstractDomainEntity):
 
 T_en = TypeVar("T_en", bound="DomainEntity")
 
-T_en_ev = TypeVar("T_en_ev", bound="DomainEntity.Event")
+T_ev = TypeVar("T_ev", bound="DomainEntity.Event")
 
 
 class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
@@ -230,16 +230,16 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
         if self.__is_discarded__:
             raise EntityIsDiscarded("Entity is discarded")
 
-    def __trigger_event__(self, event_class: Type[T_en_ev], **kwargs: Any) -> None:
+    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
         """
         Constructs, applies, and publishes a domain event.
         """
         self.__assert_not_discarded__()
-        event: T_en_ev = event_class(originator_id=self.id, **kwargs)
+        event: T_ev = event_class(originator_id=self.id, **kwargs)
         self.__mutate__(event)
         self.__publish__(event)
 
-    def __mutate__(self, event: T_en_ev) -> None:
+    def __mutate__(self, event: T_ev) -> None:
         """
         Mutates this entity with the given event.
 
@@ -376,7 +376,7 @@ class EntityWithHashchain(DomainEntity):
         assert isinstance(obj, EntityWithHashchain)  # For PyCharm type checking.
         return obj
 
-    def __trigger_event__(self, event_class: Type[T_en_ev], **kwargs: Any) -> None:
+    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
         kwargs["__previous_hash__"] = self.__head__
         super(EntityWithHashchain, self).__trigger_event__(event_class, **kwargs)
 
@@ -393,7 +393,7 @@ class VersionedEntity(DomainEntity):
     def __version__(self) -> int:
         return self.___version__
 
-    def __trigger_event__(self, event_class: Type[T_en_ev], **kwargs: Any) -> None:
+    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
         """
         Increments the version number when an event is triggered.
 

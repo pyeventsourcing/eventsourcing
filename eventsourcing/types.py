@@ -52,11 +52,6 @@ class ActualOccasion(Event):
 
 T_ao = TypeVar("T_ao", bound=ActualOccasion)
 
-
-class AbstractDomainEvent(ActualOccasion, Generic[T_eo]):
-    pass
-
-
 T_evs = Sequence[T_ao]
 T_ev_evs = Union[T_ao, T_evs]
 
@@ -72,11 +67,11 @@ except ImportError:
     pass
 
 
-class MetaAbstractDomainEntity(ABCMeta):
+class MetaEnduringObject(ABCMeta):
     pass
 
 
-class EnduringObject(Event, metaclass=MetaAbstractDomainEntity):
+class EnduringObject(Event, metaclass=MetaEnduringObject):
     """
     "The notions of 'social order' and of 'personal order' cannot be omitted
     from this preliminary sketch. A 'society' in the sense in which that term

@@ -1,10 +1,10 @@
 import os
 from decimal import Decimal
-from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
+from typing import Any, Callable, Dict, List, Optional, Tuple, Generic
 from uuid import UUID, uuid1
 
 from eventsourcing.exceptions import EventHashError
-from eventsourcing.types import T_eo, T_ev_evs, AbstractDomainEvent
+from eventsourcing.types import T_eo, T_ev_evs, ActualOccasion
 from eventsourcing.utils.hashing import hash_object
 from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic
@@ -17,10 +17,7 @@ def create_timesequenced_event_id() -> UUID:
     return uuid1()
 
 
-T_ev = TypeVar("T_ev", bound="DomainEvent")
-
-
-class DomainEvent(AbstractDomainEvent[T_eo]):
+class DomainEvent(ActualOccasion, Generic[T_eo]):
     """
     Base class for domain model events.
 

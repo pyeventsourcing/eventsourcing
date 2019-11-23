@@ -2,14 +2,14 @@ from typing import Any, Optional
 
 from eventsourcing.application.policies import SnapshottingPolicy
 from eventsourcing.application.simple import SimpleApplication
-from eventsourcing.domain.model.entity import T_en, T_en_ev
+from eventsourcing.domain.model.entity import T_en, T_ev
 from eventsourcing.infrastructure.base import BaseRecordManager
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
 from eventsourcing.types import AbstractSnapshop
 
 
-class SnapshottingApplication(SimpleApplication[T_en, T_en_ev]):
+class SnapshottingApplication(SimpleApplication[T_en, T_ev]):
     # Todo: Change this to default to None?
     snapshot_period = 2
 
@@ -29,7 +29,7 @@ class SnapshottingApplication(SimpleApplication[T_en, T_en_ev]):
         sequenced_item_mapper = self.sequenced_item_mapper_class(
             sequenced_item_class=self.sequenced_item_class
         )
-        self.snapshot_store = EventStore[AbstractSnapshop, BaseRecordManager[T_en_ev]](
+        self.snapshot_store = EventStore[AbstractSnapshop, BaseRecordManager[T_ev]](
             record_manager=record_manager, sequenced_item_mapper=sequenced_item_mapper
         )
 
