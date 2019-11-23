@@ -1,15 +1,15 @@
 from __future__ import unicode_literals
 
+from abc import ABC, abstractmethod
 from json import JSONDecodeError
-from typing import Type, Tuple, Dict
+from typing import Type, Tuple, Dict, Generic
 
 from eventsourcing.infrastructure.sequenceditem import (
     SequencedItem,
     SequencedItemFieldNames,
 )
-from eventsourcing.types import (
-    AbstractSequencedItemMapper,
-    T_ao,
+from eventsourcing.whitehead import (
+    TEvent,
     T,
     ActualOccasion,
 )
@@ -21,7 +21,39 @@ from eventsourcing.utils.transcoding import (
 )
 
 
-class SequencedItemMapper(AbstractSequencedItemMapper[T_ao]):
+class AbstractSequencedItemMapper(Generic[TEvent], ABC):
+    @abstractmethod
+    def item_from_event(self, domain_event: TEvent) -> Tuple:
+        """
+        Constructs and returns a sequenced item for given domain event.
+        """
+
+    @abstractmethod
+    def event_from_item(self, sequenced_item: Tuple) -> TEvent:
+        """
+        Constructs and returns a domain event for given sequenced item.
+        """
+
+    @abstractmethod
+    def json_dumps(self, o: object) -> str:
+        """
+        Encodes given object as JSON.
+        """
+
+    @abstractmethod
+    def json_loads(self, s: str) -> object:
+        """
+        Decodes given JSON as object.
+        """
+
+    @abstractmethod
+    def event_from_topic_and_state(self, topic: str, state: str) -> TEvent:
+        """
+        Resolves topic to an event class, decodes state, and constructs an event.
+        """
+
+
+class SequencedItemMapper(AbstractSequencedItemMapper[TEvent]):
     """
     Uses JSON to transcode domain events.
     """
@@ -117,15 +149,15 @@ class SequencedItemMapper(AbstractSequencedItemMapper[T_ao]):
 
         return self.event_from_topic_and_state(topic, state)
 
-    def event_from_topic_and_state(self, topic, state) -> T_ao:
+    def event_from_topic_and_state(self, topic, state) -> TEvent:
         domain_event_class, event_attrs = self.get_event_class_and_attrs(topic, state)
 
         # Reconstruct domain event object.
         return reconstruct_object(domain_event_class, event_attrs)
 
-    def get_event_class_and_attrs(self, topic, state) -> Tuple[Type[T_ao], Dict]:
+    def get_event_class_and_attrs(self, topic, state) -> Tuple[Type[TEvent], Dict]:
         # Resolve topic to event class.
-        domain_event_class: Type[T_ao] = resolve_topic(topic)
+        domain_event_class: Type[TEvent] = resolve_topic(topic)
 
         # Decrypt and decompress state.
         if self.cipher:

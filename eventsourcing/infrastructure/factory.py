@@ -6,8 +6,7 @@ from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import (
     SequencedItemMapper,
-)
-from eventsourcing.types import AbstractSequencedItemMapper
+    AbstractSequencedItemMapper)
 
 
 class InfrastructureFactory(object):
@@ -115,7 +114,8 @@ class InfrastructureFactory(object):
         Constructs sequenced item mapper object.
 
         :returns: Sequenced item mapper object.
-        :rtype: AbstractSequencedItemMapper
+        :rtype: eventsourcing.infrastructure.sequenceditemmapper
+        .AbstractSequencedItemMapper
         """
         return self.sequenced_item_mapper_class(
             sequenced_item_class=self.sequenced_item_class,

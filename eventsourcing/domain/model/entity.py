@@ -1,3 +1,4 @@
+from abc import ABCMeta
 from decimal import Decimal
 from typing import Any, Dict, Optional, Type, TypeVar
 from uuid import UUID, uuid4
@@ -21,12 +22,22 @@ from eventsourcing.exceptions import (
     OriginatorIDError,
     OriginatorVersionError,
 )
-from eventsourcing.types import EnduringObject, MetaEnduringObject, T_ev_evs
+from eventsourcing.whitehead import EnduringObject, OneOrManyEvents
 from eventsourcing.utils.times import decimaltimestamp_from_uuid
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
+# Need to deal with the fact that Python3.6 had GenericMeta.
+# Todo: Delete this try/except when dropping support for Python 3.6.
+try:
+    from typing import GenericMeta
 
-class MetaDomainEntity(MetaEnduringObject):
+    ABCMeta = GenericMeta  # type: ignore
+
+except ImportError:
+    pass
+
+
+class MetaDomainEntity(ABCMeta):
     __subclassevents__ = False
 
     # Todo: Delete the '**kwargs' when library no longer supports Python3.6.
@@ -47,9 +58,9 @@ class MetaDomainEntity(MetaEnduringObject):
             subclassevents(cls)
 
 
-T_en = TypeVar("T_en", bound="DomainEntity")
+TDomainEntity = TypeVar("TDomainEntity", bound="DomainEntity")
 
-T_ev = TypeVar("T_ev", bound="DomainEntity.Event")
+TDomainEvent = TypeVar("TDomainEvent", bound="DomainEntity.Event")
 
 
 class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
@@ -59,12 +70,12 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
 
     __subclassevents__ = False
 
-    class Event(EventWithOriginatorID[T_en], DomainEvent[T_en]):
+    class Event(EventWithOriginatorID[TDomainEntity], DomainEvent[TDomainEntity]):
         """
         Supertype for events of domain model entities.
         """
 
-        def __check_obj__(self, obj: T_en) -> None:
+        def __check_obj__(self, obj: TDomainEntity) -> None:
             """
             Checks state of obj before mutating.
 
@@ -82,11 +93,11 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
 
     @classmethod
     def __create__(
-        cls: Type[T_en],
+        cls: Type[TDomainEntity],
         originator_id: Optional[UUID] = None,
-        event_class: Optional[Type["DomainEntity.Created[T_en]"]] = None,
+        event_class: Optional[Type["DomainEntity.Created[TDomainEntity]"]] = None,
         **kwargs: Any,
-    ) -> T_en:
+    ) -> TDomainEntity:
         """
         Creates a new domain entity.
 
@@ -106,7 +117,8 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
             originator_id = uuid4()
 
         if event_class:
-            created_event_class: Type[DomainEntity.Created[T_en]] = event_class
+            # created_event_class: Type[DomainEntity.Created[TDomainEntity]] = event_class
+            created_event_class = event_class
         else:
             assert issubclass(cls, DomainEntity)  # For navigation in PyCharm.
             created_event_class = cls.Created
@@ -124,7 +136,7 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
         obj.__publish__(event)
         return obj
 
-    class Created(CreatedEvent[T_en], Event[T_en]):
+    class Created(CreatedEvent[TDomainEntity], Event[TDomainEntity]):
         """
         Triggered when an entity is created.
         """
@@ -143,7 +155,7 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
             """
             return self.__dict__["originator_topic"]
 
-        def __mutate__(self, obj: Optional[T_en]) -> Optional[T_en]:
+        def __mutate__(self, obj: Optional[TDomainEntity]) -> Optional[TDomainEntity]:
             """
             Constructs object from an entity class,
             which is obtained by resolving the originator topic,
@@ -151,7 +163,7 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
 
             :param entity_class: Class of domain entity to be constructed.
             """
-            entity_class: Type[T_en] = resolve_topic(self.originator_topic)
+            entity_class: Type[TDomainEntity] = resolve_topic(self.originator_topic)
             return entity_class(**self.__entity_kwargs__)
 
         @property
@@ -182,39 +194,41 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
         """
         return self._id
 
-    def __change_attribute__(self: T_en, name: str, value: Any) -> None:
+    def __change_attribute__(self: TDomainEntity, name: str, value: Any) -> None:
         """
         Changes named attribute with the given value,
         by triggering an AttributeChanged event.
         """
-        event_class: Type["DomainEntity.AttributeChanged[T_en]"] = self.AttributeChanged
+        event_class: Type[
+            "DomainEntity.AttributeChanged[TDomainEntity]"
+        ] = self.AttributeChanged
         assert isinstance(self, DomainEntity)  # For PyCharm navigation.
         self.__trigger_event__(event_class=event_class, name=name, value=value)
 
-    class AttributeChanged(Event[T_en], AttributeChangedEvent[T_en]):
+    class AttributeChanged(Event[TDomainEntity], AttributeChangedEvent[TDomainEntity]):
         """
         Triggered when a named attribute is assigned a new value.
         """
 
-        def __mutate__(self, obj: Optional[T_en]) -> Optional[T_en]:
+        def __mutate__(self, obj: Optional[TDomainEntity]) -> Optional[TDomainEntity]:
             obj = super(DomainEntity.AttributeChanged, self).__mutate__(obj)
             setattr(obj, self.name, self.value)
             return obj
 
-    def __discard__(self: T_en) -> None:
+    def __discard__(self: TDomainEntity) -> None:
         """
         Discards self, by triggering a Discarded event.
         """
-        event_class: Type["DomainEntity.Discarded[T_en]"] = self.Discarded
+        event_class: Type["DomainEntity.Discarded[TDomainEntity]"] = self.Discarded
         assert isinstance(self, DomainEntity)  # For PyCharm navigation.
         self.__trigger_event__(event_class=event_class)
 
-    class Discarded(DiscardedEvent[T_en], Event[T_en]):
+    class Discarded(DiscardedEvent[TDomainEntity], Event[TDomainEntity]):
         """
         Triggered when a DomainEntity is discarded.
         """
 
-        def __mutate__(self, obj: Optional[T_en]) -> Optional[T_en]:
+        def __mutate__(self, obj: Optional[TDomainEntity]) -> Optional[TDomainEntity]:
             obj = super(DomainEntity.Discarded, self).__mutate__(obj)
             if obj is not None:
                 assert isinstance(obj, DomainEntity)  # For PyCharm navigation.
@@ -230,16 +244,16 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
         if self.__is_discarded__:
             raise EntityIsDiscarded("Entity is discarded")
 
-    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
+    def __trigger_event__(self, event_class: Type[TDomainEvent], **kwargs: Any) -> None:
         """
         Constructs, applies, and publishes a domain event.
         """
         self.__assert_not_discarded__()
-        event: T_ev = event_class(originator_id=self.id, **kwargs)
+        event: TDomainEvent = event_class(originator_id=self.id, **kwargs)
         self.__mutate__(event)
         self.__publish__(event)
 
-    def __mutate__(self, event: T_ev) -> None:
+    def __mutate__(self, event: TDomainEvent) -> None:
         """
         Mutates this entity with the given event.
 
@@ -271,7 +285,7 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
         assert isinstance(event, DomainEntity.Event)
         event.__mutate__(self)
 
-    def __publish__(self, event: T_ev_evs) -> None:
+    def __publish__(self, event: OneOrManyEvents) -> None:
         """
         Publishes given event for subscribers in the application.
 
@@ -279,7 +293,7 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
         """
         self.__publish_to_subscribers__(event)
 
-    def __publish_to_subscribers__(self, event: T_ev_evs) -> None:
+    def __publish_to_subscribers__(self, event: OneOrManyEvents) -> None:
         """
         Actually dispatches given event to publish-subscribe mechanism.
 
@@ -294,7 +308,7 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
         return not self.__eq__(other)
 
 
-T_en_hashchain = TypeVar("T_en_hashchain", bound="EntityWithHashchain")
+TEntityWithHashchain = TypeVar("TEntityWithHashchain", bound="EntityWithHashchain")
 
 
 class EntityWithHashchain(DomainEntity):
@@ -304,12 +318,16 @@ class EntityWithHashchain(DomainEntity):
         super(EntityWithHashchain, self).__init__(*args, **kwargs)
         self.__head__: str = type(self).__genesis_hash__
 
-    class Event(EventWithHash[T_en_hashchain], DomainEntity.Event[T_en_hashchain]):
+    class Event(
+        EventWithHash[TEntityWithHashchain], DomainEntity.Event[TEntityWithHashchain]
+    ):
         """
         Supertype for events of domain entities.
         """
 
-        def __mutate__(self, obj: Optional[T_en_hashchain]) -> Optional[T_en_hashchain]:
+        def __mutate__(
+            self, obj: Optional[TEntityWithHashchain]
+        ) -> Optional[TEntityWithHashchain]:
             # Call super method.
             obj = super(EntityWithHashchain.Event, self).__mutate__(obj)
 
@@ -321,7 +339,7 @@ class EntityWithHashchain(DomainEntity):
 
             return obj
 
-        def __check_obj__(self, obj: T_en_hashchain) -> None:
+        def __check_obj__(self, obj: TEntityWithHashchain) -> None:
             """
             Extends superclass method by checking the __previous_hash__
             of this event matches the __head__ hash of the entity obj.
@@ -333,7 +351,9 @@ class EntityWithHashchain(DomainEntity):
             if obj.__head__ != self.__dict__.get("__previous_hash__"):
                 raise HeadHashError(obj.id, obj.__head__, type(self))
 
-    class Created(Event[T_en_hashchain], DomainEntity.Created[T_en_hashchain]):
+    class Created(
+        Event[TEntityWithHashchain], DomainEntity.Created[TEntityWithHashchain]
+    ):
         @property
         def __entity_kwargs__(self) -> Dict[str, Any]:
             # Get super property.
@@ -346,12 +366,16 @@ class EntityWithHashchain(DomainEntity):
             return kwargs
 
     class AttributeChanged(
-        Event[T_en_hashchain], DomainEntity.AttributeChanged[T_en_hashchain]
+        Event[TEntityWithHashchain], DomainEntity.AttributeChanged[TEntityWithHashchain]
     ):
         pass
 
-    class Discarded(Event[T_en_hashchain], DomainEntity.Discarded[T_en_hashchain]):
-        def __mutate__(self, obj: Optional[T_en_hashchain]) -> Optional[T_en_hashchain]:
+    class Discarded(
+        Event[TEntityWithHashchain], DomainEntity.Discarded[TEntityWithHashchain]
+    ):
+        def __mutate__(
+            self, obj: Optional[TEntityWithHashchain]
+        ) -> Optional[TEntityWithHashchain]:
             # Set entity head from event hash.
             if obj:
                 assert isinstance(obj, EntityWithHashchain)  # For PyCharm navigation.
@@ -362,11 +386,13 @@ class EntityWithHashchain(DomainEntity):
 
     @classmethod
     def __create__(
-        cls: Type[T_en_hashchain],
+        cls: Type[TEntityWithHashchain],
         originator_id: Optional[UUID] = None,
-        event_class: Optional[Type["DomainEntity.Created[T_en_hashchain]"]] = None,
+        event_class: Optional[
+            Type["DomainEntity.Created[TEntityWithHashchain]"]
+        ] = None,
         **kwargs: Any,
-    ) -> T_en_hashchain:
+    ) -> TEntityWithHashchain:
         # Initialise the hash-chain with "genesis hash".
         kwargs["__previous_hash__"] = getattr(cls, "__genesis_hash__", GENESIS_HASH)
         assert issubclass(cls, EntityWithHashchain)  # For PyCharm navigation.
@@ -376,7 +402,7 @@ class EntityWithHashchain(DomainEntity):
         assert isinstance(obj, EntityWithHashchain)  # For PyCharm type checking.
         return obj
 
-    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
+    def __trigger_event__(self, event_class: Type[TDomainEvent], **kwargs: Any) -> None:
         kwargs["__previous_hash__"] = self.__head__
         super(EntityWithHashchain, self).__trigger_event__(event_class, **kwargs)
 
@@ -393,7 +419,7 @@ class VersionedEntity(DomainEntity):
     def __version__(self) -> int:
         return self.___version__
 
-    def __trigger_event__(self, event_class: Type[T_ev], **kwargs: Any) -> None:
+    def __trigger_event__(self, event_class: Type[TDomainEvent], **kwargs: Any) -> None:
         """
         Increments the version number when an event is triggered.
 

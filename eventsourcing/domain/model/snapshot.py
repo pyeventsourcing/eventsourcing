@@ -5,7 +5,7 @@ from eventsourcing.domain.model.events import (
     EventWithOriginatorVersion,
     EventWithTimestamp,
 )
-from eventsourcing.types import AbstractSnapshop
+from eventsourcing.infrastructure.base import AbstractSnapshop
 
 
 class Snapshot(

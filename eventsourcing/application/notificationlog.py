@@ -2,8 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Union
 
 from eventsourcing.domain.model.array import BigArray
-from eventsourcing.infrastructure.base import ACIDRecordManager
-from eventsourcing.types import AbstractRecordManager
+from eventsourcing.infrastructure.base import ACIDRecordManager, AbstractRecordManager
 
 DEFAULT_SECTION_SIZE = 20
 

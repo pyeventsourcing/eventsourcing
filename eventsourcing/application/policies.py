@@ -5,8 +5,10 @@ from eventsourcing.domain.model.events import (
     subscribe,
     unsubscribe)
 from eventsourcing.domain.model.snapshot import Snapshot
-from eventsourcing.types import AbstractEntityRepository, AbstractEventStore, T_ao, \
-    T_ev_evs
+from eventsourcing.whitehead import TEvent, \
+    OneOrManyEvents
+from eventsourcing.infrastructure.base import AbstractEventStore, \
+    AbstractEntityRepository
 
 
 class PersistencePolicy(object):
@@ -23,7 +25,7 @@ class PersistencePolicy(object):
     def close(self) -> None:
         unsubscribe(self.store_event, self.is_event)
 
-    def is_event(self, event: T_ev_evs) -> bool:
+    def is_event(self, event: OneOrManyEvents) -> bool:
         if isinstance(event, (list, tuple)):
             return all(map(self.is_event, event))
         elif self.persist_event_type is None:
@@ -31,13 +33,13 @@ class PersistencePolicy(object):
         else:
             return isinstance(event, self.persist_event_type)
 
-    def store_event(self, event: T_ev_evs) -> None:
+    def store_event(self, event: OneOrManyEvents) -> None:
         self.event_store.store(event)
 
 
 # Todo: Separate PeriodicSnapshottingPolicy from base class? Make usage more
 #  configurable.
-class SnapshottingPolicy(Generic[T_ao]):
+class SnapshottingPolicy(Generic[TEvent]):
     def __init__(
         self,
         repository: AbstractEntityRepository,
@@ -55,7 +57,7 @@ class SnapshottingPolicy(Generic[T_ao]):
     def close(self) -> None:
         unsubscribe(predicate=self.condition, handler=self.take_snapshot)
 
-    def condition(self, event: T_ev_evs) -> bool:
+    def condition(self, event: OneOrManyEvents) -> bool:
         # Periodically by default.
         if self.period:
             if isinstance(event, (list, tuple)):
@@ -69,7 +71,7 @@ class SnapshottingPolicy(Generic[T_ao]):
                             return (event.originator_version + 1) % self.period == 0
         return False
 
-    def take_snapshot(self, event: T_ev_evs) -> None:
+    def take_snapshot(self, event: OneOrManyEvents) -> None:
         if isinstance(event, (list, tuple)):
             event = event[-1]  # snapshot at the last version
         self.repository.take_snapshot(event.originator_id, lte=event.originator_version)

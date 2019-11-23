@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 
 from eventsourcing.domain.model.snapshot import Snapshot
-from eventsourcing.types import AbstractSnapshop
+from eventsourcing.infrastructure.base import AbstractSnapshop
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import reconstruct_object
 from eventsourcing.utils.topic import get_topic, resolve_topic

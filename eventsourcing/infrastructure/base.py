@@ -1,5 +1,15 @@
-from abc import abstractmethod
-from typing import Generator, Optional, Tuple, Iterator, Any
+from abc import ABC, abstractmethod
+from typing import (
+    Any,
+    Generic,
+    Iterable,
+    Iterator,
+    Optional,
+    Sequence,
+    Tuple,
+    TypeVar,
+    Union,
+)
 from uuid import UUID
 
 from eventsourcing.exceptions import OperationalError, RecordConflictError
@@ -7,12 +17,108 @@ from eventsourcing.infrastructure.sequenceditem import (
     SequencedItem,
     SequencedItemFieldNames,
 )
-from eventsourcing.types import AbstractRecordManager, T_ao, T_evs
+from eventsourcing.whitehead import (
+    ActualOccasion,
+    TEvent,
+    OneOrManyEvents,
+    SequenceOfEvents,
+    TEntity,
+)
 
 DEFAULT_PIPELINE_ID = 0
 
 
-class BaseRecordManager(AbstractRecordManager[T_ao]):
+class AbstractRecordManager(ABC, Generic[TEvent]):
+    @property
+    @abstractmethod
+    def record_class(self) -> Any:
+        pass
+
+    @abstractmethod
+    def record_sequenced_items(
+        self, sequenced_item_or_items: Union[Sequence[Tuple], Tuple]
+    ) -> None:
+        """
+        Writes sequenced item(s) into the datastore.
+        """
+
+    @abstractmethod
+    def get_item(self, sequence_id: UUID, position: int) -> Tuple:
+        """
+        Gets sequenced item from the datastore.
+        """
+
+    @abstractmethod
+    def get_items(
+        self,
+        sequence_id: UUID,
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        limit: Optional[int] = None,
+        query_ascending: bool = True,
+        results_ascending: bool = True,
+    ) -> Iterator[SequenceOfEvents]:
+        """
+        Iterates over records in sequence.
+        """
+
+    @abstractmethod
+    def get_record(self, sequence_id: UUID, position: int) -> Any:
+        """
+        Gets record at position in sequence.
+        """
+
+    @abstractmethod
+    def get_records(
+        self,
+        sequence_id: UUID,
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        limit: Optional[int] = None,
+        query_ascending: bool = True,
+        results_ascending: bool = True,
+    ) -> Sequence[Any]:
+        """
+        Returns records for a sequence.
+        """
+
+    @abstractmethod
+    def get_notifications(
+        self,
+        start: Optional[int] = None,
+        stop: Optional[int] = None,
+        *args: Any,
+        **kwargs: Any
+    ) -> Any:
+        """
+        Returns records sequenced by notification ID, from
+        application, for pipeline, in given range.
+
+        Args 'start' and 'stop' are positions in a zero-based
+        integer sequence.
+        """
+
+    @abstractmethod
+    def all_sequence_ids(self) -> Sequence[UUID]:
+        """
+        Returns all sequence IDs.
+        """
+
+    @abstractmethod
+    def delete_record(self, record: Any) -> None:
+        """
+        Removes permanently given record from the table.
+        """
+
+
+T_rm = TypeVar("T_rm", bound=AbstractRecordManager)
+
+
+class BaseRecordManager(AbstractRecordManager[TEvent]):
     def __init__(
         self,
         record_class,
@@ -81,7 +187,7 @@ class BaseRecordManager(AbstractRecordManager[T_ao]):
         limit: Optional[int] = None,
         query_ascending: bool = True,
         results_ascending: bool = True,
-    ) -> Iterator[T_evs]:
+    ) -> Iterator[SequenceOfEvents]:
         """
         Returns sequenced item generator.
         """
@@ -144,7 +250,7 @@ class BaseRecordManager(AbstractRecordManager[T_ao]):
         raise OperationalError(e)
 
 
-class ACIDRecordManager(BaseRecordManager[T_ao]):
+class ACIDRecordManager(BaseRecordManager[TEvent]):
     """
     ACID record managers can write tracking records and event records
     in an atomic transaction, needed for atomic processing in process
@@ -322,4 +428,158 @@ class SQLRecordManager(ACIDRecordManager):
         Returns table name - used in raw queries.
 
         :rtype: str
+        """
+
+
+class AbstractEventStore(ABC, Generic[TEvent]):
+    """
+    Abstract base class for event stores. Defines the methods
+    expected of an event store by other classes in the library.
+    """
+
+    @abstractmethod
+    def store(self, domain_event_or_events: OneOrManyEvents) -> None:
+        """
+        Put domain event in event store for later retrieval.
+        """
+
+    @abstractmethod
+    def get_domain_events(
+        self,
+        originator_id: UUID,
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        limit: Optional[int] = None,
+        is_ascending: bool = True,
+        page_size: Optional[int] = None,
+    ) -> Iterable[TEvent]:
+        """
+        Deprecated. Please use iter_domain_events() instead.
+
+        Returns domain events for given entity ID.
+        """
+
+    @abstractmethod
+    def iter_domain_events(
+        self,
+        originator_id: UUID,
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        limit: Optional[int] = None,
+        is_ascending: bool = True,
+        page_size: Optional[int] = None,
+    ) -> Iterable[TEvent]:
+        """
+        Returns domain events for given entity ID.
+        """
+
+    @abstractmethod
+    def get_domain_event(self, originator_id: UUID, position: int) -> TEvent:
+        """
+        Returns a single domain event.
+        """
+
+    @abstractmethod
+    def get_most_recent_event(
+        self, originator_id: UUID, lt: Optional[int] = None, lte: Optional[int] = None
+    ) -> Optional[TEvent]:
+        """
+        Returns most recent domain event for given entity ID.
+        """
+
+    @abstractmethod
+    def all_domain_events(self) -> Iterable[TEvent]:
+        """
+        Returns all domain events in the event store.
+        """
+
+
+class AbstractEventPlayer(Generic[TEntity, TEvent]):
+    @property
+    @abstractmethod
+    def event_store(self) -> AbstractEventStore:
+        """
+        Returns event store object used by this repository.
+        """
+
+    @abstractmethod
+    def get_and_project_events(
+        self,
+        entity_id: UUID,
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        limit: Optional[int] = None,
+        initial_state: Optional[TEntity] = None,
+        query_descending: bool = False,
+    ) -> Optional[TEntity]:
+        pass
+
+
+class AbstractSnapshop(ActualOccasion):
+    @property
+    @abstractmethod
+    def topic(self) -> str:
+        """
+        Path to the class of the snapshotted entity.
+        """
+
+    @property
+    @abstractmethod
+    def state(self) -> str:
+        """
+        State of the snapshotted entity.
+        """
+
+    @property
+    @abstractmethod
+    def originator_id(self) -> UUID:
+        """
+        ID of the snapshotted entity.
+        """
+
+    @property
+    @abstractmethod
+    def originator_version(self) -> int:
+        """
+        Version of the last event applied to the entity.
+        """
+
+
+class AbstractEntityRepository(AbstractEventPlayer[TEntity, TEvent]):
+    @abstractmethod
+    def __getitem__(self, entity_id: UUID) -> TEntity:
+        """
+        Returns entity for given ID.
+
+        Raises ``RepositoryKeyError`` when entity ID not found.
+        """
+
+    @abstractmethod
+    def __contains__(self, entity_id: UUID) -> bool:
+        """
+        Returns True or False, according to whether or not entity exists.
+        """
+
+    @abstractmethod
+    def get_entity(
+        self, entity_id: UUID, at: Optional[int] = None
+    ) -> Optional[TEntity]:
+        """
+        Returns entity for given ID.
+
+        Returns None when entity ID not found.
+        """
+
+    @abstractmethod
+    def take_snapshot(
+        self, entity_id: UUID, lt: Optional[int] = None, lte: Optional[int] = None
+    ) -> Optional[AbstractSnapshop]:
+        """
+        Takes snapshot of entity state, using stored events.
         """

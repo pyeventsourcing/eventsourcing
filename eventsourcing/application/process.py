@@ -44,10 +44,10 @@ from eventsourcing.exceptions import (
 )
 from eventsourcing.infrastructure.base import ACIDRecordManager
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
-from eventsourcing.types import ActualOccasion, T_ev_evs
+from eventsourcing.whitehead import ActualOccasion, OneOrManyEvents
 
 
-class ProcessEvent(object):
+class ProcessEvent(ActualOccasion):
     def __init__(
         self,
         domain_events: Sequence[DomainEvent],
@@ -189,7 +189,7 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
             )
         super(ProcessApplication, self).close()
 
-    def publish_prompt(self, _: T_ev_evs = None) -> None:
+    def publish_prompt(self, _: OneOrManyEvents = None) -> None:
         """
         Publishes prompt for a given event.
 

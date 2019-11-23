@@ -6,7 +6,7 @@ from dateutil.relativedelta import relativedelta
 from eventsourcing.domain.model.entity import (
     TimestampedVersionedEntity,
 )
-from eventsourcing.types import AbstractEntityRepository
+from eventsourcing.infrastructure.base import AbstractEntityRepository
 from eventsourcing.domain.model.events import (
     EventWithOriginatorID,
     EventWithTimestamp,
