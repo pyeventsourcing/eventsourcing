@@ -203,7 +203,6 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
         """
 
         prompt = Prompt(self.name, self.pipeline_id)
-        publish(prompt)
         try:
             publish(prompt)
         except PromptFailed:
