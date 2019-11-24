@@ -48,7 +48,6 @@ class EnduringObject(Event):
 T = TypeVar("T")
 
 TEvent = TypeVar("TEvent", bound=ActualOccasion)
-
 TEntity = TypeVar("TEntity", bound=EnduringObject)
 
 SequenceOfEvents = Sequence[TEvent]

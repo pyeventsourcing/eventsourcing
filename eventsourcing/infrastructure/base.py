@@ -35,6 +35,14 @@ class AbstractRecordManager(ABC, Generic[TEvent]):
         pass
 
     @abstractmethod
+    def record_sequenced_item(
+        self, sequenced_item_or_items: Union[Sequence[Tuple], Tuple]
+    ) -> None:
+        """
+        Writes sequenced item(s) into the datastore.
+        """
+
+    @abstractmethod
     def record_sequenced_items(
         self, sequenced_item_or_items: Union[Sequence[Tuple], Tuple]
     ) -> None:
@@ -438,7 +446,7 @@ class AbstractEventStore(ABC, Generic[TEvent]):
     """
 
     @abstractmethod
-    def store(self, domain_event_or_events: OneOrManyEvents) -> None:
+    def store(self, event: OneOrManyEvents) -> None:
         """
         Put domain event in event store for later retrieval.
         """

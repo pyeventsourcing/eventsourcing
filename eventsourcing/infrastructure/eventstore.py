@@ -1,18 +1,18 @@
 # coding=utf-8
-from typing import List, Optional, Iterable, Generic, Sequence
+from typing import Generic, Iterable, List, Optional, Sequence, Tuple
 from uuid import UUID
 
 from eventsourcing.exceptions import ConcurrencyError, RecordConflictError
+from eventsourcing.infrastructure.base import AbstractEventStore, TRecordManager
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
-from eventsourcing.whitehead import (
-    OneOrManyEvents,
-    TEvent)
-from eventsourcing.infrastructure.base import TRecordManager, AbstractEventStore
 from eventsourcing.infrastructure.sequenceditemmapper import AbstractSequencedItemMapper
-
+from eventsourcing.whitehead import OneOrManyEvents, TEvent
 
 # Todo: Unify iterators in EventStore and in NotificationLog,
 #  by pushing behaviour down to record manager?
+
+SequenceOfItems = Sequence[Tuple]
+OneOrManyItems = Union[Tuple, SequenceOfItems]
 
 
 class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
@@ -26,8 +26,9 @@ class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
     iterator_class = SequencedItemIterator
 
     def __init__(
-        self, record_manager: TRecordManager, sequenced_item_mapper:
-        AbstractSequencedItemMapper
+        self,
+        record_manager: TRecordManager,
+        sequenced_item_mapper: AbstractSequencedItemMapper,
     ):
         """
         Initialises event store object.
@@ -39,34 +40,34 @@ class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
         self.record_manager = record_manager
         self.mapper = sequenced_item_mapper
 
-    def store(self, domain_event_or_events: OneOrManyEvents) -> None:
+    def store(self, event: OneOrManyEvents) -> None:
         """
         Appends given domain event, or list of domain events, to their sequence.
 
-        :param domain_event_or_events: domain event, or list of domain events
+        :param event: domain event, or list of domain events
         """
 
         # Convert to sequenced item.
-        sequenced_item_or_items = self.item_from_event(domain_event_or_events)
+        sequenced_item = self.item_from_event(event)
 
         # Append to the sequenced item(s) to the sequence.
         try:
-            self.record_manager.record_sequenced_items(sequenced_item_or_items)
+            self.record_manager.record_sequenced_item(sequenced_item)
         except RecordConflictError as e:
             raise ConcurrencyError(e)
 
-    def item_from_event(self, domain_event_or_events: OneOrManyEvents):
+    def item_from_event(self, event: OneOrManyEvents) -> OneOrManyItems:
         """
         Maps domain event to sequenced item namedtuple.
 
-        :param domain_event_or_events: application-level object (or list)
-        :return: namedtuple: sequence item namedtuple (or list)
+        :param event: One or many domain events.
+        :return:
         """
         # Convert the domain event(s) to sequenced item(s).
-        if isinstance(domain_event_or_events, Sequence):
-            return [self.item_from_event(e) for e in domain_event_or_events]
+        if isinstance(event, Sequence):
+            return [self.item_from_event(e) for e in event]
         else:
-            return self.mapper.item_from_event(domain_event_or_events)
+            return self.mapper.item_from_event(event)
 
     def get_domain_events(
         self,
@@ -209,7 +210,9 @@ class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
         )
         return self.mapper.event_from_item(sequenced_item)
 
-    def get_most_recent_event(self, originator_id, lt=None, lte=None) -> Optional[TEvent]:
+    def get_most_recent_event(
+        self, originator_id, lt=None, lte=None
+    ) -> Optional[TEvent]:
         """
         Gets a domain event from the sequence identified by `originator_id`
         at the highest position.

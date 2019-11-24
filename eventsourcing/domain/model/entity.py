@@ -59,7 +59,6 @@ class MetaDomainEntity(ABCMeta):
 
 
 TDomainEntity = TypeVar("TDomainEntity", bound="DomainEntity")
-
 TDomainEvent = TypeVar("TDomainEvent", bound="DomainEntity.Event")
 
 

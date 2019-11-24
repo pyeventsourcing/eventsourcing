@@ -26,10 +26,10 @@ class PersistencePolicy(object):
         unsubscribe(self.store_event, self.is_event)
 
     def is_event(self, event: OneOrManyEvents) -> bool:
-        if isinstance(event, (list, tuple)):
-            return all(map(self.is_event, event))
-        elif self.persist_event_type is None:
+        if self.persist_event_type is None:
             return False
+        elif isinstance(event, (list, tuple)):
+            return all(map(self.is_event, event))
         else:
             return isinstance(event, self.persist_event_type)
 

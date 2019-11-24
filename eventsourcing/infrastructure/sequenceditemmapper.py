@@ -83,14 +83,14 @@ class SequencedItemMapper(AbstractSequencedItemMapper[TEvent]):
         self.position_attr_name = position_attr_name or self.field_names.position
         self.other_attr_names = other_attr_names or self.field_names.other_names
 
-    def item_from_event(self, domain_event):
+    def item_from_event(self, domain_event: TEvent) -> Tuple:
         """
         Constructs a sequenced item from a domain event.
         """
         item_args = self.construct_item_args(domain_event)
         return self.construct_sequenced_item(item_args)
 
-    def construct_item_args(self, domain_event):
+    def construct_item_args(self, domain_event: TEvent) -> Tuple:
         """
         Constructs attributes of a sequenced item from the given domain event.
         """
@@ -130,7 +130,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper[TEvent]):
     def json_dumps(self, o):
         return self.json_encoder.encode(o)
 
-    def construct_sequenced_item(self, item_args):
+    def construct_sequenced_item(self, item_args: Tuple) -> Tuple:
         return self.sequenced_item_class(*item_args)
 
     def event_from_item(self, sequenced_item):
