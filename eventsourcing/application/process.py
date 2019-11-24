@@ -44,13 +44,13 @@ from eventsourcing.exceptions import (
 )
 from eventsourcing.infrastructure.base import ACIDRecordManager
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
-from eventsourcing.whitehead import ActualOccasion, OneOrManyEvents
-
+from eventsourcing.whitehead import ActualOccasion, OneOrManyEvents, TEvent
 
 ListOfAggregateEvents = List[TAggregateEvent]
 CausalDependencies = Dict[str, int]
 ListOfCausalDependencies = List[CausalDependencies]
 TrackingKwargs = Dict[str, Union[str, int]]
+
 
 class ProcessEvent(ActualOccasion):
     def __init__(
