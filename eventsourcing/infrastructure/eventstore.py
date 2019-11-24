@@ -1,5 +1,5 @@
 # coding=utf-8
-from typing import Generic, Iterable, List, Optional, Sequence, Tuple
+from typing import Generic, Iterable, List, Optional, Sequence, Tuple, Union
 from uuid import UUID
 
 from eventsourcing.exceptions import ConcurrencyError, RecordConflictError
@@ -65,7 +65,7 @@ class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
         """
         # Convert the domain event(s) to sequenced item(s).
         if isinstance(event, Sequence):
-            return [self.item_from_event(e) for e in event]
+            return [self.mapper.item_from_event(e) for e in event]
         else:
             return self.mapper.item_from_event(event)
 
