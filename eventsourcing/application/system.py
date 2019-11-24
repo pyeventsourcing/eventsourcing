@@ -36,8 +36,8 @@ from eventsourcing.exceptions import (
 
 DEFAULT_POLL_INTERVAL = 5
 
-T_proc_app = TypeVar("T_proc_app", bound=ProcessApplication)
-T_s = TypeVar("T_s", bound="System")
+TProcessApplication = TypeVar("TProcessApplication", bound=ProcessApplication)
+TSystem = TypeVar("TSystem", bound="System")
 
 
 class System(object):
@@ -116,12 +116,12 @@ class System(object):
 
     def construct_app(
         self,
-        process_class: Type[T_proc_app],
+        process_class: Type[TProcessApplication],
         infrastructure_class: Optional[
             Type[ApplicationWithConcreteInfrastructure]
         ] = None,
         **kwargs: Any,
-    ) -> T_proc_app:
+    ) -> TProcessApplication:
         """
         Constructs process application from given ``process_class``.
         """
@@ -200,8 +200,8 @@ class System(object):
             del self.__runner
 
     def bind(
-        self: T_s, infrastructure_class: Type[ApplicationWithConcreteInfrastructure]
-    ) -> T_s:
+        self: TSystem, infrastructure_class: Type[ApplicationWithConcreteInfrastructure]
+    ) -> TSystem:
         """
         Constructs a system object that has an infrastructure class
         from a system object constructed without infrastructure class.
@@ -288,7 +288,7 @@ class SystemRunner(ABC):
         """
         return self._construct_app_by_name(process_name)
 
-    def _construct_app_by_name(self, process_name: str) -> T_proc_app:
+    def _construct_app_by_name(self, process_name: str) -> TProcessApplication:
         if process_name in self.processes:
             process = self.processes[process_name]
         else:
@@ -296,7 +296,7 @@ class SystemRunner(ABC):
             process = self._construct_app_by_class(process_class)
         return process
 
-    def get(self, process_class: Type[T_proc_app]) -> T_proc_app:
+    def get(self, process_class: Type[TProcessApplication]) -> TProcessApplication:
         process_name = process_class.__name__.lower()
         try:
             process = self.processes[process_name]
@@ -304,7 +304,9 @@ class SystemRunner(ABC):
             process = self._construct_app_by_class(process_class)
         return process
 
-    def _construct_app_by_class(self, process_class: Type[T_proc_app]) -> T_proc_app:
+    def _construct_app_by_class(
+        self, process_class: Type[TProcessApplication]
+    ) -> TProcessApplication:
         process = self.system.construct_app(
             process_class=process_class,
             infrastructure_class=self.infrastructure_class,

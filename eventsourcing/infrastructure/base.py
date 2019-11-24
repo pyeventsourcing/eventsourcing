@@ -115,7 +115,7 @@ class AbstractRecordManager(ABC, Generic[TEvent]):
         """
 
 
-T_rm = TypeVar("T_rm", bound=AbstractRecordManager)
+TRecordManager = TypeVar("TRecordManager", bound=AbstractRecordManager)
 
 
 class BaseRecordManager(AbstractRecordManager[TEvent]):

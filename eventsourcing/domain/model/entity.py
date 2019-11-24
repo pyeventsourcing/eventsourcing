@@ -22,9 +22,9 @@ from eventsourcing.exceptions import (
     OriginatorIDError,
     OriginatorVersionError,
 )
-from eventsourcing.whitehead import EnduringObject, OneOrManyEvents
 from eventsourcing.utils.times import decimaltimestamp_from_uuid
 from eventsourcing.utils.topic import get_topic, resolve_topic
+from eventsourcing.whitehead import EnduringObject, OneOrManyEvents
 
 # Need to deal with the fact that Python3.6 had GenericMeta.
 # Todo: Delete this try/except when dropping support for Python 3.6.
@@ -116,12 +116,11 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
         if originator_id is None:
             originator_id = uuid4()
 
-        if event_class:
-            # created_event_class: Type[DomainEntity.Created[TDomainEntity]] = event_class
-            created_event_class = event_class
-        else:
+        if event_class is None:
             assert issubclass(cls, DomainEntity)  # For navigation in PyCharm.
-            created_event_class = cls.Created
+            created_event_class: Type[DomainEntity.Created[TDomainEntity]] = cls.Created
+        else:
+            created_event_class = event_class
 
         event = created_event_class(
             originator_id=originator_id, originator_topic=get_topic(cls), **kwargs
@@ -407,7 +406,7 @@ class EntityWithHashchain(DomainEntity):
         super(EntityWithHashchain, self).__trigger_event__(event_class, **kwargs)
 
 
-T_en_ver = TypeVar("T_en_ver", bound="VersionedEntity")
+TVersionedEntity = TypeVar("TVersionedEntity", bound="VersionedEntity")
 
 
 class VersionedEntity(DomainEntity):
@@ -440,17 +439,22 @@ class VersionedEntity(DomainEntity):
             event_class=event_class, originator_version=next_version, **kwargs
         )
 
-    class Event(EventWithOriginatorVersion[T_en_ver], DomainEntity.Event[T_en_ver]):
+    class Event(
+        EventWithOriginatorVersion[TVersionedEntity],
+        DomainEntity.Event[TVersionedEntity],
+    ):
         """Supertype for events of versioned entities."""
 
-        def __mutate__(self, obj: Optional[T_en_ver]) -> Optional[T_en_ver]:
+        def __mutate__(
+            self, obj: Optional[TVersionedEntity]
+        ) -> Optional[TVersionedEntity]:
             obj = super(VersionedEntity.Event, self).__mutate__(obj)
             if obj is not None:
                 assert isinstance(obj, VersionedEntity)  # For PyCharm navigation.
                 obj.___version__ = self.originator_version
             return obj
 
-        def __check_obj__(self, obj: T_en_ver) -> None:
+        def __check_obj__(self, obj: TVersionedEntity) -> None:
             """
             Extends superclass method by checking the event's
             originator version follows (1 +) this entity's version.
@@ -474,7 +478,7 @@ class VersionedEntity(DomainEntity):
                     )
                 )
 
-    class Created(DomainEntity.Created[T_en_ver], Event[T_en_ver]):
+    class Created(DomainEntity.Created[TVersionedEntity], Event[TVersionedEntity]):
         """Published when a VersionedEntity is created."""
 
         def __init__(self, originator_version: int = 0, *args: Any, **kwargs: Any):
@@ -489,14 +493,16 @@ class VersionedEntity(DomainEntity):
             kwargs["__version__"] = kwargs.pop("originator_version")
             return kwargs
 
-    class AttributeChanged(Event[T_en_ver], DomainEntity.AttributeChanged[T_en_ver]):
+    class AttributeChanged(
+        Event[TVersionedEntity], DomainEntity.AttributeChanged[TVersionedEntity]
+    ):
         """Published when a VersionedEntity is changed."""
 
-    class Discarded(Event[T_en_ver], DomainEntity.Discarded[T_en_ver]):
+    class Discarded(Event[TVersionedEntity], DomainEntity.Discarded[TVersionedEntity]):
         """Published when a VersionedEntity is discarded."""
 
 
-T_en_tim = TypeVar("T_en_tim", bound="TimestampedEntity")
+TTimestampedEntity = TypeVar("TTimestampedEntity", bound="TimestampedEntity")
 
 
 class TimestampedEntity(DomainEntity):
@@ -513,10 +519,14 @@ class TimestampedEntity(DomainEntity):
     def __last_modified__(self) -> Decimal:
         return self.___last_modified__
 
-    class Event(DomainEntity.Event[T_en_tim], EventWithTimestamp[T_en_tim]):
+    class Event(
+        DomainEntity.Event[TTimestampedEntity], EventWithTimestamp[TTimestampedEntity]
+    ):
         """Supertype for events of timestamped entities."""
 
-        def __mutate__(self, obj: Optional[T_en_tim]) -> Optional[T_en_tim]:
+        def __mutate__(
+            self, obj: Optional[TTimestampedEntity]
+        ) -> Optional[TTimestampedEntity]:
             """Updates 'obj' with values from self."""
             obj = super(TimestampedEntity.Event, self).__mutate__(obj)
             if obj is not None:
@@ -524,7 +534,7 @@ class TimestampedEntity(DomainEntity):
                 obj.___last_modified__ = self.timestamp
             return obj
 
-    class Created(DomainEntity.Created[T_en_tim], Event[T_en_tim]):
+    class Created(DomainEntity.Created[TTimestampedEntity], Event[TTimestampedEntity]):
         """Published when a TimestampedEntity is created."""
 
         @property
@@ -534,10 +544,14 @@ class TimestampedEntity(DomainEntity):
             kwargs["__created_on__"] = kwargs.pop("timestamp")
             return kwargs
 
-    class AttributeChanged(Event[T_en_tim], DomainEntity.AttributeChanged[T_en_tim]):
+    class AttributeChanged(
+        Event[TTimestampedEntity], DomainEntity.AttributeChanged[TTimestampedEntity]
+    ):
         """Published when a TimestampedEntity is changed."""
 
-    class Discarded(Event[T_en_tim], DomainEntity.Discarded[T_en_tim]):
+    class Discarded(
+        Event[TTimestampedEntity], DomainEntity.Discarded[TTimestampedEntity]
+    ):
         """Published when a TimestampedEntity is discarded."""
 
 
@@ -561,33 +575,36 @@ class TimeuuidedEntity(DomainEntity):
         return decimaltimestamp_from_uuid(self.___last_event_id__)
 
 
-T_en_tim_ver = TypeVar("T_en_tim_ver", bound="TimestampedVersionedEntity")
+TTimestampedVersionedEntity = TypeVar(
+    "TTimestampedVersionedEntity", bound="TimestampedVersionedEntity"
+)
 
 
 class TimestampedVersionedEntity(TimestampedEntity, VersionedEntity):
     class Event(
-        TimestampedEntity.Event[T_en_tim_ver], VersionedEntity.Event[T_en_tim_ver]
+        TimestampedEntity.Event[TTimestampedVersionedEntity],
+        VersionedEntity.Event[TTimestampedVersionedEntity],
     ):
         """Supertype for events of timestamped, versioned entities."""
 
     class Created(
-        TimestampedEntity.Created[T_en_tim_ver],
+        TimestampedEntity.Created[TTimestampedVersionedEntity],
         VersionedEntity.Created,
-        Event[T_en_tim_ver],
+        Event[TTimestampedVersionedEntity],
     ):
         """Published when a TimestampedVersionedEntity is created."""
 
     class AttributeChanged(
-        Event[T_en_tim_ver],
-        TimestampedEntity.AttributeChanged[T_en_tim_ver],
-        VersionedEntity.AttributeChanged[T_en_tim_ver],
+        Event[TTimestampedVersionedEntity],
+        TimestampedEntity.AttributeChanged[TTimestampedVersionedEntity],
+        VersionedEntity.AttributeChanged[TTimestampedVersionedEntity],
     ):
         """Published when a TimestampedVersionedEntity is created."""
 
     class Discarded(
-        Event[T_en_tim_ver],
-        TimestampedEntity.Discarded[T_en_tim_ver],
-        VersionedEntity.Discarded[T_en_tim_ver],
+        Event[TTimestampedVersionedEntity],
+        TimestampedEntity.Discarded[TTimestampedVersionedEntity],
+        VersionedEntity.Discarded[TTimestampedVersionedEntity],
     ):
         """Published when a TimestampedVersionedEntity is discarded."""
 

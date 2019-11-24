@@ -26,10 +26,10 @@ from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.application.snapshotting import SnapshottingApplication
 from eventsourcing.domain.model.aggregate import (
     BaseAggregateRoot,
-    T_ag,
-    T_ag_ev,
-    T_ag_evs,
-    T_ags,
+    OneOrManyAggregateEvents,
+    SequenceOfAggregates,
+    TAggregate,
+    TAggregateEvent,
 )
 from eventsourcing.domain.model.events import (
     DomainEvent,
@@ -47,12 +47,17 @@ from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepo
 from eventsourcing.whitehead import ActualOccasion, OneOrManyEvents
 
 
+ListOfAggregateEvents = List[TAggregateEvent]
+CausalDependencies = Dict[str, int]
+ListOfCausalDependencies = List[CausalDependencies]
+TrackingKwargs = Dict[str, Union[str, int]]
+
 class ProcessEvent(ActualOccasion):
     def __init__(
         self,
         domain_events: Sequence[DomainEvent],
-        tracking_kwargs: Optional[Dict[str, Any]] = None,
-        causal_dependencies: Sequence[Dict[str, Any]] = (),
+        tracking_kwargs: Optional[TrackingKwargs] = None,
+        causal_dependencies: Optional[ListOfCausalDependencies] = None,
         orm_objs_pending_save: Sequence[Any] = (),
         orm_objs_pending_delete: Sequence[Any] = (),
     ):
@@ -86,7 +91,7 @@ class Prompt(ActualOccasion):
         )
 
 
-class WrappedRepository(Generic[T_ag, T_ag_ev]):
+class WrappedRepository(Generic[TAggregate, TAggregateEvent]):
     """
     Used to wrap an event sourced repository for use in process application
     policy so that use of, and changes to, domain model aggregates can be
@@ -96,14 +101,16 @@ class WrappedRepository(Generic[T_ag, T_ag_ev]):
     accessed by ID.
     """
 
-    def __init__(self, repository: EventSourcedRepository[T_ag, T_ag_ev]) -> None:
+    def __init__(
+        self, repository: EventSourcedRepository[TAggregate, TAggregateEvent]
+    ) -> None:
         self.repository = repository
-        self.retrieved_aggregates: Dict[UUID, T_ag] = {}
+        self.retrieved_aggregates: Dict[UUID, TAggregate] = {}
         self.causal_dependencies: List[Tuple[UUID, int]] = []
         self.orm_objs_pending_save: List[Any] = []
         self.orm_objs_pending_delete: List[Any] = []
 
-    def __getitem__(self, entity_id: UUID) -> T_ag:
+    def __getitem__(self, entity_id: UUID) -> TAggregate:
         try:
             aggregate = self.retrieved_aggregates[entity_id]
         except KeyError:
@@ -132,7 +139,7 @@ class WrappedRepository(Generic[T_ag, T_ag_ev]):
         self.orm_objs_pending_delete.append(orm_obj)
 
 
-class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
+class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
     set_notification_ids = False
     use_causal_dependencies = False
     notification_log_reader_class = NotificationLogReader
@@ -311,7 +318,7 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
                         self.clock_event.wait()
 
                     # print("Processing upstream event: ", event)
-                    new_events: T_ag_evs = self.process_upstream_event(
+                    new_events: OneOrManyAggregateEvents = self.process_upstream_event(
                         event, notification["id"], upstream_name
                     )
 
@@ -326,8 +333,8 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
         return notification_count
 
     def process_upstream_event(
-        self, domain_event: T_ag_ev, notification_id: int, upstream_name: str
-    ) -> List[T_ag_ev]:
+        self, domain_event: TAggregateEvent, notification_id: int, upstream_name: str
+    ) -> ListOfAggregateEvents:
         cycle_started: Optional[float] = None
         if self.tick_interval is not None:
             cycle_started = time.process_time()
@@ -391,7 +398,9 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
                     print(msg)
         return domain_events
 
-    def get_event_from_notification(self, notification: Dict[str, Any]) -> T_ag_ev:
+    def get_event_from_notification(
+        self, notification: Dict[str, Any]
+    ) -> TAggregateEvent:
         assert self.event_store
         return self.event_store.mapper.event_from_topic_and_state(
             topic=notification[self.notification_topic_key],
@@ -425,7 +434,7 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
         except KeyError:
             pass
 
-    def take_snapshots(self, new_events: T_ag_evs) -> None:
+    def take_snapshots(self, new_events: OneOrManyAggregateEvents) -> None:
         pass
 
     def set_reader_position_from_tracking_records(self, upstream_name: str) -> None:
@@ -439,7 +448,9 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
         max_record_id = record_manager.get_max_tracking_record_id(upstream_name)
         reader.seek(max_record_id)
 
-    def call_policy(self, domain_event: T_ag_ev) -> Tuple:
+    def call_policy(
+        self, domain_event: TAggregateEvent
+    ) -> Tuple[ListOfAggregateEvents, ListOfCausalDependencies, List[Any], List[Any]]:
         # Get the application policy.
         policy = self.policy_func or self.policy
 
@@ -447,11 +458,11 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
         repository = WrappedRepository(self.repository)
 
         # Initialise a deque for FIFO queue of unprocessed events.
-        unprocessed: Deque[T_ag_ev] = deque()
+        unprocessed: Deque[TAggregateEvent] = deque()
         unprocessed.append(domain_event)
 
         # Initialise a list to collect and return all the generated events.
-        all_generated: List[T_ag_ev] = []
+        all_generated: ListOfAggregateEvents[TAggregateEvent] = []
 
         # Iterate on the FIFO queue of unprocessed events.
         while len(unprocessed):
@@ -467,8 +478,8 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
 
             if returned is not None:
                 # Convert returned item to list, if necessary.
-                if isinstance(returned, (list, tuple)):
-                    new_aggregates: List[T_ag] = [a for a in returned]
+                if isinstance(returned, Sequence):
+                    new_aggregates = returned
                 else:
                     new_aggregates = [returned]
 
@@ -486,7 +497,7 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
                 touched.extend(new_aggregates)
 
             # Collect all the new_events events.
-            new_events: List[T_ag_ev] = self.collect_pending_events(touched)
+            new_events: ListOfAggregateEvents = self.collect_pending_events(touched)
 
             # Extend the list of new_events events.
             all_generated.extend(new_events)
@@ -496,7 +507,7 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
                 unprocessed.extend(new_events)
 
         # Translate causal dependencies from version of entity to position in pipeline.
-        causal_dependencies: List[Dict[str, int]] = []
+        causal_dependencies: ListOfCausalDependencies = []
         if self.use_causal_dependencies:
             # Todo: Optionally reference causal dependencies in current pipeline
             #  and then support processing notification from a single pipeline in
@@ -525,14 +536,18 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
         )
 
     def policy(
-        self, repository: WrappedRepository[T_ag, T_ag_ev], event: T_ag_ev
-    ) -> Optional[Union[List[T_ag], T_ag]]:
+        self,
+        repository: WrappedRepository[TAggregate, TAggregateEvent],
+        event: TAggregateEvent,
+    ) -> Optional[Union[TAggregate, Sequence[TAggregate]]]:
         """
         Empty method, can be overridden in subclasses to implement concrete policy.
         """
 
-    def collect_pending_events(self, aggregates: T_ags) -> List[T_ag_ev]:
-        pending_events: List[T_ag_ev] = []
+    def collect_pending_events(
+        self, aggregates: SequenceOfAggregates
+    ) -> ListOfAggregateEvents:
+        pending_events: ListOfAggregateEvents = []
         num_changed_aggregates = 0
         # This doesn't necessarily obtain events in causal order...
         for aggregate in aggregates:
@@ -572,7 +587,7 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
 
     def construct_tracking_kwargs(
         self, notification_id: int, upstream_application_name: str
-    ) -> Dict[str, Union[str, int]]:
+    ) -> TrackingKwargs:
         return {
             "application_name": self.name,
             "upstream_application_name": upstream_application_name,
@@ -598,7 +613,9 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
         )
 
     def construct_event_records(
-        self, pending_events: Sequence[DomainEvent], causal_dependencies: Sequence[Dict]
+        self,
+        pending_events: Sequence[DomainEvent],
+        causal_dependencies: Optional[ListOfCausalDependencies],
     ) -> List:
         # Convert to event records.
         assert self.event_store
@@ -648,7 +665,7 @@ class ProcessApplication(SimpleApplication[T_ag, T_ag_ev]):
 
 
 class ProcessApplicationWithSnapshotting(SnapshottingApplication, ProcessApplication):
-    def take_snapshots(self, new_events: T_ag_evs) -> None:
+    def take_snapshots(self, new_events: OneOrManyAggregateEvents) -> None:
         assert self.snapshotting_policy
         for event in new_events:
             if self.snapshotting_policy.condition(event):

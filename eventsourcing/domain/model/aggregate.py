@@ -6,13 +6,13 @@ from eventsourcing.domain.model.entity import (
     TimestampedVersionedEntity,
 )
 
-T_ag = TypeVar("T_ag", bound="BaseAggregateRoot")
+TAggregate = TypeVar("TAggregate", bound="BaseAggregateRoot")
 
-T_ags = Sequence[T_ag]
+SequenceOfAggregates = Sequence[TAggregate]
 
-T_ag_ev = TypeVar("T_ag_ev", bound="BaseAggregateRoot.Event")
+TAggregateEvent = TypeVar("TAggregateEvent", bound="BaseAggregateRoot.Event")
 
-T_ag_evs = Sequence[T_ag_ev]
+OneOrManyAggregateEvents = Sequence[TAggregateEvent]
 
 
 class BaseAggregateRoot(TimestampedVersionedEntity):
@@ -20,33 +20,35 @@ class BaseAggregateRoot(TimestampedVersionedEntity):
     Root entity for an aggregate in a domain driven design.
     """
 
-    class Event(TimestampedVersionedEntity.Event[T_ag]):
+    class Event(TimestampedVersionedEntity.Event[TAggregate]):
         """Supertype for base aggregate root events."""
 
-    class Created(TimestampedVersionedEntity.Created[T_ag], Event[T_ag]):
+    class Created(TimestampedVersionedEntity.Created[TAggregate], Event[TAggregate]):
         """Triggered when an aggregate root is created."""
 
     class AttributeChanged(
-        Event[T_ag], TimestampedVersionedEntity.AttributeChanged[T_ag]
+        Event[TAggregate], TimestampedVersionedEntity.AttributeChanged[TAggregate]
     ):
         """Triggered when an aggregate root attribute is changed."""
 
-    class Discarded(Event[T_ag], TimestampedVersionedEntity.Discarded[T_ag]):
+    class Discarded(
+        Event[TAggregate], TimestampedVersionedEntity.Discarded[TAggregate]
+    ):
         """Triggered when an aggregate root is discarded."""
 
     def __init__(self, **kwargs: Any) -> None:
         super(BaseAggregateRoot, self).__init__(**kwargs)
         self.__pending_events__: Deque[BaseAggregateRoot.Event] = deque()
 
-    def __publish__(self, ev_or_evs: T_ag_evs) -> None:
+    def __publish__(self, event: OneOrManyAggregateEvents) -> None:
         """
         Defers publishing event(s) to subscribers, by adding
         event to internal collection of pending events.
         """
-        if isinstance(ev_or_evs, Sequence):
-            self.__pending_events__.extend(ev_or_evs)
+        if isinstance(event, Sequence):
+            self.__pending_events__.extend(event)
         else:
-            self.__pending_events__.append(ev_or_evs)
+            self.__pending_events__.append(event)
 
     def __save__(self) -> None:
         """
@@ -79,34 +81,37 @@ class BaseAggregateRoot(TimestampedVersionedEntity):
         return batch_of_events
 
 
-T_ag_hashchain = TypeVar("T_ag_hashchain", bound="AggregateRootWithHashchainedEvents")
+TAggregateRootWithHashchainedEvents = TypeVar(
+    "TAggregateRootWithHashchainedEvents", bound="AggregateRootWithHashchainedEvents"
+)
 
 
 class AggregateRootWithHashchainedEvents(EntityWithHashchain, BaseAggregateRoot):
     """Extends aggregate root base class with hash-chained events."""
 
     class Event(
-        EntityWithHashchain.Event[T_ag_hashchain],
-        BaseAggregateRoot.Event[T_ag_hashchain],
+        EntityWithHashchain.Event[TAggregateRootWithHashchainedEvents],
+        BaseAggregateRoot.Event[TAggregateRootWithHashchainedEvents],
     ):
         """Supertype for aggregate events."""
 
     class Created(
-        EntityWithHashchain.Created[T_ag_hashchain],
-        BaseAggregateRoot.Created[T_ag_hashchain],
-        Event[T_ag_hashchain],
+        EntityWithHashchain.Created[TAggregateRootWithHashchainedEvents],
+        BaseAggregateRoot.Created[TAggregateRootWithHashchainedEvents],
+        Event[TAggregateRootWithHashchainedEvents],
     ):
         """Triggered when an aggregate root is created."""
 
     class AttributeChanged(
-        Event[T_ag_hashchain], BaseAggregateRoot.AttributeChanged[T_ag_hashchain]
+        Event[TAggregateRootWithHashchainedEvents],
+        BaseAggregateRoot.AttributeChanged[TAggregateRootWithHashchainedEvents],
     ):
         """Triggered when an aggregate root attribute is changed."""
 
     class Discarded(
-        Event[T_ag_hashchain],
-        EntityWithHashchain.Discarded[T_ag_hashchain],
-        BaseAggregateRoot.Discarded[T_ag_hashchain],
+        Event[TAggregateRootWithHashchainedEvents],
+        EntityWithHashchain.Discarded[TAggregateRootWithHashchainedEvents],
+        BaseAggregateRoot.Discarded[TAggregateRootWithHashchainedEvents],
     ):
         """Triggered when an aggregate root is discarded."""
 
@@ -115,23 +120,29 @@ class AggregateRootWithHashchainedEvents(EntityWithHashchain, BaseAggregateRoot)
 class AggregateRoot(AggregateRootWithHashchainedEvents):
     """Original name for aggregate root base class with hash-chained events."""
 
-    class Event(AggregateRootWithHashchainedEvents.Event[T_ag_hashchain]):
+    class Event(
+        AggregateRootWithHashchainedEvents.Event[TAggregateRootWithHashchainedEvents]
+    ):
         """Supertype for aggregate events."""
 
     class Created(
-        Event[T_ag_hashchain],
-        AggregateRootWithHashchainedEvents.Created[T_ag_hashchain],
+        Event[TAggregateRootWithHashchainedEvents],
+        AggregateRootWithHashchainedEvents.Created[TAggregateRootWithHashchainedEvents],
     ):
         """Triggered when an aggregate root is created."""
 
     class AttributeChanged(
-        Event[T_ag_hashchain],
-        AggregateRootWithHashchainedEvents.AttributeChanged[T_ag_hashchain],
+        Event[TAggregateRootWithHashchainedEvents],
+        AggregateRootWithHashchainedEvents.AttributeChanged[
+            TAggregateRootWithHashchainedEvents
+        ],
     ):
         """Triggered when an aggregate root attribute is changed."""
 
     class Discarded(
-        Event[T_ag_hashchain],
-        AggregateRootWithHashchainedEvents.Discarded[T_ag_hashchain],
+        Event[TAggregateRootWithHashchainedEvents],
+        AggregateRootWithHashchainedEvents.Discarded[
+            TAggregateRootWithHashchainedEvents
+        ],
     ):
         """Triggered when an aggregate root is discarded."""

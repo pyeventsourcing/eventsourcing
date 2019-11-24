@@ -1,5 +1,5 @@
 # coding=utf-8
-from typing import List, Optional, Iterable, Generic
+from typing import List, Optional, Iterable, Generic, Sequence
 from uuid import UUID
 
 from eventsourcing.exceptions import ConcurrencyError, RecordConflictError
@@ -7,7 +7,7 @@ from eventsourcing.infrastructure.iterators import SequencedItemIterator
 from eventsourcing.whitehead import (
     OneOrManyEvents,
     TEvent)
-from eventsourcing.infrastructure.base import T_rm, AbstractEventStore
+from eventsourcing.infrastructure.base import TRecordManager, AbstractEventStore
 from eventsourcing.infrastructure.sequenceditemmapper import AbstractSequencedItemMapper
 
 
@@ -15,7 +15,7 @@ from eventsourcing.infrastructure.sequenceditemmapper import AbstractSequencedIt
 #  by pushing behaviour down to record manager?
 
 
-class EventStore(AbstractEventStore[TEvent], Generic[TEvent, T_rm]):
+class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
     """
     Event store appends domain events to stored sequences. It uses
     a record manager to map named tuples to database
@@ -26,7 +26,7 @@ class EventStore(AbstractEventStore[TEvent], Generic[TEvent, T_rm]):
     iterator_class = SequencedItemIterator
 
     def __init__(
-        self, record_manager: T_rm, sequenced_item_mapper:
+        self, record_manager: TRecordManager, sequenced_item_mapper:
         AbstractSequencedItemMapper
     ):
         """
@@ -63,7 +63,7 @@ class EventStore(AbstractEventStore[TEvent], Generic[TEvent, T_rm]):
         :return: namedtuple: sequence item namedtuple (or list)
         """
         # Convert the domain event(s) to sequenced item(s).
-        if isinstance(domain_event_or_events, (list, tuple)):
+        if isinstance(domain_event_or_events, Sequence):
             return [self.item_from_event(e) for e in domain_event_or_events]
         else:
             return self.mapper.item_from_event(domain_event_or_events)

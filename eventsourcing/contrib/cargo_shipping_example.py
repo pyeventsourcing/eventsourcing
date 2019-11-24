@@ -27,7 +27,7 @@ from eventsourcing.application.system import (
     SingleThreadedRunner,
     System,
 )
-from eventsourcing.domain.model.aggregate import AggregateRoot, T_ag, T_ag_ev
+from eventsourcing.domain.model.aggregate import AggregateRoot, TAggregate, TAggregateEvent
 from eventsourcing.exceptions import RepositoryKeyError
 
 
@@ -314,7 +314,7 @@ class Cargo(Aggregate):
 
 # Cargo aggregates exist within an application, which
 # provides "application service" methods for clients.
-class BookingApplication(ProcessApplication[T_ag, T_ag_ev]):
+class BookingApplication(ProcessApplication[TAggregate, TAggregateEvent]):
     persist_event_type = Cargo.Event
 
     @staticmethod

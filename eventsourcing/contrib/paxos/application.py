@@ -1,6 +1,6 @@
 import itertools
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, Set, Type, TypeVar, Union
+from typing import Any, Dict, Optional, Sequence, Set, Type, TypeVar, Union
 from uuid import UUID
 
 from eventsourcing.application.process import (
@@ -23,8 +23,8 @@ from eventsourcing.exceptions import (
     RepositoryKeyError,
 )
 
-T_pa = TypeVar("T_pa", bound="PaxosAggregate")
-T_pa_ev = TypeVar("T_pa_ev", bound="PaxosAggregate.Event")
+TPaxosAggregate = TypeVar("TPaxosAggregate", bound="PaxosAggregate")
+TPaxosAggregateEvent = TypeVar("TPaxosAggregateEvent", bound="PaxosAggregate.Event")
 
 
 class PaxosAggregate(BaseAggregateRoot):
@@ -80,19 +80,19 @@ class PaxosAggregate(BaseAggregateRoot):
         # Return the instance.
         return instance
 
-    class Event(BaseAggregateRoot.Event[T_pa]):
+    class Event(BaseAggregateRoot.Event[TPaxosAggregate]):
         """
         Base event class for PaxosAggregate.
         """
 
-    class Started(Event[T_pa], BaseAggregateRoot.Created[T_pa]):
+    class Started(Event[TPaxosAggregate], BaseAggregateRoot.Created[TPaxosAggregate]):
         """
         Published when a PaxosAggregate is started.
         """
 
         __notifiable__ = False
 
-    class AttributesChanged(Event[T_pa]):
+    class AttributesChanged(Event[TPaxosAggregate]):
         """
         Published when attributes of paxos_instance are changed.
         """
@@ -108,20 +108,23 @@ class PaxosAggregate(BaseAggregateRoot):
         def changes(self) -> Dict[str, Any]:
             return self.__dict__["changes"]
 
-        def mutate(self, obj: T_pa) -> None:
+        def mutate(self, obj: TPaxosAggregate) -> None:
             for name, value in self.changes.items():
                 setattr(obj, name, value)
 
     @classmethod
     def start(
-        cls: Type[T_pa], originator_id: UUID, quorum_size: int, network_uid: str
-    ) -> T_pa:
+        cls: Type[TPaxosAggregate],
+        originator_id: UUID,
+        quorum_size: int,
+        network_uid: str,
+    ) -> TPaxosAggregate:
         """
         Factory method that returns a new Paxos aggregate.
         """
         assert isinstance(quorum_size, int), "Not an integer: {}".format(quorum_size)
         assert issubclass(cls, PaxosAggregate)
-        started_class: Type[PaxosAggregate.Started[T_pa]] = cls.Started
+        started_class: Type[PaxosAggregate.Started[TPaxosAggregate]] = cls.Started
         return cls.__create__(
             originator_id=originator_id,
             event_class=started_class,
@@ -181,7 +184,7 @@ class PaxosAggregate(BaseAggregateRoot):
         )
         self.__trigger_event__(event_class=self.MessageAnnounced, msg=msg)
 
-    class MessageAnnounced(Event[T_pa]):
+    class MessageAnnounced(Event[TPaxosAggregate]):
         """
         Published when a Paxos message is announced.
         """
@@ -221,7 +224,7 @@ class PaxosAggregate(BaseAggregateRoot):
         ).format(**self.__dict__)
 
 
-class PaxosProcess(ProcessApplication[T_pa, T_pa_ev]):
+class PaxosProcess(ProcessApplication[TPaxosAggregate, TPaxosAggregateEvent]):
     persist_event_type = PaxosAggregate.Event
     quorum_size: int = 0
     notification_log_section_size = 5
@@ -254,8 +257,14 @@ class PaxosProcess(ProcessApplication[T_pa, T_pa_ev]):
         return paxos_aggregate  # in case it's new
 
     def policy(
-        self, repository: WrappedRepository[T_pa, T_pa_ev], event: T_pa_ev
-    ) -> Optional[Union[List[T_pa], T_pa]]:
+        self,
+        repository: WrappedRepository[TPaxosAggregate, TPaxosAggregateEvent],
+        event: TPaxosAggregateEvent,
+    ) -> Optional[Union[TPaxosAggregate, Sequence[TPaxosAggregate]]]:
+        """
+        Processes paxos "message announced" events of other applications
+        by starting or continuing a paxos aggregate in this application.
+        """
         if isinstance(event, PaxosAggregate.MessageAnnounced):
             msg = event.msg
             assert isinstance(msg, PaxosMessage)
