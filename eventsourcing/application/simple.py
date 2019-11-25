@@ -1,24 +1,29 @@
 import os
-from json import JSONEncoder, JSONDecoder
+from json import JSONDecoder, JSONEncoder
 from typing import Any, Generic, Optional, Tuple, Type, Union
 
-from eventsourcing.application.notificationlog import RecordManagerNotificationLog
+from eventsourcing.application.notificationlog import (
+    LocalNotificationLog,
+    RecordManagerNotificationLog,
+)
 from eventsourcing.application.pipeline import Pipeable
 from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.domain.model.entity import TDomainEvent, TDomainEntity
+from eventsourcing.domain.model.entity import TDomainEntity, TDomainEvent
 from eventsourcing.domain.model.events import DomainEvent
-from eventsourcing.infrastructure.base import BaseRecordManager, DEFAULT_PIPELINE_ID, \
-    AbstractRecordManager
+from eventsourcing.infrastructure.base import (
+    AbstractRecordManager,
+    BaseRecordManager,
+    DEFAULT_PIPELINE_ID,
+)
 from eventsourcing.infrastructure.datastore import AbstractDatastore
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.factory import InfrastructureFactory
 from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.whitehead import T
 from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.utils.random import decode_bytes
-
+from eventsourcing.whitehead import T
 
 PersistEventType = Optional[Union[Type[DomainEvent], Tuple[Type[DomainEvent]]]]
 
@@ -100,7 +105,7 @@ class SimpleApplication(Pipeable, Generic[TDomainEntity, TDomainEvent]):
 
         self.contiguous_record_ids = contiguous_record_ids
         self.pipeline_id = pipeline_id
-        self.persistence_policy = persistence_policy
+        self._persistence_policy = persistence_policy
 
         self.cipher = self.construct_cipher(cipher_key)
 
@@ -108,6 +113,7 @@ class SimpleApplication(Pipeable, Generic[TDomainEntity, TDomainEvent]):
         self._datastore: Optional[AbstractDatastore] = None
         self._event_store: Optional[EventStore] = None
         self._repository: Optional[EventSourcedRepository] = None
+        self._notification_log: Optional[LocalNotificationLog] = None
 
         if (
             self.record_manager_class
@@ -120,7 +126,7 @@ class SimpleApplication(Pipeable, Generic[TDomainEntity, TDomainEvent]):
                 self.setup_table()
             self.construct_notification_log()
 
-            if self.persistence_policy is None:
+            if self._persistence_policy is None:
                 self.construct_persistence_policy()
 
     @property
@@ -141,6 +147,16 @@ class SimpleApplication(Pipeable, Generic[TDomainEntity, TDomainEvent]):
     def repository(self) -> EventSourcedRepository[TDomainEntity, TDomainEvent]:
         assert self._repository
         return self._repository
+
+    @property
+    def notification_log(self) -> LocalNotificationLog:
+        assert self._notification_log
+        return self._notification_log
+
+    @property
+    def persistence_policy(self) -> PersistencePolicy:
+        assert self._persistence_policy
+        return self._persistence_policy
 
     def construct_cipher(self, cipher_key_str: Optional[str]) -> Optional[AESCipher]:
         cipher_key_bytes = decode_bytes(
@@ -206,40 +222,34 @@ class SimpleApplication(Pipeable, Generic[TDomainEntity, TDomainEvent]):
     def setup_table(self) -> None:
         # Setup the database table using event store's record class.
         if self._datastore is not None:
-            assert self.event_store
             record_class = self.event_store.record_manager.record_class
             self.datastore.setup_table(record_class)
 
     def drop_table(self) -> None:
         # Drop the database table using event store's record class.
         if self._datastore is not None:
-            assert self.event_store
             record_class = self.event_store.record_manager.record_class
             self.datastore.drop_table(record_class)
 
     def construct_notification_log(self) -> None:
-        assert self.event_store
-        self.notification_log = RecordManagerNotificationLog(
+        self._notification_log = RecordManagerNotificationLog(
             self.event_store.record_manager,
             section_size=self.notification_log_section_size,
         )
 
     def construct_persistence_policy(self) -> None:
-        assert self.event_store
-        self.persistence_policy = PersistencePolicy(
+        self._persistence_policy = PersistencePolicy(
             event_store=self.event_store, persist_event_type=self.persist_event_type
         )
 
     def change_pipeline(self, pipeline_id: int) -> None:
         self.pipeline_id = pipeline_id
-        assert self.event_store
-        assert self.event_store.record_manager
         self.event_store.record_manager.pipeline_id = pipeline_id
 
     def close(self) -> None:
         # Close the persistence policy.
-        if self.persistence_policy is not None:
-            self.persistence_policy.close()
+        if self._persistence_policy is not None:
+            self._persistence_policy.close()
 
         # Close database connection.
         if self._datastore is not None:

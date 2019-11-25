@@ -96,13 +96,13 @@ class StoredEventRecord(models.Model):
     # Application name.
     application_name = models.CharField(max_length=32)
 
-    # Sequence ID (e.g. an entity or aggregate ID).
+    # Originator ID (e.g. an entity or aggregate ID).
     originator_id = models.UUIDField()
 
-    # Position (index) of item in sequence.
+    # Originator version of item in sequence.
     originator_version = models.BigIntegerField()
 
-    # Upstream application name.
+    # Pipeline ID.
     pipeline_id = models.IntegerField()
 
     # Notification ID.

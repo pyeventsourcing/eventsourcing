@@ -43,7 +43,6 @@ class SnapshottingApplication(SimpleApplication[TDomainEntity, TDomainEvent]):
 
     def construct_persistence_policy(self) -> None:
         super(SnapshottingApplication, self).construct_persistence_policy()
-        assert self.repository
         assert self.snapshot_store
         self.snapshotting_policy = SnapshottingPolicy(
             repository=self.repository,

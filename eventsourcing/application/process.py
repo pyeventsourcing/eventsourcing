@@ -184,15 +184,24 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
             )
 
         # Publish prompts for any domain events that we persist.
-        if self.persistence_policy:
+        #  - this means when a process application is used as a simple
+        #    application, with calls to aggregate __save__() methods,
+        #    then the new events that are stored might need to be processed
+        #    by another application. So it can help also to publish a
+        #    prompt after the events have been stored so that followers
+        #    can be immediately nudged to process the events (otherwise they
+        #    would only pick up the events next time they happen to run).
+        #    The particular way a prompt published here is actually sent to
+        #    any followers is the responsibility of a particular system runner.
+        if self._persistence_policy:
             subscribe(
-                predicate=self.persistence_policy.is_event, handler=self.publish_prompt
+                predicate=self._persistence_policy.is_event, handler=self.publish_prompt
             )
 
     def close(self) -> None:
-        if self.persistence_policy:
+        if self._persistence_policy:
             unsubscribe(
-                predicate=self.persistence_policy.is_event, handler=self.publish_prompt
+                predicate=self._persistence_policy.is_event, handler=self.publish_prompt
             )
         super(ProcessApplication, self).close()
 
@@ -248,7 +257,6 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
 
         notification_count = 0
 
-        assert self.event_store
         record_manager = self.event_store.record_manager
         assert isinstance(record_manager, ACIDRecordManager)
 
@@ -350,8 +358,16 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
         # Todo: Supplement causal dependencies with system software version?
         #  - this may help to inhibit premature processing when upgrading
 
+        # Todo: Optionally add correlation and causation IDs here. Could be done
+        #  in user application code, perhaps with a decorator on policy functions
+        #  but having it done here would be more convenient.
+
+        # Todo: Optionally add event and system version numbers in events. This
+        #  would help with upcasting them. Could be done in user application code,
+        #  with either aggregate or event base class, but having it done here would
+        #  be more convenient.
+
         # Record process event.
-        assert self.repository
         try:
             tracking_kwargs = self.construct_tracking_kwargs(
                 notification_id, upstream_name
@@ -401,7 +417,6 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
     def get_event_from_notification(
         self, notification: Dict[str, Any]
     ) -> TAggregateEvent:
-        assert self.event_store
         return self.event_store.mapper.event_from_topic_and_state(
             topic=notification[self.notification_topic_key],
             state=notification[self.notification_state_key],
@@ -442,7 +457,6 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
             reader = self.readers[upstream_name]
         except KeyError:
             raise Exception(list(self.readers.keys()))
-        assert self.event_store
         record_manager = self.event_store.record_manager
         assert isinstance(record_manager, ACIDRecordManager)
         max_record_id = record_manager.get_max_tracking_record_id(upstream_name)
@@ -513,7 +527,6 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
             #  and then support processing notification from a single pipeline in
             #  parallel, according to dependencies.
             highest: Dict[int, int] = defaultdict(int)
-            assert self.event_store
             rm = self.event_store.record_manager
             assert isinstance(rm, ACIDRecordManager)
             for entity_id, entity_version in repository.causal_dependencies:
@@ -602,7 +615,6 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
         )
 
         # Write event records with tracking record.
-        assert self.event_store
         record_manager = self.event_store.record_manager
         assert isinstance(record_manager, ACIDRecordManager)
         record_manager.write_records(
@@ -618,7 +630,6 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
         causal_dependencies: Optional[ListOfCausalDependencies],
     ) -> List:
         # Convert to event records.
-        assert self.event_store
         sequenced_items = self.event_store.item_from_event(pending_events)
         record_manager = self.event_store.record_manager
         assert record_manager
@@ -658,7 +669,6 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
     def drop_table(self) -> None:
         super(ProcessApplication, self).drop_table()
         if self.datastore is not None:
-            assert self.event_store
             record_manager = self.event_store.record_manager
             assert isinstance(record_manager, ACIDRecordManager)
             self.datastore.drop_table(record_manager.tracking_record_class)
