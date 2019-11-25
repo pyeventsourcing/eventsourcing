@@ -155,6 +155,9 @@ with SQLAlchemyApplication(persist_event_type=World.Event) as app:
     # Aggregate now exists in repository.
     assert world.id in app.repository
 
+    # Show the notification log has four items.
+    assert len(app.notification_log['current'].items) == 4
+
     # Replay stored events for aggregate.
     copy = app.repository[world.id]
 
