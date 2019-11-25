@@ -34,9 +34,6 @@ event classes have been pulled up to a layer supertype ``DomainEvent``.
 
 .. code:: python
 
-    import time
-
-
     class DomainEvent(object):
         """
         Supertype for domain event objects.
@@ -119,9 +116,6 @@ for the benefit of any subscribers, by using the function ``publish()``.
 
 .. code:: python
 
-    import uuid
-
-
     class Example(object):
         """
         Example domain entity.
@@ -186,6 +180,8 @@ object, and finally publishing the event for others before returning
 the new entity object to the caller.
 
 .. code:: python
+
+    import uuid
 
     def create_new_example(foo):
         """
