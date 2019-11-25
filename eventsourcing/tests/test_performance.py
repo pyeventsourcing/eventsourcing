@@ -118,23 +118,16 @@ class PerformanceTestCase(base.WithExampleApplication):
                 def last_n(n):
                     n = min(n, num_beats + 1)
                     assert isinstance(app.example_repository.event_store, EventStore)
-                    ars = app.example_repository.event_store.record_manager
-                    assert isinstance(ars, BaseRecordManager)
-
                     start_last_n = time.time()
-                    last_n_stored_events = []
-                    for _ in range(repetitions):
-                        iterator = SequencedItemIterator(
-                            record_manager=ars,
-                            sequence_id=example.id,
-                            limit=n,
-                            is_ascending=False,
-                        )
-                        last_n_stored_events = list(iterator)
+                    app.example_repository.event_store.list_domain_events(
+                        originator_id=example.id,
+                        limit=n,
+                        # is_ascending=False,
+                    )
                     time_last_n = (time.time() - start_last_n) / repetitions
 
-                    num_retrieved_events = len(last_n_stored_events)
-                    events_per_second = num_retrieved_events / time_last_n
+                    # num_retrieved_events = len(last_n_stored_events)
+                    events_per_second = n / time_last_n
                     print(
                         (
                             "Time to get last {:>"

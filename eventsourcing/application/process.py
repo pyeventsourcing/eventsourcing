@@ -44,7 +44,7 @@ from eventsourcing.exceptions import (
 )
 from eventsourcing.infrastructure.base import ACIDRecordManager
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
-from eventsourcing.whitehead import ActualOccasion, OneOrManyEvents, TEvent
+from eventsourcing.whitehead import ActualOccasion, OneOrManyEvents
 
 ListOfAggregateEvents = List[TAggregateEvent]
 CausalDependencies = Dict[str, int]
@@ -630,11 +630,11 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
         causal_dependencies: Optional[ListOfCausalDependencies],
     ) -> List:
         # Convert to event records.
-        sequenced_items = self.event_store.item_from_event(pending_events)
+        sequenced_items = self.event_store.items_from_events(pending_events)
         record_manager = self.event_store.record_manager
         assert record_manager
         assert isinstance(record_manager, ACIDRecordManager)
-        event_records = record_manager.to_records(sequenced_items)
+        event_records = list(record_manager.to_records(sequenced_items))
 
         # Set notification log IDs, and causal dependencies.
         if len(event_records):

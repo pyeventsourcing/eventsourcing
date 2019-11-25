@@ -1,14 +1,16 @@
-from typing import Generic, Optional, Tuple, Type, Union
+from typing import Generic, Optional, Tuple, Union, Sequence
 
 from eventsourcing.domain.model.events import (
     EventWithOriginatorVersion,
     subscribe,
-    unsubscribe)
+    unsubscribe,
+)
 from eventsourcing.domain.model.snapshot import Snapshot
-from eventsourcing.whitehead import TEvent, \
-    OneOrManyEvents
-from eventsourcing.infrastructure.base import AbstractEventStore, \
-    AbstractEntityRepository
+from eventsourcing.whitehead import TEvent, OneOrManyEvents
+from eventsourcing.infrastructure.base import (
+    AbstractEventStore,
+    AbstractEntityRepository,
+)
 
 
 class PersistencePolicy(object):
@@ -16,8 +18,11 @@ class PersistencePolicy(object):
     Stores events of given type to given event store, whenever they are published.
     """
 
-    def __init__(self, event_store: AbstractEventStore,
-                 persist_event_type: Optional[Union[type, Tuple]] = None):
+    def __init__(
+        self,
+        event_store: AbstractEventStore,
+        persist_event_type: Optional[Union[type, Tuple]] = None,
+    ):
         self.event_store = event_store
         self.persist_event_type = persist_event_type
         subscribe(self.store_event, self.is_event)
@@ -34,7 +39,10 @@ class PersistencePolicy(object):
             return isinstance(event, self.persist_event_type)
 
     def store_event(self, event: OneOrManyEvents) -> None:
-        self.event_store.store(event)
+        if isinstance(event, Sequence):
+            self.event_store.store_events(event)
+        else:
+            self.event_store.store_event(event)
 
 
 # Todo: Separate PeriodicSnapshottingPolicy from base class? Make usage more
@@ -45,7 +53,8 @@ class SnapshottingPolicy(Generic[TEvent]):
         repository: AbstractEntityRepository,
         snapshot_store: AbstractEventStore[Snapshot],
         persist_event_type: Optional[Union[type, Tuple]] = (
-            EventWithOriginatorVersion,),
+            EventWithOriginatorVersion,
+        ),
         period: int = 2,
     ):
         self.repository = repository

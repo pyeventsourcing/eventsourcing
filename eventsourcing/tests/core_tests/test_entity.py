@@ -36,6 +36,7 @@ from eventsourcing.utils.topic import get_topic
 class TestExampleEntity(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
     def test_entity_lifecycle(self):
         # Check the factory creates an instance.
+        time_before = time.time()
         example1 = Example.__create__(a=1, b=2)
 
         self.assertIsInstance(example1, Example)
@@ -57,7 +58,7 @@ class TestExampleEntity(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
         self.assertEqual(example1.__version__, 0)
         self.assertTrue(example1.__created_on__)
         self.assertLess(example1.__created_on__, time.time())
-        self.assertGreater(example1.__created_on__, time.time() - 1)
+        self.assertGreater(example1.__created_on__, time_before)
         self.assertTrue(example1.__last_modified__)
         self.assertEqual(example1.__created_on__, example1.__last_modified__)
 

@@ -73,6 +73,8 @@ class SQLAlchemyRecordManager(SQLRecordManager):
     ):
         all_params = []
         statement = None
+        if not isinstance(records, list):
+            records = list(records)
         if records:
             # Prepare to insert event and notification records.
             statement = self.insert_values

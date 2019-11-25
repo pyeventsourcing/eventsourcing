@@ -367,10 +367,8 @@ class BookingApplication(ProcessApplication[TAggregate, TAggregateEvent]):
         except RepositoryKeyError:
             raise Exception("Cargo not found: {}".format(tracking_id))
         else:
-            if isinstance(cargo, Cargo):
-                return cargo
-            else:
-                raise Exception("Cargo not found: {}".format(tracking_id))
+            assert isinstance(cargo, Cargo)
+            return cargo
 
 
 # The application services are presented in a client interface that

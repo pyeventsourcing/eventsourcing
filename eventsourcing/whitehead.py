@@ -1,4 +1,4 @@
-from typing import Sequence, TypeVar, Union
+from typing import Sequence, TypeVar, Union, Iterable, Tuple
 
 
 class Event(object):
@@ -50,5 +50,10 @@ T = TypeVar("T")
 TEvent = TypeVar("TEvent", bound=ActualOccasion)
 TEntity = TypeVar("TEntity", bound=EnduringObject)
 
+IterableOfEvents = Iterable[TEvent]
 SequenceOfEvents = Sequence[TEvent]
 OneOrManyEvents = Union[TEvent, SequenceOfEvents]
+
+IterableOfItems = Iterable[Tuple]
+SequenceOfItems = Sequence[Tuple]
+OneOrManyItems = Union[Tuple, SequenceOfItems]

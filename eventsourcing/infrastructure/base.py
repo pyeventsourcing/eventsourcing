@@ -1,15 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import (
-    Any,
-    Generic,
-    Iterable,
-    Iterator,
-    Optional,
-    Sequence,
-    Tuple,
-    TypeVar,
-    Union,
-)
+from typing import Any, Generic, Iterable, Iterator, Optional, Sequence, Tuple, TypeVar
 from uuid import UUID
 
 from eventsourcing.exceptions import OperationalError, RecordConflictError
@@ -19,10 +9,11 @@ from eventsourcing.infrastructure.sequenceditem import (
 )
 from eventsourcing.whitehead import (
     ActualOccasion,
-    TEvent,
-    OneOrManyEvents,
+    IterableOfEvents,
+    IterableOfItems,
     SequenceOfEvents,
     TEntity,
+    TEvent,
 )
 
 DEFAULT_PIPELINE_ID = 0
@@ -35,20 +26,16 @@ class AbstractRecordManager(ABC, Generic[TEvent]):
         pass
 
     @abstractmethod
-    def record_sequenced_item(
-        self, sequenced_item_or_items: Union[Sequence[Tuple], Tuple]
-    ) -> None:
+    def record_sequenced_items(self, sequenced_items: IterableOfItems) -> None:
         """
-        Writes sequenced item(s) into the datastore.
+        Writes sequenced items into the datastore.
         """
 
-    @abstractmethod
-    def record_sequenced_items(
-        self, sequenced_item_or_items: Union[Sequence[Tuple], Tuple]
-    ) -> None:
+    def record_sequenced_item(self, sequenced_item: Tuple) -> None:
         """
-        Writes sequenced item(s) into the datastore.
+        Writes sequenced item into the datastore.
         """
+        self.record_sequenced_items([sequenced_item])
 
     @abstractmethod
     def get_item(self, sequence_id: UUID, position: int) -> Tuple:
@@ -173,12 +160,6 @@ class BaseRecordManager(AbstractRecordManager[TEvent]):
             **kwargs
         )
 
-    def record_sequenced_item(self, sequenced_item):
-        """
-        Writes sequenced item into the datastore.
-        """
-        return self.record_sequenced_items(sequenced_item)
-
     def get_item(self, sequence_id: UUID, position: int) -> Tuple:
         """
         Gets sequenced item from the datastore.
@@ -296,12 +277,8 @@ class ACIDRecordManager(BaseRecordManager[TEvent]):
         :param orm_objs_pending_save:
         """
 
-    def to_records(self, sequenced_item_or_items):
-        if isinstance(sequenced_item_or_items, list):
-            records = [self.to_record(i) for i in sequenced_item_or_items]
-        else:
-            records = [self.to_record(sequenced_item_or_items)]
-        return records
+    def to_records(self, sequenced_items):
+        return map(self.to_record, sequenced_items)
 
     @abstractmethod
     def get_max_record_id(self) -> int:
@@ -351,9 +328,9 @@ class SQLRecordManager(ACIDRecordManager):
         self._insert_values = None
         self._insert_tracking_record = None
 
-    def record_sequenced_items(self, sequenced_item_or_items):
+    def record_sequenced_items(self, sequenced_items):
         # Convert sequenced item(s) to database record(s).
-        records = self.to_records(sequenced_item_or_items)
+        records = self.to_records(sequenced_items)
 
         # Write records.
         self.write_records(records)
@@ -445,28 +422,16 @@ class AbstractEventStore(ABC, Generic[TEvent]):
     expected of an event store by other classes in the library.
     """
 
-    @abstractmethod
-    def store(self, event: OneOrManyEvents) -> None:
+    def store_event(self, event: TEvent) -> None:
         """
         Put domain event in event store for later retrieval.
         """
+        self.store_events([event])
 
     @abstractmethod
-    def get_domain_events(
-        self,
-        originator_id: UUID,
-        gt: Optional[int] = None,
-        gte: Optional[int] = None,
-        lt: Optional[int] = None,
-        lte: Optional[int] = None,
-        limit: Optional[int] = None,
-        is_ascending: bool = True,
-        page_size: Optional[int] = None,
-    ) -> Iterable[TEvent]:
+    def store_events(self, events: IterableOfEvents) -> None:
         """
-        Deprecated. Please use iter_domain_events() instead.
-
-        Returns domain events for given entity ID.
+        Put domain event in event store for later retrieval.
         """
 
     @abstractmethod
@@ -484,6 +449,8 @@ class AbstractEventStore(ABC, Generic[TEvent]):
         """
         Returns domain events for given entity ID.
         """
+    def list_domain_events(self, *args, **kwargs):
+        return list(self.iter_domain_events(*args, **kwargs))
 
     @abstractmethod
     def get_domain_event(self, originator_id: UUID, position: int) -> TEvent:
@@ -503,6 +470,24 @@ class AbstractEventStore(ABC, Generic[TEvent]):
     def all_domain_events(self) -> Iterable[TEvent]:
         """
         Returns all domain events in the event store.
+        """
+
+    @abstractmethod
+    def get_domain_events(
+        self,
+        originator_id: UUID,
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        limit: Optional[int] = None,
+        is_ascending: bool = True,
+        page_size: Optional[int] = None,
+    ) -> Iterable[TEvent]:
+        """
+        Deprecated. Please use iter_domain_events() instead.
+
+        Returns domain events for given entity ID.
         """
 
 

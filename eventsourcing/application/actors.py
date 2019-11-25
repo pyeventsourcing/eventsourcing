@@ -8,6 +8,7 @@ from eventsourcing.application.process import ProcessApplication, Prompt
 from eventsourcing.application.system import System, SystemRunner
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import RecordConflictError
+from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 
 logger = logging.getLogger()
 
@@ -59,7 +60,7 @@ class ActorModelRunner(SystemRunner):
     def __init__(
         self,
         system: System,
-        pipeline_ids,
+        pipeline_ids=(DEFAULT_PIPELINE_ID,),
         system_actor_name="system",
         shutdown_on_close=False,
         **kwargs

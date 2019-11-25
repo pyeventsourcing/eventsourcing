@@ -42,7 +42,7 @@ class TestEventSourcedRepository(SQLAlchemyDatastoreTestCase):
 
         # Put an event in the event store.
         entity_id = uuid4()
-        event_store.store(
+        event_store.store_event(
             Example.Created(
                 a=1, b=2, originator_id=entity_id, originator_topic=get_topic(Example)
             )

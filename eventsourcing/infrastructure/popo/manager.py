@@ -183,8 +183,8 @@ class PopoRecordManager(ACIDRecordManager):
     ) -> bool:
         raise NotImplementedError()
 
-    def record_sequenced_items(self, sequenced_item_or_items):
-        records = self.to_records(sequenced_item_or_items)
+    def record_sequenced_items(self, sequenced_items):
+        records = self.to_records(sequenced_items)
         self.write_records(records=records)
 
     def write_records(
@@ -196,7 +196,8 @@ class PopoRecordManager(ACIDRecordManager):
     ):
         with self._rw_lock.gen_wlock():
             # Write event and notification records.
-            self._insert_records(records)
+            for record in records:
+                self._insert_record(record)
 
             if tracking_kwargs:
                 # Write a tracking record.
@@ -229,13 +230,6 @@ class PopoRecordManager(ACIDRecordManager):
                         (application_name, upstream_application_name, notification_id)
                     )
                 upstream_tracking_records.add(notification_id)
-
-    def _insert_records(self, records):
-        if isinstance(records, list):
-            for record in records:
-                self._insert_record(record)
-        else:
-            self._insert_record(records)
 
     def _insert_record(self, sequenced_item):
         position = getattr(sequenced_item, self.field_names.position)

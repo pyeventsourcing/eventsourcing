@@ -548,7 +548,7 @@ method of the record manager.
 
 .. code:: python
 
-    record_manager.record_sequenced_items(stored_event1)
+    record_manager.record_sequenced_item(stored_event1)
 
 
 All the previously appended items of a sequence can be retrieved by using the
@@ -981,7 +981,7 @@ appended to sequence ``aggregate1`` at position ``1``.
 
 .. code:: python
 
-    event_store.store(
+    event_store.store_event(
         DomainEvent(
             originator_id=aggregate1,
             originator_version=1,
@@ -1069,7 +1069,7 @@ exception class :class:`~eventsourcing.exceptions.RecordConflictError`.
 
     # Fail to append an event at the same position in the same sequence as a previous event.
     try:
-        event_store.store(
+        event_store.store_event(
             DomainEvent(
                 originator_id=aggregate1,
                 originator_version=1,
@@ -1189,7 +1189,7 @@ helps with Cassandra.
 ..     )
 ..
 ..     # Store the event.
-..     timestamped_event_store.store(event)
+..     timestamped_event_store.store_event(event)
 ..
 ..     # Check the event was stored.
 ..     events = timestamped_event_store.list_domain_events(aggregate_id)

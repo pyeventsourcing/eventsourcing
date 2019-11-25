@@ -1,18 +1,15 @@
-# coding=utf-8
-from typing import Generic, Iterable, List, Optional, Sequence, Tuple, Union, Iterator
+from typing import Generic, Iterable, List, Optional
 from uuid import UUID
 
 from eventsourcing.exceptions import ConcurrencyError, RecordConflictError
 from eventsourcing.infrastructure.base import AbstractEventStore, TRecordManager
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
 from eventsourcing.infrastructure.sequenceditemmapper import AbstractSequencedItemMapper
-from eventsourcing.whitehead import OneOrManyEvents, TEvent
+from eventsourcing.whitehead import IterableOfEvents, IterableOfItems, TEvent
+
 
 # Todo: Unify iterators in EventStore and in NotificationLog,
 #  by pushing behaviour down to record manager?
-
-SequenceOfItems = Sequence[Tuple]
-OneOrManyItems = Union[Tuple, SequenceOfItems]
 
 
 class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
@@ -40,72 +37,34 @@ class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
         self.record_manager = record_manager
         self.mapper = sequenced_item_mapper
 
-    def store(self, event: OneOrManyEvents) -> None:
+    def store_events(self, events: IterableOfEvents) -> None:
         """
         Appends given domain event, or list of domain events, to their sequence.
 
-        :param event: domain event, or list of domain events
+        :param events: domain event, or list of domain events
         """
 
         # Convert to sequenced item.
-        sequenced_item = self.item_from_event(event)
+        sequenced_items = self.items_from_events(events)
 
         # Append to the sequenced item(s) to the sequence.
         try:
-            self.record_manager.record_sequenced_item(sequenced_item)
+            self.record_manager.record_sequenced_items(sequenced_items)
         except RecordConflictError as e:
             raise ConcurrencyError(e)
 
-    def item_from_event(self, event: OneOrManyEvents) -> OneOrManyItems:
+    def items_from_events(self, events: IterableOfEvents) -> IterableOfItems:
         """
         Maps domain event to sequenced item namedtuple.
 
-        :param event: One or many domain events.
+        :param events: One or many domain events.
         :return:
         """
         # Convert the domain event(s) to sequenced item(s).
-        if isinstance(event, Sequence):
-            # Todo: Just return a generator expression here? Need to fix type hints...
-            return [self.mapper.item_from_event(e) for e in event]
-        else:
-            return self.mapper.item_from_event(event)
+        if not isinstance(events, Iterable):
+            raise Exception("Caller not yet converted to send iterable")
 
-    def get_domain_events(
-        self,
-        originator_id: UUID,
-        gt: Optional[int] = None,
-        gte: Optional[int] = None,
-        lt: Optional[int] = None,
-        lte: Optional[int] = None,
-        limit: Optional[int] = None,
-        is_ascending: bool = True,
-        page_size: Optional[int] = None,
-    ) -> Iterable[TEvent]:
-        """
-        Deprecated. Please use iter_domain_events() instead.
-
-        Gets domain events from the sequence identified by `originator_id`.
-
-        :param originator_id: ID of a sequence of events
-        :param gt: get items after this position
-        :param gte: get items at or after this position
-        :param lt: get items before this position
-        :param lte: get items before or at this position
-        :param limit: get limited number of items
-        :param is_ascending: get items from lowest position
-        :param page_size: restrict and repeat database query
-        :return: list of domain events
-        """
-        return self.iter_domain_events(
-            originator_id=originator_id,
-            gt=gt,
-            gte=gte,
-            lt=lt,
-            lte=lte,
-            limit=limit,
-            is_ascending=is_ascending,
-            page_size=page_size,
-        )
+        return map(self.mapper.item_from_event, events)
 
     def iter_domain_events(
         self,
@@ -158,44 +117,6 @@ class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
         # Deserialize to domain events.
         return map(self.mapper.event_from_item, sequenced_items)
 
-    def list_domain_events(
-        self,
-        originator_id: UUID,
-        gt: Optional[int] = None,
-        gte: Optional[int] = None,
-        lt: Optional[int] = None,
-        lte: Optional[int] = None,
-        limit: Optional[int] = None,
-        is_ascending: bool = True,
-        page_size: Optional[int] = None,
-    ) -> List[TEvent]:
-        """
-        Returns a list of domain events from the sequence identified by `originator_id`.
-
-        :param originator_id: ID of a sequence of events
-        :param gt: get items after this position
-        :param gte: get items at or after this position
-        :param lt: get items before this position
-        :param lte: get items before or at this position
-        :param limit: get limited number of items
-        :param is_ascending: get items from lowest position
-        :param page_size: restrict and repeat database query
-        :return: list of domain events
-        """
-
-        return list(
-            self.iter_domain_events(
-                originator_id=originator_id,
-                gt=gt,
-                gte=gte,
-                lt=lt,
-                lte=lte,
-                limit=limit,
-                is_ascending=is_ascending,
-                page_size=page_size,
-            )
-        )
-
     def get_domain_event(self, originator_id, position):
         """
         Gets a domain event from the sequence identified by `originator_id`
@@ -247,3 +168,40 @@ class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
                 originator_id=originator_id, page_size=100
             ):
                 yield domain_event
+
+    def get_domain_events(
+        self,
+        originator_id: UUID,
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        limit: Optional[int] = None,
+        is_ascending: bool = True,
+        page_size: Optional[int] = None,
+    ) -> Iterable[TEvent]:
+        """
+        Deprecated. Please use iter_domain_events() instead.
+
+        Gets domain events from the sequence identified by `originator_id`.
+
+        :param originator_id: ID of a sequence of events
+        :param gt: get items after this position
+        :param gte: get items at or after this position
+        :param lt: get items before this position
+        :param lte: get items before or at this position
+        :param limit: get limited number of items
+        :param is_ascending: get items from lowest position
+        :param page_size: restrict and repeat database query
+        :return: list of domain events
+        """
+        return self.iter_domain_events(
+            originator_id=originator_id,
+            gt=gt,
+            gte=gte,
+            lt=lt,
+            lte=lte,
+            limit=limit,
+            is_ascending=is_ascending,
+            page_size=page_size,
+        )

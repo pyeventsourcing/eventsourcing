@@ -76,7 +76,7 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
             topic=self.EXAMPLE_EVENT_TOPIC1,
             state=state1,
         )
-        self.record_manager.record_sequenced_items(item1)
+        self.record_manager.record_sequenced_item(item1)
 
         # Check record manager returns one sequence ID.
         self.assertEqual([sequence_id1], self.record_manager.list_sequence_ids())
@@ -89,7 +89,7 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
             topic=self.EXAMPLE_EVENT_TOPIC1,
             state=state2,
         )
-        self.record_manager.record_sequenced_items(item2)
+        self.record_manager.record_sequenced_item(item2)
 
         # Check record manager returns two sequence IDs.
         self.assertEqual(
@@ -127,7 +127,7 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
         self.assertNotEqual(item1.state, item3.state)
         # - append conflicting item as single item
         with self.assertRaises(RecordConflictError):
-            self.record_manager.record_sequenced_items(item3)
+            self.record_manager.record_sequenced_item(item3)
 
         item4 = SequencedItem(
             sequence_id=item1.sequence_id,
@@ -560,7 +560,7 @@ class AbstractSequencedItemIteratorTestCase(WithRecordManagers):
                 % (i, self.entity_id, decimaltimestamp()),
             )
             self.sequenced_items.append(sequenced_item)
-            self.entity_record_manager.record_sequenced_items(sequenced_item)
+            self.entity_record_manager.record_sequenced_item(sequenced_item)
 
     def assert_iterator_yields_events(
         self,

@@ -1,6 +1,6 @@
 import itertools
 from copy import deepcopy
-from typing import Any, Dict, Optional, Sequence, Set, Type, TypeVar, Union
+from typing import Any, Dict, Optional, Sequence, Set, Union
 from uuid import UUID
 
 from eventsourcing.application.process import (
@@ -22,9 +22,6 @@ from eventsourcing.exceptions import (
     RecordConflictError,
     RepositoryKeyError,
 )
-
-TPaxosAggregate = TypeVar("TPaxosAggregate", bound="PaxosAggregate")
-TPaxosAggregateEvent = TypeVar("TPaxosAggregateEvent", bound="PaxosAggregate.Event")
 
 
 class PaxosAggregate(BaseAggregateRoot):
@@ -80,19 +77,19 @@ class PaxosAggregate(BaseAggregateRoot):
         # Return the instance.
         return instance
 
-    class Event(BaseAggregateRoot.Event[TPaxosAggregate]):
+    class Event(BaseAggregateRoot.Event["PaxosAggregate"]):
         """
         Base event class for PaxosAggregate.
         """
 
-    class Started(Event[TPaxosAggregate], BaseAggregateRoot.Created[TPaxosAggregate]):
+    class Started(Event, BaseAggregateRoot.Created["PaxosAggregate"]):
         """
         Published when a PaxosAggregate is started.
         """
 
         __notifiable__ = False
 
-    class AttributesChanged(Event[TPaxosAggregate]):
+    class AttributesChanged(Event):
         """
         Published when attributes of paxos_instance are changed.
         """
@@ -108,23 +105,19 @@ class PaxosAggregate(BaseAggregateRoot):
         def changes(self) -> Dict[str, Any]:
             return self.__dict__["changes"]
 
-        def mutate(self, obj: TPaxosAggregate) -> None:
+        def mutate(self, obj: "PaxosAggregate") -> None:
             for name, value in self.changes.items():
                 setattr(obj, name, value)
 
     @classmethod
     def start(
-        cls: Type[TPaxosAggregate],
-        originator_id: UUID,
-        quorum_size: int,
-        network_uid: str,
-    ) -> TPaxosAggregate:
+        cls, originator_id: UUID, quorum_size: int, network_uid: str
+    ) -> "PaxosAggregate":
         """
         Factory method that returns a new Paxos aggregate.
         """
         assert isinstance(quorum_size, int), "Not an integer: {}".format(quorum_size)
-        assert issubclass(cls, PaxosAggregate)
-        started_class: Type[PaxosAggregate.Started[TPaxosAggregate]] = cls.Started
+        started_class = cls.Started
         return cls.__create__(
             originator_id=originator_id,
             event_class=started_class,
@@ -184,13 +177,13 @@ class PaxosAggregate(BaseAggregateRoot):
         )
         self.__trigger_event__(event_class=self.MessageAnnounced, msg=msg)
 
-    class MessageAnnounced(Event[TPaxosAggregate]):
+    class MessageAnnounced(Event):
         """
         Published when a Paxos message is announced.
         """
 
         @property
-        def msg(self) -> str:
+        def msg(self) -> PaxosMessage:
             return self.__dict__["msg"]
 
     def setattrs_from_paxos(self, paxos: PaxosInstance) -> None:
@@ -224,7 +217,7 @@ class PaxosAggregate(BaseAggregateRoot):
         ).format(**self.__dict__)
 
 
-class PaxosProcess(ProcessApplication[TPaxosAggregate, TPaxosAggregateEvent]):
+class PaxosProcess(ProcessApplication[PaxosAggregate, PaxosAggregate.Event]):
     persist_event_type = PaxosAggregate.Event
     quorum_size: int = 0
     notification_log_section_size = 5
@@ -258,16 +251,14 @@ class PaxosProcess(ProcessApplication[TPaxosAggregate, TPaxosAggregateEvent]):
 
     def policy(
         self,
-        repository: WrappedRepository[TPaxosAggregate, TPaxosAggregateEvent],
-        event: TPaxosAggregateEvent,
-    ) -> Optional[Union[TPaxosAggregate, Sequence[TPaxosAggregate]]]:
+        repository: WrappedRepository[PaxosAggregate, PaxosAggregate.Event],
+        event: PaxosAggregate.Event,
+    ) -> Optional[Union[PaxosAggregate, Sequence[PaxosAggregate]]]:
         """
         Processes paxos "message announced" events of other applications
         by starting or continuing a paxos aggregate in this application.
         """
         if isinstance(event, PaxosAggregate.MessageAnnounced):
-            msg = event.msg
-            assert isinstance(msg, PaxosMessage)
             # Get or create aggregate.
             try:
                 paxos = repository[event.originator_id]
@@ -280,7 +271,6 @@ class PaxosProcess(ProcessApplication[TPaxosAggregate, TPaxosAggregateEvent]):
                 # Needs to go in the cache now, otherwise we get
                 # "Duplicate" errors (for some unknown reason).
                 self.repository._cache[paxos.id] = paxos
-            assert isinstance(paxos, PaxosAggregate), type(paxos)
             # Absolutely make sure the participant aggregates aren't getting confused.
             assert (
                 paxos.network_uid == self.name
@@ -291,6 +281,8 @@ class PaxosProcess(ProcessApplication[TPaxosAggregate, TPaxosAggregateEvent]):
             # obtained. Followers will process our previous
             # announcements and resolve to the same final value
             # before processing anything we could announce after.
+            msg = event.msg
+            assert isinstance(msg, PaxosMessage)
             if paxos.final_value is None:
                 paxos.receive_message(msg)
 

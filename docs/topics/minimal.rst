@@ -496,8 +496,7 @@ Now, let's firstly write the events we received earlier into the event store.
 .. code:: python
 
     # Put each received event into the event store.
-    for event in received_events:
-        event_store.store(event)
+    event_store.store_events(received_events)
 
     # Check the events exist in the event store.
     stored_events = event_store.list_domain_events(entity.id)
@@ -567,7 +566,7 @@ uses an event store to store events whenever they are received.
             unsubscribe(self.store_event)
 
         def store_event(self, event):
-            self.event_store.store(event)
+            self.event_store.store_event(event)
 
 
 A slightly more developed class :class:`~eventsourcing.application.policies.PersistencePolicy`
