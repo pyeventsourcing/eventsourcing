@@ -119,7 +119,7 @@ class PerformanceTestCase(base.WithExampleApplication):
                     n = min(n, num_beats + 1)
                     assert isinstance(app.example_repository.event_store, EventStore)
                     start_last_n = time.time()
-                    app.example_repository.event_store.list_domain_events(
+                    app.example_repository.event_store.list_events(
                         originator_id=example.id,
                         limit=n,
                         # is_ascending=False,

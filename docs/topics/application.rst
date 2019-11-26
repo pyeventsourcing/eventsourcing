@@ -389,12 +389,12 @@ Stored events
 
 You can list the domain events of an aggregate
 by using the method
-:func:`~eventsourcing.infrastructure.eventstore.EventStore.list_domain_events`
+:func:`~eventsourcing.infrastructure.eventstore.EventStore.list_events`
 of the event store of the application.
 
 .. code:: python
 
-    events = application.event_store.list_domain_events(originator_id=aggregate.id)
+    events = application.event_store.list_events(originator_id=aggregate.id)
     assert len(events) == 4
 
     assert events[0].originator_id == aggregate.id

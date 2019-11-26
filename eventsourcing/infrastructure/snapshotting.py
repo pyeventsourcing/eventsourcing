@@ -38,7 +38,7 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
 
         :rtype: Snapshot
         """
-        snapshots = self.snapshot_store.list_domain_events(
+        snapshots = self.snapshot_store.list_events(
             entity_id, lt=lt, lte=lte, limit=1, is_ascending=False
         )
 

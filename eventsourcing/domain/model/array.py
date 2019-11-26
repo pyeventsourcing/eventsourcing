@@ -125,7 +125,7 @@ class Array(object):
     def get_items_assigned(
         self, start_index=None, stop_index=None, limit=None, is_ascending=True
     ):
-        return self.repo.event_store.iter_domain_events(
+        return self.repo.event_store.iter_events(
             originator_id=self.id,
             gte=start_index,
             lt=stop_index,

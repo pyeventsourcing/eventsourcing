@@ -199,7 +199,7 @@ with SQLAlchemyApplication(persist_event_type=World.Event) as app:
         raise Exception("Shouldn't get here")
 
     # Check domain event data integrity (happens also during replay).
-    events = app.event_store.list_domain_events(world.id)
+    events = app.event_store.list_events(world.id)
     last_hash = ''
     for event in events:
         event.__check_hash__()

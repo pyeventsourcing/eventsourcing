@@ -235,6 +235,11 @@ class PaxosProcess(ProcessApplication[PaxosAggregate, PaxosAggregate.Event]):
 
         Decorated with retry in case of notification log conflict
         or operational error.
+
+        This a good example of writing process event from an
+        application command. Just get the batch of pending events
+        and record a process event with those events alone. They
+        will be written atomically.
         """
         assert self.quorum_size > 0
         assert isinstance(key, UUID)

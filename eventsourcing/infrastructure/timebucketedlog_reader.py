@@ -79,7 +79,7 @@ class TimebucketedlogReader(object):
             bucket_id = make_timebucket_id(
                 self.log.name, position, self.log.bucket_size
             )
-            for message_logged_event in self.event_store.iter_domain_events(
+            for message_logged_event in self.event_store.iter_events(
                 originator_id=bucket_id,
                 gt=gt,
                 gte=gte,

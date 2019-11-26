@@ -134,7 +134,7 @@ class EventSourcedRepository(
             is_ascending = not query_descending
 
         # Get entity's domain events from the event store.
-        domain_events = self.event_store.iter_domain_events(
+        domain_events = self.event_store.iter_events(
             originator_id=entity_id,
             gt=gt,
             gte=gte,

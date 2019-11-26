@@ -435,7 +435,7 @@ class AbstractEventStore(ABC, Generic[TEvent]):
         """
 
     @abstractmethod
-    def iter_domain_events(
+    def iter_events(
         self,
         originator_id: UUID,
         gt: Optional[int] = None,
@@ -449,8 +449,8 @@ class AbstractEventStore(ABC, Generic[TEvent]):
         """
         Returns domain events for given entity ID.
         """
-    def list_domain_events(self, *args, **kwargs):
-        return list(self.iter_domain_events(*args, **kwargs))
+    def list_events(self, *args, **kwargs):
+        return list(self.iter_events(*args, **kwargs))
 
     @abstractmethod
     def get_domain_event(self, originator_id: UUID, position: int) -> TEvent:

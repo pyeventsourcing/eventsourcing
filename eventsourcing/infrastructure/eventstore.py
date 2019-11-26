@@ -63,7 +63,7 @@ class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
         # Convert the domain event(s) to sequenced item(s).
         return map(self.mapper.item_from_event, events)
 
-    def iter_domain_events(
+    def iter_events(
         self,
         originator_id: UUID,
         gt: Optional[int] = None,
@@ -141,7 +141,7 @@ class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
         :param lte: get highest at or before this position
         :return: domain event
         """
-        events = self.list_domain_events(
+        events = self.list_events(
             originator_id=originator_id, lt=lt, lte=lte, limit=1, is_ascending=False
         )
         try:
@@ -161,7 +161,7 @@ class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
         an application as a stable append-only sequence.
         """
         for originator_id in self.record_manager.all_sequence_ids():
-            for domain_event in self.iter_domain_events(
+            for domain_event in self.iter_events(
                 originator_id=originator_id, page_size=100
             ):
                 yield domain_event
@@ -192,7 +192,7 @@ class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
         :param page_size: restrict and repeat database query
         :return: list of domain events
         """
-        return self.iter_domain_events(
+        return self.iter_events(
             originator_id=originator_id,
             gt=gt,
             gte=gte,
