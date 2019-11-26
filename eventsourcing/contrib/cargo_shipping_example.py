@@ -16,26 +16,6 @@ block patterns as well as illustrate the impact of aggregates
 and bounded contexts."
 
 """
-
-from datetime import datetime, timedelta
-from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
-from unittest import TestCase
-from uuid import UUID
-
-from eventsourcing.application.process import ProcessApplication
-from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
-from eventsourcing.application.system import (
-    InProcessRunner,
-    SingleThreadedRunner,
-    System,
-)
-from eventsourcing.domain.model.aggregate import (
-    AggregateRoot,
-    TAggregate,
-    TAggregateEvent,
-)
-
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
