@@ -1,4 +1,4 @@
-from typing import Optional, Dict
+from typing import Optional, Dict, Type
 from uuid import UUID
 
 from eventsourcing.domain.model.entity import VersionedEntity
@@ -8,6 +8,7 @@ from eventsourcing.infrastructure.snapshotting import entity_from_snapshot
 from eventsourcing.whitehead import (
     TEntity,
     TEvent,
+    SEntity
 )
 from eventsourcing.infrastructure.base import AbstractEventStore, AbstractSnapshop, \
     AbstractEntityRepository
@@ -205,3 +206,13 @@ class EventSourcedRepository(
                     )
 
         return snapshot
+
+    def get_instance_of(
+        self, instance_class: Type[SEntity], entity_id: UUID, at=None
+    ) -> Optional[SEntity]:
+        entity = self.get_entity(entity_id, at=at)
+        if isinstance(entity, instance_class):
+            return entity
+        else:
+            return None
+

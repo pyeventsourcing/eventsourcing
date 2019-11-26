@@ -36,7 +36,7 @@ class TestEventSourcedRepository(SQLAlchemyDatastoreTestCase):
         )
         return event_store
 
-    def test_get_item(self):
+    def test_get_item(self) -> None:
         # Setup an event store.
         event_store = self.construct_event_store()
 
@@ -56,6 +56,10 @@ class TestEventSourcedRepository(SQLAlchemyDatastoreTestCase):
         self.assertEqual(1, example.a)
         self.assertEqual(2, example.b)
         self.assertEqual(entity_id, example.id)
+
+        # Check class-specific request.
+        example2 = event_sourced_repo.get_instance_of(Example, entity_id)
+        reveal_type(example2)
 
         # Setup an example repository, using the subclass ExampleRepository.
         example_repo = ExampleRepository(event_store=event_store)

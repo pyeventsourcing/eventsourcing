@@ -19,7 +19,7 @@ from eventsourcing.whitehead import (
 DEFAULT_PIPELINE_ID = 0
 
 
-class AbstractRecordManager(ABC, Generic[TEvent]):
+class AbstractRecordManager(ABC):
     @property
     @abstractmethod
     def record_class(self) -> Any:
@@ -113,7 +113,7 @@ class AbstractRecordManager(ABC, Generic[TEvent]):
 TRecordManager = TypeVar("TRecordManager", bound=AbstractRecordManager)
 
 
-class BaseRecordManager(AbstractRecordManager[TEvent]):
+class BaseRecordManager(AbstractRecordManager):
     def __init__(
         self,
         record_class,
@@ -239,7 +239,7 @@ class BaseRecordManager(AbstractRecordManager[TEvent]):
         raise OperationalError(e)
 
 
-class ACIDRecordManager(BaseRecordManager[TEvent]):
+class ACIDRecordManager(BaseRecordManager):
     """
     ACID record managers can write tracking records and event records
     in an atomic transaction, needed for atomic processing in process

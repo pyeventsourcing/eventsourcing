@@ -49,6 +49,7 @@ T = TypeVar("T")
 
 TEvent = TypeVar("TEvent", bound=ActualOccasion)
 TEntity = TypeVar("TEntity", bound=EnduringObject)
+SEntity = TypeVar("SEntity", bound=EnduringObject)
 
 IterableOfEvents = Iterable[TEvent]
 SequenceOfEvents = Sequence[TEvent]

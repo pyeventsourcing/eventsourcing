@@ -28,7 +28,7 @@ class SnapshottingApplication(SimpleApplication[TDomainEntity, TDomainEvent]):
         sequenced_item_mapper = self.sequenced_item_mapper_class(
             sequenced_item_class=self.sequenced_item_class
         )
-        self.snapshot_store = EventStore[AbstractSnapshop, BaseRecordManager[TDomainEvent]](
+        self.snapshot_store = EventStore[AbstractSnapshop, BaseRecordManager](
             record_manager=record_manager, sequenced_item_mapper=sequenced_item_mapper
         )
 

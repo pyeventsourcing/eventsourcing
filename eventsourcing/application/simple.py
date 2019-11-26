@@ -111,8 +111,10 @@ class SimpleApplication(Pipeable, Generic[TDomainEntity, TDomainEvent]):
 
         self.infrastructure_factory: Optional[InfrastructureFactory] = None
         self._datastore: Optional[AbstractDatastore] = None
-        self._event_store: Optional[EventStore] = None
-        self._repository: Optional[EventSourcedRepository] = None
+        self._event_store: Optional[EventStore[TDomainEvent, BaseRecordManager]] = None
+        self._repository: Optional[
+            EventSourcedRepository[TDomainEntity, TDomainEvent]
+        ] = None
         self._notification_log: Optional[LocalNotificationLog] = None
 
         if (
@@ -139,7 +141,7 @@ class SimpleApplication(Pipeable, Generic[TDomainEntity, TDomainEvent]):
         return None
 
     @property
-    def event_store(self) -> EventStore[TDomainEvent, BaseRecordManager[TDomainEvent]]:
+    def event_store(self) -> EventStore[TDomainEvent, BaseRecordManager]:
         assert self._event_store
         return self._event_store
 
