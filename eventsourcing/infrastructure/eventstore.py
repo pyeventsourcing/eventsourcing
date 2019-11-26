@@ -61,9 +61,6 @@ class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
         :return:
         """
         # Convert the domain event(s) to sequenced item(s).
-        if not isinstance(events, Iterable):
-            raise Exception("Caller not yet converted to send iterable")
-
         return map(self.mapper.item_from_event, events)
 
     def iter_domain_events(
