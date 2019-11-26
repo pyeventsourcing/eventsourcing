@@ -124,10 +124,9 @@ class Cargo(Aggregate):
         arrival_deadline: datetime,
     ) -> T_cargo:
         assert issubclass(cls, Cargo)  # For PyCharm navigation.
-        obj = cls.__create__(
+        return cls.__create__(
             origin=origin, destination=destination, arrival_deadline=arrival_deadline
         )
-        return obj
 
     def __init__(
         self,
@@ -362,12 +361,10 @@ class BookingApplication(ProcessApplication[TAggregate, TAggregateEvent]):
         cargo.__save__()
 
     def get_cargo(self, tracking_id: UUID) -> Cargo:
-        try:
-            cargo = self.repository[tracking_id]
-        except RepositoryKeyError:
+        cargo = self.repository.get_instance_of(Cargo, tracking_id)
+        if cargo is None:
             raise Exception("Cargo not found: {}".format(tracking_id))
         else:
-            assert isinstance(cargo, Cargo)
             return cargo
 
 
