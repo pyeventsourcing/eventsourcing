@@ -58,8 +58,10 @@ class TestEventSourcedRepository(SQLAlchemyDatastoreTestCase):
         self.assertEqual(entity_id, example.id)
 
         # Check class-specific request.
-        example2 = event_sourced_repo.get_instance_of(Example, entity_id)
-        reveal_type(example2)
+        example = event_sourced_repo.get_instance_of(Example, entity_id)
+        self.assertEqual(1, example.a)
+        self.assertEqual(2, example.b)
+        self.assertEqual(entity_id, example.id)
 
         # Setup an example repository, using the subclass ExampleRepository.
         example_repo = ExampleRepository(event_store=event_store)
