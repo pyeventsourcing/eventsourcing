@@ -1,5 +1,5 @@
 from collections import namedtuple
-from typing import Type, Tuple, NamedTuple
+from typing import NamedTuple, Tuple, Type
 
 SequencedItem = namedtuple(
     "SequencedItem", ["sequence_id", "position", "topic", "state"]
