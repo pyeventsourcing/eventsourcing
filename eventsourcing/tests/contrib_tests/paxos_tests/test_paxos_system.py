@@ -204,11 +204,12 @@ class TestPaxosSystem(unittest.TestCase):
             sleep(1)
 
             # Construct an application instance in this process.
-            paxos_process = runner.paxosprocess0
-            assert isinstance(paxos_process, PaxosProcess)
+            paxosprocess0 = runner.get(runner.system.process_classes['paxosprocess0'])
+
+            assert isinstance(paxosprocess0, PaxosProcess)
 
             # Don't use the cache, so as to keep checking actual database.
-            paxos_process.repository.use_cache = False
+            paxosprocess0.repository.use_cache = False
 
             # Start timing (just for fun).
             started = datetime.datetime.now()
@@ -216,15 +217,15 @@ class TestPaxosSystem(unittest.TestCase):
             # Propose values.
             proposals = list(((uuid4(), i) for i in range(num_proposals)))
             for key, value in proposals:
-                paxos_process.change_pipeline((value % len(pipeline_ids)))
+                paxosprocess0.change_pipeline((value % len(pipeline_ids)))
                 print("Proposing key {} value {}".format(key, value))
-                paxos_process.propose_value(key, str(value))
+                paxosprocess0.propose_value(key, str(value))
                 sleep(0.0)
 
             # Check final values.
             for key, value in proposals:
                 print("Asserting final value for key {} value {}".format(key, value))
-                self.assert_final_value(paxos_process, key, str(value))
+                self.assert_final_value(paxosprocess0, key, str(value))
 
             # Print timing information (just for fun).
             duration = (datetime.datetime.now() - started).total_seconds()
