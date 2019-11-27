@@ -42,14 +42,16 @@ class TestEventSourcedRepository(SQLAlchemyDatastoreTestCase):
 
         # Put an event in the event store.
         entity_id = uuid4()
-        event_store.store_event(
+        event_store.store_events([
             Example.Created(
                 a=1, b=2, originator_id=entity_id, originator_topic=get_topic(Example)
             )
-        )
+        ])
 
         # Construct a repository.
-        event_sourced_repo = EventSourcedRepository(event_store=event_store)
+        event_sourced_repo: EventSourcedRepository[
+            Example, Example.Event
+        ] = EventSourcedRepository(event_store=event_store)
 
         # Check the entity attributes.
         example = event_sourced_repo[entity_id]

@@ -71,7 +71,7 @@ class Timebucketedlog(TimestampedVersionedEntity):
         assert isinstance(message, str)
         bucket_id = make_timebucket_id(self.name, decimaltimestamp(), self.bucket_size)
         event = MessageLogged(originator_id=bucket_id, message=message)
-        publish(event)
+        publish([event])
         return event
 
 
@@ -103,7 +103,7 @@ def start_new_timebucketedlog(name, bucket_size=None):
         originator_topic=get_topic(Timebucketedlog),
     )
     entity = event.__mutate__(None)
-    publish(event)
+    publish([event])
     return entity
 
 

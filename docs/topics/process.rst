@@ -941,23 +941,27 @@ disk-based durability is not required, for example during system development.
     with system as runner:
 
         # Create "create order" command.
-        cmd_id = runner.commands.create_order()
+        commands = runner.get(Commands)
+        cmd_id = commands.create_order()
 
         # Check the command has an order ID and is done.
-        cmd = runner.commands.repository[cmd_id]
+        cmd = commands.repository[cmd_id]
         assert cmd.order_id
         assert cmd.is_done
 
         # Check the order is reserved and paid.
-        order = runner.orders.repository[cmd.order_id]
+        orders = runner.get(Orders)
+        order = orders.repository[cmd.order_id]
         assert order.is_reserved
         assert order.is_paid
 
         # Check the reservation exists.
-        reservation = runner.reservations.repository[order.reservation_id]
+        reservations = runner.get(Reservations)
+        reservation = reservations.repository[order.reservation_id]
 
         # Check the payment exists.
-        payment = runner.payments.repository[order.payment_id]
+        payments = runner.get(Payments)
+        payment = payments.repository[order.payment_id]
 
 
 Using the single-threaded runner means that everything happens synchronously
@@ -1061,25 +1065,29 @@ as a context manager.
     with runner:
 
         # Create "create order" command.
-        cmd_id = runner.commands.create_order()
+        commands = runner.get(Commands)
+        cmd_id = commands.create_order()
 
         # Wait for the processing to complete....
-        assert_eventually_done(runner.commands.repository, cmd_id)
+        assert_eventually_done(commands.repository, cmd_id)
 
         # Check the command has an order ID and is done.
-        cmd = runner.commands.repository[cmd_id]
+        cmd = commands.repository[cmd_id]
         assert cmd.order_id
 
         # Check the order is reserved and paid.
-        order = runner.orders.repository[cmd.order_id]
+        orders = runner.get(Orders)
+        order = orders.repository[cmd.order_id]
         assert order.is_reserved
         assert order.is_paid
 
         # Check the reservation exists.
-        reservation = runner.reservations.repository[order.reservation_id]
+        reservations = runner.get(Reservations)
+        reservation = reservations.repository[order.reservation_id]
 
         # Check the payment exists.
-        payment = runner.payments.repository[order.payment_id]
+        payments = runner.get(Payments)
+        payment = payments.repository[order.payment_id]
 
 
 .. Each operating system processes runs a loop that begins by making a call to get prompts
@@ -1141,20 +1149,21 @@ five in each pipeline.
 
         # Create new orders.
         command_ids = []
+        commands = runner.get(Commands)
         while len(command_ids) < num_orders:
             for pipeline_id in runner.pipeline_ids:
 
                 # Change the pipeline for the command.
-                runner.commands.change_pipeline(pipeline_id)
+                commands.change_pipeline(pipeline_id)
 
                 # Create a "create new order" command.
-                cmd_id = runner.commands.create_order()
+                cmd_id = commands.create_order()
                 command_ids.append(cmd_id)
 
         # Check all commands are eventually done.
         assert len(command_ids)
         for command_id in command_ids:
-            assert_eventually_done(runner.commands.repository, command_id)
+            assert_eventually_done(commands.repository, command_id)
 
 
 It would be possible to run the system with e.g. pipelines 0-7 on one machine,
@@ -1196,19 +1205,21 @@ The actors will run by sending messages recursively.
         # Create new orders.
         command_ids = []
         while len(command_ids) < num_orders:
+            commands = runner.get(Commands)
             for pipeline_id in runner.pipeline_ids:
 
                 # Change the pipeline for the command.
-                runner.commands.change_pipeline(pipeline_id)
+
+                commands.change_pipeline(pipeline_id)
 
                 # Create a "create new order" command.
-                cmd_id = runner.commands.create_order()
+                cmd_id = commands.create_order()
                 command_ids.append(cmd_id)
 
         # Check all commands are eventually done.
         assert len(command_ids)
         for command_id in command_ids:
-            assert_eventually_done(runner.commands.repository, command_id)
+            assert_eventually_done(commands.repository, command_id)
 
 
 With Thespian, a "system base" other than the default "simple system base" can be

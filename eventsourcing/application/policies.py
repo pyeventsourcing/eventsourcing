@@ -6,7 +6,7 @@ from eventsourcing.domain.model.events import (
     unsubscribe,
 )
 from eventsourcing.domain.model.snapshot import Snapshot
-from eventsourcing.whitehead import TEvent, OneOrManyEvents
+from eventsourcing.whitehead import TEvent, OneOrManyEvents, IterableOfEvents
 from eventsourcing.infrastructure.base import (
     AbstractEventStore,
     AbstractEntityRepository,
@@ -25,24 +25,19 @@ class PersistencePolicy(object):
     ):
         self.event_store = event_store
         self.persist_event_type = persist_event_type
-        subscribe(self.store_event, self.is_event)
+        subscribe(self.store_events, self.is_event)
 
     def close(self) -> None:
-        unsubscribe(self.store_event, self.is_event)
+        unsubscribe(self.store_events, self.is_event)
 
-    def is_event(self, event: OneOrManyEvents) -> bool:
+    def is_event(self, events: IterableOfEvents) -> bool:
         if self.persist_event_type is None:
             return False
-        elif isinstance(event, (list, tuple)):
-            return all(map(self.is_event, event))
         else:
-            return isinstance(event, self.persist_event_type)
+            return all(isinstance(e, self.persist_event_type) for e in events)
 
-    def store_event(self, event: OneOrManyEvents) -> None:
-        if isinstance(event, Sequence):
-            self.event_store.store_events(event)
-        else:
-            self.event_store.store_event(event)
+    def store_events(self, events: IterableOfEvents) -> None:
+        self.event_store.store_events(events)
 
 
 # Todo: Separate PeriodicSnapshottingPolicy from base class? Make usage more

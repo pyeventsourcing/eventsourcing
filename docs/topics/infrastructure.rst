@@ -971,23 +971,23 @@ manager, both are discussed in detail in the sections above.
     )
 
 
-The method :func:`~eventsourcing.infrastructure.eventstore.EventStore.store` can
+The method :func:`~eventsourcing.infrastructure.eventstore.EventStore.store_events` can
 store a domain event in its sequence. The event store uses its ``sequenced_item_mapper``
-to obtain a sequenced item named tuple from a domain events, and it uses its
-``record_manager`` to record a sequenced item in the database.
+to obtain sequenced items (named tuple) from domain events, and it uses its
+``record_manager`` to record sequenced items in the database.
 
 In the code below, a :class:`~eventsourcing.domain.model.events.DomainEvent` is
 appended to sequence ``aggregate1`` at position ``1``.
 
 .. code:: python
 
-    event_store.store_event(
+    event_store.store_events([
         DomainEvent(
             originator_id=aggregate1,
             originator_version=1,
             foo='baz',
         )
-    )
+    ])
 
 
 The method :func:`~eventsourcing.infrastructure.eventstore.EventStore.list_events` can
@@ -1069,13 +1069,13 @@ exception class :class:`~eventsourcing.exceptions.RecordConflictError`.
 
     # Fail to append an event at the same position in the same sequence as a previous event.
     try:
-        event_store.store_event(
+        event_store.store_events([
             DomainEvent(
                 originator_id=aggregate1,
                 originator_version=1,
                 foo='baz',
             )
-        )
+        ])
     except ConcurrencyError:
         pass
     else:
@@ -1189,7 +1189,7 @@ helps with Cassandra.
 ..     )
 ..
 ..     # Store the event.
-..     timestamped_event_store.store_event(event)
+..     timestamped_event_store.store_events([event])
 ..
 ..     # Check the event was stored.
 ..     events = timestamped_event_store.list_events(aggregate_id)

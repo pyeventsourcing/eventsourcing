@@ -49,7 +49,7 @@ class Array(object):
         if size and index >= size:
             raise ArrayIndexError("Index is {}, but size is {}".format(index, size))
         event = ItemAssigned(originator_id=self.id, index=index, item=item)
-        publish(event)
+        publish([event])
 
     def __getitem__(self, item):
         """
@@ -135,7 +135,7 @@ class Array(object):
 
     def get_item_assigned(self, index):
         try:
-            item_assigned = self.repo.event_store.get_domain_event(
+            item_assigned = self.repo.event_store.get_event(
                 originator_id=self.id, position=index
             )
         except IndexError as e:

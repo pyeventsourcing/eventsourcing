@@ -5,9 +5,7 @@ from uuid import uuid4
 
 from eventsourcing.domain.model.timebucketedlog import start_new_timebucketedlog
 from eventsourcing.example.domainmodel import Example, create_new_example
-from eventsourcing.infrastructure.base import BaseRecordManager
 from eventsourcing.infrastructure.eventstore import EventStore
-from eventsourcing.infrastructure.iterators import SequencedItemIterator
 from eventsourcing.infrastructure.sqlalchemy.records import (
     IntegerSequencedNoIDRecord,
     IntegerSequencedWithIDRecord,
@@ -58,7 +56,8 @@ class PerformanceTestCase(base.WithExampleApplication):
 
             repetitions = 10  # 10
 
-            # NB: Use range(1, 5) to test whether we can get more than 10000 items from Cassandra.
+            # NB: Use range(1, 5) to test whether we can get more than 10000 items
+            # from Cassandra.
             # Setup a number of entities, with different lengths of event history.
             for i in range(0, 4):
 
@@ -140,7 +139,8 @@ class PerformanceTestCase(base.WithExampleApplication):
                 for j in range(0, i + 1):
                     last_n(10 ** j)
 
-                # Get the entity by replaying all events (which it must since there isn't a snapshot).
+                # Get the entity by replaying all events (which it must since there
+                # isn't a snapshot).
                 start_replay = time.time()
                 for _ in range(repetitions):
                     example = app.example_repository[example.id]
@@ -178,7 +178,8 @@ class PerformanceTestCase(base.WithExampleApplication):
                 ) / time_replaying  # +1 for the snapshot event
                 beats_per_second = num_beats / time_replaying
                 print(
-                    "Time to replay snapshot with {} extra beats: {:.6f}s ({:.0f} events/s, {:.0f} beats/s)"
+                    "Time to replay snapshot with {} extra beats: {:.6f}s ({:.0f} "
+                    "events/s, {:.0f} beats/s)"
                     "".format(
                         extra_beats, time_replaying, events_per_second, beats_per_second
                     )
@@ -212,7 +213,8 @@ class PerformanceTestCase(base.WithExampleApplication):
             )
 
             # Read pages of messages in descending order.
-            # - get a limited number until a time, then use the earliest in that list as the position
+            # - get a limited number until a time, then use the earliest in that list
+            # as the position
             position = events[-1].timestamp
 
             page_size = 10
@@ -265,7 +267,8 @@ class PerformanceTestCase(base.WithExampleApplication):
             reads_per_second = total_num_reads / total_time_to_read
             messages_per_second = reads_per_second * number_of_messages
             print(
-                "Time to read {} pages of logged messages: {:.6f}s ({:.0f} pages/s, {:.0f} messages/s))"
+                "Time to read {} pages of logged messages: {:.6f}s ({:.0f} pages/s, "
+                "{:.0f} messages/s))"
                 "".format(
                     total_num_reads,
                     total_time_to_read,

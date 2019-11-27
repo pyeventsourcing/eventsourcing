@@ -85,9 +85,9 @@ Since we are dealing with events, let's define a simple publish-subscribe mechan
 
     subscribers = []
 
-    def publish(event):
+    def publish(events):
         for subscriber in subscribers:
-            subscriber(event)
+            subscriber(events)
 
 
     def subscribe(subscriber):
@@ -154,7 +154,7 @@ for the benefit of any subscribers, by using the function ``publish()``.
             mutate(self, event)
 
             # Publish the event for others.
-            publish(event)
+            publish([event])
 
         def discard(self):
             assert not self._is_discarded
@@ -169,7 +169,7 @@ for the benefit of any subscribers, by using the function ``publish()``.
             mutate(self, event)
 
             # Publish the event for others.
-            publish(event)
+            publish([event])
 
 
 A factory can be used to create new "example" entities. The function
@@ -200,7 +200,7 @@ the new entity object to the caller.
         entity = mutate(None, event)
 
         # Publish the event for others.
-        publish(event=event)
+        publish([event])
 
         # Return the new entity.
         return entity
@@ -274,7 +274,7 @@ Let's firstly subscribe to receive the events that will be published, so we can 
     received_events = []
 
     # Subscribe to receive published events.
-    subscribe(lambda e: received_events.append(e))
+    subscribe(lambda e: received_events.extend(e))
 
 
 With this stand-alone code, we can create a new example entity object. We can update its property
@@ -560,13 +560,13 @@ uses an event store to store events whenever they are received.
     class PersistencePolicy(object):
         def __init__(self, event_store):
             self.event_store = event_store
-            subscribe(self.store_event)
+            subscribe(self.store_events)
 
         def close(self):
-            unsubscribe(self.store_event)
+            unsubscribe(self.store_events)
 
-        def store_event(self, event):
-            self.event_store.store_event(event)
+        def store_events(self, events):
+            self.event_store.store_events(events)
 
 
 A slightly more developed class :class:`~eventsourcing.application.policies.PersistencePolicy`

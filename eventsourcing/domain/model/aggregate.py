@@ -2,17 +2,14 @@ from collections import deque
 from typing import Any, Deque, List, Sequence, TypeVar
 
 from eventsourcing.domain.model.entity import (
+    DomainEntity,
     EntityWithHashchain,
+    TDomainEvent,
     TimestampedVersionedEntity,
 )
 
 TAggregate = TypeVar("TAggregate", bound="BaseAggregateRoot")
-
-SequenceOfAggregates = Sequence[TAggregate]
-
 TAggregateEvent = TypeVar("TAggregateEvent", bound="BaseAggregateRoot.Event")
-
-OneOrManyAggregateEvents = Sequence[TAggregateEvent]
 
 
 class BaseAggregateRoot(TimestampedVersionedEntity):
@@ -38,17 +35,14 @@ class BaseAggregateRoot(TimestampedVersionedEntity):
 
     def __init__(self, **kwargs: Any) -> None:
         super(BaseAggregateRoot, self).__init__(**kwargs)
-        self.__pending_events__: Deque[BaseAggregateRoot.Event] = deque()
+        self.__pending_events__: Deque[DomainEntity.Event] = deque()
 
-    def __publish__(self, event: OneOrManyAggregateEvents) -> None:
+    def __publish__(self, event: Sequence[TDomainEvent]) -> None:
         """
         Defers publishing event(s) to subscribers, by adding
         event to internal collection of pending events.
         """
-        if isinstance(event, Sequence):
-            self.__pending_events__.extend(event)
-        else:
-            self.__pending_events__.append(event)
+        self.__pending_events__.extend(event)
 
     def __save__(self) -> None:
         """
@@ -71,8 +65,8 @@ class BaseAggregateRoot(TimestampedVersionedEntity):
             # commands have been executed, it is important to know which
             # commands to retry.
 
-    def __batch_pending_events__(self) -> List["BaseAggregateRoot.Event"]:
-        batch_of_events: List["BaseAggregateRoot.Event"] = []
+    def __batch_pending_events__(self) -> List[DomainEntity.Event]:
+        batch_of_events: List[DomainEntity.Event] = []
         try:
             while True:
                 batch_of_events.append(self.__pending_events__.popleft())

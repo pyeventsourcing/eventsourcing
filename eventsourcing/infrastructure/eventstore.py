@@ -114,7 +114,7 @@ class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
         # Deserialize to domain events.
         return map(self.mapper.event_from_item, sequenced_items)
 
-    def get_domain_event(self, originator_id, position):
+    def get_event(self, originator_id, position):
         """
         Gets a domain event from the sequence identified by `originator_id`
         at position `eq`.
@@ -149,7 +149,7 @@ class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
         except IndexError:
             return None
 
-    def all_domain_events(self) -> Iterable[TEvent]:
+    def all_events(self) -> Iterable[TEvent]:
         """
         Yields all domain events in the event store.
 
@@ -165,40 +165,3 @@ class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
                 originator_id=originator_id, page_size=100
             ):
                 yield domain_event
-
-    def get_domain_events(
-        self,
-        originator_id: UUID,
-        gt: Optional[int] = None,
-        gte: Optional[int] = None,
-        lt: Optional[int] = None,
-        lte: Optional[int] = None,
-        limit: Optional[int] = None,
-        is_ascending: bool = True,
-        page_size: Optional[int] = None,
-    ) -> Iterable[TEvent]:
-        """
-        Deprecated. Please use iter_domain_events() instead.
-
-        Gets domain events from the sequence identified by `originator_id`.
-
-        :param originator_id: ID of a sequence of events
-        :param gt: get items after this position
-        :param gte: get items at or after this position
-        :param lt: get items before this position
-        :param lte: get items before or at this position
-        :param limit: get limited number of items
-        :param is_ascending: get items from lowest position
-        :param page_size: restrict and repeat database query
-        :return: list of domain events
-        """
-        return self.iter_events(
-            originator_id=originator_id,
-            gt=gt,
-            gte=gte,
-            lt=lt,
-            lte=lte,
-            limit=limit,
-            is_ascending=is_ascending,
-            page_size=page_size,
-        )

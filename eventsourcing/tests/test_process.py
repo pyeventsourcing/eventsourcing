@@ -379,23 +379,23 @@ class TestCommands(TestCase):
             "core", policy=example_policy, session=commands.session
         )
 
-        self.assertFalse(list(commands.event_store.all_domain_events()))
+        self.assertFalse(list(commands.event_store.all_events()))
 
         example_id = uuid4()
         cmd = CreateExample.__create__(example_id=example_id)
         # cmd = Command.__create__(cmd_method='create_example', cmd_args={})
         cmd.__save__()
 
-        domain_events = list(commands.event_store.all_domain_events())
+        domain_events = list(commands.event_store.all_events())
         # self.assertTrue(domain_events)
         self.assertEqual(len(domain_events), 1)
 
-        self.assertFalse(list(core.event_store.all_domain_events()))
+        self.assertFalse(list(core.event_store.all_events()))
 
         core.follow("commands", commands.notification_log)
         core.run()
 
-        self.assertTrue(list(core.event_store.all_domain_events()))
+        self.assertTrue(list(core.event_store.all_events()))
         self.assertIn(example_id, core.repository)
 
         # Example shouldn't be "moved on" because core isn't following itself,
@@ -417,21 +417,21 @@ class TestCommands(TestCase):
         )
 
         with core, commands:
-            self.assertFalse(list(commands.event_store.all_domain_events()))
+            self.assertFalse(list(commands.event_store.all_events()))
 
             example_id = uuid4()
             cmd = CreateExample.__create__(example_id=example_id)
             cmd.__save__()
 
-            domain_events = list(commands.event_store.all_domain_events())
+            domain_events = list(commands.event_store.all_events())
             self.assertEqual(len(domain_events), 1)
 
-            self.assertFalse(list(core.event_store.all_domain_events()))
+            self.assertFalse(list(core.event_store.all_events()))
 
             core.follow("commands", commands.notification_log)
             core.run()
 
-            self.assertTrue(list(core.event_store.all_domain_events()))
+            self.assertTrue(list(core.event_store.all_events()))
             self.assertIn(example_id, core.repository)
 
             # Example should be "moved on" because core is

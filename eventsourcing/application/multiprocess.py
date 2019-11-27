@@ -1,11 +1,20 @@
 import multiprocessing
 from multiprocessing import Manager
-from queue import Empty
+from queue import Empty, Queue
 from time import sleep
+from typing import Tuple, Sequence, Dict, Optional, Any, List, TYPE_CHECKING, Iterable, \
+    Type
 
 from eventsourcing.application.notificationlog import RecordManagerNotificationLog
-from eventsourcing.application.process import Prompt
-from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
+from eventsourcing.application.process import (
+    PromptToPull,
+    PromptToQuit,
+    Prompt,
+    ProcessApplication,
+    is_prompt)
+from eventsourcing.application.simple import (
+    ApplicationWithConcreteInfrastructure,
+)
 from eventsourcing.application.system import (
     DEFAULT_POLL_INTERVAL,
     PromptOutbox,
@@ -27,26 +36,28 @@ class MultiprocessRunner(SystemRunner):
     def __init__(
         self,
         system: System,
-        pipeline_ids=(DEFAULT_PIPELINE_ID,),
-        poll_interval=None,
-        setup_tables=False,
-        sleep_for_setup_tables=0,
-        **kwargs
+        pipeline_ids: Sequence[int] = (DEFAULT_PIPELINE_ID,),
+        poll_interval: Optional[int] = None,
+        setup_tables: bool = False,
+        sleep_for_setup_tables: int = 0,
+        **kwargs: Any
     ):
         super(MultiprocessRunner, self).__init__(system=system, **kwargs)
         self.pipeline_ids = pipeline_ids
         self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
         assert isinstance(system, System)
-        self.os_processes = None
+        self.os_processes: List[OperatingSystemProcess] = []
         self.setup_tables = setup_tables or system.setup_tables
         self.sleep_for_setup_tables = sleep_for_setup_tables
 
-    def start(self):
-        assert self.os_processes is None, "Already started"
-
+    def start(self) -> None:
         self.os_processes = []
 
         self.manager = Manager()
+
+        if TYPE_CHECKING:
+            self.inboxes: Dict[Tuple[int, str], Queue[Prompt]]
+            self.outboxes: Dict[Tuple[int, str], PromptOutbox[Tuple[int, str]]]
         self.inboxes = {}
         self.outboxes = {}
 
@@ -66,7 +77,7 @@ class MultiprocessRunner(SystemRunner):
                         ] = self.inboxes[inbox_id]
 
         # Check we have the infrastructure classes we need.
-        for process_class in self.system.process_classes:
+        for process_class in self.system.process_classes.values():
             if not isinstance(process_class, ApplicationWithConcreteInfrastructure):
                 if not self.infrastructure_class:
                     raise ProgrammingError("infrastructure_class is not set")
@@ -81,7 +92,7 @@ class MultiprocessRunner(SystemRunner):
 
         # Subscribe to broadcast prompts published by a process
         # application in the parent operating system process.
-        subscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
+        subscribe(handler=self.broadcast_prompts, predicate=is_prompt)
 
         # Start operating system process.
         for pipeline_id in self.pipeline_ids:
@@ -106,47 +117,49 @@ class MultiprocessRunner(SystemRunner):
                     # Avoid conflicts when creating tables.
                     sleep(self.sleep_for_setup_tables)
 
-    def broadcast_prompt(self, prompt):
-        outbox_id = (prompt.pipeline_id, prompt.process_name)
-        outbox = self.outboxes.get(outbox_id)
-        if outbox:
-            outbox.put(prompt)
+        # Construct process applications in local process.
+        for process_class in self.system.process_classes.values():
+            self.get(process_class)
 
-    @staticmethod
-    def is_prompt(event):
-        return isinstance(event, Prompt)
+    def broadcast_prompts(self, prompts: Iterable[Prompt]) -> None:
+        for prompt in prompts:
+            if isinstance(prompt, PromptToPull):
+                outbox_id = (prompt.pipeline_id, prompt.process_name)
+                outbox = self.outboxes.get(outbox_id)
+                if outbox:
+                    outbox.put(prompt)
 
-    def close(self):
+    def close(self) -> None:
         super(MultiprocessRunner, self).close()
 
-        unsubscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
+        unsubscribe(handler=self.broadcast_prompts, predicate=is_prompt)
 
         for os_process in self.os_processes:
-            os_process.inbox.put("QUIT")
+            os_process.inbox.put(PromptToQuit())
 
         for os_process in self.os_processes:
             os_process.join(timeout=10)
 
         for os_process in self.os_processes:
-            os_process.is_alive() and os_process.terminate()
+            if os_process.is_alive():
+                os_process.terminate()
 
-        self.os_processes = None
-        self.manager = None
+        self.os_processes.clear()
 
 
 class OperatingSystemProcess(multiprocessing.Process):
     def __init__(
         self,
-        application_process_class,
-        infrastructure_class,
-        upstream_names,
-        pipeline_id=DEFAULT_PIPELINE_ID,
-        poll_interval=DEFAULT_POLL_INTERVAL,
-        setup_tables=False,
-        inbox=None,
-        outbox=None,
-        *args,
-        **kwargs
+        application_process_class: Type[ProcessApplication],
+        infrastructure_class: Type[ApplicationWithConcreteInfrastructure],
+        upstream_names: List[str],
+        inbox: Queue,
+        outbox: Optional[PromptOutbox[Tuple[int, str]]] = None,
+        pipeline_id: int = DEFAULT_PIPELINE_ID,
+        poll_interval: int = DEFAULT_POLL_INTERVAL,
+        setup_tables: bool = False,
+        *args: Any,
+        **kwargs: Any
     ):
         super(OperatingSystemProcess, self).__init__(*args, **kwargs)
         self.application_process_class = application_process_class
@@ -159,7 +172,7 @@ class OperatingSystemProcess(multiprocessing.Process):
         self.outbox = outbox
         self.setup_tables = setup_tables
 
-    def run(self):
+    def run(self) -> None:
         # Construct process application class.
         process_class = self.application_process_class
         if not isinstance(process_class, ApplicationWithConcreteInfrastructure):
@@ -169,7 +182,7 @@ class OperatingSystemProcess(multiprocessing.Process):
                 raise ProgrammingError("infrastructure_class is not set")
 
         # Construct process application object.
-        self.process = process_class(
+        self.process: ProcessApplication = process_class(
             pipeline_id=self.pipeline_id, setup_table=self.setup_tables
         )
 
@@ -221,15 +234,15 @@ class OperatingSystemProcess(multiprocessing.Process):
             self.process.follow(upstream_name, notification_log)
 
         # Subscribe to broadcast prompts published by the process application.
-        subscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
+        subscribe(handler=self.broadcast_prompt, predicate=is_prompt)
 
         try:
             self.loop_on_prompts()
         finally:
-            unsubscribe(handler=self.broadcast_prompt, predicate=self.is_prompt)
+            unsubscribe(handler=self.broadcast_prompt, predicate=is_prompt)
 
     @retry(CausalDependencyFailed, max_attempts=100, wait=0.1)
-    def loop_on_prompts(self):
+    def loop_on_prompts(self) -> None:
 
         # Run once, in case prompts were missed.
         self.run_process()
@@ -241,25 +254,25 @@ class OperatingSystemProcess(multiprocessing.Process):
                 item = self.inbox.get(timeout=self.poll_interval)
                 self.inbox.task_done()
 
-                if item == "QUIT":
+                if isinstance(item, PromptToQuit):
                     self.process.close()
                     break
 
-                else:
+                elif isinstance(item, PromptToPull):
                     self.run_process(item)
+
+                else:
+                    raise ProgrammingError("Unsupported prompt: {}".format(item))
 
             except Empty:
                 # Basically, we're polling after a timeout.
                 self.run_process()
 
     @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.1)
-    def run_process(self, prompt=None):
+    def run_process(self, prompt: Optional[Prompt] = None) -> None:
         self.process.run(prompt)
 
-    def broadcast_prompt(self, prompt):
+    def broadcast_prompt(self, prompts: Iterable[PromptToPull]) -> None:
         if self.outbox is not None:
-            self.outbox.put(prompt)
-
-    @staticmethod
-    def is_prompt(event):
-        return isinstance(event, Prompt)
+            for prompt in prompts:
+                self.outbox.put(prompt)

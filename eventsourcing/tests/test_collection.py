@@ -24,7 +24,7 @@ class TestCollection(TestCase):
     def setUp(self):
         assert_event_handlers_empty()
         self.published_events = []
-        self.subscription = (lambda x: True, lambda x: self.published_events.append(x))
+        self.subscription = (lambda x: True, lambda x: self.published_events.extend(x))
         subscribe(*self.subscription)
 
     def tearDown(self):

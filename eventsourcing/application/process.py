@@ -26,8 +26,6 @@ from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.application.snapshotting import SnapshottingApplication
 from eventsourcing.domain.model.aggregate import (
     BaseAggregateRoot,
-    OneOrManyAggregateEvents,
-    SequenceOfAggregates,
     TAggregate,
     TAggregateEvent,
 )
@@ -44,7 +42,7 @@ from eventsourcing.exceptions import (
 )
 from eventsourcing.infrastructure.base import ACIDRecordManager
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
-from eventsourcing.whitehead import ActualOccasion, OneOrManyEvents
+from eventsourcing.whitehead import ActualOccasion, OneOrManyEvents, IterableOfEvents
 
 ListOfAggregateEvents = List[TAggregateEvent]
 CausalDependencies = Dict[str, int]
@@ -69,6 +67,18 @@ class ProcessEvent(ActualOccasion):
 
 
 class Prompt(ActualOccasion):
+    pass
+
+
+def is_prompt(events: IterableOfEvents) -> bool:
+    return (
+        isinstance(events, list)
+        and len(events) == 1
+        and isinstance(events[0], PromptToPull)
+    )
+
+
+class PromptToPull(Prompt):
     def __init__(self, process_name: str, pipeline_id: int):
         self.process_name: str = process_name
         self.pipeline_id: int = pipeline_id
@@ -89,6 +99,10 @@ class Prompt(ActualOccasion):
             "pipeline_id",
             self.pipeline_id,
         )
+
+
+class PromptToQuit(Prompt):
+    pass
 
 
 class WrappedRepository(Generic[TAggregate, TAggregateEvent]):
@@ -218,9 +232,9 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
         seen directly in other applications when running synchronously in single thread.
         """
 
-        prompt = Prompt(self.name, self.pipeline_id)
+        prompt = PromptToPull(self.name, self.pipeline_id)
         try:
-            publish(prompt)
+            publish([prompt])
         except PromptFailed:
             raise
         except Exception as e:
@@ -250,7 +264,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
     ) -> int:
 
         if prompt:
-            assert isinstance(prompt, Prompt)
+            assert isinstance(prompt, PromptToPull)
             upstream_names = [prompt.process_name]
         else:
             upstream_names = list(self.readers.keys())
@@ -326,7 +340,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
                         self.clock_event.wait()
 
                     # print("Processing upstream event: ", event)
-                    new_events: OneOrManyAggregateEvents = self.process_upstream_event(
+                    new_events: Sequence[TAggregateEvent] = self.process_upstream_event(
                         event, notification["id"], upstream_name
                     )
 
@@ -449,7 +463,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
         except KeyError:
             pass
 
-    def take_snapshots(self, new_events: OneOrManyAggregateEvents) -> None:
+    def take_snapshots(self, new_events: Sequence[TAggregateEvent]) -> None:
         pass
 
     def set_reader_position_from_tracking_records(self, upstream_name: str) -> None:
@@ -558,7 +572,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
         """
 
     def collect_pending_events(
-        self, aggregates: SequenceOfAggregates
+        self, aggregates: Sequence[TAggregate]
     ) -> ListOfAggregateEvents:
         pending_events: ListOfAggregateEvents = []
         num_changed_aggregates = 0
@@ -675,7 +689,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
 
 
 class ProcessApplicationWithSnapshotting(SnapshottingApplication, ProcessApplication):
-    def take_snapshots(self, new_events: OneOrManyAggregateEvents) -> None:
+    def take_snapshots(self, new_events: Sequence[TAggregateEvent]) -> None:
         assert self.snapshotting_policy
         for event in new_events:
             if self.snapshotting_policy.condition(event):

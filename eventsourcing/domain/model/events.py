@@ -1,14 +1,14 @@
 import os
 from decimal import Decimal
-from typing import Any, Callable, Dict, List, Optional, Tuple, Generic
+from typing import Any, Callable, Dict, Generic, List, Optional, Tuple
 from uuid import UUID, uuid1
 
 from eventsourcing.exceptions import EventHashError
-from eventsourcing.whitehead import TEntity, OneOrManyEvents, ActualOccasion
 from eventsourcing.utils.hashing import hash_object
 from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic
 from eventsourcing.utils.transcoding import JSON_SEPARATORS, ObjectJSONEncoder
+from eventsourcing.whitehead import ActualOccasion, SequenceOfEvents, TEntity
 
 GENESIS_HASH: str = os.getenv("GENESIS_HASH", "")
 
@@ -315,8 +315,8 @@ class LoggedEvent(DomainEvent[TEntity]):
     """
 
 
-Predicate = Callable[[OneOrManyEvents], bool]
-Handler = Callable[[OneOrManyEvents], None]
+Predicate = Callable[[SequenceOfEvents], bool]
+Handler = Callable[[SequenceOfEvents], None]
 
 _subscriptions: List[Tuple[Optional[Predicate], Handler]] = []
 
@@ -348,7 +348,7 @@ def unsubscribe(handler: Handler, predicate: Optional[Predicate] = None) -> None
         _subscriptions.remove((predicate, handler))
 
 
-def publish(event: OneOrManyEvents) -> None:
+def publish(events: SequenceOfEvents) -> None:
     """
     Published given 'event' by calling subscribed event
     handlers with the given 'event', except those with
@@ -356,23 +356,25 @@ def publish(event: OneOrManyEvents) -> None:
 
     Handlers are called in the order they are subscribed.
 
-    :param DomainEvent event: Domain event to be published.
+    :param DomainEvent events: Domain event to be published.
     """
     # A cache of conditions means predicates aren't evaluated
     # more than once for each event.
     cache: Dict[Predicate, bool] = {}
     for predicate, handler in _subscriptions[:]:
         if predicate is None:
-            handler(event)
+            handler(events)
         else:
             cached_condition = cache.get(predicate)
-            if cached_condition is True:
-                handler(event)
-            elif cached_condition is None:
-                condition = predicate(event)
+            if cached_condition is None:
+                condition = predicate(events)
                 cache[predicate] = condition
                 if condition:
-                    handler(event)
+                    handler(events)
+            elif cached_condition is True:
+                handler(events)
+            else:
+                pass
 
 
 class EventHandlersNotEmptyError(Exception):

@@ -1,6 +1,6 @@
 from abc import ABCMeta
 from decimal import Decimal
-from typing import Any, Dict, Optional, Type, TypeVar
+from typing import Any, Dict, Optional, Sequence, Type, TypeVar
 from uuid import UUID, uuid4
 
 from eventsourcing.domain.model.decorators import subclassevents
@@ -24,7 +24,7 @@ from eventsourcing.exceptions import (
 )
 from eventsourcing.utils.times import decimaltimestamp_from_uuid
 from eventsourcing.utils.topic import get_topic, resolve_topic
-from eventsourcing.whitehead import EnduringObject, OneOrManyEvents
+from eventsourcing.whitehead import EnduringObject
 
 # Need to deal with the fact that Python3.6 had GenericMeta.
 # Todo: Delete this try/except when dropping support for Python 3.6.
@@ -131,7 +131,7 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
             type(event).__mutate__.__qualname__
         )
 
-        obj.__publish__(event)
+        obj.__publish__([event])
         return obj
 
     class Created(CreatedEvent[TDomainEntity], Event[TDomainEntity]):
@@ -249,7 +249,7 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
         self.__assert_not_discarded__()
         event: TDomainEvent = event_class(originator_id=self.id, **kwargs)
         self.__mutate__(event)
-        self.__publish__(event)
+        self.__publish__([event])
 
     def __mutate__(self, event: TDomainEvent) -> None:
         """
@@ -283,7 +283,7 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
         assert isinstance(event, DomainEntity.Event)
         event.__mutate__(self)
 
-    def __publish__(self, event: OneOrManyEvents) -> None:
+    def __publish__(self, event: Sequence[TDomainEvent]) -> None:
         """
         Publishes given event for subscribers in the application.
 
@@ -291,13 +291,13 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
         """
         self.__publish_to_subscribers__(event)
 
-    def __publish_to_subscribers__(self, event: OneOrManyEvents) -> None:
+    def __publish_to_subscribers__(self, events: Sequence[TDomainEvent]) -> None:
         """
         Actually dispatches given event to publish-subscribe mechanism.
 
-        :param event: domain event or list of events
+        :param events: list of domain events
         """
-        publish(event)
+        publish(events)
 
     def __eq__(self, other: object) -> bool:
         return type(self) == type(other) and self.__dict__ == other.__dict__

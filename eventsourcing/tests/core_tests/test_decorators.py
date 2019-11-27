@@ -164,7 +164,7 @@ class TestDecorators(TestCase):
         self.assertRaises(EventHandlersNotEmptyError, assert_event_handlers_empty)
 
         # Check event is received when published individually.
-        publish(event1)
+        publish([event1])
         handler1.assert_called_once_with(event1)
         handler2.assert_called_once_with(event1)
         handler3.assert_called_once_with(event1)
@@ -173,7 +173,7 @@ class TestDecorators(TestCase):
         handler1.reset_mock()
         handler2.reset_mock()
         handler3.reset_mock()
-        publish(event2)
+        publish([event2])
         self.assertFalse(handler1.call_count)
         handler2.assert_called_once_with(event2)
         handler3.assert_called_once_with(event2)

@@ -32,9 +32,9 @@ class TestPaxosSystem(unittest.TestCase):
 
         concrete_system = self.system.bind(self.infrastructure_class)
         with concrete_system as runner:
-            paxosprocess0 = runner.paxosprocess0
-            paxosprocess1 = runner.paxosprocess1
-            paxosprocess2 = runner.paxosprocess2
+            paxosprocess0 = runner.processes['paxosprocess0']
+            paxosprocess1 = runner.processes['paxosprocess1']
+            paxosprocess2 = runner.processes['paxosprocess2']
 
             started1 = datetime.datetime.now()
             assert isinstance(paxosprocess0, PaxosProcess)
@@ -138,7 +138,7 @@ class TestPaxosSystem(unittest.TestCase):
         # Start running operating system processes.
         with runner:
             # Get local application object.
-            paxosprocess0 = runner.paxosprocess0
+            paxosprocess0 = runner.get(runner.system.process_classes['paxosprocess0'])
             assert isinstance(paxosprocess0, PaxosProcess)
 
             # Start proposing values on the different system pipelines.
@@ -155,8 +155,9 @@ class TestPaxosSystem(unittest.TestCase):
             paxosprocess0.propose_value(key3, value3)
 
             # Check all the process applications have expected final values.
-            paxosprocess1 = runner.paxosprocess1
-            paxosprocess2 = runner.paxosprocess1
+            paxosprocess1 = runner.get(runner.system.process_classes['paxosprocess1'])
+            paxosprocess2 = runner.get(runner.system.process_classes['paxosprocess2'])
+
             assert isinstance(paxosprocess1, PaxosProcess)
             paxosprocess0.repository.use_cache = False
             paxosprocess1.repository.use_cache = False
@@ -233,7 +234,7 @@ class TestPaxosSystem(unittest.TestCase):
                 )
             )
 
-    @retry((KeyError, AssertionError), max_attempts=100, wait=0.2, stall=0)
+    @retry((KeyError, AssertionError), max_attempts=100, wait=0.05, stall=0)
     def assert_final_value(self, process, id, value):
         self.assertEqual(process.repository[id].final_value, value)
 

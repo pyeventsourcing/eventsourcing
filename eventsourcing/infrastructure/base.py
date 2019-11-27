@@ -422,12 +422,6 @@ class AbstractEventStore(ABC, Generic[TEvent]):
     expected of an event store by other classes in the library.
     """
 
-    def store_event(self, event: TEvent) -> None:
-        """
-        Put domain event in event store for later retrieval.
-        """
-        self.store_events([event])
-
     @abstractmethod
     def store_events(self, events: IterableOfEvents) -> None:
         """
@@ -449,11 +443,12 @@ class AbstractEventStore(ABC, Generic[TEvent]):
         """
         Returns domain events for given entity ID.
         """
+
     def list_events(self, *args, **kwargs):
         return list(self.iter_events(*args, **kwargs))
 
     @abstractmethod
-    def get_domain_event(self, originator_id: UUID, position: int) -> TEvent:
+    def get_event(self, originator_id: UUID, position: int) -> TEvent:
         """
         Returns a single domain event.
         """
@@ -467,12 +462,15 @@ class AbstractEventStore(ABC, Generic[TEvent]):
         """
 
     @abstractmethod
-    def all_domain_events(self) -> Iterable[TEvent]:
+    def all_events(self) -> Iterable[TEvent]:
         """
         Returns all domain events in the event store.
+
+        This works by iterating over all sequences,
+        so doesn't return events in order. Use a
+        Notification Log to project application state.
         """
 
-    @abstractmethod
     def get_domain_events(
         self,
         originator_id: UUID,
@@ -485,10 +483,30 @@ class AbstractEventStore(ABC, Generic[TEvent]):
         page_size: Optional[int] = None,
     ) -> Iterable[TEvent]:
         """
-        Deprecated. Please use iter_domain_events() instead.
+        Deprecated. Please use iter_events() instead.
 
-        Returns domain events for given entity ID.
+        Gets domain events from the sequence identified by `originator_id`.
+
+        :param originator_id: ID of a sequence of events
+        :param gt: get items after this position
+        :param gte: get items at or after this position
+        :param lt: get items before this position
+        :param lte: get items before or at this position
+        :param limit: get limited number of items
+        :param is_ascending: get items from lowest position
+        :param page_size: restrict and repeat database query
+        :return: list of domain events
         """
+        return self.iter_events(
+            originator_id=originator_id,
+            gt=gt,
+            gte=gte,
+            lt=lt,
+            lte=lte,
+            limit=limit,
+            is_ascending=is_ascending,
+            page_size=page_size,
+        )
 
 
 class AbstractEventPlayer(Generic[TEntity, TEvent]):

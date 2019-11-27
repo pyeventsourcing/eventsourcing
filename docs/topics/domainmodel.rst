@@ -69,7 +69,7 @@ events to subscribed handlers. The argument ``event`` is required.
 
     from eventsourcing.domain.model.events import publish
 
-    publish(event=domain_event)
+    publish([domain_event])
 
 
 The function :func:`~eventsourcing.domain.model.events.subscribe` is used to
@@ -83,16 +83,16 @@ handler will actually be called when an event is published.
 
     received_events = []
 
-    def receive_event(event):
-        received_events.append(event)
+    def receive_events(events):
+        received_events.extend(events)
 
-    def is_domain_event(event):
-        return isinstance(event, DomainEvent)
+    def is_domain_event(events):
+        return all(isinstance(e, DomainEvent) for e in events)
 
-    subscribe(handler=receive_event, predicate=is_domain_event)
+    subscribe(handler=receive_events, predicate=is_domain_event)
 
     # Publish the domain event.
-    publish(domain_event)
+    publish([domain_event])
 
     assert len(received_events) == 1
     assert received_events[0] == domain_event
@@ -105,7 +105,7 @@ used to unsubscribe handers, to stop the handler receiving further events.
 
     from eventsourcing.domain.model.events import unsubscribe
 
-    unsubscribe(handler=receive_event, predicate=is_domain_event)
+    unsubscribe(handler=receive_events, predicate=is_domain_event)
 
     # Clean up.
     del received_events[:]  # received_events.clear()
@@ -180,17 +180,14 @@ The event classes are useful for their distinct type, for example in subscriptio
         return isinstance(event, DiscardedEvent)
 
 
-    assert is_domain_event(CreatedEvent()) is True
     assert is_created(CreatedEvent()) is True
     assert is_discarded(CreatedEvent()) is False
 
-    assert is_domain_event(DiscardedEvent()) is True
     assert is_created(DiscardedEvent()) is False
     assert is_discarded(DiscardedEvent()) is True
 
-    assert is_domain_event(DomainEvent()) is True
-    assert is_discarded(DomainEvent()) is False
     assert is_created(DomainEvent()) is False
+    assert is_discarded(DomainEvent()) is False
 
 
 Custom events
@@ -601,7 +598,7 @@ is set to 'Mr Boots'. A subscriber receives the event.
 
 .. code:: python
 
-    subscribe(handler=receive_event, predicate=is_domain_event)
+    subscribe(handler=receive_events, predicate=is_domain_event)
     assert len(received_events) == 0
 
     entity = VersionedEntity.__create__(entity_id)
@@ -627,7 +624,7 @@ is set to 'Mr Boots'. A subscriber receives the event.
     assert last_event.originator_version == 1
 
     # Clean up.
-    unsubscribe(handler=receive_event, predicate=is_domain_event)
+    unsubscribe(handler=receive_events, predicate=is_domain_event)
     del received_events[:]  # received_events.clear()
 
 
@@ -709,7 +706,7 @@ event are received by a subscriber.
 .. code:: python
 
     assert len(received_events) == 0
-    subscribe(handler=receive_event, predicate=is_domain_event)
+    subscribe(handler=receive_events, predicate=is_domain_event)
 
     # Publish a Created event.
     user = User.__create__(full_name='Mrs Boots')
@@ -730,7 +727,7 @@ event are received by a subscriber.
     assert received_events[1].originator_id == user.id
 
     # Clean up.
-    unsubscribe(handler=receive_event, predicate=is_domain_event)
+    unsubscribe(handler=receive_events, predicate=is_domain_event)
     del received_events[:]  # received_events.clear()
 
 
@@ -1052,7 +1049,7 @@ We can see the events that are published by subscribing to the handler ``receive
 .. code:: python
 
     assert len(received_events) == 0
-    subscribe(handler=receive_event)
+    subscribe(handler=receive_events)
 
     # Create new world.
     world = World.__create__()
@@ -1081,7 +1078,7 @@ Events are pending, and will not be published until
     world.__save__()
 
     # Pending events published as a list.
-    assert len(received_events[-1]) == 4
+    assert len(received_events) == 4
 
     # No longer any pending events.
     assert len(world.__pending_events__) == 0
@@ -1149,7 +1146,7 @@ The hash of the last event applied to an aggregate root is available as an attri
 
     # Entity's head hash is determined exclusively
     # by the entire sequence of events and SHA-256.
-    assert world.__head__ == received_events[-1][-1].__event_hash__
+    assert world.__head__ == received_events[-1].__event_hash__
 
 
 A different sequence of events will almost certainly result a different
@@ -1186,5 +1183,5 @@ the sequence of events cryptographically.
 .. code:: python
 
     # Clean up after running examples.
-    unsubscribe(handler=receive_event)
+    unsubscribe(handler=receive_events)
     del received_events[:]  # received_events.clear()

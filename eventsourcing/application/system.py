@@ -1,5 +1,6 @@
 import time
 import weakref
+from _weakref import ReferenceType
 from abc import ABC, abstractmethod
 from collections import OrderedDict, defaultdict, deque
 from copy import deepcopy
@@ -11,6 +12,8 @@ from typing import (
     Callable,
     Deque,
     Dict,
+    Generic,
+    Iterable,
     List,
     Optional,
     TYPE_CHECKING,
@@ -22,7 +25,13 @@ from typing import (
 
 from eventsourcing.application.notificationlog import NotificationLogReader
 from eventsourcing.application.popo import PopoApplication
-from eventsourcing.application.process import ProcessApplication, Prompt
+from eventsourcing.application.process import (
+    ProcessApplication,
+    Prompt,
+    PromptToPull,
+    PromptToQuit,
+    is_prompt,
+)
 from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
@@ -33,6 +42,7 @@ from eventsourcing.exceptions import (
     ProgrammingError,
     RecordConflictError,
 )
+from eventsourcing.whitehead import T
 
 DEFAULT_POLL_INTERVAL = 5
 
@@ -84,6 +94,7 @@ class System(object):
                 if process_name not in self.process_classes:
                     self.process_classes[process_name] = process_class
 
+        self.runner: Optional[ReferenceType[SystemRunner]] = None
         self.is_session_shared = True
         self.shared_session = None
 
@@ -158,22 +169,16 @@ class System(object):
             kwargs["setup_table"] = self.setup_tables
 
         # Construct the process application.
-        process_application = process_class(**kwargs)
+        app = process_class(**kwargs)
 
         # Catch the session, so it can be shared.
         if self.session is None and self.shared_session is None:
             if process_class.is_constructed_with_session and self.is_session_shared:
                 if self.shared_session is None:
-                    self.shared_session = process_application.session
+                    self.shared_session = app.session
 
-        assert isinstance(process_application, ProcessApplication), process_application
-        return process_application
-
-    def is_prompt(self, event: object) -> bool:
-        """
-        Predicate for subscribing to publication of Prompt objects.
-        """
-        return isinstance(event, Prompt)
+        assert isinstance(app, ProcessApplication), app
+        return app
 
     def __enter__(self) -> "SingleThreadedRunner":
         """
@@ -181,23 +186,25 @@ class System(object):
 
         The system is run with the SingleThreadedRunner.
         """
+        assert self.runner is None, "System is already running: {}".format(self.runner)
+
         runner = SingleThreadedRunner(
             system=self,
             use_direct_query_if_available=self.use_direct_query_if_available,
         )
-        # self.__runner: ReferenceType[SingleThreadedRunner] = weakref.ref(runner)
-        self.__runner = weakref.ref(runner)
-        runner.__enter__()
+        runner.start()
+        self.runner = weakref.ref(runner)
         return runner
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """
         Supports usage of a system object as a context manager.
         """
-        runner = self.__runner()
-        if runner is not None:
-            runner.__exit__(exc_type, exc_val, exc_tb)
-            del self.__runner
+        if self.runner:
+            runner: Optional[SystemRunner] = self.runner()
+            if runner is not None:
+                runner.close()
+            self.runner = None
 
     def bind(
         self: TSystem, infrastructure_class: Type[ApplicationWithConcreteInfrastructure]
@@ -251,6 +258,14 @@ class SystemRunner(ABC):
         """
         Supports usage of a system runner as a context manager.
         """
+        assert isinstance(self, SystemRunner)  # For PyCharm navigation.
+        if self.system.runner is None:
+            self.system.runner = weakref.ref(self)
+        else:
+            raise EventSourcingError(
+                "System is already running: {}".format(self.system.runner)
+            )
+
         self.start()
         return self
 
@@ -259,6 +274,7 @@ class SystemRunner(ABC):
         Supports usage of a system runner as a context manager.
         """
         self.close()
+        self.system.runner = None
 
     @abstractmethod
     def start(self) -> None:
@@ -278,15 +294,6 @@ class SystemRunner(ABC):
             for process in self.processes.values():
                 process.close()
             self.processes.clear()
-
-    def __getattr__(self, process_name: str) -> ProcessApplication:
-        """
-        Supports accessing process application by name as object attribute.
-
-        :param process_name:
-        :return: A process application object.
-        """
-        return self._construct_app_by_name(process_name)
 
     def _construct_app_by_name(self, process_name: str) -> TProcessApplication:
         if process_name in self.processes:
@@ -341,10 +348,10 @@ class InProcessRunner(SystemRunner):
                 follower.follow(followed_name, followed_log)
 
         # Do something to propagate prompts.
-        subscribe(predicate=self.system.is_prompt, handler=self.handle_prompt)
+        subscribe(predicate=is_prompt, handler=self.handle_prompts)
 
     @abstractmethod
-    def handle_prompt(self, prompt: Any) -> None:
+    def handle_prompts(self, prompts: Iterable[Prompt]) -> None:
         """
         Handles publication of a prompt.
 
@@ -354,7 +361,7 @@ class InProcessRunner(SystemRunner):
     def close(self) -> None:
         super(InProcessRunner, self).close()
 
-        unsubscribe(predicate=self.system.is_prompt, handler=self.handle_prompt)
+        unsubscribe(predicate=is_prompt, handler=self.handle_prompts)
 
 
 class SingleThreadedRunner(InProcessRunner):
@@ -379,11 +386,10 @@ class SingleThreadedRunner(InProcessRunner):
 
         self.iteration_lock = Lock()
 
-    def handle_prompt(self, prompt: Any) -> None:
-        assert isinstance(prompt, Prompt), prompt
-        self.run_followers(prompt)
+    def handle_prompts(self, prompts: Iterable[Prompt]) -> None:
+        self.run_followers(prompts)
 
-    def run_followers(self, prompt: Prompt) -> None:
+    def run_followers(self, prompts: Iterable[Prompt]) -> None:
         """
         First caller adds a prompt to queue and
         runs followers until there are no more
@@ -393,7 +399,8 @@ class SingleThreadedRunner(InProcessRunner):
         to the queue, avoiding recursion.
         """
         # Put the prompt on the queue.
-        self.pending_prompts.put(prompt)
+        for prompt in prompts:
+            self.pending_prompts.put(prompt)
 
         if self.iteration_lock.acquire(False):
             start_time = time.time()
@@ -405,14 +412,17 @@ class SingleThreadedRunner(InProcessRunner):
                     except Empty:
                         break
                     else:
-                        followers = self.system.followers[prompt.process_name]
-                        for follower_name in followers:
-                            follower = self.processes[follower_name]
-                            follower.run(prompt)
-                            i += 1
+                        if isinstance(prompt, PromptToPull):
+                            followers = self.system.followers[prompt.process_name]
+                            for follower_name in followers:
+                                follower = self.processes[follower_name]
+                                follower.run(prompt)
+                                i += 1
+                        else:
+                            raise Exception("Unsupported prompt: {}".format(prompt))
                         self.pending_prompts.task_done()
             finally:
-                run_frequency = i / (time.time() - start_time)
+                # run_frequency = i / (time.time() - start_time)
                 # print(f"Run frequency: {run_frequency}")
                 self.iteration_lock.release()
 
@@ -446,12 +456,14 @@ class MultiThreadedRunner(InProcessRunner):
             self.clock_event = Event()
             self.stop_clock_event = Event()
 
+        self.inboxes: Dict[str, Queue] = {}
+        self.outboxes: Dict[str, PromptOutbox[str]] = {}
+
     def start(self) -> None:
         super(MultiThreadedRunner, self).start()
         assert not self.threads, "Already started"
-
-        self.inboxes: Dict[str, Queue] = {}
-        self.outboxes: Dict[str, PromptOutbox] = {}
+        assert not self.inboxes, "Already has inboxes"
+        assert not self.outboxes, "Already has outboxes"
 
         # Setup queues.
         for process_name, upstream_names in self.system.followings.items():
@@ -554,15 +566,16 @@ class MultiThreadedRunner(InProcessRunner):
 
         set_timer()
 
-    def handle_prompt(self, prompt: Any) -> None:
-        assert isinstance(prompt, Prompt), prompt
-        self.broadcast_prompt(prompt)
+    def handle_prompts(self, prompts: Iterable[Prompt]) -> None:
+        for prompt in prompts:
+            self.broadcast_prompt(prompt)
 
     def broadcast_prompt(self, prompt: Prompt) -> None:
-        outbox_id = prompt.process_name
-        outbox = self.outboxes.get(outbox_id)
-        if outbox:
-            outbox.put(prompt)
+        if isinstance(prompt, PromptToPull):
+            outbox_id = prompt.process_name
+            outbox = self.outboxes.get(outbox_id)
+            if outbox:
+                outbox.put(prompt)
 
     def close(self) -> None:
         super(MultiThreadedRunner, self).close()
@@ -572,24 +585,26 @@ class MultiThreadedRunner(InProcessRunner):
             self.stop_clock_event.set()
 
         for thread in self.threads.values():
-            thread.inbox.put("QUIT")
+            thread.inbox.put(PromptToQuit())
 
         for thread in self.threads.values():
             thread.join(timeout=10)
 
         self.threads.clear()
+        self.outboxes.clear()
+        self.inboxes.clear()
 
 
-class PromptOutbox(object):
+class PromptOutbox(Generic[T]):
     """
     Has a collection of downstream prompt inboxes.
 
     """
 
     def __init__(self) -> None:
-        self.downstream_inboxes: Dict[str, Queue] = {}
+        self.downstream_inboxes: Dict[T, Queue] = {}
 
-    def put(self, prompt: Union[Prompt, str]) -> None:
+    def put(self, prompt: Union[PromptToPull, str]) -> None:
         """
         Puts prompt in each downstream inbox (an actual queue).
         """
@@ -615,7 +630,7 @@ class PromptQueuedApplicationThread(Thread):
         clock_event: Optional[Event] = None,
     ):
         super(PromptQueuedApplicationThread, self).__init__(daemon=True)
-        self.process = process
+        self.app = process
         self.poll_interval = poll_interval
         if TYPE_CHECKING:
             self.inbox: Queue[Union[Prompt, str]]
@@ -645,12 +660,11 @@ class PromptQueuedApplicationThread(Thread):
             else:
                 self.inbox.task_done()
 
-                if prompt == "QUIT":
-                    self.process.close()
+                if isinstance(prompt, PromptToQuit):
+                    self.app.close()
                     break
 
-                else:
-                    assert isinstance(prompt, Prompt)
+                elif isinstance(prompt, PromptToPull):
                     started = None
                     if self.clock_event is not None:
                         self.clock_event.wait()
@@ -664,16 +678,18 @@ class PromptQueuedApplicationThread(Thread):
                         duration = ended - started
                         if self.clock_event.is_set():
                             print(
-                                f"Warning: Process {self.process.name} overran clock "
+                                f"Warning: Process {self.app.name} overran clock "
                                 f"cycle: {duration}"
                             )
                         else:
                             print(
-                                f"Info: Process {self.process.name} ran within clock "
+                                f"Info: Process {self.app.name} ran within clock "
                                 f"cycle: {duration}"
                             )
+                else:
+                    raise Exception("Unsupported prompt: {}".format(prompt))
 
-    def run_process(self, prompt: Optional[Prompt] = None) -> None:
+    def run_process(self, prompt: Optional[PromptToPull] = None) -> None:
         try:
             self._run_process(prompt)
         except CausalDependencyFailed:
@@ -683,8 +699,8 @@ class PromptQueuedApplicationThread(Thread):
 
     @retry(CausalDependencyFailed, max_attempts=100, wait=0.2)
     @retry((OperationalError, RecordConflictError), max_attempts=100, wait=0.01)
-    def _run_process(self, prompt: Optional[Prompt] = None) -> None:
-        self.process.run(prompt)
+    def _run_process(self, prompt: Optional[PromptToPull] = None) -> None:
+        self.app.run(prompt)
 
 
 class SteppingRunner(InProcessRunner):
@@ -733,7 +749,7 @@ class SteppingSingleThreadedRunner(SteppingRunner):
         )
         self.clock_thread.start()
 
-    def handle_prompt(self, prompt: Any) -> None:
+    def handle_prompts(self, prompts: Iterable[Prompt]) -> None:
         """
         Ignores prompts.
         """
@@ -743,7 +759,7 @@ class SteppingSingleThreadedRunner(SteppingRunner):
         super(SteppingSingleThreadedRunner, self).close()
         if self.clock_thread:
             self.clock_thread.join(5)
-            if self.clock_thread.isAlive():
+            if self.clock_thread.is_alive():
                 print("Warning: clock thread was still alive")
 
 
@@ -964,10 +980,11 @@ class SteppingMultiThreadedRunner(SteppingRunner):
         self.clock_thread = None
         self.stop_event = Event()
 
-    def handle_prompt(self, prompt: Any) -> None:
-        assert isinstance(prompt, Prompt)
-        seen_prompt = self.seen_prompt_events[prompt.process_name]
-        seen_prompt.set()
+    def handle_prompts(self, prompts: Iterable[Prompt]) -> None:
+        for prompt in prompts:
+            if isinstance(prompt, PromptToPull):
+                seen_prompt = self.seen_prompt_events[prompt.process_name]
+                seen_prompt.set()
 
     def start(self) -> None:
         super(SteppingMultiThreadedRunner, self).start()
@@ -1017,10 +1034,10 @@ class SteppingMultiThreadedRunner(SteppingRunner):
 
         for thread in self.application_threads.values():
             thread.join(timeout=1)
-            if thread.isAlive():
+            if thread.is_alive():
                 print(
                     f"Warning: application thread '"
-                    f"{thread.process_application.name}"
+                    f"{thread.app.name}"
                     f"' was still alive."
                 )
 
@@ -1028,7 +1045,7 @@ class SteppingMultiThreadedRunner(SteppingRunner):
 
         if self.clock_thread:
             self.clock_thread.join(timeout=1)
-            if self.clock_thread.isAlive():
+            if self.clock_thread.is_alive():
                 print(f"Warning: clock thread was still alive")
 
 
@@ -1041,7 +1058,7 @@ class BarrierControlledApplicationThread(Thread):
         stop_event: Event,
     ):
         super(BarrierControlledApplicationThread, self).__init__(daemon=True)
-        self.process_application = process
+        self.app = process
         self.fetch_barrier = fetch_barrier
         self.execute_barrier = execute_barrier
         self.stop_event = stop_event
@@ -1065,9 +1082,9 @@ class BarrierControlledApplicationThread(Thread):
             else:
                 try:
                     # Get all notifications.
-                    for upstream_name in self.process_application.readers:
+                    for upstream_name in self.app.readers:
                         notifications = list(
-                            self.process_application.read_reader(upstream_name)
+                            self.app.read_reader(upstream_name)
                         )
                         all_notifications.append((upstream_name, notifications))
 
@@ -1087,10 +1104,10 @@ class BarrierControlledApplicationThread(Thread):
                     # Process all notifications.
                     for upstream_name, notifications in all_notifications:
                         for notification in notifications:
-                            event = self.process_application.get_event_from_notification(
+                            event = self.app.get_event_from_notification(
                                 notification
                             )
-                            self.process_application.process_upstream_event(
+                            self.app.process_upstream_event(
                                 event, notification["id"], upstream_name
                             )
                 except:

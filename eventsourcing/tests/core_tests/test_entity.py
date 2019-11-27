@@ -159,7 +159,7 @@ class TestExampleEntity(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
             originator_id=entity1.id, a=11, b=12, originator_topic=get_topic(Example)
         )
         with self.assertRaises(ConcurrencyError):
-            publish(event=replacement_event)
+            publish(events=[replacement_event])
 
     def test_attribute(self):
         # Check we get an error when called with something other than a function.
@@ -212,7 +212,14 @@ class TestExampleEntity(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
         # Instantiate the class and check assigning to the property publishes an
         # event and updates the object state.
         published_events = []
-        subscription = (lambda x: True, lambda x: published_events.append(x))
+
+        def receive(x):
+            published_events.extend(x)
+
+        subscription = (
+            lambda x: True,
+            receive
+        )
         subscribe(*subscription)
         entity_id = uuid4()
         try:
@@ -229,7 +236,7 @@ class TestExampleEntity(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
         # Check the published event was an AttributeChanged event, with the expected
         # attribute values.
         published_event = published_events[0]
-        self.assertIsInstance(published_event, AttributeChangedEvent)
+        self.assertIsInstance(published_event, Aaa.AttributeChanged)
         self.assertEqual(published_event.name, "_a")
         self.assertEqual(published_event.value, "value1")
         self.assertTrue(published_event.originator_version, 1)

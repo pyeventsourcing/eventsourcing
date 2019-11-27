@@ -31,11 +31,21 @@ class Order(BaseAggregateRoot):
     class Created(Event, BaseAggregateRoot.Created):
         pass
 
+    def set_is_reserved(self, reservation_id):
+        self.__trigger_event__(Order.Reserved, reservation_id=reservation_id)
+
     class Reserved(Event):
         def mutate(self, order):
             assert not order.is_reserved, "Order {} already reserved.".format(order.id)
             order.is_reserved = True
             order.reservation_id = self.reservation_id
+
+        @property
+        def reservation_id(self):
+            return self.__dict__['reservation_id']
+
+    def set_is_paid(self, payment_id):
+        self.__trigger_event__(self.Paid, payment_id=payment_id)
 
     class Paid(Event):
         def mutate(self, order):
@@ -43,11 +53,9 @@ class Order(BaseAggregateRoot):
             order.is_paid = True
             order.payment_id = self.payment_id
 
-    def set_is_reserved(self, reservation_id):
-        self.__trigger_event__(Order.Reserved, reservation_id=reservation_id)
-
-    def set_is_paid(self, payment_id):
-        self.__trigger_event__(self.Paid, payment_id=payment_id)
+        @property
+        def payment_id(self):
+            return self.__dict__['payment_id']
 
 
 class Reservation(BaseAggregateRoot):
@@ -98,7 +106,7 @@ def create_new_order():
 logger = logging.getLogger()
 
 
-class Orders(ProcessApplication):
+class Orders(ProcessApplication[Order, Order.Event]):
     persist_event_type = Order.Created
 
     def policy(self, repository, event):
@@ -121,7 +129,7 @@ class Orders(ProcessApplication):
             # print(f'set Order {event.order_id} as paid')
 
 
-class Reservations(ProcessApplication):
+class Reservations(ProcessApplication[Reservation, Reservation.Event]):
     def policy(self, repository, event):
         if isinstance(event, Order.Created):
             # Create a reservation.
@@ -141,7 +149,7 @@ class Payments(ProcessApplication):
             return Payment.make(order_id=event.originator_id)
 
 
-class Examples(ProcessApplication):
+class Examples(ProcessApplication[ExampleAggregate, ExampleAggregate.Event]):
     persist_event_type = ExampleAggregate.Created
 
     def policy(self, repository, event):
