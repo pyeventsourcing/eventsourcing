@@ -1,3 +1,5 @@
+from typing import Any
+
 from sqlalchemy import asc, bindparam, desc, select, text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
@@ -19,14 +21,13 @@ class SQLAlchemyRecordManager(SQLRecordManager):
 
     def _prepare_insert(
         self, tmpl, record_class, field_names, placeholder_for_id=False
-    ):
+    ) -> Any:
         """
         With transaction isolation level of "read committed" this should
         generate records with a contiguous sequence of integer IDs, assumes
         an indexed ID column, the database-side SQL max function, the
         insert-select-from form, and optimistic concurrency control.
         """
-        field_names = list(field_names)
         if (
             hasattr(record_class, "application_name")
             and "application_name" not in field_names

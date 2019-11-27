@@ -52,9 +52,4 @@ TEntity = TypeVar("TEntity", bound=EnduringObject)
 SEntity = TypeVar("SEntity", bound=EnduringObject)
 
 IterableOfEvents = Iterable[ActualOccasion]
-SequenceOfEvents = Sequence[TEvent]
-OneOrManyEvents = Union[TEvent, SequenceOfEvents]
-
 IterableOfItems = Iterable[Tuple]
-SequenceOfItems = Sequence[Tuple]
-OneOrManyItems = Union[Tuple, SequenceOfItems]

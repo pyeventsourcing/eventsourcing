@@ -1,5 +1,19 @@
 from abc import ABC, abstractmethod
-from typing import Any, Generic, Iterable, Iterator, Optional, Sequence, Tuple, TypeVar
+from typing import (
+    Any,
+    Dict,
+    Generic,
+    Iterable,
+    Iterator,
+    List,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 from uuid import UUID
 
 from eventsourcing.exceptions import OperationalError, RecordConflictError
@@ -10,13 +24,13 @@ from eventsourcing.infrastructure.sequenceditem import (
 from eventsourcing.whitehead import (
     ActualOccasion,
     IterableOfEvents,
-    IterableOfItems,
-    SequenceOfEvents,
     TEntity,
     TEvent,
 )
 
 DEFAULT_PIPELINE_ID = 0
+
+TrackingKwargs = Dict[str, Union[str, int]]
 
 
 class AbstractRecordManager(ABC):
@@ -26,12 +40,12 @@ class AbstractRecordManager(ABC):
         pass
 
     @abstractmethod
-    def record_sequenced_items(self, sequenced_items: IterableOfItems) -> None:
+    def record_sequenced_items(self, sequenced_items: Iterable[NamedTuple]) -> None:
         """
         Writes sequenced items into the datastore.
         """
 
-    def record_sequenced_item(self, sequenced_item: Tuple) -> None:
+    def record_sequenced_item(self, sequenced_item: NamedTuple) -> None:
         """
         Writes sequenced item into the datastore.
         """
@@ -54,7 +68,7 @@ class AbstractRecordManager(ABC):
         limit: Optional[int] = None,
         query_ascending: bool = True,
         results_ascending: bool = True,
-    ) -> Iterator[SequenceOfEvents]:
+    ) -> Iterator[NamedTuple]:
         """
         Iterates over records in sequence.
         """
@@ -116,11 +130,12 @@ TRecordManager = TypeVar("TRecordManager", bound=AbstractRecordManager)
 class BaseRecordManager(AbstractRecordManager):
     def __init__(
         self,
-        record_class,
-        sequenced_item_class=SequencedItem,
-        contiguous_record_ids=False,
-        application_name=None,
-        pipeline_id=DEFAULT_PIPELINE_ID,
+        record_class: type,
+        sequenced_item_class: Type[NamedTuple] = SequencedItem,  # type: ignore
+        contiguous_record_ids: bool = False,
+        application_name: Optional[str] = None,
+        pipeline_id: int = DEFAULT_PIPELINE_ID,
+        **kwargs: Any
     ):
         self._record_class = record_class
         self.sequenced_item_class = sequenced_item_class
@@ -133,7 +148,9 @@ class BaseRecordManager(AbstractRecordManager):
         else:
             self.notification_id_name = ""
 
-        self.contiguous_record_ids = contiguous_record_ids and self.notification_id_name
+        self.contiguous_record_ids = bool(
+            contiguous_record_ids and self.notification_id_name
+        )
         if hasattr(self.record_class, "application_name"):
             assert application_name, "'application_name' not set when required"
             assert (
@@ -147,10 +164,12 @@ class BaseRecordManager(AbstractRecordManager):
         self.pipeline_id = pipeline_id
 
     @property
-    def record_class(self):
+    def record_class(self) -> type:
         return self._record_class
 
-    def clone(self, application_name, pipeline_id, **kwargs):
+    def clone(
+        self, application_name: str, pipeline_id: int, **kwargs: Any
+    ) -> "BaseRecordManager":
         return type(self)(
             record_class=self.record_class,
             contiguous_record_ids=self.contiguous_record_ids,
@@ -176,7 +195,7 @@ class BaseRecordManager(AbstractRecordManager):
         limit: Optional[int] = None,
         query_ascending: bool = True,
         results_ascending: bool = True,
-    ) -> Iterator[SequenceOfEvents]:
+    ) -> Iterator[NamedTuple]:
         """
         Returns sequenced item generator.
         """
@@ -193,13 +212,13 @@ class BaseRecordManager(AbstractRecordManager):
         for item in map(self.from_record, records):
             yield item
 
-    def list_items(self, *args, **kwargs):
+    def list_items(self, *args: Any, **kwargs: Any) -> List[NamedTuple]:
         """
         Returns list of sequenced items.
         """
         return list(self.get_items(*args, **kwargs))
 
-    def to_record(self, sequenced_item):
+    def to_record(self, sequenced_item: NamedTuple) -> object:
         """
         Constructs a record object from given sequenced item object.
         """
@@ -212,30 +231,30 @@ class BaseRecordManager(AbstractRecordManager):
             kwargs["pipeline_id"] = self.pipeline_id
         return self.record_class(**kwargs)
 
-    def from_record(self, record: Any) -> Tuple:
+    def from_record(self, record: object) -> NamedTuple:
         """
         Constructs and returns a sequenced item object, from given ORM object.
         """
         kwargs = self.get_field_kwargs(record)
         return self.sequenced_item_class(**kwargs)
 
-    def list_sequence_ids(self):
+    def list_sequence_ids(self) -> List[UUID]:
         return list(self.all_sequence_ids())
 
-    def get_field_kwargs(self, item):
+    def get_field_kwargs(self, item: object) -> Dict[str, Any]:
         return {name: getattr(item, name) for name in self.field_names}
 
-    def raise_sequenced_item_conflict(self):
+    def raise_sequenced_item_conflict(self) -> None:
         msg = "Position already taken in sequence"
         raise RecordConflictError(msg)
 
-    def raise_index_error(self, position):
+    def raise_index_error(self, position: int) -> None:
         raise IndexError("Sequence index out of range: {}".format(position))
 
-    def raise_record_integrity_error(self, e):
+    def raise_record_integrity_error(self, e: Exception) -> None:
         raise RecordConflictError(e)
 
-    def raise_operational_error(self, e):
+    def raise_operational_error(self, e: Exception) -> None:
         raise OperationalError(e)
 
 
@@ -253,31 +272,38 @@ class ACIDRecordManager(BaseRecordManager):
         "notification_id",
     ]
 
-    def __init__(self, tracking_record_class=None, *args, **kwargs):
+    def __init__(
+        self, tracking_record_class: Optional[type] = None, *args: Any, **kwargs: Any
+    ) -> None:
         super(ACIDRecordManager, self).__init__(*args, **kwargs)
         # assert tracking_record_class is not None
         self.tracking_record_class = tracking_record_class
 
-    def clone(self, **kwargs):
+    def clone(
+        self, application_name: str, pipeline_id: int, **kwargs: Any
+    ) -> "BaseRecordManager":
         return super(ACIDRecordManager, self).clone(
-            tracking_record_class=self.tracking_record_class, **kwargs
+            application_name=application_name,
+            pipeline_id=pipeline_id,
+            tracking_record_class=self.tracking_record_class,
+            **kwargs
         )
 
     @abstractmethod
     def write_records(
         self,
-        records,
-        tracking_kwargs=None,
-        orm_objs_pending_save=None,
-        orm_objs_pending_delete=None,
-    ):
+        records: Iterable[Any],
+        tracking_kwargs: Optional[TrackingKwargs] = None,
+        orm_objs_pending_save: Optional[List] = None,
+        orm_objs_pending_delete: Optional[List] = None,
+    ) -> None:
         """
         Writes tracking, event and notification records for a process event.
         :param orm_objs_pending_delete:
         :param orm_objs_pending_save:
         """
 
-    def to_records(self, sequenced_items):
+    def to_records(self, sequenced_items: Iterable[NamedTuple]) -> Iterable[Any]:
         return map(self.to_record, sequenced_items)
 
     @abstractmethod
@@ -297,7 +323,9 @@ class ACIDRecordManager(BaseRecordManager):
         True if tracking record exists for notification from upstream in pipeline.
         """
 
-    def get_pipeline_and_notification_id(self, sequence_id, position: int) -> Tuple:
+    def get_pipeline_and_notification_id(
+        self, sequence_id: UUID, position: int
+    ) -> Tuple:
         """
         Returns pipeline ID and notification ID for
         event at given position in given sequence.
@@ -322,13 +350,13 @@ class SQLRecordManager(ACIDRecordManager):
     #  tracking record functionality needed by ProcessApplication, and should so
     #  that other record managers can more easily be developed.
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super(SQLRecordManager, self).__init__(*args, **kwargs)
         self._insert_select_max = None
         self._insert_values = None
         self._insert_tracking_record = None
 
-    def record_sequenced_items(self, sequenced_items):
+    def record_sequenced_items(self, sequenced_items: Iterable[NamedTuple]) -> None:
         # Convert sequenced item(s) to database record(s).
         records = self.to_records(sequenced_items)
 
@@ -336,7 +364,7 @@ class SQLRecordManager(ACIDRecordManager):
         self.write_records(records)
 
     @property
-    def insert_select_max(self):
+    def insert_select_max(self) -> Any:
         """
         SQL statement that inserts records with contiguous IDs,
         by selecting max ID from indexed table records.
@@ -357,8 +385,12 @@ class SQLRecordManager(ACIDRecordManager):
 
     @abstractmethod
     def _prepare_insert(
-        self, tmpl, record_class, field_names, placeholder_for_id=False
-    ):
+        self,
+        tmpl: str,
+        record_class: type,
+        field_names: List[str],
+        placeholder_for_id: bool = False,
+    ) -> Any:
         """
         Compile SQL statement with placeholders for bind parameters.
         """
@@ -376,7 +408,7 @@ class SQLRecordManager(ACIDRecordManager):
         pass
 
     @property
-    def insert_values(self):
+    def insert_values(self) -> Any:
         """
         SQL statement that inserts records without ID.
         """
@@ -385,16 +417,17 @@ class SQLRecordManager(ACIDRecordManager):
                 tmpl=self._insert_values_tmpl,
                 placeholder_for_id=True,
                 record_class=self.record_class,
-                field_names=self.field_names,
+                field_names=list(self.field_names),
             )
         return self._insert_values
 
     @property
-    def insert_tracking_record(self):
+    def insert_tracking_record(self) -> Any:
         """
         SQL statement that inserts tracking records.
         """
         if self._insert_tracking_record is None:
+            assert self.tracking_record_class is not None
             self._insert_tracking_record = self._prepare_insert(
                 tmpl=self._insert_values_tmpl,
                 placeholder_for_id=True,
@@ -408,7 +441,7 @@ class SQLRecordManager(ACIDRecordManager):
     )
 
     @abstractmethod
-    def get_record_table_name(self, record_class):
+    def get_record_table_name(self, record_class: type) -> str:
         """
         Returns table name - used in raw queries.
 
@@ -444,7 +477,7 @@ class AbstractEventStore(ABC, Generic[TEvent]):
         Returns domain events for given entity ID.
         """
 
-    def list_events(self, *args, **kwargs):
+    def list_events(self, *args: Any, **kwargs: Any) -> List[TEvent]:
         return list(self.iter_events(*args, **kwargs))
 
     @abstractmethod

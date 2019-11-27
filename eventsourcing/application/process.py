@@ -40,14 +40,13 @@ from eventsourcing.exceptions import (
     ProgrammingError,
     PromptFailed,
 )
-from eventsourcing.infrastructure.base import ACIDRecordManager
+from eventsourcing.infrastructure.base import ACIDRecordManager, TrackingKwargs
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
-from eventsourcing.whitehead import ActualOccasion, OneOrManyEvents, IterableOfEvents
+from eventsourcing.whitehead import ActualOccasion, IterableOfEvents
 
 ListOfAggregateEvents = List[TAggregateEvent]
 CausalDependencies = Dict[str, int]
 ListOfCausalDependencies = List[CausalDependencies]
-TrackingKwargs = Dict[str, Union[str, int]]
 
 
 class ProcessEvent(ActualOccasion):
@@ -219,7 +218,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
             )
         super(ProcessApplication, self).close()
 
-    def publish_prompt(self, _: OneOrManyEvents = None) -> None:
+    def publish_prompt(self, _: Optional[IterableOfEvents] = None) -> None:
         """
         Publishes prompt for a given event.
 
@@ -693,4 +692,4 @@ class ProcessApplicationWithSnapshotting(SnapshottingApplication, ProcessApplica
         assert self.snapshotting_policy
         for event in new_events:
             if self.snapshotting_policy.condition(event):
-                self.snapshotting_policy.take_snapshot(event)
+                self.snapshotting_policy.take_snapshot([event])

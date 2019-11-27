@@ -1,13 +1,19 @@
-from collections import namedtuple
-from typing import NamedTuple, Tuple, Type
+from typing import Iterator, NamedTuple, Tuple, Type
+from uuid import UUID
 
-SequencedItem = namedtuple(
-    "SequencedItem", ["sequence_id", "position", "topic", "state"]
-)
 
-StoredEvent = namedtuple(
-    "StoredEvent", ["originator_id", "originator_version", "topic", "state"]
-)
+class SequencedItem(NamedTuple):
+    sequence_id: UUID
+    position: int
+    topic: str
+    state: str
+
+
+class StoredEvent(NamedTuple):
+    originator_id: UUID
+    originator_version: int
+    topic: str
+    state: str
 
 
 class SequencedItemFieldNames(object):
@@ -38,5 +44,6 @@ class SequencedItemFieldNames(object):
     def other_names(self) -> Tuple[str, ...]:
         return self._field_names[4:]
 
-    def __getitem__(self, i: int) -> str:
-        return self._field_names[i]
+    def __iter__(self) -> Iterator[str]:
+        for i in range(len(self._field_names)):
+            yield self._field_names[i]

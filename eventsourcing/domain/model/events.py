@@ -1,6 +1,6 @@
 import os
 from decimal import Decimal
-from typing import Any, Callable, Dict, Generic, List, Optional, Tuple
+from typing import Any, Callable, Dict, Generic, List, Optional, Tuple, Sequence
 from uuid import UUID, uuid1
 
 from eventsourcing.exceptions import EventHashError
@@ -8,7 +8,7 @@ from eventsourcing.utils.hashing import hash_object
 from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic
 from eventsourcing.utils.transcoding import JSON_SEPARATORS, ObjectJSONEncoder
-from eventsourcing.whitehead import ActualOccasion, SequenceOfEvents, TEntity
+from eventsourcing.whitehead import ActualOccasion, TEntity, TEvent
 
 GENESIS_HASH: str = os.getenv("GENESIS_HASH", "")
 
@@ -315,8 +315,8 @@ class LoggedEvent(DomainEvent[TEntity]):
     """
 
 
-Predicate = Callable[[SequenceOfEvents], bool]
-Handler = Callable[[SequenceOfEvents], None]
+Predicate = Callable[[Sequence[TEvent]], bool]
+Handler = Callable[[Sequence[TEvent]], None]
 
 _subscriptions: List[Tuple[Optional[Predicate], Handler]] = []
 
@@ -348,7 +348,7 @@ def unsubscribe(handler: Handler, predicate: Optional[Predicate] = None) -> None
         _subscriptions.remove((predicate, handler))
 
 
-def publish(events: SequenceOfEvents) -> None:
+def publish(events: Sequence[TEvent]) -> None:
     """
     Published given 'event' by calling subscribed event
     handlers with the given 'event', except those with

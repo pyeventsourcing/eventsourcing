@@ -1,16 +1,17 @@
-from typing import Generic, Optional, Tuple, Union, Sequence
+from typing import Generic, Optional, Tuple, Union
 
+from eventsourcing.domain.model.entity import VersionedEntity
 from eventsourcing.domain.model.events import (
     EventWithOriginatorVersion,
     subscribe,
     unsubscribe,
 )
 from eventsourcing.domain.model.snapshot import Snapshot
-from eventsourcing.whitehead import TEvent, OneOrManyEvents, IterableOfEvents
 from eventsourcing.infrastructure.base import (
-    AbstractEventStore,
     AbstractEntityRepository,
+    AbstractEventStore,
 )
+from eventsourcing.whitehead import IterableOfEvents, TEvent
 
 
 class PersistencePolicy(object):
@@ -61,21 +62,20 @@ class SnapshottingPolicy(Generic[TEvent]):
     def close(self) -> None:
         unsubscribe(predicate=self.condition, handler=self.take_snapshot)
 
-    def condition(self, event: OneOrManyEvents) -> bool:
+    def condition(self, event: IterableOfEvents) -> bool:
         # Periodically by default.
-        if self.period:
+        if self.persist_event_type and self.period:
             if isinstance(event, (list, tuple)):
                 for e in event:
                     if self.condition(e):
                         return True
             else:
-                if self.persist_event_type:
-                    if isinstance(event, self.persist_event_type):
-                        if isinstance(event, EventWithOriginatorVersion):
-                            return (event.originator_version + 1) % self.period == 0
+                if isinstance(event, self.persist_event_type):
+                    if isinstance(event, VersionedEntity.Event):
+                        return (event.originator_version + 1) % self.period == 0
         return False
 
-    def take_snapshot(self, event: OneOrManyEvents) -> None:
-        if isinstance(event, (list, tuple)):
-            event = event[-1]  # snapshot at the last version
+    def take_snapshot(self, events: IterableOfEvents) -> None:
+        event = list(events)[-1]  # snapshot at the last version
+        assert isinstance(event, VersionedEntity.Event), type(event)
         self.repository.take_snapshot(event.originator_id, lte=event.originator_version)
