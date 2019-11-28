@@ -3,9 +3,10 @@ from time import sleep, time
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.application.multiprocess import MultiprocessRunner
+from eventsourcing.system.multiprocess import MultiprocessRunner
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
-from eventsourcing.application.system import MultiThreadedRunner, System
+from eventsourcing.system.runner import MultiThreadedRunner
+from eventsourcing.system.definition import System
 from eventsourcing.domain.model.events import (
     assert_event_handlers_empty,
     clear_event_handlers,

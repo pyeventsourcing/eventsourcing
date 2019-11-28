@@ -1,38 +1,25 @@
 import multiprocessing
 from multiprocessing import Manager
-from queue import Empty, Queue
+from queue import Queue, Empty
 from time import sleep
-from typing import Tuple, Sequence, Dict, Optional, Any, List, TYPE_CHECKING, Iterable, \
+from typing import Sequence, Optional, Any, List, TYPE_CHECKING, Dict, Tuple, \
+    Iterable, \
     Type
 
 from eventsourcing.application.notificationlog import RecordManagerNotificationLog
-from eventsourcing.application.process import (
-    PromptToPull,
-    PromptToQuit,
-    Prompt,
-    ProcessApplication,
-    is_prompt)
-from eventsourcing.application.simple import (
-    ApplicationWithConcreteInfrastructure,
-)
-from eventsourcing.application.system import (
-    DEFAULT_POLL_INTERVAL,
-    PromptOutbox,
-    System,
-    SystemRunner,
-)
+from eventsourcing.application.process import Prompt, is_prompt, PromptToPull, \
+    PromptToQuit, ProcessApplication
+from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
-from eventsourcing.exceptions import (
-    CausalDependencyFailed,
-    OperationalError,
-    RecordConflictError,
-    ProgrammingError,
-)
+from eventsourcing.exceptions import ProgrammingError, CausalDependencyFailed, \
+    OperationalError, RecordConflictError
 from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
+from eventsourcing.system.definition import AbstractSystemRunner, System
+from eventsourcing.system.runner import DEFAULT_POLL_INTERVAL, PromptOutbox
 
 
-class MultiprocessRunner(SystemRunner):
+class MultiprocessRunner(AbstractSystemRunner):
     def __init__(
         self,
         system: System,
@@ -189,7 +176,8 @@ class OperatingSystemProcess(multiprocessing.Process):
         # Follow upstream notification logs.
         for upstream_name in self.upstream_names:
 
-            # Obtain a notification log object (local or remote) for the upstream process.
+            # Obtain a notification log object (local or remote) for the upstream
+            # process.
             if upstream_name == self.process.name:
                 # Upstream is this process's application,
                 # so use own notification log.
@@ -207,27 +195,40 @@ class OperatingSystemProcess(multiprocessing.Process):
                 notification_log = RecordManagerNotificationLog(
                     record_manager=record_manager.clone(
                         application_name=upstream_name,
-                        # Todo: Check if setting pipeline_id is necessary (it's the same?).
+                        # Todo: Check if setting pipeline_id is necessary (it's the
+                        #  same?).
                         pipeline_id=self.pipeline_id,
                     ),
                     section_size=self.process.notification_log_section_size,
                 )
                 # Todo: Support upstream partition IDs different from self.pipeline_id?
-                # Todo: Support combining partitions. Read from different partitions but write to the same partition,
-                # could be one os process that reads from many logs of the same upstream app, or many processes each
+                # Todo: Support combining partitions. Read from different partitions
+                #  but write to the same partition,
+                # could be one os process that reads from many logs of the same
+                # upstream app, or many processes each
                 # reading one partition with contention writing to the same partition).
-                # Todo: Support dividing partitions Read from one but write to many. Maybe one process per
-                # upstream partition, round-robin to pick partition for write. Or have many processes reading
+                # Todo: Support dividing partitions Read from one but write to many.
+                #  Maybe one process per
+                # upstream partition, round-robin to pick partition for write. Or
+                # have many processes reading
                 # with each taking it in turn to skip processing somehow.
-                # Todo: Dividing partitions would allow a stream to flow at the same rate through slower
+                # Todo: Dividing partitions would allow a stream to flow at the same
+                #  rate through slower
                 # process applications.
-                # Todo: Support merging results from "replicated state machines" - could have a command
-                # logging process that takes client commands and presents them in a notification log.
-                # Then the system could be deployed in different places, running independently, receiving
-                # the same commands, and running the same processes. The command logging process could
-                # be accompanied with a result logging process that reads results from replicas as they
-                # are available. Not sure what to do if replicas return different things. If one replica
-                # goes down, then it could resume by pulling events from another? Not sure what to do.
+                # Todo: Support merging results from "replicated state machines" -
+                #  could have a command
+                # logging process that takes client commands and presents them in a
+                # notification log.
+                # Then the system could be deployed in different places, running
+                # independently, receiving
+                # the same commands, and running the same processes. The command
+                # logging process could
+                # be accompanied with a result logging process that reads results
+                # from replicas as they
+                # are available. Not sure what to do if replicas return different
+                # things. If one replica
+                # goes down, then it could resume by pulling events from another? Not
+                # sure what to do.
                 # External systems could be modelled as commands.
 
             # Make the process follow the upstream notification log.
@@ -250,7 +251,8 @@ class OperatingSystemProcess(multiprocessing.Process):
         # Loop on getting prompts.
         while True:
             try:
-                # Todo: Make the poll interval gradually increase if there are only timeouts?
+                # Todo: Make the poll interval gradually increase if there are only
+                #  timeouts?
                 item = self.inbox.get(timeout=self.poll_interval)
                 self.inbox.task_done()
 

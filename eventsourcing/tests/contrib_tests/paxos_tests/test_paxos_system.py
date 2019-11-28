@@ -4,9 +4,9 @@ import unittest
 from time import sleep
 from uuid import uuid4
 
-from eventsourcing.application.multiprocess import MultiprocessRunner
+from eventsourcing.system.multiprocess import MultiprocessRunner
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
-from eventsourcing.application.system import MultiThreadedRunner
+from eventsourcing.system.runner import MultiThreadedRunner
 from eventsourcing.contrib.paxos.application import PaxosSystem, PaxosProcess
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import (

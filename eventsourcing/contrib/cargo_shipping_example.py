@@ -24,11 +24,11 @@ from uuid import UUID
 
 from eventsourcing.application.process import ProcessApplication
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
-from eventsourcing.application.system import (
+from eventsourcing.system.runner import (
     InProcessRunner,
     SingleThreadedRunner,
-    System,
 )
+from eventsourcing.system.definition import System
 from eventsourcing.domain.model.aggregate import (
     AggregateRoot,
     TAggregate,

@@ -121,7 +121,7 @@ command
 system
 ------
 
-.. automodule:: eventsourcing.application.system
+.. automodule:: eventsourcing.system.definition
     :show-inheritance:
     :member-order: bysource
     :members:
@@ -132,7 +132,7 @@ system
 multiprocess
 ------------
 
-.. automodule:: eventsourcing.application.multiprocess
+.. automodule:: eventsourcing.system.multiprocess
     :show-inheritance:
     :member-order: bysource
     :members:
@@ -143,7 +143,7 @@ multiprocess
 actors
 ------
 
-.. automodule:: eventsourcing.application.actors
+.. automodule:: eventsourcing.system.actors
     :show-inheritance:
     :member-order: bysource
     :members:

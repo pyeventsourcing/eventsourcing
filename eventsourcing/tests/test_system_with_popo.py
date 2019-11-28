@@ -1,11 +1,11 @@
 from time import sleep, time, process_time
 from unittest import skip
 
-from eventsourcing.application.system import (
+from eventsourcing.system.runner import (
     SteppingMultiThreadedRunner,
-    System,
     SteppingSingleThreadedRunner,
 )
+from eventsourcing.system.definition import System
 from eventsourcing.tests.sequenced_item_tests.test_popo_record_manager import (
     PopoTestCase,
 )

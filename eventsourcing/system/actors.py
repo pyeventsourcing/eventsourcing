@@ -1,12 +1,15 @@
 import logging
 from typing import Dict
 
-from thespian.actors import Actor, ActorSystem, ActorExitRequest
+from thespian.actors import Actor, ActorExitRequest, ActorSystem
 
 from eventsourcing.application.notificationlog import RecordManagerNotificationLog
-from eventsourcing.application.process import ProcessApplication, PromptToPull, \
-    is_prompt
-from eventsourcing.application.system import System, SystemRunner
+from eventsourcing.application.process import (
+    ProcessApplication,
+    PromptToPull,
+    is_prompt,
+)
+from eventsourcing.system.definition import System, AbstractSystemRunner
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import RecordConflictError
 from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
@@ -53,7 +56,7 @@ def start_multiproc_tcp_base_system():
 #     start_actor_system(system_base='multiprocQueueBase')
 
 
-class ActorModelRunner(SystemRunner):
+class ActorModelRunner(AbstractSystemRunner):
     """
     Uses actor model framework to run a system of process applications.
     """
@@ -107,7 +110,8 @@ class ActorModelRunner(SystemRunner):
         self.pipeline_actors = response.pipeline_actors
 
         # Todo: Somehow know when to get a new address from the system actor.
-        # Todo: Command and response messages to system actor to get new pipeline address.
+        # Todo: Command and response messages to system actor to get new pipeline
+        #  address.
 
     def forward_prompt(self, prompts):
         for prompt in prompts:
@@ -205,7 +209,8 @@ class PipelineActor(Actor):
             downstream_actors = {}
             for downstream_class_name in self.followers[process_name]:
                 downstream_name = downstream_class_name.lower()
-                # logger.warning("sending prompt to process application {}".format(downstream_name))
+                # logger.warning("sending prompt to process application {}".format(
+                # downstream_name))
                 process_actor = self.process_actors[downstream_name]
                 downstream_actors[downstream_name] = process_actor
             process_class = self.process_classes[process_class_name]
@@ -237,10 +242,12 @@ class ProcessMaster(Actor):
         if isinstance(msg, ProcessInitRequest):
             self.init_process(msg)
         elif isinstance(msg, PromptToPull):
-            # logger.warning("{} master received prompt: {}".format(self.process_application_class.__name__, msg))
+            # logger.warning("{} master received prompt: {}".format(
+            # self.process_application_class.__name__, msg))
             self.consume_prompt(prompt=msg)
         elif isinstance(msg, SlaveRunResponse):
-            # logger.info("process application master received slave finished run: {}".format(msg))
+            # logger.info("process application master received slave finished run: {
+            # }".format(msg))
             self.handle_slave_run_response()
 
     def init_process(self, msg):
@@ -281,10 +288,12 @@ class ProcessSlave(Actor):
             # logger.info("process application slave received init: {}".format(msg))
             self.init_process(msg)
         elif isinstance(msg, SlaveRunRequest):
-            # logger.info("{} process application slave received last prompts: {}".format(self.process.name, msg))
+            # logger.info("{} process application slave received last prompts: {
+            # }".format(self.process.name, msg))
             self.run_process(msg)
         elif isinstance(msg, ActorExitRequest):
-            # logger.info("{} process application slave received exit request: {}".format(self.process.name, msg))
+            # logger.info("{} process application slave received exit request: {
+            # }".format(self.process.name, msg))
             self.close()
 
     def init_process(self, msg):

@@ -8,7 +8,7 @@ from eventsourcing.application.process import (
     ProcessEvent,
     WrappedRepository,
 )
-from eventsourcing.application.system import System
+from eventsourcing.system.definition import System
 from eventsourcing.contrib.paxos.composable import (
     PaxosInstance,
     PaxosMessage,

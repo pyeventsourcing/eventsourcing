@@ -858,7 +858,7 @@ the events that its policy has been defined to process. Similarly, ``Orders`` an
 
 .. code:: python
 
-    from eventsourcing.application.system import System
+    from eventsourcing.system.definition import System
 
     system = System(
         Commands | Orders | Commands,
@@ -905,7 +905,7 @@ runner can be used as a context manager.
 .. code:: python
 
     from eventsourcing.application.popo import PopoApplication
-    from eventsourcing.application.system import SingleThreadedRunner
+    from eventsourcing.system.runner import SingleThreadedRunner
 
     with SingleThreadedRunner(system, infrastructure_class=PopoApplication):
 
@@ -1007,7 +1007,7 @@ infrastructure class is :class:`~eventsourcing.application.sqlalchemy.SQLAlchemy
 
 .. code:: python
 
-    from eventsourcing.application.multiprocess import MultiprocessRunner
+    from eventsourcing.system.multiprocess import MultiprocessRunner
     from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 
     runner = MultiprocessRunner(
@@ -1191,7 +1191,7 @@ The actors will run by sending messages recursively.
 
 .. code:: python
 
-    from eventsourcing.application.actors import ActorModelRunner
+    from eventsourcing.system.actors import ActorModelRunner
 
     runner = ActorModelRunner(
         system=system,
