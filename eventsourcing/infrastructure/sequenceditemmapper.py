@@ -2,34 +2,27 @@ from __future__ import unicode_literals
 
 from abc import ABC, abstractmethod
 from json import JSONDecodeError
-from typing import Type, Tuple, Dict, Generic
+from typing import Dict, Generic, NamedTuple, Tuple, Type
 
 from eventsourcing.infrastructure.sequenceditem import (
     SequencedItem,
     SequencedItemFieldNames,
 )
-from eventsourcing.whitehead import (
-    TEvent,
-    T,
-    ActualOccasion,
-)
 from eventsourcing.utils.topic import get_topic, resolve_topic
-from eventsourcing.utils.transcoding import (
-    ObjectJSONDecoder,
-    ObjectJSONEncoder,
-    JSON_SEPARATORS,
-)
+from eventsourcing.utils.transcoding import (JSON_SEPARATORS, ObjectJSONDecoder,
+                                             ObjectJSONEncoder)
+from eventsourcing.whitehead import (T, TEvent)
 
 
 class AbstractSequencedItemMapper(Generic[TEvent], ABC):
     @abstractmethod
-    def item_from_event(self, domain_event: TEvent) -> Tuple:
+    def item_from_event(self, domain_event: TEvent) -> NamedTuple:
         """
         Constructs and returns a sequenced item for given domain event.
         """
 
     @abstractmethod
-    def event_from_item(self, sequenced_item: Tuple) -> TEvent:
+    def event_from_item(self, sequenced_item: NamedTuple) -> TEvent:
         """
         Constructs and returns a domain event for given sequenced item.
         """
@@ -83,7 +76,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper[TEvent]):
         self.position_attr_name = position_attr_name or self.field_names.position
         self.other_attr_names = other_attr_names or self.field_names.other_names
 
-    def item_from_event(self, domain_event: TEvent) -> Tuple:
+    def item_from_event(self, domain_event: TEvent) -> NamedTuple:
         """
         Constructs a sequenced item from a domain event.
         """
@@ -130,7 +123,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper[TEvent]):
     def json_dumps(self, o):
         return self.json_encoder.encode(o)
 
-    def construct_sequenced_item(self, item_args: Tuple) -> Tuple:
+    def construct_sequenced_item(self, item_args: Tuple) -> NamedTuple:
         return self.sequenced_item_class(*item_args)
 
     def event_from_item(self, sequenced_item):

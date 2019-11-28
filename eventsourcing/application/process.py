@@ -691,5 +691,5 @@ class ProcessApplicationWithSnapshotting(SnapshottingApplication, ProcessApplica
     def take_snapshots(self, new_events: Sequence[TAggregateEvent]) -> None:
         assert self.snapshotting_policy
         for event in new_events:
-            if self.snapshotting_policy.condition(event):
+            if self.snapshotting_policy.condition([event]):
                 self.snapshotting_policy.take_snapshot([event])

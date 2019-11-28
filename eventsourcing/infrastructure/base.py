@@ -294,8 +294,8 @@ class ACIDRecordManager(BaseRecordManager):
         self,
         records: Iterable[Any],
         tracking_kwargs: Optional[TrackingKwargs] = None,
-        orm_objs_pending_save: Optional[List] = None,
-        orm_objs_pending_delete: Optional[List] = None,
+        orm_objs_pending_save: Optional[Sequence[Any]] = None,
+        orm_objs_pending_delete: Optional[Sequence[Any]] = None,
     ) -> None:
         """
         Writes tracking, event and notification records for a process event.

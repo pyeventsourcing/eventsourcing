@@ -1,4 +1,4 @@
-from typing import Sequence, TypeVar, Union, Iterable, Tuple
+from typing import Iterable, NamedTuple, TypeVar
 
 
 class Event(object):
@@ -52,4 +52,4 @@ TEntity = TypeVar("TEntity", bound=EnduringObject)
 SEntity = TypeVar("SEntity", bound=EnduringObject)
 
 IterableOfEvents = Iterable[ActualOccasion]
-IterableOfItems = Iterable[Tuple]
+IterableOfItems = Iterable[NamedTuple]
