@@ -52,7 +52,7 @@ class SQLAlchemyRecordManager(SQLRecordManager):
 
         return statement
 
-    def make_placeholder(self, field_name):
+    def make_placeholder(self, field_name: str) -> str:
         return ":{}".format(field_name)
 
     def write_records(

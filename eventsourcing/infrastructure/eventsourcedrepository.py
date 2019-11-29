@@ -1,24 +1,29 @@
-from typing import Optional, Dict, Type
+from typing import Any, Dict, Optional, Type
 from uuid import UUID
 
-from eventsourcing.domain.model.entity import VersionedEntity
+from eventsourcing.domain.model.entity import (
+    TVersionedEntity,
+    TVersionedEvent,
+    VersionedEntity,
+)
 from eventsourcing.exceptions import RepositoryKeyError
+from eventsourcing.infrastructure.base import (
+    AbstractEntityRepository,
+    AbstractEventStore,
+    AbstractRecordManager,
+    AbstractSnapshop,
+)
 from eventsourcing.infrastructure.eventplayer import EventPlayer
 from eventsourcing.infrastructure.snapshotting import entity_from_snapshot
-from eventsourcing.whitehead import TEntity, TEvent, SEntity
-from eventsourcing.infrastructure.base import (
-    AbstractEventStore,
-    AbstractSnapshop,
-    AbstractEntityRepository,
-    AbstractRecordManager,
-)
+from eventsourcing.whitehead import SEntity
 
 
 class EventSourcedRepository(
-    AbstractEntityRepository[TEntity, TEvent], EventPlayer[TEntity, TEvent]
+    EventPlayer[TVersionedEntity, TVersionedEvent],
+    AbstractEntityRepository[TVersionedEntity, TVersionedEvent],
 ):
     def __init__(
-        self, event_store: AbstractEventStore, use_cache: bool = False, **kwargs
+        self, event_store: AbstractEventStore, use_cache: bool = False, **kwargs: Any
     ):
         super(EventSourcedRepository, self).__init__(event_store, **kwargs)
 
@@ -26,39 +31,39 @@ class EventSourcedRepository(
         # when records fail to write otherwise the cache will
         # give an entity that is ahead of the event records,
         # and writing more records will give a broken sequence.
-        self._cache: Dict[UUID, Optional[TEntity]] = {}
+        self._cache: Dict[UUID, Optional[TVersionedEntity]] = {}
         self._use_cache = use_cache
 
     @property
     def event_store(
         self
-    ) -> AbstractEventStore[VersionedEntity.Event, AbstractRecordManager]:
+    ) -> AbstractEventStore[TVersionedEvent, AbstractRecordManager]:
         return self._event_store
 
     @property
-    def use_cache(self):
+    def use_cache(self) -> bool:
         return self._use_cache
 
     @use_cache.setter
-    def use_cache(self, value):
+    def use_cache(self, value: bool) -> None:
         self._use_cache = value
         if not self._use_cache:
             self._cache.clear()
 
-    def __contains__(self, entity_id: UUID):
+    def __contains__(self, entity_id: UUID) -> bool:
         """
         Returns a boolean value according to whether entity with given ID exists.
         """
         return self.get_entity(entity_id) is not None
 
-    def __getitem__(self, entity_id: UUID) -> TEntity:
+    def __getitem__(self, entity_id: UUID) -> TVersionedEntity:
         """
         Returns entity with given ID.
         """
         if self._use_cache:
             try:
                 # Get entity from the cache.
-                entity: Optional[TEntity] = self._cache[entity_id]
+                entity: Optional[TVersionedEntity] = self._cache[entity_id]
             except KeyError:
                 # Reconstitute the entity.
                 entity = self.get_entity(entity_id)
@@ -75,7 +80,9 @@ class EventSourcedRepository(
         assert entity is not None
         return entity
 
-    def get_entity(self, entity_id: UUID, at=None) -> Optional[TEntity]:
+    def get_entity(
+        self, entity_id: UUID, at: Optional[int] = None
+    ) -> Optional[TVersionedEntity]:
         """
         Returns entity with given ID, optionally until position.
         """
@@ -102,15 +109,15 @@ class EventSourcedRepository(
 
     def get_and_project_events(
         self,
-        entity_id,
-        gt=None,
-        gte=None,
-        lt=None,
-        lte=None,
-        limit=None,
-        initial_state=None,
-        query_descending=False,
-    ) -> Optional[TEntity]:
+        entity_id: UUID,
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        limit: Optional[int] = None,
+        initial_state: Optional[TVersionedEntity] = None,
+        query_descending: bool = False,
+    ) -> Optional[TVersionedEntity]:
         """
         Reconstitutes requested domain entity from domain events found in event store.
         """
@@ -147,9 +154,9 @@ class EventSourcedRepository(
             page_size=self.__page_size__,
         )
 
-        # The events will be replayed in ascending order.
+        # The events must be replayed in ascending order.
         if not is_ascending:
-            domain_events = list(reversed(list(domain_events)))
+            domain_events = reversed(list(domain_events))
 
         # Project the domain events onto the initial state.
         return self.project_events(initial_state, domain_events)
@@ -189,7 +196,7 @@ class EventSourcedRepository(
                     # Otherwise recover entity state from latest snapshot.
                     if latest_snapshot:
                         initial_state = entity_from_snapshot(latest_snapshot)
-                        gt = latest_snapshot.originator_version
+                        gt: Optional[int] = latest_snapshot.originator_version
                     else:
                         initial_state = None
                         gt = None
@@ -210,7 +217,7 @@ class EventSourcedRepository(
         return snapshot
 
     def get_instance_of(
-        self, instance_class: Type[SEntity], entity_id: UUID, at=None
+        self, instance_class: Type[SEntity], entity_id: UUID, at: Optional[int] = None
     ) -> Optional[SEntity]:
         entity = self.get_entity(entity_id, at=at)
         if isinstance(entity, instance_class):

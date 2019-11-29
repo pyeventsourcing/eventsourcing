@@ -1,13 +1,13 @@
 from functools import reduce
 from types import FunctionType
-from typing import Optional
+from typing import Optional, Iterable, Callable
 
+from eventsourcing.domain.model.entity import TDomainEntity, TDomainEvent
 from eventsourcing.infrastructure.snapshotting import AbstractSnapshotStrategy
-from eventsourcing.whitehead import TEntity, TEvent
 from eventsourcing.infrastructure.base import AbstractEventStore, AbstractEventPlayer
 
 
-class EventPlayer(AbstractEventPlayer[TEntity, TEvent]):
+class EventPlayer(AbstractEventPlayer[TDomainEntity, TDomainEvent]):
     # The page size by which events are retrieved. If this
     # value is set to a positive integer, the events of
     # the entity will be retrieved in pages, using a series
@@ -18,20 +18,26 @@ class EventPlayer(AbstractEventPlayer[TEntity, TEvent]):
         self,
         event_store: AbstractEventStore,
         snapshot_strategy: Optional[AbstractSnapshotStrategy] = None,
-        mutator_func: Optional[FunctionType] = None,
+        mutator_func: Optional[
+            Callable[[Optional[TDomainEntity], TDomainEvent], Optional[TDomainEntity]]
+        ] = None,
     ):
         super(EventPlayer, self).__init__()
         # Check we got an event store.
         assert isinstance(event_store, AbstractEventStore), type(event_store)
         self._event_store: AbstractEventStore = event_store
         self._snapshot_strategy = snapshot_strategy
-        self._mutator_func = mutator_func
+        self._mutator_func = mutator_func or self.mutate
 
     @property
     def event_store(self) -> AbstractEventStore:
         return self._event_store
 
-    def project_events(self, initial_state, domain_events) -> Optional[TEntity]:
+    def project_events(
+        self,
+        initial_state: Optional[TDomainEntity],
+        domain_events: Iterable[TDomainEvent],
+    ) -> Optional[TDomainEntity]:
         """
         Evolves initial_state using the domain_events and a mutator function.
 
@@ -42,10 +48,12 @@ class EventPlayer(AbstractEventPlayer[TEntity, TEvent]):
         custom behaviour can be introduced by passing in a 'mutator_func' argument
         when constructing this class, or by overridding the mutate() method.
         """
-        return reduce(self._mutator_func or self.mutate, domain_events, initial_state)
+        return reduce(self._mutator_func, domain_events, initial_state)
 
     @staticmethod
-    def mutate(initial, event) -> Optional[TEntity]:
+    def mutate(
+        initial: Optional[TDomainEntity], event: TDomainEvent
+    ) -> Optional[TDomainEntity]:
         """
         Default mutator function, which uses __mutate__()
         method on event object to mutate initial state.

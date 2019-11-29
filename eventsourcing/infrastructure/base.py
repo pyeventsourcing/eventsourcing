@@ -433,7 +433,7 @@ class SQLRecordManager(ACIDRecordManager):
         return statement
 
     @abstractmethod
-    def make_placeholder(self, field_name):
+    def make_placeholder(self, field_name: str) -> str:
         pass
 
     _insert_select_max_tmpl = (

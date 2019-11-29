@@ -2,7 +2,7 @@ from typing import Any, Optional
 
 from eventsourcing.application.policies import SnapshottingPolicy
 from eventsourcing.application.simple import SimpleApplication
-from eventsourcing.domain.model.entity import TDomainEntity, TDomainEvent
+from eventsourcing.domain.model.entity import TVersionedEntity, TVersionedEvent
 from eventsourcing.infrastructure.base import (
     AbstractEventStore,
     AbstractRecordManager,
@@ -12,7 +12,7 @@ from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
 
 
-class SnapshottingApplication(SimpleApplication[TDomainEntity, TDomainEvent]):
+class SnapshottingApplication(SimpleApplication[TVersionedEntity, TVersionedEvent]):
     # Todo: Change this to default to None?
     snapshot_period = 2
 

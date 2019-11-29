@@ -90,8 +90,8 @@ class DjangoRecordManager(SQLRecordManager):
         except IntegrityError as e:
             self.raise_record_integrity_error(e)
 
-    def make_placeholder(self, _):
-        return "%s"
+    def make_placeholder(self, _: str) -> str:
+        return "%s"  # doesn't involve field name
 
     def get_record_table_name(self, record_class: type) -> str:
         """Returns table name from SQLAlchemy record class."""

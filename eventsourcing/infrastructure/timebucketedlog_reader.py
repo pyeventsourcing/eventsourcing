@@ -1,3 +1,6 @@
+from decimal import Decimal
+from typing import Optional, Iterable
+
 from eventsourcing.domain.model.timebucketedlog import (
     MessageLogged,
     Timebucketedlog,
@@ -9,33 +12,29 @@ from eventsourcing.infrastructure.base import AbstractEventStore
 from eventsourcing.utils.times import decimaltimestamp
 
 
-def get_timebucketedlog_reader(log, event_store):
-    """
-    :rtype: TimebucketedlogReader
-    """
+def get_timebucketedlog_reader(log: Timebucketedlog, event_store: AbstractEventStore)\
+    -> "TimebucketedlogReader":
     return TimebucketedlogReader(log=log, event_store=event_store)
 
 
 class TimebucketedlogReader(object):
-    def __init__(self, log, event_store, page_size=50):
-        assert isinstance(log, Timebucketedlog)
+    def __init__(self, log: Timebucketedlog, event_store: AbstractEventStore,
+                 page_size: int = 50):
         self.log = log
-        assert isinstance(event_store, AbstractEventStore), event_store
         self.event_store = event_store
-        assert isinstance(page_size, int)
         self.page_size = page_size
-        self.position = None
+        self.position: Optional[Decimal] = None
 
     def get_messages(
         self,
-        gt=None,
-        gte=None,
-        lt=None,
-        lte=None,
-        limit=None,
-        is_ascending=False,
-        page_size=None,
-    ):
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        limit: Optional[int] = None,
+        is_ascending: bool = False,
+        page_size: Optional[int] = None,
+    ) -> Iterable[str]:
         events = self.get_events(
             gt=gt,
             gte=gte,
@@ -52,14 +51,14 @@ class TimebucketedlogReader(object):
 
     def get_events(
         self,
-        gt=None,
-        gte=None,
-        lt=None,
-        lte=None,
-        limit=None,
-        is_ascending=False,
-        page_size=None,
-    ):
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        limit: Optional[int] = None,
+        is_ascending: bool = False,
+        page_size: Optional[int] = None,
+    ) -> Iterable[MessageLogged]:
         assert limit is None or limit > 0
 
         # Identify the first time bucket.

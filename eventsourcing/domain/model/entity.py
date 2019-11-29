@@ -406,6 +406,7 @@ class EntityWithHashchain(DomainEntity):
 
 
 TVersionedEntity = TypeVar("TVersionedEntity", bound="VersionedEntity")
+TVersionedEvent = TypeVar("TVersionedEvent", bound="VersionedEntity.Event")
 
 
 class VersionedEntity(DomainEntity):

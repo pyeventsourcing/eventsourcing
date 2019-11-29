@@ -3,6 +3,7 @@ from copy import deepcopy
 from typing import Optional
 from uuid import UUID
 
+from eventsourcing.domain.model.entity import TVersionedEntity
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.infrastructure.base import (
     AbstractEventStore,
@@ -84,7 +85,7 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
         return snapshot
 
 
-def entity_from_snapshot(snapshot: AbstractSnapshop) -> object:
+def entity_from_snapshot(snapshot: AbstractSnapshop) -> Optional[TVersionedEntity]:
     """
     Reconstructs domain entity from given snapshot.
     """

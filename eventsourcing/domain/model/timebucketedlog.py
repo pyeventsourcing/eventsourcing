@@ -6,7 +6,6 @@ from dateutil.relativedelta import relativedelta
 from eventsourcing.domain.model.entity import (
     TimestampedVersionedEntity,
 )
-from eventsourcing.infrastructure.base import AbstractEntityRepository
 from eventsourcing.domain.model.events import (
     EventWithOriginatorID,
     EventWithTimestamp,
@@ -14,6 +13,7 @@ from eventsourcing.domain.model.events import (
     publish,
 )
 from eventsourcing.exceptions import RepositoryKeyError
+from eventsourcing.infrastructure.base import AbstractEntityRepository
 from eventsourcing.utils.times import (
     datetime_from_timestamp,
     decimaltimestamp,
@@ -67,7 +67,7 @@ class Timebucketedlog(TimestampedVersionedEntity):
     def bucket_size(self):
         return self._bucket_size
 
-    def log_message(self, message):
+    def log_message(self, message: str) -> "MessageLogged":
         assert isinstance(message, str)
         bucket_id = make_timebucket_id(self.name, decimaltimestamp(), self.bucket_size)
         event = MessageLogged(originator_id=bucket_id, message=message)

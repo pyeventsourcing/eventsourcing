@@ -8,7 +8,7 @@ from eventsourcing.application.notificationlog import (
 )
 from eventsourcing.application.pipeline import Pipeable
 from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.domain.model.entity import TDomainEntity, TDomainEvent
+from eventsourcing.domain.model.entity import TVersionedEntity, TVersionedEvent
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.infrastructure.base import (
     AbstractEventStore,
@@ -29,7 +29,7 @@ from eventsourcing.whitehead import T
 PersistEventType = Optional[Union[Type[DomainEvent], Tuple[Type[DomainEvent]]]]
 
 
-class SimpleApplication(Pipeable, Generic[TDomainEntity, TDomainEvent]):
+class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
     """
     Base class for event sourced applications.
 
@@ -111,14 +111,14 @@ class SimpleApplication(Pipeable, Generic[TDomainEntity, TDomainEvent]):
         self.cipher = self.construct_cipher(cipher_key)
 
         self.infrastructure_factory: Optional[
-            InfrastructureFactory[TDomainEvent]
+            InfrastructureFactory[TVersionedEvent]
         ] = None
         self._datastore: Optional[AbstractDatastore] = None
         self._event_store: Optional[
-            AbstractEventStore[TDomainEvent, BaseRecordManager]
+            AbstractEventStore[TVersionedEvent, BaseRecordManager]
         ] = None
         self._repository: Optional[
-            EventSourcedRepository[TDomainEntity, TDomainEvent]
+            EventSourcedRepository[TVersionedEntity, TVersionedEvent]
         ] = None
         self._notification_log: Optional[LocalNotificationLog] = None
 
@@ -146,12 +146,12 @@ class SimpleApplication(Pipeable, Generic[TDomainEntity, TDomainEvent]):
         return None
 
     @property
-    def event_store(self) -> AbstractEventStore[TDomainEvent, BaseRecordManager]:
+    def event_store(self) -> AbstractEventStore[TVersionedEvent, BaseRecordManager]:
         assert self._event_store
         return self._event_store
 
     @property
-    def repository(self) -> EventSourcedRepository[TDomainEntity, TDomainEvent]:
+    def repository(self) -> EventSourcedRepository[TVersionedEntity, TVersionedEvent]:
         assert self._repository
         return self._repository
 
