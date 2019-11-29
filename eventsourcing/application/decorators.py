@@ -1,8 +1,9 @@
 from functools import singledispatch, wraps
 from inspect import isfunction
+from typing import Callable, no_type_check
 
 
-def applicationpolicy(arg=None):
+def applicationpolicy(arg: Callable) -> Callable:
     """
     Decorator for application policy method.
 
@@ -10,6 +11,9 @@ def applicationpolicy(arg=None):
     registered for different event classes.
     """
 
+    assert isfunction(arg), arg
+
+    @no_type_check
     def _mutator(func):
         wrapped = singledispatch(func)
 
@@ -22,5 +26,4 @@ def applicationpolicy(arg=None):
 
         return wrapper
 
-    assert isfunction(arg), arg
     return _mutator(arg)
