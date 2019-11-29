@@ -1,7 +1,8 @@
+from typing import Optional
 from uuid import uuid4
 
 import os
-from redis import StrictRedis
+from redis import StrictRedis, Redis
 
 from eventsourcing.infrastructure.integersequencegenerators.base import (
     AbstractIntegerSequenceGenerator,
@@ -16,10 +17,10 @@ class RedisIncr(AbstractIntegerSequenceGenerator):
     value of a 64 bit signed integer.
     """
 
-    def __init__(self, redis=None, key=None):
+    def __init__(self, redis: Optional[Redis] = None, key: Optional[str]=None):
         redis_host = os.getenv("REDIS_HOST", "localhost")
         self.redis = redis or StrictRedis(host=redis_host)
         self.key = key or "integer-sequence-generator-{}".format(uuid4())
 
-    def __next__(self):
+    def __next__(self) -> int:
         return self.redis.incr(self.key) - 1

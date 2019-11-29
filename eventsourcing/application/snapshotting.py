@@ -3,7 +3,11 @@ from typing import Any, Optional
 from eventsourcing.application.policies import SnapshottingPolicy
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.domain.model.entity import TDomainEntity, TDomainEvent
-from eventsourcing.infrastructure.base import BaseRecordManager, AbstractSnapshop
+from eventsourcing.infrastructure.base import (
+    AbstractEventStore,
+    AbstractRecordManager,
+    AbstractSnapshop,
+)
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
 
@@ -14,7 +18,9 @@ class SnapshottingApplication(SimpleApplication[TDomainEntity, TDomainEvent]):
 
     def __init__(self, snapshot_period: Optional[int] = None, **kwargs: Any):
         self.snapshot_period = snapshot_period or self.snapshot_period
-        self.snapshot_store: Optional[EventStore] = None
+        self.snapshot_store: Optional[
+            AbstractEventStore[AbstractSnapshop, AbstractRecordManager]
+        ] = None
         self.snapshot_strategy: Optional[EventSourcedSnapshotStrategy] = None
         self.snapshotting_policy: Optional[SnapshottingPolicy] = None
         super(SnapshottingApplication, self).__init__(**kwargs)
@@ -25,15 +31,17 @@ class SnapshottingApplication(SimpleApplication[TDomainEntity, TDomainEvent]):
         assert self.infrastructure_factory
         record_manager = self.infrastructure_factory.construct_snapshot_record_manager()
         assert self.sequenced_item_mapper_class is not None
+        assert self.sequenced_item_class is not None
         sequenced_item_mapper = self.sequenced_item_mapper_class(
             sequenced_item_class=self.sequenced_item_class
         )
-        self.snapshot_store = EventStore[AbstractSnapshop, BaseRecordManager](
+        self.snapshot_store = EventStore(
             record_manager=record_manager, sequenced_item_mapper=sequenced_item_mapper
         )
 
     def construct_repository(self, **kwargs: Any) -> None:
         # Setup repository with a snapshot strategy.
+        assert self.snapshot_store
         self.snapshot_strategy = EventSourcedSnapshotStrategy(
             snapshot_store=self.snapshot_store
         )

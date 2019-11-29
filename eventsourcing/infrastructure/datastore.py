@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Any
+from typing import Optional, Any, TypeVar, Generic
 
 
 class DatastoreSettings(object):
@@ -8,12 +8,15 @@ class DatastoreSettings(object):
     """
 
 
-class AbstractDatastore(ABC):
+TDatastoreSettings = TypeVar("TDatastoreSettings", bound=DatastoreSettings)
+
+
+class AbstractDatastore(ABC, Generic[TDatastoreSettings]):
     """
     Datastores hold stored event records, used by a record manager.
     """
-    def __init__(self, settings: DatastoreSettings):
-        self.settings = settings
+    def __init__(self, settings: TDatastoreSettings):
+        self.settings: TDatastoreSettings = settings
 
     @property
     def session(self) -> Optional[Any]:

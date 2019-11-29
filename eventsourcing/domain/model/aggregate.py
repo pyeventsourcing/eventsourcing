@@ -1,5 +1,5 @@
 from collections import deque
-from typing import Any, Deque, List, Sequence, TypeVar
+from typing import Any, Deque, List, Sequence, TypeVar, Generic
 
 from eventsourcing.domain.model.entity import (
     DomainEntity,
@@ -12,7 +12,7 @@ TAggregate = TypeVar("TAggregate", bound="BaseAggregateRoot")
 TAggregateEvent = TypeVar("TAggregateEvent", bound="BaseAggregateRoot.Event")
 
 
-class BaseAggregateRoot(TimestampedVersionedEntity):
+class BaseAggregateRoot(TimestampedVersionedEntity, Generic[TAggregateEvent]):
     """
     Root entity for an aggregate in a domain driven design.
     """

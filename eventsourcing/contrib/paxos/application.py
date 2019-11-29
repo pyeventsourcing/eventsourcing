@@ -249,7 +249,8 @@ class PaxosProcess(ProcessApplication[PaxosAggregate, PaxosAggregate.Event]):
         msg = paxos_aggregate.propose_value(value, assume_leader=assume_leader)
         paxos_aggregate.receive_message(msg)
         new_events = paxos_aggregate.__batch_pending_events__()
-        self.record_process_event(ProcessEvent(new_events))
+        process_event = ProcessEvent(new_events)
+        self.record_process_event(process_event)
         self.repository.take_snapshot(paxos_aggregate.id)
         self.publish_prompt()
         return paxos_aggregate  # in case it's new

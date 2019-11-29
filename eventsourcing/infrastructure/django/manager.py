@@ -1,8 +1,9 @@
-from typing import Any
+from typing import Any, Iterable, Optional, Sequence
+from uuid import UUID
 
 from django.db import IntegrityError, ProgrammingError, connection, transaction
 
-from eventsourcing.infrastructure.base import SQLRecordManager
+from eventsourcing.infrastructure.base import SQLRecordManager, TrackingKwargs
 
 
 class DjangoRecordManager(SQLRecordManager):
@@ -10,13 +11,13 @@ class DjangoRecordManager(SQLRecordManager):
 
     def write_records(
         self,
-        records,
-        tracking_kwargs=None,
-        orm_objs_pending_save=None,
-        orm_objs_pending_delete=None,
-    ):
+        records: Iterable[Any],
+        tracking_kwargs: Optional[TrackingKwargs] = None,
+        orm_objs_pending_save: Optional[Sequence[Any]] = None,
+        orm_objs_pending_delete: Optional[Sequence[Any]] = None,
+    ) -> None:
         try:
-            with transaction.atomic(self.record_class.objects.db):
+            with transaction.atomic(self.record_class.objects.db):  # type: ignore
                 with connection.cursor() as cursor:
                     # Insert tracking record.
                     if tracking_kwargs:
@@ -35,7 +36,8 @@ class DjangoRecordManager(SQLRecordManager):
 
                             for col_name in self.field_names:
                                 col_value = getattr(record, col_name)
-                                col_type = self.record_class._meta.get_field(col_name)
+                                meta = self.record_class._meta  # type: ignore
+                                col_type = meta.get_field(col_name)
 
                                 # Prepare value for database.
                                 param = col_type.get_db_prep_value(
@@ -88,69 +90,38 @@ class DjangoRecordManager(SQLRecordManager):
         except IntegrityError as e:
             self.raise_record_integrity_error(e)
 
-    def _prepare_insert(
-        self, tmpl, record_class, field_names, placeholder_for_id=False
-    ) -> Any:
-        """
-        With transaction isolation level of "read committed" this should
-        generate records with a contiguous sequence of integer IDs, using
-        an indexed ID column, the database-side SQL max function, the
-        insert-select-from form, and optimistic concurrency control.
-        """
-        if (
-            hasattr(record_class, "application_name")
-            and "application_name" not in field_names
-        ):
-            field_names.append("application_name")
-        if hasattr(record_class, "pipeline_id") and "pipeline_id" not in field_names:
-            field_names.append("pipeline_id")
-        if (
-            hasattr(record_class, "causal_dependencies")
-            and "causal_dependencies" not in field_names
-        ):
-            field_names.append("causal_dependencies")
-        if placeholder_for_id:
-            if self.notification_id_name:
-                if self.notification_id_name not in field_names:
-                    field_names.append("id")
+    def make_placeholder(self, _):
+        return "%s"
 
-        statement = tmpl.format(
-            tablename=self.get_record_table_name(record_class),
-            columns=", ".join(field_names),
-            placeholders=", ".join(["%s" for _ in field_names]),
-            notification_id=self.notification_id_name,
-        )
-        return statement
-
-    def get_record_table_name(self, record_class):
+    def get_record_table_name(self, record_class: type) -> str:
         """Returns table name from SQLAlchemy record class."""
-        return record_class._meta.db_table
+        return record_class._meta.db_table  # type: ignore
 
-    def get_record(self, sequence_id, position):
+    def get_record(self, sequence_id: UUID, position: int) -> Any:
         kwargs = {
             self.field_names.sequence_id: sequence_id,
             self.field_names.position: position,
         }
-        records = self.record_class.objects.filter(**kwargs)
+        records = self.record_class.objects.filter(**kwargs)  # type: ignore
         # Todo: try/except for native error here, call self.raise_index_error()
         return records.all()[0]
 
     def get_records(
         self,
-        sequence_id,
-        gt=None,
-        gte=None,
-        lt=None,
-        lte=None,
-        limit=None,
-        query_ascending=True,
-        results_ascending=True,
-    ):
+        sequence_id: UUID,
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        limit: Optional[int] = None,
+        query_ascending: bool = True,
+        results_ascending: bool = True,
+    ) -> Sequence[Any]:
 
         assert limit is None or limit >= 1, limit
 
         filter_kwargs = {self.field_names.sequence_id: sequence_id}
-        objects = self.record_class.objects.filter(**filter_kwargs)
+        objects = self.record_class.objects.filter(**filter_kwargs)  # type: ignore
 
         if hasattr(self.record_class, "application_name"):
             objects = objects.filter(application_name=self.application_name)
@@ -187,7 +158,13 @@ class DjangoRecordManager(SQLRecordManager):
 
         return records
 
-    def get_notifications(self, start=None, stop=None, *args, **kwargs):
+    def get_notifications(
+        self,
+        start: Optional[int] = None,
+        stop: Optional[int] = None,
+        *args: Any,
+        **kwargs: Any
+    ) -> Iterable:
         """
         Returns all records in the table.
         """
@@ -198,7 +175,7 @@ class DjangoRecordManager(SQLRecordManager):
             filter_kwargs["%s__gte" % self.notification_id_name] = start + 1
         if stop is not None:
             filter_kwargs["%s__lt" % self.notification_id_name] = stop + 1
-        objects = self.record_class.objects.filter(**filter_kwargs)
+        objects = self.record_class.objects.filter(**filter_kwargs)  # type: ignore
 
         if hasattr(self.record_class, "application_name"):
             objects = objects.filter(application_name=self.application_name)
@@ -208,52 +185,53 @@ class DjangoRecordManager(SQLRecordManager):
         objects = objects.order_by("%s" % self.notification_id_name)
         return objects.all()
 
-    def delete_record(self, record):
+    def delete_record(self, record: Any) -> None:
         """
         Permanently removes record from table.
         """
         record.delete()
 
-    def get_max_record_id(self):
+    def get_max_notification_id(self) -> int:
         assert self.notification_id_name
         try:
-            objects = self.record_class.objects
+            objects = self.record_class.objects  # type: ignore
             if hasattr(self.record_class, "application_name"):
                 objects = objects.filter(application_name=self.application_name)
             if hasattr(self.record_class, "pipeline_id"):
                 objects = objects.filter(pipeline_id=self.pipeline_id)
             latest = objects.latest(self.notification_id_name)
             return getattr(latest, self.notification_id_name)
-        except (self.record_class.DoesNotExist, ProgrammingError):
-            return None
+        except (self.record_class.DoesNotExist, ProgrammingError):  # type: ignore
+            return 0
 
     def get_max_tracking_record_id(self, upstream_application_name: str) -> int:
         notification_id = 0
+        assert self.tracking_record_class is not None
         try:
-            objects = self.tracking_record_class.objects
+            objects = self.tracking_record_class.objects  # type: ignore
             objects = objects.filter(application_name=self.application_name)
             objects = objects.filter(
                 upstream_application_name=upstream_application_name
             )
             objects = objects.filter(pipeline_id=self.pipeline_id)
             notification_id = objects.latest("notification_id").notification_id
-        except self.tracking_record_class.DoesNotExist:
+        except self.tracking_record_class.DoesNotExist:  # type: ignore
             pass
         return notification_id
 
     def has_tracking_record(
         self, upstream_application_name: str, pipeline_id: int, notification_id: int
     ) -> bool:
-        objects = self.tracking_record_class.objects
+        objects = self.tracking_record_class.objects  # type: ignore
         objects = objects.filter(application_name=self.application_name)
         objects = objects.filter(upstream_application_name=upstream_application_name)
         objects = objects.filter(pipeline_id=pipeline_id)
         objects = objects.filter(notification_id=notification_id)
         return bool(objects.count())
 
-    def all_sequence_ids(self):
+    def all_sequence_ids(self) -> Iterable[UUID]:
         sequence_id_fieldname = self.field_names.sequence_id
-        values_queryset = self.record_class.objects.values(
+        values_queryset = self.record_class.objects.values(  # type: ignore
             sequence_id_fieldname
         ).distinct()
         for values in values_queryset:

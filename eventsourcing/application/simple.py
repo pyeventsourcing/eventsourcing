@@ -1,6 +1,6 @@
 import os
 from json import JSONDecoder, JSONEncoder
-from typing import Any, Generic, Optional, Tuple, Type, Union
+from typing import Any, Generic, NamedTuple, Optional, Tuple, Type, Union
 
 from eventsourcing.application.notificationlog import (
     LocalNotificationLog,
@@ -11,6 +11,7 @@ from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.entity import TDomainEntity, TDomainEvent
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.infrastructure.base import (
+    AbstractEventStore,
     AbstractRecordManager,
     BaseRecordManager,
     DEFAULT_PIPELINE_ID,
@@ -46,10 +47,10 @@ class SimpleApplication(Pipeable, Generic[TDomainEntity, TDomainEvent]):
     stored_event_record_class: Optional[type] = None
     snapshot_record_class: Optional[type] = None
 
-    sequenced_item_class: Optional[type] = None
+    sequenced_item_class: Optional[Type[NamedTuple]] = None
     sequenced_item_mapper_class: Optional[Type[SequencedItemMapper]] = None
-    json_encoder_class: Optional[type] = None
-    json_decoder_class: Optional[type] = None
+    json_encoder_class: Optional[Type[JSONEncoder]] = None
+    json_decoder_class: Optional[Type[JSONDecoder]] = None
 
     persist_event_type: Optional[PersistEventType] = None
     notification_log_section_size: Optional[int] = None
@@ -64,7 +65,7 @@ class SimpleApplication(Pipeable, Generic[TDomainEntity, TDomainEvent]):
         persistence_policy: Optional[PersistencePolicy] = None,
         persist_event_type: PersistEventType = None,
         cipher_key: Optional[str] = None,
-        sequenced_item_class: Optional[Type[Tuple]] = None,
+        sequenced_item_class: Optional[Type[NamedTuple]] = None,
         sequenced_item_mapper_class: Optional[Type[SequencedItemMapper]] = None,
         record_manager_class: Optional[Type[AbstractRecordManager]] = None,
         stored_event_record_class: Optional[type] = None,
@@ -81,10 +82,10 @@ class SimpleApplication(Pipeable, Generic[TDomainEntity, TDomainEvent]):
 
         self.notification_log_section_size = notification_log_section_size
 
-        self.sequenced_item_class = (
-            sequenced_item_class or type(self).sequenced_item_class or StoredEvent
-        )
-
+        sequenced_item_class = sequenced_item_class or type(self).sequenced_item_class
+        sequenced_item_class = sequenced_item_class or StoredEvent  # type: ignore
+        self.sequenced_item_class = sequenced_item_class
+        assert self.sequenced_item_class is not None
         self.sequenced_item_mapper_class: Type[SequencedItemMapper] = (
             sequenced_item_mapper_class
             or type(self).sequenced_item_mapper_class
@@ -109,9 +110,13 @@ class SimpleApplication(Pipeable, Generic[TDomainEntity, TDomainEvent]):
 
         self.cipher = self.construct_cipher(cipher_key)
 
-        self.infrastructure_factory: Optional[InfrastructureFactory] = None
+        self.infrastructure_factory: Optional[
+            InfrastructureFactory[TDomainEvent]
+        ] = None
         self._datastore: Optional[AbstractDatastore] = None
-        self._event_store: Optional[EventStore[TDomainEvent, BaseRecordManager]] = None
+        self._event_store: Optional[
+            AbstractEventStore[TDomainEvent, BaseRecordManager]
+        ] = None
         self._repository: Optional[
             EventSourcedRepository[TDomainEntity, TDomainEvent]
         ] = None
@@ -141,7 +146,7 @@ class SimpleApplication(Pipeable, Generic[TDomainEntity, TDomainEvent]):
         return None
 
     @property
-    def event_store(self) -> EventStore[TDomainEvent, BaseRecordManager]:
+    def event_store(self) -> AbstractEventStore[TDomainEvent, BaseRecordManager]:
         assert self._event_store
         return self._event_store
 
@@ -246,7 +251,7 @@ class SimpleApplication(Pipeable, Generic[TDomainEntity, TDomainEvent]):
 
     def change_pipeline(self, pipeline_id: int) -> None:
         self.pipeline_id = pipeline_id
-        self.event_store.record_manager.pipeline_id = pipeline_id
+        self.event_store.record_manager._pipeline_id = pipeline_id
 
     def close(self) -> None:
         # Close the persistence policy.

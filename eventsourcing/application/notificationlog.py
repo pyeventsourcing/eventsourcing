@@ -169,7 +169,7 @@ class RecordManagerNotificationLog(LocalNotificationLog):
         :returns: Non-negative integer.
         :rtype: int
         """
-        return self.record_manager.get_max_record_id() or 0
+        return self.record_manager.get_max_notification_id()
 
 
 class BigArrayNotificationLog(LocalNotificationLog):

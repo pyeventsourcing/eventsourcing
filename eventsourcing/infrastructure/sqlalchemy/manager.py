@@ -1,4 +1,5 @@
-from typing import Any
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Union
+from uuid import UUID
 
 from sqlalchemy import asc, bindparam, desc, select, text
 from sqlalchemy.exc import DBAPIError, IntegrityError
@@ -6,21 +7,28 @@ from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.sql import func
 
 from eventsourcing.exceptions import ProgrammingError
-from eventsourcing.infrastructure.base import SQLRecordManager
+from eventsourcing.infrastructure.base import (
+    SQLRecordManager,
+    TrackingKwargs,
+    BaseRecordManager,
+)
 
 
 class SQLAlchemyRecordManager(SQLRecordManager):
-
     _where_application_name_tmpl = (
         " WHERE application_name=:application_name AND pipeline_id=:pipeline_id"
     )
 
-    def __init__(self, session, *args, **kwargs):
+    def __init__(self, session: Any, *args: Any, **kwargs: Any):
         super(SQLAlchemyRecordManager, self).__init__(*args, **kwargs)
         self.session = session
 
     def _prepare_insert(
-        self, tmpl, record_class, field_names, placeholder_for_id=False
+        self,
+        tmpl: Any,
+        record_class: type,
+        field_names: List[str],
+        placeholder_for_id: bool = False,
     ) -> Any:
         """
         With transaction isolation level of "read committed" this should
@@ -28,31 +36,10 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         an indexed ID column, the database-side SQL max function, the
         insert-select-from form, and optimistic concurrency control.
         """
-        if (
-            hasattr(record_class, "application_name")
-            and "application_name" not in field_names
-        ):
-            field_names.append("application_name")
-        if hasattr(record_class, "pipeline_id") and "pipeline_id" not in field_names:
-            field_names.append("pipeline_id")
-        if (
-            hasattr(record_class, "causal_dependencies")
-            and "causal_dependencies" not in field_names
-        ):
-            field_names.append("causal_dependencies")
-        if self.notification_id_name:
-            if placeholder_for_id:
-                if self.notification_id_name not in field_names:
-                    field_names.append(self.notification_id_name)
-
-        statement = text(
-            tmpl.format(
-                tablename=self.get_record_table_name(record_class),
-                columns=", ".join(field_names),
-                placeholders=", ".join([":{}".format(f) for f in field_names]),
-                notification_id=self.notification_id_name,
-            )
+        statement = super()._prepare_insert(
+            tmpl, record_class, field_names, placeholder_for_id
         )
+        statement = text(statement)
 
         # Define bind parameters with explicit types taken from record column types.
         bindparams = []
@@ -65,13 +52,16 @@ class SQLAlchemyRecordManager(SQLRecordManager):
 
         return statement
 
+    def make_placeholder(self, field_name):
+        return ":{}".format(field_name)
+
     def write_records(
         self,
-        records,
-        tracking_kwargs=None,
-        orm_objs_pending_save=None,
-        orm_objs_pending_delete=None,
-    ):
+        records: Iterable[Any],
+        tracking_kwargs: Optional[TrackingKwargs] = None,
+        orm_objs_pending_save: Optional[Sequence[Any]] = None,
+        orm_objs_pending_delete: Optional[Sequence[Any]] = None,
+    ) -> None:
         all_params = []
         statement = None
         if not isinstance(records, list):
@@ -168,21 +158,24 @@ class SQLAlchemyRecordManager(SQLRecordManager):
 
     def get_records(
         self,
-        sequence_id,
-        gt=None,
-        gte=None,
-        lt=None,
-        lte=None,
-        limit=None,
-        query_ascending=True,
-        results_ascending=True,
-    ):
+        sequence_id: UUID,
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        limit: Optional[int] = None,
+        query_ascending: bool = True,
+        results_ascending: bool = True,
+    ) -> Sequence[Any]:
         assert limit is None or limit >= 1, limit
         try:
             # Filter by sequence_id.
-            filter_kwargs = {self.field_names.sequence_id: sequence_id}
+            filter_kwargs: Dict[str, Union[UUID, str]] = {
+                self.field_names.sequence_id: sequence_id
+            }
             # Optionally, filter by application_name.
             if hasattr(self.record_class, "application_name"):
+                assert self.application_name
                 filter_kwargs["application_name"] = self.application_name
             query = self.filter_by(**filter_kwargs)
 
@@ -220,15 +213,18 @@ class SQLAlchemyRecordManager(SQLRecordManager):
 
         return results
 
-    def get_notifications(self, start=None, stop=None, *args, **kwargs):
+    def get_notifications(
+        self,
+        start: Optional[int] = None,
+        stop: Optional[int] = None,
+        *args: Any,
+        **kwargs: Any
+    ) -> Iterable:
         try:
             query = self.orm_query()
-            if hasattr(self.record_class, "application_name"):
-                query = query.filter(
-                    self.record_class.application_name == self.application_name
-                )
-            if hasattr(self.record_class, "pipeline_id"):
-                query = query.filter(self.record_class.pipeline_id == self.pipeline_id)
+            query = self.filter_for_application_name(query)
+            query = self.filter_for_pipeline_id(query)
+
             if self.notification_id_name:
                 query = query.order_by(asc(self.notification_id_name))
                 # NB '+1' because record IDs start from 1.
@@ -245,54 +241,75 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         finally:
             self.session.close()
 
-    def get_record(self, sequence_id, position):
+    def get_record(self, sequence_id: UUID, position: int) -> Any:
+        """
+        Gets record at position in sequence.
+        """
         try:
             filter_args = {self.field_names.sequence_id: sequence_id}
 
             query = self.filter_by(**filter_args)
-            if hasattr(self.record_class, "application_name"):
-                query = query.filter(
-                    self.record_class.application_name == self.application_name
-                )
+
+            query = self.filter_for_application_name(query)
 
             position_field = getattr(self.record_class, self.field_names.position)
-
             query = query.filter(position_field == position)
             return query.one()
         except (NoResultFound, MultipleResultsFound):
             raise IndexError(self.application_name, sequence_id, position)
 
-    def filter_by(self, **kwargs):
+    def filter_for_application_name(self, query: Any) -> Any:
+        try:
+            application_name_field = getattr(self.record_class, "application_name")
+        except AttributeError:
+            pass
+        else:
+            query = query.filter(application_name_field == self.application_name)
+        return query
+
+    def filter_for_pipeline_id(self, query: Any) -> Any:
+        try:
+            pipeline_id_field = getattr(self.record_class, "pipeline_id")
+        except AttributeError:
+            pass
+        else:
+            query = query.filter(pipeline_id_field == self.pipeline_id)
+        return query
+
+    def filter_by(self, **kwargs: Any) -> Any:
         return self.orm_query().filter_by(**kwargs)
 
-    def orm_query(self):
+    def orm_query(self) -> Any:
         return self.session.query(self.record_class)
 
-    def get_max_record_id(self):
+    def get_max_notification_id(self) -> int:
         try:
             notification_id_col = getattr(self.record_class, self.notification_id_name)
             query = self.session.query(func.max(notification_id_col))
-            if hasattr(self.record_class, "application_name"):
-                query = query.filter(
-                    self.record_class.application_name == self.application_name
-                )
-            if hasattr(self.record_class, "pipeline_id"):
-                query = query.filter(self.record_class.pipeline_id == self.pipeline_id)
-
-            return query.scalar()
+            query = self.filter_for_application_name(query)
+            query = self.filter_for_pipeline_id(query)
+            return query.scalar() or 0
         finally:
             self.session.close()
 
     def get_max_tracking_record_id(self, upstream_application_name: str) -> int:
-        query = self.session.query(func.max(self.tracking_record_class.notification_id))
-        query = query.filter(
-            self.tracking_record_class.application_name == self.application_name
+        assert self.tracking_record_class is not None
+        application_name_field = (
+            self.tracking_record_class.application_name  # type: ignore
         )
-        query = query.filter(
-            self.tracking_record_class.upstream_application_name
-            == upstream_application_name
+        upstream_app_name_field = (
+            self.tracking_record_class.upstream_application_name  # type: ignore
         )
-        query = query.filter(self.tracking_record_class.pipeline_id == self.pipeline_id)
+        pipeline_id_field = (
+            self.tracking_record_class.pipeline_id  # type: ignore
+        )
+        notification_id_field = (
+            self.tracking_record_class.notification_id  # type: ignore
+        )
+        query = self.session.query(func.max(notification_id_field))
+        query = query.filter(application_name_field == self.application_name)
+        query = query.filter(upstream_app_name_field == upstream_application_name)
+        query = query.filter(pipeline_id_field == self.pipeline_id)
         value = query.scalar() or 0
         return value
 
@@ -300,17 +317,23 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         self, upstream_application_name: str, pipeline_id: int, notification_id: int
     ) -> bool:
         query = self.session.query(self.tracking_record_class)
-        query = query.filter(
-            self.tracking_record_class.application_name == self.application_name
+        application_name_field = (
+            self.tracking_record_class.application_name  # type: ignore
         )
-        query = query.filter(
-            self.tracking_record_class.upstream_application_name
-            == upstream_application_name
+        upstream_name_field = (
+            self.tracking_record_class.upstream_application_name  # type: ignore
         )
-        query = query.filter(self.tracking_record_class.pipeline_id == pipeline_id)
-        query = query.filter(
-            self.tracking_record_class.notification_id == notification_id
+        pipeline_id_field = (
+            self.tracking_record_class.pipeline_id  # type: ignore
         )
+        notification_id_field = (
+            self.tracking_record_class.notification_id  # type: ignore
+        )
+
+        query = query.filter(application_name_field == self.application_name)
+        query = query.filter(upstream_name_field == upstream_application_name)
+        query = query.filter(pipeline_id_field == pipeline_id)
+        query = query.filter(notification_id_field == notification_id)
         try:
             query.one()
         except (MultipleResultsFound, NoResultFound):
@@ -318,8 +341,8 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         else:
             return True
 
-    def all_sequence_ids(self):
-        c = self.record_class.__table__.c
+    def all_sequence_ids(self) -> Iterable[UUID]:
+        c = self.record_class.__table__.c  # type: ignore
         sequence_id_col = getattr(c, self.field_names.sequence_id)
         expr = select([sequence_id_col], distinct=True)
 
@@ -332,7 +355,7 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         finally:
             self.session.close()
 
-    def delete_record(self, record):
+    def delete_record(self, record: Any) -> None:
         """
         Permanently removes record from table.
         """
@@ -345,10 +368,15 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         finally:
             self.session.close()
 
-    def get_record_table_name(self, record_class):
-        return record_class.__table__.name
+    def get_record_table_name(self, record_class: type) -> str:
+        return record_class.__table__.name  # type: ignore
 
-    def clone(self, **kwargs):
-        return super(SQLAlchemyRecordManager, self).clone(
-            session=self.session, **kwargs
+    def clone(
+        self, application_name: str, pipeline_id: int, **kwargs: Any
+    ) -> BaseRecordManager:
+        return super().clone(
+            application_name=application_name,
+            pipeline_id=pipeline_id,
+            session=self.session,
+            **kwargs
         )

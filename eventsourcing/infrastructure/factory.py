@@ -1,44 +1,52 @@
-from typing import Optional
+from json import JSONDecoder, JSONEncoder
+from typing import Any, Generic, NamedTuple, Optional, Type
 
-from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
+from eventsourcing.infrastructure.base import (
+    AbstractEventStore,
+    AbstractRecordManager,
+    DEFAULT_PIPELINE_ID,
+)
 from eventsourcing.infrastructure.datastore import AbstractDatastore
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import (
+    AbstractSequencedItemMapper,
     SequencedItemMapper,
-    AbstractSequencedItemMapper)
+)
+from eventsourcing.utils.cipher.aes import AESCipher
+from eventsourcing.whitehead import TEvent
 
 
-class InfrastructureFactory(object):
+class InfrastructureFactory(Generic[TEvent]):
     """
     Base class for infrastructure factories.
     """
 
-    record_manager_class: Optional[type] = None
-    sequenced_item_class = SequencedItem
-    sequenced_item_mapper_class = SequencedItemMapper
+    record_manager_class: Optional[Type[AbstractRecordManager]] = None
+    sequenced_item_class: Type[NamedTuple] = SequencedItem  # type: ignore
+    sequenced_item_mapper_class: Type[AbstractSequencedItemMapper] = SequencedItemMapper
     integer_sequenced_record_class: Optional[type] = None
     integer_sequenced_noid_record_class: Optional[type] = None
     timestamp_sequenced_record_class: Optional[type] = None
     snapshot_record_class: Optional[type] = None
-    json_encoder_class: Optional[type] = None
-    json_decoder_class: Optional[type] = None
-    event_store_class = EventStore
+    json_decoder_class: Optional[Type[JSONDecoder]] = None
+    json_encoder_class: Optional[Type[JSONEncoder]] = None
+    event_store_class: Optional[Type[AbstractEventStore]] = None
 
     def __init__(
         self,
-        record_manager_class=None,
-        sequenced_item_class=None,
-        event_store_class=None,
-        sequenced_item_mapper_class=None,
-        json_encoder_class=None,
-        json_decoder_class=None,
-        integer_sequenced_record_class=None,
-        timestamp_sequenced_record_class=None,
-        snapshot_record_class=None,
-        contiguous_record_ids=False,
-        application_name=None,
-        pipeline_id=DEFAULT_PIPELINE_ID,
+        record_manager_class: Optional[Type[AbstractRecordManager]] = None,
+        sequenced_item_class: Optional[Type[NamedTuple]] = None,
+        event_store_class: Optional[Type[AbstractEventStore]] = None,
+        sequenced_item_mapper_class: Optional[Type[AbstractSequencedItemMapper]] = None,
+        json_encoder_class: Optional[Type[JSONEncoder]] = None,
+        json_decoder_class: Optional[Type[JSONDecoder]] = None,
+        integer_sequenced_record_class: Optional[type] = None,
+        timestamp_sequenced_record_class: Optional[type] = None,
+        snapshot_record_class: Optional[type] = None,
+        contiguous_record_ids: bool = False,
+        application_name: Optional[str] = None,
+        pipeline_id: int = DEFAULT_PIPELINE_ID,
     ):
         self.record_manager_class = (
             record_manager_class or type(self).record_manager_class
@@ -63,17 +71,20 @@ class InfrastructureFactory(object):
         self.application_name = application_name
         self.pipeline_id = pipeline_id
 
-    def construct_integer_sequenced_record_manager(self, **kwargs):
+    def construct_integer_sequenced_record_manager(
+        self, **kwargs: Any
+    ) -> AbstractRecordManager:
         """
         Constructs an integer sequenced record manager.
         """
         integer_sequenced_record_class = (
             self._integer_sequenced_record_class or self.integer_sequenced_record_class
         )
-
         return self.construct_record_manager(integer_sequenced_record_class, **kwargs)
 
-    def construct_timestamp_sequenced_record_manager(self, **kwargs):
+    def construct_timestamp_sequenced_record_manager(
+        self, **kwargs: Any
+    ) -> AbstractRecordManager:
         """
         Constructs a timestamp sequenced record manager.
         """
@@ -81,25 +92,27 @@ class InfrastructureFactory(object):
             self._timestamp_sequenced_record_class
             or self.timestamp_sequenced_record_class
         )
-
         return self.construct_record_manager(timestamp_sequenced_record_class, **kwargs)
 
-    def construct_snapshot_record_manager(self, **kwargs):
+    def construct_snapshot_record_manager(self, **kwargs: Any) -> AbstractRecordManager:
         """
         Constructs a snapshot record manager.
         """
         snapshot_record_class = (
             self._snapshot_record_class or self.snapshot_record_class
         )
-
         return self.construct_record_manager(snapshot_record_class, **kwargs)
 
     def construct_record_manager(
-        self, record_class, sequenced_item_class=None, **kwargs
-    ):
+        self,
+        record_class: Optional[type],
+        sequenced_item_class: Optional[Type[NamedTuple]] = None,
+        **kwargs: Any
+    ) -> AbstractRecordManager:
         """
         Constructs an record manager.
         """
+        assert self.record_manager_class is not None
         return self.record_manager_class(
             sequenced_item_class=sequenced_item_class or self.sequenced_item_class,
             record_class=record_class,
@@ -109,7 +122,9 @@ class InfrastructureFactory(object):
             **kwargs
         )
 
-    def construct_sequenced_item_mapper(self, cipher):
+    def construct_sequenced_item_mapper(
+        self, cipher: Optional[AESCipher]
+    ) -> AbstractSequencedItemMapper:
         """
         Constructs sequenced item mapper object.
 
@@ -126,21 +141,22 @@ class InfrastructureFactory(object):
             json_decoder_class=self.json_decoder_class,
         )
 
-    def construct_integer_sequenced_event_store(self, cipher) -> EventStore:
+    def construct_integer_sequenced_event_store(
+        self, cipher: Optional[AESCipher]
+    ) -> AbstractEventStore:
         """
         Constructs an integer sequenced event store.
         """
         sequenced_item_mapper = self.construct_sequenced_item_mapper(cipher)
         record_manager = self.construct_integer_sequenced_record_manager()
-        return self.event_store_class(
-            record_manager, sequenced_item_mapper=sequenced_item_mapper
+        return (self.event_store_class or EventStore)(
+            record_manager=record_manager, sequenced_item_mapper=sequenced_item_mapper
         )
 
-    def construct_datastore(self):
+    def construct_datastore(self) -> Optional[AbstractDatastore]:
         """
         Constructs datastore object.
 
         :returns: Concrete datastore object object.
-        :rtype: AbstractDatastore
         """
         return None

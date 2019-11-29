@@ -1,18 +1,17 @@
-from typing import Generic, Iterable, List, Optional
+from typing import Iterable, NamedTuple, Optional
 from uuid import UUID
 
 from eventsourcing.exceptions import ConcurrencyError, RecordConflictError
 from eventsourcing.infrastructure.base import AbstractEventStore, TRecordManager
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
-from eventsourcing.infrastructure.sequenceditemmapper import AbstractSequencedItemMapper
-from eventsourcing.whitehead import IterableOfEvents, IterableOfItems, TEvent
+from eventsourcing.whitehead import TEvent
 
 
 # Todo: Unify iterators in EventStore and in NotificationLog,
 #  by pushing behaviour down to record manager?
 
 
-class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
+class EventStore(AbstractEventStore[TEvent, TRecordManager]):
     """
     Event store appends domain events to stored sequences. It uses
     a record manager to map named tuples to database
@@ -22,22 +21,7 @@ class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
 
     iterator_class = SequencedItemIterator
 
-    def __init__(
-        self,
-        record_manager: TRecordManager,
-        sequenced_item_mapper: AbstractSequencedItemMapper,
-    ):
-        """
-        Initialises event store object.
-
-
-        :param record_manager: record manager
-        :param sequenced_item_mapper: sequenced item mapper
-        """
-        self.record_manager = record_manager
-        self.mapper = sequenced_item_mapper
-
-    def store_events(self, events: IterableOfEvents) -> None:
+    def store_events(self, events: Iterable[TEvent]) -> None:
         """
         Appends given domain event, or list of domain events, to their sequence.
 
@@ -53,7 +37,7 @@ class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
         except RecordConflictError as e:
             raise ConcurrencyError(e)
 
-    def items_from_events(self, events: IterableOfEvents) -> IterableOfItems:
+    def items_from_events(self, events: Iterable[TEvent]) -> Iterable[NamedTuple]:
         """
         Maps domain event to sequenced item namedtuple.
 
@@ -114,7 +98,7 @@ class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
         # Deserialize to domain events.
         return map(self.mapper.event_from_item, sequenced_items)
 
-    def get_event(self, originator_id, position):
+    def get_event(self, originator_id: UUID, position: int) -> TEvent:
         """
         Gets a domain event from the sequence identified by `originator_id`
         at position `eq`.
@@ -123,14 +107,13 @@ class EventStore(AbstractEventStore[TEvent], Generic[TEvent, TRecordManager]):
         :param position: get item at this position
         :return: domain event
         """
-
         sequenced_item = self.record_manager.get_item(
             sequence_id=originator_id, position=position
         )
         return self.mapper.event_from_item(sequenced_item)
 
     def get_most_recent_event(
-        self, originator_id, lt=None, lte=None
+        self, originator_id: UUID, lt: Optional[int] = None, lte: Optional[int] = None
     ) -> Optional[TEvent]:
         """
         Gets a domain event from the sequence identified by `originator_id`

@@ -1,3 +1,4 @@
+from typing import Dict, Optional, Any
 from uuid import UUID
 
 from eventsourcing.domain.model.events import (
@@ -15,7 +16,11 @@ class Snapshot(
     AbstractSnapshop,
 ):
     def __init__(
-        self, originator_id: UUID, originator_version: int, topic: str, state: str
+        self,
+        originator_id: UUID,
+        originator_version: int,
+        topic: str,
+        state: Optional[Dict],
     ):
         super(Snapshot, self).__init__(
             originator_id=originator_id,
@@ -32,7 +37,7 @@ class Snapshot(
         return self.__dict__["topic"]
 
     @property
-    def state(self) -> str:
+    def state(self) -> Dict[str, Any]:
         """
         State of the snapshotted entity.
         """

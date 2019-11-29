@@ -21,9 +21,9 @@ from eventsourcing.infrastructure.sequenceditem import (
     SequencedItem,
     SequencedItemFieldNames,
 )
+from eventsourcing.infrastructure.sequenceditemmapper import AbstractSequencedItemMapper
 from eventsourcing.whitehead import (
     ActualOccasion,
-    IterableOfEvents,
     TEntity,
     TEvent,
 )
@@ -34,6 +34,9 @@ TrackingKwargs = Dict[str, Union[str, int]]
 
 
 class AbstractRecordManager(ABC):
+    def __init__(self, **kwargs: Any):
+        pass
+
     @property
     @abstractmethod
     def record_class(self) -> Any:
@@ -52,7 +55,7 @@ class AbstractRecordManager(ABC):
         self.record_sequenced_items([sequenced_item])
 
     @abstractmethod
-    def get_item(self, sequence_id: UUID, position: int) -> Tuple:
+    def get_item(self, sequence_id: UUID, position: int) -> NamedTuple:
         """
         Gets sequenced item from the datastore.
         """
@@ -102,7 +105,7 @@ class AbstractRecordManager(ABC):
         stop: Optional[int] = None,
         *args: Any,
         **kwargs: Any
-    ) -> Any:
+    ) -> Iterable:
         """
         Returns records sequenced by notification ID, from
         application, for pipeline, in given range.
@@ -112,7 +115,7 @@ class AbstractRecordManager(ABC):
         """
 
     @abstractmethod
-    def all_sequence_ids(self) -> Sequence[UUID]:
+    def all_sequence_ids(self) -> Iterable[UUID]:
         """
         Returns all sequence IDs.
         """
@@ -133,7 +136,7 @@ class BaseRecordManager(AbstractRecordManager):
         record_class: type,
         sequenced_item_class: Type[NamedTuple] = SequencedItem,  # type: ignore
         contiguous_record_ids: bool = False,
-        application_name: Optional[str] = None,
+        application_name: str = '',
         pipeline_id: int = DEFAULT_PIPELINE_ID,
         **kwargs: Any
     ):
@@ -161,11 +164,19 @@ class BaseRecordManager(AbstractRecordManager):
             assert hasattr(
                 self.record_class, "application_name"
             ), "'application_name' column not defined"
-        self.pipeline_id = pipeline_id
+        self._pipeline_id = pipeline_id
 
     @property
     def record_class(self) -> type:
         return self._record_class
+
+    @property
+    def pipeline_id(self) -> int:
+        return self._pipeline_id
+
+    @pipeline_id.setter
+    def pipeline_id(self, pipeline_id: int) -> None:
+        self._pipeline_id = pipeline_id
 
     def clone(
         self, application_name: str, pipeline_id: int, **kwargs: Any
@@ -179,7 +190,7 @@ class BaseRecordManager(AbstractRecordManager):
             **kwargs
         )
 
-    def get_item(self, sequence_id: UUID, position: int) -> Tuple:
+    def get_item(self, sequence_id: UUID, position: int) -> NamedTuple:
         """
         Gets sequenced item from the datastore.
         """
@@ -282,7 +293,7 @@ class ACIDRecordManager(BaseRecordManager):
     def clone(
         self, application_name: str, pipeline_id: int, **kwargs: Any
     ) -> "BaseRecordManager":
-        return super(ACIDRecordManager, self).clone(
+        return super().clone(
             application_name=application_name,
             pipeline_id=pipeline_id,
             tracking_record_class=self.tracking_record_class,
@@ -307,7 +318,7 @@ class ACIDRecordManager(BaseRecordManager):
         return map(self.to_record, sequenced_items)
 
     @abstractmethod
-    def get_max_record_id(self) -> int:
+    def get_max_notification_id(self) -> int:
         """Return maximum notification ID in pipeline."""
 
     @abstractmethod
@@ -383,7 +394,6 @@ class SQLRecordManager(ACIDRecordManager):
             )
         return self._insert_select_max
 
-    @abstractmethod
     def _prepare_insert(
         self,
         tmpl: str,
@@ -392,8 +402,39 @@ class SQLRecordManager(ACIDRecordManager):
         placeholder_for_id: bool = False,
     ) -> Any:
         """
-        Compile SQL statement with placeholders for bind parameters.
+        With transaction isolation level of "read committed" this should
+        generate records with a contiguous sequence of integer IDs, using
+        an indexed ID column, the database-side SQL max function, the
+        insert-select-from form, and optimistic concurrency control.
         """
+        if (
+            hasattr(record_class, "application_name")
+            and "application_name" not in field_names
+        ):
+            field_names.append("application_name")
+        if hasattr(record_class, "pipeline_id") and "pipeline_id" not in field_names:
+            field_names.append("pipeline_id")
+        if (
+            hasattr(record_class, "causal_dependencies")
+            and "causal_dependencies" not in field_names
+        ):
+            field_names.append("causal_dependencies")
+        if self.notification_id_name:
+            if placeholder_for_id:
+                if self.notification_id_name not in field_names:
+                    field_names.append(self.notification_id_name)
+
+        statement = tmpl.format(
+            tablename=self.get_record_table_name(record_class),
+            columns=", ".join(field_names),
+            placeholders=", ".join([self.make_placeholder(f) for f in field_names]),
+            notification_id=self.notification_id_name,
+        )
+        return statement
+
+    @abstractmethod
+    def make_placeholder(self, field_name):
+        pass
 
     _insert_select_max_tmpl = (
         "INSERT INTO {tablename} ({notification_id}, {columns}) "
@@ -449,14 +490,29 @@ class SQLRecordManager(ACIDRecordManager):
         """
 
 
-class AbstractEventStore(ABC, Generic[TEvent]):
+class AbstractEventStore(ABC, Generic[TEvent, TRecordManager]):
     """
     Abstract base class for event stores. Defines the methods
     expected of an event store by other classes in the library.
     """
 
+    def __init__(
+        self,
+        record_manager: TRecordManager,
+        sequenced_item_mapper: AbstractSequencedItemMapper,
+    ):
+        """
+        Initialises event store object.
+
+
+        :param record_manager: record manager
+        :param sequenced_item_mapper: sequenced item mapper
+        """
+        self.record_manager = record_manager
+        self.mapper = sequenced_item_mapper
+
     @abstractmethod
-    def store_events(self, events: IterableOfEvents) -> None:
+    def store_events(self, events: Iterable[TEvent]) -> None:
         """
         Put domain event in event store for later retrieval.
         """
@@ -541,6 +597,9 @@ class AbstractEventStore(ABC, Generic[TEvent]):
             page_size=page_size,
         )
 
+    def items_from_events(self, events: Iterable[TEvent]) -> Iterable[NamedTuple]:
+        pass
+
 
 class AbstractEventPlayer(Generic[TEntity, TEvent]):
     @property
@@ -575,7 +634,7 @@ class AbstractSnapshop(ActualOccasion):
 
     @property
     @abstractmethod
-    def state(self) -> str:
+    def state(self) -> Dict[str, Any]:
         """
         State of the snapshotted entity.
         """

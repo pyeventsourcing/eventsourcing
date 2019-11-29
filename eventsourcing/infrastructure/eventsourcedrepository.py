@@ -5,13 +5,13 @@ from eventsourcing.domain.model.entity import VersionedEntity
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.eventplayer import EventPlayer
 from eventsourcing.infrastructure.snapshotting import entity_from_snapshot
-from eventsourcing.whitehead import (
-    TEntity,
-    TEvent,
-    SEntity
+from eventsourcing.whitehead import TEntity, TEvent, SEntity
+from eventsourcing.infrastructure.base import (
+    AbstractEventStore,
+    AbstractSnapshop,
+    AbstractEntityRepository,
+    AbstractRecordManager,
 )
-from eventsourcing.infrastructure.base import AbstractEventStore, AbstractSnapshop, \
-    AbstractEntityRepository
 
 
 class EventSourcedRepository(
@@ -30,7 +30,9 @@ class EventSourcedRepository(
         self._use_cache = use_cache
 
     @property
-    def event_store(self) -> AbstractEventStore[VersionedEntity.Event]:
+    def event_store(
+        self
+    ) -> AbstractEventStore[VersionedEntity.Event, AbstractRecordManager]:
         return self._event_store
 
     @property
@@ -215,4 +217,3 @@ class EventSourcedRepository(
             return entity
         else:
             return None
-

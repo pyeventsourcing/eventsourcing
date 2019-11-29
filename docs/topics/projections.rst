@@ -206,7 +206,7 @@ which gives "exactly once" processing.
             self.reader = NotificationLogReader(notification_log)
             self.manager = record_manager
             # Position reader at max record ID.
-            self.reader.seek(self.manager.get_max_record_id() or 0)
+            self.reader.seek(self.manager.get_max_notification_id() or 0)
 
         def pull(self):
             for notification in self.reader.read():
@@ -460,7 +460,7 @@ notification log even when the notification doesn't imply a real entry in the in
             #   defining how the splits are extended, and everything committed in a transaction
             #   so the splits are atomic with the command log
             # Todo: Bring out different projectors: splitter (one-many), combiner (many-one), repeater (one-one).
-            self.reader.seek(self.manager.get_max_record_id() or 0)
+            self.reader.seek(self.manager.get_max_notification_id() or 0)
 
         def pull(self):
             # Project events into commands for the index.

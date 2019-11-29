@@ -8,6 +8,7 @@ from typing import (
     Deque,
     Dict,
     Generic,
+    Iterable,
     Iterator,
     List,
     Optional,
@@ -29,12 +30,8 @@ from eventsourcing.domain.model.aggregate import (
     TAggregate,
     TAggregateEvent,
 )
-from eventsourcing.domain.model.events import (
-    DomainEvent,
-    publish,
-    subscribe,
-    unsubscribe,
-)
+from eventsourcing.domain.model.entity import TDomainEvent
+from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
 from eventsourcing.exceptions import (
     CausalDependencyFailed,
     ProgrammingError,
@@ -49,10 +46,10 @@ CausalDependencies = Dict[str, int]
 ListOfCausalDependencies = List[CausalDependencies]
 
 
-class ProcessEvent(ActualOccasion):
+class ProcessEvent(ActualOccasion, Generic[TDomainEvent]):
     def __init__(
         self,
-        domain_events: Sequence[DomainEvent],
+        domain_events: Iterable[TDomainEvent],
         tracking_kwargs: Optional[TrackingKwargs] = None,
         causal_dependencies: Optional[ListOfCausalDependencies] = None,
         orm_objs_pending_save: Sequence[Any] = (),
@@ -472,8 +469,8 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
             raise Exception(list(self.readers.keys()))
         record_manager = self.event_store.record_manager
         assert isinstance(record_manager, ACIDRecordManager)
-        max_record_id = record_manager.get_max_tracking_record_id(upstream_name)
-        reader.seek(max_record_id)
+        recorded_position = record_manager.get_max_tracking_record_id(upstream_name)
+        reader.seek(recorded_position)
 
     def call_policy(
         self, domain_event: TAggregateEvent
@@ -639,7 +636,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
 
     def construct_event_records(
         self,
-        pending_events: Sequence[DomainEvent],
+        pending_events: Iterable[TAggregateEvent],
         causal_dependencies: Optional[ListOfCausalDependencies],
     ) -> List:
         # Convert to event records.
@@ -654,7 +651,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
             # Todo: Maybe keep track of what this probably is, to
             #  avoid query. Like log reader, invalidate on error.
             if self.set_notification_ids:
-                current_max = record_manager.get_max_record_id() or 0
+                current_max = record_manager.get_max_notification_id()
                 for domain_event, event_record in zip(pending_events, event_records):
                     if type(domain_event).__notifiable__:
                         current_max += 1

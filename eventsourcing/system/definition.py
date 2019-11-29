@@ -224,7 +224,7 @@ class AbstractSystemRunner(ABC):
         Supports usage of a system runner as a context manager.
         """
         assert isinstance(self, AbstractSystemRunner)  # For PyCharm navigation.
-        if self.system.runner is None:
+        if self.system.runner is None or self.system.runner() is None:
             self.system.runner = weakref.ref(self)
         else:
             raise EventSourcingError(
