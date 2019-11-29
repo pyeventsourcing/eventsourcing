@@ -2,13 +2,13 @@ import random
 from functools import singledispatch, wraps
 from inspect import isfunction
 from time import sleep
-from typing import Dict, Type
+from typing import Dict, Type, Callable, no_type_check, Union, Optional, Sequence
 
 from eventsourcing.domain.model.events import DomainEvent, subscribe
 from eventsourcing.exceptions import ProgrammingError
 
 
-def subscribe_to(*event_classes):
+def subscribe_to(*args: Union[Callable, Type[DomainEvent]]) -> Callable:
     """
     Decorator for making a custom event handler function subscribe to a certain class
     of event.
@@ -45,27 +45,30 @@ def subscribe_to(*event_classes):
             todo = TodoProjection(id=event.originator_id, title=event.title)
             todo.save()
     """
-    event_classes = list(event_classes)
 
+    @no_type_check
     def wrap(func):
         def handler(event):
             if isinstance(event, (list, tuple)):
+                # Call handler once for each event.
                 for e in event:
                     handler(e)
-            elif not event_classes or isinstance(event, tuple(event_classes)):
+            elif not args or isinstance(event, args):
+                # Call handler if there are no classes or have an instance.
                 func(event)
 
         subscribe(handler=handler, predicate=lambda _: True)
         return func
 
-    if len(event_classes) == 1 and isfunction(event_classes[0]):
-        func = event_classes.pop()
+    if len(args) == 1 and isfunction(args[0]):
+        func = args[0]
+        args = ()
         return wrap(func)
     else:
         return wrap
 
 
-def mutator(arg=None):
+def mutator(arg: Optional[Callable] = None) -> Callable:
     """Structures mutator functions by allowing handlers
     to be registered for different types of event. When
     the decorated function is called with an initial
@@ -120,6 +123,7 @@ def mutator(arg=None):
 
     domain_class = None
 
+    @no_type_check
     def _mutator(func):
         wrapped = singledispatch(func)
 
@@ -132,14 +136,16 @@ def mutator(arg=None):
 
         return wrapper
 
-    if isfunction(arg):
-        return _mutator(arg)
-    else:
+    if not isfunction(arg):
+        # Decorator used with an entity class.
         domain_class = arg
         return _mutator
+    else:
+        # Decorator invoked as method or function decorator.
+        return _mutator(arg)
 
 
-def attribute(getter):
+def attribute(getter: Callable) -> property:
     """
     When used as a method decorator, returns a property object
     with the method as the getter and a setter defined to call
@@ -148,10 +154,12 @@ def attribute(getter):
     """
     if isfunction(getter):
 
+        @no_type_check
         def setter(self, value):
             name = "_" + getter.__name__
             self.__change_attribute__(name=name, value=value)
 
+        @no_type_check
         def new_getter(self):
             name = "_" + getter.__name__
             return getattr(self, name, None)
@@ -161,7 +169,13 @@ def attribute(getter):
         raise ProgrammingError("Expected a function, got: {}".format(repr(getter)))
 
 
-def retry(exc=Exception, max_attempts=1, wait=0, stall=0, verbose=False):
+def retry(
+    exc: Union[Type[Exception], Sequence[Type[Exception]]] = Exception,
+    max_attempts: int = 1,
+    wait: float = 0,
+    stall: float = 0,
+    verbose: bool = False,
+) -> Callable:
     """
     Retry decorator.
 
@@ -173,6 +187,7 @@ def retry(exc=Exception, max_attempts=1, wait=0, stall=0, verbose=False):
     :return: Returns the value returned by decorated function.
     """
 
+    @no_type_check
     def _retry(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -220,7 +235,7 @@ def retry(exc=Exception, max_attempts=1, wait=0, stall=0, verbose=False):
         return _retry
 
 
-def subclassevents(cls: type):
+def subclassevents(cls: type) -> type:
     """
     Decorator that avoids "boilerplate" subclassing of domain events.
 
