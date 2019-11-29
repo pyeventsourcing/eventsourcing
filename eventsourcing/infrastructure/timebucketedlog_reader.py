@@ -1,3 +1,4 @@
+import time
 from decimal import Decimal
 from typing import Optional, Iterable
 
@@ -62,10 +63,10 @@ class TimebucketedlogReader(object):
         assert limit is None or limit > 0
 
         # Identify the first time bucket.
-        now = decimaltimestamp()
+        now = time.time()
         started_on = self.log.started_on
-        absolute_latest = min(now, lt or now, lte or now)
-        absolute_earlyist = max(started_on, gt or 0, gte or 0)
+        absolute_latest = min(float(now), lt or now, lte or now)
+        absolute_earlyist = max(float(started_on), gt or 0, gte or 0)
         if is_ascending:
             position = absolute_earlyist
         else:

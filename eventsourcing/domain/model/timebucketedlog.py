@@ -1,11 +1,11 @@
 import datetime
+from decimal import Decimal
+from typing import Optional, Any, Union
 from uuid import UUID, uuid5
 
 from dateutil.relativedelta import relativedelta
 
-from eventsourcing.domain.model.entity import (
-    TimestampedVersionedEntity,
-)
+from eventsourcing.domain.model.entity import TimestampedVersionedEntity
 from eventsourcing.domain.model.events import (
     EventWithOriginatorID,
     EventWithTimestamp,
@@ -50,21 +50,22 @@ class Timebucketedlog(TimestampedVersionedEntity):
     class BucketSizeChanged(Event, TimestampedVersionedEntity.AttributeChanged):
         pass
 
-    def __init__(self, name, bucket_size=None, **kwargs):
+    def __init__(self, name: UUID, bucket_size: Optional[str] = None, **kwargs: Any):
         super(Timebucketedlog, self).__init__(**kwargs)
         self._name = name
         self._bucket_size = bucket_size
 
     @property
-    def name(self):
+    def name(self) -> UUID:
         return self._name
 
     @property
-    def started_on(self):
+    def started_on(self) -> Decimal:
         return self.__created_on__
 
     @property
-    def bucket_size(self):
+    def bucket_size(self) -> str:
+        assert self._bucket_size
         return self._bucket_size
 
     def log_message(self, message: str) -> "MessageLogged":
@@ -76,11 +77,9 @@ class Timebucketedlog(TimestampedVersionedEntity):
 
 
 class TimebucketedlogRepository(AbstractEntityRepository):
-    def get_or_create(self, log_name, bucket_size):
+    def get_or_create(self, log_name: UUID, bucket_size: str) -> Timebucketedlog:
         """
         Gets or creates a log.
-
-        :rtype: Timebucketedlog
         """
         try:
             return self[log_name]
@@ -88,7 +87,9 @@ class TimebucketedlogRepository(AbstractEntityRepository):
             return start_new_timebucketedlog(log_name, bucket_size=bucket_size)
 
 
-def start_new_timebucketedlog(name, bucket_size=None):
+def start_new_timebucketedlog(
+    name: UUID, bucket_size: Optional[str] = None
+) -> Timebucketedlog:
     if bucket_size is None:
         bucket_size = "year"
     if bucket_size not in BUCKET_SIZES:
@@ -103,22 +104,25 @@ def start_new_timebucketedlog(name, bucket_size=None):
         originator_topic=get_topic(Timebucketedlog),
     )
     entity = event.__mutate__(None)
+    assert entity is not None
     publish([event])
     return entity
 
 
 class MessageLogged(EventWithTimestamp, EventWithOriginatorID, LoggedEvent):
-    def __init__(self, message, originator_id):
+    def __init__(self, message: str, originator_id: UUID):
         super(MessageLogged, self).__init__(
             originator_id=originator_id, message=message
         )
 
     @property
-    def message(self):
+    def message(self) -> str:
         return self.__dict__["message"]
 
 
-def make_timebucket_id(log_id, timestamp, bucket_size):
+def make_timebucket_id(
+    log_id: UUID, timestamp: Union[Decimal, float], bucket_size: str
+) -> UUID:
     d = datetime_from_timestamp(timestamp)
 
     assert isinstance(d, datetime.datetime)
@@ -143,19 +147,19 @@ def make_timebucket_id(log_id, timestamp, bucket_size):
     return uuid5(Namespace_Timebuckets, log_id.hex + "_" + boundary)
 
 
-def next_bucket_starts(timestamp, bucket_size):
+def next_bucket_starts(timestamp: float, bucket_size: str) -> float:
     starts = bucket_starts(timestamp, bucket_size)
     duration = bucket_duration(bucket_size)
     return timestamp_from_datetime((starts + duration))
 
 
-def previous_bucket_starts(timestamp, bucket_size):
+def previous_bucket_starts(timestamp: float, bucket_size: str) -> float:
     starts = bucket_starts(timestamp, bucket_size)
     duration = bucket_duration(bucket_size)
     return timestamp_from_datetime((starts - duration))
 
 
-def bucket_starts(timestamp, bucket_size):
+def bucket_starts(timestamp: float, bucket_size: str) -> datetime.datetime:
     dt = datetime_from_timestamp(timestamp)
     assert isinstance(dt, datetime.datetime)
     if bucket_size.startswith("year"):
@@ -186,7 +190,7 @@ def bucket_starts(timestamp, bucket_size):
         raise ValueError("Bucket size not supported: {}".format(bucket_size))
 
 
-def bucket_duration(bucket_size):
+def bucket_duration(bucket_size: str) -> relativedelta:
     try:
         return BUCKET_SIZES[bucket_size]
     except KeyError:
@@ -197,6 +201,6 @@ def bucket_duration(bucket_size):
 
 
 # Todo: Move to general utils?
-def timestamp_from_datetime(dt):
+def timestamp_from_datetime(dt: datetime.datetime) -> float:
     assert dt.tzinfo, "Datetime object does not have tzinfo"
     return dt.timestamp()
