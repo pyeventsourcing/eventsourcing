@@ -1,6 +1,5 @@
-import os
 from decimal import Decimal
-from typing import Any, Callable, Dict, Generic, List, Optional, Tuple, Sequence
+from typing import Any, Callable, Dict, Generic, List, Optional, Sequence, Tuple
 from uuid import UUID, uuid1
 
 from eventsourcing.exceptions import EventHashError
@@ -9,12 +8,6 @@ from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic
 from eventsourcing.utils.transcoding import JSON_SEPARATORS, ObjectJSONEncoder
 from eventsourcing.whitehead import ActualOccasion, TEntity, TEvent
-
-GENESIS_HASH: str = os.getenv("GENESIS_HASH", "")
-
-
-def create_timesequenced_event_id() -> UUID:
-    return uuid1()
 
 
 class DomainEvent(ActualOccasion, Generic[TEntity]):
@@ -396,3 +389,7 @@ def clear_event_handlers() -> None:
     Removes all previously subscribed event handlers.
     """
     _subscriptions.clear()
+
+
+def create_timesequenced_event_id() -> UUID:
+    return uuid1()

@@ -1,6 +1,6 @@
 import time
 from decimal import Decimal
-from typing import Optional, Iterable
+from typing import Iterable, Optional
 
 from eventsourcing.domain.model.timebucketedlog import (
     MessageLogged,
@@ -10,17 +10,18 @@ from eventsourcing.domain.model.timebucketedlog import (
     previous_bucket_starts,
 )
 from eventsourcing.infrastructure.base import AbstractEventStore
-from eventsourcing.utils.times import decimaltimestamp
 
 
-def get_timebucketedlog_reader(log: Timebucketedlog, event_store: AbstractEventStore)\
-    -> "TimebucketedlogReader":
+def get_timebucketedlog_reader(
+    log: Timebucketedlog, event_store: AbstractEventStore
+) -> "TimebucketedlogReader":
     return TimebucketedlogReader(log=log, event_store=event_store)
 
 
 class TimebucketedlogReader(object):
-    def __init__(self, log: Timebucketedlog, event_store: AbstractEventStore,
-                 page_size: int = 50):
+    def __init__(
+        self, log: Timebucketedlog, event_store: AbstractEventStore, page_size: int = 50
+    ):
         self.log = log
         self.event_store = event_store
         self.page_size = page_size

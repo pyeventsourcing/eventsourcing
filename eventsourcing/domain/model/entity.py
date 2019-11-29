@@ -1,3 +1,4 @@
+import os
 from abc import ABCMeta
 from decimal import Decimal
 from typing import Any, Dict, Optional, Sequence, Type, TypeVar
@@ -13,7 +14,6 @@ from eventsourcing.domain.model.events import (
     EventWithOriginatorID,
     EventWithOriginatorVersion,
     EventWithTimestamp,
-    GENESIS_HASH,
     publish,
 )
 from eventsourcing.exceptions import (
@@ -307,6 +307,8 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
 
 
 TEntityWithHashchain = TypeVar("TEntityWithHashchain", bound="EntityWithHashchain")
+
+GENESIS_HASH: str = os.getenv("GENESIS_HASH", "")
 
 
 class EntityWithHashchain(DomainEntity):
