@@ -134,6 +134,6 @@ def construct_sqlalchemy_eventstore(
     )
     record_manager = factory.construct_integer_sequenced_record_manager()
     event_store = EventStore[DomainEvent, AbstractRecordManager](
-        record_manager=record_manager, sequenced_item_mapper=sequenced_item_mapper
+        record_manager=record_manager, event_mapper=sequenced_item_mapper
     )
     return event_store

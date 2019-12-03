@@ -52,7 +52,7 @@ class TestCassandraDatastore(CassandraDatastoreTestCase, base.DatastoreTestCase)
 
     def create_record(self):
         record = IntegerSequencedRecord(
-            sequence_id=uuid4(), position=0, topic="topic", state="{}"
+            sequence_id=uuid4(), position=0, topic="topic", state=b"{}"
         )
         try:
             record.save()

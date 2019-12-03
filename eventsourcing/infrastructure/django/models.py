@@ -15,7 +15,7 @@ class IntegerSequencedRecord(models.Model):
     topic = models.TextField()
 
     # State of the item (serialized dict, possibly encrypted).
-    state = models.TextField()
+    state = models.BinaryField()
 
     class Meta:
         unique_together = (("sequence_id", "position"),)
@@ -36,7 +36,7 @@ class TimestampSequencedRecord(models.Model):
     topic = models.TextField()
 
     # State of the item (serialized dict, possibly encrypted).
-    state = models.TextField()
+    state = models.BinaryField()
 
     class Meta:
         unique_together = (("sequence_id", "position"),)
@@ -58,7 +58,7 @@ class SnapshotRecord(models.Model):
     topic = models.TextField()
 
     # State of the item (serialized dict, possibly encrypted).
-    state = models.TextField()
+    state = models.BinaryField()
 
     class Meta:
         unique_together = (("sequence_id", "position"),)
@@ -82,7 +82,7 @@ class EntitySnapshotRecord(models.Model):
     topic = models.TextField()
 
     # State of the item (serialized dict, possibly encrypted).
-    state = models.TextField()
+    state = models.BinaryField()
 
     class Meta:
         unique_together = (("application_name", "originator_id", "originator_version"),)
@@ -112,7 +112,7 @@ class StoredEventRecord(models.Model):
     topic = models.TextField()
 
     # State of the item (serialized dict, possibly encrypted).
-    state = models.TextField()
+    state = models.BinaryField()
 
     # Causal dependencies.
     causal_dependencies = models.TextField()

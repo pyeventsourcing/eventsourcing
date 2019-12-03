@@ -296,7 +296,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
 
                     # Decode causal dependencies of the domain event.
                     causal_dependencies = (
-                        self.event_store.mapper.json_loads(
+                        self.event_store.event_mapper.json_loads(
                             notification.get("causal_dependencies") or "[]"
                         )
                         or []
@@ -427,7 +427,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
     def get_event_from_notification(
         self, notification: Dict[str, Any]
     ) -> TAggregateEvent:
-        return self.event_store.mapper.event_from_topic_and_state(
+        return self.event_store.event_mapper.event_from_topic_and_state(
             topic=notification[self.notification_topic_key],
             state=notification[self.notification_state_key],
         )
@@ -661,7 +661,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
 
             if self.use_causal_dependencies:
                 assert hasattr(record_manager.record_class, "causal_dependencies")
-                causal_dependencies_json = self.event_store.mapper.json_dumps(
+                causal_dependencies_json = self.event_store.event_mapper.json_dumps(
                     causal_dependencies
                 )
                 # Only need first event to carry the dependencies.

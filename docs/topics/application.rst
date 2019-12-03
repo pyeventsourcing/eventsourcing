@@ -156,6 +156,14 @@ class.
     assert isinstance(application.event_store, EventStore)
 
 
+We need to disable to the event mapper's compression, so later in this example
+we can see what the data looks like on the lowest level.
+
+.. code:: python
+
+    application.event_store.event_mapper.compressor = None
+
+
 Persistence policy
 ------------------
 
@@ -313,6 +321,9 @@ The custom application object can be constructed.
     # Construct application object.
     application = MyApplication(uri='sqlite:///:memory:')
 
+    # Disable compressor in event mapper, so we can see lower level data.
+    application.event_store.event_mapper.compressor = None
+
 
 The application service aggregate factor method ``create_aggregate()``
 can be called.
@@ -430,22 +441,22 @@ of the event store's record manager.
 
     assert items[0].originator_id == aggregate.id
     assert items[0].topic == 'eventsourcing.domain.model.aggregate#AggregateRoot.Created'
-    assert '"a":1' in items[0].state, items[0].state
-    assert '"timestamp":' in items[0].state
+    assert '"a":1' in items[0].state.decode('utf8'), items[0].state
+    assert b'"timestamp":' in items[0].state
 
     assert items[1].originator_id == aggregate.id
     assert items[1].topic == 'eventsourcing.domain.model.aggregate#AggregateRoot.AttributeChanged'
-    assert '"name":"_a"' in items[1].state
-    assert '"timestamp":' in items[1].state
+    assert b'"name":"_a"' in items[1].state
+    assert b'"timestamp":' in items[1].state
 
     assert items[2].originator_id == aggregate.id
     assert items[2].topic == 'eventsourcing.domain.model.aggregate#AggregateRoot.AttributeChanged'
-    assert '"name":"_a"' in items[2].state
-    assert '"timestamp":' in items[2].state
+    assert b'"name":"_a"' in items[2].state
+    assert b'"timestamp":' in items[2].state
 
     assert items[3].originator_id == aggregate.id
     assert items[3].topic == 'eventsourcing.domain.model.aggregate#AggregateRoot.Discarded'
-    assert '"timestamp":' in items[3].state
+    assert b'"timestamp":' in items[3].state
 
 In this example, the ``cipher_key`` was not set, so the stored data is visible.
 

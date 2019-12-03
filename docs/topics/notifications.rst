@@ -148,7 +148,7 @@ Before continuing with code examples below, we need to setup an event store.
     # Setup the event store.
     event_store = EventStore(
         record_manager=record_manager,
-        sequenced_item_mapper=sequenced_item_mapper
+        event_mapper=sequenced_item_mapper
     )
 
     # Set up a persistence policy.

@@ -1,4 +1,4 @@
-from sqlalchemy import DECIMAL, String
+from sqlalchemy import DECIMAL, String, LargeBinary
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql.schema import Column, Index
 from sqlalchemy.sql.sqltypes import BigInteger, Integer, Text
@@ -42,7 +42,7 @@ class IntegerSequencedWithIDRecord(Base):
     topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
-    state = Column(Text())
+    state = Column(LargeBinary())
 
     __table_args__ = (
         Index(
@@ -67,7 +67,7 @@ class IntegerSequencedNoIDRecord(Base):
     topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
-    state = Column(Text())
+    state = Column(LargeBinary())
 
 
 IntegerSequencedRecord = IntegerSequencedWithIDRecord
@@ -95,7 +95,7 @@ class TimestampSequencedWithIDRecord(Base):
     topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
-    state = Column(Text())
+    state = Column(LargeBinary())
 
     __table_args__ = (
         Index(
@@ -121,7 +121,7 @@ class TimestampSequencedNoIDRecord(Base):
     topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
-    state = Column(Text())
+    state = Column(LargeBinary())
 
     __table_args__ = (
         Index(
@@ -146,7 +146,7 @@ class SnapshotRecord(Base):
     topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
-    state = Column(Text())
+    state = Column(LargeBinary())
 
 
 class EntitySnapshotRecord(Base):
@@ -167,7 +167,7 @@ class EntitySnapshotRecord(Base):
     topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
-    state = Column(Text())
+    state = Column(LargeBinary())
 
 
 class StoredEventRecord(Base):
@@ -196,7 +196,7 @@ class StoredEventRecord(Base):
     topic = Column(Text(), nullable=False)
 
     # State of the item (serialized dict, possibly encrypted).
-    state = Column(Text())
+    state = Column(LargeBinary())
 
     # Causal dependencies.
     causal_dependencies = Column(Text())

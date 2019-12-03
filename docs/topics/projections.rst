@@ -475,7 +475,7 @@ notification log even when the notification doesn't imply a real entry in the in
                 # Could record commands in same transaction as result of commands if commands are not idempotent.
                 # Could use compaction to remove all blank items, but never remove the last record.
                 if notification['topic'].endswith('User.EmailAddressVerified'):
-                    event = original.event_store.mapper.event_from_topic_and_state(
+                    event = original.event_store.event_mapper.event_from_topic_and_state(
                         notification['topic'],
                         notification['state'],
                     )

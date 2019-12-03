@@ -45,7 +45,7 @@ class NotificationLogTestCase(SQLAlchemyRecordManagerTestCase, WithEventPersiste
 
     def append_notifications(self, *range_args):
         for i in range(*range_args):
-            item = "item{}".format(i + 1)
+            item = ("item{}".format(i + 1)).encode("utf8")
             self.append_notification(item)
 
     def create_notification_log(self, section_size):
@@ -317,7 +317,7 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
             # Check we got all the items.
             self.assertEqual(len(items_from_start), num_notifications)
             self.assertEqual(items_from_start[0]["id"], 1)
-            self.assertEqual(items_from_start[0]["state"], "item1")
+            self.assertEqual(items_from_start[0]["state"], b"item1")
             self.assertEqual(
                 items_from_start[0]["topic"],
                 "eventsourcing.domain.model.events#DomainEvent",
@@ -337,7 +337,9 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
                 items_from_5[0]["topic"],
                 "eventsourcing.domain.model.events#DomainEvent",
             )
-            self.assertEqual(items_from_5[0]["state"], "item{}".format(section_size))
+            self.assertEqual(
+                items_from_5[0]["state"], "item{}".format(section_size).encode("utf8")
+            )
             expected_section_count = ceil(num_notifications / float(section_size))
             self.assertEqual(
                 notification_log_reader.section_count, expected_section_count

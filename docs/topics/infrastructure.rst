@@ -72,7 +72,9 @@ item's state is a JSON string in which ``foo`` is ``bar``.
 
     sequence1 = uuid4()
 
-    state = '{"foo":"bar","position":0,"sequence_id":{"UUID":"%s"}}' % sequence1.hex
+    state = (
+        '{"foo":"bar","position":0,"sequence_id":{"UUID":"%s"}}' % sequence1.hex
+    ).encode('utf8')
 
     sequenced_item1 = SequencedItem(
         sequence_id=sequence1,
@@ -117,16 +119,20 @@ equivalent to ``state`` above.
 
     aggregate1 = uuid4()
 
+    state = (
+        '{"foo":"bar","originator_version":0,"originator_id":{"UUID":"%s"}}' % aggregate1.hex
+    ).encode('utf8')
+
     stored_event1 = StoredEvent(
         originator_id=aggregate1,
         originator_version=0,
         topic='eventsourcing.domain.model.events#DomainEvent',
-        state='{"foo":"bar","originator_version":0,"originator_id":{"UUID":"%s"}}' % aggregate1.hex,
+        state=state,
     )
     assert stored_event1.originator_id == aggregate1
     assert stored_event1.originator_version == 0
     assert stored_event1.topic == 'eventsourcing.domain.model.events#DomainEvent'
-    assert stored_event1.state == '{"foo":"bar","originator_version":0,"originator_id":{"UUID":"%s"}}' % aggregate1.hex
+    assert stored_event1.state == state
 
 
 Sequenced item mapper
@@ -151,6 +157,7 @@ sequenced item named tuple :class:`~eventsourcing.infrastructure.sequenceditem.S
 .. code:: python
 
     sequenced_item_mapper = SequencedItemMapper()
+    sequenced_item_mapper.compressor = None
 
 
 The method :func:`~eventsourcing.infrastructure.sequenceditemmapper.SequencedItemMapper.event_from_item`
@@ -210,6 +217,7 @@ namedtuple, can be passed with the constructor arg ``sequenced_item_class``.
     sequenced_item_mapper = SequencedItemMapper(
         sequenced_item_class=StoredEvent
     )
+    sequenced_item_mapper.compressor = None
 
     domain_event1 = sequenced_item_mapper.event_from_item(stored_event1)
 
@@ -301,20 +309,22 @@ now supports encoding and decoding sets, but the example is still demonstrative.
         json_decoder_class=CustomObjectJSONDecoder,
         sequenced_item_class=StoredEvent,
     )
-
+    customized_sequenced_item_mapper.compressor = None
+    state = (
+        '{"foo":{"__set__":["bar","baz"]},"originator_version":0,"originator_id":{"UUID":"%s"}}' % sequence1.hex
+    ).encode('utf8')
     domain_event = customized_sequenced_item_mapper.event_from_item(
         StoredEvent(
             originator_id=sequence1,
             originator_version=0,
             topic='eventsourcing.domain.model.events#DomainEvent',
-            state='{"foo":{"__set__":["bar","baz"]},"originator_version":0,"originator_id":{"UUID":"%s"}}' % sequence1
-            .hex,
+            state=state,
         )
     )
     assert domain_event.foo == set(["bar", "baz"])
 
     sequenced_item = customized_sequenced_item_mapper.item_from_event(domain_event)
-    assert sequenced_item.state.startswith('{"foo":{"__set__":["ba')
+    assert sequenced_item.state.startswith(b'{"foo":{"__set__":["ba')
 
 
 It is also possible to extend the encoder and decoder classes by registering
@@ -376,12 +386,12 @@ string into a sequence of bytes.
     cipher = AESCipher(cipher_key=decode_bytes(cipher_key))
 
     # Encrypt some plaintext (using nonce arguments).
-    ciphertext = cipher.encrypt('plaintext')
-    assert ciphertext != 'plaintext'
+    ciphertext = cipher.encrypt(b'plaintext')
+    assert ciphertext != b'plaintext'
 
     # Decrypt some ciphertext.
     plaintext = cipher.decrypt(ciphertext)
-    assert plaintext == 'plaintext'
+    assert plaintext == b'plaintext'
 
 
 The :class:`~eventsourcing.infrastructure.sequenceditemmapper.SequencedItemMapper`
@@ -395,6 +405,7 @@ thereby enable encryption.
         sequenced_item_class=StoredEvent,
         cipher=cipher,
     )
+    ciphered_sequenced_item_mapper.compressor = None
 
     # Domain event attribute ``foo`` has value ``'bar'``.
     assert domain_event1.foo == 'bar'
@@ -403,8 +414,8 @@ thereby enable encryption.
     stored_event = ciphered_sequenced_item_mapper.item_from_event(domain_event1)
 
     # Attribute names and values of the domain event are not visible in the encrypted ``state`` field.
-    assert 'foo' not in stored_event.state
-    assert 'bar' not in stored_event.state
+    assert b'foo' not in stored_event.state
+    assert b'bar' not in stored_event.state
 
     # Recover the domain event from the encrypted state.
     domain_event = ciphered_sequenced_item_mapper.event_from_item(stored_event)
@@ -966,7 +977,7 @@ manager, both are discussed in detail in the sections above.
     from eventsourcing.infrastructure.eventstore import EventStore
 
     event_store = EventStore(
-        sequenced_item_mapper=sequenced_item_mapper,
+        event_mapper=sequenced_item_mapper,
         record_manager=record_manager,
     )
 

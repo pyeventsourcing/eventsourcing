@@ -499,17 +499,17 @@ class AbstractEventStore(ABC, Generic[TEvent, TRecordManager]):
     def __init__(
         self,
         record_manager: TRecordManager,
-        sequenced_item_mapper: AbstractSequencedItemMapper,
+        event_mapper: AbstractSequencedItemMapper,
     ):
         """
         Initialises event store object.
 
 
         :param record_manager: record manager
-        :param sequenced_item_mapper: sequenced item mapper
+        :param event_mapper: sequenced item mapper
         """
         self.record_manager = record_manager
-        self.mapper = sequenced_item_mapper
+        self.event_mapper = event_mapper
 
     @abstractmethod
     def store_events(self, events: Iterable[TEvent]) -> None:

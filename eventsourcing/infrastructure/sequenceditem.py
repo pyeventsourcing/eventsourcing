@@ -6,14 +6,14 @@ class SequencedItem(NamedTuple):
     sequence_id: UUID
     position: int
     topic: str
-    state: str
+    state: bytes
 
 
 class StoredEvent(NamedTuple):
     originator_id: UUID
     originator_version: int
     topic: str
-    state: str
+    state: bytes
 
 
 class SequencedItemFieldNames(object):

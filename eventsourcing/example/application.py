@@ -83,7 +83,7 @@ class ApplicationWithEventStores(ABC):
             cipher=cipher,
         )
         event_store = EventStore(
-            record_manager=record_manager, sequenced_item_mapper=sequenced_item_mapper
+            record_manager=record_manager, event_mapper=sequenced_item_mapper
         )
         return event_store
 

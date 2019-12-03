@@ -449,14 +449,15 @@ alternative record manager.
         record_class=IntegerSequencedRecord,
     )
 
-    sequenced_item_mapper = SequencedItemMapper(
+    event_mapper = SequencedItemMapper(
         sequence_id_attr_name='originator_id',
         position_attr_name='originator_version'
     )
+    event_mapper.compressor = None
 
     event_store = EventStore(
         record_manager=record_manager,
-        sequenced_item_mapper=sequenced_item_mapper
+        event_mapper=event_mapper
     )
 
 
@@ -533,12 +534,12 @@ the ``state`` field represents the state of the event (normally a JSON string).
     assert sequenced_items[0].sequence_id == entity.id
     assert sequenced_items[0].position == 0
     assert 'Created' in sequenced_items[0].topic
-    assert 'bar' in sequenced_items[0].state
+    assert b'bar' in sequenced_items[0].state
 
     assert sequenced_items[1].sequence_id == entity.id
     assert sequenced_items[1].position == 1
     assert 'AttributeChanged' in sequenced_items[1].topic
-    assert 'baz' in sequenced_items[1].state
+    assert b'baz' in sequenced_items[1].state
 
 
 Application
@@ -590,7 +591,7 @@ and unsubscribe from receiving further domain events.
                     record_class=IntegerSequencedRecord,
                     session=session,
                 ),
-                sequenced_item_mapper=SequencedItemMapper(
+                event_mapper=SequencedItemMapper(
                     sequence_id_attr_name='originator_id',
                     position_attr_name='originator_version'
                 )

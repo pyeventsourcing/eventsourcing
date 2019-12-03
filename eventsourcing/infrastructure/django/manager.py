@@ -1,4 +1,4 @@
-from typing import Any, Iterable, Optional, Sequence
+from typing import Any, Iterable, Optional, Sequence, Dict
 from uuid import UUID
 
 from django.db import IntegrityError, ProgrammingError, connection, transaction
@@ -236,3 +236,12 @@ class DjangoRecordManager(SQLRecordManager):
         ).distinct()
         for values in values_queryset:
             yield values[sequence_id_fieldname]
+
+    def get_field_kwargs(self, item: object) -> Dict[str, Any]:
+        kwargs = super().get_field_kwargs(item)
+        state_fieldname = self.field_names.state
+        state = kwargs[state_fieldname]
+        if isinstance(state, memoryview):
+            state = bytes(state)
+            kwargs[state_fieldname] = state
+        return kwargs

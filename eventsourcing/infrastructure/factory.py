@@ -150,7 +150,7 @@ class InfrastructureFactory(Generic[TEvent]):
         sequenced_item_mapper = self.construct_sequenced_item_mapper(cipher)
         record_manager = self.construct_integer_sequenced_record_manager()
         return (self.event_store_class or EventStore)(
-            record_manager=record_manager, sequenced_item_mapper=sequenced_item_mapper
+            record_manager=record_manager, event_mapper=sequenced_item_mapper
         )
 
     def construct_datastore(self) -> Optional[AbstractDatastore]:
