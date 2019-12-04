@@ -213,7 +213,7 @@ with SQLAlchemyApplication(persist_event_type=World.Event) as app:
     record_manager = app.event_store.record_manager
     items = record_manager.get_items(world.id)
     for item in items:
-        for what in ['dinosaurs', 'trucks', 'internet']:
+        for what in [b'dinosaurs', b'trucks', b'internet']:
             assert what not in item.state
         assert world.id == item.originator_id
 

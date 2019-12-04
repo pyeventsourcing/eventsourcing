@@ -17,7 +17,7 @@ class IntegerSequencedRecord(Model):
     topic = columns.Text(required=True)
 
     # State of the item (serialized dict, possibly encrypted).
-    state = columns.Text(required=True)
+    state = columns.Blob(required=True)
 
 
 class TimestampSequencedRecord(Model):
@@ -36,7 +36,7 @@ class TimestampSequencedRecord(Model):
     topic = columns.Text(required=True)
 
     # State of the item (serialized dict, possibly encrypted).
-    state = columns.Text(required=True)
+    state = columns.Blob(required=True)
 
 
 class TimeuuidSequencedRecord(Model):
@@ -55,7 +55,7 @@ class TimeuuidSequencedRecord(Model):
     topic = columns.Text(required=True)
 
     # State of the item (serialized dict, possibly encrypted).
-    state = columns.Text(required=True)
+    state = columns.Blob(required=True)
 
 
 class SnapshotRecord(Model):
@@ -74,7 +74,7 @@ class SnapshotRecord(Model):
     topic = columns.Text(required=True)
 
     # State of the entity (serialized dict, possibly encrypted).
-    state = columns.Text(required=True)
+    state = columns.Blob(required=True)
 
 
 class StoredEventRecord(Model):
@@ -93,4 +93,4 @@ class StoredEventRecord(Model):
     topic = columns.Text(required=True)
 
     # State of the item (serialized dict, possibly encrypted).
-    state = columns.Text(required=True)
+    state = columns.Blob(required=True)

@@ -414,7 +414,7 @@ class ExampleDDDApplication(Generic[TEntity]):
             record_manager=SQLAlchemyRecordManager(
                 session=datastore.session, record_class=IntegerSequencedNoIDRecord
             ),
-            sequenced_item_mapper=SequencedItemMapper(
+            event_mapper=SequencedItemMapper(
                 sequence_id_attr_name="originator_id",
                 position_attr_name="originator_version",
             ),

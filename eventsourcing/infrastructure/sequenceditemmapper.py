@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 from json import JSONDecodeError, JSONDecoder, JSONEncoder
 from typing import Any, Dict, Generic, NamedTuple, Optional, Tuple, Type
 
+import zlib
+
 from eventsourcing.infrastructure.sequenceditem import (
     SequencedItem,
     SequencedItemFieldNames,
@@ -66,6 +68,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper[TEvent]):
         json_encoder_class: Optional[Type[JSONEncoder]] = None,
         json_decoder_class: Optional[Type[JSONDecoder]] = None,
         cipher: Optional[AESCipher] = None,
+        compressor: Any = None,
         other_attr_names: Tuple[str, ...] = (),
     ):
         if sequenced_item_class is not None:
@@ -79,6 +82,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper[TEvent]):
         self.json_decoder_class = json_decoder_class or ObjectJSONDecoder
         self.json_decoder = self.json_decoder_class()
         self.cipher = cipher
+        self.compressor = compressor
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
         self.sequence_id_attr_name = (
             sequence_id_attr_name or self.field_names.sequence_id
@@ -119,18 +123,27 @@ class SequencedItemMapper(AbstractSequencedItemMapper[TEvent]):
 
     def get_item_topic_and_state(
         self, domain_event_class: type, event_attrs: Dict[str, Any]
-    ) -> Tuple[str, str]:
+    ) -> Tuple[str, bytes]:
         # Get the topic from the event attrs, otherwise from the class.
         topic = get_topic(domain_event_class)
 
         # Serialise the event attributes.
-        state = self.json_dumps(event_attrs)
+        statestr = self.json_dumps(event_attrs)
 
-        # Compress and encrypt serialised state.
+        # String to bytes.
+        statebytes = statestr.encode("utf8")
+
+        # Compress plaintext bytes.
+        if self.compressor:
+            # Zlib reduces length by about 25% to 50%.
+            statebytes = self.compressor.compress(statebytes)
+
+        # Encrypt serialised state.
         if self.cipher:
-            state = self.cipher.encrypt(state)
+            # Increases length by about 10%.
+            statebytes = self.cipher.encrypt(statebytes)
 
-        return topic, state
+        return topic, statebytes
 
     def json_dumps(self, o: object) -> str:
         return self.json_encoder.encode(o)
@@ -154,14 +167,14 @@ class SequencedItemMapper(AbstractSequencedItemMapper[TEvent]):
 
         return self.event_from_topic_and_state(topic, state)
 
-    def event_from_topic_and_state(self, topic: str, state: str) -> TEvent:
+    def event_from_topic_and_state(self, topic: str, state: bytes) -> TEvent:
         domain_event_class, event_attrs = self.get_event_class_and_attrs(topic, state)
 
         # Reconstruct domain event object.
         return reconstruct_object(domain_event_class, event_attrs)
 
     def get_event_class_and_attrs(
-        self, topic: str, state: str
+        self, topic: str, state: bytes
     ) -> Tuple[Type[TEvent], Dict]:
         # Resolve topic to event class.
         domain_event_class: Type[TEvent] = resolve_topic(topic)
@@ -170,8 +183,17 @@ class SequencedItemMapper(AbstractSequencedItemMapper[TEvent]):
         if self.cipher:
             state = self.cipher.decrypt(state)
 
-        # Deserialize data.
-        event_attrs: Dict = self.json_loads(state)
+        # Decompress plaintext bytes.
+        if self.compressor:
+            state = self.compressor.decompress(state)
+
+        # Decode unicode bytes.
+        statestr = state.decode("utf8")
+
+        # Deserialize JSON.
+        event_attrs: Dict = self.json_loads(statestr)
+
+        # Return instance class and attribute values.
         return domain_event_class, event_attrs
 
     def json_loads(self, s: str) -> Dict:

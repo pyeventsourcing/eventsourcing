@@ -36,7 +36,7 @@ class SnapshottingApplication(SimpleApplication[TVersionedEntity, TVersionedEven
             sequenced_item_class=self.sequenced_item_class
         )
         self.snapshot_store = EventStore(
-            record_manager=record_manager, sequenced_item_mapper=sequenced_item_mapper
+            record_manager=record_manager, event_mapper=sequenced_item_mapper
         )
 
     def construct_repository(self, **kwargs: Any) -> None:

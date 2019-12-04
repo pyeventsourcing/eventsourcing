@@ -45,7 +45,7 @@ class EventStore(AbstractEventStore[TEvent, TRecordManager]):
         :return:
         """
         # Convert the domain event(s) to sequenced item(s).
-        return map(self.mapper.item_from_event, events)
+        return map(self.event_mapper.item_from_event, events)
 
     def iter_events(
         self,
@@ -96,7 +96,7 @@ class EventStore(AbstractEventStore[TEvent, TRecordManager]):
             )
 
         # Deserialize to domain events.
-        return map(self.mapper.event_from_item, sequenced_items)
+        return map(self.event_mapper.event_from_item, sequenced_items)
 
     def get_event(self, originator_id: UUID, position: int) -> TEvent:
         """
@@ -110,7 +110,7 @@ class EventStore(AbstractEventStore[TEvent, TRecordManager]):
         sequenced_item = self.record_manager.get_item(
             sequence_id=originator_id, position=position
         )
-        return self.mapper.event_from_item(sequenced_item)
+        return self.event_mapper.event_from_item(sequenced_item)
 
     def get_most_recent_event(
         self, originator_id: UUID, lt: Optional[int] = None, lte: Optional[int] = None

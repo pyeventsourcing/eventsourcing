@@ -28,7 +28,7 @@ class ExampleApplicationWithAlternativeSequencedItemType(object):
             record_manager=CassandraRecordManager(
                 record_class=StoredEventRecord, sequenced_item_class=StoredEvent
             ),
-            sequenced_item_mapper=SequencedItemMapper(
+            event_mapper=SequencedItemMapper(
                 sequenced_item_class=StoredEvent, other_attr_names=()
             ),
         )

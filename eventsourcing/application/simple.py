@@ -1,4 +1,5 @@
 import os
+import zlib
 from json import JSONDecoder, JSONEncoder
 from typing import Any, Generic, NamedTuple, Optional, Tuple, Type, Union
 
@@ -49,6 +50,7 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
 
     sequenced_item_class: Optional[Type[NamedTuple]] = None
     sequenced_item_mapper_class: Optional[Type[SequencedItemMapper]] = None
+    compressor: Any = None
     json_encoder_class: Optional[Type[JSONEncoder]] = None
     json_decoder_class: Optional[Type[JSONDecoder]] = None
 
@@ -65,6 +67,7 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         persistence_policy: Optional[PersistencePolicy] = None,
         persist_event_type: PersistEventType = None,
         cipher_key: Optional[str] = None,
+        compressor: Any = None,
         sequenced_item_class: Optional[Type[NamedTuple]] = None,
         sequenced_item_mapper_class: Optional[Type[SequencedItemMapper]] = None,
         record_manager_class: Optional[Type[AbstractRecordManager]] = None,
@@ -109,6 +112,11 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         self._persistence_policy = persistence_policy
 
         self.cipher = self.construct_cipher(cipher_key)
+        self.compressor = compressor or type(self).compressor
+
+        # Default to using zlib compression when encrypting.
+        if self.cipher and self.compressor is None:
+            self.compressor = zlib
 
         self.infrastructure_factory: Optional[
             InfrastructureFactory[TVersionedEvent]
@@ -218,7 +226,9 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
     def construct_event_store(self) -> None:
         assert self.infrastructure_factory
         factory = self.infrastructure_factory
-        self._event_store = factory.construct_integer_sequenced_event_store(self.cipher)
+        self._event_store = factory.construct_integer_sequenced_event_store(
+            self.cipher, self.compressor
+        )
 
     def construct_repository(self, **kwargs: Any) -> None:
         assert self.repository_class

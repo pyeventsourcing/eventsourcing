@@ -26,7 +26,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
     def construct_event_store(self):
         event_store = EventStore(
             record_manager=self.factory.construct_integer_sequenced_record_manager(),
-            sequenced_item_mapper=SequencedItemMapper(
+            event_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
                 sequence_id_attr_name="originator_id",
                 position_attr_name="originator_version",

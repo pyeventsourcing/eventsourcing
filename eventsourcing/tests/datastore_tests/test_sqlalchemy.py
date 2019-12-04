@@ -79,7 +79,7 @@ class TestSQLAlchemyDatastore(SQLAlchemyDatastoreTestCase, base.DatastoreTestCas
     def create_record(self):
         try:
             record = IntegerSequencedNoIDRecord(
-                sequence_id=uuid4(), position=0, topic="topic", state="{}"
+                sequence_id=uuid4(), position=0, topic="topic", state=b"{}"
             )
             self.datastore.session.add(record)
             self.datastore.session.commit()

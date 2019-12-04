@@ -1,4 +1,5 @@
 import datetime
+from base64 import b64decode, b64encode
 from collections import deque
 from decimal import Decimal
 from enum import Enum
@@ -8,8 +9,10 @@ from json import JSONDecoder, JSONEncoder
 from types import FunctionType, MethodType
 from uuid import UUID
 
+import binascii
 import dateutil.parser
 
+from eventsourcing.exceptions import DataIntegrityError
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
 JSON_SEPARATORS = (",", ":")
@@ -117,6 +120,11 @@ class ObjectJSONDecoder(JSONDecoder):
 @decoderpolicy
 def decoder(d):
     return d
+
+
+@encoder.register(bytes)
+def encode_type(obj):
+    return {"__bytes__": b64str_from_bytes(obj)}
 
 
 @encoder.register(type)
@@ -267,3 +275,16 @@ def encode_set(obj):
 @decoder.register("__set__")
 def decode_set(d):
     return set(d["__set__"])
+
+
+@decoder.register("__bytes__")
+def decode_set(d):
+    return bytes_from_b64str(d["__bytes__"])
+
+
+def b64str_from_bytes(value: bytes) -> str:
+    return b64encode(value).decode("utf8")
+
+
+def bytes_from_b64str(value):
+    return b64decode(value.encode("utf8"))
