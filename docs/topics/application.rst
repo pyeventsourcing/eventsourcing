@@ -156,14 +156,6 @@ class.
     assert isinstance(application.event_store, EventStore)
 
 
-We need to disable to the event mapper's compression, so later in this example
-we can see what the data looks like on the lowest level.
-
-.. code:: python
-
-    application.event_store.event_mapper.compressor = None
-
-
 Persistence policy
 ------------------
 
@@ -320,9 +312,6 @@ The custom application object can be constructed.
 
     # Construct application object.
     application = MyApplication(uri='sqlite:///:memory:')
-
-    # Disable compressor in event mapper, so we can see lower level data.
-    application.event_store.event_mapper.compressor = None
 
 
 The application service aggregate factor method ``create_aggregate()``

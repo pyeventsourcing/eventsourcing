@@ -183,7 +183,11 @@ class DjangoRecordManager(SQLRecordManager):
             objects = objects.filter(pipeline_id=self.pipeline_id)
 
         objects = objects.order_by("%s" % self.notification_id_name)
-        return objects.all()
+        for record in objects.all():
+            # Django returns memoryview objects from PostgreSQL, so need to cast.
+            state = getattr(record, self.field_names.state)
+            setattr(record, self.field_names.state, bytes(state))
+            yield record
 
     def delete_record(self, record: Any) -> None:
         """

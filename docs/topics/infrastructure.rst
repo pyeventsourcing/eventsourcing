@@ -157,7 +157,6 @@ sequenced item named tuple :class:`~eventsourcing.infrastructure.sequenceditem.S
 .. code:: python
 
     sequenced_item_mapper = SequencedItemMapper()
-    sequenced_item_mapper.compressor = None
 
 
 The method :func:`~eventsourcing.infrastructure.sequenceditemmapper.SequencedItemMapper.event_from_item`
@@ -217,7 +216,6 @@ namedtuple, can be passed with the constructor arg ``sequenced_item_class``.
     sequenced_item_mapper = SequencedItemMapper(
         sequenced_item_class=StoredEvent
     )
-    sequenced_item_mapper.compressor = None
 
     domain_event1 = sequenced_item_mapper.event_from_item(stored_event1)
 
@@ -309,7 +307,6 @@ now supports encoding and decoding sets, but the example is still demonstrative.
         json_decoder_class=CustomObjectJSONDecoder,
         sequenced_item_class=StoredEvent,
     )
-    customized_sequenced_item_mapper.compressor = None
     state = (
         '{"foo":{"__set__":["bar","baz"]},"originator_version":0,"originator_id":{"UUID":"%s"}}' % sequence1.hex
     ).encode('utf8')
@@ -405,7 +402,6 @@ thereby enable encryption.
         sequenced_item_class=StoredEvent,
         cipher=cipher,
     )
-    ciphered_sequenced_item_mapper.compressor = None
 
     # Domain event attribute ``foo`` has value ``'bar'``.
     assert domain_event1.foo == 'bar'

@@ -60,8 +60,6 @@ class SequencedItemMapper(AbstractSequencedItemMapper[TEvent]):
     Uses JSON to transcode domain events.
     """
 
-    compressor = zlib
-
     def __init__(
         self,
         sequenced_item_class: Optional[Type[NamedTuple]] = None,
@@ -70,6 +68,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper[TEvent]):
         json_encoder_class: Optional[Type[JSONEncoder]] = None,
         json_decoder_class: Optional[Type[JSONDecoder]] = None,
         cipher: Optional[AESCipher] = None,
+        compressor: Any = None,
         other_attr_names: Tuple[str, ...] = (),
     ):
         if sequenced_item_class is not None:
@@ -83,6 +82,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper[TEvent]):
         self.json_decoder_class = json_decoder_class or ObjectJSONDecoder
         self.json_decoder = self.json_decoder_class()
         self.cipher = cipher
+        self.compressor = compressor
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
         self.sequence_id_attr_name = (
             sequence_id_attr_name or self.field_names.sequence_id
@@ -135,12 +135,12 @@ class SequencedItemMapper(AbstractSequencedItemMapper[TEvent]):
 
         # Compress plaintext bytes.
         if self.compressor:
-            # Reduces state len by about 30%.
+            # Zlib reduces length by about 25% to 50%.
             statebytes = self.compressor.compress(statebytes)
 
         # Encrypt serialised state.
         if self.cipher:
-            # Increases state len by about 10%.
+            # Increases length by about 10%.
             statebytes = self.cipher.encrypt(statebytes)
 
         return topic, statebytes

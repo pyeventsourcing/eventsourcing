@@ -453,7 +453,6 @@ alternative record manager.
         sequence_id_attr_name='originator_id',
         position_attr_name='originator_version'
     )
-    event_mapper.compressor = None
 
     event_store = EventStore(
         record_manager=record_manager,

@@ -196,30 +196,30 @@ class TestProcessApplication(TestCase):
             downstream2.run()
 
         self.assertEqual(
-            0, len(downstream1.event_store.record_manager.get_notifications())
+            0, len(list(downstream1.event_store.record_manager.get_notifications()))
         )
         self.assertEqual(
-            0, len(downstream2.event_store.record_manager.get_notifications())
+            0, len(list(downstream2.event_store.record_manager.get_notifications()))
         )
 
         # Try to process pipeline 1, should work.
         downstream1.run()
 
         self.assertEqual(
-            1, len(downstream1.event_store.record_manager.get_notifications())
+            1, len(list(downstream1.event_store.record_manager.get_notifications()))
         )
         self.assertEqual(
-            0, len(downstream2.event_store.record_manager.get_notifications())
+            0, len(list(downstream2.event_store.record_manager.get_notifications()))
         )
 
         # Try again to process pipeline 2, should work this time.
         downstream2.run()
 
         self.assertEqual(
-            1, len(downstream1.event_store.record_manager.get_notifications())
+            1, len(list(downstream1.event_store.record_manager.get_notifications()))
         )
         self.assertEqual(
-            2, len(downstream2.event_store.record_manager.get_notifications())
+            2, len(list(downstream2.event_store.record_manager.get_notifications()))
         )
 
         core1.close()

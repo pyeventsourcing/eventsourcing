@@ -123,7 +123,7 @@ class InfrastructureFactory(Generic[TEvent]):
         )
 
     def construct_sequenced_item_mapper(
-        self, cipher: Optional[AESCipher]
+        self, cipher: Optional[AESCipher], compressor: Any,
     ) -> AbstractSequencedItemMapper:
         """
         Constructs sequenced item mapper object.
@@ -135,6 +135,7 @@ class InfrastructureFactory(Generic[TEvent]):
         return self.sequenced_item_mapper_class(
             sequenced_item_class=self.sequenced_item_class,
             cipher=cipher,
+            compressor=compressor,
             # sequence_id_attr_name=sequence_id_attr_name,
             # position_attr_name=position_attr_name,
             json_encoder_class=self.json_encoder_class,
@@ -142,12 +143,12 @@ class InfrastructureFactory(Generic[TEvent]):
         )
 
     def construct_integer_sequenced_event_store(
-        self, cipher: Optional[AESCipher]
+        self, cipher: Optional[AESCipher], compressor: Any,
     ) -> AbstractEventStore:
         """
         Constructs an integer sequenced event store.
         """
-        sequenced_item_mapper = self.construct_sequenced_item_mapper(cipher)
+        sequenced_item_mapper = self.construct_sequenced_item_mapper(cipher, compressor)
         record_manager = self.construct_integer_sequenced_record_manager()
         return (self.event_store_class or EventStore)(
             record_manager=record_manager, event_mapper=sequenced_item_mapper
