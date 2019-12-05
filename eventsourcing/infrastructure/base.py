@@ -438,7 +438,11 @@ class SQLRecordManager(ACIDRecordManager):
 
     @abstractmethod
     def make_placeholder(self, field_name: str) -> str:
-        pass
+        """
+        Returns "placeholder" string for late binding of values to query.
+
+        Depends on record manager's adapted database system or adapted ORM.
+        """
 
     _insert_select_max_tmpl = (
         "INSERT INTO {tablename} ({notification_id}, {columns}) "

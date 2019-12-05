@@ -48,11 +48,8 @@ class PopoRecordManager(ACIDRecordManager):
     def delete_record(self, record: Any) -> None:
         with self._rw_lock.gen_wlock():
             sequence_records = self._get_sequence_records(record.sequence_id)
-            try:
-                position = getattr(record, self.field_names.position)
-                del sequence_records[position]
-            except KeyError:
-                pass
+            position = getattr(record, self.field_names.position)
+            sequence_records.pop(position, None)
 
     def get_max_notification_id(self) -> int:
         with self._rw_lock.gen_rlock():

@@ -4,7 +4,6 @@ from uuid import UUID
 from eventsourcing.domain.model.entity import (
     TVersionedEntity,
     TVersionedEvent,
-    VersionedEntity,
 )
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.base import (

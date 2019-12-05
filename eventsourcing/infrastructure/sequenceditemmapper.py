@@ -20,7 +20,9 @@ from eventsourcing.whitehead import T, TEvent
 
 class AbstractSequencedItemMapper(Generic[TEvent], ABC):
     def __init__(self, **kwargs: Any):
-        pass
+        """
+        Initialises mapper.
+        """
 
     @abstractmethod
     def item_from_event(self, domain_event: TEvent) -> NamedTuple:

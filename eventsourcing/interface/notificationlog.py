@@ -44,6 +44,31 @@ class RemoteNotificationLog(AbstractNotificationLog):
         except JSONDecodeError:
             raise ValueError("Couldn't load JSON string: {}".format(value))
 
+    @property
+    def section_size(self) -> int:
+        """
+        Size of section of notification log.
+        """
+        if self._section_size == -1:
+            resource = self.get_resource(self.make_notification_log_url("section_size"))
+
+            self.deserialize_section_size(resource)
+        return self._section_size
+
+    def deserialize_section_size(self, resource: str) -> int:
+        try:
+            section_size = self.json_loads(resource)
+        except:
+            raise ValueError(
+                "Failed to decode JSON 'section_size' resource: {}".format(resource)
+            )
+        else:
+            if not isinstance(section_size, int):
+                raise TypeError(
+                    "Section size is not an int: {}".format(type(section_size))
+                )
+            return section_size
+
     def __getitem__(self, section_id: str) -> Section:
         """
         Returns a section of notification log.
@@ -54,28 +79,6 @@ class RemoteNotificationLog(AbstractNotificationLog):
         """
         section_json = self.get_json(section_id)
         return self.deserialize_section(section_json)
-
-    @property
-    def section_size(self) -> int:
-        """
-        Size of section of notification log.
-        """
-        if self._section_size == -1:
-            resource = self.get_resource(self.make_notification_log_url("section_size"))
-
-            try:
-                section_size = self.json_loads(resource)
-            except:
-                raise ValueError(
-                    "Failed to decode JSON 'section_size' resource: {}".format(resource)
-                )
-            if isinstance(section_size, int):
-                self._section_size = section_size
-            else:
-                raise ValueError(
-                    "Section size is not an int: {}".format(type(section_size))
-                )
-        return self._section_size
 
     def deserialize_section(self, section_json: str) -> Section:
         try:
@@ -145,9 +148,3 @@ class NotificationLogView(object):
             resource = self.json_encoder.encode(section.__dict__)
 
         return resource
-
-    def present_section(self, section_id: str) -> str:
-        """
-        For backwards compatibility (deprecation warning from 7.3.0).
-        """
-        return self.present_section(section_id)

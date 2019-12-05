@@ -42,11 +42,16 @@ class TestEventSourcedRepository(SQLAlchemyDatastoreTestCase):
 
         # Put an event in the event store.
         entity_id = uuid4()
-        event_store.store_events([
-            Example.Created(
-                a=1, b=2, originator_id=entity_id, originator_topic=get_topic(Example)
-            )
-        ])
+        event_store.store_events(
+            [
+                Example.Created(
+                    a=1,
+                    b=2,
+                    originator_id=entity_id,
+                    originator_topic=get_topic(Example),
+                )
+            ]
+        )
 
         # Construct a repository.
         event_sourced_repo: EventSourcedRepository[
@@ -64,6 +69,12 @@ class TestEventSourcedRepository(SQLAlchemyDatastoreTestCase):
         self.assertEqual(1, example.a)
         self.assertEqual(2, example.b)
         self.assertEqual(entity_id, example.id)
+
+        # Check class-specific request fails on type.
+        class SubExample(Example):
+            pass
+
+        self.assertIsNone(event_sourced_repo.get_instance_of(SubExample, entity_id))
 
         # Setup an example repository, using the subclass ExampleRepository.
         example_repo = ExampleRepository(event_store=event_store)

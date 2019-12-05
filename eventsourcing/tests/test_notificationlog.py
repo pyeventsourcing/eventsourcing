@@ -308,6 +308,13 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
             # Use reader with client to read all items in remote feed after item 5.
             notification_log = RemoteNotificationLog(base_url)
 
+            # Just before we start, test the deserialise_section_size exceptions.
+            notification_log.deserialize_section_size('1')
+            with self.assertRaises(ValueError):
+                notification_log.deserialize_section_size('"1')
+            with self.assertRaises(TypeError):
+                notification_log.deserialize_section_size('"1"')
+
             # Get all the items.
             notification_log_reader = NotificationLogReader(
                 notification_log=notification_log

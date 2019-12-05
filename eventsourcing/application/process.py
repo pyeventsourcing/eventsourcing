@@ -503,7 +503,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
 
                 for aggregate in new_aggregates:
                     # Put new aggregates in repository cache (avoids replay).
-                    if repository.repository._use_cache:
+                    if repository.repository.use_cache:
                         repository.repository._cache[aggregate.id] = aggregate
 
                     # Make new aggregates available in subsequent policy calls.
