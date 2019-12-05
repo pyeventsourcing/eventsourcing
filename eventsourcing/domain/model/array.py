@@ -218,7 +218,6 @@ class BigArray(Array):
     """
 
     def __init__(self, array_id, repo):
-        assert isinstance(repo, AbstractArrayRepository), type(repo)
         super(BigArray, self).__init__(array_id=array_id, repo=repo)
 
     def get_last_array(self):

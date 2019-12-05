@@ -10,6 +10,7 @@ from eventsourcing.application.process import (
     ProcessApplication,
     ProcessApplicationWithSnapshotting,
     WrappedRepository,
+    PromptToPull,
 )
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.domain.model.aggregate import AggregateRoot, BaseAggregateRoot
@@ -22,7 +23,8 @@ from eventsourcing.domain.model.events import (
     unsubscribe,
 )
 from eventsourcing.domain.model.snapshot import Snapshot
-from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed
+from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed, \
+    ProgrammingError
 from eventsourcing.infrastructure.sqlalchemy.records import Base
 from eventsourcing.whitehead import TEntity
 from eventsourcing.utils.topic import resolve_topic
@@ -167,7 +169,9 @@ class TestProcessApplication(TestCase):
 
         # - the second 'Created' event depends on the Created event in another pipeline.
         expect = [{"notification_id": 1, "pipeline_id": pipeline_id1}]
-        actual = ObjectJSONDecoder().decode(second_entity_records[0].causal_dependencies)
+        actual = ObjectJSONDecoder().decode(
+            second_entity_records[0].causal_dependencies
+        )
 
         self.assertEqual(expect, actual)
 
@@ -294,6 +298,96 @@ class TestProcessApplication(TestCase):
             )
             self.assertIsNone(projection)
 
+    def test_cant_follow_self_and_apply_policy_to_generated_events(self):
+        with self.assertRaises(ProgrammingError):
+            # Construct example process.
+            process_class = ProcessApplication.mixin(self.infrastructure_class)
+            with process_class(
+                name="test",
+                policy=None,
+                persist_event_type=ExampleAggregate.Event,
+                setup_table=True,
+                apply_policy_to_generated_events=True,
+            ) as process:
+                assert isinstance(process, ProcessApplication)
+
+                self.assertTrue(process.apply_policy_to_generated_events)
+
+                # Make the process follow itself.
+                process.follow("test", process.notification_log)
+
+    def test_clear_cache_after_exception_recording_event(self):
+        # Construct example process.
+        process_class = ProcessApplication.mixin(self.infrastructure_class)
+        with process_class(
+            name="test",
+            policy=example_policy,
+            persist_event_type=ExampleAggregate.Event,
+            setup_table=True,
+            use_cache=True,
+        ) as process:
+            # Check cache is being used.
+            self.assertTrue(process.use_cache)
+
+            # Make the process follow itself.
+            process.follow("test", process.notification_log)
+
+            # Create an aggregate.
+            aggregate = ExampleAggregate.__create__()
+            aggregate.__save__()
+
+            # Put aggregate in the cache.
+            process.repository._cache[aggregate.id] = aggregate
+
+            # Damage the record manager.
+            process.event_store.record_manager.write_records = None
+
+            # Run the process.
+            try:
+                process.run()
+            except Exception:
+                pass
+            else:
+                self.fail("Exception not raised")
+
+            # Check the aggregate is no longer in the cache.
+            self.assertNotIn(aggregate.id, process.repository._cache)
+
+    def test_policy_returnS_sequence_of_new_aggregates(self):
+
+        def policy(repository, event):
+            first = AggregateRoot.__create__(originator_id=(uuid4()))
+            second = AggregateRoot.__create__(originator_id=(uuid4()))
+            return (first, second)
+
+        # Construct example process.
+        process_class = ProcessApplication.mixin(self.infrastructure_class)
+        with process_class(
+            name="test",
+            policy=policy,
+            persist_event_type=ExampleAggregate.Event,
+            setup_table=True,
+            use_cache=True,
+        ) as process:
+            # Make the process follow itself.
+            process.follow("test", process.notification_log)
+
+            # Create an aggregate.
+            aggregate = ExampleAggregate.__create__()
+            aggregate.__save__()
+
+            # Run the process.
+            process.run()
+
+            # Check the two new aggregates are in the cache.
+            self.assertEqual(len(process.repository._cache), 2)
+
+            # Check there are three aggregates in the repository.
+            ids = process.repository.event_store.record_manager.all_sequence_ids()
+            self.assertEqual(len(list(ids)), 3)
+
+
+
     def define_projection_record_class(self):
         class ProjectionRecord(Base):
             __tablename__ = "projections"
@@ -355,6 +449,25 @@ class TestProcessApplication(TestCase):
             raise
 
 
+class TestPromptToPull(TestCase):
+    def test_repr(self):
+        prompt1 = PromptToPull("process1", pipeline_id=1)
+        self.assertEqual(
+            repr(prompt1), "PromptToPull(process_name=process1, pipeline_id=1)"
+        )
+
+    def test_eq(self):
+        prompt1 = PromptToPull("process1", pipeline_id=1)
+        prompt2 = PromptToPull("process1", pipeline_id=1)
+        prompt3 = PromptToPull("process2", pipeline_id=1)
+        prompt4 = PromptToPull("process1", pipeline_id=2)
+
+        self.assertEqual(prompt1, prompt1)
+        self.assertEqual(prompt1, prompt2)
+        self.assertNotEqual(prompt1, prompt3)
+        self.assertNotEqual(prompt1, prompt4)
+
+
 class TestCommands(TestCase):
     infrastructure_class = SQLAlchemyApplication
 
@@ -406,9 +519,7 @@ class TestCommands(TestCase):
         core.close()
 
     def test_apply_policy_to_generated_domain_events(self):
-        commands = CommandProcess.mixin(self.infrastructure_class)(
-            setup_table=True
-        )
+        commands = CommandProcess.mixin(self.infrastructure_class)(setup_table=True)
         core = ProcessApplication.mixin(self.infrastructure_class)(
             name="core",
             policy=example_policy,

@@ -19,7 +19,7 @@ except:
 
 class TestPersistencePolicy(unittest.TestCase):
     def setUp(self):
-        self.event_store = mock.Mock(spec=AbstractEventStore)
+        self.event_store: AbstractEventStore = mock.Mock(spec=AbstractEventStore)
         self.persistence_policy = PersistencePolicy(
             event_store=self.event_store, persist_event_type=VersionedEntity.Event
         )
@@ -29,7 +29,6 @@ class TestPersistencePolicy(unittest.TestCase):
 
     def test_published_events_are_appended_to_event_store(self):
         # Check the event store's append method has NOT been called.
-        assert isinstance(self.event_store, AbstractEventStore)
         self.assertEqual(0, self.event_store.store_events.call_count)
 
         # Publish a versioned entity event.
@@ -54,8 +53,10 @@ class TestPersistencePolicy(unittest.TestCase):
 
 class TestSnapshottingPolicy(unittest.TestCase):
     def setUp(self):
-        self.repository = mock.Mock(spec=AbstractEntityRepository)
-        self.snapshot_store = mock.Mock(spec=AbstractEventStore)
+        self.repository: AbstractEntityRepository = mock.Mock(
+            spec=AbstractEntityRepository
+        )
+        self.snapshot_store: AbstractEventStore = mock.Mock(spec=AbstractEventStore)
         self.policy = SnapshottingPolicy(
             repository=self.repository, snapshot_store=self.snapshot_store, period=2
         )
@@ -65,7 +66,6 @@ class TestSnapshottingPolicy(unittest.TestCase):
 
     def test_published_events_are_appended_to_event_store(self):
         # Check the event store's append method has NOT been called.
-        assert isinstance(self.repository, AbstractEntityRepository)
         self.assertEqual(0, self.repository.take_snapshot.call_count)
 
         # Publish a versioned entity event.

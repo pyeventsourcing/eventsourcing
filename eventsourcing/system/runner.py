@@ -55,8 +55,8 @@ class InProcessRunner(AbstractSystemRunner):
         assert len(self.processes) == 0, "Already running"
 
         # Construct the processes.
-        for process_name in self.system.process_classes.keys():
-            self._construct_app_by_name(process_name)
+        for process_class in self.system.process_classes.values():
+            self._construct_app_by_class(process_class)
 
         # Tell each process about the processes it follows.
         for followed_name, followers in self.system.followers.items():

@@ -404,10 +404,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
             if self.repository._cache:
                 originator_ids = set([event.originator_id for event in domain_events])
                 for originator_id in originator_ids:
-                    try:
-                        del self.repository._cache[originator_id]
-                    except KeyError:
-                        pass
+                    self.repository._cache.pop(originator_id, None)
             raise exc
         else:
             if self.tick_interval is not None:
@@ -463,10 +460,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
         pass
 
     def set_reader_position_from_tracking_records(self, upstream_name: str) -> None:
-        try:
-            reader = self.readers[upstream_name]
-        except KeyError:
-            raise Exception(list(self.readers.keys()))
+        reader = self.readers[upstream_name]
         record_manager = self.event_store.record_manager
         assert isinstance(record_manager, ACIDRecordManager)
         recorded_position = record_manager.get_max_tracking_record_id(upstream_name)

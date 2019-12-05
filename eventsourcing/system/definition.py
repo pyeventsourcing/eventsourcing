@@ -153,7 +153,8 @@ class System(object):
         """
         from eventsourcing.system.runner import SingleThreadedRunner
 
-        assert self.runner is None, "System is already running: {}".format(self.runner)
+        if self.runner:
+            raise ProgrammingError("System is already running: {}".format(self.runner))
 
         runner = SingleThreadedRunner(
             system=self,
@@ -259,14 +260,6 @@ class AbstractSystemRunner(ABC):
             for process in self.processes.values():
                 process.close()
             self.processes.clear()
-
-    def _construct_app_by_name(self, process_name: str) -> TProcessApplication:
-        if process_name in self.processes:
-            process = self.processes[process_name]
-        else:
-            process_class = self.system.process_classes[process_name]
-            process = self._construct_app_by_class(process_class)
-        return process
 
     def get(self, process_class: Type[TProcessApplication]) -> TProcessApplication:
         process_name = process_class.__name__.lower()

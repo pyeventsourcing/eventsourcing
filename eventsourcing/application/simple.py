@@ -80,6 +80,7 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         json_encoder_class: Optional[Type[JSONEncoder]] = None,
         json_decoder_class: Optional[Type[JSONDecoder]] = None,
         notification_log_section_size: Optional[int] = None,
+        use_cache: bool = False,
     ):
         self.name = name or type(self).__name__.lower()
 
@@ -130,6 +131,8 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         ] = None
         self._notification_log: Optional[LocalNotificationLog] = None
 
+        self.use_cache = use_cache or type(self).use_cache
+
         if (
             self.record_manager_class
             or self.infrastructure_factory_class.record_manager_class
@@ -148,10 +151,6 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
     def datastore(self) -> AbstractDatastore:
         assert self._datastore
         return self._datastore
-
-    @property
-    def session(self) -> Optional[Any]:
-        return None
 
     @property
     def event_store(self) -> AbstractEventStore[TVersionedEvent, BaseRecordManager]:

@@ -11,7 +11,7 @@ from eventsourcing.domain.model.events import (
     assert_event_handlers_empty,
     clear_event_handlers,
 )
-from eventsourcing.exceptions import RepositoryKeyError
+from eventsourcing.exceptions import RepositoryKeyError, ProgrammingError
 from eventsourcing.tests.test_process import ExampleAggregate
 from eventsourcing.tests.system_test_fixtures import (
     Examples,
@@ -29,7 +29,7 @@ from eventsourcing.tests.system_test_fixtures import (
 class TestSystem(TestCase):
     infrastructure_class = SQLAlchemyApplication
 
-    def test___getattr__(self):
+    def test_construct_app(self):
         system = System(
             Orders | Reservations | Orders,
             Orders | Payments | Orders,
@@ -45,6 +45,35 @@ class TestSystem(TestCase):
         with system.construct_app(Reservations) as app:
             self.assertIsInstance(app, Reservations)
 
+    def test_not_infrastructure_class_exception(self):
+        system = System(
+            Orders | Reservations | Orders,
+            Orders | Payments | Orders,
+            setup_tables=True,
+            infrastructure_class=TestCase,
+        )
+        with self.assertRaises(ProgrammingError):
+            system.construct_app(Orders)
+
+    def test_bind(self):
+        system = System(
+            Orders | Reservations | Orders,
+            Orders | Payments | Orders,
+            setup_tables=True,
+        )
+        # Check system does not have infrastructure class.
+        self.assertIsNone(system.infrastructure_class)
+
+        # Bind system to infrastructure.
+        system2 = system.bind(self.infrastructure_class)
+
+        # Check system2 has infrastructure class.
+        self.assertIsNotNone(system2.infrastructure_class)
+
+        # Check ProgrammingError on attempt to bind system2.
+        with self.assertRaises(ProgrammingError):
+            system2.bind(self.infrastructure_class)
+
     def test_singlethreaded_runner_with_single_application_class(self):
         system = System(
             Orders,
@@ -56,6 +85,17 @@ class TestSystem(TestCase):
 
             repository = runner.get(Orders).repository
             self.assertEqual(repository[order_id].id, order_id)
+
+    def test_can_run_if_already_running(self):
+        system = System(
+            Orders,
+            setup_tables=True,
+            infrastructure_class=self.infrastructure_class,
+        )
+        with system:
+            with self.assertRaises(ProgrammingError):
+                with system:
+                    pass
 
     def test_multithreaded_runner_with_single_application_class(self):
         system = System(

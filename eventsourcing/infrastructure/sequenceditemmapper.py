@@ -4,8 +4,6 @@ from abc import ABC, abstractmethod
 from json import JSONDecodeError, JSONDecoder, JSONEncoder
 from typing import Any, Dict, Generic, NamedTuple, Optional, Tuple, Type
 
-import zlib
-
 from eventsourcing.infrastructure.sequenceditem import (
     SequencedItem,
     SequencedItemFieldNames,
@@ -49,7 +47,7 @@ class AbstractSequencedItemMapper(Generic[TEvent], ABC):
         """
 
     @abstractmethod
-    def event_from_topic_and_state(self, topic: str, state: str) -> TEvent:
+    def event_from_topic_and_state(self, topic: str, state: bytes) -> TEvent:
         """
         Resolves topic to an event class, decodes state, and constructs an event.
         """

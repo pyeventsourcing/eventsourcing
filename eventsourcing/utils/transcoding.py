@@ -9,10 +9,8 @@ from json import JSONDecoder, JSONEncoder
 from types import FunctionType, MethodType
 from uuid import UUID
 
-import binascii
 import dateutil.parser
 
-from eventsourcing.exceptions import DataIntegrityError
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
 JSON_SEPARATORS = (",", ":")
@@ -123,7 +121,7 @@ def decoder(d):
 
 
 @encoder.register(bytes)
-def encode_type(obj):
+def encode_bytes(obj):
     return {"__bytes__": b64str_from_bytes(obj)}
 
 
@@ -278,7 +276,7 @@ def decode_set(d):
 
 
 @decoder.register("__bytes__")
-def decode_set(d):
+def decode_bytes(d):
     return bytes_from_b64str(d["__bytes__"])
 
 
