@@ -34,6 +34,24 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
         )
         return event_store
 
+    def test_get_domain_events_deprecated(self):
+        event_store = self.construct_event_store()
+
+        # Check there are zero stored events in the repo.
+        entity_id1 = uuid4()
+        entity_events = event_store.get_domain_events(originator_id=entity_id1)
+        self.assertEqual(0, len(list(entity_events)))
+
+        # Store a domain event.
+        event1 = Example.Created(
+            a=1, b=2, originator_id=entity_id1, originator_topic=get_topic(Example)
+        )
+        event_store.store_events([event1])
+
+        # Check there is one event in the event store.
+        entity_events = event_store.get_domain_events(originator_id=entity_id1)
+        self.assertEqual(1, len(list(entity_events)))
+
     def test_list_events(self):
         event_store = self.construct_event_store()
 

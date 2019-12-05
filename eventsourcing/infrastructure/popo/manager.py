@@ -320,4 +320,17 @@ class PopoRecordManager(ACIDRecordManager):
             self._all_notification_max[self.application_name] = next_notification_id
 
     def to_records(self, sequenced_items: Iterable[NamedTuple]) -> Iterable[Any]:
-        return sequenced_items
+        return (PopoStoredEventRecord(s) for s in sequenced_items)
+
+
+class PopoStoredEventRecord(object):
+    """
+    Encapsulates sequenced item tuple (containing real event object).
+
+    Allows other attributes to be set, such as notification ID.
+    """
+    def __init__(self, sequenced_item: NamedTuple):
+        self.sequenced_item = sequenced_item
+
+    def __getattr__(self, item: str) -> Any:
+        return getattr(self.sequenced_item, item)

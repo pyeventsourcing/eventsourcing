@@ -222,6 +222,7 @@ class PaxosProcess(ProcessApplication[PaxosAggregate, PaxosAggregate.Event]):
     quorum_size: int = 0
     notification_log_section_size = 5
     use_cache = True
+    set_notification_ids = True
 
     # Todo: Reintroduce this, if it can be made to work with Popo infrastructure.
     # set_notification_ids = True

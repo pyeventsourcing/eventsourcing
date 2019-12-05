@@ -29,10 +29,6 @@ class EventPlayer(AbstractEventPlayer[TDomainEntity, TDomainEvent]):
         self._snapshot_strategy = snapshot_strategy
         self._mutator_func = mutator_func or self.mutate
 
-    @property
-    def event_store(self) -> AbstractEventStore:
-        return self._event_store
-
     def project_events(
         self,
         initial_state: Optional[TDomainEntity],

@@ -260,7 +260,7 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
 
     def change_pipeline(self, pipeline_id: int) -> None:
         self.pipeline_id = pipeline_id
-        self.event_store.record_manager._pipeline_id = pipeline_id
+        self.event_store.record_manager.pipeline_id = pipeline_id
 
     def close(self) -> None:
         # Close the persistence policy.

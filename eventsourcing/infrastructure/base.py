@@ -35,12 +35,16 @@ TrackingKwargs = Dict[str, Union[str, int]]
 
 class AbstractRecordManager(ABC):
     def __init__(self, **kwargs: Any):
-        pass
+        """
+        Initialises record manager.
+        """
 
     @property
     @abstractmethod
     def record_class(self) -> Any:
-        pass
+        """
+        Returns record class to be used by the record manager.
+        """
 
     @abstractmethod
     def record_sequenced_items(self, sequenced_items: Iterable[NamedTuple]) -> None:
@@ -446,7 +450,9 @@ class SQLRecordManager(ACIDRecordManager):
     @property
     @abstractmethod
     def _where_application_name_tmpl(self) -> str:
-        pass
+        """
+        Returns template string for "WHERE" clause of SQL statement.
+        """
 
     @property
     def insert_values(self) -> Any:
@@ -597,9 +603,13 @@ class AbstractEventStore(ABC, Generic[TEvent, TRecordManager]):
             page_size=page_size,
         )
 
+    @abstractmethod
     def items_from_events(self, events: Iterable[TEvent]) -> Iterable[NamedTuple]:
-        pass
+        """
+        Maps domain event to sequenced item namedtuple.
 
+        :param events: An iterable of events.
+        """
 
 class AbstractEventPlayer(Generic[TEntity, TEvent]):
     @property
@@ -621,7 +631,19 @@ class AbstractEventPlayer(Generic[TEntity, TEvent]):
         initial_state: Optional[TEntity] = None,
         query_descending: bool = False,
     ) -> Optional[TEntity]:
-        pass
+        """
+        Gets events and reconstructs entity.
+
+        :param entity_id:
+        :param gt:
+        :param gte:
+        :param lt:
+        :param lte:
+        :param limit:
+        :param initial_state:
+        :param query_descending:
+        :return:
+        """
 
 
 class AbstractSnapshop(ActualOccasion):

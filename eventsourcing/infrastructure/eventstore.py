@@ -41,8 +41,7 @@ class EventStore(AbstractEventStore[TEvent, TRecordManager]):
         """
         Maps domain event to sequenced item namedtuple.
 
-        :param events: One or many domain events.
-        :return:
+        An iterable of events.
         """
         # Convert the domain event(s) to sequenced item(s).
         return map(self.event_mapper.item_from_event, events)

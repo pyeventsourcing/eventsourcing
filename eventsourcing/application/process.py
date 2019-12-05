@@ -645,13 +645,16 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
             # Todo: Maybe keep track of what this probably is, to
             #  avoid query. Like log reader, invalidate on error.
             if self.set_notification_ids:
+                notification_id_name = record_manager.notification_id_name
                 current_max = record_manager.get_max_notification_id()
                 for domain_event, event_record in zip(pending_events, event_records):
                     if type(domain_event).__notifiable__:
                         current_max += 1
-                        event_record.id = current_max
+                        setattr(event_record, notification_id_name, current_max)
                     else:
-                        event_record.id = "event-not-notifiable"
+                        setattr(
+                            event_record, notification_id_name, "event-not-notifiable"
+                        )
 
             if self.use_causal_dependencies:
                 assert hasattr(record_manager.record_class, "causal_dependencies")
