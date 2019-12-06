@@ -228,7 +228,7 @@ class AbstractSystemRunner(ABC):
         if self.system.runner is None or self.system.runner() is None:
             self.system.runner = weakref.ref(self)
         else:
-            raise EventSourcingError(
+            raise ProgrammingError(
                 "System is already running: {}".format(self.system.runner)
             )
 
