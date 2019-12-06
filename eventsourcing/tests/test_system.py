@@ -97,6 +97,11 @@ class TestSystem(TestCase):
                 with system:
                     pass
 
+        with system as runner:
+            with self.assertRaises(ProgrammingError):
+                with runner:
+                    pass
+
     def test_multithreaded_runner_with_single_application_class(self):
         system = System(
             Orders,
