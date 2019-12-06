@@ -122,7 +122,7 @@ class SingleThreadedRunner(InProcessRunner):
             self.pending_prompts.put(prompt)
 
         if self.iteration_lock.acquire(False):
-            start_time = time.time()
+            # start_time = time.time()
             i = 0
             try:
                 while True:
@@ -137,21 +137,11 @@ class SingleThreadedRunner(InProcessRunner):
                                 follower = self.processes[follower_name]
                                 follower.run(prompt)
                                 i += 1
-                        else:
-                            raise Exception("Unsupported prompt: {}".format(prompt))
                         self.pending_prompts.task_done()
             finally:
                 # run_frequency = i / (time.time() - start_time)
                 # print(f"Run frequency: {run_frequency}")
                 self.iteration_lock.release()
-
-    # This is the old way of doing it, with recursion.
-    # def run_followers_with_recursion(self, prompt):
-    #     followers = self.system.followers[prompt.process_name]
-    #     for follower_name in followers:
-    #         follower = self.processes[follower_name]
-    #         follower.run(prompt)
-    #
 
 
 class MultiThreadedRunner(InProcessRunner):
