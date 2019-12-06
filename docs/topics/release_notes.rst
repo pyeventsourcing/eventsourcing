@@ -21,26 +21,31 @@ Version 8.x series refined the "process and system" code.
 Version 8.0.0 (released )
 ------------------------------------
 
-Version 8.0.0 changes the storage of event state to be bytes rather than
-strings. Previously state bytes were encoded with base64 before being saved
-as strings, which adds 33% to the size of each stored state. Compression of
-event state is now optional, independently of encryption, and configurable
-(defaults to zlib module, but other compressors can be used). This is
-definitely a backwards incompatible change. Attention will need to be
-paid to one of two alternatives. One alternative is to migrate your stored
-events (the state field), either from being stored as plaintext strings to
-being stored as plaintext bytes (you need to encode as utf-8), or from being
-stored as ciphertext bytes encoded with base64 decoded as utf-8 to being
+Version 8.0.0 brings more efficient storage and static typing.
+
+The storage of event state has been changed from strings to bytes. Previously
+state bytes were encoded with base64 before being saved as strings, which adds
+33% to the size of each stored state. Compression of event state is now optional,
+independently of encryption, and  configurable (defaults to zlib module, but other
+compressors can be used). This is definitely a backwards incompatible change.
+Attention will need to be paid to one of two alternatives. One alternative is to
+migrate your stored events (the state field), either from being stored as plaintext
+strings to being stored as plaintext bytes (you need to encode as utf-8), or from
+being stored as ciphertext bytes encoded with base64 decoded as utf-8 to being
 stored as ciphertext bytes (you need to encode as utf-8 and decode base64).
 The other alternative is to carry on using the same database schema, define
 custom stored event record classes in your project (copied from the previous
 version of the library), and extend the record manager to convert the bytes
 to strings and back. A later version of this library may bring support for
-one or both of these options, so if this presents a challenge, please hold
+one or both of these options, so if this change presents a challenge, please hold
 off from upgrading, and discuss your situation with the project developer(s).
+There is nothing wrong with the previous version, and you can continue
+to use it.
 
-Other backwards incompatible changes involve renaming methods and moving classes
-and modules. Please see the commit log for all the details.
+Other backwards incompatible changes involve renaming a number of methods, and
+moving classes and also modules (for example, the system modules have been
+moved from the applications package to a separate package). Please see the commit
+log for all the details.
 
 This version also brings improved and expanded transcoding, additional type
 annotations, automatic subclassing on domain entities of domain events (not
@@ -61,9 +66,9 @@ since they were encoded as lists not tuples.
 
 Please note, the system runner class was changed to keep references to
 constructed process application classes in the runner object, rather than the
-system object. So if you have code that accesses the process applications
+system object. If you have code that accesses the process applications
 as attributes on the system object, then attention will need to be paid to
-accessing the process applications as attributes on the runner object.
+accessing the process applications by class on the runner object.
 
 
 Version 7.x
