@@ -20,8 +20,8 @@ and improved transcoding. And a new "system" package for the
 system code that was previously in the "application" package.
 
 
-Version 8.0.0 (released )
-------------------------------------
+Version 8.0.0 (released 7 December 2019)
+----------------------------------------
 
 The storage of event state has been changed from strings to bytes. This
 is definitely a backwards incompatible change. Previously state bytes were
