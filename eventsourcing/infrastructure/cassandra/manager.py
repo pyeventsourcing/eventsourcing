@@ -8,7 +8,7 @@ from eventsourcing.infrastructure.base import BaseRecordManager
 
 
 class CassandraRecordManager(BaseRecordManager):
-    def record_sequenced_items(self, sequenced_items):
+    def record_items(self, sequenced_items):
         if not isinstance(sequenced_items, list):
             sequenced_items = list(sequenced_items)
 

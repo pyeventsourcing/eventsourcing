@@ -432,11 +432,11 @@ Record managers
 The event store uses a record manager to write sequenced items to database records.
 
 The library has an abstract base class
-:class:`~eventsourcing.infrastructure.base.AbstractSequencedItemRecordManager`
+:class:`~eventsourcing.infrastructure.base.AbstractRecordManager`
 with abstract methods
-:func:`~eventsourcing.infrastructure.base.AbstractSequencedItemRecordManager.record_sequenced_items`
+:func:`~eventsourcing.infrastructure.base.AbstractRecordManager.record_items`
 and
-:func:`~eventsourcing.infrastructure.base.AbstractSequencedItemRecordManager.get_items`,
+:func:`~eventsourcing.infrastructure.base.AbstractRecordManager.get_items`,
 which can be used on concrete implementations to read and write sequenced items in a database.
 
 A record manager is constructed with a ``sequenced_item_class`` and a matching
@@ -550,16 +550,16 @@ can be constructed, and used to store events using SQLAlchemy.
 
 Sequenced items (or "stored events" in this example) can
 be appended to the database using the
-:func:`~eventsourcing.infrastructure.base.AbstractSequencedItemRecordManager.record_sequenced_items`
+:func:`~eventsourcing.infrastructure.base.AbstractRecordManager.record_items`
 method of the record manager.
 
 .. code:: python
 
-    record_manager.record_sequenced_item(stored_event1)
+    record_manager.record_item(stored_event1)
 
 
 All the previously appended items of a sequence can be retrieved by using the
-:func:`~eventsourcing.infrastructure.base.AbstractSequencedItemRecordManager.list_items`
+:func:`~eventsourcing.infrastructure.base.AbstractRecordManager.list_items`
 method.
 
 .. code:: python
@@ -774,7 +774,7 @@ can be used to store events using the Django ORM.
     results = django_record_manager.list_items(aggregate1)
     assert len(results) == 0
 
-    django_record_manager.record_sequenced_item(stored_event1)
+    django_record_manager.record_item(stored_event1)
 
     results = django_record_manager.list_items(aggregate1)
     assert results[0] == stored_event1
@@ -913,7 +913,7 @@ can be constructed, and used to store events using Apache Cassandra.
     results = cassandra_record_manager.list_items(aggregate1)
     assert len(results) == 0
 
-    cassandra_record_manager.record_sequenced_item(stored_event1)
+    cassandra_record_manager.record_item(stored_event1)
 
     results = cassandra_record_manager.list_items(aggregate1)
     assert results[0] == stored_event1
@@ -935,7 +935,7 @@ to append two items at the same position in the same sequence. If such an attemp
 
     # Fail to append an item at the same position in the same sequence as a previous item.
     try:
-        record_manager.record_sequenced_item(stored_event1)
+        record_manager.record_item(stored_event1)
     except RecordConflictError:
         pass
     else:
@@ -1090,7 +1090,7 @@ exception class :class:`~eventsourcing.exceptions.RecordConflictError`.
 
 
 This feature depends on the behaviour of the record manager method
-:class:`~eventsourcing.infrastructure.base.AbstractSequencedItemRecordManager.record_sequenced_items`.
+:class:`~eventsourcing.infrastructure.base.AbstractRecordManager.record_items`.
 The event store will raise a
 :class:`~eventsourcing.exceptions.ConcurrencyError` if a
 :class:`~eventsourcing.exceptions.RecordConflictError`

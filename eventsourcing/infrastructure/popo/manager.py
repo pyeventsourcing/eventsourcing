@@ -204,7 +204,7 @@ class PopoRecordManager(ACIDRecordManager):
     ) -> bool:
         raise NotImplementedError()
 
-    def record_sequenced_items(self, sequenced_items: Iterable[NamedTuple]) -> None:
+    def record_items(self, sequenced_items: Iterable[NamedTuple]) -> None:
         records = self.to_records(sequenced_items)
         self.write_records(records=records)
 
