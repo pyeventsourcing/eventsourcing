@@ -666,7 +666,7 @@ It has a factory method
 create and save new ``Order`` aggregates.
 
 The library class
-:class:`~eventsourcing.application.command.CommandProcess
+:class:`~eventsourcing.application.command.CommandProcess`
 extends
 :class:`~eventsourcing.application.process.ProcessApplication`
 and so is also a

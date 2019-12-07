@@ -71,9 +71,9 @@ event classes have been pulled up to a layer supertype ``DomainEvent``.
 Please note, the domain event classes above do not depend on the library. The library does
 however contain a collection of different kinds of domain event classes that you can use
 in your models, for example see
-:class:`~eventsourcing.domain.model.events.Created`,
-:class:`~eventsourcing.domain.model.events.AttributeChanged`, and
-:class:`~eventsourcing.domain.model.events.Discarded`.
+:class:`~eventsourcing.domain.model.events.CreatedEvent`,
+:class:`~eventsourcing.domain.model.events.AttributeChangedEvent`, and
+:class:`~eventsourcing.domain.model.events.DiscardedEvent`.
 
 
 Publish-subscribe
