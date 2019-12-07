@@ -771,8 +771,8 @@ item mapper does not have a cipher, so the notification data is
 not encrypted.
 
 The library's :class:`~eventsourcing.application.simple.SimpleApplication`
-has a ``notification_log`` that uses the :class:`~eventsourcing.application.notificationlog
-.RecordManagerNotificationLog` class.
+has a ``notification_log`` that uses the
+:class:`~eventsourcing.application.notificationlog.RecordManagerNotificationLog` class.
 
 .. Todo: Move that function into the library, where? Perhaps subclass
 .. NotificationLogReader with EventNotificationLogReader?
@@ -846,10 +846,10 @@ BigArrayNotificationLog
 You can skip this section if you skipped the section about BigArray.
 
 A big array can be adapted by the library class
-:class:`~eventsourcing.interface.notificationlog.BigArrayNotificationLog`,
+:class:`~eventsourcing.application.notificationlog.BigArrayNotificationLog`,
 which will then present the items assigned to the array as notifications.
 
-The :class:`~eventsourcing.interface.notificationlog.BigArrayNotificationLog`
+The :class:`~eventsourcing.application.notificationlog.BigArrayNotificationLog`
 is constructed with a ``big_array``, and a ``section_size``.
 
 .. code:: python

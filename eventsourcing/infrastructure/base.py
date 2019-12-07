@@ -47,16 +47,16 @@ class AbstractRecordManager(ABC):
         """
 
     @abstractmethod
-    def record_sequenced_items(self, sequenced_items: Iterable[NamedTuple]) -> None:
+    def record_items(self, sequenced_items: Iterable[NamedTuple]) -> None:
         """
         Writes sequenced items into the datastore.
         """
 
-    def record_sequenced_item(self, sequenced_item: NamedTuple) -> None:
+    def record_item(self, sequenced_item: NamedTuple) -> None:
         """
         Writes sequenced item into the datastore.
         """
-        self.record_sequenced_items([sequenced_item])
+        self.record_items([sequenced_item])
 
     @abstractmethod
     def get_item(self, sequence_id: UUID, position: int) -> NamedTuple:
@@ -371,7 +371,7 @@ class SQLRecordManager(ACIDRecordManager):
         self._insert_values = None
         self._insert_tracking_record = None
 
-    def record_sequenced_items(self, sequenced_items: Iterable[NamedTuple]) -> None:
+    def record_items(self, sequenced_items: Iterable[NamedTuple]) -> None:
         # Convert sequenced item(s) to database record(s).
         records = self.to_records(sequenced_items)
 
@@ -540,10 +540,13 @@ class AbstractEventStore(ABC, Generic[TEvent, TRecordManager]):
         page_size: Optional[int] = None,
     ) -> Iterable[TEvent]:
         """
-        Returns domain events for given entity ID.
+        Returns iterable of domain events for given entity ID.
         """
 
     def list_events(self, *args: Any, **kwargs: Any) -> List[TEvent]:
+        """
+        Returns list of domain events for given entity ID.
+        """
         return list(self.iter_events(*args, **kwargs))
 
     @abstractmethod

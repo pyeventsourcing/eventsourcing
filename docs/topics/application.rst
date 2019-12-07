@@ -389,7 +389,7 @@ Stored events
 
 You can list the domain events of an aggregate
 by using the method
-:func:`~eventsourcing.infrastructure.eventstore.EventStore.list_events`
+:func:`~eventsourcing.infrastructure.base.AbstractEventStore.list_events`
 of the event store of the application.
 
 .. code:: python
@@ -420,7 +420,7 @@ Sequenced items
 
 It is also possible to get the sequenced item namedtuples for an aggregate,
 by using the method
-:func:`~eventsourcing.infrastructure.base.AbstractSequencedItemRecordManager.get_items`
+:func:`~eventsourcing.infrastructure.base.AbstractRecordManager.get_items`
 of the event store's record manager.
 
 .. code:: python

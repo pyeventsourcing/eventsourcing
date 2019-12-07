@@ -21,10 +21,12 @@ There is also a utils package, an example, and a module for exceptions.
 .. toctree::
    :maxdepth: 2
 
-   domainmodel
-   infrastructure
    application
-   interface
-   utils
+   domainmodel
    example
    exceptions
+   infrastructure
+   interface
+   system
+   utils
+   whitehead

@@ -58,7 +58,7 @@ class NotificationLogTestCase(SQLAlchemyRecordManagerTestCase, WithEventPersiste
         sequenced_item = self.entity_record_manager.sequenced_item_class(
             uuid4(), 0, get_topic(DomainEvent), item
         )
-        self.entity_record_manager.record_sequenced_item(sequenced_item)
+        self.entity_record_manager.record_item(sequenced_item)
 
 
 class TestNotificationLog(NotificationLogTestCase):

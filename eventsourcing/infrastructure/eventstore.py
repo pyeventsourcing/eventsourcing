@@ -33,7 +33,7 @@ class EventStore(AbstractEventStore[TEvent, TRecordManager]):
 
         # Append to the sequenced item(s) to the sequence.
         try:
-            self.record_manager.record_sequenced_items(sequenced_items)
+            self.record_manager.record_items(sequenced_items)
         except RecordConflictError as e:
             raise ConcurrencyError(e)
 

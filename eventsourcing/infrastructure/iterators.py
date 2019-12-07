@@ -21,6 +21,19 @@ class AbstractSequencedItemIterator(Iterable):
         limit: Optional[int] = None,
         is_ascending: bool = True,
     ):
+        """
+        Initialises sequenced item iterator.
+
+        :param record_manager: The record manager used to get sequenced items.
+        :param sequence_id: The id of the sequence being iterated over.
+        :param page_size: The number of items requested from the record manager.
+        :param gt: Exclusive lower bound on position of items returned.
+        :param gte: Inclusive lower bound on position of items returned.
+        :param lt: Exclusive upper bound on position of items returned.
+        :param lte: Inclusive upper bound on position of items returned.
+        :param limit: Limit to the number of items returned.
+        :param is_ascending: Whether or not to iterate in ascending order.
+        """
         assert isinstance(record_manager, BaseRecordManager), type(
             record_manager
         )
