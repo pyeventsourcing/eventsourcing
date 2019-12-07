@@ -116,36 +116,3 @@ command
     :members:
     :special-members:
     :exclude-members: __weakref__, __dict__
-
-
-system
-------
-
-.. automodule:: eventsourcing.system.definition
-    :show-inheritance:
-    :member-order: bysource
-    :members:
-    :special-members:
-    :exclude-members: __weakref__, __dict__
-
-
-multiprocess
-------------
-
-.. automodule:: eventsourcing.system.multiprocess
-    :show-inheritance:
-    :member-order: bysource
-    :members:
-    :special-members:
-    :exclude-members: __weakref__, __dict__
-
-
-actors
-------
-
-.. automodule:: eventsourcing.system.actors
-    :show-inheritance:
-    :member-order: bysource
-    :members:
-    :special-members:
-    :exclude-members: __weakref__, __dict__

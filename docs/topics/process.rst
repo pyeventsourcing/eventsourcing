@@ -840,8 +840,10 @@ is following.
 System
 ------
 
-A system of process applications can be defined using one or many "pipeline expressions",
-involving process application classes associated with Python's bitwise OR operator ``|``.
+A system of process applications can be defined using the library
+:class:`~eventsourcing.system.definition.System` object class, with
+one or many "pipeline expressions", each involving process application classes
+"linked" in a "pipeline" with Python's bitwise OR operator ``|``.
 
 For example, the pipeline expression ``A | A`` would have process application class
 ``A`` following itself. The expression ``A | B | C`` would have ``A`` followed by
@@ -917,7 +919,7 @@ Single threaded runner
 ~~~~~~~~~~~~~~~~~~~~~~
 
 If the ``system`` object is used with the library class
-:class:`~eventsourcing.application.system.SingleThreadedRunner`, the process
+:class:`~eventsourcing.system.runner.SingleThreadedRunner`, the process
 applications will run in a single thread in the current process.
 
 Events will be processed with synchronous handling of prompts,
@@ -926,7 +928,7 @@ to which applications each is followed by.
 
 In the example below, the ``system`` object is used directly as a context
 manager. Using the ``system`` object in this manner implicitly constructs
-a :class:`~eventsourcing.application.system.SingleThreadedRunner`, which
+a :class:`~eventsourcing.system.runner.SingleThreadedRunner`, which
 uses the infrastructure class
 :class:`~eventsourcing.application.popo.PopoApplication` by default. This
 infrastructure class uses "plain old Python objects" to store domain events
@@ -978,7 +980,7 @@ Multiprocess runner
 
 The example below shows the same system of process applications running in
 different operating system processes, using the library's
-:class:`~eventsourcing.application.multiprocess.MultiprocessRunner`
+:class:`~eventsourcing.system.multiprocess.MultiprocessRunner`
 class (which uses Python's ``multiprocessing`` library).
 
 Running the system with multiple operating system processes means the different processes
@@ -998,7 +1000,7 @@ get reserved, whilst a third order is at the same time created.
 .. isn't currently implemented in the library.)
 
 The code below uses the library's
-:class:`~eventsourcing.application.multiprocess.MultiprocessRunner`
+:class:`~eventsourcing.system.multiprocess.MultiprocessRunner`
 class to run the ``system``. It will start one operating system
 process for each process application in the system, which in this
 example will give a pipeline with four child operating system processes.
@@ -1121,7 +1123,7 @@ The system can run with many instances of its pipeline. By having more
 than one instance of the system pipeline, more than one instance of each
 process application can be instantiated (one for each pipeline). Pipelines
 are distinguished by integer ID. The ``pipeline_ids`` are given to the
-:class:`~eventsourcing.application.multiprocess.MultiprocessRunner`
+:class:`~eventsourcing.system.multiprocess.MultiprocessRunner`
 class when the runner is constructed.
 
 In this example, there are three pipeline IDs, so there will be three
@@ -1182,12 +1184,14 @@ possible foundation for such automation.
 Actor model runner
 ~~~~~~~~~~~~~~~~~~
 
-An Actor model library, in particular the `Thespian Actor Library
+An Actor model library, for example the `Thespian Actor Library
 <https://github.com/kquick/Thespian>`__, can also be used to run
 a multi-pipeline system of process applications.
 
+The library's :class:`~eventsourcing.system.actors.ActorModelRunner`
+is a system runner that uses the Thespian actor model system.
+
 The example below runs with Thespian's "simple system base".
-The actors will run by sending messages recursively.
 
 .. code:: python
 
@@ -1237,10 +1241,12 @@ by calling ``actors.start()``. The actors can be shutdown with ``actors.shutdown
 If ``actors`` is used as a context manager, as above, the ``start()`` method is
 called when the context manager enters. The ``close()`` method is called
 when the context manager exits. By default the ``shutdown()`` method
-is not called by ``close()``. If ``ActorModelRunner`` is constructed with ``shutdown_on_close=True``,
-which is ``False`` by default, then the actors will be shutdown by ``close()``, and so
-also when the context manager exits. Even so, shutting down the system actors will not
-shutdown a "multiproc" base system.
+is not called by ``close()``. If :class:`~eventsourcing.system.actors.ActorModelRunner`
+is constructed with ``shutdown_on_close=True``, which is ``False`` by default, then the
+actors will be shutdown when the runner ``close()`` method is called (which happens when
+the runner is used as a context manager, and the context manager exits). Even so, shutting
+down the system actors will not shutdown a "multiproc" base system. Please refer to the
+Thespian documentation for more information.
 
 .. These methods can be used separately. A script can be called to initialise the base
 .. system. Another script can start the system actors. Another script can be called to

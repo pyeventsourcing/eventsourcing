@@ -20,14 +20,12 @@ class System(object):
     A system object has a set of pipeline expressions, which involve
     process application classes. A system object can be run using
     a system runner.
+
     """
 
     def __init__(self, *pipeline_exprs: Any, **kwargs: Any):
         """
         Initialises a "process network" system object.
-
-        :param pipeline_exprs: Pipeline expressions involving process application
-        classes.
 
         Each pipeline expression of process classes shows directly which process
         follows which other process in the system.
@@ -41,6 +39,9 @@ class System(object):
 
         The pipeline expressions ((A | B | A), (A | C | A)) are equivalent to (A | B
         | A | C | A).
+
+        :param pipeline_exprs: Pipeline expressions involving process application
+        classes.
         """
         self.pipelines_exprs = pipeline_exprs
         self.setup_tables = kwargs.get("setup_tables", False)
