@@ -380,7 +380,7 @@ class NotificationLogReader(ABC):
 
     def read_list(self, advance_by: Optional[int] = None) -> List[Dict[str, Any]]:
         """
-        Deprecated from 7.3.0.
+        Deprecated in 8.0.0.
 
         Please use list_notifications() instead.
         """
@@ -390,7 +390,7 @@ class NotificationLogReader(ABC):
         self, stop_index: Optional[int] = None, advance_by: Optional[int] = None
     ) -> Iterator[Dict[str, Any]]:
         """
-        Deprecated from 7.3.0.
+        Deprecated in 8.0.0.
 
         Please use iter_notifications() instead.
         """
