@@ -27,7 +27,7 @@ def build_and_test(cwd):
 
     targets = [
         # (tmpcwd27, 'python2.7'),
-        (tmpcwd37, "python3.7")
+        (tmpcwd37, "python")
     ]
     for (tmpcwd, python_executable) in targets:
 
