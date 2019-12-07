@@ -567,8 +567,8 @@ that is extended by subclasses in the library.
 It can be used in command  methods to construct, apply, and publish events with
 suitable arguments.
 
-For example, triggering an :class:`~eventsourcing.domain.model.events.AttributeChanged`
-event on a timestamped, versioned entity will cause the attribute value to be updated,
+For example, triggering an :class:`~eventsourcing.domain.model.events.AttributeChangedEvent`
+on a timestamped, versioned entity will cause the attribute value to be updated,
 but it will also cause the version number to increase, and it will update the last
 modified time.
 
