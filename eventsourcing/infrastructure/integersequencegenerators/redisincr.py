@@ -17,7 +17,7 @@ class RedisIncr(AbstractIntegerSequenceGenerator):
     value of a 64 bit signed integer.
     """
 
-    def __init__(self, redis: Optional[Redis] = None, key: Optional[str]=None):
+    def __init__(self, redis: Optional[Redis] = None, key: Optional[str] = None):
         redis_host = os.getenv("REDIS_HOST", "localhost")
         self.redis = redis or StrictRedis(host=redis_host)
         self.key = key or "integer-sequence-generator-{}".format(uuid4())

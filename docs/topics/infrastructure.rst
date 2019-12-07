@@ -997,7 +997,7 @@ appended to sequence ``aggregate1`` at position ``1``.
     ])
 
 
-The method :func:`~eventsourcing.infrastructure.eventstore.EventStore.list_events` can
+The method :func:`~eventsourcing.infrastructure.base.AbstractEventStore.list_events` can
 be used to get events that have previously been stored. The event store uses its
 ``record_manager`` to get the sequenced items from database records, and it uses
 its ``sequenced_item_mapper`` to obtain domain events from the sequenced items.
@@ -1019,7 +1019,7 @@ Since by now two domain events have been stored, so there are two domain events 
 
 
 The optional arguments of
-:func:`~eventsourcing.infrastructure.eventstore.EventStore.list_events`
+:func:`~eventsourcing.infrastructure.base.AbstractEventStore.list_events`
 can be used to select some of the items in the sequence.
 
 The ``lt`` arg is used to select items below the given position in the sequence.

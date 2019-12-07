@@ -208,7 +208,6 @@ Different ways of getting sequenced items from a datastore.
     :exclude-members: __weakref__, __dict__
 
 
-
 .. py:module:: eventsourcing.infrastructure.repositories
 
 repositories

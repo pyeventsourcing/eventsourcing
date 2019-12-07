@@ -540,10 +540,13 @@ class AbstractEventStore(ABC, Generic[TEvent, TRecordManager]):
         page_size: Optional[int] = None,
     ) -> Iterable[TEvent]:
         """
-        Returns domain events for given entity ID.
+        Returns iterable of domain events for given entity ID.
         """
 
     def list_events(self, *args: Any, **kwargs: Any) -> List[TEvent]:
+        """
+        Returns list of domain events for given entity ID.
+        """
         return list(self.iter_events(*args, **kwargs))
 
     @abstractmethod
