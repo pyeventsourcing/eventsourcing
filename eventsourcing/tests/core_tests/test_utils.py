@@ -7,7 +7,7 @@ from uuid import uuid1
 
 import sys
 
-from eventsourcing.utils.random import encode_random_bytes, decode_bytes
+from eventsourcing.utils.random import encoded_random_bytes, decode_bytes
 from eventsourcing.utils.times import (
     decimaltimestamp_from_uuid,
     utc_timezone,
@@ -87,11 +87,11 @@ AssertionError: Decimal('1561464862.322443') not less than Decimal('1561464861.1
         self.assertEqual(utc_timezone.dst(now), expected_dst)
 
     def test_encode_random_bytes(self):
-        key = encode_random_bytes(num_bytes=16)
+        key = encoded_random_bytes(num_bytes=16)
         self.assertEqual(len(decode_bytes(key)), 16)
 
-        key = encode_random_bytes(num_bytes=24)
+        key = encoded_random_bytes(num_bytes=24)
         self.assertEqual(len(decode_bytes(key)), 24)
 
-        key = encode_random_bytes(num_bytes=32)
+        key = encoded_random_bytes(num_bytes=32)
         self.assertEqual(len(decode_bytes(key)), 32)

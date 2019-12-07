@@ -1,5 +1,6 @@
 import logging
 import os
+from uuid import uuid5, NAMESPACE_OID
 
 from eventsourcing.application.process import ProcessApplication
 from eventsourcing.domain.model.aggregate import BaseAggregateRoot
@@ -12,9 +13,9 @@ def set_db_uri():
     host = os.getenv("MYSQL_HOST", "127.0.0.1")
     user = os.getenv("MYSQL_USER", "root")
     password = os.getenv("MYSQL_PASSWORD", "")
-    db_uri = "mysql+pymysql://{}:{}@{}/eventsourcing?charset=utf8mb4&binary_prefix=true".format(
-        user, password, host
-    )
+    db_uri = (
+        "mysql+pymysql://{}:{}@{}/eventsourcing?charset=utf8mb4&binary_prefix=true"
+    ).format(user, password, host)
     os.environ["DB_URI"] = db_uri
 
 
@@ -30,11 +31,21 @@ class Order(BaseAggregateRoot):
     class Created(Event, BaseAggregateRoot.Created):
         pass
 
+    def set_is_reserved(self, reservation_id):
+        self.__trigger_event__(Order.Reserved, reservation_id=reservation_id)
+
     class Reserved(Event):
         def mutate(self, order):
             assert not order.is_reserved, "Order {} already reserved.".format(order.id)
             order.is_reserved = True
             order.reservation_id = self.reservation_id
+
+        @property
+        def reservation_id(self):
+            return self.__dict__['reservation_id']
+
+    def set_is_paid(self, payment_id):
+        self.__trigger_event__(self.Paid, payment_id=payment_id)
 
     class Paid(Event):
         def mutate(self, order):
@@ -42,11 +53,9 @@ class Order(BaseAggregateRoot):
             order.is_paid = True
             order.payment_id = self.payment_id
 
-    def set_is_reserved(self, reservation_id):
-        self.__trigger_event__(Order.Reserved, reservation_id=reservation_id)
-
-    def set_is_paid(self, payment_id):
-        self.__trigger_event__(self.Paid, payment_id=payment_id)
+        @property
+        def payment_id(self):
+            return self.__dict__['payment_id']
 
 
 class Reservation(BaseAggregateRoot):
@@ -62,7 +71,13 @@ class Reservation(BaseAggregateRoot):
 
     @classmethod
     def create(cls, order_id):
-        return cls.__create__(order_id=order_id)
+        return cls.__create__(
+            originator_id=Reservation.create_reservation_id(order_id), order_id=order_id
+        )
+
+    @classmethod
+    def create_reservation_id(cls, order_id):
+        return uuid5(NAMESPACE_OID, str(order_id))
 
 
 class Payment(BaseAggregateRoot):
@@ -91,14 +106,14 @@ def create_new_order():
 logger = logging.getLogger()
 
 
-class Orders(ProcessApplication):
+class Orders(ProcessApplication[Order, Order.Event]):
     persist_event_type = Order.Created
 
-    @staticmethod
-    def policy(repository, event):
+    def policy(self, repository, event):
         if isinstance(event, Reservation.Created):
             # Set the order as reserved.
             order = repository[event.order_id]
+            assert isinstance(order, Order)
             assert not order.is_reserved
             order.set_is_reserved(event.originator_id)
             # logger.info('set Order as reserved')
@@ -107,15 +122,15 @@ class Orders(ProcessApplication):
         elif isinstance(event, Payment.Created):
             # Set the order as paid.
             order = repository[event.order_id]
+            assert isinstance(order, Order)
             assert not order.is_paid
             order.set_is_paid(event.originator_id)
             # logger.info('set Order as paid')
             # print(f'set Order {event.order_id} as paid')
 
 
-class Reservations(ProcessApplication):
-    @staticmethod
-    def policy(repository, event):
+class Reservations(ProcessApplication[Reservation, Reservation.Event]):
+    def policy(self, repository, event):
         if isinstance(event, Order.Created):
             # Create a reservation.
             # time.sleep(0.5)
@@ -125,8 +140,7 @@ class Reservations(ProcessApplication):
 
 
 class Payments(ProcessApplication):
-    @staticmethod
-    def policy(repository, event):
+    def policy(self, repository, event):
         if isinstance(event, Order.Reserved):
             # Make a payment.
             # time.sleep(0.5)
@@ -135,10 +149,11 @@ class Payments(ProcessApplication):
             return Payment.make(order_id=event.originator_id)
 
 
-class Examples(ProcessApplication):
+class Examples(ProcessApplication[ExampleAggregate, ExampleAggregate.Event]):
     persist_event_type = ExampleAggregate.Created
 
-    @staticmethod
-    def policy(repository, event):
+    def policy(self, repository, event):
         if isinstance(event, ExampleAggregate.Created):
-            repository[event.originator_id].move_on()
+            example_aggregate = repository[event.originator_id]
+            assert isinstance(example_aggregate, ExampleAggregate)
+            example_aggregate.move_on()

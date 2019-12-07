@@ -3,16 +3,17 @@ from time import sleep, time
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.application.command import CommandProcess
-from eventsourcing.application.multiprocess import MultiprocessRunner
+from eventsourcing.system.multiprocess import MultiprocessRunner
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
-from eventsourcing.application.system import MultiThreadedRunner, System
+from eventsourcing.system.runner import MultiThreadedRunner
+from eventsourcing.system.definition import System
 from eventsourcing.domain.model.events import (
     assert_event_handlers_empty,
     clear_event_handlers,
 )
+from eventsourcing.exceptions import RepositoryKeyError, ProgrammingError
 from eventsourcing.tests.test_process import ExampleAggregate
-from eventsourcing.tests.test_system_fixtures import (
+from eventsourcing.tests.system_test_fixtures import (
     Examples,
     Order,
     Orders,
@@ -28,28 +29,50 @@ from eventsourcing.tests.test_system_fixtures import (
 class TestSystem(TestCase):
     infrastructure_class = SQLAlchemyApplication
 
-    def test___getattr__(self):
+    def test_construct_app(self):
         system = System(
             Orders | Reservations | Orders,
             Orders | Payments | Orders,
             setup_tables=True,
             infrastructure_class=self.infrastructure_class,
         )
-        with system.orders as app:
+        with system.construct_app(Orders) as app:
             self.assertIsInstance(app, Orders)
-            self.assertEqual(app, system.orders)
 
-        with system.payments as app:
+        with system.construct_app(Payments) as app:
             self.assertIsInstance(app, Payments)
-            self.assertEqual(app, system.payments)
 
-        with system.reservations as app:
+        with system.construct_app(Reservations) as app:
             self.assertIsInstance(app, Reservations)
-            self.assertEqual(app, system.reservations)
 
-        with self.assertRaises(AttributeError):
-            with system.notaprocess as _:
-                pass
+    def test_not_infrastructure_class_exception(self):
+        system = System(
+            Orders | Reservations | Orders,
+            Orders | Payments | Orders,
+            setup_tables=True,
+            infrastructure_class=TestCase,
+        )
+        with self.assertRaises(ProgrammingError):
+            system.construct_app(Orders)
+
+    def test_bind(self):
+        system = System(
+            Orders | Reservations | Orders,
+            Orders | Payments | Orders,
+            setup_tables=True,
+        )
+        # Check system does not have infrastructure class.
+        self.assertIsNone(system.infrastructure_class)
+
+        # Bind system to infrastructure.
+        system2 = system.bind(self.infrastructure_class)
+
+        # Check system2 has infrastructure class.
+        self.assertIsNotNone(system2.infrastructure_class)
+
+        # Check ProgrammingError on attempt to bind system2.
+        with self.assertRaises(ProgrammingError):
+            system2.bind(self.infrastructure_class)
 
     def test_singlethreaded_runner_with_single_application_class(self):
         system = System(
@@ -58,11 +81,26 @@ class TestSystem(TestCase):
             infrastructure_class=self.infrastructure_class,
         )
         with system as runner:
-            self.assertIsInstance(runner.orders, Orders)
             order_id = create_new_order()
 
-            repository = runner.orders.repository
+            repository = runner.get(Orders).repository
             self.assertEqual(repository[order_id].id, order_id)
+
+    def test_can_run_if_already_running(self):
+        system = System(
+            Orders,
+            setup_tables=True,
+            infrastructure_class=self.infrastructure_class,
+        )
+        with system:
+            with self.assertRaises(ProgrammingError):
+                with system:
+                    pass
+
+        with system as runner:
+            with self.assertRaises(ProgrammingError):
+                with runner:
+                    pass
 
     def test_multithreaded_runner_with_single_application_class(self):
         system = System(
@@ -71,10 +109,9 @@ class TestSystem(TestCase):
             infrastructure_class=self.infrastructure_class,
         )
         with MultiThreadedRunner(system) as runner:
-            self.assertIsInstance(runner.orders, Orders)
             order_id = create_new_order()
 
-            repository = runner.orders.repository
+            repository = runner.get(Orders).repository
             self.assertEqual(repository[order_id].id, order_id)
 
     def test_multiprocess_runner_with_single_application_class(self):
@@ -88,10 +125,9 @@ class TestSystem(TestCase):
         self.close_connections_before_forking()
 
         with MultiprocessRunner(system) as runner:
-            self.assertIsInstance(runner.orders, Orders)
             order_id = create_new_order()
 
-            repository = runner.orders.repository
+            repository = runner.get(Orders).repository
             self.assertEqual(repository[order_id].id, order_id)
 
     def test_singlethreaded_runner_with_single_pipe(self):
@@ -101,11 +137,14 @@ class TestSystem(TestCase):
             infrastructure_class=self.infrastructure_class,
         )
         with system as runner:
-            self.assertIsInstance(runner.orders, Orders)
             order_id = create_new_order()
 
-            repository = runner.orders.repository
-            self.assertEqual(repository[order_id].id, order_id)
+            orders = runner.get(Orders)
+            self.assertEqual(orders.repository[order_id].id, order_id)
+            reservation_id = Reservation.create_reservation_id(order_id)
+            reservations = runner.get(Reservations)
+            reservations_repo = reservations.repository
+            self.assertEqual(reservations_repo[reservation_id].order_id, order_id)
 
     def test_multithreaded_runner_with_single_pipe(self):
         system = System(
@@ -113,12 +152,28 @@ class TestSystem(TestCase):
             setup_tables=True,
             infrastructure_class=self.infrastructure_class,
         )
-        with MultiThreadedRunner(system) as runner:
-            self.assertIsInstance(runner.orders, Orders)
-            order_id = create_new_order()
+        self.set_db_uri()
 
-            repository = runner.orders.repository
-            self.assertEqual(repository[order_id].id, order_id)
+        # with system as runner:
+        with MultiThreadedRunner(system) as runner:
+            order_id = create_new_order()
+            orders_repo = runner.get(Orders).repository
+            self.assertEqual(orders_repo[order_id].id, order_id)
+            reservations_repo = runner.get(Reservations).repository
+            reservation_id = Reservation.create_reservation_id(order_id)
+
+            patience = 10
+            while True:
+                try:
+                    self.assertEqual(reservations_repo[reservation_id].order_id, order_id)
+                except (RepositoryKeyError, AssertionError):
+                    if patience:
+                        patience -= 1
+                        sleep(.1)
+                    else:
+                        raise
+                else:
+                    break
 
     def test_multiprocess_runner_with_single_pipe(self):
         system = System(
@@ -131,10 +186,9 @@ class TestSystem(TestCase):
         self.close_connections_before_forking()
 
         with MultiprocessRunner(system) as runner:
-            self.assertIsInstance(runner.orders, Orders)
+            repository = runner.get(Orders).repository
             order_id = create_new_order()
 
-            repository = runner.orders.repository
             self.assertEqual(repository[order_id].id, order_id)
 
     def test_singlethreaded_runner_with_multiapp_system(self):
@@ -150,7 +204,7 @@ class TestSystem(TestCase):
             order_id = create_new_order()
 
             # Check the order is reserved and paid.
-            repository = runner.orders.repository
+            repository = runner.get(Orders).repository
             assert repository[order_id].is_reserved
             assert repository[order_id].is_paid
 
@@ -163,14 +217,14 @@ class TestSystem(TestCase):
             use_direct_query_if_available=True,
         )
 
-        with system:
+        with system as runner:
+            orders = runner.get(Orders)
             # Create new Order aggregate.
             order_id = create_new_order()
 
             # Check the order is reserved and paid.
-            repository = system.orders.repository
-            assert repository[order_id].is_reserved
-            assert repository[order_id].is_paid
+            assert orders.repository[order_id].is_reserved
+            assert orders.repository[order_id].is_paid
 
     def test_multithreaded_runner_with_singleapp_system(self):
 
@@ -182,9 +236,9 @@ class TestSystem(TestCase):
 
         self.set_db_uri()
 
-        with MultiThreadedRunner(system):
+        with MultiThreadedRunner(system) as runner:
 
-            app = system.examples
+            app = runner.get(Examples)
 
             aggregate = ExampleAggregate.__create__()
             aggregate.__save__()
@@ -209,11 +263,10 @@ class TestSystem(TestCase):
 
         self.set_db_uri()
 
-        with MultiThreadedRunner(system):
+        with MultiThreadedRunner(system) as runner:
 
+            orders = runner.get(Orders)
             started = time()
-
-            orders = system.orders
 
             # Create new orders.
             num_orders = 10
@@ -247,12 +300,9 @@ class TestSystem(TestCase):
         self.set_db_uri()
 
         clock_speed = 10
-        tick_interval = 1 / clock_speed
-        with MultiThreadedRunner(system, clock_speed=clock_speed):
+        with MultiThreadedRunner(system, clock_speed=clock_speed) as runner:
 
             started = time()
-
-            orders = system.orders
 
             # Create a new order.
             num_orders = 10
@@ -261,12 +311,13 @@ class TestSystem(TestCase):
                 order_id = create_new_order()
                 order_ids.append(order_id)
                 # sleep(tick_interval / 3)
-                # sleep(tick_interval * 10)
+                # sleep(tick_interval )
 
             retries = 30 * num_orders
             num_completed = 0
             for order_id in order_ids:
-                while retries and not orders.repository[order_id].is_paid:
+                app = runner.get(Orders)
+                while retries and not app.repository[order_id].is_paid:
                     sleep(0.1)
                     retries -= 1
                     assert retries, (
@@ -288,16 +339,18 @@ class TestSystem(TestCase):
 
         self.close_connections_before_forking()
 
-        with MultiprocessRunner(system), system.examples as app:
+        with MultiprocessRunner(system) as runner:
+
+            examples = runner.get(Examples)
 
             aggregate = ExampleAggregate.__create__()
             aggregate.__save__()
 
-            assert aggregate.id in app.repository
+            assert aggregate.id in examples.repository
 
             # Check the aggregate is moved on.
             retries = 50
-            while not app.repository[aggregate.id].is_moved_on:
+            while not examples.repository[aggregate.id].is_moved_on:
 
                 sleep(0.1)
                 retries -= 1
@@ -349,7 +402,7 @@ class TestSystem(TestCase):
 
         pipeline_ids = range(num_pipelines)
 
-        multiprocess = MultiprocessRunner(system, pipeline_ids=pipeline_ids)
+        multiprocess_runner = MultiprocessRunner(system, pipeline_ids=pipeline_ids)
 
         num_orders_per_pipeline = 5
         order_ids = []
@@ -357,10 +410,12 @@ class TestSystem(TestCase):
         self.close_connections_before_forking()
 
         # Start multiprocessing system.
-        with multiprocess, system.construct_app(Orders) as orders:
+        with multiprocess_runner:
 
             # Create some new orders.
             for _ in range(num_orders_per_pipeline):
+
+                orders = multiprocess_runner.get(Orders)
 
                 for pipeline_id in pipeline_ids:
 
@@ -426,7 +481,7 @@ class TestSystem(TestCase):
         # Check policy makes payment whenever order is reserved.
         event = Order.Reserved(originator_id=order.id, originator_version=1)
 
-        payment = Payments.policy(repository=fake_repository, event=event)
+        payment = Payments().policy(repository=fake_repository, event=event)
         assert isinstance(payment, Payment), payment
         assert payment.order_id == order.id
 
@@ -442,7 +497,7 @@ class TestSystem(TestCase):
         event = Reservation.Created(
             originator_id=uuid4(), originator_topic="", order_id=order.id
         )
-        Orders.policy(repository=fake_repository, event=event)
+        Orders().policy(repository=fake_repository, event=event)
 
         # Check order is reserved.
         assert order.is_reserved

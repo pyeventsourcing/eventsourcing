@@ -6,21 +6,21 @@ from eventsourcing.exceptions import DataIntegrityError
 class TestAESCipher(TestCase):
     def test_encrypt_mode_gcm(self):
         from eventsourcing.utils.cipher.aes import AESCipher
-        from eventsourcing.utils.random import encode_random_bytes, decode_bytes
+        from eventsourcing.utils.random import encoded_random_bytes, decode_bytes
 
         # Unicode string representing 256 random bits encoded with Base64.
-        cipher_key = encode_random_bytes(num_bytes=32)
+        cipher_key = encoded_random_bytes(num_bytes=32)
 
         # Construct AES cipher.
         cipher = AESCipher(cipher_key=decode_bytes(cipher_key))
 
         # Encrypt some plaintext.
-        ciphertext = cipher.encrypt("plaintext")
+        ciphertext = cipher.encrypt(b"plaintext")
         self.assertNotEqual(ciphertext, "plaintext")
 
         # Decrypt some ciphertext.
         plaintext = cipher.decrypt(ciphertext)
-        self.assertEqual(plaintext, "plaintext")
+        self.assertEqual(plaintext, b"plaintext")
 
         # Check DataIntegrityError is raised (broken Base64 padding).
         with self.assertRaises(DataIntegrityError):
@@ -29,7 +29,7 @@ class TestAESCipher(TestCase):
 
         # Check DataIntegrityError is raised (MAC check fails).
         with self.assertRaises(DataIntegrityError):
-            damaged = "a" + ciphertext[:-1]
+            damaged = b"a" + ciphertext[:-1]
             cipher.decrypt(damaged)
 
         # Check DataIntegrityError is raised (nonce too short).

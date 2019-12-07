@@ -1,18 +1,18 @@
 from time import sleep, time, process_time
 from unittest import skip
 
-from eventsourcing.application.system import (
+from eventsourcing.system.runner import (
     SteppingMultiThreadedRunner,
-    System,
     SteppingSingleThreadedRunner,
 )
+from eventsourcing.system.definition import System
 from eventsourcing.tests.sequenced_item_tests.test_popo_record_manager import (
     PopoTestCase,
 )
 
 from eventsourcing.application.popo import PopoApplication
 from eventsourcing.tests.test_system import TestSystem
-from eventsourcing.tests.test_system_fixtures import (
+from eventsourcing.tests.system_test_fixtures import (
     create_new_order,
     Orders,
     Reservations,
@@ -65,7 +65,7 @@ class TestSystemWithPopo(PopoTestCase, TestSystem):
 
         with runner:
 
-            orders = system.processes["orders"]
+            orders = runner.get(Orders)
 
             # Create a new order.
             num_orders = 120
@@ -142,7 +142,7 @@ class TestSystemWithPopo(PopoTestCase, TestSystem):
             start_time = time()
             start_process_time = process_time()
 
-            orders = system.processes["orders"]
+            orders = runner.get(Orders)
 
             # Create a new order.
             num_orders = 12

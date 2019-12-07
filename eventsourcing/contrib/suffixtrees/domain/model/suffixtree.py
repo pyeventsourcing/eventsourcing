@@ -353,7 +353,7 @@ def register_new_node(suffix_node_id=None):
     node_id = uuid4()
     event = Node.Created(originator_id=node_id, suffix_node_id=suffix_node_id)
     entity = Node.mutate(event=event)
-    publish(event)
+    publish([event])
     return entity
 
 
@@ -376,7 +376,7 @@ def register_new_edge(
         dest_node_id=dest_node_id,
     )
     entity = Edge.mutate(event=event)
-    publish(event)
+    publish([event])
     return entity
 
 
@@ -398,7 +398,7 @@ def register_new_suffix_tree(case_insensitive=False):
 
     entity.nodes[root_node.id] = root_node
 
-    publish(event)
+    publish([event])
 
     return entity
 

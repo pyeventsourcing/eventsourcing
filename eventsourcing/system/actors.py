@@ -1,12 +1,18 @@
 import logging
+from typing import Dict
 
-from thespian.actors import *
+from thespian.actors import Actor, ActorExitRequest, ActorSystem
 
 from eventsourcing.application.notificationlog import RecordManagerNotificationLog
-from eventsourcing.application.process import ProcessApplication, Prompt
-from eventsourcing.application.system import System, SystemRunner
+from eventsourcing.application.process import (
+    ProcessApplication,
+    PromptToPull,
+    is_prompt,
+)
+from eventsourcing.system.definition import System, AbstractSystemRunner
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import RecordConflictError
+from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 
 logger = logging.getLogger()
 
@@ -50,7 +56,7 @@ def start_multiproc_tcp_base_system():
 #     start_actor_system(system_base='multiprocQueueBase')
 
 
-class ActorModelRunner(SystemRunner):
+class ActorModelRunner(AbstractSystemRunner):
     """
     Uses actor model framework to run a system of process applications.
     """
@@ -58,14 +64,14 @@ class ActorModelRunner(SystemRunner):
     def __init__(
         self,
         system: System,
-        pipeline_ids,
+        pipeline_ids=(DEFAULT_PIPELINE_ID,),
         system_actor_name="system",
         shutdown_on_close=False,
         **kwargs
     ):
         super(ActorModelRunner, self).__init__(system=system, **kwargs)
         self.pipeline_ids = list(pipeline_ids)
-        self.pipeline_actors = {}
+        self.pipeline_actors: Dict[int, PipelineActor] = {}
         self.system_actor_name = system_actor_name
         # Create the system actor (singleton).
         self.system_actor = self.actor_system.createActor(
@@ -83,7 +89,7 @@ class ActorModelRunner(SystemRunner):
         """
         # Subscribe to broadcast prompts published by a process
         # application in the parent operating system process.
-        subscribe(handler=self.forward_prompt, predicate=self.is_prompt)
+        subscribe(handler=self.forward_prompt, predicate=is_prompt)
 
         # Initialise the system actor.
         msg = SystemInitRequest(
@@ -104,16 +110,14 @@ class ActorModelRunner(SystemRunner):
         self.pipeline_actors = response.pipeline_actors
 
         # Todo: Somehow know when to get a new address from the system actor.
-        # Todo: Command and response messages to system actor to get new pipeline address.
+        # Todo: Command and response messages to system actor to get new pipeline
+        #  address.
 
-    @staticmethod
-    def is_prompt(event):
-        return isinstance(event, Prompt)
-
-    def forward_prompt(self, prompt):
-        if prompt.pipeline_id in self.pipeline_actors:
-            pipeline_actor = self.pipeline_actors[prompt.pipeline_id]
-            self.actor_system.tell(pipeline_actor, prompt)
+    def forward_prompt(self, prompts):
+        for prompt in prompts:
+            if prompt.pipeline_id in self.pipeline_actors:
+                pipeline_actor = self.pipeline_actors[prompt.pipeline_id]
+                self.actor_system.tell(pipeline_actor, prompt)
         # else:
         #     msg = "Pipeline {} is not running.".format(prompt.pipeline_id)
         #     raise ValueError(msg)
@@ -121,7 +125,7 @@ class ActorModelRunner(SystemRunner):
     def close(self):
         """Stops all the actors running a system of process applications."""
         super(ActorModelRunner, self).close()
-        unsubscribe(handler=self.forward_prompt, predicate=self.is_prompt)
+        unsubscribe(handler=self.forward_prompt, predicate=is_prompt)
         if self.shutdown_on_close:
             self.shutdown()
 
@@ -171,7 +175,7 @@ class PipelineActor(Actor):
         if isinstance(msg, PipelineInitRequest):
             # logger.info("pipeline received init: {}".format(msg))
             self.init_pipeline(msg)
-        elif isinstance(msg, Prompt):
+        elif isinstance(msg, PromptToPull):
             # logger.info("pipeline received prompt: {}".format(msg))
             self.forward_prompt(msg)
 
@@ -205,7 +209,8 @@ class PipelineActor(Actor):
             downstream_actors = {}
             for downstream_class_name in self.followers[process_name]:
                 downstream_name = downstream_class_name.lower()
-                # logger.warning("sending prompt to process application {}".format(downstream_name))
+                # logger.warning("sending prompt to process application {}".format(
+                # downstream_name))
                 process_actor = self.process_actors[downstream_name]
                 downstream_actors[downstream_name] = process_actor
             process_class = self.process_classes[process_class_name]
@@ -236,11 +241,13 @@ class ProcessMaster(Actor):
     def receiveMessage(self, msg, sender):
         if isinstance(msg, ProcessInitRequest):
             self.init_process(msg)
-        elif isinstance(msg, Prompt):
-            # logger.warning("{} master received prompt: {}".format(self.process_application_class.__name__, msg))
+        elif isinstance(msg, PromptToPull):
+            # logger.warning("{} master received prompt: {}".format(
+            # self.process_application_class.__name__, msg))
             self.consume_prompt(prompt=msg)
         elif isinstance(msg, SlaveRunResponse):
-            # logger.info("process application master received slave finished run: {}".format(msg))
+            # logger.info("process application master received slave finished run: {
+            # }".format(msg))
             self.handle_slave_run_response()
 
     def init_process(self, msg):
@@ -250,7 +257,7 @@ class ProcessMaster(Actor):
         self.send(self.slave_actor, msg)
         self.run_slave()
 
-    def consume_prompt(self, prompt):
+    def consume_prompt(self, prompt: PromptToPull):
         self.last_prompts[prompt.process_name] = prompt
         self.run_slave()
 
@@ -281,10 +288,12 @@ class ProcessSlave(Actor):
             # logger.info("process application slave received init: {}".format(msg))
             self.init_process(msg)
         elif isinstance(msg, SlaveRunRequest):
-            # logger.info("{} process application slave received last prompts: {}".format(self.process.name, msg))
+            # logger.info("{} process application slave received last prompts: {
+            # }".format(self.process.name, msg))
             self.run_process(msg)
         elif isinstance(msg, ActorExitRequest):
-            # logger.info("{} process application slave received exit request: {}".format(self.process.name, msg))
+            # logger.info("{} process application slave received exit request: {
+            # }".format(self.process.name, msg))
             self.close()
 
     def init_process(self, msg):
@@ -373,7 +382,7 @@ class ProcessSlave(Actor):
 
     def is_my_prompt(self, prompt):
         return (
-            isinstance(prompt, Prompt)
+            isinstance(prompt, PromptToPull)
             and prompt.process_name == self.process.name
             and prompt.pipeline_id == self.pipeline_id
         )

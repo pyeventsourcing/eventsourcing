@@ -1,8 +1,11 @@
 import os
+from typing import Optional, Union, Sequence, Any, Dict
 
 from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
 from sqlalchemy.exc import InternalError
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.ext.declarative import DeclarativeMeta
+from sqlalchemy.orm import scoped_session, sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 
 from eventsourcing.infrastructure.datastore import AbstractDatastore, DatastoreSettings
@@ -17,43 +20,54 @@ DEFAULT_SQLALCHEMY_DB_POOL_SIZE = 5
 
 
 class SQLAlchemySettings(DatastoreSettings):
-    def __init__(self, uri=None, pool_size=None):
-        self.uri = uri or os.getenv("DB_URI", DEFAULT_SQLALCHEMY_DB_URI)
-        self.pool_size = int(
-            pool_size or os.getenv("DB_POOL_SIZE", DEFAULT_SQLALCHEMY_DB_POOL_SIZE)
-        )
+    def __init__(self, uri: Optional[str] = None, pool_size: Optional[int] = None):
+        if uri is not None:
+            self.uri = uri
+        else:
+            self.uri = os.getenv("DB_URI", DEFAULT_SQLALCHEMY_DB_URI)
+        if pool_size is not None:
+            self.pool_size = pool_size
+        else:
+            self.pool_size = int(
+                os.getenv("DB_POOL_SIZE", DEFAULT_SQLALCHEMY_DB_POOL_SIZE)
+            )
 
 
-class SQLAlchemyDatastore(AbstractDatastore):
+class SQLAlchemyDatastore(AbstractDatastore[SQLAlchemySettings]):
     def __init__(
         self,
-        base=Base,
-        tables=None,
-        connection_strategy="plain",
-        session=None,
-        **kwargs
+        settings: SQLAlchemySettings,
+        base: DeclarativeMeta = Base,
+        tables: Optional[Sequence] = None,
+        connection_strategy: str = "plain",
+        session: Optional[Union[Session, scoped_session]] = None,
     ):
-        super(SQLAlchemyDatastore, self).__init__(**kwargs)
+        super(SQLAlchemyDatastore, self).__init__(settings=settings)
+        self._was_session_created_here = False
         self._session = session
-        self._engine = session.bind if session else None
+        if session:
+            self._engine: Optional[Engine] = session.get_bind()
+        else:
+            self._engine = None
         self._base = base
         self._tables = tables
         self._connection_strategy = connection_strategy
 
     @property
-    def session(self):
+    def session(self) -> Union[Session, scoped_session]:
         if self._session is None:
             if self._engine is None:
                 self.setup_connection()
             session_factory = sessionmaker(bind=self._engine)
             self._session = scoped_session(session_factory)
+            self._was_session_created_here = True
         return self._session
 
-    def setup_connection(self):
+    def setup_connection(self) -> None:
         assert isinstance(self.settings, SQLAlchemySettings), self.settings
         if self._engine is None:
             if self.is_sqlite():
-                kwargs = {"connect_args": {"check_same_thread": False}}
+                kwargs: Dict[str, Any] = {"connect_args": {"check_same_thread": False}}
             elif self.settings.pool_size == 1:
                 kwargs = {"poolclass": StaticPool}
             else:
@@ -110,15 +124,15 @@ class SQLAlchemyDatastore(AbstractDatastore):
     #         )
     #         assert self._engine
 
-    def is_sqlite(self):
-        return self.settings.uri.startswith("sqlite")
+    def is_sqlite(self) -> bool:
+        return self.settings.uri is not None and self.settings.uri.startswith("sqlite")
 
-    def setup_tables(self, tables=None):
+    def setup_tables(self) -> None:
         if self._tables is not None:
             for table in self._tables:
                 self.setup_table(table)
 
-    def setup_table(self, table):
+    def setup_table(self, table: Any) -> None:
         if self._engine is None:
             raise Exception("Engine not set when required: {}".format(self))
         try:
@@ -131,24 +145,25 @@ class SQLAlchemyDatastore(AbstractDatastore):
             else:
                 raise
 
-    def drop_tables(self):
+    def drop_tables(self) -> None:
         if self._tables is not None:
             for table in self._tables:
                 self.drop_table(table)
 
-    def drop_table(self, table):
+    def drop_table(self, table: Any) -> None:
         table.__table__.drop(self._engine, checkfirst=True)
 
-    def truncate_tables(self):
+    def truncate_tables(self) -> None:
         self.drop_tables()
 
-    def close_connection(self):
-        if self._session:
-            self._session.close()
-            self._session = None
-        if self._engine:
-            # Call dispose(), unless sqlite (to avoid error 'stored_events'
-            # table does not exist in projections.rst doc).
-            if not self.is_sqlite():
-                self._engine.dispose()
-            self._engine = None
+    def close_connection(self) -> None:
+        if self._was_session_created_here:
+            if self._session:
+                self._session.close()
+                self._session = None
+            if self._engine:
+                # Call dispose(), unless sqlite (to avoid error 'stored_events'
+                # table does not exist in projections.rst doc).
+                if not self.is_sqlite():
+                    self._engine.dispose()
+                self._engine = None

@@ -29,7 +29,7 @@ class ExampleApplicationWithAlternativeSequencedItemType(object):
                 record_class=StoredEventRecord,
                 sequenced_item_class=StoredEvent,
             ),
-            sequenced_item_mapper=SequencedItemMapper(
+            event_mapper=SequencedItemMapper(
                 sequenced_item_class=StoredEvent,
                 sequence_id_attr_name="originator_id",
                 position_attr_name="originator_version",

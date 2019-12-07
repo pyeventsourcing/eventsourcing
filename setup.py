@@ -36,6 +36,7 @@ testing_requires = (
         "redis<=3.2.99999",
         "celery<=4.3.99999",
         "pymysql<=0.9.99999",
+        "cryptography",
         "thespian<=3.9.99999",
         # Tests use Django with PostgreSQL.
         "psycopg2cffi<=2.8.99999" if is_pypy else "psycopg2-binary<=2.7.99999",
@@ -51,7 +52,7 @@ docs_requires = testing_requires + [
     "sphinx-autobuild",
 ]
 
-dev_requires = docs_requires + ["black"]
+dev_requires = docs_requires + ["black", "mypy"]
 
 long_description = """
 A library for event sourcing in Python.
@@ -78,6 +79,7 @@ setup(
     url="https://github.com/johnbywater/eventsourcing",
     license="BSD-3-Clause",
     packages=packages,
+    package_data={"eventsourcing": ["py.typed"]},
     install_requires=install_requires,
     extras_require={
         "cassandra": cassandra_requires,

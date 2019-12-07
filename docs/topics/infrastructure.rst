@@ -72,7 +72,9 @@ item's state is a JSON string in which ``foo`` is ``bar``.
 
     sequence1 = uuid4()
 
-    state = '{"foo":"bar","position":0,"sequence_id":{"UUID":"%s"}}' % sequence1.hex
+    state = (
+        '{"foo":"bar","position":0,"sequence_id":{"UUID":"%s"}}' % sequence1.hex
+    ).encode('utf8')
 
     sequenced_item1 = SequencedItem(
         sequence_id=sequence1,
@@ -117,16 +119,20 @@ equivalent to ``state`` above.
 
     aggregate1 = uuid4()
 
+    state = (
+        '{"foo":"bar","originator_version":0,"originator_id":{"UUID":"%s"}}' % aggregate1.hex
+    ).encode('utf8')
+
     stored_event1 = StoredEvent(
         originator_id=aggregate1,
         originator_version=0,
         topic='eventsourcing.domain.model.events#DomainEvent',
-        state='{"foo":"bar","originator_version":0,"originator_id":{"UUID":"%s"}}' % aggregate1.hex,
+        state=state,
     )
     assert stored_event1.originator_id == aggregate1
     assert stored_event1.originator_version == 0
     assert stored_event1.topic == 'eventsourcing.domain.model.events#DomainEvent'
-    assert stored_event1.state == '{"foo":"bar","originator_version":0,"originator_id":{"UUID":"%s"}}' % aggregate1.hex
+    assert stored_event1.state == state
 
 
 Sequenced item mapper
@@ -229,12 +235,30 @@ Please note, it is required of these application-level objects that the  "topic"
 
 .. code:: python
 
-    from eventsourcing.domain.model.events import Created
+    from eventsourcing.domain.model.events import CreatedEvent
     from eventsourcing.utils.topic import get_topic, resolve_topic
 
-    topic = get_topic(Created)
-    assert resolve_topic(topic) == Created
-    assert topic == 'eventsourcing.domain.model.events#Created'
+    topic = get_topic(CreatedEvent)
+    assert resolve_topic(topic) == CreatedEvent
+    assert topic == 'eventsourcing.domain.model.events#CreatedEvent'
+
+
+Substitutions
+-------------
+
+The module ``eventsourcing.utils.topic`` has a module level ``dict`` called
+``substitutions`` which can be configured to substitute one topic for another.
+If an entity or event is moved or renamed, then any stored events that refer
+to the old position will fail to resolve, unless a mapping from the old topic
+to the new topic is added to the ``substitutions`` dict.
+
+
+.. code:: python
+
+    from eventsourcing.utils.topic import substitutions
+
+
+    substitutions['old_topic'] = 'new_topic'
 
 
 Custom JSON transcoding
@@ -248,7 +272,8 @@ The defaults are the library's
 can be extended to support types of value objects that are not
 currently supported by the library.
 
-The code below extends the JSON transcoding to support sets.
+The code below shows how to extend the JSON transcoding to support sets. The library
+now supports encoding and decoding sets, but the example is still demonstrative.
 
 
 .. code:: python
@@ -282,20 +307,39 @@ The code below extends the JSON transcoding to support sets.
         json_decoder_class=CustomObjectJSONDecoder,
         sequenced_item_class=StoredEvent,
     )
-
+    state = (
+        '{"foo":{"__set__":["bar","baz"]},"originator_version":0,"originator_id":{"UUID":"%s"}}' % sequence1.hex
+    ).encode('utf8')
     domain_event = customized_sequenced_item_mapper.event_from_item(
         StoredEvent(
             originator_id=sequence1,
             originator_version=0,
             topic='eventsourcing.domain.model.events#DomainEvent',
-            state='{"foo":{"__set__":["bar","baz"]},"originator_version":0,"originator_id":{"UUID":"%s"}}' % sequence1
-            .hex,
+            state=state,
         )
     )
     assert domain_event.foo == set(["bar", "baz"])
 
     sequenced_item = customized_sequenced_item_mapper.item_from_event(domain_event)
-    assert sequenced_item.state.startswith('{"foo":{"__set__":["ba')
+    assert sequenced_item.state.startswith(b'{"foo":{"__set__":["ba')
+
+
+It is also possible to extend the encoder and decoder classes by registering
+encode and decode functions using function decorators. This is a more convenient
+way to add support for particular types.
+
+.. code:: python
+
+    from eventsourcing.utils.transcoding import encoder, decoder
+
+    @encoder.register(set)
+    def encode_set(obj):
+        return {"__set__": sorted(list(obj))}
+
+
+    @decoder.register("__set__")
+    def decode_set(d):
+        return set(d["__set__"])
 
 
 Application-level encryption
@@ -339,12 +383,12 @@ string into a sequence of bytes.
     cipher = AESCipher(cipher_key=decode_bytes(cipher_key))
 
     # Encrypt some plaintext (using nonce arguments).
-    ciphertext = cipher.encrypt('plaintext')
-    assert ciphertext != 'plaintext'
+    ciphertext = cipher.encrypt(b'plaintext')
+    assert ciphertext != b'plaintext'
 
     # Decrypt some ciphertext.
     plaintext = cipher.decrypt(ciphertext)
-    assert plaintext == 'plaintext'
+    assert plaintext == b'plaintext'
 
 
 The :class:`~eventsourcing.infrastructure.sequenceditemmapper.SequencedItemMapper`
@@ -366,8 +410,8 @@ thereby enable encryption.
     stored_event = ciphered_sequenced_item_mapper.item_from_event(domain_event1)
 
     # Attribute names and values of the domain event are not visible in the encrypted ``state`` field.
-    assert 'foo' not in stored_event.state
-    assert 'bar' not in stored_event.state
+    assert b'foo' not in stored_event.state
+    assert b'bar' not in stored_event.state
 
     # Recover the domain event from the encrypted state.
     domain_event = ciphered_sequenced_item_mapper.event_from_item(stored_event)
@@ -388,11 +432,11 @@ Record managers
 The event store uses a record manager to write sequenced items to database records.
 
 The library has an abstract base class
-:class:`~eventsourcing.infrastructure.base.AbstractSequencedItemRecordManager`
+:class:`~eventsourcing.infrastructure.base.AbstractRecordManager`
 with abstract methods
-:func:`~eventsourcing.infrastructure.base.AbstractSequencedItemRecordManager.record_sequenced_items`
+:func:`~eventsourcing.infrastructure.base.AbstractRecordManager.record_items`
 and
-:func:`~eventsourcing.infrastructure.base.AbstractSequencedItemRecordManager.get_items`,
+:func:`~eventsourcing.infrastructure.base.AbstractRecordManager.get_items`,
 which can be used on concrete implementations to read and write sequenced items in a database.
 
 A record manager is constructed with a ``sequenced_item_class`` and a matching
@@ -506,16 +550,16 @@ can be constructed, and used to store events using SQLAlchemy.
 
 Sequenced items (or "stored events" in this example) can
 be appended to the database using the
-:func:`~eventsourcing.infrastructure.base.AbstractSequencedItemRecordManager.record_sequenced_items`
+:func:`~eventsourcing.infrastructure.base.AbstractRecordManager.record_items`
 method of the record manager.
 
 .. code:: python
 
-    record_manager.record_sequenced_items(stored_event1)
+    record_manager.record_item(stored_event1)
 
 
 All the previously appended items of a sequence can be retrieved by using the
-:func:`~eventsourcing.infrastructure.base.AbstractSequencedItemRecordManager.list_items`
+:func:`~eventsourcing.infrastructure.base.AbstractRecordManager.list_items`
 method.
 
 .. code:: python
@@ -730,7 +774,7 @@ can be used to store events using the Django ORM.
     results = django_record_manager.list_items(aggregate1)
     assert len(results) == 0
 
-    django_record_manager.record_sequenced_item(stored_event1)
+    django_record_manager.record_item(stored_event1)
 
     results = django_record_manager.list_items(aggregate1)
     assert results[0] == stored_event1
@@ -869,7 +913,7 @@ can be constructed, and used to store events using Apache Cassandra.
     results = cassandra_record_manager.list_items(aggregate1)
     assert len(results) == 0
 
-    cassandra_record_manager.record_sequenced_item(stored_event1)
+    cassandra_record_manager.record_item(stored_event1)
 
     results = cassandra_record_manager.list_items(aggregate1)
     assert results[0] == stored_event1
@@ -891,7 +935,7 @@ to append two items at the same position in the same sequence. If such an attemp
 
     # Fail to append an item at the same position in the same sequence as a previous item.
     try:
-        record_manager.record_sequenced_item(stored_event1)
+        record_manager.record_item(stored_event1)
     except RecordConflictError:
         pass
     else:
@@ -929,38 +973,38 @@ manager, both are discussed in detail in the sections above.
     from eventsourcing.infrastructure.eventstore import EventStore
 
     event_store = EventStore(
-        sequenced_item_mapper=sequenced_item_mapper,
+        event_mapper=sequenced_item_mapper,
         record_manager=record_manager,
     )
 
 
-The method :func:`~eventsourcing.infrastructure.eventstore.EventStore.store` can
+The method :func:`~eventsourcing.infrastructure.eventstore.EventStore.store_events` can
 store a domain event in its sequence. The event store uses its ``sequenced_item_mapper``
-to obtain a sequenced item named tuple from a domain events, and it uses its
-``record_manager`` to record a sequenced item in the database.
+to obtain sequenced items (named tuple) from domain events, and it uses its
+``record_manager`` to record sequenced items in the database.
 
 In the code below, a :class:`~eventsourcing.domain.model.events.DomainEvent` is
 appended to sequence ``aggregate1`` at position ``1``.
 
 .. code:: python
 
-    event_store.store(
+    event_store.store_events([
         DomainEvent(
             originator_id=aggregate1,
             originator_version=1,
             foo='baz',
         )
-    )
+    ])
 
 
-The method :func:`~eventsourcing.infrastructure.eventstore.EventStore.get_domain_events` can
+The method :func:`~eventsourcing.infrastructure.base.AbstractEventStore.list_events` can
 be used to get events that have previously been stored. The event store uses its
 ``record_manager`` to get the sequenced items from database records, and it uses
 its ``sequenced_item_mapper`` to obtain domain events from the sequenced items.
 
 .. code:: python
 
-    results = event_store.get_domain_events(aggregate1)
+    results = event_store.list_events(aggregate1)
 
 
 Since by now two domain events have been stored, so there are two domain events in the results.
@@ -975,7 +1019,7 @@ Since by now two domain events have been stored, so there are two domain events 
 
 
 The optional arguments of
-:func:`~eventsourcing.infrastructure.eventstore.EventStore.get_domain_events`
+:func:`~eventsourcing.infrastructure.base.AbstractEventStore.list_events`
 can be used to select some of the items in the sequence.
 
 The ``lt`` arg is used to select items below the given position in the sequence.
@@ -995,22 +1039,22 @@ order of the results. Hence, it can affect both the content of the results and t
 .. code:: python
 
     # Get events below and at position 0.
-    result = event_store.get_domain_events(aggregate1, lte=0)
+    result = event_store.list_events(aggregate1, lte=0)
     assert len(result) == 1, result
     assert result[0].foo == 'bar'
 
     # Get events at and above position 1.
-    result = event_store.get_domain_events(aggregate1, gte=1)
+    result = event_store.list_events(aggregate1, gte=1)
     assert len(result) == 1, result
     assert result[0].foo == 'baz'
 
     # Get the first event in the sequence.
-    result = event_store.get_domain_events(aggregate1, limit=1)
+    result = event_store.list_events(aggregate1, limit=1)
     assert len(result) == 1, result
     assert result[0].foo == 'bar'
 
     # Get the last event in the sequence.
-    result = event_store.get_domain_events(aggregate1, limit=1, is_ascending=False)
+    result = event_store.list_events(aggregate1, limit=1, is_ascending=False)
     assert len(result) == 1, result
     assert result[0].foo == 'baz'
 
@@ -1032,13 +1076,13 @@ exception class :class:`~eventsourcing.exceptions.RecordConflictError`.
 
     # Fail to append an event at the same position in the same sequence as a previous event.
     try:
-        event_store.store(
+        event_store.store_events([
             DomainEvent(
                 originator_id=aggregate1,
                 originator_version=1,
                 foo='baz',
             )
-        )
+        ])
     except ConcurrencyError:
         pass
     else:
@@ -1046,7 +1090,7 @@ exception class :class:`~eventsourcing.exceptions.RecordConflictError`.
 
 
 This feature depends on the behaviour of the record manager method
-:class:`~eventsourcing.infrastructure.base.AbstractSequencedItemRecordManager.record_sequenced_items`.
+:class:`~eventsourcing.infrastructure.base.AbstractRecordManager.record_items`.
 The event store will raise a
 :class:`~eventsourcing.exceptions.ConcurrencyError` if a
 :class:`~eventsourcing.exceptions.RecordConflictError`
@@ -1152,10 +1196,10 @@ helps with Cassandra.
 ..     )
 ..
 ..     # Store the event.
-..     timestamped_event_store.store(event)
+..     timestamped_event_store.store_events([event])
 ..
 ..     # Check the event was stored.
-..     events = timestamped_event_store.get_domain_events(aggregate_id)
+..     events = timestamped_event_store.list_events(aggregate_id)
 ..     assert len(events) == 1
 ..     assert events[0].originator_id == aggregate_id
 ..     assert events[0].timestamp < decimaltimestamp()

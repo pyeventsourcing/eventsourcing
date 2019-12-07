@@ -20,6 +20,9 @@ base_dir = dirname(dirname(os.path.abspath(eventsourcing.__file__)))
 
 
 class TestDocs(TestCase):
+    def setUp(self) -> None:
+        assert_event_handlers_empty()
+
     def tearDown(self):
         clear_event_handlers()
 
@@ -65,18 +68,18 @@ class TestDocs(TestCase):
                 if name in skipped:
                     continue
                 if name.endswith(".rst"):
-                    # if name.endswith('domainmodel.rst'):
-                    # if name.endswith('quick_start.rst'):
-                    # if name.endswith('aggregates_in_ddd.rst'):
-                    # if name.endswith('example_application.rst'):
-                    # if name.endswith('everything.rst'):
-                    # if name.endswith('infrastructure.rst'):
-                    # if name.endswith('application.rst'):
-                    # if name.endswith('snapshotting.rst'):
-                    # if name.endswith('notifications.rst'):
-                    # if name.endswith('projections.rst'):
-                    # if name.endswith('deployment.rst'):
-                    # if name.endswith('process.rst'):
+                # if name.endswith('domainmodel.rst'):
+                # if name.endswith('quick_start.rst'):
+                # if name.endswith('aggregates_in_ddd.rst'):
+                # if name.endswith('example_application.rst'):
+                # if name.endswith('everything.rst'):
+                # if name.endswith('infrastructure.rst'):
+                # if name.endswith('application.rst'):
+                # if name.endswith('snapshotting.rst'):
+                # if name.endswith('notifications.rst'):
+                # if name.endswith('projections.rst'):
+                # if name.endswith('deployment.rst'):
+                # if name.endswith('process.rst'):
                     file_paths.append(os.path.join(docs_path, dirpath, name))
 
         file_paths = sorted(file_paths)

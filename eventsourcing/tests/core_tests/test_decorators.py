@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from mock import mock
 
+from eventsourcing.application.decorators import applicationpolicy
 from eventsourcing.domain.model.decorators import mutator, retry, subscribe_to
 from eventsourcing.domain.model.events import (
     EventHandlersNotEmptyError,
@@ -164,7 +165,7 @@ class TestDecorators(TestCase):
         self.assertRaises(EventHandlersNotEmptyError, assert_event_handlers_empty)
 
         # Check event is received when published individually.
-        publish(event1)
+        publish([event1])
         handler1.assert_called_once_with(event1)
         handler2.assert_called_once_with(event1)
         handler3.assert_called_once_with(event1)
@@ -173,7 +174,7 @@ class TestDecorators(TestCase):
         handler1.reset_mock()
         handler2.reset_mock()
         handler3.reset_mock()
-        publish(event2)
+        publish([event2])
         self.assertFalse(handler1.call_count)
         handler2.assert_called_once_with(event2)
         handler3.assert_called_once_with(event2)
@@ -204,3 +205,32 @@ class TestDecorators(TestCase):
         self.assertEqual(2, handler3.call_count)
 
         clear_event_handlers()
+
+    def test_applicationpolicy_decorator(self):
+
+        self.seen_default = False
+        self.seen_int = False
+
+        class Application(object):
+
+            def __init__(self, test_case):
+                self.test_case = test_case
+
+            @applicationpolicy
+            def policy(self, repository, event):
+                self.test_case.seen_default = True
+
+            @policy.register(int)
+            def _(self, repository, event):
+                self.test_case.seen_int = True
+
+
+        app = Application(self)
+        self.assertFalse(self.seen_default)
+        self.assertFalse(self.seen_int)
+        app.policy(None, '')
+        self.assertTrue(self.seen_default)
+        self.assertFalse(self.seen_int)
+        app.policy(None, 1)
+        self.assertTrue(self.seen_default)
+        self.assertTrue(self.seen_int)

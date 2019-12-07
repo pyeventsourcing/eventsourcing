@@ -15,7 +15,7 @@ class IntegerSequencedRecord(models.Model):
     topic = models.TextField()
 
     # State of the item (serialized dict, possibly encrypted).
-    state = models.TextField()
+    state = models.BinaryField()
 
     class Meta:
         unique_together = (("sequence_id", "position"),)
@@ -36,7 +36,7 @@ class TimestampSequencedRecord(models.Model):
     topic = models.TextField()
 
     # State of the item (serialized dict, possibly encrypted).
-    state = models.TextField()
+    state = models.BinaryField()
 
     class Meta:
         unique_together = (("sequence_id", "position"),)
@@ -58,7 +58,7 @@ class SnapshotRecord(models.Model):
     topic = models.TextField()
 
     # State of the item (serialized dict, possibly encrypted).
-    state = models.TextField()
+    state = models.BinaryField()
 
     class Meta:
         unique_together = (("sequence_id", "position"),)
@@ -82,7 +82,7 @@ class EntitySnapshotRecord(models.Model):
     topic = models.TextField()
 
     # State of the item (serialized dict, possibly encrypted).
-    state = models.TextField()
+    state = models.BinaryField()
 
     class Meta:
         unique_together = (("application_name", "originator_id", "originator_version"),)
@@ -96,13 +96,13 @@ class StoredEventRecord(models.Model):
     # Application name.
     application_name = models.CharField(max_length=32)
 
-    # Sequence ID (e.g. an entity or aggregate ID).
+    # Originator ID (e.g. an entity or aggregate ID).
     originator_id = models.UUIDField()
 
-    # Position (index) of item in sequence.
+    # Originator version of item in sequence.
     originator_version = models.BigIntegerField()
 
-    # Upstream application name.
+    # Pipeline ID.
     pipeline_id = models.IntegerField()
 
     # Notification ID.
@@ -112,7 +112,7 @@ class StoredEventRecord(models.Model):
     topic = models.TextField()
 
     # State of the item (serialized dict, possibly encrypted).
-    state = models.TextField()
+    state = models.BinaryField()
 
     # Causal dependencies.
     causal_dependencies = models.TextField()

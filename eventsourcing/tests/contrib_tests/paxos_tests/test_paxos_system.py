@@ -4,9 +4,9 @@ import unittest
 from time import sleep
 from uuid import uuid4
 
-from eventsourcing.application.multiprocess import MultiprocessRunner
+from eventsourcing.system.multiprocess import MultiprocessRunner
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
-from eventsourcing.application.system import MultiThreadedRunner
+from eventsourcing.system.runner import MultiThreadedRunner
 from eventsourcing.contrib.paxos.application import PaxosSystem, PaxosProcess
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import (
@@ -14,7 +14,7 @@ from eventsourcing.domain.model.events import (
     clear_event_handlers,
 )
 from eventsourcing.tests.base import notquick
-from eventsourcing.tests.test_system_fixtures import set_db_uri
+from eventsourcing.tests.system_test_fixtures import set_db_uri
 
 
 class TestPaxosSystem(unittest.TestCase):
@@ -30,10 +30,11 @@ class TestPaxosSystem(unittest.TestCase):
         key1, key2, key3 = uuid4(), uuid4(), uuid4()
         value1, value2, value3 = 11111, 22222, 33333
 
-        with self.system.bind(self.infrastructure_class) as runner:
-            paxosprocess0 = runner.paxosprocess0
-            paxosprocess1 = runner.paxosprocess1
-            paxosprocess2 = runner.paxosprocess2
+        concrete_system = self.system.bind(self.infrastructure_class)
+        with concrete_system as runner:
+            paxosprocess0 = runner.processes['paxosprocess0']
+            paxosprocess1 = runner.processes['paxosprocess1']
+            paxosprocess2 = runner.processes['paxosprocess2']
 
             started1 = datetime.datetime.now()
             assert isinstance(paxosprocess0, PaxosProcess)
@@ -137,7 +138,7 @@ class TestPaxosSystem(unittest.TestCase):
         # Start running operating system processes.
         with runner:
             # Get local application object.
-            paxosprocess0 = runner.paxosprocess0
+            paxosprocess0 = runner.get(runner.system.process_classes['paxosprocess0'])
             assert isinstance(paxosprocess0, PaxosProcess)
 
             # Start proposing values on the different system pipelines.
@@ -154,8 +155,9 @@ class TestPaxosSystem(unittest.TestCase):
             paxosprocess0.propose_value(key3, value3)
 
             # Check all the process applications have expected final values.
-            paxosprocess1 = runner.paxosprocess1
-            paxosprocess2 = runner.paxosprocess1
+            paxosprocess1 = runner.get(runner.system.process_classes['paxosprocess1'])
+            paxosprocess2 = runner.get(runner.system.process_classes['paxosprocess2'])
+
             assert isinstance(paxosprocess1, PaxosProcess)
             paxosprocess0.repository.use_cache = False
             paxosprocess1.repository.use_cache = False
@@ -202,11 +204,12 @@ class TestPaxosSystem(unittest.TestCase):
             sleep(1)
 
             # Construct an application instance in this process.
-            paxos_process = runner.paxosprocess0
-            assert isinstance(paxos_process, PaxosProcess)
+            paxosprocess0 = runner.get(runner.system.process_classes['paxosprocess0'])
+
+            assert isinstance(paxosprocess0, PaxosProcess)
 
             # Don't use the cache, so as to keep checking actual database.
-            paxos_process.repository.use_cache = False
+            paxosprocess0.repository.use_cache = False
 
             # Start timing (just for fun).
             started = datetime.datetime.now()
@@ -214,15 +217,15 @@ class TestPaxosSystem(unittest.TestCase):
             # Propose values.
             proposals = list(((uuid4(), i) for i in range(num_proposals)))
             for key, value in proposals:
-                paxos_process.change_pipeline((value % len(pipeline_ids)))
+                paxosprocess0.change_pipeline((value % len(pipeline_ids)))
                 print("Proposing key {} value {}".format(key, value))
-                paxos_process.propose_value(key, str(value))
+                paxosprocess0.propose_value(key, str(value))
                 sleep(0.0)
 
             # Check final values.
             for key, value in proposals:
                 print("Asserting final value for key {} value {}".format(key, value))
-                self.assert_final_value(paxos_process, key, str(value))
+                self.assert_final_value(paxosprocess0, key, str(value))
 
             # Print timing information (just for fun).
             duration = (datetime.datetime.now() - started).total_seconds()
@@ -232,7 +235,7 @@ class TestPaxosSystem(unittest.TestCase):
                 )
             )
 
-    @retry((KeyError, AssertionError), max_attempts=100, wait=0.2, stall=0)
+    @retry((KeyError, AssertionError), max_attempts=100, wait=0.05, stall=0)
     def assert_final_value(self, process, id, value):
         self.assertEqual(process.repository[id].final_value, value)
 

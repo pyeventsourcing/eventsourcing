@@ -10,11 +10,11 @@ from eventsourcing.domain.model.events import (
     EventWithOriginatorID,
     EventWithOriginatorVersion,
     EventWithTimestamp,
-    Logged,
+    LoggedEvent,
 )
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.exceptions import OperationalError, RecordConflictError
-from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
+from eventsourcing.infrastructure.base import BaseRecordManager
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import (
     SequencedItemIterator,
@@ -69,27 +69,27 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
         self.assertLess(position2, position3)
 
         # Append an item.
-        state1 = json.dumps({"name": "value1"})
+        state1 = json.dumps({"name": "value1"}).encode("utf-8")
         item1 = SequencedItem(
             sequence_id=sequence_id1,
             position=position1,
             topic=self.EXAMPLE_EVENT_TOPIC1,
             state=state1,
         )
-        self.record_manager.record_sequenced_items(item1)
+        self.record_manager.record_item(item1)
 
         # Check record manager returns one sequence ID.
         self.assertEqual([sequence_id1], self.record_manager.list_sequence_ids())
 
         # Append an item to a different sequence.
-        state2 = json.dumps({"name": "value2"})
+        state2 = json.dumps({"name": "value2"}).encode("utf-8")
         item2 = SequencedItem(
             sequence_id=sequence_id2,
             position=position1,
             topic=self.EXAMPLE_EVENT_TOPIC1,
             state=state2,
         )
-        self.record_manager.record_sequenced_items(item2)
+        self.record_manager.record_item(item2)
 
         # Check record manager returns two sequence IDs.
         self.assertEqual(
@@ -115,7 +115,7 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
         self.assertEqual(retrieved_items[0].topic, item1.topic)
 
         # Check raises RecordConflictError when appending an item at same position in same sequence.
-        state3 = json.dumps({"name": "value3"})
+        state3 = json.dumps({"name": "value3"}).encode("utf-8")
         item3 = SequencedItem(
             sequence_id=item1.sequence_id,
             position=position1,
@@ -127,7 +127,7 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
         self.assertNotEqual(item1.state, item3.state)
         # - append conflicting item as single item
         with self.assertRaises(RecordConflictError):
-            self.record_manager.record_sequenced_items(item3)
+            self.record_manager.record_item(item3)
 
         item4 = SequencedItem(
             sequence_id=item1.sequence_id,
@@ -143,19 +143,19 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
         )
         # - append conflicting item in list with new items (none should be appended)
         with self.assertRaises(RecordConflictError):
-            self.record_manager.record_sequenced_items([item3, item4, item5])
+            self.record_manager.record_items([item3, item4, item5])
 
         # Check there is still only one item.
         retrieved_items = self.record_manager.list_items(sequence_id1)
         self.assertEqual(len(retrieved_items), 1)
 
         # Check adding an empty list does nothing.
-        self.record_manager.record_sequenced_items([])
+        self.record_manager.record_items([])
         retrieved_items = self.record_manager.list_items(sequence_id1)
         self.assertEqual(len(retrieved_items), 1)
 
         # Append a second and third item at the next positions.
-        self.record_manager.record_sequenced_items([item4, item5])
+        self.record_manager.record_items([item4, item5])
 
         # Check there are three items.
         retrieved_items = self.record_manager.list_items(sequence_id1)
@@ -330,7 +330,7 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
     @property
     def record_manager(self):
         """
-        :rtype: AbstractSequencedItemRecordManager
+        :rtype: BaseRecordManager
         """
         if self._record_manager is None:
             self._record_manager = self.construct_record_manager()
@@ -482,9 +482,7 @@ class AbstractSequencedItemIteratorTestCase(WithRecordManagers):
     def test(self):
         self.setup_sequenced_items()
 
-        assert isinstance(
-            self.entity_record_manager, AbstractSequencedItemRecordManager
-        )
+        assert isinstance(self.entity_record_manager, BaseRecordManager)
         stored_events = self.entity_record_manager.list_items(
             sequence_id=self.entity_id
         )
@@ -552,15 +550,18 @@ class AbstractSequencedItemIteratorTestCase(WithRecordManagers):
         self.sequenced_items = []
         self.number_of_sequenced_items = 12
         for i in range(self.number_of_sequenced_items):
+            state = (
+                '{"i":%s,"entity_id":"%s","timestamp":%s}'
+                % (i, self.entity_id, decimaltimestamp())
+            ).encode("utf-8")
             sequenced_item = SequencedItem(
                 sequence_id=self.entity_id,
                 position=i,
                 topic="eventsourcing.example.domain_model#Example.Created",
-                state='{"i":%s,"entity_id":"%s","timestamp":%s}'
-                % (i, self.entity_id, decimaltimestamp()),
+                state=state,
             )
             self.sequenced_items.append(sequenced_item)
-            self.entity_record_manager.record_sequenced_items(sequenced_item)
+            self.entity_record_manager.record_item(sequenced_item)
 
     def assert_iterator_yields_events(
         self,
@@ -630,7 +631,7 @@ class WithEventPersistence(WithRecordManagers):
         # Setup the persistence subscriber.
         self.entity_event_store = EventStore(
             record_manager=self.entity_record_manager,
-            sequenced_item_mapper=SequencedItemMapper(
+            event_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
                 sequence_id_attr_name="originator_id",
                 position_attr_name="originator_version",
@@ -638,7 +639,7 @@ class WithEventPersistence(WithRecordManagers):
         )
         self.log_event_store = EventStore(
             record_manager=self.log_record_manager,
-            sequenced_item_mapper=SequencedItemMapper(
+            event_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
                 sequence_id_attr_name="originator_id",
                 position_attr_name="timestamp",
@@ -646,7 +647,7 @@ class WithEventPersistence(WithRecordManagers):
         )
         self.snapshot_store = EventStore(
             record_manager=self.snapshot_record_manager,
-            sequenced_item_mapper=SequencedItemMapper(
+            event_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
                 sequence_id_attr_name="originator_id",
                 position_attr_name="originator_version",
@@ -663,7 +664,7 @@ class WithEventPersistence(WithRecordManagers):
         self.timestamp_sequenced_event_policy = None
         if self.log_event_store is not None:
             self.timestamp_sequenced_event_policy = PersistencePolicy(
-                event_store=self.log_event_store, persist_event_type=Logged
+                event_store=self.log_event_store, persist_event_type=LoggedEvent
             )
 
         self.snapshot_policy = None

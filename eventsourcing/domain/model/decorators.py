@@ -2,27 +2,38 @@ import random
 from functools import singledispatch, wraps
 from inspect import isfunction
 from time import sleep
+from typing import Dict, Type, Callable, no_type_check, Union, Optional, Sequence
 
-from eventsourcing.domain.model.events import subscribe
+from eventsourcing.domain.model.events import DomainEvent, subscribe
 from eventsourcing.exceptions import ProgrammingError
 
 
-def subscribe_to(*event_classes):
+def subscribe_to(*args: Union[Callable, Type[DomainEvent]]) -> Callable:
     """
-    Decorator for making a custom event handler function subscribe to a certain class of event.
+    Decorator for making a custom event handler function subscribe to a certain class
+    of event.
 
-    The decorated function will be called once for each matching event that is published, and will
-    be given one argument, the event, when it is called. If events are published in lists, for
-    example the AggregateRoot publishes a list of pending events when its __save__() method is called,
-    then the decorated function will be called once for each event that is an instance of the given event_class.
+    The decorated function will be called once for each matching event that is
+    published, and will
+    be given one argument, the event, when it is called. If events are published in
+    lists, for
+    example the AggregateRoot publishes a list of pending events when its __save__()
+    method is called,
+    then the decorated function will be called once for each event that is an
+    instance of the given event_class.
 
-    Please note, this decorator isn't suitable for use with object class methods. The decorator receives
-    in Python 3 an unbound function, and defines a handler which it subscribes that calls the decorated
-    function for each matching event. However the method isn't called on the object, so the object instance
-    is never available in the decorator, so the decorator can't call a normal object method because it
+    Please note, this decorator isn't suitable for use with object class methods. The
+    decorator receives
+    in Python 3 an unbound function, and defines a handler which it subscribes that
+    calls the decorated
+    function for each matching event. However the method isn't called on the object,
+    so the object instance
+    is never available in the decorator, so the decorator can't call a normal object
+    method because it
     doesn't have a value for 'self'.
 
-    event_class: type used to match published events, an event matches if it is an instance of this type
+    event_class: type used to match published events, an event matches if it is an
+    instance of this type
 
     The following example shows a custom handler that reacts to Todo.Created
     event and saves a projection of a Todo model object.
@@ -34,27 +45,30 @@ def subscribe_to(*event_classes):
             todo = TodoProjection(id=event.originator_id, title=event.title)
             todo.save()
     """
-    event_classes = list(event_classes)
 
+    @no_type_check
     def wrap(func):
         def handler(event):
             if isinstance(event, (list, tuple)):
+                # Call handler once for each event.
                 for e in event:
                     handler(e)
-            elif not event_classes or isinstance(event, tuple(event_classes)):
+            elif not args or isinstance(event, args):
+                # Call handler if there are no classes or have an instance.
                 func(event)
 
         subscribe(handler=handler, predicate=lambda _: True)
         return func
 
-    if len(event_classes) == 1 and isfunction(event_classes[0]):
-        func = event_classes.pop()
+    if len(args) == 1 and isfunction(args[0]):
+        func = args[0]
+        args = ()
         return wrap(func)
     else:
         return wrap
 
 
-def mutator(arg=None):
+def mutator(arg: Optional[Callable] = None) -> Callable:
     """Structures mutator functions by allowing handlers
     to be registered for different types of event. When
     the decorated function is called with an initial
@@ -109,6 +123,7 @@ def mutator(arg=None):
 
     domain_class = None
 
+    @no_type_check
     def _mutator(func):
         wrapped = singledispatch(func)
 
@@ -121,14 +136,16 @@ def mutator(arg=None):
 
         return wrapper
 
-    if isfunction(arg):
-        return _mutator(arg)
-    else:
+    if not isfunction(arg):
+        # Decorator used with an entity class.
         domain_class = arg
         return _mutator
+    else:
+        # Decorator invoked as method or function decorator.
+        return _mutator(arg)
 
 
-def attribute(getter):
+def attribute(getter: Callable) -> property:
     """
     When used as a method decorator, returns a property object
     with the method as the getter and a setter defined to call
@@ -137,10 +154,12 @@ def attribute(getter):
     """
     if isfunction(getter):
 
+        @no_type_check
         def setter(self, value):
             name = "_" + getter.__name__
             self.__change_attribute__(name=name, value=value)
 
+        @no_type_check
         def new_getter(self):
             name = "_" + getter.__name__
             return getattr(self, name, None)
@@ -150,7 +169,13 @@ def attribute(getter):
         raise ProgrammingError("Expected a function, got: {}".format(repr(getter)))
 
 
-def retry(exc=Exception, max_attempts=1, wait=0, stall=0, verbose=False):
+def retry(
+    exc: Union[Type[Exception], Sequence[Type[Exception]]] = Exception,
+    max_attempts: int = 1,
+    wait: float = 0,
+    stall: float = 0,
+    verbose: bool = False,
+) -> Callable:
     """
     Retry decorator.
 
@@ -162,6 +187,7 @@ def retry(exc=Exception, max_attempts=1, wait=0, stall=0, verbose=False):
     :return: Returns the value returned by decorated function.
     """
 
+    @no_type_check
     def _retry(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -207,3 +233,103 @@ def retry(exc=Exception, max_attempts=1, wait=0, stall=0, verbose=False):
         if not isinstance(wait, (float, int)):
             raise TypeError("'wait' must be a float: {}".format(max_attempts))
         return _retry
+
+
+def subclassevents(cls: type) -> type:
+    """
+    Decorator that avoids "boilerplate" subclassing of domain events.
+
+    For example, this:
+
+    @subclassevents
+    class Example(AggregateRoot):
+        class SomethingHappened(DomainEvent): pass
+
+    rather than this:
+
+    class Example(AggregateRoot):
+        class Event(AggregateRoot.Event): pass
+        class Created(Event, AggregateRoot.Created): pass
+        class Discarded(Event, AggregateRoot.Discarded): pass
+        class AttributeChanged(Event, AggregateRoot.AttributeChanged): pass
+        class SomethingHappened(Event): pass
+
+    You can apply this to a tree of domain event classes by defining
+    the base class with attribute 'subclassevents = True'.
+    """
+
+    bases_event_attrs = []
+    super_event_class_names = set()
+    for base_cls in cls.__bases__:
+        base_event_attrs: Dict[str, Type[DomainEvent]] = {}
+        bases_event_attrs.append(base_event_attrs)
+        for base_attr_name in dir(base_cls):
+            base_attr = getattr(base_cls, base_attr_name)
+            if isinstance(base_attr, type) and issubclass(base_attr, DomainEvent):
+                base_event_attrs[base_attr_name] = base_attr
+                if base_attr_name != "Event":
+                    super_event_class_names.add(base_attr_name)
+
+    # Define base Event subclass including super Event classes.
+    if "Event" in cls.__dict__:
+        event_event_subclass = cls.__dict__["Event"]
+    else:
+        base_event_classes = []
+        for base_event_attrs in bases_event_attrs:
+            try:
+                event_cls = base_event_attrs["Event"]
+            except KeyError:
+                pass
+            else:
+                base_event_classes.append(event_cls)
+
+        event_event_subclass = type(
+            "Event",
+            tuple(base_event_classes or [DomainEvent]),
+            {"__qualname__": cls.__name__ + ".Event"},
+        )
+        event_event_subclass.__module__ = cls.__module__
+        setattr(cls, "Event", event_event_subclass)
+
+    # Define subclasses for super event classes, including Event subclass as base.
+    for super_event_class_name in super_event_class_names:
+
+        base_event_classes = [event_event_subclass]
+        if super_event_class_name in cls.__dict__:
+            continue
+
+        for base_event_attrs in bases_event_attrs:
+            try:
+                event_cls = base_event_attrs[super_event_class_name]
+            except KeyError:
+                pass
+            else:
+                base_event_classes.append(event_cls)
+        event_subclass = type(
+            super_event_class_name,
+            tuple(base_event_classes),
+            {"__qualname__": cls.__name__ + "." + super_event_class_name},
+        )
+        event_subclass.__module__ = cls.__module__
+        setattr(cls, super_event_class_name, event_subclass)
+
+    # Redefine event classes in cls.__dict__ that are not subclasses of Event.
+    for cls_attr_name in cls.__dict__.keys():
+        cls_attr = getattr(cls, cls_attr_name)
+        if isinstance(cls_attr, type) and issubclass(cls_attr, DomainEvent):
+            if not issubclass(cls_attr, event_event_subclass):
+                try:
+                    event_subclass = type(
+                        cls_attr_name,
+                        (cls_attr, event_event_subclass),
+                        {
+                            "__qualname__": cls_attr.__qualname__,
+                            "__module__": cls_attr.__module__,
+                            "__doc__": cls_attr.__doc__,
+                        },
+                    )
+                except TypeError:
+                    raise Exception(cls_attr_name, cls_attr, event_event_subclass)
+                setattr(cls, cls_attr_name, event_subclass)
+
+    return cls

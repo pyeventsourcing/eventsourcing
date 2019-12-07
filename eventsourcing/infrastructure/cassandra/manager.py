@@ -4,27 +4,29 @@ from cassandra.cqlengine.functions import Token
 from cassandra.cqlengine.query import BatchQuery, LWTException
 
 from eventsourcing.exceptions import ProgrammingError
-from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
+from eventsourcing.infrastructure.base import BaseRecordManager
 
 
-class CassandraRecordManager(AbstractSequencedItemRecordManager):
-    def record_sequenced_items(self, sequenced_item_or_items):
-        if isinstance(sequenced_item_or_items, list):
-            if len(sequenced_item_or_items):
-                b = BatchQuery()
-                for item in sequenced_item_or_items:
-                    assert isinstance(item, self.sequenced_item_class), (
-                        type(item),
-                        self.sequenced_item_class,
-                    )
-                    kwargs = self.get_field_kwargs(item)
-                    self.record_class.batch(b).if_not_exists().create(**kwargs)
-                try:
-                    b.execute()
-                except LWTException:
-                    self.raise_sequenced_item_conflict()
-        else:
-            record = self.to_record(sequenced_item_or_items)
+class CassandraRecordManager(BaseRecordManager):
+    def record_items(self, sequenced_items):
+        if not isinstance(sequenced_items, list):
+            sequenced_items = list(sequenced_items)
+
+        if len(sequenced_items) > 1:
+            b = BatchQuery()
+            for item in sequenced_items:
+                assert isinstance(item, self.sequenced_item_class), (
+                    type(item),
+                    self.sequenced_item_class,
+                )
+                kwargs = self.get_field_kwargs(item)
+                self.record_class.batch(b).if_not_exists().create(**kwargs)
+            try:
+                b.execute()
+            except LWTException:
+                self.raise_sequenced_item_conflict()
+        elif len(sequenced_items) == 1:
+            record = self.to_record(sequenced_items[0])
             try:
                 record.save()
             except LWTException:
@@ -40,7 +42,8 @@ class CassandraRecordManager(AbstractSequencedItemRecordManager):
             record = list(query)[0]
         except IndexError:
             self.raise_index_error(position)
-        return record
+        else:
+            return record
 
     def get_records(
         self,

@@ -10,6 +10,7 @@ from eventsourcing.application.process import (
     ProcessApplication,
     ProcessApplicationWithSnapshotting,
     WrappedRepository,
+    PromptToPull,
 )
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.domain.model.aggregate import AggregateRoot, BaseAggregateRoot
@@ -22,18 +23,20 @@ from eventsourcing.domain.model.events import (
     unsubscribe,
 )
 from eventsourcing.domain.model.snapshot import Snapshot
-from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed
+from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed, \
+    ProgrammingError
 from eventsourcing.infrastructure.sqlalchemy.records import Base
+from eventsourcing.whitehead import TEntity
 from eventsourcing.utils.topic import resolve_topic
-from eventsourcing.utils.transcoding import json_loads
+from eventsourcing.utils.transcoding import ObjectJSONDecoder
 
 
 class TestProcessApplication(TestCase):
-    process_class = SQLAlchemyApplication
+    infrastructure_class = SQLAlchemyApplication
 
     def test_process_with_example_policy(self):
         # Construct example process.
-        process_class = ProcessApplication.mixin(self.process_class)
+        process_class = ProcessApplication.mixin(self.infrastructure_class)
         with process_class(
             name="test",
             policy=example_policy,
@@ -69,7 +72,7 @@ class TestProcessApplication(TestCase):
 
     def test_process_application_with_snapshotting(self):
         # Construct example process.
-        with ProcessApplicationWithSnapshotting.mixin(self.process_class)(
+        with ProcessApplicationWithSnapshotting.mixin(self.infrastructure_class)(
             name="test",
             policy=example_policy,
             persist_event_type=ExampleAggregate.Event,
@@ -108,7 +111,7 @@ class TestProcessApplication(TestCase):
         pipeline_id2 = 1
 
         # Create two events, one has causal dependency on the other.
-        process_class = ProcessApplication.mixin(self.process_class)
+        process_class = ProcessApplication.mixin(self.infrastructure_class)
         core1 = process_class(
             name="core",
             # persist_event_type=ExampleAggregate.Created,
@@ -118,8 +121,10 @@ class TestProcessApplication(TestCase):
         )
         core1.use_causal_dependencies = True
 
-        # Needed for SQLAlchemy only.
-        kwargs = {"session": core1.session} if hasattr(core1, "session") else {}
+        kwargs = {}
+        if self.infrastructure_class.is_constructed_with_session:
+            # Needed for SQLAlchemy only.
+            kwargs["session"] = core1.session
 
         core2 = process_class(
             name="core", pipeline_id=pipeline_id2, policy=example_policy, **kwargs
@@ -164,7 +169,9 @@ class TestProcessApplication(TestCase):
 
         # - the second 'Created' event depends on the Created event in another pipeline.
         expect = [{"notification_id": 1, "pipeline_id": pipeline_id1}]
-        actual = json_loads(second_entity_records[0].causal_dependencies)
+        actual = ObjectJSONDecoder().decode(
+            second_entity_records[0].causal_dependencies
+        )
 
         self.assertEqual(expect, actual)
 
@@ -193,30 +200,30 @@ class TestProcessApplication(TestCase):
             downstream2.run()
 
         self.assertEqual(
-            0, len(downstream1.event_store.record_manager.get_notifications())
+            0, len(list(downstream1.event_store.record_manager.get_notifications()))
         )
         self.assertEqual(
-            0, len(downstream2.event_store.record_manager.get_notifications())
+            0, len(list(downstream2.event_store.record_manager.get_notifications()))
         )
 
         # Try to process pipeline 1, should work.
         downstream1.run()
 
         self.assertEqual(
-            1, len(downstream1.event_store.record_manager.get_notifications())
+            1, len(list(downstream1.event_store.record_manager.get_notifications()))
         )
         self.assertEqual(
-            0, len(downstream2.event_store.record_manager.get_notifications())
+            0, len(list(downstream2.event_store.record_manager.get_notifications()))
         )
 
         # Try again to process pipeline 2, should work this time.
         downstream2.run()
 
         self.assertEqual(
-            1, len(downstream1.event_store.record_manager.get_notifications())
+            1, len(list(downstream1.event_store.record_manager.get_notifications()))
         )
         self.assertEqual(
-            2, len(downstream2.event_store.record_manager.get_notifications())
+            2, len(list(downstream2.event_store.record_manager.get_notifications()))
         )
 
         core1.close()
@@ -246,7 +253,7 @@ class TestProcessApplication(TestCase):
                 repository.delete_orm_obj(projection)
 
         # Construct example process.
-        process_class = ProcessApplication.mixin(self.process_class)
+        process_class = ProcessApplication.mixin(self.infrastructure_class)
         with process_class(
             name="test",
             policy=projection_policy,
@@ -291,6 +298,96 @@ class TestProcessApplication(TestCase):
             )
             self.assertIsNone(projection)
 
+    def test_cant_follow_self_and_apply_policy_to_generated_events(self):
+        with self.assertRaises(ProgrammingError):
+            # Construct example process.
+            process_class = ProcessApplication.mixin(self.infrastructure_class)
+            with process_class(
+                name="test",
+                policy=None,
+                persist_event_type=ExampleAggregate.Event,
+                setup_table=True,
+                apply_policy_to_generated_events=True,
+            ) as process:
+                assert isinstance(process, ProcessApplication)
+
+                self.assertTrue(process.apply_policy_to_generated_events)
+
+                # Make the process follow itself.
+                process.follow("test", process.notification_log)
+
+    def test_clear_cache_after_exception_recording_event(self):
+        # Construct example process.
+        process_class = ProcessApplication.mixin(self.infrastructure_class)
+        with process_class(
+            name="test",
+            policy=example_policy,
+            persist_event_type=ExampleAggregate.Event,
+            setup_table=True,
+            use_cache=True,
+        ) as process:
+            # Check cache is being used.
+            self.assertTrue(process.use_cache)
+
+            # Make the process follow itself.
+            process.follow("test", process.notification_log)
+
+            # Create an aggregate.
+            aggregate = ExampleAggregate.__create__()
+            aggregate.__save__()
+
+            # Put aggregate in the cache.
+            process.repository._cache[aggregate.id] = aggregate
+
+            # Damage the record manager.
+            process.event_store.record_manager.write_records = None
+
+            # Run the process.
+            try:
+                process.run()
+            except Exception:
+                pass
+            else:
+                self.fail("Exception not raised")
+
+            # Check the aggregate is no longer in the cache.
+            self.assertNotIn(aggregate.id, process.repository._cache)
+
+    def test_policy_returnS_sequence_of_new_aggregates(self):
+
+        def policy(repository, event):
+            first = AggregateRoot.__create__(originator_id=(uuid4()))
+            second = AggregateRoot.__create__(originator_id=(uuid4()))
+            return (first, second)
+
+        # Construct example process.
+        process_class = ProcessApplication.mixin(self.infrastructure_class)
+        with process_class(
+            name="test",
+            policy=policy,
+            persist_event_type=ExampleAggregate.Event,
+            setup_table=True,
+            use_cache=True,
+        ) as process:
+            # Make the process follow itself.
+            process.follow("test", process.notification_log)
+
+            # Create an aggregate.
+            aggregate = ExampleAggregate.__create__()
+            aggregate.__save__()
+
+            # Run the process.
+            process.run()
+
+            # Check the two new aggregates are in the cache.
+            self.assertEqual(len(process.repository._cache), 2)
+
+            # Check there are three aggregates in the repository.
+            ids = process.repository.event_store.record_manager.all_sequence_ids()
+            self.assertEqual(len(list(ids)), 3)
+
+
+
     def define_projection_record_class(self):
         class ProjectionRecord(Base):
             __tablename__ = "projections"
@@ -312,7 +409,7 @@ class TestProcessApplication(TestCase):
         return record_manager.session.query(projection_record_class).get(projection_id)
 
     def test_handle_prompt_failed(self):
-        process = ProcessApplication.mixin(self.process_class)(
+        process = ProcessApplication.mixin(self.infrastructure_class)(
             name="test",
             policy=example_policy,
             persist_event_type=ExampleAggregate.Event,
@@ -352,6 +449,25 @@ class TestProcessApplication(TestCase):
             raise
 
 
+class TestPromptToPull(TestCase):
+    def test_repr(self):
+        prompt1 = PromptToPull("process1", pipeline_id=1)
+        self.assertEqual(
+            repr(prompt1), "PromptToPull(process_name=process1, pipeline_id=1)"
+        )
+
+    def test_eq(self):
+        prompt1 = PromptToPull("process1", pipeline_id=1)
+        prompt2 = PromptToPull("process1", pipeline_id=1)
+        prompt3 = PromptToPull("process2", pipeline_id=1)
+        prompt4 = PromptToPull("process1", pipeline_id=2)
+
+        self.assertEqual(prompt1, prompt1)
+        self.assertEqual(prompt1, prompt2)
+        self.assertNotEqual(prompt1, prompt3)
+        self.assertNotEqual(prompt1, prompt4)
+
+
 class TestCommands(TestCase):
     infrastructure_class = SQLAlchemyApplication
 
@@ -376,25 +492,66 @@ class TestCommands(TestCase):
             "core", policy=example_policy, session=commands.session
         )
 
-        self.assertFalse(list(commands.event_store.all_domain_events()))
+        self.assertFalse(list(commands.event_store.all_events()))
 
-        cmd = CreateExample.__create__()
+        example_id = uuid4()
+        cmd = CreateExample.__create__(example_id=example_id)
         # cmd = Command.__create__(cmd_method='create_example', cmd_args={})
         cmd.__save__()
 
-        domain_events = list(commands.event_store.all_domain_events())
+        domain_events = list(commands.event_store.all_events())
         # self.assertTrue(domain_events)
         self.assertEqual(len(domain_events), 1)
 
-        self.assertFalse(list(core.event_store.all_domain_events()))
+        self.assertFalse(list(core.event_store.all_events()))
 
         core.follow("commands", commands.notification_log)
         core.run()
 
-        self.assertTrue(list(core.event_store.all_domain_events()))
+        self.assertTrue(list(core.event_store.all_events()))
+        self.assertIn(example_id, core.repository)
+
+        # Example shouldn't be "moved on" because core isn't following itself,
+        # or applying its policy to generated events.
+        self.assertFalse(core.repository[example_id].is_moved_on)
 
         commands.close()
         core.close()
+
+    def test_apply_policy_to_generated_domain_events(self):
+        commands = CommandProcess.mixin(self.infrastructure_class)(setup_table=True)
+        core = ProcessApplication.mixin(self.infrastructure_class)(
+            name="core",
+            policy=example_policy,
+            session=commands.session,
+            apply_policy_to_generated_events=True,
+        )
+
+        with core, commands:
+            self.assertFalse(list(commands.event_store.all_events()))
+
+            example_id = uuid4()
+            cmd = CreateExample.__create__(example_id=example_id)
+            cmd.__save__()
+
+            domain_events = list(commands.event_store.all_events())
+            self.assertEqual(len(domain_events), 1)
+
+            self.assertFalse(list(core.event_store.all_events()))
+
+            core.follow("commands", commands.notification_log)
+            core.run()
+
+            self.assertTrue(list(core.event_store.all_events()))
+            self.assertIn(example_id, core.repository)
+
+            # Example should be "moved on" because core is
+            # applying its policy to generated events.
+            example = core.repository[example_id]
+            self.assertTrue(example.is_moved_on)
+
+            # Check the "second" aggregate exists.
+            self.assertIn(example.second_id, core.repository)
 
     def tearDown(self):
         assert_event_handlers_empty()
@@ -409,16 +566,16 @@ class ExampleAggregate(BaseAggregateRoot):
         self.is_moved_on = False
         self.second_id = None
 
-    class Event(BaseAggregateRoot.Event):
+    class Event(BaseAggregateRoot.Event[TEntity]):
         pass
 
-    class Created(Event, BaseAggregateRoot.Created):
+    class Created(Event[TEntity], BaseAggregateRoot.Created[TEntity]):
         pass
 
     def move_on(self, second_id=None):
         self.__trigger_event__(ExampleAggregate.MovedOn, second_id=second_id)
 
-    class MovedOn(Event):
+    class MovedOn(Event[TEntity]):
         @property
         def second_id(self):
             return self.__dict__["second_id"]
@@ -430,24 +587,24 @@ class ExampleAggregate(BaseAggregateRoot):
 
 
 def example_policy(repository, event):
-    # Whenever an aggregate is created, then "move it on".
     if isinstance(event, ExampleAggregate.Created):
-        # Get aggregate and move it on.
-        aggregate = repository[event.originator_id]
-
-        assert isinstance(aggregate, ExampleAggregate)
-
-        # Also create a second entity, allows test to check that
+        # Create a second aggregate, allowing test to check that
         # events from more than one entity are stored.
         second_id = uuid4()
-        other_entity = AggregateRoot.__create__(originator_id=second_id)
-        aggregate.move_on(second_id=second_id)
-        return other_entity
+        second = AggregateRoot.__create__(originator_id=second_id)
+
+        # Get first aggregate and move it on, allowing test to
+        # check that the first aggregate was mutated by the policy.
+        first = repository[event.originator_id]
+        assert isinstance(first, ExampleAggregate)
+        first.move_on(second_id=second_id)
+
+        return second
 
     elif isinstance(event, Command.Created):
         command_class = resolve_topic(event.originator_topic)
         if command_class is CreateExample:
-            return ExampleAggregate.__create__()
+            return ExampleAggregate.__create__(event.example_id)
 
 
 class LogMessage(BaseAggregateRoot):
@@ -455,10 +612,10 @@ class LogMessage(BaseAggregateRoot):
         super(LogMessage, self).__init__(**kwargs)
         self.message = message
 
-    class Event(BaseAggregateRoot.Event):
+    class Event(BaseAggregateRoot.Event[TEntity]):
         pass
 
-    class Created(Event, BaseAggregateRoot.Created):
+    class Created(Event[TEntity], BaseAggregateRoot.Created[TEntity]):
         pass
 
 
@@ -467,7 +624,9 @@ def event_logging_policy(_, event):
 
 
 class CreateExample(Command):
-    pass
+    def __init__(self, example_id=None, **kwargs):
+        super().__init__(**kwargs)
+        self.example_id = example_id
 
 
 class SaveOrmObject(Command):

@@ -113,10 +113,10 @@ with a suitable AES key (16, 24, or 32 random bytes encoded as Base64).
 
 .. code:: python
 
-    from eventsourcing.utils.random import encode_random_bytes
+    from eventsourcing.utils.random import encoded_random_bytes
 
     # Keep this safe (random bytes encoded with Base64).
-    cipher_key = encode_random_bytes(num_bytes=32)
+    cipher_key = encoded_random_bytes(num_bytes=32)
 
 
 These values can be given to the application object as constructor arguments
@@ -387,13 +387,14 @@ exist will cause a ``KeyError`` to be raised.
 Stored events
 -------------
 
-It is always possible to get the domain events for an aggregate,
-by using the application's event store method
-:func:`~eventsourcing.infrastructure.eventstore.EventStore.get_domain_events`.
+You can list the domain events of an aggregate
+by using the method
+:func:`~eventsourcing.infrastructure.base.AbstractEventStore.list_events`
+of the event store of the application.
 
 .. code:: python
 
-    events = application.event_store.get_domain_events(originator_id=aggregate.id)
+    events = application.event_store.list_events(originator_id=aggregate.id)
     assert len(events) == 4
 
     assert events[0].originator_id == aggregate.id
@@ -419,7 +420,7 @@ Sequenced items
 
 It is also possible to get the sequenced item namedtuples for an aggregate,
 by using the method
-:func:`~eventsourcing.infrastructure.base.AbstractSequencedItemRecordManager.get_items`
+:func:`~eventsourcing.infrastructure.base.AbstractRecordManager.get_items`
 of the event store's record manager.
 
 .. code:: python
@@ -429,22 +430,22 @@ of the event store's record manager.
 
     assert items[0].originator_id == aggregate.id
     assert items[0].topic == 'eventsourcing.domain.model.aggregate#AggregateRoot.Created'
-    assert '"a":1' in items[0].state, items[0].state
-    assert '"timestamp":' in items[0].state
+    assert '"a":1' in items[0].state.decode('utf8'), items[0].state
+    assert b'"timestamp":' in items[0].state
 
     assert items[1].originator_id == aggregate.id
     assert items[1].topic == 'eventsourcing.domain.model.aggregate#AggregateRoot.AttributeChanged'
-    assert '"name":"_a"' in items[1].state
-    assert '"timestamp":' in items[1].state
+    assert b'"name":"_a"' in items[1].state
+    assert b'"timestamp":' in items[1].state
 
     assert items[2].originator_id == aggregate.id
     assert items[2].topic == 'eventsourcing.domain.model.aggregate#AggregateRoot.AttributeChanged'
-    assert '"name":"_a"' in items[2].state
-    assert '"timestamp":' in items[2].state
+    assert b'"name":"_a"' in items[2].state
+    assert b'"timestamp":' in items[2].state
 
     assert items[3].originator_id == aggregate.id
     assert items[3].topic == 'eventsourcing.domain.model.aggregate#AggregateRoot.Discarded'
-    assert '"timestamp":' in items[3].state
+    assert b'"timestamp":' in items[3].state
 
 In this example, the ``cipher_key`` was not set, so the stored data is visible.
 

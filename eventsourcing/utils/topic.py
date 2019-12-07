@@ -1,9 +1,10 @@
 import importlib
+from typing import Dict, Any
 
 from eventsourcing.exceptions import TopicResolutionError
 
 
-def get_topic(domain_class):
+def get_topic(domain_class: type) -> str:
     """Returns a string describing a class.
 
     Args:
@@ -19,11 +20,13 @@ def get_topic(domain_class):
     )
 
 
-# Todo: Document this.
-substitutions = {}
+# Todo: Write documentation for this feature (versioning...).
+
+substitutions: Dict[str, str] = {}
 
 
-def resolve_topic(topic):
+def resolve_topic(topic: str) -> Any:
+# def resolve_topic(topic: str) -> Type[object]:
     """Return class described by given topic.
 
     Args:
@@ -56,7 +59,7 @@ def resolve_topic(topic):
     return cls
 
 
-def resolve_attr(obj, path):
+def resolve_attr(obj: Any, path: str) -> Any:
     """A recursive version of getattr for navigating dotted paths.
 
     Args:

@@ -56,7 +56,7 @@ class ExampleApplicationWithTimeuuidSequencedItems(object):
             record_manager=CassandraRecordManager(
                 record_class=TimeuuidSequencedRecord, sequenced_item_class=SequencedItem
             ),
-            sequenced_item_mapper=SequencedItemMapper(
+            event_mapper=SequencedItemMapper(
                 sequenced_item_class=SequencedItem,
                 sequence_id_attr_name="originator_id",
                 position_attr_name="event_id",

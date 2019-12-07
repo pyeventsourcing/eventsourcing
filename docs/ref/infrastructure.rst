@@ -22,22 +22,6 @@ Abstract base classes for the infrastructure layer.
     :exclude-members: __weakref__, __dict__
 
 
-.. py:module:: eventsourcing.infrastructure.eventstore
-
-eventstore
-----------
-
-The event store provides the application-level interface to the event sourcing
-persistence mechanism.
-
-.. automodule:: eventsourcing.infrastructure.eventstore
-    :show-inheritance:
-    :member-order: bysource
-    :members:
-    :special-members:
-    :exclude-members: __weakref__, __dict__
-
-
 .. py:module:: eventsourcing.infrastructure.cassandra
 
 cassandra
@@ -148,6 +132,38 @@ eventsourcedrepository
 Base classes for event sourced repositories (not abstract, can be used directly).
 
 .. automodule:: eventsourcing.infrastructure.eventsourcedrepository
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__
+
+
+.. py:module:: eventsourcing.infrastructure.eventstore
+
+eventstore
+----------
+
+The event store provides the application-level interface to the event sourcing
+persistence mechanism.
+
+.. automodule:: eventsourcing.infrastructure.eventstore
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__
+
+
+.. py:module:: eventsourcing.infrastructure.factory
+
+factory
+-------
+
+Infrastructure factory.
+
+
+.. automodule:: eventsourcing.infrastructure.factory
     :show-inheritance:
     :member-order: bysource
     :members:
@@ -320,16 +336,3 @@ Reader for timebucketed logs.
 
 
 .. py:module:: eventsourcing.infrastructure.factory
-
-factory
--------
-
-Infrastructure factory.
-
-
-.. automodule:: eventsourcing.infrastructure.factory
-    :show-inheritance:
-    :member-order: bysource
-    :members:
-    :special-members:
-    :exclude-members: __weakref__, __dict__

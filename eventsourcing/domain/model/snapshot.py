@@ -1,40 +1,12 @@
-from abc import ABC, abstractmethod
+from typing import Dict, Optional, Any
+from uuid import UUID
 
 from eventsourcing.domain.model.events import (
     EventWithOriginatorID,
     EventWithOriginatorVersion,
     EventWithTimestamp,
 )
-
-
-class AbstractSnapshop(ABC):
-    @property
-    @abstractmethod
-    def topic(self):
-        """
-        Path to the class of the snapshotted entity.
-        """
-
-    @property
-    @abstractmethod
-    def state(self):
-        """
-        State of the snapshotted entity.
-        """
-
-    @property
-    @abstractmethod
-    def originator_id(self):
-        """
-        ID of the snapshotted entity.
-        """
-
-    @property
-    @abstractmethod
-    def originator_version(self):
-        """
-        Version of the last event applied to the entity.
-        """
+from eventsourcing.infrastructure.base import AbstractSnapshop
 
 
 class Snapshot(
@@ -43,7 +15,13 @@ class Snapshot(
     EventWithOriginatorID,
     AbstractSnapshop,
 ):
-    def __init__(self, originator_id, originator_version, topic, state):
+    def __init__(
+        self,
+        originator_id: UUID,
+        originator_version: int,
+        topic: str,
+        state: Optional[Dict],
+    ):
         super(Snapshot, self).__init__(
             originator_id=originator_id,
             originator_version=originator_version,
@@ -52,14 +30,14 @@ class Snapshot(
         )
 
     @property
-    def topic(self):
+    def topic(self) -> str:
         """
         Path to the class of the snapshotted entity.
         """
         return self.__dict__["topic"]
 
     @property
-    def state(self):
+    def state(self) -> Dict[str, Any]:
         """
         State of the snapshotted entity.
         """

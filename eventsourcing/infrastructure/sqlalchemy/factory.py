@@ -1,4 +1,9 @@
-from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
+from json import JSONDecoder, JSONEncoder
+from typing import Any, NamedTuple, Optional, Type
+
+from eventsourcing.domain.model.events import DomainEvent
+from eventsourcing.infrastructure.base import AbstractRecordManager, DEFAULT_PIPELINE_ID
+from eventsourcing.infrastructure.datastore import AbstractDatastore
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.factory import InfrastructureFactory
 from eventsourcing.infrastructure.sequenceditem import StoredEvent
@@ -10,11 +15,12 @@ from eventsourcing.infrastructure.sqlalchemy.datastore import (
 from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.infrastructure.sqlalchemy.records import (
     IntegerSequencedWithIDRecord,
+    NotificationTrackingRecord,
     SnapshotRecord,
     StoredEventRecord,
     TimestampSequencedNoIDRecord,
-    NotificationTrackingRecord,
 )
+from eventsourcing.utils.cipher.aes import AESCipher
 
 
 class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
@@ -30,12 +36,12 @@ class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
 
     def __init__(
         self,
-        session,
-        uri=None,
-        pool_size=None,
-        tracking_record_class=None,
-        *args,
-        **kwargs
+        session: Any,
+        uri: Optional[str] = None,
+        pool_size: Optional[int] = None,
+        tracking_record_class: Optional[type] = None,
+        *args: Any,
+        **kwargs: Any
     ):
         super(SQLAlchemyInfrastructureFactory, self).__init__(*args, **kwargs)
         self.session = session
@@ -43,7 +49,9 @@ class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
         self.pool_size = pool_size
         self._tracking_record_class = tracking_record_class
 
-    def construct_integer_sequenced_record_manager(self, **kwargs):
+    def construct_integer_sequenced_record_manager(
+        self, **kwargs: Any
+    ) -> AbstractRecordManager:
         """
         Constructs SQLAlchemy record manager.
 
@@ -59,7 +67,12 @@ class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
             tracking_record_class=tracking_record_class, **kwargs
         )
 
-    def construct_record_manager(self, record_class, **kwargs):
+    def construct_record_manager(
+        self,
+        record_class: Optional[type],
+        sequenced_item_class: Optional[Type[NamedTuple]] = None,
+        **kwargs: Any
+    ) -> AbstractRecordManager:
         """
         Constructs SQLAlchemy record manager.
 
@@ -67,10 +80,13 @@ class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
         :rtype: SQLAlchemyRecordManager
         """
         return super(SQLAlchemyInfrastructureFactory, self).construct_record_manager(
-            record_class, session=self.session, **kwargs
+            record_class,
+            sequenced_item_class=sequenced_item_class,
+            session=self.session,
+            **kwargs
         )
 
-    def construct_datastore(self):
+    def construct_datastore(self) -> Optional[AbstractDatastore]:
         """
         Constructs SQLAlchemy datastore.
 
@@ -80,25 +96,27 @@ class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
             settings=SQLAlchemySettings(uri=self.uri, pool_size=self.pool_size),
             session=self.session,
         )
-        self.session = datastore.session
+        if self.session is None:
+            assert datastore.session, "Datastore object session is None"
+            self.session = datastore.session
         return datastore
 
 
 def construct_sqlalchemy_eventstore(
-    session,
-    sequenced_item_class=None,
-    sequence_id_attr_name=None,
-    position_attr_name=None,
-    json_encoder_class=None,
-    json_decoder_class=None,
-    cipher=None,
-    record_class=None,
-    contiguous_record_ids=False,
-    application_name=None,
-    pipeline_id=DEFAULT_PIPELINE_ID,
-):
-    sequenced_item_class = sequenced_item_class or StoredEvent
-    sequenced_item_mapper = SequencedItemMapper(
+    session: Any,
+    sequenced_item_class: Optional[Type[NamedTuple]] = None,
+    sequence_id_attr_name: Optional[str] = None,
+    position_attr_name: Optional[str] = None,
+    json_encoder_class: Optional[Type[JSONEncoder]] = None,
+    json_decoder_class: Optional[Type[JSONDecoder]] = None,
+    cipher: Optional[AESCipher] = None,
+    record_class: Optional[type] = None,
+    contiguous_record_ids: bool = False,
+    application_name: Optional[str] = None,
+    pipeline_id: int = DEFAULT_PIPELINE_ID,
+) -> EventStore:
+    sequenced_item_class = sequenced_item_class or StoredEvent  # type: ignore
+    sequenced_item_mapper = SequencedItemMapper[DomainEvent](
         sequenced_item_class=sequenced_item_class,
         sequence_id_attr_name=sequence_id_attr_name,
         position_attr_name=position_attr_name,
@@ -115,7 +133,7 @@ def construct_sqlalchemy_eventstore(
         pipeline_id=pipeline_id,
     )
     record_manager = factory.construct_integer_sequenced_record_manager()
-    event_store = EventStore(
-        record_manager=record_manager, sequenced_item_mapper=sequenced_item_mapper
+    event_store = EventStore[DomainEvent, AbstractRecordManager](
+        record_manager=record_manager, event_mapper=sequenced_item_mapper
     )
     return event_store

@@ -34,9 +34,6 @@ event classes have been pulled up to a layer supertype ``DomainEvent``.
 
 .. code:: python
 
-    import time
-
-
     class DomainEvent(object):
         """
         Supertype for domain event objects.
@@ -74,9 +71,9 @@ event classes have been pulled up to a layer supertype ``DomainEvent``.
 Please note, the domain event classes above do not depend on the library. The library does
 however contain a collection of different kinds of domain event classes that you can use
 in your models, for example see
-:class:`~eventsourcing.domain.model.events.Created`,
-:class:`~eventsourcing.domain.model.events.AttributeChanged`, and
-:class:`~eventsourcing.domain.model.events.Discarded`.
+:class:`~eventsourcing.domain.model.events.CreatedEvent`,
+:class:`~eventsourcing.domain.model.events.AttributeChangedEvent`, and
+:class:`~eventsourcing.domain.model.events.DiscardedEvent`.
 
 
 Publish-subscribe
@@ -88,9 +85,9 @@ Since we are dealing with events, let's define a simple publish-subscribe mechan
 
     subscribers = []
 
-    def publish(event):
+    def publish(events):
         for subscriber in subscribers:
-            subscriber(event)
+            subscriber(events)
 
 
     def subscribe(subscriber):
@@ -118,9 +115,6 @@ apply the event to the entity. Finally, each publishes the event
 for the benefit of any subscribers, by using the function ``publish()``.
 
 .. code:: python
-
-    import uuid
-
 
     class Example(object):
         """
@@ -160,7 +154,7 @@ for the benefit of any subscribers, by using the function ``publish()``.
             mutate(self, event)
 
             # Publish the event for others.
-            publish(event)
+            publish([event])
 
         def discard(self):
             assert not self._is_discarded
@@ -175,7 +169,7 @@ for the benefit of any subscribers, by using the function ``publish()``.
             mutate(self, event)
 
             # Publish the event for others.
-            publish(event)
+            publish([event])
 
 
 A factory can be used to create new "example" entities. The function
@@ -186,6 +180,8 @@ object, and finally publishing the event for others before returning
 the new entity object to the caller.
 
 .. code:: python
+
+    import uuid
 
     def create_new_example(foo):
         """
@@ -204,7 +200,7 @@ the new entity object to the caller.
         entity = mutate(None, event)
 
         # Publish the event for others.
-        publish(event=event)
+        publish([event])
 
         # Return the new entity.
         return entity
@@ -278,7 +274,7 @@ Let's firstly subscribe to receive the events that will be published, so we can 
     received_events = []
 
     # Subscribe to receive published events.
-    subscribe(lambda e: received_events.append(e))
+    subscribe(lambda e: received_events.extend(e))
 
 
 With this stand-alone code, we can create a new example entity object. We can update its property
@@ -453,14 +449,14 @@ alternative record manager.
         record_class=IntegerSequencedRecord,
     )
 
-    sequenced_item_mapper = SequencedItemMapper(
+    event_mapper = SequencedItemMapper(
         sequence_id_attr_name='originator_id',
         position_attr_name='originator_version'
     )
 
     event_store = EventStore(
         record_manager=record_manager,
-        sequenced_item_mapper=sequenced_item_mapper
+        event_mapper=event_mapper
     )
 
 
@@ -500,11 +496,10 @@ Now, let's firstly write the events we received earlier into the event store.
 .. code:: python
 
     # Put each received event into the event store.
-    for event in received_events:
-        event_store.store(event)
+    event_store.store_events(received_events)
 
     # Check the events exist in the event store.
-    stored_events = event_store.get_domain_events(entity.id)
+    stored_events = event_store.list_events(entity.id)
     assert len(stored_events) == 2, (received_events, stored_events)
 
 The entity can now be retrieved from the repository, using its dictionary-like interface.
@@ -538,12 +533,12 @@ the ``state`` field represents the state of the event (normally a JSON string).
     assert sequenced_items[0].sequence_id == entity.id
     assert sequenced_items[0].position == 0
     assert 'Created' in sequenced_items[0].topic
-    assert 'bar' in sequenced_items[0].state
+    assert b'bar' in sequenced_items[0].state
 
     assert sequenced_items[1].sequence_id == entity.id
     assert sequenced_items[1].position == 1
     assert 'AttributeChanged' in sequenced_items[1].topic
-    assert 'baz' in sequenced_items[1].state
+    assert b'baz' in sequenced_items[1].state
 
 
 Application
@@ -565,13 +560,13 @@ uses an event store to store events whenever they are received.
     class PersistencePolicy(object):
         def __init__(self, event_store):
             self.event_store = event_store
-            subscribe(self.store_event)
+            subscribe(self.store_events)
 
         def close(self):
-            unsubscribe(self.store_event)
+            unsubscribe(self.store_events)
 
-        def store_event(self, event):
-            self.event_store.store(event)
+        def store_events(self, events):
+            self.event_store.store_events(events)
 
 
 A slightly more developed class :class:`~eventsourcing.application.policies.PersistencePolicy`
@@ -595,7 +590,7 @@ and unsubscribe from receiving further domain events.
                     record_class=IntegerSequencedRecord,
                     session=session,
                 ),
-                sequenced_item_mapper=SequencedItemMapper(
+                event_mapper=SequencedItemMapper(
                     sequence_id_attr_name='originator_id',
                     position_attr_name='originator_version'
                 )

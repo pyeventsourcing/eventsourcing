@@ -69,7 +69,7 @@ events to subscribed handlers. The argument ``event`` is required.
 
     from eventsourcing.domain.model.events import publish
 
-    publish(event=domain_event)
+    publish([domain_event])
 
 
 The function :func:`~eventsourcing.domain.model.events.subscribe` is used to
@@ -83,16 +83,16 @@ handler will actually be called when an event is published.
 
     received_events = []
 
-    def receive_event(event):
-        received_events.append(event)
+    def receive_events(events):
+        received_events.extend(events)
 
-    def is_domain_event(event):
-        return isinstance(event, DomainEvent)
+    def is_domain_event(events):
+        return all(isinstance(e, DomainEvent) for e in events)
 
-    subscribe(handler=receive_event, predicate=is_domain_event)
+    subscribe(handler=receive_events, predicate=is_domain_event)
 
     # Publish the domain event.
-    publish(domain_event)
+    publish([domain_event])
 
     assert len(received_events) == 1
     assert received_events[0] == domain_event
@@ -105,7 +105,7 @@ used to unsubscribe handers, to stop the handler receiving further events.
 
     from eventsourcing.domain.model.events import unsubscribe
 
-    unsubscribe(handler=receive_event, predicate=is_domain_event)
+    unsubscribe(handler=receive_events, predicate=is_domain_event)
 
     # Clean up.
     del received_events[:]  # received_events.clear()
@@ -164,28 +164,30 @@ The event classes are useful for their distinct type, for example in subscriptio
 
 .. code:: python
 
-    from eventsourcing.domain.model.events import Created, AttributeChanged, Discarded
+    from eventsourcing.domain.model.events import (
+        CreatedEvent, AttributeChangedEvent, DiscardedEvent
+    )
 
     def is_created(event):
-        return isinstance(event, Created)
+        return isinstance(event, CreatedEvent)
+
 
     def is_attribute_changed(event):
-        return isinstance(event, AttributeChanged)
+        return isinstance(event, AttributeChangedEvent)
+
 
     def is_discarded(event):
-        return isinstance(event, Discarded)
+        return isinstance(event, DiscardedEvent)
 
-    assert is_created(Created()) is True
-    assert is_created(Discarded()) is False
+
+    assert is_created(CreatedEvent()) is True
+    assert is_discarded(CreatedEvent()) is False
+
+    assert is_created(DiscardedEvent()) is False
+    assert is_discarded(DiscardedEvent()) is True
+
     assert is_created(DomainEvent()) is False
-
-    assert is_discarded(Created()) is False
-    assert is_discarded(Discarded()) is True
     assert is_discarded(DomainEvent()) is False
-
-    assert is_domain_event(Created()) is True
-    assert is_domain_event(Discarded()) is True
-    assert is_domain_event(DomainEvent()) is True
 
 
 Custom events
@@ -377,9 +379,9 @@ have an ``originator_id`` attribute.
     assert issubclass(DomainEntity.AttributeChanged, DomainEntity.Event)
     assert issubclass(DomainEntity.Discarded, DomainEntity.Event)
 
-    assert issubclass(DomainEntity.Created, Created)
-    assert issubclass(DomainEntity.AttributeChanged, AttributeChanged)
-    assert issubclass(DomainEntity.Discarded, Discarded)
+    assert issubclass(DomainEntity.Created, CreatedEvent)
+    assert issubclass(DomainEntity.AttributeChanged, AttributeChangedEvent)
+    assert issubclass(DomainEntity.Discarded, DiscardedEvent)
 
     assert issubclass(DomainEntity.Event, DomainEvent)
 
@@ -453,7 +455,7 @@ determining which class to instantiate.
 
 .. code:: python
 
-    entity = created.__mutate__()
+    entity = created.__mutate__(None)
 
     assert entity.id == entity_id
 
@@ -565,8 +567,8 @@ that is extended by subclasses in the library.
 It can be used in command  methods to construct, apply, and publish events with
 suitable arguments.
 
-For example, triggering an :class:`~eventsourcing.domain.model.events.AttributeChanged`
-event on a timestamped, versioned entity will cause the attribute value to be updated,
+For example, triggering an :class:`~eventsourcing.domain.model.events.AttributeChangedEvent`
+on a timestamped, versioned entity will cause the attribute value to be updated,
 but it will also cause the version number to increase, and it will update the last
 modified time.
 
@@ -596,7 +598,7 @@ is set to 'Mr Boots'. A subscriber receives the event.
 
 .. code:: python
 
-    subscribe(handler=receive_event, predicate=is_domain_event)
+    subscribe(handler=receive_events, predicate=is_domain_event)
     assert len(received_events) == 0
 
     entity = VersionedEntity.__create__(entity_id)
@@ -622,7 +624,7 @@ is set to 'Mr Boots'. A subscriber receives the event.
     assert last_event.originator_version == 1
 
     # Clean up.
-    unsubscribe(handler=receive_event, predicate=is_domain_event)
+    unsubscribe(handler=receive_events, predicate=is_domain_event)
     del received_events[:]  # received_events.clear()
 
 
@@ -704,7 +706,7 @@ event are received by a subscriber.
 .. code:: python
 
     assert len(received_events) == 0
-    subscribe(handler=receive_event, predicate=is_domain_event)
+    subscribe(handler=receive_events, predicate=is_domain_event)
 
     # Publish a Created event.
     user = User.__create__(full_name='Mrs Boots')
@@ -725,7 +727,7 @@ event are received by a subscriber.
     assert received_events[1].originator_id == user.id
 
     # Clean up.
-    unsubscribe(handler=receive_event, predicate=is_domain_event)
+    unsubscribe(handler=receive_events, predicate=is_domain_event)
     del received_events[:]  # received_events.clear()
 
 
@@ -834,6 +836,124 @@ is augmented with the new event.
     assert world.history[2] == 'internet'
 
 
+Auto-subclassing events
+-----------------------
+
+In order to distinguish between events of different entity classes that inherit their
+events from a common entity base class, it is necessary to subclass the event classes
+on each of the entity classes.
+
+Without subclassing the domain events of an inherited entity class, the custom
+entity classes will have exactly the same domain event classes.
+
+.. code:: python
+
+    class Example1(DomainEntity):
+        pass
+
+
+    class Example2(DomainEntity):
+        pass
+
+
+    assert Example1.Event == Example2.Event
+    assert Example1.Created  == Example2.Created
+    assert Example1.Discarded  == Example2.Discarded
+    assert Example1.AttributeChanged  == Example2.AttributeChanged
+
+
+With subclassing the domain events of an inherited entity class, the custom
+entity classes will have distinct domain event classes.
+
+.. code:: python
+
+    class Example3(DomainEntity):
+        class Event(DomainEntity.Event): pass
+        class Created(Event, DomainEntity.Created): pass
+        class Discarded(Event, DomainEntity.Discarded): pass
+        class AttributeChanged(Event, DomainEntity.AttributeChanged): pass
+        class SomethingHappened(Event): pass
+
+
+    class Example4(DomainEntity):
+        class Event(DomainEntity.Event): pass
+        class Created(Event, DomainEntity.Created): pass
+        class Discarded(Event, DomainEntity.Discarded): pass
+        class AttributeChanged(Event, DomainEntity.AttributeChanged): pass
+        class SomethingHappened(Event): pass
+
+
+    assert Example3.Event != Example4.Event
+    assert Example3.Created != Example4.Created
+    assert Example3.Discarded != Example4.Discarded
+    assert Example3.AttributeChanged != Example4.AttributeChanged
+
+
+Some people will like to make explict the event subclasses. However, some people
+will find this cumbersome "boilerplate".
+
+To avoid the appearance of "boilerplate", it is possible to achieve exactly the
+same distinct event subclasses, as above, by decorating the entity class with the
+``@subclassevents`` decorator. In this case, custom events need only to inherit
+from the base ``DomainEvent`` class, and will then be subclassed automatically
+as an ``Event`` of the custom entity class (which will be defined first, if missing).
+
+.. code:: python
+
+    from eventsourcing.domain.model.decorators import subclassevents
+
+
+    @subclassevents
+    class Example5(DomainEntity):
+        class SomethingHappened(DomainEvent):
+            pass
+
+
+    @subclassevents
+    class Example6(DomainEntity):
+        class SomethingHappened(DomainEvent):
+            pass
+
+
+    assert Example5.Event != Example6.Event
+    assert Example5.Created != Example6.Created
+    assert Example5.Discarded != Example6.Discarded
+    assert Example5.AttributeChanged != Example6.AttributeChanged
+
+    assert issubclass(Example5.SomethingHappened, Example5.Event)
+    assert issubclass(Example6.SomethingHappened, Example6.Event)
+
+
+To avoid having to use the decorator on all of the custom entity
+classes in a model, which may itself start to feel like "boilerplate",
+it is possible to set ``__subclassevents__`` on a common custom base
+entity class.
+
+.. code:: python
+
+    class BaseEntity(DomainEntity):
+        __subclassevents__ = True
+
+
+    class Example5(BaseEntity):
+        class SomethingHappened(DomainEvent):
+            pass
+
+
+    class Example6(BaseEntity):
+        class SomethingHappened(DomainEvent):
+            pass
+
+
+    assert Example5.Event != Example6.Event
+    assert Example5.Created != Example6.Created
+    assert Example5.Discarded != Example6.Discarded
+    assert Example5.AttributeChanged != Example6.AttributeChanged
+
+    assert issubclass(Example5.SomethingHappened, Example5.Event)
+    assert issubclass(Example6.SomethingHappened, Example6.Event)
+
+
 Aggregate root
 ==============
 
@@ -929,7 +1049,7 @@ We can see the events that are published by subscribing to the handler ``receive
 .. code:: python
 
     assert len(received_events) == 0
-    subscribe(handler=receive_event)
+    subscribe(handler=receive_events)
 
     # Create new world.
     world = World.__create__()
@@ -958,7 +1078,7 @@ Events are pending, and will not be published until
     world.__save__()
 
     # Pending events published as a list.
-    assert len(received_events[-1]) == 4
+    assert len(received_events) == 4
 
     # No longer any pending events.
     assert len(world.__pending_events__) == 0
@@ -1026,7 +1146,7 @@ The hash of the last event applied to an aggregate root is available as an attri
 
     # Entity's head hash is determined exclusively
     # by the entire sequence of events and SHA-256.
-    assert world.__head__ == received_events[-1][-1].__event_hash__
+    assert world.__head__ == received_events[-1].__event_hash__
 
 
 A different sequence of events will almost certainly result a different
@@ -1038,10 +1158,10 @@ perhaps with random bytes encoded as Base64.
 
 .. code:: python
 
-    from eventsourcing.utils.random import encode_random_bytes
+    from eventsourcing.utils.random import encoded_random_bytes
 
     # Keep this safe.
-    salt = encode_random_bytes(num_bytes=32)
+    salt = encoded_random_bytes(num_bytes=32)
 
     # Configure environment (before importing library).
     import os
@@ -1063,5 +1183,5 @@ the sequence of events cryptographically.
 .. code:: python
 
     # Clean up after running examples.
-    unsubscribe(handler=receive_event)
+    unsubscribe(handler=receive_events)
     del received_events[:]  # received_events.clear()

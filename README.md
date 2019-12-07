@@ -102,10 +102,10 @@ class World(AggregateRoot):
 Generate a cipher key (optional).
 
 ```python
-from eventsourcing.utils.random import encode_random_bytes
+from eventsourcing.utils.random import encoded_random_bytes
 
 # Keep this safe.
-cipher_key = encode_random_bytes(num_bytes=32)
+cipher_key = encoded_random_bytes(num_bytes=32)
 ```
 
 Configure environment variables (optional).
@@ -155,6 +155,9 @@ with SQLAlchemyApplication(persist_event_type=World.Event) as app:
     # Aggregate now exists in repository.
     assert world.id in app.repository
 
+    # Show the notification log has four items.
+    assert len(app.notification_log['current'].items) == 4
+
     # Replay stored events for aggregate.
     copy = app.repository[world.id]
 
@@ -196,7 +199,7 @@ with SQLAlchemyApplication(persist_event_type=World.Event) as app:
         raise Exception("Shouldn't get here")
 
     # Check domain event data integrity (happens also during replay).
-    events = app.event_store.get_domain_events(world.id)
+    events = app.event_store.list_events(world.id)
     last_hash = ''
     for event in events:
         event.__check_hash__()
@@ -210,7 +213,7 @@ with SQLAlchemyApplication(persist_event_type=World.Event) as app:
     record_manager = app.event_store.record_manager
     items = record_manager.get_items(world.id)
     for item in items:
-        for what in ['dinosaurs', 'trucks', 'internet']:
+        for what in [b'dinosaurs', b'trucks', b'internet']:
             assert what not in item.state
         assert world.id == item.originator_id
 

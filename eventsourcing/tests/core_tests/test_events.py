@@ -361,15 +361,15 @@ class TestEvents(unittest.TestCase):
         self.assertRaises(EventHandlersNotEmptyError, assert_event_handlers_empty)
 
         # Check what happens when an event is published.
-        publish(event)
-        predicate.assert_called_once_with(event)
-        handler.assert_called_once_with(event)
+        publish([event])
+        predicate.assert_called_once_with([event])
+        handler.assert_called_once_with([event])
 
         # When predicate is True, after unsubscribing, handler should NOT be called again.
         unsubscribe(handler=handler, predicate=predicate)
-        publish(event)
-        predicate.assert_called_once_with(event)
-        handler.assert_called_once_with(event)
+        publish([event])
+        predicate.assert_called_once_with([event])
+        handler.assert_called_once_with([event])
 
         # Check we can assert there are no event handlers subscribed.
         assert_event_handlers_empty()
@@ -378,7 +378,7 @@ class TestEvents(unittest.TestCase):
         predicate = lambda x: False
         handler = mock.Mock()
         subscribe(handler=handler, predicate=predicate)
-        publish(event)
+        publish([event])
         self.assertEqual(0, handler.call_count)
 
         # Unsubscribe.

@@ -1,33 +1,53 @@
 from abc import ABC, abstractmethod
+from typing import Optional, Any, TypeVar, Generic
 
 
 class DatastoreSettings(object):
-    """Base class for settings for database connection used by a stored event repository."""
+    """
+    Settings for Datastore.
+    """
 
 
-class AbstractDatastore(ABC):
-    def __init__(self, settings):
-        # assert isinstance(settings, DatastoreSettings), settings
-        self.settings = settings
+TDatastoreSettings = TypeVar("TDatastoreSettings", bound=DatastoreSettings)
+
+
+class AbstractDatastore(ABC, Generic[TDatastoreSettings]):
+    """
+    Datastores hold stored event records, used by a record manager.
+    """
+    def __init__(self, settings: TDatastoreSettings):
+        self.settings: TDatastoreSettings = settings
+
+    @property
+    def session(self) -> Optional[Any]:
+        return None
 
     @abstractmethod
-    def setup_connection(self):
+    def setup_connection(self) -> None:
         """Sets up a connection to a datastore."""
 
     @abstractmethod
-    def close_connection(self):
+    def close_connection(self) -> None:
         """Drops connection to a datastore."""
 
     @abstractmethod
-    def setup_tables(self):
+    def setup_tables(self) -> None:
         """Sets up tables used to store events."""
 
     @abstractmethod
-    def drop_tables(self):
+    def setup_table(self, table: Any) -> None:
+        """Sets up given table."""
+
+    @abstractmethod
+    def drop_tables(self) -> None:
         """Drops tables used to store events."""
 
     @abstractmethod
-    def truncate_tables(self):
+    def drop_table(self, table: Any) -> None:
+        """Drops given table."""
+
+    @abstractmethod
+    def truncate_tables(self) -> None:
         """Truncates tables used to store events."""
 
 

@@ -4,19 +4,19 @@ import time
 import unittest
 from unittest import skip
 
-from eventsourcing.application.actors import (
+from eventsourcing.system.actors import (
     ActorModelRunner,
     shutdown_actor_system,
     start_actor_system,
     start_multiproc_tcp_base_system,
 )
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
-from eventsourcing.application.system import System
+from eventsourcing.system.definition import System
 from eventsourcing.domain.model.events import (
     assert_event_handlers_empty,
     clear_event_handlers,
 )
-from eventsourcing.tests.test_system_fixtures import (
+from eventsourcing.tests.system_test_fixtures import (
     Orders,
     Payments,
     Reservations,

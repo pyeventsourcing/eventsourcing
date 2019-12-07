@@ -214,7 +214,7 @@ application-level encryption.
             raise Exception("Shouldn't get here")
 
         # Check domain event data integrity (happens also during replay).
-        events = app.event_store.get_domain_events(world.id)
+        events = app.event_store.list_events(world.id)
         last_hash = ''
         for event in events:
             event.__check_hash__()
@@ -236,9 +236,9 @@ application-level encryption.
         items = record_manager.get_items(world.id)
         for item in items:
             assert item.originator_id == world.id
-            assert 'dinosaurs' not in item.state
-            assert 'trucks' not in item.state
-            assert 'internet' not in item.state
+            assert b'dinosaurs' not in item.state
+            assert b'trucks' not in item.state
+            assert b'internet' not in item.state
 
 
 See the :doc:`Application documentation

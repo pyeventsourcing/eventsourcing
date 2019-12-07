@@ -3,42 +3,45 @@ from base64 import b64encode, b64decode
 import os
 
 
-def encode_random_bytes(num_bytes):
+def encoded_random_bytes(num_bytes: int) -> str:
     """
     Generates random bytes, encoded as Base64 unicode string.
 
-    :param int num_bytes: Number of random bytes to generate.
+    :param num_bytes: Number of random bytes to generate.
     :return: Random bytes of specified length, encoded as Base64 unicode string.
-    :type: str
     """
     return encode_bytes(random_bytes(num_bytes))
 
 
-def random_bytes(num_bytes):
+encode_random_bytes = encoded_random_bytes  # Backward compatibility with <= 7.2.9999.
+
+
+def random_bytes(num_bytes: int) -> bytes:
     """
     Generates random bytes.
 
-    :param int num_bytes: Number of random bytes to generate.
+    :param num_bytes: Number of random bytes to generate.
     :return: Random bytes of specified length.
     :type: bytes
     """
     return os.urandom(num_bytes)
 
 
-def encode_bytes(bytes):
+def encode_bytes(value: bytes) -> str:
     """
-    Encodes bytes as Base64 unicode string.
+    Encodes value as Base64 unicode string.
 
+    :param value: Bytes to be encoded.
     """
-    return b64encode(bytes).decode("utf-8")
+    return b64encode(value).decode("utf-8")
 
 
-def decode_bytes(s):
+def decode_bytes(value: str) -> bytes:
     """
     Decodes bytes from Base64 encoded unicode string.
 
-    :param str s: Base64 string.
+    :param str value: Base64 string.
     :returns: Bytes that were encoded with Base64.
     :rtype: bytes
     """
-    return b64decode(s.encode("utf-8"))
+    return b64decode(value.encode("utf-8"))

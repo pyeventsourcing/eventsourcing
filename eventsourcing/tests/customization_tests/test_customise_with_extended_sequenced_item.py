@@ -81,7 +81,7 @@ class ExampleApplicationWithExtendedSequencedItemType(object):
                 record_class=ExtendedIntegerSequencedRecord,
                 sequenced_item_class=ExtendedSequencedItem,
             ),
-            sequenced_item_mapper=ExtendedSequencedItemMapper(
+            event_mapper=ExtendedSequencedItemMapper(
                 sequenced_item_class=ExtendedSequencedItem,
                 sequence_id_attr_name="originator_id",
                 position_attr_name="originator_version",

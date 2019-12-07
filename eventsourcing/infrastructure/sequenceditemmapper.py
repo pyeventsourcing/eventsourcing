@@ -1,53 +1,88 @@
 from __future__ import unicode_literals
 
 from abc import ABC, abstractmethod
+from json import JSONDecodeError, JSONDecoder, JSONEncoder
+from typing import Any, Dict, Generic, NamedTuple, Optional, Tuple, Type
 
 from eventsourcing.infrastructure.sequenceditem import (
     SequencedItem,
     SequencedItemFieldNames,
 )
+from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.utils.topic import get_topic, resolve_topic
 from eventsourcing.utils.transcoding import (
+    JSON_SEPARATORS,
     ObjectJSONDecoder,
     ObjectJSONEncoder,
-    json_dumps,
-    json_loads,
 )
+from eventsourcing.whitehead import T, TEvent
 
 
-class AbstractSequencedItemMapper(ABC):
+class AbstractSequencedItemMapper(Generic[TEvent], ABC):
+    def __init__(self, **kwargs: Any):
+        """
+        Initialises mapper.
+        """
+
     @abstractmethod
-    def item_from_event(self, domain_event):
+    def item_from_event(self, domain_event: TEvent) -> NamedTuple:
         """
         Constructs and returns a sequenced item for given domain event.
         """
 
     @abstractmethod
-    def event_from_item(self, sequenced_item):
+    def event_from_item(self, sequenced_item: NamedTuple) -> TEvent:
         """
         Constructs and returns a domain event for given sequenced item.
         """
 
+    @abstractmethod
+    def json_dumps(self, o: object) -> str:
+        """
+        Encodes given object as JSON.
+        """
 
-class SequencedItemMapper(AbstractSequencedItemMapper):
+    @abstractmethod
+    def json_loads(self, s: str) -> object:
+        """
+        Decodes given JSON as object.
+        """
+
+    @abstractmethod
+    def event_from_topic_and_state(self, topic: str, state: bytes) -> TEvent:
+        """
+        Resolves topic to an event class, decodes state, and constructs an event.
+        """
+
+
+class SequencedItemMapper(AbstractSequencedItemMapper[TEvent]):
     """
     Uses JSON to transcode domain events.
     """
 
     def __init__(
         self,
-        sequenced_item_class=SequencedItem,
-        sequence_id_attr_name=None,
-        position_attr_name=None,
-        json_encoder_class=None,
-        json_decoder_class=None,
-        cipher=None,
-        other_attr_names=(),
+        sequenced_item_class: Optional[Type[NamedTuple]] = None,
+        sequence_id_attr_name: Optional[str] = None,
+        position_attr_name: Optional[str] = None,
+        json_encoder_class: Optional[Type[JSONEncoder]] = None,
+        json_decoder_class: Optional[Type[JSONDecoder]] = None,
+        cipher: Optional[AESCipher] = None,
+        compressor: Any = None,
+        other_attr_names: Tuple[str, ...] = (),
     ):
-        self.sequenced_item_class = sequenced_item_class
+        if sequenced_item_class is not None:
+            self.sequenced_item_class = sequenced_item_class
+        else:
+            self.sequenced_item_class = SequencedItem  # type: ignore
         self.json_encoder_class = json_encoder_class or ObjectJSONEncoder
+        self.json_encoder = self.json_encoder_class(
+            separators=JSON_SEPARATORS, sort_keys=True
+        )
         self.json_decoder_class = json_decoder_class or ObjectJSONDecoder
+        self.json_decoder = self.json_decoder_class()
         self.cipher = cipher
+        self.compressor = compressor
         self.field_names = SequencedItemFieldNames(self.sequenced_item_class)
         self.sequence_id_attr_name = (
             sequence_id_attr_name or self.field_names.sequence_id
@@ -55,14 +90,14 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
         self.position_attr_name = position_attr_name or self.field_names.position
         self.other_attr_names = other_attr_names or self.field_names.other_names
 
-    def item_from_event(self, domain_event):
+    def item_from_event(self, domain_event: TEvent) -> NamedTuple:
         """
         Constructs a sequenced item from a domain event.
         """
         item_args = self.construct_item_args(domain_event)
         return self.construct_sequenced_item(item_args)
 
-    def construct_item_args(self, domain_event):
+    def construct_item_args(self, domain_event: TEvent) -> Tuple:
         """
         Constructs attributes of a sequenced item from the given domain event.
         """
@@ -86,23 +121,37 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
 
         return (sequence_id, position, topic, state) + other_args
 
-    def get_item_topic_and_state(self, domain_event_class, event_attrs):
+    def get_item_topic_and_state(
+        self, domain_event_class: type, event_attrs: Dict[str, Any]
+    ) -> Tuple[str, bytes]:
         # Get the topic from the event attrs, otherwise from the class.
         topic = get_topic(domain_event_class)
 
         # Serialise the event attributes.
-        state = json_dumps(event_attrs, cls=self.json_encoder_class)
+        statestr = self.json_dumps(event_attrs)
+
+        # String to bytes.
+        statebytes = statestr.encode("utf8")
+
+        # Compress plaintext bytes.
+        if self.compressor:
+            # Zlib reduces length by about 25% to 50%.
+            statebytes = self.compressor.compress(statebytes)
 
         # Encrypt serialised state.
         if self.cipher:
-            state = self.cipher.encrypt(state)
+            # Increases length by about 10%.
+            statebytes = self.cipher.encrypt(statebytes)
 
-        return topic, state
+        return topic, statebytes
 
-    def construct_sequenced_item(self, item_args):
+    def json_dumps(self, o: object) -> str:
+        return self.json_encoder.encode(o)
+
+    def construct_sequenced_item(self, item_args: Tuple) -> NamedTuple:
         return self.sequenced_item_class(*item_args)
 
-    def event_from_item(self, sequenced_item):
+    def event_from_item(self, sequenced_item: NamedTuple) -> TEvent:
         """
         Reconstructs domain event from stored event topic and
         event attrs. Used in the event store when getting domain events.
@@ -118,26 +167,43 @@ class SequencedItemMapper(AbstractSequencedItemMapper):
 
         return self.event_from_topic_and_state(topic, state)
 
-    def event_from_topic_and_state(self, topic, state):
+    def event_from_topic_and_state(self, topic: str, state: bytes) -> TEvent:
         domain_event_class, event_attrs = self.get_event_class_and_attrs(topic, state)
 
         # Reconstruct domain event object.
         return reconstruct_object(domain_event_class, event_attrs)
 
-    def get_event_class_and_attrs(self, topic, state):
+    def get_event_class_and_attrs(
+        self, topic: str, state: bytes
+    ) -> Tuple[Type[TEvent], Dict]:
         # Resolve topic to event class.
-        domain_event_class = resolve_topic(topic)
+        domain_event_class: Type[TEvent] = resolve_topic(topic)
 
-        # Decrypt state.
+        # Decrypt and decompress state.
         if self.cipher:
             state = self.cipher.decrypt(state)
 
-        # Deserialize data.
-        event_attrs = json_loads(state, cls=self.json_decoder_class)
+        # Decompress plaintext bytes.
+        if self.compressor:
+            state = self.compressor.decompress(state)
+
+        # Decode unicode bytes.
+        statestr = state.decode("utf8")
+
+        # Deserialize JSON.
+        event_attrs: Dict = self.json_loads(statestr)
+
+        # Return instance class and attribute values.
         return domain_event_class, event_attrs
 
+    def json_loads(self, s: str) -> Dict:
+        try:
+            return self.json_decoder.decode(s)
+        except JSONDecodeError:
+            raise ValueError("Couldn't load JSON string: {}".format(s))
 
-def reconstruct_object(obj_class, obj_state):
+
+def reconstruct_object(obj_class: Type[T], obj_state: Dict[str, Any]) -> T:
     obj = object.__new__(obj_class)
     obj.__dict__.update(obj_state)
     return obj

@@ -1,3 +1,7 @@
+import time
+from decimal import Decimal
+from typing import Iterable, Optional
+
 from eventsourcing.domain.model.timebucketedlog import (
     MessageLogged,
     Timebucketedlog,
@@ -5,37 +9,34 @@ from eventsourcing.domain.model.timebucketedlog import (
     next_bucket_starts,
     previous_bucket_starts,
 )
-from eventsourcing.infrastructure.eventstore import AbstractEventStore
-from eventsourcing.utils.times import decimaltimestamp
+from eventsourcing.infrastructure.base import AbstractEventStore
 
 
-def get_timebucketedlog_reader(log, event_store):
-    """
-    :rtype: TimebucketedlogReader
-    """
+def get_timebucketedlog_reader(
+    log: Timebucketedlog, event_store: AbstractEventStore
+) -> "TimebucketedlogReader":
     return TimebucketedlogReader(log=log, event_store=event_store)
 
 
 class TimebucketedlogReader(object):
-    def __init__(self, log, event_store, page_size=50):
-        assert isinstance(log, Timebucketedlog)
+    def __init__(
+        self, log: Timebucketedlog, event_store: AbstractEventStore, page_size: int = 50
+    ):
         self.log = log
-        assert isinstance(event_store, AbstractEventStore), event_store
         self.event_store = event_store
-        assert isinstance(page_size, int)
         self.page_size = page_size
-        self.position = None
+        self.position: Optional[Decimal] = None
 
     def get_messages(
         self,
-        gt=None,
-        gte=None,
-        lt=None,
-        lte=None,
-        limit=None,
-        is_ascending=False,
-        page_size=None,
-    ):
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        limit: Optional[int] = None,
+        is_ascending: bool = False,
+        page_size: Optional[int] = None,
+    ) -> Iterable[str]:
         events = self.get_events(
             gt=gt,
             gte=gte,
@@ -52,21 +53,21 @@ class TimebucketedlogReader(object):
 
     def get_events(
         self,
-        gt=None,
-        gte=None,
-        lt=None,
-        lte=None,
-        limit=None,
-        is_ascending=False,
-        page_size=None,
-    ):
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        limit: Optional[int] = None,
+        is_ascending: bool = False,
+        page_size: Optional[int] = None,
+    ) -> Iterable[MessageLogged]:
         assert limit is None or limit > 0
 
         # Identify the first time bucket.
-        now = decimaltimestamp()
+        now = time.time()
         started_on = self.log.started_on
-        absolute_latest = min(now, lt or now, lte or now)
-        absolute_earlyist = max(started_on, gt or 0, gte or 0)
+        absolute_latest = min(float(now), lt or now, lte or now)
+        absolute_earlyist = max(float(started_on), gt or 0, gte or 0)
         if is_ascending:
             position = absolute_earlyist
         else:
@@ -79,7 +80,7 @@ class TimebucketedlogReader(object):
             bucket_id = make_timebucket_id(
                 self.log.name, position, self.log.bucket_size
             )
-            for message_logged_event in self.event_store.get_domain_events(
+            for message_logged_event in self.event_store.iter_events(
                 originator_id=bucket_id,
                 gt=gt,
                 gte=gte,

@@ -29,7 +29,7 @@ class TestGetAllEventFromSQLAlchemy(
 
             # Get all the domain events
             es = app.entity_event_store
-            domain_events = es.all_domain_events()
+            domain_events = es.all_events()
 
             # Project the events into a set of entity IDs.
             def mutate(state, event):

@@ -1,30 +1,32 @@
-from eventsourcing.domain.model.aggregate import AggregateRoot
+from typing import Any
+
+from eventsourcing.domain.model.aggregate import BaseAggregateRoot, TAggregate
 
 
-class Command(AggregateRoot):
-    def __init__(self, **kwargs):
+class Command(BaseAggregateRoot):
+    def __init__(self, **kwargs: Any):
         super(Command, self).__init__(**kwargs)
         self._is_done = False
 
-    class Event(AggregateRoot.Event):
+    class Event(BaseAggregateRoot.Event[TAggregate]):
         pass
 
-    class Created(Event, AggregateRoot.Created):
+    class Created(Event[TAggregate], BaseAggregateRoot.Created[TAggregate]):
         pass
 
-    class AttributeChanged(Event, AggregateRoot.AttributeChanged):
+    class AttributeChanged(Event[TAggregate], BaseAggregateRoot.AttributeChanged[TAggregate]):
         pass
 
-    class Discarded(Event, AggregateRoot.Discarded):
+    class Discarded(Event[TAggregate], BaseAggregateRoot.Discarded[TAggregate]):
         pass
 
     @property
-    def is_done(self):
+    def is_done(self) -> bool:
         return self._is_done
 
-    def done(self):
+    def done(self) -> None:
         self.__trigger_event__(self.Done)
 
     class Done(Event):
-        def mutate(self, obj):
+        def mutate(self, obj: "Command") -> None:
             obj._is_done = True

@@ -148,7 +148,7 @@ Before continuing with code examples below, we need to setup an event store.
     # Setup the event store.
     event_store = EventStore(
         record_manager=record_manager,
-        sequenced_item_mapper=sequenced_item_mapper
+        event_mapper=sequenced_item_mapper
     )
 
     # Set up a persistence policy.
@@ -771,8 +771,8 @@ item mapper does not have a cipher, so the notification data is
 not encrypted.
 
 The library's :class:`~eventsourcing.application.simple.SimpleApplication`
-has a ``notification_log`` that uses the :class:`~eventsourcing.application.notificationlog
-.RecordManagerNotificationLog` class.
+has a ``notification_log`` that uses the
+:class:`~eventsourcing.application.notificationlog.RecordManagerNotificationLog` class.
 
 .. Todo: Move that function into the library, where? Perhaps subclass
 .. NotificationLogReader with EventNotificationLogReader?
@@ -846,10 +846,10 @@ BigArrayNotificationLog
 You can skip this section if you skipped the section about BigArray.
 
 A big array can be adapted by the library class
-:class:`~eventsourcing.interface.notificationlog.BigArrayNotificationLog`,
+:class:`~eventsourcing.application.notificationlog.BigArrayNotificationLog`,
 which will then present the items assigned to the array as notifications.
 
-The :class:`~eventsourcing.interface.notificationlog.BigArrayNotificationLog`
+The :class:`~eventsourcing.application.notificationlog.BigArrayNotificationLog`
 is constructed with a ``big_array``, and a ``section_size``.
 
 .. code:: python
@@ -962,10 +962,9 @@ The library class :class:`~eventsourcing.interface.notificationlog.NotificationL
 presents sections from a local notification log, and can be used to implement a Web API.
 
 The :class:`~eventsourcing.interface.notificationlog.NotificationLogView`
-class is constructed with a local ``notification_log`` object and an optional
-``json_encoder_class`` (which defaults to the library's
-:class:`~eventsourcing.utils.transcoding.ObjectJSONEncoder` class, used explicitly
-in the example below).
+class is constructed with a local ``notification_log`` object and a
+``json_encoder`` (for example an instance of the library's
+:class:`~eventsourcing.utils.transcoding.ObjectJSONEncoder` class).
 
 The example below uses the record notification log, constructed above.
 
@@ -978,12 +977,12 @@ The example below uses the record notification log, constructed above.
 
     view = NotificationLogView(
         notification_log=notification_log,
-        json_encoder_class=ObjectJSONEncoder
+        json_encoder=ObjectJSONEncoder()
     )
 
-    section_json, is_archived = view.present_section('1,5')
+    section_json = view.present_resource('1,5')
 
-    section_dict = json.loads(section_json, cls=ObjectJSONDecoder)
+    section_dict = ObjectJSONDecoder().decode(section_json)
 
     assert section_dict['section_id'] == '1,5'
     assert section_dict['next_id'] == '6,10'
@@ -1029,7 +1028,7 @@ serialize the sections of the record notification log (see above).
         view = NotificationLogView(notification_log)
 
         # Get serialized section.
-        section, is_archived = view.present_section(section_id)
+        section = view.present_resource(section_id)
 
         # Start HTTP response.
         status = '200 OK'

@@ -1,9 +1,10 @@
 from abc import abstractmethod
+from typing import Type, Optional
 
 from eventsourcing.infrastructure.datastore import (
-    DatastoreConnectionError,
     DatastoreTableError,
-)
+    AbstractDatastore)
+from eventsourcing.infrastructure.factory import InfrastructureFactory
 from eventsourcing.tests.base import AbstractTestCase
 
 
@@ -12,7 +13,7 @@ class AbstractDatastoreTestCase(AbstractTestCase):
     Base class for test cases that use a datastore.
     """
 
-    infrastructure_factory_class = None
+    infrastructure_factory_class: Optional[Type[InfrastructureFactory]] = None
     contiguous_record_ids = False
 
     def __init__(self, *args, **kwargs):
@@ -25,7 +26,7 @@ class AbstractDatastoreTestCase(AbstractTestCase):
         super(AbstractDatastoreTestCase, self).tearDown()
 
     @property
-    def datastore(self):
+    def datastore(self) -> AbstractDatastore:
         """
         :rtype: eventsourcing.infrastructure.datastore.datastore.AbstractDatastore
         """
@@ -43,7 +44,7 @@ class AbstractDatastoreTestCase(AbstractTestCase):
     def factory(self):
         if not self._factory:
             kwargs = {}
-            if hasattr(self.datastore, "session"):
+            if self.datastore and self.datastore.session:
                 kwargs["session"] = self.datastore.session
             if self.contiguous_record_ids:
                 kwargs["contiguous_record_ids"] = True

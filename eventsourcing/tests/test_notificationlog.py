@@ -24,6 +24,7 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager imp
     SQLAlchemyRecordManagerTestCase,
 )
 from eventsourcing.utils.topic import get_topic
+from eventsourcing.utils.transcoding import ObjectJSONEncoder, JSON_SEPARATORS
 
 
 class NotificationLogTestCase(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
@@ -44,7 +45,7 @@ class NotificationLogTestCase(SQLAlchemyRecordManagerTestCase, WithEventPersiste
 
     def append_notifications(self, *range_args):
         for i in range(*range_args):
-            item = "item{}".format(i + 1)
+            item = ("item{}".format(i + 1)).encode("utf8")
             self.append_notification(item)
 
     def create_notification_log(self, section_size):
@@ -57,7 +58,7 @@ class NotificationLogTestCase(SQLAlchemyRecordManagerTestCase, WithEventPersiste
         sequenced_item = self.entity_record_manager.sequenced_item_class(
             uuid4(), 0, get_topic(DomainEvent), item
         )
-        self.entity_record_manager.record_sequenced_items(sequenced_item)
+        self.entity_record_manager.record_item(sequenced_item)
 
 
 class TestNotificationLog(NotificationLogTestCase):
@@ -196,7 +197,7 @@ class TestNotificationLogReader(NotificationLogTestCase):
         advance_by = 3
         reader.seek(saved_position)
         self.assertEqual(reader.position, saved_position)
-        reader.read_list(advance_by=advance_by)
+        reader.list_notifications(advance_by=advance_by)
         self.assertEqual(reader.position, saved_position + advance_by)
 
         # Read items between particular positions.
@@ -283,8 +284,10 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
             notification_log = self.create_notification_log(section_size)
 
             # Get serialized section.
-            view = NotificationLogView(notification_log)
-            section, is_archived = view.present_section(section_id)
+            json_encoder = ObjectJSONEncoder(separators=JSON_SEPARATORS)
+            view = NotificationLogView(notification_log, json_encoder)
+
+            resource = view.present_resource(section_id)
             # Todo: Maybe redirect if the section ID is a mismatch, so
             # the URL is good for cacheing.
 
@@ -294,7 +297,7 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
             start_response(status, headers)
 
             # Return a list of lines.
-            return [(line + "\n").encode("utf8") for line in section.split("\n")]
+            return [(line + "\n").encode("utf8") for line in resource.split("\n")]
 
         httpd = make_server("", port, simple_app)
         print("Serving on port {}...".format(port))
@@ -305,16 +308,23 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
             # Use reader with client to read all items in remote feed after item 5.
             notification_log = RemoteNotificationLog(base_url)
 
+            # Just before we start, test the deserialise_section_size exceptions.
+            notification_log.deserialize_section_size('1')
+            with self.assertRaises(ValueError):
+                notification_log.deserialize_section_size('"1')
+            with self.assertRaises(TypeError):
+                notification_log.deserialize_section_size('"1"')
+
             # Get all the items.
             notification_log_reader = NotificationLogReader(
                 notification_log=notification_log
             )
-            items_from_start = notification_log_reader.read_list()
+            items_from_start = notification_log_reader.list_notifications()
 
             # Check we got all the items.
             self.assertEqual(len(items_from_start), num_notifications)
             self.assertEqual(items_from_start[0]["id"], 1)
-            self.assertEqual(items_from_start[0]["state"], "item1")
+            self.assertEqual(items_from_start[0]["state"], b"item1")
             self.assertEqual(
                 items_from_start[0]["topic"],
                 "eventsourcing.domain.model.events#DomainEvent",
@@ -334,7 +344,9 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
                 items_from_5[0]["topic"],
                 "eventsourcing.domain.model.events#DomainEvent",
             )
-            self.assertEqual(items_from_5[0]["state"], "item{}".format(section_size))
+            self.assertEqual(
+                items_from_5[0]["state"], "item{}".format(section_size).encode("utf8")
+            )
             expected_section_count = ceil(num_notifications / float(section_size))
             self.assertEqual(
                 notification_log_reader.section_count, expected_section_count

@@ -1,9 +1,9 @@
 from eventsourcing.domain.model.decorators import attribute
 from eventsourcing.domain.model.entity import (
-    AbstractEntityRepository,
-    TimestampedVersionedEntity,
     EntityWithHashchain,
-)
+    TimestampedVersionedEntity,
+    TDomainEntity)
+from eventsourcing.infrastructure.base import AbstractEntityRepository
 
 
 class Example(EntityWithHashchain, TimestampedVersionedEntity):
@@ -11,26 +11,31 @@ class Example(EntityWithHashchain, TimestampedVersionedEntity):
     An example event sourced domain model entity.
     """
 
-    class Event(EntityWithHashchain.Event, TimestampedVersionedEntity.Event):
+    class Event(
+        EntityWithHashchain.Event[TDomainEntity], TimestampedVersionedEntity.Event[TDomainEntity]
+    ):
         """Supertype for events of example entities."""
 
     class Created(
-        Event, EntityWithHashchain.Created, TimestampedVersionedEntity.Created
+        Event,
+        EntityWithHashchain.Created[TDomainEntity],
+        TimestampedVersionedEntity.Created[TDomainEntity],
     ):
         """Published when an Example is created."""
 
-    class AttributeChanged(Event, TimestampedVersionedEntity.AttributeChanged):
+    class AttributeChanged(
+        Event[TDomainEntity], TimestampedVersionedEntity.AttributeChanged[TDomainEntity]
+    ):
         """Published when an Example is created."""
 
-    class Discarded(Event, TimestampedVersionedEntity.Discarded):
+    class Discarded(Event[TDomainEntity], TimestampedVersionedEntity.Discarded[TDomainEntity]):
         """Published when an Example is discarded."""
 
-    class Heartbeat(Event, TimestampedVersionedEntity.Event):
+    class Heartbeat(Event[TDomainEntity], TimestampedVersionedEntity.Event[TDomainEntity]):
         """Published when a heartbeat in the entity occurs (see below)."""
 
-        def mutate(self, obj):
+        def mutate(self, obj: "Example") -> None:
             """Updates 'obj' with values from self."""
-            assert isinstance(obj, Example), obj
             obj._count_heartbeats += 1
 
     def __init__(self, foo="", a="", b="", **kwargs):

@@ -1,25 +1,40 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from threading import Thread
+from typing import Iterable, Optional, NamedTuple, Iterator, Any, List
+from uuid import UUID
 
-from eventsourcing.infrastructure.base import AbstractSequencedItemRecordManager
+from eventsourcing.infrastructure.base import AbstractRecordManager, BaseRecordManager
 
 
-class AbstractSequencedItemIterator(ABC):
+class AbstractSequencedItemIterator(Iterable):
     DEFAULT_PAGE_SIZE = 1000
 
     def __init__(
         self,
-        record_manager,
-        sequence_id,
-        page_size=None,
-        gt=None,
-        gte=None,
-        lt=None,
-        lte=None,
-        limit=None,
-        is_ascending=True,
+        record_manager: AbstractRecordManager,
+        sequence_id: UUID,
+        page_size: Optional[int] = None,
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        limit: Optional[int] = None,
+        is_ascending: bool = True,
     ):
-        assert isinstance(record_manager, AbstractSequencedItemRecordManager), type(
+        """
+        Initialises sequenced item iterator.
+
+        :param record_manager: The record manager used to get sequenced items.
+        :param sequence_id: The id of the sequence being iterated over.
+        :param page_size: The number of items requested from the record manager.
+        :param gt: Exclusive lower bound on position of items returned.
+        :param gte: Inclusive lower bound on position of items returned.
+        :param lt: Exclusive upper bound on position of items returned.
+        :param lte: Inclusive upper bound on position of items returned.
+        :param limit: Limit to the number of items returned.
+        :param is_ascending: Whether or not to iterate in ascending order.
+        """
+        assert isinstance(record_manager, BaseRecordManager), type(
             record_manager
         )
         assert isinstance(page_size, (int, type(None)))
@@ -38,27 +53,31 @@ class AbstractSequencedItemIterator(ABC):
         self.is_ascending = is_ascending
         self._position = None
 
-    def _inc_page_counter(self):
+    def _inc_page_counter(self) -> None:
         """
         Increments the page counter.
 
-        Each query result as a page, even if there are no items in the page. This really counts queries.
-         - it is easy to divide the number of events by the page size if the "correct" answer is required
-         - there will be a difference in the counts when the number of events can be exactly divided by the page
-           size, because there is no way to know in advance that a full page is also the last page.
+        Each query result as a page, even if there are no items in the page. This
+        really counts queries.
+         - it is easy to divide the number of events by the page size if the
+         "correct" answer is required
+         - there will be a difference in the counts when the number of events can be
+         exactly divided by the page
+           size, because there is no way to know in advance that a full page is also
+           the last page.
         """
         self.page_counter += 1
 
-    def _inc_query_counter(self):
+    def _inc_query_counter(self) -> None:
         """
         Increments the query counter.
         """
         self.query_counter += 1
 
-    def _inc_all_event_counter(self):
+    def _inc_all_event_counter(self) -> None:
         self.all_item_counter += 1
 
-    def _update_position(self, sequenced_item):
+    def _update_position(self, sequenced_item: NamedTuple) -> None:
         assert isinstance(
             sequenced_item, self.record_manager.sequenced_item_class
         ), type(sequenced_item)
@@ -67,14 +86,14 @@ class AbstractSequencedItemIterator(ABC):
         )
 
     @abstractmethod
-    def __iter__(self):
+    def __iter__(self) -> Iterator[NamedTuple]:
         """
         Yields a continuous sequence of items.
         """
 
 
 class SequencedItemIterator(AbstractSequencedItemIterator):
-    def __iter__(self):
+    def __iter__(self) -> Iterator[NamedTuple]:
         """
         Yields a continuous sequence of items from "pages"
         of sequenced items retrieved using the record manager.
@@ -142,7 +161,7 @@ class SequencedItemIterator(AbstractSequencedItemIterator):
 
 
 class ThreadedSequencedItemIterator(AbstractSequencedItemIterator):
-    def __iter__(self):
+    def __iter__(self) -> Iterator[NamedTuple]:
         # Start a thread to get a page of events.
         thread = self.start_thread()
 
@@ -193,7 +212,7 @@ class ThreadedSequencedItemIterator(AbstractSequencedItemIterator):
             if is_last_page:
                 return
 
-    def start_thread(self):
+    def start_thread(self) -> "GetEntityEventsThread":
         gt = self.gt
         gte = self.gte
         lt = self.lt
@@ -224,19 +243,19 @@ class ThreadedSequencedItemIterator(AbstractSequencedItemIterator):
 class GetEntityEventsThread(Thread):
     def __init__(
         self,
-        record_manager,
-        sequence_id,
-        gt=None,
-        gte=None,
-        lt=None,
-        lte=None,
-        page_size=None,
-        is_ascending=True,
-        *args,
-        **kwargs
+        record_manager: AbstractRecordManager,
+        sequence_id: UUID,
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        page_size: Optional[int] = None,
+        is_ascending: bool = True,
+        *args: Any,
+        **kwargs: Any
     ):
         super(GetEntityEventsThread, self).__init__(*args, **kwargs)
-        assert isinstance(record_manager, AbstractSequencedItemRecordManager), type(
+        assert isinstance(record_manager, BaseRecordManager), type(
             record_manager
         )
         self.record_manager = record_manager
@@ -247,9 +266,9 @@ class GetEntityEventsThread(Thread):
         self.lte = lte
         self.page_size = page_size
         self.is_ascending = is_ascending
-        self.stored_events = None
+        self.stored_events: List[NamedTuple] = []
 
-    def run(self):
+    def run(self) -> None:
         self.stored_events = list(
             self.record_manager.get_items(
                 sequence_id=self.stored_entity_id,
