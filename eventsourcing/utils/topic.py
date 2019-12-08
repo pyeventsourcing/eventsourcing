@@ -5,13 +5,11 @@ from eventsourcing.exceptions import TopicResolutionError
 
 
 def get_topic(domain_class: type) -> str:
-    """Returns a string describing a class.
+    """
+    Returns a string describing a class.
 
-    Args:
-        domain_class: A class.
-
-    Returns:
-        A string describing the class.
+    :param domain_class: A class.
+    :returns: A string describing the class.
     """
     return (
         domain_class.__module__
@@ -26,17 +24,12 @@ substitutions: Dict[str, str] = {}
 
 
 def resolve_topic(topic: str) -> Any:
-# def resolve_topic(topic: str) -> Type[object]:
-    """Return class described by given topic.
+    """
+    Resolves topic to the object it references.
 
-    Args:
-        topic: A string describing a class.
-
-    Returns:
-        A class.
-
-    Raises:
-        TopicResolutionError: If there is no such class.
+    :param topic: A string describing a code object (e.g. an object class).
+    :raises TopicResolutionError: If there is no such class.
+    :return: Code object that the topic references.
     """
     # Substitute one topic for another, if so defined.
     #  - this allows classes to be moved and renamed
@@ -60,17 +53,13 @@ def resolve_topic(topic: str) -> Any:
 
 
 def resolve_attr(obj: Any, path: str) -> Any:
-    """A recursive version of getattr for navigating dotted paths.
+    """
+    A recursive version of getattr for navigating dotted paths.
 
-    Args:
-        obj: An object for which we want to retrieve a nested attribute.
-        path: A dot separated string containing zero or more attribute names.
-
-    Returns:
-        The attribute referred to by obj.a1.a2.a3...
-
-    Raises:
-        AttributeError: If there is no such attribute.
+    :param obj: An object for which we want to retrieve a nested attribute.
+    :param path: A dot separated string containing zero or more attribute names.
+    :raises AttributeError: If there is no such attribute.
+    :return: The attribute referred to by the path.
     """
     if not path:
         return obj

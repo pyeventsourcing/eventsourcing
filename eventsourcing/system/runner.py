@@ -338,6 +338,16 @@ class PromptQueuedApplicationThread(Thread):
         outbox: Optional[PromptOutbox],
         clock_event: Optional[Event] = None,
     ):
+        """
+        Initialises the thread with a process application object, and
+        inbox and outbox.
+
+        :param ProcessApplication process: Application object.
+        :param int poll_interval: Interval to check for upstream events.
+        :param Queue inbox: For incoming prompts.
+        :param PromptOutbox outbox: For outgoing prompts.
+        :param clock_event: Event that "clocks" this thread (optional).
+        """
         super(PromptQueuedApplicationThread, self).__init__(daemon=True)
         self.app = process
         self.poll_interval = poll_interval

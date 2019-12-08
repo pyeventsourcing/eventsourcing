@@ -82,6 +82,30 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         notification_log_section_size: Optional[int] = None,
         use_cache: bool = False,
     ):
+        """
+        Initialises application object.
+
+        :param name: Name of application.
+        :param persistence_policy: Persistence policy object.
+        :param persist_event_type: Tuple of domain event classes to be persisted.
+        :param cipher_key: Base64 unicode string cipher key.
+        :param compressor: Compressor used to compress serialized event state.
+        :param sequenced_item_class: Named tuple for mapping and recording events.
+        :param sequenced_item_mapper_class: Object class for mapping stored events.
+        :param record_manager_class: Object class for recording stored events.
+        :param stored_event_record_class: Object class for event records.
+        :param event_store_class: Object class uses to store and retrieve domain events.
+        :param snapshot_record_class: Object class used to represent snapshots.
+        :param setup_table: Option to create database tables when application starts.
+        :param contiguous_record_ids: Whether or not to delegate notification ID
+            generation to the record manager (to guarantee there will be no gaps).
+        :param pipeline_id: ID of instance of system pipeline expressions.
+        :param json_encoder_class: Object class used to encode object as JSON strings.
+        :param json_decoder_class: Object class used to decode JSON strings as objects.
+        :param notification_log_section_size: Number of notification items in a section.
+        :param use_cache: Whether or not to keep aggregates in memory (saves replaying
+            when accessing again, but uses memory).
+        """
         self.name = name or type(self).__name__.lower()
 
         self.notification_log_section_size = notification_log_section_size
@@ -179,6 +203,9 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         return AESCipher(cipher_key_bytes) if cipher_key_bytes else None
 
     def construct_infrastructure(self, *args: Any, **kwargs: Any) -> None:
+        """
+        Constructs infrastructure for application.
+        """
         self.infrastructure_factory = self.construct_infrastructure_factory(
             *args, **kwargs
         )
@@ -190,7 +217,7 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         self, *args: Any, **kwargs: Any
     ) -> InfrastructureFactory:
         """
-        :rtype: InfrastructureFactory
+        Constructs infrastructure factory object.
         """
         factory_class = self.infrastructure_factory_class
         assert issubclass(factory_class, InfrastructureFactory)
@@ -219,10 +246,16 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         )
 
     def construct_datastore(self) -> None:
+        """
+        Constructs datastore object (which helps by creating and dropping tables).
+        """
         assert self.infrastructure_factory
         self._datastore = self.infrastructure_factory.construct_datastore()
 
     def construct_event_store(self) -> None:
+        """
+        Constructs event store object.
+        """
         assert self.infrastructure_factory
         factory = self.infrastructure_factory
         self._event_store = factory.construct_integer_sequenced_event_store(
@@ -230,35 +263,51 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         )
 
     def construct_repository(self, **kwargs: Any) -> None:
+        """
+        Constructs repository object.
+        """
         assert self.repository_class
         self._repository = self.repository_class(
             event_store=self.event_store, use_cache=self.use_cache, **kwargs
         )
 
     def setup_table(self) -> None:
-        # Setup the database table using event store's record class.
+        """
+        Sets up the database table using event store's record class.
+        """
         if self._datastore is not None:
             record_class = self.event_store.record_manager.record_class
             self.datastore.setup_table(record_class)
 
     def drop_table(self) -> None:
-        # Drop the database table using event store's record class.
+        """
+        Drops the database table using event store's record class.
+        """
         if self._datastore is not None:
             record_class = self.event_store.record_manager.record_class
             self.datastore.drop_table(record_class)
 
     def construct_notification_log(self) -> None:
+        """
+        Constructs notification log object.
+        """
         self._notification_log = RecordManagerNotificationLog(
             self.event_store.record_manager,
             section_size=self.notification_log_section_size,
         )
 
     def construct_persistence_policy(self) -> None:
+        """
+        Constructs persistence policy object.
+        """
         self._persistence_policy = PersistencePolicy(
             event_store=self.event_store, persist_event_type=self.persist_event_type
         )
 
     def change_pipeline(self, pipeline_id: int) -> None:
+        """
+        Switches pipeline being used by this application object.
+        """
         self.pipeline_id = pipeline_id
         self.event_store.record_manager.pipeline_id = pipeline_id
 
@@ -272,9 +321,15 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
             self._datastore.close_connection()
 
     def __enter__(self: T) -> T:
+        """
+        Supports use of application as context manager.
+        """
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """
+        Closes application when exiting context manager.
+        """
         self.close()
 
     @classmethod
@@ -283,10 +338,13 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
 
     @classmethod
     def mixin(cls, infrastructure_class: type) -> type:
+        """
+        Returns subclass that inherits also from given infrastructure class.
+        """
         return type(cls.__name__, (infrastructure_class, cls), {})
 
 
 class ApplicationWithConcreteInfrastructure(SimpleApplication):
     """
-    Subclasses have actual infrastructure.
+    Base class for application classes that have actual infrastructure.
     """

@@ -58,7 +58,7 @@ as if all generated events were generated in a single policy function).
 Please note, the transcoding now supports the encoding of tuples, and named tuples,
 as tuples. Previously tuples were encoded by the JSON transcoding as
 lists, and so tuples became lists, which is the default behaviour on the core
-`json` package. So if you have code that depends on the transcoder converting
+json package. So if you have code that depends on the transcoder converting
 tuples to lists, then attention will have to paid to the fact that tuples will
 now be encoded and returned as tuples. However, any existing stored events generated
 with an earlier version of this library will continue to be returned as lists,

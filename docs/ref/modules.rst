@@ -9,10 +9,6 @@ details of the library.
 * :ref:`modindex`
 
 
--------------
-eventsourcing
--------------
-
 The eventsourcing package contains packages for the domain layer, the
 infrastructure layer, the application layer, and the interface layer.
 There is also a utils package, an example, and a module for exceptions.
@@ -21,12 +17,11 @@ There is also a utils package, an example, and a module for exceptions.
 .. toctree::
    :maxdepth: 2
 
-   application
    domainmodel
-   example
-   exceptions
    infrastructure
+   application
    interface
    system
    utils
    whitehead
+   exceptions

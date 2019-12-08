@@ -30,10 +30,10 @@ runner
     :exclude-members: __weakref__, __dict__
 
 
-actors
-------
+multiprocess
+------------
 
-.. automodule:: eventsourcing.system.actors
+.. automodule:: eventsourcing.system.multiprocess
     :show-inheritance:
     :member-order: bysource
     :members:
@@ -41,10 +41,10 @@ actors
     :exclude-members: __weakref__, __dict__
 
 
-multiprocess
-------------
+actors
+------
 
-.. automodule:: eventsourcing.system.multiprocess
+.. automodule:: eventsourcing.system.actors
     :show-inheritance:
     :member-order: bysource
     :members:

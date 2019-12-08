@@ -32,8 +32,8 @@ def subscribe_to(*args: Union[Callable, Type[DomainEvent]]) -> Callable:
     method because it
     doesn't have a value for 'self'.
 
-    event_class: type used to match published events, an event matches if it is an
-    instance of this type
+    :param event_class: type used to match published events, an event matches if it
+      is an instance of this type.
 
     The following example shows a custom handler that reacts to Todo.Created
     event and saves a projection of a Todo model object.
@@ -239,20 +239,24 @@ def subclassevents(cls: type) -> type:
     """
     Decorator that avoids "boilerplate" subclassing of domain events.
 
-    For example, this:
+    For example, with this decorator you can do this:
 
-    @subclassevents
-    class Example(AggregateRoot):
-        class SomethingHappened(DomainEvent): pass
+    .. code::
+
+        @subclassevents
+        class Example(AggregateRoot):
+            class SomethingHappened(DomainEvent): pass
 
     rather than this:
 
-    class Example(AggregateRoot):
-        class Event(AggregateRoot.Event): pass
-        class Created(Event, AggregateRoot.Created): pass
-        class Discarded(Event, AggregateRoot.Discarded): pass
-        class AttributeChanged(Event, AggregateRoot.AttributeChanged): pass
-        class SomethingHappened(Event): pass
+    .. code::
+
+        class Example(AggregateRoot):
+            class Event(AggregateRoot.Event): pass
+            class Created(Event, AggregateRoot.Created): pass
+            class Discarded(Event, AggregateRoot.Discarded): pass
+            class AttributeChanged(Event, AggregateRoot.AttributeChanged): pass
+            class SomethingHappened(Event): pass
 
     You can apply this to a tree of domain event classes by defining
     the base class with attribute 'subclassevents = True'.
