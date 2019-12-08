@@ -78,7 +78,10 @@ Base classes for concrete datastore classes.
 django
 ------
 
-A Django application for event sourcing with the Django ORM.
+Infrastructure for event sourcing with the Django ORM. This package functions
+as a Django application. It can be included in "INSTALLED_APPS" in settings.py
+in your Django project. There is just one migration, to create tables that do
+not exist.
 
 .. automodule:: eventsourcing.infrastructure.django.factory
     :show-inheritance:
@@ -144,8 +147,8 @@ Base classes for event sourced repositories (not abstract, can be used directly)
 eventstore
 ----------
 
-The event store provides the application-level interface to the event sourcing
-persistence mechanism.
+The event store provides the interface to the event sourcing
+persistence mechanism that is used by applications.
 
 .. automodule:: eventsourcing.infrastructure.eventstore
     :show-inheritance:
@@ -201,6 +204,42 @@ iterators
 Different ways of getting sequenced items from a datastore.
 
 .. automodule:: eventsourcing.infrastructure.iterators
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__
+
+
+.. py:module:: eventsourcing.infrastructure.popo
+
+popo
+----
+
+Infrastructure for event sourcing with "plain old Python objects".
+
+.. automodule:: eventsourcing.infrastructure.popo.factory
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__
+
+.. automodule:: eventsourcing.infrastructure.popo.manager
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__
+
+.. automodule:: eventsourcing.infrastructure.popo.mapper
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__
+
+.. automodule:: eventsourcing.infrastructure.popo.records
     :show-inheritance:
     :member-order: bysource
     :members:
