@@ -215,21 +215,6 @@ Infrastructure for event sourcing with "plain old Python objects".
     :exclude-members: __weakref__, __dict__
 
 
-.. py:module:: eventsourcing.infrastructure.eventplayer
-
-eventplayer
------------
-
-Base classes for event players of different kinds.
-
-.. automodule:: eventsourcing.infrastructure.eventplayer
-    :show-inheritance:
-    :member-order: bysource
-    :members:
-    :special-members:
-    :exclude-members: __weakref__, __dict__
-
-
 .. py:module:: eventsourcing.infrastructure.eventstore
 
 eventstore
