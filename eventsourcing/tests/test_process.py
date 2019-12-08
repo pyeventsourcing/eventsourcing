@@ -353,7 +353,7 @@ class TestProcessApplication(TestCase):
             # Check the aggregate is no longer in the cache.
             self.assertNotIn(aggregate.id, process.repository._cache)
 
-    def test_policy_returnS_sequence_of_new_aggregates(self):
+    def test_policy_returns_sequence_of_new_aggregates(self):
 
         def policy(repository, event):
             first = AggregateRoot.__create__(originator_id=(uuid4()))
