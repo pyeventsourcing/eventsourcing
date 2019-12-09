@@ -77,6 +77,9 @@ class EventSourcedRepository(
     def __getitem__(self, entity_id: UUID) -> TVersionedEntity:
         """
         Returns entity with given ID.
+
+        :param entity_id: ID of entity in the repository.
+        :raises RepositoryKeyError: If the entity is not found.
         """
         if self._use_cache:
             try:
@@ -102,7 +105,9 @@ class EventSourcedRepository(
         self, entity_id: UUID, at: Optional[int] = None
     ) -> Optional[TVersionedEntity]:
         """
-        Returns entity with given ID, optionally until position.
+        Returns entity with given ID, optionally at a version.
+
+        Returns None if entity not found.
         """
 
         # Get a snapshot (None if none exist).
