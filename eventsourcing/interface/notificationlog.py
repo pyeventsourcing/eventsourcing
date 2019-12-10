@@ -51,8 +51,7 @@ class RemoteNotificationLog(AbstractNotificationLog):
         """
         if self._section_size == -1:
             resource = self.get_resource(self.make_notification_log_url("section_size"))
-
-            self.deserialize_section_size(resource)
+            self._section_size = self.deserialize_section_size(resource)
         return self._section_size
 
     def deserialize_section_size(self, resource: str) -> int:

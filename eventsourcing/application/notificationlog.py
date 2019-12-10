@@ -387,9 +387,8 @@ class NotificationLogReader(ABC):
         #  - section IDs use 1-based start and end values.
         section_size = self.notification_log.section_size
         start = self.position // section_size * section_size
-        section_id = "%d,%d" % (start + 1, start + section_size)
-
-        return section_id
+        end = start + section_size
+        return "%d,%d" % (start + 1, end)
 
     def read_list(self, advance_by: Optional[int] = None) -> List[Dict[str, Any]]:
         """
