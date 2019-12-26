@@ -87,16 +87,100 @@ def decoderpolicy(arg=None):
 
 
 class ObjectJSONEncoder(JSONEncoder):
-    def iterencode(self, o, _one_shot=False):
-        if isinstance(o, tuple):
-            o = {"__tuple__": {"topic": (get_topic(o.__class__)), "state": (list(o))}}
-        return super(ObjectJSONEncoder, self).iterencode(o, _one_shot=_one_shot)
+    def encode(self, o):
+        return super(ObjectJSONEncoder, self).encode(self.encode_object(o))
 
-    def default(self, obj):
-        try:
-            return encoder(obj)
-        except EncoderTypeError:
-            return JSONEncoder.default(self, obj)
+    def encode_object(self, o):
+        return self.encode_container(encoder(o))
+
+    @encoderpolicy
+    def encode_container(self, o):
+        return o
+
+    @encode_container.register(dict)
+    def encode_dict(self, o):
+        if type(o) == dict:
+            return {k: self.encode_object(v) for (k, v) in o.items()}
+        else:
+            return {
+                "__dict__": {
+                    "topic": (get_topic(o.__class__)),
+                    "state": {k: self.encode_object(v) for (k, v) in o.items()},
+                }
+            }
+
+    @encode_container.register(tuple)
+    def encode_tuple(self, o):
+        if type(o) == tuple:
+            return {"__tuple__": self.encode_object(list(o))}
+        else:
+            return {
+                "__tuple__": {
+                    "topic": (get_topic(o.__class__)),
+                    "state": self.encode_object(list(o)),
+                }
+            }
+
+    @encode_container.register(list)
+    def encode_list(self, o):
+        if type(o) == list:
+            return [self.encode_object(i) for i in o]
+        else:
+            return {
+                "__list__": {
+                    "topic": (get_topic(o.__class__)),
+                    "state": [self.encode_object(i) for i in o],
+                }
+            }
+
+    @encode_container.register(set)
+    def encode_set(self, o):
+        if type(o) == set:
+            return {"__set__": self.encode_object(sorted(o))}
+        else:
+            return {
+                "__set__": {
+                    "topic": (get_topic(o.__class__)),
+                    "state": self.encode_object(sorted(o)),
+                }
+            }
+
+    @encode_container.register(frozenset)
+    def encode_set(self, o):
+        if type(o) == frozenset:
+            return {"__frozenset__": self.encode_object(sorted(o))}
+        else:
+            return {
+                "__frozenset__": {
+                    "topic": (get_topic(o.__class__)),
+                    "state": self.encode_object(sorted(o)),
+                }
+            }
+
+    @encode_container.register(deque)
+    def encode_deque(self, o):
+        if type(o) == deque:
+            return {"__deque__": self.encode_object(list(o))}
+        else:
+            return {
+                "__deque__": {
+                    "topic": (get_topic(o.__class__)),
+                    "state": self.encode_object(list(o)),
+                }
+            }
+
+    @encode_container.register(object)
+    def encode_instance(self, o):
+        if hasattr(o, "__slots__"):
+            topic = get_topic(o.__class__)
+            state = {k: self.encode_object(getattr(o, k)) for k in o.__slots__}
+            return {"__class__": {"topic": topic, "state": state}}
+        elif hasattr(o, "__dict__"):
+            topic = get_topic(o.__class__)
+            state = {k: self.encode_object(v) for k, v in o.__dict__.items()}
+            return {"__class__": {"topic": topic, "state": state}}
+        else:
+            return o
 
 
 class EncoderTypeError(TypeError):
@@ -104,8 +188,8 @@ class EncoderTypeError(TypeError):
 
 
 @encoderpolicy
-def encoder(obj):
-    raise EncoderTypeError(obj)
+def encoder(o):
+    return o
 
 
 class ObjectJSONDecoder(JSONDecoder):
@@ -120,43 +204,24 @@ def decoder(d):
     return d
 
 
-@encoder.register(bytes)
-def encode_bytes(obj):
-    return {"__bytes__": b64str_from_bytes(obj)}
-
-
 @encoder.register(type)
-def encode_type(obj):
-    return {"__type__": get_topic(obj)}
+def encode_type(o):
+    return {"__type__": get_topic(o)}
 
 
 @encoder.register(MethodType)
-def encode_method(obj):
-    raise EncoderTypeError(obj)
+def encode_method(o):
+    raise EncoderTypeError(o)
 
 
 @encoder.register(FunctionType)
-def encode_function(obj):
-    raise EncoderTypeError(obj)
+def encode_function(o):
+    raise EncoderTypeError(o)
 
 
 @decoder.register("__type__")
 def decode_type(d):
     return resolve_topic(d["__type__"])
-
-
-@encoder.register(object)
-def encode_object(obj):
-    if hasattr(obj, "__slots__"):
-        topic = get_topic(obj.__class__)
-        state = {k: getattr(obj, k) for k in obj.__slots__}
-        return {"__class__": {"topic": topic, "state": state}}
-    elif hasattr(obj, "__dict__"):
-        topic = get_topic(obj.__class__)
-        state = obj.__dict__.copy()
-        return {"__class__": {"topic": topic, "state": state}}
-    else:
-        raise EncoderTypeError(obj)
 
 
 @decoder.register("__class__")
@@ -238,41 +303,72 @@ def decode_enum(d):
     return getattr(enum, name)
 
 
-@encoder.register(deque)
-def encode_deque(obj):
-    return {"__deque__": {"topic": get_topic(type(obj)), "values": list(obj)}}
-
-
 @decoder.register("__deque__")
 def decode_deque(d):
-    topic = d["__deque__"]["topic"]
-    values = d["__deque__"]["values"]
-    deque = resolve_topic(topic)
-    return deque(values)
+    deque_data = d["__deque__"]
+    if type(deque_data) == dict:
+        topic = deque_data["topic"]
+        try:
+            state = deque_data["state"]
+        except KeyError:
+            state = deque_data["values"]
+
+        deque_type = resolve_topic(topic)
+        return deque_type(state)
+    else:
+        return deque(deque_data)
 
 
 @decoder.register("__tuple__")
 def decode_tuple(d):
-    topic = d["__tuple__"]["topic"]
-    state = d["__tuple__"]["state"]
-    tuple_type = resolve_topic(topic)
-    if topic == "builtins#tuple":
-        # For standard tuple objects.
-        obj = tuple_type(state)
-    else:
+    tuple_data = d["__tuple__"]
+    if type(tuple_data) == dict:
         # For NamedTuple objects.
+        topic = tuple_data["topic"]
+        state = tuple_data["state"]
+        tuple_type = resolve_topic(topic)
         obj = tuple_type(*state)
+    else:
+        # For standard tuple objects.
+        obj = tuple(tuple_data)
     return obj
 
 
-@encoder.register(set)
-def encode_set(obj):
-    return {"__set__": sorted(list(obj))}
+@decoder.register("__dict__")
+def decode_dict(d):
+    topic = d["__dict__"]["topic"]
+    state = d["__dict__"]["state"]
+    dict_type = resolve_topic(topic)
+    return dict_type(state)
 
 
 @decoder.register("__set__")
 def decode_set(d):
-    return set(d["__set__"])
+    set_data = d["__set__"]
+    if isinstance(set_data, dict):
+        topic = set_data["topic"]
+        state = set_data["state"]
+        set_type = resolve_topic(topic)
+        return set_type(state)
+    else:
+        return set(set_data)
+
+
+@decoder.register("__frozenset__")
+def decode_set(d):
+    set_data = d["__frozenset__"]
+    if isinstance(set_data, dict):
+        topic = set_data["topic"]
+        state = set_data["state"]
+        set_type = resolve_topic(topic)
+        return set_type(state)
+    else:
+        return frozenset(set_data)
+
+
+@encoder.register(bytes)
+def encode_bytes(o):
+    return {"__bytes__": b64str_from_bytes(o)}
 
 
 @decoder.register("__bytes__")

@@ -125,32 +125,12 @@ class TestTranscoding(TestCase):
 
     def test_tuple(self):
         value = (1, 2, 4)
-        encoded = '{"__tuple__": {"state": [1, 2, 4], "topic": "builtins#tuple"}}'
+        encoded = '{"__tuple__": [1, 2, 4]}'
         self.assertTranscoding(value, encoded)
 
     def test_tuple_type(self):
         value = tuple
         encoded = '{"__type__": "builtins#tuple"}'
-        self.assertTranscoding(value, encoded)
-
-    def test_list(self):
-        value = [1, 2, 4]
-        encoded = "[1, 2, 4]"
-        self.assertTranscoding(value, encoded)
-
-    def test_list_type(self):
-        value = list
-        encoded = '{"__type__": "builtins#list"}'
-        self.assertTranscoding(value, encoded)
-
-    def test_set(self):
-        value = {1, 2, 4}
-        encoded = '{"__set__": [1, 2, 4]}'
-        self.assertTranscoding(value, encoded)
-
-    def test_set_type(self):
-        value = set
-        encoded = '{"__type__": "builtins#set"}'
         self.assertTranscoding(value, encoded)
 
     def test_namedtuple(self):
@@ -168,7 +148,81 @@ class TestTranscoding(TestCase):
         encoded = '{"__type__": "eventsourcing.tests.test_transcoding#MyNamedTuple"}'
         self.assertTranscoding(value, encoded)
 
-    def test_object_with_dict(self):
+    def test_tuple_of_tuples(self):
+        value = ((1, 1), (2, 2))
+        encoded = '{"__tuple__": [{"__tuple__": [1, 1]}, {"__tuple__": [2, 2]}]}'
+        self.assertTranscoding(value, encoded)
+
+    def test_dict_with_tuple_values(self):
+        value = {"1": (2, 3), "4": (5, 6)}
+        encoded = (
+            '{"1": {"__tuple__": [2, 3]}, '
+            '"4": {"__tuple__": [5, 6]}}'
+        )
+        self.assertTranscoding(value, encoded)
+
+    def test_custom_dict_with_tuple_values(self):
+        value = MyDict((("1", (2, 3)), ("4", (5, 6))))
+
+        encoded = (
+            '{"__dict__": {"state": {'
+            '"1": {"__tuple__": [2, 3]}, '
+            '"4": {"__tuple__": [5, 6]}}, '
+            '"topic": "eventsourcing.tests.test_transcoding#MyDict"}}'
+        )
+        self.assertTranscoding(value, encoded)
+
+    def test_dict_with_decimal_values(self):
+        value = {"1": Decimal("1.2"), "4": Decimal("3.4")}
+        encoded = '{"1": {"__decimal__": "1.2"}, "4": {"__decimal__": "3.4"}}'
+        self.assertTranscoding(value, encoded)
+
+    def test_list(self):
+        value = [1, 2, 4]
+        encoded = "[1, 2, 4]"
+        self.assertTranscoding(value, encoded)
+
+    def test_list_type(self):
+        value = list
+        encoded = '{"__type__": "builtins#list"}'
+        self.assertTranscoding(value, encoded)
+
+    def test_list_of_tuples(self):
+        value = [(1, 1)]
+        encoded = '[{"__tuple__": [1, 1]}]'
+        self.assertTranscoding(value, encoded)
+
+    def test_set(self):
+        value = {1, 2, 4}
+        encoded = '{"__set__": [1, 2, 4]}'
+        self.assertTranscoding(value, encoded)
+
+    def test_set_of_tuples(self):
+        value = {(1, 2)}
+        encoded = ('{"__set__": [{"__tuple__": [1, 2]}]}')
+        self.assertTranscoding(value, encoded)
+
+    def test_set_type(self):
+        value = set
+        encoded = '{"__type__": "builtins#set"}'
+        self.assertTranscoding(value, encoded)
+
+    def test_frozenset(self):
+        value = frozenset({1, 2, 4})
+        encoded = '{"__frozenset__": [1, 2, 4]}'
+        self.assertTranscoding(value, encoded)
+
+    def test_frozenset_of_tuples(self):
+        value = frozenset({(1, 1), (2, 2)})
+        encoded = '{"__frozenset__": [{"__tuple__": [1, 1]}, {"__tuple__": [2, 2]}]}'
+        self.assertTranscoding(value, encoded)
+
+    def test_frozenset_type(self):
+        value = frozenset
+        encoded = '{"__type__": "builtins#frozenset"}'
+        self.assertTranscoding(value, encoded)
+
+    def test_object(self):
         self.assertEqual(MyObjectClass(NAMESPACE_URL), MyObjectClass(NAMESPACE_URL))
         value = MyObjectClass(NAMESPACE_URL)
         encoded = (
@@ -178,12 +232,22 @@ class TestTranscoding(TestCase):
         )
         self.assertTranscoding(value, encoded)
 
-    def test_object_with_dict_type(self):
+    def test_object_with_tuple(self):
+        self.assertEqual(MyObjectClass((1, 2)), MyObjectClass((1, 2)))
+        value = MyObjectClass((1, 2))
+        encoded = (
+            '{"__class__": {"state": {"a": {"__tuple__": [1, 2]}'
+            '}, "topic": "eventsourcing.tests.test_tr'
+            'anscoding#MyObjectClass"}}'
+        )
+        self.assertTranscoding(value, encoded)
+
+    def test_object_type(self):
         value = MyObjectClass
         encoded = '{"__type__": "eventsourcing.tests.test_transcoding#MyObjectClass"}'
         self.assertTranscoding(value, encoded)
 
-    def test_object_with_slots(self):
+    def test_slotted_object(self):
         instance1 = MySlottedClass(a=1, b=2, c=3)
         instance2 = MySlottedClass(a=2, b=2, c=3)
         self.assertEqual(instance1, instance1)
@@ -195,7 +259,7 @@ class TestTranscoding(TestCase):
         )
         self.assertTranscoding(value, encoded)
 
-    def test_object_with_slots_type(self):
+    def test_slotted_object_type(self):
         value = MySlottedClass
         encoded = '{"__type__": "eventsourcing.tests.test_transcoding#MySlottedClass"}'
         self.assertTranscoding(value, encoded)
@@ -218,13 +282,32 @@ class TestTranscoding(TestCase):
 
     def test_deque(self):
         value = deque([1, 3, 2])
-        encoded = '{"__deque__": {"topic": "collections#deque", "values": [1, 3, 2]}}'
+        encoded = '{"__deque__": [1, 3, 2]}'
         self.assertTranscoding(value, encoded)
 
         value = MyDeque([1, 3, 2])
         encoded = (
-            '{"__deque__": {"topic": "eventsourcing.tests.test_transcoding#MyDeque", '
-            '"values": [1, 3, 2]}}'
+            '{"__deque__": {'
+            '"state": [1, 3, 2], '
+            '"topic": "eventsourcing.tests.test_transcoding#MyDeque"'
+            '}}'
+        )
+        self.assertTranscoding(value, encoded)
+
+    def test_deque_with_tuples(self):
+        value = deque([(1, 1), (3, 3), (2, 2)])
+        encoded = ('{"__deque__": ['
+                   '{"__tuple__": [1, 1]}, '
+                   '{"__tuple__": [3, 3]}, '
+                   '{"__tuple__": [2, 2]}]}')
+        self.assertTranscoding(value, encoded)
+
+        value = MyDeque([(1, 1), (3, 3), (2, 2)])
+        encoded = ('{"__deque__": {"state": ['
+                   '{"__tuple__": [1, 1]}, '
+                   '{"__tuple__": [3, 3]}, '
+                   '{"__tuple__": [2, 2]}], '
+                   '"topic": "eventsourcing.tests.test_transcoding#MyDeque"}}'
         )
         self.assertTranscoding(value, encoded)
 
@@ -270,7 +353,9 @@ class TestTranscoding(TestCase):
 
     def assertTranscoding(self, value, encoded):
         self.assertEqual(encoded, self.encode(value))
-        self.assertEqual(value, self.decode(encoded))
+        decoded = self.decode(encoded)
+        self.assertEqual(value, decoded)
+        self.assertEqual(type(value), type(decoded))
 
     def decode(self, encoded):
         return self.decoder.decode(encoded)
@@ -283,6 +368,10 @@ class TestTranscoding(TestCase):
         self.decoder = ObjectJSONDecoder()
 
 
+class MyDict(dict):
+    pass
+
+
 class MyObjectClass:
     def __init__(self, a):
         self.a = a
@@ -292,6 +381,9 @@ class MyObjectClass:
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def __repr__(self):
+        return 'MyObjectClass(a={})'.format(self.a)
 
 
 MyNamedTuple = namedtuple("MyNamedTuple", field_names=["a", "b", "c"])
