@@ -191,7 +191,7 @@ class ObjectJSONEncoder(JSONEncoder):
 
     @encode_container.register(object)
     def encode_instance(self, o):
-        if hasattr(o, "__slots__"):
+        if hasattr(o, "__slots__") and o.__slots__ != ():
             topic = get_topic(o.__class__)
             state = {k: self.encode_object(getattr(o, k)) for k in o.__slots__}
             return {"__class__": {"state": state, "topic": topic}}

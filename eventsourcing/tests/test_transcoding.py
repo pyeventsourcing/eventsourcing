@@ -1,5 +1,5 @@
 import datetime
-from collections import deque, namedtuple
+from collections import deque, namedtuple, OrderedDict, ChainMap
 from enum import Enum
 from fractions import Fraction
 
@@ -172,6 +172,19 @@ class TestTranscoding(TestCase):
     def test_dict_with_decimal_values(self):
         value = {"1": Decimal("1.2"), "4": Decimal("3.4")}
         encoded = '{"1":{"__decimal__":"1.2"},"4":{"__decimal__":"3.4"}}'
+        self.assertTranscoding(value, encoded)
+
+    def test_ordered_dict(self):
+        value = OrderedDict(a=1, b=2, c=3)
+        encoded = ('{"__dict__":{"state":{"a":1,"b":2,"c":3},'
+                   '"topic":"collections#OrderedDict"}}')
+        self.assertTranscoding(value, encoded)
+
+    def test_chainmap(self):
+        value = ChainMap(dict(a=1, b=2), dict(c=3))
+        encoded = ('{"__class__":{'
+                   '"state":{"maps":[{"a":1,"b":2},{"c":3}]},'
+                   '"topic":"collections#ChainMap"}}')
         self.assertTranscoding(value, encoded)
 
     def test_list(self):
