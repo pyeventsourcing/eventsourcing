@@ -6,8 +6,15 @@ from enum import Enum
 from functools import singledispatch, wraps
 from inspect import isfunction
 from json import JSONDecoder, JSONEncoder
+from modulefinder import Module
 from types import FunctionType, MethodType
+from typing import Optional
 from uuid import UUID
+
+try:
+    import orjson
+except ImportError:
+    orjson: Optional[Module] = None  # type: ignore
 
 import dateutil.parser
 
@@ -87,8 +94,15 @@ def decoderpolicy(arg=None):
 
 
 class ObjectJSONEncoder(JSONEncoder):
+    def __init__(self, sort_keys=False):
+        super().__init__(sort_keys=sort_keys, separators=JSON_SEPARATORS)
+
     def encode(self, o):
-        return super(ObjectJSONEncoder, self).encode(self.encode_object(o))
+        o = self.encode_object(o)
+        if self.sort_keys is True or orjson is None:
+            return super(ObjectJSONEncoder, self).encode(o).encode("utf8")
+        else:
+            return orjson.dumps(o)
 
     def encode_object(self, o):
         return self.encode_container(encoder(o))
@@ -100,14 +114,17 @@ class ObjectJSONEncoder(JSONEncoder):
     @encode_container.register(dict)
     def encode_dict(self, o):
         if type(o) == dict:
-            return {k: self.encode_object(v) for (k, v) in o.items()}
+            return self.encode_dict_state(o)
         else:
             return {
                 "__dict__": {
-                    "topic": (get_topic(o.__class__)),
-                    "state": {k: self.encode_object(v) for (k, v) in o.items()},
+                    "topic": get_topic(o.__class__),
+                    "state": self.encode_dict_state(o),
                 }
             }
+
+    def encode_dict_state(self, o):
+        return {k: self.encode_object(v) for (k, v) in o.items()}
 
     @encode_container.register(tuple)
     def encode_tuple(self, o):
@@ -116,8 +133,8 @@ class ObjectJSONEncoder(JSONEncoder):
         else:
             return {
                 "__tuple__": {
-                    "topic": (get_topic(o.__class__)),
                     "state": self.encode_object(list(o)),
+                    "topic": get_topic(o.__class__),
                 }
             }
 
@@ -128,32 +145,35 @@ class ObjectJSONEncoder(JSONEncoder):
         else:
             return {
                 "__list__": {
-                    "topic": (get_topic(o.__class__)),
                     "state": [self.encode_object(i) for i in o],
+                    "topic": get_topic(o.__class__),
                 }
             }
 
     @encode_container.register(set)
     def encode_set(self, o):
         if type(o) == set:
-            return {"__set__": self.encode_object(sorted(o))}
+            return {"__set__": self.encode_iterable(o)}
         else:
             return {
                 "__set__": {
-                    "topic": (get_topic(o.__class__)),
-                    "state": self.encode_object(sorted(o)),
+                    "state": self.encode_iterable(o),
+                    "topic": get_topic(o.__class__),
                 }
             }
 
+    def encode_iterable(self, o):
+        return self.encode_object(self.sort_keys and sorted(o) or list(o))
+
     @encode_container.register(frozenset)
-    def encode_set(self, o):
+    def encode_frozenset(self, o):
         if type(o) == frozenset:
-            return {"__frozenset__": self.encode_object(sorted(o))}
+            return {"__frozenset__": self.encode_iterable(o)}
         else:
             return {
                 "__frozenset__": {
-                    "topic": (get_topic(o.__class__)),
-                    "state": self.encode_object(sorted(o)),
+                    "state": self.encode_iterable(o),
+                    "topic": get_topic(o.__class__),
                 }
             }
 
@@ -164,8 +184,8 @@ class ObjectJSONEncoder(JSONEncoder):
         else:
             return {
                 "__deque__": {
-                    "topic": (get_topic(o.__class__)),
                     "state": self.encode_object(list(o)),
+                    "topic": get_topic(o.__class__),
                 }
             }
 
@@ -174,11 +194,11 @@ class ObjectJSONEncoder(JSONEncoder):
         if hasattr(o, "__slots__"):
             topic = get_topic(o.__class__)
             state = {k: self.encode_object(getattr(o, k)) for k in o.__slots__}
-            return {"__class__": {"topic": topic, "state": state}}
+            return {"__class__": {"state": state, "topic": topic}}
         elif hasattr(o, "__dict__"):
             topic = get_topic(o.__class__)
             state = {k: self.encode_object(v) for k, v in o.__dict__.items()}
-            return {"__class__": {"topic": topic, "state": state}}
+            return {"__class__": {"state": state, "topic": topic}}
         else:
             return o
 
@@ -355,7 +375,7 @@ def decode_set(d):
 
 
 @decoder.register("__frozenset__")
-def decode_set(d):
+def decode_frozenset(d):
     set_data = d["__frozenset__"]
     if isinstance(set_data, dict):
         topic = set_data["topic"]

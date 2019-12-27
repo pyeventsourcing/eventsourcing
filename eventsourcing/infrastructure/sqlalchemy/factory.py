@@ -1,4 +1,3 @@
-from json import JSONDecoder, JSONEncoder
 from typing import Any, NamedTuple, Optional, Type
 
 from eventsourcing.domain.model.events import DomainEvent
@@ -21,6 +20,7 @@ from eventsourcing.infrastructure.sqlalchemy.records import (
     TimestampSequencedNoIDRecord,
 )
 from eventsourcing.utils.cipher.aes import AESCipher
+from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
 
 
 class SQLAlchemyInfrastructureFactory(InfrastructureFactory):
@@ -107,8 +107,8 @@ def construct_sqlalchemy_eventstore(
     sequenced_item_class: Optional[Type[NamedTuple]] = None,
     sequence_id_attr_name: Optional[str] = None,
     position_attr_name: Optional[str] = None,
-    json_encoder_class: Optional[Type[JSONEncoder]] = None,
-    json_decoder_class: Optional[Type[JSONDecoder]] = None,
+    json_encoder_class: Optional[Type[ObjectJSONEncoder]] = None,
+    json_decoder_class: Optional[Type[ObjectJSONDecoder]] = None,
     cipher: Optional[AESCipher] = None,
     record_class: Optional[type] = None,
     contiguous_record_ids: bool = False,

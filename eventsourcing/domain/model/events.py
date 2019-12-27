@@ -22,7 +22,7 @@ class DomainEvent(ActualOccasion, Generic[TEntity]):
     of the state of the event.
     """
 
-    __json_encoder__ = ObjectJSONEncoder(separators=JSON_SEPARATORS, sort_keys=True)
+    __json_encoder__ = ObjectJSONEncoder(sort_keys=True)
     __notifiable__ = True
 
     def __init__(self, **kwargs: Any):

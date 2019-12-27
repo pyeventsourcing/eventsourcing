@@ -52,6 +52,7 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
     sequenced_item_mapper_class: Optional[Type[SequencedItemMapper]] = None
     compressor: Any = None
     json_encoder_class: Optional[Type[JSONEncoder]] = None
+    sort_keys: bool = False
     json_decoder_class: Optional[Type[JSONDecoder]] = None
 
     persist_event_type: Optional[PersistEventType] = None
@@ -78,6 +79,7 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         contiguous_record_ids: bool = True,
         pipeline_id: int = DEFAULT_PIPELINE_ID,
         json_encoder_class: Optional[Type[JSONEncoder]] = None,
+        sort_keys: bool = False,
         json_decoder_class: Optional[Type[JSONDecoder]] = None,
         notification_log_section_size: Optional[int] = None,
         use_cache: bool = False,
@@ -129,6 +131,7 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         self.event_store_class = event_store_class or type(self).event_store_class
 
         self.json_encoder_class = json_encoder_class or type(self).json_encoder_class
+        self.sort_keys = sort_keys or type(self).sort_keys
         self.json_decoder_class = json_decoder_class or type(self).json_decoder_class
         self.persist_event_type = persist_event_type or type(self).persist_event_type
 
@@ -236,6 +239,7 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
             sequenced_item_class=self.sequenced_item_class,
             sequenced_item_mapper_class=self.sequenced_item_mapper_class,
             json_encoder_class=self.json_encoder_class,
+            sort_keys=self.sort_keys,
             json_decoder_class=self.json_decoder_class,
             contiguous_record_ids=self.contiguous_record_ids,
             application_name=self.name,

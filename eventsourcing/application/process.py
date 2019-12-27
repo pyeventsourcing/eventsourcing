@@ -294,16 +294,16 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
                     # Get domain event from notification.
                     event = self.get_event_from_notification(notification)
 
-                    # Decode causal dependencies of the domain event.
-                    causal_dependencies = (
-                        self.event_store.event_mapper.json_loads(
-                            notification.get("causal_dependencies") or "[]"
+                    # Decode causal dependencies of the domain event notification.
+                    causal_dependencies_json = notification.get("causal_dependencies")
+                    if causal_dependencies_json:
+                        causal_dependencies = self.event_store.event_mapper.json_loads(
+                            causal_dependencies_json
                         )
-                        or []
-                    )
+                    else:
+                        causal_dependencies = []
 
                     # Check causal dependencies are satisfied.
-                    assert isinstance(causal_dependencies, list)
                     for causal_dependency in causal_dependencies:
                         # Todo: Check causal dependency on system software version?
 
@@ -335,7 +335,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
                     if self.clock_event is not None:
                         self.clock_event.wait()
 
-                    # print("Processing upstream event: ", event)
+                    # Process upstream event.
                     new_events: Sequence[TAggregateEvent] = self.process_upstream_event(
                         event, notification["id"], upstream_name
                     )
@@ -660,7 +660,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
                 assert hasattr(record_manager.record_class, "causal_dependencies")
                 causal_dependencies_json = self.event_store.event_mapper.json_dumps(
                     causal_dependencies
-                )
+                ).decode('utf8')
                 # Only need first event to carry the dependencies.
                 event_records[0].causal_dependencies = causal_dependencies_json
 

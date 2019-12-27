@@ -982,7 +982,7 @@ The example below uses the record notification log, constructed above.
 
     section_json = view.present_resource('1,5')
 
-    section_dict = ObjectJSONDecoder().decode(section_json)
+    section_dict = ObjectJSONDecoder().decode(section_json.decode('utf8'))
 
     assert section_dict['section_id'] == '1,5'
     assert section_dict['next_id'] == '6,10'

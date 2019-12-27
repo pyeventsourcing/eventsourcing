@@ -1,6 +1,4 @@
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-from json import JSONDecodeError, JSONDecoder, JSONEncoder
+from json import JSONDecodeError, JSONDecoder
 from typing import Optional, Type
 
 import requests
@@ -10,7 +8,7 @@ from eventsourcing.application.notificationlog import (
     LocalNotificationLog,
     Section,
 )
-from eventsourcing.utils.transcoding import ObjectJSONDecoder
+from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
 
 
 # These classes are imported here only to avoid breaking backwards compatibility.
@@ -98,8 +96,8 @@ class RemoteNotificationLog(AbstractNotificationLog):
     def make_notification_log_url(self, section_id: str) -> str:
         return "{}/{}/".format(self.base_url.strip("/"), section_id)
 
-    def get_resource(self, doc_url: str) -> str:
-        return requests.get(doc_url).content.decode("utf8")
+    def get_resource(self, url: str) -> str:
+        return requests.get(url).content.decode("utf8")
 
 
 class NotificationLogView(object):
@@ -111,7 +109,7 @@ class NotificationLogView(object):
     """
 
     def __init__(
-        self, notification_log: LocalNotificationLog, json_encoder: JSONEncoder
+        self, notification_log: LocalNotificationLog, json_encoder: ObjectJSONEncoder
     ):
         """
         Initialises notification log view object.
@@ -125,7 +123,7 @@ class NotificationLogView(object):
         self.notification_log = notification_log
         self.json_encoder = json_encoder
 
-    def present_resource(self, name: str) -> str:
+    def present_resource(self, name: str) -> bytes:
         """
         Returns a resource of the notification log in JSON format.
 
@@ -137,7 +135,7 @@ class NotificationLogView(object):
         :param name: Name of the resource, e.g. a section ID.
         :return: Identified resource of notification log view in JSON format.
         """
-        if name == 'section_size':
+        if name == "section_size":
             # Present the notification log's configured section size.
             section_size = self.notification_log.section_size
             resource = self.json_encoder.encode(section_size)
