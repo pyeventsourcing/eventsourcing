@@ -16,10 +16,7 @@ from eventsourcing.utils.times import utc_timezone
 from eventsourcing.utils.transcoding_v1 import (
     ObjectJSONDecoder,
     ObjectJSONEncoder,
-    encoder,
-    decoder,
 )
-from eventsourcing.exceptions import EncoderTypeError
 
 
 class TestTranscoding(TestCase):
