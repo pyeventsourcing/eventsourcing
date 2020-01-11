@@ -120,9 +120,9 @@ The library has a small collection of domain event subclasses, such as
 :class:`~eventsourcing.domain.model.events.EventWithTimestamp`,
 :class:`~eventsourcing.domain.model.events.EventWithTimeuuid`,
 :class:`~eventsourcing.domain.model.events.EventWithHash`,
-:class:`~eventsourcing.domain.model.events.Created`,
-:class:`~eventsourcing.domain.model.events.AttributeChanged`, and
-:class:`~eventsourcing.domain.model.events.Discarded`.
+:class:`~eventsourcing.domain.model.events.CreatedEvent`,
+:class:`~eventsourcing.domain.model.events.AttributeChangedEvent`, and
+:class:`~eventsourcing.domain.model.events.DiscardedEvent`.
 
 Some classes require particular arguments when constructed. An ``originator_id`` arg
 is required for :class:`~eventsourcing.domain.model.events.EventWithOriginatorID`
