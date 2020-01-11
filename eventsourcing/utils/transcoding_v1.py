@@ -11,6 +11,7 @@ from uuid import UUID
 
 import dateutil.parser
 
+from eventsourcing.exceptions import EncoderTypeError
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
 JSON_SEPARATORS = (",", ":")
@@ -102,13 +103,9 @@ class ObjectJSONEncoder(JSONEncoder):
             return JSONEncoder.default(self, obj)
 
 
-class EncoderTypeError(TypeError):
-    pass
-
-
 @encoderpolicy
 def encoder(obj):
-    raise EncoderTypeError(obj)
+    """Extensible encoder function."""
 
 
 class ObjectJSONDecoder(JSONDecoder):
@@ -120,7 +117,7 @@ class ObjectJSONDecoder(JSONDecoder):
 
 @decoderpolicy
 def decoder(d):
-    return d
+    """Extensible decoder function."""
 
 
 @encoder.register(bytes)

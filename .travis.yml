@@ -51,6 +51,7 @@ install:
   - pip install pymysql
   - pip install mysql-connector-python-rf
   - pip install python-coveralls
+  - pip install -U "coverage<5.0.0"  # v5 is incompatible ATM.
 
 env:
   global:
