@@ -165,7 +165,7 @@ reliability. However, the "single point of failure" this may represent is acknow
 System of processes
 ===================
 
-The library class :class:`~eventsourcing.application.system.System`
+The library class :class:`~eventsourcing.system.definition.System`
 can be used to define a system of process applications,
 entirely independently of infrastructure.
 In a system, one process application can follow another. One process can
