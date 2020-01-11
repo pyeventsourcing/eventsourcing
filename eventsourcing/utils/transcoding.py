@@ -11,6 +11,8 @@ from types import FunctionType, MethodType
 from typing import Optional
 from uuid import UUID
 
+from eventsourcing.exceptions import EncoderTypeError
+
 try:
     import orjson
 except ImportError:
@@ -201,10 +203,6 @@ class ObjectJSONEncoder(JSONEncoder):
             return {"__class__": {"state": state, "topic": topic}}
         else:
             return o
-
-
-class EncoderTypeError(TypeError):
-    pass
 
 
 @encoderpolicy
