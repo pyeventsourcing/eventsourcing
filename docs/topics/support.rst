@@ -33,8 +33,8 @@ will be guided through a series of topics, gradually discovering
 what the library is capable of doing, and learning how to use
 the library effectively.
 
-Please contact John Bywater via the Slack_ channel for more information about available
-consulting services.
+Please contact John Bywater via the Slack_ channel for more information about
+training workshops.
 
 
 Professional support
@@ -49,5 +49,5 @@ with the design and development of their event-sourced applications and systems.
 - Development of sample applications and systems for guidance or demonstration purposes.
 - Development of working applications and systems for production use.
 
-Please contact John Bywater via the Slack_ channel for more information about available
-consulting services.
+Please contact John Bywater via the Slack_ channel for more information about professional
+support.

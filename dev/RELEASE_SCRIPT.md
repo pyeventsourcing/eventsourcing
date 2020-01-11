@@ -4,8 +4,8 @@ Steps to make a new release.
 
 1. Decide new version number.
 1. Start release, named after new release version.
-1. Push branch to GitHub and start a PR to master.
 1. Increase version number to new release version plus 'rc0'.
+1. Push branch to GitHub and start a PR to master.
 1. Update release notes to describe what's new in this release.
 1. Run 'prepare-distribution' script.
 1. Increase version number to 'rc1', 'rc2' in case of failure.

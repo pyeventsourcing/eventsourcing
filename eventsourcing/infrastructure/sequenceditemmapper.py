@@ -1,7 +1,5 @@
-from __future__ import unicode_literals
-
 from abc import ABC, abstractmethod
-from json import JSONDecodeError, JSONDecoder, JSONEncoder
+from json import JSONDecodeError
 from typing import Any, Dict, Generic, NamedTuple, Optional, Tuple, Type
 
 from eventsourcing.infrastructure.sequenceditem import (
@@ -10,11 +8,7 @@ from eventsourcing.infrastructure.sequenceditem import (
 )
 from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.utils.topic import get_topic, resolve_topic
-from eventsourcing.utils.transcoding import (
-    JSON_SEPARATORS,
-    ObjectJSONDecoder,
-    ObjectJSONEncoder,
-)
+from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
 from eventsourcing.whitehead import T, TEvent
 
 
@@ -37,7 +31,7 @@ class AbstractSequencedItemMapper(Generic[TEvent], ABC):
         """
 
     @abstractmethod
-    def json_dumps(self, o: object) -> str:
+    def json_dumps(self, o: object) -> bytes:
         """
         Encodes given object as JSON.
         """
@@ -65,8 +59,9 @@ class SequencedItemMapper(AbstractSequencedItemMapper[TEvent]):
         sequenced_item_class: Optional[Type[NamedTuple]] = None,
         sequence_id_attr_name: Optional[str] = None,
         position_attr_name: Optional[str] = None,
-        json_encoder_class: Optional[Type[JSONEncoder]] = None,
-        json_decoder_class: Optional[Type[JSONDecoder]] = None,
+        json_encoder_class: Optional[Type[ObjectJSONEncoder]] = None,
+        sort_keys: bool = False,
+        json_decoder_class: Optional[Type[ObjectJSONDecoder]] = None,
         cipher: Optional[AESCipher] = None,
         compressor: Any = None,
         other_attr_names: Tuple[str, ...] = (),
@@ -76,9 +71,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper[TEvent]):
         else:
             self.sequenced_item_class = SequencedItem  # type: ignore
         self.json_encoder_class = json_encoder_class or ObjectJSONEncoder
-        self.json_encoder = self.json_encoder_class(
-            separators=JSON_SEPARATORS, sort_keys=True
-        )
+        self.json_encoder = self.json_encoder_class(sort_keys=sort_keys)
         self.json_decoder_class = json_decoder_class or ObjectJSONDecoder
         self.json_decoder = self.json_decoder_class()
         self.cipher = cipher
@@ -128,10 +121,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper[TEvent]):
         topic = get_topic(domain_event_class)
 
         # Serialise the event attributes.
-        statestr = self.json_dumps(event_attrs)
-
-        # String to bytes.
-        statebytes = statestr.encode("utf8")
+        statebytes = self.json_dumps(event_attrs)
 
         # Compress plaintext bytes.
         if self.compressor:
@@ -145,7 +135,7 @@ class SequencedItemMapper(AbstractSequencedItemMapper[TEvent]):
 
         return topic, statebytes
 
-    def json_dumps(self, o: object) -> str:
+    def json_dumps(self, o: object) -> bytes:
         return self.json_encoder.encode(o)
 
     def construct_sequenced_item(self, item_args: Tuple) -> NamedTuple:

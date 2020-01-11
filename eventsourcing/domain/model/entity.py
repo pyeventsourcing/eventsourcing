@@ -170,6 +170,7 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
             kwargs["id"] = kwargs.pop("originator_id")
             kwargs.pop("originator_topic", None)
             kwargs.pop("__event_topic__", None)
+            kwargs.pop("__event_hash_method_name__", None)
             return kwargs
 
     def __init__(self, id: UUID):
@@ -347,7 +348,7 @@ class EntityWithHashchain(DomainEntity):
             # Call super method.
             super(EntityWithHashchain.Event, self).__check_obj__(obj)
             assert isinstance(obj, EntityWithHashchain)  # For PyCharm navigation.
-            # Assert __head__ matches previous hash.
+            # Assert __head__ equals __previous_hash__.
             if obj.__head__ != self.__dict__.get("__previous_hash__"):
                 raise HeadHashError(obj.id, obj.__head__, type(self))
 

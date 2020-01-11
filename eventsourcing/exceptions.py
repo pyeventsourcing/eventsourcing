@@ -92,3 +92,7 @@ class CausalDependencyFailed(EventSourcingError):
 
 class EventRecordNotFound(EventSourcingError):
     "Raised when an event record is not found."
+
+
+class EncoderTypeError(TypeError):
+    pass

@@ -13,16 +13,16 @@ if "READTHEDOCS" in os.environ:
 
 install_requires = [
     "python-dateutil<=2.8.99999",
-    "pycryptodome<=3.8.99999",
+    "pycryptodome<=3.9.99999",
     "requests<=2.22.99999",
     "readerwriterlock<=1.0.99999",
 ]
 
-sqlalchemy_requires = ["sqlalchemy<=1.3.99999,>=0.9", "sqlalchemy-utils<=0.34.99999"]
+sqlalchemy_requires = ["sqlalchemy<=1.3.99999,>=0.9", "sqlalchemy-utils<=0.36.99999"]
 
-cassandra_requires = ["cassandra-driver<=3.18.99999"]
+cassandra_requires = ["cassandra-driver<=3.20.99999"]
 
-django_requires = ["django<=2.2.99999"]
+django_requires = ["django<=3.0.99999"]
 
 testing_requires = (
     cassandra_requires
@@ -33,13 +33,13 @@ testing_requires = (
         "flask<=1.1.99999",
         "flask_sqlalchemy<=2.4.99",
         "uwsgi<=2.0.99999",
-        "redis<=3.2.99999",
+        "redis<=3.3.99999",
         "celery<=4.3.99999",
         "pymysql<=0.9.99999",
         "cryptography",
         "thespian<=3.9.99999",
         # Tests use Django with PostgreSQL.
-        "psycopg2cffi<=2.8.99999" if is_pypy else "psycopg2-binary<=2.7.99999",
+        "psycopg2cffi<=2.8.99999" if is_pypy else "psycopg2-binary<=2.8.99999",
     ]
 )
 

@@ -618,41 +618,6 @@ class AbstractEventStore(ABC, Generic[TEvent, TRecordManager]):
         :param events: An iterable of events.
         """
 
-class AbstractEventPlayer(Generic[TEntity, TEvent]):
-    @property
-    @abstractmethod
-    def event_store(self) -> AbstractEventStore:
-        """
-        Returns event store object used by this repository.
-        """
-
-    @abstractmethod
-    def get_and_project_events(
-        self,
-        entity_id: UUID,
-        gt: Optional[int] = None,
-        gte: Optional[int] = None,
-        lt: Optional[int] = None,
-        lte: Optional[int] = None,
-        limit: Optional[int] = None,
-        initial_state: Optional[TEntity] = None,
-        query_descending: bool = False,
-    ) -> Optional[TEntity]:
-        """
-        Gets events and reconstructs entity.
-
-        :param entity_id:
-        :param gt:
-        :param gte:
-        :param lt:
-        :param lte:
-        :param limit:
-        :param initial_state:
-        :param query_descending:
-        :return:
-        """
-
-
 class AbstractSnapshop(ActualOccasion):
     @property
     @abstractmethod
@@ -683,13 +648,13 @@ class AbstractSnapshop(ActualOccasion):
         """
 
 
-class AbstractEntityRepository(AbstractEventPlayer[TEntity, TEvent]):
+class AbstractEntityRepository(Generic[TEntity, TEvent]):
     @abstractmethod
     def __getitem__(self, entity_id: UUID) -> TEntity:
         """
         Returns entity for given ID.
 
-        Raises ``RepositoryKeyError`` when entity ID not found.
+        Raises ``RepositoryKeyError`` when entity not found.
         """
 
     @abstractmethod
@@ -705,7 +670,7 @@ class AbstractEntityRepository(AbstractEventPlayer[TEntity, TEvent]):
         """
         Returns entity for given ID.
 
-        Returns None when entity ID not found.
+        Returns None when entity not found.
         """
 
     @abstractmethod

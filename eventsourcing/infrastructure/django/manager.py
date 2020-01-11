@@ -156,6 +156,11 @@ class DjangoRecordManager(SQLRecordManager):
             records = list(records)
             records.reverse()
 
+        for record in records:
+            # Django returns memoryview objects from PostgreSQL, so need to cast.
+            state = getattr(record, self.field_names.state)
+            setattr(record, self.field_names.state, bytes(state))
+
         return records
 
     def get_notifications(

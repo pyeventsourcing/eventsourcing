@@ -40,6 +40,7 @@ class InfrastructureFactory(Generic[TEvent]):
         event_store_class: Optional[Type[AbstractEventStore]] = None,
         sequenced_item_mapper_class: Optional[Type[AbstractSequencedItemMapper]] = None,
         json_encoder_class: Optional[Type[JSONEncoder]] = None,
+        sort_keys: bool = False,
         json_decoder_class: Optional[Type[JSONDecoder]] = None,
         integer_sequenced_record_class: Optional[type] = None,
         timestamp_sequenced_record_class: Optional[type] = None,
@@ -59,6 +60,7 @@ class InfrastructureFactory(Generic[TEvent]):
             sequenced_item_mapper_class or type(self).sequenced_item_mapper_class
         )
         self.json_encoder_class = json_encoder_class or type(self).json_encoder_class
+        self.sort_keys = sort_keys
         self.json_decoder_class = json_decoder_class or type(self).json_decoder_class
 
         self._integer_sequenced_record_class = integer_sequenced_record_class
@@ -139,6 +141,7 @@ class InfrastructureFactory(Generic[TEvent]):
             # sequence_id_attr_name=sequence_id_attr_name,
             # position_attr_name=position_attr_name,
             json_encoder_class=self.json_encoder_class,
+            sort_keys=self.sort_keys,
             json_decoder_class=self.json_decoder_class,
         )
 

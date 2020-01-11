@@ -68,8 +68,8 @@ Commands as aggregates.
 
 .. py:module:: eventsourcing.domain.model.decorator
 
-decorator
----------
+decorators
+----------
 
 Decorators useful in domain models based on the classes in this library.
 

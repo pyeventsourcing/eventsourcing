@@ -20,8 +20,18 @@ and improved transcoding. And a new "system" package for the
 system code that was previously in the "application" package.
 
 
-Version 8.0.0 (released )
-------------------------------------
+Version 8.1.0 (released 11 January 2020)
+----------------------------------------
+
+Improved documentation. Improved transcoding (e.g. tuples
+are encoded as tuples also within other collections). Added
+event hash method name to event attributes, so that event hashes
+created with old version of event hashing can still be checked.
+Simplified repository base classes (removed "event player" class).
+
+
+Version 8.0.0 (released 7 December 2019)
+----------------------------------------
 
 The storage of event state has been changed from strings to bytes. This
 is definitely a backwards incompatible change. Previously state bytes were
@@ -58,7 +68,7 @@ as if all generated events were generated in a single policy function).
 Please note, the transcoding now supports the encoding of tuples, and named tuples,
 as tuples. Previously tuples were encoded by the JSON transcoding as
 lists, and so tuples became lists, which is the default behaviour on the core
-`json` package. So if you have code that depends on the transcoder converting
+json package. So if you have code that depends on the transcoder converting
 tuples to lists, then attention will have to paid to the fact that tuples will
 now be encoded and returned as tuples. However, any existing stored events generated
 with an earlier version of this library will continue to be returned as lists,

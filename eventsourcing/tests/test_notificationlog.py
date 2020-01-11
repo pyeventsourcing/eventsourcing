@@ -24,7 +24,7 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager imp
     SQLAlchemyRecordManagerTestCase,
 )
 from eventsourcing.utils.topic import get_topic
-from eventsourcing.utils.transcoding import ObjectJSONEncoder, JSON_SEPARATORS
+from eventsourcing.utils.transcoding import ObjectJSONEncoder
 
 
 class NotificationLogTestCase(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
@@ -284,7 +284,7 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
             notification_log = self.create_notification_log(section_size)
 
             # Get serialized section.
-            json_encoder = ObjectJSONEncoder(separators=JSON_SEPARATORS)
+            json_encoder = ObjectJSONEncoder()
             view = NotificationLogView(notification_log, json_encoder)
 
             resource = view.present_resource(section_id)
@@ -297,7 +297,7 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
             start_response(status, headers)
 
             # Return a list of lines.
-            return [(line + "\n").encode("utf8") for line in resource.split("\n")]
+            return [resource]
 
         httpd = make_server("", port, simple_app)
         print("Serving on port {}...".format(port))

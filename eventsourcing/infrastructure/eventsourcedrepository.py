@@ -1,10 +1,8 @@
-from typing import Any, Dict, Optional, Type
+from functools import reduce
+from typing import Any, Callable, Dict, Iterable, Optional, Type
 from uuid import UUID
 
-from eventsourcing.domain.model.entity import (
-    TVersionedEntity,
-    TVersionedEvent,
-)
+from eventsourcing.domain.model.entity import TVersionedEntity, TVersionedEvent
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.base import (
     AbstractEntityRepository,
@@ -12,19 +10,39 @@ from eventsourcing.infrastructure.base import (
     AbstractRecordManager,
     AbstractSnapshop,
 )
-from eventsourcing.infrastructure.eventplayer import EventPlayer
-from eventsourcing.infrastructure.snapshotting import entity_from_snapshot
+from eventsourcing.infrastructure.snapshotting import (
+    AbstractSnapshotStrategy,
+    entity_from_snapshot,
+)
 from eventsourcing.whitehead import SEntity
 
 
 class EventSourcedRepository(
-    EventPlayer[TVersionedEntity, TVersionedEvent],
     AbstractEntityRepository[TVersionedEntity, TVersionedEvent],
 ):
+    # The page size by which events are retrieved. If this
+    # value is set to a positive integer, the events of
+    # the entity will be retrieved in pages, using a series
+    # of queries, rather than with one potentially large query.
+    __page_size__: Optional[int] = None
+
     def __init__(
-        self, event_store: AbstractEventStore, use_cache: bool = False, **kwargs: Any
+        self,
+        event_store: AbstractEventStore,
+        use_cache: bool = False,
+        snapshot_strategy: Optional[AbstractSnapshotStrategy] = None,
+        mutator_func: Optional[
+            Callable[
+                [Optional[TVersionedEntity], TVersionedEvent],
+                Optional[TVersionedEntity],
+            ]
+        ] = None,
+        **kwargs: Any
     ):
-        super(EventSourcedRepository, self).__init__(event_store, **kwargs)
+        self._event_store: AbstractEventStore = event_store
+        self._snapshot_strategy = snapshot_strategy
+        self._mutator_func = mutator_func or self.mutate
+        super(EventSourcedRepository, self).__init__()
 
         # NB If you use the cache, make sure to del entities
         # when records fail to write otherwise the cache will
@@ -34,9 +52,10 @@ class EventSourcedRepository(
         self._use_cache = use_cache
 
     @property
-    def event_store(
-        self
-    ) -> AbstractEventStore[TVersionedEvent, AbstractRecordManager]:
+    def event_store(self) -> AbstractEventStore[TVersionedEvent, AbstractRecordManager]:
+        """
+        Returns event store object used by this repository.
+        """
         return self._event_store
 
     @property
@@ -58,6 +77,9 @@ class EventSourcedRepository(
     def __getitem__(self, entity_id: UUID) -> TVersionedEntity:
         """
         Returns entity with given ID.
+
+        :param entity_id: ID of entity in the repository.
+        :raises RepositoryKeyError: If the entity is not found.
         """
         if self._use_cache:
             try:
@@ -83,7 +105,9 @@ class EventSourcedRepository(
         self, entity_id: UUID, at: Optional[int] = None
     ) -> Optional[TVersionedEntity]:
         """
-        Returns entity with given ID, optionally until position.
+        Returns entity with given ID, optionally at a version.
+
+        Returns None if entity not found.
         """
 
         # Get a snapshot (None if none exist).
@@ -159,6 +183,40 @@ class EventSourcedRepository(
 
         # Project the domain events onto the initial state.
         return self.project_events(initial_state, domain_events)
+
+    def project_events(
+        self,
+        initial_state: Optional[TVersionedEntity],
+        domain_events: Iterable[TVersionedEvent],
+    ) -> Optional[TVersionedEntity]:
+        """
+        Evolves initial_state using the domain_events and a mutator function.
+
+        Applies a mutator function cumulatively to a sequence of domain
+        events, so as to mutate the initial value to a mutated value.
+
+        This class's mutate() method is used as the default mutator function, but
+        custom behaviour can be introduced by passing in a 'mutator_func' argument
+        when constructing this class, or by overridding the mutate() method.
+        """
+        return reduce(self._mutator_func, domain_events, initial_state)
+
+    @staticmethod
+    def mutate(
+        initial: Optional[TVersionedEntity], event: TVersionedEvent
+    ) -> Optional[TVersionedEntity]:
+        """
+        Default mutator function, which uses __mutate__()
+        method on event object to mutate initial state.
+
+        :param initial: Initial state to be mutated by this function.
+        :param event: Event that causes the initial state to be mutated.
+        :return: Returns the mutated state.
+        """
+        # Check obj is not None.
+        if initial is not None:
+            event.__check_obj__(initial)
+        return event.__mutate__(initial)
 
     # Todo: Does this method belong on this class?
     def take_snapshot(

@@ -18,17 +18,6 @@ simple
     :exclude-members: __weakref__, __dict__
 
 
-snapshotting
-------------
-
-.. automodule:: eventsourcing.application.snapshotting
-    :show-inheritance:
-    :member-order: bysource
-    :members:
-    :special-members:
-    :exclude-members: __weakref__, __dict__
-
-
 policies
 --------
 
@@ -62,17 +51,6 @@ django
     :exclude-members: __weakref__, __dict__
 
 
-sqlalchemy
-----------
-
-.. automodule:: eventsourcing.application.sqlalchemy
-    :show-inheritance:
-    :member-order: bysource
-    :members:
-    :special-members:
-    :exclude-members: __weakref__, __dict__
-
-
 popo
 ----
 
@@ -84,10 +62,10 @@ popo
     :exclude-members: __weakref__, __dict__
 
 
-pipeline
---------
+sqlalchemy
+----------
 
-.. automodule:: eventsourcing.application.pipeline
+.. automodule:: eventsourcing.application.sqlalchemy
     :show-inheritance:
     :member-order: bysource
     :members:
@@ -106,11 +84,32 @@ process
     :exclude-members: __weakref__, __dict__
 
 
-
 command
 -------
 
 .. automodule:: eventsourcing.application.command
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__
+
+
+pipeline
+--------
+
+.. automodule:: eventsourcing.application.pipeline
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__
+
+
+snapshotting
+------------
+
+.. automodule:: eventsourcing.application.snapshotting
     :show-inheritance:
     :member-order: bysource
     :members:

@@ -16,7 +16,7 @@ def test_released_distribution(cwd):
     build_targets = [
         # (tmpcwd27, 'python2.7'),
         # (tmpcwd36, 'python3.6'),
-        (tmpcwd37, "python3.7")
+        (tmpcwd37, "python")
     ]
     for (tmpcwd, python_executable) in build_targets:
 
