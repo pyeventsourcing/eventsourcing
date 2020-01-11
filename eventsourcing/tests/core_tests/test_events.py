@@ -16,14 +16,14 @@ from eventsourcing.domain.model.events import (
     unsubscribe,
     EventWithTimeuuid,
     clear_event_handlers,
-)
+    EventWithHash)
 from eventsourcing.utils.topic import resolve_topic, get_topic
 from eventsourcing.example.domainmodel import Example
-from eventsourcing.exceptions import TopicResolutionError
+from eventsourcing.exceptions import TopicResolutionError, EventHashError
 from eventsourcing.utils.times import decimaltimestamp_from_uuid, decimaltimestamp
 
 try:
-    from unittest import mock
+    from unittest import mock, TestCase
 except ImportError:
     import mock
 
@@ -37,7 +37,7 @@ class SubclassEvent(Event):
     pass
 
 
-class TestAbstractDomainEvent(unittest.TestCase):
+class TestAbstractDomainEvent(TestCase):
     def test(self):
         # Check base class can be sub-classed.
 
@@ -66,7 +66,7 @@ class TestAbstractDomainEvent(unittest.TestCase):
         self.assertNotEqual(event2, SubclassEvent(name=event2.name))
 
 
-class TestEventWithOriginatorID(unittest.TestCase):
+class TestEventWithOriginatorID(TestCase):
     def test(self):
         # Check base class can be sub-classed.
         class Event(EventWithOriginatorID):
@@ -93,7 +93,7 @@ class TestEventWithOriginatorID(unittest.TestCase):
             event.originator_id = "2"
 
 
-class TestEventWithOriginatorVersion(unittest.TestCase):
+class TestEventWithOriginatorVersion(TestCase):
     def test(self):
         # Check base class can be sub-classed.
         class Event(EventWithOriginatorVersion):
@@ -119,7 +119,7 @@ class TestEventWithOriginatorVersion(unittest.TestCase):
             event.originator_version = 2
 
 
-class TestEventWithTimestamp(unittest.TestCase):
+class TestEventWithTimestamp(TestCase):
     def test(self):
         # Check base class can be sub-classed.
         class Event(EventWithTimestamp):
@@ -141,7 +141,7 @@ class TestEventWithTimestamp(unittest.TestCase):
             event.timestamp = decimaltimestamp()
 
 
-class TestEventWithTimeuuid(unittest.TestCase):
+class TestEventWithTimeuuid(TestCase):
     def test(self):
         # Check base class can be sub-classed.
         class Event(EventWithTimeuuid):
@@ -175,7 +175,7 @@ class TestEventWithTimeuuid(unittest.TestCase):
         self.assertGreater(timestamps[-1], timestamps[0])
 
 
-class TestEventWithOriginatorVersionAndID(unittest.TestCase):
+class TestEventWithOriginatorVersionAndID(TestCase):
     # noinspection PyArgumentList
     def test(self):
         # Check base class can be sub-classed.
@@ -210,7 +210,7 @@ class TestEventWithOriginatorVersionAndID(unittest.TestCase):
         self.assertNotEqual(event1, event2)
 
 
-class TestEventWithTimestampAndOriginatorID(unittest.TestCase):
+class TestEventWithTimestampAndOriginatorID(TestCase):
     def test_one_subclass(self):
         # Check base class can be sub-classed.
         class Event(EventWithTimestamp, EventWithOriginatorID):
@@ -314,8 +314,9 @@ class TestEventWithTimestampAndOriginatorID(unittest.TestCase):
         self.assertNotEqual(event2.timestamp, event4.timestamp)
 
 
-# Todo: Review and reduce. This is the original test case, much but not all of which is covered by the new tests above.
-class TestEvents(unittest.TestCase):
+# Todo: Review and reduce. This is the original test case, much but not all
+#  of which is covered by the new tests above.
+class TestEvents(TestCase):
     def tearDown(self):
         clear_event_handlers()
 
@@ -434,7 +435,7 @@ class TestEvents(unittest.TestCase):
         self.assertNotEqual(event2, None)
 
     def test_repr(self):
-        entity_id1 = uuid4()
+        entity_id1 = UUID('c7383095-85a3-4c49-ae32-9c9957ac8579')
         event1 = Example.Created(
             originator_id=entity_id1,
             originator_topic=get_topic(Example),
@@ -445,11 +446,13 @@ class TestEvents(unittest.TestCase):
         self.maxDiff = None
         self.assertEqual(
             (
-                "Example.Created(__event_hash__='{}', "
+                "Example.Created("
+                "__event_hash__='dbd0d45ed797de4f9a5d574ec4e3da3df74e67641bd7632dd05ffa28a5876391', "
+                "__event_hash_method_name__='__hash_object_v2__', "
                 "__event_topic__='eventsourcing.example.domainmodel#Example.Created', a=1, b=2, "
                 "originator_id={}, "
                 "originator_topic='eventsourcing.example.domainmodel#Example', originator_version=0, timestamp=3)"
-            ).format(event1.__event_hash__, repr(entity_id1)),
+            ).format(repr(entity_id1)),
             repr(event1),
         )
 
@@ -461,3 +464,29 @@ class TestEvents(unittest.TestCase):
             resolve_topic("eventsourcing.domain.model.broken#DomainEvent")
         with self.assertRaises(TopicResolutionError):
             resolve_topic("eventsourcing.domain.model.events#Broken")
+
+
+class TestEventWithHash(TestCase):
+    def test_event_hash_versioning(self):
+        event = EventWithHash(a=1, b=1)
+        self.assertTrue('__event_hash__', event.__dict__)
+        self.assertIn('__event_hash_method_name__', event.__dict__)
+        event.__check_hash__()
+
+        # Redo hashing, as a version 1, but with v2 __event_hash_method_name__.
+        event.__dict__.pop('__event_hash__')
+        event.__dict__['__event_hash__'] = event.__hash_object_v1__(event.__dict__)
+        with self.assertRaises(EventHashError):
+            event.__check_hash__()
+
+        # Redo hashing, as a version 1, and without __event_hash_method_name__.
+        event.__dict__.pop('__event_hash_method_name__')
+        event.__dict__.pop('__event_hash__')
+        event.__dict__['__event_hash__'] = event.__hash_object_v1__(event.__dict__)
+        event.__check_hash__()
+
+        # Redo hashing, as a version 2, but without __event_hash_method_name__.
+        event.__dict__.pop('__event_hash__')
+        event.__dict__['__event_hash__'] = event.__hash_object_v2__(event.__dict__)
+        with self.assertRaises(EventHashError):
+            event.__check_hash__()

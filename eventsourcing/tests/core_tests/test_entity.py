@@ -8,7 +8,6 @@ from eventsourcing.domain.model.entity import (
     VersionedEntity,
 )
 from eventsourcing.domain.model.events import (
-    AttributeChangedEvent,
     publish,
     subscribe,
     unsubscribe,

@@ -176,15 +176,37 @@ class TestTranscoding(TestCase):
 
     def test_ordered_dict(self):
         value = OrderedDict(a=1, b=2, c=3)
-        encoded = ('{"__dict__":{"state":{"a":1,"b":2,"c":3},'
-                   '"topic":"collections#OrderedDict"}}')
+        encoded = (
+            '{"__dict__":{"state":{"a":1,"b":2,"c":3},'
+            '"topic":"collections#OrderedDict"}}'
+        )
+        self.assertTranscoding(value, encoded)
+
+    def test_ordered_dict_with_tuple(self):
+        value = OrderedDict(a=(1, 1))
+        encoded = (
+            '{"__dict__":{'
+            '"state":{"a":{"__tuple__":[1,1]}},'
+            '"topic":"collections#OrderedDict"}}'
+        )
         self.assertTranscoding(value, encoded)
 
     def test_chainmap(self):
         value = ChainMap(dict(a=1, b=2), dict(c=3))
-        encoded = ('{"__class__":{'
-                   '"state":{"maps":[{"a":1,"b":2},{"c":3}]},'
-                   '"topic":"collections#ChainMap"}}')
+        encoded = (
+            '{"__class__":{'
+            '"state":{"maps":[{"a":1,"b":2},{"c":3}]},'
+            '"topic":"collections#ChainMap"}}'
+        )
+        self.assertTranscoding(value, encoded)
+
+    def test_chainmap_with_tuple(self):
+        value = ChainMap(dict(a=(1, 1)))
+        encoded = (
+            '{"__class__":{'
+            '"state":{"maps":[{"a":{"__tuple__":[1,1]}}]},'
+            '"topic":"collections#ChainMap"}}'
+        )
         self.assertTranscoding(value, encoded)
 
     def test_list(self):
@@ -374,7 +396,7 @@ class TestTranscoding(TestCase):
         return self.decoder.decode(encoded)
 
     def encode(self, value):
-        return self.encoder.encode(value).decode('utf8')
+        return self.encoder.encode(value).decode("utf8")
 
     def setUp(self):
         self.encoder = ObjectJSONEncoder(sort_keys=True)

@@ -3,10 +3,11 @@ from typing import Any, Callable, Dict, Generic, List, Optional, Sequence, Tuple
 from uuid import UUID, uuid1
 
 from eventsourcing.exceptions import EventHashError
+from eventsourcing.utils import transcoding_v1
 from eventsourcing.utils.hashing import hash_object
 from eventsourcing.utils.times import decimaltimestamp
 from eventsourcing.utils.topic import get_topic
-from eventsourcing.utils.transcoding import JSON_SEPARATORS, ObjectJSONEncoder
+from eventsourcing.utils.transcoding import ObjectJSONEncoder
 from eventsourcing.whitehead import ActualOccasion, TEntity, TEvent
 
 
@@ -22,7 +23,8 @@ class DomainEvent(ActualOccasion, Generic[TEntity]):
     of the state of the event.
     """
 
-    __json_encoder__ = ObjectJSONEncoder(sort_keys=True)
+    __json_encoder_v2__ = ObjectJSONEncoder(sort_keys=True)
+    __json_encoder_v1__ = transcoding_v1.ObjectJSONEncoder(sort_keys=True)
     __notifiable__ = True
 
     def __init__(self, **kwargs: Any):
@@ -113,13 +115,13 @@ class DomainEvent(ActualOccasion, Generic[TEntity]):
         attrs["__event_topic__"] = get_topic(type(self))
 
         # Calculate the cryptographic hash of the event.
-        sha256_hash = self.__hash_object__(attrs)
+        sha256_hash = self.__hash_object_v2__(attrs)
 
         # Return the Python hash of the cryptographic hash.
         return hash(sha256_hash)
 
     @classmethod
-    def __hash_object__(cls, obj: dict) -> str:
+    def __hash_object_v2__(cls, obj: dict) -> str:
         """
         Calculates SHA-256 hash of JSON encoded 'obj'.
 
@@ -127,7 +129,19 @@ class DomainEvent(ActualOccasion, Generic[TEntity]):
         :return: SHA-256 as hexadecimal string.
         :rtype: str
         """
-        return hash_object(cls.__json_encoder__, obj)
+        return hash_object(cls.__json_encoder_v2__, obj)
+
+
+    @classmethod
+    def __hash_object_v1__(cls, obj: dict) -> str:
+        """
+        Calculates SHA-256 hash of JSON encoded 'obj'.
+
+        :param obj: Object to be hashed.
+        :return: SHA-256 as hexadecimal string.
+        :rtype: str
+        """
+        return hash_object(cls.__json_encoder_v1__, obj)
 
 
 class EventWithHash(DomainEvent[TEntity]):
@@ -147,7 +161,9 @@ class EventWithHash(DomainEvent[TEntity]):
         self.__dict__["__event_topic__"] = get_topic(type(self))
 
         # Set __event_hash__ with a SHA-256 hash of the event.
-        self.__dict__["__event_hash__"] = self.__hash_object__(self.__dict__)
+        hash_method = self.__hash_object_v2__
+        self.__dict__["__event_hash_method_name__"] = hash_method.__name__
+        self.__dict__["__event_hash__"] = hash_method(self.__dict__)
 
     @property
     def __event_hash__(self) -> Any:
@@ -196,7 +212,9 @@ class EventWithHash(DomainEvent[TEntity]):
         """
         state = self.__dict__.copy()
         event_hash = state.pop("__event_hash__")
-        if event_hash != self.__hash_object__(state):
+        method_name = state.get("__event_hash_method_name__", "__hash_object_v1__")
+        hash_method = getattr(self, method_name)
+        if event_hash != hash_method(state):
             raise EventHashError()
 
 
