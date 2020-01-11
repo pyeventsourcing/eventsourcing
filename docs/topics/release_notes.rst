@@ -20,6 +20,16 @@ and improved transcoding. And a new "system" package for the
 system code that was previously in the "application" package.
 
 
+Version 8.1.0 (released 11 January 2020)
+----------------------------------------
+
+Improved documentation. Improved transcoding (e.g. tuples
+are encoded as tuples also within other collections). Added
+event hash method name to event attributes, so that event hashes
+created with old version of event hashing can still be checked.
+Simplified repository base classes (removed "event player" class).
+
+
 Version 8.0.0 (released 7 December 2019)
 ----------------------------------------
 
