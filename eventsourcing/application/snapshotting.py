@@ -6,8 +6,8 @@ from eventsourcing.domain.model.entity import TVersionedEntity, TVersionedEvent
 from eventsourcing.infrastructure.base import (
     AbstractEventStore,
     AbstractRecordManager,
-    AbstractSnapshop,
 )
+from eventsourcing.domain.model.events import AbstractSnapshop
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
 

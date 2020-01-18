@@ -3,15 +3,13 @@ from copy import deepcopy
 from typing import Optional
 from uuid import UUID
 
-from eventsourcing.domain.model.entity import TVersionedEntity
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.infrastructure.base import (
     AbstractEventStore,
     AbstractRecordManager,
-    AbstractSnapshop,
 )
-from eventsourcing.infrastructure.sequenceditemmapper import reconstruct_object
-from eventsourcing.utils.topic import get_topic, resolve_topic
+from eventsourcing.domain.model.events import AbstractSnapshop
+from eventsourcing.utils.topic import get_topic
 
 
 class AbstractSnapshotStrategy(ABC):
@@ -83,13 +81,3 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
 
         # Return the snapshot.
         return snapshot
-
-
-def entity_from_snapshot(snapshot: AbstractSnapshop) -> Optional[TVersionedEntity]:
-    """
-    Reconstructs domain entity from given snapshot.
-    """
-    assert isinstance(snapshot, AbstractSnapshop), type(snapshot)
-    if snapshot.state is not None:
-        entity_class = resolve_topic(snapshot.topic)
-        return reconstruct_object(entity_class, snapshot.state)

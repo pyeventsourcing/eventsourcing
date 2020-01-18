@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from decimal import Decimal
 from typing import Any, Callable, Dict, Generic, List, Optional, Sequence, Tuple
 from uuid import UUID, uuid1
@@ -411,3 +412,38 @@ def clear_event_handlers() -> None:
 
 def create_timesequenced_event_id() -> UUID:
     return uuid1()
+
+
+class AbstractSnapshop(ActualOccasion):
+    @property
+    @abstractmethod
+    def topic(self) -> str:
+        """
+        Path to the class of the snapshotted entity.
+        """
+
+    @property
+    @abstractmethod
+    def state(self) -> Dict[str, Any]:
+        """
+        State of the snapshotted entity.
+        """
+
+    @property
+    @abstractmethod
+    def originator_id(self) -> UUID:
+        """
+        ID of the snapshotted entity.
+        """
+
+    @property
+    @abstractmethod
+    def originator_version(self) -> int:
+        """
+        Version of the last event applied to the entity.
+        """
+
+    def __mutate__(self, obj: Optional[TEntity]) -> Optional[TEntity]:
+        """
+        Reconstructs the snapshotted entity.
+        """

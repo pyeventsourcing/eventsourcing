@@ -16,6 +16,7 @@ from typing import (
 )
 from uuid import UUID
 
+from eventsourcing.domain.model.events import AbstractSnapshop
 from eventsourcing.exceptions import OperationalError, RecordConflictError
 from eventsourcing.infrastructure.sequenceditem import (
     SequencedItem,
@@ -23,7 +24,6 @@ from eventsourcing.infrastructure.sequenceditem import (
 )
 from eventsourcing.infrastructure.sequenceditemmapper import AbstractSequencedItemMapper
 from eventsourcing.whitehead import (
-    ActualOccasion,
     TEntity,
     TEvent,
 )
@@ -616,35 +616,6 @@ class AbstractEventStore(ABC, Generic[TEvent, TRecordManager]):
         Maps domain event to sequenced item namedtuple.
 
         :param events: An iterable of events.
-        """
-
-class AbstractSnapshop(ActualOccasion):
-    @property
-    @abstractmethod
-    def topic(self) -> str:
-        """
-        Path to the class of the snapshotted entity.
-        """
-
-    @property
-    @abstractmethod
-    def state(self) -> Dict[str, Any]:
-        """
-        State of the snapshotted entity.
-        """
-
-    @property
-    @abstractmethod
-    def originator_id(self) -> UUID:
-        """
-        ID of the snapshotted entity.
-        """
-
-    @property
-    @abstractmethod
-    def originator_version(self) -> int:
-        """
-        Version of the last event applied to the entity.
         """
 
 

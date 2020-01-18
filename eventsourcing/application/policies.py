@@ -5,12 +5,11 @@ from eventsourcing.domain.model.events import (
     EventWithOriginatorVersion,
     subscribe,
     unsubscribe,
-)
+    AbstractSnapshop)
 from eventsourcing.infrastructure.base import (
     AbstractEntityRepository,
     AbstractEventStore,
     AbstractRecordManager,
-    AbstractSnapshop,
 )
 from eventsourcing.whitehead import IterableOfEvents, TEvent
 

@@ -8,11 +8,10 @@ from eventsourcing.infrastructure.base import (
     AbstractEntityRepository,
     AbstractEventStore,
     AbstractRecordManager,
-    AbstractSnapshop,
 )
+from eventsourcing.domain.model.events import AbstractSnapshop
 from eventsourcing.infrastructure.snapshotting import (
     AbstractSnapshotStrategy,
-    entity_from_snapshot,
 )
 from eventsourcing.whitehead import SEntity
 
@@ -122,7 +121,7 @@ class EventSourcedRepository(
             initial_state = None
             gt = None
         else:
-            initial_state = entity_from_snapshot(snapshot)
+            initial_state = snapshot.__mutate__(None)
             gt = snapshot.originator_version
 
         # Obtain and return current state.
@@ -252,7 +251,7 @@ class EventSourcedRepository(
                 else:
                     # Otherwise recover entity state from latest snapshot.
                     if latest_snapshot:
-                        initial_state = entity_from_snapshot(latest_snapshot)
+                        initial_state = latest_snapshot.__mutate__(None)
                         gt: Optional[int] = latest_snapshot.originator_version
                     else:
                         initial_state = None

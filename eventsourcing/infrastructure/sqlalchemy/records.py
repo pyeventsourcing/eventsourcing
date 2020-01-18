@@ -16,7 +16,7 @@ Base = declarative_base()
 # array. Without record IDs, the maximum rate at which events can be
 # written in parallel will be greater, because the IDs don't need to be
 # generated and because there isn't a record ID index to be updated.
-# Also, if there is no record ID index, the table can easily be shared
+# Also, if there is no record ID index, the table can be sharded
 # with the sequence ID being used to select a shard. The drawback is
 # that the application sequence will need to be constructed elsewhere.
 
