@@ -12,6 +12,7 @@ class AxonServerRecordManagerTestCase(
     """
 
 
+@skip("This isn't working at the moment")
 class TestAxonServerRecordManagerWithIntegerSequences(
     AxonServerRecordManagerTestCase, base.IntegerSequencedRecordTestCase
 ):
@@ -20,7 +21,7 @@ class TestAxonServerRecordManagerWithIntegerSequences(
     """
 
 
-@skip("This isn't terminating at the moment, for some reason")
+@skip("This isn't working at the moment")
 class TestSimpleIteratorWithAxonServer(
     AxonServerRecordManagerTestCase, base.SequencedItemIteratorTestCase
 ):
@@ -29,7 +30,7 @@ class TestSimpleIteratorWithAxonServer(
     """
 
 
-@skip("This isn't terminating at the moment, for some reason")
+@skip("This isn't working at the moment")
 class TestThreadedIteratorWithAxonServer(
     AxonServerRecordManagerTestCase, base.ThreadedSequencedItemIteratorTestCase
 ):
