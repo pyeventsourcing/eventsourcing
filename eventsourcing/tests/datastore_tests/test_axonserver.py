@@ -4,10 +4,9 @@ from axonclient.client import AxonClient, AxonEvent, DEFAULT_LOCAL_AXONSERVER_UR
 
 from eventsourcing.infrastructure.axonserver.datastore import (
     AxonDatastore,
-    AxonSettings)
-from eventsourcing.infrastructure.axonserver.factory import (
-    AxonInfrastructureFactory,
+    AxonSettings,
 )
+from eventsourcing.infrastructure.axonserver.factory import AxonInfrastructureFactory
 from eventsourcing.tests.datastore_tests import base
 
 
@@ -19,14 +18,13 @@ class AxonDatastoreTestCase(base.AbstractDatastoreTestCase):
     infrastructure_factory_class = AxonInfrastructureFactory
 
     def construct_datastore(self):
-        return AxonDatastore(
-            settings=AxonSettings(),
-        )
+        return AxonDatastore(settings=AxonSettings())
 
     def create_factory_kwargs(self):
         kwargs = super(AxonDatastoreTestCase, self).create_factory_kwargs()
-        kwargs['axon_client'] = AxonClient(DEFAULT_LOCAL_AXONSERVER_URI)
+        kwargs["axon_client"] = AxonClient(DEFAULT_LOCAL_AXONSERVER_URI)
         return kwargs
+
 
 class TestAxonDatastore(AxonDatastoreTestCase, base.DatastoreTestCase):
     """
@@ -49,13 +47,12 @@ class TestAxonDatastore(AxonDatastoreTestCase, base.DatastoreTestCase):
                 message_identifier=str(uuid4()),
                 aggregate_identifier=uuid4().hex,
                 aggregate_sequence_number=0,
-                aggregate_type='AggregateRoot',
+                aggregate_type="AggregateRoot",
                 timestamp=0,
-                payload_type='a',
-                payload_revision='1',
-                payload_data=b'',
+                payload_type="a",
+                payload_revision="1",
+                payload_data=b"",
                 snapshot=False,
                 meta_data={},
             )
         )
-

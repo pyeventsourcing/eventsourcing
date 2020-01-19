@@ -126,10 +126,13 @@ class EventStore(AbstractEventStore[TEvent, TRecordManager]):
         events = self.list_events(
             originator_id=originator_id, lt=lt, lte=lte, limit=1, is_ascending=False
         )
-        try:
+        len_events = len(events)
+        if len_events == 1:
             return events[0]
-        except IndexError:
+        elif len_events == 0:
             return None
+        else:
+            raise AssertionError("Too many events: %s" % len_events)
 
     def all_events(self) -> Iterable[TEvent]:
         """

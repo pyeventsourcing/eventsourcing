@@ -5,7 +5,7 @@ from eventsourcing.domain.model.events import (
     EventWithOriginatorVersion,
     subscribe,
     unsubscribe,
-    AbstractSnapshop)
+    AbstractSnapshot)
 from eventsourcing.infrastructure.base import (
     AbstractEntityRepository,
     AbstractEventStore,
@@ -47,7 +47,7 @@ class SnapshottingPolicy(Generic[TEvent]):
     def __init__(
         self,
         repository: AbstractEntityRepository,
-        snapshot_store: AbstractEventStore[AbstractSnapshop, AbstractRecordManager],
+        snapshot_store: AbstractEventStore[AbstractSnapshot, AbstractRecordManager],
         persist_event_type: Optional[Union[type, Tuple]] = (
             EventWithOriginatorVersion,
         ),

@@ -9,7 +9,7 @@ from eventsourcing.infrastructure.base import (
     AbstractEventStore,
     AbstractRecordManager,
 )
-from eventsourcing.domain.model.events import AbstractSnapshop
+from eventsourcing.domain.model.events import AbstractSnapshot
 from eventsourcing.infrastructure.snapshotting import (
     AbstractSnapshotStrategy,
 )
@@ -121,6 +121,7 @@ class EventSourcedRepository(
             initial_state = None
             gt = None
         else:
+            assert isinstance(snapshot, AbstractSnapshot), snapshot
             initial_state = snapshot.__mutate__(None)
             gt = snapshot.originator_version
 
@@ -220,7 +221,7 @@ class EventSourcedRepository(
     # Todo: Does this method belong on this class?
     def take_snapshot(
         self, entity_id: UUID, lt: Optional[int] = None, lte: Optional[int] = None
-    ) -> Optional[AbstractSnapshop]:
+    ) -> Optional[AbstractSnapshot]:
         """
         Takes a snapshot of the entity as it existed after the most recent
         event, optionally less than, or less than or equal to, a particular position.

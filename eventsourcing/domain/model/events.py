@@ -414,7 +414,7 @@ def create_timesequenced_event_id() -> UUID:
     return uuid1()
 
 
-class AbstractSnapshop(ActualOccasion):
+class AbstractSnapshot(ActualOccasion):
     @property
     @abstractmethod
     def topic(self) -> str:

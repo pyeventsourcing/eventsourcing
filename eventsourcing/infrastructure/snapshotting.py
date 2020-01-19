@@ -8,7 +8,7 @@ from eventsourcing.infrastructure.base import (
     AbstractEventStore,
     AbstractRecordManager,
 )
-from eventsourcing.domain.model.events import AbstractSnapshop
+from eventsourcing.domain.model.events import AbstractSnapshot
 from eventsourcing.utils.topic import get_topic
 
 
@@ -16,7 +16,7 @@ class AbstractSnapshotStrategy(ABC):
     @abstractmethod
     def get_snapshot(
         self, entity_id: UUID, lt: Optional[int] = None, lte: Optional[int] = None
-    ) -> Optional[AbstractSnapshop]:
+    ) -> Optional[AbstractSnapshot]:
         """
         Gets the last snapshot for entity, optionally until a particular version number.
 
@@ -38,13 +38,13 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
 
     def __init__(
         self,
-        snapshot_store: AbstractEventStore[AbstractSnapshop, AbstractRecordManager],
+        snapshot_store: AbstractEventStore[AbstractSnapshot, AbstractRecordManager],
     ):
         self.snapshot_store = snapshot_store
 
     def get_snapshot(
         self, entity_id: UUID, lt: Optional[int] = None, lte: Optional[int] = None
-    ) -> Optional[AbstractSnapshop]:
+    ) -> Optional[AbstractSnapshot]:
         """
         Gets the last snapshot for entity, optionally until a particular version number.
 

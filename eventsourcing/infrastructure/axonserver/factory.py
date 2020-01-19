@@ -18,7 +18,7 @@ class AxonInfrastructureFactory(InfrastructureFactory):
     record_manager_class = AxonRecordManager
     integer_sequenced_record_class = None
     timestamp_sequenced_record_class = None
-    snapshot_record_class = None
+    snapshot_record_class = 'snapshot_records'
     tracking_record_class = None
 
     def __init__(

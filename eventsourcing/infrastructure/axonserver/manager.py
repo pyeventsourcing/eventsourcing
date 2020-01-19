@@ -47,11 +47,28 @@ class AxonRecordManager(BaseRecordManager):
         else:
             initial_sequence_number = 0
 
-        events = self.axon_client.list_aggregate_events(
-            aggregate_id=sequence_id,
-            initial_sequence=initial_sequence_number,
-            allow_snapshots=True,
-        )
+        if self.record_class == 'snapshot_records':
+            # Todo: This isn't actually working. But we don't need it.
+            # events = self.axon_client.list_snapshot_events(
+            #     aggregate_id=sequence_id,
+            #     initial_sequence=initial_sequence_number,
+            #     max_sequence=None,
+            #     max_reults=None,
+            # )
+            events = []
+        else:
+            events = self.axon_client.list_aggregate_events(
+                aggregate_id=sequence_id,
+                initial_sequence=initial_sequence_number,
+                allow_snapshots=True,
+            )
+        if limit:
+            if query_ascending:
+                events = events[:limit]
+            else:
+                events = events[-limit:]
+        if query_ascending != results_ascending:
+            events = reversed(events)
         return events
 
     def record_items(self, sequenced_items: Iterable[NamedTuple]) -> None:
@@ -72,8 +89,6 @@ class AxonRecordManager(BaseRecordManager):
         payload_type = getattr(item, self.field_names.topic)
         payload_data = getattr(item, self.field_names.state)
         is_snapshot = payload_type.endswith('#Snapshot')
-        if is_snapshot:
-            aggregate_sequence_number += 1  # Axon lists snapshot and events from same.
         return AxonEvent(
             message_identifier=message_identifier,
             aggregate_identifier=sequence_id,

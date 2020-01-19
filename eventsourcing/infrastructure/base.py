@@ -16,7 +16,7 @@ from typing import (
 )
 from uuid import UUID
 
-from eventsourcing.domain.model.events import AbstractSnapshop
+from eventsourcing.domain.model.events import AbstractSnapshot
 from eventsourcing.exceptions import OperationalError, RecordConflictError
 from eventsourcing.infrastructure.sequenceditem import (
     SequencedItem,
@@ -647,7 +647,7 @@ class AbstractEntityRepository(Generic[TEntity, TEvent]):
     @abstractmethod
     def take_snapshot(
         self, entity_id: UUID, lt: Optional[int] = None, lte: Optional[int] = None
-    ) -> Optional[AbstractSnapshop]:
+    ) -> Optional[AbstractSnapshot]:
         """
         Takes snapshot of entity state, using stored events.
         """

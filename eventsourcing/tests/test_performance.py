@@ -41,7 +41,6 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager imp
 @notquick
 class PerformanceTestCase(base.WithExampleApplication):
     drop_tables = True
-    manager_supports_snapshots = True
 
     def test_entity_performance(self):
         """
@@ -166,12 +165,9 @@ class PerformanceTestCase(base.WithExampleApplication):
                     )
                 )
 
-                if not self.manager_supports_snapshots:
-                    print("")
-                    continue
-
                 # Take snapshot, and beat heart a few more times.
-                app.example_repository.take_snapshot(example.id, lt=example.__version__)
+                app.example_repository.take_snapshot(example.id,
+                                                     lte=example.__version__)
 
                 extra_beats = 4
                 for _ in range(extra_beats):
@@ -354,8 +350,6 @@ class TestSQLAlchemyPerformance(SQLAlchemyRecordManagerTestCase, PerformanceTest
 
 @notquick
 class TestAxonServerPerformance(AxonServerRecordManagerTestCase, PerformanceTestCase):
-    manager_supports_snapshots = False
-
     def construct_entity_record_manager(self):
         return self.factory.construct_record_manager(record_class=None)
 

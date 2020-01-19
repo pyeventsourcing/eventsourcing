@@ -18,14 +18,6 @@ class TestAxonServerRecordManagerWithIntegerSequences(
     """
 
 
-class TestAxonServerRecordManagerWithTimestampSequences(
-    AxonServerRecordManagerTestCase, base.TimestampSequencedItemTestCase
-):
-    """
-    Test case for timestamp sequenced record manager with Axon Server.
-    """
-
-
 class TestSimpleIteratorWithAxonServer(
     AxonServerRecordManagerTestCase, base.SequencedItemIteratorTestCase
 ):

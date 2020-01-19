@@ -7,7 +7,7 @@ from eventsourcing.infrastructure.base import (
     AbstractEventStore,
     AbstractRecordManager,
 )
-from eventsourcing.domain.model.events import AbstractSnapshop
+from eventsourcing.domain.model.events import AbstractSnapshot
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
 
@@ -19,7 +19,7 @@ class SnapshottingApplication(SimpleApplication[TVersionedEntity, TVersionedEven
     def __init__(self, snapshot_period: Optional[int] = None, **kwargs: Any):
         self.snapshot_period = snapshot_period or self.snapshot_period
         self.snapshot_store: Optional[
-            AbstractEventStore[AbstractSnapshop, AbstractRecordManager]
+            AbstractEventStore[AbstractSnapshot, AbstractRecordManager]
         ] = None
         self.snapshot_strategy: Optional[EventSourcedSnapshotStrategy] = None
         self.snapshotting_policy: Optional[SnapshottingPolicy] = None
