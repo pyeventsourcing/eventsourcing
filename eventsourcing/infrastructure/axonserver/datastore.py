@@ -1,0 +1,47 @@
+import os
+from typing import Optional, Any
+
+from axonclient.client import AxonClient, DEFAULT_LOCAL_AXONSERVER_URI
+
+from eventsourcing.infrastructure.datastore import AbstractDatastore, DatastoreSettings
+
+
+class AxonSettings(DatastoreSettings):
+    def __init__(self, uri: Optional[str] = None):
+        if uri is not None:
+            self.uri = uri
+        else:
+            self.uri = os.getenv("DB_URI", DEFAULT_LOCAL_AXONSERVER_URI)
+
+
+class AxonDatastore(AbstractDatastore[AxonSettings]):
+    def __init__(
+        self,
+        settings: AxonSettings,
+    ):
+        super(AxonDatastore, self).__init__(settings=settings)
+        self.axon_client: Optional[AxonClient] = None
+
+    def setup_connection(self) -> None:
+        assert isinstance(self.settings, AxonSettings), self.settings
+        if self.axon_client is None:
+            self.axon_client = AxonClient(self.settings.uri)
+
+    def close_connection(self):
+        if self.axon_client is not None:
+            self.axon_client.close_connection()
+
+    def drop_table(self, table: Any) -> None:
+        pass
+
+    def drop_tables(self) -> None:
+        pass
+
+    def setup_table(self, table: Any) -> None:
+        pass
+
+    def setup_tables(self) -> None:
+        pass
+
+    def truncate_tables(self) -> None:
+        pass

@@ -21,6 +21,9 @@ from eventsourcing.tests.example_application_tests import base
 from eventsourcing.tests.example_application_tests.test_example_application_with_encryption import (
     WithEncryption,
 )
+from eventsourcing.tests.sequenced_item_tests.test_axonserver_record_manager import (
+    AxonServerRecordManagerTestCase,
+)
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import (
     WithCassandraRecordManagers,
 )
@@ -38,6 +41,7 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager imp
 @notquick
 class PerformanceTestCase(base.WithExampleApplication):
     drop_tables = True
+    manager_supports_snapshots = True
 
     def test_entity_performance(self):
         """
@@ -118,10 +122,13 @@ class PerformanceTestCase(base.WithExampleApplication):
                     n = min(n, num_beats + 1)
                     assert isinstance(app.example_repository.event_store, EventStore)
                     start_last_n = time.time()
-                    app.example_repository.event_store.list_events(
+                    events = app.example_repository.event_store.list_events(
                         originator_id=example.id,
-                        limit=n,
-                        # is_ascending=False,
+                        gt=num_beats - n,
+                    )
+                    assert len(events) == n, "Asked for %s but got %s" % (
+                        n,
+                        len(events),
                     )
                     time_last_n = (time.time() - start_last_n) / repetitions
 
@@ -158,6 +165,10 @@ class PerformanceTestCase(base.WithExampleApplication):
                         time_replaying / num_beats,
                     )
                 )
+
+                if not self.manager_supports_snapshots:
+                    print("")
+                    continue
 
                 # Take snapshot, and beat heart a few more times.
                 app.example_repository.take_snapshot(example.id, lt=example.__version__)
@@ -339,6 +350,21 @@ class TestSQLAlchemyPerformance(SQLAlchemyRecordManagerTestCase, PerformanceTest
         return self.factory.construct_record_manager(
             record_class=TimestampSequencedWithIDRecord
         )
+
+
+@notquick
+class TestAxonServerPerformance(AxonServerRecordManagerTestCase, PerformanceTestCase):
+    manager_supports_snapshots = False
+
+    def construct_entity_record_manager(self):
+        return self.factory.construct_record_manager(record_class=None)
+
+    def construct_log_record_manager(self):
+        return self.factory.construct_record_manager(record_class=None)
+
+    @skip("Axon does support sequencing by timestamp, so don't test log performance")
+    def test_log_performance(self):
+        pass
 
 
 @notquick

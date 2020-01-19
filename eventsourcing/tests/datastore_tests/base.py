@@ -43,13 +43,17 @@ class AbstractDatastoreTestCase(AbstractTestCase):
     @property
     def factory(self):
         if not self._factory:
-            kwargs = {}
-            if self.datastore and self.datastore.session:
-                kwargs["session"] = self.datastore.session
-            if self.contiguous_record_ids:
-                kwargs["contiguous_record_ids"] = True
+            kwargs = self.create_factory_kwargs()
             self._factory = self.infrastructure_factory_class(**kwargs)
         return self._factory
+
+    def create_factory_kwargs(self):
+        kwargs = {}
+        if self.datastore and self.datastore.session:
+            kwargs["session"] = self.datastore.session
+        if self.contiguous_record_ids:
+            kwargs["contiguous_record_ids"] = True
+        return kwargs
 
 
 class DatastoreTestCase(AbstractDatastoreTestCase):
