@@ -5,7 +5,7 @@ from eventsourcing.domain.model.events import (
     EventWithOriginatorID,
     EventWithOriginatorVersion,
     EventWithTimestamp,
-    AbstractSnapshop)
+    AbstractSnapshot)
 from eventsourcing.utils.topic import resolve_topic, reconstruct_object
 from eventsourcing.whitehead import TEntity
 
@@ -14,7 +14,7 @@ class Snapshot(
     EventWithTimestamp,
     EventWithOriginatorVersion,
     EventWithOriginatorID,
-    AbstractSnapshop,
+    AbstractSnapshot,
 ):
     def __init__(
         self,

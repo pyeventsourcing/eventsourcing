@@ -16,7 +16,7 @@ from typing import (
 )
 from uuid import UUID
 
-from eventsourcing.domain.model.events import AbstractSnapshop
+from eventsourcing.domain.model.events import AbstractSnapshot
 from eventsourcing.exceptions import OperationalError, RecordConflictError
 from eventsourcing.infrastructure.sequenceditem import (
     SequencedItem,
@@ -34,6 +34,12 @@ TrackingKwargs = Dict[str, Union[str, int]]
 
 
 class AbstractRecordManager(ABC):
+    has_integrated_snapshots = False
+    can_limit_get_records = True
+    can_lt_lte_get_records = True
+    can_list_sequence_ids = True
+    can_delete_records = True
+
     def __init__(self, **kwargs: Any):
         """
         Initialises record manager.
@@ -259,9 +265,9 @@ class BaseRecordManager(AbstractRecordManager):
     def get_field_kwargs(self, item: object) -> Dict[str, Any]:
         return {name: getattr(item, name) for name in self.field_names}
 
-    def raise_sequenced_item_conflict(self) -> None:
+    def raise_sequenced_item_conflict(self, exp=None) -> None:
         msg = "Position already taken in sequence"
-        raise RecordConflictError(msg)
+        raise RecordConflictError(exp or msg)
 
     def raise_index_error(self, position: int) -> None:
         raise IndexError("Sequence index out of range: {}".format(position))
@@ -274,6 +280,12 @@ class BaseRecordManager(AbstractRecordManager):
 
 
 class ACIDRecordManager(BaseRecordManager):
+    @abstractmethod
+    def get_max_notification_id(self) -> int:
+        """Return maximum notification ID in pipeline."""
+
+
+class ACIDRecordManagerWithTracking(ACIDRecordManager):
     """
     ACID record managers can write tracking records and event records
     in an atomic transaction, needed for atomic processing in process
@@ -290,7 +302,7 @@ class ACIDRecordManager(BaseRecordManager):
     def __init__(
         self, tracking_record_class: Optional[type] = None, *args: Any, **kwargs: Any
     ) -> None:
-        super(ACIDRecordManager, self).__init__(*args, **kwargs)
+        super(ACIDRecordManagerWithTracking, self).__init__(*args, **kwargs)
         # assert tracking_record_class is not None
         self.tracking_record_class = tracking_record_class
 
@@ -322,10 +334,6 @@ class ACIDRecordManager(BaseRecordManager):
         return map(self.to_record, sequenced_items)
 
     @abstractmethod
-    def get_max_notification_id(self) -> int:
-        """Return maximum notification ID in pipeline."""
-
-    @abstractmethod
     def get_max_tracking_record_id(self, upstream_application_name: str) -> int:
         """Return maximum tracking record ID for notification from upstream
         application in pipeline."""
@@ -352,7 +360,7 @@ class ACIDRecordManager(BaseRecordManager):
         return record.pipeline_id, notification_id
 
 
-class SQLRecordManager(ACIDRecordManager):
+class SQLRecordManager(ACIDRecordManagerWithTracking):
     """
     Common aspects of SQL record managers, such as SQLAlchemy and Django record
     managers.
@@ -647,7 +655,7 @@ class AbstractEntityRepository(Generic[TEntity, TEvent]):
     @abstractmethod
     def take_snapshot(
         self, entity_id: UUID, lt: Optional[int] = None, lte: Optional[int] = None
-    ) -> Optional[AbstractSnapshop]:
+    ) -> Optional[AbstractSnapshot]:
         """
         Takes snapshot of entity state, using stored events.
         """

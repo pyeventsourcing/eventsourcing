@@ -34,7 +34,16 @@ before_install:
 
   # Start Cassandra.
   - sudo sh ./apache-cassandra-3.11.5/bin/cassandra -R
-  - sleep 20
+
+  # Download Axon Server.
+  - ./dev/download_axon_server.sh
+
+  # Run Axon Server.
+  - ./axonserver/axonserver.jar &
+
+  # Wait for the servers to start (replace this with polling?).
+  - sleep 30
+
 
 before_script:
   - mysql -e 'CREATE DATABASE eventsourcing;'

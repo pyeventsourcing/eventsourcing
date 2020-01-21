@@ -20,6 +20,8 @@ install_requires = [
 
 sqlalchemy_requires = ["sqlalchemy<=1.3.99999,>=0.9", "sqlalchemy-utils<=0.36.99999"]
 
+axonserver_requires = ["axonclient<=0.0.99999"]
+
 cassandra_requires = ["cassandra-driver<=3.20.99999"]
 
 django_requires = ["django<=3.0.99999"]
@@ -27,6 +29,7 @@ django_requires = ["django<=3.0.99999"]
 testing_requires = (
     cassandra_requires
     + sqlalchemy_requires
+    + axonserver_requires
     + django_requires
     + [
         "mock<=3.0.99999",
@@ -84,6 +87,7 @@ setup(
     extras_require={
         "cassandra": cassandra_requires,
         "sqlalchemy": sqlalchemy_requires,
+        "axonserver": axonserver_requires,
         "django": django_requires,
         "test": testing_requires,
         "tests": testing_requires,

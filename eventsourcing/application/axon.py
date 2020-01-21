@@ -1,0 +1,6 @@
+from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
+from eventsourcing.infrastructure.axonserver.factory import AxonInfrastructureFactory
+
+
+class AxonApplication(ApplicationWithConcreteInfrastructure):
+    infrastructure_factory_class = AxonInfrastructureFactory

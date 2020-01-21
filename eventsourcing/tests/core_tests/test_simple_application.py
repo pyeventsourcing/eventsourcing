@@ -1,5 +1,6 @@
 from unittest import TestCase
 
+from eventsourcing.application.axon import AxonApplication
 from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import (
     DjangoTestCase,
 )
@@ -26,6 +27,11 @@ class TestSimpleApplication(TestCase):
             app.setup_table()
             app.setup_table()
 
+            # Check the notifications.
+            reader = NotificationLogReader(app.notification_log)
+            old_notifications = reader.list_notifications()
+            len_old = len(old_notifications)
+
             # Check the application's persistence policy,
             # repository, and event store, are working.
             aggregate = ExampleAggregateRoot.__create__()
@@ -35,9 +41,9 @@ class TestSimpleApplication(TestCase):
             # Check the notifications.
             reader = NotificationLogReader(app.notification_log)
             notifications = reader.list_notifications()
-            self.assertEqual(1, len(notifications))
+            self.assertEqual(1 + len_old, len(notifications))
             topic = "eventsourcing.tests.core_tests.test_aggregate_root#ExampleAggregateRoot.Created"
-            self.assertEqual(topic, notifications[0]["topic"])
+            self.assertEqual(topic, notifications[len_old]["topic"])
 
             app.drop_table()
 
@@ -55,5 +61,13 @@ class TestDjangoApplication(DjangoTestCase, TestSimpleApplication):
     application_class = DjangoApplication
 
 
+class TestAxonApplication(DjangoTestCase, TestSimpleApplication):
+    application_class = AxonApplication
+
+
 class TestSnapshottingApplication(TestSimpleApplication):
     application_class = SnapshottingApplication.mixin(SQLAlchemyApplication)
+
+
+class TestSnapshottingAxonApplication(TestSimpleApplication):
+    application_class = SnapshottingApplication.mixin(AxonApplication)

@@ -70,7 +70,7 @@ class EventStore(AbstractEventStore[TEvent, TRecordManager]):
         :param page_size: restrict and repeat database query
         :return: list of domain events
         """
-        if page_size:
+        if self.record_manager.can_limit_get_records and page_size:
             sequenced_items: Iterable = self.iterator_class(
                 record_manager=self.record_manager,
                 sequence_id=originator_id,
@@ -126,10 +126,13 @@ class EventStore(AbstractEventStore[TEvent, TRecordManager]):
         events = self.list_events(
             originator_id=originator_id, lt=lt, lte=lte, limit=1, is_ascending=False
         )
-        try:
+        len_events = len(events)
+        if len_events == 1:
             return events[0]
-        except IndexError:
+        elif len_events == 0:
             return None
+        else:
+            raise AssertionError("Too many events: %s" % len_events)
 
     def all_events(self) -> Iterable[TEvent]:
         """
