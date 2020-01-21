@@ -1,4 +1,3 @@
-from unittest import skip
 from uuid import uuid4
 
 from axonclient.client import AxonClient, AxonEvent, DEFAULT_LOCAL_AXONSERVER_URI
@@ -27,7 +26,6 @@ class AxonDatastoreTestCase(base.AbstractDatastoreTestCase):
         return kwargs
 
 
-@skip("This isn't working at the moment")
 class TestAxonDatastore(AxonDatastoreTestCase, base.DatastoreTestCase):
     """
     Test case for Axon datastore.

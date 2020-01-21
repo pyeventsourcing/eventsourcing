@@ -32,11 +32,9 @@ class SnapshottingApplication(SimpleApplication[TVersionedEntity, TVersionedEven
         record_manager = self.infrastructure_factory.construct_snapshot_record_manager()
         assert self.sequenced_item_mapper_class is not None
         assert self.sequenced_item_class is not None
-        sequenced_item_mapper = self.sequenced_item_mapper_class(
-            sequenced_item_class=self.sequenced_item_class
-        )
+
         self.snapshot_store = EventStore(
-            record_manager=record_manager, event_mapper=sequenced_item_mapper
+            record_manager=record_manager, event_mapper=self.event_store.event_mapper
         )
 
     def construct_repository(self, **kwargs: Any) -> None:

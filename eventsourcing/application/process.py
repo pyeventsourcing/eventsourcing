@@ -37,7 +37,7 @@ from eventsourcing.exceptions import (
     ProgrammingError,
     PromptFailed,
 )
-from eventsourcing.infrastructure.base import ACIDRecordManager, TrackingKwargs
+from eventsourcing.infrastructure.base import ACIDRecordManagerWithTracking, TrackingKwargs
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.whitehead import ActualOccasion, IterableOfEvents
 
@@ -268,7 +268,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
         notification_count = 0
 
         record_manager = self.event_store.record_manager
-        assert isinstance(record_manager, ACIDRecordManager)
+        assert isinstance(record_manager, ACIDRecordManagerWithTracking)
 
         for upstream_name in upstream_names:
 
@@ -462,7 +462,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
     def set_reader_position_from_tracking_records(self, upstream_name: str) -> None:
         reader = self.readers[upstream_name]
         record_manager = self.event_store.record_manager
-        assert isinstance(record_manager, ACIDRecordManager)
+        assert isinstance(record_manager, ACIDRecordManagerWithTracking)
         recorded_position = record_manager.get_max_tracking_record_id(upstream_name)
         reader.seek(recorded_position)
 
@@ -532,7 +532,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
             #  parallel, according to dependencies.
             highest: Dict[int, int] = defaultdict(int)
             rm = self.event_store.record_manager
-            assert isinstance(rm, ACIDRecordManager)
+            assert isinstance(rm, ACIDRecordManagerWithTracking)
             for entity_id, entity_version in repository.causal_dependencies:
                 pipeline_id, notification_id = rm.get_pipeline_and_notification_id(
                     entity_id, entity_version
@@ -620,7 +620,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
 
         # Write event records with tracking record.
         record_manager = self.event_store.record_manager
-        assert isinstance(record_manager, ACIDRecordManager)
+        assert isinstance(record_manager, ACIDRecordManagerWithTracking)
         record_manager.write_records(
             records=event_records,
             tracking_kwargs=process_event.tracking_kwargs,
@@ -637,7 +637,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
         sequenced_items = self.event_store.items_from_events(pending_events)
         record_manager = self.event_store.record_manager
         assert record_manager
-        assert isinstance(record_manager, ACIDRecordManager)
+        assert isinstance(record_manager, ACIDRecordManagerWithTracking)
         event_records = list(record_manager.to_records(sequenced_items))
 
         # Set notification log IDs, and causal dependencies.
@@ -670,14 +670,14 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
         super(ProcessApplication, self).setup_table()
         if self._datastore is not None:
             record_manager = self.event_store.record_manager
-            assert isinstance(record_manager, ACIDRecordManager)
+            assert isinstance(record_manager, ACIDRecordManagerWithTracking)
             self._datastore.setup_table(record_manager.tracking_record_class)
 
     def drop_table(self) -> None:
         super(ProcessApplication, self).drop_table()
         if self.datastore is not None:
             record_manager = self.event_store.record_manager
-            assert isinstance(record_manager, ACIDRecordManager)
+            assert isinstance(record_manager, ACIDRecordManagerWithTracking)
             self.datastore.drop_table(record_manager.tracking_record_class)
 
 

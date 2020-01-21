@@ -1,21 +1,48 @@
-from typing import Any, Optional, Iterable, Sequence, NamedTuple, Dict
+from typing import Any, Dict, Iterable, NamedTuple, Optional, Sequence
 from uuid import UUID, uuid4
 
 from axonclient.client import AxonClient, AxonEvent
+from axonclient.exceptions import OutOfRangeError
+from google.protobuf.internal.wire_format import INT32_MAX
 
-from eventsourcing.infrastructure.base import BaseRecordManager
+from eventsourcing.infrastructure.base import ACIDRecordManager
 
 
-class AxonRecordManager(BaseRecordManager):
+class AxonNotification(object):
+    def __init__(self, tracking_token, axon_event: AxonEvent):
+        self.tracking_token = tracking_token
+        self.axon_event = axon_event
+        self.originator_id = UUID(axon_event.aggregate_identifier)
+        self.originator_version = axon_event.aggregate_sequence_number
+        self.topic = axon_event.payload_type
+        self.state = axon_event.payload_data
+
+    @property
+    def id(self):
+        return self.tracking_token + 1
+
+
+class AxonRecordManager(ACIDRecordManager):
+    has_integrated_snapshots = True
+    can_limit_get_records = False
+    can_lt_lte_get_records = False
+    can_list_sequence_ids = False
+    can_delete_records = False
+
     def __init__(self, axon_client: AxonClient, *args: Any, **kwargs: Any):
         super(AxonRecordManager, self).__init__(*args, **kwargs)
         self.axon_client = axon_client
+        self.contiguous_record_ids = True
+        self.notification_id_name = 'id'
 
     def all_sequence_ids(self):
         return []
 
     def delete_record(self, record: Any) -> None:
         raise NotImplemented()
+
+    def get_max_notification_id(self) -> int:
+        return self.axon_client.get_last_token() + 1
 
     def get_notifications(
         self,
@@ -24,10 +51,22 @@ class AxonRecordManager(BaseRecordManager):
         *args: Any,
         **kwargs: Any
     ) -> Iterable:
-        pass
+        start = start or 0
+        stop = stop or INT32_MAX
+        number_of_permits = min(stop - start, INT32_MAX)
+        events = self.axon_client.iter_events(
+            tracking_token=start,
+            number_of_permits=number_of_permits
+        )
+        for tracking_token, event in events:
+            yield AxonNotification(tracking_token, axon_event=event)
 
     def get_record(self, sequence_id: UUID, position: int) -> Any:
-        raise NotImplemented()
+        records = list(self.get_records(sequence_id, gte=position))
+        if len(records):
+            return records[0]
+        else:
+            self.raise_index_error(position)
 
     def get_records(
         self,
@@ -47,28 +86,21 @@ class AxonRecordManager(BaseRecordManager):
         else:
             initial_sequence_number = 0
 
-        if self.record_class == 'snapshot_records':
-            # Todo: This isn't actually working. But we don't need it.
-            # events = self.axon_client.list_snapshot_events(
-            #     aggregate_id=sequence_id,
-            #     initial_sequence=initial_sequence_number,
-            #     max_sequence=None,
-            #     max_reults=None,
-            # )
-            events = []
-        else:
-            events = self.axon_client.list_aggregate_events(
-                aggregate_id=sequence_id,
-                initial_sequence=initial_sequence_number,
-                allow_snapshots=True,
-            )
-        if limit:
-            if query_ascending:
-                events = events[:limit]
-            else:
-                events = events[-limit:]
-        if query_ascending != results_ascending:
-            events = reversed(events)
+        events = self.axon_client.iter_aggregate_events(
+            aggregate_id=str(sequence_id),
+            initial_sequence=initial_sequence_number,
+            allow_snapshots=True,
+        )
+
+        # if limit:
+        #     if query_ascending:
+        #         events = events[:limit]
+        #     else:
+        #         events = events[-limit:]
+
+        if not results_ascending:
+            events = reversed(list(events))
+
         return events
 
     def record_items(self, sequenced_items: Iterable[NamedTuple]) -> None:
@@ -94,7 +126,7 @@ class AxonRecordManager(BaseRecordManager):
             aggregate_identifier=sequence_id,
             aggregate_sequence_number=aggregate_sequence_number,
             aggregate_type='AggregateRoot',
-            timestamp=1,
+            timestamp=0,
             payload_type=payload_type,
             payload_revision='1',
             payload_data=payload_data,
@@ -113,10 +145,13 @@ class AxonRecordManager(BaseRecordManager):
             else:
                 raise AssertionError("Can't write events with snapshots")
         else:
-            self.axon_client.append_event(records)
+            try:
+                self.axon_client.append_event(records)
+            except OutOfRangeError as e:
+                self.raise_sequenced_item_conflict(e)
 
     def get_field_kwargs(self, item: object) -> Dict[str, Any]:
-        assert isinstance(item, AxonEvent)
+        assert isinstance(item, AxonEvent), item
         return {
             self.field_names.sequence_id: UUID(item.aggregate_identifier),
             self.field_names.position: item.aggregate_sequence_number,

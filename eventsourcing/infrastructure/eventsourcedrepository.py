@@ -10,14 +10,12 @@ from eventsourcing.infrastructure.base import (
     AbstractRecordManager,
 )
 from eventsourcing.domain.model.events import AbstractSnapshot
-from eventsourcing.infrastructure.snapshotting import (
-    AbstractSnapshotStrategy,
-)
+from eventsourcing.infrastructure.snapshotting import AbstractSnapshotStrategy
 from eventsourcing.whitehead import SEntity
 
 
 class EventSourcedRepository(
-    AbstractEntityRepository[TVersionedEntity, TVersionedEvent],
+    AbstractEntityRepository[TVersionedEntity, TVersionedEvent]
 ):
     # The page size by which events are retrieved. If this
     # value is set to a positive integer, the events of
@@ -110,7 +108,10 @@ class EventSourcedRepository(
         """
 
         # Get a snapshot (None if none exist).
-        if self._snapshot_strategy is not None:
+        if (
+            self._snapshot_strategy
+            and not self.event_store.record_manager.has_integrated_snapshots
+        ):
             snapshot = self._snapshot_strategy.get_snapshot(entity_id, lte=at)
         else:
             snapshot = None
@@ -161,7 +162,7 @@ class EventSourcedRepository(
             and lte is None
             and self.__page_size__ is None
         ):
-            is_ascending = False
+            is_ascending = True
         else:
             is_ascending = not query_descending
 
@@ -228,48 +229,59 @@ class EventSourcedRepository(
         """
         snapshot = None
         if self._snapshot_strategy:
-            # Get the latest event (optionally until a particular position).
-            latest_event = self.event_store.get_most_recent_event(
-                entity_id, lt=lt, lte=lte
-            )
+            if self.event_store.record_manager.has_integrated_snapshots:
+                # Get entity.
+                entity = self.get_and_project_events(entity_id=entity_id)
 
-            # If there is something to snapshot, then look for a snapshot
-            # taken before or at the entity version of the latest event. Please
-            # note, the snapshot might have a smaller version number than
-            # the latest event if events occurred since the latest snapshot was taken.
-            if latest_event is not None:
-                latest_snapshot = self._snapshot_strategy.get_snapshot(
+                # Take snapshot from entity.
+                if entity is not None:
+                    snapshot = self._snapshot_strategy.take_snapshot(
+                        entity_id, entity, entity.__version__
+                    )
+
+            else:
+                # Get the latest event (optionally until a particular position).
+                latest_event = self.event_store.get_most_recent_event(
                     entity_id, lt=lt, lte=lte
                 )
-                latest_version = latest_event.originator_version
 
-                if (
-                    latest_snapshot
-                    and latest_snapshot.originator_version == latest_version
-                ):
-                    # If up-to-date snapshot exists, there's nothing to do.
-                    snapshot = latest_snapshot
-                else:
-                    # Otherwise recover entity state from latest snapshot.
-                    if latest_snapshot:
-                        initial_state = latest_snapshot.__mutate__(None)
-                        gt: Optional[int] = latest_snapshot.originator_version
+                # If there is something to snapshot, then look for a snapshot
+                # taken before or at the entity version of the latest event. Please
+                # note, the snapshot might have a smaller version number than
+                # the latest event if events occurred since the latest snapshot was taken.
+                if latest_event is not None:
+                    latest_snapshot = self._snapshot_strategy.get_snapshot(
+                        entity_id, lt=lt, lte=lte
+                    )
+                    latest_version = latest_event.originator_version
+
+                    if (
+                        latest_snapshot
+                        and latest_snapshot.originator_version == latest_version
+                    ):
+                        # If up-to-date snapshot exists, there's nothing to do.
+                        snapshot = latest_snapshot
                     else:
-                        initial_state = None
-                        gt = None
+                        # Otherwise recover entity state from latest snapshot.
+                        if latest_snapshot:
+                            initial_state = latest_snapshot.__mutate__(None)
+                            gt: Optional[int] = latest_snapshot.originator_version
+                        else:
+                            initial_state = None
+                            gt = None
 
-                    # Fast-forward entity state to latest version.
-                    entity = self.get_and_project_events(
-                        entity_id=entity_id,
-                        gt=gt,
-                        lte=latest_version,
-                        initial_state=initial_state,
-                    )
+                        # Fast-forward entity state to latest version.
+                        entity = self.get_and_project_events(
+                            entity_id=entity_id,
+                            gt=gt,
+                            lte=latest_version,
+                            initial_state=initial_state,
+                        )
 
-                    # Take snapshot from entity.
-                    snapshot = self._snapshot_strategy.take_snapshot(
-                        entity_id, entity, latest_version
-                    )
+                        # Take snapshot from entity.
+                        snapshot = self._snapshot_strategy.take_snapshot(
+                            entity_id, entity, latest_version
+                        )
 
         return snapshot
 

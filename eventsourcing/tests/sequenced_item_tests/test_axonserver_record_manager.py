@@ -12,7 +12,6 @@ class AxonServerRecordManagerTestCase(
     """
 
 
-@skip("This isn't working at the moment")
 class TestAxonServerRecordManagerWithIntegerSequences(
     AxonServerRecordManagerTestCase, base.IntegerSequencedRecordTestCase
 ):

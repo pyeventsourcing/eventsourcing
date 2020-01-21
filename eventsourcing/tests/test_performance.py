@@ -166,8 +166,7 @@ class PerformanceTestCase(base.WithExampleApplication):
                 )
 
                 # Take snapshot, and beat heart a few more times.
-                app.example_repository.take_snapshot(example.id,
-                                                     lte=example.__version__)
+                app.example_repository.take_snapshot(example.id)
 
                 extra_beats = 4
                 for _ in range(extra_beats):

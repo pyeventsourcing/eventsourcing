@@ -70,7 +70,7 @@ class EventStore(AbstractEventStore[TEvent, TRecordManager]):
         :param page_size: restrict and repeat database query
         :return: list of domain events
         """
-        if page_size:
+        if self.record_manager.can_limit_get_records and page_size:
             sequenced_items: Iterable = self.iterator_class(
                 record_manager=self.record_manager,
                 sequence_id=originator_id,

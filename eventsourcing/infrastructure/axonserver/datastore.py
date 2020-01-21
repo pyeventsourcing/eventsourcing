@@ -15,17 +15,22 @@ class AxonSettings(DatastoreSettings):
 
 
 class AxonDatastore(AbstractDatastore[AxonSettings]):
-    def __init__(
-        self,
-        settings: AxonSettings,
-    ):
+    can_drop_tables = False
+
+    def __init__(self, settings: AxonSettings):
         super(AxonDatastore, self).__init__(settings=settings)
-        self.axon_client: Optional[AxonClient] = None
+        self._axon_client: Optional[AxonClient] = None
+
+    @property
+    def axon_client(self):
+        if self._axon_client is None:
+            self.setup_connection()
+        return self._axon_client
 
     def setup_connection(self) -> None:
         assert isinstance(self.settings, AxonSettings), self.settings
-        if self.axon_client is None:
-            self.axon_client = AxonClient(self.settings.uri)
+        if self._axon_client is None:
+            self._axon_client = AxonClient(self.settings.uri)
 
     def close_connection(self):
         if self.axon_client is not None:

@@ -88,18 +88,19 @@ class DatastoreTestCase(AbstractDatastoreTestCase):
         self.datastore.setup_tables()
 
         # Check the stored event class does function after the tables have been setup.
-        self.assertEqual(len(self.list_records()), 0)
+        len_records = len(self.list_records())
         self.create_record()
-        self.assertEqual(len(self.list_records()), 1)
+        self.assertEqual(len(self.list_records()), len_records + 1)
 
         # Drop the tables.
-        self.datastore.drop_tables()
+        if self.datastore.can_drop_tables:
+            self.datastore.drop_tables()
 
-        # Check the stored event class doesn't function after the tables have been dropped.
-        with self.assertRaises(DatastoreTableError):
-            self.list_records()
-        with self.assertRaises(DatastoreTableError):
-            self.create_record()
+            # Check the stored event class doesn't function after the tables have been dropped.
+            with self.assertRaises(DatastoreTableError):
+                self.list_records()
+            with self.assertRaises(DatastoreTableError):
+                self.create_record()
 
         # Drop the connection.
         self.datastore.close_connection()

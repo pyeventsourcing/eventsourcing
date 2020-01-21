@@ -140,6 +140,7 @@ class RecordManagerNotificationLog(LocalNotificationLog):
     """
     Local notification log that gets notifications from a record manager.
     """
+
     def __init__(
         self, record_manager: AbstractRecordManager, section_size: Optional[int] = None
     ):
@@ -186,6 +187,7 @@ class BigArrayNotificationLog(LocalNotificationLog):
     """
     Notification log that uses the BigArray class.
     """
+
     def __init__(self, big_array: BigArray, section_size: int):
         super(BigArrayNotificationLog, self).__init__(section_size)
         assert isinstance(big_array, BigArray)
@@ -260,7 +262,9 @@ class NotificationLogReader(ABC):
     def read(self, advance_by: Optional[int] = None) -> Iterator[Dict[str, Any]]:
         return self.iter_notifications(advance_by=advance_by)
 
-    def list_notifications(self, advance_by: Optional[int] = None) -> List[Dict[str, Any]]:
+    def list_notifications(
+        self, advance_by: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
         return list(self.iter_notifications(advance_by=advance_by))
 
     def iter_notifications(
