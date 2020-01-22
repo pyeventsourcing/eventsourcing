@@ -1188,14 +1188,14 @@ An Actor model library, for example the `Thespian Actor Library
 <https://github.com/kquick/Thespian>`__, can also be used to run
 a multi-pipeline system of process applications.
 
-The library's :class:`~eventsourcing.system.actors.ActorModelRunner`
+The library's :class:`~eventsourcing.system.thespian.ActorModelRunner`
 is a system runner that uses the Thespian actor model system.
 
 The example below runs with Thespian's "simple system base".
 
 .. code:: python
 
-    from eventsourcing.system.actors import ActorModelRunner
+    from eventsourcing.system.thespian import ActorModelRunner
 
     runner = ActorModelRunner(
         system=system,
@@ -1241,7 +1241,7 @@ by calling ``actors.start()``. The actors can be shutdown with ``actors.shutdown
 If ``actors`` is used as a context manager, as above, the ``start()`` method is
 called when the context manager enters. The ``close()`` method is called
 when the context manager exits. By default the ``shutdown()`` method
-is not called by ``close()``. If :class:`~eventsourcing.system.actors.ActorModelRunner`
+is not called by ``close()``. If :class:`~eventsourcing.system.thespian.ActorModelRunner`
 is constructed with ``shutdown_on_close=True``, which is ``False`` by default, then the
 actors will be shutdown when the runner ``close()`` method is called (which happens when
 the runner is used as a context manager, and the context manager exits). Even so, shutting

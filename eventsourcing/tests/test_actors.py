@@ -4,7 +4,7 @@ import time
 import unittest
 from unittest import skip
 
-from eventsourcing.system.actors import (
+from eventsourcing.system.thespian import (
     ActorModelRunner,
     shutdown_actor_system,
     start_actor_system,

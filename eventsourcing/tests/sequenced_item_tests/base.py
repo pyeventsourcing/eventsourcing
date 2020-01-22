@@ -305,8 +305,7 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
 
         if self.record_manager.contiguous_record_ids:
             # Check the record IDs are contiguous.
-            records = self.record_manager.get_notifications()
-            records = list(records)
+            records = list(self.record_manager.get_notifications())
             len_old = len(old_notifications)
             self.assertEqual(len(records), 4 + len_old)
             first = None

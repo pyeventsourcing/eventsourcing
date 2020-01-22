@@ -44,7 +44,7 @@ multiprocess
 actors
 ------
 
-.. automodule:: eventsourcing.system.actors
+.. automodule:: eventsourcing.system.thespian
     :show-inheritance:
     :member-order: bysource
     :members:
