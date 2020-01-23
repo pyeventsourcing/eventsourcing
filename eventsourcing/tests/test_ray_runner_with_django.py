@@ -8,5 +8,9 @@ from eventsourcing.tests.test_ray_runner import TestRayRunner
 
 
 @skip("This doesn't work at the moment (same forking/setup problem?)")
-class TestRayRunnerWithDjango(DjangoTestCase, TestRayRunner):
+class DontTestRayRunnerWithDjango(DjangoTestCase, TestRayRunner):
     infrastructure_class = DjangoApplication
+
+
+# Don't let this be found here.
+del(TestRayRunner)
