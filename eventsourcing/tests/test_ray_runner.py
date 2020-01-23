@@ -1,8 +1,10 @@
 import logging
 import os
+import sys
 import time
 import unittest
 from time import sleep
+from unittest import skip, skipIf
 
 import ray
 
@@ -26,6 +28,33 @@ ch = logging.StreamHandler()
 ch.setLevel(logging.ERROR)
 logger.addHandler(ch)
 
+
+@skipIf(
+    sys.version_info[:2] == (3, 6), "RayRunner not working with Python36 (pickle issue)"
+)
+# Seems to be doing something with a prompt, and type checking from annotation.
+# It works in python3.7...
+#
+# Traceback (most recent call last):
+#   File "...tests/test_ray_runner.py", line 61, in test_ray_runner
+#     self.check_actors()
+#   File "...tests/test_ray_runner.py", line 74, in check_actors
+#     with runner:
+#   File "...system/definition.py", line 236, in __enter__
+#     self.start()
+#   File "...system/ray.py", line 89, in start
+#     setup_tables=self.setup_tables,
+#   File "...ray/actor.py", line 326, in remote
+#     return self._remote(args=args, kwargs=kwargs)
+#   File "...ray/actor.py", line 479, in _remote
+#     meta.modified_class, meta.actor_method_names)
+#   File "...ray/function_manager.py", line 578, in export_actor_class
+#     "class": pickle.dumps(Class),
+#   File "...ray/cloudpickle/cloudpickle_fast.py", line 68, in dumps
+#     cp.dump(obj)
+#   File "...ray/cloudpickle/cloudpickle_fast.py", line 557, in dump
+#     return Pickler.dump(self, obj)
+# _pickle.PicklingError: Can't pickle typing.Union[eventsourcing.application.process.Prompt, NoneType]: it's not the same object as typing.Union
 
 class TestRayRunner(unittest.TestCase):
     infrastructure_class = SQLAlchemyApplication
