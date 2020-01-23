@@ -24,13 +24,13 @@ ray.init()
 
 
 def start_ray_system():
-    # This doesn't work.
-    # ray.init()
     pass
+    # ray.init(ignore_reinit_error=True)
 
 
 def shutdown_ray_system():
-    ray.shutdown()
+    pass
+    # ray.shutdown()
 
 
 class RayRunner(AbstractSystemRunner):
