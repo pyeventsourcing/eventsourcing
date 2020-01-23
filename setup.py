@@ -24,6 +24,8 @@ axonserver_requires = ["axonclient<=0.0.99999"]
 
 ray_requires = ["ray<=0.8.99999"]
 
+thespian_requires = ["thespian<=3.9.99999"]
+
 cassandra_requires = ["cassandra-driver<=3.20.99999"]
 
 django_requires = ["django<=3.0.99999"]
@@ -32,6 +34,7 @@ testing_requires = (
     cassandra_requires
     + sqlalchemy_requires
     + axonserver_requires
+    + thespian_requires
     + ray_requires
     + django_requires
     + [
@@ -43,7 +46,6 @@ testing_requires = (
         "celery<=4.3.99999",
         "pymysql<=0.9.99999",
         "cryptography",
-        "thespian<=3.9.99999",
         # Tests use Django with PostgreSQL.
         "psycopg2cffi<=2.8.99999" if is_pypy else "psycopg2-binary<=2.8.99999",
     ]

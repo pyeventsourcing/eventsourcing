@@ -66,12 +66,16 @@ class SQLAlchemyDatastore(AbstractDatastore[SQLAlchemySettings]):
     def setup_connection(self) -> None:
         assert isinstance(self.settings, SQLAlchemySettings), self.settings
         if self._engine is None:
+
+            # Decide "engine" options.
             if self.is_sqlite():
                 kwargs: Dict[str, Any] = {"connect_args": {"check_same_thread": False}}
             elif self.settings.pool_size == 1:
                 kwargs = {"poolclass": StaticPool}
             else:
                 kwargs = {"pool_size": self.settings.pool_size}
+
+            # Create "engine".
             self._engine = create_engine(
                 self.settings.uri,
                 strategy=self._connection_strategy,

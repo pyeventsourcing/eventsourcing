@@ -58,13 +58,13 @@ class InProcessRunner(AbstractSystemRunner):
         for process_class in self.system.process_classes.values():
             self._construct_app_by_class(process_class)
 
-        # Tell each process about the processes it follows.
-        for followed_name, followers in self.system.followers.items():
-            followed = self.processes[followed_name]
-            followed_log = followed.notification_log
-            for follower_name in followers:
-                follower = self.processes[follower_name]
-                follower.follow(followed_name, followed_log)
+        # Tell each process which other processes to follow.
+        for downstream_name, upstream_names in self.system.upstream_names.items():
+            downstream_process = self.processes[downstream_name]
+            for upstream_name in upstream_names:
+                upstream_process = self.processes[upstream_name]
+                upstream_log = upstream_process.notification_log
+                downstream_process.follow(upstream_name, upstream_log)
 
         # Do something to propagate prompts.
         subscribe(predicate=is_prompt, handler=self.handle_prompts)
@@ -132,10 +132,10 @@ class SingleThreadedRunner(InProcessRunner):
                         break
                     else:
                         if isinstance(prompt, PromptToPull):
-                            followers = self.system.followers[prompt.process_name]
-                            for follower_name in followers:
-                                follower = self.processes[follower_name]
-                                follower.run(prompt)
+                            downstream_names = self.system.downstream_names[prompt.process_name]
+                            for downstream_name in downstream_names:
+                                downstream_process = self.processes[downstream_name]
+                                downstream_process.run(prompt)
                                 i += 1
                         self.pending_prompts.task_done()
             finally:
@@ -175,7 +175,7 @@ class MultiThreadedRunner(InProcessRunner):
         assert not self.outboxes, "Already has outboxes"
 
         # Setup queues.
-        for process_name, upstream_names in self.system.followings.items():
+        for process_name, upstream_names in self.system.upstream_names.items():
             inbox_id = process_name.lower()
             if inbox_id not in self.inboxes:
                 self.inboxes[inbox_id] = Queue()

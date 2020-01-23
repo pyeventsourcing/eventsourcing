@@ -128,6 +128,19 @@ class Orders(ProcessApplication[Order, Order.Event]):
             # logger.info('set Order as paid')
             # print(f'set Order {event.order_id} as paid')
 
+    def create_new_order(self):
+        order_id = create_new_order()
+        return order_id
+
+    def is_order_reserved(self, order_id):
+        return self.get_order(order_id).is_reserved
+
+    def is_order_paid(self, order_id):
+        return self.get_order(order_id).is_paid
+
+    def get_order(self, order_id):
+        return self.repository.get_entity(order_id)
+
 
 class Reservations(ProcessApplication[Reservation, Reservation.Event]):
     def policy(self, repository, event):

@@ -108,7 +108,7 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         :param use_cache: Whether or not to keep aggregates in memory (saves replaying
             when accessing again, but uses memory).
         """
-        self.name = name or type(self).__name__.lower()
+        self.name = name or type(self).create_name()
 
         self.notification_log_section_size = notification_log_section_size
 
@@ -173,6 +173,10 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
 
             if self._persistence_policy is None:
                 self.construct_persistence_policy()
+
+    @classmethod
+    def create_name(cls):
+        return cls.__name__.lower()
 
     @property
     def datastore(self) -> AbstractDatastore:

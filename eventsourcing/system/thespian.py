@@ -19,7 +19,7 @@ logger = logging.getLogger()
 # Todo: Send timer message to run slave every so often (in master or slave?).
 
 
-DEFAULT_ACTORS_LOGCFG = {
+DEFAULT_THESPIAN_LOGCFG = {
     "version": 1,
     "formatters": {"normal": {"format": "%(levelname)-8s %(message)s"}},
     "handlers": {
@@ -36,27 +36,27 @@ DEFAULT_ACTORS_LOGCFG = {
 }
 
 
-def start_actor_system(system_base=None, logcfg=DEFAULT_ACTORS_LOGCFG):
+def start_thespian_system(system_base=None, logcfg=DEFAULT_THESPIAN_LOGCFG):
     ActorSystem(systemBase=system_base, logDefs=logcfg)
 
 
-def shutdown_actor_system():
+def shutdown_thespian_system():
     ActorSystem().shutdown()
 
 
 def start_multiproc_tcp_base_system():
-    start_actor_system(system_base="multiprocTCPBase")
+    start_thespian_system(system_base="multiprocTCPBase")
 
 
 # def start_multiproc_udp_base_system():
-#     start_actor_system(system_base='multiprocUDPBase')
+#     start_thespian_system(system_base='multiprocUDPBase')
 #
 #
 # def start_multiproc_queue_base_system():
-#     start_actor_system(system_base='multiprocQueueBase')
+#     start_thespian_system(system_base='multiprocQueueBase')
 
 
-class ActorModelRunner(AbstractSystemRunner):
+class ThespianRunner(AbstractSystemRunner):
     """
     Uses actor model framework to run a system of process applications.
     """
@@ -69,7 +69,7 @@ class ActorModelRunner(AbstractSystemRunner):
         shutdown_on_close=False,
         **kwargs
     ):
-        super(ActorModelRunner, self).__init__(system=system, **kwargs)
+        super(ThespianRunner, self).__init__(system=system, **kwargs)
         self.pipeline_ids = list(pipeline_ids)
         self.pipeline_actors: Dict[int, PipelineActor] = {}
         self.system_actor_name = system_actor_name
@@ -95,7 +95,7 @@ class ActorModelRunner(AbstractSystemRunner):
         msg = SystemInitRequest(
             self.system.process_classes,
             self.infrastructure_class,
-            self.system.followings,
+            self.system.upstream_names,
             self.pipeline_ids,
         )
         response = self.actor_system.ask(self.system_actor, msg)
@@ -124,7 +124,7 @@ class ActorModelRunner(AbstractSystemRunner):
 
     def close(self):
         """Stops all the actors running a system of process applications."""
-        super(ActorModelRunner, self).close()
+        super(ThespianRunner, self).close()
         unsubscribe(handler=self.forward_prompt, predicate=is_prompt)
         if self.shutdown_on_close:
             self.shutdown()

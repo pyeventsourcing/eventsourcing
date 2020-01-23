@@ -1181,23 +1181,47 @@ possible foundation for such automation.
 .. There are ways in which the reliability could be relaxed...
 
 
-Actor model runner
-~~~~~~~~~~~~~~~~~~
+Ray actor model runner
+~~~~~~~~~~~~~~~~~~~~~~
 
-An Actor model library, for example the `Thespian Actor Library
-<https://github.com/kquick/Thespian>`__, can also be used to run
-a multi-pipeline system of process applications.
+`Ray <https://github.com/kquick/Thespian>`__,
+can also be used to run a multi-pipeline system of process applications.
 
-The library's :class:`~eventsourcing.system.thespian.ActorModelRunner`
+The library's :class:`~eventsourcing.system.ray.RayRunner`
+is a system runner that uses Ray's actor model system.
+
+
+The example below runs with Thespian's "simple system base".
+
+.. code:: python
+
+    from eventsourcing.system.ray import RayRunner
+
+    runner = RayRunner(
+        system=system,
+        infrastructure_class=SQLAlchemyApplication,
+        setup_tables=True,
+        pipeline_ids=[0, 1, 2]
+    )
+
+    # Todo: More about using this runner.
+
+Thespian actor model runner
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The `Thespian Actor Library <https://github.com/kquick/Thespian>`__,
+can also be used to run a multi-pipeline system of process applications.
+
+The library's :class:`~eventsourcing.system.thespian.ThespianRunner`
 is a system runner that uses the Thespian actor model system.
 
 The example below runs with Thespian's "simple system base".
 
 .. code:: python
 
-    from eventsourcing.system.thespian import ActorModelRunner
+    from eventsourcing.system.thespian import ThespianRunner
 
-    runner = ActorModelRunner(
+    runner = ThespianRunner(
         system=system,
         infrastructure_class=SQLAlchemyApplication,
         setup_tables=True,
@@ -1241,7 +1265,7 @@ by calling ``actors.start()``. The actors can be shutdown with ``actors.shutdown
 If ``actors`` is used as a context manager, as above, the ``start()`` method is
 called when the context manager enters. The ``close()`` method is called
 when the context manager exits. By default the ``shutdown()`` method
-is not called by ``close()``. If :class:`~eventsourcing.system.thespian.ActorModelRunner`
+is not called by ``close()``. If :class:`~eventsourcing.system.thespian.ThespianRunner`
 is constructed with ``shutdown_on_close=True``, which is ``False`` by default, then the
 actors will be shutdown when the runner ``close()`` method is called (which happens when
 the runner is used as a context manager, and the context manager exits). Even so, shutting
