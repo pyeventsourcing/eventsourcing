@@ -2,7 +2,7 @@ import os
 import traceback
 from os import getpid
 from queue import Queue, Empty
-from threading import Event, Thread
+from threading import Event, Thread, Lock
 from typing import List, Optional, Type, Dict, Tuple
 
 import ray
@@ -175,6 +175,8 @@ class RayProcess:
         self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
         self.setup_tables = setup_tables
         self.push_prompt_queue = Queue(maxsize=100)
+        self.prompted_names = set()
+        self.prompted_names_lock = Lock()
         self.prompted_to_run = Event()
         self.stopping_event = Event()
         if env_vars is not None:
@@ -255,15 +257,32 @@ class RayProcess:
 
     def prompt(self, prompt: List[Prompt] = None):
         if isinstance(prompt, PromptToPull):
-            self.prompted_to_run.set()
+            with self.prompted_names_lock:
+                self.prompted_names.add(prompt.process_name)
+                self.prompted_to_run.set()
 
     def pull_notifications(self) -> None:
         while not self.stopping_event.is_set():
             if self.prompted_to_run.wait(timeout=10):
-                self.prompted_to_run.clear()
+                is_polling = False
+            else:
+                is_polling = True
+
             if self.stopping_event.is_set():
                 break
-            self.run_process()
+
+            if is_polling:
+                prompted_names = set()
+            else:
+                with self.prompted_names_lock:
+                    self.prompted_to_run.clear()
+                    prompted_names, self.prompted_names = self.prompted_names, set()
+            if is_polling:
+                self.run_process()
+            else:
+                for prompted_name in prompted_names:
+                    self.run_process(PromptToPull(process_name=prompted_name,
+                                                  pipeline_id=self.pipeline_id))
 
     def run_process(self, prompt: Optional[Prompt] = None) -> None:
         try:

@@ -10,8 +10,12 @@ from uuid import UUID
 import ray
 
 from eventsourcing.application.notificationlog import Section
-from eventsourcing.system.ray import RayRunner, shutdown_ray_system, start_ray_system, \
-    RayProcess
+from eventsourcing.system.ray import (
+    RayRunner,
+    shutdown_ray_system,
+    start_ray_system,
+    RayProcess,
+)
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.system.definition import System
 from eventsourcing.domain.model.events import (
@@ -59,6 +63,7 @@ logger.addHandler(ch)
 #     return Pickler.dump(self, obj)
 # _pickle.PicklingError: Can't pickle typing.Union[eventsourcing.application.process.Prompt, NoneType]: it's not the same object as typing.Union
 
+
 class TestRayRunner(unittest.TestCase):
     infrastructure_class = SQLAlchemyApplication
 
@@ -90,7 +95,7 @@ class TestRayRunner(unittest.TestCase):
 
     def test_ray_runner(self):
         start_ray_system()
-        self.check_actors(2, 5)
+        self.check_actors(2, 50)
 
     def check_actors(self, num_pipelines=1, num_orders_per_pipeline=10):
 
@@ -173,7 +178,7 @@ class TestRayRunner(unittest.TestCase):
         ray_process = RayProcess.remote(
             application_process_class=Orders,
             infrastructure_class=self.infrastructure_class,
-            setup_tables=True
+            setup_tables=True,
         )
         self.ray_process = ray_process  # So it gets stopped.
 
@@ -185,10 +190,10 @@ class TestRayRunner(unittest.TestCase):
 
         print("Run value is %s" % value)
 
-        order_id = ray.get(ray_process.call.remote('create_new_order'))
+        order_id = ray.get(ray_process.call.remote("create_new_order"))
         self.assertIsInstance(order_id, UUID)
 
-        section = ray.get(ray_process.get_notification_log_section.remote('1,'))
+        section = ray.get(ray_process.get_notification_log_section.remote("1,"))
         self.assertIsInstance(section, Section)
 
         # reader = NotificationLogReader(
