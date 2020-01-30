@@ -5,7 +5,7 @@ from axonclient.client import AxonClient, AxonEvent
 from axonclient.exceptions import OutOfRangeError
 from google.protobuf.internal.wire_format import INT32_MAX
 
-from eventsourcing.infrastructure.base import ACIDRecordManager
+from eventsourcing.infrastructure.base import RecordManagerWithNotifications
 
 
 class AxonNotification(object):
@@ -22,7 +22,7 @@ class AxonNotification(object):
         return self.tracking_token + 1
 
 
-class AxonRecordManager(ACIDRecordManager):
+class AxonRecordManager(RecordManagerWithNotifications):
     has_integrated_snapshots = True
     can_limit_get_records = False
     can_lt_lte_get_records = False
@@ -44,7 +44,7 @@ class AxonRecordManager(ACIDRecordManager):
     def get_max_notification_id(self) -> int:
         return self.axon_client.get_last_token() + 1
 
-    def get_notifications(
+    def get_notification_records(
         self,
         start: Optional[int] = None,
         stop: Optional[int] = None,

@@ -357,13 +357,13 @@ will form a contiguous sequence, suitable for the :class:`~eventsourcing.applica
 
     from eventsourcing.domain.model.entity import VersionedEntity
 
-    notifications = record_manager.get_notifications()
+    notifications = list(record_manager.get_notifications())
 
     assert len(notifications) == 0, notifications
 
     first_entity = VersionedEntity.__create__()
 
-    notifications = record_manager.get_notifications(start=0, stop=5)
+    notifications = list(record_manager.get_notifications(start=0, stop=5))
 
     assert len(notifications) == 1, notifications
 

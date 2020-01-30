@@ -109,22 +109,6 @@ class AbstractRecordManager(ABC):
         """
 
     @abstractmethod
-    def get_notifications(
-        self,
-        start: Optional[int] = None,
-        stop: Optional[int] = None,
-        *args: Any,
-        **kwargs: Any
-    ) -> Iterable:
-        """
-        Returns records sequenced by notification ID, from
-        application, for pipeline, in given range.
-
-        Args 'start' and 'stop' are positions in a zero-based
-        integer sequence.
-        """
-
-    @abstractmethod
     def all_sequence_ids(self) -> Iterable[UUID]:
         """
         Returns all sequence IDs.
@@ -279,13 +263,51 @@ class BaseRecordManager(AbstractRecordManager):
         raise OperationalError(e)
 
 
-class ACIDRecordManager(BaseRecordManager):
+class RecordManagerWithNotifications(BaseRecordManager):
     @abstractmethod
     def get_max_notification_id(self) -> int:
         """Return maximum notification ID in pipeline."""
 
+    @abstractmethod
+    def get_notification_records(
+        self,
+        start: Optional[int] = None,
+        stop: Optional[int] = None,
+        *args: Any,
+        **kwargs: Any
+    ) -> Iterable:
+        """
+        Returns records sequenced by notification ID, from
+        application, for pipeline, in given range.
 
-class ACIDRecordManagerWithTracking(ACIDRecordManager):
+        Args 'start' and 'stop' are positions in a zero-based
+        integer sequence.
+        """
+
+    def get_notifications(
+        self,
+        start: Optional[int] = None,
+        stop: Optional[int] = None,
+        *args: Any,
+        **kwargs: Any
+    ) -> Iterable:
+        for record in self.get_notification_records(
+            start=start, stop=stop, *args, **kwargs
+        ):
+            yield self.create_notification_from_record(record)
+
+    def create_notification_from_record(self, record):
+        notification = {
+            "id": getattr(record, self.notification_id_name)
+        }
+        for field_name in self.field_names:
+            notification[field_name] = getattr(record, field_name)
+        if hasattr(record, "causal_dependencies"):
+            notification["causal_dependencies"] = record.causal_dependencies
+        return notification
+
+
+class RecordManagerWithTracking(RecordManagerWithNotifications):
     """
     ACID record managers can write tracking records and event records
     in an atomic transaction, needed for atomic processing in process
@@ -302,7 +324,7 @@ class ACIDRecordManagerWithTracking(ACIDRecordManager):
     def __init__(
         self, tracking_record_class: Optional[type] = None, *args: Any, **kwargs: Any
     ) -> None:
-        super(ACIDRecordManagerWithTracking, self).__init__(*args, **kwargs)
+        super(RecordManagerWithTracking, self).__init__(*args, **kwargs)
         # assert tracking_record_class is not None
         self.tracking_record_class = tracking_record_class
 
@@ -360,7 +382,7 @@ class ACIDRecordManagerWithTracking(ACIDRecordManager):
         return record.pipeline_id, notification_id
 
 
-class SQLRecordManager(ACIDRecordManagerWithTracking):
+class SQLRecordManager(RecordManagerWithTracking):
     """
     Common aspects of SQL record managers, such as SQLAlchemy and Django record
     managers.

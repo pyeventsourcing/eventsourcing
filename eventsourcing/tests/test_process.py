@@ -200,30 +200,30 @@ class TestProcessApplication(TestCase):
             downstream2.run()
 
         self.assertEqual(
-            0, len(list(downstream1.event_store.record_manager.get_notifications()))
+            0, len(list(downstream1.event_store.record_manager.get_notification_records()))
         )
         self.assertEqual(
-            0, len(list(downstream2.event_store.record_manager.get_notifications()))
+            0, len(list(downstream2.event_store.record_manager.get_notification_records()))
         )
 
         # Try to process pipeline 1, should work.
         downstream1.run()
 
         self.assertEqual(
-            1, len(list(downstream1.event_store.record_manager.get_notifications()))
+            1, len(list(downstream1.event_store.record_manager.get_notification_records()))
         )
         self.assertEqual(
-            0, len(list(downstream2.event_store.record_manager.get_notifications()))
+            0, len(list(downstream2.event_store.record_manager.get_notification_records()))
         )
 
         # Try again to process pipeline 2, should work this time.
         downstream2.run()
 
         self.assertEqual(
-            1, len(list(downstream1.event_store.record_manager.get_notifications()))
+            1, len(list(downstream1.event_store.record_manager.get_notification_records()))
         )
         self.assertEqual(
-            2, len(list(downstream2.event_store.record_manager.get_notifications()))
+            2, len(list(downstream2.event_store.record_manager.get_notification_records()))
         )
 
         core1.close()
@@ -425,19 +425,19 @@ class TestProcessApplication(TestCase):
         subscribe(raise_exception)
         try:
             with self.assertRaises(PromptFailed):
-                process.publish_prompt()
+                process.publish_prompt_for_events()
         finally:
             unsubscribe(raise_exception)
 
         subscribe(raise_prompt_failed)
         try:
             with self.assertRaises(PromptFailed):
-                process.publish_prompt()
+                process.publish_prompt_for_events()
         finally:
             unsubscribe(raise_prompt_failed)
 
         try:
-            process.publish_prompt()
+            process.publish_prompt_for_events()
         finally:
             process.close()
 

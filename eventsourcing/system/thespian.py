@@ -330,7 +330,7 @@ class ProcessSlave(Actor):
         #    events, so we don't need this
         unsubscribe(
             predicate=self.process.persistence_policy.is_event,
-            handler=self.process.publish_prompt,
+            handler=self.process.publish_prompt_for_events,
         )
 
         # Construct and follow upstream notification logs.

@@ -2,11 +2,11 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Union
 from uuid import UUID
 
 from sqlalchemy import asc, bindparam, desc, select, text
-from sqlalchemy.exc import DBAPIError, IntegrityError
+import sqlalchemy.exc
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.sql import func
 
-from eventsourcing.exceptions import ProgrammingError
+from eventsourcing.exceptions import ProgrammingError, OperationalError
 from eventsourcing.infrastructure.base import (
     SQLRecordManager,
     TrackingKwargs,
@@ -141,11 +141,11 @@ class SQLAlchemyRecordManager(SQLRecordManager):
 
             self.session.commit()
 
-        except IntegrityError as e:
+        except sqlalchemy.exc.IntegrityError as e:
             self.session.rollback()
             self.raise_record_integrity_error(e)
 
-        except DBAPIError as e:
+        except sqlalchemy.exc.DBAPIError as e:
             self.session.rollback()
             self.raise_operational_error(e)
 
@@ -200,8 +200,11 @@ class SQLAlchemyRecordManager(SQLRecordManager):
             if limit is not None:
                 query = query.limit(limit)
 
-            # Get the result set.
-            results = query.all()
+            # Get the results.
+            results = list(query.all())
+
+        except sqlalchemy.exc.OperationalError as e:
+            raise OperationalError(e)
 
         finally:
             self.session.close()
@@ -213,7 +216,7 @@ class SQLAlchemyRecordManager(SQLRecordManager):
 
         return results
 
-    def get_notifications(
+    def get_notification_records(
         self,
         start: Optional[int] = None,
         stop: Optional[int] = None,
@@ -237,7 +240,9 @@ class SQLAlchemyRecordManager(SQLRecordManager):
                     query = query.filter(notification_id_col < stop + 1)
             # Todo: Should some tables with an ID not be ordered by ID?
             # Todo: Which order do other tables have?
-            return query.all()
+            return list(query.all())
+        except sqlalchemy.exc.OperationalError as e:
+            raise OperationalError(e)
         finally:
             self.session.close()
 

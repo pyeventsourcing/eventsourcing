@@ -86,7 +86,7 @@ class EventSourcedRepository(
                 # Reconstitute the entity.
                 entity = self.get_entity(entity_id)
                 # Put entity in the cache.
-                self._cache[entity_id] = entity
+                self.put_entity_in_cache(entity_id, entity)
         else:
             entity = self.get_entity(entity_id)
 
@@ -97,6 +97,9 @@ class EventSourcedRepository(
         # Return entity.
         assert entity is not None
         return entity
+
+    def put_entity_in_cache(self, entity_id: UUID, entity: TVersionedEntity):
+        self._cache[entity_id] = entity
 
     def get_entity(
         self, entity_id: UUID, at: Optional[int] = None

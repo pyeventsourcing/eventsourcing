@@ -253,7 +253,7 @@ class PaxosProcess(ProcessApplication[PaxosAggregate, PaxosAggregate.Event]):
         process_event = ProcessEvent(new_events)
         self.record_process_event(process_event)
         self.repository.take_snapshot(paxos_aggregate.id)
-        self.publish_prompt()
+        self.publish_prompt_for_events()
         return paxos_aggregate  # in case it's new
 
     def policy(

@@ -4,11 +4,14 @@ import sys
 import time
 import unittest
 from time import sleep
-from unittest import skip, skipIf
+from unittest import skipIf
+from uuid import UUID
 
 import ray
 
-from eventsourcing.system.ray import RayRunner, shutdown_ray_system, start_ray_system
+from eventsourcing.application.notificationlog import Section
+from eventsourcing.system.ray import RayRunner, shutdown_ray_system, start_ray_system, \
+    RayProcess
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.system.definition import System
 from eventsourcing.domain.model.events import (
@@ -87,7 +90,7 @@ class TestRayRunner(unittest.TestCase):
 
     def test_ray_runner(self):
         start_ray_system()
-        self.check_actors()
+        self.check_actors(2, 5)
 
     def check_actors(self, num_pipelines=1, num_orders_per_pipeline=10):
 
@@ -98,11 +101,11 @@ class TestRayRunner(unittest.TestCase):
             self.system, pipeline_ids=pipeline_ids, setup_tables=True, db_uri=db_uri
         )
 
-        sleep(10)
-
         with runner:
 
-            order_id_ids = []
+            sleep(0.2)
+
+            order_id_rayids = []
 
             # Create some new orders.
             for _ in range(num_orders_per_pipeline):
@@ -111,14 +114,15 @@ class TestRayRunner(unittest.TestCase):
 
                     process = runner.get_process(Orders.create_name(), pipeline_id)
 
-                    order_id_id = process.call.remote("create_new_order")
-                    order_id_ids.append(order_id_id)
+                    order_id_rayid = process.call.remote("create_new_order")
+                    order_id_rayids.append(order_id_rayid)
                     sleep(0.01)
 
-            order_ids = ray.get(order_id_ids)
+            order_ids = ray.get(order_id_rayids)
 
             # Wait for orders to be reserved and paid.
-            process = runner.get_process(Orders.create_name())
+            process = runner.get_process(Orders.create_name(), pipeline_ids[0])
+
             retries = 20 + 10 * num_orders_per_pipeline * len(pipeline_ids)
             for i, order_id in enumerate(order_ids):
 
@@ -133,6 +137,11 @@ class TestRayRunner(unittest.TestCase):
                     time.sleep(0.1)
                     retries -= 1
                     assert retries, "Failed set order.is_paid ({})".format(i)
+
+                # print(i, "Completed order", order_id)
+
+            if not order_ids:
+                return
 
             # Calculate timings from event timestamps.
             orders = [
@@ -157,3 +166,39 @@ class TestRayRunner(unittest.TestCase):
                 )
             )
             print("Max order processing time: {:.3f}s".format(max(durations)))
+
+            sleep(0)
+
+    def test_ray_process(self):
+        ray_process = RayProcess.remote(
+            application_process_class=Orders,
+            infrastructure_class=self.infrastructure_class,
+            setup_tables=True
+        )
+        self.ray_process = ray_process  # So it gets stopped.
+
+        value = ray.get(ray_process.init.remote({}, {}))
+
+        print("Init value is %s" % value)
+
+        value = ray.get(ray_process.run.remote())
+
+        print("Run value is %s" % value)
+
+        order_id = ray.get(ray_process.call.remote('create_new_order'))
+        self.assertIsInstance(order_id, UUID)
+
+        section = ray.get(ray_process.get_notification_log_section.remote('1,'))
+        self.assertIsInstance(section, Section)
+
+        # reader = NotificationLogReader(
+        #     notification_log=RayNotificationLog(
+        #         upstream_process=ray_process
+        #     ),
+        # )
+        # notifications = list(reader.read())
+        # self.assertEqual(len(notifications), 1)
+        # created_event_notification = notifications[0]
+        # self.assertEqual(created_event_notification['id'], 1)
+        # self.assertEqual(created_event_notification['originator_id'], order_id)
+        # self.assertEqual(created_event_notification['originator_version'], 0)

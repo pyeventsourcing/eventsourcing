@@ -4,7 +4,7 @@ from uuid import UUID
 from readerwriterlock.rwlock import RWLockFair
 
 from eventsourcing.exceptions import RecordConflictError
-from eventsourcing.infrastructure.base import ACIDRecordManagerWithTracking, TrackingKwargs
+from eventsourcing.infrastructure.base import RecordManagerWithTracking, TrackingKwargs
 
 
 class PopoNotification(object):
@@ -23,7 +23,7 @@ class PopoNotification(object):
         self.state = state
 
 
-class PopoRecordManager(ACIDRecordManagerWithTracking):
+class PopoRecordManager(RecordManagerWithTracking):
     def __init__(self, *args: Any, **kwargs: Any):
         super(PopoRecordManager, self).__init__(*args, **kwargs)
         self._all_sequence_records: Dict[
@@ -72,7 +72,7 @@ class PopoRecordManager(ACIDRecordManagerWithTracking):
             pass
         return notification_records
 
-    def get_notifications(
+    def get_notification_records(
         self,
         start: Optional[int] = None,
         stop: Optional[int] = None,

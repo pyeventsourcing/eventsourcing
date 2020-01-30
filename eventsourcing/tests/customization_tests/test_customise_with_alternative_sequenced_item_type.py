@@ -76,7 +76,7 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
             self.assertEqual(entity1.b, "b")
 
             # Check there is a stored event.
-            all_records = list(app.event_store.record_manager.get_notifications())
+            all_records = list(app.event_store.record_manager.get_notification_records())
             self.assertEqual(1, len(all_records))
             stored_event = all_records[0]
             self.assertEqual(stored_event.originator_id, entity1.id)

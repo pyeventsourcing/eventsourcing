@@ -2,7 +2,10 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Union
 
 from eventsourcing.domain.model.array import BigArray
-from eventsourcing.infrastructure.base import ACIDRecordManager, AbstractRecordManager
+from eventsourcing.infrastructure.base import (
+    RecordManagerWithNotifications,
+    AbstractRecordManager,
+)
 
 DEFAULT_SECTION_SIZE = 20
 
@@ -128,7 +131,6 @@ class LocalNotificationLog(AbstractNotificationLog):
     def get_items(self, start: int, stop: int) -> Sequence[Any]:
         """
         Returns items for section.
-
         """
 
     @staticmethod
@@ -145,7 +147,9 @@ class RecordManagerNotificationLog(LocalNotificationLog):
         self, record_manager: AbstractRecordManager, section_size: Optional[int] = None
     ):
         super(RecordManagerNotificationLog, self).__init__(section_size=section_size)
-        assert isinstance(record_manager, ACIDRecordManager), record_manager
+        assert isinstance(
+            record_manager, RecordManagerWithNotifications
+        ), record_manager
         assert record_manager.contiguous_record_ids
         self.record_manager = record_manager
 
@@ -158,14 +162,7 @@ class RecordManagerNotificationLog(LocalNotificationLog):
         :return:
         """
         notifications = []
-        for record in self.record_manager.get_notifications(start, stop):
-            notification = {
-                "id": getattr(record, self.record_manager.notification_id_name)
-            }
-            for field_name in self.record_manager.field_names:
-                notification[field_name] = getattr(record, field_name)
-            if hasattr(record, "causal_dependencies"):
-                notification["causal_dependencies"] = record.causal_dependencies
+        for notification in self.record_manager.get_notifications(start, stop):
             notifications.append(notification)
         return notifications
 
