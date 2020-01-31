@@ -1,7 +1,9 @@
 import datetime
 import os
+import sys
 import unittest
 from time import sleep
+from unittest import skipIf
 from uuid import uuid4
 
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
@@ -182,6 +184,10 @@ class TestPaxosSystem(unittest.TestCase):
             print("Resolved paxos 3 with multiprocessing in %ss" % duration3)
 
     @notquick
+    @skipIf(
+        sys.version_info[:2] == (3, 6),
+        "RayRunner not working with Python36 (pickle issue)"
+    )
     def test_ray_performance(self):
 
         set_db_uri()

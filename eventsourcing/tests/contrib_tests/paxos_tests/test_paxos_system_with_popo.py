@@ -18,10 +18,3 @@ class TestPaxosSystemWithPopo(PopoTestCase, test_paxos_system.TestPaxosSystem):
     @skip("Popo doesn't do multiprocessing")
     def test_multiprocessing(self):
         pass
-
-    @skipIf(
-        sys.version_info[:2] == (3, 6),
-        "RayRunner not working with Python36 (pickle issue)"
-    )
-    def test_ray_performance(self):
-        pass
