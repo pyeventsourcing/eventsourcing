@@ -1,4 +1,5 @@
 from functools import reduce
+from threading import Lock
 from typing import Any, Callable, Dict, Iterable, Optional, Type
 from uuid import UUID
 
@@ -46,6 +47,7 @@ class EventSourcedRepository(
         # give an entity that is ahead of the event records,
         # and writing more records will give a broken sequence.
         self._cache: Dict[UUID, Optional[TVersionedEntity]] = {}
+        self._cache_lock = Lock()
         self._use_cache = use_cache
 
     @property
@@ -58,6 +60,14 @@ class EventSourcedRepository(
     @property
     def use_cache(self) -> bool:
         return self._use_cache
+
+    @property
+    def cache_lock(self) -> Lock:
+        return self._cache_lock
+
+    @property
+    def cache(self) -> Dict:
+        return self._cache
 
     @use_cache.setter
     def use_cache(self, value: bool) -> None:
@@ -81,7 +91,8 @@ class EventSourcedRepository(
         if self._use_cache:
             try:
                 # Get entity from the cache.
-                entity: Optional[TVersionedEntity] = self._cache[entity_id]
+                with self._cache_lock:
+                    entity: Optional[TVersionedEntity] = self._cache[entity_id]
             except KeyError:
                 # Reconstitute the entity.
                 entity = self.get_entity(entity_id)
@@ -99,7 +110,10 @@ class EventSourcedRepository(
         return entity
 
     def put_entity_in_cache(self, entity_id: UUID, entity: TVersionedEntity):
-        self._cache[entity_id] = entity
+        if entity is None or entity_id in self._cache:
+            return
+        with self._cache_lock:
+            self._cache[entity_id] = entity
 
     def get_entity(
         self, entity_id: UUID, at: Optional[int] = None

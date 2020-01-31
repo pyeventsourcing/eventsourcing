@@ -25,6 +25,7 @@ class SQLAlchemySettings(DatastoreSettings):
             self.uri = uri
         else:
             self.uri = os.getenv("DB_URI", DEFAULT_SQLALCHEMY_DB_URI)
+
         if pool_size is not None:
             self.pool_size = pool_size
         else:

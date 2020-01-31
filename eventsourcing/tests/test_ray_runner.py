@@ -117,7 +117,7 @@ class TestRayRunner(unittest.TestCase):
 
                 for pipeline_id in pipeline_ids:
 
-                    process = runner.get_process(Orders.create_name(), pipeline_id)
+                    process = runner.get_ray_process(Orders.create_name(), pipeline_id)
 
                     order_id_rayid = process.call.remote("create_new_order")
                     order_id_rayids.append(order_id_rayid)
@@ -126,7 +126,7 @@ class TestRayRunner(unittest.TestCase):
             order_ids = ray.get(order_id_rayids)
 
             # Wait for orders to be reserved and paid.
-            process = runner.get_process(Orders.create_name(), pipeline_ids[0])
+            process = runner.get_ray_process(Orders.create_name(), pipeline_ids[0])
 
             retries = 20 + 10 * num_orders_per_pipeline * len(pipeline_ids)
             for i, order_id in enumerate(order_ids):
@@ -182,19 +182,21 @@ class TestRayRunner(unittest.TestCase):
         )
         self.ray_process = ray_process  # So it gets stopped.
 
-        value = ray.get(ray_process.init.remote({}, {}))
+        # Initialise then run the ray process.
+        ray.get(ray_process.init.remote({}, {}))
+        ray.get(ray_process.run.remote())
 
-        print("Init value is %s" % value)
-
-        value = ray.get(ray_process.run.remote())
-
-        print("Run value is %s" % value)
-
+        # Create a new order, within the ray process.
         order_id = ray.get(ray_process.call.remote("create_new_order"))
+
+        # Check a UUID is returned.
         self.assertIsInstance(order_id, UUID)
 
+        # Get a section of the notification log.
         section = ray.get(ray_process.get_notification_log_section.remote("1,"))
         self.assertIsInstance(section, Section)
+
+        # Todo: More of this...
 
         # reader = NotificationLogReader(
         #     notification_log=RayNotificationLog(

@@ -4,8 +4,11 @@ import unittest
 from time import sleep
 from uuid import uuid4
 
+import ray
+
 from eventsourcing.system.multiprocess import MultiprocessRunner
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
+from eventsourcing.system.ray import RayRunner
 from eventsourcing.system.runner import MultiThreadedRunner
 from eventsourcing.contrib.paxos.application import PaxosSystem, PaxosProcess
 from eventsourcing.domain.model.decorators import retry
@@ -180,6 +183,61 @@ class TestPaxosSystem(unittest.TestCase):
             self.assert_final_value(paxosprocess2, key3, value3)
             duration3 = (datetime.datetime.now() - started3).total_seconds()
             print("Resolved paxos 3 with multiprocessing in %ss" % duration3)
+
+    @notquick
+    def test_ray_performance(self):
+
+        set_db_uri()
+
+        num_pipelines = 2
+        pipeline_ids = range(num_pipelines)
+
+        runner = RayRunner(
+            system=self.system,
+            pipeline_ids=pipeline_ids,
+            infrastructure_class=self.infrastructure_class,
+            setup_tables=True,
+        )
+
+        num_proposals_per_pipeline = 25
+        num_proposals = num_pipelines * num_proposals_per_pipeline
+
+        # Propose values.
+        proposals = list(((uuid4(), i) for i in range(num_proposals)))
+
+        @retry((KeyError, AssertionError), max_attempts=100, wait=0.5, stall=0)
+        def assert_final_value(process, id, value):
+            self.assertEqual(ray.get(process.call.remote('get_final_value', id)), value)
+
+        with runner:
+            sleep(1)
+
+            # Construct an application instance in this process.
+
+            # Start timing (just for fun).
+            started = datetime.datetime.now()
+
+            for key, value in proposals:
+                pipeline_id = (value % len(pipeline_ids))
+                paxosprocess0 = runner.get_ray_process('paxosprocess0', pipeline_id)
+                print("Proposing key {} value {}".format(key, value))
+                ray.get(paxosprocess0.call.remote('propose_value', key, str(value)))
+                sleep(0.0)
+
+            # Check final values.
+            for key, value in proposals:
+                print("Asserting final value for key {} value {}".format(key, value))
+                pipeline_id = (value % len(pipeline_ids))
+                paxosprocess0 = runner.get_ray_process('paxosprocess0', pipeline_id)
+                assert_final_value(paxosprocess0, key, str(value))
+
+            # Print timing information (just for fun).
+            duration = (datetime.datetime.now() - started).total_seconds()
+            print(
+                "Resolved {} paxoses with ray in {:.4f}s ({:.4f}s each)".format(
+                    num_proposals, duration, duration / num_proposals
+                )
+            )
 
     @notquick
     def test_multiprocessing_performance(self):

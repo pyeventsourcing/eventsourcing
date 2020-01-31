@@ -51,7 +51,7 @@ class RayRunner(AbstractSystemRunner):
         poll_interval: Optional[int] = None,
         setup_tables: bool = False,
         sleep_for_setup_tables: int = 0,
-        db_uri: str = None,
+        db_uri: Optional[str] = None,
         **kwargs
     ):
         super(RayRunner, self).__init__(system=system, **kwargs)
@@ -82,8 +82,15 @@ class RayRunner(AbstractSystemRunner):
 
         # Start processes.
         env_vars = {}
-        if self.db_uri:
-            env_vars["DB_URI"] = self.db_uri
+        db_uri = self.db_uri or os.environ.get("DB_URI")
+
+        if db_uri is not None:
+            env_vars["DB_URI"] = db_uri
+
+        assert env_vars.get("DB_URI"), (
+            "DB_URI not set: Ray runner doesn't work with in-memory database at the mo"
+        )
+
         for pipeline_id in self.pipeline_ids:
             for process_name, process_class in self.system.process_classes.items():
                 ray_process_id = RayProcess.remote(
@@ -146,7 +153,7 @@ class RayRunner(AbstractSystemRunner):
             run_ids.append(ray_process.run.remote())
         ray.get(run_ids)
 
-    def get_process(self, process_name, pipeline_id=DEFAULT_PIPELINE_ID):
+    def get_ray_process(self, process_name, pipeline_id=DEFAULT_PIPELINE_ID):
         assert isinstance(process_name, str)
         return self.ray_processes[(process_name, pipeline_id)]
 

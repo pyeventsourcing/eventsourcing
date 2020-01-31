@@ -280,12 +280,14 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
 
         for upstream_name in upstream_names:
 
+            # Set reader position, if necessary.
             if not self.is_reader_position_ok[upstream_name]:
                 self.del_notification_generator(upstream_name)
                 self.set_reader_position_from_tracking_records(upstream_name)
                 self.is_reader_position_ok[upstream_name] = True
 
             try:
+                # Process all the new event notifications in the reader.
                 while True:
                     with self._policy_lock:
                         # Get notification generator.
@@ -297,6 +299,8 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
                         except StopIteration:
                             self.del_notification_generator(upstream_name)
                             break
+
+                        # print("Pulled notification:", notification)
 
                         notification_count += 1
 
@@ -413,10 +417,11 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
             # have evolved their state past what has been recorded,
             # otherwise strange errors (about version mismatches, or
             # when identifying causal dependencies) can arise.
-            if self.repository._cache:
+            if self.repository.use_cache:
                 originator_ids = set([event.originator_id for event in domain_events])
-                for originator_id in originator_ids:
-                    self.repository._cache.pop(originator_id, None)
+                with self.repository.cache_lock:
+                    for originator_id in originator_ids:
+                        self.repository.cache.pop(originator_id, None)
             raise exc
         else:
             if self.tick_interval is not None:
@@ -485,7 +490,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
         policy = self.policy_func or self.policy
 
         # Wrap the actual repository, so we can collect aggregates.
-        repository = WrappedRepository(self.repository)
+        wrappedrepo = WrappedRepository(self.repository)
 
         # Initialise a deque for FIFO queue of unprocessed events.
         unprocessed: Deque[TAggregateEvent] = deque()
@@ -501,10 +506,10 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
             domain_event = unprocessed.popleft()
 
             # Call the policy with this domain event.
-            returned = policy(repository, domain_event)
+            returned = policy(wrappedrepo, domain_event)
 
             # Collect aggregates retrieved by the policy.
-            touched = list(repository.retrieved_aggregates.values())
+            touched = list(wrappedrepo.retrieved_aggregates.values())
 
             if returned is not None:
                 # Convert returned item to list, if necessary.
@@ -515,12 +520,14 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
 
                 for aggregate in new_aggregates:
                     # Put new aggregates in repository cache (avoids replay).
-                    if repository.repository.use_cache:
-                        repository.repository._cache[aggregate.id] = aggregate
+                    if wrappedrepo.repository.use_cache:
+                        wrappedrepo.repository.put_entity_in_cache(
+                            aggregate.id, aggregate
+                        )
 
                     # Make new aggregates available in subsequent policy calls.
                     if self.apply_policy_to_generated_events:
-                        repository.retrieved_aggregates[aggregate.id] = aggregate
+                        wrappedrepo.retrieved_aggregates[aggregate.id] = aggregate
 
                 # Extend the list of touched aggregates with
                 # the new ones returned from the policy.
@@ -545,7 +552,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
             highest: Dict[int, int] = defaultdict(int)
             rm = self.event_store.record_manager
             assert isinstance(rm, RecordManagerWithTracking)
-            for entity_id, entity_version in repository.causal_dependencies:
+            for entity_id, entity_version in wrappedrepo.causal_dependencies:
                 pipeline_id, notification_id = rm.get_pipeline_and_notification_id(
                     entity_id, entity_version
                 )
@@ -560,8 +567,8 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
         return (
             all_generated,
             causal_dependencies,
-            repository.orm_objs_pending_save,
-            repository.orm_objs_pending_delete,
+            wrappedrepo.orm_objs_pending_save,
+            wrappedrepo.orm_objs_pending_delete,
         )
 
     def policy(
