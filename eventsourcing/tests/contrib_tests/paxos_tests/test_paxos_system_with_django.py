@@ -13,4 +13,3 @@ class TestPaxosSystemWithDjango(DjangoTestCase, test_paxos_system.TestPaxosSyste
     @skip("Ray runner doesn't run with Django infrastructure, yet")
     def test_ray_performance(self):
         pass
-

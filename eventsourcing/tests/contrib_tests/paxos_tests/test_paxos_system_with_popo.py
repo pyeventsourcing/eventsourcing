@@ -1,4 +1,5 @@
-from unittest import skip
+import sys
+from unittest import skip, skipIf
 
 from eventsourcing.tests.sequenced_item_tests.test_popo_record_manager import (
     PopoTestCase,
@@ -16,4 +17,11 @@ class TestPaxosSystemWithPopo(PopoTestCase, test_paxos_system.TestPaxosSystem):
 
     @skip("Popo doesn't do multiprocessing")
     def test_multiprocessing(self):
+        pass
+
+    @skipIf(
+        sys.version_info[:2] == (3, 6),
+        "RayRunner not working with Python36 (pickle issue)"
+    )
+    def test_ray_performance(self):
         pass
