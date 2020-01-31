@@ -275,9 +275,6 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
 
         notification_count = 0
 
-        record_manager = self.event_store.record_manager
-        assert isinstance(record_manager, RecordManagerWithTracking)
-
         for upstream_name in upstream_names:
 
             # Set reader position, if necessary.
@@ -300,57 +297,22 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
                             self.del_notification_generator(upstream_name)
                             break
 
-                        # print("Pulled notification:", notification)
-
+                        # Increment the notification count.
                         notification_count += 1
 
-                        # Get domain event from notification.
+                        # print("Pulled notification:", notification)
+
+                        # Check causal dependencies.
+                        self.check_causal_dependencies(upstream_name, notification)
+
+                        # Get event from notification.
                         event = self.get_event_from_notification(notification)
 
-                        # Decode causal dependencies of the domain event notification.
-                        causal_dependencies_json = notification.get(
-                            "causal_dependencies"
-                        )
-                        if causal_dependencies_json:
-                            causal_dependencies = self.event_store.event_mapper.json_loads(
-                                causal_dependencies_json
-                            )
-                        else:
-                            causal_dependencies = []
-
-                        # Check causal dependencies are satisfied.
-                        for causal_dependency in causal_dependencies:
-                            # Todo: Check causal dependency on system software version?
-
-                            # Check causal dependencies on event notifications.
-                            assert isinstance(causal_dependency, dict)
-                            pipeline_id = causal_dependency["pipeline_id"]
-                            notification_id = causal_dependency["notification_id"]
-
-                            has_tracking_record = record_manager.has_tracking_record(
-                                upstream_application_name=upstream_name,
-                                pipeline_id=pipeline_id,
-                                notification_id=notification_id,
-                            )
-                            if not has_tracking_record:
-                                # Invalidate reader position.
-                                self.is_reader_position_ok[upstream_name] = False
-
-                                # Raise exception.
-                                raise CausalDependencyFailed(
-                                    {
-                                        "application_name": self.name,
-                                        "upstream_name": upstream_name,
-                                        "pipeline_id": pipeline_id,
-                                        "notification_id": notification_id,
-                                    }
-                                )
-
-                        # Wait on the clock event, if there is one.
+                        # Wait for the clock, if there is one.
                         if self.clock_event is not None:
                             self.clock_event.wait()
 
-                        # Process upstream event.
+                        # Process domain event.
                         new_events = self.process_upstream_event(
                             event, notification["id"], upstream_name
                         )
@@ -368,6 +330,49 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
                 raise
 
         return notification_count
+
+    def check_causal_dependencies(self, upstream_name, notification):
+        # Decode causal dependencies of the domain event notification.
+        causal_dependencies_json = notification.get(
+            "causal_dependencies"
+        )
+        if causal_dependencies_json:
+            causal_dependencies = self.event_store.event_mapper.json_loads(
+                causal_dependencies_json
+            )
+        else:
+            causal_dependencies = []
+
+        record_manager = self.event_store.record_manager
+        assert isinstance(record_manager, RecordManagerWithTracking)
+
+        # Check causal dependencies are satisfied.
+        for causal_dependency in causal_dependencies:
+            # Todo: Check causal dependency on system software version?
+
+            # Check causal dependencies on event notifications.
+            assert isinstance(causal_dependency, dict)
+            pipeline_id = causal_dependency["pipeline_id"]
+            notification_id = causal_dependency["notification_id"]
+
+            has_tracking_record = record_manager.has_tracking_record(
+                upstream_application_name=upstream_name,
+                pipeline_id=pipeline_id,
+                notification_id=notification_id,
+            )
+            if not has_tracking_record:
+                # Invalidate reader position.
+                self.is_reader_position_ok[upstream_name] = False
+
+                # Raise exception.
+                raise CausalDependencyFailed(
+                    {
+                        "application_name": self.name,
+                        "upstream_name": upstream_name,
+                        "pipeline_id": pipeline_id,
+                        "notification_id": notification_id,
+                    }
+                )
 
     def process_upstream_event(
         self, domain_event: TAggregateEvent, notification_id: int, upstream_name: str

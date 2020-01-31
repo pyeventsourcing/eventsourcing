@@ -1,9 +1,8 @@
 import os
 import traceback
-from os import getpid
-from queue import Queue, Empty
-from threading import Event, Thread, Lock
-from typing import List, Optional, Type, Dict, Tuple
+from queue import Empty, Queue
+from threading import Event, Lock, Thread
+from typing import Dict, List, Optional, Tuple, Type
 
 import ray
 
@@ -11,16 +10,16 @@ from eventsourcing.application.notificationlog import AbstractNotificationLog
 from eventsourcing.application.process import (
     ProcessApplication,
     Prompt,
-    is_prompt,
     PromptToPull,
+    is_prompt,
 )
 from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import (
+    OperationalError,
     ProgrammingError,
     RecordConflictError,
-    OperationalError,
 )
 from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.system.definition import AbstractSystemRunner, System
@@ -80,17 +79,19 @@ class RayRunner(AbstractSystemRunner):
                         )
                     )
 
-        # Start processes.
+        # Get the DB_URI.
+        # Todo: Support different URI for different application classes.
         env_vars = {}
         db_uri = self.db_uri or os.environ.get("DB_URI")
 
         if db_uri is not None:
             env_vars["DB_URI"] = db_uri
 
-        assert env_vars.get("DB_URI"), (
-            "DB_URI not set: Ray runner doesn't work with in-memory database at the mo"
-        )
+        assert env_vars.get(
+            "DB_URI"
+        ), "DB_URI not set: Ray runner doesn't work with in-memory database at the mo"
 
+        # Start processes.
         for pipeline_id in self.pipeline_ids:
             for process_name, process_class in self.system.process_classes.items():
                 ray_process_id = RayProcess.remote(
@@ -105,15 +106,15 @@ class RayRunner(AbstractSystemRunner):
 
         class RayNotificationLog(AbstractNotificationLog):
             def __init__(self, upstream_process: RayProcess, section_size):
-                self.upstream_process = upstream_process
+                self._upstream_process = upstream_process
                 self._section_size = section_size
 
             def get_max_tracking_record_id(self):
-                return ray.get(self.upstream_process.get_max_tracking_record_id)
+                return ray.get(self._upstream_process.get_max_tracking_record_id)
 
             def __getitem__(self, item):
                 return ray.get(
-                    self.upstream_process.get_notification_log_section.remote(
+                    self._upstream_process.get_notification_log_section.remote(
                         section_id=item
                     )
                 )
@@ -161,7 +162,12 @@ class RayRunner(AbstractSystemRunner):
         super(RayRunner, self).close()
         processes = self.ray_processes.values()
         stop_ids = [p.stop.remote() for p in processes]
-        ray.get(stop_ids)
+        ray.get(stop_ids, timeout=6)
+
+    def call(self, process_name, pipeline_id, method_name, *args, **kwargs):
+        paxosprocess0 = self.get_ray_process(process_name, pipeline_id)
+        ray_id = paxosprocess0.call.remote(method_name, *args, **kwargs)
+        return ray.get(ray_id)
 
 
 @ray.remote
@@ -221,8 +227,10 @@ class RayProcess:
 
     def run(self) -> None:
         self.pull_notifications_thread = Thread(target=self.pull_notifications)
+        self.pull_notifications_thread.setDaemon(True)
         self.pull_notifications_thread.start()
         self.push_prompts_thread = Thread(target=self.push_prompts)
+        self.push_prompts_thread.setDaemon(True)
         self.push_prompts_thread.start()
 
     @retry(OperationalError, max_attempts=10, wait=0.1)
@@ -256,7 +264,6 @@ class RayProcess:
                     break
                 prompt_response_ids = []
                 for downstream_name, ray_process in self.downstream_processes.items():
-                    # print("Prompting from", self.process.name, "to", downstream_name, prompt)
                     prompt_response_ids.append(ray_process.prompt.remote(prompt))
                     if self.stopping_event.is_set():
                         break
@@ -288,23 +295,27 @@ class RayProcess:
                 self.run_process()
             else:
                 for prompted_name in prompted_names:
-                    self.run_process(PromptToPull(process_name=prompted_name,
-                                                  pipeline_id=self.pipeline_id))
+                    self.run_process(
+                        PromptToPull(
+                            process_name=prompted_name, pipeline_id=self.pipeline_id
+                        )
+                    )
 
     def run_process(self, prompt: Optional[Prompt] = None) -> None:
         try:
             self._run_process(prompt)
-        except Exception as e:
-            print(traceback.format_exc())
-            print(getpid(), " Error running process: ", e)
+        except:
+            print(traceback.format_exc() + "\nException was ignored so that actor can "
+                                           "continue running.")
 
-    @retry((RecordConflictError, OperationalError, KeyError), 20, wait=0.05)
+    @retry((RecordConflictError, OperationalError, KeyError), 50, wait=0.1)
     def _run_process(self, prompt: Optional[Prompt] = None) -> None:
         self.process.run(prompt)
 
     def stop(self):
-        # print("Stopping", self.process.name)
         self.stopping_event.set()
         self.push_prompt_queue.put(None)
         self.prompted_to_run.set()
+        self.pull_notifications_thread.join(timeout=3)
+        self.push_prompts_thread.join(timeout=3)
         unsubscribe(handler=self.enqueue_prompt, predicate=is_prompt)
