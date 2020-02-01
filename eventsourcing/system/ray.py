@@ -190,8 +190,8 @@ class RayProcess:
         self.push_prompt_queue = Queue(maxsize=100)
         self.prompted_names = set()
         self.prompted_names_lock = Lock()
-        self.prompted_to_run = Event()
-        self.stopping_event = Event()
+        self.has_been_prompted = Event()
+        self.has_been_stopped = Event()
         if env_vars is not None:
             os.environ.update(env_vars)
 
@@ -256,16 +256,16 @@ class RayProcess:
             try:
                 prompt = self.push_prompt_queue.get(timeout=10)
             except Empty:
-                if self.stopping_event.is_set():
+                if self.has_been_stopped.is_set():
                     break
             else:
                 self.push_prompt_queue.task_done()
-                if self.stopping_event.is_set():
+                if self.has_been_stopped.is_set():
                     break
                 prompt_response_ids = []
                 for downstream_name, ray_process in self.downstream_processes.items():
                     prompt_response_ids.append(ray_process.prompt.remote(prompt))
-                    if self.stopping_event.is_set():
+                    if self.has_been_stopped.is_set():
                         break
                 ray.get(prompt_response_ids)
 
@@ -273,27 +273,33 @@ class RayProcess:
         if isinstance(prompt, PromptToPull):
             with self.prompted_names_lock:
                 self.prompted_names.add(prompt.process_name)
-                self.prompted_to_run.set()
+                self.has_been_prompted.set()
 
     def pull_notifications(self) -> None:
-        while not self.stopping_event.is_set():
-            if self.prompted_to_run.wait(timeout=10):
-                is_polling = False
+        # Loop until stop event is set.
+        while not self.has_been_stopped.is_set():
+            # Wait until prompted.
+            if self.has_been_prompted.wait(timeout=10):
+                # Have been prompted.
+                is_timeout = False
             else:
-                is_polling = True
+                # Timed out waiting to be prompted.
+                is_timeout = True
 
-            if self.stopping_event.is_set():
+            # Check if process has been stopped since waiting to be prompted.
+            if self.has_been_stopped.is_set():
                 break
 
-            if is_polling:
-                prompted_names = set()
-            else:
-                with self.prompted_names_lock:
-                    self.prompted_to_run.clear()
-                    prompted_names, self.prompted_names = self.prompted_names, set()
-            if is_polling:
+            if is_timeout:
+                # Just run the process.
                 self.run_process()
             else:
+                # Clear the event and get the prompted names.
+                with self.prompted_names_lock:
+                    self.has_been_prompted.clear()
+                    prompted_names, self.prompted_names = self.prompted_names, set()
+
+                # Run the process for each prompted name.
                 for prompted_name in prompted_names:
                     self.run_process(
                         PromptToPull(
@@ -313,9 +319,9 @@ class RayProcess:
         self.process.run(prompt)
 
     def stop(self):
-        self.stopping_event.set()
+        self.has_been_stopped.set()
         self.push_prompt_queue.put(None)
-        self.prompted_to_run.set()
+        self.has_been_prompted.set()
         self.pull_notifications_thread.join(timeout=3)
         self.push_prompts_thread.join(timeout=3)
         unsubscribe(handler=self.enqueue_prompt, predicate=is_prompt)

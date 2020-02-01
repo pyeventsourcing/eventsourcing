@@ -300,10 +300,10 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
                         # Increment the notification count.
                         notification_count += 1
 
-                        # print("Pulled notification:", notification)
-
                         # Check causal dependencies.
-                        self.check_causal_dependencies(upstream_name, notification)
+                        self.check_causal_dependencies(
+                            upstream_name, notification.get("causal_dependencies")
+                        )
 
                         # Get event from notification.
                         event = self.get_event_from_notification(notification)
@@ -331,11 +331,8 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
 
         return notification_count
 
-    def check_causal_dependencies(self, upstream_name, notification):
+    def check_causal_dependencies(self, upstream_name, causal_dependencies_json):
         # Decode causal dependencies of the domain event notification.
-        causal_dependencies_json = notification.get(
-            "causal_dependencies"
-        )
         if causal_dependencies_json:
             causal_dependencies = self.event_store.event_mapper.json_loads(
                 causal_dependencies_json
