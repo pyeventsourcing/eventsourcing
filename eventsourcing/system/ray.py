@@ -6,7 +6,6 @@ from typing import Dict, List, Optional, Tuple, Type
 
 import ray
 
-from eventsourcing.application.notificationlog import AbstractNotificationLog
 from eventsourcing.application.process import (
     ProcessApplication,
     Prompt,
@@ -23,6 +22,7 @@ from eventsourcing.exceptions import (
 )
 from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.system.definition import AbstractSystemRunner, System
+from eventsourcing.system.rayhelpers import RayNotificationLog, RayPrompt
 from eventsourcing.system.runner import DEFAULT_POLL_INTERVAL
 
 ray.init()
@@ -104,28 +104,6 @@ class RayRunner(AbstractSystemRunner):
                 )
                 self.ray_processes[(process_name, pipeline_id)] = ray_process_id
 
-        class RayNotificationLog(AbstractNotificationLog):
-            def __init__(self, upstream_process: RayProcess, section_size):
-                self._upstream_process = upstream_process
-                self._section_size = section_size
-
-            def get_max_tracking_record_id(self):
-                return ray.get(self._upstream_process.get_max_tracking_record_id)
-
-            def __getitem__(self, item):
-                return ray.get(
-                    self._upstream_process.get_notification_log_section.remote(
-                        section_id=item
-                    )
-                )
-
-            @property
-            def section_size(self) -> int:
-                """
-                Size of section of notification log.
-                """
-                return self._section_size
-
         init_ids = []
 
         for key, ray_process in self.ray_processes.items():
@@ -137,11 +115,11 @@ class RayRunner(AbstractSystemRunner):
                 for name in downstream_names
             }
 
-            upstream_logs = []
+            upstream_logs = {}
             for upstream_name in upstream_names:
                 upstream_process = self.ray_processes[(upstream_name, pipeline_id)]
-                notification_log = RayNotificationLog(upstream_process, 5)
-                upstream_logs.append((upstream_name, notification_log))
+                notification_log = RayNotificationLog(upstream_process, 5, ray.get)
+                upstream_logs[upstream_name] = notification_log
 
             init_ids.append(
                 ray_process.init.remote(upstream_logs, downstream_processes)
@@ -188,10 +166,12 @@ class RayProcess:
         self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
         self.setup_tables = setup_tables
         self.push_prompt_queue = Queue(maxsize=100)
+        self.upstream_event_queue = Queue(maxsize=100)
         self.prompted_names = set()
         self.prompted_names_lock = Lock()
         self.has_been_prompted = Event()
         self.has_been_stopped = Event()
+        self.event_reading_lock = Lock()
         if env_vars is not None:
             os.environ.update(env_vars)
 
@@ -216,7 +196,7 @@ class RayProcess:
         )
         # print(getpid(), "Created application process: %s" % self.process)
 
-        for upstream_name, ray_notification_log in self.upstream_logs:
+        for upstream_name, ray_notification_log in self.upstream_logs.items():
             # Make the process follow the upstream notification log.
             self.process.follow(upstream_name, ray_notification_log)
 
@@ -226,9 +206,13 @@ class RayProcess:
         self.process.follow(upstream_name, ray_notification_log)
 
     def run(self) -> None:
-        self.pull_notifications_thread = Thread(target=self.pull_notifications)
+        self.reset_readers()
+        self.pull_notifications_thread = Thread(target=self.process_notifications)
         self.pull_notifications_thread.setDaemon(True)
         self.pull_notifications_thread.start()
+        self.process_events_thread = Thread(target=self.process_events)
+        self.process_events_thread.setDaemon(True)
+        self.process_events_thread.start()
         self.push_prompts_thread = Thread(target=self.push_prompts)
         self.push_prompts_thread.setDaemon(True)
         self.push_prompts_thread.start()
@@ -248,11 +232,104 @@ class RayProcess:
                 "Can't call method '%s' before process exists" % application_method_name
             )
 
+    def prompt(self, prompt: List[Prompt] = None):
+        if isinstance(prompt, PromptToPull):
+            with self.prompted_names_lock:
+                self.prompted_names.add(prompt.process_name)
+                self.has_been_prompted.set()
+
+    def process_notifications(self) -> None:
+        # Loop until stop event is set.
+        while not self.has_been_stopped.is_set():
+            # Wait until prompted.
+            if self.has_been_prompted.wait(timeout=1):
+                # Have been prompted.
+                is_timeout = False
+            else:
+                # Timed out waiting to be prompted.
+                is_timeout = True
+
+            # Check if process has been stopped since waiting to be prompted.
+            if self.has_been_stopped.is_set():
+                break
+
+            if is_timeout:
+                prompted_names = self.upstream_logs.keys()
+            else:
+                # Get the prompted names.
+                with self.prompted_names_lock:
+                    self.has_been_prompted.clear()
+                    prompted_names, self.prompted_names = self.prompted_names, set()
+
+            # Get new upstream domain events.
+            with self.event_reading_lock:
+
+                for prompted_name in prompted_names:
+
+                    # Get the notifications.
+                    upstream_name = prompted_name
+                    reader = self.process.readers[upstream_name]
+                    notifications = reader.read()
+
+                    for notification in notifications:
+                        # Check causal dependencies.
+                        self.process.check_causal_dependencies(
+                            upstream_name, notification.get("causal_dependencies")
+                        )
+
+                        # Get event from notification.
+                        event = self.process.get_event_from_notification(notification)
+
+                        # Put the event on the queue.
+                        self.upstream_event_queue.put(
+                            (event, notification["id"], upstream_name)
+                        )
+
+    def process_events(self):
+        while not self.has_been_stopped.is_set():
+            try:
+                item = self.upstream_event_queue.get(timeout=1)
+                domain_event, notification_id, upstream_name = item
+            except Empty:
+                if self.has_been_stopped.is_set():
+                    break
+            else:
+                self.upstream_event_queue.task_done()
+                if self.has_been_stopped.is_set():
+                    break
+                try:
+                    # print("Processing upstream event:", (domain_event,
+                    # notification_id, upstream_name))
+
+                    new_events = self.process.process_upstream_event(
+                        domain_event, notification_id, upstream_name
+                    )
+                    # print("New events:", new_events)
+                except Exception as e:
+                    print(traceback.format_exc())
+                    with self.event_reading_lock:
+                        self.reset_readers()
+                        with self.upstream_event_queue.mutex:
+                            self.upstream_event_queue.queue.clear()
+                        with self.prompted_names_lock:
+                            for upstream_name in self.upstream_logs.keys():
+                                self.prompted_names.add(upstream_name)
+                            self.has_been_prompted.set()
+                else:
+                    if new_events:
+                        prompt = RayPrompt(self.process.name,
+                                           self.process.pipeline_id)
+                        self.push_prompt_queue.put(prompt)
+
+    def reset_readers(self):
+        for upstream_name in self.process.readers:
+            self.process.set_reader_position_from_tracking_records(upstream_name)
+
     def enqueue_prompt(self, prompts):
         self.push_prompt_queue.put(prompts[0])
 
     def push_prompts(self) -> None:
-        while True:
+        while not self.has_been_stopped.is_set():
             try:
                 prompt = self.push_prompt_queue.get(timeout=10)
             except Empty:
@@ -269,50 +346,14 @@ class RayProcess:
                         break
                 ray.get(prompt_response_ids)
 
-    def prompt(self, prompt: List[Prompt] = None):
-        if isinstance(prompt, PromptToPull):
-            with self.prompted_names_lock:
-                self.prompted_names.add(prompt.process_name)
-                self.has_been_prompted.set()
-
-    def pull_notifications(self) -> None:
-        # Loop until stop event is set.
-        while not self.has_been_stopped.is_set():
-            # Wait until prompted.
-            if self.has_been_prompted.wait(timeout=10):
-                # Have been prompted.
-                is_timeout = False
-            else:
-                # Timed out waiting to be prompted.
-                is_timeout = True
-
-            # Check if process has been stopped since waiting to be prompted.
-            if self.has_been_stopped.is_set():
-                break
-
-            if is_timeout:
-                # Just run the process.
-                self.run_process()
-            else:
-                # Clear the event and get the prompted names.
-                with self.prompted_names_lock:
-                    self.has_been_prompted.clear()
-                    prompted_names, self.prompted_names = self.prompted_names, set()
-
-                # Run the process for each prompted name.
-                for prompted_name in prompted_names:
-                    self.run_process(
-                        PromptToPull(
-                            process_name=prompted_name, pipeline_id=self.pipeline_id
-                        )
-                    )
-
     def run_process(self, prompt: Optional[Prompt] = None) -> None:
         try:
             self._run_process(prompt)
         except:
-            print(traceback.format_exc() + "\nException was ignored so that actor can "
-                                           "continue running.")
+            print(
+                traceback.format_exc() + "\nException was ignored so that actor can "
+                                         "continue running."
+            )
 
     @retry((RecordConflictError, OperationalError, KeyError), 50, wait=0.1)
     def _run_process(self, prompt: Optional[Prompt] = None) -> None:
