@@ -10,6 +10,7 @@ from uuid import UUID
 import ray
 
 from eventsourcing.application.notificationlog import Section
+from eventsourcing.application.process import PromptToPull
 from eventsourcing.system.ray import (
     RayRunner,
     shutdown_ray_system,
@@ -22,6 +23,7 @@ from eventsourcing.domain.model.events import (
     assert_event_handlers_empty,
     clear_event_handlers,
 )
+from eventsourcing.system.rayhelpers import RayNotificationLog
 from eventsourcing.tests.system_test_fixtures import (
     Orders,
     Payments,
@@ -132,14 +134,14 @@ class TestRayRunner(unittest.TestCase):
             for i, order_id in enumerate(order_ids):
 
                 while not ray.get(process.call.remote("is_order_reserved", order_id)):
-                    time.sleep(0.1)
+                    time.sleep(0.5)
                     retries -= 1
                     assert retries, "Failed set order.is_reserved {} ({})".format(
                         order_id, i
                     )
 
                 while not ray.get(process.call.remote("is_order_paid", order_id)):
-                    time.sleep(0.1)
+                    time.sleep(0.5)
                     retries -= 1
                     assert retries, "Failed set order.is_paid ({})".format(i)
 
@@ -174,27 +176,113 @@ class TestRayRunner(unittest.TestCase):
 
             sleep(0)
 
+
+class TestRayProcess(unittest.TestCase):
+    infrastructure_class = SQLAlchemyApplication
+
     def test_ray_process(self):
-        ray_process = RayProcess.remote(
+        # Create process with Orders application.
+        ray_orders_process = RayProcess.remote(
             application_process_class=Orders,
             infrastructure_class=self.infrastructure_class,
             setup_tables=True,
         )
-        self.ray_process = ray_process  # So it gets stopped.
 
-        # Initialise then run the ray process.
-        ray.get(ray_process.init.remote({}, {}))
-        ray.get(ray_process.run.remote())
+        # Initialise the ray process.
+        ray.get(ray_orders_process.init.remote({}, {}))
+
+        # Run the ray process
+        ray.get(ray_orders_process.run.remote())
 
         # Create a new order, within the ray process.
-        order_id = ray.get(ray_process.call.remote("create_new_order"))
+        order_id = ray.get(ray_orders_process.call.remote("create_new_order"))
 
         # Check a UUID is returned.
         self.assertIsInstance(order_id, UUID)
 
         # Get a section of the notification log.
-        section = ray.get(ray_process.get_notification_log_section.remote("1,"))
+        section = ray.get(ray_orders_process.get_notification_log_section.remote("1,"))
         self.assertIsInstance(section, Section)
+        self.assertEqual(len(section.items), 1)
+
+        # Create process with Reservations application.
+        ray_reservations_process = RayProcess.remote(
+            application_process_class=Reservations,
+            infrastructure_class=self.infrastructure_class,
+            setup_tables=True,
+        )
+        # Make the reservations follow the orders.
+        ray.get(
+            ray_reservations_process.init.remote(
+                {"orders": RayNotificationLog(ray_orders_process, 5, ray.get)}, {}
+            )
+        )
+        ray.get(ray_reservations_process.run.remote())
+
+        # Get a section of the notification log.
+        section = ray.get(
+            ray_reservations_process.get_notification_log_section.remote("1,")
+        )
+        self.assertIsInstance(section, Section)
+        self.assertEqual(len(section.items), 0)
+
+        # Prompt the process.
+        prompt = PromptToPull("orders", 0)
+        rayid = ray_reservations_process.prompt.remote(prompt)
+        ray.get(rayid)
+
+        # Check a reservation was created.
+        retries = 10
+        while retries:
+            sleep(0.1)
+            # Get a section of the notification log.
+            section = ray.get(
+                ray_reservations_process.get_notification_log_section.remote("1,")
+            )
+            self.assertIsInstance(section, Section)
+            try:
+                self.assertEqual(len(section.items), 1)
+            except AssertionError:
+                if retries:
+                    retries -= 1
+                    print("Retrying...", retries)
+                else:
+                    raise
+            else:
+                break
+
+        # Add reservations as downstream process of orders.
+        ray_orders_process.add_downstream_process.remote(
+            "reservations", ray_reservations_process
+        )
+
+        # Create a new order, within the ray process.
+        order_id = ray.get(ray_orders_process.call.remote("create_new_order"))
+
+        # Get a section of the notification log.
+        section = ray.get(ray_orders_process.get_notification_log_section.remote("1,"))
+        self.assertIsInstance(section, Section)
+        self.assertEqual(len(section.items), 2)
+
+        # Check another reservation was created.
+        retries = 10
+        while True:
+            sleep(0.1)
+            # Get a section of the notification log.
+            section = ray.get(
+                ray_reservations_process.get_notification_log_section.remote("1,")
+            )
+            self.assertIsInstance(section, Section)
+            try:
+                self.assertEqual(len(section.items), 2)
+            except AssertionError:
+                if retries:
+                    retries -= 1
+                    print("Retrying...", retries)
+                else:
+                    raise
+            else:
+                break
 
         # Todo: More of this...
 

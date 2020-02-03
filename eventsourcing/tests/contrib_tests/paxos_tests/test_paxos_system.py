@@ -224,7 +224,7 @@ class TestPaxosSystem(unittest.TestCase):
                 runner.call(
                     "paxosprocess0", pipeline_id, "propose_value", key, str(value)
                 )
-                sleep(0.01)
+                sleep(0.0)
 
             # Check final values.
             for key, value in proposals:

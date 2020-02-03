@@ -410,7 +410,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
                 orm_objs_pending_save=orm_objs_pending_save,
                 orm_objs_pending_delete=orm_objs_pending_delete,
             )
-            self.record_process_event(process_event)
+            new_event_records = self.record_process_event(process_event)
 
             # Todo: Maybe write one tracking record at the end of a run, if
             #  necessary, or only during a period of time when nothing happens?
@@ -438,7 +438,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
                         self.name, cycle_perc - 100
                     )
                     print(msg)
-        return domain_events
+        return domain_events, new_event_records
 
     def get_event_from_notification(
         self, notification: Dict[str, Any]
@@ -480,10 +480,14 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
 
     def set_reader_position_from_tracking_records(self, upstream_name: str) -> None:
         reader = self.readers[upstream_name]
+        recorded_position = self.get_recorded_position(upstream_name)
+        reader.seek(recorded_position)
+
+    def get_recorded_position(self, upstream_name):
         record_manager = self.event_store.record_manager
         assert isinstance(record_manager, RecordManagerWithTracking)
         recorded_position = record_manager.get_max_tracking_record_id(upstream_name)
-        reader.seek(recorded_position)
+        return recorded_position
 
     def call_policy(
         self, domain_event: TAggregateEvent
@@ -648,6 +652,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
             orm_objs_pending_save=process_event.orm_objs_pending_save,
             orm_objs_pending_delete=process_event.orm_objs_pending_delete,
         )
+        return event_records
 
     def construct_event_records(
         self,
