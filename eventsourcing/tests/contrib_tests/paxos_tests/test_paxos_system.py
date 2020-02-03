@@ -6,6 +6,7 @@ from time import sleep
 from unittest import skipIf
 from uuid import uuid4
 
+# from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.contrib.paxos.application import PaxosProcess, PaxosSystem
 from eventsourcing.domain.model.decorators import retry
@@ -26,6 +27,7 @@ class TestPaxosSystem(unittest.TestCase):
 
     # Use SQLAlchemy infrastructure (override in subclasses).
     infrastructure_class = SQLAlchemyApplication
+    # infrastructure_class = PopoApplication
 
     def test_single_threaded(self):
 

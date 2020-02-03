@@ -10,6 +10,7 @@ from uuid import UUID
 import ray
 
 from eventsourcing.application.notificationlog import Section
+# from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.process import PromptToPull
 from eventsourcing.system.ray import (
     RayRunner,
@@ -67,6 +68,7 @@ logger.addHandler(ch)
 
 
 class TestRayRunner(unittest.TestCase):
+    # infrastructure_class = PopoApplication
     infrastructure_class = SQLAlchemyApplication
 
     def setUp(self):
@@ -191,9 +193,6 @@ class TestRayProcess(unittest.TestCase):
         # Initialise the ray process.
         ray.get(ray_orders_process.init.remote({}, {}))
 
-        # Run the ray process
-        ray.get(ray_orders_process.run.remote())
-
         # Create a new order, within the ray process.
         order_id = ray.get(ray_orders_process.call.remote("create_new_order"))
 
@@ -204,6 +203,16 @@ class TestRayProcess(unittest.TestCase):
         section = ray.get(ray_orders_process.get_notification_log_section.remote("1,"))
         self.assertIsInstance(section, Section)
         self.assertEqual(len(section.items), 1)
+
+        # Get range of notifications.
+        notifications = ray.get(ray_orders_process.get_notifications.remote(1, 1))
+        self.assertIsInstance(notifications, list)
+        self.assertEqual(len(notifications), 1)
+        self.assertEqual(notifications[0]['id'], 1)
+
+        notifications = ray.get(ray_orders_process.get_notifications.remote(2, 2))
+        self.assertIsInstance(notifications, list)
+        self.assertEqual(len(notifications), 0, notifications)
 
         # Create process with Reservations application.
         ray_reservations_process = RayProcess.remote(
@@ -217,7 +226,6 @@ class TestRayProcess(unittest.TestCase):
                 {"orders": RayNotificationLog(ray_orders_process, 5, ray.get)}, {}
             )
         )
-        ray.get(ray_reservations_process.run.remote())
 
         # Get a section of the notification log.
         section = ray.get(

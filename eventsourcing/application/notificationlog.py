@@ -161,10 +161,7 @@ class RecordManagerNotificationLog(LocalNotificationLog):
         :param stop: Inclusive stop position in log.
         :return:
         """
-        notifications = []
-        for notification in self.record_manager.get_notifications(start, stop):
-            notifications.append(notification)
-        return notifications
+        return list(self.record_manager.get_notifications(start, stop))
 
     def get_next_position(self) -> int:
         """Returns next unoccupied position in zero-based sequence.

@@ -250,9 +250,26 @@ class PaxosProcess(ProcessApplication[PaxosAggregate, PaxosAggregate.Event]):
         paxos_aggregate.receive_message(msg)
         new_events = paxos_aggregate.__batch_pending_events__()
         process_event = ProcessEvent(new_events)
-        self.record_process_event(process_event)
-        self.repository.take_snapshot(paxos_aggregate.id)
-        self.publish_prompt_for_events()
+        new_records = self.record_process_event(process_event)
+
+        # self.repository.take_snapshot(paxos_aggregate.id)
+
+        # Find the head notification ID.
+        notifiable_events = [e for e in new_events if e.__notifiable__]
+        head_notification_id = None
+        if len(notifiable_events):
+            notifications = [
+                self.event_store.record_manager.create_notification_from_record(
+                    record
+                )
+                for record in new_records
+                if isinstance(record.notification_id, int)
+            ]
+
+            if len(notifications):
+                head_notification_id = notifications[-1]["id"]
+
+        self.publish_prompt(head_notification_id)
         if self.repository.use_cache:
             self.repository.put_entity_in_cache(paxos_aggregate.id, paxos_aggregate)
         return paxos_aggregate  # in case it's new

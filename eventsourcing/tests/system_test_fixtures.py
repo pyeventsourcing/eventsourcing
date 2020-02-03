@@ -108,6 +108,8 @@ logger = logging.getLogger()
 
 class Orders(ProcessApplication[Order, Order.Event]):
     persist_event_type = Order.Created
+    # set_notification_ids = True
+    # use_cache = True
 
     def policy(self, repository, event):
         if isinstance(event, Reservation.Created):

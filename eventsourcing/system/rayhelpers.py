@@ -74,5 +74,17 @@ class RayPrompt(Prompt):
         self.pipeline_id: int = pipeline_id
         self.head_notification_id = head_notification_id
 
+    def __repr__(self) -> str:
+        return "{}({}={}, {}={}, {}={})".format(
+            type(self).__name__,
+            "process_name",
+            self.process_name,
+            "pipeline_id",
+            self.pipeline_id,
+            "head_notification_id",
+            self.head_notification_id,
+        )
+
+
 
 class ProcessHasStopped(Exception): pass

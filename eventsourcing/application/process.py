@@ -78,9 +78,10 @@ def is_prompt(events: IterableOfEvents) -> bool:
 
 
 class PromptToPull(Prompt):
-    def __init__(self, process_name: str, pipeline_id: int):
+    def __init__(self, process_name: str, pipeline_id: int, head_notification_id=None):
         self.process_name: str = process_name
         self.pipeline_id: int = pipeline_id
+        self.head_notification_id = head_notification_id
 
     def __eq__(self, other: object) -> bool:
         return bool(
@@ -235,8 +236,8 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
 
         self.publish_prompt()
 
-    def publish_prompt(self):
-        prompt = PromptToPull(self.name, self.pipeline_id)
+    def publish_prompt(self, head_notification_id=None):
+        prompt = PromptToPull(self.name, self.pipeline_id, head_notification_id)
         try:
             publish([prompt])
         except PromptFailed:
@@ -323,6 +324,8 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
                     # Todo: Optionally send events as prompts, saves pulling
                     #  event if it arrives in order.
                     if any([event.__notifiable__ for event in new_events]):
+                        print("Publishing prompt to pull.......")
+
                         self.publish_prompt()
             except Exception as e:
                 # Need to invalidate reader position, so it is refreshed.
@@ -637,7 +640,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
             "notification_id": notification_id,
         }
 
-    def record_process_event(self, process_event: ProcessEvent) -> None:
+    def record_process_event(self, process_event: ProcessEvent) -> List:
         # Construct event records.
         event_records = self.construct_event_records(
             process_event.domain_events, process_event.causal_dependencies
