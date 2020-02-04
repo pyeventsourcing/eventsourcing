@@ -26,20 +26,10 @@ from eventsourcing.infrastructure.base import (
     RecordManagerWithNotifications,
 )
 from eventsourcing.system.definition import AbstractSystemRunner, System
-from eventsourcing.system.rayhelpers import RayDbJob, RayNotificationLog, RayPrompt
+from eventsourcing.system.rayhelpers import RayDbJob, RayPrompt
 from eventsourcing.system.runner import DEFAULT_POLL_INTERVAL
 
 ray.init()
-
-
-def start_ray_system():
-    pass
-    # ray.init(ignore_reinit_error=True)
-
-
-def shutdown_ray_system():
-    pass
-    # ray.shutdown()
 
 
 class RayRunner(AbstractSystemRunner):
@@ -115,14 +105,13 @@ class RayRunner(AbstractSystemRunner):
                 for name in downstream_names
             }
 
-            upstream_logs = {}
+            upstream_processes = {}
             for upstream_name in upstream_names:
                 upstream_process = self.ray_processes[(upstream_name, pipeline_id)]
-                notification_log = RayNotificationLog(upstream_process, 5, ray.get)
-                upstream_logs[upstream_name] = notification_log
+                upstream_processes[upstream_name] = upstream_process
 
             init_ids.append(
-                ray_process.init.remote(upstream_logs, downstream_processes)
+                ray_process.init.remote(upstream_processes, downstream_processes)
             )
         ray.get(init_ids)
 
@@ -214,8 +203,8 @@ class RayProcess:
                 # else:
                 #     self.print_timecheck("Done db job", item)
 
-    def init(self, upstream_logs: dict, downstream_processes: dict) -> None:
-        self.upstream_logs = upstream_logs
+    def init(self, upstream_processes: dict, downstream_processes: dict) -> None:
+        self.upstream_processes = upstream_processes
         self.downstream_processes = downstream_processes
 
         # Subscribe to broadcast prompts published by the process application.
@@ -238,7 +227,7 @@ class RayProcess:
         assert isinstance(self.process, ProcessApplication), self.process
         # print(getpid(), "Created application process: %s" % self.process)
 
-        for upstream_name, ray_notification_log in self.upstream_logs.items():
+        for upstream_name, ray_notification_log in self.upstream_processes.items():
             # Make the process follow the upstream notification log.
             self.process.follow(upstream_name, ray_notification_log)
 
@@ -276,7 +265,7 @@ class RayProcess:
 
     def _reset_positions(self):
         with self.positions_lock:
-            for upstream_name in self.upstream_logs:
+            for upstream_name in self.upstream_processes:
                 recorded_position = self.process.get_recorded_position(upstream_name)
                 self.positions[upstream_name] = recorded_position
 
@@ -305,15 +294,6 @@ class RayProcess:
                 "Can't call method '%s' before process exists" % application_method_name
             )
 
-    @retry(OperationalError, max_attempts=10, wait=0.1)
-    def get_notification_log_section(self, section_id):
-        def get_log_section(section_id):
-            return self.process.notification_log[section_id]
-
-        section = self.do_db_job(get_log_section, [section_id], {})
-        self.print_timecheck("section of notification log, items:", len(section.items))
-        return section
-
     def prompt(self, prompt: RayPrompt) -> None:
         assert isinstance(prompt, RayPrompt), "Not a RayPrompt: %s" % prompt
 
@@ -332,7 +312,8 @@ class RayProcess:
             else:
                 self.has_been_prompted.set()
             # self.print_timecheck(
-            #     "Head after prompting", prompt.process_name, self.heads[prompt.process_name]
+            #     "Head after prompting", prompt.process_name, self.heads[
+            #     prompt.process_name]
             # )
 
     def process_prompts(self) -> None:
@@ -345,11 +326,11 @@ class RayProcess:
             current_heads = {}
             with self.heads_lock:
                 self.has_been_prompted.clear()
-                for upstream_name in self.upstream_logs.keys():
+                for upstream_name in self.upstream_processes.keys():
                     current_head = self.heads.get(upstream_name)
                     current_heads[upstream_name] = current_head
 
-            for upstream_name in self.upstream_logs.keys():
+            for upstream_name in self.upstream_processes.keys():
 
                 with self.positions_lock:
                     current_position = self.positions.get(upstream_name)
@@ -375,8 +356,7 @@ class RayProcess:
                 #     upstream_name,
                 #     "%s -> %s" % (first_notification_id, last_notification_id),
                 # )
-                upstream_log = self.upstream_logs[upstream_name]
-                upstream_process = upstream_log._upstream_process
+                upstream_process = self.upstream_processes[upstream_name]
                 # Works best without prompted head as last requested,
                 # because there might be more notifications since.
                 # Todo: However, limit the number to avoid getting too many, and
@@ -397,7 +377,8 @@ class RayProcess:
                 if len(notifications):
 
                     if len(notifications) == RANGE_LIMIT:
-                        # self.print_timecheck("Range limit reached, reprompting self...")
+                        # self.print_timecheck("Range limit reached, reprompting
+                        # self...")
                         self.has_been_prompted.set()
 
                     position = notifications[-1]["id"]
@@ -460,7 +441,8 @@ class RayProcess:
 
                     # print("New events:", new_events)
                     # if new_events:
-                    #     self.print_timecheck("new events", len(new_events), new_events)
+                    #     self.print_timecheck("new events", len(new_events),
+                    #     new_events)
 
                 except Exception as e:
                     # print(traceback.format_exc())
@@ -670,5 +652,5 @@ class __RayProcess:
         except:
             print(
                 traceback.format_exc() + "\nException was ignored so that actor can "
-                "continue running."
+                                         "continue running."
             )

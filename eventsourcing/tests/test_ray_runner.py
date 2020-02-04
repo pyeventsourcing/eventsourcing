@@ -19,10 +19,8 @@ from eventsourcing.system.definition import System
 from eventsourcing.system.ray import (
     RayProcess,
     RayRunner,
-    shutdown_ray_system,
-    start_ray_system,
 )
-from eventsourcing.system.rayhelpers import RayNotificationLog, RayPrompt
+from eventsourcing.system.rayhelpers import RayPrompt
 from eventsourcing.tests.system_test_fixtures import (
     Orders,
     Payments,
@@ -89,17 +87,11 @@ class TestRayRunner(unittest.TestCase):
             pass
 
         try:
-            # Shutdown base actor system.
-            shutdown_ray_system()
+            assert_event_handlers_empty()
         finally:
-            # Clear event handlers.
-            try:
-                assert_event_handlers_empty()
-            finally:
-                clear_event_handlers()
+            clear_event_handlers()
 
     def test_ray_runner(self):
-        start_ray_system()
         self.check_actors(2, 25)
 
     def check_actors(self, num_pipelines=1, num_orders_per_pipeline=10):
@@ -200,17 +192,13 @@ class TestRayProcess(unittest.TestCase):
         # Check a UUID is returned.
         self.assertIsInstance(order_id, UUID)
 
-        # Get a section of the notification log.
-        section = ray.get(ray_orders_process.get_notification_log_section.remote("1,"))
-        self.assertIsInstance(section, Section)
-        self.assertEqual(len(section.items), 1)
-
         # Get range of notifications.
-        notifications = ray.get(ray_orders_process.get_notifications.remote(1, 1))
+        notifications = ray.get(ray_orders_process.get_notifications.remote(1, 1000))
         self.assertIsInstance(notifications, list)
         self.assertEqual(len(notifications), 1)
         self.assertEqual(notifications[0]["id"], 1)
 
+        # Check the range is working.
         notifications = ray.get(ray_orders_process.get_notifications.remote(2, 2))
         self.assertIsInstance(notifications, list)
         self.assertEqual(len(notifications), 0, notifications)
@@ -224,16 +212,16 @@ class TestRayProcess(unittest.TestCase):
         # Make the reservations follow the orders.
         ray.get(
             ray_reservations_process.init.remote(
-                {"orders": RayNotificationLog(ray_orders_process, 5, ray.get)}, {}
+                {"orders": ray_orders_process}, {}
             )
         )
 
-        # Get a section of the notification log.
-        section = ray.get(
-            ray_reservations_process.get_notification_log_section.remote("1,")
+        # Get range of notifications.
+        notifications = ray.get(
+            ray_reservations_process.get_notifications.remote(1, 1000)
         )
-        self.assertIsInstance(section, Section)
-        self.assertEqual(len(section.items), 0)
+        self.assertIsInstance(notifications, list)
+        self.assertEqual(len(notifications), 0)
 
         # Prompt the process.
         prompt = RayPrompt("orders", 0)
@@ -244,13 +232,14 @@ class TestRayProcess(unittest.TestCase):
         retries = 10
         while retries:
             sleep(0.1)
-            # Get a section of the notification log.
-            section = ray.get(
-                ray_reservations_process.get_notification_log_section.remote("1,")
+            # Get range of notifications.
+            notifications = ray.get(
+                ray_reservations_process.get_notifications.remote(1, 1000)
             )
-            self.assertIsInstance(section, Section)
+            self.assertIsInstance(notifications, list)
+
             try:
-                self.assertEqual(len(section.items), 1)
+                self.assertEqual(len(notifications), 1)
             except AssertionError:
                 if retries:
                     retries -= 1
@@ -268,22 +257,26 @@ class TestRayProcess(unittest.TestCase):
         # Create a new order, within the ray process.
         order_id = ray.get(ray_orders_process.call.remote("create_new_order"))
 
-        # Get a section of the notification log.
-        section = ray.get(ray_orders_process.get_notification_log_section.remote("1,"))
-        self.assertIsInstance(section, Section)
-        self.assertEqual(len(section.items), 2)
+        # Get range of notifications.
+        notifications = ray.get(
+            ray_orders_process.get_notifications.remote(1, 1000)
+        )
+        self.assertIsInstance(notifications, list)
+        self.assertEqual(len(notifications), 2)
 
         # Check another reservation was created.
         retries = 10
         while True:
             sleep(0.1)
             # Get a section of the notification log.
-            section = ray.get(
-                ray_reservations_process.get_notification_log_section.remote("1,")
+            # Get range of notifications.
+            notifications = ray.get(
+                ray_reservations_process.get_notifications.remote(1, 1000)
             )
-            self.assertIsInstance(section, Section)
+            self.assertIsInstance(notifications, list)
+
             try:
-                self.assertEqual(len(section.items), 2)
+                self.assertEqual(len(notifications), 2)
             except AssertionError:
                 if retries:
                     retries -= 1
