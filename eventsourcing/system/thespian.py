@@ -7,7 +7,7 @@ from eventsourcing.application.notificationlog import RecordManagerNotificationL
 from eventsourcing.application.process import (
     ProcessApplication,
     PromptToPull,
-    is_prompt,
+    is_prompt_to_pull,
 )
 from eventsourcing.system.definition import System, AbstractSystemRunner
 from eventsourcing.domain.model.events import subscribe, unsubscribe
@@ -89,7 +89,7 @@ class ThespianRunner(AbstractSystemRunner):
         """
         # Subscribe to broadcast prompts published by a process
         # application in the parent operating system process.
-        subscribe(handler=self.forward_prompt, predicate=is_prompt)
+        subscribe(handler=self.forward_prompt, predicate=is_prompt_to_pull)
 
         # Initialise the system actor.
         msg = SystemInitRequest(
@@ -113,11 +113,10 @@ class ThespianRunner(AbstractSystemRunner):
         # Todo: Command and response messages to system actor to get new pipeline
         #  address.
 
-    def forward_prompt(self, prompts):
-        for prompt in prompts:
-            if prompt.pipeline_id in self.pipeline_actors:
-                pipeline_actor = self.pipeline_actors[prompt.pipeline_id]
-                self.actor_system.tell(pipeline_actor, prompt)
+    def forward_prompt(self, prompt: PromptToPull):
+        if prompt.pipeline_id in self.pipeline_actors:
+            pipeline_actor = self.pipeline_actors[prompt.pipeline_id]
+            self.actor_system.tell(pipeline_actor, prompt)
         # else:
         #     msg = "Pipeline {} is not running.".format(prompt.pipeline_id)
         #     raise ValueError(msg)
@@ -125,7 +124,7 @@ class ThespianRunner(AbstractSystemRunner):
     def close(self):
         """Stops all the actors running a system of process applications."""
         super(ThespianRunner, self).close()
-        unsubscribe(handler=self.forward_prompt, predicate=is_prompt)
+        unsubscribe(handler=self.forward_prompt, predicate=is_prompt_to_pull)
         if self.shutdown_on_close:
             self.shutdown()
 

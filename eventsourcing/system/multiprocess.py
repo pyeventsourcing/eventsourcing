@@ -17,7 +17,7 @@ from typing import (
 from eventsourcing.application.notificationlog import RecordManagerNotificationLog
 from eventsourcing.application.process import (
     Prompt,
-    is_prompt,
+    is_prompt_to_pull,
     PromptToPull,
     PromptToQuit,
     ProcessApplication,
@@ -96,7 +96,7 @@ class MultiprocessRunner(AbstractSystemRunner):
 
         # Subscribe to broadcast prompts published by a process
         # application in the parent operating system process.
-        subscribe(handler=self.broadcast_prompts, predicate=is_prompt)
+        subscribe(handler=self.broadcast_prompt, predicate=is_prompt_to_pull)
 
         # Start operating system process.
         expect_tables_exist = False
@@ -127,18 +127,16 @@ class MultiprocessRunner(AbstractSystemRunner):
         for process_class in self.system.process_classes.values():
             self.get(process_class)
 
-    def broadcast_prompts(self, prompts: Iterable[Prompt]) -> None:
-        for prompt in prompts:
-            if isinstance(prompt, PromptToPull):
-                outbox_id = (prompt.pipeline_id, prompt.process_name)
-                outbox = self.outboxes.get(outbox_id)
-                if outbox:
-                    outbox.put(prompt)
+    def broadcast_prompt(self, prompt: PromptToPull) -> None:
+        outbox_id = (prompt.pipeline_id, prompt.process_name)
+        outbox = self.outboxes.get(outbox_id)
+        if outbox:
+            outbox.put(prompt)
 
     def close(self) -> None:
         super(MultiprocessRunner, self).close()
 
-        unsubscribe(handler=self.broadcast_prompts, predicate=is_prompt)
+        unsubscribe(handler=self.broadcast_prompt, predicate=is_prompt_to_pull)
 
         for os_process in self.os_processes:
             os_process.inbox.put(PromptToQuit())
@@ -254,12 +252,12 @@ class OperatingSystemProcess(multiprocessing.Process):
             self.process.follow(upstream_name, notification_log)
 
         # Subscribe to broadcast prompts published by the process application.
-        subscribe(handler=self.broadcast_prompt, predicate=is_prompt)
+        subscribe(handler=self.broadcast_prompt, predicate=is_prompt_to_pull)
 
         try:
             self.loop_on_prompts()
         finally:
-            unsubscribe(handler=self.broadcast_prompt, predicate=is_prompt)
+            unsubscribe(handler=self.broadcast_prompt, predicate=is_prompt_to_pull)
 
     @retry(CausalDependencyFailed, max_attempts=100, wait=0.1)
     def loop_on_prompts(self) -> None:
@@ -293,7 +291,6 @@ class OperatingSystemProcess(multiprocessing.Process):
     def run_process(self, prompt: Optional[Prompt] = None) -> None:
         self.process.run(prompt)
 
-    def broadcast_prompt(self, prompts: Iterable[PromptToPull]) -> None:
+    def broadcast_prompt(self, prompt: PromptToPull) -> None:
         if self.outbox is not None:
-            for prompt in prompts:
-                self.outbox.put(prompt)
+            self.outbox.put(prompt)

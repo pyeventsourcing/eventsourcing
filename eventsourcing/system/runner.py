@@ -26,7 +26,7 @@ from eventsourcing.application.process import (
     Prompt,
     PromptToPull,
     PromptToQuit,
-    is_prompt,
+    is_prompt_to_pull,
 )
 from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
 from eventsourcing.domain.model.decorators import retry
@@ -67,10 +67,10 @@ class InProcessRunner(AbstractSystemRunner):
                 downstream_process.follow(upstream_name, upstream_log)
 
         # Do something to propagate prompts.
-        subscribe(predicate=is_prompt, handler=self.handle_prompts)
+        subscribe(predicate=is_prompt_to_pull, handler=self.handle_prompt)
 
     @abstractmethod
-    def handle_prompts(self, prompts: Iterable[Prompt]) -> None:
+    def handle_prompt(self, prompt: Prompt) -> None:
         """
         Handles publication of a prompt.
 
@@ -80,7 +80,7 @@ class InProcessRunner(AbstractSystemRunner):
     def close(self) -> None:
         super(InProcessRunner, self).close()
 
-        unsubscribe(predicate=is_prompt, handler=self.handle_prompts)
+        unsubscribe(predicate=is_prompt_to_pull, handler=self.handle_prompt)
 
 
 class SingleThreadedRunner(InProcessRunner):
@@ -105,10 +105,10 @@ class SingleThreadedRunner(InProcessRunner):
 
         self.iteration_lock = Lock()
 
-    def handle_prompts(self, prompts: Iterable[Prompt]) -> None:
-        self.run_followers(prompts)
+    def handle_prompt(self, prompt: Prompt) -> None:
+        self.run_followers(prompt)
 
-    def run_followers(self, prompts: Iterable[Prompt]) -> None:
+    def run_followers(self, prompt: Prompt) -> None:
         """
         First caller adds a prompt to queue and
         runs followers until there are no more
@@ -118,8 +118,7 @@ class SingleThreadedRunner(InProcessRunner):
         to the queue, avoiding recursion.
         """
         # Put the prompt on the queue.
-        for prompt in prompts:
-            self.pending_prompts.put(prompt)
+        self.pending_prompts.put(prompt)
 
         if self.iteration_lock.acquire(False):
             # start_time = time.time()
@@ -275,9 +274,8 @@ class MultiThreadedRunner(InProcessRunner):
 
         set_timer()
 
-    def handle_prompts(self, prompts: Iterable[Prompt]) -> None:
-        for prompt in prompts:
-            self.broadcast_prompt(prompt)
+    def handle_prompt(self, prompt: Prompt) -> None:
+        self.broadcast_prompt(prompt)
 
     def broadcast_prompt(self, prompt: Prompt) -> None:
         if isinstance(prompt, PromptToPull):
@@ -468,7 +466,7 @@ class SteppingSingleThreadedRunner(SteppingRunner):
         )
         self.clock_thread.start()
 
-    def handle_prompts(self, prompts: Iterable[Prompt]) -> None:
+    def handle_prompt(self, prompt: Prompt) -> None:
         """
         Ignores prompts.
         """
@@ -699,11 +697,10 @@ class SteppingMultiThreadedRunner(SteppingRunner):
         self.clock_thread = None
         self.stop_event = Event()
 
-    def handle_prompts(self, prompts: Iterable[Prompt]) -> None:
-        for prompt in prompts:
-            if isinstance(prompt, PromptToPull):
-                seen_prompt = self.seen_prompt_events[prompt.process_name]
-                seen_prompt.set()
+    def handle_prompt(self, prompt: Prompt) -> None:
+        if isinstance(prompt, PromptToPull):
+            seen_prompt = self.seen_prompt_events[prompt.process_name]
+            seen_prompt.set()
 
     def start(self) -> None:
         super(SteppingMultiThreadedRunner, self).start()

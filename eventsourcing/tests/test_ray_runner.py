@@ -10,21 +10,19 @@ from uuid import UUID
 import ray
 
 from eventsourcing.application.notificationlog import Section
-from eventsourcing.application.popo import PopoApplication
-from eventsourcing.application.process import PromptToPull
-from eventsourcing.system.ray import (
-    RayRunner,
-    shutdown_ray_system,
-    start_ray_system,
-    RayProcess,
-)
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
-from eventsourcing.system.definition import System
 from eventsourcing.domain.model.events import (
     assert_event_handlers_empty,
     clear_event_handlers,
 )
-from eventsourcing.system.rayhelpers import RayNotificationLog
+from eventsourcing.system.definition import System
+from eventsourcing.system.ray import (
+    RayProcess,
+    RayRunner,
+    shutdown_ray_system,
+    start_ray_system,
+)
+from eventsourcing.system.rayhelpers import RayNotificationLog, RayPrompt
 from eventsourcing.tests.system_test_fixtures import (
     Orders,
     Payments,
@@ -64,11 +62,14 @@ logger.addHandler(ch)
 #     cp.dump(obj)
 #   File "...ray/cloudpickle/cloudpickle_fast.py", line 557, in dump
 #     return Pickler.dump(self, obj)
-# _pickle.PicklingError: Can't pickle typing.Union[eventsourcing.application.process.Prompt, NoneType]: it's not the same object as typing.Union
+# _pickle.PicklingError: Can't pickle typing.Union[
+# eventsourcing.application.process.Prompt, NoneType]: it's not the same object as
+# typing.Union
 
 
 class TestRayRunner(unittest.TestCase):
     infrastructure_class = SQLAlchemyApplication
+
     # infrastructure_class = PopoApplication
 
     def setUp(self):
@@ -235,7 +236,7 @@ class TestRayProcess(unittest.TestCase):
         self.assertEqual(len(section.items), 0)
 
         # Prompt the process.
-        prompt = PromptToPull("orders", 0)
+        prompt = RayPrompt("orders", 0)
         rayid = ray_reservations_process.prompt.remote(prompt)
         ray.get(rayid)
 

@@ -12,7 +12,7 @@ from eventsourcing.application.process import (
     ProcessApplication,
     Prompt,
     PromptToPull,
-    is_prompt,
+    is_prompt_to_pull,
 )
 from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
 from eventsourcing.domain.model.decorators import retry
@@ -171,10 +171,9 @@ class RayProcess:
         self.heads = {}
         self.positions_lock = Lock()
         self.positions = {}
-        self.db_jobs_queue = Queue()  # maxsize=1)
-        self.downstream_prompt_queue = Queue()  # maxsize=1)
-        self.upstream_prompt_queue = Queue()  # maxsize=1)
-        self.upstream_event_queue = Queue()  # maxsize=1)
+        self.db_jobs_queue = Queue(maxsize=10)
+        self.upstream_event_queue = Queue(maxsize=10)
+        self.downstream_prompt_queue = Queue()
 
         self.has_been_stopped = Event()
         self.db_jobs_thread = Thread(target=self.db_jobs)
@@ -220,7 +219,7 @@ class RayProcess:
         self.downstream_processes = downstream_processes
 
         # Subscribe to broadcast prompts published by the process application.
-        subscribe(handler=self.enqueue_prompt, predicate=is_prompt)
+        subscribe(handler=self.enqueue_prompt, predicate=is_prompt_to_pull)
 
         # Construct process application object.
         process_class = self.application_process_class
@@ -289,10 +288,9 @@ class RayProcess:
         # self.tmpdict[upstream_name] = ray_notification_log
         self.process.follow(upstream_name, ray_notification_log)
 
-    def enqueue_prompt(self, prompts):
-        for prompt in prompts:
-            # print("Enqueing locally published prompt:", prompt)
-            self.downstream_prompt_queue.put(prompt)
+    def enqueue_prompt(self, prompt):
+        # print("Enqueing locally published prompt:", prompt)
+        self.downstream_prompt_queue.put(prompt)
 
     @retry(OperationalError, max_attempts=10, wait=0.1)
     def call(self, application_method_name, *args, **kwargs):
@@ -563,8 +561,6 @@ class RayProcess:
 
     def stop(self):
         self.has_been_stopped.set()
-
-        self.upstream_prompt_queue.put(None)
         # self.process_prompts_thread.join(timeout=.25)
 
         self.upstream_event_queue.put(None)
@@ -575,7 +571,7 @@ class RayProcess:
 
         self.db_jobs_queue.put(None)
         # self.db_jobs_thread.join(timeout=.25)
-        unsubscribe(handler=self.enqueue_prompt, predicate=is_prompt)
+        unsubscribe(handler=self.enqueue_prompt, predicate=is_prompt_to_pull)
 
     def print_timecheck(self, activity, *args):
         # pass

@@ -26,8 +26,8 @@ class TestPaxosSystem(unittest.TestCase):
     system = PaxosSystem(setup_tables=True)
 
     # Use SQLAlchemy infrastructure (override in subclasses).
-    # infrastructure_class = SQLAlchemyApplication
-    infrastructure_class = PopoApplication
+    infrastructure_class = SQLAlchemyApplication
+    # infrastructure_class = PopoApplication
 
     def test_single_threaded(self):
 
@@ -192,7 +192,7 @@ class TestPaxosSystem(unittest.TestCase):
     )
     def test_ray_performance(self):
 
-        # set_db_uri()
+        set_db_uri()
 
         num_pipelines = 2
         pipeline_ids = range(num_pipelines)
@@ -204,7 +204,7 @@ class TestPaxosSystem(unittest.TestCase):
             setup_tables=True,
         )
 
-        num_proposals_per_pipeline = 20
+        num_proposals_per_pipeline = 25
         num_proposals = num_pipelines * num_proposals_per_pipeline
 
         # Propose values.

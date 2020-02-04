@@ -69,12 +69,8 @@ class Prompt(ActualOccasion):
     pass
 
 
-def is_prompt(events: IterableOfEvents) -> bool:
-    return (
-        isinstance(events, list)
-        and len(events) == 1
-        and isinstance(events[0], PromptToPull)
-    )
+def is_prompt_to_pull(events: IterableOfEvents) -> bool:
+    return isinstance(events, PromptToPull)
 
 
 class PromptToPull(Prompt):
@@ -239,7 +235,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
     def publish_prompt(self, head_notification_id=None):
         prompt = PromptToPull(self.name, self.pipeline_id, head_notification_id)
         try:
-            publish([prompt])
+            publish(prompt)
         except PromptFailed:
             raise
         except Exception as e:
@@ -314,7 +310,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
                             self.clock_event.wait()
 
                         # Process domain event.
-                        new_events = self.process_upstream_event(
+                        new_events, new_records = self.process_upstream_event(
                             event, notification["id"], upstream_name
                         )
 
@@ -324,8 +320,6 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
                     # Todo: Optionally send events as prompts, saves pulling
                     #  event if it arrives in order.
                     if any([event.__notifiable__ for event in new_events]):
-                        print("Publishing prompt to pull.......")
-
                         self.publish_prompt()
             except Exception as e:
                 # Need to invalidate reader position, so it is refreshed.
@@ -376,7 +370,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
 
     def process_upstream_event(
         self, domain_event: TAggregateEvent, notification_id: int, upstream_name: str
-    ) -> ListOfAggregateEvents:
+    ) -> Tuple[ListOfAggregateEvents, List]:
         cycle_started: Optional[float] = None
         if self.tick_interval is not None:
             cycle_started = time.process_time()

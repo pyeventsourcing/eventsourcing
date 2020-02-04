@@ -258,13 +258,17 @@ class PaxosProcess(ProcessApplication[PaxosAggregate, PaxosAggregate.Event]):
         notifiable_events = [e for e in new_events if e.__notifiable__]
         head_notification_id = None
         if len(notifiable_events):
-            notifications = [
-                self.event_store.record_manager.create_notification_from_record(
-                    record
+            record_manager = self.event_store.record_manager
+            notification_id_name = record_manager.notification_id_name
+            notifications = []
+            for record in new_records:
+                if not hasattr(record, notification_id_name):
+                    continue
+                if not isinstance(getattr(record, notification_id_name), int):
+                    continue
+                notifications.append(
+                    record_manager.create_notification_from_record(record)
                 )
-                for record in new_records
-                if isinstance(record.notification_id, int)
-            ]
 
             if len(notifications):
                 head_notification_id = notifications[-1]["id"]
