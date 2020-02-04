@@ -26,8 +26,7 @@ class RayDbJob(object):
             self.result = self.method(*self.args, **self.kwargs)
         except Exception as e:
             self.error = e
-            print(traceback.format_exc())
-            print("Error in db thread:", e)
+            raise e
         finally:
             self.completed = datetime.now()
             self.is_done.set()
