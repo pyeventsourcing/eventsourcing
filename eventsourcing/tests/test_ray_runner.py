@@ -10,7 +10,7 @@ from uuid import UUID
 import ray
 
 from eventsourcing.application.notificationlog import Section
-# from eventsourcing.application.popo import PopoApplication
+from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.process import PromptToPull
 from eventsourcing.system.ray import (
     RayRunner,
@@ -68,17 +68,17 @@ logger.addHandler(ch)
 
 
 class TestRayRunner(unittest.TestCase):
-    # infrastructure_class = PopoApplication
     infrastructure_class = SQLAlchemyApplication
+    # infrastructure_class = PopoApplication
 
     def setUp(self):
-        # Set environment.
-        set_db_uri()
         # Define system.
         self.system = System(
             Orders | Reservations | Orders | Payments | Orders,
             infrastructure_class=self.infrastructure_class,
         )
+        # Set environment.
+        set_db_uri()
 
     def tearDown(self):
         # Unset environment.
@@ -99,7 +99,7 @@ class TestRayRunner(unittest.TestCase):
 
     def test_ray_runner(self):
         start_ray_system()
-        self.check_actors(2, 50)
+        self.check_actors(2, 25)
 
     def check_actors(self, num_pipelines=1, num_orders_per_pipeline=10):
 
@@ -110,39 +110,38 @@ class TestRayRunner(unittest.TestCase):
             self.system, pipeline_ids=pipeline_ids, setup_tables=True, db_uri=db_uri
         )
 
+        num_orders = num_pipelines * num_orders_per_pipeline
+
         with runner:
 
             sleep(0.2)
 
-            order_id_rayids = []
-
             # Create some new orders.
-            for _ in range(num_orders_per_pipeline):
+            order_ids = []
+            for i in range(num_orders):
 
-                for pipeline_id in pipeline_ids:
-
-                    process = runner.get_ray_process(Orders.create_name(), pipeline_id)
-
-                    order_id_rayid = process.call.remote("create_new_order")
-                    order_id_rayids.append(order_id_rayid)
-                    sleep(0.01)
-
-            order_ids = ray.get(order_id_rayids)
+                pipeline_id = i % len(pipeline_ids)
+                order_id = runner.call("orders", pipeline_id, "create_new_order")
+                order_ids.append(order_id)
+                sleep(0.001)
 
             # Wait for orders to be reserved and paid.
-            process = runner.get_ray_process(Orders.create_name(), pipeline_ids[0])
 
-            retries = 20 + 10 * num_orders_per_pipeline * len(pipeline_ids)
+            retries = 20 + 10 * num_orders
             for i, order_id in enumerate(order_ids):
 
-                while not ray.get(process.call.remote("is_order_reserved", order_id)):
+                pipeline_id = i % len(pipeline_ids)
+
+                while not runner.call(
+                    "orders", pipeline_id, "is_order_reserved", order_id
+                ):
                     time.sleep(0.5)
                     retries -= 1
                     assert retries, "Failed set order.is_reserved {} ({})".format(
                         order_id, i
                     )
 
-                while not ray.get(process.call.remote("is_order_paid", order_id)):
+                while not runner.call("orders", pipeline_id, "is_order_paid", order_id):
                     time.sleep(0.5)
                     retries -= 1
                     assert retries, "Failed set order.is_paid ({})".format(i)
@@ -153,9 +152,10 @@ class TestRayRunner(unittest.TestCase):
                 return
 
             # Calculate timings from event timestamps.
-            orders = [
-                ray.get(process.call.remote("get_order", oid)) for oid in order_ids
-            ]
+            orders = []
+            for i, order_id in enumerate(order_ids):
+                pipeline_id = i % len(pipeline_ids)
+                orders.append(runner.call("orders", pipeline_id, "get_order", order_id))
             first_timestamp = min([o.__created_on__ for o in orders])
             last_timestamp = max([o.__last_modified__ for o in orders])
             duration = last_timestamp - first_timestamp
@@ -208,7 +208,7 @@ class TestRayProcess(unittest.TestCase):
         notifications = ray.get(ray_orders_process.get_notifications.remote(1, 1))
         self.assertIsInstance(notifications, list)
         self.assertEqual(len(notifications), 1)
-        self.assertEqual(notifications[0]['id'], 1)
+        self.assertEqual(notifications[0]["id"], 1)
 
         notifications = ray.get(ray_orders_process.get_notifications.remote(2, 2))
         self.assertIsInstance(notifications, list)

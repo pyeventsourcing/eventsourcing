@@ -6,7 +6,7 @@ from time import sleep
 from unittest import skipIf
 from uuid import uuid4
 
-# from eventsourcing.application.popo import PopoApplication
+from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.contrib.paxos.application import PaxosProcess, PaxosSystem
 from eventsourcing.domain.model.decorators import retry
@@ -26,8 +26,8 @@ class TestPaxosSystem(unittest.TestCase):
     system = PaxosSystem(setup_tables=True)
 
     # Use SQLAlchemy infrastructure (override in subclasses).
-    infrastructure_class = SQLAlchemyApplication
-    # infrastructure_class = PopoApplication
+    # infrastructure_class = SQLAlchemyApplication
+    infrastructure_class = PopoApplication
 
     def test_single_threaded(self):
 
@@ -192,7 +192,7 @@ class TestPaxosSystem(unittest.TestCase):
     )
     def test_ray_performance(self):
 
-        set_db_uri()
+        # set_db_uri()
 
         num_pipelines = 2
         pipeline_ids = range(num_pipelines)
@@ -204,7 +204,7 @@ class TestPaxosSystem(unittest.TestCase):
             setup_tables=True,
         )
 
-        num_proposals_per_pipeline = 25
+        num_proposals_per_pipeline = 20
         num_proposals = num_pipelines * num_proposals_per_pipeline
 
         # Propose values.
@@ -226,7 +226,7 @@ class TestPaxosSystem(unittest.TestCase):
                 runner.call(
                     "paxosprocess0", pipeline_id, "propose_value", key, str(value)
                 )
-                sleep(0.0)
+                sleep(0.005)
 
             # Check final values.
             for key, value in proposals:

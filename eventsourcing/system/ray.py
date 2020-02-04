@@ -91,10 +91,6 @@ class RayRunner(AbstractSystemRunner):
         if db_uri is not None:
             env_vars["DB_URI"] = db_uri
 
-        assert env_vars.get(
-            "DB_URI"
-        ), "DB_URI not set: Ray runner doesn't work with in-memory database at the mo"
-
         # Start processes.
         for pipeline_id in self.pipeline_ids:
             for process_name, process_class in self.system.process_classes.items():
@@ -324,19 +320,10 @@ class RayProcess:
         assert isinstance(prompt, RayPrompt), "Not a RayPrompt: %s" % prompt
 
         # self.print_timecheck("prompt received from", prompt.process_name)
-        latest_head = prompt.head_notification_id
-        # self.print_timecheck(
-        #     "Latest head from", prompt.process_name, latest_head
-        # )
-
-        with self.positions_lock:
-            current_position = self.positions.get(prompt.process_name)
-        # self.print_timecheck(
-        #     "Latest current position", prompt.process_name, current_position
-        # )
-        if latest_head is not None:
-            # Update head from prompt.
-            with self.heads_lock:
+        with self.heads_lock:
+            latest_head = prompt.head_notification_id
+            if latest_head is not None:
+                # Update head from prompt.
                 if prompt.process_name in self.heads:
                     if latest_head > self.heads[prompt.process_name]:
                         self.heads[prompt.process_name] = latest_head
@@ -344,16 +331,11 @@ class RayProcess:
                 else:
                     self.heads[prompt.process_name] = latest_head
                     self.has_been_prompted.set()
-            # if current_position > self.heads[prompt.process_name]:
-            #     self.print_timecheck(
-            #         "Warning, current position greater than head from prompts:",
-            #         self.pipeline_id,
-            #         self.process.name,
-            #         prompt.process_name,
-            #         "%s > %s" % (current_position, latest_head),
-            #     )
-        else:
-            self.has_been_prompted.set()
+            else:
+                self.has_been_prompted.set()
+            # self.print_timecheck(
+            #     "Head after prompting", prompt.process_name, self.heads[prompt.process_name]
+            # )
 
     def process_prompts(self) -> None:
         # Loop until stop event is set.
@@ -361,36 +343,34 @@ class RayProcess:
 
             self.has_been_prompted.wait()
             # self.print_timecheck('has been prompted')
-            self.has_been_prompted.clear()
 
-            upstream_names = self.upstream_logs.keys()
+            current_heads = {}
+            with self.heads_lock:
+                self.has_been_prompted.clear()
+                for upstream_name in self.upstream_logs.keys():
+                    current_head = self.heads.get(upstream_name)
+                    current_heads[upstream_name] = current_head
 
-            for upstream_name in upstream_names:
+            for upstream_name in self.upstream_logs.keys():
 
                 with self.positions_lock:
                     current_position = self.positions.get(upstream_name)
-                first_notification_id = current_position + 1
+                first_notification_id = current_position + 1  # request the next one
 
-                # with self.heads_lock:
-                #     current_head = self.heads.get(upstream_name)
-                #
-                # if current_head is not None and current_head < current_position:
-                #     # self.print_timecheck(
-                #     #     "Warning, current position ahead of known head:",
-                #     #     self.process.name,
-                #     #     upstream_name,
-                #     #     "%s -> %s" % (current_position, current_head),
-                #     # )
-                #     last_notification_id = None
-                # else:
-                #     last_notification_id = current_head
+                current_head = current_heads[upstream_name]
+                RANGE_LIMIT = 10
+                if current_head is not None:
+                    if current_position >= current_head:
+                        # self.print_timecheck(
+                        #     "Up to date with", upstream_name, current_position,
+                        #     current_head
+                        # )
+                        continue
 
-                # if isinstance(last_notification_id, int):
-                #     if first_notification_id > last_notification_id:
-                #         # self.print_timecheck('up to date with notifications from',
-                #         #                      upstream_name,
-                #         #                      first_notification_id, last_notification_id)
-                #         continue
+                    else:
+                        last_notification_id = first_notification_id + RANGE_LIMIT - 1
+                else:
+                    last_notification_id = None
 
                 # self.print_timecheck(
                 #     "Getting notifications in range:",
@@ -405,17 +385,23 @@ class RayProcess:
                 #  if we got full quota, then get again.
 
                 rayid = upstream_process.get_notifications.remote(
-                    # first_notification_id, last_notification_id
-                    first_notification_id, None
+                    first_notification_id,
+                    last_notification_id
                 )
 
                 notifications = ray.get(rayid)
 
                 # self.print_timecheck(
-                #     "Obtained notifications:", len(notifications), 'from', upstream_name
+                #     "Obtained notifications:", len(notifications), 'from',
+                #     upstream_name
                 # )
 
                 if len(notifications):
+
+                    if len(notifications) == RANGE_LIMIT:
+                        # self.print_timecheck("Range limit reached, reprompting self...")
+                        self.has_been_prompted.set()
+
                     position = notifications[-1]["id"]
                     with self.positions_lock:
                         current_position = self.positions[upstream_name]
@@ -437,7 +423,7 @@ class RayProcess:
                     )
 
             # Rate limit the pulling of notifications.
-            sleep(0.05)
+            sleep(0.15)
 
     def get_notifications(self, first_notification_id, last_notification_id):
         return self.do_db_job(
