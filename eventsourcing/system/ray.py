@@ -123,16 +123,15 @@ class RayRunner(AbstractSystemRunner):
         assert isinstance(process_name, str)
         return self.ray_processes[(process_name, pipeline_id)]
 
-    def close(self):
-        super(RayRunner, self).close()
-        processes = self.ray_processes.values()
-        stop_ids = [p.stop.remote() for p in processes]
-        ray.get(stop_ids, timeout=6)
-
     def call(self, process_name, pipeline_id, method_name, *args, **kwargs):
         paxosprocess0 = self.get_ray_process(process_name, pipeline_id)
         ray_id = paxosprocess0.call.remote(method_name, *args, **kwargs)
         return ray.get(ray_id)
+
+    def close(self):
+        super(RayRunner, self).close()
+        for process in self.ray_processes.values():
+            process.stop.remote()
 
 
 @ray.remote
@@ -569,14 +568,7 @@ class RayProcess:
         """
         Stops the process.
         """
-        self.has_been_stopped.set()
-        self.upstream_event_queue.put(None)
-        self.downstream_prompt_queue.put(None)
-        self.db_jobs_queue.put(None)
-        self.process_prompts_thread.join(timeout=1)
-        self.process_events_thread.join(timeout=1)
-        self.push_prompts_thread.join(timeout=1)
-        self.db_jobs_thread.join(timeout=1)
+        self.process.close()
         unsubscribe(handler=self._enqueue_prompt_to_pull, predicate=is_prompt_to_pull)
 
     def _print_timecheck(self, activity, *args):
