@@ -239,6 +239,17 @@ class TestDecorators(TestCase):
 
         self.seen_default = False
         self.seen_int = False
+        self.seen_a = False
+        self.seen_b = False
+
+        class A(object):
+            pass
+
+        class B(A):
+            pass
+
+        class C(B):
+            pass
 
         class Application(object):
 
@@ -253,6 +264,14 @@ class TestDecorators(TestCase):
             def _(self, repository, event):
                 self.test_case.seen_int = True
 
+            @policy.register(A)
+            def _(self, repository, event):
+                self.test_case.seen_a = True
+
+            @policy.register(B)
+            def _(self, repository, event):
+                self.test_case.seen_b = True
+
 
         app = Application(self)
         self.assertFalse(self.seen_default)
@@ -263,3 +282,6 @@ class TestDecorators(TestCase):
         app.policy(None, 1)
         self.assertTrue(self.seen_default)
         self.assertTrue(self.seen_int)
+        app.policy(None, C())
+        self.assertTrue(self.seen_b)
+

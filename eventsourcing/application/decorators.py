@@ -1,4 +1,4 @@
-from functools import singledispatch, wraps
+from functools import singledispatch, wraps, _find_impl
 from inspect import isfunction
 from typing import Callable, no_type_check
 
@@ -42,30 +42,23 @@ def applicationpolicy2(arg: Callable) -> Callable:
             try:
                 return cache[event_type]
             except KeyError:
-                try:
-                    handler = handlers[event_type]
-                except KeyError:
-                    for key, value in handlers.items():
-                        if issubclass(event_type, key):
-                            handler = value
-                            break
-                    else:
-                        handler = func
+                handler = _find_impl(event_type, handlers) or func
                 cache[event_type] = handler
                 return handler
 
-        def register(event_type):
-            def registered(func):
-                handlers[event_type] = func
-            return registered
-
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def policy_function_wrapper(*args, **kwargs):
             event = kwargs.get("event") or args[-1]
             return dispatch(type(event))(*args, **kwargs)
 
-        wrapper.register = register
+        def register(event_type):
+            def registered_function_decorator(func):
+                handlers[event_type] = func
+                return func
+            return registered_function_decorator
 
-        return wrapper
+        policy_function_wrapper.register = register
+
+        return policy_function_wrapper
 
     return _mutator(arg)
