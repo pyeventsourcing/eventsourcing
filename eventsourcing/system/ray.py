@@ -32,9 +32,9 @@ from eventsourcing.system.runner import DEFAULT_POLL_INTERVAL
 
 ray.init()
 
-MAX_QUEUE_SIZE = 0
-PAGE_SIZE = 100
-
+MAX_QUEUE_SIZE = 1
+PAGE_SIZE = 10
+MICROSLEEP = 0.000
 
 class RayRunner(AbstractSystemRunner):
     """
@@ -368,7 +368,7 @@ class RayProcess:
                     (event, notification["id"], upstream_name)
                 )
             self.upstream_event_queue.put(queue_item)
-            sleep(0.0001)
+            sleep(MICROSLEEP)
 
     def get_notifications(self, first_notification_id, last_notification_id):
         """
@@ -467,7 +467,7 @@ class RayProcess:
                     #     self.downstream_prompt_queue.qsize(),
                     # )
                     self.downstream_prompt_queue.put(prompt)
-                    sleep(0.0001)
+                    sleep(MICROSLEEP)
                     # self.print_timecheck(
                     #     "put prompt on downstream prompt " "queue"
                     # )
@@ -476,7 +476,7 @@ class RayProcess:
     def _enqueue_prompt_to_pull(self, prompt):
         # print("Enqueing locally published prompt:", prompt)
         self.downstream_prompt_queue.put(prompt)
-        sleep(0.0001)
+        sleep(MICROSLEEP)
 
     def _push_prompts(self) -> None:
         while not self.has_been_stopped.is_set():
