@@ -1190,7 +1190,6 @@ can also be used to run a multi-pipeline system of process applications.
 The library's :class:`~eventsourcing.system.ray.RayRunner`
 is a system runner that uses Ray's actor model system.
 
-
 The example below runs with Thespian's "simple system base".
 
 .. code:: python
@@ -1205,6 +1204,28 @@ The example below runs with Thespian's "simple system base".
     )
 
     # Todo: More about using this runner.
+
+..    @retry((AssertionError), max_attempts=50, wait=0.1)
+..    def assert_ray_eventually_done(runner, pipeline_id, cmd_id):
+..        """Checks the command is eventually done."""
+..        assert runner.call("commands", pipeline_id, "is_order_done", command_id)
+..
+..    with runner:
+..
+..        # Create new orders.
+..        command_ids = []
+..        while len(command_ids) < num_orders:
+..            pipeline_id = len(command_ids) % len(pipeline_ids)
+..            command_id = runner.call("commands", pipeline_id, "create_order")
+..            command_ids.append(command_id)
+..
+..        # Check all commands are eventually done.
+..        assert len(command_ids)
+..        for i, command_id in enumerate(command_ids):
+..            break
+..            pipeline_id = i % len(pipeline_ids)
+..            assert_ray_eventually_done(runner, pipeline_id, command_id)
+
 
 Thespian actor model runner
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
