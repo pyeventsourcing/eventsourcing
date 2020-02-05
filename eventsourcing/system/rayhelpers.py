@@ -1,4 +1,3 @@
-import traceback
 from datetime import datetime
 from threading import Event, Lock
 

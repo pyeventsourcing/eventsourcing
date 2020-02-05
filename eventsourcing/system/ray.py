@@ -2,7 +2,7 @@ import datetime
 import os
 import traceback
 from queue import Empty, Queue
-from threading import Event, Lock, Thread, Timer
+from threading import Event, Lock, Thread
 from time import sleep
 from typing import Dict, Optional, Tuple, Type
 
@@ -31,6 +31,9 @@ from eventsourcing.system.rayhelpers import RayDbJob, RayPrompt
 from eventsourcing.system.runner import DEFAULT_POLL_INTERVAL
 
 ray.init()
+
+MAX_QUEUE_SIZE = 0
+PAGE_SIZE = 100
 
 
 class RayRunner(AbstractSystemRunner):
@@ -155,15 +158,15 @@ class RayProcess:
 
         # Setup threads, queues, and threading events.
         self.readers_lock = Lock()
-        self.has_been_prompted = Event()
+        self._has_been_prompted = Event()
         self.heads_lock = Lock()
         self.heads = {}
         self.positions_lock = Lock()
         self.positions = {}
         self.positions_initialised = Event()
-        self.db_jobs_queue = Queue(maxsize=10)
-        self.upstream_event_queue = Queue(maxsize=10)
-        self.downstream_prompt_queue = Queue()
+        self.db_jobs_queue = Queue(maxsize=MAX_QUEUE_SIZE)
+        self.upstream_event_queue = Queue(maxsize=MAX_QUEUE_SIZE)
+        self.downstream_prompt_queue = Queue()  # no maxsize, call() can put prompt
 
         self.has_been_stopped = Event()
         self.db_jobs_thread = Thread(target=self.db_jobs)
@@ -182,26 +185,11 @@ class RayProcess:
         self.push_prompts_thread.setDaemon(True)
         self.push_prompts_thread.start()
 
-    def start_prompt_timer(self):
-        self.print_timecheck('started prompt timer...')
-        self._prompt_timer = Timer(
-            interval=DEFAULT_POLL_INTERVAL, function=self.set_has_been_prompted
-        )
-        self._prompt_timer.run()
-
-    def set_has_been_prompted(self):
-        self.print_timecheck('timer setting has been prompted...')
-        self.has_been_prompted.set()
-
-    def cancel_prompt_timer(self):
-        self.print_timecheck('cancelled prompt timer...')
-        self._prompt_timer.cancel()
-
     def db_jobs(self):
         # print("Running do_jobs")
         while not self.has_been_stopped.is_set():
             try:
-                item = self.db_jobs_queue.get(timeout=1)
+                item = self.db_jobs_queue.get()  # timeout=1)
                 self.db_jobs_queue.task_done()
             except Empty:
                 if self.has_been_stopped.is_set():
@@ -216,7 +204,9 @@ class RayProcess:
                 except Exception as e:
                     if db_job.error is None:
                         print(traceback.format_exc())
-                        self.print_timecheck("Continuing after error running DB job:", e)
+                        self._print_timecheck(
+                            "Continuing after error running DB job:", e
+                        )
                         sleep(1)
                 # else:
                 #     self.print_timecheck("Done db job", item)
@@ -271,7 +261,6 @@ class RayProcess:
 
         self._reset_positions()
         self.positions_initialised.set()
-        self.start_prompt_timer()
 
     def _reset_positions(self):
         self.do_db_job(self.__reset_positions, (), {})
@@ -290,7 +279,6 @@ class RayProcess:
         self.positions_initialised.wait()
 
         while not self.has_been_stopped.is_set():
-            self.start_prompt_timer()
             try:
                 self.__process_prompts()
             except Exception as e:
@@ -300,13 +288,13 @@ class RayProcess:
                 sleep(1)
 
     def __process_prompts(self):
-        self.has_been_prompted.wait()
-        self.cancel_prompt_timer()
+        # Wait until prompted.
+        self._has_been_prompted.wait()
 
         # self.print_timecheck('has been prompted')
         current_heads = {}
         with self.heads_lock:
-            self.has_been_prompted.clear()
+            self._has_been_prompted.clear()
             for upstream_name in self.upstream_processes.keys():
                 current_head = self.heads.get(upstream_name)
                 current_heads[upstream_name] = current_head
@@ -318,7 +306,6 @@ class RayProcess:
             first_notification_id = current_position + 1  # request the next one
 
             current_head = current_heads[upstream_name]
-            RANGE_LIMIT = 10
             if current_head is not None:
                 if current_position >= current_head:
                     # self.print_timecheck(
@@ -328,7 +315,7 @@ class RayProcess:
                     continue
 
                 else:
-                    last_notification_id = first_notification_id + RANGE_LIMIT - 1
+                    last_notification_id = first_notification_id + PAGE_SIZE - 1
             else:
                 last_notification_id = None
 
@@ -356,10 +343,9 @@ class RayProcess:
 
             if len(notifications):
 
-                if len(notifications) == RANGE_LIMIT:
-                    # self.print_timecheck("Range limit reached, reprompting
-                    # self...")
-                    self.has_been_prompted.set()
+                if len(notifications) == PAGE_SIZE:
+                    # self._print_timecheck("Range limit reached, reprompting...")
+                    self._has_been_prompted.set()
 
                 position = notifications[-1]["id"]
                 with self.positions_lock:
@@ -367,6 +353,7 @@ class RayProcess:
                     if current_position is None or position > current_position:
                         self.positions[upstream_name] = position
 
+            queue_item = []
             for notification in notifications:
                 # Check causal dependencies.
                 self.process.check_causal_dependencies(
@@ -377,11 +364,11 @@ class RayProcess:
                 # self.print_timecheck("obtained event", event)
 
                 # Put domain event on the queue, for event processing.
-                self.upstream_event_queue.put(
+                queue_item.append(
                     (event, notification["id"], upstream_name)
                 )
-        # Rate limit the pulling of notifications.
-        sleep(0.15)
+            self.upstream_event_queue.put(queue_item)
+            sleep(0.0001)
 
     def get_notifications(self, first_notification_id, last_notification_id):
         """
@@ -412,84 +399,84 @@ class RayProcess:
 
     def __process_events(self):
         try:
-            item = self.upstream_event_queue.get()  # timeout=5)
+            queue_item = self.upstream_event_queue.get()  # timeout=5)
             self.upstream_event_queue.task_done()
         except Empty:
             if self.has_been_stopped.is_set():
                 return
         else:
-            if item is None or self.has_been_stopped.is_set():
+            if queue_item is None or self.has_been_stopped.is_set():
                 return
-            else:
-                domain_event, notification_id, upstream_name = item
-            # print("Processing upstream event:", (domain_event,
-            # notification_id, upstream_name))
 
-            new_events, new_records = (), ()
-            while not self.has_been_stopped.is_set():
-                try:
-                    new_events, new_records = self.do_db_job(
-                        method=self.process.process_upstream_event,
-                        args=(domain_event, notification_id, upstream_name),
-                        kwargs={},
+            for (domain_event, notification_id, upstream_name) in queue_item:
+                # print("Processing upstream event:", (domain_event,
+                # notification_id, upstream_name))
+
+                new_events, new_records = (), ()
+                while not self.has_been_stopped.is_set():
+                    try:
+                        new_events, new_records = self.do_db_job(
+                            method=self.process.process_upstream_event,
+                            args=(domain_event, notification_id, upstream_name),
+                            kwargs={},
+                        )
+                        break
+                    except Exception as e:
+                        print(traceback.format_exc())
+                        self._print_timecheck("Retrying to reprocess event after error:", e)
+                        sleep(1)
+                        # Todo: Forever? What if this is the wrong event?
+
+                if self.has_been_stopped.is_set():
+                    return
+
+                # if new_events:
+                #     self._print_timecheck("new events", len(new_events), new_events)
+
+                notifiable_events = [e for e in new_events if e.__notifiable__]
+                if len(notifiable_events):
+                    record_manager = self.process.event_store.record_manager
+                    notification_id_name = record_manager.notification_id_name
+                    notifications = [
+                        record_manager.create_notification_from_record(record)
+                        for record in new_records
+                        if isinstance(getattr(record, notification_id_name, None), int)
+                    ]
+
+                    if len(notifications):
+                        head_notification_id = notifications[-1]["id"]
+                        # self.print_timecheck(
+                        #     "MAX NOTIFICATION ID in NOTIFICATIONS:",
+                        #     head_notification_id)
+                    else:
+                        # self.print_timecheck(
+                        #     'getting max id from db, cos zero notification'
+                        # )
+                        # self.print_timecheck('- new events', new_events)
+                        # self.print_timecheck('- notifiable events',
+                        #                      notifiable_events)
+                        # self.print_timecheck('- notifications', notifications)
+                        head_notification_id = self._get_max_notification_id()
+
+                    prompt = RayPrompt(
+                        self.process.name, self.process.pipeline_id, head_notification_id,
                     )
-                    break
-                except Exception as e:
-                    print(traceback.format_exc())
-                    self.print_timecheck("Retrying to reprocess event after error:", e)
-                    sleep(1)
-                    # Todo: Forever? What if this is the wrong event?
 
-
-            if self.has_been_stopped.is_set():
-                return
-
-            if new_events:
-                self.print_timecheck("new events", len(new_events),
-                new_events)
-
-            notifiable_events = [e for e in new_events if e.__notifiable__]
-            if len(notifiable_events):
-                record_manager = self.process.event_store.record_manager
-                notification_id_name = record_manager.notification_id_name
-                notifications = [
-                    record_manager.create_notification_from_record(record)
-                    for record in new_records
-                    if isinstance(getattr(record, notification_id_name, None), int)
-                ]
-
-                if len(notifications):
-                    head_notification_id = notifications[-1]["id"]
                     # self.print_timecheck(
-                    #     "MAX NOTIFICATION ID in NOTIFICATIONS:",
-                    #     head_notification_id)
-                else:
-                    # self.print_timecheck(
-                    #     'getting max id from db, cos zero notification'
+                    #     "putting prompt on downstream " "prompt queue",
+                    #     self.downstream_prompt_queue.qsize(),
                     # )
-                    # self.print_timecheck('- new events', new_events)
-                    # self.print_timecheck('- notifiable events',
-                    #                      notifiable_events)
-                    # self.print_timecheck('- notifications', notifications)
-                    head_notification_id = self._get_max_notification_id()
-
-                prompt = RayPrompt(
-                    self.process.name, self.process.pipeline_id, head_notification_id,
-                )
-
-                # self.print_timecheck(
-                #     "putting prompt on downstream " "prompt queue",
-                #     self.downstream_prompt_queue.qsize(),
-                # )
-                self.downstream_prompt_queue.put(prompt)
-                # self.print_timecheck(
-                #     "put prompt on downstream prompt " "queue"
-                # )
+                    self.downstream_prompt_queue.put(prompt)
+                    sleep(0.0001)
+                    # self.print_timecheck(
+                    #     "put prompt on downstream prompt " "queue"
+                    # )
         # sleep(0.1)
 
     def _enqueue_prompt_to_pull(self, prompt):
         # print("Enqueing locally published prompt:", prompt)
         self.downstream_prompt_queue.put(prompt)
+        sleep(0.0001)
 
     def _push_prompts(self) -> None:
         while not self.has_been_stopped.is_set():
@@ -503,15 +490,15 @@ class RayProcess:
     def __push_prompts(self):
         try:
             item = self.downstream_prompt_queue.get()  # timeout=1)
+            self.downstream_prompt_queue.task_done()
             # Todo: Instead, drain the queue and consolidate prompts.
         except Empty:
-            self.print_timecheck(
+            self._print_timecheck(
                 "timed out getting item from downstream prompt " "queue"
             )
             if self.has_been_stopped.is_set():
                 return
         else:
-            self.downstream_prompt_queue.task_done()
             # self.print_timecheck("task done on downstream prompt queue")
             if item is None or self.has_been_stopped.is_set():
                 return
@@ -528,18 +515,12 @@ class RayProcess:
             prompt_response_ids = []
             # self.print_timecheck("pushing prompts", prompt)
             for downstream_name, ray_process in self.downstream_processes.items():
-                # print("Pushing prompt", prompt)
-                # sleep(1)
-                # raise Exception("Prompt error")
-
                 prompt_response_ids.append(ray_process.prompt.remote(prompt))
                 if self.has_been_stopped.is_set():
                     return
-                self.print_timecheck("pushed prompt to", downstream_name)
-
+                # self._print_timecheck("pushed prompt to", downstream_name)
             ray.get(prompt_response_ids)
-
-            self.print_timecheck("pushed prompts")
+            # self._print_timecheck("pushed prompts")
 
     def prompt(self, prompt: RayPrompt) -> None:
         assert isinstance(prompt, RayPrompt), "Not a RayPrompt: %s" % prompt
@@ -551,12 +532,12 @@ class RayProcess:
                 if upstream_name in self.heads:
                     if latest_head > self.heads[upstream_name]:
                         self.heads[upstream_name] = latest_head
-                        self.has_been_prompted.set()
+                        self._has_been_prompted.set()
                 else:
                     self.heads[upstream_name] = latest_head
-                    self.has_been_prompted.set()
+                    self._has_been_prompted.set()
         else:
-            self.has_been_prompted.set()
+            self._has_been_prompted.set()
 
     def _get_max_notification_id(self):
         """
@@ -598,7 +579,7 @@ class RayProcess:
         self.db_jobs_thread.join(timeout=1)
         unsubscribe(handler=self._enqueue_prompt_to_pull, predicate=is_prompt_to_pull)
 
-    def print_timecheck(self, activity, *args):
+    def _print_timecheck(self, activity, *args):
         # pass
         process_name = self.application_process_class.__name__.lower()
         print(

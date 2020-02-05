@@ -9,7 +9,7 @@ from uuid import UUID
 
 import ray
 
-from eventsourcing.application.notificationlog import Section
+from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.domain.model.events import (
     assert_event_handlers_empty,
@@ -211,9 +211,7 @@ class TestRayProcess(unittest.TestCase):
         )
         # Make the reservations follow the orders.
         ray.get(
-            ray_reservations_process.init.remote(
-                {"orders": ray_orders_process}, {}
-            )
+            ray_reservations_process.init.remote({"orders": ray_orders_process}, {})
         )
 
         # Get range of notifications.
@@ -258,9 +256,7 @@ class TestRayProcess(unittest.TestCase):
         order_id = ray.get(ray_orders_process.call.remote("create_new_order"))
 
         # Get range of notifications.
-        notifications = ray.get(
-            ray_orders_process.get_notifications.remote(1, 1000)
-        )
+        notifications = ray.get(ray_orders_process.get_notifications.remote(1, 1000))
         self.assertIsInstance(notifications, list)
         self.assertEqual(len(notifications), 2)
 
