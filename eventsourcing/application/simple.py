@@ -110,7 +110,9 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         """
         self.name = name or type(self).create_name()
 
-        self.notification_log_section_size = notification_log_section_size
+        self.notification_log_section_size = (
+            notification_log_section_size or type(self).notification_log_section_size
+        )
 
         sequenced_item_class = sequenced_item_class or type(self).sequenced_item_class
         sequenced_item_class = sequenced_item_class or StoredEvent  # type: ignore
