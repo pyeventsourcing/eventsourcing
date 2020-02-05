@@ -40,18 +40,19 @@ def applicationpolicy2(arg: Callable) -> Callable:
 
         def dispatch(event_type):
             try:
-                return handlers[event_type]
+                return cache[event_type]
             except KeyError:
                 try:
-                    return cache[event_type]
+                    handler = handlers[event_type]
                 except KeyError:
-                    for key, value in handlers:
+                    for key, value in handlers.items():
                         if issubclass(event_type, key):
-                            cache[event_type] = value
-                            return value
+                            handler = value
+                            break
                     else:
-                        cache[event_type] = func
-                        return func
+                        handler = func
+                cache[event_type] = handler
+                return handler
 
         def register(event_type):
             def registered(func):

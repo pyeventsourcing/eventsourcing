@@ -3,7 +3,7 @@ from uuid import uuid4
 
 from mock import mock
 
-from eventsourcing.application.decorators import applicationpolicy
+from eventsourcing.application.decorators import applicationpolicy, applicationpolicy2
 from eventsourcing.domain.model.decorators import mutator, retry, subscribe_to
 from eventsourcing.domain.model.events import (
     EventHandlersNotEmptyError,
@@ -217,6 +217,35 @@ class TestDecorators(TestCase):
                 self.test_case = test_case
 
             @applicationpolicy
+            def policy(self, repository, event):
+                self.test_case.seen_default = True
+
+            @policy.register(int)
+            def _(self, repository, event):
+                self.test_case.seen_int = True
+
+
+        app = Application(self)
+        self.assertFalse(self.seen_default)
+        self.assertFalse(self.seen_int)
+        app.policy(None, '')
+        self.assertTrue(self.seen_default)
+        self.assertFalse(self.seen_int)
+        app.policy(None, 1)
+        self.assertTrue(self.seen_default)
+        self.assertTrue(self.seen_int)
+
+    def test_applicationpolicy2_decorator(self):
+
+        self.seen_default = False
+        self.seen_int = False
+
+        class Application(object):
+
+            def __init__(self, test_case):
+                self.test_case = test_case
+
+            @applicationpolicy2
             def policy(self, repository, event):
                 self.test_case.seen_default = True
 
