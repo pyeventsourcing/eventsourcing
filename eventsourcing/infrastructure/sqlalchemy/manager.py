@@ -1,16 +1,16 @@
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Union
 from uuid import UUID
 
-from sqlalchemy import asc, bindparam, desc, select, text
 import sqlalchemy.exc
+from sqlalchemy import asc, bindparam, desc, select, text
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.sql import func
 
-from eventsourcing.exceptions import ProgrammingError, OperationalError
+from eventsourcing.exceptions import OperationalError, ProgrammingError
 from eventsourcing.infrastructure.base import (
+    BaseRecordManager,
     SQLRecordManager,
     TrackingKwargs,
-    BaseRecordManager,
 )
 
 
@@ -62,6 +62,7 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         orm_objs_pending_save: Optional[Sequence[Any]] = None,
         orm_objs_pending_delete: Optional[Sequence[Any]] = None,
     ) -> None:
+
         all_params = []
         statement = None
         if not isinstance(records, list):
@@ -305,9 +306,7 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         upstream_app_name_field = (
             self.tracking_record_class.upstream_application_name  # type: ignore
         )
-        pipeline_id_field = (
-            self.tracking_record_class.pipeline_id  # type: ignore
-        )
+        pipeline_id_field = self.tracking_record_class.pipeline_id  # type: ignore
         notification_id_field = (
             self.tracking_record_class.notification_id  # type: ignore
         )
@@ -328,9 +327,7 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         upstream_name_field = (
             self.tracking_record_class.upstream_application_name  # type: ignore
         )
-        pipeline_id_field = (
-            self.tracking_record_class.pipeline_id  # type: ignore
-        )
+        pipeline_id_field = self.tracking_record_class.pipeline_id  # type: ignore
         notification_id_field = (
             self.tracking_record_class.notification_id  # type: ignore
         )
