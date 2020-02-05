@@ -27,3 +27,44 @@ def applicationpolicy(arg: Callable) -> Callable:
         return wrapper
 
     return _mutator(arg)
+
+
+def applicationpolicy2(arg: Callable) -> Callable:
+    """
+    This one doesn't use weakrefs.
+    """
+    handlers = {}
+    cache = {}
+
+    def _mutator(func):
+
+        def dispatch(event_type):
+            try:
+                return handlers[event_type]
+            except KeyError:
+                try:
+                    return cache[event_type]
+                except KeyError:
+                    for key, value in handlers:
+                        if issubclass(event_type, key):
+                            cache[event_type] = value
+                            return value
+                    else:
+                        cache[event_type] = func
+                        return func
+
+        def register(event_type):
+            def registered(func):
+                handlers[event_type] = func
+            return registered
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            event = kwargs.get("event") or args[-1]
+            return dispatch(type(event))(*args, **kwargs)
+
+        wrapper.register = register
+
+        return wrapper
+
+    return _mutator(arg)
