@@ -67,7 +67,6 @@ logger.addHandler(ch)
 
 class TestRayRunner(unittest.TestCase):
     infrastructure_class = SQLAlchemyApplication
-
     # infrastructure_class = PopoApplication
 
     def setUp(self):
@@ -92,7 +91,7 @@ class TestRayRunner(unittest.TestCase):
             clear_event_handlers()
 
     def test_ray_runner(self):
-        self.check_actors(2, 25)
+        self.check_actors(2, 60)
 
     def check_actors(self, num_pipelines=1, num_orders_per_pipeline=10):
 
