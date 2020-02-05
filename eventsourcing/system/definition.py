@@ -162,7 +162,7 @@ class System(object):
             use_direct_query_if_available=self.use_direct_query_if_available,
         )
         runner.start()
-        self.runner = weakref.ref(runner)
+        self.runner = runner
         return runner
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
@@ -171,7 +171,7 @@ class System(object):
         """
 
         if self.runner:
-            runner: Optional[AbstractSystemRunner] = self.runner()
+            runner: Optional[AbstractSystemRunner] = self.runner
             if runner is not None:
                 runner.close()
             self.runner = None
@@ -225,14 +225,6 @@ class AbstractSystemRunner(ABC):
         """
         Supports usage of a system runner as a context manager.
         """
-        assert isinstance(self, AbstractSystemRunner)  # For PyCharm navigation.
-        if self.system.runner is None or self.system.runner() is None:
-            self.system.runner = weakref.ref(self)
-        else:
-            raise ProgrammingError(
-                "System is already running: {}".format(self.system.runner)
-            )
-
         self.start()
         return self
 
@@ -241,7 +233,6 @@ class AbstractSystemRunner(ABC):
         Supports usage of a system runner as a context manager.
         """
         self.close()
-        self.system.runner = None
 
     @abstractmethod
     def start(self) -> None:

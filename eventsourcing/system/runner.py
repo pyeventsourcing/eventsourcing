@@ -36,7 +36,7 @@ from eventsourcing.exceptions import (
     EventSourcingError,
     OperationalError,
     RecordConflictError,
-)
+    ProgrammingError)
 from eventsourcing.system.definition import System, AbstractSystemRunner
 from eventsourcing.whitehead import T
 
@@ -52,7 +52,8 @@ class InProcessRunner(AbstractSystemRunner):
     """
 
     def start(self) -> None:
-        assert len(self.processes) == 0, "Already running"
+        if len(self.processes):
+            raise ProgrammingError("Already running")
 
         # Construct the processes.
         for process_class in self.system.process_classes.values():
