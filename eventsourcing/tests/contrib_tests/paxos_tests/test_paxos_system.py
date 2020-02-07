@@ -237,8 +237,11 @@ class TestPaxosSystem(unittest.TestCase):
             # Print timing information (just for fun).
             duration = (datetime.datetime.now() - started).total_seconds()
             print(
-                "Resolved {} paxoses with ray in {:.4f}s ({:.4f}s each)".format(
-                    num_proposals, duration, duration / num_proposals
+                "Resolved {} paxoses with ray in {:.4f}s "
+                "({:.1f} values/s, {:.4f}s each)".format(
+                    num_proposals, duration,
+                    num_proposals / duration,
+                    duration / num_proposals
                 )
             )
 

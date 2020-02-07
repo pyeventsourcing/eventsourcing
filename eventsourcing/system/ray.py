@@ -20,7 +20,7 @@ from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import (
     OperationalError,
     ProgrammingError,
-    RecordConflictError
+    RecordConflictError,
 )
 from eventsourcing.infrastructure.base import (
     DEFAULT_PIPELINE_ID,
@@ -30,11 +30,17 @@ from eventsourcing.system.definition import AbstractSystemRunner, System
 from eventsourcing.system.rayhelpers import RayDbJob, RayPrompt
 from eventsourcing.system.runner import DEFAULT_POLL_INTERVAL
 
-ray.init()
+from eventsourcing.system.raysettings import ray_init_kwargs
+
+ray.init(**ray_init_kwargs)
 
 MAX_QUEUE_SIZE = 1
-PAGE_SIZE = 10
+PAGE_SIZE = 20
 MICROSLEEP = 0.000
+PROMPT_WITH_NOTIFICATION_IDS = False
+PROMPT_WITH_NOTIFICATION_OBJS = False
+GREEDY_PULL_NOTIFICATIONS = True
+
 
 class RayRunner(AbstractSystemRunner):
     """
@@ -184,6 +190,9 @@ class RayProcess:
         self.push_prompts_thread.setDaemon(True)
         self.push_prompts_thread.start()
 
+        self._notification_rayids = {}
+        self._prompted_notifications = {}
+
     def db_jobs(self):
         # print("Running do_jobs")
         while not self.has_been_stopped.is_set():
@@ -273,6 +282,46 @@ class RayProcess:
     def add_downstream_process(self, downstream_name, ray_process_id):
         self.downstream_processes[downstream_name] = ray_process_id
 
+    def call(self, method_name, *args, **kwargs):
+        """
+        Method for calling methods on process application object.
+        """
+        assert self.positions_initialised.is_set(), "Please call .init() first"
+        # print("Calling", method_name, args, kwargs)
+        if self.process:
+            method = getattr(self.process, method_name)
+            return self.do_db_job(method, args, kwargs)
+        else:
+            raise Exception(
+                "Can't call method '%s' before process exists" % method_name
+            )
+
+    def prompt(self, prompt: RayPrompt) -> None:
+        assert isinstance(prompt, RayPrompt), "Not a RayPrompt: %s" % prompt
+        for notification_id, rayid in prompt.notification_ids:
+            # self._print_timecheck("Received ray notification ID:", notification_id, rayid)
+            self._notification_rayids[(prompt.process_name, notification_id)] = rayid
+
+        latest_head = prompt.head_notification_id
+        upstream_name = prompt.process_name
+        if PROMPT_WITH_NOTIFICATION_OBJS:
+            for notification in prompt.notifications:
+                self._prompted_notifications[
+                    (upstream_name, notification['id'])
+                ] = notification
+        if latest_head is not None:
+            with self.heads_lock:
+                # Update head from prompt.
+                if upstream_name in self.heads:
+                    if latest_head > self.heads[upstream_name]:
+                        self.heads[upstream_name] = latest_head
+                        self._has_been_prompted.set()
+                else:
+                    self.heads[upstream_name] = latest_head
+                    self._has_been_prompted.set()
+        else:
+            self._has_been_prompted.set()
+
     def _process_prompts(self) -> None:
         # Loop until stop event is set.
         self.positions_initialised.wait()
@@ -281,10 +330,11 @@ class RayProcess:
             try:
                 self.__process_prompts()
             except Exception as e:
-                print(traceback.format_exc())
-                print("Continuing after error in 'process prompts' thread:", e)
-                print()
-                sleep(1)
+                if not self.has_been_stopped.is_set():
+                    print(traceback.format_exc())
+                    print("Continuing after error in 'process prompts' thread:", e)
+                    print()
+                    sleep(1)
 
     def __process_prompts(self):
         # Wait until prompted.
@@ -302,26 +352,28 @@ class RayProcess:
 
             with self.positions_lock:
                 current_position = self.positions.get(upstream_name)
-            first_notification_id = current_position + 1  # request the next one
+            first_id = current_position + 1  # request the next one
 
             current_head = current_heads[upstream_name]
-            if current_head is not None:
-                if current_position >= current_head:
-                    # self.print_timecheck(
-                    #     "Up to date with", upstream_name, current_position,
-                    #     current_head
-                    # )
-                    continue
-
+            if current_head is None:
+                last_id = None
+            elif current_position < current_head:
+                if GREEDY_PULL_NOTIFICATIONS:
+                    last_id = first_id + PAGE_SIZE - 1
                 else:
-                    last_notification_id = first_notification_id + PAGE_SIZE - 1
+                    last_id = min(current_head, first_id + PAGE_SIZE - 1)
             else:
-                last_notification_id = None
+                # self.print_timecheck(
+                #     "Up to date with", upstream_name, current_position,
+                #     current_head
+                # )
+                continue
+                # last_id = first_id + PAGE_SIZE - 1
 
             # self.print_timecheck(
             #     "Getting notifications in range:",
             #     upstream_name,
-            #     "%s -> %s" % (first_notification_id, last_notification_id),
+            #     "%s -> %s" % (first_id, last_id),
             # )
             upstream_process = self.upstream_processes[upstream_name]
             # Works best without prompted head as last requested,
@@ -329,11 +381,50 @@ class RayProcess:
             # Todo: However, limit the number to avoid getting too many, and
             #  if we got full quota, then get again.
 
-            rayid = upstream_process.get_notifications.remote(
-                first_notification_id, last_notification_id
-            )
+            notifications = []
+            if PROMPT_WITH_NOTIFICATION_IDS or PROMPT_WITH_NOTIFICATION_OBJS:
+                if last_id is not None:
+                    for notification_id in range(first_id, last_id + 1):
+                        if PROMPT_WITH_NOTIFICATION_IDS:
+                            try:
+                                rayid = self._notification_rayids.pop(
+                                    (upstream_name, notification_id)
+                                )
+                            except KeyError:
+                                break
+                            else:
+                                notification = ray.get(rayid)
+                                # self._print_timecheck(
+                                #     "Got notification from ray id",
+                                #     notification_id,
+                                #     rayid,
+                                #     notification,
+                                # )
+                                notifications.append(notification)
+                        elif PROMPT_WITH_NOTIFICATION_OBJS:
+                            try:
+                                notification = self._prompted_notifications.pop(
+                                    (upstream_name, notification_id)
+                                )
+                                # self._print_timecheck(
+                                #     "Got notification from prompted notifications dict",
+                                #     notification_id,
+                                #     notification,
+                                # )
+                            except KeyError:
+                                break
+                            else:
+                                notifications.append(notification)
+                        first_id += 1
 
-            notifications = ray.get(rayid)
+            # Pull the ones we don't have.
+            if last_id is None or first_id <= last_id:
+                # self._print_timecheck("Pulling notifications", first_id, last_id,
+                # 'from', upstream_name)
+                rayid = upstream_process.get_notifications.remote(first_id, last_id)
+                _notifications = ray.get(rayid)
+                # self._print_timecheck("Pulled notifications", _notifications)
+                notifications += _notifications
 
             # self.print_timecheck(
             #     "Obtained notifications:", len(notifications), 'from',
@@ -363,9 +454,7 @@ class RayProcess:
                 # self.print_timecheck("obtained event", event)
 
                 # Put domain event on the queue, for event processing.
-                queue_item.append(
-                    (event, notification["id"], upstream_name)
-                )
+                queue_item.append((event, notification["id"], upstream_name))
             self.upstream_event_queue.put(queue_item)
             sleep(MICROSLEEP)
 
@@ -422,7 +511,9 @@ class RayProcess:
                         break
                     except Exception as e:
                         print(traceback.format_exc())
-                        self._print_timecheck("Retrying to reprocess event after error:", e)
+                        self._print_timecheck(
+                            "Retrying to reprocess event after error:", e
+                        )
                         sleep(1)
                         # Todo: Forever? What if this is the wrong event?
 
@@ -432,33 +523,39 @@ class RayProcess:
                 # if new_events:
                 #     self._print_timecheck("new events", len(new_events), new_events)
 
+                notifications = ()
+                notification_ids = ()
                 notifiable_events = [e for e in new_events if e.__notifiable__]
                 if len(notifiable_events):
-                    record_manager = self.process.event_store.record_manager
-                    notification_id_name = record_manager.notification_id_name
-                    notifications = [
-                        record_manager.create_notification_from_record(record)
-                        for record in new_records
-                        if isinstance(getattr(record, notification_id_name, None), int)
-                    ]
-
-                    if len(notifications):
-                        head_notification_id = notifications[-1]["id"]
-                        # self.print_timecheck(
-                        #     "MAX NOTIFICATION ID in NOTIFICATIONS:",
-                        #     head_notification_id)
+                    if PROMPT_WITH_NOTIFICATION_IDS or PROMPT_WITH_NOTIFICATION_OBJS:
+                        record_manager = self.process.event_store.record_manager
+                        notification_id_name = record_manager.notification_id_name
+                        notifications = [
+                            record_manager.create_notification_from_record(record)
+                            for record in new_records
+                            if isinstance(
+                                getattr(record, notification_id_name, None), int
+                            )
+                        ]
+                        if len(notifications):
+                            head_notification_id = notifications[-1]["id"]
+                            if PROMPT_WITH_NOTIFICATION_IDS:
+                                notification_ids = self._put_notifications_in_ray_object_store(
+                                    notifications
+                                )
+                                # Clear the notifications, avoid sending with IDs.
+                                notifications = ()
+                        else:
+                            head_notification_id = self._get_max_notification_id()
                     else:
-                        # self.print_timecheck(
-                        #     'getting max id from db, cos zero notification'
-                        # )
-                        # self.print_timecheck('- new events', new_events)
-                        # self.print_timecheck('- notifiable events',
-                        #                      notifiable_events)
-                        # self.print_timecheck('- notifications', notifications)
                         head_notification_id = self._get_max_notification_id()
 
                     prompt = RayPrompt(
-                        self.process.name, self.process.pipeline_id, head_notification_id,
+                        self.process.name,
+                        self.process.pipeline_id,
+                        head_notification_id,
+                        notification_ids,
+                        notifications,
                     )
 
                     # self.print_timecheck(
@@ -471,6 +568,10 @@ class RayProcess:
                     #     "put prompt on downstream prompt " "queue"
                     # )
         # sleep(0.1)
+
+    def _put_notifications_in_ray_object_store(self, notifications):
+        notification_ids = [(n["id"], ray.put(n)) for n in notifications]
+        return notification_ids
 
     def _enqueue_prompt_to_pull(self, prompt):
         # print("Enqueing locally published prompt:", prompt)
@@ -511,6 +612,7 @@ class RayProcess:
                 )
             else:
                 prompt = item
+            # self._print_timecheck('pushing prompt with', prompt.notification_ids)
             prompt_response_ids = []
             # self.print_timecheck("pushing prompts", prompt)
             for downstream_name, ray_process in self.downstream_processes.items():
@@ -520,23 +622,6 @@ class RayProcess:
                 # self._print_timecheck("pushed prompt to", downstream_name)
             ray.get(prompt_response_ids)
             # self._print_timecheck("pushed prompts")
-
-    def prompt(self, prompt: RayPrompt) -> None:
-        assert isinstance(prompt, RayPrompt), "Not a RayPrompt: %s" % prompt
-        latest_head = prompt.head_notification_id
-        upstream_name = prompt.process_name
-        if latest_head is not None:
-            with self.heads_lock:
-                # Update head from prompt.
-                if upstream_name in self.heads:
-                    if latest_head > self.heads[upstream_name]:
-                        self.heads[upstream_name] = latest_head
-                        self._has_been_prompted.set()
-                else:
-                    self.heads[upstream_name] = latest_head
-                    self._has_been_prompted.set()
-        else:
-            self._has_been_prompted.set()
 
     def _get_max_notification_id(self):
         """
@@ -550,24 +635,11 @@ class RayProcess:
         # self.print_timecheck("MAX NOTIFICATION ID in DB:", max_notification_id)
         return max_notification_id
 
-    def call(self, application_method_name, *args, **kwargs):
-        """
-        Method for calling methods on process application object.
-        """
-        assert self.positions_initialised.is_set(), "Please call .init() first"
-        # print("Calling", application_method_name, args, kwargs)
-        if self.process:
-            method = getattr(self.process, application_method_name)
-            return self.do_db_job(method, args, kwargs)
-        else:
-            raise Exception(
-                "Can't call method '%s' before process exists" % application_method_name
-            )
-
     def stop(self):
         """
         Stops the process.
         """
+        self.has_been_stopped.set()
         self.process.close()
         unsubscribe(handler=self._enqueue_prompt_to_pull, predicate=is_prompt_to_pull)
 

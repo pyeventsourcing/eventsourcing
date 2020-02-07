@@ -45,10 +45,19 @@ class RayDbJob(object):
 
 
 class RayPrompt(Prompt):
-    def __init__(self, process_name: str, pipeline_id: int, head_notification_id=None):
+    def __init__(
+        self,
+        process_name: str,
+        pipeline_id: int,
+        head_notification_id=None,
+        notification_ids=(),
+        notifications=(),
+    ):
         self.process_name: str = process_name
         self.pipeline_id: int = pipeline_id
         self.head_notification_id = head_notification_id
+        self.notification_ids = notification_ids
+        self.notifications = notifications
 
     def __repr__(self) -> str:
         return "{}({}={}, {}={}, {}={})".format(
