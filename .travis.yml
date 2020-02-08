@@ -9,9 +9,7 @@ services:
 python:
   - "3.6"
   - "3.7"
-  - "3.7-dev"
-#  - "pypy3.5"
-#  - "3.8-dev"  # Doesn't work because psycopg2-binary doesn't work with 3.8-dev at the moment.
+  - "3.8"
 
 
 before_install:
