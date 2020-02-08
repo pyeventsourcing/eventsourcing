@@ -4,10 +4,10 @@ import time
 import unittest
 from unittest import skip
 
-from eventsourcing.system.actors import (
-    ActorModelRunner,
-    shutdown_actor_system,
-    start_actor_system,
+from eventsourcing.system.thespian import (
+    ThespianRunner,
+    shutdown_thespian_system,
+    start_thespian_system,
     start_multiproc_tcp_base_system,
 )
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
@@ -31,7 +31,7 @@ ch.setLevel(logging.ERROR)
 logger.addHandler(ch)
 
 
-class TestActors(unittest.TestCase):
+class TestThespianRunner(unittest.TestCase):
     infrastructure_class = SQLAlchemyApplication
 
     def setUp(self):
@@ -44,7 +44,7 @@ class TestActors(unittest.TestCase):
         )
 
     def test_simple_system_base(self):
-        start_actor_system()
+        start_thespian_system()
         self.check_actors()
 
     @skip("Having trouble running Thespian's 'multiproc tcp base'")
@@ -52,17 +52,11 @@ class TestActors(unittest.TestCase):
         start_multiproc_tcp_base_system()
         self.check_actors()
 
-    def close_connections_before_forking(self):
-        # Used for closing Django connection before multiprocessing module forks the OS process.
-        pass
-
     def check_actors(self, num_pipelines=3, num_orders_per_pipeline=5):
 
         pipeline_ids = list(range(num_pipelines))
 
-        self.close_connections_before_forking()
-
-        actors = ActorModelRunner(
+        actors = ThespianRunner(
             self.system, pipeline_ids=pipeline_ids, shutdown_on_close=True
         )
 
@@ -128,7 +122,7 @@ class TestActors(unittest.TestCase):
 
         try:
             # Shutdown base actor system.
-            shutdown_actor_system()
+            shutdown_thespian_system()
         finally:
             # Clear event handlers.
             try:

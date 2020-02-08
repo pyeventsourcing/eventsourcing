@@ -2,7 +2,7 @@ import logging
 import os
 from uuid import uuid5, NAMESPACE_OID
 
-from eventsourcing.application.process import ProcessApplication
+from eventsourcing.application.process import ProcessApplication, WrappedRepository
 from eventsourcing.domain.model.aggregate import BaseAggregateRoot
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.exceptions import OperationalError, RecordConflictError
@@ -108,16 +108,15 @@ logger = logging.getLogger()
 
 class Orders(ProcessApplication[Order, Order.Event]):
     persist_event_type = Order.Created
+    # set_notification_ids = True
+    # use_cache = True
 
     def policy(self, repository, event):
         if isinstance(event, Reservation.Created):
             # Set the order as reserved.
-            order = repository[event.order_id]
-            assert isinstance(order, Order)
+            order = self.get_order(order_id=event.order_id, repository=repository)
             assert not order.is_reserved
             order.set_is_reserved(event.originator_id)
-            # logger.info('set Order as reserved')
-            # print(f'set Order {event.order_id} as reserved')
 
         elif isinstance(event, Payment.Created):
             # Set the order as paid.
@@ -125,17 +124,32 @@ class Orders(ProcessApplication[Order, Order.Event]):
             assert isinstance(order, Order)
             assert not order.is_paid
             order.set_is_paid(event.originator_id)
-            # logger.info('set Order as paid')
-            # print(f'set Order {event.order_id} as paid')
+
+    @retry((OperationalError, RecordConflictError), max_attempts=10, wait=0.01)
+    def create_new_order(self):
+        order = Order.__create__()
+        order.__save__()
+        return order.id
+
+    def is_order_reserved(self, order_id):
+        order = self.get_order(order_id)
+        return order is not None
+
+    def is_order_paid(self, order_id):
+        order = self.get_order(order_id)
+        return order is not None and order.is_paid
+
+    def get_order(self, order_id, repository: WrappedRepository=None):
+        try:
+            return (repository or self.repository)[order_id]
+        except KeyError:
+            return None
 
 
 class Reservations(ProcessApplication[Reservation, Reservation.Event]):
     def policy(self, repository, event):
         if isinstance(event, Order.Created):
             # Create a reservation.
-            # time.sleep(0.5)
-            # logger.info('created Reservation for order')
-            # print(f'created Reservation for order {event.originator_id}')
             return Reservation.create(order_id=event.originator_id)
 
 
@@ -143,9 +157,6 @@ class Payments(ProcessApplication):
     def policy(self, repository, event):
         if isinstance(event, Order.Reserved):
             # Make a payment.
-            # time.sleep(0.5)
-            # logger.info('created Payment for order')
-            # print(f'created Payment for order {event.originator_id}')
             return Payment.make(order_id=event.originator_id)
 
 

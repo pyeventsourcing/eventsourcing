@@ -58,7 +58,7 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
         sequence_id2 = uuid.uuid1()
 
         if self.record_manager.contiguous_record_ids:
-            old_notifications = list(self.record_manager.get_notifications())
+            old_notifications = list(self.record_manager.get_notification_records())
         else:
             old_notifications = []
 
@@ -305,8 +305,7 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
 
         if self.record_manager.contiguous_record_ids:
             # Check the record IDs are contiguous.
-            records = self.record_manager.get_notifications()
-            records = list(records)
+            records = list(self.record_manager.get_notification_records())
             len_old = len(old_notifications)
             self.assertEqual(len(records), 4 + len_old)
             first = None
@@ -320,8 +319,8 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
                 )
 
             # Resume from after the first event.
-            retrieved_items = self.record_manager.get_notifications(start=1 + len_old,
-                                                                    stop=3 + len_old)
+            retrieved_items = self.record_manager.get_notification_records(start=1 + len_old,
+                                                                           stop=3 + len_old)
             retrieved_items = list(retrieved_items)
             self.assertEqual(len(retrieved_items), 2)
             self.assertEqual(retrieved_items[0].id, 2 + len_old)

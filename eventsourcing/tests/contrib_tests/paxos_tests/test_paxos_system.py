@@ -1,29 +1,33 @@
 import datetime
 import os
+import sys
 import unittest
 from time import sleep
+from unittest import skipIf
 from uuid import uuid4
 
-from eventsourcing.system.multiprocess import MultiprocessRunner
+from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
-from eventsourcing.system.runner import MultiThreadedRunner
-from eventsourcing.contrib.paxos.application import PaxosSystem, PaxosProcess
+from eventsourcing.contrib.paxos.application import PaxosProcess, PaxosSystem
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import (
     assert_event_handlers_empty,
     clear_event_handlers,
 )
+from eventsourcing.system.multiprocess import MultiprocessRunner
+from eventsourcing.system.ray import RayRunner
+from eventsourcing.system.runner import MultiThreadedRunner
 from eventsourcing.tests.base import notquick
 from eventsourcing.tests.system_test_fixtures import set_db_uri
 
 
 class TestPaxosSystem(unittest.TestCase):
-
     # Use the same system object in all tests.
     system = PaxosSystem(setup_tables=True)
 
     # Use SQLAlchemy infrastructure (override in subclasses).
     infrastructure_class = SQLAlchemyApplication
+    # infrastructure_class = PopoApplication
 
     def test_single_threaded(self):
 
@@ -32,9 +36,9 @@ class TestPaxosSystem(unittest.TestCase):
 
         concrete_system = self.system.bind(self.infrastructure_class)
         with concrete_system as runner:
-            paxosprocess0 = runner.processes['paxosprocess0']
-            paxosprocess1 = runner.processes['paxosprocess1']
-            paxosprocess2 = runner.processes['paxosprocess2']
+            paxosprocess0 = runner.processes["paxosprocess0"]
+            paxosprocess1 = runner.processes["paxosprocess1"]
+            paxosprocess2 = runner.processes["paxosprocess2"]
 
             started1 = datetime.datetime.now()
             assert isinstance(paxosprocess0, PaxosProcess)
@@ -138,7 +142,7 @@ class TestPaxosSystem(unittest.TestCase):
         # Start running operating system processes.
         with runner:
             # Get local application object.
-            paxosprocess0 = runner.get(runner.system.process_classes['paxosprocess0'])
+            paxosprocess0 = runner.get(runner.system.process_classes["paxosprocess0"])
             assert isinstance(paxosprocess0, PaxosProcess)
 
             # Start proposing values on the different system pipelines.
@@ -155,8 +159,8 @@ class TestPaxosSystem(unittest.TestCase):
             paxosprocess0.propose_value(key3, value3)
 
             # Check all the process applications have expected final values.
-            paxosprocess1 = runner.get(runner.system.process_classes['paxosprocess1'])
-            paxosprocess2 = runner.get(runner.system.process_classes['paxosprocess2'])
+            paxosprocess1 = runner.get(runner.system.process_classes["paxosprocess1"])
+            paxosprocess2 = runner.get(runner.system.process_classes["paxosprocess2"])
 
             assert isinstance(paxosprocess1, PaxosProcess)
             paxosprocess0.repository.use_cache = False
@@ -182,6 +186,66 @@ class TestPaxosSystem(unittest.TestCase):
             print("Resolved paxos 3 with multiprocessing in %ss" % duration3)
 
     @notquick
+    @skipIf(
+        sys.version_info[:2] == (3, 6),
+        "RayRunner not working with Python36 (pickle issue)"
+    )
+    def test_ray_performance(self):
+
+        set_db_uri()
+
+        num_pipelines = 2
+        pipeline_ids = range(num_pipelines)
+
+        runner = RayRunner(
+            system=self.system,
+            pipeline_ids=pipeline_ids,
+            infrastructure_class=self.infrastructure_class,
+            setup_tables=True,
+        )
+
+        num_proposals_per_pipeline = 25
+        num_proposals = num_pipelines * num_proposals_per_pipeline
+
+        # Propose values.
+        proposals = list(((uuid4(), i) for i in range(num_proposals)))
+
+        with runner:
+
+            @retry((KeyError, AssertionError), max_attempts=100, wait=0.25, stall=0)
+            def assert_final_value(process_name, pipeline_id, id, expected):
+                actual = runner.call(process_name, pipeline_id, "get_final_value", id)
+                self.assertEqual(actual, expected)
+
+            # Start timing (just for fun).
+            started = datetime.datetime.now()
+
+            for key, value in proposals:
+                pipeline_id = value % len(pipeline_ids)
+                print("Proposing key {} value {}".format(key, value))
+                runner.call(
+                    "paxosprocess0", pipeline_id, "propose_value", key, str(value)
+                )
+                sleep(0.005)
+
+            # Check final values.
+            for key, value in proposals:
+                print("Asserting final value for key {} value {}".format(key, value))
+                pipeline_id = value % len(pipeline_ids)
+                assert_final_value("paxosprocess0", pipeline_id, key, str(value))
+
+            # Print timing information (just for fun).
+            duration = (datetime.datetime.now() - started).total_seconds()
+            print(
+                "Resolved {} paxoses with ray in {:.4f}s "
+                "({:.1f} values/s, {:.4f}s each)".format(
+                    num_proposals, duration,
+                    num_proposals / duration,
+                    duration / num_proposals
+                )
+            )
+
+    @notquick
     def test_multiprocessing_performance(self):
 
         set_db_uri()
@@ -204,7 +268,7 @@ class TestPaxosSystem(unittest.TestCase):
             sleep(1)
 
             # Construct an application instance in this process.
-            paxosprocess0 = runner.get(runner.system.process_classes['paxosprocess0'])
+            paxosprocess0 = runner.get(runner.system.process_classes["paxosprocess0"])
 
             assert isinstance(paxosprocess0, PaxosProcess)
 
@@ -230,9 +294,8 @@ class TestPaxosSystem(unittest.TestCase):
             # Print timing information (just for fun).
             duration = (datetime.datetime.now() - started).total_seconds()
             print(
-                "Resolved {} paxoses with multiprocessing in {:.4f}s ({:.4f}s each)".format(
-                    num_proposals, duration, duration / num_proposals
-                )
+                "Resolved {} paxoses with multiprocessing in {:.4f}s ({:.4f}s "
+                "each)".format(num_proposals, duration, duration / num_proposals)
             )
 
     @retry((KeyError, AssertionError), max_attempts=100, wait=0.05, stall=0)

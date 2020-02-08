@@ -37,7 +37,10 @@ from eventsourcing.exceptions import (
     ProgrammingError,
     PromptFailed,
 )
-from eventsourcing.infrastructure.base import ACIDRecordManagerWithTracking, TrackingKwargs
+from eventsourcing.infrastructure.base import (
+    RecordManagerWithTracking,
+    TrackingKwargs,
+)
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.whitehead import ActualOccasion, IterableOfEvents
 
@@ -66,18 +69,15 @@ class Prompt(ActualOccasion):
     pass
 
 
-def is_prompt(events: IterableOfEvents) -> bool:
-    return (
-        isinstance(events, list)
-        and len(events) == 1
-        and isinstance(events[0], PromptToPull)
-    )
+def is_prompt_to_pull(events: IterableOfEvents) -> bool:
+    return isinstance(events, PromptToPull)
 
 
 class PromptToPull(Prompt):
-    def __init__(self, process_name: str, pipeline_id: int):
+    def __init__(self, process_name: str, pipeline_id: int, head_notification_id=None):
         self.process_name: str = process_name
         self.pipeline_id: int = pipeline_id
+        self.head_notification_id = head_notification_id
 
     def __eq__(self, other: object) -> bool:
         return bool(
@@ -205,17 +205,19 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
         #    any followers is the responsibility of a particular system runner.
         if self._persistence_policy:
             subscribe(
-                predicate=self._persistence_policy.is_event, handler=self.publish_prompt
+                predicate=self._persistence_policy.is_event,
+                handler=self.publish_prompt_for_events,
             )
 
     def close(self) -> None:
         if self._persistence_policy:
             unsubscribe(
-                predicate=self._persistence_policy.is_event, handler=self.publish_prompt
+                predicate=self._persistence_policy.is_event,
+                handler=self.publish_prompt_for_events,
             )
         super(ProcessApplication, self).close()
 
-    def publish_prompt(self, _: Optional[IterableOfEvents] = None) -> None:
+    def publish_prompt_for_events(self, _: Optional[IterableOfEvents] = None) -> None:
         """
         Publishes prompt for a given event.
 
@@ -228,9 +230,12 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
         seen directly in other applications when running synchronously in single thread.
         """
 
-        prompt = PromptToPull(self.name, self.pipeline_id)
+        self.publish_prompt()
+
+    def publish_prompt(self, head_notification_id=None):
+        prompt = PromptToPull(self.name, self.pipeline_id, head_notification_id)
         try:
-            publish([prompt])
+            publish(prompt)
         except PromptFailed:
             raise
         except Exception as e:
@@ -267,92 +272,105 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
 
         notification_count = 0
 
-        record_manager = self.event_store.record_manager
-        assert isinstance(record_manager, ACIDRecordManagerWithTracking)
-
         for upstream_name in upstream_names:
 
+            # Set reader position, if necessary.
             if not self.is_reader_position_ok[upstream_name]:
                 self.del_notification_generator(upstream_name)
                 self.set_reader_position_from_tracking_records(upstream_name)
                 self.is_reader_position_ok[upstream_name] = True
 
-            while True:
-                with self._policy_lock:
-                    # Get notification generator.
-                    generator = self.get_notification_generator(
-                        upstream_name, advance_by
-                    )
-                    try:
-                        notification = next(generator)
-                    except StopIteration:
-                        self.del_notification_generator(upstream_name)
-                        break
-
-                    notification_count += 1
-
-                    # Get domain event from notification.
-                    event = self.get_event_from_notification(notification)
-
-                    # Decode causal dependencies of the domain event notification.
-                    causal_dependencies_json = notification.get("causal_dependencies")
-                    if causal_dependencies_json:
-                        causal_dependencies = self.event_store.event_mapper.json_loads(
-                            causal_dependencies_json
+            try:
+                # Process all the new event notifications in the reader.
+                while True:
+                    with self._policy_lock:
+                        # Get notification generator.
+                        generator = self.get_notification_generator(
+                            upstream_name, advance_by
                         )
-                    else:
-                        causal_dependencies = []
+                        try:
+                            notification = next(generator)
+                        except StopIteration:
+                            self.del_notification_generator(upstream_name)
+                            break
 
-                    # Check causal dependencies are satisfied.
-                    for causal_dependency in causal_dependencies:
-                        # Todo: Check causal dependency on system software version?
+                        # Increment the notification count.
+                        notification_count += 1
 
-                        # Check causal dependencies on event notifications.
-                        assert isinstance(causal_dependency, dict)
-                        pipeline_id = causal_dependency["pipeline_id"]
-                        notification_id = causal_dependency["notification_id"]
-
-                        has_tracking_record = record_manager.has_tracking_record(
-                            upstream_application_name=upstream_name,
-                            pipeline_id=pipeline_id,
-                            notification_id=notification_id,
+                        # Check causal dependencies.
+                        self.check_causal_dependencies(
+                            upstream_name, notification.get("causal_dependencies")
                         )
-                        if not has_tracking_record:
-                            # Invalidate reader position.
-                            self.is_reader_position_ok[upstream_name] = False
 
-                            # Raise exception.
-                            raise CausalDependencyFailed(
-                                {
-                                    "application_name": self.name,
-                                    "upstream_name": upstream_name,
-                                    "pipeline_id": pipeline_id,
-                                    "notification_id": notification_id,
-                                }
-                            )
+                        # Get event from notification.
+                        event = self.get_event_from_notification(notification)
 
-                    # Wait on the clock event, if there is one.
-                    if self.clock_event is not None:
-                        self.clock_event.wait()
+                        # Wait for the clock, if there is one.
+                        if self.clock_event is not None:
+                            self.clock_event.wait()
 
-                    # Process upstream event.
-                    new_events: Sequence[TAggregateEvent] = self.process_upstream_event(
-                        event, notification["id"], upstream_name
-                    )
+                        # Process domain event.
+                        new_events, new_records = self.process_upstream_event(
+                            event, notification["id"], upstream_name
+                        )
 
-                self.take_snapshots(new_events)
+                    self.take_snapshots(new_events)
 
-                # Publish a prompt if there are new notifications.
-                # Todo: Optionally send events as prompts, saves pulling
-                #  event if it arrives in order.
-                if any([event.__notifiable__ for event in new_events]):
-                    self.publish_prompt()
+                    # Publish a prompt if there are new notifications.
+                    # Todo: Optionally send events as prompts, saves pulling
+                    #  event if it arrives in order.
+                    if any([event.__notifiable__ for event in new_events]):
+                        self.publish_prompt()
+            except Exception as e:
+                # Need to invalidate reader position, so it is refreshed.
+                self.is_reader_position_ok[upstream_name] = False
+                raise
 
         return notification_count
 
+    def check_causal_dependencies(self, upstream_name, causal_dependencies_json):
+        # Decode causal dependencies of the domain event notification.
+        if causal_dependencies_json:
+            causal_dependencies = self.event_store.event_mapper.json_loads(
+                causal_dependencies_json
+            )
+        else:
+            causal_dependencies = []
+
+        record_manager = self.event_store.record_manager
+        assert isinstance(record_manager, RecordManagerWithTracking)
+
+        # Check causal dependencies are satisfied.
+        for causal_dependency in causal_dependencies:
+            # Todo: Check causal dependency on system software version?
+
+            # Check causal dependencies on event notifications.
+            assert isinstance(causal_dependency, dict)
+            pipeline_id = causal_dependency["pipeline_id"]
+            notification_id = causal_dependency["notification_id"]
+
+            has_tracking_record = record_manager.has_tracking_record(
+                upstream_application_name=upstream_name,
+                pipeline_id=pipeline_id,
+                notification_id=notification_id,
+            )
+            if not has_tracking_record:
+                # Invalidate reader position.
+                self.is_reader_position_ok[upstream_name] = False
+
+                # Raise exception.
+                raise CausalDependencyFailed(
+                    {
+                        "application_name": self.name,
+                        "upstream_name": upstream_name,
+                        "pipeline_id": pipeline_id,
+                        "notification_id": notification_id,
+                    }
+                )
+
     def process_upstream_event(
         self, domain_event: TAggregateEvent, notification_id: int, upstream_name: str
-    ) -> ListOfAggregateEvents:
+    ) -> Tuple[ListOfAggregateEvents, List]:
         cycle_started: Optional[float] = None
         if self.tick_interval is not None:
             cycle_started = time.process_time()
@@ -389,22 +407,20 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
                 orm_objs_pending_save=orm_objs_pending_save,
                 orm_objs_pending_delete=orm_objs_pending_delete,
             )
-            self.record_process_event(process_event)
+            new_event_records = self.record_process_event(process_event)
 
             # Todo: Maybe write one tracking record at the end of a run, if
             #  necessary, or only during a period of time when nothing happens?
         except Exception as exc:
-            # Need to invalidate reader position, so it is refreshed.
-            self.is_reader_position_ok[upstream_name] = False
-
             # Need to purge from the cache relevant entities that
             # have evolved their state past what has been recorded,
             # otherwise strange errors (about version mismatches, or
             # when identifying causal dependencies) can arise.
-            if self.repository._cache:
+            if self.repository.use_cache:
                 originator_ids = set([event.originator_id for event in domain_events])
-                for originator_id in originator_ids:
-                    self.repository._cache.pop(originator_id, None)
+                with self.repository.cache_lock:
+                    for originator_id in originator_ids:
+                        self.repository.cache.pop(originator_id, None)
             raise exc
         else:
             if self.tick_interval is not None:
@@ -419,7 +435,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
                         self.name, cycle_perc - 100
                     )
                     print(msg)
-        return domain_events
+        return domain_events, new_event_records
 
     def get_event_from_notification(
         self, notification: Dict[str, Any]
@@ -461,10 +477,14 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
 
     def set_reader_position_from_tracking_records(self, upstream_name: str) -> None:
         reader = self.readers[upstream_name]
-        record_manager = self.event_store.record_manager
-        assert isinstance(record_manager, ACIDRecordManagerWithTracking)
-        recorded_position = record_manager.get_max_tracking_record_id(upstream_name)
+        recorded_position = self.get_recorded_position(upstream_name)
         reader.seek(recorded_position)
+
+    def get_recorded_position(self, upstream_name):
+        record_manager = self.event_store.record_manager
+        assert isinstance(record_manager, RecordManagerWithTracking)
+        recorded_position = record_manager.get_max_tracking_record_id(upstream_name)
+        return recorded_position
 
     def call_policy(
         self, domain_event: TAggregateEvent
@@ -473,7 +493,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
         policy = self.policy_func or self.policy
 
         # Wrap the actual repository, so we can collect aggregates.
-        repository = WrappedRepository(self.repository)
+        wrappedrepo = WrappedRepository(self.repository)
 
         # Initialise a deque for FIFO queue of unprocessed events.
         unprocessed: Deque[TAggregateEvent] = deque()
@@ -489,10 +509,10 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
             domain_event = unprocessed.popleft()
 
             # Call the policy with this domain event.
-            returned = policy(repository, domain_event)
+            returned = policy(wrappedrepo, domain_event)
 
             # Collect aggregates retrieved by the policy.
-            touched = list(repository.retrieved_aggregates.values())
+            touched = list(wrappedrepo.retrieved_aggregates.values())
 
             if returned is not None:
                 # Convert returned item to list, if necessary.
@@ -503,12 +523,14 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
 
                 for aggregate in new_aggregates:
                     # Put new aggregates in repository cache (avoids replay).
-                    if repository.repository.use_cache:
-                        repository.repository._cache[aggregate.id] = aggregate
+                    if wrappedrepo.repository.use_cache:
+                        wrappedrepo.repository.put_entity_in_cache(
+                            aggregate.id, aggregate
+                        )
 
                     # Make new aggregates available in subsequent policy calls.
                     if self.apply_policy_to_generated_events:
-                        repository.retrieved_aggregates[aggregate.id] = aggregate
+                        wrappedrepo.retrieved_aggregates[aggregate.id] = aggregate
 
                 # Extend the list of touched aggregates with
                 # the new ones returned from the policy.
@@ -532,8 +554,8 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
             #  parallel, according to dependencies.
             highest: Dict[int, int] = defaultdict(int)
             rm = self.event_store.record_manager
-            assert isinstance(rm, ACIDRecordManagerWithTracking)
-            for entity_id, entity_version in repository.causal_dependencies:
+            assert isinstance(rm, RecordManagerWithTracking)
+            for entity_id, entity_version in wrappedrepo.causal_dependencies:
                 pipeline_id, notification_id = rm.get_pipeline_and_notification_id(
                     entity_id, entity_version
                 )
@@ -548,8 +570,8 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
         return (
             all_generated,
             causal_dependencies,
-            repository.orm_objs_pending_save,
-            repository.orm_objs_pending_delete,
+            wrappedrepo.orm_objs_pending_save,
+            wrappedrepo.orm_objs_pending_delete,
         )
 
     def policy(
@@ -612,7 +634,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
             "notification_id": notification_id,
         }
 
-    def record_process_event(self, process_event: ProcessEvent) -> None:
+    def record_process_event(self, process_event: ProcessEvent) -> List:
         # Construct event records.
         event_records = self.construct_event_records(
             process_event.domain_events, process_event.causal_dependencies
@@ -620,13 +642,14 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
 
         # Write event records with tracking record.
         record_manager = self.event_store.record_manager
-        assert isinstance(record_manager, ACIDRecordManagerWithTracking)
+        assert isinstance(record_manager, RecordManagerWithTracking)
         record_manager.write_records(
             records=event_records,
             tracking_kwargs=process_event.tracking_kwargs,
             orm_objs_pending_save=process_event.orm_objs_pending_save,
             orm_objs_pending_delete=process_event.orm_objs_pending_delete,
         )
+        return event_records
 
     def construct_event_records(
         self,
@@ -637,7 +660,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
         sequenced_items = self.event_store.items_from_events(pending_events)
         record_manager = self.event_store.record_manager
         assert record_manager
-        assert isinstance(record_manager, ACIDRecordManagerWithTracking)
+        assert isinstance(record_manager, RecordManagerWithTracking)
         event_records = list(record_manager.to_records(sequenced_items))
 
         # Set notification log IDs, and causal dependencies.
@@ -660,7 +683,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
                 assert hasattr(record_manager.record_class, "causal_dependencies")
                 causal_dependencies_json = self.event_store.event_mapper.json_dumps(
                     causal_dependencies
-                ).decode('utf8')
+                ).decode("utf8")
                 # Only need first event to carry the dependencies.
                 event_records[0].causal_dependencies = causal_dependencies_json
 
@@ -670,14 +693,14 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
         super(ProcessApplication, self).setup_table()
         if self._datastore is not None:
             record_manager = self.event_store.record_manager
-            assert isinstance(record_manager, ACIDRecordManagerWithTracking)
+            assert isinstance(record_manager, RecordManagerWithTracking)
             self._datastore.setup_table(record_manager.tracking_record_class)
 
     def drop_table(self) -> None:
         super(ProcessApplication, self).drop_table()
         if self.datastore is not None:
             record_manager = self.event_store.record_manager
-            assert isinstance(record_manager, ACIDRecordManagerWithTracking)
+            assert isinstance(record_manager, RecordManagerWithTracking)
             self.datastore.drop_table(record_manager.tracking_record_class)
 
 

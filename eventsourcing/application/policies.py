@@ -34,6 +34,8 @@ class PersistencePolicy(object):
     def is_event(self, events: IterableOfEvents) -> bool:
         if self.persist_event_type is None:
             return False
+        elif type(events) not in [list, tuple]:
+            return False
         else:
             return all(isinstance(e, self.persist_event_type) for e in events)
 

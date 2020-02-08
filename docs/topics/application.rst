@@ -259,6 +259,7 @@ events as a single sequence.
     notification_ids = [n['id'] for n in reader.read()]
     assert notification_ids == [4, 5], notification_ids
 
+
 Custom application
 ==================
 
@@ -467,7 +468,7 @@ for the record class.
 
     event_records = application.event_store.record_manager.orm_query().all()
 
-    assert len(event_records) == 4
+    assert len(event_records) == 4, len([r.originator_id for r in event_records])
 
 Close
 -----

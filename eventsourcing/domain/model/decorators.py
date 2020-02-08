@@ -196,8 +196,12 @@ def retry(
             attempts = 0
             while True:
                 try:
+                    if verbose and attempts > 0:
+                        print("Retrying ", func, args, kwargs)
                     return func(*args, **kwargs)
                 except exc as e:
+                    if verbose:
+                        print("Error trying ", func, args, kwargs, e)
                     attempts += 1
                     if max_attempts is None or attempts < max_attempts:
                         sleep(wait * (1 + 0.1 * (random.random() - 0.5)))

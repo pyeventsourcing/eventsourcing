@@ -209,6 +209,8 @@ class PaxosAggregate(BaseAggregateRoot):
     def __str__(self) -> str:
         return (
             "PaxosAggregate("
+            "final_value='{final_value}', "
+            "proposed_value='{proposed_value}', "
             "network_uid='{network_uid}', "
             "proposal_id='{proposal_id}', "
             "promised_id='{promised_id}', "
@@ -223,9 +225,6 @@ class PaxosProcess(ProcessApplication[PaxosAggregate, PaxosAggregate.Event]):
     notification_log_section_size = 5
     use_cache = True
     set_notification_ids = True
-
-    # Todo: Reintroduce this, if it can be made to work with Popo infrastructure.
-    # set_notification_ids = True
 
     @retry((RecordConflictError, OperationalError), max_attempts=10, wait=0)
     def propose_value(
@@ -251,10 +250,36 @@ class PaxosProcess(ProcessApplication[PaxosAggregate, PaxosAggregate.Event]):
         paxos_aggregate.receive_message(msg)
         new_events = paxos_aggregate.__batch_pending_events__()
         process_event = ProcessEvent(new_events)
-        self.record_process_event(process_event)
-        self.repository.take_snapshot(paxos_aggregate.id)
-        self.publish_prompt()
+        new_records = self.record_process_event(process_event)
+
+        # self.repository.take_snapshot(paxos_aggregate.id)
+
+        # Find the head notification ID.
+        notifiable_events = [e for e in new_events if e.__notifiable__]
+        head_notification_id = None
+        if len(notifiable_events):
+            record_manager = self.event_store.record_manager
+            notification_id_name = record_manager.notification_id_name
+            notifications = []
+            for record in new_records:
+                if not hasattr(record, notification_id_name):
+                    continue
+                if not isinstance(getattr(record, notification_id_name), int):
+                    continue
+                notifications.append(
+                    record_manager.create_notification_from_record(record)
+                )
+
+            if len(notifications):
+                head_notification_id = notifications[-1]["id"]
+
+        self.publish_prompt(head_notification_id)
+        if self.repository.use_cache:
+            self.repository.put_entity_in_cache(paxos_aggregate.id, paxos_aggregate)
         return paxos_aggregate  # in case it's new
+
+    def get_final_value(self, key: UUID) -> PaxosAggregate:
+        return self.repository[key].final_value
 
     def policy(
         self,
@@ -277,7 +302,8 @@ class PaxosProcess(ProcessApplication[PaxosAggregate, PaxosAggregate.Event]):
                 )
                 # Needs to go in the cache now, otherwise we get
                 # "Duplicate" errors (for some unknown reason).
-                self.repository._cache[paxos.id] = paxos
+                if self.repository.use_cache:
+                    self.repository.put_entity_in_cache(paxos.id, paxos)
             # Absolutely make sure the participant aggregates aren't getting confused.
             assert (
                 paxos.network_uid == self.name

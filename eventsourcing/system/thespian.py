@@ -7,7 +7,7 @@ from eventsourcing.application.notificationlog import RecordManagerNotificationL
 from eventsourcing.application.process import (
     ProcessApplication,
     PromptToPull,
-    is_prompt,
+    is_prompt_to_pull,
 )
 from eventsourcing.system.definition import System, AbstractSystemRunner
 from eventsourcing.domain.model.events import subscribe, unsubscribe
@@ -19,7 +19,7 @@ logger = logging.getLogger()
 # Todo: Send timer message to run slave every so often (in master or slave?).
 
 
-DEFAULT_ACTORS_LOGCFG = {
+DEFAULT_THESPIAN_LOGCFG = {
     "version": 1,
     "formatters": {"normal": {"format": "%(levelname)-8s %(message)s"}},
     "handlers": {
@@ -36,27 +36,27 @@ DEFAULT_ACTORS_LOGCFG = {
 }
 
 
-def start_actor_system(system_base=None, logcfg=DEFAULT_ACTORS_LOGCFG):
+def start_thespian_system(system_base=None, logcfg=DEFAULT_THESPIAN_LOGCFG):
     ActorSystem(systemBase=system_base, logDefs=logcfg)
 
 
-def shutdown_actor_system():
+def shutdown_thespian_system():
     ActorSystem().shutdown()
 
 
 def start_multiproc_tcp_base_system():
-    start_actor_system(system_base="multiprocTCPBase")
+    start_thespian_system(system_base="multiprocTCPBase")
 
 
 # def start_multiproc_udp_base_system():
-#     start_actor_system(system_base='multiprocUDPBase')
+#     start_thespian_system(system_base='multiprocUDPBase')
 #
 #
 # def start_multiproc_queue_base_system():
-#     start_actor_system(system_base='multiprocQueueBase')
+#     start_thespian_system(system_base='multiprocQueueBase')
 
 
-class ActorModelRunner(AbstractSystemRunner):
+class ThespianRunner(AbstractSystemRunner):
     """
     Uses actor model framework to run a system of process applications.
     """
@@ -69,7 +69,7 @@ class ActorModelRunner(AbstractSystemRunner):
         shutdown_on_close=False,
         **kwargs
     ):
-        super(ActorModelRunner, self).__init__(system=system, **kwargs)
+        super(ThespianRunner, self).__init__(system=system, **kwargs)
         self.pipeline_ids = list(pipeline_ids)
         self.pipeline_actors: Dict[int, PipelineActor] = {}
         self.system_actor_name = system_actor_name
@@ -89,13 +89,13 @@ class ActorModelRunner(AbstractSystemRunner):
         """
         # Subscribe to broadcast prompts published by a process
         # application in the parent operating system process.
-        subscribe(handler=self.forward_prompt, predicate=is_prompt)
+        subscribe(handler=self.forward_prompt, predicate=is_prompt_to_pull)
 
         # Initialise the system actor.
         msg = SystemInitRequest(
             self.system.process_classes,
             self.infrastructure_class,
-            self.system.followings,
+            self.system.upstream_names,
             self.pipeline_ids,
         )
         response = self.actor_system.ask(self.system_actor, msg)
@@ -113,19 +113,18 @@ class ActorModelRunner(AbstractSystemRunner):
         # Todo: Command and response messages to system actor to get new pipeline
         #  address.
 
-    def forward_prompt(self, prompts):
-        for prompt in prompts:
-            if prompt.pipeline_id in self.pipeline_actors:
-                pipeline_actor = self.pipeline_actors[prompt.pipeline_id]
-                self.actor_system.tell(pipeline_actor, prompt)
+    def forward_prompt(self, prompt: PromptToPull):
+        if prompt.pipeline_id in self.pipeline_actors:
+            pipeline_actor = self.pipeline_actors[prompt.pipeline_id]
+            self.actor_system.tell(pipeline_actor, prompt)
         # else:
         #     msg = "Pipeline {} is not running.".format(prompt.pipeline_id)
         #     raise ValueError(msg)
 
     def close(self):
         """Stops all the actors running a system of process applications."""
-        super(ActorModelRunner, self).close()
-        unsubscribe(handler=self.forward_prompt, predicate=is_prompt)
+        super(ThespianRunner, self).close()
+        unsubscribe(handler=self.forward_prompt, predicate=is_prompt_to_pull)
         if self.shutdown_on_close:
             self.shutdown()
 
@@ -330,7 +329,7 @@ class ProcessSlave(Actor):
         #    events, so we don't need this
         unsubscribe(
             predicate=self.process.persistence_policy.is_event,
-            handler=self.process.publish_prompt,
+            handler=self.process.publish_prompt_for_events,
         )
 
         # Construct and follow upstream notification logs.
