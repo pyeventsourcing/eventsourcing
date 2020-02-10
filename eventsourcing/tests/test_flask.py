@@ -1,5 +1,6 @@
 import os
 import platform
+import shutil
 import sys
 import unittest
 from os.path import abspath, dirname, join
@@ -102,19 +103,22 @@ class TestFlaskWsgi(TestFlaskApp):
         datastore.close_connection()
 
         # Run uwsgi.
-        if path_to_virtualenv:
-            path_to_uwsgi = join(path_to_virtualenv, "bin", "uwsgi")
-            if not os.path.exists(path_to_uwsgi):
-                raise AssertionError(
-                    "Can't find uwsgi in virtualenv: %s" % path_to_uwsgi
-                )
-        else:
-            # In a container, without a virtualenv?
-            path_to_uwsgi = "/usr/local/bin/uwsgi"
-            assert os.path.exists(path_to_uwsgi), path_to_uwsgi
-            raise AssertionError("Can't find uwsgi: %s" % path_to_uwsgi)
-            # Todo: Maybe use shutil.which, after dropping support for Python 2.7.
 
+        # if path_to_virtualenv:
+        #     path_to_uwsgi = join(path_to_virtualenv, "bin", "uwsgi")
+        #     if not os.path.exists(path_to_uwsgi):
+        #         raise AssertionError(
+        #             "Can't find uwsgi in virtualenv: %s" % path_to_uwsgi
+        #         )
+        # else:
+        #     # In a container, without a virtualenv?
+        #     path_to_uwsgi = "/usr/local/bin/uwsgi"
+        #     if not os.path.exists(path_to_uwsgi):
+        #         raise AssertionError("Can't find uwsgi: %s" % path_to_uwsgi)
+        #     # Todo: Maybe use shutil.which, after dropping support for Python 2.7.
+        path_to_uwsgi = shutil.which('uwsgi')
+        if not os.path.exists(path_to_uwsgi):
+            raise AssertionError("Can't find uwsgi: %s" % path_to_uwsgi)
         cmd = [path_to_uwsgi]
         if path_to_virtualenv is not None:
             cmd += ["-H", path_to_virtualenv]
