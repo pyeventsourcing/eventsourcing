@@ -212,7 +212,7 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         return self._persistence_policy
 
     def _raise_on_missing_infrastructure(self, what_is_missing):
-        msg = "Your application class %s does not have a %s." % (
+        msg = "Application class %s does not have a %s." % (
             type(self).__name__,
             what_is_missing,
         )
