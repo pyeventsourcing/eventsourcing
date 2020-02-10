@@ -11,6 +11,7 @@ from eventsourcing.application.pipeline import Pipeable
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.entity import TVersionedEntity, TVersionedEvent
 from eventsourcing.domain.model.events import DomainEvent
+from eventsourcing.exceptions import ProgrammingError
 from eventsourcing.infrastructure.base import (
     AbstractEventStore,
     AbstractRecordManager,
@@ -182,28 +183,47 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
 
     @property
     def datastore(self) -> AbstractDatastore:
-        assert self._datastore
+        if self._datastore is None:
+            self._raise_on_missing_infrastructure('datastore')
         return self._datastore
 
     @property
     def event_store(self) -> AbstractEventStore[TVersionedEvent, BaseRecordManager]:
-        assert self._event_store
+        if self._event_store is None:
+            self._raise_on_missing_infrastructure('event_store')
         return self._event_store
 
     @property
     def repository(self) -> EventSourcedRepository[TVersionedEntity, TVersionedEvent]:
-        assert self._repository
+        if self._repository is None:
+            self._raise_on_missing_infrastructure('repository')
         return self._repository
 
     @property
     def notification_log(self) -> LocalNotificationLog:
-        assert self._notification_log
+        if self._notification_log is None:
+            self._raise_on_missing_infrastructure('notification_log')
         return self._notification_log
 
     @property
     def persistence_policy(self) -> PersistencePolicy:
-        assert self._persistence_policy
+        if self._persistence_policy is None:
+            self._raise_on_missing_infrastructure('persistence_policy')
         return self._persistence_policy
+
+    def _raise_on_missing_infrastructure(self, what_is_missing):
+        msg = "Your application class %s does not have a %s." % (
+            type(self).__name__,
+            what_is_missing,
+        )
+        if not isinstance(self, ApplicationWithConcreteInfrastructure):
+            msg += (
+                " and is not an ApplicationWithConcreteInfrastructure."
+                " Try using or inheriting from or mixin() an application"
+                " class with concrete infrastructure such as SQLAlchemyApplication"
+                " or DjangoApplication or AxonApplication."
+            )
+        raise ProgrammingError(msg)
 
     def construct_cipher(self, cipher_key_str: Optional[str]) -> Optional[AESCipher]:
         cipher_key_bytes = decode_bytes(

@@ -1,6 +1,8 @@
 from unittest import TestCase
 
 from eventsourcing.application.axon import AxonApplication
+from eventsourcing.application.simple import SimpleApplication
+from eventsourcing.exceptions import ProgrammingError
 from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import (
     DjangoTestCase,
 )
@@ -16,10 +18,29 @@ from eventsourcing.utils.random import encoded_random_bytes
 
 class TestSimpleApplication(TestCase):
 
-    application_class = SQLAlchemyApplication
+    application_class = SimpleApplication
+    infrastructure_class = SQLAlchemyApplication
 
-    def test(self):
-        with self.get_application() as app:
+    def test_simple_application_without_infrastructure(self):
+        with self.application_class() as app:
+
+            with self.assertRaises(ProgrammingError):
+                app.datastore
+
+            with self.assertRaises(ProgrammingError):
+                app.repository
+
+            with self.assertRaises(ProgrammingError):
+                app.event_store
+
+            with self.assertRaises(ProgrammingError):
+                app.notification_log
+
+            with self.assertRaises(ProgrammingError):
+                app.persistence_policy
+
+    def test_application_with_infrastructure(self):
+        with self.construct_concrete_application() as app:
 
             # Start with a new table.
             app.drop_table()
@@ -47,8 +68,8 @@ class TestSimpleApplication(TestCase):
 
             app.drop_table()
 
-    def get_application(self):
-        return self.application_class(
+    def construct_concrete_application(self):
+        return self.application_class.mixin(self.infrastructure_class)(
             cipher_key=encoded_random_bytes(16), persist_event_type=DomainEvent
         )
 
@@ -58,16 +79,16 @@ class TestSimpleApplication(TestCase):
 
 
 class TestDjangoApplication(DjangoTestCase, TestSimpleApplication):
-    application_class = DjangoApplication
+    infrastructure_class = DjangoApplication
 
 
 class TestAxonApplication(DjangoTestCase, TestSimpleApplication):
-    application_class = AxonApplication
+    infrastructure_class = AxonApplication
 
 
 class TestSnapshottingApplication(TestSimpleApplication):
-    application_class = SnapshottingApplication.mixin(SQLAlchemyApplication)
+    infrastructure_class = SnapshottingApplication.mixin(SQLAlchemyApplication)
 
 
 class TestSnapshottingAxonApplication(TestSimpleApplication):
-    application_class = SnapshottingApplication.mixin(AxonApplication)
+    infrastructure_class = SnapshottingApplication.mixin(AxonApplication)
