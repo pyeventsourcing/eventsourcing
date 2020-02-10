@@ -8,7 +8,6 @@ from typing import (
     Deque,
     Dict,
     Generic,
-    Iterable,
     Iterator,
     List,
     Optional,
@@ -23,78 +22,32 @@ from eventsourcing.application.notificationlog import (
     AbstractNotificationLog,
     NotificationLogReader,
 )
-from eventsourcing.application.simple import SimpleApplication
+from eventsourcing.application.simple import (
+    ListOfCausalDependencies,
+    ProcessEvent,
+    Prompt,
+    PromptToPull,
+    SimpleApplication,
+)
 from eventsourcing.application.snapshotting import SnapshottingApplication
 from eventsourcing.domain.model.aggregate import (
     BaseAggregateRoot,
     TAggregate,
     TAggregateEvent,
 )
-from eventsourcing.domain.model.entity import TDomainEvent
-from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
+from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import (
     CausalDependencyFailed,
     ProgrammingError,
-    PromptFailed,
 )
 from eventsourcing.infrastructure.base import (
     RecordManagerWithTracking,
     TrackingKwargs,
 )
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
-from eventsourcing.whitehead import ActualOccasion, IterableOfEvents
+from eventsourcing.whitehead import IterableOfEvents
 
 ListOfAggregateEvents = List[TAggregateEvent]
-CausalDependencies = Dict[str, int]
-ListOfCausalDependencies = List[CausalDependencies]
-
-
-class ProcessEvent(ActualOccasion, Generic[TDomainEvent]):
-    def __init__(
-        self,
-        domain_events: Iterable[TDomainEvent],
-        tracking_kwargs: Optional[TrackingKwargs] = None,
-        causal_dependencies: Optional[ListOfCausalDependencies] = None,
-        orm_objs_pending_save: Sequence[Any] = (),
-        orm_objs_pending_delete: Sequence[Any] = (),
-    ):
-        self.domain_events = domain_events
-        self.tracking_kwargs = tracking_kwargs
-        self.causal_dependencies = causal_dependencies
-        self.orm_objs_pending_save = orm_objs_pending_save
-        self.orm_objs_pending_delete = orm_objs_pending_delete
-
-
-class Prompt(ActualOccasion):
-    pass
-
-
-def is_prompt_to_pull(events: IterableOfEvents) -> bool:
-    return isinstance(events, PromptToPull)
-
-
-class PromptToPull(Prompt):
-    def __init__(self, process_name: str, pipeline_id: int, head_notification_id=None):
-        self.process_name: str = process_name
-        self.pipeline_id: int = pipeline_id
-        self.head_notification_id = head_notification_id
-
-    def __eq__(self, other: object) -> bool:
-        return bool(
-            other
-            and isinstance(other, type(self))
-            and self.process_name == other.process_name
-            and self.pipeline_id == other.pipeline_id
-        )
-
-    def __repr__(self) -> str:
-        return "{}({}={}, {}={})".format(
-            type(self).__name__,
-            "process_name",
-            self.process_name,
-            "pipeline_id",
-            self.pipeline_id,
-        )
 
 
 class PromptToQuit(Prompt):
@@ -150,8 +103,6 @@ class WrappedRepository(Generic[TAggregate, TAggregateEvent]):
 
 
 class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
-    set_notification_ids = False
-    use_causal_dependencies = False
     notification_log_reader_class = NotificationLogReader
     apply_policy_to_generated_events = False
 
@@ -231,15 +182,6 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
         """
 
         self.publish_prompt()
-
-    def publish_prompt(self, head_notification_id=None):
-        prompt = PromptToPull(self.name, self.pipeline_id, head_notification_id)
-        try:
-            publish(prompt)
-        except PromptFailed:
-            raise
-        except Exception as e:
-            raise PromptFailed("{}: {}".format(type(e), str(e)))
 
     def follow(
         self, upstream_application_name: str, notification_log: AbstractNotificationLog
@@ -633,61 +575,6 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
             "pipeline_id": self.pipeline_id,
             "notification_id": notification_id,
         }
-
-    def record_process_event(self, process_event: ProcessEvent) -> List:
-        # Construct event records.
-        event_records = self.construct_event_records(
-            process_event.domain_events, process_event.causal_dependencies
-        )
-
-        # Write event records with tracking record.
-        record_manager = self.event_store.record_manager
-        assert isinstance(record_manager, RecordManagerWithTracking)
-        record_manager.write_records(
-            records=event_records,
-            tracking_kwargs=process_event.tracking_kwargs,
-            orm_objs_pending_save=process_event.orm_objs_pending_save,
-            orm_objs_pending_delete=process_event.orm_objs_pending_delete,
-        )
-        return event_records
-
-    def construct_event_records(
-        self,
-        pending_events: Iterable[TAggregateEvent],
-        causal_dependencies: Optional[ListOfCausalDependencies],
-    ) -> List:
-        # Convert to event records.
-        sequenced_items = self.event_store.items_from_events(pending_events)
-        record_manager = self.event_store.record_manager
-        assert record_manager
-        assert isinstance(record_manager, RecordManagerWithTracking)
-        event_records = list(record_manager.to_records(sequenced_items))
-
-        # Set notification log IDs, and causal dependencies.
-        if len(event_records):
-            # Todo: Maybe keep track of what this probably is, to
-            #  avoid query. Like log reader, invalidate on error.
-            if self.set_notification_ids:
-                notification_id_name = record_manager.notification_id_name
-                current_max = record_manager.get_max_notification_id()
-                for domain_event, event_record in zip(pending_events, event_records):
-                    if type(domain_event).__notifiable__:
-                        current_max += 1
-                        setattr(event_record, notification_id_name, current_max)
-                    else:
-                        setattr(
-                            event_record, notification_id_name, "event-not-notifiable"
-                        )
-
-            if self.use_causal_dependencies:
-                assert hasattr(record_manager.record_class, "causal_dependencies")
-                causal_dependencies_json = self.event_store.event_mapper.json_dumps(
-                    causal_dependencies
-                ).decode("utf8")
-                # Only need first event to carry the dependencies.
-                event_records[0].causal_dependencies = causal_dependencies_json
-
-        return event_records
 
     def setup_table(self) -> None:
         super(ProcessApplication, self).setup_table()

@@ -5,7 +5,6 @@ from uuid import UUID
 
 from eventsourcing.application.process import (
     ProcessApplication,
-    ProcessEvent,
     WrappedRepository,
 )
 from eventsourcing.system.definition import System
@@ -248,34 +247,9 @@ class PaxosApplication(ProcessApplication[PaxosAggregate, PaxosAggregate.Event])
         )
         msg = paxos_aggregate.propose_value(value, assume_leader=assume_leader)
         paxos_aggregate.receive_message(msg)
-        new_events = paxos_aggregate.__batch_pending_events__()
-        process_event = ProcessEvent(new_events)
-        new_records = self.record_process_event(process_event)
 
-        # self.repository.take_snapshot(paxos_aggregate.id)
+        self.save(paxos_aggregate)
 
-        # Find the head notification ID.
-        notifiable_events = [e for e in new_events if e.__notifiable__]
-        head_notification_id = None
-        if len(notifiable_events):
-            record_manager = self.event_store.record_manager
-            notification_id_name = record_manager.notification_id_name
-            notifications = []
-            for record in new_records:
-                if not hasattr(record, notification_id_name):
-                    continue
-                if not isinstance(getattr(record, notification_id_name), int):
-                    continue
-                notifications.append(
-                    record_manager.create_notification_from_record(record)
-                )
-
-            if len(notifications):
-                head_notification_id = notifications[-1]["id"]
-
-        self.publish_prompt(head_notification_id)
-        if self.repository.use_cache:
-            self.repository.put_entity_in_cache(paxos_aggregate.id, paxos_aggregate)
         return paxos_aggregate  # in case it's new
 
     def get_final_value(self, key: UUID) -> PaxosAggregate:

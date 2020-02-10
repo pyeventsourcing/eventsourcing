@@ -23,12 +23,10 @@ from typing import (
 from eventsourcing.application.notificationlog import NotificationLogReader
 from eventsourcing.application.process import (
     ProcessApplication,
-    Prompt,
-    PromptToPull,
     PromptToQuit,
-    is_prompt_to_pull,
 )
-from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
+from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure, Prompt, is_prompt_to_pull, \
+    PromptToPull
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import (

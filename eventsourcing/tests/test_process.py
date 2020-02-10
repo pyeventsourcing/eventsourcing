@@ -10,8 +10,8 @@ from eventsourcing.application.process import (
     ProcessApplication,
     ProcessApplicationWithSnapshotting,
     WrappedRepository,
-    PromptToPull,
 )
+from eventsourcing.application.simple import PromptToPull
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.domain.model.aggregate import AggregateRoot, BaseAggregateRoot
 from eventsourcing.domain.model.command import Command

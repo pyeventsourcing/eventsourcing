@@ -1,7 +1,19 @@
 import os
 import zlib
 from json import JSONDecoder, JSONEncoder
-from typing import Any, Generic, NamedTuple, Optional, Tuple, Type, Union
+from typing import (
+    Any,
+    Dict,
+    Generic,
+    Iterable,
+    List,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
+)
 
 from eventsourcing.application.notificationlog import (
     LocalNotificationLog,
@@ -9,14 +21,21 @@ from eventsourcing.application.notificationlog import (
 )
 from eventsourcing.application.pipeline import Pipeable
 from eventsourcing.application.policies import PersistencePolicy
-from eventsourcing.domain.model.entity import TVersionedEntity, TVersionedEvent
-from eventsourcing.domain.model.events import DomainEvent
-from eventsourcing.exceptions import ProgrammingError
+from eventsourcing.domain.model.aggregate import BaseAggregateRoot, TAggregateEvent
+from eventsourcing.domain.model.entity import (
+    TDomainEvent,
+    TVersionedEntity,
+    TVersionedEvent,
+)
+from eventsourcing.domain.model.events import DomainEvent, publish
+from eventsourcing.exceptions import ProgrammingError, PromptFailed
 from eventsourcing.infrastructure.base import (
     AbstractEventStore,
     AbstractRecordManager,
     BaseRecordManager,
     DEFAULT_PIPELINE_ID,
+    RecordManagerWithTracking,
+    TrackingKwargs,
 )
 from eventsourcing.infrastructure.datastore import AbstractDatastore
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
@@ -26,9 +45,28 @@ from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.utils.random import decode_bytes
-from eventsourcing.whitehead import T
+from eventsourcing.whitehead import ActualOccasion, IterableOfEvents, T
 
 PersistEventType = Optional[Union[Type[DomainEvent], Tuple[Type[DomainEvent]]]]
+
+CausalDependencies = Dict[str, int]
+ListOfCausalDependencies = List[CausalDependencies]
+
+
+class ProcessEvent(ActualOccasion, Generic[TDomainEvent]):
+    def __init__(
+        self,
+        domain_events: Iterable[TDomainEvent],
+        tracking_kwargs: Optional[TrackingKwargs] = None,
+        causal_dependencies: Optional[ListOfCausalDependencies] = None,
+        orm_objs_pending_save: Sequence[Any] = (),
+        orm_objs_pending_delete: Sequence[Any] = (),
+    ):
+        self.domain_events = domain_events
+        self.tracking_kwargs = tracking_kwargs
+        self.causal_dependencies = causal_dependencies
+        self.orm_objs_pending_save = orm_objs_pending_save
+        self.orm_objs_pending_delete = orm_objs_pending_delete
 
 
 class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
@@ -62,6 +100,9 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
 
     event_store_class: Type[EventStore] = EventStore
     repository_class: Type[EventSourcedRepository] = EventSourcedRepository
+
+    use_causal_dependencies = False
+    set_notification_ids = False
 
     def __init__(
         self,
@@ -184,31 +225,31 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
     @property
     def datastore(self) -> AbstractDatastore:
         if self._datastore is None:
-            self._raise_on_missing_infrastructure('datastore')
+            self._raise_on_missing_infrastructure("datastore")
         return self._datastore
 
     @property
     def event_store(self) -> AbstractEventStore[TVersionedEvent, BaseRecordManager]:
         if self._event_store is None:
-            self._raise_on_missing_infrastructure('event_store')
+            self._raise_on_missing_infrastructure("event_store")
         return self._event_store
 
     @property
     def repository(self) -> EventSourcedRepository[TVersionedEntity, TVersionedEvent]:
         if self._repository is None:
-            self._raise_on_missing_infrastructure('repository')
+            self._raise_on_missing_infrastructure("repository")
         return self._repository
 
     @property
     def notification_log(self) -> LocalNotificationLog:
         if self._notification_log is None:
-            self._raise_on_missing_infrastructure('notification_log')
+            self._raise_on_missing_infrastructure("notification_log")
         return self._notification_log
 
     @property
     def persistence_policy(self) -> PersistencePolicy:
         if self._persistence_policy is None:
-            self._raise_on_missing_infrastructure('persistence_policy')
+            self._raise_on_missing_infrastructure("persistence_policy")
         return self._persistence_policy
 
     def _raise_on_missing_infrastructure(self, what_is_missing):
@@ -373,8 +414,141 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         """
         return type(cls.__name__, (infrastructure_class, cls), {})
 
+    def save(
+        self, aggregates=(), orm_objects_pending_save=(), orm_objects_pending_delete=(),
+    ):
+        new_events = []
+        if isinstance(aggregates, BaseAggregateRoot):
+            aggregates = [aggregates]
+        for aggregate in aggregates:
+            new_events += aggregate.__batch_pending_events__()
+        process_event = ProcessEvent(
+            domain_events=new_events,
+            orm_objs_pending_save=orm_objects_pending_save,
+            orm_objs_pending_delete=orm_objects_pending_delete,
+        )
+        new_records = self.record_process_event(process_event)
+        # Find the head notification ID.
+        notifiable_events = [e for e in new_events if e.__notifiable__]
+        head_notification_id = None
+        if len(notifiable_events):
+            record_manager = self.event_store.record_manager
+            notification_id_name = record_manager.notification_id_name
+            notifications = []
+            for record in new_records:
+                if not hasattr(record, notification_id_name):
+                    continue
+                if not isinstance(getattr(record, notification_id_name), int):
+                    continue
+                notifications.append(
+                    record_manager.create_notification_from_record(record)
+                )
+
+            if len(notifications):
+                head_notification_id = notifications[-1]["id"]
+        self.publish_prompt(head_notification_id)
+        for aggregate in aggregates:
+            if self.repository.use_cache:
+                self.repository.put_entity_in_cache(aggregate.id, aggregate)
+
+    def record_process_event(self, process_event: ProcessEvent) -> List:
+        # Construct event records.
+        event_records = self.construct_event_records(
+            process_event.domain_events, process_event.causal_dependencies
+        )
+
+        # Write event records with tracking record.
+        record_manager = self.event_store.record_manager
+        assert isinstance(record_manager, RecordManagerWithTracking)
+        record_manager.write_records(
+            records=event_records,
+            tracking_kwargs=process_event.tracking_kwargs,
+            orm_objs_pending_save=process_event.orm_objs_pending_save,
+            orm_objs_pending_delete=process_event.orm_objs_pending_delete,
+        )
+        return event_records
+
+    def construct_event_records(
+        self,
+        pending_events: Iterable[TAggregateEvent],
+        causal_dependencies: Optional[ListOfCausalDependencies],
+    ) -> List:
+        # Convert to event records.
+        sequenced_items = self.event_store.items_from_events(pending_events)
+        record_manager = self.event_store.record_manager
+        assert record_manager
+        assert isinstance(record_manager, RecordManagerWithTracking)
+        event_records = list(record_manager.to_records(sequenced_items))
+
+        # Set notification log IDs, and causal dependencies.
+        if len(event_records):
+            # Todo: Maybe keep track of what this probably is, to
+            #  avoid query. Like log reader, invalidate on error.
+            if self.set_notification_ids:
+                notification_id_name = record_manager.notification_id_name
+                current_max = record_manager.get_max_notification_id()
+                for domain_event, event_record in zip(pending_events, event_records):
+                    if type(domain_event).__notifiable__:
+                        current_max += 1
+                        setattr(event_record, notification_id_name, current_max)
+                    else:
+                        setattr(
+                            event_record, notification_id_name, "event-not-notifiable"
+                        )
+
+            if self.use_causal_dependencies:
+                assert hasattr(record_manager.record_class, "causal_dependencies")
+                causal_dependencies_json = self.event_store.event_mapper.json_dumps(
+                    causal_dependencies
+                ).decode("utf8")
+                # Only need first event to carry the dependencies.
+                event_records[0].causal_dependencies = causal_dependencies_json
+
+        return event_records
+
+    def publish_prompt(self, head_notification_id=None):
+        prompt = PromptToPull(self.name, self.pipeline_id, head_notification_id)
+        try:
+            publish(prompt)
+        except PromptFailed:
+            raise
+        except Exception as e:
+            raise PromptFailed("{}: {}".format(type(e), str(e)))
+
 
 class ApplicationWithConcreteInfrastructure(SimpleApplication):
     """
     Base class for application classes that have actual infrastructure.
     """
+
+
+class Prompt(ActualOccasion):
+    pass
+
+
+def is_prompt_to_pull(events: IterableOfEvents) -> bool:
+    return isinstance(events, PromptToPull)
+
+
+class PromptToPull(Prompt):
+    def __init__(self, process_name: str, pipeline_id: int, head_notification_id=None):
+        self.process_name: str = process_name
+        self.pipeline_id: int = pipeline_id
+        self.head_notification_id = head_notification_id
+
+    def __eq__(self, other: object) -> bool:
+        return bool(
+            other
+            and isinstance(other, type(self))
+            and self.process_name == other.process_name
+            and self.pipeline_id == other.pipeline_id
+        )
+
+    def __repr__(self) -> str:
+        return "{}({}={}, {}={})".format(
+            type(self).__name__,
+            "process_name",
+            self.process_name,
+            "pipeline_id",
+            self.pipeline_id,
+        )

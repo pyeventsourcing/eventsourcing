@@ -1,7 +1,7 @@
 from datetime import datetime
 from threading import Event, Lock
 
-from eventsourcing.application.process import Prompt
+from eventsourcing.application.simple import Prompt
 
 
 class RayDbJob(object):

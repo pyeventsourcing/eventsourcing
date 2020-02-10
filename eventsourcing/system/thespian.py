@@ -6,9 +6,8 @@ from thespian.actors import Actor, ActorExitRequest, ActorSystem
 from eventsourcing.application.notificationlog import RecordManagerNotificationLog
 from eventsourcing.application.process import (
     ProcessApplication,
-    PromptToPull,
-    is_prompt_to_pull,
 )
+from eventsourcing.application.simple import is_prompt_to_pull, PromptToPull
 from eventsourcing.system.definition import System, AbstractSystemRunner
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import RecordConflictError

@@ -10,19 +10,20 @@ from typing import (
     TYPE_CHECKING,
     Dict,
     Tuple,
-    Iterable,
     Type,
 )
 
 from eventsourcing.application.notificationlog import RecordManagerNotificationLog
 from eventsourcing.application.process import (
-    Prompt,
-    is_prompt_to_pull,
-    PromptToPull,
     PromptToQuit,
     ProcessApplication,
 )
-from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
+from eventsourcing.application.simple import (
+    ApplicationWithConcreteInfrastructure,
+    Prompt,
+    is_prompt_to_pull,
+    PromptToPull,
+)
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import (
