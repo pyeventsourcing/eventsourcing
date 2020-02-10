@@ -104,10 +104,15 @@ class TestFlaskWsgi(TestFlaskApp):
         # Run uwsgi.
         if path_to_virtualenv:
             path_to_uwsgi = join(path_to_virtualenv, "bin", "uwsgi")
-            assert os.path.exists(path_to_uwsgi), path_to_uwsgi
+            if not os.path.exists(path_to_uwsgi):
+                raise AssertionError(
+                    "Can't find uwsgi in virtualenv: %s" % path_to_uwsgi
+                )
         else:
             # In a container, without a virtualenv?
             path_to_uwsgi = "/usr/local/bin/uwsgi"
+            assert os.path.exists(path_to_uwsgi), path_to_uwsgi
+            raise AssertionError("Can't find uwsgi: %s" % path_to_uwsgi)
             # Todo: Maybe use shutil.which, after dropping support for Python 2.7.
 
         cmd = [path_to_uwsgi]
