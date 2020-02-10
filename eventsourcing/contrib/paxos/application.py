@@ -219,7 +219,7 @@ class PaxosAggregate(BaseAggregateRoot):
         ).format(**self.__dict__)
 
 
-class PaxosProcess(ProcessApplication[PaxosAggregate, PaxosAggregate.Event]):
+class PaxosApplication(ProcessApplication[PaxosAggregate, PaxosAggregate.Event]):
     persist_event_type = PaxosAggregate.Event
     quorum_size: int = 0
     notification_log_section_size = 5
@@ -330,8 +330,8 @@ class PaxosSystem(System):
         self.quorum_size = (num_participants + 2) // 2
         classes = [
             type(
-                "PaxosProcess{}".format(i),
-                (PaxosProcess,),
+                "PaxosApplication{}".format(i),
+                (PaxosApplication,),
                 {"quorum_size": self.quorum_size},
             )
             for i in range(num_participants)

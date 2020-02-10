@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
-from eventsourcing.contrib.paxos.application import PaxosProcess, PaxosSystem
+from eventsourcing.contrib.paxos.application import PaxosApplication, PaxosSystem
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import (
     assert_event_handlers_empty,
@@ -36,39 +36,39 @@ class TestPaxosSystem(unittest.TestCase):
 
         concrete_system = self.system.bind(self.infrastructure_class)
         with concrete_system as runner:
-            paxosprocess0 = runner.processes["paxosprocess0"]
-            paxosprocess1 = runner.processes["paxosprocess1"]
-            paxosprocess2 = runner.processes["paxosprocess2"]
+            paxosapplication0 = runner.processes["paxosapplication0"]
+            paxosapplication1 = runner.processes["paxosapplication1"]
+            paxosapplication2 = runner.processes["paxosapplication2"]
 
             started1 = datetime.datetime.now()
-            assert isinstance(paxosprocess0, PaxosProcess)
-            paxosprocess0.propose_value(key1, value1)
+            assert isinstance(paxosapplication0, PaxosApplication)
+            paxosapplication0.propose_value(key1, value1)
             ended1 = (datetime.datetime.now() - started1).total_seconds()
 
             # Check each process has expected final value.
-            self.assert_final_value(paxosprocess0, key1, value1)
-            self.assert_final_value(paxosprocess1, key1, value1)
-            self.assert_final_value(paxosprocess2, key1, value1)
+            self.assert_final_value(paxosapplication0, key1, value1)
+            self.assert_final_value(paxosapplication1, key1, value1)
+            self.assert_final_value(paxosapplication2, key1, value1)
             print("Resolved paxos 1 with single thread in %ss" % ended1)
 
             started2 = datetime.datetime.now()
-            paxosprocess1.propose_value(key2, value2)
+            paxosapplication1.propose_value(key2, value2)
             ended2 = (datetime.datetime.now() - started2).total_seconds()
 
             # Check each process has a resolution.
-            self.assert_final_value(paxosprocess0, key2, value2)
-            self.assert_final_value(paxosprocess1, key2, value2)
-            self.assert_final_value(paxosprocess2, key2, value2)
+            self.assert_final_value(paxosapplication0, key2, value2)
+            self.assert_final_value(paxosapplication1, key2, value2)
+            self.assert_final_value(paxosapplication2, key2, value2)
             print("Resolved paxos 2 with single thread in %ss" % ended2)
 
             started3 = datetime.datetime.now()
-            paxosprocess2.propose_value(key3, value3)
+            paxosapplication2.propose_value(key3, value3)
             ended3 = (datetime.datetime.now() - started3).total_seconds()
 
             # Check each process has a resolution.
-            self.assert_final_value(paxosprocess0, key3, value3)
-            self.assert_final_value(paxosprocess1, key3, value3)
-            self.assert_final_value(paxosprocess2, key3, value3)
+            self.assert_final_value(paxosapplication0, key3, value3)
+            self.assert_final_value(paxosapplication1, key3, value3)
+            self.assert_final_value(paxosapplication2, key3, value3)
             print("Resolved paxos 3 with single thread in %ss" % ended3)
 
     def test_multi_threaded(self):
@@ -89,39 +89,39 @@ class TestPaxosSystem(unittest.TestCase):
         )
 
         with runner:
-            paxosprocess0 = runner.processes["paxosprocess0"]
-            paxosprocess1 = runner.processes["paxosprocess1"]
-            paxosprocess2 = runner.processes["paxosprocess2"]
+            paxosapplication0 = runner.processes["paxosapplication0"]
+            paxosapplication1 = runner.processes["paxosapplication1"]
+            paxosapplication2 = runner.processes["paxosapplication2"]
 
             started1 = datetime.datetime.now()
-            assert isinstance(paxosprocess0, PaxosProcess)
-            paxosprocess0.propose_value(key1, value1)
+            assert isinstance(paxosapplication0, PaxosApplication)
+            paxosapplication0.propose_value(key1, value1)
             ended1 = (datetime.datetime.now() - started1).total_seconds()
 
             # Check each process has expected final value.
-            self.assert_final_value(paxosprocess0, key1, value1)
-            self.assert_final_value(paxosprocess1, key1, value1)
-            self.assert_final_value(paxosprocess2, key1, value1)
+            self.assert_final_value(paxosapplication0, key1, value1)
+            self.assert_final_value(paxosapplication1, key1, value1)
+            self.assert_final_value(paxosapplication2, key1, value1)
             print("Resolved paxos 1 with multi threads in %ss" % ended1)
 
             started2 = datetime.datetime.now()
-            paxosprocess1.propose_value(key2, value2)
+            paxosapplication1.propose_value(key2, value2)
             ended2 = (datetime.datetime.now() - started2).total_seconds()
 
             # Check each process has a resolution.
-            self.assert_final_value(paxosprocess0, key2, value2)
-            self.assert_final_value(paxosprocess1, key2, value2)
-            self.assert_final_value(paxosprocess2, key2, value2)
+            self.assert_final_value(paxosapplication0, key2, value2)
+            self.assert_final_value(paxosapplication1, key2, value2)
+            self.assert_final_value(paxosapplication2, key2, value2)
             print("Resolved paxos 2 with multi threads in %ss" % ended2)
 
             started3 = datetime.datetime.now()
-            paxosprocess2.propose_value(key3, value3)
+            paxosapplication2.propose_value(key3, value3)
             ended3 = (datetime.datetime.now() - started3).total_seconds()
 
             # Check each process has a resolution.
-            self.assert_final_value(paxosprocess0, key3, value3)
-            self.assert_final_value(paxosprocess1, key3, value3)
-            self.assert_final_value(paxosprocess2, key3, value3)
+            self.assert_final_value(paxosapplication0, key3, value3)
+            self.assert_final_value(paxosapplication1, key3, value3)
+            self.assert_final_value(paxosapplication2, key3, value3)
             print("Resolved paxos 3 with multi threads in %ss" % ended3)
 
     def test_multiprocessing(self):
@@ -142,46 +142,46 @@ class TestPaxosSystem(unittest.TestCase):
         # Start running operating system processes.
         with runner:
             # Get local application object.
-            paxosprocess0 = runner.get(runner.system.process_classes["paxosprocess0"])
-            assert isinstance(paxosprocess0, PaxosProcess)
+            paxosapplication0 = runner.get(runner.system.process_classes["paxosapplication0"])
+            assert isinstance(paxosapplication0, PaxosApplication)
 
             # Start proposing values on the different system pipelines.
-            paxosprocess0.change_pipeline(1)
+            paxosapplication0.change_pipeline(1)
             started1 = datetime.datetime.now()
-            paxosprocess0.propose_value(key1, value1)
+            paxosapplication0.propose_value(key1, value1)
 
-            paxosprocess0.change_pipeline(2)
+            paxosapplication0.change_pipeline(2)
             started2 = datetime.datetime.now()
-            paxosprocess0.propose_value(key2, value2)
+            paxosapplication0.propose_value(key2, value2)
 
-            paxosprocess0.change_pipeline(3)
+            paxosapplication0.change_pipeline(3)
             started3 = datetime.datetime.now()
-            paxosprocess0.propose_value(key3, value3)
+            paxosapplication0.propose_value(key3, value3)
 
             # Check all the process applications have expected final values.
-            paxosprocess1 = runner.get(runner.system.process_classes["paxosprocess1"])
-            paxosprocess2 = runner.get(runner.system.process_classes["paxosprocess2"])
+            paxosapplication1 = runner.get(runner.system.process_classes["paxosapplication1"])
+            paxosapplication2 = runner.get(runner.system.process_classes["paxosapplication2"])
 
-            assert isinstance(paxosprocess1, PaxosProcess)
-            paxosprocess0.repository.use_cache = False
-            paxosprocess1.repository.use_cache = False
-            paxosprocess2.repository.use_cache = False
+            assert isinstance(paxosapplication1, PaxosApplication)
+            paxosapplication0.repository.use_cache = False
+            paxosapplication1.repository.use_cache = False
+            paxosapplication2.repository.use_cache = False
 
-            self.assert_final_value(paxosprocess0, key1, value1)
-            self.assert_final_value(paxosprocess1, key1, value1)
-            self.assert_final_value(paxosprocess2, key1, value1)
+            self.assert_final_value(paxosapplication0, key1, value1)
+            self.assert_final_value(paxosapplication1, key1, value1)
+            self.assert_final_value(paxosapplication2, key1, value1)
             duration1 = (datetime.datetime.now() - started1).total_seconds()
             print("Resolved paxos 1 with multiprocessing in %ss" % duration1)
 
-            self.assert_final_value(paxosprocess0, key2, value2)
-            self.assert_final_value(paxosprocess1, key2, value2)
-            self.assert_final_value(paxosprocess2, key2, value2)
+            self.assert_final_value(paxosapplication0, key2, value2)
+            self.assert_final_value(paxosapplication1, key2, value2)
+            self.assert_final_value(paxosapplication2, key2, value2)
             duration2 = (datetime.datetime.now() - started2).total_seconds()
             print("Resolved paxos 2 with multiprocessing in %ss" % duration2)
 
-            self.assert_final_value(paxosprocess0, key3, value3)
-            self.assert_final_value(paxosprocess1, key3, value3)
-            self.assert_final_value(paxosprocess2, key3, value3)
+            self.assert_final_value(paxosapplication0, key3, value3)
+            self.assert_final_value(paxosapplication1, key3, value3)
+            self.assert_final_value(paxosapplication2, key3, value3)
             duration3 = (datetime.datetime.now() - started3).total_seconds()
             print("Resolved paxos 3 with multiprocessing in %ss" % duration3)
 
@@ -224,7 +224,7 @@ class TestPaxosSystem(unittest.TestCase):
                 pipeline_id = value % len(pipeline_ids)
                 print("Proposing key {} value {}".format(key, value))
                 runner.call(
-                    "paxosprocess0", pipeline_id, "propose_value", key, str(value)
+                    "paxosapplication0", pipeline_id, "propose_value", key, str(value)
                 )
                 sleep(0.005)
 
@@ -232,7 +232,7 @@ class TestPaxosSystem(unittest.TestCase):
             for key, value in proposals:
                 print("Asserting final value for key {} value {}".format(key, value))
                 pipeline_id = value % len(pipeline_ids)
-                assert_final_value("paxosprocess0", pipeline_id, key, str(value))
+                assert_final_value("paxosapplication0", pipeline_id, key, str(value))
 
             # Print timing information (just for fun).
             duration = (datetime.datetime.now() - started).total_seconds()
@@ -268,12 +268,12 @@ class TestPaxosSystem(unittest.TestCase):
             sleep(1)
 
             # Construct an application instance in this process.
-            paxosprocess0 = runner.get(runner.system.process_classes["paxosprocess0"])
+            paxosapplication0 = runner.get(runner.system.process_classes["paxosapplication0"])
 
-            assert isinstance(paxosprocess0, PaxosProcess)
+            assert isinstance(paxosapplication0, PaxosApplication)
 
             # Don't use the cache, so as to keep checking actual database.
-            paxosprocess0.repository.use_cache = False
+            paxosapplication0.repository.use_cache = False
 
             # Start timing (just for fun).
             started = datetime.datetime.now()
@@ -281,15 +281,15 @@ class TestPaxosSystem(unittest.TestCase):
             # Propose values.
             proposals = list(((uuid4(), i) for i in range(num_proposals)))
             for key, value in proposals:
-                paxosprocess0.change_pipeline((value % len(pipeline_ids)))
+                paxosapplication0.change_pipeline((value % len(pipeline_ids)))
                 print("Proposing key {} value {}".format(key, value))
-                paxosprocess0.propose_value(key, str(value))
+                paxosapplication0.propose_value(key, str(value))
                 sleep(0.0)
 
             # Check final values.
             for key, value in proposals:
                 print("Asserting final value for key {} value {}".format(key, value))
-                self.assert_final_value(paxosprocess0, key, str(value))
+                self.assert_final_value(paxosapplication0, key, str(value))
 
             # Print timing information (just for fun).
             duration = (datetime.datetime.now() - started).total_seconds()
