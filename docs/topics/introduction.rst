@@ -51,7 +51,7 @@ Quoting from Eric Evans' book `Domain Driven Design
 Although the basic event sourcing patterns are quite simple, and
 can be reproduced in code for each project, the persistence mechanism
 for event sourced domain driven design appears as a conceptually cohesive
-mechanism, and so have been "partitioned into a separate lightweight framework".
+mechanism, and so can be "partitioned into a separate lightweight framework".
 
 
 Register issues
