@@ -408,7 +408,7 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         pass
 
     @classmethod
-    def mixin(cls, infrastructure_class: type) -> type:
+    def mixin(cls: T, infrastructure_class: type) -> T:
         """
         Returns subclass that inherits also from given infrastructure class.
         """
