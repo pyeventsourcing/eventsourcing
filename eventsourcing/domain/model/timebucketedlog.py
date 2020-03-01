@@ -13,7 +13,7 @@ from eventsourcing.domain.model.events import (
     publish,
 )
 from eventsourcing.exceptions import RepositoryKeyError
-from eventsourcing.infrastructure.base import AbstractEntityRepository
+from eventsourcing.domain.model.repository import AbstractEntityRepository
 from eventsourcing.utils.times import (
     datetime_from_timestamp,
     decimaltimestamp,

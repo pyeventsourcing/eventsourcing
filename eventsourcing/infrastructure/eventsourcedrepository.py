@@ -6,10 +6,10 @@ from uuid import UUID
 from eventsourcing.domain.model.entity import TVersionedEntity, TVersionedEvent
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.base import (
-    AbstractEntityRepository,
     AbstractEventStore,
     AbstractRecordManager,
 )
+from eventsourcing.domain.model.repository import AbstractEntityRepository
 from eventsourcing.domain.model.events import AbstractSnapshot
 from eventsourcing.infrastructure.snapshotting import AbstractSnapshotStrategy
 from eventsourcing.whitehead import SEntity

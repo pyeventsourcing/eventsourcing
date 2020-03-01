@@ -7,7 +7,7 @@ from eventsourcing.domain.model.entity import (
     TTimestampedVersionedEntity,
     TimestampedVersionedEntity,
 )
-from eventsourcing.infrastructure.base import AbstractEntityRepository
+from eventsourcing.domain.model.repository import AbstractEntityRepository
 
 
 class Collection(TimestampedVersionedEntity):

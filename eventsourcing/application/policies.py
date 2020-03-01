@@ -7,10 +7,10 @@ from eventsourcing.domain.model.events import (
     unsubscribe,
     AbstractSnapshot)
 from eventsourcing.infrastructure.base import (
-    AbstractEntityRepository,
     AbstractEventStore,
     AbstractRecordManager,
 )
+from eventsourcing.domain.model.repository import AbstractEntityRepository
 from eventsourcing.whitehead import IterableOfEvents, TEvent
 
 
