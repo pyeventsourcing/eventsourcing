@@ -62,7 +62,6 @@ class DatastoreTestCase(AbstractDatastoreTestCase):
     """
 
     def test(self):
-
         # # Check the stored event class doesn't function before the connection is setup.
         # with self.assertRaises(DatastoreConnectionError):
         #     self.list_records()

@@ -69,7 +69,7 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
 
     __subclassevents__ = False
 
-    class Event(EventWithOriginatorID[TDomainEntity], DomainEvent[TDomainEntity]):
+    class Event(EventWithOriginatorID[TDomainEntity]):
         """
         Supertype for events of domain model entities.
         """
