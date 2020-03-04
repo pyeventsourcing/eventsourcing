@@ -5,7 +5,8 @@ from eventsourcing.domain.model.events import (
     EventWithOriginatorVersion,
     subscribe,
     unsubscribe,
-    AbstractSnapshot)
+    AbstractSnapshot,
+)
 from eventsourcing.infrastructure.base import (
     AbstractEventStore,
     AbstractRecordManager,
@@ -53,7 +54,7 @@ class SnapshottingPolicy(Generic[TEvent]):
         persist_event_type: Optional[Union[type, Tuple]] = (
             EventWithOriginatorVersion,
         ),
-        period: int = 2,
+        period: int = 0,
     ):
         self.repository = repository
         self.snapshot_store = snapshot_store
@@ -66,7 +67,7 @@ class SnapshottingPolicy(Generic[TEvent]):
 
     def condition(self, event: IterableOfEvents) -> bool:
         # Periodically by default.
-        if self.persist_event_type and self.period:
+        if self.persist_event_type and isinstance(self.period, int) and self.period > 0:
             if isinstance(event, (list, tuple)):
                 for e in event:
                     if self.condition(e):

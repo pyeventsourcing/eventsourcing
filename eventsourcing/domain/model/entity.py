@@ -16,6 +16,7 @@ from eventsourcing.domain.model.events import (
     EventWithTimestamp,
     publish,
 )
+from eventsourcing.domain.model.versioning import Upcastable
 from eventsourcing.exceptions import (
     EntityIsDiscarded,
     HeadHashError,
@@ -62,7 +63,7 @@ TDomainEntity = TypeVar("TDomainEntity", bound="DomainEntity")
 TDomainEvent = TypeVar("TDomainEvent", bound="DomainEntity.Event")
 
 
-class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
+class DomainEntity(Upcastable, EnduringObject, metaclass=MetaDomainEntity):
     """
     Supertype for domain model entity.
     """

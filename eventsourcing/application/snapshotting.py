@@ -13,10 +13,9 @@ from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrate
 
 
 class SnapshottingApplication(SimpleApplication[TVersionedEntity, TVersionedEvent]):
-    # Todo: Change this to default to None?
-    snapshot_period = 2
+    snapshot_period = 0
 
-    def __init__(self, snapshot_period: Optional[int] = None, **kwargs: Any):
+    def __init__(self, snapshot_period: int = 0, **kwargs: Any):
         self.snapshot_period = snapshot_period or self.snapshot_period
         self.snapshot_store: Optional[
             AbstractEventStore[AbstractSnapshot, AbstractRecordManager]

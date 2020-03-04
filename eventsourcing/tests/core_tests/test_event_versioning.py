@@ -2,6 +2,7 @@ from copy import copy
 from typing import Dict
 from unittest import TestCase
 
+from eventsourcing.application.snapshotting import SnapshottingApplication
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.domain.model.aggregate import BaseAggregateRoot
 from eventsourcing.domain.model.events import DomainEvent
@@ -112,8 +113,15 @@ class UpcastableEventFixture(DomainEvent):
         return obj_state
 
 
-class TestBackwardAndForwardCompatibility(TestCase):
+class TestUpcastingActiveWhenStoringAndRetrievingEvents(TestCase):
     def test_reconstructing_aggregate_state_from_versioned_events(self):
+        """
+        Mimick evolution of an event class, from original to version 2.
+
+        Could/should just test reconstruct_object() calls __upcast_state__,
+        but this test is decoupled from implementation, and simply checks
+        upcasting is active when storing and retrieving aggregate state.
+        """
         app = SQLAlchemyApplication(persist_event_type=BaseAggregateRoot.Event)
         with app:
             my_aggregate = MultiVersionAggregateFixture.__create__()
@@ -124,10 +132,10 @@ class TestBackwardAndForwardCompatibility(TestCase):
             # Check the default values are used for value and units.
             copy = app.repository[my_aggregate.id]
             assert isinstance(copy, MultiVersionAggregateFixture)
-            self.assertEqual(copy.value, 0)
-            self.assertEqual(copy.units, "")
+            self.assertEqual(copy.value, None)  # still uninitialised
+            self.assertEqual(copy.units, None)  # still uninitialised
 
-            # Increase the version of the event class.
+            # Increase the version of the event class (introduce 'value' attribute).
             MultiVersionAggregateFixture.Triggered.__class_version__ = 1
             MultiVersionAggregateFixture.Triggered.__upcast__ = (
                 MultiVersionAggregateFixture.Triggered.upcast_v1
@@ -139,8 +147,8 @@ class TestBackwardAndForwardCompatibility(TestCase):
             # Check v1 code can read original event version (backwards compatibility).
             copy = app.repository[my_aggregate.id]
             assert isinstance(copy, MultiVersionAggregateFixture)
-            self.assertEqual(copy.value, 0)
-            self.assertEqual(copy.units, "")
+            self.assertEqual(copy.value, 0)  # gets default
+            self.assertEqual(copy.units, None)  # still uninitialised
 
             # Trigger with value kwarg (first version behaviour).
             my_aggregate.trigger(value=10)
@@ -149,8 +157,8 @@ class TestBackwardAndForwardCompatibility(TestCase):
             # Check v1 code can read original and first event versions.
             copy = app.repository[my_aggregate.id]
             assert isinstance(copy, MultiVersionAggregateFixture)
-            self.assertEqual(copy.value, 10)
-            self.assertEqual(copy.units, "")
+            self.assertEqual(copy.value, 10)  # gets set value
+            self.assertEqual(copy.units, None)  # still uninitialised
 
             # Increase the version of the event class.
             MultiVersionAggregateFixture.Triggered.__class_version__ = 2
@@ -183,8 +191,8 @@ class TestBackwardAndForwardCompatibility(TestCase):
             del MultiVersionAggregateFixture.Triggered.mutate
             copy = app.repository[my_aggregate.id]
             assert isinstance(copy, MultiVersionAggregateFixture)
-            self.assertEqual(copy.value, 0)  # ignores event attribute
-            self.assertEqual(copy.units, "")  # ignores event attribute
+            self.assertEqual(copy.value, None)  # still uninitialised
+            self.assertEqual(copy.units, None)  # still uninitialised
 
             # Check v1 code reads later versions.
             MultiVersionAggregateFixture.Triggered.__class_version__ = 1
@@ -197,17 +205,104 @@ class TestBackwardAndForwardCompatibility(TestCase):
             copy = app.repository[my_aggregate.id]
             assert isinstance(copy, MultiVersionAggregateFixture)
             self.assertEqual(copy.value, 20)  # observes event attribute
-            self.assertEqual(copy.units, "")  # ignores event attribute
+            self.assertEqual(copy.units, None)  # still uninitialised
+
+    def test_reconstructing_aggregate_state_from_snapshot(self):
+        """
+        Mimick evolution of an event class, from original to version 2.
+
+        Could/should just test reconstruct_object() calls __upcast_state__,
+        but this test is decoupled from implementation, and simply checks
+        upcasting is active when storing and retrieving aggregate state.
+        """
+        app = SnapshottingApplication.mixin(SQLAlchemyApplication)(
+            persist_event_type=BaseAggregateRoot.Event,
+
+        )
+        with app:
+            my_aggregate = MultiVersionAggregateFixture.__create__()
+            # Trigger without any kwargs (original behaviour).
+            my_aggregate.trigger()
+            my_aggregate.__save__()
+
+            # Take a snapshot.
+            app.repository.take_snapshot(my_aggregate.id)
+
+            # Check the default values are used for value and units.
+            copy = app.repository[my_aggregate.id]
+            assert isinstance(copy, MultiVersionAggregateFixture)
+            self.assertEqual(copy.value, None)
+            self.assertEqual(copy.units, None)
+
+            # Increase the version of the aggregate and event class.
+            MultiVersionAggregateFixture.__class_version__ = 1
+            MultiVersionAggregateFixture.Triggered.__class_version__ = 1
+            MultiVersionAggregateFixture.Triggered.__upcast__ = (
+                MultiVersionAggregateFixture.Triggered.upcast_v1
+            )
+            MultiVersionAggregateFixture.Triggered.mutate = (
+                MultiVersionAggregateFixture.Triggered.mutate_v1
+            )
+
+            # Check v1 code upcasts snapshot (which doesnt have 'value').
+            copy = app.repository[my_aggregate.id]
+            assert isinstance(copy, MultiVersionAggregateFixture)
+            self.assertEqual(copy.value, 0)  # gets default
+            self.assertEqual(copy.units, None)
+
+            # Trigger with value kwarg (first version behaviour).
+            my_aggregate.trigger(value=10)
+            my_aggregate.__save__()
+
+            # Check v1 code can read original and first event versions.
+            copy = app.repository[my_aggregate.id]
+            assert isinstance(copy, MultiVersionAggregateFixture)
+            self.assertEqual(copy.value, 10)
+            self.assertEqual(copy.units, None)
+
+            # Take a snapshot.
+            app.repository.take_snapshot(my_aggregate.id)
+
+            # Check the default values are used for value and units.
+            copy = app.repository[my_aggregate.id]
+            assert isinstance(copy, MultiVersionAggregateFixture)
+            self.assertEqual(copy.value, 10)
+            self.assertEqual(copy.units, None)
+
+            # Increase the version of the aggregate and event class.
+            MultiVersionAggregateFixture.__class_version__ = 2
+            MultiVersionAggregateFixture.Triggered.__class_version__ = 2
+            MultiVersionAggregateFixture.Triggered.__upcast__ = (
+                MultiVersionAggregateFixture.Triggered.upcast_v2
+            )
+            MultiVersionAggregateFixture.Triggered.mutate = (
+                MultiVersionAggregateFixture.Triggered.mutate_v2
+            )
+
+            # Check v2 code upcasts snapshot (which doesnt have 'units').
+            copy = app.repository[my_aggregate.id]
+            assert isinstance(copy, MultiVersionAggregateFixture)
+            self.assertEqual(copy.value, 10)
+            self.assertEqual(copy.units, '') # gets default
 
 
 class MultiVersionAggregateFixture(BaseAggregateRoot):
     DEFAULT_VALUE = 0
     DEFAULT_UNITS = ""
 
+    @classmethod
+    def __upcast__(cls, obj_state: Dict, class_version: int) -> Dict:
+        if class_version == 0:
+            obj_state['value'] = cls.DEFAULT_VALUE
+        elif class_version == 1:
+            obj_state['units'] = cls.DEFAULT_UNITS
+
+        return obj_state
+
     def __init__(self, **kwargs):
         super(MultiVersionAggregateFixture, self).__init__(**kwargs)
-        self.value = self.DEFAULT_VALUE
-        self.units = self.DEFAULT_UNITS
+        self.value = None
+        self.units = None
 
     def trigger(self, **kwargs):
         self.__trigger_event__(self.Triggered, **kwargs)

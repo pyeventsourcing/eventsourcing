@@ -120,4 +120,4 @@ class Upcastable(Event):
         event class' upcast method will supply default values when upcasting
         the state of old versions of the event).
         """
-        raise NotImplementedError()
+        raise NotImplementedError(cls)

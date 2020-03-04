@@ -365,6 +365,18 @@ Care needs to be taken if using snapshots and versioned events with upcasting,
 since defaults supplied by upcasting, or other differences introduced by
 versioning events, might not exist in the snapshot, and that might matter.
 
+Since domain entity classes are also ``Upcastable`` classes, so it is possible
+to override the ``__upcast__()`` method on the entity class. It will be called
+when reconstructing an entity from a snapshot. The body of this implementation
+needs to manipulate state of the snapshot to conform with the state that would
+be obtained by reconstructing using the upgraded event versions. This can help
+in simple cases, but there may cases where the correct state cannot be obtained
+in this way.
+
+Another option is to delete snapshots created by a previous version of the class.
+Suddenly stopping use of old snapshots, and so replaying all the stored events,
+would briefly degrade performance to the extent it was improved by using snapshots.
+
 
 Domain entities
 ===============
