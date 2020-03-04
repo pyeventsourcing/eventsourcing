@@ -122,7 +122,7 @@ class TestUpcastingActiveWhenStoringAndRetrievingEvents(TestCase):
         del(MultiVersionAggregateFixture.Triggered.__upcast__)
         del(MultiVersionAggregateFixture.Triggered.mutate)
 
-    def test_reconstructing_aggregate_state_from_versioned_events(self):
+    def test_aggregate_state_after_versioning_events(self):
         """
         Mimick evolution of an event class, from original to version 2.
 
@@ -215,7 +215,7 @@ class TestUpcastingActiveWhenStoringAndRetrievingEvents(TestCase):
             self.assertEqual(copy.value, 20)  # observes event attribute
             self.assertEqual(copy.units, None)  # still uninitialised
 
-    def test_reconstructing_aggregate_state_from_snapshot(self):
+    def test_snapshot_state_after_versioning_events(self):
         """
         Mimick evolution of an event class, from original to version 2.
 
@@ -304,7 +304,6 @@ class MultiVersionAggregateFixture(BaseAggregateRoot):
             obj_state['value'] = cls.DEFAULT_VALUE
         elif class_version == 1:
             obj_state['units'] = cls.DEFAULT_UNITS
-
         return obj_state
 
     def __init__(self, **kwargs):

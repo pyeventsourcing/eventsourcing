@@ -351,31 +351,73 @@ documentation for more information about versioning events, especially about
 restrictions involved when providing for forward compatibility, and when you
 might need to do that.
 
+
+Looking ahead to the section on domain entities...
 When reconstructing domain events from stored event records, for example when
 retrieving aggregates from an application repository, the sequenced item mapper
 calls the library function
 :func:`~eventsourcing.utils.topic.reconstruct_object`
 which calls the event class method
-:func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast_state__`, as
-above. This is a the only place where
-:func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast_state__` is
-called by the library.
+:func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast_state__`,
+as above. This is the only place in the library where
+:func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast_state__`
+is called.
 
-Care needs to be taken if using snapshots and versioned events with upcasting,
-since defaults supplied by upcasting, or other differences introduced by
-versioning events, might not exist in the snapshot, and that might matter.
+Looking ahead to the section about snapshotting...
+Care needs to be taken when using both snapshotting and upcasting events,
+since differences introduced by versions of events introduced since a snapshot
+was made might not exist in the snapshot, and that might matter.
 
-Since domain entity classes are also ``Upcastable`` classes, so it is possible
-to override the ``__upcast__()`` method on the entity class. It will be called
+One option is to delete snapshots created by a previous version of the class.
+Suddenly stopping use of old snapshots, and so replaying all the stored events,
+would briefly degrade performance to the extent it was improved by using snapshots.
+
+Another option is upcasting the snapshotted state.
+The domain entity classes are also ``Upcastable`` classes, and so it is possible
+to override the ``__upcast__()`` method on the entity class, which will be called
 when reconstructing an entity from a snapshot. The body of this implementation
 needs to manipulate state of the snapshot to conform with the state that would
 be obtained by reconstructing using the upgraded event versions. This can help
 in simple cases, but there may cases where the correct state cannot be obtained
-in this way.
+in this way. The class attribute ``__class_version__`` is used to define the version
+of the entity class (use numbers ``1``, ``2``, etc).
 
-Another option is to delete snapshots created by a previous version of the class.
-Suddenly stopping use of old snapshots, and so replaying all the stored events,
-would briefly degrade performance to the extent it was improved by using snapshots.
+The example below shows a custom domain entity class, which adds default values for
+'value' and 'units' to the snapshotted state. This class gestures towards having
+been defined originally without either attribute. It is supposed that version 1
+added the 'value' attribute, and the 'units' attribute was added in version 2.
+
+.. code:: python
+
+    from eventsourcing.domain.model.aggregate import BaseAggregateRoot
+
+
+    class VersionedAggregate(BaseAggregateRoot):
+        __class_version__ = 2
+
+        DEFAULT_VALUE = 0
+        DEFAULT_UNITS = ""
+
+        @classmethod
+        def __upcast__(cls, obj_state, class_version):
+            if class_version == 0:
+                # Upcast to version 1.
+                obj_state['value'] = cls.DEFAULT_VALUE
+            elif class_version == 1:
+                # Upcast to version 2.
+                obj_state['units'] = cls.DEFAULT_UNITS
+            return obj_state
+
+        def __init__(self, **kwargs):
+            self.value = self.DEFAULT_VALUE  # added in version 1
+            self.units = self.DEFAULT_UNITS  # added in version 2
+
+
+A snapshot of the state of an original version of the entity wouldn't have ``'value'``,
+and so upcasting from the original version to version ``1`` involves defining ``'value'``.
+A snapshot of the state of version ``1`` of the entity woud have 'value' but wouldn't
+have ``'units'``, and so upcasting from version ``1`` to version ``2`` involves defining
+``'units'``.
 
 
 Domain entities
