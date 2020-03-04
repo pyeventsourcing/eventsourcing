@@ -413,11 +413,11 @@ added the 'value' attribute, and the 'units' attribute was added in version 2.
             self.units = self.DEFAULT_UNITS  # added in version 2
 
 
-A snapshot of the state of an original version of the entity wouldn't have ``'value'``,
-and so upcasting from the original version to version ``1`` involves defining ``'value'``.
+A snapshot of the state of an original version of the entity wouldn't have 'value',
+and so upcasting from the original version to version ``1`` involves defining 'value'.
 A snapshot of the state of version ``1`` of the entity woud have 'value' but wouldn't
-have ``'units'``, and so upcasting from version ``1`` to version ``2`` involves defining
-``'units'``.
+have 'units', and so upcasting from version ``1`` to version ``2`` involves defining
+'units'.
 
 
 Domain entities
