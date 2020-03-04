@@ -362,7 +362,7 @@ above. This is a the only place where
 called by the library.
 
 Care needs to be taken if using snapshots and versioned events with upcasting,
-since defaults supplied by upcasting, and other differences introduced by
+since defaults supplied by upcasting, or other differences introduced by
 versioning events, might not exist in the snapshot, and that might matter.
 
 
