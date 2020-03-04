@@ -125,20 +125,22 @@ class TestBackwardAndForwardCompatibility(TestCase):
             copy = app.repository[my_aggregate.id]
             assert isinstance(copy, MultiVersionAggregateFixture)
             self.assertEqual(copy.value, 0)
-            self.assertEqual(copy.units, '')
+            self.assertEqual(copy.units, "")
 
             # Increase the version of the event class.
             MultiVersionAggregateFixture.Triggered.__class_version__ = 1
-            MultiVersionAggregateFixture.Triggered.__upcast__ = \
+            MultiVersionAggregateFixture.Triggered.__upcast__ = (
                 MultiVersionAggregateFixture.Triggered.upcast_v1
-            MultiVersionAggregateFixture.Triggered.mutate = \
+            )
+            MultiVersionAggregateFixture.Triggered.mutate = (
                 MultiVersionAggregateFixture.Triggered.mutate_v1
+            )
 
             # Check v1 code can read original event version (backwards compatibility).
             copy = app.repository[my_aggregate.id]
             assert isinstance(copy, MultiVersionAggregateFixture)
             self.assertEqual(copy.value, 0)
-            self.assertEqual(copy.units, '')
+            self.assertEqual(copy.units, "")
 
             # Trigger with value kwarg (first version behaviour).
             my_aggregate.trigger(value=10)
@@ -148,55 +150,59 @@ class TestBackwardAndForwardCompatibility(TestCase):
             copy = app.repository[my_aggregate.id]
             assert isinstance(copy, MultiVersionAggregateFixture)
             self.assertEqual(copy.value, 10)
-            self.assertEqual(copy.units, '')
+            self.assertEqual(copy.units, "")
 
             # Increase the version of the event class.
             MultiVersionAggregateFixture.Triggered.__class_version__ = 2
-            MultiVersionAggregateFixture.Triggered.__upcast__ = \
+            MultiVersionAggregateFixture.Triggered.__upcast__ = (
                 MultiVersionAggregateFixture.Triggered.upcast_v2
-            MultiVersionAggregateFixture.Triggered.mutate = \
+            )
+            MultiVersionAggregateFixture.Triggered.mutate = (
                 MultiVersionAggregateFixture.Triggered.mutate_v2
+            )
 
             # Check v2 code can read original and first event versions.
             copy = app.repository[my_aggregate.id]
             assert isinstance(copy, MultiVersionAggregateFixture)
             self.assertEqual(copy.value, 10)
-            self.assertEqual(copy.units, '')
+            self.assertEqual(copy.units, "")
 
             # Trigger with value and units kwargs (second version behaviour).
-            my_aggregate.trigger(value=20, units='mm')
+            my_aggregate.trigger(value=20, units="mm")
             my_aggregate.__save__()
 
             # Check v2 code can read original, first and second event versions.
             copy = app.repository[my_aggregate.id]
             assert isinstance(copy, MultiVersionAggregateFixture)
             self.assertEqual(copy.value, 20)
-            self.assertEqual(copy.units, 'mm')
+            self.assertEqual(copy.units, "mm")
 
             # Check original code reads later event versions (forwards compatibility).
             MultiVersionAggregateFixture.Triggered.__class_version__ = 0
-            del (MultiVersionAggregateFixture.Triggered.__upcast__)
-            del (MultiVersionAggregateFixture.Triggered.mutate)
+            del MultiVersionAggregateFixture.Triggered.__upcast__
+            del MultiVersionAggregateFixture.Triggered.mutate
             copy = app.repository[my_aggregate.id]
             assert isinstance(copy, MultiVersionAggregateFixture)
             self.assertEqual(copy.value, 0)  # ignores event attribute
-            self.assertEqual(copy.units, '')  # ignores event attribute
+            self.assertEqual(copy.units, "")  # ignores event attribute
 
             # Check v1 code reads later versions.
             MultiVersionAggregateFixture.Triggered.__class_version__ = 1
-            MultiVersionAggregateFixture.Triggered.__upcast__ = \
+            MultiVersionAggregateFixture.Triggered.__upcast__ = (
                 MultiVersionAggregateFixture.Triggered.upcast_v1
-            MultiVersionAggregateFixture.Triggered.mutate = \
+            )
+            MultiVersionAggregateFixture.Triggered.mutate = (
                 MultiVersionAggregateFixture.Triggered.mutate_v1
+            )
             copy = app.repository[my_aggregate.id]
             assert isinstance(copy, MultiVersionAggregateFixture)
             self.assertEqual(copy.value, 20)  # observes event attribute
-            self.assertEqual(copy.units, '')  # ignores event attribute
+            self.assertEqual(copy.units, "")  # ignores event attribute
 
 
 class MultiVersionAggregateFixture(BaseAggregateRoot):
     DEFAULT_VALUE = 0
-    DEFAULT_UNITS = ''
+    DEFAULT_UNITS = ""
 
     def __init__(self, **kwargs):
         super(MultiVersionAggregateFixture, self).__init__(**kwargs)
@@ -209,11 +215,11 @@ class MultiVersionAggregateFixture(BaseAggregateRoot):
     class Triggered(BaseAggregateRoot.Event):
         @property
         def value(self):
-            return self.__dict__['value']
+            return self.__dict__["value"]
 
         @property
         def units(self):
-            return self.__dict__['units']
+            return self.__dict__["units"]
 
         def mutate_v1(self, obj: TEntity) -> None:
             obj.value = self.value
@@ -225,13 +231,13 @@ class MultiVersionAggregateFixture(BaseAggregateRoot):
         @classmethod
         def upcast_v1(cls, obj_state, class_version) -> None:
             if class_version == 0:
-                obj_state['value'] = MultiVersionAggregateFixture.DEFAULT_VALUE
+                obj_state["value"] = MultiVersionAggregateFixture.DEFAULT_VALUE
             return obj_state
 
         @classmethod
         def upcast_v2(cls, obj_state, class_version) -> None:
             if class_version == 0:
-                obj_state['value'] = MultiVersionAggregateFixture.DEFAULT_VALUE
+                obj_state["value"] = MultiVersionAggregateFixture.DEFAULT_VALUE
             elif class_version == 1:
-                obj_state['units'] = MultiVersionAggregateFixture.DEFAULT_UNITS
+                obj_state["units"] = MultiVersionAggregateFixture.DEFAULT_UNITS
             return obj_state
