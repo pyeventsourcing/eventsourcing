@@ -248,10 +248,6 @@ is a non-zero value, it will be included in the recorded states of all instances
 the event class. The default value is ``0`` and so the first time this attribute
 is set on a custom event class, the attribute should be set to ``1``.
 
-When reconstructing domain events from stored event records, the library function
-:func:`~eventsourcing.utils.topic.reconstruct_object` calls the event class method
-:func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast_state__`.
-
 And then, if the event class attribute ``__class_version__`` has a non-zero value,
 the event class method :func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast__`
 will be called successively by
@@ -268,14 +264,6 @@ The next time the event class is changed, the class version number will need to 
 to ``2``, and the ``__upcast__`` method changed so that it supports both upcasting from
 version ``0`` to version ``1`` and additionally from version ``1`` to version ``2``.
 And so on for version ``3``, and beyond.
-
-Please refer to the :class:`~eventsourcing.domain.model.versioning.Upcastable`
-documentation for more information, especially about restrictions involved when
-providing for forward compatibility, and when you might need to do that.
-
-
-NB: Care needs to be taken if using snapshots and versioned events with upcasting,
-since defaults supplied by upcasting might not exist in the snapshot.
 
 .. code:: python
 
@@ -356,6 +344,26 @@ since defaults supplied by upcasting might not exist in the snapshot.
     assert state_v2_from_v2["a"] == 1
     assert state_v2_from_v2["b"] == 2
     assert state_v2_from_v2["c"] == 'c'
+
+
+Please refer to the :class:`~eventsourcing.domain.model.versioning.Upcastable`
+documentation for more information about versioning events, especially about
+restrictions involved when providing for forward compatibility, and when you
+might need to do that.
+
+When reconstructing domain events from stored event records, for example when
+retrieving aggregates from an application repository, the sequenced item mapper
+calls the library function
+:func:`~eventsourcing.utils.topic.reconstruct_object`
+which calls the event class method
+:func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast_state__`, as
+above. This is a the only place where
+:func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast_state__` is
+called by the library.
+
+Care needs to be taken if using snapshots and versioned events with upcasting,
+since defaults supplied by upcasting, and other differences introduced by
+versioning events, might not exist in the snapshot, and that might matter.
 
 
 Domain entities
