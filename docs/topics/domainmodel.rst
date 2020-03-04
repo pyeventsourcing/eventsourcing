@@ -954,6 +954,46 @@ entity class.
     assert issubclass(Example6.SomethingHappened, Example6.Event)
 
 
+Versioning Events
+-----------------
+
+The library class :class:`~eventsourcing.domain.model.versioning.Upcastable`
+supports versioning of domain event classes. This class is inherited by all
+of the domain event classes in the library, so that all event classes can
+be versioned.
+
+As changes are made to an event class, the class attribute ``__class_version__``
+can be incremented through a series of integer values. If the ``__class_version__``
+is a non-zero value, it will be included in the recorded states of all instances of
+the event class. The default value is ``0`` and so the first time this attribute
+is set on a custom event class, the attribute should be set to ``1``.
+
+When reconstructing domain events from stored event records, the library function
+:func:`~eventsourcing.utils.topic.reconstruct_object` calls the event class method
+:func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast_state__`.
+
+And then, if the event class attribute ``__class_version__`` has a non-zero value,
+the event class method :func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast__`
+will be called successively by
+:func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast_state__`, once for
+each version, starting from the version of the stored event state, until the current
+version is reached. By default, ``__upcast__()`` raises a ``NotImplementedError`` exception.
+
+And so if the ``__class_version__`` of a custom event class has a non-zero value, then
+the :func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast__`
+will need to be overridden on the custom event class, and implemented to support
+upcasting from the original version ``0`` to version ``1``.
+
+The next time the event class is changed, the class version number will need to be set
+to ``2``, and the ``__upcast__`` method changed so that it supports both upcasting from
+version ``0`` to version ``1`` and additionally from version ``1`` to version ``2``.
+And so on for version ``3``, and beyond.
+
+Please refer to the :class:`~eventsourcing.domain.model.versioning.Upcastable`
+documentation for more information, especially about restrictions involved when
+providing for forward compatibility, and when you might need to do that.
+
+
 Aggregate root
 ==============
 

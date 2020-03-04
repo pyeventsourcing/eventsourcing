@@ -1,7 +1,7 @@
 import importlib
 from typing import Any, Dict, Type
 
-from eventsourcing.domain.model.upcasting import Upcastable
+from eventsourcing.domain.model.versioning import Upcastable
 from eventsourcing.exceptions import TopicResolutionError
 from eventsourcing.whitehead import T
 
@@ -71,6 +71,13 @@ def resolve_attr(obj: Any, path: str) -> Any:
 
 
 def reconstruct_object(obj_class: Type[T], obj_state: Dict[str, Any]) -> T:
+    """
+    Reconstructs object from given class and state.
+
+    :param obj_class: Class of object to be reconstructed.
+    :param obj_state: State of object to be reconstructed.
+    :return: Reconstructed object.
+    """
     if issubclass(obj_class, Upcastable):
         # Upcast the recorded state using the given class.
         obj_state = obj_class.__upcast_state__(obj_state)

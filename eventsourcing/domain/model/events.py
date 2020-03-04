@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Any, Callable, Dict, Generic, List, Optional, Sequence, Tuple
 from uuid import UUID, uuid1
 
-from eventsourcing.domain.model.upcasting import Upcastable
+from eventsourcing.domain.model.versioning import Upcastable
 from eventsourcing.exceptions import EventHashError
 from eventsourcing.utils import transcoding_v1
 from eventsourcing.utils.hashing import hash_object
@@ -28,22 +28,6 @@ class DomainEvent(Upcastable, ActualOccasion, Generic[TEntity]):
     __json_encoder_v2__ = ObjectJSONEncoder(sort_keys=True)
     __json_encoder_v1__ = transcoding_v1.ObjectJSONEncoder(sort_keys=True)
     __notifiable__ = True
-
-    @classmethod
-    def __upcast__(cls, obj_state: Dict, class_version: int) -> Dict:
-        """
-        Can be overridden in domain event classes
-
-        Otherwise calls upcast().
-        """
-        return cls.upcast(obj_state, class_version)
-
-    @classmethod
-    def upcast(cls, obj_state: Dict, class_version: int) -> Dict:
-        """
-        Can be overridden in domain event classes
-        """
-        raise NotImplementedError()
 
     def __init__(self, **kwargs: Any):
         """
