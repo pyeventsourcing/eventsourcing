@@ -114,6 +114,14 @@ class UpcastableEventFixture(DomainEvent):
 
 
 class TestUpcastingActiveWhenStoringAndRetrievingEvents(TestCase):
+
+    def tearDown(self) -> None:
+        # Reset class versions (in case running in suite).
+        MultiVersionAggregateFixture.Triggered.__class_version__ = 0
+        MultiVersionAggregateFixture.__class_version__ = 0
+        del(MultiVersionAggregateFixture.Triggered.__upcast__)
+        del(MultiVersionAggregateFixture.Triggered.mutate)
+
     def test_reconstructing_aggregate_state_from_versioned_events(self):
         """
         Mimick evolution of an event class, from original to version 2.
