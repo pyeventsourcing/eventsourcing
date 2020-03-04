@@ -102,6 +102,16 @@ class TestUpcastable(TestCase):
         self.assertEqual(state_v0["a"], 1)
 
 
+class UpcastableEventFixture(DomainEvent):
+    @classmethod
+    def __upcast__(cls, obj_state: Dict, class_version: int):
+        if class_version == 0:
+            obj_state["a"] *= 10000
+        elif class_version == 1:
+            obj_state["a"] /= 10
+        return obj_state
+
+
 class TestBackwardAndForwardCompatibility(TestCase):
     def test_reconstructing_aggregate_state_from_versioned_events(self):
         app = SQLAlchemyApplication(persist_event_type=BaseAggregateRoot.Event)
@@ -182,16 +192,6 @@ class TestBackwardAndForwardCompatibility(TestCase):
             assert isinstance(copy, MultiVersionAggregateFixture)
             self.assertEqual(copy.value, 20)  # observes event attribute
             self.assertEqual(copy.units, '')  # ignores event attribute
-
-
-class UpcastableEventFixture(DomainEvent):
-    @classmethod
-    def __upcast__(cls, obj_state: Dict, class_version: int):
-        if class_version == 0:
-            obj_state["a"] *= 10000
-        elif class_version == 1:
-            obj_state["a"] /= 10
-        return obj_state
 
 
 class MultiVersionAggregateFixture(BaseAggregateRoot):
