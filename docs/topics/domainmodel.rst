@@ -234,6 +234,24 @@ the domain events of a domain entity on the entity class itself.
     assert done.timestamp > seen.timestamp
 
 
+Deleting events
+---------------
+
+The general rule is never to delete events.
+
+However, a perfectly adequate solution to storing and deleting personally identifiable
+information (for example to comply with data protection regulations such as GDPR)
+is to record encrypted stored events that are not notifiable (and so won't appear in
+the notification log of an application, and so won't be propagated) and delete these
+event records when the information need to be deleted. Each instance attribute could
+be stored as a separate aggregate, or there could be one aggregate holding all the PII
+for one individual. Store these events atomically with the events that would otherwise
+include the events. Consider using UUIDv5 to generated UUIDs for these aggregates.
+
+Use the ``get_records()`` and ``delete_record()`` methods of a record manager to
+delete the records of for an aggregate (see record manager documentation for details).
+
+
 Domain entities
 ===============
 
@@ -1373,7 +1391,6 @@ have 'units', and so upcasting from version 1 to version 2 involves defining
                 # Upcast to version 2.
                 obj_state['units'] = cls.DEFAULT_UNITS
             return obj_state
-
 
 
 Copy and replace
