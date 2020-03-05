@@ -55,15 +55,17 @@ adapted by the record manager.
 obtain the state of an entity. A snapshot strategy is included which reuses
 the capabilities of this library by implementing snapshots as events.
 
-**Application-level encryption** — encrypts and decrypts stored events, using a cipher
-strategy passed as an option to the sequenced item mapper. Can be used to encrypt some
-events, or all events, or not applied at all (the default).
-
 **Versioning** - allows model changes to be introduced after an application has been
 deployed. The state of an older version can be upcast to be compatible with a new version.
 Both domain events and domain entity classes can be versioned. Stored events and snapshots
 can be upcast from older versions to new versions before the event or entity object is
 reconstructed.
+
+**Application-level encryption** — encrypts and decrypts stored events, using a cipher
+strategy passed as an option to the sequenced item mapper. Can be used to encrypt some
+events, or all events, or not applied at all (the default). This means data will be
+encrypted in transit across a network ("on the wire") and at disk level including
+backups ("at rest").
 
 **Data integrity** — Sequences of events can be hash-chained, and the entire sequence
 of events checked for integrity. If the last hash can be independently validated, then
