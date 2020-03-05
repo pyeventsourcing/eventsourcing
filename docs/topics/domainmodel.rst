@@ -1378,3 +1378,10 @@ have 'units', and so upcasting from version 1 to version 2 involves defining
                 # Upcast to version 2.
                 obj_state['units'] = cls.DEFAULT_UNITS
             return obj_state
+
+## Copy and replace
+
+Copy-and-replace is an alternative to upcasting.
+It is possible to accumulate so many changes that it becomes desirable
+to replace the old versions of stored events with new versions.
+
