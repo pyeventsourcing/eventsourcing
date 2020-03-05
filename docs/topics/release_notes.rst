@@ -20,6 +20,23 @@ and improved transcoding. And a new "system" package for the
 system code that was previously in the "application" package.
 
 
+
+Version 8.2.0 (released March 2020)
+----------------------------------------
+
+Added event versioning, so that domain events and entity snapshots can
+be versioned and old version of state can be upcast to new version. Added
+Upcastable class, and changed DomainEvent and DomainEntity classes, so
+stored events and snapshots can be upcast. Changed reconstruct_object()
+to call __upcast_state__() on event class to upcast the event state.
+
+Added AxonApplication and AxonRecordManager so that Axon Server can
+be used as an event store by event sourced applications.
+
+Added RayRunner, which allows a system to be run with the Ray framework.
+
+
+
 Version 8.1.0 (released 11 January 2020)
 ----------------------------------------
 
