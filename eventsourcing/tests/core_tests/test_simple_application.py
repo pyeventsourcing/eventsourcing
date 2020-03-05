@@ -1,6 +1,7 @@
 from unittest import TestCase
 
 from eventsourcing.application.axon import AxonApplication
+from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.exceptions import ProgrammingError
 from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import (
@@ -76,6 +77,10 @@ class TestSimpleApplication(TestCase):
     def tearDown(self):
         # Check the close() method leaves everything unsubscribed.
         assert_event_handlers_empty()
+
+
+class TestPopoApplication(TestSimpleApplication):
+    infrastructure_class = PopoApplication
 
 
 class TestDjangoApplication(DjangoTestCase, TestSimpleApplication):
