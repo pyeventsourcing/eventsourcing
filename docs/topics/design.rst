@@ -2,17 +2,18 @@
 Design
 ======
 
-The design of the library follows the layered architecture of domain
-driven design: interfaces, application, domain and infrastructure.
-The domain layer objects have no dependencies on objects in any other
-layer (as described by DDD, by onion architecture, and by hexagonal
-architecture).
+The design of the library follows "layered architecture" in that there
+are distinct and separate layers for interfaces, application, domain and
+infrastructure. It also follows the "onion" or "hexagonal" or "clean"
+architecture, in that the domain layer has no dependencies any other
+layer. The application layer depends on the domain and infrastructure
+layers, and the interface layer depends only on the application layer.
 
-The library is designed to allow its default functionality to be extended or replaced easily.
+The library default functionality is designed to be extended or replaced easily.
 
 
-Layered architecture
-====================
+Onion architecture
+==================
 
 An interface layer will depend on the application layer.
 
