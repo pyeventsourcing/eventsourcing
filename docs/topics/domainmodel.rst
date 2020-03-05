@@ -1209,10 +1209,10 @@ Versioning
 ==========
 
 The library class :class:`~eventsourcing.domain.model.versioning.Upcastable`
-supports versioning of domain model classes. This class is inherited by all
-of the domain event classes in the library, so that custom event classes
-can be versioned. It is also inherited by the domain entity classes, so that
-custom entity classes can be versioned (snapshots can be upcast).
+supports versioning. This class is inherited by all of the domain event
+classes in the library, so that custom event classes can be versioned. It
+is also inherited by the domain entity classes, so that custom entity
+classes can be versioned (snapshots can be upcast).
 
 
 Versioning events
