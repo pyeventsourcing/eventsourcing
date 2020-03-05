@@ -1354,9 +1354,6 @@ have 'units', and so upcasting from version 1 to version 2 involves defining
 
 .. code:: python
 
-    from eventsourcing.domain.model.aggregate import BaseAggregateRoot
-
-
     class ExampleAggregate(BaseAggregateRoot):
         __class_version__ = 2
 
