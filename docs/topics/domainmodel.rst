@@ -234,192 +234,6 @@ the domain events of a domain entity on the entity class itself.
     assert done.timestamp > seen.timestamp
 
 
-Versioning Events
------------------
-
-The library class :class:`~eventsourcing.domain.model.versioning.Upcastable`
-supports versioning of domain event classes. This class is inherited by all
-of the domain event classes in the library, so that all custom event classes
-derived from the library event classes can easily be versioned.
-
-As changes are made to an event class, the class attribute ``__class_version__``
-can be incremented through a series of integer values. If the ``__class_version__``
-is a non-zero value, it will be included in the recorded states of all instances of
-the event class. The default value is ``0`` and so the first time this attribute
-is set on a custom event class, the attribute should be set to ``1``.
-
-And then, if the event class attribute ``__class_version__`` has a non-zero value,
-the event class method :func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast__`
-will be called successively by
-:func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast_state__`, once for
-each version, starting from the version of the stored event state, until the current
-version is reached. By default, ``__upcast__()`` raises a ``NotImplementedError`` exception.
-
-And so if the ``__class_version__`` of a custom event class has a non-zero value, then
-the :func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast__`
-will need to be overridden on the custom event class, and implemented to support
-upcasting from the original version ``0`` to version ``1``.
-
-The next time the event class is changed, the class version number will need to be set
-to ``2``, and the ``__upcast__`` method changed so that it supports both upcasting from
-version ``0`` to version ``1`` and additionally from version ``1`` to version ``2``.
-And so on for version ``3``, and beyond.
-
-.. code:: python
-
-    from copy import copy
-
-
-    # Original version.
-    class UpcastableEventFixture(DomainEvent):
-        pass
-
-    # Construct state with original version of the event class.
-    state_v0 = UpcastableEventFixture(a=1).__dict__
-    assert state_v0["a"] == 1
-
-    # Check version 1 is correctly upcast to version 1.
-    state_v0_from_v0 = UpcastableEventFixture.__upcast_state__(copy(state_v0))
-    assert state_v0_from_v0["a"] == 1
-
-    # Version 1 (has attribute 'b').
-    class UpcastableEventFixture(DomainEvent):
-        __class_version__ = 1
-
-        @classmethod
-        def __upcast__(cls, obj_state, class_version):
-            if class_version == 0:
-                # Supply default for 'b'.
-                obj_state['b'] = 0
-            return obj_state
-
-    # Construct state with version 1 of the event class.
-    state_v1 = UpcastableEventFixture(a=1, b=2).__dict__
-    assert state_v1["a"] == 1
-    assert state_v1["b"] == 2
-
-    # Check original version is correctly upcast to version 1.
-    state_v1_from_v0 = UpcastableEventFixture.__upcast_state__(copy(state_v0))
-    assert state_v1_from_v0["a"] == 1
-    assert state_v1_from_v0["b"] == 0  # gets default value
-
-    # Check version 1 is correctly upcast to version 1.
-    state_v1_from_v1 = UpcastableEventFixture.__upcast_state__(copy(state_v1))
-    assert state_v1_from_v1["a"] == 1
-    assert state_v1_from_v1["b"] == 2
-
-    # Version 2 (has attribute 'c').
-    class UpcastableEventFixture(DomainEvent):
-        __class_version__ = 2
-
-        @classmethod
-        def __upcast__(cls, obj_state, class_version):
-            if class_version == 0:
-                # Supply default for 'b'.
-                obj_state['b'] = 0
-            elif class_version == 1:
-                # Supply default for 'c'.
-                obj_state['c'] = ''
-            return obj_state
-
-    # Construct state with version 2 of the event class.
-    state_v2 = UpcastableEventFixture(a=1, b=2, c='c').__dict__
-    assert state_v2["a"] == 1
-    assert state_v2["b"] == 2
-
-    # Check original version is correctly upcast to version 2.
-    state_v2_from_v0 = UpcastableEventFixture.__upcast_state__(copy(state_v0))
-    assert state_v2_from_v0["a"] == 1
-    assert state_v2_from_v0["b"] == 0  # gets default value
-    assert state_v2_from_v0["c"] == ''  # gets default value
-
-    # Check version 1 is correctly upcast to version 2.
-    state_v2_from_v1 = UpcastableEventFixture.__upcast_state__(copy(state_v1))
-    assert state_v2_from_v1["a"] == 1
-    assert state_v2_from_v1["b"] == 2
-    assert state_v2_from_v1["c"] == ''  # gets default value
-
-    # Check version 2 is correctly upcast to version 2.
-    state_v2_from_v2 = UpcastableEventFixture.__upcast_state__(copy(state_v2))
-    assert state_v2_from_v2["a"] == 1
-    assert state_v2_from_v2["b"] == 2
-    assert state_v2_from_v2["c"] == 'c'
-
-
-Please refer to the :class:`~eventsourcing.domain.model.versioning.Upcastable`
-documentation for more information about versioning events, especially about
-restrictions involved when providing for forward compatibility, and when you
-might need to do that.
-
-
-Looking ahead to the section on domain entities...
-When reconstructing domain events from stored event records, for example when
-retrieving aggregates from an application repository, the sequenced item mapper
-calls the library function
-:func:`~eventsourcing.utils.topic.reconstruct_object`
-which calls the event class method
-:func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast_state__`,
-as above. This is the only place in the library where
-:func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast_state__`
-is called.
-
-Looking ahead to the section about snapshotting...
-Care needs to be taken when using both snapshotting and upcasting events,
-since differences introduced by versions of events introduced since a snapshot
-was made might not exist in the snapshot, and that might matter.
-
-One option is to delete snapshots created by a previous version of the class.
-Suddenly stopping use of old snapshots, and so replaying all the stored events,
-would briefly degrade performance to the extent it was improved by using snapshots.
-
-Another option is upcasting the snapshotted state.
-The domain entity classes are also ``Upcastable`` classes, and so it is possible
-to override the ``__upcast__()`` method on the entity class, which will be called
-when reconstructing an entity from a snapshot. The body of this implementation
-needs to manipulate state of the snapshot to conform with the state that would
-be obtained by reconstructing using the upgraded event versions. This can help
-in simple cases, but there may cases where the correct state cannot be obtained
-in this way. The class attribute ``__class_version__`` is used to define the version
-of the entity class (use numbers ``1``, ``2``, etc).
-
-The example below shows a custom domain entity class, which adds default values for
-'value' and 'units' to the snapshotted state. This class gestures towards having
-been defined originally without either attribute. It is supposed that version 1
-added the 'value' attribute, and the 'units' attribute was added in version 2.
-
-.. code:: python
-
-    from eventsourcing.domain.model.aggregate import BaseAggregateRoot
-
-
-    class VersionedAggregate(BaseAggregateRoot):
-        __class_version__ = 2
-
-        DEFAULT_VALUE = 0
-        DEFAULT_UNITS = ""
-
-        @classmethod
-        def __upcast__(cls, obj_state, class_version):
-            if class_version == 0:
-                # Upcast to version 1.
-                obj_state['value'] = cls.DEFAULT_VALUE
-            elif class_version == 1:
-                # Upcast to version 2.
-                obj_state['units'] = cls.DEFAULT_UNITS
-            return obj_state
-
-        def __init__(self, **kwargs):
-            self.value = self.DEFAULT_VALUE  # added in version 1
-            self.units = self.DEFAULT_UNITS  # added in version 2
-
-
-A snapshot of the state of an original version of the entity wouldn't have 'value',
-and so upcasting from the original version to version ``1`` involves defining 'value'.
-A snapshot of the state of version ``1`` of the entity woud have 'value' but wouldn't
-have 'units', and so upcasting from version ``1`` to version ``2`` involves defining
-'units'.
-
-
 Domain entities
 ===============
 
@@ -1371,3 +1185,196 @@ the sequence of events cryptographically.
     # Clean up after running examples.
     unsubscribe(handler=receive_events)
     del received_events[:]  # received_events.clear()
+
+
+Versioning
+==========
+
+The library class :class:`~eventsourcing.domain.model.versioning.Upcastable`
+supports versioning of domain model classes. This class is inherited by all
+of the domain event classes in the library, so that custom event classes
+can be versioned. It is also inherited by the domain entity classes, so that
+custom entity classes can be versioned (snapshots can be upcast).
+
+
+Versioning events
+-----------------
+
+As changes are made to an event class, the class attribute ``__class_version__``
+can be incremented through a series of integer values. If the ``__class_version__``
+is a non-zero value, it will be included in the recorded states of all instances of
+the event class. The original value is ``0`` and so the first time this attribute
+is set on a custom event class, the attribute should be set to ``1``.
+
+If the event class attribute ``__class_version__`` has a non-zero value,
+the event class method :func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast__`
+will be called successively by
+:func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast_state__` when it
+is called, once for each version, starting from the version of the stored event state,
+until the current version is reached.
+
+By default, ``__upcast__()`` raises a ``NotImplementedError`` exception. And
+so if the ``__class_version__`` of a custom event class has a non-zero value,
+then the :func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast__`
+will need to be overridden on the custom event class, and implemented to support
+upcasting from the original version ``0`` to version ``1``.
+
+The next time the event class is changed, the class version number will need to be set
+to ``2``, and the ``__upcast__`` method ammended so that it supports both upcasting from
+version ``0`` to version ``1`` and additionally from version ``1`` to version ``2``.
+And so on for version ``3``, and beyond.
+
+.. code:: python
+
+    from copy import copy
+
+    # Original version.
+    class ExampleEvent(DomainEvent):
+        pass
+
+    # Construct state with original version of the event class.
+    state_v0 = ExampleEvent(a=1).__dict__
+    assert state_v0["a"] == 1
+
+    # Check version 1 is correctly upcast to version 1.
+    state_v0_from_v0 = ExampleEvent.__upcast_state__(copy(state_v0))
+    assert state_v0_from_v0["a"] == 1
+
+    # Version 1 (has attribute 'b').
+    class ExampleEvent(DomainEvent):
+        __class_version__ = 1
+
+        @classmethod
+        def __upcast__(cls, obj_state, class_version):
+            if class_version == 0:
+                # Supply default for 'b'.
+                obj_state['b'] = 0
+            return obj_state
+
+    # Construct state with version 1 of the event class.
+    state_v1 = ExampleEvent(a=1, b=2).__dict__
+    assert state_v1["a"] == 1
+    assert state_v1["b"] == 2
+
+    # Check original version is correctly upcast to version 1.
+    state_v1_from_v0 = ExampleEvent.__upcast_state__(copy(state_v0))
+    assert state_v1_from_v0["a"] == 1
+    assert state_v1_from_v0["b"] == 0  # gets default value
+
+    # Check version 1 is correctly upcast to version 1.
+    state_v1_from_v1 = ExampleEvent.__upcast_state__(copy(state_v1))
+    assert state_v1_from_v1["a"] == 1
+    assert state_v1_from_v1["b"] == 2
+
+    # Version 2 (has attribute 'c').
+    class ExampleEvent(DomainEvent):
+        __class_version__ = 2
+
+        @classmethod
+        def __upcast__(cls, obj_state, class_version):
+            if class_version == 0:
+                # Supply default for 'b'.
+                obj_state['b'] = 0
+            elif class_version == 1:
+                # Supply default for 'c'.
+                obj_state['c'] = ''
+            return obj_state
+
+    # Construct state with version 2 of the event class.
+    state_v2 = ExampleEvent(a=1, b=2, c='c').__dict__
+    assert state_v2["a"] == 1
+    assert state_v2["b"] == 2
+
+    # Check original version is correctly upcast to version 2.
+    state_v2_from_v0 = ExampleEvent.__upcast_state__(copy(state_v0))
+    assert state_v2_from_v0["a"] == 1
+    assert state_v2_from_v0["b"] == 0  # gets default value
+    assert state_v2_from_v0["c"] == ''  # gets default value
+
+    # Check version 1 is correctly upcast to version 2.
+    state_v2_from_v1 = ExampleEvent.__upcast_state__(copy(state_v1))
+    assert state_v2_from_v1["a"] == 1
+    assert state_v2_from_v1["b"] == 2
+    assert state_v2_from_v1["c"] == ''  # gets default value
+
+    # Check version 2 is correctly upcast to version 2.
+    state_v2_from_v2 = ExampleEvent.__upcast_state__(copy(state_v2))
+    assert state_v2_from_v2["a"] == 1
+    assert state_v2_from_v2["b"] == 2
+    assert state_v2_from_v2["c"] == 'c'
+
+
+Please refer to the :class:`~eventsourcing.domain.model.versioning.Upcastable`
+documentation for more information about versioning events, especially about
+restrictions involved when providing for forward compatibility, and when you
+might need to do that.
+
+
+Versioning entities
+-------------------
+
+When reconstructing domain entities from stored event records, for example when
+retrieving aggregates from an application repository, the sequenced item mapper
+calls the library function
+:func:`~eventsourcing.utils.topic.reconstruct_object`
+which calls the event class method
+:func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast_state__`,
+as above. This is the only place in the library where
+:func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast_state__`
+is called.
+
+Care needs to be taken when using both snapshotting and versioning,
+since differences introduced by newer versions of events, and changes
+to an entity class since a snapshot was made might not exist in the snapshot,
+and that might matter.
+
+One option is to delete snapshots created by a previous version of the class.
+New snapshots will need to be made. Suddenly stopping use of old snapshots,
+and so replaying all the stored events to create a new snapshot, would briefly
+degrade performance to the extent it was improved by using snapshots.
+
+Another option is upcasting the snapshotted state.
+The domain entity classes are also ``Upcastable`` classes, and so it is possible
+to override the ``__upcast__()`` method on the entity class, which will be called
+when reconstructing an entity from a snapshot. The body of this implementation
+needs to manipulate state of the snapshot to conform with the state that would
+be obtained by reconstructing using the upgraded event versions. This can help
+in simple cases, but there may cases where the correct state cannot be obtained
+in this way. The class attribute ``__class_version__`` is used to define the version
+of the entity class (with integer version numbers 1, 2, etc).
+
+The example below shows a custom domain entity class, which upcasts snapshotted state
+by adding default values for 'value' and 'units'. This class gestures towards having
+been defined originally without either attribute. It is supposed that version 1
+added the 'value' attribute, and the 'units' attribute was added in version 2.
+
+A snapshot of the state of an original version of the entity wouldn't have 'value',
+and so upcasting from the original version to version 1 involves defining 'value'.
+A snapshot of the state of version 1 of the entity woud have 'value' but wouldn't
+have 'units', and so upcasting from version 1 to version 2 involves defining
+'units'.
+
+.. code:: python
+
+    from eventsourcing.domain.model.aggregate import BaseAggregateRoot
+
+
+    class ExampleAggregate(BaseAggregateRoot):
+        __class_version__ = 2
+
+        DEFAULT_VALUE = 0
+        DEFAULT_UNITS = ""
+
+        def __init__(self, **kwargs):
+            self.value = self.DEFAULT_VALUE  # added in version 1
+            self.units = self.DEFAULT_UNITS  # added in version 2
+
+        @classmethod
+        def __upcast__(cls, obj_state, class_version):
+            if class_version == 0:
+                # Upcast to version 1.
+                obj_state['value'] = cls.DEFAULT_VALUE
+            elif class_version == 1:
+                # Upcast to version 2.
+                obj_state['units'] = cls.DEFAULT_UNITS
+            return obj_state
