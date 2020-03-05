@@ -1207,22 +1207,20 @@ the event class. The original value is ``0`` and so the first time this attribut
 is set on a custom event class, the attribute should be set to ``1``.
 
 If the event class attribute ``__class_version__`` has a non-zero value,
-the event class method :func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast__`
-will be called successively by
-:func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast_state__` when it
-is called, once for each version, starting from the version of the stored event state,
-until the current version is reached.
+when the event class method :func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast_state__`
+is called, the event class method
+:func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast__`
+will be called successively, once for each version, starting from the version of
+the stored event state, until the current version is reached.
 
-By default, ``__upcast__()`` raises a ``NotImplementedError`` exception. And
-so if the ``__class_version__`` of a custom event class has a non-zero value,
-then the :func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast__`
-will need to be overridden on the custom event class, and implemented to support
-upcasting from the original version ``0`` to version ``1``.
-
-The next time the event class is changed, the class version number will need to be set
-to ``2``, and the ``__upcast__`` method ammended so that it supports both upcasting from
-version ``0`` to version ``1`` and additionally from version ``1`` to version ``2``.
-And so on for version ``3``, and beyond.
+By default, :func:`~eventsourcing.domain.model.versioning.Upcastable.__upcast__`
+raises a ``NotImplementedError`` exception. And so if the ``__class_version__``
+of a custom event class has a non-zero value, then this method will need to be
+overridden on the custom event class, and implemented to support upcasting from
+the original version ``0`` to version ``1``. The next time the event class is changed,
+the class version number will need to be set to ``2``, and the custom ``__upcast__()``
+method amended so that it supports both upcasting from version ``0`` to version ``1``
+and additionally from version ``1`` to version ``2``. And so on.
 
 .. code:: python
 
@@ -1379,9 +1377,9 @@ have 'units', and so upcasting from version 1 to version 2 involves defining
                 obj_state['units'] = cls.DEFAULT_UNITS
             return obj_state
 
+
 ## Copy and replace
 
 Copy-and-replace is an alternative to upcasting.
 It is possible to accumulate so many changes that it becomes desirable
 to replace the old versions of stored events with new versions.
-
