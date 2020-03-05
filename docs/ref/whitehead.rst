@@ -1,10 +1,16 @@
 whitehead
 =========
 
-This module contains two base classes, which distinguish between "actual occasions"
-(which seems to be what a "domain event" is) and "events" (which seems to be
-what an "aggregate" is). These terms are taken from the book Process and Reality
-by Alfred North Whitehead's (published 1929).
+This module contains three base classes, which distinguish between
+"actual occasion" (which "domain model event" is an example of) and
+"enduring object" (which "domain model aggregate" is an example of).
+
+These terms "actual occasion", "enduring object", and "event" are taken
+from Alfred North Whitehead's Process and Reality (published 1929).
+
+The base classes both inherit from a base class "event", because
+in Whitehead's system, an enduring object is an event, and so is
+an actual occasion.
 
 .. contents:: :local:
 
