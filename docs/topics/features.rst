@@ -28,32 +28,36 @@ model.
 Additional features
 ===================
 
-**Optimistic concurrency control** — ensures a distributed or
-horizontally scaled application doesn't become inconsistent due to concurrent
-method execution. Leverages any optimistic concurrency controls in the database
-adapted by the record manager.
+**Versioning** - allows model changes to be introduced after an application
+has been deployed. Both domain events and domain entity classes can be versioned.
+The recorded state of an older version can be upcast to be compatible with a new
+version. Stored events and snapshots are upcast from older versions
+to new versions before the event or entity object is reconstructed.
 
 **Snapshotting** — avoids replaying an entire event stream to
 obtain the state of an entity. A snapshot strategy is included which reuses
 the capabilities of this library by implementing snapshots as events.
 
-**Versioning** - allows model changes to be introduced after an application has been
-deployed. The state of an older version can be upcast to be compatible with a new version.
-Both domain events and domain entity classes can be versioned. Stored events and snapshots
-can be upcast from older versions to new versions before the event or entity object is
-reconstructed.
+**Hash chaining** — Sequences of events can be hash-chained, and the entire sequence
+of events checked for data integrity. Information lost in transit or on the disk from
+database corruption can be detected. If the last hash can be independently validated,
+then so can the entire sequence.
 
-**Application-level encryption** — encrypts and decrypts stored events, using a cipher
-strategy passed as an option to the sequenced item mapper. Can be used to encrypt some
-events, or all events, or not applied at all (the default). This means data will be
-encrypted in transit across a network ("on the wire") and at disk level including
-backups ("at rest").
+**Compression** - reduces the size of stored domain events and snapshots, usually
+by around 25% to 50% of the original size. Compression reduces the size of data
+in the database and increases transit time across a network.
 
-**Data integrity** — Sequences of events can be hash-chained, and the entire sequence
-of events checked for integrity. If the last hash can be independently validated, then
-so can the entire sequence. Events records can be encrypted with an authenticated encryption
-algorithm, so you cannot lose information in transit or at rest, or get database corruption
-without being able to detect it.
+**Application-level encryption** — encrypts and decrypts stored events and snapshots,
+using a cipher strategy passed as an option to the sequenced item mapper. Can be used
+to encrypt some events, or all events, or not applied at all (the default). This means
+data will be encrypted in transit across a network ("on the wire") and at disk level
+including backups ("at rest"), which is a legal requirement in some jurisdictions
+when dealing with personally identifiable information (PII) for example the EU's GDPR.
+
+**Optimistic concurrency control** — ensures a distributed or
+horizontally scaled application doesn't become inconsistent due to concurrent
+method execution. Leverages any optimistic concurrency controls in the database
+adapted by the record manager.
 
 **Worked examples** — simple example application and systems, with an example entity class,
 example domain events, and an example database table. Plus lots of examples in the documentation.
