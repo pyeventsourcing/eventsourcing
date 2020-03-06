@@ -39,10 +39,10 @@ purists for maximum longevity), you might start by replicating the library class
 events with pull-based notifications allows the application state to be
 projected accurately into replicas, indexes, view models, and other applications.
 
-**Process and systems** — scalable event processing with application pipelines. Parallel
-pipelines are synchronised with causal dependencies. Runnable with single thread,
-multiprocessing on a single machine, and in a cluster of machines using the actor
-model.
+**Process and systems** — scalable event processing with application pipelines.Runnable
+with single thread, multiprocessing on a single machine, and in a cluster of machines
+using the actor model. Parallel pipelines are synchronised with causal dependencies.
+
 
 ### Additional features
 
