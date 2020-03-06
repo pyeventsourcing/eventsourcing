@@ -79,7 +79,7 @@ class TestEntityWithECC(TestCase):
         self.assertEqual(changed_event.event_id, "app3:{}:1".format(str(aggregate3.id)))
         # Should be correlated with first created event.
         self.assertEqual(changed_event.correlation_id, created_event1.event_id)
-        # Should be caused by second created event.
+        # Should be caused by third created event.
         self.assertEqual(changed_event.causation_id, created_event3.event_id)
 
         # Trigger discarded event.
@@ -93,7 +93,7 @@ class TestEntityWithECC(TestCase):
         )
         # Should be correlated with first created event.
         self.assertEqual(discarded_event.correlation_id, created_event1.event_id)
-        # Should be caused by second created event.
+        # Should be caused by attribute changed created event.
         self.assertEqual(discarded_event.causation_id, changed_event.event_id)
 
 
