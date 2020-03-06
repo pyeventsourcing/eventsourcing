@@ -72,13 +72,13 @@ data will be encrypted in transit across a network ("on the wire") and at disk l
 including backups ("at rest"), which is a legal requirement in some jurisdictions
 when dealing with personally identifiable information (PII) for example the EU's GDPR.
 
-**Optimistic concurrency control** — ensures a distributed or
-horizontally scaled application doesn't become inconsistent due to concurrent
-method execution. Leverages any optimistic concurrency controls in the database
-adapted by the record manager.
+**Optimistic concurrency control** — ensures a distributed or horizontally scaled
+application doesn't become inconsistent due to concurrent method execution. Leverages
+optimistic concurrency controls in adapted database management systems.
 
-**Worked examples** — simple example application and systems, with an example entity class,
-example domain events, and an example database table. Plus lots of examples in the documentation.
+**Worked examples** — simple example application and systems, with an example entity
+class, example domain events, and an example database table. Plus lots of examples
+in the documentation.
 
 
 ## Synopsis
