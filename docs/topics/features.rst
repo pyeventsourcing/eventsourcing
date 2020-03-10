@@ -42,6 +42,9 @@ of events checked for data integrity. Information lost in transit or on the disk
 database corruption can be detected. If the last hash can be independently validated,
 then so can the entire sequence.
 
+**Correlation and causation IDs** - Domain events can easily be given correlation and
+causation IDs, which allows a story to be traced through a system of applications.
+
 **Compression** - reduces the size of stored domain events and snapshots, usually
 by around 25% to 50% of the original size. Compression reduces the size of data
 in the database and increases transit time across a network.

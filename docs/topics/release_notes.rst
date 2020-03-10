@@ -25,8 +25,12 @@ moved to a new "system" package.
 Version 8.2.0 (scheduled for release in March 2020)
 ---------------------------------------------------
 
-Added event versioning, so that domain events and entity snapshots can
-be versioned and old version of state can be upcast to new version.
+Added optional versioning of domain events and entities, so that
+domain events and entity snapshots can be versioned and old
+versions of state can be upcast to new versions.
+
+Added optional correlation and causation IDs for domain events,
+so that a story can be traced through a system of applications.
 
 Added AxonApplication and AxonRecordManager so that Axon Server can
 be used as an event store by event sourced applications.
