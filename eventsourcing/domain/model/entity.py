@@ -16,6 +16,7 @@ from eventsourcing.domain.model.events import (
     EventWithTimestamp,
     publish,
 )
+from eventsourcing.domain.model.versioning import Upcastable
 from eventsourcing.exceptions import (
     EntityIsDiscarded,
     HeadHashError,
@@ -62,14 +63,14 @@ TDomainEntity = TypeVar("TDomainEntity", bound="DomainEntity")
 TDomainEvent = TypeVar("TDomainEvent", bound="DomainEntity.Event")
 
 
-class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
+class DomainEntity(Upcastable, EnduringObject, metaclass=MetaDomainEntity):
     """
     Supertype for domain model entity.
     """
 
     __subclassevents__ = False
 
-    class Event(EventWithOriginatorID[TDomainEntity], DomainEvent[TDomainEntity]):
+    class Event(EventWithOriginatorID[TDomainEntity]):
         """
         Supertype for events of domain model entities.
         """
@@ -193,7 +194,7 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
         """
         return self._id
 
-    def __change_attribute__(self: TDomainEntity, name: str, value: Any) -> None:
+    def __change_attribute__(self: TDomainEntity, name: str, value: Any, **kwargs) -> None:
         """
         Changes named attribute with the given value,
         by triggering an AttributeChanged event.
@@ -202,7 +203,7 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
             "DomainEntity.AttributeChanged[TDomainEntity]"
         ] = self.AttributeChanged
         assert isinstance(self, DomainEntity)  # For PyCharm navigation.
-        self.__trigger_event__(event_class=event_class, name=name, value=value)
+        self.__trigger_event__(event_class=event_class, name=name, value=value, **kwargs)
 
     class AttributeChanged(Event[TDomainEntity], AttributeChangedEvent[TDomainEntity]):
         """
@@ -214,13 +215,13 @@ class DomainEntity(EnduringObject, metaclass=MetaDomainEntity):
             setattr(obj, self.name, self.value)
             return obj
 
-    def __discard__(self: TDomainEntity) -> None:
+    def __discard__(self: TDomainEntity, **kwargs) -> None:
         """
         Discards self, by triggering a Discarded event.
         """
         event_class: Type["DomainEntity.Discarded[TDomainEntity]"] = self.Discarded
         assert isinstance(self, DomainEntity)  # For PyCharm navigation.
-        self.__trigger_event__(event_class=event_class)
+        self.__trigger_event__(event_class=event_class, **kwargs)
 
     class Discarded(DiscardedEvent[TDomainEntity], Event[TDomainEntity]):
         """
@@ -503,6 +504,52 @@ class VersionedEntity(DomainEntity):
 
     class Discarded(Event[TVersionedEntity], DomainEntity.Discarded[TVersionedEntity]):
         """Published when a VersionedEntity is discarded."""
+
+
+class EntityWithECC(DomainEntity):
+    """
+    Entity whose events have event ID, correlation ID, and causation ID.
+    """
+    class Event(DomainEntity.Event):
+        def __init__(self, *, processed_event=None, application_name, **kwargs):
+
+            event_id = kwargs.get('event_id') or "{}:{}:{}".format(
+                application_name, kwargs["originator_id"], kwargs["originator_version"]
+            )
+            kwargs["event_id"] = event_id
+            if processed_event:
+                kwargs["causation_id"] = processed_event.event_id
+                kwargs["correlation_id"] = processed_event.correlation_id
+            else:
+                kwargs["causation_id"] = None
+                kwargs["correlation_id"] = event_id
+
+            super().__init__(**kwargs)
+
+        @property
+        def event_id(self):
+            return self.__dict__["event_id"]
+
+        @property
+        def correlation_id(self):
+            return self.__dict__["correlation_id"]
+
+        @property
+        def causation_id(self):
+            return self.__dict__["causation_id"]
+
+    class Created(DomainEntity.Created, Event):
+        pass
+
+    class AttributeChanged(Event, DomainEntity.AttributeChanged):
+        pass
+
+    class Discarded(Event, DomainEntity.Discarded):
+        pass
+
+    def __init__(self, *, event_id, correlation_id, causation_id, **kwargs):
+        _ = event_id, correlation_id, causation_id  # accept, but ignore
+        super(EntityWithECC, self).__init__(**kwargs)
 
 
 TTimestampedEntity = TypeVar("TTimestampedEntity", bound="TimestampedEntity")

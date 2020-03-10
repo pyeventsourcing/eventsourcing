@@ -16,8 +16,27 @@ Version 8.x
 ===========
 
 Version 8.x series brings more efficient storage, static type hinting,
-and improved transcoding. And a new "system" package for the
-system code that was previously in the "application" package.
+improved transcoding, event and entity versioning, and integration with
+Axon Server (specialist event store) and Ray. Code for defining and running
+systems of application, previously in the "application" package, has been
+moved to a new "system" package.
+
+
+Version 8.2.0 (scheduled for release in March 2020)
+---------------------------------------------------
+
+Added optional versioning of domain events and entities, so that
+domain events and entity snapshots can be versioned and old
+versions of state can be upcast to new versions.
+
+Added optional correlation and causation IDs for domain events,
+so that a story can be traced through a system of applications.
+
+Added AxonApplication and AxonRecordManager so that Axon Server can
+be used as an event store by event sourced applications.
+
+Added RayRunner, which allows a system of applications to be run with
+the Ray framework.
 
 
 Version 8.1.0 (released 11 January 2020)

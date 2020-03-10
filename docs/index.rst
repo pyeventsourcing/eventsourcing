@@ -16,6 +16,7 @@ A library for event sourcing in Python. This documentation:
 - has information about :doc:`deployment </topics/deployment>`, and
 - has some :doc:`background </topics/background>` information about the project.
 
+This project is `hosted on GitHub <https://github.com/johnbywater/eventsourcing>`__.
 
 Contents
 ========

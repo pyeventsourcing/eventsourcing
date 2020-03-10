@@ -132,14 +132,14 @@ Configure environment variables.
 Run application
 ===============
 
-With the ``SimpleApplication`` from the library, you can create,
-read, update, and delete ``World`` aggregates that are persisted
-in the database identified above.
+With the library's application class
+:class:`~eventsourcing.application.sqlalchemy.SQLAlchemyApplication`
+instances of the ``World`` aggregate can persisted in the database
+identified above using SQLAlchemy.
 
 The code below demonstrates many of the features of the library,
 such as optimistic concurrency control, data integrity, and
 application-level encryption.
-
 
 .. code:: python
 

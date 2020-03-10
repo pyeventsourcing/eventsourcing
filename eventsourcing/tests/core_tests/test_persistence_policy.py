@@ -7,9 +7,8 @@ from eventsourcing.domain.model.entity import (
     TimestampedEntity,
 )
 from eventsourcing.domain.model.events import publish
-from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
-from eventsourcing.infrastructure.base import AbstractEventStore, \
-    AbstractEntityRepository
+from eventsourcing.infrastructure.base import AbstractEventStore
+from eventsourcing.domain.model.repository import AbstractEntityRepository
 
 try:
     from unittest import mock

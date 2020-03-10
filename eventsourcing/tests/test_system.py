@@ -81,9 +81,9 @@ class TestSystem(TestCase):
             infrastructure_class=self.infrastructure_class,
         )
         with system as runner:
-            order_id = create_new_order()
-
-            repository = runner.get(Orders).repository
+            orders = runner.get(Orders)
+            order_id = orders.create_new_order()
+            repository = orders.repository
             self.assertEqual(repository[order_id].id, order_id)
 
     def test_can_run_if_already_running(self):
@@ -109,9 +109,9 @@ class TestSystem(TestCase):
             infrastructure_class=self.infrastructure_class,
         )
         with MultiThreadedRunner(system) as runner:
-            order_id = create_new_order()
-
-            repository = runner.get(Orders).repository
+            app = runner.get(Orders)
+            order_id = app.create_new_order()
+            repository = app.repository
             self.assertEqual(repository[order_id].id, order_id)
 
     def test_multiprocess_runner_with_single_application_class(self):
@@ -125,9 +125,9 @@ class TestSystem(TestCase):
         self.close_connections_before_forking()
 
         with MultiprocessRunner(system) as runner:
-            order_id = create_new_order()
-
-            repository = runner.get(Orders).repository
+            app = runner.get(Orders)
+            order_id = app.create_new_order()
+            repository = app.repository
             self.assertEqual(repository[order_id].id, order_id)
 
     def test_singlethreaded_runner_with_single_pipe(self):
@@ -137,9 +137,8 @@ class TestSystem(TestCase):
             infrastructure_class=self.infrastructure_class,
         )
         with system as runner:
-            order_id = create_new_order()
-
             orders = runner.get(Orders)
+            order_id = orders.create_new_order()
             self.assertEqual(orders.repository[order_id].id, order_id)
             reservation_id = Reservation.create_reservation_id(order_id)
             reservations = runner.get(Reservations)

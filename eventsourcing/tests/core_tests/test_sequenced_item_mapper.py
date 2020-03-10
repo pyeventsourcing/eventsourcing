@@ -1,14 +1,14 @@
 import datetime
-from time import sleep, time
+from time import sleep
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.domain.model.entity import VersionedEntity, TimestampedEntity
+from eventsourcing.domain.model.entity import TimestampedEntity, VersionedEntity
 from eventsourcing.domain.model.events import DomainEvent
-from eventsourcing.utils.times import decimaltimestamp
-from eventsourcing.utils.topic import get_topic
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
+from eventsourcing.utils.times import decimaltimestamp
+from eventsourcing.utils.topic import get_topic
 
 
 class Event1(VersionedEntity.Event):

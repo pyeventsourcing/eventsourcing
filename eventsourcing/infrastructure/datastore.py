@@ -12,9 +12,11 @@ TDatastoreSettings = TypeVar("TDatastoreSettings", bound=DatastoreSettings)
 
 
 class AbstractDatastore(ABC, Generic[TDatastoreSettings]):
+    can_drop_tables = True
     """
     Datastores hold stored event records, used by a record manager.
     """
+
     def __init__(self, settings: TDatastoreSettings):
         self.settings: TDatastoreSettings = settings
 

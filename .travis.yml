@@ -9,9 +9,8 @@ services:
 python:
   - "3.6"
   - "3.7"
-  - "3.7-dev"
-#  - "pypy3.5"
-#  - "3.8-dev"  # Doesn't work because psycopg2-binary doesn't work with 3.8-dev at the moment.
+# Not running tests with Python v3.8 because ray doesn't work with it at the moment.
+#  - "3.8"
 
 
 before_install:
@@ -29,12 +28,21 @@ before_install:
 
   # Install Cassandra.
   - sudo rm -rf /var/lib/cassandra/*
-  - wget http://www.us.apache.org/dist/cassandra/3.11.5/apache-cassandra-3.11.5-bin.tar.gz
-    && tar -xzf apache-cassandra-3.11.5-bin.tar.gz
+  - wget http://www.us.apache.org/dist/cassandra/3.11.6/apache-cassandra-3.11.6-bin.tar.gz
+    && tar -xzf apache-cassandra-3.11.6-bin.tar.gz
 
   # Start Cassandra.
-  - sudo sh ./apache-cassandra-3.11.5/bin/cassandra -R
-  - sleep 20
+  - sudo sh ./apache-cassandra-3.11.6/bin/cassandra -R
+
+  # Download Axon Server.
+  - ./dev/download_axon_server.sh
+
+  # Run Axon Server.
+  - ./axonserver/axonserver.jar &
+
+  # Wait for the servers to start (replace this with polling?).
+  - sleep 30
+
 
 before_script:
   - mysql -e 'CREATE DATABASE eventsourcing;'

@@ -1,7 +1,9 @@
+from abc import abstractmethod
 from decimal import Decimal
 from typing import Any, Callable, Dict, Generic, List, Optional, Sequence, Tuple
 from uuid import UUID, uuid1
 
+from eventsourcing.domain.model.versioning import Upcastable
 from eventsourcing.exceptions import EventHashError
 from eventsourcing.utils import transcoding_v1
 from eventsourcing.utils.hashing import hash_object
@@ -11,7 +13,7 @@ from eventsourcing.utils.transcoding import ObjectJSONEncoder
 from eventsourcing.whitehead import ActualOccasion, TEntity, TEvent
 
 
-class DomainEvent(ActualOccasion, Generic[TEntity]):
+class DomainEvent(Upcastable, ActualOccasion, Generic[TEntity]):
     """
     Base class for domain model events.
 
@@ -130,7 +132,6 @@ class DomainEvent(ActualOccasion, Generic[TEntity]):
         :rtype: str
         """
         return hash_object(cls.__json_encoder_v2__, obj)
-
 
     @classmethod
     def __hash_object_v1__(cls, obj: dict) -> str:
@@ -411,3 +412,38 @@ def clear_event_handlers() -> None:
 
 def create_timesequenced_event_id() -> UUID:
     return uuid1()
+
+
+class AbstractSnapshot(ActualOccasion):
+    @property
+    @abstractmethod
+    def topic(self) -> str:
+        """
+        Path to the class of the snapshotted entity.
+        """
+
+    @property
+    @abstractmethod
+    def state(self) -> Dict[str, Any]:
+        """
+        State of the snapshotted entity.
+        """
+
+    @property
+    @abstractmethod
+    def originator_id(self) -> UUID:
+        """
+        ID of the snapshotted entity.
+        """
+
+    @property
+    @abstractmethod
+    def originator_version(self) -> int:
+        """
+        Version of the last event applied to the entity.
+        """
+
+    def __mutate__(self, obj: Optional[TEntity]) -> Optional[TEntity]:
+        """
+        Reconstructs the snapshotted entity.
+        """

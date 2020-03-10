@@ -96,7 +96,26 @@ Snapshotting is implemented in the domain layer as an event.
     :exclude-members: __weakref__, __dict__
 
 
+.. py:module:: eventsourcing.domain.model.versioning
+
+versioning
+----------
+
+Support for upcasting the state of older version of domain events is
+implemented in base class
+:class:`~eventsourcing.domain.model.versioning.Upcastable`.
+
+.. automodule:: eventsourcing.domain.model.versioning
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__
+
+
 .. py:module:: eventsourcing.domain.model.timebucketedlog
+
+
 
 timebucketedlog
 ---------------

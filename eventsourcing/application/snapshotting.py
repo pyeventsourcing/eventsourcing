@@ -6,20 +6,19 @@ from eventsourcing.domain.model.entity import TVersionedEntity, TVersionedEvent
 from eventsourcing.infrastructure.base import (
     AbstractEventStore,
     AbstractRecordManager,
-    AbstractSnapshop,
 )
+from eventsourcing.domain.model.events import AbstractSnapshot
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
 
 
 class SnapshottingApplication(SimpleApplication[TVersionedEntity, TVersionedEvent]):
-    # Todo: Change this to default to None?
-    snapshot_period = 2
+    snapshot_period = 0
 
-    def __init__(self, snapshot_period: Optional[int] = None, **kwargs: Any):
+    def __init__(self, snapshot_period: int = 0, **kwargs: Any):
         self.snapshot_period = snapshot_period or self.snapshot_period
         self.snapshot_store: Optional[
-            AbstractEventStore[AbstractSnapshop, AbstractRecordManager]
+            AbstractEventStore[AbstractSnapshot, AbstractRecordManager]
         ] = None
         self.snapshot_strategy: Optional[EventSourcedSnapshotStrategy] = None
         self.snapshotting_policy: Optional[SnapshottingPolicy] = None
@@ -32,11 +31,9 @@ class SnapshottingApplication(SimpleApplication[TVersionedEntity, TVersionedEven
         record_manager = self.infrastructure_factory.construct_snapshot_record_manager()
         assert self.sequenced_item_mapper_class is not None
         assert self.sequenced_item_class is not None
-        sequenced_item_mapper = self.sequenced_item_mapper_class(
-            sequenced_item_class=self.sequenced_item_class
-        )
+
         self.snapshot_store = EventStore(
-            record_manager=record_manager, event_mapper=sequenced_item_mapper
+            record_manager=record_manager, event_mapper=self.event_store.event_mapper
         )
 
     def construct_repository(self, **kwargs: Any) -> None:

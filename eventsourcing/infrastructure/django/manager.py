@@ -163,7 +163,7 @@ class DjangoRecordManager(SQLRecordManager):
 
         return records
 
-    def get_notifications(
+    def get_notification_records(
         self,
         start: Optional[int] = None,
         stop: Optional[int] = None,

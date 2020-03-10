@@ -2,18 +2,36 @@ import multiprocessing
 from multiprocessing import Manager
 from queue import Queue, Empty
 from time import sleep
-from typing import Sequence, Optional, Any, List, TYPE_CHECKING, Dict, Tuple, \
-    Iterable, \
-    Type
+from typing import (
+    Sequence,
+    Optional,
+    Any,
+    List,
+    TYPE_CHECKING,
+    Dict,
+    Tuple,
+    Type,
+)
 
 from eventsourcing.application.notificationlog import RecordManagerNotificationLog
-from eventsourcing.application.process import Prompt, is_prompt, PromptToPull, \
-    PromptToQuit, ProcessApplication
-from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
+from eventsourcing.application.process import (
+    PromptToQuit,
+    ProcessApplication,
+)
+from eventsourcing.application.simple import (
+    ApplicationWithConcreteInfrastructure,
+    Prompt,
+    is_prompt_to_pull,
+    PromptToPull,
+)
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
-from eventsourcing.exceptions import ProgrammingError, CausalDependencyFailed, \
-    OperationalError, RecordConflictError
+from eventsourcing.exceptions import (
+    ProgrammingError,
+    CausalDependencyFailed,
+    OperationalError,
+    RecordConflictError,
+)
 from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.system.definition import AbstractSystemRunner, System
 from eventsourcing.system.runner import DEFAULT_POLL_INTERVAL, PromptOutbox
@@ -33,9 +51,9 @@ class MultiprocessRunner(AbstractSystemRunner):
         self.pipeline_ids = pipeline_ids
         self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
         assert isinstance(system, System)
-        self.os_processes: List[OperatingSystemProcess] = []
         self.setup_tables = setup_tables or system.setup_tables
         self.sleep_for_setup_tables = sleep_for_setup_tables
+        self.os_processes: List[OperatingSystemProcess] = []
 
     def start(self) -> None:
         self.os_processes = []
@@ -50,7 +68,7 @@ class MultiprocessRunner(AbstractSystemRunner):
 
         # Setup queues.
         for pipeline_id in self.pipeline_ids:
-            for process_name, upstream_names in self.system.followings.items():
+            for process_name, upstream_names in self.system.upstream_names.items():
                 inbox_id = (pipeline_id, process_name.lower())
                 if inbox_id not in self.inboxes:
                     self.inboxes[inbox_id] = self.manager.Queue()
@@ -79,11 +97,12 @@ class MultiprocessRunner(AbstractSystemRunner):
 
         # Subscribe to broadcast prompts published by a process
         # application in the parent operating system process.
-        subscribe(handler=self.broadcast_prompts, predicate=is_prompt)
+        subscribe(handler=self.broadcast_prompt, predicate=is_prompt_to_pull)
 
         # Start operating system process.
+        expect_tables_exist = False
         for pipeline_id in self.pipeline_ids:
-            for process_name, upstream_names in self.system.followings.items():
+            for process_name, upstream_names in self.system.upstream_names.items():
                 process_class = self.system.process_classes[process_name]
                 inbox = self.inboxes[(pipeline_id, process_name.lower())]
                 outbox = self.outboxes.get((pipeline_id, process_name.lower()))
@@ -100,26 +119,25 @@ class MultiprocessRunner(AbstractSystemRunner):
                 os_process.daemon = True
                 os_process.start()
                 self.os_processes.append(os_process)
-                if self.setup_tables:
+                if self.setup_tables and not expect_tables_exist:
                     # Avoid conflicts when creating tables.
                     sleep(self.sleep_for_setup_tables)
+                    expect_tables_exist = True
 
         # Construct process applications in local process.
         for process_class in self.system.process_classes.values():
             self.get(process_class)
 
-    def broadcast_prompts(self, prompts: Iterable[Prompt]) -> None:
-        for prompt in prompts:
-            if isinstance(prompt, PromptToPull):
-                outbox_id = (prompt.pipeline_id, prompt.process_name)
-                outbox = self.outboxes.get(outbox_id)
-                if outbox:
-                    outbox.put(prompt)
+    def broadcast_prompt(self, prompt: PromptToPull) -> None:
+        outbox_id = (prompt.pipeline_id, prompt.process_name)
+        outbox = self.outboxes.get(outbox_id)
+        if outbox:
+            outbox.put(prompt)
 
     def close(self) -> None:
         super(MultiprocessRunner, self).close()
 
-        unsubscribe(handler=self.broadcast_prompts, predicate=is_prompt)
+        unsubscribe(handler=self.broadcast_prompt, predicate=is_prompt_to_pull)
 
         for os_process in self.os_processes:
             os_process.inbox.put(PromptToQuit())
@@ -235,12 +253,12 @@ class OperatingSystemProcess(multiprocessing.Process):
             self.process.follow(upstream_name, notification_log)
 
         # Subscribe to broadcast prompts published by the process application.
-        subscribe(handler=self.broadcast_prompt, predicate=is_prompt)
+        subscribe(handler=self.broadcast_prompt, predicate=is_prompt_to_pull)
 
         try:
             self.loop_on_prompts()
         finally:
-            unsubscribe(handler=self.broadcast_prompt, predicate=is_prompt)
+            unsubscribe(handler=self.broadcast_prompt, predicate=is_prompt_to_pull)
 
     @retry(CausalDependencyFailed, max_attempts=100, wait=0.1)
     def loop_on_prompts(self) -> None:
@@ -274,7 +292,6 @@ class OperatingSystemProcess(multiprocessing.Process):
     def run_process(self, prompt: Optional[Prompt] = None) -> None:
         self.process.run(prompt)
 
-    def broadcast_prompt(self, prompts: Iterable[PromptToPull]) -> None:
+    def broadcast_prompt(self, prompt: PromptToPull) -> None:
         if self.outbox is not None:
-            for prompt in prompts:
-                self.outbox.put(prompt)
+            self.outbox.put(prompt)

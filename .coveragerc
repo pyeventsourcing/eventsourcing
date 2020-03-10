@@ -7,3 +7,5 @@ omit =
     */test_?.py
     */tests/*
     */contrib/*
+    */system/ray.py
+    */system/rayhelpers.py

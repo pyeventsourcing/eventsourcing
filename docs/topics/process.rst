@@ -165,7 +165,7 @@ reliability. However, the "single point of failure" this may represent is acknow
 System of processes
 ===================
 
-The library class :class:`~eventsourcing.application.system.System`
+The library class :class:`~eventsourcing.system.definition.System`
 can be used to define a system of process applications,
 entirely independently of infrastructure.
 In a system, one process application can follow another. One process can
@@ -1181,23 +1181,22 @@ possible foundation for such automation.
 .. There are ways in which the reliability could be relaxed...
 
 
-Actor model runner
-~~~~~~~~~~~~~~~~~~
+Thespian actor model runner
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-An Actor model library, for example the `Thespian Actor Library
-<https://github.com/kquick/Thespian>`__, can also be used to run
-a multi-pipeline system of process applications.
+The `Thespian Actor Library <https://github.com/kquick/Thespian>`__,
+can also be used to run a multi-pipeline system of process applications.
 
-The library's :class:`~eventsourcing.system.actors.ActorModelRunner`
+The library's :class:`~eventsourcing.system.thespian.ThespianRunner`
 is a system runner that uses the Thespian actor model system.
 
 The example below runs with Thespian's "simple system base".
 
 .. code:: python
 
-    from eventsourcing.system.actors import ActorModelRunner
+    from eventsourcing.system.thespian import ThespianRunner
 
-    runner = ActorModelRunner(
+    runner = ThespianRunner(
         system=system,
         infrastructure_class=SQLAlchemyApplication,
         setup_tables=True,
@@ -1238,15 +1237,66 @@ be started in separate operating system processes. After they have been started,
 they will continue to run until they are shutdown. The system actors can be started
 by calling ``actors.start()``. The actors can be shutdown with ``actors.shutdown()``.
 
-If ``actors`` is used as a context manager, as above, the ``start()`` method is
+If ``runner`` is used as a context manager, as above, the ``start()`` method is
 called when the context manager enters. The ``close()`` method is called
 when the context manager exits. By default the ``shutdown()`` method
-is not called by ``close()``. If :class:`~eventsourcing.system.actors.ActorModelRunner`
+is not called by ``close()``. If :class:`~eventsourcing.system.thespian.ThespianRunner`
 is constructed with ``shutdown_on_close=True``, which is ``False`` by default, then the
 actors will be shutdown when the runner ``close()`` method is called (which happens when
 the runner is used as a context manager, and the context manager exits). Even so, shutting
 down the system actors will not shutdown a "multiproc" base system. Please refer to the
 Thespian documentation for more information.
+
+
+Ray actor model runner
+~~~~~~~~~~~~~~~~~~~~~~
+
+`Ray <https://github.com/kquick/Thespian>`__,
+can also be used to run a multi-pipeline system of process applications.
+
+The library's :class:`~eventsourcing.system.ray.RayRunner`
+is a system runner that uses Ray's actor model system.
+
+.. code:: python
+
+    from eventsourcing.system.ray import RayRunner
+
+    runner = RayRunner(
+        system=system,
+        infrastructure_class=SQLAlchemyApplication,
+        setup_tables=True,
+        pipeline_ids=[0, 1, 2]
+    )
+
+Please refer to the test for more information about using this class.
+
+..    # Todo: More about using this runner. Code below doesn't run from __main__
+..    # Todo: because the command topic seems to get messed up by Ray serialisation.
+..    # Todo: However, it might work if the domain model was defined in a different
+..    # Todo: module, so perhaps this example could use the PaxosSystem instead?
+
+
+..    @retry((AssertionError), max_attempts=50, wait=0.1)
+..    def assert_ray_eventually_done(runner, pipeline_id, cmd_id):
+..        """Checks the command is eventually done."""
+..        assert runner.call("commands", pipeline_id, "is_order_done", command_id)
+..
+..    with runner:
+..
+..        # Create new orders.
+..        command_ids = []
+..        while len(command_ids) < num_orders:
+..            pipeline_id = len(command_ids) % len(pipeline_ids)
+..            command_id = runner.call("commands", pipeline_id, "create_order")
+..            command_ids.append(command_id)
+..
+..        # Check all commands are eventually done.
+..        assert len(command_ids)
+..        for i, command_id in enumerate(command_ids):
+..            break
+..            pipeline_id = i % len(pipeline_ids)
+..            assert_ray_eventually_done(runner, pipeline_id, command_id)
+
 
 .. These methods can be used separately. A script can be called to initialise the base
 .. system. Another script can start the system actors. Another script can be called to

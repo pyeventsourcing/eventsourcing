@@ -3,7 +3,7 @@ from uuid import uuid4
 
 from mock import mock
 
-from eventsourcing.application.decorators import applicationpolicy
+from eventsourcing.application.decorators import applicationpolicy, applicationpolicy2
 from eventsourcing.domain.model.decorators import mutator, retry, subscribe_to
 from eventsourcing.domain.model.events import (
     EventHandlersNotEmptyError,
@@ -234,3 +234,54 @@ class TestDecorators(TestCase):
         app.policy(None, 1)
         self.assertTrue(self.seen_default)
         self.assertTrue(self.seen_int)
+
+    def test_applicationpolicy2_decorator(self):
+
+        self.seen_default = False
+        self.seen_int = False
+        self.seen_a = False
+        self.seen_b = False
+
+        class A(object):
+            pass
+
+        class B(A):
+            pass
+
+        class C(B):
+            pass
+
+        class Application(object):
+
+            def __init__(self, test_case):
+                self.test_case = test_case
+
+            @applicationpolicy2
+            def policy(self, repository, event):
+                self.test_case.seen_default = True
+
+            @policy.register(int)
+            def _(self, repository, event):
+                self.test_case.seen_int = True
+
+            @policy.register(A)
+            def _(self, repository, event):
+                self.test_case.seen_a = True
+
+            @policy.register(B)
+            def _(self, repository, event):
+                self.test_case.seen_b = True
+
+
+        app = Application(self)
+        self.assertFalse(self.seen_default)
+        self.assertFalse(self.seen_int)
+        app.policy(None, '')
+        self.assertTrue(self.seen_default)
+        self.assertFalse(self.seen_int)
+        app.policy(None, 1)
+        self.assertTrue(self.seen_default)
+        self.assertTrue(self.seen_int)
+        app.policy(None, C())
+        self.assertTrue(self.seen_b)
+

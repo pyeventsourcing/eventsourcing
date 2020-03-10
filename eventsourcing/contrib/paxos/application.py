@@ -5,7 +5,6 @@ from uuid import UUID
 
 from eventsourcing.application.process import (
     ProcessApplication,
-    ProcessEvent,
     WrappedRepository,
 )
 from eventsourcing.system.definition import System
@@ -209,6 +208,8 @@ class PaxosAggregate(BaseAggregateRoot):
     def __str__(self) -> str:
         return (
             "PaxosAggregate("
+            "final_value='{final_value}', "
+            "proposed_value='{proposed_value}', "
             "network_uid='{network_uid}', "
             "proposal_id='{proposal_id}', "
             "promised_id='{promised_id}', "
@@ -217,15 +218,12 @@ class PaxosAggregate(BaseAggregateRoot):
         ).format(**self.__dict__)
 
 
-class PaxosProcess(ProcessApplication[PaxosAggregate, PaxosAggregate.Event]):
+class PaxosApplication(ProcessApplication[PaxosAggregate, PaxosAggregate.Event]):
     persist_event_type = PaxosAggregate.Event
     quorum_size: int = 0
     notification_log_section_size = 5
     use_cache = True
     set_notification_ids = True
-
-    # Todo: Reintroduce this, if it can be made to work with Popo infrastructure.
-    # set_notification_ids = True
 
     @retry((RecordConflictError, OperationalError), max_attempts=10, wait=0)
     def propose_value(
@@ -249,12 +247,13 @@ class PaxosProcess(ProcessApplication[PaxosAggregate, PaxosAggregate.Event]):
         )
         msg = paxos_aggregate.propose_value(value, assume_leader=assume_leader)
         paxos_aggregate.receive_message(msg)
-        new_events = paxos_aggregate.__batch_pending_events__()
-        process_event = ProcessEvent(new_events)
-        self.record_process_event(process_event)
-        self.repository.take_snapshot(paxos_aggregate.id)
-        self.publish_prompt()
+
+        self.save(paxos_aggregate)
+
         return paxos_aggregate  # in case it's new
+
+    def get_final_value(self, key: UUID) -> PaxosAggregate:
+        return self.repository[key].final_value
 
     def policy(
         self,
@@ -277,7 +276,8 @@ class PaxosProcess(ProcessApplication[PaxosAggregate, PaxosAggregate.Event]):
                 )
                 # Needs to go in the cache now, otherwise we get
                 # "Duplicate" errors (for some unknown reason).
-                self.repository._cache[paxos.id] = paxos
+                if self.repository.use_cache:
+                    self.repository.put_entity_in_cache(paxos.id, paxos)
             # Absolutely make sure the participant aggregates aren't getting confused.
             assert (
                 paxos.network_uid == self.name
@@ -304,8 +304,8 @@ class PaxosSystem(System):
         self.quorum_size = (num_participants + 2) // 2
         classes = [
             type(
-                "PaxosProcess{}".format(i),
-                (PaxosProcess,),
+                "PaxosApplication{}".format(i),
+                (PaxosApplication,),
                 {"quorum_size": self.quorum_size},
             )
             for i in range(num_participants)

@@ -1,26 +1,26 @@
-import unittest
-from uuid import UUID, uuid4, uuid1
-
 from decimal import Decimal
+from typing import Dict
+from uuid import UUID, uuid1, uuid4
 
 from eventsourcing.domain.model.events import (
     DomainEvent,
     EventHandlersNotEmptyError,
+    EventWithHash,
     EventWithOriginatorID,
     EventWithOriginatorVersion,
     EventWithTimestamp,
+    EventWithTimeuuid,
     assert_event_handlers_empty,
+    clear_event_handlers,
     create_timesequenced_event_id,
     publish,
     subscribe,
     unsubscribe,
-    EventWithTimeuuid,
-    clear_event_handlers,
-    EventWithHash)
-from eventsourcing.utils.topic import resolve_topic, get_topic
+)
 from eventsourcing.example.domainmodel import Example
-from eventsourcing.exceptions import TopicResolutionError, EventHashError
-from eventsourcing.utils.times import decimaltimestamp_from_uuid, decimaltimestamp
+from eventsourcing.exceptions import EventHashError, TopicResolutionError
+from eventsourcing.utils.times import decimaltimestamp, decimaltimestamp_from_uuid
+from eventsourcing.utils.topic import get_topic, resolve_topic
 
 try:
     from unittest import mock, TestCase
@@ -204,7 +204,8 @@ class TestEventWithOriginatorVersionAndID(TestCase):
         self.assertEqual(event1.originator_version, 0)
         self.assertEqual(event2.originator_version, 1)
 
-        # Check the events are not equal to each other, whilst being equal to themselves.
+        # Check the events are not equal to each other, whilst being equal to
+        # themselves.
         self.assertEqual(event1, event1)
         self.assertEqual(event2, event2)
         self.assertNotEqual(event1, event2)
@@ -236,7 +237,8 @@ class TestEventWithTimestampAndOriginatorID(TestCase):
         self.assertLessEqual(event1.timestamp, event2.timestamp)
         self.assertLessEqual(event2.timestamp, decimaltimestamp())
 
-        # Check the events are not equal to each other, whilst being equal to themselves.
+        # Check the events are not equal to each other, whilst being equal to
+        # themselves.
         self.assertEqual(event1, event1)
         self.assertEqual(event2, event2)
         self.assertNotEqual(event1, event2)
@@ -366,7 +368,8 @@ class TestEvents(TestCase):
         predicate.assert_called_once_with([event])
         handler.assert_called_once_with([event])
 
-        # When predicate is True, after unsubscribing, handler should NOT be called again.
+        # When predicate is True, after unsubscribing, handler should NOT be called
+        # again.
         unsubscribe(handler=handler, predicate=predicate)
         publish([event])
         predicate.assert_called_once_with([event])
@@ -435,7 +438,7 @@ class TestEvents(TestCase):
         self.assertNotEqual(event2, None)
 
     def test_repr(self):
-        entity_id1 = UUID('c7383095-85a3-4c49-ae32-9c9957ac8579')
+        entity_id1 = UUID("c7383095-85a3-4c49-ae32-9c9957ac8579")
         event1 = Example.Created(
             originator_id=entity_id1,
             originator_topic=get_topic(Example),
@@ -449,9 +452,11 @@ class TestEvents(TestCase):
                 "Example.Created("
                 "__event_hash__='dbd0d45ed797de4f9a5d574ec4e3da3df74e67641bd7632dd05ffa28a5876391', "
                 "__event_hash_method_name__='__hash_object_v2__', "
-                "__event_topic__='eventsourcing.example.domainmodel#Example.Created', a=1, b=2, "
+                "__event_topic__='eventsourcing.example.domainmodel#Example.Created', "
+                "a=1, b=2, "
                 "originator_id={}, "
-                "originator_topic='eventsourcing.example.domainmodel#Example', originator_version=0, timestamp=3)"
+                "originator_topic='eventsourcing.example.domainmodel#Example', "
+                "originator_version=0, timestamp=3)"
             ).format(repr(entity_id1)),
             repr(event1),
         )
@@ -469,24 +474,31 @@ class TestEvents(TestCase):
 class TestEventWithHash(TestCase):
     def test_event_hash_versioning(self):
         event = EventWithHash(a=1, b=1)
-        self.assertTrue('__event_hash__', event.__dict__)
-        self.assertIn('__event_hash_method_name__', event.__dict__)
+        self.assertTrue("__event_hash__", event.__dict__)
+        self.assertIn("__event_hash_method_name__", event.__dict__)
+        self.assertEqual(
+            event.__dict__["__event_hash_method_name__"], "__hash_object_v2__"
+        )
         event.__check_hash__()
 
         # Redo hashing, as a version 1, but with v2 __event_hash_method_name__.
-        event.__dict__.pop('__event_hash__')
-        event.__dict__['__event_hash__'] = event.__hash_object_v1__(event.__dict__)
+        event.__dict__.pop("__event_hash__")
+        event.__dict__["__event_hash__"] = event.__hash_object_v1__(event.__dict__)
         with self.assertRaises(EventHashError):
             event.__check_hash__()
 
         # Redo hashing, as a version 1, and without __event_hash_method_name__.
-        event.__dict__.pop('__event_hash_method_name__')
-        event.__dict__.pop('__event_hash__')
-        event.__dict__['__event_hash__'] = event.__hash_object_v1__(event.__dict__)
+        event.__dict__.pop("__event_hash_method_name__")
+        event.__dict__.pop("__event_hash__")
+        event.__dict__["__event_hash__"] = event.__hash_object_v1__(event.__dict__)
         event.__check_hash__()
 
         # Redo hashing, as a version 2, but without __event_hash_method_name__.
-        event.__dict__.pop('__event_hash__')
-        event.__dict__['__event_hash__'] = event.__hash_object_v2__(event.__dict__)
+        #
+        # This should fail because it will fail to find an __event_hash_method_name__
+        # and so it will assume the state wasn't recorded with that, and so use v1 by
+        # default, which won't match with the v2 hash created below.
+        event.__dict__.pop("__event_hash__")
+        event.__dict__["__event_hash__"] = event.__hash_object_v2__(event.__dict__)
         with self.assertRaises(EventHashError):
             event.__check_hash__()

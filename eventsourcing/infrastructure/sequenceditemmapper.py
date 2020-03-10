@@ -7,9 +7,9 @@ from eventsourcing.infrastructure.sequenceditem import (
     SequencedItemFieldNames,
 )
 from eventsourcing.utils.cipher.aes import AESCipher
-from eventsourcing.utils.topic import get_topic, resolve_topic
+from eventsourcing.utils.topic import get_topic, resolve_topic, reconstruct_object
 from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
-from eventsourcing.whitehead import T, TEvent
+from eventsourcing.whitehead import TEvent
 
 
 class AbstractSequencedItemMapper(Generic[TEvent], ABC):
@@ -191,9 +191,3 @@ class SequencedItemMapper(AbstractSequencedItemMapper[TEvent]):
             return self.json_decoder.decode(s)
         except JSONDecodeError:
             raise ValueError("Couldn't load JSON string: {}".format(s))
-
-
-def reconstruct_object(obj_class: Type[T], obj_state: Dict[str, Any]) -> T:
-    obj = object.__new__(obj_class)
-    obj.__dict__.update(obj_state)
-    return obj

@@ -9,7 +9,7 @@ from eventsourcing.domain.model.entity import (
 )
 from eventsourcing.domain.model.events import publish
 from eventsourcing.exceptions import ArrayIndexError, ConcurrencyError
-from eventsourcing.infrastructure.base import AbstractEntityRepository
+from eventsourcing.domain.model.repository import AbstractEntityRepository
 
 
 class ItemAssigned(TimestampedVersionedEntity.Event):

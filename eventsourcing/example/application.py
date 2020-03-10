@@ -1,5 +1,7 @@
 from abc import ABC
 
+import zlib
+
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.entity import VersionedEntity
 from eventsourcing.domain.model.events import LoggedEvent
@@ -81,6 +83,7 @@ class ApplicationWithEventStores(ABC):
             event_sequence_id_attr=event_sequence_id_attr,
             event_position_attr=event_position_attr,
             cipher=cipher,
+            compressor=zlib if cipher else None
         )
         event_store = EventStore(
             record_manager=record_manager, event_mapper=sequenced_item_mapper
@@ -94,6 +97,7 @@ class ApplicationWithEventStores(ABC):
         event_sequence_id_attr,
         event_position_attr,
         cipher=None,
+        compressor=None,
         json_encoder_class=ObjectJSONEncoder,
         json_decoder_class=ObjectJSONDecoder,
     ):
@@ -104,6 +108,7 @@ class ApplicationWithEventStores(ABC):
             json_encoder_class=json_encoder_class,
             json_decoder_class=json_decoder_class,
             cipher=cipher,
+            compressor=compressor
         )
 
     def close(self):

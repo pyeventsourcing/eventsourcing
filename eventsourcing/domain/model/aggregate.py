@@ -1,5 +1,5 @@
 from collections import deque
-from typing import Any, Deque, List, Sequence, TypeVar, Generic
+from typing import Any, Deque, Generic, List, Sequence, TypeVar
 
 from eventsourcing.domain.model.entity import (
     DomainEntity,

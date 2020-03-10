@@ -1,16 +1,16 @@
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Union
 from uuid import UUID
 
+import sqlalchemy.exc
 from sqlalchemy import asc, bindparam, desc, select, text
-from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.sql import func
 
-from eventsourcing.exceptions import ProgrammingError
+from eventsourcing.exceptions import OperationalError, ProgrammingError
 from eventsourcing.infrastructure.base import (
+    BaseRecordManager,
     SQLRecordManager,
     TrackingKwargs,
-    BaseRecordManager,
 )
 
 
@@ -62,6 +62,7 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         orm_objs_pending_save: Optional[Sequence[Any]] = None,
         orm_objs_pending_delete: Optional[Sequence[Any]] = None,
     ) -> None:
+
         all_params = []
         statement = None
         if not isinstance(records, list):
@@ -141,11 +142,11 @@ class SQLAlchemyRecordManager(SQLRecordManager):
 
             self.session.commit()
 
-        except IntegrityError as e:
+        except sqlalchemy.exc.IntegrityError as e:
             self.session.rollback()
             self.raise_record_integrity_error(e)
 
-        except DBAPIError as e:
+        except sqlalchemy.exc.DBAPIError as e:
             self.session.rollback()
             self.raise_operational_error(e)
 
@@ -200,8 +201,11 @@ class SQLAlchemyRecordManager(SQLRecordManager):
             if limit is not None:
                 query = query.limit(limit)
 
-            # Get the result set.
-            results = query.all()
+            # Get the results.
+            results = list(query.all())
+
+        except sqlalchemy.exc.OperationalError as e:
+            raise OperationalError(e)
 
         finally:
             self.session.close()
@@ -213,7 +217,7 @@ class SQLAlchemyRecordManager(SQLRecordManager):
 
         return results
 
-    def get_notifications(
+    def get_notification_records(
         self,
         start: Optional[int] = None,
         stop: Optional[int] = None,
@@ -237,7 +241,9 @@ class SQLAlchemyRecordManager(SQLRecordManager):
                     query = query.filter(notification_id_col < stop + 1)
             # Todo: Should some tables with an ID not be ordered by ID?
             # Todo: Which order do other tables have?
-            return query.all()
+            return list(query.all())
+        except sqlalchemy.exc.OperationalError as e:
+            raise OperationalError(e)
         finally:
             self.session.close()
 
@@ -300,9 +306,7 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         upstream_app_name_field = (
             self.tracking_record_class.upstream_application_name  # type: ignore
         )
-        pipeline_id_field = (
-            self.tracking_record_class.pipeline_id  # type: ignore
-        )
+        pipeline_id_field = self.tracking_record_class.pipeline_id  # type: ignore
         notification_id_field = (
             self.tracking_record_class.notification_id  # type: ignore
         )
@@ -323,9 +327,7 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         upstream_name_field = (
             self.tracking_record_class.upstream_application_name  # type: ignore
         )
-        pipeline_id_field = (
-            self.tracking_record_class.pipeline_id  # type: ignore
-        )
+        pipeline_id_field = self.tracking_record_class.pipeline_id  # type: ignore
         notification_id_field = (
             self.tracking_record_class.notification_id  # type: ignore
         )

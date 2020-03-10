@@ -3,22 +3,20 @@ from copy import deepcopy
 from typing import Optional
 from uuid import UUID
 
-from eventsourcing.domain.model.entity import TVersionedEntity
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.infrastructure.base import (
     AbstractEventStore,
     AbstractRecordManager,
-    AbstractSnapshop,
 )
-from eventsourcing.infrastructure.sequenceditemmapper import reconstruct_object
-from eventsourcing.utils.topic import get_topic, resolve_topic
+from eventsourcing.domain.model.events import AbstractSnapshot
+from eventsourcing.utils.topic import get_topic
 
 
 class AbstractSnapshotStrategy(ABC):
     @abstractmethod
     def get_snapshot(
         self, entity_id: UUID, lt: Optional[int] = None, lte: Optional[int] = None
-    ) -> Optional[AbstractSnapshop]:
+    ) -> Optional[AbstractSnapshot]:
         """
         Gets the last snapshot for entity, optionally until a particular version number.
 
@@ -40,13 +38,13 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
 
     def __init__(
         self,
-        snapshot_store: AbstractEventStore[AbstractSnapshop, AbstractRecordManager],
+        snapshot_store: AbstractEventStore[AbstractSnapshot, AbstractRecordManager],
     ):
         self.snapshot_store = snapshot_store
 
     def get_snapshot(
         self, entity_id: UUID, lt: Optional[int] = None, lte: Optional[int] = None
-    ) -> Optional[AbstractSnapshop]:
+    ) -> Optional[AbstractSnapshot]:
         """
         Gets the last snapshot for entity, optionally until a particular version number.
 
@@ -83,13 +81,3 @@ class EventSourcedSnapshotStrategy(AbstractSnapshotStrategy):
 
         # Return the snapshot.
         return snapshot
-
-
-def entity_from_snapshot(snapshot: AbstractSnapshop) -> Optional[TVersionedEntity]:
-    """
-    Reconstructs domain entity from given snapshot.
-    """
-    assert isinstance(snapshot, AbstractSnapshop), type(snapshot)
-    if snapshot.state is not None:
-        entity_class = resolve_topic(snapshot.topic)
-        return reconstruct_object(entity_class, snapshot.state)

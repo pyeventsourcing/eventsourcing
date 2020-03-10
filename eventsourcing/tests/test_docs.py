@@ -45,7 +45,13 @@ class TestDocs(TestCase):
 
     def test_readme(self):
         self._out = ""
+
         path = join(base_dir, "README.md")
+        if not os.path.exists(path):
+            self.skipTest("Skipped test, README file not found: {}".format(path))
+        self.check_code_snippets_in_file(path)
+
+        path = join(base_dir, "README_example_with_axon.md")
         if not os.path.exists(path):
             self.skipTest("Skipped test, README file not found: {}".format(path))
         self.check_code_snippets_in_file(path)

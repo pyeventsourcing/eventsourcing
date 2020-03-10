@@ -15,7 +15,7 @@ class TestProcessWithPopos(PopoTestCase, TestProcessApplication):
     def test_causal_dependencies(self):
         super(TestProcessWithPopos, self).test_causal_dependencies()
 
-    @skip("Popo record manager doesn't projections in custom ORM objects")
+    @skip("Popo record manager doesn't do projections into custom ORM objects")
     def test_projection_into_custom_orm_obj(self):
         super(TestProcessWithPopos, self).test_projection_into_custom_orm_obj()
 

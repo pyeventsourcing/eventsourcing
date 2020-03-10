@@ -1,24 +1,22 @@
 from functools import reduce
+from threading import Lock
 from typing import Any, Callable, Dict, Iterable, Optional, Type
 from uuid import UUID
 
 from eventsourcing.domain.model.entity import TVersionedEntity, TVersionedEvent
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.base import (
-    AbstractEntityRepository,
     AbstractEventStore,
     AbstractRecordManager,
-    AbstractSnapshop,
 )
-from eventsourcing.infrastructure.snapshotting import (
-    AbstractSnapshotStrategy,
-    entity_from_snapshot,
-)
+from eventsourcing.domain.model.repository import AbstractEntityRepository
+from eventsourcing.domain.model.events import AbstractSnapshot
+from eventsourcing.infrastructure.snapshotting import AbstractSnapshotStrategy
 from eventsourcing.whitehead import SEntity
 
 
 class EventSourcedRepository(
-    AbstractEntityRepository[TVersionedEntity, TVersionedEvent],
+    AbstractEntityRepository[TVersionedEntity, TVersionedEvent]
 ):
     # The page size by which events are retrieved. If this
     # value is set to a positive integer, the events of
@@ -49,6 +47,7 @@ class EventSourcedRepository(
         # give an entity that is ahead of the event records,
         # and writing more records will give a broken sequence.
         self._cache: Dict[UUID, Optional[TVersionedEntity]] = {}
+        self._cache_lock = Lock()
         self._use_cache = use_cache
 
     @property
@@ -61,6 +60,14 @@ class EventSourcedRepository(
     @property
     def use_cache(self) -> bool:
         return self._use_cache
+
+    @property
+    def cache_lock(self) -> Lock:
+        return self._cache_lock
+
+    @property
+    def cache(self) -> Dict:
+        return self._cache
 
     @use_cache.setter
     def use_cache(self, value: bool) -> None:
@@ -84,12 +91,13 @@ class EventSourcedRepository(
         if self._use_cache:
             try:
                 # Get entity from the cache.
-                entity: Optional[TVersionedEntity] = self._cache[entity_id]
+                with self._cache_lock:
+                    entity: Optional[TVersionedEntity] = self._cache[entity_id]
             except KeyError:
                 # Reconstitute the entity.
                 entity = self.get_entity(entity_id)
                 # Put entity in the cache.
-                self._cache[entity_id] = entity
+                self.put_entity_in_cache(entity_id, entity)
         else:
             entity = self.get_entity(entity_id)
 
@@ -101,6 +109,12 @@ class EventSourcedRepository(
         assert entity is not None
         return entity
 
+    def put_entity_in_cache(self, entity_id: UUID, entity: TVersionedEntity):
+        if entity is None or entity_id in self._cache:
+            return
+        with self._cache_lock:
+            self._cache[entity_id] = entity
+
     def get_entity(
         self, entity_id: UUID, at: Optional[int] = None
     ) -> Optional[TVersionedEntity]:
@@ -111,7 +125,10 @@ class EventSourcedRepository(
         """
 
         # Get a snapshot (None if none exist).
-        if self._snapshot_strategy is not None:
+        if (
+            self._snapshot_strategy
+            and not self.event_store.record_manager.has_integrated_snapshots
+        ):
             snapshot = self._snapshot_strategy.get_snapshot(entity_id, lte=at)
         else:
             snapshot = None
@@ -122,7 +139,8 @@ class EventSourcedRepository(
             initial_state = None
             gt = None
         else:
-            initial_state = entity_from_snapshot(snapshot)
+            assert isinstance(snapshot, AbstractSnapshot), snapshot
+            initial_state = snapshot.__mutate__(None)
             gt = snapshot.originator_version
 
         # Obtain and return current state.
@@ -161,7 +179,7 @@ class EventSourcedRepository(
             and lte is None
             and self.__page_size__ is None
         ):
-            is_ascending = False
+            is_ascending = True
         else:
             is_ascending = not query_descending
 
@@ -221,55 +239,66 @@ class EventSourcedRepository(
     # Todo: Does this method belong on this class?
     def take_snapshot(
         self, entity_id: UUID, lt: Optional[int] = None, lte: Optional[int] = None
-    ) -> Optional[AbstractSnapshop]:
+    ) -> Optional[AbstractSnapshot]:
         """
         Takes a snapshot of the entity as it existed after the most recent
         event, optionally less than, or less than or equal to, a particular position.
         """
         snapshot = None
         if self._snapshot_strategy:
-            # Get the latest event (optionally until a particular position).
-            latest_event = self.event_store.get_most_recent_event(
-                entity_id, lt=lt, lte=lte
-            )
+            if self.event_store.record_manager.has_integrated_snapshots:
+                # Get entity.
+                entity = self.get_and_project_events(entity_id=entity_id)
 
-            # If there is something to snapshot, then look for a snapshot
-            # taken before or at the entity version of the latest event. Please
-            # note, the snapshot might have a smaller version number than
-            # the latest event if events occurred since the latest snapshot was taken.
-            if latest_event is not None:
-                latest_snapshot = self._snapshot_strategy.get_snapshot(
+                # Take snapshot from entity.
+                if entity is not None:
+                    snapshot = self._snapshot_strategy.take_snapshot(
+                        entity_id, entity, entity.__version__
+                    )
+
+            else:
+                # Get the latest event (optionally until a particular position).
+                latest_event = self.event_store.get_most_recent_event(
                     entity_id, lt=lt, lte=lte
                 )
-                latest_version = latest_event.originator_version
 
-                if (
-                    latest_snapshot
-                    and latest_snapshot.originator_version == latest_version
-                ):
-                    # If up-to-date snapshot exists, there's nothing to do.
-                    snapshot = latest_snapshot
-                else:
-                    # Otherwise recover entity state from latest snapshot.
-                    if latest_snapshot:
-                        initial_state = entity_from_snapshot(latest_snapshot)
-                        gt: Optional[int] = latest_snapshot.originator_version
+                # If there is something to snapshot, then look for a snapshot
+                # taken before or at the entity version of the latest event. Please
+                # note, the snapshot might have a smaller version number than
+                # the latest event if events occurred since the latest snapshot was taken.
+                if latest_event is not None:
+                    latest_snapshot = self._snapshot_strategy.get_snapshot(
+                        entity_id, lt=lt, lte=lte
+                    )
+                    latest_version = latest_event.originator_version
+
+                    if (
+                        latest_snapshot
+                        and latest_snapshot.originator_version == latest_version
+                    ):
+                        # If up-to-date snapshot exists, there's nothing to do.
+                        snapshot = latest_snapshot
                     else:
-                        initial_state = None
-                        gt = None
+                        # Otherwise recover entity state from latest snapshot.
+                        if latest_snapshot:
+                            initial_state = latest_snapshot.__mutate__(None)
+                            gt: Optional[int] = latest_snapshot.originator_version
+                        else:
+                            initial_state = None
+                            gt = None
 
-                    # Fast-forward entity state to latest version.
-                    entity = self.get_and_project_events(
-                        entity_id=entity_id,
-                        gt=gt,
-                        lte=latest_version,
-                        initial_state=initial_state,
-                    )
+                        # Fast-forward entity state to latest version.
+                        entity = self.get_and_project_events(
+                            entity_id=entity_id,
+                            gt=gt,
+                            lte=latest_version,
+                            initial_state=initial_state,
+                        )
 
-                    # Take snapshot from entity.
-                    snapshot = self._snapshot_strategy.take_snapshot(
-                        entity_id, entity, latest_version
-                    )
+                        # Take snapshot from entity.
+                        snapshot = self._snapshot_strategy.take_snapshot(
+                            entity_id, entity, latest_version
+                        )
 
         return snapshot
 

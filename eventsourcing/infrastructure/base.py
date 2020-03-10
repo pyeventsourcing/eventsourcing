@@ -22,11 +22,8 @@ from eventsourcing.infrastructure.sequenceditem import (
     SequencedItemFieldNames,
 )
 from eventsourcing.infrastructure.sequenceditemmapper import AbstractSequencedItemMapper
-from eventsourcing.whitehead import (
-    ActualOccasion,
-    TEntity,
-    TEvent,
-)
+from eventsourcing.whitehead import TEvent
+
 
 DEFAULT_PIPELINE_ID = 0
 
@@ -34,6 +31,12 @@ TrackingKwargs = Dict[str, Union[str, int]]
 
 
 class AbstractRecordManager(ABC):
+    has_integrated_snapshots = False
+    can_limit_get_records = True
+    can_lt_lte_get_records = True
+    can_list_sequence_ids = True
+    can_delete_records = True
+
     def __init__(self, **kwargs: Any):
         """
         Initialises record manager.
@@ -100,22 +103,6 @@ class AbstractRecordManager(ABC):
     ) -> Sequence[Any]:
         """
         Returns records for a sequence.
-        """
-
-    @abstractmethod
-    def get_notifications(
-        self,
-        start: Optional[int] = None,
-        stop: Optional[int] = None,
-        *args: Any,
-        **kwargs: Any
-    ) -> Iterable:
-        """
-        Returns records sequenced by notification ID, from
-        application, for pipeline, in given range.
-
-        Args 'start' and 'stop' are positions in a zero-based
-        integer sequence.
         """
 
     @abstractmethod
@@ -259,9 +246,9 @@ class BaseRecordManager(AbstractRecordManager):
     def get_field_kwargs(self, item: object) -> Dict[str, Any]:
         return {name: getattr(item, name) for name in self.field_names}
 
-    def raise_sequenced_item_conflict(self) -> None:
+    def raise_sequenced_item_conflict(self, exp=None) -> None:
         msg = "Position already taken in sequence"
-        raise RecordConflictError(msg)
+        raise RecordConflictError(exp or msg)
 
     def raise_index_error(self, position: int) -> None:
         raise IndexError("Sequence index out of range: {}".format(position))
@@ -273,7 +260,51 @@ class BaseRecordManager(AbstractRecordManager):
         raise OperationalError(e)
 
 
-class ACIDRecordManager(BaseRecordManager):
+class RecordManagerWithNotifications(BaseRecordManager):
+    @abstractmethod
+    def get_max_notification_id(self) -> int:
+        """Return maximum notification ID in pipeline."""
+
+    @abstractmethod
+    def get_notification_records(
+        self,
+        start: Optional[int] = None,
+        stop: Optional[int] = None,
+        *args: Any,
+        **kwargs: Any
+    ) -> Iterable:
+        """
+        Returns records sequenced by notification ID, from
+        application, for pipeline, in given range.
+
+        Args 'start' and 'stop' are positions in a zero-based
+        integer sequence.
+        """
+
+    def get_notifications(
+        self,
+        start: Optional[int] = None,
+        stop: Optional[int] = None,
+        *args: Any,
+        **kwargs: Any
+    ) -> Iterable:
+        for record in self.get_notification_records(
+            start=start, stop=stop, *args, **kwargs
+        ):
+            yield self.create_notification_from_record(record)
+
+    def create_notification_from_record(self, record):
+        notification = {
+            "id": getattr(record, self.notification_id_name)
+        }
+        for field_name in self.field_names:
+            notification[field_name] = getattr(record, field_name)
+        if hasattr(record, "causal_dependencies"):
+            notification["causal_dependencies"] = record.causal_dependencies
+        return notification
+
+
+class RecordManagerWithTracking(RecordManagerWithNotifications):
     """
     ACID record managers can write tracking records and event records
     in an atomic transaction, needed for atomic processing in process
@@ -290,7 +321,7 @@ class ACIDRecordManager(BaseRecordManager):
     def __init__(
         self, tracking_record_class: Optional[type] = None, *args: Any, **kwargs: Any
     ) -> None:
-        super(ACIDRecordManager, self).__init__(*args, **kwargs)
+        super(RecordManagerWithTracking, self).__init__(*args, **kwargs)
         # assert tracking_record_class is not None
         self.tracking_record_class = tracking_record_class
 
@@ -322,10 +353,6 @@ class ACIDRecordManager(BaseRecordManager):
         return map(self.to_record, sequenced_items)
 
     @abstractmethod
-    def get_max_notification_id(self) -> int:
-        """Return maximum notification ID in pipeline."""
-
-    @abstractmethod
     def get_max_tracking_record_id(self, upstream_application_name: str) -> int:
         """Return maximum tracking record ID for notification from upstream
         application in pipeline."""
@@ -352,7 +379,7 @@ class ACIDRecordManager(BaseRecordManager):
         return record.pipeline_id, notification_id
 
 
-class SQLRecordManager(ACIDRecordManager):
+class SQLRecordManager(RecordManagerWithTracking):
     """
     Common aspects of SQL record managers, such as SQLAlchemy and Django record
     managers.
@@ -616,67 +643,4 @@ class AbstractEventStore(ABC, Generic[TEvent, TRecordManager]):
         Maps domain event to sequenced item namedtuple.
 
         :param events: An iterable of events.
-        """
-
-class AbstractSnapshop(ActualOccasion):
-    @property
-    @abstractmethod
-    def topic(self) -> str:
-        """
-        Path to the class of the snapshotted entity.
-        """
-
-    @property
-    @abstractmethod
-    def state(self) -> Dict[str, Any]:
-        """
-        State of the snapshotted entity.
-        """
-
-    @property
-    @abstractmethod
-    def originator_id(self) -> UUID:
-        """
-        ID of the snapshotted entity.
-        """
-
-    @property
-    @abstractmethod
-    def originator_version(self) -> int:
-        """
-        Version of the last event applied to the entity.
-        """
-
-
-class AbstractEntityRepository(Generic[TEntity, TEvent]):
-    @abstractmethod
-    def __getitem__(self, entity_id: UUID) -> TEntity:
-        """
-        Returns entity for given ID.
-
-        Raises ``RepositoryKeyError`` when entity not found.
-        """
-
-    @abstractmethod
-    def __contains__(self, entity_id: UUID) -> bool:
-        """
-        Returns True or False, according to whether or not entity exists.
-        """
-
-    @abstractmethod
-    def get_entity(
-        self, entity_id: UUID, at: Optional[int] = None
-    ) -> Optional[TEntity]:
-        """
-        Returns entity for given ID.
-
-        Returns None when entity not found.
-        """
-
-    @abstractmethod
-    def take_snapshot(
-        self, entity_id: UUID, lt: Optional[int] = None, lte: Optional[int] = None
-    ) -> Optional[AbstractSnapshop]:
-        """
-        Takes snapshot of entity state, using stored events.
         """

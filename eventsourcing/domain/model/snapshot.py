@@ -5,15 +5,16 @@ from eventsourcing.domain.model.events import (
     EventWithOriginatorID,
     EventWithOriginatorVersion,
     EventWithTimestamp,
-)
-from eventsourcing.infrastructure.base import AbstractSnapshop
+    AbstractSnapshot)
+from eventsourcing.utils.topic import resolve_topic, reconstruct_object
+from eventsourcing.whitehead import TEntity
 
 
 class Snapshot(
     EventWithTimestamp,
     EventWithOriginatorVersion,
     EventWithOriginatorID,
-    AbstractSnapshop,
+    AbstractSnapshot,
 ):
     def __init__(
         self,
@@ -42,3 +43,8 @@ class Snapshot(
         State of the snapshotted entity.
         """
         return self.__dict__["state"]
+
+    def __mutate__(self, obj: Optional[TEntity]) -> Optional[TEntity]:
+        if self.state is not None:
+            entity_class = resolve_topic(self.topic)
+            return reconstruct_object(entity_class, self.state)

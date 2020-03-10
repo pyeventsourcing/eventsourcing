@@ -28,14 +28,14 @@ class System(object):
         Initialises a "process network" system object.
 
         Each pipeline expression of process classes shows directly which process
-        follows which other process in the system.
+        following which other process in the system.
 
-        For example, the pipeline expression (A | B | C) shows that B follows A,
-        and C follows B.
+        For example, the pipeline expression (A | B | C) shows that B following A,
+        and C following B.
 
-        The pipeline expression (A | A) shows that A follows A.
+        The pipeline expression (A | A) shows that A following A.
 
-        The pipeline expression (A | B | A) shows that B follows A, and A follows B.
+        The pipeline expression (A | B | A) shows that B following A, and A following B.
 
         The pipeline expressions ((A | B | A), (A | C | A)) are equivalent to (A | B
         | A | C | A).
@@ -56,7 +56,7 @@ class System(object):
         self.process_classes: OrderedDict[str, Type[ProcessApplication]] = OrderedDict()
         for pipeline_expr in self.pipelines_exprs:
             for process_class in pipeline_expr:
-                process_name = process_class.__name__.lower()
+                process_name = process_class.create_name()
                 if process_name not in self.process_classes:
                     self.process_classes[process_name] = process_class
 
@@ -64,32 +64,32 @@ class System(object):
         self.is_session_shared = True
         self.shared_session = None
 
-        # Determine which process follows which.
-        self.followers: OrderedDict[str, List[str]] = OrderedDict()
-        # A following is a list of process classes followed by a process class.
-        # Todo: Factor this out, it's confusing. (Only used in ActorModelRunner now).
-        self.followings: OrderedDict[str, List[str]] = OrderedDict()
+        # Construct pipeline graph.
+        self.downstream_names: OrderedDict[str, List[str]] = OrderedDict()
+        self.upstream_names: OrderedDict[str, List[str]] = OrderedDict()
+
+        edges = []
+        nodes = []
         for pipeline_expr in self.pipelines_exprs:
             previous_name = None
             for process_class in pipeline_expr:
-                process_name = process_class.__name__.lower()
-                try:
-                    follows = self.followings[process_name]
-                except KeyError:
-                    follows = []
-                    self.followings[process_name] = follows
-
-                try:
-                    self.followers[process_name]
-                except KeyError:
-                    self.followers[process_name] = []
-
-                if previous_name and previous_name not in follows:
-                    follows.append(previous_name)
-                    followers = self.followers[previous_name]
-                    followers.append(process_name)
-
+                process_name = process_class.create_name()
+                if process_name not in nodes:
+                    nodes.append(process_name)
+                if previous_name:
+                    edges.append((previous_name, process_name))
                 previous_name = process_name
+
+        for process_name in nodes:
+            self.downstream_names[process_name] = []
+            self.upstream_names[process_name] = []
+
+        for upstream_name, downstream_name in edges:
+            self.downstream_names[upstream_name].append(downstream_name)
+            self.upstream_names[downstream_name].append(upstream_name)
+
+        self.nodes_of_pipeline_spec = nodes
+        self.edges_of_pipeline_spec = edges
 
     def construct_app(
         self,
@@ -162,7 +162,7 @@ class System(object):
             use_direct_query_if_available=self.use_direct_query_if_available,
         )
         runner.start()
-        self.runner = weakref.ref(runner)
+        self.runner = runner
         return runner
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
@@ -171,7 +171,7 @@ class System(object):
         """
 
         if self.runner:
-            runner: Optional[AbstractSystemRunner] = self.runner()
+            runner: Optional[AbstractSystemRunner] = self.runner
             if runner is not None:
                 runner.close()
             self.runner = None
@@ -225,14 +225,6 @@ class AbstractSystemRunner(ABC):
         """
         Supports usage of a system runner as a context manager.
         """
-        assert isinstance(self, AbstractSystemRunner)  # For PyCharm navigation.
-        if self.system.runner is None or self.system.runner() is None:
-            self.system.runner = weakref.ref(self)
-        else:
-            raise ProgrammingError(
-                "System is already running: {}".format(self.system.runner)
-            )
-
         self.start()
         return self
 
@@ -241,7 +233,6 @@ class AbstractSystemRunner(ABC):
         Supports usage of a system runner as a context manager.
         """
         self.close()
-        self.system.runner = None
 
     @abstractmethod
     def start(self) -> None:
@@ -263,7 +254,7 @@ class AbstractSystemRunner(ABC):
             self.processes.clear()
 
     def get(self, process_class: Type[TProcessApplication]) -> TProcessApplication:
-        process_name = process_class.__name__.lower()
+        process_name = process_class.create_name()
         try:
             process = self.processes[process_name]
         except KeyError:

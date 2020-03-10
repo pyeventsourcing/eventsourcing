@@ -3,7 +3,7 @@ from eventsourcing.domain.model.entity import (
     EntityWithHashchain,
     TimestampedVersionedEntity,
     TDomainEntity)
-from eventsourcing.infrastructure.base import AbstractEntityRepository
+from eventsourcing.domain.model.repository import AbstractEntityRepository
 
 
 class Example(EntityWithHashchain, TimestampedVersionedEntity):
