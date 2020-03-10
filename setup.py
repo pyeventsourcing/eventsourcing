@@ -14,7 +14,7 @@ if "READTHEDOCS" in os.environ:
 install_requires = [
     "python-dateutil<=2.8.99999",
     "pycryptodome<=3.9.99999",
-    "requests<=2.22.99999",
+    "requests<=2.23.99999",
     "readerwriterlock<=1.0.99999",
 ]
 
@@ -26,7 +26,7 @@ ray_requires = ["ray<=0.8.99999", "psutil", "setproctitle"]
 
 thespian_requires = ["thespian<=3.9.99999"]
 
-cassandra_requires = ["cassandra-driver<=3.20.99999"]
+cassandra_requires = ["cassandra-driver<=3.22.99999"]
 
 django_requires = ["django<=3.0.99999"]
 
@@ -38,12 +38,12 @@ testing_requires = (
     + ray_requires
     + django_requires
     + [
-        "mock<=3.0.99999",
+        "mock<=4.0.99999",
         "flask<=1.1.99999",
         "flask_sqlalchemy<=2.4.99",
         "uwsgi<=2.0.99999",
-        "redis<=3.3.99999",
-        "celery<=4.3.99999",
+        "redis<=3.4.99999",
+        "celery<=4.4.99999",
         "pymysql<=0.9.99999",
         "cryptography",
         # Tests use Django with PostgreSQL.
