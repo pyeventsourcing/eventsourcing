@@ -22,8 +22,8 @@ systems of application, previously in the "application" package, has been
 moved to a new "system" package.
 
 
-Version 8.2.0 (scheduled for release in March 2020)
----------------------------------------------------
+Version 8.2.0 (released 10 March 2020)
+--------------------------------------
 
 Added optional versioning of domain events and entities, so that
 domain events and entity snapshots can be versioned and old
