@@ -4,7 +4,7 @@ Release notes
 
 It is the aim of the project that releases with the same major version
 number are backwards compatible, within the scope of the documented
-examples. New major versions indicate a backward incompatible changes
+examples. New major versions indicate backwards incompatible changes
 have been introduced since the previous major version. New minor
 version indicate new functionality has been added, or existing functionality
 extended. New point version indicates existing code or documentation
