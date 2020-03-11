@@ -39,7 +39,7 @@ purists for maximum longevity), you might start by replicating the library class
 events with pull-based notifications allows the application state to be
 projected accurately into replicas, indexes, view models, and other applications.
 
-**Process and systems** — scalable event processing with application pipelines.Runnable
+**Process and systems** — scalable event processing with application pipelines. Runnable
 with single thread, multiprocessing on a single machine, and in a cluster of machines
 using the actor model. Parallel pipelines are synchronised with causal dependencies.
 
@@ -66,7 +66,7 @@ causation IDs, which allows a story to be traced through a system of application
 
 **Compression** - reduces the size of stored domain events and snapshots, usually
 by around 25% to 50% of the original size. Compression reduces the size of data
-in the database and increases transit time across a network.
+in the database and decreases transit time across a network.
 
 **Application-level encryption** — encrypts and decrypts stored events and snapshots,
 using a cipher strategy passed as an option to the sequenced item mapper. Can be used

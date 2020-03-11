@@ -12,7 +12,9 @@ general story, which is elaborated over the following pages.
 Install library
 ===============
 
-Please use pip to install the library with the 'sqlalchemy' option.
+It is recommended always to install into a virtual environment.
+
+You can use pip to install the library with the 'sqlalchemy' option (other package installers are available).
 
 ::
 

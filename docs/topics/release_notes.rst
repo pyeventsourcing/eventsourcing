@@ -4,7 +4,7 @@ Release notes
 
 It is the aim of the project that releases with the same major version
 number are backwards compatible, within the scope of the documented
-examples. New major versions indicate a backward incompatible changes
+examples. New major versions indicate backwards incompatible changes
 have been introduced since the previous major version. New minor
 version indicate new functionality has been added, or existing functionality
 extended. New point version indicates existing code or documentation
@@ -20,6 +20,12 @@ improved transcoding, event and entity versioning, and integration with
 Axon Server (specialist event store) and Ray. Code for defining and running
 systems of application, previously in the "application" package, has been
 moved to a new "system" package.
+
+
+Version 8.2.1 (released 11 March 2020)
+--------------------------------------
+
+Improved documentation.
 
 
 Version 8.2.0 (released 10 March 2020)
