@@ -22,6 +22,12 @@ systems of application, previously in the "application" package, has been
 moved to a new "system" package.
 
 
+Version 8.2.1 (released 11 March 2020)
+--------------------------------------
+
+Improved documentation.
+
+
 Version 8.2.0 (released 10 March 2020)
 --------------------------------------
 
