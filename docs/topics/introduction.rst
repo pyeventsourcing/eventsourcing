@@ -16,7 +16,7 @@ This library
 
 This is a library for event sourcing in Python. At its core, this library supports
 storing and retrieving sequences of items, such as the domain events of aggregates
-in a event-sourced domain driven design.
+in an event-sourced domain driven design.
 
 To demonstrate how its persistence mechanism can be used effectively,
 this library documentation has examples of event-sourced applications
