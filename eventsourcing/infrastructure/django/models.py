@@ -1,147 +1,147 @@
 from django.db import models
+from django.utils.translation import gettext_lazy as _
+
+__all__ = (
+    "AbstractEntitySnapshotRecord",
+    "AbstractIntegerSequencedRecord",
+    "AbstractNotificationTrackingRecord",
+    "AbstractSnapshotRecord",
+    "AbstractStoredEventRecord",
+    "AbstractTimestampSequencedRecord",
+    "ABSTRACT_MODELS",
+)
 
 
-class IntegerSequencedRecord(models.Model):
-
+class AbstractIntegerSequencedRecord(models.Model):
     id = models.BigAutoField(primary_key=True)
 
-    # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = models.UUIDField()
-
-    # Position (index) of item in sequence.
-    position = models.BigIntegerField()
-
-    # Topic of the item (e.g. path to domain event class).
-    topic = models.TextField()
-
-    # State of the item (serialized dict, possibly encrypted).
-    state = models.BinaryField()
+    sequence_id = models.UUIDField(
+        help_text=_("Sequence ID (e.g. an entity or aggregate ID)."),
+    )
+    position = models.BigIntegerField(
+        help_text=_("Position (index) of item in sequence."),
+    )
+    topic = models.TextField(
+        help_text=_("Topic of the item (e.g. path to domain event class).")
+    )
+    state = models.BinaryField(
+        help_text=_("State of the item (serialized dict, possibly encrypted).")
+    )
 
     class Meta:
+        abstract = True
         unique_together = (("sequence_id", "position"),)
-        db_table = "integer_sequenced_items"
 
 
-class TimestampSequencedRecord(models.Model):
-
+class AbstractTimestampSequencedRecord(models.Model):
     id = models.BigAutoField(primary_key=True)
 
-    # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = models.UUIDField()
-
-    # Position (timestamp) of item in sequence.
-    position = models.DecimalField(max_digits=24, decimal_places=6)
-
-    # Topic of the item (e.g. path to domain event class).
-    topic = models.TextField()
-
-    # State of the item (serialized dict, possibly encrypted).
-    state = models.BinaryField()
+    sequence_id = models.UUIDField(
+        help_text=_("Sequence ID (e.g. an entity or aggregate ID).")
+    )
+    position = models.DecimalField(
+        db_index=True,
+        max_digits=24,
+        decimal_places=6,
+        help_text=_("Position (timestamp) of item in sequence."),
+    )
+    topic = models.TextField(
+        help_text=_("Topic of the item (e.g. path to domain event class).")
+    )
+    state = models.BinaryField(
+        help_text=_("State of the item (serialized dict, possibly encrypted).")
+    )
 
     class Meta:
+        abstract = True
         unique_together = (("sequence_id", "position"),)
-        db_table = "timestamp_sequenced_items"
-        indexes = [models.Index(fields=["position"], name="position_idx")]
 
 
-class SnapshotRecord(models.Model):
-
+class AbstractSnapshotRecord(models.Model):
     uid = models.BigAutoField(primary_key=True)
 
-    # Sequence ID (e.g. an entity or aggregate ID).
-    sequence_id = models.UUIDField()
-
-    # Position (index) of item in sequence.
-    position = models.BigIntegerField()
-
-    # Topic of the item (e.g. path to domain event class).
-    topic = models.TextField()
-
-    # State of the item (serialized dict, possibly encrypted).
-    state = models.BinaryField()
+    sequence_id = models.UUIDField(
+        help_text=_("Sequence ID (e.g. an entity or aggregate ID).")
+    )
+    position = models.BigIntegerField(
+        help_text=_("Position (index) of item in sequence.")
+    )
+    topic = models.TextField(
+        help_text=_("Topic of the item (e.g. path to domain event class).")
+    )
+    state = models.BinaryField(
+        help_text=_("State of the item (serialized dict, possibly encrypted).")
+    )
 
     class Meta:
+        abstract = True
         unique_together = (("sequence_id", "position"),)
-        db_table = "snapshots"
 
 
-class EntitySnapshotRecord(models.Model):
-
+class AbstractEntitySnapshotRecord(models.Model):
     uid = models.BigAutoField(primary_key=True)
 
-    # Application name.
-    application_name = models.CharField(max_length=32)
-
-    # Originator ID (e.g. an entity or aggregate ID).
-    originator_id = models.UUIDField()
-
-    # Originator version of item in sequence.
-    originator_version = models.BigIntegerField()
-
-    # Topic of the item (e.g. path to domain event class).
-    topic = models.TextField()
-
-    # State of the item (serialized dict, possibly encrypted).
-    state = models.BinaryField()
+    application_name = models.CharField(max_length=32, help_text=_("Application name."))
+    originator_id = models.UUIDField(
+        help_text=_("Originator ID (e.g. an entity or aggregate ID).")
+    )
+    originator_version = models.BigIntegerField(
+        help_text=_("Originator version of item in sequence.")
+    )
+    topic = models.TextField(
+        help_text=_("Topic of the item (e.g. path to domain event class).")
+    )
+    state = models.BinaryField(
+        help_text=_("State of the item (serialized dict, possibly encrypted).")
+    )
 
     class Meta:
+        abstract = True
         unique_together = (("application_name", "originator_id", "originator_version"),)
-        db_table = "entity_snapshots"
 
 
-class StoredEventRecord(models.Model):
-
+class AbstractStoredEventRecord(models.Model):
     uid = models.BigAutoField(primary_key=True)
 
-    # Application name.
-    application_name = models.CharField(max_length=32)
-
-    # Originator ID (e.g. an entity or aggregate ID).
-    originator_id = models.UUIDField()
-
-    # Originator version of item in sequence.
-    originator_version = models.BigIntegerField()
-
-    # Pipeline ID.
-    pipeline_id = models.IntegerField()
-
-    # Notification ID.
-    notification_id = models.BigIntegerField()
-
-    # Topic of the item (e.g. path to domain event class).
-    topic = models.TextField()
-
-    # State of the item (serialized dict, possibly encrypted).
-    state = models.BinaryField()
-
-    # Causal dependencies.
-    causal_dependencies = models.TextField()
+    application_name = models.CharField(max_length=32, help_text=_("Application name."))
+    originator_id = models.UUIDField(
+        help_text=_("Originator ID (e.g. an entity or aggregate ID).")
+    )
+    originator_version = models.BigIntegerField(
+        help_text=_("Originator version of item in sequence.")
+    )
+    pipeline_id = models.IntegerField(help_text=_("Pipeline ID."))
+    notification_id = models.BigIntegerField(help_text=_("Notification ID."))
+    topic = models.TextField(
+        help_text=_("Topic of the item (e.g. path to domain event class).")
+    )
+    state = models.BinaryField(
+        help_text=_("State of the item (serialized dict, possibly encrypted).")
+    )
+    causal_dependencies = models.TextField(help_text=_("Causal dependencies."))
 
     class Meta:
+        abstract = True
         unique_together = (
             ("application_name", "originator_id", "originator_version"),
             ("application_name", "pipeline_id", "notification_id"),
         )
-        db_table = "stored_events"
 
 
-class NotificationTrackingRecord(models.Model):
+class AbstractNotificationTrackingRecord(models.Model):
+    uid = models.BigAutoField(
+        primary_key=True, help_text=_("Position (timestamp) of item in sequence.")
+    )
 
-    uid = models.BigAutoField(primary_key=True)
-
-    # Application name.
-    application_name = models.CharField(max_length=32)
-
-    # Upstream application name.
-    upstream_application_name = models.CharField(max_length=32)
-
-    # Pipeline ID.
-    pipeline_id = models.IntegerField()
-
-    # Notification ID.
-    notification_id = models.BigIntegerField()
+    application_name = models.CharField(max_length=32, help_text=_("Application name."))
+    upstream_application_name = models.CharField(
+        max_length=32, help_text=_("Upstream application name.")
+    )
+    pipeline_id = models.IntegerField(help_text=_("Pipeline ID."))
+    notification_id = models.BigIntegerField(help_text=_("Notification ID."))
 
     class Meta:
+        abstract = True
         unique_together = (
             (
                 "application_name",
@@ -150,4 +150,13 @@ class NotificationTrackingRecord(models.Model):
                 "notification_id",
             ),
         )
-        db_table = "notification_tracking"
+
+
+ABSTRACT_MODELS = (
+    AbstractEntitySnapshotRecord,
+    AbstractIntegerSequencedRecord,
+    AbstractNotificationTrackingRecord,
+    AbstractSnapshotRecord,
+    AbstractStoredEventRecord,
+    AbstractTimestampSequencedRecord,
+)

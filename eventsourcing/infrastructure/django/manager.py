@@ -2,6 +2,7 @@ from typing import Any, Dict, Iterable, Optional, Sequence
 from uuid import UUID
 
 from django.db import IntegrityError, ProgrammingError, connection, transaction
+from django.db.models import Q
 
 from eventsourcing.infrastructure.base import SQLRecordManager, TrackingKwargs
 
@@ -133,28 +134,23 @@ class DjangoRecordManager(SQLRecordManager):
         else:
             objects = objects.order_by("-" + position_field_name)
 
+        q = Q()
         if gt is not None:
-            arg = "{}__gt".format(position_field_name)
-            objects = objects.filter(**{arg: gt})
+            q &= Q(**{f"{position_field_name}__gt": gt})
         if gte is not None:
-            arg = "{}__gte".format(position_field_name)
-            objects = objects.filter(**{arg: gte})
+            q &= Q(**{f"{position_field_name}__gte": gte})
         if lt is not None:
-            arg = "{}__lt".format(position_field_name)
-            objects = objects.filter(**{arg: lt})
+            q &= Q(**{f"{position_field_name}__lt": lt})
         if lte is not None:
-            arg = "{}__lte".format(position_field_name)
-            objects = objects.filter(**{arg: lte})
+            q &= Q(**{f"{position_field_name}__lte": lte})
 
         if limit is not None:
             objects = objects[:limit]
 
-        records = objects.all()
+        records = objects.filter(q)
 
         if results_ascending != query_ascending:
-            # This code path is under test, but not otherwise used ATM.
-            records = list(records)
-            records.reverse()
+            records = records.reverse()
 
         for record in records:
             # Django returns memoryview objects from PostgreSQL, so need to cast.
@@ -168,7 +164,7 @@ class DjangoRecordManager(SQLRecordManager):
         start: Optional[int] = None,
         stop: Optional[int] = None,
         *args: Any,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Iterable:
         """
         Returns all records in the table.
@@ -180,14 +176,15 @@ class DjangoRecordManager(SQLRecordManager):
             filter_kwargs["%s__gte" % self.notification_id_name] = start + 1
         if stop is not None:
             filter_kwargs["%s__lt" % self.notification_id_name] = stop + 1
-        objects = self.record_class.objects.filter(**filter_kwargs)  # type: ignore
-
         if hasattr(self.record_class, "application_name"):
-            objects = objects.filter(application_name=self.application_name)
+            filter_kwargs["application_name"] = self.application_name
         if hasattr(self.record_class, "pipeline_id"):
-            objects = objects.filter(pipeline_id=self.pipeline_id)
+            filter_kwargs["pipeline_id"] = self.pipeline_id
 
-        objects = objects.order_by("%s" % self.notification_id_name)
+        objects = self.record_class.objects.filter(  # type: ignore
+            **filter_kwargs
+        ).order_by(self.notification_id_name)
+
         for record in objects.all():
             # Django returns memoryview objects from PostgreSQL, so need to cast.
             state = getattr(record, self.field_names.state)
@@ -202,55 +199,64 @@ class DjangoRecordManager(SQLRecordManager):
 
     def get_max_notification_id(self) -> int:
         assert self.notification_id_name
+
+        filter_kwargs = {}
+        if hasattr(self.record_class, "application_name"):
+            filter_kwargs["application_name"] = self.application_name
+        if hasattr(self.record_class, "pipeline_id"):
+            filter_kwargs["pipeline_id"] = self.pipeline_id
+
         try:
-            objects = self.record_class.objects  # type: ignore
-            if hasattr(self.record_class, "application_name"):
-                objects = objects.filter(application_name=self.application_name)
-            if hasattr(self.record_class, "pipeline_id"):
-                objects = objects.filter(pipeline_id=self.pipeline_id)
-            latest = objects.latest(self.notification_id_name)
-            return getattr(latest, self.notification_id_name)
-        except (self.record_class.DoesNotExist, ProgrammingError):  # type: ignore
+            latest = (
+                self.record_class.objects.filter(**filter_kwargs)  # type: ignore
+                .order_by(self.notification_id_name)
+                .values_list(self.notification_id_name, flat=True)
+                .last()
+            )
+
+            return latest or 0
+        except ProgrammingError:
             return 0
 
     def get_max_tracking_record_id(self, upstream_application_name: str) -> int:
-        notification_id = 0
         assert self.tracking_record_class is not None
-        try:
-            objects = self.tracking_record_class.objects  # type: ignore
-            objects = objects.filter(application_name=self.application_name)
-            objects = objects.filter(
-                upstream_application_name=upstream_application_name
+
+        notification_id = (
+            self.tracking_record_class.objects.filter(  # type: ignore
+                application_name=self.application_name,
+                upstream_application_name=upstream_application_name,
+                pipeline_id=self.pipeline_id,
             )
-            objects = objects.filter(pipeline_id=self.pipeline_id)
-            notification_id = objects.latest("notification_id").notification_id
-        except self.tracking_record_class.DoesNotExist:  # type: ignore
-            pass
-        return notification_id
+            .order_by("notification_id")
+            .values_list("notification_id", flat=True)
+            .last()
+        )
+
+        return notification_id or 0
 
     def has_tracking_record(
         self, upstream_application_name: str, pipeline_id: int, notification_id: int
     ) -> bool:
-        objects = self.tracking_record_class.objects  # type: ignore
-        objects = objects.filter(application_name=self.application_name)
-        objects = objects.filter(upstream_application_name=upstream_application_name)
-        objects = objects.filter(pipeline_id=pipeline_id)
-        objects = objects.filter(notification_id=notification_id)
-        return bool(objects.count())
+        return self.tracking_record_class.objects.filter(  # type: ignore
+            application_name=self.application_name,
+            upstream_application_name=upstream_application_name,
+            pipeline_id=pipeline_id,
+            notification_id=notification_id,
+        ).exists()
 
     def all_sequence_ids(self) -> Iterable[UUID]:
-        sequence_id_fieldname = self.field_names.sequence_id
-        values_queryset = self.record_class.objects.values(  # type: ignore
-            sequence_id_fieldname
+        yield from self.record_class.objects.values(  # type: ignore
+            self.field_names.sequence_id, flat=True
         ).distinct()
-        for values in values_queryset:
-            yield values[sequence_id_fieldname]
 
     def get_field_kwargs(self, item: object) -> Dict[str, Any]:
         kwargs = super().get_field_kwargs(item)
-        state_fieldname = self.field_names.state
-        state = kwargs[state_fieldname]
+
+        state_field_name = self.field_names.state
+        state = kwargs[state_field_name]
+
         if isinstance(state, memoryview):
             state = bytes(state)
-            kwargs[state_fieldname] = state
+            kwargs[state_field_name] = state
+
         return kwargs
