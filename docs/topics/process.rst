@@ -828,7 +828,7 @@ process application follow itself in a system.
 .. code:: python
 
     class ReflexiveApplication(ProcessApplication):
-        apply_policy_to_generated_events = False
+        apply_policy_to_generated_events = True
 
 
 This will have no effect unless the policy is written to respond to the types
