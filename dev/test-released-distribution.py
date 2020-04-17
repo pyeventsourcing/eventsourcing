@@ -2,7 +2,6 @@
 import os
 import subprocess
 
-
 if "PYTHONPATH" in os.environ:
     del os.environ["PYTHONPATH"]
 

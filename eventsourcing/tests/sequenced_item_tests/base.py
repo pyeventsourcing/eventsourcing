@@ -205,7 +205,9 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
 
         # Get items less then or equal to a position.
         if self.record_manager.can_lt_lte_get_records:
-            retrieved_items = self.record_manager.list_items(sequence_id1, lte=position2)
+            retrieved_items = self.record_manager.list_items(
+                sequence_id1, lte=position2
+            )
             self.assertEqual(len(retrieved_items), 2)
             self.assertEqual(retrieved_items[0].state, item1.state)
             self.assertEqual(retrieved_items[1].state, item4.state)
@@ -319,8 +321,9 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
                 )
 
             # Resume from after the first event.
-            retrieved_items = self.record_manager.get_notification_records(start=1 + len_old,
-                                                                           stop=3 + len_old)
+            retrieved_items = self.record_manager.get_notification_records(
+                start=1 + len_old, stop=3 + len_old
+            )
             retrieved_items = list(retrieved_items)
             self.assertEqual(len(retrieved_items), 2)
             self.assertEqual(retrieved_items[0].id, 2 + len_old)

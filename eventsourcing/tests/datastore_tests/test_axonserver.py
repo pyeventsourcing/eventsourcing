@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from axonclient.client import AxonClient, AxonEvent, DEFAULT_LOCAL_AXONSERVER_URI
+from axonclient.client import DEFAULT_LOCAL_AXONSERVER_URI, AxonClient, AxonEvent
 
 from eventsourcing.infrastructure.axonserver.datastore import (
     AxonDatastore,

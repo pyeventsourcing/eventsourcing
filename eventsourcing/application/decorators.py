@@ -1,4 +1,4 @@
-from functools import singledispatch, wraps, _find_impl
+from functools import _find_impl, singledispatch, wraps
 from inspect import isfunction
 from typing import Callable, no_type_check
 
@@ -37,7 +37,6 @@ def applicationpolicy2(arg: Callable) -> Callable:
     cache = {}
 
     def _mutator(func):
-
         def dispatch(event_type):
             try:
                 return cache[event_type]
@@ -55,6 +54,7 @@ def applicationpolicy2(arg: Callable) -> Callable:
             def registered_function_decorator(func):
                 handlers[event_type] = func
                 return func
+
             return registered_function_decorator
 
         policy_function_wrapper.register = register

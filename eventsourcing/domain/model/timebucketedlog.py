@@ -1,6 +1,6 @@
 import datetime
 from decimal import Decimal
-from typing import Optional, Any, Union
+from typing import Any, Optional, Union
 from uuid import UUID, uuid5
 
 from dateutil.relativedelta import relativedelta
@@ -12,8 +12,8 @@ from eventsourcing.domain.model.events import (
     LoggedEvent,
     publish,
 )
-from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.domain.model.repository import AbstractEntityRepository
+from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.utils.times import (
     datetime_from_timestamp,
     decimaltimestamp,

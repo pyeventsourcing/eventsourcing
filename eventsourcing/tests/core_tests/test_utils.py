@@ -1,17 +1,16 @@
 import os
+import sys
 from datetime import datetime, timedelta
 from decimal import Decimal
 from time import sleep
 from unittest.case import TestCase
 from uuid import uuid1
 
-import sys
-
-from eventsourcing.utils.random import encoded_random_bytes, decode_bytes
+from eventsourcing.utils.random import decode_bytes, encoded_random_bytes
 from eventsourcing.utils.times import (
+    decimaltimestamp,
     decimaltimestamp_from_uuid,
     utc_timezone,
-    decimaltimestamp,
 )
 
 

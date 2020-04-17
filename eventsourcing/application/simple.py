@@ -30,10 +30,10 @@ from eventsourcing.domain.model.entity import (
 from eventsourcing.domain.model.events import DomainEvent, publish
 from eventsourcing.exceptions import ProgrammingError, PromptFailed
 from eventsourcing.infrastructure.base import (
+    DEFAULT_PIPELINE_ID,
     AbstractEventStore,
     AbstractRecordManager,
     BaseRecordManager,
-    DEFAULT_PIPELINE_ID,
     RecordManagerWithTracking,
     TrackingKwargs,
 )
@@ -497,8 +497,10 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
                         )
             else:
                 if any((not e.__notifiable__ for e in pending_events)):
-                    raise Exception("Can't set __notifiable__=False withut "
-                                    "set_notification_ids=True ")
+                    raise Exception(
+                        "Can't set __notifiable__=False withut "
+                        "set_notification_ids=True "
+                    )
 
             if self.use_causal_dependencies:
                 assert hasattr(record_manager.record_class, "causal_dependencies")

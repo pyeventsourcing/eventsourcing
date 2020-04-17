@@ -1,5 +1,4 @@
 import weakref
-from _weakref import ReferenceType
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from copy import deepcopy
@@ -9,6 +8,8 @@ from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.process import ProcessApplication
 from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
 from eventsourcing.exceptions import EventSourcingError, ProgrammingError
+
+from _weakref import ReferenceType
 
 TProcessApplication = TypeVar("TProcessApplication", bound=ProcessApplication)
 TSystemRunner = TypeVar("TSystemRunner", bound="AbstractSystemRunner")

@@ -1,4 +1,5 @@
 import os
+
 from cassandra import InvalidRequest
 from cassandra.cqlengine.functions import Token
 from cassandra.cqlengine.query import BatchQuery, LWTException

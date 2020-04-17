@@ -11,16 +11,16 @@ from types import FunctionType, MethodType
 from typing import Optional
 from uuid import UUID
 
+import dateutil.parser
+
 from eventsourcing.exceptions import EncoderTypeError
+from eventsourcing.utils.topic import get_topic, resolve_topic
 
 try:
     import orjson
 except ImportError:
     orjson: Optional[Module] = None  # type: ignore
 
-import dateutil.parser
-
-from eventsourcing.utils.topic import get_topic, resolve_topic
 
 JSON_SEPARATORS = (",", ":")
 

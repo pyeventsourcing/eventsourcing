@@ -33,7 +33,7 @@ class AxonRecordManager(RecordManagerWithNotifications):
         super(AxonRecordManager, self).__init__(*args, **kwargs)
         self.axon_client = axon_client
         self.contiguous_record_ids = True
-        self.notification_id_name = 'id'
+        self.notification_id_name = "id"
 
     def all_sequence_ids(self):
         return []
@@ -55,8 +55,7 @@ class AxonRecordManager(RecordManagerWithNotifications):
         stop = stop or INT32_MAX
         number_of_permits = min(stop - start, INT32_MAX)
         events = self.axon_client.iter_events(
-            tracking_token=start,
-            number_of_permits=number_of_permits
+            tracking_token=start, number_of_permits=number_of_permits
         )
         for tracking_token, event in events:
             yield AxonNotification(tracking_token, axon_event=event)
@@ -120,18 +119,18 @@ class AxonRecordManager(RecordManagerWithNotifications):
         aggregate_sequence_number = getattr(item, self.field_names.position)
         payload_type = getattr(item, self.field_names.topic)
         payload_data = getattr(item, self.field_names.state)
-        is_snapshot = payload_type.endswith('#Snapshot')
+        is_snapshot = payload_type.endswith("#Snapshot")
         return AxonEvent(
             message_identifier=message_identifier,
             aggregate_identifier=sequence_id,
             aggregate_sequence_number=aggregate_sequence_number,
-            aggregate_type='AggregateRoot',
+            aggregate_type="AggregateRoot",
             timestamp=0,
             payload_type=payload_type,
-            payload_revision='1',
+            payload_revision="1",
             payload_data=payload_data,
             snapshot=is_snapshot,
-            meta_data={}
+            meta_data={},
         )
 
     def write_records(self, records):

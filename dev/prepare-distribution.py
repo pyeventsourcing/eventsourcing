@@ -5,6 +5,8 @@ import sys
 from subprocess import CalledProcessError
 from time import sleep
 
+from eventsourcing import __version__
+
 try:
     del os.environ["PYTHONPATH"]
 except KeyError:
@@ -12,7 +14,6 @@ except KeyError:
 
 os.environ["CASS_DRIVER_NO_CYTHON"] = "1"
 sys.path.insert(0, "../")
-from eventsourcing import __version__
 
 
 def build_and_test(cwd):

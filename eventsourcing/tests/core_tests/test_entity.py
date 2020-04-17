@@ -7,11 +7,7 @@ from eventsourcing.domain.model.entity import (
     TimestampedVersionedEntity,
     VersionedEntity,
 )
-from eventsourcing.domain.model.events import (
-    publish,
-    subscribe,
-    unsubscribe,
-)
+from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
 from eventsourcing.example.domainmodel import Example, create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.exceptions import (
@@ -215,10 +211,7 @@ class TestExampleEntity(SQLAlchemyRecordManagerTestCase, WithEventPersistence):
         def receive(x):
             published_events.extend(x)
 
-        subscription = (
-            lambda x: True,
-            receive
-        )
+        subscription = (lambda x: True, receive)
         subscribe(*subscription)
         entity_id = uuid4()
         try:

@@ -6,14 +6,13 @@ from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord, Base
-from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
 from eventsourcing.infrastructure.sqlalchemy.datastore import (
     SQLAlchemyDatastore,
     SQLAlchemySettings,
 )
+from eventsourcing.infrastructure.sqlalchemy.manager import SQLAlchemyRecordManager
+from eventsourcing.infrastructure.sqlalchemy.records import Base, StoredEventRecord
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
-
 
 # This test replaces the default SequencedItem class with a StoredEvent class.
 # How easy is it to customize the infrastructure to support that? We just need
@@ -76,7 +75,9 @@ class TestExampleWithAlternativeSequencedItemType(AbstractDatastoreTestCase):
             self.assertEqual(entity1.b, "b")
 
             # Check there is a stored event.
-            all_records = list(app.event_store.record_manager.get_notification_records())
+            all_records = list(
+                app.event_store.record_manager.get_notification_records()
+            )
             self.assertEqual(1, len(all_records))
             stored_event = all_records[0]
             self.assertEqual(stored_event.originator_id, entity1.id)

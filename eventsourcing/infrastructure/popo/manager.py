@@ -326,6 +326,7 @@ class PopoStoredEventRecord(object):
 
     Allows other attributes to be set, such as notification ID.
     """
+
     def __init__(self, sequenced_item: NamedTuple):
         self.sequenced_item = sequenced_item
 

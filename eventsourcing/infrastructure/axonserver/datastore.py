@@ -1,7 +1,7 @@
 import os
-from typing import Optional, Any
+from typing import Any, Optional
 
-from axonclient.client import AxonClient, DEFAULT_LOCAL_AXONSERVER_URI
+from axonclient.client import DEFAULT_LOCAL_AXONSERVER_URI, AxonClient
 
 from eventsourcing.infrastructure.datastore import AbstractDatastore, DatastoreSettings
 

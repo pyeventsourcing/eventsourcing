@@ -94,18 +94,19 @@ DATABASES = {
         "HOST": os.getenv("POSTGRES_HOST", "127.0.0.1"),
         "NAME": "eventsourcing",
         "USER": os.getenv("POSTGRES_USER", "eventsourcing"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD", ""),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "eventsourcing"),
     }
 }
 
 # Password validation
 # https://docs.djangoproject.com/en/2.0/ref/settings/#auth-password-validators
 
+AUTH_PASSWORD_VALIDATORS_PACKAGE = "django.contrib.auth.password_validation"
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
-    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
-    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+    {"NAME": f"{AUTH_PASSWORD_VALIDATORS_PACKAGE}.UserAttributeSimilarityValidator"},
+    {"NAME": f"{AUTH_PASSWORD_VALIDATORS_PACKAGE}.MinimumLengthValidator"},
+    {"NAME": f"{AUTH_PASSWORD_VALIDATORS_PACKAGE}.CommonPasswordValidator"},
+    {"NAME": f"{AUTH_PASSWORD_VALIDATORS_PACKAGE}.NumericPasswordValidator"},
 ]
 
 

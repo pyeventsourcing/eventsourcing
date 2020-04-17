@@ -1,9 +1,10 @@
 from abc import abstractmethod
-from typing import Type, Optional
+from typing import Optional, Type
 
 from eventsourcing.infrastructure.datastore import (
+    AbstractDatastore,
     DatastoreTableError,
-    AbstractDatastore)
+)
 from eventsourcing.infrastructure.factory import InfrastructureFactory
 from eventsourcing.tests.base import AbstractTestCase
 

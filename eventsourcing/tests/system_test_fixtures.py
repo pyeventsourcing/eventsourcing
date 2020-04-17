@@ -1,6 +1,6 @@
 import logging
 import os
-from uuid import uuid5, NAMESPACE_OID
+from uuid import NAMESPACE_OID, uuid5
 
 from eventsourcing.application.process import ProcessApplication, WrappedRepository
 from eventsourcing.domain.model.aggregate import BaseAggregateRoot
@@ -42,7 +42,7 @@ class Order(BaseAggregateRoot):
 
         @property
         def reservation_id(self):
-            return self.__dict__['reservation_id']
+            return self.__dict__["reservation_id"]
 
     def set_is_paid(self, payment_id):
         self.__trigger_event__(self.Paid, payment_id=payment_id)
@@ -55,7 +55,7 @@ class Order(BaseAggregateRoot):
 
         @property
         def payment_id(self):
-            return self.__dict__['payment_id']
+            return self.__dict__["payment_id"]
 
 
 class Reservation(BaseAggregateRoot):
@@ -139,7 +139,7 @@ class Orders(ProcessApplication[Order, Order.Event]):
         order = self.get_order(order_id)
         return order is not None and order.is_paid
 
-    def get_order(self, order_id, repository: WrappedRepository=None):
+    def get_order(self, order_id, repository: WrappedRepository = None):
         try:
             return (repository or self.repository)[order_id]
         except KeyError:

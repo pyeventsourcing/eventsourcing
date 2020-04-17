@@ -3,11 +3,7 @@ from copy import deepcopy
 from typing import Any, Dict, Optional, Sequence, Set, Union
 from uuid import UUID
 
-from eventsourcing.application.process import (
-    ProcessApplication,
-    WrappedRepository,
-)
-from eventsourcing.system.definition import System
+from eventsourcing.application.process import ProcessApplication, WrappedRepository
 from eventsourcing.contrib.paxos.composable import (
     PaxosInstance,
     PaxosMessage,
@@ -21,6 +17,7 @@ from eventsourcing.exceptions import (
     RecordConflictError,
     RepositoryKeyError,
 )
+from eventsourcing.system.definition import System
 
 
 class PaxosAggregate(BaseAggregateRoot):

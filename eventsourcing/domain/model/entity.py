@@ -194,7 +194,9 @@ class DomainEntity(Upcastable, EnduringObject, metaclass=MetaDomainEntity):
         """
         return self._id
 
-    def __change_attribute__(self: TDomainEntity, name: str, value: Any, **kwargs) -> None:
+    def __change_attribute__(
+        self: TDomainEntity, name: str, value: Any, **kwargs
+    ) -> None:
         """
         Changes named attribute with the given value,
         by triggering an AttributeChanged event.
@@ -203,7 +205,9 @@ class DomainEntity(Upcastable, EnduringObject, metaclass=MetaDomainEntity):
             "DomainEntity.AttributeChanged[TDomainEntity]"
         ] = self.AttributeChanged
         assert isinstance(self, DomainEntity)  # For PyCharm navigation.
-        self.__trigger_event__(event_class=event_class, name=name, value=value, **kwargs)
+        self.__trigger_event__(
+            event_class=event_class, name=name, value=value, **kwargs
+        )
 
     class AttributeChanged(Event[TDomainEntity], AttributeChangedEvent[TDomainEntity]):
         """
@@ -510,10 +514,11 @@ class EntityWithECC(DomainEntity):
     """
     Entity whose events have event ID, correlation ID, and causation ID.
     """
+
     class Event(DomainEntity.Event):
         def __init__(self, *, processed_event=None, application_name, **kwargs):
 
-            event_id = kwargs.get('event_id') or "{}:{}:{}".format(
+            event_id = kwargs.get("event_id") or "{}:{}:{}".format(
                 application_name, kwargs["originator_id"], kwargs["originator_version"]
             )
             kwargs["event_id"] = event_id

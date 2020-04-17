@@ -4,14 +4,12 @@ from typing import Dict
 from thespian.actors import Actor, ActorExitRequest, ActorSystem
 
 from eventsourcing.application.notificationlog import RecordManagerNotificationLog
-from eventsourcing.application.process import (
-    ProcessApplication,
-)
-from eventsourcing.application.simple import is_prompt_to_pull, PromptToPull
-from eventsourcing.system.definition import System, AbstractSystemRunner
+from eventsourcing.application.process import ProcessApplication
+from eventsourcing.application.simple import PromptToPull, is_prompt_to_pull
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import RecordConflictError
 from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
+from eventsourcing.system.definition import AbstractSystemRunner, System
 
 logger = logging.getLogger()
 

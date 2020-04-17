@@ -2,16 +2,13 @@ from typing import Generic, Optional, Tuple, Union
 
 from eventsourcing.domain.model.entity import VersionedEntity
 from eventsourcing.domain.model.events import (
+    AbstractSnapshot,
     EventWithOriginatorVersion,
     subscribe,
     unsubscribe,
-    AbstractSnapshot,
-)
-from eventsourcing.infrastructure.base import (
-    AbstractEventStore,
-    AbstractRecordManager,
 )
 from eventsourcing.domain.model.repository import AbstractEntityRepository
+from eventsourcing.infrastructure.base import AbstractEventStore, AbstractRecordManager
 from eventsourcing.whitehead import IterableOfEvents, TEvent
 
 

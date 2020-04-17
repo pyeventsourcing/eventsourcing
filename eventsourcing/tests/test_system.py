@@ -3,16 +3,15 @@ from time import sleep, time
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.system.multiprocess import MultiprocessRunner
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
-from eventsourcing.system.runner import MultiThreadedRunner
-from eventsourcing.system.definition import System
 from eventsourcing.domain.model.events import (
     assert_event_handlers_empty,
     clear_event_handlers,
 )
-from eventsourcing.exceptions import RepositoryKeyError, ProgrammingError
-from eventsourcing.tests.test_process import ExampleAggregate
+from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError
+from eventsourcing.system.definition import System
+from eventsourcing.system.multiprocess import MultiprocessRunner
+from eventsourcing.system.runner import MultiThreadedRunner
 from eventsourcing.tests.system_test_fixtures import (
     Examples,
     Order,
@@ -24,6 +23,7 @@ from eventsourcing.tests.system_test_fixtures import (
     create_new_order,
     set_db_uri,
 )
+from eventsourcing.tests.test_process import ExampleAggregate
 
 
 class TestSystem(TestCase):
@@ -76,9 +76,7 @@ class TestSystem(TestCase):
 
     def test_singlethreaded_runner_with_single_application_class(self):
         system = System(
-            Orders,
-            setup_tables=True,
-            infrastructure_class=self.infrastructure_class,
+            Orders, setup_tables=True, infrastructure_class=self.infrastructure_class,
         )
         with system as runner:
             orders = runner.get(Orders)
@@ -88,9 +86,7 @@ class TestSystem(TestCase):
 
     def test_can_run_if_already_running(self):
         system = System(
-            Orders,
-            setup_tables=True,
-            infrastructure_class=self.infrastructure_class,
+            Orders, setup_tables=True, infrastructure_class=self.infrastructure_class,
         )
         with system:
             with self.assertRaises(ProgrammingError):
@@ -104,9 +100,7 @@ class TestSystem(TestCase):
 
     def test_multithreaded_runner_with_single_application_class(self):
         system = System(
-            Orders,
-            setup_tables=True,
-            infrastructure_class=self.infrastructure_class,
+            Orders, setup_tables=True, infrastructure_class=self.infrastructure_class,
         )
         with MultiThreadedRunner(system) as runner:
             app = runner.get(Orders)
@@ -116,9 +110,7 @@ class TestSystem(TestCase):
 
     def test_multiprocess_runner_with_single_application_class(self):
         system = System(
-            Orders,
-            setup_tables=True,
-            infrastructure_class=self.infrastructure_class,
+            Orders, setup_tables=True, infrastructure_class=self.infrastructure_class,
         )
 
         self.set_db_uri()
@@ -164,11 +156,13 @@ class TestSystem(TestCase):
             patience = 10
             while True:
                 try:
-                    self.assertEqual(reservations_repo[reservation_id].order_id, order_id)
+                    self.assertEqual(
+                        reservations_repo[reservation_id].order_id, order_id
+                    )
                 except (RepositoryKeyError, AssertionError):
                     if patience:
                         patience -= 1
-                        sleep(.1)
+                        sleep(0.1)
                     else:
                         raise
                 else:

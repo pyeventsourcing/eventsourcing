@@ -1,4 +1,3 @@
-from eventsourcing.utils.cipher.aes import AESCipher
 from eventsourcing.tests.example_application_tests import base
 from eventsourcing.tests.example_application_tests.test_example_application_with_cassandra import (
     TestExampleApplicationWithCassandra,
@@ -6,6 +5,7 @@ from eventsourcing.tests.example_application_tests.test_example_application_with
 from eventsourcing.tests.example_application_tests.test_example_application_with_sqlalchemy import (
     TestExampleApplicationWithSQLAlchemy,
 )
+from eventsourcing.utils.cipher.aes import AESCipher
 
 
 class WithEncryption(base.WithExampleApplication):

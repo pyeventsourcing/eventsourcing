@@ -4,17 +4,16 @@ from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.example.domainmodel import create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
-from eventsourcing.infrastructure.cassandra.records import StoredEventRecord
-from eventsourcing.infrastructure.cassandra.manager import CassandraRecordManager
 from eventsourcing.infrastructure.cassandra.datastore import (
     CassandraDatastore,
     CassandraSettings,
 )
+from eventsourcing.infrastructure.cassandra.manager import CassandraRecordManager
+from eventsourcing.infrastructure.cassandra.records import StoredEventRecord
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
-
 
 # In this test the default SequencedItem class is replaced with a "stored event" class.
 # How easy is it to customize the infrastructure to support that? We just need

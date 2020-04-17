@@ -3,12 +3,9 @@ from copy import deepcopy
 from typing import Optional
 from uuid import UUID
 
-from eventsourcing.domain.model.snapshot import Snapshot
-from eventsourcing.infrastructure.base import (
-    AbstractEventStore,
-    AbstractRecordManager,
-)
 from eventsourcing.domain.model.events import AbstractSnapshot
+from eventsourcing.domain.model.snapshot import Snapshot
+from eventsourcing.infrastructure.base import AbstractEventStore, AbstractRecordManager
 from eventsourcing.utils.topic import get_topic
 
 

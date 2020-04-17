@@ -1,6 +1,5 @@
-from abc import ABC
-
 import zlib
+from abc import ABC
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.entity import VersionedEntity
@@ -12,7 +11,6 @@ from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
 from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
-
 
 # Please note, the code is this module is basically old-fashioned, and will
 # be removed when the tests that depend on it are rewritten to use the new
@@ -83,7 +81,7 @@ class ApplicationWithEventStores(ABC):
             event_sequence_id_attr=event_sequence_id_attr,
             event_position_attr=event_position_attr,
             cipher=cipher,
-            compressor=zlib if cipher else None
+            compressor=zlib if cipher else None,
         )
         event_store = EventStore(
             record_manager=record_manager, event_mapper=sequenced_item_mapper
@@ -108,7 +106,7 @@ class ApplicationWithEventStores(ABC):
             json_encoder_class=json_encoder_class,
             json_decoder_class=json_decoder_class,
             cipher=cipher,
-            compressor=compressor
+            compressor=compressor,
         )
 
     def close(self):

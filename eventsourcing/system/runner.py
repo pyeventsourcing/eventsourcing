@@ -5,6 +5,7 @@ from queue import Empty, Queue
 from threading import Barrier, BrokenBarrierError, Event, Lock, Thread, Timer
 from time import sleep
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Deque,
@@ -12,17 +13,13 @@ from typing import (
     Generic,
     List,
     Optional,
-    TYPE_CHECKING,
     Type,
     Union,
     no_type_check,
 )
 
 from eventsourcing.application.notificationlog import NotificationLogReader
-from eventsourcing.application.process import (
-    ProcessApplication,
-    PromptToQuit,
-)
+from eventsourcing.application.process import ProcessApplication, PromptToQuit
 from eventsourcing.application.simple import (
     ApplicationWithConcreteInfrastructure,
     Prompt,
