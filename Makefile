@@ -68,7 +68,7 @@ fmt-black:
 	@black .
 
 .PHONY: fmt
-fmt: fmt-isort fmt-black
+fmt: fmt-black fmt-isort
 
 
 .PHONY: test
