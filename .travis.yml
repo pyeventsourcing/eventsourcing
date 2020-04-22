@@ -20,9 +20,9 @@ before_install:
   - sudo apt-get -qq update
   - sudo apt-get install -y openjdk-8-jdk
   - sudo apt-get install -y icedtea-8-plugin
-#  - sudo update-java-alternatives --set /usr/lib/jvm/java-1.8.0-openjdk-amd64
+  #  - sudo update-java-alternatives --set /usr/lib/jvm/java-1.8.0-openjdk-amd64
   - sudo update-java-alternatives -v --set java-1.8.0-openjdk-amd64
-#  - source /etc/environment
+  #  - source /etc/environment
   - export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64
   - java -version
 
@@ -68,16 +68,16 @@ env:
     - POSTGRES_USER=postgres
 
 script:
-- if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then
+  - if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then
       coverage run --concurrency=multiprocessing -m unittest discover eventsourcing.tests -v;
-  fi
+    fi
 
-- if [[ $TRAVIS_PYTHON_VERSION == pypy* ]]; then
+  - if [[ $TRAVIS_PYTHON_VERSION == pypy* ]]; then
       python -m unittest discover eventsourcing.tests -v;
-  fi
+    fi
 
 after_success:
-- if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then
+  - if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then
       coverage combine;
       coveralls;
-  fi
+    fi
