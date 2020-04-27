@@ -5,45 +5,45 @@
 # first time the containers are run, so connections might not work immediately.
 version: '2'
 services:
-    eventsourcing_requirements:
-        build:
-            context: ..
-            dockerfile: ./dev/Dockerfile_eventsourcing_requirements
-        image: "eventsourcing_requirements:latest"
-        volumes:
-            - .:/app
-        links:
-            - service_cassandra
-            - service_mysql
-            - service_postgres
-            - service_redis
-        environment:
-            CASSANDRA_HOSTS: service_cassandra
-            MYSQL_HOST: service_mysql
-            MYSQL_USER: eventsourcing
-            MYSQL_PASSWORD: eventsourcing
-            POSTGRES_HOST: service_postgres
-            POSTGRES_USER: eventsourcing
-            POSTGRES_PASSWORD: eventsourcing
-            REDIS_HOST: service_redis
+  eventsourcing_requirements:
+    build:
+      context: ..
+      dockerfile: ./dev/Dockerfile_eventsourcing_requirements
+    image: "eventsourcing_requirements:latest"
+    volumes:
+      - .:/app
+    links:
+      - service_cassandra
+      - service_mysql
+      - service_postgres
+      - service_redis
+    environment:
+      CASSANDRA_HOSTS: service_cassandra
+      MYSQL_HOST: service_mysql
+      MYSQL_USER: eventsourcing
+      MYSQL_PASSWORD: eventsourcing
+      POSTGRES_HOST: service_postgres
+      POSTGRES_USER: eventsourcing
+      POSTGRES_PASSWORD: eventsourcing
+      REDIS_HOST: service_redis
 
-    service_cassandra:
-        image: "cassandra:latest"
+  service_cassandra:
+    image: "cassandra:latest"
 
-    service_mysql:
-        image: "mysql:latest"
-        environment:
-          MYSQL_ROOT_PASSWORD: eventsourcing
-          MYSQL_USER: eventsourcing
-          MYSQL_PASSWORD: eventsourcing
-          MYSQL_DATABASE: eventsourcing
+  service_mysql:
+    image: "mysql:latest"
+    environment:
+      MYSQL_ROOT_PASSWORD: eventsourcing
+      MYSQL_USER: eventsourcing
+      MYSQL_PASSWORD: eventsourcing
+      MYSQL_DATABASE: eventsourcing
 
-    service_postgres:
-        image: "postgres:latest"
-        environment:
-          POSTGRES_USER: eventsourcing
-          POSTGRES_PASSWORD: eventsourcing
-          POSTGRES_DB: eventsourcing
+  service_postgres:
+    image: "postgres:latest"
+    environment:
+      POSTGRES_USER: eventsourcing
+      POSTGRES_PASSWORD: eventsourcing
+      POSTGRES_DB: eventsourcing
 
-    service_redis:
-        image: "redis:latest"
+  service_redis:
+    image: "redis:latest"
