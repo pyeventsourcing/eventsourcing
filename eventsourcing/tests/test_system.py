@@ -282,7 +282,7 @@ class TestSystem(TestCase):
                 #     assert retries, "Failed set order.is_reserved"
 
                 while retries and not orders.repository[order_id].is_paid:
-                    sleep(0.1)
+                    sleep(0.5)
                     retries -= 1
                     assert retries, "Failed set order.is_paid"
 

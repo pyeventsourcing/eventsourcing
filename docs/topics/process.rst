@@ -1053,7 +1053,7 @@ things are eventually done.
 
 .. code:: python
 
-    @retry((AssertionError, KeyError), max_attempts=50, wait=0.1)
+    @retry((AssertionError, KeyError), max_attempts=60, wait=0.5)
     def assert_eventually_done(repository, cmd_id):
         """Checks the command is eventually done."""
         assert repository[cmd_id].is_done
