@@ -117,7 +117,7 @@ import os
 os.environ['CIPHER_KEY'] = cipher_key
 
 # AxonServer database connection string.
-os.environ['DB_URI'] = "localhost:8124"
+os.environ['DB_URI'] = "{}:8124".format(os.environ.get('AXON_HOST', 'localhost'))
 ```
 
 Run the code. Construct application and use as context manager.

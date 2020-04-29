@@ -1025,8 +1025,8 @@ The following MySQL database connection string is compatible with SQLAlchemy.
     import os
 
     os.environ['DB_URI'] = 'mysql+pymysql://{}:{}@{}/eventsourcing?charset=utf8mb4&binary_prefix=true'.format(
-        os.getenv('MYSQL_USER', 'root'),
-        os.getenv('MYSQL_PASSWORD', ''),
+        os.getenv('MYSQL_USER', 'eventsourcing'),
+        os.getenv('MYSQL_PASSWORD', 'eventsourcing'),
         os.getenv('MYSQL_HOST', '127.0.0.1'),
     )
 

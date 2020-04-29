@@ -11,7 +11,13 @@ class AxonSettings(DatastoreSettings):
         if uri is not None:
             self.uri = uri
         else:
-            self.uri = os.getenv("DB_URI", DEFAULT_LOCAL_AXONSERVER_URI)
+            if "AXON_HOST" in os.environ:
+                axon_db_uri = "{}:{}".format(
+                    os.getenv("AXON_HOST"), os.getenv("AXON_PORT", "8124")
+                )
+            else:
+                axon_db_uri = DEFAULT_LOCAL_AXONSERVER_URI
+            self.uri = os.getenv("DB_URI", axon_db_uri)
 
 
 class AxonDatastore(AbstractDatastore[AxonSettings]):
