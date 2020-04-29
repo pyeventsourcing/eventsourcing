@@ -11,8 +11,8 @@ from eventsourcing.tests.test_process import ExampleAggregate
 
 def set_db_uri():
     host = os.getenv("MYSQL_HOST", "127.0.0.1")
-    user = os.getenv("MYSQL_USER", "root")
-    password = os.getenv("MYSQL_PASSWORD", "")
+    user = os.getenv("MYSQL_USER", "eventsourcing")
+    password = os.getenv("MYSQL_PASSWORD", "eventsourcing")
     db_uri = (
         "mysql+pymysql://{}:{}@{}/eventsourcing?charset=utf8mb4&binary_prefix=true"
     ).format(user, password, host)

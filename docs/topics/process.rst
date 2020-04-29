@@ -1025,8 +1025,8 @@ The following MySQL database connection string is compatible with SQLAlchemy.
     import os
 
     os.environ['DB_URI'] = 'mysql+pymysql://{}:{}@{}/eventsourcing?charset=utf8mb4&binary_prefix=true'.format(
-        os.getenv('MYSQL_USER', 'root'),
-        os.getenv('MYSQL_PASSWORD', ''),
+        os.getenv('MYSQL_USER', 'eventsourcing'),
+        os.getenv('MYSQL_PASSWORD', 'eventsourcing'),
         os.getenv('MYSQL_HOST', '127.0.0.1'),
     )
 
@@ -1053,7 +1053,7 @@ things are eventually done.
 
 .. code:: python
 
-    @retry((AssertionError, KeyError), max_attempts=50, wait=0.1)
+    @retry((AssertionError, KeyError), max_attempts=60, wait=0.5)
     def assert_eventually_done(repository, cmd_id):
         """Checks the command is eventually done."""
         assert repository[cmd_id].is_done

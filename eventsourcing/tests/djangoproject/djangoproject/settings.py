@@ -94,7 +94,7 @@ DATABASES = {
         "HOST": os.getenv("POSTGRES_HOST", "127.0.0.1"),
         "NAME": "eventsourcing",
         "USER": os.getenv("POSTGRES_USER", "eventsourcing"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD", ""),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "eventsourcing"),
     }
 }
 

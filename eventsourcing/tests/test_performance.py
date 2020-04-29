@@ -355,7 +355,7 @@ class TestAxonServerPerformance(AxonServerRecordManagerTestCase, PerformanceTest
     def construct_log_record_manager(self):
         return self.factory.construct_record_manager(record_class=None)
 
-    @skip("Axon does support sequencing by timestamp, so don't test log performance")
+    @skip("Axon doesn't support sequencing by timestamp, so don't test log performance")
     def test_log_performance(self):
         pass
 
