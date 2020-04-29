@@ -61,6 +61,7 @@ env:
   global:
     - CASSANDRA_HOSTS=127.0.0.1
     - MYSQL_USER=travis
+    - MYSQL_PASSWORD=
     - POSTGRES_USER=postgres
 
 script:
