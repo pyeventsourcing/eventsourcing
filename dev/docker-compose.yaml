@@ -1,9 +1,5 @@
-# To use this Docker Compose file in PyCharm, just add a new Docker Compose
-# project interpreter, and pick "all_eventsourcing_requirements" as the service. It
-# will take a little while to download and build everything, then all tests should pass.
-# Please note, both MySQL and Cassandra containers need a little while to get started
-# first time the containers are run, so connections might not work immediately.
 version: '2'
+
 services:
   eventsourcing_requirements:
     build:
@@ -13,37 +9,67 @@ services:
     volumes:
       - .:/app
     links:
-      - service_cassandra
-      - service_mysql
-      - service_postgres
-      - service_redis
+      - cassandra
+      - mysql
+      - postgres
+      - redis
+      - axon
     environment:
-      CASSANDRA_HOSTS: service_cassandra
-      MYSQL_HOST: service_mysql
+      CASSANDRA_HOSTS: cassandra
+      MYSQL_HOST: mysql
       MYSQL_USER: eventsourcing
       MYSQL_PASSWORD: eventsourcing
-      POSTGRES_HOST: service_postgres
+      POSTGRES_HOST: postgres
       POSTGRES_USER: eventsourcing
       POSTGRES_PASSWORD: eventsourcing
-      REDIS_HOST: service_redis
+      REDIS_HOST: redis
+      AXON_HOST: axon
 
-  service_cassandra:
+  cassandra:
     image: "cassandra:latest"
+    volumes:
+      - cassandra_data:/var/lib/cassandra
+    ports:
+      - "9042:9042"
 
-  service_mysql:
+  mysql:
     image: "mysql:latest"
-    environment:
-      MYSQL_ROOT_PASSWORD: eventsourcing
-      MYSQL_USER: eventsourcing
-      MYSQL_PASSWORD: eventsourcing
-      MYSQL_DATABASE: eventsourcing
+    env_file:
+      - .env
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
 
-  service_postgres:
+  postgres:
     image: "postgres:latest"
-    environment:
-      POSTGRES_USER: eventsourcing
-      POSTGRES_PASSWORD: eventsourcing
-      POSTGRES_DB: eventsourcing
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
 
-  service_redis:
+  redis:
     image: "redis:latest"
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+
+  axon:
+    image: "axoniq/axonserver:latest"
+    volumes:
+      - axon_data:/data
+      - axon_eventdata:/eventdata
+    ports:
+      - "8024:8024"
+      - "8124:8124"
+
+volumes:
+  cassandra_data:
+  mysql_data:
+  postgres_data:
+  redis_data:
+  axon_data:
+  axon_eventdata:

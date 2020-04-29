@@ -87,7 +87,7 @@ class TestDjangoApplication(DjangoTestCase, TestSimpleApplication):
     infrastructure_class = DjangoApplication
 
 
-class TestAxonApplication(DjangoTestCase, TestSimpleApplication):
+class TestAxonApplication(TestSimpleApplication):
     infrastructure_class = AxonApplication
 
 

@@ -45,6 +45,9 @@ testing_requires = (
         "redis<=3.4.99999",
         "celery<=4.4.99999",
         "pymysql<=0.9.99999",
+        "mysql-connector-python-rf<=2.2.99999",
+        "python-coveralls<=2.9.99999",
+        "coverage<5.0.0",  # v5 is incompatible ATM.
         "cryptography",
         # Tests use Django with PostgreSQL.
         "psycopg2cffi<=2.8.99999" if is_pypy else "psycopg2-binary<=2.8.99999",

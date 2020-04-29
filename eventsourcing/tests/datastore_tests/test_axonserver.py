@@ -22,7 +22,7 @@ class AxonDatastoreTestCase(base.AbstractDatastoreTestCase):
 
     def create_factory_kwargs(self):
         kwargs = super(AxonDatastoreTestCase, self).create_factory_kwargs()
-        kwargs["axon_client"] = AxonClient(DEFAULT_LOCAL_AXONSERVER_URI)
+        kwargs["axon_client"] = AxonClient(self.datastore.settings.uri)
         return kwargs
 
 
