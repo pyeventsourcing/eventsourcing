@@ -1,6 +1,30 @@
 version: '2'
 
 services:
+  eventsourcing_requirements:
+    build:
+      context: ..
+      dockerfile: ./dev/Dockerfile_eventsourcing_requirements
+    image: "eventsourcing_requirements:latest"
+    volumes:
+      - .:/app
+    links:
+      - cassandra
+      - mysql
+      - postgres
+      - redis
+      - axon
+    environment:
+      CASSANDRA_HOSTS: cassandra
+      MYSQL_HOST: mysql
+      MYSQL_USER: eventsourcing
+      MYSQL_PASSWORD: eventsourcing
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: eventsourcing
+      POSTGRES_PASSWORD: eventsourcing
+      REDIS_HOST: redis
+      AXON_HOST: axon
+
   cassandra:
     image: "cassandra:latest"
     volumes:
