@@ -253,16 +253,17 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         return self._persistence_policy
 
     def _raise_on_missing_infrastructure(self, what_is_missing):
-        msg = "Application class %s does not have a %s." % (
-            type(self).__name__,
-            what_is_missing,
-        )
         if not isinstance(self, ApplicationWithConcreteInfrastructure):
-            msg += (
-                " and is not an ApplicationWithConcreteInfrastructure."
+            msg = (
+                "Application class %s is not an subclass of %s."
                 " Try using or inheriting from or mixin() an application"
                 " class with concrete infrastructure such as SQLAlchemyApplication"
                 " or DjangoApplication or AxonApplication."
+            ) % (type(self), ApplicationWithConcreteInfrastructure)
+        else:
+            msg = "Application class %s does not have a %s" % (
+                type(self).__name__,
+                what_is_missing,
             )
         raise ProgrammingError(msg)
 
