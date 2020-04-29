@@ -41,6 +41,31 @@ test:
 	@coverage html
 
 
+.PHONY: quicktest
+quicktest:
+	QUICK_TESTS_ONLY=1
+	@coverage run -m unittest discover eventsourcing.tests -vv
+	@coverage combine
+	@coverage report
+	@coverage html
+
+
 .PHONY: docs
 docs:
 	cd docs && make html
+
+
+.PHONY: brew_services_start
+brew_services_start:
+	brew services start mysql
+	brew services start postgresql
+	brew services start redis
+	~/axonserver/axonserver.jar &
+	cassandra -f &
+
+.PHONY: brew_services_stop
+brew_services_stop:
+	brew services stop mysql
+	brew services stop postgresql
+	brew services stop redis
+	pkill -15 java
