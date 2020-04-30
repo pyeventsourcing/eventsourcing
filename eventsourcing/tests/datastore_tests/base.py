@@ -3,7 +3,8 @@ from typing import Type, Optional
 
 from eventsourcing.infrastructure.datastore import (
     DatastoreTableError,
-    AbstractDatastore)
+    AbstractDatastore,
+)
 from eventsourcing.infrastructure.factory import InfrastructureFactory
 from eventsourcing.tests.base import AbstractTestCase
 

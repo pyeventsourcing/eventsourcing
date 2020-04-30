@@ -13,4 +13,4 @@ class DontTestRayRunnerWithDjango(DjangoTestCase, TestRayRunner):
 
 
 # Don't let this be found here.
-del(TestRayRunner)
+del TestRayRunner

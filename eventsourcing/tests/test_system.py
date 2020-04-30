@@ -76,9 +76,7 @@ class TestSystem(TestCase):
 
     def test_singlethreaded_runner_with_single_application_class(self):
         system = System(
-            Orders,
-            setup_tables=True,
-            infrastructure_class=self.infrastructure_class,
+            Orders, setup_tables=True, infrastructure_class=self.infrastructure_class,
         )
         with system as runner:
             orders = runner.get(Orders)
@@ -88,9 +86,7 @@ class TestSystem(TestCase):
 
     def test_can_run_if_already_running(self):
         system = System(
-            Orders,
-            setup_tables=True,
-            infrastructure_class=self.infrastructure_class,
+            Orders, setup_tables=True, infrastructure_class=self.infrastructure_class,
         )
         with system:
             with self.assertRaises(ProgrammingError):
@@ -104,9 +100,7 @@ class TestSystem(TestCase):
 
     def test_multithreaded_runner_with_single_application_class(self):
         system = System(
-            Orders,
-            setup_tables=True,
-            infrastructure_class=self.infrastructure_class,
+            Orders, setup_tables=True, infrastructure_class=self.infrastructure_class,
         )
         with MultiThreadedRunner(system) as runner:
             app = runner.get(Orders)
@@ -116,9 +110,7 @@ class TestSystem(TestCase):
 
     def test_multiprocess_runner_with_single_application_class(self):
         system = System(
-            Orders,
-            setup_tables=True,
-            infrastructure_class=self.infrastructure_class,
+            Orders, setup_tables=True, infrastructure_class=self.infrastructure_class,
         )
 
         self.set_db_uri()
@@ -164,11 +156,13 @@ class TestSystem(TestCase):
             patience = 10
             while True:
                 try:
-                    self.assertEqual(reservations_repo[reservation_id].order_id, order_id)
+                    self.assertEqual(
+                        reservations_repo[reservation_id].order_id, order_id
+                    )
                 except (RepositoryKeyError, AssertionError):
                     if patience:
                         patience -= 1
-                        sleep(.1)
+                        sleep(0.1)
                     else:
                         raise
                 else:

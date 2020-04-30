@@ -4,9 +4,7 @@ from typing import Dict
 from thespian.actors import Actor, ActorExitRequest, ActorSystem
 
 from eventsourcing.application.notificationlog import RecordManagerNotificationLog
-from eventsourcing.application.process import (
-    ProcessApplication,
-)
+from eventsourcing.application.process import ProcessApplication
 from eventsourcing.application.simple import is_prompt_to_pull, PromptToPull
 from eventsourcing.system.definition import System, AbstractSystemRunner
 from eventsourcing.domain.model.events import subscribe, unsubscribe

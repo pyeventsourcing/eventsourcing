@@ -116,7 +116,7 @@ class TestFlaskWsgi(TestFlaskApp):
         #     if not os.path.exists(path_to_uwsgi):
         #         raise AssertionError("Can't find uwsgi: %s" % path_to_uwsgi)
         #     # Todo: Maybe use shutil.which, after dropping support for Python 2.7.
-        path_to_uwsgi = shutil.which('uwsgi')
+        path_to_uwsgi = shutil.which("uwsgi")
         if not os.path.exists(path_to_uwsgi):
             raise AssertionError("Can't find uwsgi: %s" % path_to_uwsgi)
         cmd = [path_to_uwsgi]

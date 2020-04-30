@@ -127,7 +127,7 @@ class BaseRecordManager(AbstractRecordManager):
         record_class: type,
         sequenced_item_class: Type[NamedTuple] = SequencedItem,  # type: ignore
         contiguous_record_ids: bool = False,
-        application_name: str = '',
+        application_name: str = "",
         pipeline_id: int = DEFAULT_PIPELINE_ID,
         **kwargs: Any
     ):
@@ -294,9 +294,7 @@ class RecordManagerWithNotifications(BaseRecordManager):
             yield self.create_notification_from_record(record)
 
     def create_notification_from_record(self, record):
-        notification = {
-            "id": getattr(record, self.notification_id_name)
-        }
+        notification = {"id": getattr(record, self.notification_id_name)}
         for field_name in self.field_names:
             notification[field_name] = getattr(record, field_name)
         if hasattr(record, "causal_dependencies"):
@@ -534,9 +532,7 @@ class AbstractEventStore(ABC, Generic[TEvent, TRecordManager]):
     """
 
     def __init__(
-        self,
-        record_manager: TRecordManager,
-        event_mapper: AbstractSequencedItemMapper,
+        self, record_manager: TRecordManager, event_mapper: AbstractSequencedItemMapper,
     ):
         """
         Initialises event store object.

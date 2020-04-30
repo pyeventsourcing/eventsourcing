@@ -14,7 +14,9 @@ class Command(BaseAggregateRoot):
     class Created(Event[TAggregate], BaseAggregateRoot.Created[TAggregate]):
         pass
 
-    class AttributeChanged(Event[TAggregate], BaseAggregateRoot.AttributeChanged[TAggregate]):
+    class AttributeChanged(
+        Event[TAggregate], BaseAggregateRoot.AttributeChanged[TAggregate]
+    ):
         pass
 
     class Discarded(Event[TAggregate], BaseAggregateRoot.Discarded[TAggregate]):

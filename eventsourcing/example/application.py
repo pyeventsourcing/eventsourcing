@@ -83,7 +83,7 @@ class ApplicationWithEventStores(ABC):
             event_sequence_id_attr=event_sequence_id_attr,
             event_position_attr=event_position_attr,
             cipher=cipher,
-            compressor=zlib if cipher else None
+            compressor=zlib if cipher else None,
         )
         event_store = EventStore(
             record_manager=record_manager, event_mapper=sequenced_item_mapper
@@ -108,7 +108,7 @@ class ApplicationWithEventStores(ABC):
             json_encoder_class=json_encoder_class,
             json_decoder_class=json_decoder_class,
             cipher=cipher,
-            compressor=compressor
+            compressor=compressor,
         )
 
     def close(self):

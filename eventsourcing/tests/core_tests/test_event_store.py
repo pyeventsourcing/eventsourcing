@@ -61,9 +61,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
         self.assertEqual(0, len(entity_events))
 
         # Check there are zero events in the event store, using iterator.
-        entity_events = event_store.list_events(
-            originator_id=entity_id1, page_size=1
-        )
+        entity_events = event_store.list_events(originator_id=entity_id1, page_size=1)
         self.assertEqual(0, len(entity_events))
 
         # Store a domain event.
@@ -77,9 +75,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
         self.assertEqual(1, len(entity_events))
 
         # Check there are two events in the event store, using iterator.
-        entity_events = event_store.list_events(
-            originator_id=entity_id1, page_size=1
-        )
+        entity_events = event_store.list_events(originator_id=entity_id1, page_size=1)
         self.assertEqual(1, len(entity_events))
 
         # Store another domain event.
@@ -93,9 +89,7 @@ class TestEventStore(SQLAlchemyDatastoreTestCase):
         self.assertEqual(2, len(entity_events))
 
         # Check there are two events in the event store, using iterator.
-        entity_events = event_store.list_events(
-            originator_id=entity_id1, page_size=1
-        )
+        entity_events = event_store.list_events(originator_id=entity_id1, page_size=1)
         self.assertEqual(2, len(entity_events))
 
     def test_get_most_recent_event(self):

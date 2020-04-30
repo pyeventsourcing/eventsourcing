@@ -5,7 +5,8 @@ from eventsourcing.domain.model.events import (
     EventWithOriginatorID,
     EventWithOriginatorVersion,
     EventWithTimestamp,
-    AbstractSnapshot)
+    AbstractSnapshot,
+)
 from eventsourcing.utils.topic import resolve_topic, reconstruct_object
 from eventsourcing.whitehead import TEntity
 

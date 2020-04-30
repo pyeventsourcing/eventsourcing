@@ -23,8 +23,11 @@ from eventsourcing.domain.model.events import (
     unsubscribe,
 )
 from eventsourcing.domain.model.snapshot import Snapshot
-from eventsourcing.exceptions import CausalDependencyFailed, PromptFailed, \
-    ProgrammingError
+from eventsourcing.exceptions import (
+    CausalDependencyFailed,
+    PromptFailed,
+    ProgrammingError,
+)
 from eventsourcing.infrastructure.sqlalchemy.records import Base
 from eventsourcing.whitehead import TEntity
 from eventsourcing.utils.topic import resolve_topic
@@ -200,30 +203,48 @@ class TestProcessApplication(TestCase):
             downstream2.run()
 
         self.assertEqual(
-            0, len(list(downstream1.event_store.record_manager.get_notification_records()))
+            0,
+            len(
+                list(downstream1.event_store.record_manager.get_notification_records())
+            ),
         )
         self.assertEqual(
-            0, len(list(downstream2.event_store.record_manager.get_notification_records()))
+            0,
+            len(
+                list(downstream2.event_store.record_manager.get_notification_records())
+            ),
         )
 
         # Try to process pipeline 1, should work.
         downstream1.run()
 
         self.assertEqual(
-            1, len(list(downstream1.event_store.record_manager.get_notification_records()))
+            1,
+            len(
+                list(downstream1.event_store.record_manager.get_notification_records())
+            ),
         )
         self.assertEqual(
-            0, len(list(downstream2.event_store.record_manager.get_notification_records()))
+            0,
+            len(
+                list(downstream2.event_store.record_manager.get_notification_records())
+            ),
         )
 
         # Try again to process pipeline 2, should work this time.
         downstream2.run()
 
         self.assertEqual(
-            1, len(list(downstream1.event_store.record_manager.get_notification_records()))
+            1,
+            len(
+                list(downstream1.event_store.record_manager.get_notification_records())
+            ),
         )
         self.assertEqual(
-            2, len(list(downstream2.event_store.record_manager.get_notification_records()))
+            2,
+            len(
+                list(downstream2.event_store.record_manager.get_notification_records())
+            ),
         )
 
         core1.close()
@@ -354,7 +375,6 @@ class TestProcessApplication(TestCase):
             self.assertNotIn(aggregate.id, process.repository._cache)
 
     def test_policy_returns_sequence_of_new_aggregates(self):
-
         def policy(repository, event):
             first = AggregateRoot.__create__(originator_id=(uuid4()))
             second = AggregateRoot.__create__(originator_id=(uuid4()))
@@ -385,8 +405,6 @@ class TestProcessApplication(TestCase):
             # Check there are three aggregates in the repository.
             ids = process.repository.event_store.record_manager.all_sequence_ids()
             self.assertEqual(len(list(ids)), 3)
-
-
 
     def define_projection_record_class(self):
         class ProjectionRecord(Base):

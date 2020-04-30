@@ -309,7 +309,7 @@ class TestRemoteNotificationLog(NotificationLogTestCase):
             notification_log = RemoteNotificationLog(base_url)
 
             # Just before we start, test the deserialise_section_size exceptions.
-            notification_log.deserialize_section_size('1')
+            notification_log.deserialize_section_size("1")
             with self.assertRaises(ValueError):
                 notification_log.deserialize_section_size('"1')
             with self.assertRaises(TypeError):

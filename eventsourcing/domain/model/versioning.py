@@ -33,7 +33,7 @@ class Upcastable(Event):
 
     def __init__(self):
         if type(self).__class_version__ > 0:
-            self.__dict__['__class_version__'] = type(self).__class_version__
+            self.__dict__["__class_version__"] = type(self).__class_version__
         super(Upcastable, self).__init__()
 
     @classmethod
@@ -42,11 +42,11 @@ class Upcastable(Event):
         Upcasts obj_state from the version of the class when the object
         state was recorded, to be compatible with current version of the class.
         """
-        class_version = obj_state.get('__class_version__', 0)
+        class_version = obj_state.get("__class_version__", 0)
         while class_version < cls.__class_version__:
             obj_state = cls.__upcast__(obj_state, class_version)
             class_version += 1
-            obj_state['__class_version__'] = class_version
+            obj_state["__class_version__"] = class_version
         return obj_state
 
     @classmethod

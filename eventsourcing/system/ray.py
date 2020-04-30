@@ -8,11 +8,13 @@ from typing import Dict, Optional, Tuple, Type
 
 import ray
 
-from eventsourcing.application.process import (
-    ProcessApplication,
+from eventsourcing.application.process import ProcessApplication
+from eventsourcing.application.simple import (
+    ApplicationWithConcreteInfrastructure,
+    Prompt,
+    is_prompt_to_pull,
+    PromptToPull,
 )
-from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure, \
-    Prompt, is_prompt_to_pull, PromptToPull
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import (
@@ -305,7 +307,7 @@ class RayProcess:
         if PROMPT_WITH_NOTIFICATION_OBJS:
             for notification in prompt.notifications:
                 self._prompted_notifications[
-                    (upstream_name, notification['id'])
+                    (upstream_name, notification["id"])
                 ] = notification
         if latest_head is not None:
             with self.heads_lock:
