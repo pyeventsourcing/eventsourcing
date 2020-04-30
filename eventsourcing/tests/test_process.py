@@ -25,13 +25,13 @@ from eventsourcing.domain.model.events import (
 from eventsourcing.domain.model.snapshot import Snapshot
 from eventsourcing.exceptions import (
     CausalDependencyFailed,
-    PromptFailed,
     ProgrammingError,
+    PromptFailed,
 )
 from eventsourcing.infrastructure.sqlalchemy.records import Base
-from eventsourcing.whitehead import TEntity
 from eventsourcing.utils.topic import resolve_topic
 from eventsourcing.utils.transcoding import ObjectJSONDecoder
+from eventsourcing.whitehead import TEntity
 
 
 class TestProcessApplication(TestCase):

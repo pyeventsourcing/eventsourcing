@@ -3,16 +3,15 @@ from time import sleep, time
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.system.multiprocess import MultiprocessRunner
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
-from eventsourcing.system.runner import MultiThreadedRunner
-from eventsourcing.system.definition import System
 from eventsourcing.domain.model.events import (
     assert_event_handlers_empty,
     clear_event_handlers,
 )
-from eventsourcing.exceptions import RepositoryKeyError, ProgrammingError
-from eventsourcing.tests.test_process import ExampleAggregate
+from eventsourcing.exceptions import ProgrammingError, RepositoryKeyError
+from eventsourcing.system.definition import System
+from eventsourcing.system.multiprocess import MultiprocessRunner
+from eventsourcing.system.runner import MultiThreadedRunner
 from eventsourcing.tests.system_test_fixtures import (
     Examples,
     Order,
@@ -24,6 +23,7 @@ from eventsourcing.tests.system_test_fixtures import (
     create_new_order,
     set_db_uri,
 )
+from eventsourcing.tests.test_process import ExampleAggregate
 
 
 class TestSystem(TestCase):

@@ -36,14 +36,8 @@ from eventsourcing.domain.model.aggregate import (
     TAggregateEvent,
 )
 from eventsourcing.domain.model.events import subscribe, unsubscribe
-from eventsourcing.exceptions import (
-    CausalDependencyFailed,
-    ProgrammingError,
-)
-from eventsourcing.infrastructure.base import (
-    RecordManagerWithTracking,
-    TrackingKwargs,
-)
+from eventsourcing.exceptions import CausalDependencyFailed, ProgrammingError
+from eventsourcing.infrastructure.base import RecordManagerWithTracking, TrackingKwargs
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.whitehead import IterableOfEvents
 

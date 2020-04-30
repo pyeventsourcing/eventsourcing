@@ -1,6 +1,6 @@
 import logging
 import os
-from uuid import uuid5, NAMESPACE_OID
+from uuid import NAMESPACE_OID, uuid5
 
 from eventsourcing.application.process import ProcessApplication, WrappedRepository
 from eventsourcing.domain.model.aggregate import BaseAggregateRoot

@@ -1,4 +1,4 @@
-from functools import singledispatch, wraps, _find_impl
+from functools import _find_impl, singledispatch, wraps
 from inspect import isfunction
 from typing import Callable, no_type_check
 

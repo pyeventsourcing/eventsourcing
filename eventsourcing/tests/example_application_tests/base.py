@@ -1,6 +1,5 @@
-from uuid import uuid4
-
 from time import sleep
+from uuid import uuid4
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.snapshot import Snapshot

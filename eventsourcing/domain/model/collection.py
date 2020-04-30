@@ -1,11 +1,11 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from typing import Any, Set, Iterator, Optional
+from typing import Any, Iterator, Optional, Set
 from uuid import UUID
 
 from eventsourcing.domain.model.entity import (
-    TTimestampedVersionedEntity,
     TimestampedVersionedEntity,
+    TTimestampedVersionedEntity,
 )
 from eventsourcing.domain.model.repository import AbstractEntityRepository
 

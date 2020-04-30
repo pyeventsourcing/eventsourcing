@@ -7,11 +7,7 @@ from eventsourcing.domain.model.entity import (
     TimestampedVersionedEntity,
     VersionedEntity,
 )
-from eventsourcing.domain.model.events import (
-    publish,
-    subscribe,
-    unsubscribe,
-)
+from eventsourcing.domain.model.events import publish, subscribe, unsubscribe
 from eventsourcing.example.domainmodel import Example, create_new_example
 from eventsourcing.example.infrastructure import ExampleRepository
 from eventsourcing.exceptions import (

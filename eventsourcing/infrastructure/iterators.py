@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from threading import Thread
-from typing import Iterable, Optional, NamedTuple, Iterator, Any, List
+from typing import Any, Iterable, Iterator, List, NamedTuple, Optional
 from uuid import UUID
 
 from eventsourcing.infrastructure.base import AbstractRecordManager, BaseRecordManager

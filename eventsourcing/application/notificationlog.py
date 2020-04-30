@@ -3,8 +3,8 @@ from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Unio
 
 from eventsourcing.domain.model.array import BigArray
 from eventsourcing.infrastructure.base import (
-    RecordManagerWithNotifications,
     AbstractRecordManager,
+    RecordManagerWithNotifications,
 )
 
 DEFAULT_SECTION_SIZE = 20

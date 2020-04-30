@@ -6,7 +6,6 @@ from eventsourcing.infrastructure.base import AbstractEventStore, TRecordManager
 from eventsourcing.infrastructure.iterators import SequencedItemIterator
 from eventsourcing.whitehead import TEvent
 
-
 # Todo: Unify iterators in EventStore and in NotificationLog,
 #  by pushing behaviour down to record manager?
 

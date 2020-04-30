@@ -24,7 +24,6 @@ from eventsourcing.infrastructure.sequenceditem import (
 from eventsourcing.infrastructure.sequenceditemmapper import AbstractSequencedItemMapper
 from eventsourcing.whitehead import TEvent
 
-
 DEFAULT_PIPELINE_ID = 0
 
 TrackingKwargs = Dict[str, Union[str, int]]

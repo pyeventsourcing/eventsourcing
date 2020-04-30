@@ -16,10 +16,7 @@ from eventsourcing.domain.model.events import (
     clear_event_handlers,
 )
 from eventsourcing.system.definition import System
-from eventsourcing.system.ray import (
-    RayProcess,
-    RayRunner,
-)
+from eventsourcing.system.ray import RayProcess, RayRunner
 from eventsourcing.system.rayhelpers import RayPrompt
 from eventsourcing.tests.system_test_fixtures import (
     Orders,

@@ -1,8 +1,3 @@
-import zlib
-
-import binascii
-from base64 import b64decode, b64encode
-
 from Crypto.Cipher import AES
 
 from eventsourcing.exceptions import DataIntegrityError

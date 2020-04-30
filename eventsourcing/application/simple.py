@@ -30,10 +30,10 @@ from eventsourcing.domain.model.entity import (
 from eventsourcing.domain.model.events import DomainEvent, publish
 from eventsourcing.exceptions import ProgrammingError, PromptFailed
 from eventsourcing.infrastructure.base import (
+    DEFAULT_PIPELINE_ID,
     AbstractEventStore,
     AbstractRecordManager,
     BaseRecordManager,
-    DEFAULT_PIPELINE_ID,
     RecordManagerWithTracking,
     TrackingKwargs,
 )

@@ -2,13 +2,10 @@ import unittest
 from uuid import uuid4
 
 from eventsourcing.application.policies import PersistencePolicy, SnapshottingPolicy
-from eventsourcing.domain.model.entity import (
-    VersionedEntity,
-    TimestampedEntity,
-)
+from eventsourcing.domain.model.entity import TimestampedEntity, VersionedEntity
 from eventsourcing.domain.model.events import publish
-from eventsourcing.infrastructure.base import AbstractEventStore
 from eventsourcing.domain.model.repository import AbstractEntityRepository
+from eventsourcing.infrastructure.base import AbstractEventStore
 
 try:
     from unittest import mock

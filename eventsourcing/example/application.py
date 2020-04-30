@@ -1,6 +1,5 @@
-from abc import ABC
-
 import zlib
+from abc import ABC
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.entity import VersionedEntity
@@ -12,7 +11,6 @@ from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
 from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
-
 
 # Please note, the code is this module is basically old-fashioned, and will
 # be removed when the tests that depend on it are rewritten to use the new

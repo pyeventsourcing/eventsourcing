@@ -1,19 +1,18 @@
 import datetime
-from collections import deque, namedtuple, OrderedDict, ChainMap
+from collections import ChainMap, OrderedDict, deque, namedtuple
+from decimal import Decimal
 from enum import Enum
 from fractions import Fraction
-
-try:
-    from dataclasses import make_dataclass
-except:
-    make_dataclass = None
-
-from decimal import Decimal
 from unittest import TestCase, skipIf
 from uuid import NAMESPACE_URL, UUID
 
 from eventsourcing.utils.times import utc_timezone
 from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
+
+try:
+    from dataclasses import make_dataclass
+except:
+    make_dataclass = None
 
 
 class TestTranscoding(TestCase):

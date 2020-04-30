@@ -5,7 +5,6 @@ from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager imp
     SQLAlchemyRecordManagerTestCase,
 )
 
-
 #
 ## Old stuff...
 

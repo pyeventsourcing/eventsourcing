@@ -12,8 +12,8 @@ from eventsourcing.application.process import ProcessApplication
 from eventsourcing.application.simple import (
     ApplicationWithConcreteInfrastructure,
     Prompt,
-    is_prompt_to_pull,
     PromptToPull,
+    is_prompt_to_pull,
 )
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
@@ -28,9 +28,8 @@ from eventsourcing.infrastructure.base import (
 )
 from eventsourcing.system.definition import AbstractSystemRunner, System
 from eventsourcing.system.rayhelpers import RayDbJob, RayPrompt
-from eventsourcing.system.runner import DEFAULT_POLL_INTERVAL
-
 from eventsourcing.system.raysettings import ray_init_kwargs
+from eventsourcing.system.runner import DEFAULT_POLL_INTERVAL
 
 ray.init(**ray_init_kwargs)
 

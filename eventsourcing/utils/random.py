@@ -1,6 +1,5 @@
-from base64 import b64encode, b64decode
-
 import os
+from base64 import b64decode, b64encode
 
 
 def encoded_random_bytes(num_bytes: int) -> str:

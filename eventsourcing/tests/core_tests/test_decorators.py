@@ -8,8 +8,8 @@ from eventsourcing.domain.model.decorators import mutator, retry, subscribe_to
 from eventsourcing.domain.model.events import (
     EventHandlersNotEmptyError,
     assert_event_handlers_empty,
-    publish,
     clear_event_handlers,
+    publish,
 )
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.utils.topic import get_topic

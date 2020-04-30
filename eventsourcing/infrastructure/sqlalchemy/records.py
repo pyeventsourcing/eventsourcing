@@ -1,4 +1,4 @@
-from sqlalchemy import DECIMAL, String, LargeBinary
+from sqlalchemy import DECIMAL, LargeBinary, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql.schema import Column, Index
 from sqlalchemy.sql.sqltypes import BigInteger, Integer, Text

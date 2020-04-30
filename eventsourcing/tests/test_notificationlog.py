@@ -3,9 +3,9 @@ from threading import Thread
 from uuid import uuid4
 
 from eventsourcing.application.notificationlog import (
-    RecordManagerNotificationLog,
     BigArrayNotificationLog,
     NotificationLogReader,
+    RecordManagerNotificationLog,
 )
 from eventsourcing.domain.model.events import DomainEvent
 from eventsourcing.infrastructure.repositories.array import BigArrayRepository

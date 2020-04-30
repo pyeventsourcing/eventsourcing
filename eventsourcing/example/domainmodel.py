@@ -1,8 +1,8 @@
 from eventsourcing.domain.model.decorators import attribute
 from eventsourcing.domain.model.entity import (
     EntityWithHashchain,
-    TimestampedVersionedEntity,
     TDomainEntity,
+    TimestampedVersionedEntity,
 )
 from eventsourcing.domain.model.repository import AbstractEntityRepository
 

@@ -6,8 +6,8 @@ from uuid import uuid5
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.entity import TimestampedVersionedEntity
 from eventsourcing.domain.model.events import publish
-from eventsourcing.exceptions import ArrayIndexError, ConcurrencyError
 from eventsourcing.domain.model.repository import AbstractEntityRepository
+from eventsourcing.exceptions import ArrayIndexError, ConcurrencyError
 
 
 class ItemAssigned(TimestampedVersionedEntity.Event):

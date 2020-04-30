@@ -1,7 +1,6 @@
 from unittest import skip
 
 from eventsourcing.application.popo import PopoApplication
-
 from eventsourcing.tests.sequenced_item_tests.test_popo_record_manager import (
     PopoTestCase,
 )

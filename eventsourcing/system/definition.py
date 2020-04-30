@@ -1,10 +1,10 @@
 import weakref
-from _weakref import ReferenceType
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, Type, TypeVar
 
+from _weakref import ReferenceType
 from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.process import ProcessApplication
 from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure

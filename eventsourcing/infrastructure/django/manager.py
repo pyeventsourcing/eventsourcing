@@ -1,4 +1,4 @@
-from typing import Any, Iterable, Optional, Sequence, Dict
+from typing import Any, Dict, Iterable, Optional, Sequence
 from uuid import UUID
 
 from django.db import IntegrityError, ProgrammingError, connection, transaction

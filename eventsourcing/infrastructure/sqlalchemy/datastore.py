@@ -1,11 +1,11 @@
 import os
-from typing import Optional, Union, Sequence, Any, Dict
+from typing import Any, Dict, Optional, Sequence, Union
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import InternalError
 from sqlalchemy.ext.declarative import DeclarativeMeta
-from sqlalchemy.orm import scoped_session, sessionmaker, Session
+from sqlalchemy.orm import Session, scoped_session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from eventsourcing.infrastructure.datastore import AbstractDatastore, DatastoreSettings

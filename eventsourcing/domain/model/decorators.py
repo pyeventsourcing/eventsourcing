@@ -2,7 +2,7 @@ import random
 from functools import singledispatch, wraps
 from inspect import isfunction
 from time import sleep
-from typing import Dict, Type, Callable, no_type_check, Union, Optional, Sequence
+from typing import Callable, Dict, Optional, Sequence, Type, Union, no_type_check
 
 from eventsourcing.domain.model.events import DomainEvent, subscribe
 from eventsourcing.exceptions import ProgrammingError

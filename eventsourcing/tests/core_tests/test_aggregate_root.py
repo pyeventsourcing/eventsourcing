@@ -1,5 +1,5 @@
 import uuid
-from typing import Dict, Optional, cast, Generic
+from typing import Dict, Generic, Optional, cast
 from unittest.case import TestCase
 from uuid import UUID
 
@@ -16,8 +16,8 @@ from eventsourcing.infrastructure.sqlalchemy.records import IntegerSequencedNoID
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import (
     SQLAlchemyRecordManagerTestCase,
 )
-from eventsourcing.whitehead import TEntity
 from eventsourcing.utils.topic import get_topic, resolve_topic
+from eventsourcing.whitehead import TEntity
 
 
 class TestAggregateRootEvent(TestCase):
