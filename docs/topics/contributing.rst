@@ -5,6 +5,9 @@ Contributing
 This library depends on its community. As interest keeps growing, we always need more people to help
 others. As soon as you learn the library, you can contribute in many ways.
 
+Community development
+=====================
+
 - Join the Slack_ channel and answer questions. The library has a growing audience. Help to create
   and maintain a friendly and helpful atmosphere.
 
@@ -29,28 +32,37 @@ are several ways you can help the library’s development:
 - Improve the documentation or improve the unit test suites.
 
 
-Local development
-=================
+Making changes
+==============
 
-To make changes to the library, you want to set up a local environment.
+To make changes to the library, you will want to set up a local environment.
+To get set up, fork the repository on GitHub, clone your fork using Git, and
+then checkout the ``develop`` branch.
 
-To get set up, create a virtual Python environment, install Python dependencies,
-and install the databases that are used by the test suite. This library is using the
-`GNU make`_ utility. You can read more about it in `this article`_.
+Create a virtual Python environment, install Python dependencies, and install
+and start the databases that are used by the test suite. Then run the tests.
+The library test suite depends on several databases. It's much easier to run
+databases in Docker containers, but it's slightly faster to run databases
+without containers.
 
-There are commands to install Python dependencies into a virtual Python environment,
-to start and stop databases, to run the test suite, to build the docs, and for code
-linting. The actual code of the commands described below can be easily found in
-``Makefile`` at the root of this project. But first, you need to set up your local
-development environment.
+Once you have the tests running, you can make changes, run the tests again,
+push changes to your fork, and then maybe create a pull request to the project's
+develop branch.
+
+This library has a `Makefile` to help with development. You can read more about
+the `GNU make`_ utility in `this article`_. There are commands to install Python
+dependencies into a virtual Python environment, to start and stop databases, to
+run the test suite, to build the docs, and for code linting. The actual code of
+the commands described below can be easily found in ``Makefile`` at the root of
+this project.
 
 .. _GNU make: https://www.gnu.org/software/make/
 .. _this article: https://opensource.com/article/18/8/what-how-makefile
 
 .. _development-environment:
 
-Configure the development environment
-=====================================
+Virtual Python environment
+--------------------------
 
 This project runs on Python 3.6+, and you need to have it installed on your system.
 The recommended way for all platforms is to use the `official download page`_.
@@ -80,8 +92,8 @@ required for contribution::
     $ make install
 
 
-Git blame
----------
+Git blame (optional)
+--------------------
 
 Setup ``git`` to ignore specific revs with ``blame``.
 
@@ -103,15 +115,10 @@ More info can be found here_.
 .. _here: https://www.moxio.com/blog/43/ignoring-bulk-change-commits-with-git-blame
 
 
-Run databases
-=============
-
 .. _docker-containers:
 
-It's easier to run the databases in Docker containers, but it's faster to run them directly.
-
-Run databases in Docker containers
-----------------------------------
+Run databases with Docker
+-------------------------
 
 You can run the databases in Docker containers.
 
@@ -154,7 +161,8 @@ default value for it.
 Run databases on MacOS
 ----------------------
 
-To install the databases on MacOS, you can run the following commands::
+If you happen to be using a Mac, you can also install the
+databases directly on MacOS::
 
     $ brew install mysql
     $ brew install posgresql
@@ -162,7 +170,7 @@ To install the databases on MacOS, you can run the following commands::
     $ brew install cassandra
     $ ./dev/download_axon_server.sh
 
-To start the services, you can run run::
+To start the databases, you can run run::
 
     $ brew_services_start
 
@@ -183,7 +191,7 @@ You will also need to create a database in PostgreSQL::
 
 
 Run tests
-=========
+---------
 
 Ensure that you’ve set up your development environment (see :ref:`development-environment`) and
 and required services are up and running (see :ref:`docker-containers`, or :ref:`macos-databases`).
@@ -201,13 +209,11 @@ You can also run the test suite, but skip the slower tests::
 .. note::
     To re-run tests, sometimes it requires ``make docker-down`` for a fresh start.
 
-... or push the code to trigger TravisCI checks.
-
 
 Building documentation
-======================
+----------------------
 
-This project using Sphinx_ documentation builder tool. Run this command to compile documentation
+This project is using Sphinx_ documentation builder tool. Run this command to compile documentation
 into static HTML files at ``./docs/_build/html``::
 
     $ make docs
@@ -216,7 +222,7 @@ into static HTML files at ``./docs/_build/html``::
 
 
 Linting your code
-=================
+-----------------
 
 For now, linting your changes is completely optional - we do not have any checks on CI for it.
 
@@ -255,11 +261,11 @@ common traps, mistakes and helps enforce best practices::
 
 
 Automatic formatting
----------------------------------
-
-.. note::
-    In order to keep your Pull Request clean, please, do not apply it for all project but your specific changes.
+--------------------
 
 To apply automatic formatting by using isort_ and Black_, run::
 
     $ make fmt
+
+.. note::
+    In order to keep your Pull Request clean, please, do not apply it for all project but your specific changes.
