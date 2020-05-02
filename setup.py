@@ -63,7 +63,7 @@ docs_requires = testing_requires + [
     "sphinx-autobuild",
 ]
 
-dev_requires = docs_requires + ["black", "mypy"]
+dev_requires = docs_requires + ["black", "mypy", "flake8", "flake8-bugbear", "isort"]
 
 long_description = """
 A library for event sourcing in Python.

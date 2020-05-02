@@ -12,6 +12,10 @@ install:
 docker-pull:
 	@docker-compose pull
 
+.PHONY: docker-build
+docker-build:
+	@docker-compose build
+
 .PHONY: docker-up
 docker-up:
 	@docker-compose up -d
@@ -28,6 +32,42 @@ docker-down:
 .PHONY: docker-logs
 docker-logs:
 	@docker-compose logs --follow --tail=1000
+
+
+.PHONY: lint-black
+lint-black:
+	@black --check --diff .
+
+.PHONY: lint-flake8
+lint-flake8:
+	@flake8 eventsourcing
+
+.PHONY: lint-isort
+lint-isort:
+	@isort --check-only --diff --recursive .
+
+.PHONY: lint-mypy
+lint-mypy:
+	@mypy --ignore-missing-imports eventsourcing
+
+.PHONY: lint-dockerfile
+lint-dockerfile:
+	@docker run --rm -i replicated/dockerfilelint:ad65813 < ./dev/Dockerfile_eventsourcing_requirements
+
+.PHONY: lint
+lint: lint-black lint-flake8 lint-isort lint-mypy lint-dockerfile
+
+
+.PHONY: fmt-isort
+fmt-isort:
+	@isort -y --recursive .
+
+.PHONY: fmt-black
+fmt-black:
+	@black .
+
+.PHONY: fmt
+fmt: fmt-black fmt-isort
 
 
 .PHONY: test
