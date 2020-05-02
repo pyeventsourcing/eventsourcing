@@ -26,19 +26,26 @@ are several ways you can help the library’s development:
 - Join the Slack_ channel and share your ideas for how to improve the library. We’re always
   open to suggestions.
 - Submit patches or pull requests for new and/or fixed behavior.
-- Improve the documentation or write unit tests.
+- Improve the documentation or improve the unit test suites.
 
 
 Local development
 =================
 
-This library using `GNU make`_ utility and multiple python packages for code linting. You can read more
-about it at `this article`_. The actual code of the provided commands below can be easily found and read in
-`Makefile` at the root of this project. But first, you need to set up your local development environment.
+To make changes to the library, you want to set up a local environment.
+
+To get set up, create a virtual Python environment, install Python dependencies,
+and install the databases that are used by the test suite. This library is using the
+`GNU make`_ utility. You can read more about it in `this article`_.
+
+There are commands to install Python dependencies into a virtual Python environment,
+to start and stop databases, to run the test suite, to build the docs, and for code
+linting. The actual code of the commands described below can be easily found in
+``Makefile`` at the root of this project. But first, you need to set up your local
+development environment.
 
 .. _GNU make: https://www.gnu.org/software/make/
 .. _this article: https://opensource.com/article/18/8/what-how-makefile
-
 
 .. _development-environment:
 
@@ -54,29 +61,40 @@ But also, you may use pyenv_.
 
 Consider to use virtualenv for development, choose for your flavor:
 
+- virtualenv_
 - virtualenvwrapper_
 - pyenv-virtualenv_ for pyenv_
 
+.. _virtualenv: https://pypi.org/project/virtualenv/
 .. _virtualenvwrapper: https://virtualenvwrapper.readthedocs.io/en/latest/
 .. _pyenv-virtualenv: https://github.com/pyenv/pyenv-virtualenv
 
-Use the following command inside your activated virtualenv to install all project dependencies
+For example, create and activate a virtual Python environment using ``virtualenv`` directly::
+
+    $ virtualenv ~/.virtualenvs/eventsourcing-py3
+    $ source ~/.virtualenvs/eventsourcing-py3/bin/activate
+
+Inside your activated virtualenv, use the following command to install all project dependencies
 required for contribution::
 
-    make install
+    $ make install
 
-Setup `git` to ignore specific revs with `blame`.
+
+Git blame
+---------
+
+Setup ``git`` to ignore specific revs with ``blame``.
 
 This project is old, and several times in its history a massive changes were performed.
-One such change is moving towards `isort/flake8` utility, another] bulk update is
-`black` formatter. While these changes are inevitable, they clutter the history,
-especially if you use `git blame` or _Annotate_ option in PyCharm.
-But in newer versions of git (>= 2.23), this can be mitigated: new options `--ignore-rev`_
-and `--ignore-revs-file`_ were added.  There is a file in this repository called
-`.git-blame-ignore-revs` which contains all such major reformattings. In order to pick it up by
-`git blame` and PyCharm, add a special config line::
+One such change is moving towards use of ``isort`` and ``flake8`` and ``black``. While
+these changes are inevitable, they clutter the history, especially if you use ``git blame``
+or _Annotate_ option in PyCharm. But in newer versions of git (>= 2.23), this can be
+mitigated: new options `--ignore-rev`_ and `--ignore-revs-file`_ were added.  There is
+a file in this repository called ``.git-blame-ignore-revs`` which contains all such
+major reformattings. In order to pick it up by ``git blame`` and PyCharm, add a special
+config line::
 
-    git config --local blame.ignoreRevsFile .git-blame-ignore-revs
+    $ git config --local blame.ignoreRevsFile .git-blame-ignore-revs
 
 More info can be found here_.
 
@@ -85,59 +103,103 @@ More info can be found here_.
 .. _here: https://www.moxio.com/blog/43/ignoring-bulk-change-commits-with-git-blame
 
 
+Run databases
+=============
+
 .. _docker-containers:
 
-Manage Docker containers
-========================
+It's easier to run the databases in Docker containers, but it's faster to run them directly.
 
-You need to manage Docker containers with third-party services to have a better experience with local development.
+Run databases in Docker containers
+----------------------------------
+
+You can run the databases in Docker containers.
+
 To pull docker images::
 
-    make docker-pull
+    $ make docker-pull
 
 To build docker images::
 
-    make docker-build
+    $ make docker-build
 
 To up and keep running containers in detached mode::
 
-    make docker-up
+    $ make docker-up
 
 To stop the containers::
 
-    make docker-stop
+    $ make docker-stop
 
 To tear down the containers removing volumes and “orphans”::
 
-    make docker-down
+    $ make docker-down
 
 To attach to the latest containers output::
 
-    make docker-logs
+    $ make docker-logs
 
-All of the commands using predefined “COMPOSE_FILE “and “COMPOSE_PROJECT_NAME “to keep
+All of the commands using predefined “COMPOSE_FILE“ and “COMPOSE_PROJECT_NAME“ to keep
 your containers in a more organized and straightforward way.
 
 **COMPOSE_FILE** is used by *docker-compose* utility to pick development services
-configuration. The valid format of this value is: ``dev/docker-compose.yaml “.
+configuration. The valid format of this value is: ``dev/docker-compose.yaml``.
 
 **COMPOSE_PROJECT_NAME** sets the project name. This value used to prepend the
-containers on startup along with the service name. “eventsourcing “is a great default value for it.
+containers on startup along with the service name. ``eventsourcing`` is a great
+default value for it.
+
+.. _macos-databases:
+
+Run databases on MacOS
+----------------------
+
+To install the databases on MacOS, you can run the following commands::
+
+    $ brew install mysql
+    $ brew install posgresql
+    $ brew install redis
+    $ brew install cassandra
+    $ ./dev/download_axon_server.sh
+
+To start the services, you can run run::
+
+    $ brew_services_start
+
+To stop the services, you can run run::
+
+    $ brew_services_stop
+
+Before running the tests for the first time, create a database in MySQL, and configure user access::
+
+    $ mysql -u root
+    mysql> CREATE DATABASE EVENTSOURCING;
+    mysql> CREATE USER 'eventsourcing'@'localhost' IDENTIFIED BY 'eventsourcing';
+    mysql> GRANT ALL PRIVILEGES ON eventsourcing.* TO 'eventsourcing'@'localhost';
+
+You will also need to create a database in PostgreSQL::
+
+    $ createdb eventsourcing
 
 
-Testing
-=======
+Run tests
+=========
 
 Ensure that you’ve set up your development environment (see :ref:`development-environment`) and
-and required services are up and running (see :ref:`docker-containers`).
+and required services are up and running (see :ref:`docker-containers`, or :ref:`macos-databases`).
 
-Just run this::
+Running tests from an IDE such as PyCharm allows easy navigation to code files.
 
-    make test
+You can run the full test suite using ``make``::
+
+    $ make test
+
+You can also run the test suite, but skip the slower tests::
+
+    $ make quicktest
 
 .. note::
-    Not all tests doing teardown in the right way: sometimes tests failed because of the
-    data left at DBs, so it requires ``make docker-down`` for a fresh start.
+    To re-run tests, sometimes it requires ``make docker-down`` for a fresh start.
 
 ... or push the code to trigger TravisCI checks.
 
@@ -146,9 +208,9 @@ Building documentation
 ======================
 
 This project using Sphinx_ documentation builder tool. Run this command to compile documentation
-into static HTML files at `./docs/_build/html`::
+into static HTML files at ``./docs/_build/html``::
 
-    make docs
+    $ make docs
 
 .. _Sphinx: https://www.sphinx-doc.org/en/master/
 
@@ -160,28 +222,28 @@ For now, linting your changes is completely optional - we do not have any checks
 
 Run isort_ to check imports sorting::
 
-    make lint-isort
+    $ make lint-isort
 
 We are using Black_ as a tool for style guide enforcement::
 
-    make lint-black
+    $ make lint-black
 
 We are using Flake8_ (and it's `Flake8 BugBear plugin`_) to check the code for PEP8_ compatibility::
 
-    make lint-flake8
+    $ make lint-flake8
 
 Mypy_ is a static type checker for Python 3 and Python 2.7. Run mypy to check code for accurate typing annotations::
 
-    make lint-mypy
+    $ make lint-mypy
 
-Dockerfilelint_ is an `npm` module that analyzes a Dockerfile and looks for
+Dockerfilelint_ is an ``npm`` module that analyzes a Dockerfile and looks for
 common traps, mistakes and helps enforce best practices::
 
-    make lint-dockerfile
+    $ make lint-dockerfile
 
 ... and finally, to run all the checks from above, use::
 
-    make lint
+    $ make lint
 
 .. _isort: https://github.com/timothycrosley/isort
 .. _Black: https://black.readthedocs.io/en/stable/
@@ -200,4 +262,4 @@ Automatic formatting
 
 To apply automatic formatting by using isort_ and Black_, run::
 
-    make fmt
+    $ make fmt
