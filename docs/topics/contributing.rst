@@ -65,6 +65,25 @@ required for contribution::
 
     make install
 
+Setup `git` to ignore specific revs with `blame`.
+
+This project is old, and several times in its history a massive changes were performed.
+One such change is moving towards `isort/flake8` utility, another] bulk update is
+`black` formatter. While these changes are inevitable, they clutter the history,
+especially if you use `git blame` or _Annotate_ option in PyCharm.
+But in newer versions of git (>= 2.23), this can be mitigated: new options `--ignore-rev`_
+and `--ignore-revs-file`_ were added.  There is a file in this repository called
+`.git-blame-ignore-revs` which contains all such major reformattings. In order to pick it up by
+`git blame` and PyCharm, add a special config line::
+
+    git config --local blame.ignoreRevsFile .git-blame-ignore-revs
+
+More info can be found here_.
+
+.. _--ignore-rev: https://git-scm.com/docs/git-blame#Documentation/git-blame.txt---ignore-revltrevgt
+.. _--ignore-revs-file: https://git-scm.com/docs/git-blame#Documentation/git-blame.txt---ignore-revs-fileltfilegt
+.. _here: https://www.moxio.com/blog/43/ignoring-bulk-change-commits-with-git-blame
+
 
 .. _docker-containers:
 
@@ -75,6 +94,10 @@ You need to manage Docker containers with third-party services to have a better 
 To pull docker images::
 
     make docker-pull
+
+To build docker images::
+
+    make docker-build
 
 To up and keep running containers in detached mode::
 
@@ -128,3 +151,53 @@ into static HTML files at `./docs/_build/html`::
     make docs
 
 .. _Sphinx: https://www.sphinx-doc.org/en/master/
+
+
+Linting your code
+=================
+
+For now, linting your changes is completely optional - we do not have any checks on CI for it.
+
+Run isort_ to check imports sorting::
+
+    make lint-isort
+
+We are using Black_ as a tool for style guide enforcement::
+
+    make lint-black
+
+We are using Flake8_ (and it's `Flake8 BugBear plugin`_) to check the code for PEP8_ compatibility::
+
+    make lint-flake8
+
+Mypy_ is a static type checker for Python 3 and Python 2.7. Run mypy to check code for accurate typing annotations::
+
+    make lint-mypy
+
+Dockerfilelint_ is an `npm` module that analyzes a Dockerfile and looks for
+common traps, mistakes and helps enforce best practices::
+
+    make lint-dockerfile
+
+... and finally, to run all the checks from above, use::
+
+    make lint
+
+.. _isort: https://github.com/timothycrosley/isort
+.. _Black: https://black.readthedocs.io/en/stable/
+.. _Dockerfilelint: https://hub.docker.com/r/replicated/dockerfilelint
+.. _Flake8: https://flake8.pycqa.org/en/latest/
+.. _Flake8 BugBear plugin: https://github.com/PyCQA/flake8-bugbear
+.. _PEP8: https://www.python.org/dev/peps/pep-0008/
+.. _Mypy: https://mypy.readthedocs.io/en/stable/
+
+
+Automatic formatting
+---------------------------------
+
+.. note::
+    In order to keep your Pull Request clean, please, do not apply it for all project but your specific changes.
+
+To apply automatic formatting by using isort_ and Black_, run::
+
+    make fmt
