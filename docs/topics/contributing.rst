@@ -271,4 +271,8 @@ To apply automatic formatting by using isort_ and Black_, run::
     $ make fmt
 
 .. note::
-    In order to keep your Pull Request clean, please, do not apply it for all project but your specific changes.
+    In order to keep your Pull Request clean, please, do not apply it for all project
+    but your specific changes. The project is now well formatted, but static typing
+    and and strict compliance with PEP8 is still a working in progress. If you want
+    to help improve the type hints and formatting, please do so in a dedicated PR
+    so things aren't mixed with other changes (it's just easier to review this way).
