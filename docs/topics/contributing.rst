@@ -161,8 +161,8 @@ default value for it.
 Run databases on macOS
 ----------------------
 
-If you happen to be using a Mac, you can also install the
-databases directly on macOS::
+If you happen to be using a Mac, you can install the databases directly on macOS
+using the following commands::
 
     $ brew install mysql
     $ brew install posgresql
@@ -172,11 +172,11 @@ databases directly on macOS::
 
 To start the databases, you can run::
 
-    $ brew_services_start
+    $ make brew_services_start
 
 To stop the services, you can run::
 
-    $ brew_services_stop
+    $ make brew_services_stop
 
 Before running the tests for the first time, create a database in MySQL, and configure user access::
 
