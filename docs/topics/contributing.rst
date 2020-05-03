@@ -158,11 +158,11 @@ default value for it.
 
 .. _macos-databases:
 
-Run databases on MacOS
+Run databases on macOS
 ----------------------
 
 If you happen to be using a Mac, you can also install the
-databases directly on MacOS::
+databases directly on macOS::
 
     $ brew install mysql
     $ brew install posgresql
