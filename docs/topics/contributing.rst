@@ -51,10 +51,10 @@ develop branch.
 
 This library has a `Makefile` to help with development. You can read more about
 the `GNU make`_ utility in `this article`_. There are commands to install Python
-dependencies into a virtual Python environment, to start and stop databases, to
-run the test suite, to build the docs, and for code linting. The actual code of
-the commands described below can be easily found in ``Makefile`` at the root of
-this project.
+dependencies into a virtual Python environment, to build containers for the databases,
+to start and stop databases, to run the test suite, to build the docs, to reformat code,
+and for static type checking and linting. The actual code of the commands described
+below can be easily found in ``Makefile`` at the root of the project repository.
 
 .. _GNU make: https://www.gnu.org/software/make/
 .. _this article: https://opensource.com/article/18/8/what-how-makefile
@@ -71,7 +71,7 @@ But also, you may use pyenv_.
 .. _official download page: https://www.python.org/downloads/
 .. _pyenv: https://github.com/pyenv/pyenv
 
-Consider to use virtualenv for development, choose for your flavor:
+You can use virtualenv to create a virtual Python environment. Choose for your flavour:
 
 - virtualenv_
 - virtualenvwrapper_
@@ -81,7 +81,7 @@ Consider to use virtualenv for development, choose for your flavor:
 .. _virtualenvwrapper: https://virtualenvwrapper.readthedocs.io/en/latest/
 .. _pyenv-virtualenv: https://github.com/pyenv/pyenv-virtualenv
 
-For example, create and activate a virtual Python environment using ``virtualenv`` directly::
+For example, you can create and activate a virtual Python environment using ``virtualenv`` directly::
 
     $ virtualenv ~/.virtualenvs/eventsourcing-py3
     $ source ~/.virtualenvs/eventsourcing-py3/bin/activate
@@ -170,11 +170,11 @@ databases directly on MacOS::
     $ brew install cassandra
     $ ./dev/download_axon_server.sh
 
-To start the databases, you can run run::
+To start the databases, you can run::
 
     $ brew_services_start
 
-To stop the services, you can run run::
+To stop the services, you can run::
 
     $ brew_services_stop
 
