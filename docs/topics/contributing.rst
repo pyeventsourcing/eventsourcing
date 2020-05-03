@@ -39,8 +39,8 @@ To make changes to the library, you will want to set up a local environment.
 To get set up, fork the repository on GitHub, clone your fork using Git, and
 then checkout the ``develop`` branch.
 
-Create a virtual Python environment, install Python dependencies, and install
-and start the databases that are used by the test suite. Then run the tests.
+Create a virtual Python environment, install Python dependencies, install
+and start the databases that are used by the test suite. and then run the tests.
 The library test suite depends on several databases. It's much easier to run
 databases in Docker containers, but it's slightly faster to run databases
 without containers.
