@@ -198,11 +198,11 @@ and required services are up and running (see :ref:`docker-containers`, or :ref:
 
 Running tests from an IDE such as PyCharm allows easy navigation to code files.
 
-You can run the full test suite using ``make``::
+You can run the full test suite using ``make test``::
 
     $ make test
 
-You can also run the test suite, but skip the slower tests::
+You can skip the slower tests when running the test suite with ``make quicktest``::
 
     $ make quicktest
 
