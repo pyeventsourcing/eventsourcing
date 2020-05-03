@@ -29,7 +29,7 @@ are several ways you can help the library’s development:
 - Join the Slack_ channel and share your ideas for how to improve the library. We’re always
   open to suggestions.
 - Submit patches or pull requests for new and/or fixed behavior.
-- Improve the documentation or improve the unit test suites.
+- Improve the documentation or improve the unit test suite.
 
 
 Making changes
