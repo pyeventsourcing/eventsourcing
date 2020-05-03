@@ -208,6 +208,9 @@ You can skip the slower tests when running the test suite with ``make quicktest`
 
 .. note::
     To re-run tests, sometimes it requires ``make docker-down`` for a fresh start.
+    At the moment, Axon Server sometimes doesn't return everything that is expected
+    when listing all the events of an application. But restarting Axon Server seems
+    to clear this up.
 
 
 Building documentation
