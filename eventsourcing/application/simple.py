@@ -319,7 +319,7 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
 
     def construct_datastore(self) -> None:
         """
-        Constructs datastore object (which helps by creating and dropping tables).
+        Constructs datastore object (used to create and drop database tables).
         """
         assert self.infrastructure_factory
         self._datastore = self.infrastructure_factory.construct_datastore()
@@ -384,6 +384,12 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         self.event_store.record_manager.pipeline_id = pipeline_id
 
     def close(self) -> None:
+        """
+        Closes the application for further use.
+
+        The persistence policy is closed, and the application's
+        connection to the database is closed.
+        """
         # Close the persistence policy.
         if self._persistence_policy is not None:
             self._persistence_policy.close()
@@ -417,7 +423,21 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
 
     def save(
         self, aggregates=(), orm_objects_pending_save=(), orm_objects_pending_delete=(),
-    ):
+    ) -> None:
+        """
+        Saves state of aggregates, and ORM objects.
+
+        All of the pending events of the aggregates, along with the
+        ORM objects, are recorded atomically as a process event.
+
+        Then a "prompt to pull" is published, and, if the repository cache
+        is in use, then puts the aggregates in the cache.
+
+        :param aggregates: One or many aggregates.
+        :param orm_objects_pending_save: Sequence of ORM objects to be saved.
+        :param orm_objects_pending_delete: Sequance of ORM objects to be deleted.
+        """
+        # Collect pending events from the aggregates.
         new_events = []
         if isinstance(aggregates, BaseAggregateRoot):
             aggregates = [aggregates]
@@ -453,6 +473,17 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
                 self.repository.put_entity_in_cache(aggregate.id, aggregate)
 
     def record_process_event(self, process_event: ProcessEvent) -> List:
+        """
+        Records a process event.
+
+        Converts the domain events of the process event to event record
+        objects, and writes the event records and the ORM objects to
+        the database using the application's event store's record manager.
+
+        :param process_event: An instance of
+            :class:`~eventsourcing.application.simple.ProcessEvent`
+        :return: A list of event records.
+        """
         # Construct event records.
         event_records = self.construct_event_records(
             process_event.domain_events, process_event.causal_dependencies
@@ -474,6 +505,13 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         pending_events: Iterable[TAggregateEvent],
         causal_dependencies: Optional[ListOfCausalDependencies],
     ) -> List:
+        """
+        Constructs event records from domain events.
+
+        :param pending_events: An iterable of domain events.
+        :param causal_dependencies: A list of causal dependencies.
+        :return: A list of event records.
+        """
         # Convert to event records.
         sequenced_items = self.event_store.items_from_events(pending_events)
         record_manager = self.event_store.record_manager
@@ -514,6 +552,13 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         return event_records
 
     def publish_prompt(self, head_notification_id=None):
+        """
+        Publishes a "prompt to pull" (instance of
+        :class:`~eventsourcing.application.simple.PromptToPull`).
+
+        :param head_notification_id: Maximum notification ID of event records
+            to be pulled.
+        """
         prompt = PromptToPull(self.name, self.pipeline_id, head_notification_id)
         try:
             publish(prompt)
