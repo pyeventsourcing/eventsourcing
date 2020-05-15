@@ -8,6 +8,7 @@ Steps to make a new release.
 1. Push branch to GitHub and start a PR to master.
 1. Review versions of all dependencies.
 1. Update release notes to describe what's new in this release.
+1. Update copyright year in LICENSE file.
 1. Run 'prepare-distribution' script.
 1. Increase version number to 'rc1', 'rc2' in case of failure.
 1. Try to fix and push changes to GitHub.
