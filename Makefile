@@ -83,11 +83,7 @@ test:
 
 .PHONY: quicktest
 quicktest:
-	QUICK_TESTS_ONLY=1
-	@coverage run -m unittest discover eventsourcing.tests -vv
-	@coverage combine
-	@coverage report
-	@coverage html
+	QUICK_TESTS_ONLY=1 python -m unittest discover eventsourcing.tests -vv
 
 
 .PHONY: docs
