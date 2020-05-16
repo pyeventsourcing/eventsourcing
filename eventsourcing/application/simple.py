@@ -34,6 +34,7 @@ from eventsourcing.infrastructure.base import (
     AbstractEventStore,
     AbstractRecordManager,
     BaseRecordManager,
+    RecordManagerWithNotifications,
     RecordManagerWithTracking,
     TrackingKwargs,
 )
@@ -449,21 +450,22 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
             orm_objs_pending_delete=orm_objects_pending_delete,
         )
         new_records = self.record_process_event(process_event)
-        # Find the head notification ID.
-        notifiable_events = [e for e in new_events if e.__notifiable__]
-        head_notification_id = None
-        if len(notifiable_events):
-            record_manager = self.event_store.record_manager
-            notification_id_name = record_manager.notification_id_name
-            notifications = []
-            for record in new_records:
-                if not hasattr(record, notification_id_name):
-                    continue
-                if not isinstance(getattr(record, notification_id_name), int):
-                    continue
-                notifications.append(
-                    record_manager.create_notification_from_record(record)
-                )
+        record_manager = self.event_store.record_manager
+        if isinstance(record_manager, RecordManagerWithNotifications):
+            # Find the head notification ID.
+            notifiable_events = [e for e in new_events if e.__notifiable__]
+            head_notification_id = None
+            if len(notifiable_events):
+                notification_id_name = record_manager.notification_id_name
+                notifications = []
+                for record in new_records:
+                    if not hasattr(record, notification_id_name):
+                        continue
+                    if not isinstance(getattr(record, notification_id_name), int):
+                        continue
+                    notifications.append(
+                        record_manager.create_notification_from_record(record)
+                    )
 
             if len(notifications):
                 head_notification_id = notifications[-1]["id"]
@@ -537,7 +539,7 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
             else:
                 if any((not e.__notifiable__ for e in pending_events)):
                     raise Exception(
-                        "Can't set __notifiable__=False withut "
+                        "Can't set __notifiable__=False without "
                         "set_notification_ids=True "
                     )
 
