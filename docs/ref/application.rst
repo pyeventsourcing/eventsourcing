@@ -84,6 +84,17 @@ process
     :exclude-members: __weakref__, __dict__
 
 
+decorators
+----------
+
+.. automodule:: eventsourcing.application.decorators
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__
+
+
 command
 -------
 
