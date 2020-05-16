@@ -111,14 +111,14 @@ brew-services-stop:
 
 .PHONY: prepare-distribution
 prepare-distribution:
-	cd dev && python ./prepare-distribution.py
+	python ./dev/prepare-distribution.py
 
 
 .PHONY: release-distribution
 release-distribution:
-	cd dev && python ./release-distribution.py
+	python ./dev/release-distribution.py
 
 
 .PHONY: test-distribution
 test-distribution:
-	cd dev && python ./test-released-distribution.py
+	python ./dev/test-released-distribution.py
