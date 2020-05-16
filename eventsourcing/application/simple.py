@@ -442,6 +442,11 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         new_events = []
         if isinstance(aggregates, BaseAggregateRoot):
             aggregates = [aggregates]
+        else:
+            pass
+            # Todo: Make sure record manager supports writing events from more than
+            #  one aggregate atomically (e.g. Cassandra and EventStore don't).
+
         for aggregate in aggregates:
             new_events += aggregate.__batch_pending_events__()
         process_event = ProcessEvent(
