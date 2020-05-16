@@ -44,9 +44,9 @@ $ ./axonserver/axonserver.jar
 
 After this, the databases can be stopped with:
 
-$ make brew_services_stop
+$ make brew-services-stop
 
 
 The database can be started with:
 
-$ make brew_services_start
+$ make brew-services-start

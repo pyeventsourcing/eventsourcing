@@ -22,6 +22,15 @@ systems of application, previously in the "application" package, has been
 moved to a new "system" package.
 
 
+Version 8.2.2 (released 16 May 2020)
+--------------------------------------
+
+Improved documentation. Updated dockerization for local
+development. Added Makefile, to setup development environment,
+to build and run docker containers, to run the test suite, to
+format the code, and to build the docs. Reformatted the code.
+
+
 Version 8.2.1 (released 11 March 2020)
 --------------------------------------
 

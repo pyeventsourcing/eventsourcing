@@ -29,6 +29,7 @@ docker-stop:
 docker-down:
 	@docker-compose down -v --remove-orphans
 
+
 .PHONY: docker-logs
 docker-logs:
 	@docker-compose logs --follow --tail=1000
@@ -81,8 +82,8 @@ test:
 	@coverage html
 
 
-.PHONY: quicktest
-quicktest:
+.PHONY: quick-test
+quick-test:
 	QUICK_TESTS_ONLY=1 python -m unittest discover eventsourcing.tests -vv
 
 
@@ -91,17 +92,33 @@ docs:
 	cd docs && make html
 
 
-.PHONY: brew_services_start
-brew_services_start:
+.PHONY: brew-services-start
+brew-services-start:
 	brew services start mysql
 	brew services start postgresql
 	brew services start redis
 	~/axonserver/axonserver.jar &
 	cassandra -f &
 
-.PHONY: brew_services_stop
-brew_services_stop:
+
+.PHONY: brew-services-stop
+brew-services-stop:
 	brew services stop mysql
 	brew services stop postgresql
 	brew services stop redis
 	pkill -15 java
+
+
+.PHONY: prepare-distribution
+prepare-distribution:
+	python ./dev/prepare-distribution.py
+
+
+.PHONY: release-distribution
+release-distribution:
+	python ./dev/release-distribution.py
+
+
+.PHONY: test-distribution
+test-distribution:
+	python ./dev/test-released-distribution.py
