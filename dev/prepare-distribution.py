@@ -9,18 +9,15 @@ from time import sleep
 def main():
     proj_path = os.path.abspath(".")
     readme_path = os.path.join(proj_path, "README.md")
-    if "A library for event sourcing in Python" in open(readme_path).read():
-        print("Project root dir: %s" % proj_path)
+    if os.path.exists(readme_path):
+        assert "A library for event sourcing in Python" in open(readme_path).read()
     else:
-        raise Exception("Project README file not found: %s" % readme_path)
+        raise Exception("Couldn't find project README.md")
 
     try:
         del os.environ["PYTHONPATH"]
     except KeyError:
         pass
-
-    os.environ["CASS_DRIVER_NO_CYTHON"] = "1"
-    from eventsourcing import __version__
 
     # Build and upload to Test PyPI.
     subprocess.check_call([sys.executable, "setup.py", "clean", "--all"], cwd=proj_path)
@@ -34,6 +31,8 @@ def main():
 
     # Test distribution for various targets.
     targets = [(os.path.join(proj_path, "tmpve3.7"), "python")]
+    os.environ["CASS_DRIVER_NO_CYTHON"] = "1"
+    from eventsourcing import __version__
     for (venv_path, python_bin) in targets:
 
         # Rebuild virtualenv.
