@@ -1,19 +1,18 @@
 from unittest import TestCase
 
 from eventsourcing.application.axon import AxonApplication
+from eventsourcing.application.django import DjangoApplication
+from eventsourcing.application.notificationlog import NotificationLogReader
 from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.simple import SimpleApplication
+from eventsourcing.application.snapshotting import SnapshottingApplication
+from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
+from eventsourcing.domain.model.events import DomainEvent, assert_event_handlers_empty
 from eventsourcing.exceptions import ProgrammingError
+from eventsourcing.tests.core_tests.test_aggregate_root import ExampleAggregateRoot
 from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import (
     DjangoTestCase,
 )
-
-from eventsourcing.application.django import DjangoApplication
-from eventsourcing.application.notificationlog import NotificationLogReader
-from eventsourcing.application.snapshotting import SnapshottingApplication
-from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
-from eventsourcing.domain.model.events import assert_event_handlers_empty, DomainEvent
-from eventsourcing.tests.core_tests.test_aggregate_root import ExampleAggregateRoot
 from eventsourcing.utils.random import encoded_random_bytes
 
 
@@ -87,7 +86,7 @@ class TestDjangoApplication(DjangoTestCase, TestSimpleApplication):
     infrastructure_class = DjangoApplication
 
 
-class TestAxonApplication(DjangoTestCase, TestSimpleApplication):
+class TestAxonApplication(TestSimpleApplication):
     infrastructure_class = AxonApplication
 
 

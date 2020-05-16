@@ -1,17 +1,12 @@
-# coding=utf-8
-from __future__ import unicode_literals
-
 import datetime
 from uuid import uuid4
 
 from eventsourcing.domain.model.decorators import attribute
 from eventsourcing.domain.model.entity import (
-    AttributeChanged,
-    Created,
-    Discarded,
     TimestampedVersionedEntity,
 )
-from eventsourcing.domain.model.events import publish
+from eventsourcing.domain.model.events import AttributeChangedEvent, CreatedEvent, \
+    DiscardedEvent, publish
 from eventsourcing.example.application import ExampleApplication
 from eventsourcing.exceptions import RepositoryKeyError
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
@@ -22,13 +17,13 @@ class SuffixTree(TimestampedVersionedEntity):
     for construction.
     """
 
-    class Created(Created):
+    class Created(CreatedEvent):
         pass
 
-    class AttributeChanged(AttributeChanged):
+    class AttributeChanged(AttributeChangedEvent):
         pass
 
-    class Discarded(Discarded):
+    class Discarded(DiscardedEvent):
         pass
 
     def __init__(self, root_node_id, case_insensitive=False, **kwargs):
@@ -203,13 +198,13 @@ class Node(TimestampedVersionedEntity):
     """A node in the suffix tree.
     """
 
-    class Created(Created):
+    class Created(CreatedEvent):
         pass
 
-    class AttributeChanged(AttributeChanged):
+    class AttributeChanged(AttributeChangedEvent):
         pass
 
-    class Discarded(Discarded):
+    class Discarded(DiscardedEvent):
         pass
 
     def __init__(self, suffix_node_id=None, *args, **kwargs):
@@ -232,13 +227,13 @@ class Edge(TimestampedVersionedEntity):
     """An edge in the suffix tree.
     """
 
-    class Created(Created):
+    class Created(CreatedEvent):
         pass
 
-    class AttributeChanged(AttributeChanged):
+    class AttributeChanged(AttributeChangedEvent):
         pass
 
-    class Discarded(Discarded):
+    class Discarded(DiscardedEvent):
         pass
 
     def __init__(

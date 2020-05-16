@@ -20,9 +20,9 @@ before_install:
   - sudo apt-get -qq update
   - sudo apt-get install -y openjdk-8-jdk
   - sudo apt-get install -y icedtea-8-plugin
-#  - sudo update-java-alternatives --set /usr/lib/jvm/java-1.8.0-openjdk-amd64
+  #  - sudo update-java-alternatives --set /usr/lib/jvm/java-1.8.0-openjdk-amd64
   - sudo update-java-alternatives -v --set java-1.8.0-openjdk-amd64
-#  - source /etc/environment
+  #  - source /etc/environment
   - export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64
   - java -version
 
@@ -56,28 +56,26 @@ install:
   - python --version
   - pip install -U pip wheel
   - CASS_DRIVER_NO_CYTHON=1 pip install -e .[testing]
-  - pip install pymysql
-  - pip install mysql-connector-python-rf
-  - pip install python-coveralls
-  - pip install -U "coverage<5.0.0"  # v5 is incompatible ATM.
 
 env:
   global:
     - CASSANDRA_HOSTS=127.0.0.1
     - MYSQL_USER=travis
+    - MYSQL_PASSWORD=
     - POSTGRES_USER=postgres
+    - POSTGRES_PASSWORD=
 
 script:
-- if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then
+  - if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then
       coverage run --concurrency=multiprocessing -m unittest discover eventsourcing.tests -v;
-  fi
+    fi
 
-- if [[ $TRAVIS_PYTHON_VERSION == pypy* ]]; then
+  - if [[ $TRAVIS_PYTHON_VERSION == pypy* ]]; then
       python -m unittest discover eventsourcing.tests -v;
-  fi
+    fi
 
 after_success:
-- if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then
+  - if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then
       coverage combine;
       coveralls;
-  fi
+    fi

@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from threading import Thread
-from typing import Iterable, Optional, NamedTuple, Iterator, Any, List
+from typing import Any, Iterable, Iterator, List, NamedTuple, Optional
 from uuid import UUID
 
 from eventsourcing.infrastructure.base import AbstractRecordManager, BaseRecordManager
@@ -34,9 +34,7 @@ class AbstractSequencedItemIterator(Iterable):
         :param limit: Limit to the number of items returned.
         :param is_ascending: Whether or not to iterate in ascending order.
         """
-        assert isinstance(record_manager, BaseRecordManager), type(
-            record_manager
-        )
+        assert isinstance(record_manager, BaseRecordManager), type(record_manager)
         assert isinstance(page_size, (int, type(None)))
         assert isinstance(limit, (int, type(None)))
         self.record_manager = record_manager
@@ -255,9 +253,7 @@ class GetEntityEventsThread(Thread):
         **kwargs: Any
     ):
         super(GetEntityEventsThread, self).__init__(*args, **kwargs)
-        assert isinstance(record_manager, BaseRecordManager), type(
-            record_manager
-        )
+        assert isinstance(record_manager, BaseRecordManager), type(record_manager)
         self.record_manager = record_manager
         self.stored_entity_id = sequence_id
         self.gt = gt

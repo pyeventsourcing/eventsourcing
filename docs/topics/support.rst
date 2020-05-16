@@ -58,5 +58,5 @@ The library has a growing community that may be able to help.
 Support the project
 ===================
 
-Please follow the `Sponsor button <https://github.com/johnbywater/eventsourcing/issues>`__
+Please follow the `Sponsor button <https://github.com/johnbywater/eventsourcing>`__
 on the GitHub project for options.

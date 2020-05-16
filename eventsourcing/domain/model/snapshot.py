@@ -1,12 +1,13 @@
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
 from uuid import UUID
 
 from eventsourcing.domain.model.events import (
+    AbstractSnapshot,
     EventWithOriginatorID,
     EventWithOriginatorVersion,
     EventWithTimestamp,
-    AbstractSnapshot)
-from eventsourcing.utils.topic import resolve_topic, reconstruct_object
+)
+from eventsourcing.utils.topic import reconstruct_object, resolve_topic
 from eventsourcing.whitehead import TEntity
 
 

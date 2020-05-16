@@ -89,7 +89,7 @@ def decoderpolicy(arg=None):
 
 class ObjectJSONEncoder(JSONEncoder):
     def encode(self, o):
-        return super(ObjectJSONEncoder, self).encode(o).encode('utf8')
+        return super(ObjectJSONEncoder, self).encode(o).encode("utf8")
 
     def iterencode(self, o, _one_shot=False):
         if isinstance(o, tuple):

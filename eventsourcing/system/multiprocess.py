@@ -1,35 +1,23 @@
 import multiprocessing
 from multiprocessing import Manager
-from queue import Queue, Empty
+from queue import Empty, Queue
 from time import sleep
-from typing import (
-    Sequence,
-    Optional,
-    Any,
-    List,
-    TYPE_CHECKING,
-    Dict,
-    Tuple,
-    Type,
-)
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Type
 
 from eventsourcing.application.notificationlog import RecordManagerNotificationLog
-from eventsourcing.application.process import (
-    PromptToQuit,
-    ProcessApplication,
-)
+from eventsourcing.application.process import ProcessApplication, PromptToQuit
 from eventsourcing.application.simple import (
     ApplicationWithConcreteInfrastructure,
     Prompt,
-    is_prompt_to_pull,
     PromptToPull,
+    is_prompt_to_pull,
 )
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import (
-    ProgrammingError,
     CausalDependencyFailed,
     OperationalError,
+    ProgrammingError,
     RecordConflictError,
 )
 from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID

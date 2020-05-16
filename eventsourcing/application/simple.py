@@ -30,10 +30,11 @@ from eventsourcing.domain.model.entity import (
 from eventsourcing.domain.model.events import DomainEvent, publish
 from eventsourcing.exceptions import ProgrammingError, PromptFailed
 from eventsourcing.infrastructure.base import (
+    DEFAULT_PIPELINE_ID,
     AbstractEventStore,
     AbstractRecordManager,
     BaseRecordManager,
-    DEFAULT_PIPELINE_ID,
+    RecordManagerWithNotifications,
     RecordManagerWithTracking,
     TrackingKwargs,
 )
@@ -253,16 +254,17 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         return self._persistence_policy
 
     def _raise_on_missing_infrastructure(self, what_is_missing):
-        msg = "Application class %s does not have a %s." % (
-            type(self).__name__,
-            what_is_missing,
-        )
         if not isinstance(self, ApplicationWithConcreteInfrastructure):
-            msg += (
-                " and is not an ApplicationWithConcreteInfrastructure."
+            msg = (
+                "Application class %s is not an subclass of %s."
                 " Try using or inheriting from or mixin() an application"
                 " class with concrete infrastructure such as SQLAlchemyApplication"
                 " or DjangoApplication or AxonApplication."
+            ) % (type(self), ApplicationWithConcreteInfrastructure)
+        else:
+            msg = "Application class %s does not have a %s" % (
+                type(self).__name__,
+                what_is_missing,
             )
         raise ProgrammingError(msg)
 
@@ -318,7 +320,7 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
 
     def construct_datastore(self) -> None:
         """
-        Constructs datastore object (which helps by creating and dropping tables).
+        Constructs datastore object (used to create and drop database tables).
         """
         assert self.infrastructure_factory
         self._datastore = self.infrastructure_factory.construct_datastore()
@@ -383,6 +385,12 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         self.event_store.record_manager.pipeline_id = pipeline_id
 
     def close(self) -> None:
+        """
+        Closes the application for further use.
+
+        The persistence policy is closed, and the application's
+        connection to the database is closed.
+        """
         # Close the persistence policy.
         if self._persistence_policy is not None:
             self._persistence_policy.close()
@@ -416,10 +424,29 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
 
     def save(
         self, aggregates=(), orm_objects_pending_save=(), orm_objects_pending_delete=(),
-    ):
+    ) -> None:
+        """
+        Saves state of aggregates, and ORM objects.
+
+        All of the pending events of the aggregates, along with the
+        ORM objects, are recorded atomically as a process event.
+
+        Then a "prompt to pull" is published, and, if the repository cache
+        is in use, then puts the aggregates in the cache.
+
+        :param aggregates: One or many aggregates.
+        :param orm_objects_pending_save: Sequence of ORM objects to be saved.
+        :param orm_objects_pending_delete: Sequance of ORM objects to be deleted.
+        """
+        # Collect pending events from the aggregates.
         new_events = []
         if isinstance(aggregates, BaseAggregateRoot):
             aggregates = [aggregates]
+        else:
+            pass
+            # Todo: Make sure record manager supports writing events from more than
+            #  one aggregate atomically (e.g. Cassandra and EventStore don't).
+
         for aggregate in aggregates:
             new_events += aggregate.__batch_pending_events__()
         process_event = ProcessEvent(
@@ -428,30 +455,42 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
             orm_objs_pending_delete=orm_objects_pending_delete,
         )
         new_records = self.record_process_event(process_event)
-        # Find the head notification ID.
-        notifiable_events = [e for e in new_events if e.__notifiable__]
-        head_notification_id = None
-        if len(notifiable_events):
-            record_manager = self.event_store.record_manager
-            notification_id_name = record_manager.notification_id_name
-            notifications = []
-            for record in new_records:
-                if not hasattr(record, notification_id_name):
-                    continue
-                if not isinstance(getattr(record, notification_id_name), int):
-                    continue
-                notifications.append(
-                    record_manager.create_notification_from_record(record)
-                )
+        record_manager = self.event_store.record_manager
+        if isinstance(record_manager, RecordManagerWithNotifications):
+            # Find the head notification ID.
+            notifiable_events = [e for e in new_events if e.__notifiable__]
+            head_notification_id = None
+            if len(notifiable_events):
+                notification_id_name = record_manager.notification_id_name
+                notifications = []
+                for record in new_records:
+                    if not hasattr(record, notification_id_name):
+                        continue
+                    if not isinstance(getattr(record, notification_id_name), int):
+                        continue
+                    notifications.append(
+                        record_manager.create_notification_from_record(record)
+                    )
 
-            if len(notifications):
-                head_notification_id = notifications[-1]["id"]
-        self.publish_prompt(head_notification_id)
-        for aggregate in aggregates:
-            if self.repository.use_cache:
+                if len(notifications):
+                    head_notification_id = notifications[-1]["id"]
+            self.publish_prompt(head_notification_id)
+        if self.repository.use_cache:
+            for aggregate in aggregates:
                 self.repository.put_entity_in_cache(aggregate.id, aggregate)
 
     def record_process_event(self, process_event: ProcessEvent) -> List:
+        """
+        Records a process event.
+
+        Converts the domain events of the process event to event record
+        objects, and writes the event records and the ORM objects to
+        the database using the application's event store's record manager.
+
+        :param process_event: An instance of
+            :class:`~eventsourcing.application.simple.ProcessEvent`
+        :return: A list of event records.
+        """
         # Construct event records.
         event_records = self.construct_event_records(
             process_event.domain_events, process_event.causal_dependencies
@@ -473,6 +512,13 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         pending_events: Iterable[TAggregateEvent],
         causal_dependencies: Optional[ListOfCausalDependencies],
     ) -> List:
+        """
+        Constructs event records from domain events.
+
+        :param pending_events: An iterable of domain events.
+        :param causal_dependencies: A list of causal dependencies.
+        :return: A list of event records.
+        """
         # Convert to event records.
         sequenced_items = self.event_store.items_from_events(pending_events)
         record_manager = self.event_store.record_manager
@@ -495,6 +541,12 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
                         setattr(
                             event_record, notification_id_name, "event-not-notifiable"
                         )
+            else:
+                if any((not e.__notifiable__ for e in pending_events)):
+                    raise Exception(
+                        "Can't set __notifiable__=False without "
+                        "set_notification_ids=True "
+                    )
 
             if self.use_causal_dependencies:
                 assert hasattr(record_manager.record_class, "causal_dependencies")
@@ -507,6 +559,13 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
         return event_records
 
     def publish_prompt(self, head_notification_id=None):
+        """
+        Publishes a "prompt to pull" (instance of
+        :class:`~eventsourcing.application.simple.PromptToPull`).
+
+        :param head_notification_id: Maximum notification ID of event records
+            to be pulled.
+        """
         prompt = PromptToPull(self.name, self.pipeline_id, head_notification_id)
         try:
             publish(prompt)

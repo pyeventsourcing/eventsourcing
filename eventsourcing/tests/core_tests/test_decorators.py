@@ -8,8 +8,8 @@ from eventsourcing.domain.model.decorators import mutator, retry, subscribe_to
 from eventsourcing.domain.model.events import (
     EventHandlersNotEmptyError,
     assert_event_handlers_empty,
-    publish,
     clear_event_handlers,
+    publish,
 )
 from eventsourcing.example.domainmodel import Example
 from eventsourcing.utils.topic import get_topic
@@ -212,7 +212,6 @@ class TestDecorators(TestCase):
         self.seen_int = False
 
         class Application(object):
-
             def __init__(self, test_case):
                 self.test_case = test_case
 
@@ -224,11 +223,10 @@ class TestDecorators(TestCase):
             def _(self, repository, event):
                 self.test_case.seen_int = True
 
-
         app = Application(self)
         self.assertFalse(self.seen_default)
         self.assertFalse(self.seen_int)
-        app.policy(None, '')
+        app.policy(None, "")
         self.assertTrue(self.seen_default)
         self.assertFalse(self.seen_int)
         app.policy(None, 1)
@@ -252,7 +250,6 @@ class TestDecorators(TestCase):
             pass
 
         class Application(object):
-
             def __init__(self, test_case):
                 self.test_case = test_case
 
@@ -272,11 +269,10 @@ class TestDecorators(TestCase):
             def _(self, repository, event):
                 self.test_case.seen_b = True
 
-
         app = Application(self)
         self.assertFalse(self.seen_default)
         self.assertFalse(self.seen_int)
-        app.policy(None, '')
+        app.policy(None, "")
         self.assertTrue(self.seen_default)
         self.assertFalse(self.seen_int)
         app.policy(None, 1)
@@ -284,4 +280,3 @@ class TestDecorators(TestCase):
         self.assertTrue(self.seen_int)
         app.policy(None, C())
         self.assertTrue(self.seen_b)
-

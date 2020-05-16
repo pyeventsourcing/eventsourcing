@@ -385,8 +385,8 @@ class Learner(MessageHandler):
         self.acceptors = dict()  # maps from_uid => last_accepted_proposal_id
         self.final_value = None
         self.final_acceptors = (
-            None
-        )  # Will be a set of acceptor UIDs once the final value is chosen
+            None  # Will be a set of acceptor UIDs once the final value is chosen
+        )
         self.final_proposal_id = None
 
     def receive_accepted(self, msg):

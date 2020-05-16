@@ -2,13 +2,13 @@ from uuid import UUID
 
 from eventsourcing.application.policies import PersistencePolicy
 from eventsourcing.domain.model.entity import TimeuuidedEntity
-from eventsourcing.domain.model.events import EventWithTimeuuid, DomainEvent
+from eventsourcing.domain.model.events import DomainEvent, EventWithTimeuuid
 from eventsourcing.infrastructure.cassandra.datastore import (
     CassandraDatastore,
     CassandraSettings,
 )
-from eventsourcing.infrastructure.cassandra.records import TimeuuidSequencedRecord
 from eventsourcing.infrastructure.cassandra.manager import CassandraRecordManager
+from eventsourcing.infrastructure.cassandra.records import TimeuuidSequencedRecord
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.sequenceditem import SequencedItem
@@ -18,7 +18,6 @@ from eventsourcing.tests.datastore_tests.test_cassandra import (
     DEFAULT_KEYSPACE_FOR_TESTING,
 )
 from eventsourcing.utils.times import decimaltimestamp_from_uuid
-
 
 # This test has events with TimeUUID value as the 'event ID'. How easy is it to customize
 # the infrastructure to support that? We just need to make a model that uses these events,

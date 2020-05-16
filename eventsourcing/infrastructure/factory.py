@@ -2,9 +2,9 @@ from json import JSONDecoder, JSONEncoder
 from typing import Any, Generic, NamedTuple, Optional, Type
 
 from eventsourcing.infrastructure.base import (
+    DEFAULT_PIPELINE_ID,
     AbstractEventStore,
     AbstractRecordManager,
-    DEFAULT_PIPELINE_ID,
 )
 from eventsourcing.infrastructure.datastore import AbstractDatastore
 from eventsourcing.infrastructure.eventstore import EventStore

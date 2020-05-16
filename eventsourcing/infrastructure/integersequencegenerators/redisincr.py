@@ -1,8 +1,8 @@
+import os
 from typing import Optional
 from uuid import uuid4
 
-import os
-from redis import StrictRedis, Redis
+from redis import Redis, StrictRedis
 
 from eventsourcing.infrastructure.integersequencegenerators.base import (
     AbstractIntegerSequenceGenerator,

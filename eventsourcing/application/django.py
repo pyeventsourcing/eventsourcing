@@ -11,7 +11,7 @@ from eventsourcing.infrastructure.django.utils import (
 class DjangoApplication(ApplicationWithConcreteInfrastructure):
     infrastructure_factory_class = DjangoInfrastructureFactory
 
-    def __init__(self, tracking_record_class: Any=None, *args: Any, **kwargs: Any):
+    def __init__(self, tracking_record_class: Any = None, *args: Any, **kwargs: Any):
         self._tracking_record_class = tracking_record_class
         super(DjangoApplication, self).__init__(*args, **kwargs)
 

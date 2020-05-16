@@ -1,23 +1,22 @@
-from time import sleep, time, process_time
+from time import process_time, sleep, time
 from unittest import skip
 
+from eventsourcing.application.popo import PopoApplication
+from eventsourcing.system.definition import System
 from eventsourcing.system.runner import (
     SteppingMultiThreadedRunner,
     SteppingSingleThreadedRunner,
 )
-from eventsourcing.system.definition import System
 from eventsourcing.tests.sequenced_item_tests.test_popo_record_manager import (
     PopoTestCase,
 )
-
-from eventsourcing.application.popo import PopoApplication
-from eventsourcing.tests.test_system import TestSystem
 from eventsourcing.tests.system_test_fixtures import (
-    create_new_order,
     Orders,
-    Reservations,
     Payments,
+    Reservations,
+    create_new_order,
 )
+from eventsourcing.tests.test_system import TestSystem
 
 
 class TestSystemWithPopo(PopoTestCase, TestSystem):

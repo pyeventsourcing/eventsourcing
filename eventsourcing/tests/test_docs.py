@@ -32,8 +32,8 @@ class TestDocs(TestCase):
         os.environ[
             "DB_URI"
         ] = "mysql+pymysql://{}:{}@{}/eventsourcing?charset=utf8mb4&binary_prefix=true".format(
-            os.getenv("MYSQL_USER", "root"),
-            os.getenv("MYSQL_PASSWORD", ""),
+            os.getenv("MYSQL_USER", "eventsourcing"),
+            os.getenv("MYSQL_PASSWORD", "eventsourcing"),
             os.getenv("MYSQL_HOST", "127.0.0.1"),
         )
         database = SQLAlchemyDatastore(settings=SQLAlchemySettings())
@@ -74,18 +74,18 @@ class TestDocs(TestCase):
                 if name in skipped:
                     continue
                 if name.endswith(".rst"):
-                # if name.endswith('domainmodel.rst'):
-                # if name.endswith('quick_start.rst'):
-                # if name.endswith('aggregates_in_ddd.rst'):
-                # if name.endswith('example_application.rst'):
-                # if name.endswith('everything.rst'):
-                # if name.endswith('infrastructure.rst'):
-                # if name.endswith('application.rst'):
-                # if name.endswith('snapshotting.rst'):
-                # if name.endswith('notifications.rst'):
-                # if name.endswith('projections.rst'):
-                # if name.endswith('deployment.rst'):
-                # if name.endswith('process.rst'):
+                    # if name.endswith('domainmodel.rst'):
+                    # if name.endswith('quick_start.rst'):
+                    # if name.endswith('aggregates_in_ddd.rst'):
+                    # if name.endswith('example_application.rst'):
+                    # if name.endswith('everything.rst'):
+                    # if name.endswith('infrastructure.rst'):
+                    # if name.endswith('application.rst'):
+                    # if name.endswith('snapshotting.rst'):
+                    # if name.endswith('notifications.rst'):
+                    # if name.endswith('projections.rst'):
+                    # if name.endswith('deployment.rst'):
+                    # if name.endswith('process.rst'):
                     file_paths.append(os.path.join(docs_path, dirpath, name))
 
         file_paths = sorted(file_paths)

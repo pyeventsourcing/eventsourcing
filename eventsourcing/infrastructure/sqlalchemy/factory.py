@@ -1,7 +1,7 @@
 from typing import Any, NamedTuple, Optional, Type
 
 from eventsourcing.domain.model.events import DomainEvent
-from eventsourcing.infrastructure.base import AbstractRecordManager, DEFAULT_PIPELINE_ID
+from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID, AbstractRecordManager
 from eventsourcing.infrastructure.datastore import AbstractDatastore
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.factory import InfrastructureFactory

@@ -36,14 +36,8 @@ from eventsourcing.domain.model.aggregate import (
     TAggregateEvent,
 )
 from eventsourcing.domain.model.events import subscribe, unsubscribe
-from eventsourcing.exceptions import (
-    CausalDependencyFailed,
-    ProgrammingError,
-)
-from eventsourcing.infrastructure.base import (
-    RecordManagerWithTracking,
-    TrackingKwargs,
-)
+from eventsourcing.exceptions import CausalDependencyFailed, ProgrammingError
+from eventsourcing.infrastructure.base import RecordManagerWithTracking, TrackingKwargs
 from eventsourcing.infrastructure.eventsourcedrepository import EventSourcedRepository
 from eventsourcing.whitehead import IterableOfEvents
 
@@ -186,6 +180,13 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
     def follow(
         self, upstream_application_name: str, notification_log: AbstractNotificationLog
     ) -> None:
+        """
+        Sets up process application to follow the given notification log of an
+        upstream application.
+
+        :param upstream_application_name: Name of the upstream application.
+        :param notification_log: Notification log that will be processed.
+        """
         if (
             upstream_application_name == self.name
             and self.apply_policy_to_generated_events
@@ -205,6 +206,14 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
     def run(
         self, prompt: Optional[Prompt] = None, advance_by: Optional[int] = None
     ) -> int:
+        """
+        Pulls event notifications from notification logs being followed by
+        this process application, and processes the contained domain events.
+
+        :param prompt: Optional prompt, specifying a particular notification log.
+        :param advance_by: Maximum event notifications to process.
+        :return: Returns number of events that have been processed.
+        """
 
         if prompt:
             assert isinstance(prompt, PromptToPull)
@@ -271,6 +280,13 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
         return notification_count
 
     def check_causal_dependencies(self, upstream_name, causal_dependencies_json):
+        """
+        Checks the causal dependencies are satisfied (have already been processed).
+
+        :param upstream_name: Name of the upstream application being processed.
+        :param causal_dependencies_json: Pipelines and positions in notification logs.
+        :raises CausalDependencyFailed: If causal dependencies are not satisfied.
+        """
         # Decode causal dependencies of the domain event notification.
         if causal_dependencies_json:
             causal_dependencies = self.event_store.event_mapper.json_loads(
@@ -313,6 +329,18 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
     def process_upstream_event(
         self, domain_event: TAggregateEvent, notification_id: int, upstream_name: str
     ) -> Tuple[ListOfAggregateEvents, List]:
+        """
+        Processes given domain event from an upstream notification log.
+
+        Calls the process application policy, and then records a process event,
+        hence recording atomically all new domain events created by the call
+        to the policy along with any ORM objects that may result.
+
+        :param domain_event: Domain event to be processed.
+        :param notification_id: Position in notification log.
+        :param upstream_name: Name of upstream application.
+        :return: Returns a list of new domain events.
+        """
         cycle_started: Optional[float] = None
         if self.tick_interval is not None:
             cycle_started = time.process_time()
@@ -382,6 +410,12 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
     def get_event_from_notification(
         self, notification: Dict[str, Any]
     ) -> TAggregateEvent:
+        """
+        Extracts the domain event of an event notification.
+
+        :param notification: The event notification.
+        :return: A domain event.
+        """
         return self.event_store.event_mapper.event_from_topic_and_state(
             topic=notification[self.notification_topic_key],
             state=notification[self.notification_state_key],
@@ -431,6 +465,13 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
     def call_policy(
         self, domain_event: TAggregateEvent
     ) -> Tuple[ListOfAggregateEvents, ListOfCausalDependencies, List[Any], List[Any]]:
+        """
+        Calls the process application policy with the given domain event.
+
+        :param domain_event: Domain event that will be given to the policy.
+
+        :return: Returns a list of domain events, and a list of causal dependencies.
+        """
         # Get the application policy.
         policy = self.policy_func or self.policy
 
@@ -528,6 +569,12 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
     def collect_pending_events(
         self, aggregates: Sequence[TAggregate]
     ) -> ListOfAggregateEvents:
+        """
+        Collects all the pending events from the given sequence of aggregates.
+
+        :param aggregates: Sequence of aggregates.
+        :return: Returns a list of domain events.
+        """
         pending_events: ListOfAggregateEvents = []
         num_changed_aggregates = 0
         # This doesn't necessarily obtain events in causal order...
@@ -592,7 +639,15 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
 
 
 class ProcessApplicationWithSnapshotting(SnapshottingApplication, ProcessApplication):
+    """
+    Supplements process applications that will use snapshotting.
+    """
     def take_snapshots(self, new_events: Sequence[TAggregateEvent]) -> None:
+        """
+        Takes snapshot of aggregates, according to the policy.
+
+        :param new_events: Domain events used to detect if a snapshot is to be taken.
+        """
         assert self.snapshotting_policy
         for event in new_events:
             if self.snapshotting_policy.condition([event]):

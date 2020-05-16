@@ -1,4 +1,4 @@
-from cassandra.cqlengine.models import columns, Model
+from cassandra.cqlengine.models import Model, columns
 
 
 class IntegerSequencedRecord(Model):

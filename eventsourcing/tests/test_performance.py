@@ -122,8 +122,7 @@ class PerformanceTestCase(base.WithExampleApplication):
                     assert isinstance(app.example_repository.event_store, EventStore)
                     start_last_n = time.time()
                     events = app.example_repository.event_store.list_events(
-                        originator_id=example.id,
-                        gt=num_beats - n,
+                        originator_id=example.id, gt=num_beats - n,
                     )
                     assert len(events) == n, "Asked for %s but got %s" % (
                         n,
@@ -232,7 +231,10 @@ class PerformanceTestCase(base.WithExampleApplication):
             total_num_reads = 0
             while True:
                 start_read = time.time()
-                page_of_events, next_position = self.get_message_logged_events_and_next_position(
+                (
+                    page_of_events,
+                    next_position,
+                ) = self.get_message_logged_events_and_next_position(
                     log_reader, position, page_size
                 )
                 time_to_read = time.time() - start_read
@@ -254,7 +256,10 @@ class PerformanceTestCase(base.WithExampleApplication):
             position = None
             while True:
                 start_read = time.time()
-                page_of_events, next_position = self.get_message_logged_events_and_next_position(
+                (
+                    page_of_events,
+                    next_position,
+                ) = self.get_message_logged_events_and_next_position(
                     log_reader, position, page_size, is_ascending=True
                 )
                 time_to_read = time.time() - start_read
@@ -355,7 +360,7 @@ class TestAxonServerPerformance(AxonServerRecordManagerTestCase, PerformanceTest
     def construct_log_record_manager(self):
         return self.factory.construct_record_manager(record_class=None)
 
-    @skip("Axon does support sequencing by timestamp, so don't test log performance")
+    @skip("Axon doesn't support sequencing by timestamp, so don't test log performance")
     def test_log_performance(self):
         pass
 

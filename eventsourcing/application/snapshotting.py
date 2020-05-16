@@ -3,11 +3,8 @@ from typing import Any, Optional
 from eventsourcing.application.policies import SnapshottingPolicy
 from eventsourcing.application.simple import SimpleApplication
 from eventsourcing.domain.model.entity import TVersionedEntity, TVersionedEvent
-from eventsourcing.infrastructure.base import (
-    AbstractEventStore,
-    AbstractRecordManager,
-)
 from eventsourcing.domain.model.events import AbstractSnapshot
+from eventsourcing.infrastructure.base import AbstractEventStore, AbstractRecordManager
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.snapshotting import EventSourcedSnapshotStrategy
 

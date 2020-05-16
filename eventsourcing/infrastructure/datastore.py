@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Any, TypeVar, Generic
+from typing import Any, Generic, Optional, TypeVar
 
 
 class DatastoreSettings(object):

@@ -1,7 +1,7 @@
-from typing import Tuple, Type, Dict, Any
+from typing import Any, Dict, Tuple, Type
 
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
-from eventsourcing.utils.topic import resolve_topic, get_topic
+from eventsourcing.utils.topic import get_topic, resolve_topic
 from eventsourcing.whitehead import TEvent
 
 

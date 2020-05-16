@@ -114,13 +114,12 @@ class UpcastableEventFixture(DomainEvent):
 
 
 class TestUpcastingActiveWhenStoringAndRetrievingEvents(TestCase):
-
     def tearDown(self) -> None:
         # Reset class versions (in case running in suite).
         MultiVersionAggregateFixture.Triggered.__class_version__ = 0
         MultiVersionAggregateFixture.__class_version__ = 0
-        del(MultiVersionAggregateFixture.Triggered.__upcast__)
-        del(MultiVersionAggregateFixture.Triggered.mutate)
+        del MultiVersionAggregateFixture.Triggered.__upcast__
+        del MultiVersionAggregateFixture.Triggered.mutate
 
     def test_aggregate_state_after_versioning_events(self):
         """
@@ -225,7 +224,6 @@ class TestUpcastingActiveWhenStoringAndRetrievingEvents(TestCase):
         """
         app = SnapshottingApplication.mixin(SQLAlchemyApplication)(
             persist_event_type=BaseAggregateRoot.Event,
-
         )
         with app:
             my_aggregate = MultiVersionAggregateFixture.__create__()
@@ -291,7 +289,7 @@ class TestUpcastingActiveWhenStoringAndRetrievingEvents(TestCase):
             copy = app.repository[my_aggregate.id]
             assert isinstance(copy, MultiVersionAggregateFixture)
             self.assertEqual(copy.value, 10)
-            self.assertEqual(copy.units, '') # gets default
+            self.assertEqual(copy.units, "")  # gets default
 
 
 class MultiVersionAggregateFixture(BaseAggregateRoot):
@@ -301,9 +299,9 @@ class MultiVersionAggregateFixture(BaseAggregateRoot):
     @classmethod
     def __upcast__(cls, obj_state: Dict, class_version: int) -> Dict:
         if class_version == 0:
-            obj_state['value'] = cls.DEFAULT_VALUE
+            obj_state["value"] = cls.DEFAULT_VALUE
         elif class_version == 1:
-            obj_state['units'] = cls.DEFAULT_UNITS
+            obj_state["units"] = cls.DEFAULT_UNITS
         return obj_state
 
     def __init__(self, **kwargs):

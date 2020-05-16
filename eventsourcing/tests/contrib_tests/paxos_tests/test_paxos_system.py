@@ -142,7 +142,9 @@ class TestPaxosSystem(unittest.TestCase):
         # Start running operating system processes.
         with runner:
             # Get local application object.
-            paxosapplication0 = runner.get(runner.system.process_classes["paxosapplication0"])
+            paxosapplication0 = runner.get(
+                runner.system.process_classes["paxosapplication0"]
+            )
             assert isinstance(paxosapplication0, PaxosApplication)
 
             # Start proposing values on the different system pipelines.
@@ -159,8 +161,12 @@ class TestPaxosSystem(unittest.TestCase):
             paxosapplication0.propose_value(key3, value3)
 
             # Check all the process applications have expected final values.
-            paxosapplication1 = runner.get(runner.system.process_classes["paxosapplication1"])
-            paxosapplication2 = runner.get(runner.system.process_classes["paxosapplication2"])
+            paxosapplication1 = runner.get(
+                runner.system.process_classes["paxosapplication1"]
+            )
+            paxosapplication2 = runner.get(
+                runner.system.process_classes["paxosapplication2"]
+            )
 
             assert isinstance(paxosapplication1, PaxosApplication)
             paxosapplication0.repository.use_cache = False
@@ -188,7 +194,7 @@ class TestPaxosSystem(unittest.TestCase):
     @notquick
     @skipIf(
         sys.version_info[:2] == (3, 6),
-        "RayRunner not working with Python36 (pickle issue)"
+        "RayRunner not working with Python36 (pickle issue)",
     )
     def test_ray_performance(self):
 
@@ -239,9 +245,10 @@ class TestPaxosSystem(unittest.TestCase):
             print(
                 "Resolved {} paxoses with ray in {:.4f}s "
                 "({:.1f} values/s, {:.4f}s each)".format(
-                    num_proposals, duration,
+                    num_proposals,
+                    duration,
                     num_proposals / duration,
-                    duration / num_proposals
+                    duration / num_proposals,
                 )
             )
 
@@ -268,7 +275,9 @@ class TestPaxosSystem(unittest.TestCase):
             sleep(1)
 
             # Construct an application instance in this process.
-            paxosapplication0 = runner.get(runner.system.process_classes["paxosapplication0"])
+            paxosapplication0 = runner.get(
+                runner.system.process_classes["paxosapplication0"]
+            )
 
             assert isinstance(paxosapplication0, PaxosApplication)
 
@@ -298,7 +307,7 @@ class TestPaxosSystem(unittest.TestCase):
                 "each)".format(num_proposals, duration, duration / num_proposals)
             )
 
-    @retry((KeyError, AssertionError), max_attempts=100, wait=0.05, stall=0)
+    @retry((KeyError, AssertionError), max_attempts=100, wait=0.5, stall=0)
     def assert_final_value(self, process, id, value):
         self.assertEqual(process.repository[id].final_value, value)
 

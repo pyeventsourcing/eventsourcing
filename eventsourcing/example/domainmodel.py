@@ -1,8 +1,9 @@
 from eventsourcing.domain.model.decorators import attribute
 from eventsourcing.domain.model.entity import (
     EntityWithHashchain,
+    TDomainEntity,
     TimestampedVersionedEntity,
-    TDomainEntity)
+)
 from eventsourcing.domain.model.repository import AbstractEntityRepository
 
 
@@ -12,7 +13,8 @@ class Example(EntityWithHashchain, TimestampedVersionedEntity):
     """
 
     class Event(
-        EntityWithHashchain.Event[TDomainEntity], TimestampedVersionedEntity.Event[TDomainEntity]
+        EntityWithHashchain.Event[TDomainEntity],
+        TimestampedVersionedEntity.Event[TDomainEntity],
     ):
         """Supertype for events of example entities."""
 
@@ -28,10 +30,14 @@ class Example(EntityWithHashchain, TimestampedVersionedEntity):
     ):
         """Published when an Example is created."""
 
-    class Discarded(Event[TDomainEntity], TimestampedVersionedEntity.Discarded[TDomainEntity]):
+    class Discarded(
+        Event[TDomainEntity], TimestampedVersionedEntity.Discarded[TDomainEntity]
+    ):
         """Published when an Example is discarded."""
 
-    class Heartbeat(Event[TDomainEntity], TimestampedVersionedEntity.Event[TDomainEntity]):
+    class Heartbeat(
+        Event[TDomainEntity], TimestampedVersionedEntity.Event[TDomainEntity]
+    ):
         """Published when a heartbeat in the entity occurs (see below)."""
 
         def mutate(self, obj: "Example") -> None:

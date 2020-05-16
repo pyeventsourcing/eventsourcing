@@ -6,6 +6,10 @@ from cassandra.cluster import NoHostAvailable
 from cassandra.cqlengine import CQLEngineException
 
 from eventsourcing.exceptions import DatasourceSettingsError
+from eventsourcing.infrastructure.cassandra.datastore import (
+    CassandraDatastore,
+    CassandraSettings,
+)
 from eventsourcing.infrastructure.cassandra.factory import (
     CassandraInfrastructureFactory,
 )
@@ -13,10 +17,6 @@ from eventsourcing.infrastructure.cassandra.records import (
     IntegerSequencedRecord,
     SnapshotRecord,
     TimestampSequencedRecord,
-)
-from eventsourcing.infrastructure.cassandra.datastore import (
-    CassandraDatastore,
-    CassandraSettings,
 )
 from eventsourcing.infrastructure.datastore import (
     DatastoreConnectionError,

@@ -5,37 +5,37 @@ from queue import Empty, Queue
 from threading import Barrier, BrokenBarrierError, Event, Lock, Thread, Timer
 from time import sleep
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Deque,
     Dict,
     Generic,
-    Iterable,
     List,
     Optional,
-    TYPE_CHECKING,
     Type,
-    TypeVar,
     Union,
     no_type_check,
 )
 
 from eventsourcing.application.notificationlog import NotificationLogReader
-from eventsourcing.application.process import (
-    ProcessApplication,
-    PromptToQuit,
+from eventsourcing.application.process import ProcessApplication, PromptToQuit
+from eventsourcing.application.simple import (
+    ApplicationWithConcreteInfrastructure,
+    Prompt,
+    PromptToPull,
+    is_prompt_to_pull,
 )
-from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure, Prompt, is_prompt_to_pull, \
-    PromptToPull
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import (
     CausalDependencyFailed,
     EventSourcingError,
     OperationalError,
+    ProgrammingError,
     RecordConflictError,
-    ProgrammingError)
-from eventsourcing.system.definition import System, AbstractSystemRunner
+)
+from eventsourcing.system.definition import AbstractSystemRunner, System
 from eventsourcing.whitehead import T
 
 DEFAULT_POLL_INTERVAL = 5
@@ -130,7 +130,9 @@ class SingleThreadedRunner(InProcessRunner):
                         break
                     else:
                         if isinstance(prompt, PromptToPull):
-                            downstream_names = self.system.downstream_names[prompt.process_name]
+                            downstream_names = self.system.downstream_names[
+                                prompt.process_name
+                            ]
                             for downstream_name in downstream_names:
                                 downstream_process = self.processes[downstream_name]
                                 downstream_process.run(prompt)
@@ -798,9 +800,7 @@ class BarrierControlledApplicationThread(Thread):
                 try:
                     # Get all notifications.
                     for upstream_name in self.app.readers:
-                        notifications = list(
-                            self.app.read_reader(upstream_name)
-                        )
+                        notifications = list(self.app.read_reader(upstream_name))
                         all_notifications.append((upstream_name, notifications))
 
                 except:
@@ -819,9 +819,7 @@ class BarrierControlledApplicationThread(Thread):
                     # Process all notifications.
                     for upstream_name, notifications in all_notifications:
                         for notification in notifications:
-                            event = self.app.get_event_from_notification(
-                                notification
-                            )
+                            event = self.app.get_event_from_notification(notification)
                             self.app.process_upstream_event(
                                 event, notification["id"], upstream_name
                             )

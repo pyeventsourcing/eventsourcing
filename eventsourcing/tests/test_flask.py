@@ -29,7 +29,6 @@ if hasattr(sys, "real_prefix"):
 path_to_eventsourcing = dirname(dirname(abspath(eventsourcing.__file__)))
 path_to_interface_module = dirname(abspath(eventsourcing.example.interface.__file__))
 path_to_flaskapp = join(path_to_interface_module, "flaskapp.py")
-path_to_flaskwsgi = join(dirname(path_to_flaskapp), "flaskwsgi.py")
 
 
 @notquick
@@ -116,7 +115,7 @@ class TestFlaskWsgi(TestFlaskApp):
         #     if not os.path.exists(path_to_uwsgi):
         #         raise AssertionError("Can't find uwsgi: %s" % path_to_uwsgi)
         #     # Todo: Maybe use shutil.which, after dropping support for Python 2.7.
-        path_to_uwsgi = shutil.which('uwsgi')
+        path_to_uwsgi = shutil.which("uwsgi")
         if not os.path.exists(path_to_uwsgi):
             raise AssertionError("Can't find uwsgi: %s" % path_to_uwsgi)
         cmd = [path_to_uwsgi]
@@ -125,7 +124,7 @@ class TestFlaskWsgi(TestFlaskApp):
         cmd += ["--master"]
         cmd += ["--processes", "4"]
         cmd += ["--threads", "2"]
-        cmd += ["--wsgi-file", path_to_flaskwsgi]
+        cmd += ["--wsgi-file", path_to_flaskapp]
         cmd += ["--http", ":{}".format(self.port)]
         pythonpath = ":".join(
             os.getenv("PYTHONPATH", "").split(":") + [path_to_eventsourcing]

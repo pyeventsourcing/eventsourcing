@@ -7,7 +7,7 @@ from eventsourcing.infrastructure.sequenceditem import (
     SequencedItemFieldNames,
 )
 from eventsourcing.utils.cipher.aes import AESCipher
-from eventsourcing.utils.topic import get_topic, resolve_topic, reconstruct_object
+from eventsourcing.utils.topic import get_topic, reconstruct_object, resolve_topic
 from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
 from eventsourcing.whitehead import TEvent
 
