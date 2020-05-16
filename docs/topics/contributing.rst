@@ -172,11 +172,11 @@ using the following commands::
 
 To start the databases, you can run::
 
-    $ make brew_services_start
+    $ make brew-services-start
 
 To stop the services, you can run::
 
-    $ make brew_services_stop
+    $ make brew-services-stop
 
 Before running the tests for the first time, create a database in MySQL, and configure user access::
 
@@ -202,9 +202,9 @@ You can run the full test suite using ``make test``::
 
     $ make test
 
-You can skip the slower tests when running the test suite with ``make quicktest``::
+You can skip the slower tests when running the test suite with ``make quick-test``::
 
-    $ make quicktest
+    $ make quick-test
 
 .. note::
     To re-run tests, sometimes it requires ``make docker-down`` for a fresh start.
