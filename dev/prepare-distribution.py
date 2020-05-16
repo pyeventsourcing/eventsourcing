@@ -7,6 +7,7 @@ from time import sleep
 
 
 def main():
+    # Validate current working dir (should be project root).
     proj_path = os.path.abspath(".")
     readme_path = os.path.join(proj_path, "README.md")
     if os.path.exists(readme_path):

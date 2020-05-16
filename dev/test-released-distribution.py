@@ -3,49 +3,46 @@ import os
 import subprocess
 
 
-if "PYTHONPATH" in os.environ:
-    del os.environ["PYTHONPATH"]
+def main():
+    # Validate current working dir (should be project root).
+    proj_path = os.path.abspath(".")
+    readme_path = os.path.join(proj_path, "README.md")
+    if os.path.exists(readme_path):
+        assert "A library for event sourcing in Python" in open(readme_path).read()
+    else:
+        raise Exception("Couldn't find project README.md")
 
+    try:
+        del os.environ["PYTHONPATH"]
+    except KeyError:
+        pass
 
-def test_released_distribution(cwd):
     # Declare temporary working directory variable.
-    tmpcwd27 = os.path.join(cwd, "tmpve2.7")
-    tmpcwd36 = os.path.join(cwd, "tmpve3.6")
-    tmpcwd37 = os.path.join(cwd, "tmpve3.7")
-
     build_targets = [
-        # (tmpcwd27, 'python2.7'),
-        # (tmpcwd36, 'python3.6'),
-        (tmpcwd37, "python")
+        (os.path.join(proj_path, "tmpve3.7"), "python")
     ]
-    for (tmpcwd, python_executable) in build_targets:
+    for (venv_path, python_bin) in build_targets:
 
-        # Rebuild virtualenvs.
-        rebuild_virtualenv(cwd, tmpcwd, python_executable)
+        # Rebuild virtualenv.
+        subprocess.check_call(["rm", "-r", venv_path], cwd=proj_path)
+        subprocess.check_call(["virtualenv", "-p", python_bin, venv_path],
+                              cwd=proj_path)
+        subprocess.check_call(["bin/pip", "install", "-U", "pip", "wheel"],
+                              cwd=venv_path)
 
         # Install from PyPI.
         os.environ["CASS_DRIVER_NO_CYTHON"] = "1"
         subprocess.check_call(
             ["bin/pip", "install", "--no-cache-dir", "eventsourcing[testing]"],
-            cwd=tmpcwd,
+            cwd=venv_path,
         )
 
         # Check installed tests all pass.
-        test_installation(tmpcwd)
-
-
-def test_installation(tmpcwd):
-    subprocess.check_call(
-        ["bin/python", "-m" "unittest", "discover", "eventsourcing.tests"], cwd=tmpcwd
-    )
-
-
-def rebuild_virtualenv(cwd, venv_path, python_executable):
-    subprocess.check_call(["rm", "-rf", venv_path], cwd=cwd)
-    subprocess.check_call(["virtualenv", "-p", python_executable, venv_path], cwd=cwd)
-    subprocess.check_call(["bin/pip", "install", "-U", "pip", "wheel"], cwd=venv_path)
+        subprocess.check_call(
+            ["bin/python", "-m" "unittest", "discover", "eventsourcing.tests"],
+            cwd=venv_path
+        )
 
 
 if __name__ == "__main__":
-    cwd = os.path.join(os.environ["HOME"], "PyCharmProjects", "eventsourcing")
-    test_released_distribution(cwd)
+    main()
