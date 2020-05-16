@@ -14,9 +14,9 @@ def main():
         raise Exception("Couldn't find project README.md")
 
     # Build and upload to PyPI.
-    subprocess.check_call([sys.executable, "setup.py", "clean", "--all"], cwd=cwd)
+    subprocess.check_call([sys.executable, "setup.py", "clean", "--all"], cwd=proj_path)
     subprocess.check_call(
-        [sys.executable, "setup.py", "sdist", "upload", "-r", "pypi"], cwd=cwd
+        [sys.executable, "setup.py", "sdist", "upload", "-r", "pypi"], cwd=proj_path
     )
 
 
