@@ -5,58 +5,50 @@ import sys
 from subprocess import CalledProcessError
 from time import sleep
 
-try:
-    del os.environ["PYTHONPATH"]
-except KeyError:
-    pass
 
-os.environ["CASS_DRIVER_NO_CYTHON"] = "1"
-sys.path.insert(0, "../")
-from eventsourcing import __version__
+def main():
+    proj_path = os.path.abspath(".")
+    readme_path = os.path.join(proj_path, "README.md")
+    if "A library for event sourcing in Python" in open(readme_path).read():
+        print("Project root dir: %s" % proj_path)
+    else:
+        raise Exception("Project README file not found: %s" % readme_path)
 
+    try:
+        del os.environ["PYTHONPATH"]
+    except KeyError:
+        pass
 
-def build_and_test(cwd):
-    # Declare temporary working directory variable.
-    # tmpcwd27 = os.path.join(cwd, 'tmpve2.7')
-    tmpcwd37 = os.path.join(cwd, "tmpve3.7")
+    os.environ["CASS_DRIVER_NO_CYTHON"] = "1"
+    from eventsourcing import __version__
 
-    # Build distribution.
-    subprocess.check_call([sys.executable, "setup.py", "clean", "--all"], cwd=cwd)
-    subprocess.check_call([sys.executable, "setup.py", "sdist"], cwd=cwd)
-    is_uploaded_testpypi = False
+    # Build and upload to Test PyPI.
+    subprocess.check_call([sys.executable, "setup.py", "clean", "--all"], cwd=proj_path)
+    try:
+        subprocess.check_call(
+            [sys.executable, "setup.py", "sdist", "upload", "-r", "pypitest"],
+            cwd=proj_path,
+        )
+    except CalledProcessError:
+        sys.exit(1)
 
-    targets = [
-        # (tmpcwd27, 'python2.7'),
-        (tmpcwd37, "python")
-    ]
-    for (tmpcwd, python_executable) in targets:
+    # Test distribution for various targets.
+    targets = [(os.path.join(proj_path, "tmpve3.7"), "python")]
+    for (venv_path, python_bin) in targets:
 
-        check_locally = False
-        if check_locally:
-            # Rebuild virtualenvs.
-            rebuild_virtualenv(cwd, tmpcwd, python_executable)
-
-            # Install from dist folder.
-            tar_path = "../dist/eventsourcing-{}.tar.gz[testing]".format(__version__)
-            subprocess.check_call(["bin/pip", "install", "-U", tar_path], cwd=tmpcwd)
-
-            # Check installed tests all pass.
-            test_installation(tmpcwd)
-
-        # Build and upload to Test PyPI.
-        if not is_uploaded_testpypi:
-            subprocess.check_call(
-                [sys.executable, "setup.py", "sdist", "upload", "-r", "pypitest"],
-                cwd=cwd,
-            )
-            is_uploaded_testpypi = True
-
-        # Rebuild virtualenvs.
-        rebuild_virtualenv(cwd, tmpcwd, python_executable)
+        # Rebuild virtualenv.
+        if os.path.exists(venv_path):
+            remove_virtualenv(proj_path, venv_path)
+        subprocess.check_call(
+            ["virtualenv", "-p", python_bin, venv_path], cwd=proj_path
+        )
+        subprocess.check_call(
+            ["bin/pip", "install", "-U", "pip", "wheel"], cwd=venv_path
+        )
 
         # Install from Test PyPI.
-        cmd = [
-            "bin/pip",
+        pip_install_from_testpypi = [
+            os.path.join(venv_path, "bin/pip"),
             "install",
             "-U",
             "eventsourcing[testing]==" + __version__,
@@ -67,37 +59,35 @@ def build_and_test(cwd):
         ]
 
         patience = 10
-        while patience:
+        is_test_pass = False
+        sleep(1)
+        while True:
             try:
-                subprocess.check_call(cmd, cwd=tmpcwd)
+                subprocess.check_call(pip_install_from_testpypi, cwd=venv_path)
+                is_test_pass = True
                 break
             except CalledProcessError:
                 patience -= 1
+                if patience < 0:
+                    break
                 print("Patience:", patience)
-                sleep(6)
+                sleep(1)
+        if not is_test_pass:
+            print("Failed to install from testpypi.")
+            sys.exit(1)
 
         # Check installed tests all pass.
-        test_installation(tmpcwd)
+        subprocess.check_call(
+            ["bin/python", "-m" "unittest", "discover", "eventsourcing.tests"],
+            cwd=venv_path,
+        )
 
-        remove_virtualenv(cwd, tmpcwd)
-
-
-def test_installation(tmpcwd):
-    subprocess.check_call(
-        ["bin/python", "-m" "unittest", "discover", "eventsourcing.tests"], cwd=tmpcwd
-    )
+        remove_virtualenv(proj_path, venv_path)
 
 
-def rebuild_virtualenv(cwd, venv_path, python_executable):
-    remove_virtualenv(cwd, venv_path)
-    subprocess.check_call(["virtualenv", "-p", python_executable, venv_path], cwd=cwd)
-    subprocess.check_call(["bin/pip", "install", "-U", "pip", "wheel"], cwd=venv_path)
-
-
-def remove_virtualenv(cwd, venv_path):
-    subprocess.check_call(["rm", "-rf", venv_path], cwd=cwd)
+def remove_virtualenv(proj_path, venv_path):
+    subprocess.check_call(["rm", "-r", venv_path], cwd=proj_path)
 
 
 if __name__ == "__main__":
-    cwd = os.path.join(os.environ["HOME"], "PyCharmProjects", "eventsourcing")
-    build_and_test(cwd)
+    main()
