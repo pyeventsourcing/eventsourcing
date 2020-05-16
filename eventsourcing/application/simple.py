@@ -472,11 +472,11 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
                         record_manager.create_notification_from_record(record)
                     )
 
-            if len(notifications):
-                head_notification_id = notifications[-1]["id"]
-        self.publish_prompt(head_notification_id)
-        for aggregate in aggregates:
-            if self.repository.use_cache:
+                if len(notifications):
+                    head_notification_id = notifications[-1]["id"]
+            self.publish_prompt(head_notification_id)
+        if self.repository.use_cache:
+            for aggregate in aggregates:
                 self.repository.put_entity_in_cache(aggregate.id, aggregate)
 
     def record_process_event(self, process_event: ProcessEvent) -> List:
