@@ -23,8 +23,11 @@ def main():
     ]
     for (venv_path, python_bin) in build_targets:
 
-        # Rebuild virtualenv.
-        subprocess.check_call(["rm", "-r", venv_path], cwd=proj_path)
+        # Remove existing virtualenv.
+        if os.path.exists(venv_path):
+            remove_virtualenv(proj_path, venv_path)
+
+        # Create virtualenv.
         subprocess.check_call(["virtualenv", "-p", python_bin, venv_path],
                               cwd=proj_path)
         subprocess.check_call(["bin/pip", "install", "-U", "pip", "wheel"],
@@ -42,6 +45,12 @@ def main():
             ["bin/python", "-m" "unittest", "discover", "eventsourcing.tests"],
             cwd=venv_path
         )
+
+        remove_virtualenv(proj_path, venv_path)
+
+
+def remove_virtualenv(proj_path, venv_path):
+    subprocess.check_call(["rm", "-r", venv_path], cwd=proj_path)
 
 
 if __name__ == "__main__":

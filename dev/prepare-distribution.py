@@ -36,9 +36,11 @@ def main():
     from eventsourcing import __version__
     for (venv_path, python_bin) in targets:
 
-        # Rebuild virtualenv.
+        # Remove existing virtualenv.
         if os.path.exists(venv_path):
             remove_virtualenv(proj_path, venv_path)
+
+        # Create virtualenv.
         subprocess.check_call(
             ["virtualenv", "-p", python_bin, venv_path], cwd=proj_path
         )

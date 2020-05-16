@@ -119,6 +119,6 @@ release-distribution:
 	python ./dev/release-distribution.py
 
 
-.PHONY: test-distribution
-test-distribution:
+.PHONY: test-released-distribution
+test-released-distribution:
 	python ./dev/test-released-distribution.py
