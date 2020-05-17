@@ -103,9 +103,9 @@ brew-services-start:
 
 .PHONY: brew-services-stop
 brew-services-stop:
-	brew services stop mysql
-	brew services stop postgresql
-	brew services stop redis
+	brew services stop mysql || echo "Mysql couldn't be stopped"
+	brew services stop postgresql || echo "PostgreSQL couldn't be stopped"
+	brew services stop redis || echo "Redis couldn't be stopped"
 	pkill -15 java
 
 
