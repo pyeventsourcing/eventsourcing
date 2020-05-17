@@ -267,14 +267,6 @@ notifications.
 .. be ignored by downstream, having already processed those items.
 
 
-.. Refactoring
-.. ~~~~~~~~~~~
-
-.. Todo: Something about moving from a single process application to two. Migrate
-.. aggregates by replicating those events from the notification log, and just carry
-.. on.
-
-
 Kahn process networks
 ---------------------
 

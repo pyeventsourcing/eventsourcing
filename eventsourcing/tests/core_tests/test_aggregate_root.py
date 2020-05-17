@@ -221,13 +221,13 @@ class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
         last_next_hash = aggregate.__head__
 
         # Check it does not exist in the repository.
-        self.assertNotIn(aggregate.id, self.app.aggregate1_repository)
+        self.assertNotIn(aggregate.id, self.app.repository)
 
         # Save the aggregate.
         aggregate.__save__()
 
         # Check it now exists in the repository.
-        self.assertIn(aggregate.id, self.app.aggregate1_repository)
+        self.assertIn(aggregate.id, self.app.repository)
 
         # Change an attribute of the aggregate root entity.
         self.assertNotEqual(aggregate.foo, "bar")
@@ -238,11 +238,11 @@ class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
         self.assertNotEqual(aggregate.__head__, last_next_hash)
         last_next_hash = aggregate.__head__
 
-        self.assertIn(aggregate.id, self.app.aggregate1_repository)
+        self.assertIn(aggregate.id, self.app.repository)
 
-        self.assertNotEqual(self.app.aggregate1_repository[aggregate.id].foo, "bar")
+        self.assertNotEqual(self.app.repository[aggregate.id].foo, "bar")
         aggregate.__save__()
-        self.assertEqual(self.app.aggregate1_repository[aggregate.id].foo, "bar")
+        self.assertEqual(self.app.repository[aggregate.id].foo, "bar")
 
         # Check the aggregate has zero entities.
         self.assertEqual(aggregate.count_examples(), 0)
@@ -258,7 +258,7 @@ class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
 
         # Check the aggregate in the repo still has zero entities.
         self.assertEqual(
-            self.app.aggregate1_repository[aggregate.id].count_examples(), 0
+            self.app.repository[aggregate.id].count_examples(), 0
         )
 
         # Check the head hash has changed.
@@ -270,7 +270,7 @@ class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
 
         # Check the aggregate in the repo now has one entity.
         self.assertEqual(
-            self.app.aggregate1_repository[aggregate.id].count_examples(), 1
+            self.app.repository[aggregate.id].count_examples(), 1
         )
 
         # Create two more entities within the aggregate.
@@ -282,7 +282,7 @@ class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
 
         # Check the aggregate in the repo now has three entities.
         self.assertEqual(
-            self.app.aggregate1_repository[aggregate.id].count_examples(), 3
+            self.app.repository[aggregate.id].count_examples(), 3
         )
 
         # Discard the aggregate, calls save().
@@ -293,7 +293,7 @@ class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
         self.assertNotEqual(aggregate.__head__, last_next_hash)
 
         # Check the aggregate no longer exists in the repo.
-        self.assertNotIn(aggregate.id, self.app.aggregate1_repository)
+        self.assertNotIn(aggregate.id, self.app.repository)
 
     def test_both_types(self):
         # Create a new aggregate.
@@ -315,8 +315,8 @@ class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
         aggregate1.__save__()
         aggregate2.__save__()
 
-        aggregate1 = self.app.aggregate1_repository[aggregate1.id]
-        aggregate2 = self.app.aggregate2_repository[aggregate2.id]
+        aggregate1 = self.app.repository[aggregate1.id]
+        aggregate2 = self.app.repository[aggregate2.id]
 
         self.assertIsInstance(aggregate1, Aggregate1)
         self.assertIsInstance(aggregate2, Aggregate2)
@@ -326,15 +326,8 @@ class TestExampleAggregateRoot(SQLAlchemyRecordManagerTestCase):
 
         aggregate1.__discard__()
         aggregate1.__save__()
-        self.assertFalse(aggregate1.id in self.app.aggregate1_repository)
-        self.assertTrue(aggregate2.id in self.app.aggregate2_repository)
-
-        # Todo: Somehow avoid all IDs existing in all repositories.
-        # - either namespace the UUIDs, with a UUID for each type,
-        #     with adjustments to repository and factory methods.
-        # - or make sequence type be a thing, with IDs being valid within the type
-        #     compound partition key in Cassandra,
-        # self.assertFalse(aggregate2.id in self.app.aggregate1_repository)
+        self.assertFalse(aggregate1.id in self.app.repository)
+        self.assertTrue(aggregate2.id in self.app.repository)
 
     def test_validate_previous_hash_error(self):
         # Check event has valid originator head.
@@ -435,9 +428,7 @@ class ExampleDDDApplication(Generic[TEntity]):
                 position_attr_name="originator_version",
             ),
         )
-        # Todo: Remove having two repositories, because they are identical.
-        self.aggregate1_repository = AggregateRepository(event_store=event_store)
-        self.aggregate2_repository = AggregateRepository(event_store=event_store)
+        self.repository = EventSourcedRepository(event_store=event_store)
         self.persistence_policy = PersistencePolicy(
             persist_event_type=ExampleAggregateRoot.Event, event_store=event_store
         )

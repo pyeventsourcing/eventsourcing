@@ -1224,14 +1224,3 @@ helps with Cassandra.
 .. conflict. This feature currently works with Apache Cassandra only. Tests exist in the library, other
 .. documentation is forthcoming.
 ..
-
-.. Todo: The library function ``construct_cassandra_eventstore()`` can be used to
-.. construct an event store that uses the Apache Cassandra classes.
-
-.. .. code:: python
-
-..    from eventsourcing.infrastructure.cassandra import factory
-
-
-..    event_store = factory.construct_cassandra_eventstore(
-..    )
