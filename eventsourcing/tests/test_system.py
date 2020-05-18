@@ -168,22 +168,6 @@ class TestSystem(TestCase):
                 else:
                     break
 
-    def test_multiprocess_runner_with_single_pipe(self):
-        system = System(
-            Orders | Reservations,
-            setup_tables=True,
-            infrastructure_class=self.infrastructure_class,
-        )
-
-        self.set_db_uri()
-        self.close_connections_before_forking()
-
-        with MultiprocessRunner(system) as runner:
-            repository = runner.get(Orders).repository
-            order_id = create_new_order()
-
-            self.assertEqual(repository[order_id].id, order_id)
-
     def test_singlethreaded_runner_with_multiapp_system(self):
         system = System(
             Orders | Reservations | Orders,

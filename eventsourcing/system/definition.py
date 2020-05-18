@@ -8,7 +8,8 @@ from _weakref import ReferenceType
 from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.process import ProcessApplication
 from eventsourcing.application.simple import ApplicationWithConcreteInfrastructure
-from eventsourcing.exceptions import EventSourcingError, ProgrammingError
+from eventsourcing.exceptions import ProgrammingError
+from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 
 TProcessApplication = TypeVar("TProcessApplication", bound=ProcessApplication)
 TSystemRunner = TypeVar("TSystemRunner", bound="AbstractSystemRunner")
@@ -253,7 +254,9 @@ class AbstractSystemRunner(ABC):
                 process.close()
             self.processes.clear()
 
-    def get(self, process_class: Type[TProcessApplication]) -> TProcessApplication:
+    def get(
+        self, process_class: Type[TProcessApplication], pipeline_id=DEFAULT_PIPELINE_ID
+    ) -> TProcessApplication:
         process_name = process_class.create_name()
         try:
             process = self.processes[process_name]

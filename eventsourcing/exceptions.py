@@ -96,3 +96,8 @@ class EventRecordNotFound(EventSourcingError):
 
 class EncoderTypeError(TypeError):
     pass
+
+
+class ExceptionWrapper(object):
+    def __init__(self, e):
+        self.e = e
