@@ -135,11 +135,6 @@ class RayRunner(AbstractSystemRunner):
         assert isinstance(process_name, str)
         return self.ray_processes[(process_name, pipeline_id)]
 
-    def call(self, process_name, pipeline_id, method_name, *args, **kwargs):
-        paxosapplication0 = self.get_ray_process(process_name, pipeline_id)
-        ray_id = paxosapplication0.call.remote(method_name, *args, **kwargs)
-        return ray.get(ray_id)
-
     def close(self):
         super(RayRunner, self).close()
         for process in self.ray_processes.values():
