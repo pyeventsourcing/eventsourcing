@@ -5,6 +5,7 @@ from time import sleep
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Type
 
 from eventsourcing.application.notificationlog import RecordManagerNotificationLog
+from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.process import ProcessApplication, PromptToQuit
 from eventsourcing.application.simple import (
     ApplicationWithConcreteInfrastructure,
@@ -74,6 +75,10 @@ class MultiprocessRunner(AbstractSystemRunner):
             if not isinstance(process_class, ApplicationWithConcreteInfrastructure):
                 if not self.infrastructure_class:
                     raise ProgrammingError("infrastructure_class is not set")
+                elif issubclass(self.infrastructure_class, PopoApplication):
+                    raise ProgrammingError("Can't use %s with %s" % (
+                        type(self), self.infrastructure_class
+                    ))
                 elif not issubclass(
                     self.infrastructure_class, ApplicationWithConcreteInfrastructure
                 ):

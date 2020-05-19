@@ -1,6 +1,7 @@
 import datetime
 import os
 import traceback
+from inspect import ismethod
 from queue import Empty, Queue
 from threading import Event, Lock, Thread
 from time import sleep
@@ -18,6 +19,8 @@ from eventsourcing.application.simple import (
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.domain.model.events import subscribe, unsubscribe
 from eventsourcing.exceptions import (
+    EventSourcingError,
+    ExceptionWrapper,
     OperationalError,
     ProgrammingError,
     RecordConflictError,
@@ -26,7 +29,11 @@ from eventsourcing.infrastructure.base import (
     DEFAULT_PIPELINE_ID,
     RecordManagerWithNotifications,
 )
-from eventsourcing.system.definition import AbstractSystemRunner, System
+from eventsourcing.system.definition import (
+    AbstractSystemRunner,
+    System,
+    TProcessApplication,
+)
 from eventsourcing.system.rayhelpers import RayDbJob, RayPrompt
 from eventsourcing.system.raysettings import ray_init_kwargs
 from eventsourcing.system.runner import DEFAULT_POLL_INTERVAL
@@ -128,15 +135,18 @@ class RayRunner(AbstractSystemRunner):
         assert isinstance(process_name, str)
         return self.ray_processes[(process_name, pipeline_id)]
 
-    def call(self, process_name, pipeline_id, method_name, *args, **kwargs):
-        paxosapplication0 = self.get_ray_process(process_name, pipeline_id)
-        ray_id = paxosapplication0.call.remote(method_name, *args, **kwargs)
-        return ray.get(ray_id)
-
     def close(self):
         super(RayRunner, self).close()
         for process in self.ray_processes.values():
             process.stop.remote()
+
+    def get(
+        self, process_class: Type[TProcessApplication], pipeline_id=DEFAULT_PIPELINE_ID
+    ) -> TProcessApplication:
+        assert issubclass(process_class, ProcessApplication)
+        process_name = process_class.create_name()
+        ray_process = self.get_ray_process(process_name, pipeline_id)
+        return ProcessApplicationProxy(ray_process)
 
 
 @ray.remote
@@ -253,18 +263,40 @@ class RayProcess:
             else:
                 raise ProgrammingError("infrastructure_class is not set")
 
+        class MethodWrapper(object):
+            def __init__(self, method):
+                self.method = method
+
+            def __call__(self, *args, **kwargs):
+                try:
+                    return self.method(*args, **kwargs)
+                except EventSourcingError as e:
+                    return ExceptionWrapper(e)
+
+        class ProcessApplicationWrapper(object):
+            def __init__(self, process_application):
+                self.process_application = process_application
+
+            def __getattr__(self, item):
+                attribute = getattr(self.process_application, item)
+                if ismethod(attribute):
+                    return MethodWrapper(attribute)
+                else:
+                    return attribute
+
         def construct_process():
             return process_class(
                 pipeline_id=self.pipeline_id, setup_table=self.setup_tables
             )
 
-        self.process = self.do_db_job(construct_process, (), {})
-        assert isinstance(self.process, ProcessApplication), self.process
-        # print(getpid(), "Created application process: %s" % self.process)
+        process_application = self.do_db_job(construct_process, (), {})
+        assert isinstance(process_application, ProcessApplication), process_application
+        self.process_wrapper = ProcessApplicationWrapper(process_application)
+        self.process_application = process_application
 
         for upstream_name, ray_notification_log in self.upstream_processes.items():
             # Make the process follow the upstream notification log.
-            self.process.follow(upstream_name, ray_notification_log)
+            self.process_application.follow(upstream_name, ray_notification_log)
 
         self._reset_positions()
         self.positions_initialised.set()
@@ -275,7 +307,9 @@ class RayProcess:
     def __reset_positions(self):
         with self.positions_lock:
             for upstream_name in self.upstream_processes:
-                recorded_position = self.process.get_recorded_position(upstream_name)
+                recorded_position = self.process_application.get_recorded_position(
+                    upstream_name
+                )
                 self.positions[upstream_name] = recorded_position
 
     def add_downstream_process(self, downstream_name, ray_process_id):
@@ -287,8 +321,8 @@ class RayProcess:
         """
         assert self.positions_initialised.is_set(), "Please call .init() first"
         # print("Calling", method_name, args, kwargs)
-        if self.process:
-            method = getattr(self.process, method_name)
+        if self.process_wrapper:
+            method = getattr(self.process_wrapper, method_name)
             return self.do_db_job(method, args, kwargs)
         else:
             raise Exception(
@@ -445,11 +479,13 @@ class RayProcess:
             queue_item = []
             for notification in notifications:
                 # Check causal dependencies.
-                self.process.check_causal_dependencies(
+                self.process_application.check_causal_dependencies(
                     upstream_name, notification.get("causal_dependencies")
                 )
                 # Get domain event from notification.
-                event = self.process.get_event_from_notification(notification)
+                event = self.process_application.get_event_from_notification(
+                    notification
+                )
                 # self.print_timecheck("obtained event", event)
 
                 # Put domain event on the queue, for event processing.
@@ -469,7 +505,7 @@ class RayProcess:
         )
 
     def _get_notifications(self, first_notification_id, last_notification_id):
-        record_manager = self.process.event_store.record_manager
+        record_manager = self.process_application.event_store.record_manager
         assert isinstance(record_manager, RecordManagerWithNotifications)
         start = first_notification_id - 1
         stop = last_notification_id
@@ -503,7 +539,7 @@ class RayProcess:
                 while not self.has_been_stopped.is_set():
                     try:
                         new_events, new_records = self.do_db_job(
-                            method=self.process.process_upstream_event,
+                            method=self.process_application.process_upstream_event,
                             args=(domain_event, notification_id, upstream_name),
                             kwargs={},
                         )
@@ -527,15 +563,17 @@ class RayProcess:
                 notifiable_events = [e for e in new_events if e.__notifiable__]
                 if len(notifiable_events):
                     if PROMPT_WITH_NOTIFICATION_IDS or PROMPT_WITH_NOTIFICATION_OBJS:
-                        record_manager = self.process.event_store.record_manager
-                        notification_id_name = record_manager.notification_id_name
-                        notifications = [
-                            record_manager.create_notification_from_record(record)
-                            for record in new_records
+                        manager = self.process_application.event_store.record_manager
+                        assert isinstance(manager, RecordManagerWithNotifications)
+                        notification_id_name = manager.notification_id_name
+                        notifications = []
+                        for record in new_records:
                             if isinstance(
                                 getattr(record, notification_id_name, None), int
-                            )
-                        ]
+                            ):
+                                notifications.append(
+                                    manager.create_notification_from_record(record)
+                                )
                         if len(notifications):
                             head_notification_id = notifications[-1]["id"]
                             if PROMPT_WITH_NOTIFICATION_IDS:
@@ -550,8 +588,8 @@ class RayProcess:
                         head_notification_id = self._get_max_notification_id()
 
                     prompt = RayPrompt(
-                        self.process.name,
-                        self.process.pipeline_id,
+                        self.process_application.name,
+                        self.process_application.pipeline_id,
                         head_notification_id,
                         notification_ids,
                         notifications,
@@ -607,7 +645,9 @@ class RayProcess:
                 else:
                     head_notification_id = self._get_max_notification_id()
                 prompt = RayPrompt(
-                    self.process.name, self.process.pipeline_id, head_notification_id,
+                    self.process_application.name,
+                    self.process_application.pipeline_id,
+                    head_notification_id,
                 )
             else:
                 prompt = item
@@ -627,7 +667,8 @@ class RayProcess:
         Returns the highest notification ID of this process application.
         :return:
         """
-        record_manager = self.process.event_store.record_manager
+        record_manager = self.process_application.event_store.record_manager
+        assert isinstance(record_manager, RecordManagerWithNotifications)
         max_notification_id = self.do_db_job(
             record_manager.get_max_notification_id, (), {}
         )
@@ -639,7 +680,7 @@ class RayProcess:
         Stops the process.
         """
         self.has_been_stopped.set()
-        self.process.close()
+        self.process_application.close()
         unsubscribe(handler=self._enqueue_prompt_to_pull, predicate=is_prompt_to_pull)
 
     def _print_timecheck(self, activity, *args):
@@ -655,89 +696,23 @@ class RayProcess:
         )
 
 
-#     # if isinstance(prompt, RayPrompt):
-#     # notifications = ray.get(prompt.notifications_rayid)
-#     # print("Notifications received:", [n["id"] for n in
-#     notifications])
-#     # for notification in notifications:
-#     #     notification_id = notification["id"]
-#     #     if notification_id and isinstance(notification_id, int):
-#     #         cache_key = (prompt.process_name, notification_id)
-#     #         self.notifications_cache[cache_key] = notification
-#
-# # sleep(0.5)
+class ProcessApplicationProxy:
+    def __init__(self, ray_process: RayProcess):
+        self.ray_process: RayProcess = ray_process
 
-# notifications = []
-# next_position = reader.position + 1
-# while True:
-#     cache_key = (prompted_name, next_position)
-#     notification = self.notifications_cache.get(cache_key)
-#     print("Cached notification:", notification)
-#     if notification:
-#         # reader.position = next_position
-#         notifications.append(notification)
-#         next_position = next_position + 1
-#     else:
-#         break
+    def __getattr__(self, item):
+        return AttributeProxy(self.ray_process, item)
 
 
-@ray.remote
-class __RayProcess:
-    def __init__(
-        self,
-        application_process_class: Type[ProcessApplication],
-        infrastructure_class: Type[ApplicationWithConcreteInfrastructure],
-        env_vars: dict = None,
-        pipeline_id: int = DEFAULT_PIPELINE_ID,
-        poll_interval: int = None,
-        setup_tables: bool = False,
-    ):
-        self.application_process_class = application_process_class
-        self.infrastructure_class = infrastructure_class
-        self.daemon = True
-        self.pipeline_id = pipeline_id
-        self.poll_interval = poll_interval or DEFAULT_POLL_INTERVAL
-        self.setup_tables = setup_tables
-        if env_vars is not None:
-            os.environ.update(env_vars)
+class AttributeProxy:
+    def __init__(self, ray_process: RayProcess, attribute_name: str):
+        self.ray_process: RayProcess = ray_process
+        self.attribute_name = attribute_name
 
-        self.has_been_stopped = Event()
-        self.db_jobs_queue = Queue(maxsize=1)
-        print("Starting do_jobs thread")
-        self.db_jobs_thread = Thread(target=self.db_jobs)
-        self.db_jobs_thread.setDaemon(True)
-        self.db_jobs_thread.start()
-
-        # self.prompted_names = set()
-        # self.prompted_lock = Lock()
-        # self.has_been_prompted = Event()
-        # self.event_reading_lock = Lock()
-        self.notifications_cache = {}
-
-        # self.reset_readers()
-
-    def reset_processing(self):
-        with self.event_reading_lock:
-            self.reset_readers()
-            with self.upstream_event_queue.mutex:
-                self.upstream_event_queue.queue.clear()
-            with self.prompted_lock:
-                for upstream_name in self.upstream_logs.keys():
-                    self.prompted_names.add(upstream_name)
-                self.has_been_prompted.set()
-
-    def reset_readers(self):
-        self.do_db_job(self._reset_readers, (), {})
-
-    def _reset_readers(self):
-        for upstream_name in self.process.readers:
-            self.process.set_reader_position_from_tracking_records(upstream_name)
-
-    def run_process(self, prompt: Optional[Prompt] = None) -> None:
-        try:
-            self._run_process(prompt)
-        except:
-            print(
-                traceback.format_exc() + "\nException was ignored so that actor can "
-                "continue running."
-            )
+    def __call__(self, *args, **kwargs):
+        ray_id = self.ray_process.call.remote(self.attribute_name, *args, **kwargs)
+        return_value = ray.get(ray_id)
+        if isinstance(return_value, ExceptionWrapper):
+            raise return_value.e
+        else:
+            return return_value
