@@ -3,6 +3,7 @@ import os
 import sys
 import unittest
 from time import sleep
+from typing import Type
 from unittest import skipIf
 from uuid import uuid4
 
@@ -209,6 +210,7 @@ class TestPaxosSystem(unittest.TestCase):
             infrastructure_class=self.infrastructure_class,
             setup_tables=True,
         )
+        app_class: Type[PaxosApplication] = runner.get_class("paxosapplication0")
 
         num_proposals_per_pipeline = 25
         num_proposals = num_pipelines * num_proposals_per_pipeline
@@ -219,8 +221,8 @@ class TestPaxosSystem(unittest.TestCase):
         with runner:
 
             @retry((KeyError, AssertionError), max_attempts=100, wait=0.25, stall=0)
-            def assert_final_value(process_name, pipeline_id, id, expected):
-                actual = runner.call(process_name, pipeline_id, "get_final_value", id)
+            def assert_final_value(pipeline_id, key, expected):
+                actual = runner.get(app_class, pipeline_id).get_final_value(key)
                 self.assertEqual(actual, expected)
 
             # Start timing (just for fun).
@@ -229,16 +231,14 @@ class TestPaxosSystem(unittest.TestCase):
             for key, value in proposals:
                 pipeline_id = value % len(pipeline_ids)
                 print("Proposing key {} value {}".format(key, value))
-                runner.call(
-                    "paxosapplication0", pipeline_id, "propose_value", key, str(value)
-                )
+                runner.get(app_class, pipeline_id).propose_value(key, str(value))
                 sleep(0.005)
 
             # Check final values.
             for key, value in proposals:
                 print("Asserting final value for key {} value {}".format(key, value))
                 pipeline_id = value % len(pipeline_ids)
-                assert_final_value("paxosapplication0", pipeline_id, key, str(value))
+                assert_final_value(pipeline_id, key, str(value))
 
             # Print timing information (just for fun).
             duration = (datetime.datetime.now() - started).total_seconds()

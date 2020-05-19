@@ -254,6 +254,9 @@ class AbstractSystemRunner(ABC):
                 process.close()
             self.processes.clear()
 
+    def get_class(self, process_name: str) -> Type[ProcessApplication]:
+        return self.system.process_classes[process_name]
+
     def get(
         self, process_class: Type[TProcessApplication], pipeline_id=DEFAULT_PIPELINE_ID
     ) -> TProcessApplication:
