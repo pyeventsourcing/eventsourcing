@@ -34,11 +34,14 @@ def main():
     targets = [(os.path.join(proj_path, "tmpve3.7"), "python")]
     os.environ["CASS_DRIVER_NO_CYTHON"] = "1"
     from eventsourcing import __version__
+
     for (venv_path, python_bin) in targets:
 
-        # Rebuild virtualenv.
+        # Remove existing virtualenv.
         if os.path.exists(venv_path):
             remove_virtualenv(proj_path, venv_path)
+
+        # Create virtualenv.
         subprocess.check_call(
             ["virtualenv", "-p", python_bin, venv_path], cwd=proj_path
         )

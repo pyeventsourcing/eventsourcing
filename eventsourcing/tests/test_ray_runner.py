@@ -110,7 +110,7 @@ class TestRayRunner(unittest.TestCase):
             for i in range(num_orders):
 
                 pipeline_id = i % len(pipeline_ids)
-                order_id = runner.call("orders", pipeline_id, "create_new_order")
+                order_id = runner.get(Orders, pipeline_id).create_new_order()
                 order_ids.append(order_id)
                 sleep(0.001)
 
@@ -121,16 +121,15 @@ class TestRayRunner(unittest.TestCase):
 
                 pipeline_id = i % len(pipeline_ids)
 
-                while not runner.call(
-                    "orders", pipeline_id, "is_order_reserved", order_id
-                ):
+                orders = runner.get(Orders, pipeline_id)
+                while not orders.is_order_reserved(order_id):
                     time.sleep(0.5)
                     retries -= 1
                     assert retries, "Failed set order.is_reserved {} ({})".format(
                         order_id, i
                     )
 
-                while not runner.call("orders", pipeline_id, "is_order_paid", order_id):
+                while not orders.is_order_paid(order_id):
                     time.sleep(0.5)
                     retries -= 1
                     assert retries, "Failed set order.is_paid ({})".format(i)
@@ -144,7 +143,7 @@ class TestRayRunner(unittest.TestCase):
             orders = []
             for i, order_id in enumerate(order_ids):
                 pipeline_id = i % len(pipeline_ids)
-                orders.append(runner.call("orders", pipeline_id, "get_order", order_id))
+                orders.append(runner.get(Orders, pipeline_id).get_order(order_id))
             first_timestamp = min([o.__created_on__ for o in orders])
             last_timestamp = max([o.__last_modified__ for o in orders])
             duration = last_timestamp - first_timestamp

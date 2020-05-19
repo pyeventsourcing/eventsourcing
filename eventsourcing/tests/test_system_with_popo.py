@@ -22,6 +22,9 @@ from eventsourcing.tests.test_system import TestSystem
 class TestSystemWithPopo(PopoTestCase, TestSystem):
     infrastructure_class = PopoApplication
 
+    def test_multiprocess_runner_with_single_application_class(self):
+        pass  # MultiprocessRunner doesn't work with PopoApplication.
+
     def test_singlethreaded_runner_with_multiapp_system(self):
         super(
             TestSystemWithPopo, self

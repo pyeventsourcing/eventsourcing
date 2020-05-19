@@ -1137,8 +1137,6 @@ progressively to obtain unseen notifications.
 The example below happens to yield notifications from a big array notification log, but it
 would work equally well with a record notification log, or with a remote notification log.
 
-Todo: Maybe just use "obj.read()" rather than "list(obj)", so it's more file-like.
-
 .. code:: python
 
     from eventsourcing.application.notificationlog import NotificationLogReader
