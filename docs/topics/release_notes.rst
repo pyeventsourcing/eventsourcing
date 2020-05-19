@@ -22,6 +22,16 @@ systems of application, previously in the "application" package, has been
 moved to a new "system" package.
 
 
+Version 8.2.3 (released 19 May 2020)
+--------------------------------------
+
+Improved interactions with process applications in RayRunner
+so that they have the same style as interactions with process
+applications in other runners. This makes the RayRunner more
+interchangeable with the other runners, so that system client
+code can be written to work with any runner.
+
+
 Version 8.2.2 (released 16 May 2020)
 --------------------------------------
 
