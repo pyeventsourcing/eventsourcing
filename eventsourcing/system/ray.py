@@ -146,7 +146,7 @@ class RayRunner(AbstractSystemRunner):
         assert issubclass(process_class, ProcessApplication)
         process_name = process_class.create_name()
         ray_process = self.get_ray_process(process_name, pipeline_id)
-        return ProcessApplicationProxy(ray_process)
+        return ProxyApplication(ray_process)
 
 
 @ray.remote
@@ -696,15 +696,15 @@ class RayProcess:
         )
 
 
-class ProcessApplicationProxy:
+class ProxyApplication:
     def __init__(self, ray_process: RayProcess):
         self.ray_process: RayProcess = ray_process
 
     def __getattr__(self, item):
-        return AttributeProxy(self.ray_process, item)
+        return ProxyMethod(self.ray_process, item)
 
 
-class AttributeProxy:
+class ProxyMethod:
     def __init__(self, ray_process: RayProcess, attribute_name: str):
         self.ray_process: RayProcess = ray_process
         self.attribute_name = attribute_name
