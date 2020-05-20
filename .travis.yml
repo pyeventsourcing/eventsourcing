@@ -10,7 +10,7 @@ python:
   - "3.6"
   - "3.7"
 # Not running tests with Python v3.8 because ray doesn't work with it at the moment.
-#  - "3.8"
+  - "3.8"
 
 
 before_install:
