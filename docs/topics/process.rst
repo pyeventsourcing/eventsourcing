@@ -1243,7 +1243,7 @@ Thespian documentation for more information.
 Ray actor model runner
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`Ray <https://github.com/kquick/Thespian>`__,
+`Ray <https://github.com/ray-project/ray>`__,
 can also be used to run a multi-pipeline system of process applications.
 
 The library's :class:`~eventsourcing.system.ray.RayRunner`

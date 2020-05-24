@@ -50,3 +50,10 @@ actors
     :members:
     :special-members:
     :exclude-members: __weakref__, __dict__
+
+.. automodule:: eventsourcing.system.ray
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__
