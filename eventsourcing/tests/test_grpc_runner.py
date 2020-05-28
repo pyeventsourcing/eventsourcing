@@ -5,12 +5,11 @@ from unittest import TestCase
 from uuid import UUID
 
 from eventsourcing.application.popo import PopoApplication
-from eventsourcing.application.process import ProcessApplication
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.system.definition import System
+from eventsourcing.system.grpcrunner.runner import GrpcRunner
 from eventsourcing.tests.system_test_fixtures import Orders, Payments, Reservations
 
-from esgrpcrunner.runner import GrpcRunner
 
 logging.basicConfig()
 
@@ -21,10 +20,10 @@ class TestGrpcRunner(TestCase):
         runner = GrpcRunner(
             System(Orders | Reservations | Orders | Payments | Orders),
             push_prompt_interval=0.2,
-            # infrastructure_class=PopoApplication,
-            infrastructure_class=SQLAlchemyApplication,
+            infrastructure_class=PopoApplication,
+            # infrastructure_class=SQLAlchemyApplication,
             setup_tables=True,
-            use_individual_databases=True,
+            use_individual_databases=False,
         )
         with runner:
             orders_client = runner.get(Orders)
@@ -33,7 +32,7 @@ class TestGrpcRunner(TestCase):
             startup_duration = (datetime.now() - timer_started).total_seconds()
             print("Start duration: %ss" % (startup_duration))
 
-            num_orders = 20
+            num_orders = 2000
             order_ids = []
             timer_started = datetime.now()
             for i in range(num_orders):

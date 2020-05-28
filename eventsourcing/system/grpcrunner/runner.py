@@ -1,3 +1,4 @@
+import importlib
 import json
 import logging
 import os
@@ -9,10 +10,11 @@ from typing import List, Type
 
 from eventsourcing.application.popo import PopoApplication
 from eventsourcing.system.definition import AbstractSystemRunner, TProcessApplication
+from eventsourcing.system.grpcrunner import processor
 from eventsourcing.utils.topic import get_topic, resolve_topic
 
-from eventsourcing.system.esgrpcrunner.processor_client import ProcessorClient
-from eventsourcing.system.esgrpcrunner.processor_listener import ProcessorListener
+from eventsourcing.system.grpcrunner.processor_client import ProcessorClient
+from eventsourcing.system.grpcrunner.processor_listener import ProcessorListener
 
 logging.basicConfig()
 
@@ -85,7 +87,7 @@ class GrpcRunner(AbstractSystemRunner):
         process = Popen(
             [
                 sys.executable,
-                "./esgrpcrunner/processor.py",
+                processor.__file__,
                 application_topic,
                 infrastructure_topic,
                 json.dumps(setup_table),

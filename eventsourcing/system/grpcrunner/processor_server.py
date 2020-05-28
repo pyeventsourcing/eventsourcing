@@ -24,13 +24,13 @@ from eventsourcing.domain.model.events import subscribe
 from eventsourcing.utils.topic import resolve_topic
 from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
 
-from eventsourcing.system.esgrpcrunner.processor_client import ProcessorClient
-from eventsourcing.system.esgrpcrunner.processor_pb2 import (
+from eventsourcing.system.grpcrunner.processor_client import ProcessorClient
+from eventsourcing.system.grpcrunner.processor_pb2 import (
     CallReply,
     Empty,
     NotificationsReply,
 )
-from eventsourcing.system.esgrpcrunner.processor_pb2_grpc import (
+from eventsourcing.system.grpcrunner.processor_pb2_grpc import (
     ProcessorServicer,
     add_ProcessorServicer_to_server,
 )

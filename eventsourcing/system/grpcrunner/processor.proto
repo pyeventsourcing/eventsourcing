@@ -15,7 +15,7 @@
 syntax = "proto3";
 
 option java_multiple_files = true;
-option java_package = "io.esgrpcrunner.processor";
+option java_package = "io.grpcrunner.processor";
 option java_outer_classname = "ProcessorProto";
 option objc_class_prefix = "HLW";
 

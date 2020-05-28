@@ -4,9 +4,9 @@ from typing import List
 
 import grpc
 
-from eventsourcing.system.esgrpcrunner.processor_client import ProcessorClient
-from eventsourcing.system.esgrpcrunner.processor_pb2 import Empty
-from eventsourcing.system.esgrpcrunner.processor_pb2_grpc import (
+from eventsourcing.system.grpcrunner.processor_client import ProcessorClient
+from eventsourcing.system.grpcrunner.processor_pb2 import Empty
+from eventsourcing.system.grpcrunner.processor_pb2_grpc import (
     ProcessorServicer,
     add_ProcessorServicer_to_server,
 )

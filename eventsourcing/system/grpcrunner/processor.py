@@ -3,7 +3,7 @@ import logging
 import sys
 from logging import DEBUG
 
-from eventsourcing.system.esgrpcrunner.processor_server import ProcessorServer
+from eventsourcing.system.grpcrunner.processor_server import ProcessorServer
 
 if __name__ == "__main__":
     logging.basicConfig(level=DEBUG)

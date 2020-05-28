@@ -4,7 +4,7 @@ import grpc
 from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
 from grpc._channel import _InactiveRpcError
 
-from eventsourcing.system.esgrpcrunner.processor_pb2 import (
+from eventsourcing.system.grpcrunner.processor_pb2 import (
     CallRequest,
     Empty,
     FollowRequest,
@@ -13,7 +13,7 @@ from eventsourcing.system.esgrpcrunner.processor_pb2 import (
     NotificationsRequest,
     PromptRequest,
 )
-from eventsourcing.system.esgrpcrunner.processor_pb2_grpc import ProcessorStub
+from eventsourcing.system.grpcrunner.processor_pb2_grpc import ProcessorStub
 
 
 class ProcessorClient(object):
