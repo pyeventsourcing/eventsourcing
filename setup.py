@@ -22,6 +22,8 @@ sqlalchemy_requires = ["sqlalchemy<=1.3.99999,>=0.9", "sqlalchemy-utils<=0.36.99
 
 axonserver_requires = ["axonclient<=0.0.99999"]
 
+grpc_requires = ["grpcio<=1.29.99999"]
+
 ray_requires = ["ray<=0.8.99999", "psutil", "setproctitle"]
 
 thespian_requires = ["thespian<=3.10.99999"]
@@ -34,8 +36,9 @@ testing_requires = (
     cassandra_requires
     + sqlalchemy_requires
     + axonserver_requires
-    + thespian_requires
+    + grpc_requires
     + ray_requires
+    + thespian_requires
     + django_requires
     + [
         "mock<=4.0.99999",
@@ -63,7 +66,14 @@ docs_requires = testing_requires + [
     "sphinx-autobuild",
 ]
 
-dev_requires = docs_requires + ["black", "mypy", "flake8", "flake8-bugbear", "isort"]
+dev_requires = docs_requires + [
+    "black",
+    "mypy",
+    "flake8",
+    "flake8-bugbear",
+    "isort",
+    "grpcio-tools",
+]
 
 long_description = """
 A library for event sourcing in Python.
@@ -97,6 +107,7 @@ setup(
         "sqlalchemy": sqlalchemy_requires,
         "axonserver": axonserver_requires,
         "axon": axonserver_requires,
+        "grpc": grpc_requires,
         "ray": ray_requires,
         "django": django_requires,
         "test": testing_requires,

@@ -1262,6 +1262,29 @@ is a system runner that uses Ray's actor model system.
 
 Please refer to the test for more information about using this class.
 
+
+Pure gRPC runner
+~~~~~~~~~~~~~~~~
+
+Inspired by Ray's use of gRPC, the library offers a pure gRPC runner.
+
+The library's :class:`~eventsourcing.system.grpcrunner.runner.GrpcRunner`
+is a system runner that uses gRPC to run a system of process
+applications.
+
+.. code:: python
+
+    from eventsourcing.system.grpcrunner.runner import GrpcRunner
+
+    runner = GrpcRunner(
+        system=system,
+        infrastructure_class=SQLAlchemyApplication,
+        setup_tables=True,
+        #pipeline_ids=[0, 1, 2]
+    )
+
+Please refer to the test for more information about using this class.
+
 ..    # Todo: More about using this runner. Code below doesn't run from __main__
 ..    # Todo: because the command topic seems to get messed up by Ray serialisation.
 ..    # Todo: However, it might work if the domain model was defined in a different
@@ -1480,8 +1503,6 @@ library doesn't currently have any such adapter process classes or documentation
 
 Process event pattern
 =====================
-
-`draft`
 
 A set of EVENT SOURCED APPLICATIONS can be composed into a system of applications. Application state can be propagated to other applications. Application state is defined by domain event records that have been committed. Each application has a policy which defines how it responds to the domain events it processes.
 

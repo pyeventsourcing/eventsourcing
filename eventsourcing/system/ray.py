@@ -206,7 +206,7 @@ class RayProcess:
         # print("Running do_jobs")
         while not self.has_been_stopped.is_set():
             try:
-                item = self.db_jobs_queue.get()  # timeout=1)
+                item = self.db_jobs_queue.get(timeout=1)
                 self.db_jobs_queue.task_done()
             except Empty:
                 if self.has_been_stopped.is_set():
@@ -372,6 +372,9 @@ class RayProcess:
     def __process_prompts(self):
         # Wait until prompted.
         self._has_been_prompted.wait()
+
+        if self.has_been_stopped.is_set():
+            return
 
         # self.print_timecheck('has been prompted')
         current_heads = {}
@@ -679,9 +682,41 @@ class RayProcess:
         """
         Stops the process.
         """
+        # print("%s actor stopping %s" % (os.getpid(), datetime.datetime.now()))
         self.has_been_stopped.set()
+        # print("%s actor joining db_jobs_thread %s" % (os.getpid(),
+        #                                            datetime.datetime.now()))
+        self.db_jobs_queue.put(None)
+        self.upstream_event_queue.put(None)
+        self.downstream_prompt_queue.put(None)
+        self._has_been_prompted.set()
+        self.positions_initialised.set()
+        self.db_jobs_thread.join(timeout=1)
+        assert not self.db_jobs_thread.is_alive(), (
+            "DB jobs thread still alive"
+        )
+        # print("%s actor joining process_events_thread %s" % (os.getpid(),
+        #                                            datetime.datetime.now()))
+        self.process_events_thread.join(timeout=1)
+        assert not self.process_events_thread.is_alive(), (
+            "Process events thread still alive"
+        )
+        # print("%s actor joining process_prompts_thread %s" % (os.getpid(),
+        #                                            datetime.datetime.now()))
+        self.process_prompts_thread.join(timeout=1)
+        assert not self.process_prompts_thread.is_alive(), (
+            "Process prompts thread still alive"
+        )
+        # print("%s actor joining push_prompts_thread %s" % (os.getpid(),
+        #                                            datetime.datetime.now()))
+        self.push_prompts_thread.join(timeout=1)
+        assert not self.push_prompts_thread.is_alive(), (
+            "Push prompts thread still alive"
+        )
         self.process_application.close()
         unsubscribe(handler=self._enqueue_prompt_to_pull, predicate=is_prompt_to_pull)
+        # print("%s actor stopped %s" % (os.getpid(), datetime.datetime.now()))
+        ray.actor.exit_actor()
 
     def _print_timecheck(self, activity, *args):
         # pass
