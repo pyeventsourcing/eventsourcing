@@ -126,7 +126,7 @@ test-released-distribution:
 .PHONY: generate-grpcrunner-protos
 generate-grpcrunner-protos:
 	python -m grpc_tools.protoc \
-	  -Ieventsouring/system/grpcrunner
-	  --python_out=eventsouring/system/grpcrunner \
-	  --grpc_python_out=eventsouring/system/grpcrunner \
-	  eventsouring/system/grpcrunner/processor.proto
+	  --proto_path=./eventsourcing/system/grpcrunner \
+	  --python_out=eventsourcing/system/grpcrunner \
+	  --grpc_python_out=eventsourcing/system/grpcrunner \
+	  eventsourcing/system/grpcrunner/processor.proto
