@@ -112,7 +112,6 @@ class GrpcRunner(AbstractSystemRunner):
             ],
             stderr=subprocess.STDOUT,
             close_fds=True,
-            text=True,
             env=os.environ.copy(),
         )
         self.processors.append(process)
