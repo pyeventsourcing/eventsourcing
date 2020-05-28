@@ -1,4 +1,3 @@
-import importlib
 import json
 import logging
 import os
@@ -20,6 +19,9 @@ logging.basicConfig()
 
 
 class GrpcRunner(AbstractSystemRunner):
+    """
+    System runner that uses gRPC to communicate between process applications.
+    """
     def __init__(
         self, *args, push_prompt_interval=0.25, use_individual_databases=False, **kwargs
     ):
@@ -31,15 +33,24 @@ class GrpcRunner(AbstractSystemRunner):
         self.use_individual_databases = use_individual_databases
 
     def generate_ports(self, start: int):
+        """
+        Generator that yields a sequence of ports from given start number.
+        """
         i = 0
         while True:
             yield start + i
             i += 1
 
     def create_address(self):
+        """
+        Creates a new address for a gRPC server.
+        """
         return "[::]:%s" % next(self.port_generator)
 
     def start(self):
+        """
+        Starts running a system of process applications.
+        """
         for i, application_name in enumerate(self.system.process_classes):
             self.addresses[application_name] = self.create_address()
 
@@ -73,6 +84,9 @@ class GrpcRunner(AbstractSystemRunner):
         upstreams,
         downstreams,
     ):
+        """
+        Starts a gRPC process.
+        """
         os.environ["DB_URI"] = (
             "mysql+pymysql://{}:{}@{}/eventsourcing{}?charset=utf8mb4&binary_prefix=true"
         ).format(
@@ -104,17 +118,26 @@ class GrpcRunner(AbstractSystemRunner):
         self.processors.append(process)
 
     def close(self) -> None:
+        """
+        Stops all gRPC processes started by the runner.
+        """
         for process in self.processors:
             self.stop_process(process)
         for process in self.processors:
             self.kill_process(process)
 
     def stop_process(self, process):
+        """
+        Stops given gRPC process.
+        """
         exit_status_code = process.poll()
         if exit_status_code is None:
             process.send_signal(SIGINT)
 
     def kill_process(self, process):
+        """
+        Kills given gRPC process, if it still running.
+        """
         try:
             process.wait(timeout=1)
         except TimeoutExpired:
@@ -135,6 +158,9 @@ class GrpcRunner(AbstractSystemRunner):
         return ClientWrapper(client)
 
     def listen(self, name, processor_clients):
+        """
+        Constructs a listener using the given clients.
+        """
         processor_clients: List[ProcessorClient]
         return ProcessorListener(
             name=name, address=self.create_address(), clients=processor_clients
@@ -142,6 +168,9 @@ class GrpcRunner(AbstractSystemRunner):
 
 
 class ClientWrapper:
+    """
+    Wraps a gRPC client, and returns a MethodWrapper when attributes are accessed.
+    """
     def __init__(self, client: ProcessorClient):
         self.client = client
 
@@ -150,6 +179,9 @@ class ClientWrapper:
 
 
 class MethodWrapper:
+    """
+    Wraps a gRPC client, and invokes application method name when called.
+    """
     def __init__(self, client: ProcessorClient, method_name: str):
         self.client = client
         self.method_name = method_name

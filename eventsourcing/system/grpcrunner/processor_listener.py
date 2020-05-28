@@ -13,6 +13,9 @@ from eventsourcing.system.grpcrunner.processor_pb2_grpc import (
 
 
 class ProcessorListener(ProcessorServicer):
+    """
+    Starts server and uses clients to request prompts from connected servers.
+    """
     def __init__(self, name, address, clients: List[ProcessorClient]):
         super().__init__()
         self.name = name
@@ -25,6 +28,9 @@ class ProcessorListener(ProcessorServicer):
             client.lead(self.name, self.address)
 
     def serve(self):
+        """
+        Starts server.
+        """
         self.executor = futures.ThreadPoolExecutor(max_workers=10)
         self.server = grpc.server(self.executor)
         add_ProcessorServicer_to_server(self, self.server)
@@ -40,6 +46,9 @@ class ProcessorListener(ProcessorServicer):
         return Empty()
 
     def prompt(self, upstream_name):
+        """
+        Sets prompt events for given upstream process.
+        """
         # logging.info(
         #     "Application %s received prompt from %s"
         #     % (self.application_name, upstream_name)

@@ -194,6 +194,9 @@ class ProcessorServer(ProcessorServicer):
                 self.application.publish_prompt()
 
     def serve(self):
+        """
+        Starts gRPC server.
+        """
         self.executor = futures.ThreadPoolExecutor(max_workers=10)
         self.server = grpc.server(self.executor)
         # logging.info(self.application_class)
@@ -202,20 +205,24 @@ class ProcessorServer(ProcessorServicer):
         self.server.start()
 
     def wait_for_termination(self):
+        """
+        Runs until termination of process.
+        """
         self.server.wait_for_termination()
 
     def Ping(self, request, context):
         return Empty()
 
-    def Follow(self, request, context):
-        upstream_name = request.upstream_name
-        upstream_address = request.upstream_address
-        self.follow(upstream_name, upstream_address)
-        return Empty()
-
-    def follow(self, upstream_name, upstream_address):
-        # logging.debug("%s is following %s" % (self.application_name, upstream_name))
-        self.clients[upstream_name].lead(self.application_name, self.address)
+    # def Follow(self, request, context):
+    #     upstream_name = request.upstream_name
+    #     upstream_address = request.upstream_address
+    #     self.follow(upstream_name, upstream_address)
+    #     return Empty()
+    #
+    # def follow(self, upstream_name, upstream_address):
+    #     """"""
+    #     # logging.debug("%s is following %s" % (self.application_name, upstream_name))
+    #     self.clients[upstream_name].lead(self.application_name, self.address)
 
     def Lead(self, request, context):
         downstream_name = request.downstream_name
@@ -224,6 +231,9 @@ class ProcessorServer(ProcessorServicer):
         return Empty()
 
     def lead(self, downstream_name, downstream_address):
+        """
+        Starts client and registers downstream to receive prompts.
+        """
         # logging.debug("%s is leading %s" % (self.application_name, downstream_name))
         thread = StartClient(self.clients, downstream_name, downstream_address)
         thread.setDaemon(True)
@@ -238,6 +248,9 @@ class ProcessorServer(ProcessorServicer):
             self.downstreams[downstream_name] = downstream_address
 
     def start_client(self, name, address):
+        """
+        Starts client connected to given address.
+        """
         if name not in self.clients:
             self.clients[name] = ProcessorClient()
             self.clients[name].connect(address)
@@ -248,10 +261,9 @@ class ProcessorServer(ProcessorServicer):
         return Empty()
 
     def prompt(self, upstream_name):
-        # logging.info(
-        #     "Application %s received prompt from %s"
-        #     % (self.application_name, upstream_name)
-        # )
+        """
+        Set prompt event for upstream name.
+        """
         self.prompt_events[upstream_name].set()
 
     def GetNotifications(self, request, context):
@@ -260,6 +272,9 @@ class ProcessorServer(ProcessorServicer):
         return NotificationsReply(section=section)
 
     def get_notification_log_section(self, section_id):
+        """
+        Returns section for given section ID.
+        """
         return self.notification_log_view.present_resource(section_id=section_id)
 
     def CallApplicationMethod(self, request, context):
@@ -272,12 +287,18 @@ class ProcessorServer(ProcessorServicer):
         return CallReply(data=self.json_encoder.encode(return_value))
 
     def stop(self, *args):
+        """
+        Stops the gRPC server.
+        """
         # logging.debug("Stopping....")
         self.has_been_stopped.set()
         self.server.stop(grace=1)
 
 
 class PullNotifications(Thread):
+    """
+    Thread the pulls notifications from upstream process application.
+    """
     def __init__(
         self,
         prompt_event: Event,
@@ -296,6 +317,12 @@ class PullNotifications(Thread):
         self.has_been_stopped = has_been_stopped
 
     def run(self) -> None:
+        """
+        Loops over waiting for prompt event to be set,
+        reads event notifications from reader, gets domain
+        events from notifications, and puts domain events
+        on the queue of unprocessed events.
+        """
         # logging.info("started pull notifications thread")
         self.set_reader_position()
         while not self.has_been_stopped.is_set():
@@ -320,6 +347,9 @@ class PullNotifications(Thread):
                 sleep(1)
 
     def set_reader_position(self):
+        """
+        Sets reader position from recorded position.
+        """
         recorded_position = self.process_application.get_recorded_position(
             self.upstream_name
         )
@@ -327,6 +357,9 @@ class PullNotifications(Thread):
 
 
 class StartClient(Thread):
+    """
+    Thread that creates a gRPC client and connects to a gRPC server.
+    """
     def __init__(self, clients, name, address):
         super(StartClient, self).__init__()
         self.clients = clients
@@ -335,6 +368,9 @@ class StartClient(Thread):
         self.error = None
 
     def run(self):
+        """
+        Creates client and connects to address.
+        """
         client = ProcessorClient()
         try:
             client.connect(self.address)
@@ -346,6 +382,9 @@ class StartClient(Thread):
 
 
 class RemoteNotificationLog(AbstractNotificationLog):
+    """
+    Notification log that get notification log sections using gRPC client.
+    """
     def __init__(
         self,
         client: ProcessorClient,
@@ -370,6 +409,9 @@ class RemoteNotificationLog(AbstractNotificationLog):
 
 
 class NotificationLogView(object):
+    """
+    Presents sections of notification log for gRPC server.
+    """
     def __init__(
         self, notification_log: LocalNotificationLog, json_encoder: ObjectJSONEncoder
     ):
