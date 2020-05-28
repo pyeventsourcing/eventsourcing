@@ -149,7 +149,7 @@ class RayRunner(AbstractSystemRunner):
         return ProxyApplication(ray_process)
 
 
-@ray.remote(num_cpus=1)
+@ray.remote
 class RayProcess:
     def __init__(
         self,
