@@ -40,7 +40,7 @@ class ProcessorClient(object):
             except _InactiveRpcError:
                 if timeout is not None:
                     timer_duration = (datetime.now() - timer_started).total_seconds()
-                    if timer_duration > 5:
+                    if timer_duration > 15:
                         raise Exception("Timed out trying to connect to %s" % address)
                 else:
                     continue
