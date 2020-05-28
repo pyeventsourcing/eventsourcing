@@ -1268,13 +1268,13 @@ Pure gRPC runner
 
 Inspired by Ray's use of gRPC, the library offers a pure gRPC runner.
 
-The library's :class:`~eventsourcing.system.grpc.GrpcRunner`
+The library's :class:`~eventsourcing.system.grpcrunner.runner.GrpcRunner`
 is a system runner that uses gRPC to run a system of process
 applications.
 
 .. code:: python
 
-    from eventsourcing.system.grpc import GrpcRunner
+    from eventsourcing.system.grpcrunner.runner import GrpcRunner
 
     runner = GrpcRunner(
         system=system,
