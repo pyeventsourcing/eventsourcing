@@ -37,9 +37,6 @@ from eventsourcing.system.grpcrunner.processor_pb2_grpc import (
 
 from eventsourcing.application import notificationlog
 
-notificationlog.USE_REGULAR_SECTIONS = False
-notificationlog.DEFAULT_SECTION_SIZE = 100
-
 
 class ProcessorServer(ProcessorServicer):
     def __init__(
@@ -53,6 +50,11 @@ class ProcessorServer(ProcessorServicer):
         push_prompt_interval,
     ):
         super(ProcessorServer, self).__init__()
+
+        # Make getting notifications more efficient.
+        notificationlog.USE_REGULAR_SECTIONS = False
+        notificationlog.DEFAULT_SECTION_SIZE = 100
+
         self.has_been_stopped = Event()
         signal(SIGINT, self.stop)
         self.application_class: Type[ProcessApplication] = resolve_topic(

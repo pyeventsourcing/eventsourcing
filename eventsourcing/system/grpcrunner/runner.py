@@ -87,16 +87,16 @@ class GrpcRunner(AbstractSystemRunner):
         """
         Starts a gRPC process.
         """
-        os.environ["DB_URI"] = (
-            "mysql+pymysql://{}:{}@{}/eventsourcing{}?charset=utf8mb4&binary_prefix=true"
-        ).format(
-            os.getenv("MYSQL_USER", "eventsourcing"),
-            os.getenv("MYSQL_PASSWORD", "eventsourcing"),
-            os.getenv("MYSQL_HOST", "127.0.0.1"),
-            resolve_topic(application_topic).create_name()
-            if self.use_individual_databases
-            else "",
-        )
+        # os.environ["DB_URI"] = (
+        #     "mysql+pymysql://{}:{}@{}/eventsourcing{}?charset=utf8mb4&binary_prefix=true"
+        # ).format(
+        #     os.getenv("MYSQL_USER", "eventsourcing"),
+        #     os.getenv("MYSQL_PASSWORD", "eventsourcing"),
+        #     os.getenv("MYSQL_HOST", "127.0.0.1"),
+        #     resolve_topic(application_topic).create_name()
+        #     if self.use_individual_databases
+        #     else "",
+        # )
 
         process = Popen(
             [
@@ -112,7 +112,6 @@ class GrpcRunner(AbstractSystemRunner):
             ],
             stderr=subprocess.STDOUT,
             close_fds=True,
-            env=os.environ.copy(),
         )
         self.processors.append(process)
 
