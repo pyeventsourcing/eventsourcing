@@ -22,7 +22,7 @@ sqlalchemy_requires = ["sqlalchemy<=1.3.99999,>=0.9", "sqlalchemy-utils<=0.36.99
 
 axonserver_requires = ["axonclient<=0.0.99999"]
 
-grpc_requires = ["grpc<=1.29.99999"]
+grpc_requires = ["grpcio<=1.29.99999"]
 
 ray_requires = ["ray<=0.8.99999", "psutil", "setproctitle"]
 
