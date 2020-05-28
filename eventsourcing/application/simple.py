@@ -604,10 +604,12 @@ class PromptToPull(Prompt):
         )
 
     def __repr__(self) -> str:
-        return "{}({}={}, {}={})".format(
+        return "{}({}={}, {}={}, {}={})".format(
             type(self).__name__,
             "process_name",
             self.process_name,
             "pipeline_id",
             self.pipeline_id,
+            "head_notification_id",
+            self.head_notification_id
         )
