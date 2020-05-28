@@ -122,3 +122,11 @@ release-distribution:
 .PHONY: test-released-distribution
 test-released-distribution:
 	python ./dev/test-released-distribution.py
+
+.PHONY: generate-grpcrunner-protos
+generate-grpcrunner-protos:
+	python -m grpc_tools.protoc \
+	  -Ieventsouring/system/grpcrunner
+	  --python_out=eventsouring/system/grpcrunner \
+	  --grpc_python_out=eventsouring/system/grpcrunner \
+	  eventsouring/system/grpcrunner/processor.proto
