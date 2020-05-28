@@ -99,7 +99,7 @@ class ObjectJSONEncoder(JSONEncoder):
     def __init__(self, sort_keys=False):
         super().__init__(sort_keys=sort_keys, separators=JSON_SEPARATORS)
 
-    def encode(self, o):
+    def encode(self, o) -> bytes:
         o = self.encode_object(o)
         if self.sort_keys is True or orjson is None:
             return super(ObjectJSONEncoder, self).encode(o).encode("utf8")
