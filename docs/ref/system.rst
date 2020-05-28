@@ -43,41 +43,19 @@ multiprocess
 grpc
 ----
 
-.. automodule:: eventsourcing.system.grpcrunner.runner
+.. automodule:: eventsourcing.system.grpc.runner
     :show-inheritance:
     :member-order: bysource
     :members:
     :special-members:
     :exclude-members: __weakref__, __dict__
 
-.. automodule:: eventsourcing.system.grpcrunner.processor
+.. automodule:: eventsourcing.system.grpc.processor
     :show-inheritance:
     :member-order: bysource
     :members:
     :special-members:
     :exclude-members: __weakref__, __dict__
-
-.. automodule:: eventsourcing.system.grpcrunner.processor_client
-    :show-inheritance:
-    :member-order: bysource
-    :members:
-    :special-members:
-    :exclude-members: __weakref__, __dict__
-
-.. automodule:: eventsourcing.system.grpcrunner.processor_server
-    :show-inheritance:
-    :member-order: bysource
-    :members:
-    :special-members:
-    :exclude-members: __weakref__, __dict__
-
-.. automodule:: eventsourcing.system.grpcrunner.processor_listener
-    :show-inheritance:
-    :member-order: bysource
-    :members:
-    :special-members:
-    :exclude-members: __weakref__, __dict__
-
 
 
 actors

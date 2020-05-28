@@ -4,7 +4,7 @@ from uuid import UUID
 
 from eventsourcing.application.popo import PopoApplication
 from eventsourcing.system.definition import System
-from eventsourcing.system.grpcrunner.runner import GrpcRunner
+from eventsourcing.system.grpc.runner import GrpcRunner
 from eventsourcing.tests.system_test_fixtures import Orders, Payments, Reservations
 
 

@@ -123,10 +123,10 @@ release-distribution:
 test-released-distribution:
 	python ./dev/test-released-distribution.py
 
-.PHONY: generate-grpcrunner-protos
-generate-grpcrunner-protos:
+.PHONY: generate-grpc-protos
+generate-grpc-protos:
 	python -m grpc_tools.protoc \
-	  --proto_path=./eventsourcing/system/grpcrunner \
-	  --python_out=eventsourcing/system/grpcrunner \
-	  --grpc_python_out=eventsourcing/system/grpcrunner \
-	  eventsourcing/system/grpcrunner/processor.proto
+	  --proto_path=./eventsourcing/system/grpc \
+	  --python_out=eventsourcing/system/grpc \
+	  --grpc_python_out=eventsourcing/system/grpc \
+	  eventsourcing/system/grpc/processor.proto

@@ -1,7 +1,11 @@
+import json
 import logging
+import sys
 import traceback
 from concurrent import futures
-from json import JSONDecodeError
+from datetime import datetime
+from json.decoder import JSONDecodeError
+from logging import DEBUG
 from queue import Queue
 from signal import SIGINT, signal
 from threading import Event, Lock, Thread
@@ -9,6 +13,9 @@ from time import sleep
 from typing import Dict, Type
 
 import grpc
+from grpc._channel import _InactiveRpcError
+
+from eventsourcing.application import notificationlog
 from eventsourcing.application.notificationlog import (
     AbstractNotificationLog,
     LocalNotificationLog,
@@ -21,21 +28,250 @@ from eventsourcing.application.simple import (
     is_prompt_to_pull,
 )
 from eventsourcing.domain.model.events import subscribe
+from eventsourcing.system.grpc.processor_pb2 import (
+    CallReply,
+    CallRequest,
+    Empty,
+    LeadRequest,
+    NotificationsReply,
+    NotificationsRequest,
+    PromptRequest,
+)
+from eventsourcing.system.grpc.processor_pb2_grpc import (
+    ProcessorServicer,
+    ProcessorStub,
+    add_ProcessorServicer_to_server,
+)
 from eventsourcing.utils.topic import resolve_topic
 from eventsourcing.utils.transcoding import ObjectJSONDecoder, ObjectJSONEncoder
 
-from eventsourcing.system.grpcrunner.processor_client import ProcessorClient
-from eventsourcing.system.grpcrunner.processor_pb2 import (
-    CallReply,
-    Empty,
-    NotificationsReply,
-)
-from eventsourcing.system.grpcrunner.processor_pb2_grpc import (
-    ProcessorServicer,
-    add_ProcessorServicer_to_server,
-)
 
-from eventsourcing.application import notificationlog
+class NotificationLogView(object):
+    """
+    Presents sections of notification log for gRPC server.
+    """
+
+    def __init__(
+        self, notification_log: LocalNotificationLog, json_encoder: ObjectJSONEncoder
+    ):
+        self.notification_log = notification_log
+        self.json_encoder = json_encoder
+
+    def present_resource(self, section_id: str) -> bytes:
+        section = self.notification_log[section_id]
+        return self.json_encoder.encode(section.__dict__)
+
+
+class ProcessorClient(object):
+    def __init__(self):
+        self.channel = None
+        self.json_encoder = ObjectJSONEncoder()
+        self.json_decoder = ObjectJSONDecoder()
+
+    def connect(self, address, timeout=5):
+        """
+        Connect to client to server at given address.
+
+        Calls ping() until it gets a response, or timeout is reached.
+        """
+        self.close()
+        self.channel = grpc.insecure_channel(address)
+        self.stub = ProcessorStub(self.channel)
+
+        timer_started = datetime.now()
+        while True:
+            # Ping until get a response.
+            try:
+                self.ping()
+            except _InactiveRpcError:
+                if timeout is not None:
+                    timer_duration = (datetime.now() - timer_started).total_seconds()
+                    if timer_duration > 15:
+                        raise Exception("Timed out trying to connect to %s" % address)
+                else:
+                    continue
+            else:
+                break
+
+    # def __enter__(self):
+    #     return self
+    #
+    # def __exit__(self, exc_type, exc_val, exc_tb):
+    #     self.close()
+    #
+    def close(self):
+        """
+        Closes the client's GPRC channel.
+        """
+        if self.channel is not None:
+            self.channel.close()
+
+    def ping(self):
+        """
+        Sends a Ping request to the server.
+        """
+        request = Empty()
+        response = self.stub.Ping(request, timeout=5)
+
+    # def follow(self, upstream_name, upstream_address):
+    #     request = FollowRequest(
+    #         upstream_name=upstream_name, upstream_address=upstream_address
+    #     )
+    #     response = self.stub.Follow(request, timeout=5,)
+
+    def prompt(self, upstream_name):
+        """
+        Prompts downstream server with upstream name, so that downstream
+        process and promptly pull new notifications from upstream process.
+        """
+        request = PromptRequest(upstream_name=upstream_name)
+        response = self.stub.Prompt(request, timeout=5)
+
+    def get_notifications(self, section_id):
+        """
+        Gets a section of event notifications from server.
+        """
+        request = NotificationsRequest(section_id=section_id)
+        notifications_reply = self.stub.GetNotifications(request, timeout=5)
+        assert isinstance(notifications_reply, NotificationsReply)
+        return notifications_reply.section
+
+    def lead(self, application_name, address):
+        """
+        Requests a process to connect and then send prompts to given address.
+        """
+        request = LeadRequest(
+            downstream_name=application_name, downstream_address=address
+        )
+        response = self.stub.Lead(request, timeout=5)
+
+    def call_application(self, method_name, *args, **kwargs):
+        """
+        Calls named method on server's application with given args.
+        """
+        request = CallRequest(
+            method_name=method_name,
+            args=self.json_encoder.encode(args),
+            kwargs=self.json_encoder.encode(kwargs),
+        )
+        response = self.stub.CallApplicationMethod(request, timeout=5)
+        return self.json_decoder.decode(response.data)
+
+
+class StartClient(Thread):
+    """
+    Thread that creates a gRPC client and connects to a gRPC server.
+    """
+
+    def __init__(self, clients, name, address):
+        super(StartClient, self).__init__()
+        self.clients = clients
+        self.name = name
+        self.address = address
+        self.error = None
+
+    def run(self):
+        """
+        Creates client and connects to address.
+        """
+        client = ProcessorClient()
+        try:
+            client.connect(self.address)
+        except Exception as e:
+            self.error = e
+            logging.error(e)
+        else:
+            self.clients[self.name] = client
+
+
+class PullNotifications(Thread):
+    """
+    Thread the pulls notifications from upstream process application.
+    """
+
+    def __init__(
+        self,
+        prompt_event: Event,
+        reader: NotificationLogReader,
+        process_application: ProcessApplication,
+        event_queue: Queue,
+        upstream_name: str,
+        has_been_stopped: Event,
+    ):
+        super(PullNotifications, self).__init__()
+        self.prompt_event = prompt_event
+        self.reader = reader
+        self.process_application = process_application
+        self.event_queue = event_queue
+        self.upstream_name = upstream_name
+        self.has_been_stopped = has_been_stopped
+
+    def run(self) -> None:
+        """
+        Loops over waiting for prompt event to be set,
+        reads event notifications from reader, gets domain
+        events from notifications, and puts domain events
+        on the queue of unprocessed events.
+        """
+        # logging.info("started pull notifications thread")
+        self.set_reader_position()
+        while not self.has_been_stopped.is_set():
+            self.prompt_event.wait()
+            self.prompt_event.clear()
+
+            try:
+                for notification in self.reader.read():
+                    if self.has_been_stopped.is_set():
+                        break
+                    domain_event = self.process_application.get_event_from_notification(
+                        notification
+                    )
+                    self.event_queue.put(
+                        (domain_event, notification["id"], self.upstream_name)
+                    )
+            except Exception as e:
+                logging.error(traceback.format_exc(e))
+                logging.error("Error reading notification log: %s" % e)
+                logging.error("Retrying...")
+                self.set_reader_position()
+                sleep(1)
+
+    def set_reader_position(self):
+        """
+        Sets reader position from recorded position.
+        """
+        recorded_position = self.process_application.get_recorded_position(
+            self.upstream_name
+        )
+        self.reader.seek(recorded_position)
+
+
+class RemoteNotificationLog(AbstractNotificationLog):
+    """
+    Notification log that get notification log sections using gRPC client.
+    """
+
+    def __init__(
+        self,
+        client: ProcessorClient,
+        json_decoder: ObjectJSONDecoder,
+        section_size: int,
+    ):
+        self.client = client
+        self.json_decoder = json_decoder
+        self._section_size = section_size
+
+    @property
+    def section_size(self) -> int:
+        return self._section_size
+
+    def __getitem__(self, section_id: str) -> Section:
+        section = self.client.get_notifications(section_id)
+        try:
+            obj = self.json_decoder.decode(section)
+        except JSONDecodeError:
+            raise ValueError("Couldn't decode section: %s" % section)
+        return Section(**obj)
 
 
 class ProcessorServer(ProcessorServicer):
@@ -297,129 +533,22 @@ class ProcessorServer(ProcessorServicer):
         self.server.stop(grace=1)
 
 
-class PullNotifications(Thread):
-    """
-    Thread the pulls notifications from upstream process application.
-    """
-    def __init__(
-        self,
-        prompt_event: Event,
-        reader: NotificationLogReader,
-        process_application: ProcessApplication,
-        event_queue: Queue,
-        upstream_name: str,
-        has_been_stopped: Event,
-    ):
-        super(PullNotifications, self).__init__()
-        self.prompt_event = prompt_event
-        self.reader = reader
-        self.process_application = process_application
-        self.event_queue = event_queue
-        self.upstream_name = upstream_name
-        self.has_been_stopped = has_been_stopped
+if __name__ == "__main__":
+    logging.basicConfig(level=DEBUG)
+    application_topic = sys.argv[1]
+    infrastructure_topic = sys.argv[2]
+    setup_table = (json.loads(sys.argv[3]),)
+    address = sys.argv[4]
+    upstreams = json.loads(sys.argv[5])
+    downstreams = json.loads(sys.argv[6])
+    push_prompt_interval = json.loads(sys.argv[7])
 
-    def run(self) -> None:
-        """
-        Loops over waiting for prompt event to be set,
-        reads event notifications from reader, gets domain
-        events from notifications, and puts domain events
-        on the queue of unprocessed events.
-        """
-        # logging.info("started pull notifications thread")
-        self.set_reader_position()
-        while not self.has_been_stopped.is_set():
-            self.prompt_event.wait()
-            self.prompt_event.clear()
-
-            try:
-                for notification in self.reader.read():
-                    if self.has_been_stopped.is_set():
-                        break
-                    domain_event = self.process_application.get_event_from_notification(
-                        notification
-                    )
-                    self.event_queue.put(
-                        (domain_event, notification["id"], self.upstream_name)
-                    )
-            except Exception as e:
-                logging.error(traceback.format_exc(e))
-                logging.error("Error reading notification log: %s" % e)
-                logging.error("Retrying...")
-                self.set_reader_position()
-                sleep(1)
-
-    def set_reader_position(self):
-        """
-        Sets reader position from recorded position.
-        """
-        recorded_position = self.process_application.get_recorded_position(
-            self.upstream_name
-        )
-        self.reader.seek(recorded_position)
-
-
-class StartClient(Thread):
-    """
-    Thread that creates a gRPC client and connects to a gRPC server.
-    """
-    def __init__(self, clients, name, address):
-        super(StartClient, self).__init__()
-        self.clients = clients
-        self.name = name
-        self.address = address
-        self.error = None
-
-    def run(self):
-        """
-        Creates client and connects to address.
-        """
-        client = ProcessorClient()
-        try:
-            client.connect(self.address)
-        except Exception as e:
-            self.error = e
-            logging.error(e)
-        else:
-            self.clients[self.name] = client
-
-
-class RemoteNotificationLog(AbstractNotificationLog):
-    """
-    Notification log that get notification log sections using gRPC client.
-    """
-    def __init__(
-        self,
-        client: ProcessorClient,
-        json_decoder: ObjectJSONDecoder,
-        section_size: int,
-    ):
-        self.client = client
-        self.json_decoder = json_decoder
-        self._section_size = section_size
-
-    @property
-    def section_size(self) -> int:
-        return self._section_size
-
-    def __getitem__(self, section_id: str) -> Section:
-        section = self.client.get_notifications(section_id)
-        try:
-            obj = self.json_decoder.decode(section)
-        except JSONDecodeError:
-            raise ValueError("Couldn't decode section: %s" % section)
-        return Section(**obj)
-
-
-class NotificationLogView(object):
-    """
-    Presents sections of notification log for gRPC server.
-    """
-    def __init__(
-        self, notification_log: LocalNotificationLog, json_encoder: ObjectJSONEncoder
-    ):
-        self.notification_log = notification_log
-        self.json_encoder = json_encoder
-
-    def present_resource(self, section_id: str) -> bytes:
-        section = self.notification_log[section_id]
-        return self.json_encoder.encode(section.__dict__)
+    processor = ProcessorServer(
+        application_topic,
+        infrastructure_topic,
+        setup_table,
+        address,
+        upstreams,
+        downstreams,
+        push_prompt_interval,
+    )
