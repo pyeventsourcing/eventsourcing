@@ -45,7 +45,7 @@ class GrpcRunner(AbstractSystemRunner):
         """
         Creates a new address for a gRPC server.
         """
-        return "[::]:%s" % next(self.port_generator)
+        return "localhost:%s" % next(self.port_generator)
 
     def start(self):
         """
