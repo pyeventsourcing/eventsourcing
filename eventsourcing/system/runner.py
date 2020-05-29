@@ -13,6 +13,7 @@ from typing import (
     Generic,
     List,
     Optional,
+    Tuple,
     Type,
     Union,
     no_type_check,
@@ -35,6 +36,7 @@ from eventsourcing.exceptions import (
     ProgrammingError,
     RecordConflictError,
 )
+from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.system.definition import AbstractSystemRunner, System
 from eventsourcing.whitehead import T
 
@@ -55,13 +57,13 @@ class InProcessRunner(AbstractSystemRunner):
 
         # Construct the processes.
         for process_class in self.system.process_classes.values():
-            self._construct_app_by_class(process_class)
+            self._construct_app_by_class(process_class, DEFAULT_PIPELINE_ID)
 
         # Tell each process which other processes to follow.
         for downstream_name, upstream_names in self.system.upstream_names.items():
-            downstream_process = self.processes[downstream_name]
+            downstream_process = self.processes[(downstream_name, DEFAULT_PIPELINE_ID)]
             for upstream_name in upstream_names:
-                upstream_process = self.processes[upstream_name]
+                upstream_process = self.processes[(upstream_name, DEFAULT_PIPELINE_ID)]
                 upstream_log = upstream_process.notification_log
                 downstream_process.follow(upstream_name, upstream_log)
 
@@ -134,7 +136,9 @@ class SingleThreadedRunner(InProcessRunner):
                                 prompt.process_name
                             ]
                             for downstream_name in downstream_names:
-                                downstream_process = self.processes[downstream_name]
+                                downstream_process = self.processes[
+                                    (downstream_name, DEFAULT_PIPELINE_ID)
+                                ]
                                 downstream_process.run(prompt)
                                 i += 1
                         self.pending_prompts.task_done()
@@ -165,8 +169,8 @@ class MultiThreadedRunner(InProcessRunner):
             self.clock_event = Event()
             self.stop_clock_event = Event()
 
-        self.inboxes: Dict[str, Queue] = {}
-        self.outboxes: Dict[str, PromptOutbox[str]] = {}
+        self.inboxes: Dict[Tuple[str, int], Queue] = {}
+        self.outboxes: Dict[Tuple[str, int], PromptOutbox[Tuple[str, int]]] = {}
 
     def start(self) -> None:
         super(MultiThreadedRunner, self).start()
@@ -176,11 +180,11 @@ class MultiThreadedRunner(InProcessRunner):
 
         # Setup queues.
         for process_name, upstream_names in self.system.upstream_names.items():
-            inbox_id = process_name.lower()
+            inbox_id = (process_name, DEFAULT_PIPELINE_ID)
             if inbox_id not in self.inboxes:
                 self.inboxes[inbox_id] = Queue()
-            for upstream_class_name in upstream_names:
-                outbox_id = upstream_class_name.lower()
+            for upstream_name in upstream_names:
+                outbox_id = (upstream_name, DEFAULT_PIPELINE_ID)
                 if outbox_id not in self.outboxes:
                     self.outboxes[outbox_id] = PromptOutbox()
                 if inbox_id not in self.outboxes[outbox_id].downstream_inboxes:
@@ -189,7 +193,7 @@ class MultiThreadedRunner(InProcessRunner):
                     ] = self.inboxes[inbox_id]
 
         # Construct application threads.
-        for process_name, process in self.processes.items():
+        for process_instance_id, process in self.processes.items():
             if self.clock_speed:
                 process.clock_event = self.clock_event
                 process.tick_interval = 1 / self.clock_speed
@@ -197,12 +201,12 @@ class MultiThreadedRunner(InProcessRunner):
             thread = PromptQueuedApplicationThread(
                 process=process,
                 poll_interval=self.poll_interval,
-                inbox=self.inboxes[process_name],
-                outbox=self.outboxes.get(process_name),
+                inbox=self.inboxes[process_instance_id],
+                outbox=self.outboxes.get(process_instance_id),
                 # Todo: Is it better to clock the prompts or the notifications?
                 # clock_event=clock_event
             )
-            self.threads[process_name] = thread
+            self.threads[process_instance_id] = thread
 
         # Start application threads.
         for thread in self.threads.values():
@@ -280,7 +284,7 @@ class MultiThreadedRunner(InProcessRunner):
 
     def broadcast_prompt(self, prompt: Prompt) -> None:
         if isinstance(prompt, PromptToPull):
-            outbox_id = prompt.process_name
+            outbox_id = (prompt.process_name, prompt.pipeline_id)
             outbox = self.outboxes.get(outbox_id)
             if outbox:
                 outbox.put(prompt)
@@ -577,12 +581,12 @@ class ProcessRunningClockThread(ClockThread):
 
         # Construct a notification log reader for each process.
         self.readers: Dict[str, NotificationLogReader] = {}
-        for process in self.processes.values():
+        for process_instance_id, process in self.processes.items():
             reader = process.notification_log_reader_class(
                 notification_log=process.notification_log,
                 use_direct_query_if_available=self.use_direct_query_if_available,
             )
-            self.readers[process.name] = reader
+            self.readers[process_instance_id] = reader
 
     @property
     def actual_clock_speed(self) -> Union[int, float]:
@@ -604,32 +608,33 @@ class ProcessRunningClockThread(ClockThread):
             try:
                 # Get all notifications.
                 all_notifications = {}
-                for process_name in self.processes:
-                    # seen_prompt = self.seen_prompt_events[process_name]
+                for process_instance_id in self.processes:
+                    # seen_prompt = self.seen_prompt_events[process_instance_id]
                     # if seen_prompt.is_set():
                     #     seen_prompt.clear()
-                    reader = self.readers[process_name]
+                    reader = self.readers[process_instance_id]
                     notifications = reader.list_notifications()
-                    all_notifications[process_name] = notifications
+                    all_notifications[process_instance_id] = notifications
 
                 # Process all notifications.
                 all_events = {}
-                for process_name, notifications in all_notifications.items():
+                for process_instance_id, notifications in all_notifications.items():
                     events = []
                     for notification in notifications:
-                        # print(process_name, notification)
-                        process = self.processes[process_name]
+                        # print(process_instance_id, notification)
+                        process = self.processes[process_instance_id]
                         # It's not the follower process, but the method does the same
                         # thing.
                         event = process.get_event_from_notification(notification)
                         notification_id = notification["id"]
                         events.append((notification_id, event))
-                    all_events[process_name] = events
+                    all_events[process_instance_id] = events
 
-                for process_name, events in all_events.items():
-                    # print(f"Process: {process_name}")
+                for process_instance_id, events in all_events.items():
+                    process_name, pipeline_id = process_instance_id
+                    # print(f"Process: {process_instance_id}")
                     for follower_name in self.followers[process_name]:
-                        follower_process = self.processes[follower_name]
+                        follower_process = self.processes[follower_name, pipeline_id]
                         # print(f"Follower: {follower_name}")
                         for notification_id, event in events:
                             # print(f"Notification: {notification_id}, {event}")
@@ -700,7 +705,8 @@ class SteppingMultiThreadedRunner(SteppingRunner):
 
     def handle_prompt(self, prompt: Prompt) -> None:
         if isinstance(prompt, PromptToPull):
-            seen_prompt = self.seen_prompt_events[prompt.process_name]
+            seen_prompt = self.seen_prompt_events[(prompt.process_name,
+                                                   DEFAULT_PIPELINE_ID)]
             seen_prompt.set()
 
     def start(self) -> None:
@@ -710,12 +716,11 @@ class SteppingMultiThreadedRunner(SteppingRunner):
         self.execute_barrier = Barrier(parties)
 
         # Create an event for each process.
-        for process_name in self.processes:
-            self.seen_prompt_events[process_name] = Event()
+        for process_instance_id in self.processes:
+            self.seen_prompt_events[process_instance_id] = Event()
 
         # Construct application threads.
-        for process_name, process in self.processes.items():
-            process_instance_id = process_name
+        for process_instance_id, process in self.processes.items():
 
             thread = BarrierControlledApplicationThread(
                 process=process,

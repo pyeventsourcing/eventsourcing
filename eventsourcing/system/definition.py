@@ -262,19 +262,20 @@ class AbstractSystemRunner(ABC):
     ) -> TProcessApplication:
         process_name = process_class.create_name()
         try:
-            process = self.processes[process_name]
+            process = self.processes[(process_name, pipeline_id)]
         except KeyError:
-            process = self._construct_app_by_class(process_class)
+            process = self._construct_app_by_class(process_class, pipeline_id)
         return process
 
     def _construct_app_by_class(
-        self, process_class: Type[TProcessApplication]
+        self, process_class: Type[TProcessApplication], pipeline_id: int
     ) -> TProcessApplication:
         process = self.system.construct_app(
             process_class=process_class,
+            pipeline_id=pipeline_id,
             infrastructure_class=self.infrastructure_class,
             setup_table=self.setup_tables or self.system.setup_tables,
             use_direct_query_if_available=self.use_direct_query_if_available,
         )
-        self.processes[process.name] = process
+        self.processes[(process.name, pipeline_id)] = process
         return process

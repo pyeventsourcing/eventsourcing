@@ -278,6 +278,7 @@ class ProcessorServer(ProcessorServicer):
     def __init__(
         self,
         application_topic,
+        pipeline_id,
         infrastructure_topic,
         setup_table,
         address,
@@ -296,13 +297,14 @@ class ProcessorServer(ProcessorServicer):
         self.application_class: Type[ProcessApplication] = resolve_topic(
             application_topic
         )
+        self.pipeline_id = pipeline_id
         self.application_name = self.application_class.create_name()
         infrastructure_class: Type[
             ApplicationWithConcreteInfrastructure
         ] = resolve_topic(infrastructure_topic)
         self.application = self.application_class.mixin(
             infrastructure_class=infrastructure_class
-        )(setup_table=setup_table)
+        )(pipeline_id=self.pipeline_id, setup_table=setup_table)
         self.address = address
         self.json_encoder = ObjectJSONEncoder()
         self.json_decoder = ObjectJSONDecoder()
@@ -536,15 +538,17 @@ class ProcessorServer(ProcessorServicer):
 if __name__ == "__main__":
     logging.basicConfig(level=DEBUG)
     application_topic = sys.argv[1]
-    infrastructure_topic = sys.argv[2]
-    setup_table = (json.loads(sys.argv[3]),)
-    address = sys.argv[4]
-    upstreams = json.loads(sys.argv[5])
-    downstreams = json.loads(sys.argv[6])
-    push_prompt_interval = json.loads(sys.argv[7])
+    pipeline_id = json.loads(sys.argv[2])
+    infrastructure_topic = sys.argv[3]
+    setup_table = (json.loads(sys.argv[4]),)
+    address = sys.argv[5]
+    upstreams = json.loads(sys.argv[6])
+    downstreams = json.loads(sys.argv[7])
+    push_prompt_interval = json.loads(sys.argv[8])
 
     processor = ProcessorServer(
         application_topic,
+        pipeline_id,
         infrastructure_topic,
         setup_table,
         address,

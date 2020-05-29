@@ -11,6 +11,7 @@ from typing import List, Type
 import grpc
 
 from eventsourcing.application.popo import PopoApplication
+from eventsourcing.infrastructure.base import DEFAULT_PIPELINE_ID
 from eventsourcing.system.definition import AbstractSystemRunner, TProcessApplication
 from eventsourcing.system.grpc import processor
 from eventsourcing.system.grpc.processor import ProcessorClient
@@ -30,14 +31,18 @@ class GrpcRunner(AbstractSystemRunner):
     """
 
     def __init__(
-        self, *args, push_prompt_interval=0.25, use_individual_databases=False, **kwargs
+        self,
+        *args,
+        pipeline_ids=(DEFAULT_PIPELINE_ID,),
+        push_prompt_interval=0.25,
+        **kwargs
     ):
         super(GrpcRunner, self).__init__(*args, **kwargs)
+        self.push_prompt_interval = push_prompt_interval
+        self.pipeline_ids = pipeline_ids
         self.processors: List[Popen] = []
         self.addresses = {}
         self.port_generator = self.generate_ports(start=50051)
-        self.push_prompt_interval = push_prompt_interval
-        self.use_individual_databases = use_individual_databases
 
     def generate_ports(self, start: int):
         """
@@ -59,22 +64,25 @@ class GrpcRunner(AbstractSystemRunner):
         Starts running a system of process applications.
         """
         for i, application_name in enumerate(self.system.process_classes):
-            self.addresses[application_name] = self.create_address()
+            for pipeline_id in self.pipeline_ids:
+                self.addresses[(application_name, pipeline_id)] = self.create_address()
 
         # Start the processors.
-        for application_name, address in self.addresses.items():
+        for (application_name, pipeline_id), address in self.addresses.items():
             application_topic = get_topic(self.system.process_classes[application_name])
             infrastructure_topic = get_topic(
                 self.infrastructure_class or PopoApplication
             )
             upstreams = {}
             for upstream_name in self.system.upstream_names[application_name]:
-                upstreams[upstream_name] = self.addresses[upstream_name]
+                upstreams[upstream_name] = self.addresses[(upstream_name, pipeline_id)]
             downstreams = {}
             for downstream_name in self.system.downstream_names[application_name]:
-                downstreams[downstream_name] = self.addresses[downstream_name]
+                downstreams[downstream_name] = self.addresses[(downstream_name,
+                                                               pipeline_id)]
             self.start_processor(
                 application_topic,
+                pipeline_id,
                 infrastructure_topic,
                 self.setup_tables,
                 address,
@@ -85,6 +93,7 @@ class GrpcRunner(AbstractSystemRunner):
     def start_processor(
         self,
         application_topic,
+        pipeline_id,
         infrastructure_topic,
         setup_table,
         address,
@@ -111,6 +120,7 @@ class GrpcRunner(AbstractSystemRunner):
                 sys.executable,
                 processor.__file__,
                 application_topic,
+                json.dumps(pipeline_id),
                 infrastructure_topic,
                 json.dumps(setup_table),
                 address,
@@ -157,10 +167,10 @@ class GrpcRunner(AbstractSystemRunner):
             print("Processor exit code: %s" % process.poll())
 
     def _construct_app_by_class(
-        self, process_class: Type[TProcessApplication]
+        self, process_class: Type[TProcessApplication], pipeline_id: int
     ) -> TProcessApplication:
         client = ProcessorClient()
-        client.connect(self.addresses[process_class.create_name()])
+        client.connect(self.addresses[(process_class.create_name(), pipeline_id)])
         return ClientWrapper(client)
 
     def listen(self, name, processor_clients):

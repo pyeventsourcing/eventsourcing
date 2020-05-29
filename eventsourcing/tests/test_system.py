@@ -259,7 +259,7 @@ class TestSystem(TestCase):
                 #     retries -= 1
                 #     assert retries, "Failed set order.is_reserved"
 
-                while retries and not orders.repository[order_id].is_paid:
+                while not orders.repository[order_id].is_paid:
                     sleep(0.5)
                     retries -= 1
                     assert retries, "Failed set order.is_paid"
@@ -294,7 +294,7 @@ class TestSystem(TestCase):
             num_completed = 0
             for order_id in order_ids:
                 app = runner.get(Orders)
-                while retries and not app.repository[order_id].is_paid:
+                while not app.repository[order_id].is_paid:
                     sleep(0.1)
                     retries -= 1
                     assert retries, (

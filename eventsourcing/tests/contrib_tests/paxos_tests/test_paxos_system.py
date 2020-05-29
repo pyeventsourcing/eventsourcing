@@ -37,9 +37,9 @@ class TestPaxosSystem(unittest.TestCase):
 
         concrete_system = self.system.bind(self.infrastructure_class)
         with concrete_system as runner:
-            paxosapplication0 = runner.processes["paxosapplication0"]
-            paxosapplication1 = runner.processes["paxosapplication1"]
-            paxosapplication2 = runner.processes["paxosapplication2"]
+            paxosapplication0 = runner.processes[("paxosapplication0", 0)]
+            paxosapplication1 = runner.processes[("paxosapplication1", 0)]
+            paxosapplication2 = runner.processes[("paxosapplication2", 0)]
 
             started1 = datetime.datetime.now()
             assert isinstance(paxosapplication0, PaxosApplication)
@@ -90,9 +90,9 @@ class TestPaxosSystem(unittest.TestCase):
         )
 
         with runner:
-            paxosapplication0 = runner.processes["paxosapplication0"]
-            paxosapplication1 = runner.processes["paxosapplication1"]
-            paxosapplication2 = runner.processes["paxosapplication2"]
+            paxosapplication0 = runner.processes[("paxosapplication0", 0)]
+            paxosapplication1 = runner.processes[("paxosapplication1", 0)]
+            paxosapplication2 = runner.processes[("paxosapplication2", 0)]
 
             started1 = datetime.datetime.now()
             assert isinstance(paxosapplication0, PaxosApplication)
