@@ -12,6 +12,9 @@ from threading import Event, Lock, Thread
 from time import sleep
 from typing import Dict, Type
 
+# Todo: Check connection and reconnect if necessary - somehow.
+
+
 import grpc
 from grpc._channel import _InactiveRpcError
 
