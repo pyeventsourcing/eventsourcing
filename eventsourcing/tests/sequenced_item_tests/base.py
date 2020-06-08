@@ -2,6 +2,7 @@ import json
 import uuid
 from abc import abstractmethod
 from time import sleep
+from typing import Tuple
 from uuid import uuid4
 
 from eventsourcing.application.policies import PersistencePolicy
@@ -13,14 +14,23 @@ from eventsourcing.domain.model.events import (
     LoggedEvent,
 )
 from eventsourcing.domain.model.snapshot import Snapshot
-from eventsourcing.exceptions import OperationalError, RecordConflictError
-from eventsourcing.infrastructure.base import BaseRecordManager
+from eventsourcing.exceptions import (
+    OperationalError,
+    ProgrammingError,
+    RecordConflictError,
+)
+from eventsourcing.infrastructure.base import (
+    BaseRecordManager,
+    EVENT_NOT_NOTIFIABLE,
+    RecordManagerWithNotifications,
+    RecordManagerWithTracking,
+)
 from eventsourcing.infrastructure.eventstore import EventStore
 from eventsourcing.infrastructure.iterators import (
     SequencedItemIterator,
     ThreadedSequencedItemIterator,
 )
-from eventsourcing.infrastructure.sequenceditem import SequencedItem
+from eventsourcing.infrastructure.sequenceditem import SequencedItem, StoredEvent
 from eventsourcing.infrastructure.sequenceditemmapper import SequencedItemMapper
 from eventsourcing.tests.datastore_tests.base import AbstractDatastoreTestCase
 from eventsourcing.utils.times import decimaltimestamp
@@ -31,6 +41,9 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
     """
     Abstract test case for record managers.
     """
+
+    EXAMPLE_EVENT_TOPIC1 = ""
+    EXAMPLE_EVENT_TOPIC2 = ""
 
     def __init__(self, *args, **kwargs):
         super(RecordManagerTestCase, self).__init__(*args, **kwargs)
@@ -57,11 +70,6 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
         sequence_id1 = uuid.uuid1()
         sequence_id2 = uuid.uuid1()
 
-        if self.record_manager.contiguous_record_ids:
-            old_notifications = list(self.record_manager.get_notification_records())
-        else:
-            old_notifications = []
-
         # Check record manager returns empty list when there aren't any items.
         self.assertEqual(self.record_manager.list_items(sequence_id1), [])
 
@@ -75,6 +83,7 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
 
         # Append an item.
         state1 = json.dumps({"name": "value1"}).encode("utf-8")
+        self.assertTrue(self.EXAMPLE_EVENT_TOPIC1)
         item1 = SequencedItem(
             sequence_id=sequence_id1,
             position=position1,
@@ -122,6 +131,7 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
         self.assertEqual(retrieved_items[0].topic, item1.topic)
 
         # Check raises RecordConflictError when appending an item at same position in same sequence.
+        self.assertTrue(self.EXAMPLE_EVENT_TOPIC2)
         state3 = json.dumps({"name": "value3"}).encode("utf-8")
         item3 = SequencedItem(
             sequence_id=item1.sequence_id,
@@ -305,30 +315,6 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
             # Not always in order, but check the number of events.
             self.assertEqual(4, len(retrieved_items))
 
-        if self.record_manager.contiguous_record_ids:
-            # Check the record IDs are contiguous.
-            records = list(self.record_manager.get_notification_records())
-            len_old = len(old_notifications)
-            self.assertEqual(len(records), 4 + len_old)
-            first = None
-            for i, record in enumerate(records):
-                if first is None:
-                    first = record.id
-                self.assertEqual(
-                    first + i,
-                    record.id,
-                    "Woops there's a gap: {}".format([r.id for r in records]),
-                )
-
-            # Resume from after the first event.
-            retrieved_items = self.record_manager.get_notification_records(
-                start=1 + len_old, stop=3 + len_old
-            )
-            retrieved_items = list(retrieved_items)
-            self.assertEqual(len(retrieved_items), 2)
-            self.assertEqual(retrieved_items[0].id, 2 + len_old)
-            self.assertEqual(retrieved_items[1].id, 3 + len_old)
-
         # Delete some items.
         if self.record_manager.can_delete_records:
             records = list(self.record_manager.get_records(sequence_id1))
@@ -351,7 +337,7 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
             self.record_manager.raise_operational_error(Exception())
 
     @property
-    def record_manager(self):
+    def record_manager(self) -> BaseRecordManager:
         """
         :rtype: BaseRecordManager
         """
@@ -360,11 +346,11 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
         return self._record_manager
 
     @abstractmethod
-    def construct_record_manager(self):
+    def construct_record_manager(self) -> BaseRecordManager:
         raise NotImplementedError()
 
-    def construct_entity_record_manager(self):
-        return self.factory.construct_integer_sequenced_record_manager()
+    def construct_entity_record_manager(self, **kwargs):
+        return self.factory.construct_integer_sequenced_record_manager(**kwargs)
 
     def construct_snapshot_record_manager(self):
         return self.factory.construct_snapshot_record_manager()
@@ -373,15 +359,7 @@ class RecordManagerTestCase(AbstractDatastoreTestCase):
         return self.factory.construct_timestamp_sequenced_record_manager()
 
     @abstractmethod
-    def construct_positions(self):
-        return None, None, None
-
-    @abstractmethod
-    def EXAMPLE_EVENT_TOPIC1(self):
-        pass
-
-    @abstractmethod
-    def EXAMPLE_EVENT_TOPIC2(self):
+    def construct_positions(self) -> Tuple[int, int, int]:
         pass
 
 
@@ -462,21 +440,6 @@ class TimestampedEventExample2(EventWithTimestamp, EventWithOriginatorID):
     pass
 
 
-class IntegerSequencedRecordTestCase(RecordManagerTestCase):
-    """
-    Abstract test case for integer sequenced record managers.
-    """
-
-    EXAMPLE_EVENT_TOPIC1 = get_topic(VersionedEventExample1)
-    EXAMPLE_EVENT_TOPIC2 = get_topic(VersionedEventExample2)
-
-    def construct_positions(self):
-        return 0, 1, 2
-
-    def construct_record_manager(self):
-        return self.factory.construct_integer_sequenced_record_manager()
-
-
 class TimestampSequencedItemTestCase(RecordManagerTestCase):
     """
     Abstract test case for timestamp sequenced record managers.
@@ -493,6 +456,415 @@ class TimestampSequencedItemTestCase(RecordManagerTestCase):
 
     def construct_record_manager(self):
         return self.factory.construct_timestamp_sequenced_record_manager()
+
+
+class IntegerSequencedRecordTestCase(RecordManagerTestCase):
+    """
+    Abstract test case for integer sequenced record managers.
+    """
+
+    EXAMPLE_EVENT_TOPIC1 = get_topic(VersionedEventExample1)
+    EXAMPLE_EVENT_TOPIC2 = get_topic(VersionedEventExample2)
+
+    def construct_positions(self):
+        return 0, 1, 2
+
+    def construct_record_manager(self, **kwargs) -> BaseRecordManager:
+        return self.factory.construct_integer_sequenced_record_manager(**kwargs)
+
+
+class RecordManagerNotificationsTestCase(IntegerSequencedRecordTestCase):
+    @property
+    def record_manager(self) -> RecordManagerWithNotifications:
+        record_manager = super().record_manager
+        assert isinstance(record_manager, RecordManagerWithNotifications)
+        return record_manager
+
+    def test(self):
+        sequence_id1 = uuid.uuid1()
+        sequence_id2 = uuid.uuid1()
+
+        old_notifications = list(self.record_manager.get_notification_records())
+
+        max_notification_id = self.record_manager.get_max_notification_id()
+
+        position1, position2, position3 = self.construct_positions()
+
+        self.assertLess(position1, position2)
+        self.assertLess(position2, position3)
+
+        # Append an item.
+        state1 = json.dumps({"name": "value1"}).encode("utf-8")
+        self.assertTrue(self.EXAMPLE_EVENT_TOPIC1)
+        item1 = SequencedItem(
+            sequence_id=sequence_id1,
+            position=position1,
+            topic=self.EXAMPLE_EVENT_TOPIC1,
+            state=state1,
+        )
+        self.record_manager.record_item(item1)
+
+        self.assertEqual(
+            max_notification_id + 1, self.record_manager.get_max_notification_id()
+        )
+
+        # Append an item to a different sequence.
+        state2 = json.dumps({"name": "value2"}).encode("utf-8")
+        item2 = SequencedItem(
+            sequence_id=sequence_id2,
+            position=position1,
+            topic=self.EXAMPLE_EVENT_TOPIC1,
+            state=state2,
+        )
+        self.record_manager.record_item(item2)
+
+        self.assertEqual(
+            max_notification_id + 2, self.record_manager.get_max_notification_id()
+        )
+
+        self.assertTrue(self.EXAMPLE_EVENT_TOPIC2)
+        state3 = json.dumps({"name": "value3"}).encode("utf-8")
+
+        item4 = SequencedItem(
+            sequence_id=item1.sequence_id,
+            position=position2,
+            topic=self.EXAMPLE_EVENT_TOPIC2,
+            state=state3,
+        )
+        item5 = SequencedItem(
+            sequence_id=item1.sequence_id,
+            position=position3,
+            topic=self.EXAMPLE_EVENT_TOPIC2,
+            state=state3,
+        )
+
+        # Append a second and third item at the next positions.
+        self.record_manager.record_items([item4, item5])
+
+        self.assertEqual(
+            max_notification_id + 4, self.record_manager.get_max_notification_id()
+        )
+
+        # Check the record IDs are contiguous.
+        records = list(self.record_manager.get_notification_records())
+        len_old = len(old_notifications)
+        self.assertEqual(len(records), 4 + len_old)
+        first = None
+        for i, record in enumerate(records):
+            if first is None:
+                first = record.id
+            self.assertEqual(
+                first + i,
+                record.id,
+                "Woops there's a gap: {}".format([r.id for r in records]),
+            )
+
+        # Resume from after the first event.
+        retrieved_items = self.record_manager.get_notification_records(
+            start=1 + len_old, stop=3 + len_old
+        )
+        retrieved_items = list(retrieved_items)
+        self.assertEqual(len(retrieved_items), 2)
+        self.assertEqual(retrieved_items[0].id, 2 + len_old)
+        self.assertEqual(retrieved_items[1].id, 3 + len_old)
+
+
+class RecordManagerTrackingRecordsTestCase(RecordManagerNotificationsTestCase):
+    @property
+    def record_manager(self) -> RecordManagerWithTracking:
+        record_manager = super().record_manager
+        assert isinstance(record_manager, RecordManagerWithTracking)
+        return record_manager
+
+    def create_factory_kwargs(self):
+        kwargs = super().create_factory_kwargs()
+        kwargs['application_name'] = 'app'
+        return kwargs
+
+    def test(self):
+        sequence_id1 = uuid.uuid1()
+        position1, position2, position3 = self.construct_positions()
+
+        upstream_name = "upstream_app"
+        self.assertEqual(
+            self.record_manager.get_max_tracking_record_id(upstream_name), 0
+        )
+        self.assertFalse(self.record_manager.has_tracking_record(upstream_name, 0, 1))
+
+        # Can write events with tracking kwargs.
+        state1 = json.dumps({"name": "value1"}).encode("utf-8")
+        self.assertTrue(self.EXAMPLE_EVENT_TOPIC1)
+        item1 = SequencedItem(
+            sequence_id=sequence_id1,
+            position=position1,
+            topic=self.EXAMPLE_EVENT_TOPIC1,
+            state=state1,
+        )
+        tracking_kwargs1 = {
+            "application_name": self.record_manager.application_name,
+            "upstream_application_name": upstream_name,
+            "pipeline_id": self.record_manager.pipeline_id,
+            "notification_id": 1,
+        }
+        records1 = self.record_manager.to_records([item1])
+        self.record_manager.write_records(
+            tracking_kwargs=tracking_kwargs1, records=records1
+        )
+        self.assertEqual(
+            self.record_manager.get_max_tracking_record_id(upstream_name), 1
+        )
+        self.assertTrue(self.record_manager.has_tracking_record(upstream_name, 0, 1))
+        self.assertFalse(self.record_manager.has_tracking_record(upstream_name, 0, 2))
+
+        # Can't write further events with same tracking kwargs.
+        item2 = SequencedItem(
+            sequence_id=sequence_id1,
+            position=position2,
+            topic=self.EXAMPLE_EVENT_TOPIC1,
+            state=state1,
+        )
+        records2 = self.record_manager.to_records([item2])
+        with self.assertRaises(RecordConflictError):
+            self.record_manager.write_records(
+                tracking_kwargs=tracking_kwargs1, records=records2
+            )
+        self.assertTrue(self.record_manager.has_tracking_record(upstream_name, 0, 1))
+        self.assertFalse(self.record_manager.has_tracking_record(upstream_name, 0, 2))
+
+        # Can write further events with different tracking kwargs.
+        tracking_kwargs2 = {
+            "application_name": self.record_manager.application_name,
+            "upstream_application_name": upstream_name,
+            "pipeline_id": self.record_manager.pipeline_id,
+            "notification_id": 2,
+        }
+        self.record_manager.write_records(
+            tracking_kwargs=tracking_kwargs2, records=records2
+        )
+        self.assertTrue(self.record_manager.has_tracking_record(upstream_name, 0, 1))
+        self.assertTrue(self.record_manager.has_tracking_record(upstream_name, 0, 2))
+
+
+class RecordManagerStoredEventsTestCase(RecordManagerTrackingRecordsTestCase):
+    def create_factory_kwargs(self):
+        kwargs = super().create_factory_kwargs()
+        kwargs['sequenced_item_class'] = StoredEvent
+        kwargs['application_name'] = 'app'
+        return kwargs
+
+    def test(self):
+        """
+        This test should use the "insert select max" mode,
+        notification IDs aren't set in the fixtures.
+        """
+        sequence_id1 = uuid.uuid1()
+        sequence_id2 = uuid.uuid1()
+
+        old_notifications = list(self.record_manager.get_notification_records())
+
+        max_notification_id = self.record_manager.get_max_notification_id()
+
+        position1, position2, position3 = self.construct_positions()
+
+        self.assertLess(position1, position2)
+        self.assertLess(position2, position3)
+
+        # Append an item.
+        state1 = json.dumps({"name": "value1"}).encode("utf-8")
+        self.assertTrue(self.EXAMPLE_EVENT_TOPIC1)
+        item1 = StoredEvent(
+            originator_id=sequence_id1,
+            originator_version=position1,
+            topic=self.EXAMPLE_EVENT_TOPIC1,
+            state=state1,
+        )
+        self.record_manager.record_item(item1)
+
+        self.assertEqual(
+            max_notification_id + 1, self.record_manager.get_max_notification_id()
+        )
+
+        # Append an item to a different sequence.
+        state2 = json.dumps({"name": "value2"}).encode("utf-8")
+        item2 = StoredEvent(
+            originator_id=sequence_id2,
+            originator_version=position1,
+            topic=self.EXAMPLE_EVENT_TOPIC1,
+            state=state2,
+        )
+        self.record_manager.record_item(item2)
+
+        self.assertEqual(
+            max_notification_id + 2, self.record_manager.get_max_notification_id()
+        )
+
+        self.assertTrue(self.EXAMPLE_EVENT_TOPIC2)
+        state3 = json.dumps({"name": "value3"}).encode("utf-8")
+        item3 = StoredEvent(
+            originator_id=item1.originator_id,
+            originator_version=position2,
+            topic=self.EXAMPLE_EVENT_TOPIC2,
+            state=state3,
+        )
+        item4 = StoredEvent(
+            originator_id=item1.originator_id,
+            originator_version=position3,
+            topic=self.EXAMPLE_EVENT_TOPIC2,
+            state=state3,
+        )
+
+        # Append a second and third item at the next positions.
+        self.record_manager.record_items([item3, item4])
+
+        self.assertEqual(
+            max_notification_id + 4, self.record_manager.get_max_notification_id()
+        )
+
+        # Check the record IDs are contiguous.
+        records = list(self.record_manager.get_notification_records())
+        len_old = len(old_notifications)
+        self.assertEqual(len(records), 4 + len_old)
+        first = None
+        for i, record in enumerate(records):
+            if first is None:
+                first = record.notification_id
+            self.assertEqual(
+                first + i,
+                record.notification_id,
+                "Woops there's a gap: {}".format([r.notification_id for r in records]),
+            )
+
+    def test_insert_values(self):
+        """
+        This test should use the "insert values" mode,
+        notification IDs are set in the records.
+        """
+        sequence_id1 = uuid.uuid1()
+        sequence_id2 = uuid.uuid1()
+
+        old_notifications = list(self.record_manager.get_notification_records())
+
+        max_notification_id = self.record_manager.get_max_notification_id()
+
+        position1, position2, position3 = self.construct_positions()
+
+        self.assertLess(position1, position2)
+        self.assertLess(position2, position3)
+
+        # Append an item.
+        state1 = json.dumps({"name": "value1"}).encode("utf-8")
+        self.assertTrue(self.EXAMPLE_EVENT_TOPIC1)
+        item1 = StoredEvent(
+            originator_id=sequence_id1,
+            originator_version=position1,
+            topic=self.EXAMPLE_EVENT_TOPIC1,
+            state=state1,
+        )
+        record1 = self.record_manager.to_record(item1)
+        record1.notification_id = 1
+        self.record_manager.write_records(records=[record1])
+
+        self.assertEqual(
+            max_notification_id + 1, self.record_manager.get_max_notification_id()
+        )
+
+        # Append an item to a different sequence.
+        state2 = json.dumps({"name": "value2"}).encode("utf-8")
+        item2 = StoredEvent(
+            originator_id=sequence_id2,
+            originator_version=position1,
+            topic=self.EXAMPLE_EVENT_TOPIC1,
+            state=state2,
+        )
+        record2 = self.record_manager.to_record(item2)
+        record2.notification_id = 2
+        self.record_manager.write_records(records=[record2])
+
+        self.assertEqual(
+            max_notification_id + 2, self.record_manager.get_max_notification_id()
+        )
+
+        self.assertTrue(self.EXAMPLE_EVENT_TOPIC2)
+        state3 = json.dumps({"name": "value3"}).encode("utf-8")
+        item3 = StoredEvent(
+            originator_id=item1.originator_id,
+            originator_version=position2,
+            topic=self.EXAMPLE_EVENT_TOPIC2,
+            state=state3,
+        )
+        item4 = StoredEvent(
+            originator_id=item1.originator_id,
+            originator_version=position3,
+            topic=self.EXAMPLE_EVENT_TOPIC2,
+            state=state3,
+        )
+
+        record4 = self.record_manager.to_record(item3)
+        record4.notification_id = 3
+        record5 = self.record_manager.to_record(item4)
+        # Check we can't write a mixture with and without notification IDs.
+        with self.assertRaises(ProgrammingError):
+            self.record_manager.write_records(records=[record4, record5])
+        record5.notification_id = 4
+        self.record_manager.write_records(records=[record4, record5])
+
+        self.assertEqual(
+            max_notification_id + 4, self.record_manager.get_max_notification_id()
+        )
+
+        state4 = json.dumps({"name": "value3"}).encode("utf-8")
+        item5 = StoredEvent(
+            originator_id=item2.originator_id,
+            originator_version=position2,
+            topic=self.EXAMPLE_EVENT_TOPIC2,
+            state=state4,
+        )
+        item6 = StoredEvent(
+            originator_id=item2.originator_id,
+            originator_version=position3,
+            topic=self.EXAMPLE_EVENT_TOPIC2,
+            state=state4,
+        )
+
+        record4 = self.record_manager.to_record(item5)
+        record5 = self.record_manager.to_record(item6)
+        record4.notification_id = None
+        record5.notification_id = 5
+        # Check we can't write a mixture with and without notification IDs.
+        with self.assertRaises(ProgrammingError):
+            self.record_manager.write_records(records=[record4, record5])
+
+        # Check we can't write if notification ID isn't an integer.
+        record4.notification_id = ''
+        with self.assertRaises(ProgrammingError):
+            self.record_manager.write_records(records=[record4, record5])
+
+        # Check we can write events that are "not notifiable".
+        record4.notification_id = EVENT_NOT_NOTIFIABLE
+        self.record_manager.write_records(records=[record4, record5])
+
+        self.assertEqual(
+            max_notification_id + 5, self.record_manager.get_max_notification_id()
+        )
+
+        # Check the record IDs are contiguous.
+        records = list(self.record_manager.get_notification_records())
+        len_old = len(old_notifications)
+        self.assertEqual(len(records), 5 + len_old)
+
+        # Check the sixth record is the fifth notification (record4 not present).
+        self.assertEqual(records[-1].originator_id, item2.originator_id)
+        self.assertEqual(records[-1].originator_version, position3)
+
+        first = None
+        for i, record in enumerate(records):
+            if first is None:
+                first = record.notification_id
+            self.assertEqual(
+                first + i,
+                record.notification_id,
+                "Woops there's a gap: {}".format([r.notification_id for r in records]),
+            )
 
 
 class AbstractSequencedItemIteratorTestCase(WithRecordManagers):

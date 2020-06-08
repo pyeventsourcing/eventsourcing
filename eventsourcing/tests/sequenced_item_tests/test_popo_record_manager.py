@@ -1,5 +1,6 @@
 from eventsourcing.infrastructure.popo.factory import PopoInfrastructureFactory
 from eventsourcing.infrastructure.popo.mapper import SequencedItemMapperForPopo
+from eventsourcing.infrastructure.popo.records import StoredEventRecord
 from eventsourcing.tests.sequenced_item_tests import base
 
 
@@ -16,17 +17,39 @@ class PopoTestCase(object):
 class TestPopoRecordManagerWithIntegerSequences(
     PopoTestCase, base.IntegerSequencedRecordTestCase
 ):
-    def construct_record_manager(self):
-        return self.construct_entity_record_manager()
+    def create_factory_kwargs(self):
+        kwargs = super().create_factory_kwargs()
+        kwargs['integer_sequenced_record_class'] = StoredEventRecord
+        kwargs['application_name'] = 'app'
+        return kwargs
 
 
-class TestPopoRecordManagerWithoutContiguousRecordIDs(
-    PopoTestCase, base.IntegerSequencedRecordTestCase
+class TestPopoRecordManagerNotifications(
+    PopoTestCase, base.RecordManagerNotificationsTestCase
 ):
-    contiguous_record_ids = False
+    def create_factory_kwargs(self):
+        kwargs = super().create_factory_kwargs()
+        kwargs['integer_sequenced_record_class'] = StoredEventRecord
+        kwargs['application_name'] = 'app'
+        return kwargs
 
-    def construct_record_manager(self):
-        return self.construct_entity_record_manager()
+
+class TestPopoRecordManagerTracking(
+    PopoTestCase, base.RecordManagerTrackingRecordsTestCase
+):
+    def create_factory_kwargs(self):
+        kwargs = super().create_factory_kwargs()
+        kwargs['integer_sequenced_record_class'] = StoredEventRecord
+        return kwargs
+
+
+class TestPopoRecordManagerWithStoredEvents(
+    PopoTestCase, base.RecordManagerStoredEventsTestCase
+):
+    def create_factory_kwargs(self):
+        kwargs = super().create_factory_kwargs()
+        kwargs['integer_sequenced_record_class'] = StoredEventRecord
+        return kwargs
 
 
 #

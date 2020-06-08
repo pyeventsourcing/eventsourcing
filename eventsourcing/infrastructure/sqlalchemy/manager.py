@@ -9,6 +9,7 @@ from sqlalchemy.sql import func
 from eventsourcing.exceptions import OperationalError, ProgrammingError
 from eventsourcing.infrastructure.base import (
     BaseRecordManager,
+    EVENT_NOT_NOTIFIABLE,
     SQLRecordManager,
     TrackingKwargs,
 )
@@ -22,6 +23,9 @@ class SQLAlchemyRecordManager(SQLRecordManager):
     def __init__(self, session: Any, *args: Any, **kwargs: Any):
         super(SQLAlchemyRecordManager, self).__init__(*args, **kwargs)
         self.session = session
+        self._insert_values_compiled = None
+        self._insert_select_max_compiled = None
+        self._insert_tracking_record_compiled = None
 
     def _prepare_insert(
         self,
@@ -63,14 +67,48 @@ class SQLAlchemyRecordManager(SQLRecordManager):
         orm_objs_pending_delete: Optional[Sequence[Any]] = None,
     ) -> None:
 
+        # Prepare tracking record statement.
+        if tracking_kwargs:
+            if orm_objs_pending_delete or orm_objs_pending_save:
+                tracking_record_statement = self.insert_tracking_record
+            else:
+                tracking_record_statement = self.insert_tracking_record_compiled
+        else:
+            tracking_record_statement = None
+
+        # Prepare stored event record statement and params.
         all_params = []
-        statement = None
+        event_record_statement = None
         if not isinstance(records, list):
             records = list(records)
         if records:
             # Prepare to insert event and notification records.
-            statement = self.insert_values
+            if orm_objs_pending_delete or orm_objs_pending_save:
+                event_record_statement = self.insert_values
+            else:
+                event_record_statement = self.insert_values_compiled
+
             if self.notification_id_name:
+                # This is a bit complicated, but basically the idea
+                # is to support two alternatives:
+                #  - either use the "insert select max" statement
+                #  - or use the "insert values" statement
+                # The "insert values" statement depends on the
+                # notification IDs being provided by the application
+                # and the "insert select max" creates these IDs in
+                # the query.
+                # The "insert values" statement provides the opportunity
+                # to have some notification IDs being null, but the
+                # "insert select max" statement doesn't.
+                # Therefore, using "insert select max" should only be
+                # used when all the given records have null value
+                # for the notification IDs. And so the alternative
+                # usage needs to provide true values for all the
+                # notification IDs. These true values can involve
+                # a reserved "event-not-notifiable" value which
+                # indicates there shouldn't be a notification ID
+                # for this record (so that it doesn't appear in the
+                # "get notifications" query).
                 all_ids = set((getattr(r, self.notification_id_name) for r in records))
                 if None in all_ids:
                     if len(all_ids) > 1:
@@ -79,7 +117,10 @@ class SQLAlchemyRecordManager(SQLRecordManager):
 
                     elif self.contiguous_record_ids:
                         # Do an "insert select max" from existing.
-                        statement = self.insert_select_max
+                        if orm_objs_pending_delete or orm_objs_pending_save:
+                            event_record_statement = self.insert_select_max
+                        else:
+                            event_record_statement = self.insert_select_max_compiled
 
                     elif hasattr(self.record_class, "application_name"):
                         # Can't allow auto-incrementing ID if table has field
@@ -97,13 +138,23 @@ class SQLAlchemyRecordManager(SQLRecordManager):
                 # Params for notification log.
                 if self.notification_id_name:
                     notification_id = getattr(record, self.notification_id_name)
-                    if notification_id == "event-not-notifiable":
+                    if notification_id == EVENT_NOT_NOTIFIABLE:
                         params[self.notification_id_name] = None
                     else:
+                        if notification_id is not None:
+                            if not isinstance(notification_id, int):
+                                raise ProgrammingError(
+                                    "%s must be an %s not %s: %s" % (
+                                        self.notification_id_name,
+                                        int,
+                                        type(notification_id),
+                                        record.__dict__,
+                                    )
+                                )
                         params[self.notification_id_name] = notification_id
 
                     if hasattr(self.record_class, "pipeline_id"):
-                        if notification_id == "event-not-notifiable":
+                        if notification_id == EVENT_NOT_NOTIFIABLE:
                             params["pipeline_id"] = None
                         else:
                             params["pipeline_id"] = self.pipeline_id
@@ -113,49 +164,95 @@ class SQLAlchemyRecordManager(SQLRecordManager):
 
                 all_params.append(params)
 
-        try:
-            nothing_to_commit = True
+        if orm_objs_pending_delete or orm_objs_pending_save:
+            s = self.session
+            try:
+                nothing_to_commit = True
 
-            # Commit custom ORM objects.
-            if orm_objs_pending_save:
-                for orm_obj in orm_objs_pending_save:
-                    self.session.add(orm_obj)
-                nothing_to_commit = False
+                if tracking_kwargs:
+                    s.execute(tracking_record_statement, tracking_kwargs)
+                    nothing_to_commit = False
 
-            if orm_objs_pending_delete:
-                for orm_obj in orm_objs_pending_delete:
-                    self.session.delete(orm_obj)
-                nothing_to_commit = False
+                # Commit custom ORM objects.
+                if orm_objs_pending_save:
+                    for orm_obj in orm_objs_pending_save:
+                        s.add(orm_obj)
+                    nothing_to_commit = False
 
-            # Insert tracking record.
-            if tracking_kwargs:
-                self.session.execute(self.insert_tracking_record, tracking_kwargs)
-                nothing_to_commit = False
+                if orm_objs_pending_delete:
+                    for orm_obj in orm_objs_pending_delete:
+                        s.delete(orm_obj)
+                    nothing_to_commit = False
 
-            # Bulk insert event records.
-            if all_params:
-                self.session.execute(statement, all_params)
-                nothing_to_commit = False
+                # Bulk insert event records.
+                if all_params:
+                    s.execute(event_record_statement, all_params)
+                    nothing_to_commit = False
 
-            if nothing_to_commit:
-                return
+                if nothing_to_commit:
+                    return
 
-            self.session.commit()
+                s.commit()
 
-        except sqlalchemy.exc.IntegrityError as e:
-            self.session.rollback()
-            self.raise_record_integrity_error(e)
+            except sqlalchemy.exc.IntegrityError as e:
+                s.rollback()
+                self.raise_record_integrity_error(e)
 
-        except sqlalchemy.exc.DBAPIError as e:
-            self.session.rollback()
-            self.raise_operational_error(e)
+            except sqlalchemy.exc.DBAPIError as e:
+                s.rollback()
+                self.raise_operational_error(e)
 
-        except:
-            self.session.rollback()
-            raise
+            except:
+                s.rollback()
+                raise
 
-        finally:
-            self.session.close()
+            finally:
+                s.close()
+
+        else:
+            try:
+                with self.session.bind.begin() as connection:
+
+                    if tracking_kwargs:
+                        # Insert tracking record.
+                        connection.execute(tracking_record_statement, **tracking_kwargs)
+
+                    if all_params:
+                        # Bulk insert event records.
+                        connection.execute(event_record_statement, all_params)
+
+            except sqlalchemy.exc.IntegrityError as e:
+                self.raise_record_integrity_error(e)
+
+            except sqlalchemy.exc.DBAPIError as e:
+                self.raise_operational_error(e)
+
+    @property
+    def insert_values_compiled(self) -> Any:
+        if self._insert_values_compiled is None:
+            # Compile the statement with the session dialect.
+            self._insert_values_compiled = self.insert_values.compile(
+                dialect=self.session.bind.dialect
+            )
+        return self._insert_values_compiled
+
+    @property
+    def insert_select_max_compiled(self) -> Any:
+        if self._insert_select_max_compiled is None:
+            # Compile the statement with the session dialect.
+            self._insert_select_max_compiled = self.insert_select_max.compile(
+                dialect=self.session.bind.dialect
+            )
+        return self._insert_select_max_compiled
+
+    @property
+    def insert_tracking_record_compiled(self) -> Any:
+        if self._insert_tracking_record_compiled is None:
+            # Compile the statement with the session dialect.
+            self._insert_tracking_record_compiled = self.insert_tracking_record.compile(
+                dialect=self.session.bind.dialect
+            )
+        return self._insert_tracking_record_compiled
 
     def get_records(
         self,

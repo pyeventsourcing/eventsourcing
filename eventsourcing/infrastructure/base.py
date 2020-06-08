@@ -25,6 +25,7 @@ from eventsourcing.infrastructure.sequenceditemmapper import AbstractSequencedIt
 from eventsourcing.whitehead import TEvent
 
 DEFAULT_PIPELINE_ID = 0
+EVENT_NOT_NOTIFIABLE = "event-not-notifiable"
 
 TrackingKwargs = Dict[str, Union[str, int]]
 
@@ -124,7 +125,7 @@ class BaseRecordManager(AbstractRecordManager):
     def __init__(
         self,
         record_class: type,
-        sequenced_item_class: Type[NamedTuple] = SequencedItem,  # type: ignore
+        sequenced_item_class: Type[SequencedItem] = SequencedItem,  # type: ignore
         contiguous_record_ids: bool = False,
         application_name: str = "",
         pipeline_id: int = DEFAULT_PIPELINE_ID,
@@ -180,7 +181,7 @@ class BaseRecordManager(AbstractRecordManager):
             **kwargs
         )
 
-    def get_item(self, sequence_id: UUID, position: int) -> NamedTuple:
+    def get_item(self, sequence_id: UUID, position: int) -> SequencedItem:
         """
         Gets sequenced item from the datastore.
         """
@@ -196,7 +197,7 @@ class BaseRecordManager(AbstractRecordManager):
         limit: Optional[int] = None,
         query_ascending: bool = True,
         results_ascending: bool = True,
-    ) -> Iterator[NamedTuple]:
+    ) -> Iterator[SequencedItem]:
         """
         Returns sequenced item generator.
         """
@@ -213,7 +214,7 @@ class BaseRecordManager(AbstractRecordManager):
         for item in map(self.from_record, records):
             yield item
 
-    def list_items(self, *args: Any, **kwargs: Any) -> List[NamedTuple]:
+    def list_items(self, *args: Any, **kwargs: Any) -> List[SequencedItem]:
         """
         Returns list of sequenced items.
         """
@@ -232,7 +233,7 @@ class BaseRecordManager(AbstractRecordManager):
             kwargs["pipeline_id"] = self.pipeline_id
         return self.record_class(**kwargs)
 
-    def from_record(self, record: object) -> NamedTuple:
+    def from_record(self, record: object) -> SequencedItem:
         """
         Constructs and returns a sequenced item object, from given ORM object.
         """
@@ -505,7 +506,7 @@ class SQLRecordManager(RecordManagerWithTracking):
             assert self.tracking_record_class is not None
             self._insert_tracking_record = self._prepare_insert(
                 tmpl=self._insert_values_tmpl,
-                placeholder_for_id=True,
+                placeholder_for_id=False,
                 record_class=self.tracking_record_class,
                 field_names=self.tracking_record_field_names,
             )
