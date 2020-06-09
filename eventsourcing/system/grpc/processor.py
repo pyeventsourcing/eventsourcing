@@ -226,7 +226,7 @@ class PullNotifications(Thread):
                 for notification in self.reader.read():
                     if self.has_been_stopped.is_set():
                         break
-                    domain_event = self.process_application.get_event_from_notification(
+                    domain_event = self.process_application.event_from_notification(
                         notification
                     )
                     self.event_queue.put(

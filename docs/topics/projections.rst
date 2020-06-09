@@ -171,25 +171,21 @@ Application state replication
 Using event record notifications, the state of an application can be
 replicated perfectly. If an application can present its event records
 as a notification log, then a "replicator" can read the notification
-log and write copies of the original records into a replica's record
-manager.
+log and write copies of the original events into a replica.
 
 In the example below, the
 :class:`~eventsourcing.application.simple.SimpleApplication` class is
 used, which has a
 :class:`~eventsourcing.application.notificationlog.RecordManagerNotificationLog`
-as its ``notification_log``. Reading this log, locally or remotely, will yield
-all the event records persisted by the
-:class:`~eventsourcing.application.simple.SimpleApplication`. The
-:class:`~eventsourcing.application.simple.SimpleApplication` uses a record manager
-with contiguous record IDs which allows it to be used within a record manager
-notification log object.
+as its ``notification_log``. Reading this log will yield all the event records
+persisted by the
+:class:`~eventsourcing.application.simple.SimpleApplication`.
 
-A record manager notification log object represents records as record
-notifications. With record notifications, the ID of the record in the
-notification is used to place the notification in its sequence.
-Therefore the ID of the last replicated record is used to determine
-the current position in the original application's notification log,
+A record manager notification log object represents stored as event
+notifications. Each event notification has a notification ID which
+can be used to position the replicated domain event record in a sequence.
+Therefore the maximum notification log ID in the replica can be used to
+determine the current position in the original application's notification log,
 which gives "exactly once" processing.
 
 .. code:: python
@@ -200,21 +196,33 @@ which gives "exactly once" processing.
     from eventsourcing.domain.model.aggregate import AggregateRoot
 
 
-    # Define record replicator.
-    class RecordReplicator(object):
-        def __init__(self, notification_log, record_manager):
-            self.reader = NotificationLogReader(notification_log)
-            self.manager = record_manager
+    # Define the "replicator".
+    class Replicator(object):
+        def __init__(self, original, replica):
+            self.reader = NotificationLogReader(original.notification_log)
+            self.mapper = replica.event_store.event_mapper
+            self.manager = replica.event_store.record_manager
             # Position reader at max record ID.
             self.reader.seek(self.manager.get_max_notification_id() or 0)
 
-        def pull(self):
-            for notification in self.reader.read():
-                notification_id = notification.pop('id')
-                record = self.manager.record_class(
-                    notification_id=notification_id,
-                    **notification
-                )
+        def run(self):
+            for event_notification in self.reader.read():
+                # Get the notification ID.
+                notification_id = event_notification['id']
+
+                # Reconstruct the domain event from the notification.
+                domain_event = self.mapper.event_from_notification(event_notification)
+
+                # Serialise the reconstructed domain event to a "sequenced item".
+                sequenced_item = self.mapper.item_from_event(domain_event)
+
+                # Convert the sequenced item to a stored event record.
+                record = self.manager.to_record(sequenced_item)
+
+                # Set the notification ID on the stored event record object.
+                record.notification_id = notification_id
+
+                # Write the stored event record object into the database.
                 self.manager.write_records([record])
 
 
@@ -225,10 +233,7 @@ which gives "exactly once" processing.
     replica = SQLAlchemyApplication()
 
     # Construct replicator.
-    replicator = RecordReplicator(
-        notification_log=original.notification_log,
-        record_manager=replica.event_store.record_manager
-    )
+    replicator = Replicator(original, replica)
 
     # Publish some events.
     aggregate1 = AggregateRoot.__create__()
@@ -250,7 +255,7 @@ which gives "exactly once" processing.
     assert aggregate3.id not in replica.repository
 
     # Pull records.
-    replicator.pull()
+    replicator.run()
 
     # Check aggregates are now in replica.
     assert aggregate1.id in replica.repository
@@ -271,7 +276,7 @@ which gives "exactly once" processing.
     assert aggregate4.id not in replica.repository
 
     # Resume pulling records.
-    replicator.pull()
+    replicator.run()
 
     # Check aggregate exists in the replica.
     assert aggregate4.id in replica.repository
@@ -280,10 +285,7 @@ which gives "exactly once" processing.
     replicator = None
 
     # Create new replicator.
-    replicator = RecordReplicator(
-        notification_log=original.notification_log,
-        record_manager=replica.event_store.record_manager
-    )
+    replicator = Replicator(original, replica)
 
     # Create another aggregate.
     aggregate5 = AggregateRoot.__create__()
@@ -294,7 +296,7 @@ which gives "exactly once" processing.
     assert aggregate5.id not in replica.repository
 
     # Pull after replicator restart.
-    replicator.pull()
+    replicator.run()
 
     # Check aggregate exists in the replica.
     assert aggregate5.id in replica.repository
@@ -305,7 +307,7 @@ which gives "exactly once" processing.
 
     @subscribe_to(AggregateRoot.Event)
     def prompt_replicator(_):
-        replicator.pull()
+        replicator.run()
 
     # Now, create another aggregate.
     aggregate6 = AggregateRoot.__create__()
@@ -338,8 +340,8 @@ to write the same record twice. Hence jobs can pull at periodic intervals,
 and at the same time message queue workers can respond to prompts pushed
 to AMQP-style messaging infrastructure by the original application, without
 needing to serialise their access to the replica with locks: if the two jobs
-happen to collide, one will succeed and the other will encounter a concurrency
-error exception that can be ignored.
+happen to collide, one will succeed and the other will encounter a record
+conflict exception that can be ignored.
 
 The replica could itself be followed, by using its notification log. Although
 replicating replicas indefinitely is perhaps pointless, it suggests how
@@ -357,6 +359,10 @@ from each commands could be many or none, which shows that a sequence of
 events can be projected equally reliably into a different sequence with a different
 length.
 
+As we will see later on, using "noop" to track position in an upstream sequence
+might be inefficient, and the tracking purpose be supported directly by using tracking
+records separately from the recording of new domain events. In fact, that is how the
+process applications work.
 
 Index of email addresses
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -427,10 +433,11 @@ notification log even when the notification doesn't imply a real entry in the in
 
     # Define indexer.
     class Indexer(object):
-        def __init__(self, notification_log, record_manager, repository):
-            self.reader = NotificationLogReader(notification_log)
-            self.repository = repository
-            self.manager = record_manager
+        def __init__(self, original, index):
+            self.reader = NotificationLogReader(original.notification_log)
+            self.repository = index.repository
+            self.mapper = index.event_store.event_mapper
+            self.manager = index.event_store.record_manager
             # Position reader at max record ID.
             # - this can be generalised to get the max ID from many
             #   e.g. big arrays so that many notification logs can
@@ -462,7 +469,7 @@ notification log even when the notification doesn't imply a real entry in the in
             # Todo: Bring out different projectors: splitter (one-many), combiner (many-one), repeater (one-one).
             self.reader.seek(self.manager.get_max_notification_id() or 0)
 
-        def pull(self):
+        def run(self):
             # Project events into commands for the index.
             for notification in self.reader.read():
 
@@ -475,10 +482,7 @@ notification log even when the notification doesn't imply a real entry in the in
                 # Could record commands in same transaction as result of commands if commands are not idempotent.
                 # Could use compaction to remove all blank items, but never remove the last record.
                 if notification['topic'].endswith('User.EmailAddressVerified'):
-                    event = original.event_store.event_mapper.event_from_topic_and_state(
-                        notification['topic'],
-                        notification['state'],
-                    )
+                    event = self.mapper.event_from_notification(notification)
                     index_key = uuid_from_url(event.email_address)
                     index_value = event.originator_id
                     try:
@@ -496,15 +500,11 @@ notification log even when the notification doesn't imply a real entry in the in
     index = SQLAlchemyApplication(name='indexer', persist_event_type=IndexItem.Event)
 
     # Setup event driven indexing.
-    indexer = Indexer(
-        notification_log=original.notification_log,
-        record_manager=index.event_store.record_manager,
-        repository=index.repository,
-    )
+    indexer = Indexer(original, index)
 
     @subscribe_to(User.Event)
     def prompt_indexer(_):
-        indexer.pull()
+        indexer.run()
 
     user1 = User.__create__()
     user1.__save__()

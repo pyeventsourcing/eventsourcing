@@ -48,6 +48,15 @@ class AbstractSequencedItemMapper(Generic[TEvent], ABC):
         Resolves topic to an event class, decodes state, and constructs an event.
         """
 
+    @abstractmethod
+    def event_from_notification(self, notification):
+        """
+        Reconstructs domain event from an event notification.
+
+        :param notification: The event notification.
+        :return: A domain event.
+        """
+
 
 class SequencedItemMapper(AbstractSequencedItemMapper[TEvent]):
     """
@@ -191,3 +200,15 @@ class SequencedItemMapper(AbstractSequencedItemMapper[TEvent]):
             return self.json_decoder.decode(s)
         except JSONDecodeError:
             raise ValueError("Couldn't load JSON string: {}".format(s))
+
+    def event_from_notification(self, notification):
+        """
+        Reconstructs domain event from an event notification.
+
+        :param notification: The event notification.
+        :return: A domain event.
+        """
+        return self.event_from_topic_and_state(
+            topic=notification[self.field_names.topic],
+            state=notification[self.field_names.state],
+        )

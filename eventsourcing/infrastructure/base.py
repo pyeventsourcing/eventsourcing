@@ -294,9 +294,11 @@ class RecordManagerWithNotifications(BaseRecordManager):
             yield self.create_notification_from_record(record)
 
     def create_notification_from_record(self, record):
-        notification = {"id": getattr(record, self.notification_id_name)}
-        for field_name in self.field_names:
-            notification[field_name] = getattr(record, field_name)
+        notification = {
+            "id": getattr(record, self.notification_id_name),
+            self.field_names.topic: getattr(record, self.field_names.topic),
+            self.field_names.state: getattr(record, self.field_names.state)
+        }
         if hasattr(record, "causal_dependencies"):
             notification["causal_dependencies"] = record.causal_dependencies
         return notification

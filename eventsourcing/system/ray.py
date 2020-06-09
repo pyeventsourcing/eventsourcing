@@ -486,7 +486,7 @@ class RayProcess:
                     upstream_name, notification.get("causal_dependencies")
                 )
                 # Get domain event from notification.
-                event = self.process_application.get_event_from_notification(
+                event = self.process_application.event_from_notification(
                     notification
                 )
                 # self.print_timecheck("obtained event", event)
