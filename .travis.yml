@@ -26,6 +26,14 @@ before_install:
   - export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64
   - java -version
 
+  # Install DynamoDB Local
+  - ./dev/download_dynamodb_local.sh
+
+  # Start DynamoDB Local
+  - java -Djava.library.path=./DynamoDBLocal_lib -jar ./DynamoDBLocal.jar -sharedDb &
+
+  - sleep 10
+
   # Install Cassandra.
   - sudo rm -rf /var/lib/cassandra/*
   - wget http://www.us.apache.org/dist/cassandra/3.11.6/apache-cassandra-3.11.6-bin.tar.gz
@@ -39,12 +47,6 @@ before_install:
 
   # Run Axon Server.
   - ./axonserver/axonserver.jar &
-
-  # Install DynamoDB Local
-  - ./dev/download_dynamodb_local.sh
-
-  # Start DynamoDB Local
-  - java -Djava.library.path=./DynamoDBLocal_lib -jar ./DynamoDBLocal.jar -sharedDb &
 
   # Wait for the servers to start (replace this with polling?).
   - sleep 30
