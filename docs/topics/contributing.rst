@@ -146,13 +146,13 @@ To attach to the latest containers output::
 
     $ make docker-logs
 
-All of the commands using predefined “COMPOSE_FILE“ and “COMPOSE_PROJECT_NAME“ to keep
+All of the commands use predefined “COMPOSE_FILE“ and “COMPOSE_PROJECT_NAME“ to keep
 your containers in a more organized and straightforward way.
 
 **COMPOSE_FILE** is used by *docker-compose* utility to pick development services
 configuration. The valid format of this value is: ``dev/docker-compose.yaml``.
 
-**COMPOSE_PROJECT_NAME** sets the project name. This value used to prepend the
+**COMPOSE_PROJECT_NAME** sets the project name. This value is used to prepend the
 containers on startup along with the service name. ``eventsourcing`` is a great
 default value for it.
 
@@ -169,6 +169,13 @@ using the following commands::
     $ brew install redis
     $ brew install cassandra
     $ ./dev/download_axon_server.sh
+    $ ./dev/download_dynamodb_local.sh
+
+.. note::
+    The above DynamoDB download script downloads from the us-west-2 (Oregon) region.
+    To download for another region, follow the instructions here for downloading
+    DynamoDb Local for your region:
+    https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.DownloadingAndRunning.html
 
 To start the databases, you can run::
 
@@ -194,7 +201,7 @@ Run tests
 ---------
 
 Ensure that you’ve set up your development environment (see :ref:`development-environment`) and
-and required services are up and running (see :ref:`docker-containers`, or :ref:`macos-databases`).
+required services are up and running (see :ref:`docker-containers`, or :ref:`macos-databases`).
 
 Running tests from an IDE such as PyCharm allows easy navigation to code files.
 
@@ -207,11 +214,20 @@ You can skip the slower tests when running the test suite with ``make quick-test
     $ make quick-test
 
 .. note::
+    When running tests against the non-docker, downloaded version of DynamoDB
+    local, macOS may prompt to allow some downloaded files to be accessed.
+    Open "System Preferences" > "Security & Privacy" to enable them.
+
+.. note::
     To re-run tests, sometimes it requires ``make docker-down`` for a fresh start.
     At the moment, Axon Server sometimes doesn't return everything that is expected
     when listing all the events of an application. But restarting Axon Server seems
     to clear this up.
 
+The downloaded DynamoDB Local will output a ``shared-local-instance.db`` file in the local directory from where you
+invoked it. You can use a tool like SQLiteBrowser_ to view the data.
+
+.. _SQLiteBrowser: https://sqlitebrowser.org/dl/
 
 Building documentation
 ----------------------

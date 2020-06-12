@@ -18,6 +18,9 @@ from eventsourcing.tests.sequenced_item_tests.base import WithEventPersistence
 from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager import (
     WithCassandraRecordManagers,
 )
+from eventsourcing.tests.sequenced_item_tests.test_dynamodb_record_manager import (
+    WithDynamoDbRecordManagers,
+)
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import (
     SQLAlchemyRecordManagerTestCase,
 )
@@ -422,6 +425,10 @@ class TestLogWithCassandra(WithCassandraRecordManagers, TimebucketedlogTestCase)
 
 
 class TestLogWithSQLAlchemy(SQLAlchemyRecordManagerTestCase, TimebucketedlogTestCase):
+    pass
+
+
+class TestLogWithDynamoDb(WithDynamoDbRecordManagers, TimebucketedlogTestCase):
     pass
 
 

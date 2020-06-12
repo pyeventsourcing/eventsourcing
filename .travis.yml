@@ -40,6 +40,12 @@ before_install:
   # Run Axon Server.
   - ./axonserver/axonserver.jar &
 
+  # Install DynamoDB Local
+  - ./dev/download_dynamodb_local.sh
+
+  # Start DynamoDB Local
+  - sudo sh java -Djava.library.path=./dynamodb_local/DynamoDBLocal_lib -jar ./dynamodb_local/DynamoDBLocal.jar -sharedDb &
+
   # Wait for the servers to start (replace this with polling?).
   - sleep 30
 
@@ -64,6 +70,11 @@ env:
     - MYSQL_PASSWORD=
     - POSTGRES_USER=postgres
     - POSTGRES_PASSWORD=
+
+    # DynamoDB Local
+    - DYNAMODB_HOST=http://127.0.0.1:8000
+    - AWS_ACCESS_KEY_ID=foo
+    - AWS_SECRET_ACCESS_KEY=foo
 
 script:
   - if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then

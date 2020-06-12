@@ -20,6 +20,9 @@ from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager impo
 from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import (
     DjangoTestCase,
 )
+from eventsourcing.tests.sequenced_item_tests.test_dynamodb_record_manager import (
+    WithDynamoDbRecordManagers,
+)
 from eventsourcing.tests.sequenced_item_tests.test_sqlalchemy_record_manager import (
     SQLAlchemyRecordManagerTestCase,
 )
@@ -374,5 +377,11 @@ class TestBigArrayNotificationLogWithDjango(
 
 class TestBigArrayNotificationLogWithCassandra(
     WithCassandraRecordManagers, TestBigArrayNotificationLog
+):
+    pass
+
+
+class TestBigArrayNotificationLogWithDynamoDb(
+    WithDynamoDbRecordManagers, TestBigArrayNotificationLog
 ):
     pass
