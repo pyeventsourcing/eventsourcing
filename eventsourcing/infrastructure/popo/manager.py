@@ -3,8 +3,12 @@ from uuid import UUID
 
 from readerwriterlock.rwlock import RWLockFair
 
-from eventsourcing.exceptions import RecordConflictError
-from eventsourcing.infrastructure.base import RecordManagerWithTracking, TrackingKwargs
+from eventsourcing.exceptions import ProgrammingError, RecordConflictError
+from eventsourcing.infrastructure.base import (
+    EVENT_NOT_NOTIFIABLE,
+    RecordManagerWithTracking,
+    TrackingKwargs,
+)
 
 
 class PopoNotification(object):
@@ -21,6 +25,10 @@ class PopoNotification(object):
         self.originator_version = originator_version
         self.topic = topic
         self.state = state
+
+    @property
+    def id(self):
+        return self.notification_id
 
 
 class PopoRecordManager(RecordManagerWithTracking):
@@ -93,12 +101,14 @@ class PopoRecordManager(RecordManagerWithTracking):
                     notification_record = notification_records[i]
                     notification = PopoNotification(
                         notification_id=notification_record["notification_id"],
-                        originator_id=notification_record[
-                            "sequenced_item"
-                        ].originator_id,
-                        originator_version=notification_record[
-                            "sequenced_item"
-                        ].originator_version,
+                        originator_id=getattr(
+                            notification_record["sequenced_item"],
+                            self.field_names.sequence_id,
+                        ),
+                        originator_version=getattr(
+                            notification_record["sequenced_item"],
+                            self.field_names.position,
+                        ),
                         topic=notification_record["sequenced_item"].topic,
                         state=notification_record["sequenced_item"].state,
                     )
@@ -202,7 +212,14 @@ class PopoRecordManager(RecordManagerWithTracking):
     def has_tracking_record(
         self, upstream_application_name: str, pipeline_id: int, notification_id: int
     ) -> bool:
-        raise NotImplementedError()
+        with self._rw_lock.gen_rlock():
+            try:
+                app_records = self._all_tracking_records[self.application_name]
+                upstream_records = app_records[upstream_application_name]
+            except KeyError:
+                pass
+            else:
+                return notification_id in upstream_records
 
     def record_items(self, sequenced_items: Iterable[NamedTuple]) -> None:
         records = self.to_records(sequenced_items)
@@ -217,6 +234,15 @@ class PopoRecordManager(RecordManagerWithTracking):
     ) -> None:
         with self._rw_lock.gen_wlock():
             # Write event and notification records.
+            if self.notification_id_name:
+                records = list(records)
+                all_notification_ids = set(
+                    getattr(r, self.notification_id_name) for r in records
+                )
+                if None in all_notification_ids:
+                    if len(all_notification_ids) > 1:
+                        raise ProgrammingError("Only some records have IDs")
+
             for record in records:
                 self._insert_record(record)
 
@@ -252,15 +278,29 @@ class PopoRecordManager(RecordManagerWithTracking):
                     )
                 upstream_tracking_records.add(notification_id)
 
-    def _insert_record(self, sequenced_item: NamedTuple) -> None:
-        position = getattr(sequenced_item, self.field_names.position)
+    def _insert_record(self, record: NamedTuple) -> None:
+        position = getattr(record, self.field_names.position)
         if not isinstance(position, int):
             raise NotImplementedError(
                 "Popo record manager only supports sequencing with integers, "
                 "but position was a {}".format(type(position))
             )
 
-        sequence_id = getattr(sequenced_item, self.field_names.sequence_id)
+        if self.notification_id_name:
+            notification_id = getattr(record, self.notification_id_name)
+            if notification_id != EVENT_NOT_NOTIFIABLE:
+                if notification_id is not None:
+                    if not isinstance(notification_id, int):
+                        raise ProgrammingError(
+                            "%s must be an %s not %s: %s" % (
+                                self.notification_id_name,
+                                int,
+                                type(notification_id),
+                                record.__dict__,
+                            )
+                        )
+
+        sequence_id = getattr(record, self.field_names.sequence_id)
         try:
             application_records = self._all_sequence_records[self.application_name]
         except KeyError:
@@ -279,6 +319,7 @@ class PopoRecordManager(RecordManagerWithTracking):
             raise RecordConflictError(position, len(sequence_records))
 
         if self.notification_id_name:
+
             # Just make sure we aren't making a gap in the sequence.
             if sequence_records:
                 max_position = self._all_sequence_max[self.application_name][
@@ -294,7 +335,7 @@ class PopoRecordManager(RecordManagerWithTracking):
                     )
                 )
 
-        sequence_records[position] = sequenced_item
+        sequence_records[position] = record
         self._all_sequence_max[self.application_name][sequence_id] = position
 
         # Write a notification record.
@@ -309,26 +350,23 @@ class PopoRecordManager(RecordManagerWithTracking):
                     self.application_name
                 ] = notification_records
 
-            next_notification_id = (self._get_max_record_id() or 0) + 1
-            notification_records[next_notification_id] = {
-                "notification_id": next_notification_id,
-                "sequenced_item": sequenced_item,
-            }
-            self._all_notification_max[self.application_name] = next_notification_id
+            if self.notification_id_name:
+                notification_id = getattr(record, self.notification_id_name)
+                if notification_id == EVENT_NOT_NOTIFIABLE:
+                    setattr(record, self.notification_id_name, None)
+                else:
+                    if notification_id is None:
+                        notification_id = (self._get_max_record_id() or 0) + 1
+                        setattr(record, self.notification_id_name, notification_id)
+
+                    notification_records[notification_id] = {
+                        "notification_id": notification_id,
+                        "sequenced_item": record,
+                    }
+                    self._all_notification_max[self.application_name] = notification_id
+
+    def to_record(self, sequenced_item: NamedTuple) -> object:
+        return self.record_class(sequenced_item)
 
     def to_records(self, sequenced_items: Iterable[NamedTuple]) -> Iterable[Any]:
-        return (PopoStoredEventRecord(s) for s in sequenced_items)
-
-
-class PopoStoredEventRecord(object):
-    """
-    Encapsulates sequenced item tuple (containing real event object).
-
-    Allows other attributes to be set, such as notification ID.
-    """
-
-    def __init__(self, sequenced_item: NamedTuple):
-        self.sequenced_item = sequenced_item
-
-    def __getattr__(self, item: str) -> Any:
-        return getattr(self.sequenced_item, item)
+        return (self.record_class(s) for s in sequenced_items)
