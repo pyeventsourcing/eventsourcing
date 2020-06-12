@@ -44,7 +44,7 @@ before_install:
   - ./dev/download_dynamodb_local.sh
 
   # Start DynamoDB Local
-  - sudo sh java -Djava.library.path=./dynamodb_local/DynamoDBLocal_lib -jar ./dynamodb_local/DynamoDBLocal.jar -sharedDb &
+  - java -Djava.library.path=./DynamoDBLocal_lib -jar ./DynamoDBLocal.jar -sharedDb &
 
   # Wait for the servers to start (replace this with polling?).
   - sleep 30
