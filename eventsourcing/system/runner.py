@@ -625,7 +625,7 @@ class ProcessRunningClockThread(ClockThread):
                         process = self.processes[process_instance_id]
                         # It's not the follower process, but the method does the same
                         # thing.
-                        event = process.get_event_from_notification(notification)
+                        event = process.event_from_notification(notification)
                         notification_id = notification["id"]
                         events.append((notification_id, event))
                     all_events[process_instance_id] = events
@@ -824,7 +824,7 @@ class BarrierControlledApplicationThread(Thread):
                     # Process all notifications.
                     for upstream_name, notifications in all_notifications:
                         for notification in notifications:
-                            event = self.app.get_event_from_notification(notification)
+                            event = self.app.event_from_notification(notification)
                             self.app.process_upstream_event(
                                 event, notification["id"], upstream_name
                             )

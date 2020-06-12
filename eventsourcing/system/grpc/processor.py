@@ -12,6 +12,9 @@ from threading import Event, Lock, Thread
 from time import sleep
 from typing import Dict, Type
 
+# Todo: Check connection and reconnect if necessary - somehow.
+
+
 import grpc
 from grpc._channel import _InactiveRpcError
 
@@ -223,7 +226,7 @@ class PullNotifications(Thread):
                 for notification in self.reader.read():
                     if self.has_been_stopped.is_set():
                         break
-                    domain_event = self.process_application.get_event_from_notification(
+                    domain_event = self.process_application.event_from_notification(
                         notification
                     )
                     self.event_queue.put(
