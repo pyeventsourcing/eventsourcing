@@ -28,7 +28,7 @@ from eventsourcing.application.notificationlog import (
 from eventsourcing.application.process import ProcessApplication
 from eventsourcing.application.simple import (
     ApplicationWithConcreteInfrastructure,
-    PromptToPull, is_prompt_to_pull,
+    is_prompt_to_pull,
 )
 from eventsourcing.domain.model.events import subscribe
 from eventsourcing.system.grpc.processor_pb2 import (
@@ -380,13 +380,12 @@ class ProcessorServer(ProcessorServicer):
         # Wait for termination.
         self.wait_for_termination()
 
-    def _set_downstream_prompt_event(self, event: PromptToPull):
+    def _set_downstream_prompt_event(self, event):
         # logging.info(
         #     "Setting downstream prompt event on %s for %s"
         #     % (self.application_name, event)
         # )
-        if event.process_name == self.application_name:
-            self.downstream_prompt_event.set()
+        self.downstream_prompt_event.set()
 
     def _push_prompts(self) -> None:
         # logging.info("Started push prompts thread")
@@ -539,16 +538,17 @@ class ProcessorServer(ProcessorServicer):
         self.server.stop(grace=1)
 
 
-def main(args):
-    global pipeline_id, setup_table
-    application_topic = args[1]
-    pipeline_id = json.loads(args[2])
-    infrastructure_topic = args[3]
-    setup_table = (json.loads(args[4]),)
-    address = args[5]
-    upstreams = json.loads(args[6])
-    downstreams = json.loads(args[7])
-    push_prompt_interval = json.loads(args[8])
+if __name__ == "__main__":
+    logging.basicConfig(level=DEBUG)
+    application_topic = sys.argv[1]
+    pipeline_id = json.loads(sys.argv[2])
+    infrastructure_topic = sys.argv[3]
+    setup_table = (json.loads(sys.argv[4]),)
+    address = sys.argv[5]
+    upstreams = json.loads(sys.argv[6])
+    downstreams = json.loads(sys.argv[7])
+    push_prompt_interval = json.loads(sys.argv[8])
+
     processor = ProcessorServer(
         application_topic,
         pipeline_id,
@@ -559,9 +559,3 @@ def main(args):
         downstreams,
         push_prompt_interval,
     )
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=DEBUG)
-    args = sys.argv
-    main(args)
