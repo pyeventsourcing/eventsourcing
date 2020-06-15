@@ -96,6 +96,9 @@ class DatastoreTestCase(AbstractDatastoreTestCase):
         if self.datastore.can_drop_tables:
             self.datastore.drop_tables()
 
+            # Check it doesn't matter if drop_tables() is called twice.
+            self.datastore.drop_tables()
+
             # Check the stored event class doesn't function after the tables have been dropped.
             with self.assertRaises(DatastoreTableError):
                 self.list_records()
