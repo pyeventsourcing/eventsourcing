@@ -9,13 +9,7 @@ from eventsourcing.tests.system_test_fixtures import Orders, Payments, Reservati
 
 
 class TestGrpcRunner(TestCase):
-    def test_with_subprocesses(self):
-        self._test(run_with_threads=False)
-
-    def test_with_threads(self):
-        self._test(run_with_threads=True)
-
-    def _test(self, run_with_threads=False):
+    def test(self):
         timer_started = datetime.now()
         runner = GrpcRunner(
             System(Orders | Reservations | Orders | Payments | Orders),

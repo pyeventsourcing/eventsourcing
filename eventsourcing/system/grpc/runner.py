@@ -5,7 +5,7 @@ import sys
 from concurrent import futures
 from signal import SIGINT
 from subprocess import Popen, TimeoutExpired
-from threading import Event, Thread
+from threading import Event
 from typing import List, Type
 
 import grpc
@@ -35,7 +35,6 @@ class GrpcRunner(AbstractSystemRunner):
         *args,
         pipeline_ids=(DEFAULT_PIPELINE_ID,),
         push_prompt_interval=0.25,
-        run_with_threads=False,
         **kwargs
     ):
         super(GrpcRunner, self).__init__(*args, **kwargs)
@@ -44,7 +43,6 @@ class GrpcRunner(AbstractSystemRunner):
         self.processors: List[Popen] = []
         self.addresses = {}
         self.port_generator = self.generate_ports(start=50051)
-        self.run_with_threads = run_with_threads
 
     def generate_ports(self, start: int):
         """
@@ -117,30 +115,23 @@ class GrpcRunner(AbstractSystemRunner):
         #     else "",
         # )
 
-        args = [
-            sys.executable,
-            processor.__file__,
-            application_topic,
-            json.dumps(pipeline_id),
-            infrastructure_topic,
-            json.dumps(setup_table),
-            address,
-            json.dumps(upstreams),
-            json.dumps(downstreams),
-            json.dumps(self.push_prompt_interval),
-        ]
-        if self.run_with_threads:
-            thread = Thread(target=processor.main(args[2:]))
-            thread.isDaemon()
-            thread.start()
-            self.processors.append(thread)
-        else:
-            process = Popen(
-                args,
-                stderr=subprocess.STDOUT,
-                close_fds=True,
-            )
-            self.processors.append(process)
+        process = Popen(
+            [
+                sys.executable,
+                processor.__file__,
+                application_topic,
+                json.dumps(pipeline_id),
+                infrastructure_topic,
+                json.dumps(setup_table),
+                address,
+                json.dumps(upstreams),
+                json.dumps(downstreams),
+                json.dumps(self.push_prompt_interval),
+            ],
+            stderr=subprocess.STDOUT,
+            close_fds=True,
+        )
+        self.processors.append(process)
 
     def close(self) -> None:
         """
