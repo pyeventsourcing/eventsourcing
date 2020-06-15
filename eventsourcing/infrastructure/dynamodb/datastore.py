@@ -47,11 +47,12 @@ class DynamoDbDatastore(AbstractDatastore):
             try:
                 self.drop_table(table)
             except TableError:
-                # skip if table not found
+                # continue processing other tables
                 continue
 
     def drop_table(self, table: Model) -> None:
-        table.delete_table()
+        if table.exists():
+            table.delete_table()
 
     def truncate_tables(self):
         """
