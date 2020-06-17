@@ -1,7 +1,8 @@
-from unittest import TestCase
+from unittest import TestCase, skip
 
 from eventsourcing.application.axon import AxonApplication
 from eventsourcing.application.django import DjangoApplication
+from eventsourcing.application.dynamodb import DynamoDbApplication
 from eventsourcing.application.notificationlog import NotificationLogReader
 from eventsourcing.application.popo import PopoApplication
 from eventsourcing.application.simple import SimpleApplication
@@ -96,3 +97,8 @@ class TestSnapshottingApplication(TestSimpleApplication):
 
 class TestSnapshottingAxonApplication(TestSimpleApplication):
     infrastructure_class = SnapshottingApplication.mixin(AxonApplication)
+
+
+@skip("Todo: implement notification log stuff in ")
+class TestDynamoDBApplication(TestSimpleApplication):
+    infrastructure_class = DynamoDbApplication
