@@ -2,7 +2,7 @@ import json
 from uuid import UUID
 
 from pynamodb.attributes import Attribute
-from pynamodb.constants import DEFAULT_ENCODING, NUMBER, STRING
+from pynamodb.constants import NUMBER, STRING
 
 
 class UUIDAttribute(Attribute):
@@ -31,33 +31,33 @@ class UUIDAttribute(Attribute):
             return None
 
 
-class BytesAttribute(Attribute):
-    """
-    A bytes attribute - needs to be converted to string for saving in DynamoDB
-    """
-    attr_type = STRING
-
-    def serialize(self, value):
-        """
-        Returns a string
-        """
-        if value is None:
-            return None
-        elif isinstance(value, bytes):
-            return value.decode(DEFAULT_ENCODING)
-        else:
-            return str(value)
-
-    def deserialize(self, value):
-        """
-        Returns a byte string
-        """
-        if value is None:
-            return None
-        elif isinstance(value, str):
-            return value.encode(DEFAULT_ENCODING)
-        else:
-            return bytes(value)
+# class BytesAttribute(Attribute):
+#     """
+#     A bytes attribute - needs to be converted to string for saving in DynamoDB
+#     """
+#     attr_type = STRING
+#
+#     def serialize(self, value):
+#         """
+#         Returns a string
+#         """
+#         if value is None:
+#             return None
+#         elif isinstance(value, bytes):
+#             return value.decode(DEFAULT_ENCODING)
+#         else:
+#             return str(value)
+#
+#     def deserialize(self, value):
+#         """
+#         Returns a byte string
+#         """
+#         if value is None:
+#             return None
+#         elif isinstance(value, str):
+#             return value.encode(DEFAULT_ENCODING)
+#         else:
+#             return bytes(value)
 
 
 class DecimalAttribute(Attribute):

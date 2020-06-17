@@ -101,7 +101,6 @@ class SnapshotRecord(PynamoDbModelWithAWSConfig):
     topic = UnicodeAttribute(null=False)
 
     # State of the entity (serialized dict, possibly encrypted).
-    # state = BytesAttribute(null=False)
     state = BinaryAttribute(null=False)
 
 
