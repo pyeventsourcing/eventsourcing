@@ -125,7 +125,10 @@ class EventSourcedRepositoryTestCase:
         event_store = self.construct_event_store()
 
         # Setup persistence policy for subscription handler to write to datastore.
-        PersistencePolicy(event_store=event_store, persist_event_type=World.Event)
+        policy = PersistencePolicy(
+            event_store=event_store,
+            persist_event_type=World.Event,
+        )
 
         # Construct a repository.
         repository: EventSourcedRepository[
@@ -247,6 +250,9 @@ class EventSourcedRepositoryTestCase:
             pass
         else:
             raise Exception("Shouldn't get here")
+
+        # Unsubscribe handlers
+        policy.close()
 
 
 class TestEventSourcedWithSQLAlchemyDataStore(
