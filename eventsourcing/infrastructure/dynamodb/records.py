@@ -64,7 +64,7 @@ class IntegerSequencedRecord(PynamoDbModelWithAWSConfig):
 
 
 class TimestampSequencedRecord(PynamoDbModelWithAWSConfig):
-    """Stores timestamp-sequenced items in Cassandra."""
+    """Stores timestamp-sequenced items in DynamoDB."""
 
     class Meta(
         DecimalTypeRangeKeyConditionMixin.Meta,
