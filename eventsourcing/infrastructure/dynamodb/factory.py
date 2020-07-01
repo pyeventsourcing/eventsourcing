@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 from eventsourcing.infrastructure.dynamodb.datastore import (
     DynamoDbDatastore,
@@ -26,12 +26,11 @@ class DynamoDbInfrastructureFactory(InfrastructureFactory):
 
     def __init__(
         self,
-        wait_for_table: Optional[bool] = False,
         *args: Any,
         **kwargs: Any
     ):
+        self.wait_for_table = kwargs.pop('wait_for_table', False)
         super().__init__(*args, **kwargs)
-        self.wait_for_table = wait_for_table
 
     def construct_datastore(self):
         return DynamoDbDatastore(
