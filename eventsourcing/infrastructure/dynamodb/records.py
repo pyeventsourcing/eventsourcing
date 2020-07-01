@@ -45,7 +45,7 @@ class DecimalTypeRangeKeyConditionMixin:
 
 
 class IntegerSequencedRecord(PynamoDbModelWithAWSConfig):
-    """Stores integer-sequenced items in Cassandra."""
+    """Stores integer-sequenced items in DynamoDB."""
 
     class Meta(PynamoDbModelWithAWSConfig.Meta):
         table_name = "integer_sequenced_items"
