@@ -1,4 +1,12 @@
-from typing import Any, Iterable, List, Optional, Sequence, Tuple, TypeVar
+from typing import (
+    Any,
+    Iterable,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Tuple,
+    TypeVar,
+)
 from uuid import UUID
 
 from pynamodb.exceptions import DeleteError, PutError
@@ -29,37 +37,45 @@ class DynamoDbRecordManager(RecordManagerWithNotifications):
     ) -> None:
         return
 
-    def record_items(self, sequenced_items) -> None:
+    def record_items(self, sequenced_items: Iterable[NamedTuple]) -> None:
         if not isinstance(sequenced_items, list):
             sequenced_items = list(sequenced_items)
 
         if len(sequenced_items) > 1:
-            with self.record_class.batch_write() as batch:
+            with self.record_class.batch_write() as batch:  # noqa
                 for item in sequenced_items:
                     assert isinstance(item, self.sequenced_item_class), (
                         type(item),
                         self.sequenced_item_class,
                     )
+                    record: Model = self.to_record(item)  # noqa
+                    hash_key_name = record._hash_key_attribute().attr_name  # noqa
+                    range_key_name = record._range_key_attribute().attr_name  # noqa
                     try:
-                        self.get_record(item.sequence_id, item.position)
+                        self.get_record(
+                            getattr(item, hash_key_name),
+                            getattr(item, range_key_name),
+                        )
                     except IndexError:
-                        batch.save(self.to_record(item))
+                        batch.save(record)
                     else:
                         self.raise_sequenced_item_conflict()
 
         elif len(sequenced_items) == 1:
-            record = self.to_record(sequenced_items[0])
-            range_key_attr = record._range_key_attribute()
+            record: Model = self.to_record(sequenced_items[0])  # noqa
+            range_key_attr = record._range_key_attribute()  # noqa
             range_key_name = range_key_attr.attr_name
             try:
-                record.save(range_key_attr != getattr(record, range_key_name))
+                record.save(range_key_attr != getattr(record, range_key_name))  # noqa
             except PutError:
                 self.raise_sequenced_item_conflict()
 
-    def get_record(self, sequence_id, position) -> TPynamoDbModel:
-        model: TPynamoDbModel = self.record_class
-        position_field = getattr(model, self.field_names.position)
-        kwargs = {'range_key_condition': position_field == position}
+    def get_record(self, sequence_id: UUID, position: int) -> Any:
+        model: Model = self.record_class  # noqa
+        range_key_attr = model._range_key_attribute()  # noqa
+        range_key_name = range_key_attr.attr_name
+        range_field = getattr(model, range_key_name)
+        kwargs = {'range_key_condition': range_field == position}
         query = model.query(sequence_id, **kwargs)
         try:
             record = list(query)[0]
@@ -156,39 +172,41 @@ class DynamoDbRecordManager(RecordManagerWithNotifications):
 
     def get_records(
         self,
-        sequence_id,
-        gt=None,
-        gte=None,
-        lt=None,
-        lte=None,
-        limit=None,
-        query_ascending=True,
-        results_ascending=True,
-    ) -> List:
+        sequence_id: UUID,
+        gt: Optional[int] = None,
+        gte: Optional[int] = None,
+        lt: Optional[int] = None,
+        lte: Optional[int] = None,
+        limit: Optional[int] = None,
+        query_ascending: bool = True,
+        results_ascending: bool = True,
+    ) -> Sequence[Any]:
         assert limit is None or limit >= 1, limit
         assert not (gte and gt)
         assert not (lte and lt)
 
-        model: Model = self.record_class
-        position_field = getattr(model, self.field_names.position)
+        model: Model = self.record_class  # noqa
+        range_key_attr = model._range_key_attribute()  # noqa
+        range_key_name = range_key_attr.attr_name
+        range_field = getattr(model, range_key_name)
         kwargs = {}
         range_start, range_end, op = self._compute_range_key_range(gt, gte, lt, lte)
         if range_start is not None and range_end is not None:
             if range_start > range_end:
                 return []
             kwargs = {
-                'range_key_condition': position_field.between(range_start, range_end),
+                'range_key_condition': range_field.between(range_start, range_end),
             }
         elif range_start is not None:
             if op == '>':
-                kwargs = {'range_key_condition': position_field > range_start}
+                kwargs = {'range_key_condition': range_field > range_start}
             elif op == '>=':
-                kwargs = {'range_key_condition': position_field >= range_start}
+                kwargs = {'range_key_condition': range_field >= range_start}
         elif range_end is not None:
             if op == '<':
-                kwargs = {'range_key_condition': position_field < range_end}
+                kwargs = {'range_key_condition': range_field < range_end}
             elif op == '<=':
-                kwargs = {'range_key_condition': position_field <= range_end}
+                kwargs = {'range_key_condition': range_field <= range_end}
 
         if limit is not None:
             kwargs.update({'limit': limit})
