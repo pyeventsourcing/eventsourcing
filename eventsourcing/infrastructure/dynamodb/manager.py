@@ -222,18 +222,18 @@ class DynamoDbRecordManager(RecordManagerWithNotifications):
         return items
 
     def all_sequence_ids(self) -> Iterable[UUID]:
-        model: Model = self.record_class
+        model: Model = self.record_class  # noqa
         query = model.scan()
         ids = {getattr(record, self.field_names.sequence_id) for record in query}
-        for id in ids:
-            yield id
+        for id_ in ids:
+            yield id_
 
-    def delete_record(self, record: TPynamoDbModel) -> None:
+    def delete_record(self, record: Model) -> None:
         assert isinstance(record, self.record_class), type(record)
-        range_key_attr = record._range_key_attribute()
+        range_key_attr = record._range_key_attribute()  # noqa
         range_key_name = range_key_attr.attr_name
         try:
-            record.delete(range_key_attr == getattr(record, range_key_name))
+            record.delete(range_key_attr == getattr(record, range_key_name))  # noqa
         except DeleteError as e:
             raise ProgrammingError(e)
 
