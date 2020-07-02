@@ -7,7 +7,7 @@ from eventsourcing.infrastructure.dynamodb.factory import (
     DynamoDbInfrastructureFactory,
 )
 from eventsourcing.infrastructure.dynamodb.records import (
-    SnapshotRecord,
+    EntitySnapshotRecord,
     StoredEventRecord,
 )
 
@@ -15,7 +15,7 @@ from eventsourcing.infrastructure.dynamodb.records import (
 class DynamoDbApplication(ApplicationWithConcreteInfrastructure):
     infrastructure_factory_class = DynamoDbInfrastructureFactory
     stored_event_record_class = StoredEventRecord
-    snapshot_record_class = SnapshotRecord
+    snapshot_record_class = EntitySnapshotRecord
 
     def __init__(
         self,

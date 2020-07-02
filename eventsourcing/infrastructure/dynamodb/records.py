@@ -104,6 +104,28 @@ class SnapshotRecord(PynamoDbModelWithAWSConfig):
     state = BinaryAttribute(null=False)
 
 
+class EntitySnapshotRecord(PynamoDbModelWithAWSConfig):
+    """Stores entity snapshots in DynamoDB."""
+
+    class Meta(PynamoDbModelWithAWSConfig.Meta):
+        table_name = "entity_snapshots"
+
+    # Application ID.
+    application_name = UnicodeAttribute(null=False)
+
+    # Originator ID (e.g. an entity or aggregate UUID).
+    originator_id = UUIDAttribute(hash_key=True)
+
+    # Originator version of item in sequence.
+    originator_version = NumberAttribute(range_key=True)
+
+    # Topic of the item (e.g. path to domain entity class).
+    topic = UnicodeAttribute(null=False)
+
+    # State of the item (serialized dict, possibly encrypted).
+    state = BinaryAttribute(null=False)
+
+
 class StoredEventRecord(PynamoDbModelWithAWSConfig):
     """Stores integer-sequenced items in DynamoDB."""
 
