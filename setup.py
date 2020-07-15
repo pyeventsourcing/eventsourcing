@@ -24,7 +24,7 @@ axonserver_requires = ["axonclient<=0.0.99999"]
 
 grpc_requires = ["grpcio<=1.29.99999"]
 
-ray_requires = ["ray<=0.8.99999", "psutil", "setproctitle"]
+ray_requires = ["ray<=0.8.5", "psutil", "setproctitle"]
 
 thespian_requires = ["thespian<=3.10.99999"]
 
