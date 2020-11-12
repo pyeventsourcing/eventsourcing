@@ -68,8 +68,16 @@ class SQLAlchemyRecordManager(SQLRecordManager):
     ) -> None:
 
         # Prepare tracking record statement.
+        has_orm_objs = orm_objs_pending_delete or orm_objs_pending_save
+        # Not using compiled statements because I'm not sure what
+        # session.bind.begin() actually does. Seems ok but feeling
+        # unsure. And the marginal performance improvement seems
+        # not to be worth the risk of messing up transactions.
+        # Todo: Environment variable?
+        is_complied_statements_enabled = False
+        use_compiled_statements = is_complied_statements_enabled and not has_orm_objs
         if tracking_kwargs:
-            if orm_objs_pending_delete or orm_objs_pending_save:
+            if not use_compiled_statements:
                 tracking_record_statement = self.insert_tracking_record
             else:
                 tracking_record_statement = self.insert_tracking_record_compiled
@@ -83,7 +91,7 @@ class SQLAlchemyRecordManager(SQLRecordManager):
             records = list(records)
         if records:
             # Prepare to insert event and notification records.
-            if orm_objs_pending_delete or orm_objs_pending_save:
+            if not use_compiled_statements:
                 event_record_statement = self.insert_values
             else:
                 event_record_statement = self.insert_values_compiled
@@ -117,7 +125,7 @@ class SQLAlchemyRecordManager(SQLRecordManager):
 
                     elif self.contiguous_record_ids:
                         # Do an "insert select max" from existing.
-                        if orm_objs_pending_delete or orm_objs_pending_save:
+                        if not use_compiled_statements:
                             event_record_statement = self.insert_select_max
                         else:
                             event_record_statement = self.insert_select_max_compiled
@@ -164,7 +172,7 @@ class SQLAlchemyRecordManager(SQLRecordManager):
 
                 all_params.append(params)
 
-        if orm_objs_pending_delete or orm_objs_pending_save:
+        if not use_compiled_statements:
             s = self.session
             try:
                 nothing_to_commit = True
