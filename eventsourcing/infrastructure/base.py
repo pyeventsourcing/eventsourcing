@@ -512,7 +512,7 @@ class SQLRecordManager(RecordManagerWithTracking):
         return self._insert_tracking_record
 
     _insert_values_tmpl = (
-        "INSERT INTO {tablename} ({columns}) " "VALUES ({placeholders});"
+        "INSERT INTO {tablename} ({columns}) " "VALUES ({placeholders})"
     )
 
     @abstractmethod
