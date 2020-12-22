@@ -28,7 +28,7 @@ thespian_requires = ["thespian<=3.10.99999"]
 
 cassandra_requires = ["cassandra-driver<=3.23.99999"]
 
-django_requires = ["django<=3.0.99999"]
+django_requires = ["django<=3.1.99999"]
 
 testing_requires = (
     cassandra_requires
