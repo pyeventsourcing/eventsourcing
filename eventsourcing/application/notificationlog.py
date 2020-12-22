@@ -8,6 +8,7 @@ from eventsourcing.infrastructure.base import (
 )
 
 DEFAULT_SECTION_SIZE = 20
+USE_REGULAR_SECTIONS = True
 
 
 class Section(object):
@@ -86,8 +87,9 @@ class LocalNotificationLog(AbstractNotificationLog):
             # Convert from 1-based to 0-based.
             start = int(section_id_part1) - 1
 
-            # Go back to nearest section start.
-            start = start // self.section_size * self.section_size
+            if USE_REGULAR_SECTIONS:
+                # Go back to nearest section start.
+                start = start // self.section_size * self.section_size
 
         # Get stop index (section doesn't include this one).
         stop = start + self.section_size
@@ -99,7 +101,7 @@ class LocalNotificationLog(AbstractNotificationLog):
         previous_id: Optional[str] = None
         next_id: Optional[str] = None
         if start:
-            first_item_number = start + 1 - self.section_size
+            first_item_number = max(start + 1 - self.section_size, 1)
             last_item_number = first_item_number - 1 + self.section_size
             previous_id = self.format_section_id(first_item_number, last_item_number)
 
@@ -110,6 +112,8 @@ class LocalNotificationLog(AbstractNotificationLog):
 
         # Return a section of the notification log.
         section_id = self.format_section_id(start + 1, start + self.section_size)
+        # print("Returning section %s with %s items, next: %s" % (section_id,
+        #                                                         len(items), next_id))
         return Section(
             section_id=section_id, items=items, previous_id=previous_id, next_id=next_id
         )
@@ -384,7 +388,9 @@ class NotificationLogReader(ABC):
         #  - 'position' is equal to zero-based index of next item
         #  - section IDs use 1-based start and end values.
         section_size = self.notification_log.section_size
-        start = self.position // section_size * section_size
+        start = self.position
+        if USE_REGULAR_SECTIONS:
+            start = start // section_size * section_size
         end = start + section_size
         return "%d,%d" % (start + 1, end)
 

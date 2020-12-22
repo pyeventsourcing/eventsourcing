@@ -1,9 +1,15 @@
 from typing import Any, Dict, Iterable, Optional, Sequence
 from uuid import UUID
 
-from django.db import IntegrityError, ProgrammingError, connection, transaction
+import django.db
+from django.db import connection, transaction
 
-from eventsourcing.infrastructure.base import SQLRecordManager, TrackingKwargs
+from eventsourcing.exceptions import ProgrammingError
+from eventsourcing.infrastructure.base import (
+    EVENT_NOT_NOTIFIABLE,
+    SQLRecordManager,
+    TrackingKwargs,
+)
 
 
 class DjangoRecordManager(SQLRecordManager):
@@ -16,56 +22,125 @@ class DjangoRecordManager(SQLRecordManager):
         orm_objs_pending_save: Optional[Sequence[Any]] = None,
         orm_objs_pending_delete: Optional[Sequence[Any]] = None,
     ) -> None:
+        if not isinstance(records, list):
+            records = list(records)
+
+        # Prepare tracking params.
+        if tracking_kwargs:
+            tracking_params = [
+                tracking_kwargs[c] for c in self.tracking_record_field_names
+            ]
+        else:
+            tracking_params = None
+
+        use_insert_select_max_statement = False
+        event_insert_statement = self.insert_values
+        if self.notification_id_name:
+            # This is a bit complicated, but basically the idea
+            # is to support two alternatives:
+            #  - either use the "insert select max" statement
+            #  - or use the "insert values" statement
+            # The "insert values" statement depends on the
+            # notification IDs being provided by the application
+            # and the "insert select max" creates these IDs in
+            # the query.
+            # The "insert values" statement provides the opportunity
+            # to have some notification IDs being null, but the
+            # "insert select max" statement doesn't.
+            # Therefore, using "insert select max" should only be
+            # used when all the given records have null value
+            # for the notification IDs. And so the alternative
+            # usage needs to provide true values for all the
+            # notification IDs. These true values can involve
+            # a reserved "event-not-notifiable" value which
+            # indicates there shouldn't be a notification ID
+            # for this record (so that it doesn't appear in the
+            # "get notifications" query).
+            all_ids = set((getattr(r, self.notification_id_name) for r in records))
+            if None in all_ids:
+                if len(all_ids) > 1:
+                    # Either all or zero records must have IDs.
+                    raise ProgrammingError("Only some records have IDs")
+
+                elif self.contiguous_record_ids:
+                    # Do an "insert select max" from existing.
+                    use_insert_select_max_statement = True
+                    event_insert_statement = self.insert_select_max
+
+                elif hasattr(self.record_class, "application_name"):
+                    # Can't allow auto-incrementing ID if table has field
+                    # application_name. We need values and don't have them.
+                    raise ProgrammingError("record ID not set when required")
+
+        if self.contiguous_record_ids:
+            all_event_record_params = []
+            for record in records:
+                # Get values from record obj.
+                # List of params, because dict doesn't work with Django
+                # and SQLite.
+                params = []
+
+                for col_name in self.field_names:
+                    col_value = getattr(record, col_name)
+                    meta = self.record_class._meta  # type: ignore
+                    col_type = meta.get_field(col_name)
+
+                    # Prepare value for database.
+                    param = col_type.get_db_prep_value(col_value, connection)
+                    params.append(param)
+
+                # Notification logs fields, to be inserted with event
+                # fields.
+                index_of_pipeline_id_param = None
+                if hasattr(self.record_class, "application_name"):
+                    params.append(self.application_name)
+                if hasattr(self.record_class, "pipeline_id"):
+                    params.append(self.pipeline_id)
+                    index_of_pipeline_id_param = len(params) - 1
+                if hasattr(record, "causal_dependencies"):
+                    params.append(record.causal_dependencies)
+
+                if use_insert_select_max_statement:
+                    # Where clause fields.
+                    if hasattr(self.record_class, "application_name"):
+                        params.append(self.application_name)
+                    if hasattr(self.record_class, "pipeline_id"):
+                        params.append(self.pipeline_id)
+                elif self.notification_id_name:
+                    if hasattr(self.record_class, self.notification_id_name):
+                        notification_id = getattr(record, self.notification_id_name)
+                        if notification_id == EVENT_NOT_NOTIFIABLE:
+                            notification_id = None
+                            params[index_of_pipeline_id_param] = None
+                        elif notification_id is not None:
+                            if not isinstance(notification_id, int):
+                                raise ProgrammingError(
+                                    "%s must be an %s not %s: %s"
+                                    % (
+                                        self.notification_id_name,
+                                        int,
+                                        type(notification_id),
+                                        record.__dict__,
+                                    )
+                                )
+
+                        params.append(notification_id)
+
+                all_event_record_params.append(params)
+        else:
+            all_event_record_params = None
+
         try:
             with transaction.atomic(self.record_class.objects.db):  # type: ignore
                 with connection.cursor() as cursor:
                     # Insert tracking record.
-                    if tracking_kwargs:
-                        params = [
-                            tracking_kwargs[c] for c in self.tracking_record_field_names
-                        ]
-                        cursor.execute(self.insert_tracking_record, params)
+                    if tracking_params is not None:
+                        cursor.execute(self.insert_tracking_record, tracking_params)
 
-                    if self.contiguous_record_ids:
-                        # Use cursor to execute insert select max statement.
-                        for record in records:
-                            # Get values from record obj.
-                            # List of params, because dict doesn't work with Django
-                            # and SQLite.
-                            params = []
-
-                            for col_name in self.field_names:
-                                col_value = getattr(record, col_name)
-                                meta = self.record_class._meta  # type: ignore
-                                col_type = meta.get_field(col_name)
-
-                                # Prepare value for database.
-                                param = col_type.get_db_prep_value(
-                                    col_value, connection
-                                )
-                                params.append(param)
-
-                            # Notification logs fields, to be inserted with event
-                            # fields.
-                            if hasattr(self.record_class, "application_name"):
-                                params.append(self.application_name)
-                            if hasattr(self.record_class, "pipeline_id"):
-                                params.append(self.pipeline_id)
-                            if hasattr(record, "causal_dependencies"):
-                                params.append(record.causal_dependencies)
-
-                            # Where clause fields.
-                            if hasattr(self.record_class, "application_name"):
-                                params.append(self.application_name)
-                            if hasattr(self.record_class, "pipeline_id"):
-                                params.append(self.pipeline_id)
-
-                            # Execute insert statement.
-                            cursor.execute(self.insert_select_max, params)
-                            # Todo: Use insert_values when records have IDs (like
-                            #  SQLAlchemy manager).
-                            # Todo: Support 'event-not-notifiable' by setting
-                            #  pipeline ID and notification ID to None.
+                    if all_event_record_params is not None:
+                        for event_record_params in all_event_record_params:
+                            # Use cursor to execute event insert statement.
+                            cursor.execute(event_insert_statement, event_record_params)
 
                     else:
                         # This can only work for simple models, without application_name
@@ -87,7 +162,7 @@ class DjangoRecordManager(SQLRecordManager):
                         for orm_obj in orm_objs_pending_delete:
                             orm_obj.delete()
 
-        except IntegrityError as e:
+        except django.db.IntegrityError as e:
             self.raise_record_integrity_error(e)
 
     def make_placeholder(self, _: str) -> str:
@@ -210,7 +285,7 @@ class DjangoRecordManager(SQLRecordManager):
                 objects = objects.filter(pipeline_id=self.pipeline_id)
             latest = objects.latest(self.notification_id_name)
             return getattr(latest, self.notification_id_name)
-        except (self.record_class.DoesNotExist, ProgrammingError):  # type: ignore
+        except self.record_class.DoesNotExist:
             return 0
 
     def get_max_tracking_record_id(self, upstream_application_name: str) -> int:

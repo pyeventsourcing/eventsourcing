@@ -74,15 +74,19 @@ class InfrastructureFactory(Generic[TEvent]):
         self.pipeline_id = pipeline_id
 
     def construct_integer_sequenced_record_manager(
-        self, **kwargs: Any
+        self, integer_sequenced_record_class=None, **kwargs: Any
     ) -> AbstractRecordManager:
         """
         Constructs an integer sequenced record manager.
         """
         integer_sequenced_record_class = (
-            self._integer_sequenced_record_class or self.integer_sequenced_record_class
+            integer_sequenced_record_class
+            or self._integer_sequenced_record_class
+            or self.integer_sequenced_record_class
         )
-        return self.construct_record_manager(integer_sequenced_record_class, **kwargs)
+        return self.construct_record_manager(
+            integer_sequenced_record_class, **kwargs
+        )
 
     def construct_timestamp_sequenced_record_manager(
         self, **kwargs: Any

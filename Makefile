@@ -122,3 +122,11 @@ release-distribution:
 .PHONY: test-released-distribution
 test-released-distribution:
 	python ./dev/test-released-distribution.py
+
+.PHONY: generate-grpc-protos
+generate-grpc-protos:
+	python -m grpc_tools.protoc \
+	  --proto_path=./eventsourcing/system/grpc \
+	  --python_out=eventsourcing/system/grpc \
+	  --grpc_python_out=eventsourcing/system/grpc \
+	  eventsourcing/system/grpc/processor.proto

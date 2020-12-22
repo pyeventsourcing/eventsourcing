@@ -1,3 +1,4 @@
+from eventsourcing.infrastructure.sqlalchemy.records import StoredEventRecord
 from eventsourcing.tests.datastore_tests import test_sqlalchemy
 from eventsourcing.tests.sequenced_item_tests import base
 
@@ -10,20 +11,37 @@ class SQLAlchemyRecordManagerTestCase(
     """
 
 
-class TestSQLAlchemyRecordManagerWithIntegerSequences(
-    SQLAlchemyRecordManagerTestCase, base.IntegerSequencedRecordTestCase
-):
-    """
-    Test case for integer sequenced record manager with SQLAlchemy.
-    """
-
-
-class TestSQLAlchemyRecordManagerWithTimestampSequences(
+class TestSQLAlchemyRecordManagerWithTimestampSequencedItems(
     SQLAlchemyRecordManagerTestCase, base.TimestampSequencedItemTestCase
 ):
     """
     Test case for timestamp sequenced record manager with SQLAlchemy.
     """
+
+class TestSQLAlchemyRecordManagerNotifications(
+    SQLAlchemyRecordManagerTestCase, base.RecordManagerNotificationsTestCase
+):
+    pass
+
+class TestSQLAlchemyRecordManagerTrackingRecords(
+    SQLAlchemyRecordManagerTestCase, base.RecordManagerTrackingRecordsTestCase
+):
+    pass
+
+class TestSQLAlchemyRecordManagerWithIntegerSequencedItems(
+    SQLAlchemyRecordManagerTestCase, base.IntegerSequencedRecordTestCase
+):
+    pass
+
+class TestSQLAlchemyRecordManagerWithStoredEvents(
+    SQLAlchemyRecordManagerTestCase, base.RecordManagerStoredEventsTestCase
+):
+    def create_factory_kwargs(self):
+        kwargs = super().create_factory_kwargs()
+        kwargs['integer_sequenced_record_class'] = StoredEventRecord
+        return kwargs
+
+
 
 
 class TestSimpleIteratorWithSQLAlchemy(

@@ -15,9 +15,13 @@ class AxonServerRecordManagerTestCase(
 class TestAxonServerRecordManagerWithIntegerSequences(
     AxonServerRecordManagerTestCase, base.IntegerSequencedRecordTestCase
 ):
-    """
-    Test case for integer sequenced record manager with Axon Server.
-    """
+    pass
+
+
+class TestAxonServerRecordManagerNotifications(
+    AxonServerRecordManagerTestCase, base.RecordManagerNotificationsTestCase
+):
+    pass
 
 
 @skip("This isn't working at the moment")

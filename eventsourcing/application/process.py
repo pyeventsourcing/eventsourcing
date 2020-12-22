@@ -254,7 +254,7 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
                         )
 
                         # Get event from notification.
-                        event = self.get_event_from_notification(notification)
+                        event = self.event_from_notification(notification)
 
                         # Wait for the clock, if there is one.
                         if self.clock_event is not None:
@@ -407,19 +407,16 @@ class ProcessApplication(SimpleApplication[TAggregate, TAggregateEvent]):
                     print(msg)
         return domain_events, new_event_records
 
-    def get_event_from_notification(
+    def event_from_notification(
         self, notification: Dict[str, Any]
     ) -> TAggregateEvent:
         """
-        Extracts the domain event of an event notification.
+        Reconstructs domain event from an event notification.
 
         :param notification: The event notification.
         :return: A domain event.
         """
-        return self.event_store.event_mapper.event_from_topic_and_state(
-            topic=notification[self.notification_topic_key],
-            state=notification[self.notification_state_key],
-        )
+        return self.event_store.event_mapper.event_from_notification(notification)
 
     def get_notification_generator(
         self, upstream_name: str, advance_by: Optional[int]
