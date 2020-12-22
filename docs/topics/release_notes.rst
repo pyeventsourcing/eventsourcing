@@ -22,6 +22,11 @@ systems of application, previously in the "application" package, has been
 moved to a new "system" package.
 
 
+Version 8.2.5 (released 22 Dec 2020)
+--------------------------------------
+
+Increased versions of dependencies on requests, Django, Celery, PyMySQL.
+
 Version 8.2.4 (released 12 Nov 2020)
 --------------------------------------
 
