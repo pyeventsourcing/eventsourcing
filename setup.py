@@ -30,7 +30,7 @@ thespian_requires = ["thespian<=3.10.99999"]
 
 cassandra_requires = ["cassandra-driver<=3.23.99999"]
 
-django_requires = ["django<=3.0.99999"]
+django_requires = ["django<=3.1.99999"]
 
 testing_requires = (
     cassandra_requires
@@ -46,8 +46,8 @@ testing_requires = (
         "flask_sqlalchemy<=2.4.99",
         "uwsgi<=2.0.99999",
         # "redis<=3.5.99999",
-        "celery<=4.4.99999",
-        "pymysql<=0.9.99999",
+        "celery<=5.0.99999",
+        "pymysql<=0.10.99999",
         "mysql-connector-python-rf<=2.2.99999",
         "python-coveralls<=2.9.99999",
         "coverage<5.0.0",  # v5 is incompatible ATM.
