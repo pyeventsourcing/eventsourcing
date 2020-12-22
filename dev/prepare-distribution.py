@@ -1,9 +1,9 @@
-#!/usr/bin/env python
 import os
 import subprocess
 import sys
 from subprocess import CalledProcessError
 from time import sleep
+
 
 
 def main():
@@ -20,22 +20,37 @@ def main():
     except KeyError:
         pass
 
-    # Build and upload to Test PyPI.
+    # # Build and upload to Test PyPI.
+    # NB: Don't upload to Test PyPI because there is a dodgy
+    # Django distribution, and there may be others:
+    # https://test.pypi.org/project/Django/3.1.10.17/
+
+    # Build distribution.
     subprocess.check_call([sys.executable, "setup.py", "clean", "--all"], cwd=proj_path)
     try:
         subprocess.check_call(
-            [sys.executable, "setup.py", "sdist", "upload", "-r", "pypitest"],
+            # [sys.executable, "setup.py", "sdist", "upload", "-r", "pypitest"],
+            [sys.executable, "setup.py", "sdist"],
             cwd=proj_path,
         )
     except CalledProcessError:
         sys.exit(1)
 
-    # Test distribution for various targets.
-    targets = [(os.path.join(proj_path, "tmpve3.7"), "python")]
-    os.environ["CASS_DRIVER_NO_CYTHON"] = "1"
-    from eventsourcing import __version__
+    # Construct the path to the built distribution.
+    version_path = os.path.join(proj_path, "eventsourcing", "__init__.py")
+    version = open(version_path).readlines()[0].split("=")[-1].strip().strip('"')
+    distribution_path = os.path.join(
+        proj_path, 'dist', f'eventsourcing-{version}.tar.gz'
+    )
 
-    for (venv_path, python_bin) in targets:
+    # Define the test targets.
+    targets = [
+        (os.path.join(proj_path, "tmpve3.7"), "python3")
+    ]
+    os.environ["CASS_DRIVER_NO_CYTHON"] = "1"
+
+    # Test distribution for various targets.
+    for (venv_path, base_python_path) in targets:
 
         # Remove existing virtualenv.
         if os.path.exists(venv_path):
@@ -43,22 +58,22 @@ def main():
 
         # Create virtualenv.
         subprocess.check_call(
-            ["virtualenv", "-p", python_bin, venv_path], cwd=proj_path
-        )
-        subprocess.check_call(
-            ["bin/pip", "install", "-U", "pip", "wheel"], cwd=venv_path
+            ["virtualenv", "--python", base_python_path, venv_path], cwd=proj_path
         )
 
-        # Install from Test PyPI.
+        pip_path = os.path.join(venv_path, 'bin', 'pip')
+        python_path = os.path.join(venv_path, 'bin', 'python')
+
+        subprocess.check_call(
+            [pip_path, "install", "-U", "pip", "wheel"], cwd=venv_path
+        )
+
+        # Install from built distribution.
         pip_install_from_testpypi = [
-            os.path.join(venv_path, "bin/pip"),
+            pip_path,
             "install",
-            "-U",
-            "eventsourcing[testing]==" + __version__,
-            "--index-url",
-            "https://testpypi.python.org/simple",
-            "--extra-index-url",
-            "https://pypi.python.org/simple",
+            "--no-cache-dir",
+            distribution_path+"[testing]",
         ]
 
         patience = 10
@@ -81,7 +96,8 @@ def main():
 
         # Check installed tests all pass.
         subprocess.check_call(
-            ["bin/python", "-m" "unittest", "discover", "eventsourcing.tests"],
+            [python_path, "-m" "unittest", "discover",
+             "eventsourcing.tests"],
             cwd=venv_path,
         )
 
