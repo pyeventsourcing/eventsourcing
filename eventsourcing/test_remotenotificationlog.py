@@ -38,7 +38,7 @@ class TestRemoteNotificationLog(TestCase):
         )
 
     def test_with_http(self):
-        server_address = ("", 8000)
+        server_address = ("127.0.0.1", 8080)
 
         server = HTTPApplicationServer(
             address=server_address,
