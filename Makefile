@@ -76,7 +76,7 @@ test:
 	@coverage run \
 		--concurrency=multiprocessing \
 		-m unittest discover \
-		eventsourcing.tests -vv --failfast
+		eventsourcing -vv --failfast
 	@coverage combine
 	@coverage report
 	@coverage html
@@ -84,7 +84,7 @@ test:
 
 .PHONY: quick-test
 quick-test:
-	QUICK_TESTS_ONLY=1 python -m unittest discover eventsourcing.tests -vv
+	QUICK_TESTS_ONLY=1 python -m unittest discover eventsourcing -vv
 
 
 .PHONY: docs
@@ -130,3 +130,7 @@ generate-grpc-protos:
 	  --python_out=eventsourcing/system/grpc \
 	  --grpc_python_out=eventsourcing/system/grpc \
 	  eventsourcing/system/grpc/processor.proto
+
+.PHONY: ramdisk
+ramdisk:
+	diskutil erasevolume HFS+ 'RAM Disk' `hdiutil attach -nobrowse -nomount ram://204800`
