@@ -76,7 +76,7 @@ class TestRemoteNotificationLog(TestCase):
             server.stop()
 
     def test_with_http_and_threads(self):
-        server_address = ("", 8000)
+        server_address = ("", 8004)
 
         server = HTTPApplicationServer(
             address=server_address,
