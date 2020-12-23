@@ -3,7 +3,7 @@ from http.server import (
     BaseHTTPRequestHandler,
     HTTPServer,
 )
-from threading import Thread
+from threading import Event, Thread
 from typing import Callable, List
 
 from eventsourcing.bankaccounts import BankAccounts
@@ -24,10 +24,12 @@ class HTTPApplicationServer(Thread):
             server_address=address,
             RequestHandlerClass=handler,
         )
+        self.is_running = Event()
 
     def run(self):
         [f() for f in self.prepare]
         self.server.serve_forever()
+        self.is_running.set()
 
     def stop(self):
         self.server.shutdown()
