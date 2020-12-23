@@ -28,8 +28,8 @@ class HTTPApplicationServer(Thread):
 
     def run(self):
         [f() for f in self.prepare]
-        self.server.serve_forever()
         self.is_running.set()
+        self.server.serve_forever()
 
     def stop(self):
         self.server.shutdown()
