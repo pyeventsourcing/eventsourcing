@@ -36,12 +36,6 @@ class TestSingleThreadedRunner(TestCase):
         AbstractRunner
     ] = SingleThreadedRunner
 
-    def setUp(self):
-        os.environ["DB_URI"] = ":memory:"
-
-    def tearDown(self):
-        del os.environ["DB_URI"]
-
     def test(self):
         system = System(
             pipes=[
@@ -94,24 +88,38 @@ class TestMultiThreadedRunnerWithSQLite(
         os.environ["INFRASTRUCTURE_FACTORY_TOPIC"] = topic
         uris = tmpfile_uris()
         os.environ["DO_CREATE_TABLE"] = "y"
-        os.environ["BANKACCOUNTS_DB_URI"] = next(uris)
-        os.environ["EMAILNOTIFICATIONS_DB_URI"] = next(
+        os.environ["BANKACCOUNTS_SQLITE_DBNAME"] = next(uris)
+        os.environ["EMAILNOTIFICATIONS_SQLITE_DBNAME"] = next(
             uris
         )
 
     def tearDown(self):
         del os.environ["DO_CREATE_TABLE"]
         del os.environ["INFRASTRUCTURE_FACTORY_TOPIC"]
-        del os.environ["BANKACCOUNTS_DB_URI"]
-        del os.environ["EMAILNOTIFICATIONS_DB_URI"]
+        del os.environ["BANKACCOUNTS_SQLITE_DBNAME"]
+        del os.environ["EMAILNOTIFICATIONS_SQLITE_DBNAME"]
 
 
 class TestMultiThreadedRunnerWithPostgres(
     TestMultiThreadedRunner
 ):
     def setUp(self):
+        if "POSTGRES_DBNAME" not in os.environ:
+            os.environ["POSTGRES_DBNAME"] = "eventsourcing"
+        if "POSTGRES_HOST" not in os.environ:
+            os.environ["POSTGRES_HOST"] = "127.0.0.1"
+        if "POSTGRES_USER" not in os.environ:
+            os.environ["POSTGRES_USER"] = "eventsourcing"
+        if "POSTGRES_PASSWORD" not in os.environ:
+            os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
+
         def drop_table(table_name):
-            db = PostgresDatabase()
+            db = PostgresDatabase(
+                os.getenv("POSTGRES_DBNAME"),
+                os.getenv("POSTGRES_HOST"),
+                os.getenv("POSTGRES_USER"),
+                os.getenv("POSTGRES_PASSWORD"),
+            )
             try:
                 with db.transaction() as c:
                     c.execute(f"DROP TABLE {table_name};")

@@ -1,3 +1,4 @@
+import os
 from abc import ABC, abstractmethod
 from timeit import timeit
 from unittest.case import TestCase
@@ -150,7 +151,13 @@ class TestPopoAggregateRecorder(AggregateRecorderTestCase):
 
 class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
     def setUp(self) -> None:
-        recorder = PostgresAggregateRecorder()
+        recorder = PostgresAggregateRecorder(
+            "",
+            os.getenv("POSTGRES_DBNAME", "eventsourcing"),
+            os.getenv("POSTGRES_HOST", "127.0.0.1"),
+            os.getenv("POSTGRES_USER", "eventsourcing"),
+            os.getenv("POSTGRES_PASSWORD", "eventsourcing"),
+        )
         try:
             with recorder.db.transaction() as c:
                 c.execute("DROP TABLE stored_events;")
@@ -158,7 +165,13 @@ class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
             pass
 
     def create_recorder(self):
-        recorder = PostgresAggregateRecorder()
+        recorder = PostgresAggregateRecorder(
+            "",
+            os.getenv("POSTGRES_DBNAME", "eventsourcing"),
+            os.getenv("POSTGRES_HOST", "127.0.0.1"),
+            os.getenv("POSTGRES_USER", "eventsourcing"),
+            os.getenv("POSTGRES_PASSWORD", "eventsourcing"),
+        )
         recorder.create_table()
         return recorder
 

@@ -1,6 +1,5 @@
 import threading
 from threading import Thread
-from time import sleep
 from unittest.case import TestCase
 
 from eventsourcing.bankaccounts import BankAccounts

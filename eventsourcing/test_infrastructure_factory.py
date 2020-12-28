@@ -41,7 +41,6 @@ class InfrastructureFactoryTestCase(TestCase):
         self.transcoder.register(DatetimeAsISO())
 
     def tearDown(self) -> None:
-        # self.factory = None
 
         for key in [
             InfrastructureFactory.TOPIC,
@@ -53,6 +52,8 @@ class InfrastructureFactoryTestCase(TestCase):
                 del os.environ[key]
             except KeyError:
                 pass
+
+        self.factory = None
 
     def test_create_mapper(self):
 
@@ -213,9 +214,14 @@ class TestSQLiteInfrastructureFactory(
             InfrastructureFactory.TOPIC
         ] = get_topic(SQLiteInfrastructureFactory)
         os.environ[
-            SQLiteInfrastructureFactory.DB_URI
+            SQLiteInfrastructureFactory.SQLITE_DBNAME
         ] = ":memory:"
         super().setUp()
+
+    def tearDown(self) -> None:
+        super().tearDown()
+        del os.environ[SQLiteInfrastructureFactory.SQLITE_DBNAME]
+
 
 
 class TestPostgresInfrastructureFactory(
@@ -225,9 +231,16 @@ class TestPostgresInfrastructureFactory(
         os.environ[
             InfrastructureFactory.TOPIC
         ] = get_topic(PostgresInfrastructureFactory)
-        # os.environ[
-        #     PostgresInfrastructureFactory.DB_URI
-        # ] = ":memory:"
+
+        if "POSTGRES_DBNAME" not in os.environ:
+            os.environ["POSTGRES_DBNAME"] = "eventsourcing"
+        if "POSTGRES_HOST" not in os.environ:
+            os.environ["POSTGRES_HOST"] = "127.0.0.1"
+        if "POSTGRES_USER" not in os.environ:
+            os.environ["POSTGRES_USER"] = "eventsourcing"
+        if "POSTGRES_PASSWORD" not in os.environ:
+            os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
+
         super().setUp()
 
 

@@ -27,7 +27,11 @@ psycopg2.extras.register_uuid()
 
 
 class PostgresDatabase:
-    def __init__(self):
+    def __init__(self, dbname, host, user, password):
+        self.dbname = dbname
+        self.host = host
+        self.user = user
+        self.password = password
         self.connections = {}
 
     def get_connection(self) -> connection:
@@ -41,18 +45,11 @@ class PostgresDatabase:
 
     def create_connection(self) -> connection:
         # Make a connection to a Postgres database.
-        dbname = os.getenv("POSTGRES_DBNAME", "eventsourcing")
-        host = os.getenv("POSTGRES_HOST", "127.0.0.1")
-        user = os.getenv("POSTGRES_USER", "eventsourcing")
-        password = os.getenv(
-            "POSTGRES_PASSWORD", "eventsourcing"
-        )
-
         c = psycopg2.connect(
-            dbname=dbname,
-            host=host,
-            user=user,
-            password=password,
+            dbname=self.dbname,
+            host=self.host,
+            user=self.user,
+            password=self.password,
         )
         return c
 
@@ -82,10 +79,14 @@ class PostgresDatabase:
 class PostgresAggregateRecorder(AggregateRecorder):
     def __init__(
         self,
-        application_name: str = "",
+        application_name: str,
+        db_name: str,
+        host: str,
+        user: str,
+        password: str
     ):
         self.application_name = application_name
-        self.db = PostgresDatabase()
+        self.db = PostgresDatabase(db_name, host, user, password)
         self.events_table = (
             application_name.lower() + "events"
         )
@@ -186,15 +187,15 @@ class PostgresAggregateRecorder(AggregateRecorder):
 
 
 class PostgresApplicationRecorder(
-    ApplicationRecorder,
     PostgresAggregateRecorder,
+    ApplicationRecorder,
 ):
     def _create_table(self, c: cursor):
         super()._create_table(c)
         statement = (
             f"ALTER TABLE {self.events_table} "
             "ADD COLUMN IF NOT EXISTS "
-            f"rowid SERIAL"
+            f"notification_id SERIAL"
         )
         try:
             c.execute(statement)
@@ -202,8 +203,8 @@ class PostgresApplicationRecorder(
             raise self.OperationalError(e)
 
         statement = (
-            "CREATE UNIQUE INDEX IF NOT EXISTS rowid_idx "
-            f"ON {self.events_table} (rowid ASC);"
+            "CREATE UNIQUE INDEX IF NOT EXISTS notification_id_idx "
+            f"ON {self.events_table} (notification_id ASC);"
         )
         try:
             c.execute(statement)
@@ -220,8 +221,8 @@ class PostgresApplicationRecorder(
         statement = (
             "SELECT * "
             f"FROM {self.events_table} "
-            "WHERE rowid>=%s "
-            "ORDER BY rowid "
+            "WHERE notification_id>=%s "
+            "ORDER BY notification_id "
             "LIMIT %s"
         )
         params = [start, limit]
@@ -231,7 +232,7 @@ class PostgresApplicationRecorder(
             for row in c.fetchall():
                 notifications.append(
                     Notification(  # type: ignore
-                        id=row["rowid"],
+                        id=row["notification_id"],
                         originator_id=row["originator_id"],
                         originator_version=row[
                             "originator_version"
@@ -248,7 +249,7 @@ class PostgresApplicationRecorder(
         """
         c = self.db.get_connection().cursor()
         statement = (
-            f"SELECT MAX(rowid) FROM {self.events_table}"
+            f"SELECT MAX(notification_id) FROM {self.events_table}"
         )
         c.execute(statement)
         return c.fetchone()[0] or 0
@@ -260,9 +261,13 @@ class PostgresProcessRecorder(
 ):
     def __init__(
         self,
-        application_name: str = "",
+        application_name: str,
+        db_name: str,
+        host: str,
+        user: str,
+        password: str
     ):
-        super().__init__(application_name)
+        super().__init__(application_name, db_name, host, user, password)
         self.tracking_table = (
             self.application_name.lower() + "tracking"
         )
@@ -321,14 +326,54 @@ class PostgresProcessRecorder(
 
 class PostgresInfrastructureFactory(InfrastructureFactory):
     DO_CREATE_TABLE = "DO_CREATE_TABLE"
+    POSTGRES_DBNAME = "POSTGRES_DBNAME"
+    POSTGRES_HOST = "POSTGRES_HOST"
+    POSTGRES_USER = "POSTGRES_USER"
+    POSTGRES_PASSWORD = "POSTGRES_PASSWORD"
 
     def __init__(self, application_name):
         super().__init__(application_name)
         self.lock = Lock()
 
+        self.db_name = self.getenv(self.POSTGRES_DBNAME)
+        if not self.db_name:
+            raise EnvironmentError(
+                "Postgres database name not found "
+                "in environment with key "
+                f"'{self.POSTGRES_DBNAME}'"
+            )
+
+        self.host = self.getenv(self.POSTGRES_HOST)
+        if not self.host:
+            raise EnvironmentError(
+                "Postgres host not found "
+                "in environment with key "
+                f"'{self.POSTGRES_HOST}'"
+            )
+
+        self.user = self.getenv(self.POSTGRES_USER)
+        if not self.user:
+            raise EnvironmentError(
+                "Postgres user not found "
+                "in environment with key "
+                f"'{self.POSTGRES_USER}'"
+            )
+
+        self.password = self.getenv(self.POSTGRES_PASSWORD)
+        if not self.password:
+            raise EnvironmentError(
+                "Postgres password not found "
+                "in environment with key "
+                f"'{self.POSTGRES_PASSWORD}'"
+            )
+
     def aggregate_recorder(self) -> AggregateRecorder:
         recorder = PostgresAggregateRecorder(
-            self.application_name
+            self.application_name,
+            self.db_name,
+            self.host,
+            self.user,
+            self.password
         )
         if self.do_create_table():
             recorder.create_table()
@@ -336,7 +381,11 @@ class PostgresInfrastructureFactory(InfrastructureFactory):
 
     def application_recorder(self) -> ApplicationRecorder:
         recorder = PostgresApplicationRecorder(
-            self.application_name
+            self.application_name,
+            self.db_name,
+            self.host,
+            self.user,
+            self.password
         )
         if self.do_create_table():
             recorder.create_table()
@@ -344,7 +393,11 @@ class PostgresInfrastructureFactory(InfrastructureFactory):
 
     def process_recorder(self) -> ProcessRecorder:
         recorder = PostgresProcessRecorder(
-            self.application_name
+            self.application_name,
+            self.db_name,
+            self.host,
+            self.user,
+            self.password
         )
         if self.do_create_table():
             recorder.create_table()

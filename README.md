@@ -261,7 +261,7 @@ os.environ['COMPRESSOR_TOPIC'] = "zlib"
 os.environ['INFRASTRUCTURE_FACTORY_TOPIC'] = (
     'eventsourcing.sqliterecorders:SQLiteInfrastructureFactory'
 )
-os.environ['DB_URI'] = ':memory:'  # Or path to a file on disk.
+os.environ['SQLITE_DBNAME'] = ':memory:'  # Or path to a file on disk.
 os.environ['DO_CREATE_TABLE'] = 'y'
 ```
 

@@ -1,3 +1,4 @@
+import os
 import traceback
 from abc import ABC, abstractmethod
 from concurrent.futures.thread import ThreadPoolExecutor
@@ -190,7 +191,13 @@ class TestPostgresApplicationRecorder(
     ApplicationRecorderTestCase
 ):
     def setUp(self) -> None:
-        recorder = PostgresApplicationRecorder()
+        recorder = PostgresApplicationRecorder(
+            "",
+            os.getenv("POSTGRES_DBNAME", "eventsourcing"),
+            os.getenv("POSTGRES_HOST", "127.0.0.1"),
+            os.getenv("POSTGRES_USER", "eventsourcing"),
+            os.getenv("POSTGRES_PASSWORD", "eventsourcing"),
+        )
         try:
             with recorder.db.transaction() as c:
                 c.execute("DROP TABLE events;")
@@ -198,7 +205,13 @@ class TestPostgresApplicationRecorder(
             pass
 
     def create_recorder(self):
-        recorder = PostgresApplicationRecorder()
+        recorder = PostgresApplicationRecorder(
+            "",
+            os.getenv("POSTGRES_DBNAME", "eventsourcing"),
+            os.getenv("POSTGRES_HOST", "127.0.0.1"),
+            os.getenv("POSTGRES_USER", "eventsourcing"),
+            os.getenv("POSTGRES_PASSWORD", "eventsourcing"),
+        )
         recorder.create_table()
         return recorder
 

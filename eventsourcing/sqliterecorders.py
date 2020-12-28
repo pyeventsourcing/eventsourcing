@@ -21,8 +21,8 @@ from eventsourcing.tracking import Tracking
 
 
 class SQLiteDatabase:
-    def __init__(self, db_uri):
-        self.db_uri = db_uri
+    def __init__(self, db_name):
+        self.db_name = db_name
         self.connections = {}
 
     class Transaction:
@@ -58,7 +58,7 @@ class SQLiteDatabase:
     def create_connection(self) -> Connection:
         # Make a connection to an SQLite database.
         c = sqlite3.connect(
-            database=self.db_uri,
+            database=self.db_name,
             uri=True,
             check_same_thread=False,
             isolation_level=None,  # Auto-commit mode.
@@ -93,7 +93,8 @@ class SQLiteAggregateRecorder(AggregateRecorder):
             "topic TEXT, "
             "state BLOB, "
             "PRIMARY KEY "
-            "(originator_id, originator_version))"
+            "(originator_id, originator_version)) "
+            "WITHOUT ROWID"
         )
         try:
             c.execute(statement)
@@ -176,9 +177,26 @@ class SQLiteAggregateRecorder(AggregateRecorder):
 
 
 class SQLiteApplicationRecorder(
-    ApplicationRecorder,
     SQLiteAggregateRecorder,
+    ApplicationRecorder,
 ):
+
+    def _create_table(self, c: Connection):
+        statement = (
+            "CREATE TABLE IF NOT EXISTS "
+            f"{self.table_name} ("
+            "originator_id TEXT, "
+            "originator_version INTEGER, "
+            "topic TEXT, "
+            "state BLOB, "
+            "PRIMARY KEY "
+            "(originator_id, originator_version))"
+        )
+        try:
+            c.execute(statement)
+        except sqlite3.OperationalError as e:
+            raise self.OperationalError(e)
+
     def select_notifications(
         self, start: int, limit: int
     ) -> List[Notification]:
@@ -227,8 +245,8 @@ class SQLiteApplicationRecorder(
 
 
 class SQLiteProcessRecorder(
-    ProcessRecorder,
     SQLiteApplicationRecorder,
+    ProcessRecorder,
 ):
     def _create_table(self, c: Connection):
         super()._create_table(c)
@@ -237,7 +255,8 @@ class SQLiteProcessRecorder(
             "application_name text, "
             "notification_id int, "
             "PRIMARY KEY "
-            "(application_name, notification_id))"
+            "(application_name, notification_id)) "
+            "WITHOUT ROWID"
         )
         c.execute(statement)
 
@@ -281,29 +300,21 @@ class SQLiteProcessRecorder(
 
 
 class SQLiteInfrastructureFactory(InfrastructureFactory):
-    DB_URI = "DB_URI"
+    SQLITE_DBNAME = "SQLITE_DBNAME"
     DO_CREATE_TABLE = "DO_CREATE_TABLE"
 
     def __init__(self, application_name):
         super().__init__(application_name)
-        self._database = None
-        self.lock = Lock()
-
-    @property
-    def database(self):
-        with self.lock:
-            if self._database is None:
-                db_uri = self.getenv(self.DB_URI)
-                if not db_uri:
-                    raise EnvironmentError(
-                        "Database URI not found "
-                        "in environment with key "
-                        f"'{self.DB_URI}'"
-                    )
-                self._database = SQLiteDatabase(
-                    db_uri=db_uri
-                )
-            return self._database
+        db_name = self.getenv(self.SQLITE_DBNAME)
+        if not db_name:
+            raise EnvironmentError(
+                "SQLite database name not found "
+                "in environment with key "
+                f"'{self.SQLITE_DBNAME}'"
+            )
+        self.database = SQLiteDatabase(
+            db_name=db_name
+        )
 
     def aggregate_recorder(self) -> AggregateRecorder:
         recorder = SQLiteAggregateRecorder(
