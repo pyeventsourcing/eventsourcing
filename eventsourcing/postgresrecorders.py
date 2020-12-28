@@ -333,10 +333,8 @@ class PostgresInfrastructureFactory(InfrastructureFactory):
 
     def __init__(self, application_name):
         super().__init__(application_name)
-        self.lock = Lock()
-
         self.db_name = self.getenv(self.POSTGRES_DBNAME)
-        if not self.db_name:
+        if self.db_name is None:
             raise EnvironmentError(
                 "Postgres database name not found "
                 "in environment with key "
@@ -344,7 +342,7 @@ class PostgresInfrastructureFactory(InfrastructureFactory):
             )
 
         self.host = self.getenv(self.POSTGRES_HOST)
-        if not self.host:
+        if self.host is None:
             raise EnvironmentError(
                 "Postgres host not found "
                 "in environment with key "
@@ -352,7 +350,7 @@ class PostgresInfrastructureFactory(InfrastructureFactory):
             )
 
         self.user = self.getenv(self.POSTGRES_USER)
-        if not self.user:
+        if self.user is None:
             raise EnvironmentError(
                 "Postgres user not found "
                 "in environment with key "
@@ -360,7 +358,7 @@ class PostgresInfrastructureFactory(InfrastructureFactory):
             )
 
         self.password = self.getenv(self.POSTGRES_PASSWORD)
-        if not self.password:
+        if self.password is None:
             raise EnvironmentError(
                 "Postgres password not found "
                 "in environment with key "
