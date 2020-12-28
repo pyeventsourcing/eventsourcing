@@ -60,7 +60,7 @@ or horizontally scaled application doesn't become inconsistent due to concurrent
 method execution. Leverages optimistic concurrency controls in adapted database
 management systems.
 
-**Notification log and reader** — reliable propagation of application
+**Notification logs and reader** — reliable propagation of application
 state. Pull-based event notifications allows the application state to
 be projected accurately into replicas, indexes, view models, and other
 applications.
@@ -68,9 +68,9 @@ applications.
 **Snapshotting** — avoids replaying an entire event stream to
 obtain the state of an entity.
 
-**Process and systems** — reliable event-driven systems defined independently
-of particular infrastructure. Runnable with a single thread, multiple threads,
-or across a network.
+**Process and systems** — reliable event-driven systems can be defined
+independently of particular infrastructure. Systems can be run with a
+single thread, multiple threads, or across a network.
 
 **Worked examples** — library includes a collection of example applications and systems.
 
