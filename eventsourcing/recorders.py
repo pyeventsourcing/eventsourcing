@@ -6,12 +6,16 @@ from eventsourcing.notification import Notification
 from eventsourcing.storedevent import StoredEvent
 
 
-class Recorder(ABC):
-    class OperationalError(Exception):
-        pass
+class OperationalError(Exception):
+    pass
 
-    class IntegrityError(Exception):
-        pass
+
+class RecordConflictError(Exception):
+    pass
+
+
+class Recorder(ABC):
+    pass
 
 
 class AggregateRecorder(Recorder):

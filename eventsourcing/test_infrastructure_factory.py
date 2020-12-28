@@ -4,8 +4,8 @@ from datetime import datetime
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.aes import AESCipher, random_bytes
-from eventsourcing.aggregate import get_topic
+from eventsourcing.aes import AESCipher
+from eventsourcing.utils import get_topic
 from eventsourcing.domainevent import DomainEvent
 from eventsourcing.eventmapper import (
     DatetimeAsISO,
@@ -112,9 +112,7 @@ class InfrastructureFactoryTestCase(TestCase):
         with self.assertRaises(EnvironmentError):
             self.factory.mapper(transcoder=self.transcoder)
 
-        cipher_key = b64encode(random_bytes(16)).decode(
-            "utf8"
-        )
+        cipher_key = AESCipher.create_key(16)
         os.environ[self.factory.CIPHER_KEY] = cipher_key
 
         # Create mapper with cipher.
@@ -135,9 +133,7 @@ class InfrastructureFactoryTestCase(TestCase):
         os.environ[self.factory.CIPHER_TOPIC] = get_topic(
             AESCipher
         )
-        cipher_key = b64encode(random_bytes(16)).decode(
-            "utf8"
-        )
+        cipher_key = AESCipher.create_key(16)
         os.environ[self.factory.CIPHER_KEY] = cipher_key
 
         mapper = self.factory.mapper(
@@ -151,12 +147,8 @@ class InfrastructureFactoryTestCase(TestCase):
         os.environ[self.factory.CIPHER_TOPIC] = get_topic(
             AESCipher
         )
-        cipher_key1 = b64encode(random_bytes(16)).decode(
-            "utf8"
-        )
-        cipher_key2 = b64encode(random_bytes(16)).decode(
-            "utf8"
-        )
+        cipher_key1 = AESCipher.create_key(16)
+        cipher_key2 = AESCipher.create_key(16)
         os.environ[
             "APP1_" + self.factory.CIPHER_KEY
         ] = cipher_key1

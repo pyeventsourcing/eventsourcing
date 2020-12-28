@@ -25,7 +25,7 @@ class TestMapper(TestCase):
         transcoder.register(DatetimeAsISO())
 
         # Construct cipher.
-        cipher = AESCipher(cipher_key=b"0123456789abcdef")
+        cipher = AESCipher(cipher_key=AESCipher.create_key(16))
 
         # Construct mapper with cipher.
         mapper = Mapper(

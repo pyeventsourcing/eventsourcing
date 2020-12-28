@@ -1,5 +1,5 @@
 from decimal import Decimal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from eventsourcing.aggregate import Aggregate
 
@@ -37,6 +37,7 @@ class BankAccount(Aggregate):
     ) -> "BankAccount":
         return super()._create_(
             cls.Opened,
+            id=uuid4(),
             full_name=full_name,
             email_address=email_address,
         )

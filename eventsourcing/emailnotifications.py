@@ -1,4 +1,5 @@
 from functools import singledispatchmethod
+from uuid import uuid4
 
 from eventsourcing.aggregate import (
     Aggregate,
@@ -21,6 +22,7 @@ class EmailNotification(Aggregate):
     def create(cls, to, subject, message):
         return super()._create_(
             cls.Created,
+            id=uuid4(),
             to=to,
             subject=subject,
             message=message,

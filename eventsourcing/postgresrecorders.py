@@ -18,6 +18,7 @@ from eventsourcing.recorders import (
     ApplicationRecorder,
     AggregateRecorder,
     ProcessRecorder,
+    RecordConflictError,
 )
 from eventsourcing.storedevent import StoredEvent
 from eventsourcing.tracking import Tracking
@@ -136,7 +137,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         try:
             c.executemany(statement, params)
         except psycopg2.IntegrityError as e:
-            raise self.IntegrityError(e)
+            raise RecordConflictError(e)
 
     def select_events(
         self,
@@ -315,11 +316,11 @@ class PostgresProcessRecorder(
                     ),
                 )
             except psycopg2.IntegrityError as e:
-                raise self.IntegrityError(e)
+                raise RecordConflictError(e)
 
 
 class PostgresInfrastructureFactory(InfrastructureFactory):
-    CREATE_TABLE = "CREATE_TABLE"
+    DO_CREATE_TABLE = "DO_CREATE_TABLE"
 
     def __init__(self, application_name):
         super().__init__(application_name)
@@ -353,7 +354,7 @@ class PostgresInfrastructureFactory(InfrastructureFactory):
         default = "no"
         return bool(
             strtobool(
-                self.getenv(self.CREATE_TABLE, default)
+                self.getenv(self.DO_CREATE_TABLE, default)
                 or default
             )
         )

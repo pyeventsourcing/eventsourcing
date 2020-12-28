@@ -9,7 +9,7 @@ from psycopg2.errorcodes import UNDEFINED_TABLE
 from eventsourcing.poporecorders import POPOProcessRecorder
 from eventsourcing.postgresrecorders import PostgresProcessRecorder
 from eventsourcing.tracking import Tracking
-from eventsourcing.recorders import ProcessRecorder
+from eventsourcing.recorders import RecordConflictError
 from eventsourcing.sqliterecorders import (
     SQLiteDatabase,
     SQLiteProcessRecorder,
@@ -78,7 +78,7 @@ class ProcessRecordsTestCase(TestCase, ABC):
         )
 
         with self.assertRaises(
-            ProcessRecorder.IntegrityError
+            RecordConflictError
         ):
             recorder.insert_events(
                 stored_events=[stored_event3],

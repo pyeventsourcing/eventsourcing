@@ -1,9 +1,8 @@
 import os
 from abc import ABC, abstractmethod
-from base64 import b64decode
 from distutils.util import strtobool
 
-from eventsourcing.aggregate import resolve_topic
+from eventsourcing.utils import resolve_topic
 from eventsourcing.eventmapper import AbstractTranscoder, Mapper
 from eventsourcing.eventstore import EventStore
 from eventsourcing.recorders import (
@@ -25,7 +24,7 @@ class InfrastructureFactory(ABC):
     def construct(cls, name) -> "InfrastructureFactory":
         topic = os.getenv(
             cls.TOPIC,
-            "eventsourcing.poporecorders#POPOInfrastructureFactory",
+            "eventsourcing.poporecorders:POPOInfrastructureFactory",
         )
         try:
             factory_cls = resolve_topic(topic)
@@ -80,9 +79,6 @@ class InfrastructureFactory(ABC):
         compressor = None
         if cipher_topic:
             if cipher_key:
-                cipher_key = b64decode(
-                    cipher_key.encode("utf8")
-                )
                 cipher_cls = resolve_topic(cipher_topic)
                 cipher = cipher_cls(cipher_key=cipher_key)
             else:

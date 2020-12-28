@@ -22,7 +22,7 @@ class Repository:
         self.snapshot_store = snapshot_store
 
     def get(
-        self, aggregate_id: UUID, version: int = None
+        self, aggregate_id: UUID, at: int = None
     ) -> Aggregate:
 
         gt = None
@@ -36,7 +36,7 @@ class Repository:
                 originator_id=aggregate_id,
                 desc=True,
                 limit=1,
-                lte=version,
+                lte=at,
             )
             try:
                 snapshot = next(snapshots)
@@ -49,7 +49,7 @@ class Repository:
         domain_events += self.event_store.get(
             originator_id=aggregate_id,
             gt=gt,
-            lte=version,
+            lte=at,
         )
 
         # Project the domain events.
@@ -59,7 +59,7 @@ class Repository:
 
         # Raise exception if not found.
         if aggregate is None:
-            raise AggregateNotFoundError
+            raise AggregateNotFoundError((aggregate_id, at))
 
         # Return the aggregate.
         assert isinstance(aggregate, Aggregate)

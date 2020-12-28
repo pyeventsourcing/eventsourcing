@@ -5,6 +5,7 @@ from eventsourcing.aggregate import BankAccount
 from eventsourcing.application import (
     Application,
 )
+from eventsourcing.repository import AggregateNotFoundError
 
 
 class BankAccounts(Application):
@@ -30,7 +31,7 @@ class BankAccounts(Application):
     def get_account(self, account_id: UUID) -> BankAccount:
         try:
             aggregate = self.repository.get(account_id)
-        except self.repository.AggregateNotFoundError:
+        except AggregateNotFoundError:
             raise self.AccountNotFoundError(account_id)
         else:
             if not isinstance(aggregate, BankAccount):

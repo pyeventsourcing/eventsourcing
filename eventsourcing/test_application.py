@@ -1,6 +1,7 @@
 import os
 from decimal import Decimal
 from unittest.case import TestCase
+from uuid import uuid4
 
 from eventsourcing.aggregate import BankAccount
 from eventsourcing.bankaccounts import (
@@ -24,6 +25,10 @@ class TestApplication(TestCase):
 
     def test(self):
         app = BankAccounts()
+
+        # Check AccountNotFound exception.
+        with self.assertRaises(BankAccounts.AccountNotFoundError):
+            app.get_account(uuid4())
 
         # Open an account.
         account_id = app.open_account(
@@ -49,7 +54,7 @@ class TestApplication(TestCase):
         app.take_snapshot(account_id, version=2)
 
         from_snapshot = app.repository.get(
-            account_id, version=3
+            account_id, at=3
         )
         self.assertIsInstance(from_snapshot, BankAccount)
         self.assertEqual(from_snapshot.version, 3)

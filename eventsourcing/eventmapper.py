@@ -6,10 +6,7 @@ from decimal import Decimal
 from typing import Any, Dict, Generic, Union, cast
 from uuid import UUID
 
-from eventsourcing.aggregate import (
-    get_topic,
-    resolve_topic,
-)
+from eventsourcing.utils import get_topic, resolve_topic
 from eventsourcing.domainevent import DomainEvent, TDomainEvent
 from eventsourcing.storedevent import StoredEvent
 

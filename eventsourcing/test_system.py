@@ -1,6 +1,6 @@
 from unittest.case import TestCase
 
-from eventsourcing.aggregate import get_topic
+from eventsourcing.utils import get_topic
 from eventsourcing.bankaccounts import (
     BankAccounts,
 )

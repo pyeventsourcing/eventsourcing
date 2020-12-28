@@ -14,7 +14,7 @@ from eventsourcing.tracking import Tracking
 from eventsourcing.recorders import (
     AggregateRecorder,
     ApplicationRecorder,
-    ProcessRecorder,
+    ProcessRecorder, RecordConflictError,
 )
 from eventsourcing.storedevent import StoredEvent
 from eventsourcing.infrastructurefactory import (
@@ -49,7 +49,7 @@ class POPOAggregateRecorder(AggregateRecorder):
                     s.originator_id
                 ]
             ):
-                raise self.IntegrityError
+                raise RecordConflictError
 
     def update_table(
         self, stored_events: List[StoredEvent], **kwargs
@@ -139,7 +139,7 @@ class POPOProcessRecorder(
                 tracking.application_name, 0
             )
             if tracking.notification_id <= last:
-                raise self.IntegrityError
+                raise RecordConflictError
 
     def update_table(
         self, stored_events: List[StoredEvent], **kwargs

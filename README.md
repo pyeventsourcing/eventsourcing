@@ -1,5 +1,3 @@
-# Event Sourcing in Python
-
 [![Latest Release](https://badge.fury.io/py/eventsourcing.svg)](https://pypi.org/project/eventsourcing/)
 [![Build Status](https://travis-ci.org/johnbywater/eventsourcing.svg?branch=master)](https://travis-ci.org/johnbywater/eventsourcing)
 [![Coverage Status](https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg?branch=master)](https://coveralls.io/github/johnbywater/eventsourcing)
@@ -24,129 +22,124 @@ for this project, which you are [welcome to join](https://join.slack.com/t/event
 
 ## Features
 
-**Event store** — appends and retrieves domain events. Uses a
-sequenced item mapper with a record manager to map domain events
-to database records in ways that can be easily extended and replaced.
+**Domain model and application classes** — base classes for event sourced
+domain models and applications. Applications can be developed that are
+independent of any particular infrastructure.
 
-**Layer base classes** — suggest how to structure an event sourced application.
-The library has base classes for application objects, domain entities, entity repositories,
-domain events of various types, mapping strategies, snapshotting strategies, cipher strategies,
-etc. They are well factored, relatively simple, and can be easily extended for your own
-purposes. If you wanted to create a domain model that is entirely stand-alone (recommended by
-purists for maximum longevity), you might start by replicating the library classes.
+**Event mapper with extensible transcoder** — extensible convertion of
+domain events with custom value objects to standard stored event
+objects. Individual transcodings for custom value objects can be
+defined and registered.
 
-**Notifications and projections** — reliable propagation of application
-events with pull-based notifications allows the application state to be
-projected accurately into replicas, indexes, view models, and other applications.
+**Event recorders** — inserts and selects stored event objects in a data
+store. Uses a standard interface defined in an abstract base class, allowing
+database management systems to be easily adapted. Recorders for SQLite and
+PostgreSQL recorders are included. A fast "plain old Python object" recorder
+is also included that supports rapid application development. Recorders
+for other database management systems, including cloud-native databases,
+are available.
 
-**Process and systems** — scalable event processing with application pipelines. Runnable
-with single thread, multiprocessing on a single machine, and in a cluster of machines
-using the actor model. Parallel pipelines are synchronised with causal dependencies.
-
-
-### Additional features
-
-**Versioning** - allows model changes to be introduced after an application
-has been deployed. Both domain events and domain entity classes can be versioned.
-The recorded state of an older version can be upcast to be compatible with a new
-version. Stored events and snapshots are upcast from older versions
-to new versions before the event or entity object is reconstructed.
-
-**Snapshotting** — avoids replaying an entire event stream to
-obtain the state of an entity. A snapshot strategy is included which reuses
-the capabilities of this library by implementing snapshots as events.
-
-**Hash chaining** — Sequences of events can be hash-chained, and the entire sequence
-of events checked for data integrity. Information lost in transit or on the disk from
-database corruption can be detected. If the last hash can be independently validated,
-then so can the entire sequence.
-
-**Correlation and causation IDs** - Domain events can easily be given correlation and
-causation IDs, which allows a story to be traced through a system of applications.
-
-**Compression** - reduces the size of stored domain events and snapshots, usually
-by around 25% to 50% of the original size. Compression reduces the size of data
-in the database and decreases transit time across a network.
+**Generic event store** — stores and retrieves domain model event objects in a
+database management system using extensible event mapper and custom event recorders.
 
 **Application-level encryption** — encrypts and decrypts stored events and snapshots,
-using a cipher strategy passed as an option to the sequenced item mapper. Can be used
+using a cipher strategy passed as an option to the event mapper. Can be used
 to encrypt some events, or all events, or not applied at all (the default). This means
 data will be encrypted in transit across a network ("on the wire") and at disk level
 including backups ("at rest"), which is a legal requirement in some jurisdictions
 when dealing with personally identifiable information (PII) for example the EU's GDPR.
 
-**Optimistic concurrency control** — ensures a distributed or horizontally scaled
-application doesn't become inconsistent due to concurrent method execution. Leverages
-optimistic concurrency controls in adapted database management systems.
+**Compression** - compresses and decompresses stored events and snapshots, using
+a compression strategy passed as an option to the event mapper. Reduces the size
+of stored events and snapshots, usually by around 25% to 50% of the original size.
+Compression reduces the size of data in the database and decreases transit time
+across a network.
 
-**Worked examples** — simple example application and systems, with an example entity
-class, example domain events, and an example database table. Plus lots of examples
-in the documentation.
+**Optimistic concurrency control** — ensures the recorded state of a distributed
+or horizontally scaled application doesn't become inconsistent due to concurrent
+method execution. Leverages optimistic concurrency controls in adapted database
+management systems.
+
+**Notification log and reader** — reliable propagation of application
+state. Pull-based event notifications allows the application state to
+be projected accurately into replicas, indexes, view models, and other
+applications.
+
+**Snapshotting** — avoids replaying an entire event stream to
+obtain the state of an entity.
+
+**Process and systems** — reliable event-driven systems defined independently
+of particular infrastructure. Runnable with a single thread, multiple threads,
+or across a network.
+
+**Worked examples** — library includes a collection of example applications and systems.
+
 
 
 ## Synopsis
 
-Define a domain model. Here we define a model with one aggregate root
-class called "World", which has a command method called "make_it_so" that
-triggers a domain event called "SomethingHappened", which mutates the
-aggregate by appending the "what" of the domain event to the "history"
-of the world.
+Define a domain model. Here we define a model with an aggregate
+called "World", which has a command method called "make_it_so", that
+triggers a domain event called "SomethingHappened", which applies the
+event to the aggregate by appending the "what" of the domain event to
+the "history" of the world.
 
 ```python
-from eventsourcing.domain.model.aggregate import AggregateRoot
+
+from uuid import uuid4
+
+from eventsourcing.aggregate import Aggregate
 
 
-class World(AggregateRoot):
+class World(Aggregate):
 
     def __init__(self, **kwargs):
         super(World, self).__init__(**kwargs)
         self.history = []
 
+    @classmethod
+    def create(self):
+        return self._create_(World.Created, id=uuid4())
+
     def make_it_so(self, something):
-        self.__trigger_event__(World.SomethingHappened, what=something)
+        self._trigger_(World.SomethingHappened, what=something)
 
-    class SomethingHappened(AggregateRoot.Event):
-        def mutate(self, aggregate):
+    class SomethingHappened(Aggregate.Event):
+        what: str
+
+        def apply(self, aggregate):
             aggregate.history.append(self.what)
+
+    def discard(self):
+        self._trigger_(self.Discarded)
+
+    class Discarded(Aggregate.Event):
+        def mutate(self, obj):
+            super().mutate(obj)
+            return None
+
 ```
 
-Generate a cipher key (optional).
+Define a test that exercises the domain model with an application.
 
 ```python
-from eventsourcing.utils.random import encoded_random_bytes
+from eventsourcing.application import Application
+from eventsourcing.notificationlogreader import NotificationLogReader
+from eventsourcing.repository import AggregateNotFoundError
 
-# Keep this safe.
-cipher_key = encoded_random_bytes(num_bytes=32)
-```
 
-Configure environment variables (optional).
+def test(app: Application):
 
-```python
-import os
+    # Create a new aggregate.
+    world = World.create()
 
-# Cipher key (random bytes encoded with Base64).
-os.environ['CIPHER_KEY'] = cipher_key
+    # Unsaved aggregate not yet in application repository.
+    try:
+        app.repository.get(world.id)
+    except AggregateNotFoundError:
+        pass
 
-# SQLAlchemy-style database connection string.
-os.environ['DB_URI'] = 'sqlite:///:memory:'
-```
-
-Run the code. Construct application and use as context manager.
-
-```python
-from eventsourcing.application.notificationlog import NotificationLogReader
-from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
-from eventsourcing.exceptions import ConcurrencyError
-
-with SQLAlchemyApplication(persist_event_type=World.Event) as app:
-
-    # Create new aggregate.
-    world = World.__create__()
-
-    # Aggregate not yet in repository.
-    assert world.id not in app.repository
-
-    # Execute commands.
+    # Execute aggregate commands.
     world.make_it_so('dinosaurs')
     world.make_it_so('trucks')
 
@@ -155,22 +148,22 @@ with SQLAlchemyApplication(persist_event_type=World.Event) as app:
     assert world.history[1] == 'trucks'
 
     # Note version of object at this stage.
-    version = world.__version__
+    version = world.version
 
     # Execute another command.
     world.make_it_so('internet')
 
     # Store pending domain events.
-    world.__save__()
+    app.save(world)
 
     # Aggregate now exists in repository.
-    assert world.id in app.repository
+    assert app.repository.get(world.id)
 
     # Show the notification log has four items.
-    assert len(app.notification_log['current'].items) == 4
+    assert len(app.log['1,10'].items) == 4
 
     # Replay stored events for aggregate.
-    copy = app.repository[world.id]
+    copy = app.repository.get(world.id)
 
     # View retrieved aggregate.
     assert isinstance(copy, World)
@@ -178,88 +171,112 @@ with SQLAlchemyApplication(persist_event_type=World.Event) as app:
     assert copy.history[1] == 'trucks'
     assert copy.history[2] == 'internet'
 
-    # Verify retrieved state (cryptographically).
-    assert copy.__head__ == world.__head__
-
-    # Delete aggregate.
-    world.__discard__()
-    world.__save__()
+    # Discard aggregate.
+    world.discard()
+    app.save(world)
 
     # Discarded aggregate not found.
-    assert world.id not in app.repository
     try:
-        # Repository raises key error.
-        app.repository[world.id]
-    except KeyError:
+        app.repository.get(world.id)
+    except AggregateNotFoundError:
         pass
-    else:
-        raise Exception("Shouldn't get here")
 
     # Get historical state (at version from above).
-    old = app.repository.get_entity(world.id, at=version)
+    old = app.repository.get(world.id, at=version)
     assert old.history[-1] == 'trucks' # internet not happened
     assert len(old.history) == 2
 
     # Optimistic concurrency control (no branches).
+    from eventsourcing.recorders import RecordConflictError
+
     old.make_it_so('future')
     try:
-        old.__save__()
-    except ConcurrencyError:
+        app.save(old)
+    except RecordConflictError:
         pass
     else:
         raise Exception("Shouldn't get here")
 
-    # Check domain event data integrity (happens also during replay).
-    events = app.event_store.list_events(world.id)
-    last_hash = ''
-    for event in events:
-        event.__check_hash__()
-        assert event.__previous_hash__ == last_hash
-        last_hash = event.__event_hash__
-
-    # Verify stored sequence of events against known value.
-    assert last_hash == world.__head__
-
-    # Check records are encrypted (values not visible in database).
-    record_manager = app.event_store.record_manager
-    items = record_manager.get_items(world.id)
-    for item in items:
-        for what in [b'dinosaurs', b'trucks', b'internet']:
-            assert what not in item.state
-        assert world.id == item.originator_id
-
     # Project application event notifications.
-    reader = NotificationLogReader(app.notification_log)
-    notification_ids = [n['id'] for n in reader.read()]
+    reader = NotificationLogReader(app.log)
+    notification_ids = [n.id for n in reader.read(start=1)]
     assert notification_ids == [1, 2, 3, 4, 5]
 
     # - create two more aggregates
-    world = World.__create__()
-    world.__save__()
+    world2 = World.create()
+    app.save(world2)
 
-    world = World.__create__()
-    world.__save__()
+    world3 = World.create()
+    app.save(world3)
 
     # - get the new event notifications from the reader
-    notification_ids = [n['id'] for n in reader.read()]
+    notification_ids = [n.id for n in reader.read(start=6)]
     assert notification_ids == [6, 7]
 ```
 
-The double leading and trailing underscore naming style, seen above,
-is used consistently in the library's domain entity and event
-base classes for attribute and method names, so that developers can
-begin with a clean namespace. The intention is that the library
-functionality is included in the application by aliasing these library
-names with names that work within the project's ubiquitous language.
+Run the code during development. Uses default "Plain Old Python Object"
+infrastructure, with no encryption and no compression.
 
-This style breaks PEP8, but it seems worthwhile in order to keep the
-"normal" Python object namespace free for domain modelling. It is a style
-used by other libraries (such as SQLAlchemy and Django) for similar reasons.
+```python
 
-The exception is the ``id`` attribute of the domain entity base class,
-which is assumed to be required by all domain entities (or aggregates) in
-all domains.
+# Construct an application object.
+app = Application()
 
+# Run the test.
+test(app)
+
+# Records are not encrypted (values are visible in stored data).
+values = [b'dinosaurs', b'trucks', b'internet']
+def count_visible(app, values):
+    reader = NotificationLogReader(app.log)
+    count_visible_values = 0
+    for notification in reader.read(start=1):
+        for what in values:
+            if what in notification.state:
+                count_visible_values += 1
+                break
+    return count_visible_values
+
+assert count_visible(app, values) == 3
+```
+
+Configure environment variables for production.
+
+```python
+import os
+
+from eventsourcing.aes import AESCipher
+
+# Generate a cipher key (keep this safe).
+cipher_key = AESCipher.create_key(num_bytes=32)
+
+# Cipher key.
+os.environ['CIPHER_KEY'] = cipher_key
+# Cipher topic.
+os.environ['CIPHER_TOPIC'] = "eventsourcing.aes:AESCipher"
+# Compressor topic.
+os.environ['COMPRESSOR_TOPIC'] = "zlib"
+
+# Use SQLite infrastructure.
+os.environ['INFRASTRUCTURE_FACTORY_TOPIC'] = (
+    'eventsourcing.sqliterecorders:SQLiteInfrastructureFactory'
+)
+os.environ['DB_URI'] = ':memory:'
+os.environ['DO_CREATE_TABLE'] = 'y'
+```
+
+Run the code in production.
+
+```python
+# Construct an application object.
+app = Application()
+
+# Run the test.
+test(app)
+
+# Records are encrypted (values not visible in stored data).
+assert count_visible(app, values) == 0
+```
 
 ## Project
 

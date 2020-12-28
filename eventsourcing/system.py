@@ -9,7 +9,7 @@ from typing import (
     Type,
 )
 
-from eventsourcing.aggregate import get_topic, resolve_topic
+from eventsourcing.utils import get_topic, resolve_topic
 from eventsourcing.processapplication import (
     Follower,
     Leader,

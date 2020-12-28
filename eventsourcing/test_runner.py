@@ -6,7 +6,7 @@ from unittest.case import TestCase
 import psycopg2.errors
 from psycopg2.errorcodes import UNDEFINED_TABLE
 
-from eventsourcing.aggregate import get_topic
+from eventsourcing.utils import get_topic
 from eventsourcing.bankaccounts import (
     BankAccounts,
 )
@@ -93,14 +93,14 @@ class TestMultiThreadedRunnerWithSQLite(
         topic = get_topic(SQLiteInfrastructureFactory)
         os.environ["INFRASTRUCTURE_FACTORY_TOPIC"] = topic
         uris = tmpfile_uris()
-        os.environ["CREATE_TABLE"] = "y"
+        os.environ["DO_CREATE_TABLE"] = "y"
         os.environ["BANKACCOUNTS_DB_URI"] = next(uris)
         os.environ["EMAILNOTIFICATIONS_DB_URI"] = next(
             uris
         )
 
     def tearDown(self):
-        del os.environ["CREATE_TABLE"]
+        del os.environ["DO_CREATE_TABLE"]
         del os.environ["INFRASTRUCTURE_FACTORY_TOPIC"]
         del os.environ["BANKACCOUNTS_DB_URI"]
         del os.environ["EMAILNOTIFICATIONS_DB_URI"]
@@ -124,8 +124,8 @@ class TestMultiThreadedRunnerWithPostgres(
 
         topic = get_topic(PostgresInfrastructureFactory)
         os.environ["INFRASTRUCTURE_FACTORY_TOPIC"] = topic
-        os.environ["CREATE_TABLE"] = "y"
+        os.environ["DO_CREATE_TABLE"] = "y"
 
     def tearDown(self):
-        del os.environ["CREATE_TABLE"]
+        del os.environ["DO_CREATE_TABLE"]
         del os.environ["INFRASTRUCTURE_FACTORY_TOPIC"]

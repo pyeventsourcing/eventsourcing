@@ -9,9 +9,8 @@ from psycopg2.errorcodes import UNDEFINED_TABLE
 from eventsourcing.poporecorders import POPOAggregateRecorder
 from eventsourcing.postgresrecorders import (
     PostgresAggregateRecorder,
-    PostgresDatabase,
 )
-from eventsourcing.recorders import AggregateRecorder
+from eventsourcing.recorders import AggregateRecorder, RecordConflictError
 from eventsourcing.sqliterecorders import (
     SQLiteDatabase,
     SQLiteAggregateRecorder,
@@ -87,7 +86,7 @@ class AggregateRecorderTestCase(TestCase, ABC):
             recorder.insert_events(
                 [stored_event2, stored_event3]
             )
-        except AggregateRecorder.IntegrityError:
+        except RecordConflictError:
             pass
         else:
             self.fail("Integrity error not raised")

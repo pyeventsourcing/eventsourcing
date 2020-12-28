@@ -6,8 +6,8 @@ from uuid import uuid4
 from eventsourcing.aggregate import (
     Aggregate,
     BankAccount,
-    get_topic,
 )
+from eventsourcing.utils import get_topic
 from eventsourcing.sqliterecorders import (
     SQLiteDatabase,
     SQLiteAggregateRecorder,
@@ -112,26 +112,26 @@ class TestRepository(TestCase):
 
         # Check can get old version of account.
         copy4 = repository.get(
-            account.id, version=copy.version
+            account.id, at=copy.version
         )
         assert isinstance(copy4, BankAccount)
         assert copy4.balance == Decimal("65.00")
 
-        copy5 = repository.get(account.id, version=1)
+        copy5 = repository.get(account.id, at=1)
         assert isinstance(copy5, BankAccount)
         assert copy5.balance == Decimal("0.00")
 
-        copy6 = repository.get(account.id, version=2)
+        copy6 = repository.get(account.id, at=2)
         assert isinstance(copy6, BankAccount)
         assert copy6.balance == Decimal("10.00")
 
-        copy7 = repository.get(account.id, version=3)
+        copy7 = repository.get(account.id, at=3)
         assert isinstance(copy7, BankAccount)
         assert copy7.balance == Decimal(
             "35.00"
         ), copy7.balance
 
-        copy8 = repository.get(account.id, version=4)
+        copy8 = repository.get(account.id, at=4)
         assert isinstance(copy8, BankAccount)
         assert copy8.balance == Decimal(
             "65.00"

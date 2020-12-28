@@ -1,11 +1,10 @@
 import os
+from base64 import b64decode, b64encode
 
 from Crypto.Cipher import AES
 from Crypto.Cipher._mode_gcm import GcmMode
 
 
-def random_bytes(num_bytes: int) -> bytes:
-    return os.urandom(num_bytes)
 
 
 class AESCipher(object):
@@ -14,20 +13,32 @@ class AESCipher(object):
     library AES cipher in GCM mode.
     """
 
-    def __init__(self, cipher_key: bytes):
+    @staticmethod
+    def create_key(num_bytes: int) -> str:
+        return b64encode(
+            AESCipher.random_bytes(num_bytes)
+        ).decode("utf8")
+
+    @staticmethod
+    def random_bytes(num_bytes: int) -> bytes:
+        return os.urandom(num_bytes)
+
+    def __init__(self, cipher_key: str):
         """
         Initialises AES cipher with ``cipher_key``.
 
         :param cipher_key: 16, 24, or 32 random bytes
         """
-        assert len(cipher_key) in [16, 24, 32]
-        self.cipher_key = cipher_key
+        self.key = b64decode(
+            cipher_key.encode("utf8")
+        )
+        assert len(self.key) in [16, 24, 32], len(self.key)
 
     def encrypt(self, plaintext: bytes) -> bytes:
         """Return ciphertext for given plaintext."""
 
         # Construct AES-GCM cipher, with 96-bit nonce.
-        nonce = random_bytes(12)
+        nonce = AESCipher.random_bytes(12)
         cipher = self.construct_cipher(nonce)
 
         # Encrypt and digest.
@@ -43,7 +54,7 @@ class AESCipher(object):
 
     def construct_cipher(self, nonce: bytes) -> GcmMode:
         cipher = AES.new(
-            self.cipher_key,
+            self.key,
             AES.MODE_GCM,
             nonce,
         )

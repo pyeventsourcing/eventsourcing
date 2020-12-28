@@ -8,8 +8,7 @@ from typing import (
     Tuple,
     Union,
 )
-from uuid import UUID
-
+from uuid import UUID, uuid4
 
 # Locations in the world.
 from eventsourcing.aggregate import Aggregate
@@ -135,6 +134,7 @@ class Cargo(Aggregate):
     ) -> "Cargo":
         return cls._create_(
             event_class=Cargo.BookingStarted,
+            id=uuid4(),
             origin=origin,
             destination=destination,
             arrival_deadline=arrival_deadline,

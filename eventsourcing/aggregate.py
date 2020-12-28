@@ -1,35 +1,10 @@
-import importlib
 from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional, Type
 from uuid import UUID, uuid4
 
 from eventsourcing.domainevent import DomainEvent
-
-
-def get_topic(cls: type) -> str:
-    """
-    Returns a string that locates the given class.
-    """
-    return f"{cls.__module__}#{cls.__qualname__}"
-
-
-def resolve_topic(topic: str) -> type:
-    """
-    Returns a class located by the given string.
-    """
-    module_name, _, class_name = topic.partition("#")
-    module = importlib.import_module(module_name)
-    return resolve_attr(module, class_name)
-
-
-def resolve_attr(obj, path: str) -> type:
-    if not path:
-        return obj
-    else:
-        head, _, tail = path.partition(".")
-        obj = getattr(obj, head)
-        return resolve_attr(obj, tail)
+from eventsourcing.utils import get_topic, resolve_topic
 
 
 class Aggregate:
@@ -82,12 +57,13 @@ class Aggregate:
         self.version = version
         self.created_on = timestamp
         self.modified_on = timestamp
-        self.pending_events: List[Aggregate.Event] = []
+        self._pending_events_: List[Aggregate.Event] = []
 
     @classmethod
     def _create_(
         cls,
         event_class: Type["Aggregate.Created"],
+        id: UUID,
         **kwargs,
     ):
         """
@@ -98,7 +74,7 @@ class Aggregate:
         # with an ID and version, and the
         # a topic for the aggregate class.
         event = event_class(  # type: ignore
-            originator_id=uuid4(),
+            originator_id=id,
             originator_version=1,
             originator_topic=get_topic(cls),
             timestamp=datetime.now(),
@@ -107,7 +83,7 @@ class Aggregate:
         # Construct the aggregate object.
         aggregate = event.mutate(None)
         # Append the domain event to pending list.
-        aggregate.pending_events.append(event)
+        aggregate._pending_events_.append(event)
         # Return the aggregate.
         return aggregate
 
@@ -165,15 +141,15 @@ class Aggregate:
         # Mutate aggregate with domain event.
         event.mutate(self)
         # Append the domain event to pending list.
-        self.pending_events.append(event)
+        self._pending_events_.append(event)
 
     def _collect_(self) -> List[Event]:
         """
         Collects pending events.
         """
         collected = []
-        while self.pending_events:
-            collected.append(self.pending_events.pop(0))
+        while self._pending_events_:
+            collected.append(self._pending_events_.pop(0))
         return collected
 
 
@@ -201,6 +177,7 @@ class BankAccount(Aggregate):
         """
         return super()._create_(
             cls.Opened,
+            id=uuid4(),
             full_name=full_name,
             email_address=email_address,
         )

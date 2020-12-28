@@ -51,6 +51,8 @@ class TestSnapshotting(TestCase):
         # Take a snapshot.
         snapshot = Snapshot.take(account)
 
+        self.assertNotIn('pending_events', snapshot.state)
+
         # Store snapshot.
         snapshot_store.put([snapshot])
 
