@@ -214,8 +214,8 @@ def test(app: Application):
     assert notification_ids == [6, 7]
 ```
 
-Run the code during development. Uses default "Plain Old Python Object"
-infrastructure, with no encryption and no compression.
+Run the code in default "development" environment (uses default "Plain Old Python Object"
+infrastructure, with no encryption and no compression).
 
 ```python
 
@@ -226,21 +226,21 @@ app = Application()
 test(app)
 
 # Records are not encrypted (values are visible in stored data).
-values = [b'dinosaurs', b'trucks', b'internet']
-def count_visible(app, values):
+def count_visible_values(app):
+    num_visible_values = 0
+    values = [b'dinosaurs', b'trucks', b'internet']
     reader = NotificationLogReader(app.log)
-    count_visible_values = 0
     for notification in reader.read(start=1):
         for what in values:
             if what in notification.state:
-                count_visible_values += 1
+                num_visible_values += 1
                 break
-    return count_visible_values
+    return num_visible_values
 
-assert count_visible(app, values) == 3
+assert count_visible_values(app) == 3
 ```
 
-Configure environment variables for production.
+Configure "production" environment using SQLite infrastructure.
 
 ```python
 import os
@@ -261,11 +261,11 @@ os.environ['COMPRESSOR_TOPIC'] = "zlib"
 os.environ['INFRASTRUCTURE_FACTORY_TOPIC'] = (
     'eventsourcing.sqliterecorders:SQLiteInfrastructureFactory'
 )
-os.environ['DB_URI'] = ':memory:'
+os.environ['DB_URI'] = ':memory:'  # Or path to a file on disk.
 os.environ['DO_CREATE_TABLE'] = 'y'
 ```
 
-Run the code in production.
+Run the code in "production" environment.
 
 ```python
 # Construct an application object.
@@ -275,8 +275,39 @@ app = Application()
 test(app)
 
 # Records are encrypted (values not visible in stored data).
-assert count_visible(app, values) == 0
+assert count_visible_values(app) == 0
 ```
+
+Configure "production" environment using Postgres infrastructure.
+
+```python
+import os
+
+from eventsourcing.aes import AESCipher
+
+# Generate a cipher key (keep this safe).
+cipher_key = AESCipher.create_key(num_bytes=32)
+
+# Cipher key.
+os.environ['CIPHER_KEY'] = cipher_key
+# Cipher topic.
+os.environ['CIPHER_TOPIC'] = "eventsourcing.aes:AESCipher"
+# Compressor topic.
+os.environ['COMPRESSOR_TOPIC'] = "zlib"
+
+# Use Postgres infrastructure.
+os.environ['INFRASTRUCTURE_FACTORY_TOPIC'] = (
+    'eventsourcing.postgresrecorders:PostgresInfrastructureFactory'
+)
+os.environ["POSTGRES_DBNAME"] = "eventsourcing"
+os.environ["POSTGRES_HOST"] = "127.0.0.1"
+os.environ["POSTGRES_USER"] = "eventsourcing"
+os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
+
+# Assume database already created.
+os.environ['DO_CREATE_TABLE'] = 'n'
+```
+
 
 ## Project
 
