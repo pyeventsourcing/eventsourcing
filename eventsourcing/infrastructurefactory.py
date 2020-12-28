@@ -58,7 +58,7 @@ class InfrastructureFactory(ABC):
         ]
         for key in keys:
             value = os.getenv(key)
-            if value:
+            if value is not None:
                 return value
         return default
 
