@@ -6,17 +6,17 @@ import sys
 import types
 from os.path import abspath, dirname
 
-import django
+# import django
 
 sys.path.append(str(dirname(dirname(abspath(__file__)))))
 
 from eventsourcing import __version__
 
 
-os.environ['DJANGO_SETTINGS_MODULE'] = 'eventsourcing.tests.djangoproject.djangoproject.settings'
+# os.environ['DJANGO_SETTINGS_MODULE'] = 'eventsourcing.tests.djangoproject.djangoproject.settings'
 
 
-django.setup()
+# django.setup()
 
 #
 # eventsourcing documentation build configuration file, created by
