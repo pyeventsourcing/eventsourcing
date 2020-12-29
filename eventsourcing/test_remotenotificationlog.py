@@ -1,5 +1,6 @@
 import threading
 from threading import Thread
+from time import sleep
 from unittest.case import TestCase
 
 from eventsourcing.bankaccounts import BankAccounts
@@ -75,7 +76,7 @@ class TestRemoteNotificationLog(TestCase):
             server.stop()
 
     def test_with_http_and_threads(self):
-        server_address = ("127.0.0.1", 8080)
+        server_address = ("127.0.0.1", 8081)
 
         server = HTTPApplicationServer(
             address=server_address,
