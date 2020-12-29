@@ -5,8 +5,6 @@ from Crypto.Cipher import AES
 from Crypto.Cipher._mode_gcm import GcmMode
 
 
-
-
 class AESCipher(object):
     """
     Cipher strategy that uses Crypto
@@ -67,13 +65,13 @@ class AESCipher(object):
         # Split out the nonce, tag, and encrypted data.
         nonce = ciphertext[:12]
         if len(nonce) != 12:
-            raise Exception(
+            raise ValueError(
                 "Damaged cipher text: invalid nonce length"
             )
 
         tag = ciphertext[12:28]
         if len(tag) != 16:
-            raise Exception(
+            raise ValueError(
                 "Damaged cipher text: invalid tag length"
             )
         encrypted = ciphertext[28:]
