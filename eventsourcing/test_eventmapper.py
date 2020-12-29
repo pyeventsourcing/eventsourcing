@@ -5,7 +5,6 @@ from unittest.case import TestCase
 from uuid import UUID, uuid4
 
 from eventsourcing.aes import AESCipher
-from eventsourcing.aggregate import BankAccount
 from eventsourcing.eventmapper import (
     DatetimeAsISO,
     DecimalAsStr,
@@ -14,6 +13,7 @@ from eventsourcing.eventmapper import (
     Transcoding,
     UUIDAsHex,
 )
+from eventsourcing.test_aggregate import BankAccount
 
 
 class TestMapper(TestCase):

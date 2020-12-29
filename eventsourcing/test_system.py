@@ -1,9 +1,7 @@
 from unittest.case import TestCase
 
+from eventsourcing.test_application import BankAccounts
 from eventsourcing.utils import get_topic
-from eventsourcing.bankaccounts import (
-    BankAccounts,
-)
 from eventsourcing.emailnotifications import (
     EmailNotifications,
 )

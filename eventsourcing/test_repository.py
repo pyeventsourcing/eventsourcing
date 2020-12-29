@@ -5,8 +5,8 @@ from uuid import uuid4
 
 from eventsourcing.aggregate import (
     Aggregate,
-    BankAccount,
 )
+from eventsourcing.test_aggregate import BankAccount
 from eventsourcing.utils import get_topic
 from eventsourcing.sqliterecorders import (
     SQLiteDatabase,
@@ -77,14 +77,14 @@ class TestRepository(TestCase):
         # Store pending events.
         event_store.put(pending)
 
-        copy = repository.get(account.id)
+        copy = repository.get(account.uuid)
         assert isinstance(copy, BankAccount)
         # Check copy has correct attribute values.
-        assert copy.id == account.id
+        assert copy.uuid == account.uuid
         assert copy.balance == Decimal("65.00")
 
         snapshot = Snapshot(  # type: ignore
-            originator_id=account.id,
+            originator_id=account.uuid,
             originator_version=account.version,
             timestamp=datetime.now(),
             topic=get_topic(type(account)),
@@ -92,11 +92,11 @@ class TestRepository(TestCase):
         )
         snapshot_store.put([snapshot])
 
-        copy2 = repository.get(account.id)
+        copy2 = repository.get(account.uuid)
         assert isinstance(copy2, BankAccount)
 
         # Check copy has correct attribute values.
-        assert copy2.id == account.id
+        assert copy2.uuid == account.uuid
         assert copy2.balance == Decimal("65.00")
 
         # Credit the account.
@@ -104,44 +104,44 @@ class TestRepository(TestCase):
         event_store.put(account._collect_())
 
         # Check copy has correct attribute values.
-        copy3 = repository.get(account.id)
+        copy3 = repository.get(account.uuid)
         assert isinstance(copy3, BankAccount)
 
-        assert copy3.id == account.id
+        assert copy3.uuid == account.uuid
         assert copy3.balance == Decimal("75.00")
 
         # Check can get old version of account.
         copy4 = repository.get(
-            account.id, at=copy.version
+            account.uuid, at=copy.version
         )
         assert isinstance(copy4, BankAccount)
         assert copy4.balance == Decimal("65.00")
 
-        copy5 = repository.get(account.id, at=1)
+        copy5 = repository.get(account.uuid, at=1)
         assert isinstance(copy5, BankAccount)
         assert copy5.balance == Decimal("0.00")
 
-        copy6 = repository.get(account.id, at=2)
+        copy6 = repository.get(account.uuid, at=2)
         assert isinstance(copy6, BankAccount)
         assert copy6.balance == Decimal("10.00")
 
-        copy7 = repository.get(account.id, at=3)
+        copy7 = repository.get(account.uuid, at=3)
         assert isinstance(copy7, BankAccount)
         assert copy7.balance == Decimal(
             "35.00"
         ), copy7.balance
 
-        copy8 = repository.get(account.id, at=4)
+        copy8 = repository.get(account.uuid, at=4)
         assert isinstance(copy8, BankAccount)
         assert copy8.balance == Decimal(
             "65.00"
         ), copy8.balance
 
         # # Check the __getitem__ method is working
-        # copy9 = repository[account.id]
+        # copy9 = repository[account.uuid]
         # self.assertEqual(copy9.balance, Decimal("75.00"))
         #
-        # copy10 = repository[account.id, 3]
+        # copy10 = repository[account.uuid, 3]
         # # assert isinstance(copy7, BankAccount)
         #
         # self.assertEqual(copy10.balance, Decimal("35.00"))

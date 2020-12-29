@@ -1,7 +1,7 @@
+from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal
 from typing import List, Optional, Type
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from eventsourcing.domainevent import DomainEvent
 from eventsourcing.utils import get_topic, resolve_topic
@@ -29,7 +29,7 @@ class Aggregate:
             assert isinstance(obj, Aggregate)
             next_version = obj.version + 1
             if self.originator_version != next_version:
-                raise obj.VersionError(
+                raise VersionError(
                     self.originator_version, next_version
                 )
             # Update the aggregate version.
@@ -42,18 +42,15 @@ class Aggregate:
         def apply(self, obj) -> None:
             pass
 
-    class VersionError(Exception):
-        pass
-
     def __init__(
-        self, id: UUID, version: int, timestamp: datetime
+        self, uuid: UUID, version: int, timestamp: datetime
     ):
         """
-        Aggregate is constructed with an 'id'
-        and a 'version'. The 'pending_events'
-        is also initialised as an empty list.
+        Aggregate is constructed with a 'uuid',
+        a 'version', and a 'timestamp'. The internal
+        '_pending_events_' list is also initialised.
         """
-        self.id = id
+        self.uuid = uuid
         self.version = version
         self.created_on = timestamp
         self.modified_on = timestamp
@@ -63,7 +60,7 @@ class Aggregate:
     def _create_(
         cls,
         event_class: Type["Aggregate.Created"],
-        id: UUID,
+        uuid: UUID,
         **kwargs,
     ):
         """
@@ -73,8 +70,8 @@ class Aggregate:
         # Construct the domain event class,
         # with an ID and version, and the
         # a topic for the aggregate class.
-        event = event_class(  # type: ignore
-            originator_id=id,
+        event = event_class(
+            originator_id=uuid,
             originator_version=1,
             originator_topic=get_topic(cls),
             timestamp=datetime.now(),
@@ -104,7 +101,7 @@ class Aggregate:
             # Copy the event attributes.
             kwargs = self.__dict__.copy()
             # Separate the id and version.
-            id = kwargs.pop("originator_id")
+            uuid = kwargs.pop("originator_id")
             version = kwargs.pop("originator_version")
             # Get the aggregate root class from topic.
             aggregate_class = resolve_topic(
@@ -112,7 +109,7 @@ class Aggregate:
             )
             # Construct and return aggregate object.
             return aggregate_class(
-                id=id, version=version, **kwargs
+                uuid=uuid, version=version, **kwargs
             )
 
     def _trigger_(
@@ -129,15 +126,12 @@ class Aggregate:
         # next in the aggregate's sequence.
         # Use counting to generate the sequence.
         next_version = self.version + 1
-        try:
-            event = event_class(  # type: ignore
-                originator_id=self.id,
-                originator_version=next_version,
-                timestamp=datetime.now(),
-                **kwargs,
-            )
-        except AttributeError:
-            raise
+        event = event_class(
+            originator_id=self.uuid,
+            originator_version=next_version,
+            timestamp=datetime.now(),
+            **kwargs,
+        )
         # Mutate aggregate with domain event.
         event.mutate(self)
         # Append the domain event to pending list.
@@ -153,125 +147,5 @@ class Aggregate:
         return collected
 
 
-class BankAccount(Aggregate):
-    """
-    Aggregate root for bank accounts.
-    """
-
-    def __init__(
-        self, full_name: str, email_address: str, **kwargs
-    ):
-        super().__init__(**kwargs)
-        self.full_name = full_name
-        self.email_address = email_address
-        self.balance = Decimal("0.00")
-        self.overdraft_limit = Decimal("0.00")
-        self.is_closed = False
-
-    @classmethod
-    def open(
-        cls, full_name: str, email_address: str
-    ) -> "BankAccount":
-        """
-        Creates new bank account object.
-        """
-        return super()._create_(
-            cls.Opened,
-            id=uuid4(),
-            full_name=full_name,
-            email_address=email_address,
-        )
-
-    class Opened(Aggregate.Created):
-        full_name: str
-        email_address: str
-
-    def append_transaction(self, amount: Decimal) -> None:
-        """
-        Appends given amount as transaction on account.
-        """
-        self.check_account_is_not_closed()
-        self.check_has_sufficient_funds(amount)
-        self._trigger_(
-            self.TransactionAppended,
-            amount=amount,
-        )
-
-    def check_account_is_not_closed(self) -> None:
-        if self.is_closed:
-            raise AccountClosedError(
-                {"account_id": self.id}
-            )
-
-    def check_has_sufficient_funds(
-        self, amount: Decimal
-    ) -> None:
-        if self.balance + amount < -self.overdraft_limit:
-            raise InsufficientFundsError(
-                {"account_id": self.id}
-            )
-
-    class TransactionAppended(Aggregate.Event):
-        """
-        Domain event for when transaction
-        is appended to bank account.
-        """
-
-        amount: Decimal
-
-        def apply(self, account: "BankAccount") -> None:
-            """
-            Increments the account balance.
-            """
-            account.balance += self.amount
-
-    def set_overdraft_limit(
-        self, overdraft_limit: Decimal
-    ) -> None:
-        """
-        Sets the overdraft limit.
-        """
-        # Check the limit is not a negative value.
-        assert overdraft_limit >= Decimal("0.00")
-        self.check_account_is_not_closed()
-        self._trigger_(
-            self.OverdraftLimitSet,
-            overdraft_limit=overdraft_limit,
-        )
-
-    class OverdraftLimitSet(Aggregate.Event):
-        """
-        Domain event for when overdraft
-        limit is set.
-        """
-
-        overdraft_limit: Decimal
-
-        def apply(self, account: "BankAccount"):
-            account.overdraft_limit = self.overdraft_limit
-
-    def close(self) -> None:
-        """
-        Closes the bank account.
-        """
-        self._trigger_(self.Closed)
-
-    class Closed(Aggregate.Event):
-        """
-        Domain event for when account is closed.
-        """
-
-        def apply(self, account: "BankAccount"):
-            account.is_closed = True
-
-
-class AccountClosedError(Exception):
-    """
-    Raised when attempting to operate a closed account.
-    """
-
-
-class InsufficientFundsError(Exception):
-    """
-    Raised when attempting to go past overdraft limit.
-    """
+class VersionError(Exception):
+    pass

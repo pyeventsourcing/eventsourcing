@@ -1,11 +1,11 @@
 from functools import singledispatch
 from unittest.case import TestCase
 
-from eventsourcing.aggregate import BankAccount
 from eventsourcing.emailnotifications import (
     EmailNotification,
 )
 from eventsourcing.processapplication import ProcessEvent
+from eventsourcing.test_aggregate import BankAccount
 from eventsourcing.tracking import Tracking
 
 

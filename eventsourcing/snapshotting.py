@@ -16,7 +16,7 @@ class Snapshot(DomainEvent):
         state = dict(aggregate.__dict__)
         state.pop('_pending_events_')
         return cls(  # type: ignore
-            originator_id=aggregate.id,
+            originator_id=aggregate.uuid,
             originator_version=aggregate.version,
             timestamp=datetime.now(),
             topic=get_topic(type(aggregate)),

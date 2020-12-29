@@ -37,7 +37,7 @@ class BankAccount(Aggregate):
     ) -> "BankAccount":
         return super()._create_(
             cls.Opened,
-            id=uuid4(),
+            uuid=uuid4(),
             full_name=full_name,
             email_address=email_address,
         )
@@ -60,7 +60,7 @@ class BankAccount(Aggregate):
     def check_account_is_not_closed(self) -> None:
         if self.is_closed:
             raise AccountClosedError(
-                {"account_id": self.id}
+                {"account_id": self.uuid}
             )
 
     def check_has_sufficient_funds(
@@ -68,7 +68,7 @@ class BankAccount(Aggregate):
     ) -> None:
         if self.balance + amount < -self.overdraft_limit:
             raise InsufficientFundsError(
-                {"account_id": self.id}
+                {"account_id": self.uuid}
             )
 
     class TransactionAppended(Aggregate.Event):

@@ -1,7 +1,6 @@
 from decimal import Decimal
 from unittest.case import TestCase
 
-from eventsourcing.aggregate import BankAccount
 from eventsourcing.sqliterecorders import (
     SQLiteDatabase,
     SQLiteAggregateRecorder,
@@ -14,6 +13,7 @@ from eventsourcing.eventmapper import (
     UUIDAsHex,
 )
 from eventsourcing.eventstore import EventStore
+from eventsourcing.test_aggregate import BankAccount
 
 
 class TestEventStore(TestCase):
@@ -48,7 +48,7 @@ class TestEventStore(TestCase):
 
         # Get last event.
         last_event = event_store.get(
-            account.id, desc=True, limit=1
+            account.uuid, desc=True, limit=1
         )
         assert list(last_event) == []
 
@@ -56,7 +56,7 @@ class TestEventStore(TestCase):
         event_store.put(pending)
 
         # Get domain events.
-        domain_events = event_store.get(account.id)
+        domain_events = event_store.get(account.uuid)
 
         # Reconstruct the bank account.
         copy = None
@@ -64,18 +64,18 @@ class TestEventStore(TestCase):
             copy = domain_event.mutate(copy)
 
         # Check copy has correct attribute values.
-        assert copy.id == account.id
+        assert copy.uuid == account.uuid
         assert copy.balance == Decimal("65.00")
 
         # Get last event.
         events = event_store.get(
-            account.id, desc=True, limit=1
+            account.uuid, desc=True, limit=1
         )
         events = list(events)
         assert len(events) == 1
         last_event = events[0]
 
-        assert last_event.originator_id == account.id
+        assert last_event.originator_id == account.uuid
         assert (
             type(last_event)
             == BankAccount.TransactionAppended

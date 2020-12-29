@@ -15,7 +15,6 @@ from eventsourcing.examples.cargoshipping.domainmodel import (
 
 # Cargo aggregates exist within an application, which
 # provides "application service" methods for clients.
-from eventsourcing.repository import AggregateNotFoundError
 
 
 class LocationAsName(Transcoding):
@@ -88,7 +87,7 @@ class BookingApplication(Application):
             origin, destination, arrival_deadline
         )
         self.save(cargo)
-        return cargo.id
+        return cargo.uuid
 
     def change_destination(
         self, tracking_id: UUID, destination: Location

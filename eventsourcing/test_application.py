@@ -1,15 +1,14 @@
 import os
 from decimal import Decimal
 from unittest.case import TestCase
-from uuid import uuid4
+from uuid import UUID, uuid4
 
-from eventsourcing.aggregate import BankAccount
-from eventsourcing.bankaccounts import (
-    BankAccounts,
-)
+from eventsourcing.application import Application
 from eventsourcing.infrastructurefactory import (
     InfrastructureFactory,
 )
+from eventsourcing.repository import AggregateNotFoundError
+from eventsourcing.test_aggregate import BankAccount
 
 
 class TestApplication(TestCase):
@@ -61,3 +60,38 @@ class TestApplication(TestCase):
         self.assertEqual(
             from_snapshot.balance, Decimal("35.00")
         )
+
+
+
+class BankAccounts(Application):
+    def open_account(self, full_name, email_address):
+        account = BankAccount.open(
+            full_name=full_name,
+            email_address=email_address,
+        )
+        self.save(account)
+        return account.uuid
+
+    def credit_account(
+        self, account_id: UUID, amount: Decimal
+    ) -> None:
+        account = self.get_account(account_id)
+        account.append_transaction(amount)
+        self.save(account)
+
+    def get_balance(self, account_id: UUID) -> Decimal:
+        account = self.get_account(account_id)
+        return account.balance
+
+    def get_account(self, account_id: UUID) -> BankAccount:
+        try:
+            aggregate = self.repository.get(account_id)
+        except AggregateNotFoundError:
+            raise self.AccountNotFoundError(account_id)
+        else:
+            if not isinstance(aggregate, BankAccount):
+                raise self.AccountNotFoundError(account_id)
+            return aggregate
+
+    class AccountNotFoundError(Exception):
+        pass

@@ -99,7 +99,7 @@ class World(Aggregate):
 
     @classmethod
     def create(self):
-        return self._create_(World.Created, id=uuid4())
+        return self._create_(World.Created, uuid=uuid4())
 
     def make_it_so(self, something):
         self._trigger_(World.SomethingHappened, what=something)
@@ -135,7 +135,7 @@ def test(app: Application):
 
     # Unsaved aggregate not yet in application repository.
     try:
-        app.repository.get(world.id)
+        app.repository.get(world.uuid)
     except AggregateNotFoundError:
         pass
 
@@ -157,13 +157,13 @@ def test(app: Application):
     app.save(world)
 
     # Aggregate now exists in repository.
-    assert app.repository.get(world.id)
+    assert app.repository.get(world.uuid)
 
     # Show the notification log has four items.
     assert len(app.log['1,10'].items) == 4
 
     # Replay stored events for aggregate.
-    copy = app.repository.get(world.id)
+    copy = app.repository.get(world.uuid)
 
     # View retrieved aggregate.
     assert isinstance(copy, World)
@@ -177,12 +177,12 @@ def test(app: Application):
 
     # Discarded aggregate not found.
     try:
-        app.repository.get(world.id)
+        app.repository.get(world.uuid)
     except AggregateNotFoundError:
         pass
 
     # Get historical state (at version from above).
-    old = app.repository.get(world.id, at=version)
+    old = app.repository.get(world.uuid, at=version)
     assert old.history[-1] == 'trucks' # internet not happened
     assert len(old.history) == 2
 

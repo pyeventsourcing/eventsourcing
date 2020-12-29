@@ -6,10 +6,8 @@ from unittest.case import TestCase
 import psycopg2.errors
 from psycopg2.errorcodes import UNDEFINED_TABLE
 
+from eventsourcing.test_application import BankAccounts
 from eventsourcing.utils import get_topic
-from eventsourcing.bankaccounts import (
-    BankAccounts,
-)
 from eventsourcing.emailnotifications import (
     EmailNotifications,
 )

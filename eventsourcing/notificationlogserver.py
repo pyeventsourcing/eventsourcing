@@ -6,11 +6,11 @@ from http.server import (
 from threading import Event, Thread
 from typing import Callable, List
 
-from eventsourcing.bankaccounts import BankAccounts
 from eventsourcing.bankaccountsinterface import (
     BankAccountsJSONAPI,
     BankAccountsAPI,
 )
+from eventsourcing.test_application import BankAccounts
 
 
 class HTTPApplicationServer(Thread):

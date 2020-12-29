@@ -134,7 +134,7 @@ class Cargo(Aggregate):
     ) -> "Cargo":
         return cls._create_(
             event_class=Cargo.BookingStarted,
-            id=uuid4(),
+            uuid=uuid4(),
             origin=origin,
             destination=destination,
             arrival_deadline=arrival_deadline,

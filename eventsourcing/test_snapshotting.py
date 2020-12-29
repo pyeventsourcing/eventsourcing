@@ -1,9 +1,6 @@
 from decimal import Decimal
 from unittest import TestCase
 
-from eventsourcing.aggregate import (
-    BankAccount,
-)
 from eventsourcing.eventmapper import (
     DatetimeAsISO,
     DecimalAsStr,
@@ -17,6 +14,7 @@ from eventsourcing.sqliterecorders import (
     SQLiteDatabase,
     SQLiteAggregateRecorder,
 )
+from eventsourcing.test_aggregate import BankAccount
 
 
 class TestSnapshotting(TestCase):
@@ -58,7 +56,7 @@ class TestSnapshotting(TestCase):
 
         # Get snapshot.
         snapshots = snapshot_store.get(
-            account.id, desc=True, limit=1
+            account.uuid, desc=True, limit=1
         )
         snapshot = next(snapshots)
         assert isinstance(snapshot, Snapshot)
@@ -68,5 +66,5 @@ class TestSnapshotting(TestCase):
         assert isinstance(copy, BankAccount)
 
         # Check copy has correct attribute values.
-        assert copy.id == account.id
+        assert copy.uuid == account.uuid
         assert copy.balance == Decimal("65.00")

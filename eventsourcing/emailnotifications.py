@@ -3,12 +3,12 @@ from uuid import uuid4
 
 from eventsourcing.aggregate import (
     Aggregate,
-    BankAccount,
 )
 from eventsourcing.processapplication import (
     ProcessApplication,
     ProcessEvent,
 )
+from eventsourcing.test_aggregate import BankAccount
 
 
 class EmailNotification(Aggregate):
@@ -22,7 +22,7 @@ class EmailNotification(Aggregate):
     def create(cls, to, subject, message):
         return super()._create_(
             cls.Created,
-            id=uuid4(),
+            uuid=uuid4(),
             to=to,
             subject=subject,
             message=message,

@@ -1,14 +1,12 @@
 from unittest.case import TestCase
 
-from eventsourcing.bankaccounts import (
-    BankAccounts,
-)
 from eventsourcing.emailnotifications import (
     EmailNotifications,
 )
 from eventsourcing.processapplication import (
     Leader,
 )
+from eventsourcing.test_application import BankAccounts
 
 
 class TestProcessApplication(TestCase):

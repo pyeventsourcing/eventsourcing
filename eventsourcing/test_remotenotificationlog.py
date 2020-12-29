@@ -1,9 +1,7 @@
 import threading
 from threading import Thread
-from time import sleep
 from unittest.case import TestCase
 
-from eventsourcing.bankaccounts import BankAccounts
 from eventsourcing.notificationlogserver import (
     BankAccountsHTTPClient,
     BankAccountsHTTPHandler,
@@ -13,6 +11,7 @@ from eventsourcing.bankaccountsinterface import (
     BankAccountsJSONClient,
     BankAccountsJSONAPI,
 )
+from eventsourcing.test_application import BankAccounts
 
 
 class TestRemoteNotificationLog(TestCase):

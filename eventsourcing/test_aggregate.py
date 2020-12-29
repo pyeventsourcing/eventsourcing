@@ -1,16 +1,52 @@
+from datetime import datetime
 from unittest.case import TestCase
 
 from decimal import Decimal
+from uuid import uuid4
 
-from eventsourcing.aggregate import (
-    AccountClosedError,
-    BankAccount,
-    InsufficientFundsError,
-)
+from eventsourcing.aggregate import Aggregate, VersionError
 
 
 class TestAggregate(TestCase):
-    def test(self):
+    def test_aggregate_base_class(self):
+        # Check the _create_() method creates a new aggregate.
+        before_created = datetime.now()
+        uuid = uuid4()
+        a = Aggregate._create_(
+            event_class=Aggregate.Created,
+            uuid=uuid,
+        )
+        after_created = datetime.now()
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(a.uuid, uuid)
+        self.assertEqual(a.version, 1)
+        self.assertEqual(a.created_on, a.modified_on)
+        self.assertGreater(a.created_on, before_created)
+        self.assertGreater(after_created, a.created_on)
+
+        # Check the aggregate can trigger further events.
+        a._trigger_(Aggregate.Event)
+        self.assertLess(a.created_on, a.modified_on)
+
+        pending = a._collect_()
+        self.assertEqual(len(pending), 2)
+        self.assertIsInstance(pending[0], Aggregate.Created)
+        self.assertEqual(pending[0].originator_version, 1)
+        self.assertIsInstance(pending[1], Aggregate.Event)
+        self.assertEqual(pending[1].originator_version, 2)
+
+        # Try to mutate aggregate with an invalid domain event.
+        next_version = a.version
+        event = Aggregate.Event(
+            originator_id=a.uuid,
+            originator_version=next_version,
+            timestamp=datetime.now(),
+        )
+        # Check raises "VersionError".
+        with self.assertRaises(VersionError):
+            event.mutate(a)
+
+    def test_subclass_bank_account(self):
 
         # Open an account.
         account: BankAccount = BankAccount.open(
@@ -80,3 +116,127 @@ class TestAggregate(TestCase):
         # Collect pending events.
         pending = account._collect_()
         assert len(pending) == 7
+
+
+class BankAccount(Aggregate):
+    """
+    Aggregate root for bank accounts.
+    """
+
+    def __init__(
+        self, full_name: str, email_address: str, **kwargs
+    ):
+        super().__init__(**kwargs)
+        self.full_name = full_name
+        self.email_address = email_address
+        self.balance = Decimal("0.00")
+        self.overdraft_limit = Decimal("0.00")
+        self.is_closed = False
+
+    @classmethod
+    def open(
+        cls, full_name: str, email_address: str
+    ) -> "BankAccount":
+        """
+        Creates new bank account object.
+        """
+        return super()._create_(
+            cls.Opened,
+            uuid=uuid4(),
+            full_name=full_name,
+            email_address=email_address,
+        )
+
+    class Opened(Aggregate.Created):
+        full_name: str
+        email_address: str
+
+    def append_transaction(self, amount: Decimal) -> None:
+        """
+        Appends given amount as transaction on account.
+        """
+        self.check_account_is_not_closed()
+        self.check_has_sufficient_funds(amount)
+        self._trigger_(
+            self.TransactionAppended,
+            amount=amount,
+        )
+
+    def check_account_is_not_closed(self) -> None:
+        if self.is_closed:
+            raise AccountClosedError(
+                {"account_id": self.uuid}
+            )
+
+    def check_has_sufficient_funds(
+        self, amount: Decimal
+    ) -> None:
+        if self.balance + amount < -self.overdraft_limit:
+            raise InsufficientFundsError(
+                {"account_id": self.uuid}
+            )
+
+    class TransactionAppended(Aggregate.Event):
+        """
+        Domain event for when transaction
+        is appended to bank account.
+        """
+
+        amount: Decimal
+
+        def apply(self, account: "BankAccount") -> None:
+            """
+            Increments the account balance.
+            """
+            account.balance += self.amount
+
+    def set_overdraft_limit(
+        self, overdraft_limit: Decimal
+    ) -> None:
+        """
+        Sets the overdraft limit.
+        """
+        # Check the limit is not a negative value.
+        assert overdraft_limit >= Decimal("0.00")
+        self.check_account_is_not_closed()
+        self._trigger_(
+            self.OverdraftLimitSet,
+            overdraft_limit=overdraft_limit,
+        )
+
+    class OverdraftLimitSet(Aggregate.Event):
+        """
+        Domain event for when overdraft
+        limit is set.
+        """
+
+        overdraft_limit: Decimal
+
+        def apply(self, account: "BankAccount"):
+            account.overdraft_limit = self.overdraft_limit
+
+    def close(self) -> None:
+        """
+        Closes the bank account.
+        """
+        self._trigger_(self.Closed)
+
+    class Closed(Aggregate.Event):
+        """
+        Domain event for when account is closed.
+        """
+
+        def apply(self, account: "BankAccount"):
+            account.is_closed = True
+
+
+class AccountClosedError(Exception):
+    """
+    Raised when attempting to operate a closed account.
+    """
+
+
+class InsufficientFundsError(Exception):
+    """
+    Raised when attempting to go past overdraft limit.
+    """

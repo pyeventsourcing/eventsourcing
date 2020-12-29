@@ -4,7 +4,6 @@ from typing import Generic
 from uuid import UUID
 
 from eventsourcing.application import TApplication
-from eventsourcing.bankaccounts import BankAccounts
 from eventsourcing.notificationlogview import (
     AbstractNotificationLogView,
     JSONNotificationLogView,
@@ -13,6 +12,7 @@ from eventsourcing.remotenotificationlog import (
     NotificationLogAPI,
     RemoteNotificationLog,
 )
+from eventsourcing.test_application import BankAccounts
 
 
 class ApplicationAdapter(ABC, Generic[TApplication]):
