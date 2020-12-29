@@ -1,21 +1,9 @@
-import os
 from abc import ABC, abstractmethod
 from timeit import timeit
 from unittest.case import TestCase
 from uuid import uuid4
 
-import psycopg2.errors
-from psycopg2.errorcodes import UNDEFINED_TABLE
-
-from eventsourcing.poporecorders import POPOAggregateRecorder
-from eventsourcing.postgresrecorders import (
-    PostgresAggregateRecorder,
-)
 from eventsourcing.recorders import AggregateRecorder, RecordConflictError
-from eventsourcing.sqliterecorders import (
-    SQLiteDatabase,
-    SQLiteAggregateRecorder,
-)
 from eventsourcing.storedevent import StoredEvent
 
 
@@ -142,53 +130,3 @@ class AggregateRecorderTestCase(TestCase, ABC):
         number = 100
         duration = timeit(insert, number=number)
         print(self, f"{duration / number:.9f}")
-
-
-class TestPopoAggregateRecorder(AggregateRecorderTestCase):
-    def create_recorder(self):
-        return POPOAggregateRecorder()
-
-
-class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
-    def setUp(self) -> None:
-        recorder = PostgresAggregateRecorder(
-            "",
-            os.getenv("POSTGRES_DBNAME", "eventsourcing"),
-            os.getenv("POSTGRES_HOST", "127.0.0.1"),
-            os.getenv("POSTGRES_USER", "eventsourcing"),
-            os.getenv("POSTGRES_PASSWORD", "eventsourcing"),
-        )
-        try:
-            with recorder.db.transaction() as c:
-                c.execute("DROP TABLE stored_events;")
-        except psycopg2.errors.lookup(UNDEFINED_TABLE):
-            pass
-
-    def create_recorder(self):
-        recorder = PostgresAggregateRecorder(
-            "",
-            os.getenv("POSTGRES_DBNAME", "eventsourcing"),
-            os.getenv("POSTGRES_HOST", "127.0.0.1"),
-            os.getenv("POSTGRES_USER", "eventsourcing"),
-            os.getenv("POSTGRES_PASSWORD", "eventsourcing"),
-        )
-        recorder.create_table()
-        return recorder
-
-    def test_performance(self):
-        super().test_performance()
-
-    def test_insert_and_select(self):
-        super().test_insert_and_select()
-
-
-class TestSQLiteAggregateRecorder(AggregateRecorderTestCase):
-    def create_recorder(self):
-        recorder = SQLiteAggregateRecorder(
-            SQLiteDatabase(":memory:")
-        )
-        recorder.create_table()
-        return recorder
-
-
-del AggregateRecorderTestCase

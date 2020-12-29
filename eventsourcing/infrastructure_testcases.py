@@ -1,5 +1,4 @@
 import os
-from base64 import b64encode
 from datetime import datetime
 from unittest.case import TestCase
 from uuid import uuid4
@@ -17,16 +16,10 @@ from eventsourcing.eventmapper import (
 from eventsourcing.infrastructurefactory import (
     InfrastructureFactory,
 )
-from eventsourcing.postgresrecorders import (
-    PostgresInfrastructureFactory,
-)
 from eventsourcing.recorders import (
     ApplicationRecorder,
     AggregateRecorder,
     ProcessRecorder,
-)
-from eventsourcing.sqliterecorders import (
-    SQLiteInfrastructureFactory,
 )
 
 
@@ -195,53 +188,5 @@ class InfrastructureFactoryTestCase(TestCase):
         )
 
     def test_create_process_recorder(self):
-
         recorder = self.factory.process_recorder()
         self.assertIsInstance(recorder, ProcessRecorder)
-
-
-class TestPOPOInfrastructureFactory(
-    InfrastructureFactoryTestCase
-):
-    pass
-
-
-class TestSQLiteInfrastructureFactory(
-    InfrastructureFactoryTestCase
-):
-    def setUp(self) -> None:
-        os.environ[
-            InfrastructureFactory.TOPIC
-        ] = get_topic(SQLiteInfrastructureFactory)
-        os.environ[
-            SQLiteInfrastructureFactory.SQLITE_DBNAME
-        ] = ":memory:"
-        super().setUp()
-
-    def tearDown(self) -> None:
-        super().tearDown()
-        del os.environ[SQLiteInfrastructureFactory.SQLITE_DBNAME]
-
-
-
-class TestPostgresInfrastructureFactory(
-    InfrastructureFactoryTestCase
-):
-    def setUp(self) -> None:
-        os.environ[
-            InfrastructureFactory.TOPIC
-        ] = get_topic(PostgresInfrastructureFactory)
-
-        if "POSTGRES_DBNAME" not in os.environ:
-            os.environ["POSTGRES_DBNAME"] = "eventsourcing"
-        if "POSTGRES_HOST" not in os.environ:
-            os.environ["POSTGRES_HOST"] = "127.0.0.1"
-        if "POSTGRES_USER" not in os.environ:
-            os.environ["POSTGRES_USER"] = "eventsourcing"
-        if "POSTGRES_PASSWORD" not in os.environ:
-            os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
-
-        super().setUp()
-
-
-del InfrastructureFactoryTestCase

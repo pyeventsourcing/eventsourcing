@@ -1,20 +1,10 @@
-import os
 from abc import ABC, abstractmethod
 from timeit import timeit
 from unittest.case import TestCase
 from uuid import uuid4
 
-import psycopg2.errors
-from psycopg2.errorcodes import UNDEFINED_TABLE
-
-from eventsourcing.poporecorders import POPOProcessRecorder
-from eventsourcing.postgresrecorders import PostgresProcessRecorder
 from eventsourcing.tracking import Tracking
 from eventsourcing.recorders import RecordConflictError
-from eventsourcing.sqliterecorders import (
-    SQLiteDatabase,
-    SQLiteProcessRecorder,
-)
 from eventsourcing.storedevent import StoredEvent
 
 
@@ -135,58 +125,3 @@ class ProcessRecordsTestCase(TestCase, ABC):
 
         duration = timeit(insert, number=number)
         print(self, f"{duration / number:.9f}")
-
-
-class TestSQLiteProcessRecorder(ProcessRecordsTestCase):
-    def create_recorder(self):
-        recorder = SQLiteProcessRecorder(
-            SQLiteDatabase(":memory:")
-        )
-        recorder.create_table()
-        return recorder
-
-
-class TestPOPOProcessRecorder(ProcessRecordsTestCase):
-    def create_recorder(self):
-        return POPOProcessRecorder()
-
-    def test_performance(self):
-        super().test_performance()
-
-
-class TestPostgresProcessRecorder(ProcessRecordsTestCase):
-    def setUp(self) -> None:
-        recorder = PostgresProcessRecorder(
-            "",
-            os.getenv("POSTGRES_DBNAME", "eventsourcing"),
-            os.getenv("POSTGRES_HOST", "127.0.0.1"),
-            os.getenv("POSTGRES_USER", "eventsourcing"),
-            os.getenv("POSTGRES_PASSWORD", "eventsourcing"),
-        )
-        try:
-            with recorder.db.transaction() as c:
-                c.execute("DROP TABLE stored_events;")
-        except psycopg2.errors.lookup(UNDEFINED_TABLE):
-            pass
-        try:
-            with recorder.db.transaction() as c:
-                c.execute("DROP TABLE tracking;")
-        except psycopg2.errors.lookup(UNDEFINED_TABLE):
-            pass
-
-    def create_recorder(self):
-        recorder = PostgresProcessRecorder(
-            "",
-            os.getenv("POSTGRES_DBNAME", "eventsourcing"),
-            os.getenv("POSTGRES_HOST", "127.0.0.1"),
-            os.getenv("POSTGRES_USER", "eventsourcing"),
-            os.getenv("POSTGRES_PASSWORD", "eventsourcing"),
-        )
-        recorder.create_table()
-        return recorder
-
-    def test_performance(self):
-        super().test_performance()
-
-
-del ProcessRecordsTestCase

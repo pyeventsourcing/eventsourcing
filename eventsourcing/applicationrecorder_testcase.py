@@ -1,4 +1,3 @@
-import os
 import traceback
 from abc import ABC, abstractmethod
 from concurrent.futures.thread import ThreadPoolExecutor
@@ -6,18 +5,6 @@ from threading import Event, Thread
 from unittest.case import TestCase
 from uuid import uuid4
 
-import psycopg2.errors
-from psycopg2.errorcodes import UNDEFINED_TABLE
-
-from eventsourcing.poporecorders import POPOApplicationRecorder
-from eventsourcing.postgresrecorders import (
-    PostgresApplicationRecorder,
-)
-from eventsourcing.ramdisk import tmpfile_uris
-from eventsourcing.sqliterecorders import (
-    SQLiteApplicationRecorder,
-    SQLiteDatabase,
-)
 from eventsourcing.storedevent import StoredEvent
 
 
@@ -158,62 +145,3 @@ class ApplicationRecorderTestCase(TestCase, ABC):
 
         self.assertFalse(errors_happened.is_set())
 
-
-class TestSQLiteApplicationRecorder(
-    ApplicationRecorderTestCase
-):
-    def test_insert_select(self):
-        self.db_uri = ":memory:"
-        super().test_insert_select()
-
-    def test_concurrent_no_conflicts(self):
-        # db_uri = "file::memory:?cache=shared"
-        self.uris = tmpfile_uris()
-        self.db_uri = next(self.uris)
-        super().test_insert_select()
-
-    def create_recorder(self):
-        recorder = SQLiteApplicationRecorder(
-            SQLiteDatabase(self.db_uri)
-        )
-        recorder.create_table()
-        return recorder
-
-
-class TestPOPOApplicationRecorder(
-    ApplicationRecorderTestCase
-):
-    def create_recorder(self):
-        return POPOApplicationRecorder()
-
-
-class TestPostgresApplicationRecorder(
-    ApplicationRecorderTestCase
-):
-    def setUp(self) -> None:
-        recorder = PostgresApplicationRecorder(
-            "",
-            os.getenv("POSTGRES_DBNAME", "eventsourcing"),
-            os.getenv("POSTGRES_HOST", "127.0.0.1"),
-            os.getenv("POSTGRES_USER", "eventsourcing"),
-            os.getenv("POSTGRES_PASSWORD", "eventsourcing"),
-        )
-        try:
-            with recorder.db.transaction() as c:
-                c.execute("DROP TABLE events;")
-        except psycopg2.errors.lookup(UNDEFINED_TABLE):
-            pass
-
-    def create_recorder(self):
-        recorder = PostgresApplicationRecorder(
-            "",
-            os.getenv("POSTGRES_DBNAME", "eventsourcing"),
-            os.getenv("POSTGRES_HOST", "127.0.0.1"),
-            os.getenv("POSTGRES_USER", "eventsourcing"),
-            os.getenv("POSTGRES_PASSWORD", "eventsourcing"),
-        )
-        recorder.create_table()
-        return recorder
-
-
-del ApplicationRecorderTestCase

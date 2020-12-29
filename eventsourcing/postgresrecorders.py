@@ -1,10 +1,8 @@
-import os
 
 import psycopg2
 import psycopg2.extras
 import threading
 from distutils.util import strtobool
-from threading import Lock
 from typing import Any, List, Optional
 from uuid import UUID
 
