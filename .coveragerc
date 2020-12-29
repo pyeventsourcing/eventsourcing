@@ -1,12 +1,5 @@
 [run]
 source = eventsourcing
+branch = True
 omit =
-    */python?.?/*
-    */flaskapp.py
-    */flaskwsgi.py
-    */test_?.py
-    */tests/*
-    */contrib/*
-    */system/ray.py
-    */system/rayhelpers.py
-    */system/grpc/*
+    */test_*.py
