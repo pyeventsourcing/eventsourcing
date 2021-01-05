@@ -1,14 +1,8 @@
 from decimal import Decimal
 from unittest import TestCase
 
-from eventsourcing.eventmapper import (
-    DatetimeAsISO,
-    DecimalAsStr,
-    Mapper,
-    Transcoder,
-    UUIDAsHex,
-)
-from eventsourcing.persistence import EventStore
+from eventsourcing.persistence import DatetimeAsISO, DecimalAsStr, EventStore, \
+    Mapper, Transcoder, UUIDAsHex
 from eventsourcing.snapshotting import Snapshot
 from eventsourcing.sqliterecorders import (
     SQLiteDatabase,

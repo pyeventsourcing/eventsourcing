@@ -12,14 +12,8 @@ from eventsourcing.sqliterecorders import (
     SQLiteDatabase,
     SQLiteAggregateRecorder,
 )
-from eventsourcing.eventmapper import (
-    DatetimeAsISO,
-    DecimalAsStr,
-    Mapper,
-    Transcoder,
-    UUIDAsHex,
-)
-from eventsourcing.persistence import EventStore
+from eventsourcing.persistence import DatetimeAsISO, DecimalAsStr, EventStore, \
+    Mapper, Transcoder, UUIDAsHex
 from eventsourcing.application import (
     AggregateNotFoundError,
 )

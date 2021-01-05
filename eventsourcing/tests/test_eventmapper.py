@@ -5,14 +5,8 @@ from unittest.case import TestCase
 from uuid import UUID, uuid4
 
 from eventsourcing.aes import AESCipher
-from eventsourcing.eventmapper import (
-    DatetimeAsISO,
-    DecimalAsStr,
-    Mapper,
-    Transcoder,
-    Transcoding,
-    UUIDAsHex,
-)
+from eventsourcing.persistence import DatetimeAsISO, DecimalAsStr, Mapper, Transcoder, \
+    Transcoding, UUIDAsHex
 from eventsourcing.tests.test_aggregate import BankAccount
 
 

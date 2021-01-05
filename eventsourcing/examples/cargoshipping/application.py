@@ -3,7 +3,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from eventsourcing.application import Application
-from eventsourcing.eventmapper import Transcoder, Transcoding
+from eventsourcing.persistence import Transcoder, Transcoding
 from eventsourcing.examples.cargoshipping.domainmodel import (
     Cargo,
     HandlingActivity,

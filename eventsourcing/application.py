@@ -3,16 +3,10 @@ from typing import List, Optional, TypeVar, Union
 from uuid import UUID
 
 from eventsourcing.domain import Aggregate
-from eventsourcing.eventmapper import (
-    AbstractTranscoder,
-    DatetimeAsISO,
-    DecimalAsStr,
-    Mapper,
-    Transcoder,
-    UUIDAsHex,
-)
 from eventsourcing.persistence import (
-    EventStore, InfrastructureFactory,
+    AbstractTranscoder, DatetimeAsISO, DecimalAsStr, EventStore, InfrastructureFactory,
+    Mapper, Transcoder,
+    UUIDAsHex,
 )
 from eventsourcing.notification import Notification
 from eventsourcing.recorders import ApplicationRecorder
