@@ -4,7 +4,7 @@ from unittest.case import TestCase
 from uuid import uuid4
 
 from eventsourcing.domain import (
-    Aggregate,
+    Aggregate, Snapshot,
 )
 from eventsourcing.tests.test_aggregate import BankAccount
 from eventsourcing.utils import get_topic
@@ -18,7 +18,6 @@ from eventsourcing.application import (
     AggregateNotFoundError,
 )
 from eventsourcing.application import Repository
-from eventsourcing.snapshotting import Snapshot
 
 
 class TestRepository(TestCase):

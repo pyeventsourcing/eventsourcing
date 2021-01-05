@@ -3,7 +3,7 @@ from unittest import TestCase
 
 from eventsourcing.persistence import DatetimeAsISO, DecimalAsStr, EventStore, \
     Mapper, Transcoder, UUIDAsHex
-from eventsourcing.snapshotting import Snapshot
+from eventsourcing.domain import Snapshot
 from eventsourcing.sqliterecorders import (
     SQLiteDatabase,
     SQLiteAggregateRecorder,

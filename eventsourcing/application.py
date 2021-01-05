@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, TypeVar, Union
 from uuid import UUID
 
-from eventsourcing.domain import Aggregate
+from eventsourcing.domain import Aggregate, Snapshot
 from eventsourcing.persistence import (
     AbstractTranscoder, DatetimeAsISO, DecimalAsStr, EventStore, InfrastructureFactory,
     Mapper, Transcoder,
@@ -12,7 +12,6 @@ from eventsourcing.notification import Notification
 from eventsourcing.recorders import ApplicationRecorder
 
 # Todo: Make a method to create a snapshot for an aggregate ID.
-from eventsourcing.snapshotting import Snapshot
 from eventsourcing.utils import ImmutableObject
 
 
