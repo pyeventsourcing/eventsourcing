@@ -2,7 +2,6 @@ import sqlite3
 import threading
 from distutils.util import strtobool
 from sqlite3 import Connection
-from threading import Lock
 from typing import Any, List, Optional
 from uuid import UUID
 
