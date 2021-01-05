@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from collections import defaultdict
 from typing import (
     Any,
@@ -6,7 +7,7 @@ from typing import (
     List,
     Set,
     Tuple,
-    Type,
+    Type, TypeVar,
 )
 
 from eventsourcing.utils import get_topic, resolve_topic
@@ -118,3 +119,29 @@ class System:
         cls = self.get_app_cls(name)
         assert issubclass(cls, Follower)
         return cls
+
+
+A = TypeVar("A")
+
+
+class AbstractRunner:
+    def __init__(self, system: System):
+        self.system = system
+        self.is_started = False
+
+    @abstractmethod
+    def start(self) -> None:
+        if self.is_started:
+            raise self.AlreadyStarted()
+        self.is_started = True
+
+    class AlreadyStarted(Exception):
+        pass
+
+    @abstractmethod
+    def stop(self) -> None:
+        pass
+
+    @abstractmethod
+    def get(self, cls: Type[A]) -> A:
+        pass

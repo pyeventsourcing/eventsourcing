@@ -23,8 +23,7 @@ from eventsourcing.singlethreadedrunner import (
 from eventsourcing.sqliterecorders import (
     SQLiteInfrastructureFactory,
 )
-from eventsourcing.system import System
-from eventsourcing.systemrunner import AbstractRunner
+from eventsourcing.system import AbstractRunner, System
 
 
 class TestSingleThreadedRunner(TestCase):

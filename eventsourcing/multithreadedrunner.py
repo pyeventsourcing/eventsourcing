@@ -7,7 +7,7 @@ from eventsourcing.processapplication import (
     Leader,
     Promptable,
 )
-from eventsourcing.systemrunner import A, AbstractRunner
+from eventsourcing.system import A, AbstractRunner
 
 
 class MultiThreadedRunner(AbstractRunner):

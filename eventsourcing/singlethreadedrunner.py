@@ -6,8 +6,7 @@ from eventsourcing.processapplication import (
     Promptable,
 )
 from eventsourcing.application import Application
-from eventsourcing.system import System
-from eventsourcing.systemrunner import A, AbstractRunner
+from eventsourcing.system import A, AbstractRunner, System
 
 
 class SingleThreadedRunner(Promptable, AbstractRunner):
