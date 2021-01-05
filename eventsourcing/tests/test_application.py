@@ -5,7 +5,7 @@ from unittest.case import TestCase
 from uuid import UUID, uuid4
 
 from eventsourcing.application import Application
-from eventsourcing.infrastructurefactory import (
+from eventsourcing.persistence import (
     InfrastructureFactory,
 )
 from eventsourcing.application import AggregateNotFoundError

@@ -13,7 +13,7 @@ from eventsourcing.eventmapper import (
     Transcoder,
     UUIDAsHex,
 )
-from eventsourcing.infrastructurefactory import (
+from eventsourcing.persistence import (
     InfrastructureFactory,
 )
 from eventsourcing.recorders import (

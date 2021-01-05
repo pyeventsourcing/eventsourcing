@@ -17,7 +17,7 @@ from eventsourcing.recorders import (
     ProcessRecorder, RecordConflictError,
 )
 from eventsourcing.storedevent import StoredEvent
-from eventsourcing.infrastructurefactory import (
+from eventsourcing.persistence import (
     InfrastructureFactory,
 )
 

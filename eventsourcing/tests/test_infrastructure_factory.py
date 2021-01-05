@@ -1,7 +1,7 @@
 import os
 from unittest.case import TestCase
 
-from eventsourcing.infrastructurefactory import InfrastructureFactory
+from eventsourcing.persistence import InfrastructureFactory
 from eventsourcing.utils import get_topic
 
 

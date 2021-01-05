@@ -12,7 +12,7 @@ from eventsourcing.eventmapper import (
     UUIDAsHex,
 )
 from eventsourcing.eventstore import EventStore
-from eventsourcing.infrastructurefactory import (
+from eventsourcing.persistence import (
     InfrastructureFactory,
 )
 from eventsourcing.notification import Notification

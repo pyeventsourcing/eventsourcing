@@ -8,7 +8,7 @@ from uuid import UUID
 
 from psycopg2.extensions import cursor, connection
 
-from eventsourcing.infrastructurefactory import (
+from eventsourcing.persistence import (
     InfrastructureFactory,
 )
 from eventsourcing.notification import Notification

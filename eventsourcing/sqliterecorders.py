@@ -6,7 +6,7 @@ from threading import Lock
 from typing import Any, List, Optional
 from uuid import UUID
 
-from eventsourcing.infrastructurefactory import (
+from eventsourcing.persistence import (
     InfrastructureFactory,
 )
 from eventsourcing.notification import Notification
