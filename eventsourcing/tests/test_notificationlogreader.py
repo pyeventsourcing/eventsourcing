@@ -9,7 +9,7 @@ from eventsourcing.sqliterecorders import (
     SQLiteDatabase,
     SQLiteProcessRecorder,
 )
-from eventsourcing.storedevent import StoredEvent
+from eventsourcing.persistence import StoredEvent
 
 
 class TestNotificationLogReader(TestCase):

@@ -4,8 +4,7 @@ from unittest.case import TestCase
 from uuid import uuid4
 
 from eventsourcing.tracking import Tracking
-from eventsourcing.persistence import RecordConflictError
-from eventsourcing.storedevent import StoredEvent
+from eventsourcing.persistence import RecordConflictError, StoredEvent
 
 
 class ProcessRecordsTestCase(TestCase, ABC):

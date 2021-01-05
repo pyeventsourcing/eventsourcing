@@ -11,9 +11,8 @@ from psycopg2.extensions import cursor, connection
 from eventsourcing.persistence import (
     AggregateRecorder, ApplicationRecorder, InfrastructureFactory, Notification,
     ProcessRecorder,
-    RecordConflictError,
+    RecordConflictError, StoredEvent,
 )
-from eventsourcing.storedevent import StoredEvent
 from eventsourcing.tracking import Tracking
 
 psycopg2.extras.register_uuid()

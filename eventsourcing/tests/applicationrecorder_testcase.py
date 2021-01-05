@@ -5,7 +5,7 @@ from threading import Event, Thread
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.storedevent import StoredEvent
+from eventsourcing.persistence import StoredEvent
 
 
 class ApplicationRecorderTestCase(TestCase, ABC):

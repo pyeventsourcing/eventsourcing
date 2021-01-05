@@ -8,9 +8,8 @@ from uuid import UUID
 from eventsourcing.persistence import (
     AggregateRecorder, ApplicationRecorder, InfrastructureFactory, Notification,
     ProcessRecorder,
-    RecordConflictError,
+    RecordConflictError, StoredEvent,
 )
-from eventsourcing.storedevent import StoredEvent
 from eventsourcing.tracking import Tracking
 
 

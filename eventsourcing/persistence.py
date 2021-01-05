@@ -1,5 +1,6 @@
 import json
 import os
+import uuid
 from abc import ABC, abstractmethod
 from copy import copy
 from datetime import datetime
@@ -9,8 +10,7 @@ from typing import Any, Dict, Generic, Iterator, List, Optional, Union, cast
 from uuid import UUID
 
 from eventsourcing.domain import DomainEvent, TDomainEvent
-from eventsourcing.storedevent import StoredEvent
-from eventsourcing.utils import get_topic, resolve_topic
+from eventsourcing.utils import ImmutableObject, get_topic, resolve_topic
 
 
 class Transcoding(ABC):
@@ -130,6 +130,13 @@ class DatetimeAsISO(Transcoding):
     def decode(self, d: Union[str, dict]) -> datetime:
         assert isinstance(d, str)
         return datetime.fromisoformat(d)
+
+
+class StoredEvent(ImmutableObject):
+    originator_id: uuid.UUID
+    originator_version: int
+    topic: str
+    state: bytes
 
 
 class Mapper(Generic[TDomainEvent]):

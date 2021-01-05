@@ -6,7 +6,7 @@ from eventsourcing.sqliterecorders import (
     SQLiteDatabase,
 )
 from eventsourcing.application import LocalNotificationLog
-from eventsourcing.storedevent import StoredEvent
+from eventsourcing.persistence import StoredEvent
 
 
 class TestNotificationLog(TestCase):
