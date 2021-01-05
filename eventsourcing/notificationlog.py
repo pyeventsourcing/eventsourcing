@@ -1,3 +1,2 @@
-USE_REGULAR_SECTIONS = True
 
 
