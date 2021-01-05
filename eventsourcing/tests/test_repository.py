@@ -6,7 +6,7 @@ from uuid import uuid4
 from eventsourcing.aggregate import (
     Aggregate,
 )
-from eventsourcing.test_aggregate import BankAccount
+from eventsourcing.tests.test_aggregate import BankAccount
 from eventsourcing.utils import get_topic
 from eventsourcing.sqliterecorders import (
     SQLiteDatabase,

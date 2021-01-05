@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from eventsourcing.aggregate import Aggregate
 from eventsourcing.processapplication import ProcessEvent
-from eventsourcing.test_aggregate import BankAccount
+from eventsourcing.tests.test_aggregate import BankAccount
 from eventsourcing.tracking import Tracking
 
 

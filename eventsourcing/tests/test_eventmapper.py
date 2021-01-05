@@ -13,7 +13,7 @@ from eventsourcing.eventmapper import (
     Transcoding,
     UUIDAsHex,
 )
-from eventsourcing.test_aggregate import BankAccount
+from eventsourcing.tests.test_aggregate import BankAccount
 
 
 class TestMapper(TestCase):

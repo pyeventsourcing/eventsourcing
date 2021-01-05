@@ -1,9 +1,9 @@
-from eventsourcing.infrastructure_testcases import InfrastructureFactoryTestCase
+from eventsourcing.tests.infrastructure_testcases import InfrastructureFactoryTestCase
 from eventsourcing.poporecorders import POPOAggregateRecorder, POPOApplicationRecorder, \
     POPOProcessRecorder
-from eventsourcing.aggregaterecorder_testcase import AggregateRecorderTestCase
-from eventsourcing.applicationrecorder_testcase import ApplicationRecorderTestCase
-from eventsourcing.processrecorder_testcase import ProcessRecordsTestCase
+from eventsourcing.tests.aggregaterecorder_testcase import AggregateRecorderTestCase
+from eventsourcing.tests.applicationrecorder_testcase import ApplicationRecorderTestCase
+from eventsourcing.tests.processrecorder_testcase import ProcessRecordsTestCase
 
 
 class TestPopoAggregateRecorder(AggregateRecorderTestCase):

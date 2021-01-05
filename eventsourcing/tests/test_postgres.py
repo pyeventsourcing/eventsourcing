@@ -3,13 +3,13 @@ import os
 import psycopg2.errors
 from psycopg2.errorcodes import UNDEFINED_TABLE
 
-from eventsourcing.infrastructure_testcases import InfrastructureFactoryTestCase
+from eventsourcing.tests.infrastructure_testcases import InfrastructureFactoryTestCase
 from eventsourcing.infrastructurefactory import InfrastructureFactory
 from eventsourcing.postgresrecorders import PostgresAggregateRecorder, \
     PostgresApplicationRecorder, PostgresInfrastructureFactory, PostgresProcessRecorder
-from eventsourcing.aggregaterecorder_testcase import AggregateRecorderTestCase
-from eventsourcing.applicationrecorder_testcase import ApplicationRecorderTestCase
-from eventsourcing.processrecorder_testcase import ProcessRecordsTestCase
+from eventsourcing.tests.aggregaterecorder_testcase import AggregateRecorderTestCase
+from eventsourcing.tests.applicationrecorder_testcase import ApplicationRecorderTestCase
+from eventsourcing.tests.processrecorder_testcase import ProcessRecordsTestCase
 from eventsourcing.utils import get_topic
 
 

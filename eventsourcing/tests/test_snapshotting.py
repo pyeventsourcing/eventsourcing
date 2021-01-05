@@ -14,7 +14,7 @@ from eventsourcing.sqliterecorders import (
     SQLiteDatabase,
     SQLiteAggregateRecorder,
 )
-from eventsourcing.test_aggregate import BankAccount
+from eventsourcing.tests.test_aggregate import BankAccount
 
 
 class TestSnapshotting(TestCase):

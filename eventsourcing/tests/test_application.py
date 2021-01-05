@@ -9,7 +9,7 @@ from eventsourcing.infrastructurefactory import (
     InfrastructureFactory,
 )
 from eventsourcing.repository import AggregateNotFoundError
-from eventsourcing.test_aggregate import BankAccount
+from eventsourcing.tests.test_aggregate import BankAccount
 
 
 class TestApplication(TestCase):

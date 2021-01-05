@@ -1,14 +1,14 @@
 import os
 
-from eventsourcing.infrastructure_testcases import InfrastructureFactoryTestCase
+from eventsourcing.tests.infrastructure_testcases import InfrastructureFactoryTestCase
 from eventsourcing.infrastructurefactory import InfrastructureFactory
-from eventsourcing.processrecorder_testcase import ProcessRecordsTestCase
-from eventsourcing.ramdisk import tmpfile_uris
+from eventsourcing.tests.processrecorder_testcase import ProcessRecordsTestCase
+from eventsourcing.tests.ramdisk import tmpfile_uris
 from eventsourcing.sqliterecorders import SQLiteAggregateRecorder, \
     SQLiteApplicationRecorder, SQLiteDatabase, SQLiteInfrastructureFactory, \
     SQLiteProcessRecorder
-from eventsourcing.aggregaterecorder_testcase import AggregateRecorderTestCase
-from eventsourcing.applicationrecorder_testcase import ApplicationRecorderTestCase
+from eventsourcing.tests.aggregaterecorder_testcase import AggregateRecorderTestCase
+from eventsourcing.tests.applicationrecorder_testcase import ApplicationRecorderTestCase
 from eventsourcing.utils import get_topic
 
 

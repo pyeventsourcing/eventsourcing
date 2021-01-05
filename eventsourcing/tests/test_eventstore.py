@@ -13,7 +13,7 @@ from eventsourcing.eventmapper import (
     UUIDAsHex,
 )
 from eventsourcing.eventstore import EventStore
-from eventsourcing.test_aggregate import BankAccount
+from eventsourcing.tests.test_aggregate import BankAccount
 
 
 class TestEventStore(TestCase):

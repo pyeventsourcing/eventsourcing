@@ -5,9 +5,9 @@ from eventsourcing.aggregate import Aggregate
 from eventsourcing.processapplication import (
     Leader, ProcessApplication, ProcessEvent,
 )
-from eventsourcing.test_aggregate import BankAccount
-from eventsourcing.test_application import BankAccounts
-from eventsourcing.test_processingpolicy import EmailNotification
+from eventsourcing.tests.test_aggregate import BankAccount
+from eventsourcing.tests.test_application import BankAccounts
+from eventsourcing.tests.test_processingpolicy import EmailNotification
 
 
 class TestProcessApplication(TestCase):

@@ -6,9 +6,9 @@ from unittest.case import TestCase
 import psycopg2.errors
 from psycopg2.errorcodes import UNDEFINED_TABLE
 
-from eventsourcing.test_application import BankAccounts
+from eventsourcing.tests.test_application import BankAccounts
 from eventsourcing.utils import get_topic
-from eventsourcing.test_processapplication import EmailNotifications
+from eventsourcing.tests.test_processapplication import EmailNotifications
 from eventsourcing.multithreadedrunner import (
     MultiThreadedRunner,
 )
@@ -16,7 +16,7 @@ from eventsourcing.postgresrecorders import (
     PostgresDatabase,
     PostgresInfrastructureFactory,
 )
-from eventsourcing.ramdisk import tmpfile_uris
+from eventsourcing.tests.ramdisk import tmpfile_uris
 from eventsourcing.singlethreadedrunner import (
     SingleThreadedRunner,
 )
