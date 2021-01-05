@@ -102,15 +102,15 @@ class InfrastructureFactory(ABC):
 
     @abstractmethod
     def aggregate_recorder(self) -> AggregateRecorder:
-        pass
+        """Constructs aggregate recorder."""
 
     @abstractmethod
     def application_recorder(self) -> ApplicationRecorder:
-        pass
+        """Constructs application recorder."""
 
     @abstractmethod
     def process_recorder(self) -> ProcessRecorder:
-        pass
+        """Constructs process recorder."""
 
     def is_snapshotting_enabled(self) -> bool:
         default = "no"

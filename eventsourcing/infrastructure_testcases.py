@@ -190,3 +190,5 @@ class InfrastructureFactoryTestCase(TestCase):
     def test_create_process_recorder(self):
         recorder = self.factory.process_recorder()
         self.assertIsInstance(recorder, ProcessRecorder)
+
+
