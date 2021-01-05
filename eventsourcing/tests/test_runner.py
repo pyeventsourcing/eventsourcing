@@ -17,13 +17,10 @@ from eventsourcing.postgresrecorders import (
     PostgresInfrastructureFactory,
 )
 from eventsourcing.tests.ramdisk import tmpfile_uris
-from eventsourcing.singlethreadedrunner import (
-    SingleThreadedRunner,
-)
 from eventsourcing.sqliterecorders import (
     SQLiteInfrastructureFactory,
 )
-from eventsourcing.system import AbstractRunner, System
+from eventsourcing.system import AbstractRunner, SingleThreadedRunner, System
 
 
 class TestSingleThreadedRunner(TestCase):
