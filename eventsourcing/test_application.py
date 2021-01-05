@@ -1,5 +1,6 @@
 import os
 from decimal import Decimal
+from timeit import timeit
 from unittest.case import TestCase
 from uuid import UUID, uuid4
 
@@ -61,6 +62,29 @@ class TestApplication(TestCase):
             from_snapshot.balance, Decimal("35.00")
         )
 
+    def test_performance(self):
+
+        app = BankAccounts()
+
+        # Open an account.
+        account_id = app.open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+        account = app.get_account(account_id)
+
+        def insert():
+            # Credit the account.
+            account.append_transaction(Decimal("10.00"))
+            app.save(account)
+
+        # Warm up.
+        number = 10
+        timeit(insert, number=number)
+
+        number = 500
+        duration = timeit(insert, number=number)
+        print(self, f"{duration / number:.9f}")
 
 
 class BankAccounts(Application):
