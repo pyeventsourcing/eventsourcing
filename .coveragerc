@@ -2,4 +2,5 @@
 source = eventsourcing
 branch = True
 omit =
-    */test_*.py
+    */tests/*
+    */examples/*
