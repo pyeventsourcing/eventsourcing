@@ -41,7 +41,7 @@ class EmailNotifications(ProcessApplication):
         domain_event: Aggregate.Event,
         process_event: ProcessEvent,
     ):
-        pass
+        """Default policy"""
 
     @policy.register(BankAccount.Opened)
     def _(
