@@ -9,9 +9,6 @@ from psycopg2.errorcodes import UNDEFINED_TABLE
 from eventsourcing.tests.test_application import BankAccounts
 from eventsourcing.utils import get_topic
 from eventsourcing.tests.test_processapplication import EmailNotifications
-from eventsourcing.multithreadedrunner import (
-    MultiThreadedRunner,
-)
 from eventsourcing.postgresrecorders import (
     PostgresDatabase,
     PostgresInfrastructureFactory,
@@ -20,7 +17,8 @@ from eventsourcing.tests.ramdisk import tmpfile_uris
 from eventsourcing.sqliterecorders import (
     SQLiteInfrastructureFactory,
 )
-from eventsourcing.system import AbstractRunner, SingleThreadedRunner, System
+from eventsourcing.system import AbstractRunner, MultiThreadedRunner, \
+    SingleThreadedRunner, System
 
 
 class TestSingleThreadedRunner(TestCase):
