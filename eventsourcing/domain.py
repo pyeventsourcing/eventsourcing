@@ -1,19 +1,8 @@
-from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional, Type, TypeVar
 from uuid import UUID
 
-from eventsourcing.utils import get_topic, resolve_topic
-
-
-class FrozenDataClass(type):
-    def __new__(cls, *args):
-        new_cls = super().__new__(cls, *args)
-        return dataclass(frozen=True)(new_cls)
-
-
-class ImmutableObject(metaclass=FrozenDataClass):
-    pass
+from eventsourcing.utils import ImmutableObject, get_topic, resolve_topic
 
 
 class DomainEvent(ImmutableObject):

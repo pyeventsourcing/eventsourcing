@@ -1,10 +1,7 @@
 from typing import Iterable
 
 from eventsourcing.notification import Notification
-from eventsourcing.notificationlog import (
-    AbstractNotificationLog,
-    Section,
-)
+from eventsourcing.application import AbstractNotificationLog, Section
 
 
 class NotificationLogReader:

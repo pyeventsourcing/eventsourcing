@@ -4,10 +4,7 @@ from base64 import b64decode
 from uuid import UUID
 
 from eventsourcing.notification import Notification
-from eventsourcing.notificationlog import (
-    AbstractNotificationLog,
-    Section,
-)
+from eventsourcing.application import AbstractNotificationLog, Section
 
 
 class NotificationLogAPI(ABC):

@@ -1,7 +1,7 @@
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.notificationlog import LocalNotificationLog
+from eventsourcing.application import LocalNotificationLog
 from eventsourcing.notificationlogreader import (
     NotificationLogReader,
 )

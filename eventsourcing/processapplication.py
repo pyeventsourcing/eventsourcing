@@ -3,11 +3,10 @@ from typing import Dict, List, Tuple
 
 from eventsourcing.domain import Aggregate
 from eventsourcing.application import (
-    Application,
+    AbstractNotificationLog, Application,
 )
 from eventsourcing.eventmapper import Mapper
 from eventsourcing.notification import Notification
-from eventsourcing.notificationlog import AbstractNotificationLog
 from eventsourcing.notificationlogreader import (
     NotificationLogReader,
 )

@@ -1,4 +1,5 @@
 import importlib
+from dataclasses import dataclass
 
 
 def get_topic(cls: type) -> str:
@@ -24,3 +25,13 @@ def resolve_attr(obj, path: str) -> type:
         head, _, tail = path.partition(".")
         obj = getattr(obj, head)
         return resolve_attr(obj, tail)
+
+
+class FrozenDataClass(type):
+    def __new__(cls, *args):
+        new_cls = super().__new__(cls, *args)
+        return dataclass(frozen=True)(new_cls)
+
+
+class ImmutableObject(metaclass=FrozenDataClass):
+    pass

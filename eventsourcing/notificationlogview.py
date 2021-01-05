@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from base64 import b64encode
 
 from eventsourcing.notification import Notification
-from eventsourcing.notificationlog import LocalNotificationLog
+from eventsourcing.application import LocalNotificationLog
 
 
 class AbstractNotificationLogView(ABC):

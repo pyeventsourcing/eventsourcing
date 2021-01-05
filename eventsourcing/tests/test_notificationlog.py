@@ -5,7 +5,7 @@ from eventsourcing.sqliterecorders import (
     SQLiteApplicationRecorder,
     SQLiteDatabase,
 )
-from eventsourcing.notificationlog import LocalNotificationLog
+from eventsourcing.application import LocalNotificationLog
 from eventsourcing.storedevent import StoredEvent
 
 
