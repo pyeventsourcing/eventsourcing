@@ -16,7 +16,7 @@ class AbstractNotificationLogView(ABC):
 
     @abstractmethod
     def get(self, section_id: str) -> str:
-        pass
+        """Returns notification log section"""
 
 
 class JSONNotificationLogView(AbstractNotificationLogView):
