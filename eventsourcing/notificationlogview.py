@@ -2,7 +2,7 @@ import json
 from abc import ABC, abstractmethod
 from base64 import b64encode
 
-from eventsourcing.notification import Notification
+from eventsourcing.persistence import Notification
 from eventsourcing.application import LocalNotificationLog
 
 

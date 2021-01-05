@@ -5,8 +5,8 @@ from eventsourcing.domain import Aggregate
 from eventsourcing.application import (
     AbstractNotificationLog, Application,
 )
-from eventsourcing.persistence import ApplicationRecorder, Mapper, ProcessRecorder
-from eventsourcing.notification import Notification
+from eventsourcing.persistence import ApplicationRecorder, Mapper, Notification, \
+    ProcessRecorder
 from eventsourcing.notificationlogreader import (
     NotificationLogReader,
 )

@@ -9,7 +9,6 @@ from typing import Any, Dict, Generic, Iterator, List, Optional, Union, cast
 from uuid import UUID
 
 from eventsourcing.domain import DomainEvent, TDomainEvent
-from eventsourcing.notification import Notification
 from eventsourcing.storedevent import StoredEvent
 from eventsourcing.utils import get_topic, resolve_topic
 
@@ -216,6 +215,10 @@ class AggregateRecorder(Recorder):
         """
         Reads stored events from database.
         """
+
+
+class Notification(StoredEvent):
+    id: int
 
 
 class ApplicationRecorder(AggregateRecorder):

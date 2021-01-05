@@ -9,10 +9,10 @@ from uuid import UUID
 from psycopg2.extensions import cursor, connection
 
 from eventsourcing.persistence import (
-    AggregateRecorder, ApplicationRecorder, InfrastructureFactory, ProcessRecorder,
+    AggregateRecorder, ApplicationRecorder, InfrastructureFactory, Notification,
+    ProcessRecorder,
     RecordConflictError,
 )
-from eventsourcing.notification import Notification
 from eventsourcing.storedevent import StoredEvent
 from eventsourcing.tracking import Tracking
 

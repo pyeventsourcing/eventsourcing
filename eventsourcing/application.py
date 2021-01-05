@@ -6,10 +6,9 @@ from eventsourcing.domain import Aggregate, Snapshot
 from eventsourcing.persistence import (
     AbstractTranscoder, ApplicationRecorder, DatetimeAsISO, DecimalAsStr, EventStore,
     InfrastructureFactory,
-    Mapper, Transcoder,
+    Mapper, Notification, Transcoder,
     UUIDAsHex,
 )
-from eventsourcing.notification import Notification
 
 # Todo: Make a method to create a snapshot for an aggregate ID.
 from eventsourcing.utils import ImmutableObject

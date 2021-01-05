@@ -1,6 +1,6 @@
 from typing import Iterable
 
-from eventsourcing.notification import Notification
+from eventsourcing.persistence import Notification
 from eventsourcing.application import AbstractNotificationLog, Section
 
 
