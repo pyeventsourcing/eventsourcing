@@ -29,8 +29,10 @@ class NotificationLogReader:
                 section_id
             ]
             for item in section.items:
-                if item.id < start:
-                    continue
+                # Todo: Reintroduce if supporting
+                #  sections with regular alignment?
+                # if item.id < start:
+                #     continue
                 yield item
             if section.next_id is None:
                 break
