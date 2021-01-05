@@ -72,9 +72,8 @@ class TestMapper(TestCase):
             stored_event.state
         )
 
-        import zlib
-
         # Construct mapper with cipher and compressor.
+        import zlib
         mapper = Mapper(
             transcoder=transcoder,
             cipher=cipher,
@@ -85,6 +84,9 @@ class TestMapper(TestCase):
         stored_event = mapper.from_domain_event(
             domain_event
         )
+
+        # Map to domain event.
+        copy = mapper.to_domain_event(stored_event)
 
         # Check decompressed copy has correct values.
         assert (
