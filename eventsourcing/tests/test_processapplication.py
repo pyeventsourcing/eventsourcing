@@ -1,7 +1,7 @@
 from functools import singledispatchmethod
 from unittest.case import TestCase
 
-from eventsourcing.aggregate import Aggregate
+from eventsourcing.domain import Aggregate
 from eventsourcing.processapplication import (
     Leader, ProcessApplication, ProcessEvent,
 )

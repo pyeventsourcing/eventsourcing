@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from eventsourcing.domainevent import ImmutableObject
+from eventsourcing.domain import ImmutableObject
 from eventsourcing.notification import Notification
 from eventsourcing.recorders import ApplicationRecorder
 

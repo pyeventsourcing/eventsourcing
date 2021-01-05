@@ -2,7 +2,7 @@ from datetime import datetime
 from unittest.case import TestCase
 from uuid import UUID, uuid4
 
-from eventsourcing.domainevent import DomainEvent
+from eventsourcing.domain import DomainEvent
 
 
 class TestDomainEvent(TestCase):

@@ -2,9 +2,7 @@ from abc import ABC
 from typing import List, Optional, TypeVar
 from uuid import UUID
 
-from eventsourcing.aggregate import (
-    Aggregate,
-)
+from eventsourcing.domain import Aggregate
 from eventsourcing.eventmapper import (
     AbstractTranscoder,
     DatetimeAsISO,

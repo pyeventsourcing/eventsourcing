@@ -1,10 +1,10 @@
 from datetime import datetime
 
-from eventsourcing.aggregate import (
+from eventsourcing.domain import (
     Aggregate,
 )
 from eventsourcing.utils import get_topic, resolve_topic
-from eventsourcing.domainevent import DomainEvent
+from eventsourcing.domain import DomainEvent
 
 
 class Snapshot(DomainEvent):

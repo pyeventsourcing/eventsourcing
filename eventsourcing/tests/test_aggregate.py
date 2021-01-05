@@ -4,7 +4,7 @@ from unittest.case import TestCase
 from decimal import Decimal
 from uuid import uuid4
 
-from eventsourcing.aggregate import Aggregate, VersionError
+from eventsourcing.domain import Aggregate, VersionError
 
 
 class TestAggregate(TestCase):

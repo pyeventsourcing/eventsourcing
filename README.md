@@ -88,7 +88,7 @@ the "history" of the world.
 
 from uuid import uuid4
 
-from eventsourcing.aggregate import Aggregate
+from eventsourcing.domain import Aggregate
 
 
 class World(Aggregate):

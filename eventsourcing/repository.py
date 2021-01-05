@@ -1,7 +1,7 @@
 from typing import List, Optional, Union
 from uuid import UUID
 
-from eventsourcing.aggregate import Aggregate
+from eventsourcing.domain import Aggregate
 from eventsourcing.eventstore import EventStore
 from eventsourcing.snapshotting import Snapshot
 

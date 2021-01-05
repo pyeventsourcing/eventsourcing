@@ -1,4 +1,4 @@
-from eventsourcing.domainevent import ImmutableObject
+from eventsourcing.domain import ImmutableObject
 
 
 class Tracking(ImmutableObject):

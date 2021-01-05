@@ -2,7 +2,7 @@ from typing import Generic, Iterator, Optional
 from uuid import UUID
 
 from eventsourcing.recorders import AggregateRecorder
-from eventsourcing.domainevent import TDomainEvent
+from eventsourcing.domain import TDomainEvent
 from eventsourcing.eventmapper import Mapper
 
 

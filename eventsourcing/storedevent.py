@@ -1,6 +1,6 @@
 import uuid
 
-from eventsourcing.domainevent import ImmutableObject
+from eventsourcing.domain import ImmutableObject
 
 
 class StoredEvent(ImmutableObject):

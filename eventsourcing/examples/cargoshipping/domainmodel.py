@@ -11,7 +11,7 @@ from typing import (
 from uuid import UUID, uuid4
 
 # Locations in the world.
-from eventsourcing.aggregate import Aggregate
+from eventsourcing.domain import Aggregate
 
 
 class Location(Enum):

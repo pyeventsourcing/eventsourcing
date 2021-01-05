@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple
 
-from eventsourcing.aggregate import Aggregate
+from eventsourcing.domain import Aggregate
 from eventsourcing.application import (
     Application,
 )
