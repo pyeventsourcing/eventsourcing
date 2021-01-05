@@ -8,9 +8,7 @@ from psycopg2.errorcodes import UNDEFINED_TABLE
 
 from eventsourcing.test_application import BankAccounts
 from eventsourcing.utils import get_topic
-from eventsourcing.emailnotifications import (
-    EmailNotifications,
-)
+from eventsourcing.test_processapplication import EmailNotifications
 from eventsourcing.multithreadedrunner import (
     MultiThreadedRunner,
 )

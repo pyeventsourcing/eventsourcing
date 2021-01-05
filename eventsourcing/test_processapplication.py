@@ -1,12 +1,13 @@
+from functools import singledispatchmethod
 from unittest.case import TestCase
 
-from eventsourcing.emailnotifications import (
-    EmailNotifications,
-)
+from eventsourcing.aggregate import Aggregate
 from eventsourcing.processapplication import (
-    Leader,
+    Leader, ProcessApplication, ProcessEvent,
 )
+from eventsourcing.test_aggregate import BankAccount
 from eventsourcing.test_application import BankAccounts
+from eventsourcing.test_processingpolicy import EmailNotification
 
 
 class TestProcessApplication(TestCase):
@@ -45,3 +46,29 @@ class TestProcessApplication(TestCase):
 
         section = notifications.log["1,5"]
         self.assertEqual(len(section.items), 2)
+
+
+class EmailNotifications(ProcessApplication):
+    @singledispatchmethod
+    def policy(
+        self,
+        domain_event: Aggregate.Event,
+        process_event: ProcessEvent,
+    ):
+        """Default policy"""
+
+    @policy.register(BankAccount.Opened)
+    def _(
+        self,
+        domain_event: Aggregate.Event,
+        process_event: ProcessEvent,
+    ):
+        assert isinstance(domain_event, BankAccount.Opened)
+        notification = EmailNotification.create(
+            to=domain_event.email_address,
+            subject="Your New Account",
+            message="Dear {}, ...".format(
+                domain_event.full_name
+            ),
+        )
+        process_event.collect([notification])

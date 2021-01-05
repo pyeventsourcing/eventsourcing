@@ -1,9 +1,8 @@
 from functools import singledispatch
 from unittest.case import TestCase
+from uuid import uuid4
 
-from eventsourcing.emailnotifications import (
-    EmailNotification,
-)
+from eventsourcing.aggregate import Aggregate
 from eventsourcing.processapplication import ProcessEvent
 from eventsourcing.test_aggregate import BankAccount
 from eventsourcing.tracking import Tracking
@@ -46,3 +45,26 @@ class TestProcessingPolicy(TestCase):
             process_event.events[0],
             EmailNotification.Created,
         )
+
+
+class EmailNotification(Aggregate):
+    def __init__(self, to, subject, message, **kwargs):
+        super(EmailNotification, self).__init__(**kwargs)
+        self.to = to
+        self.subject = subject
+        self.message = message
+
+    @classmethod
+    def create(cls, to, subject, message):
+        return super()._create_(
+            cls.Created,
+            uuid=uuid4(),
+            to=to,
+            subject=subject,
+            message=message,
+        )
+
+    class Created(Aggregate.Created):
+        to: str
+        subject: str
+        message: str
