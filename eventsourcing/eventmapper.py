@@ -15,30 +15,30 @@ class Transcoding(ABC):
     @property
     @abstractmethod
     def type(self) -> type:
-        ...
+        """Object type of transcoded object."""
 
     @property
     @abstractmethod
     def name(self) -> str:
-        """"""
+        """Name of transcoding."""
 
     @abstractmethod
     def encode(self, o: Any) -> Union[str, dict]:
-        """"""
+        """Encodes given object."""
 
     @abstractmethod
     def decode(self, d: Union[str, dict]) -> Any:
-        """"""
+        """Decodes encoded object."""
 
 
 class AbstractTranscoder(ABC):
     @abstractmethod
     def encode(self, o: Any) -> bytes:
-        """"""
+        """Encodes given object."""
 
     @abstractmethod
     def decode(self, d: bytes) -> Any:
-        """"""
+        """Decodes encoded object."""
 
 
 class Transcoder(AbstractTranscoder):
