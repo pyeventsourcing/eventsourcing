@@ -1,11 +1,10 @@
 from decimal import Decimal
 from uuid import UUID
 
-from eventsourcing.application import Application
+from eventsourcing.application import AggregateNotFoundError, Application
 from eventsourcing.examples.bankaccounts.domainmodel import (
     BankAccount,
 )
-from eventsourcing.repository import AggregateNotFoundError
 
 
 class AccountNotFoundError(Exception):

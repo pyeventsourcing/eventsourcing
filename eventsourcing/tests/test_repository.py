@@ -20,10 +20,10 @@ from eventsourcing.eventmapper import (
     UUIDAsHex,
 )
 from eventsourcing.eventstore import EventStore
-from eventsourcing.repository import (
+from eventsourcing.application import (
     AggregateNotFoundError,
-    Repository,
 )
+from eventsourcing.application import Repository
 from eventsourcing.snapshotting import Snapshot
 
 

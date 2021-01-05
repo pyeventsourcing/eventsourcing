@@ -123,9 +123,8 @@ class World(Aggregate):
 Define a test that exercises the domain model with an application.
 
 ```python
-from eventsourcing.application import Application
+from eventsourcing.application import AggregateNotFoundError, Application
 from eventsourcing.notificationlogreader import NotificationLogReader
-from eventsourcing.repository import AggregateNotFoundError
 
 
 def test(app: Application):
