@@ -11,9 +11,8 @@ from eventsourcing.eventmapper import (
     Transcoder,
     UUIDAsHex,
 )
-from eventsourcing.eventstore import EventStore
 from eventsourcing.persistence import (
-    InfrastructureFactory,
+    EventStore, InfrastructureFactory,
 )
 from eventsourcing.notification import Notification
 from eventsourcing.recorders import ApplicationRecorder

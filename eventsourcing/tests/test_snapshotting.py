@@ -8,7 +8,7 @@ from eventsourcing.eventmapper import (
     Transcoder,
     UUIDAsHex,
 )
-from eventsourcing.eventstore import EventStore
+from eventsourcing.persistence import EventStore
 from eventsourcing.snapshotting import Snapshot
 from eventsourcing.sqliterecorders import (
     SQLiteDatabase,
