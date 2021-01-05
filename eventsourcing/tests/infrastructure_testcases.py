@@ -7,12 +7,9 @@ from eventsourcing.aes import AESCipher
 from eventsourcing.utils import get_topic
 from eventsourcing.domain import DomainEvent
 from eventsourcing.persistence import (
-    DatetimeAsISO, DecimalAsStr, InfrastructureFactory, Mapper, Transcoder, UUIDAsHex,
-)
-from eventsourcing.recorders import (
-    ApplicationRecorder,
-    AggregateRecorder,
-    ProcessRecorder,
+    AggregateRecorder, ApplicationRecorder, DatetimeAsISO, DecimalAsStr,
+    InfrastructureFactory, Mapper,
+    ProcessRecorder, Transcoder, UUIDAsHex,
 )
 
 

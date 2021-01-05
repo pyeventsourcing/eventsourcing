@@ -5,17 +5,13 @@ from copy import copy
 from datetime import datetime
 from decimal import Decimal
 from distutils.util import strtobool
-from typing import Any, Dict, Generic, Iterator, Optional, Union, cast
+from typing import Any, Dict, Generic, Iterator, List, Optional, Union, cast
 from uuid import UUID
 
 from eventsourcing.domain import DomainEvent, TDomainEvent
+from eventsourcing.notification import Notification
 from eventsourcing.storedevent import StoredEvent
 from eventsourcing.utils import get_topic, resolve_topic
-from eventsourcing.recorders import (
-    ApplicationRecorder,
-    AggregateRecorder,
-    ProcessRecorder,
-)
 
 
 class Transcoding(ABC):
@@ -183,6 +179,68 @@ class Mapper(Generic[TDomainEvent]):
         domain_event: TDomainEvent = object.__new__(cls)
         domain_event.__dict__.update(d)
         return domain_event
+
+
+class OperationalError(Exception):
+    pass
+
+
+class RecordConflictError(Exception):
+    pass
+
+
+class Recorder(ABC):
+    pass
+
+
+class AggregateRecorder(Recorder):
+    @abstractmethod
+    def insert_events(
+        self,
+        stored_events: List[StoredEvent],
+        **kwargs,
+    ) -> None:
+        """
+        Writes stored events into database.
+        """
+
+    @abstractmethod
+    def select_events(
+        self,
+        originator_id: UUID,
+        gt: Optional[int] = None,
+        lte: Optional[int] = None,
+        desc: bool = False,
+        limit: Optional[int] = None,
+    ) -> List[StoredEvent]:
+        """
+        Reads stored events from database.
+        """
+
+
+class ApplicationRecorder(AggregateRecorder):
+    @abstractmethod
+    def select_notifications(
+        self, start: int, limit: int
+    ) -> List[Notification]:
+        """
+        Returns a list of event notifications
+        from 'start', limited by 'limit'.
+        """
+
+    @abstractmethod
+    def max_notification_id(self) -> int:
+        """
+        Returns the maximum notification ID.
+        """
+
+
+class ProcessRecorder(ApplicationRecorder):
+    @abstractmethod
+    def max_tracking_id(
+        self, application_name: str
+    ) -> int:
+        pass
 
 
 class EventStore(Generic[TDomainEvent]):

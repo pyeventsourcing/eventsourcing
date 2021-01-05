@@ -11,14 +11,10 @@ from uuid import UUID
 
 from eventsourcing.notification import Notification
 from eventsourcing.tracking import Tracking
-from eventsourcing.recorders import (
-    AggregateRecorder,
-    ApplicationRecorder,
-    ProcessRecorder, RecordConflictError,
-)
 from eventsourcing.storedevent import StoredEvent
 from eventsourcing.persistence import (
-    InfrastructureFactory,
+    AggregateRecorder, ApplicationRecorder, InfrastructureFactory, ProcessRecorder,
+    RecordConflictError,
 )
 
 

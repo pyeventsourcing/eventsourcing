@@ -4,7 +4,7 @@ from unittest.case import TestCase
 from uuid import uuid4
 
 from eventsourcing.tracking import Tracking
-from eventsourcing.recorders import RecordConflictError
+from eventsourcing.persistence import RecordConflictError
 from eventsourcing.storedevent import StoredEvent
 
 

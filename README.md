@@ -186,7 +186,7 @@ def test(app: Application):
     assert len(old.history) == 2
 
     # Optimistic concurrency control (no branches).
-    from eventsourcing.recorders import RecordConflictError
+    from eventsourcing.persistence import RecordConflictError
 
     old.make_it_so('future')
     try:

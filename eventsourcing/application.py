@@ -4,12 +4,12 @@ from uuid import UUID
 
 from eventsourcing.domain import Aggregate, Snapshot
 from eventsourcing.persistence import (
-    AbstractTranscoder, DatetimeAsISO, DecimalAsStr, EventStore, InfrastructureFactory,
+    AbstractTranscoder, ApplicationRecorder, DatetimeAsISO, DecimalAsStr, EventStore,
+    InfrastructureFactory,
     Mapper, Transcoder,
     UUIDAsHex,
 )
 from eventsourcing.notification import Notification
-from eventsourcing.recorders import ApplicationRecorder
 
 # Todo: Make a method to create a snapshot for an aggregate ID.
 from eventsourcing.utils import ImmutableObject

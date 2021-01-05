@@ -5,16 +5,12 @@ from eventsourcing.domain import Aggregate
 from eventsourcing.application import (
     AbstractNotificationLog, Application,
 )
-from eventsourcing.persistence import Mapper
+from eventsourcing.persistence import ApplicationRecorder, Mapper, ProcessRecorder
 from eventsourcing.notification import Notification
 from eventsourcing.notificationlogreader import (
     NotificationLogReader,
 )
 from eventsourcing.tracking import Tracking
-from eventsourcing.recorders import (
-    ApplicationRecorder,
-    ProcessRecorder,
-)
 
 
 class Promptable(ABC):
