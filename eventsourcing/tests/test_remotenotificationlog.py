@@ -9,9 +9,8 @@ from unittest.case import TestCase
 from uuid import UUID
 
 from eventsourcing.application import TApplication
-from eventsourcing.notificationlogview import AbstractNotificationLogView, \
-    JSONNotificationLogView
-from eventsourcing.remotenotificationlog import NotificationLogAPI, \
+from eventsourcing.interface import AbstractNotificationLogView, \
+    JSONNotificationLogView, NotificationLogAPI, \
     RemoteNotificationLog
 from eventsourcing.tests.test_application import BankAccounts
 
