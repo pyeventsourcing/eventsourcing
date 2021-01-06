@@ -2,25 +2,18 @@ from unittest.case import TestCase
 from uuid import uuid4
 
 from eventsourcing.application import LocalNotificationLog
-from eventsourcing.system import NotificationLogReader
-from eventsourcing.sqlite import (
-    SQLiteDatabase,
-    SQLiteProcessRecorder,
-)
 from eventsourcing.persistence import StoredEvent
+from eventsourcing.sqlite import SQLiteDatabase, SQLiteProcessRecorder
+from eventsourcing.system import NotificationLogReader
 
 
 class TestNotificationLogReader(TestCase):
     def test(self):
-        recorder = SQLiteProcessRecorder(
-            SQLiteDatabase(":memory:")
-        )
+        recorder = SQLiteProcessRecorder(SQLiteDatabase(":memory:"))
         recorder.create_table()
 
         # Construct notification log.
-        notification_log = LocalNotificationLog(
-            recorder, section_size=5
-        )
+        notification_log = LocalNotificationLog(recorder, section_size=5)
         reader = NotificationLogReader(
             notification_log,
         )

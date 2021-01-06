@@ -47,12 +47,8 @@ class Transcoder(AbstractTranscoder):
     def __init__(self):
         self.types: Dict[type, Transcoding] = {}
         self.names: Dict[str, Transcoding] = {}
-        self.encoder = json.JSONEncoder(
-            default=self._encode_dict
-        )
-        self.decoder = json.JSONDecoder(
-            object_hook=self._decode_dict
-        )
+        self.encoder = json.JSONEncoder(default=self._encode_dict)
+        self.decoder = json.JSONDecoder(object_hook=self._decode_dict)
 
     def register(self, transcoding: Transcoding):
         self.types[transcoding.type] = transcoding
@@ -64,16 +60,12 @@ class Transcoder(AbstractTranscoder):
     def decode(self, d: bytes) -> Any:
         return self.decoder.decode(d.decode("utf8"))
 
-    def _encode_dict(
-        self, o: Any
-    ) -> Dict[str, Union[str, dict]]:
+    def _encode_dict(self, o: Any) -> Dict[str, Union[str, dict]]:
         try:
             transcoding = self.types[type(o)]
         except KeyError:
             raise TypeError(
-                f"Object of type "
-                f"{o.__class__.__name__} "
-                f"is not serializable"
+                f"Object of type " f"{o.__class__.__name__} " f"is not serializable"
             )
         else:
             return {
@@ -81,9 +73,7 @@ class Transcoder(AbstractTranscoder):
                 "__data__": transcoding.encode(o),
             }
 
-    def _decode_dict(
-        self, d: Dict[str, Union[str, dict]]
-    ) -> Any:
+    def _decode_dict(self, d: Dict[str, Union[str, dict]]) -> Any:
         if set(d.keys()) == {
             "__type__",
             "__data__",
@@ -150,9 +140,7 @@ class Mapper(Generic[TDomainEvent]):
         self.cipher = cipher
         self.compressor = compressor
 
-    def from_domain_event(
-        self, domain_event: TDomainEvent
-    ) -> StoredEvent:
+    def from_domain_event(self, domain_event: TDomainEvent) -> StoredEvent:
         topic: str = get_topic(domain_event.__class__)
         d = copy(domain_event.__dict__)
         d.pop("originator_id")
@@ -169,9 +157,7 @@ class Mapper(Generic[TDomainEvent]):
             state,
         )
 
-    def to_domain_event(
-        self, stored: StoredEvent
-    ) -> TDomainEvent:
+    def to_domain_event(self, stored: StoredEvent) -> TDomainEvent:
         state: bytes = stored.state
         if self.cipher:
             state = self.cipher.decrypt(state)
@@ -230,9 +216,7 @@ class Notification(StoredEvent):
 
 class ApplicationRecorder(AggregateRecorder):
     @abstractmethod
-    def select_notifications(
-        self, start: int, limit: int
-    ) -> List[Notification]:
+    def select_notifications(self, start: int, limit: int) -> List[Notification]:
         """
         Returns a list of event notifications
         from 'start', limited by 'limit'.
@@ -247,9 +231,7 @@ class ApplicationRecorder(AggregateRecorder):
 
 class ProcessRecorder(ApplicationRecorder):
     @abstractmethod
-    def max_tracking_id(
-        self, application_name: str
-    ) -> int:
+    def max_tracking_id(self, application_name: str) -> int:
         pass
 
 
@@ -327,20 +309,14 @@ class InfrastructureFactory(ABC):
                 f"variable '{cls.TOPIC}'"
             )
 
-        if not issubclass(
-            factory_cls, InfrastructureFactory
-        ):
-            raise AssertionError(
-                f"Not an infrastructure factory: {topic}"
-            )
+        if not issubclass(factory_cls, InfrastructureFactory):
+            raise AssertionError(f"Not an infrastructure factory: {topic}")
         return factory_cls(application_name=name)
 
     def __init__(self, application_name):
         self.application_name = application_name
 
-    def getenv(
-        self, key, default=None, application_name=""
-    ):
+    def getenv(self, key, default=None, application_name=""):
         if not application_name:
             application_name = self.application_name
         keys = [
@@ -377,9 +353,7 @@ class InfrastructureFactory(ABC):
                     "Cipher key was not found in env, "
                     "although cipher topic was found"
                 )
-        compressor_topic = self.getenv(
-            self.COMPRESSOR_TOPIC
-        )
+        compressor_topic = self.getenv(self.COMPRESSOR_TOPIC)
         if compressor_topic:
             compressor = resolve_topic(compressor_topic)
         return Mapper(
@@ -406,12 +380,7 @@ class InfrastructureFactory(ABC):
     def is_snapshotting_enabled(self) -> bool:
         default = "no"
         return bool(
-            strtobool(
-                self.getenv(
-                    self.IS_SNAPSHOTTING_ENABLED, default
-                )
-                or default
-            )
+            strtobool(self.getenv(self.IS_SNAPSHOTTING_ENABLED, default) or default)
         )
 
 

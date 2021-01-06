@@ -3,15 +3,15 @@ from typing import List, Optional
 from uuid import UUID
 
 from eventsourcing.application import Application
-from eventsourcing.persistence import Transcoder, Transcoding
 from eventsourcing.examples.cargoshipping.domainmodel import (
+    REGISTERED_ROUTES,
     Cargo,
     HandlingActivity,
     Itinerary,
     Leg,
     Location,
-    REGISTERED_ROUTES,
 )
+from eventsourcing.persistence import Transcoder, Transcoding
 
 # Cargo aggregates exist within an application, which
 # provides "application service" methods for clients.
@@ -66,12 +66,8 @@ class LegAsDict(Transcoding):
 
 
 class BookingApplication(Application):
-    def register_transcodings(
-        self, transcoder: Transcoder
-    ):
-        super(
-            BookingApplication, self
-        ).register_transcodings(transcoder)
+    def register_transcodings(self, transcoder: Transcoder):
+        super(BookingApplication, self).register_transcodings(transcoder)
         transcoder.register(LocationAsName())
         transcoder.register(HandlingActivityAsName())
         transcoder.register(ItineraryAsDict())
@@ -83,43 +79,29 @@ class BookingApplication(Application):
         destination: Location,
         arrival_deadline: datetime,
     ) -> UUID:
-        cargo = Cargo.new_booking(
-            origin, destination, arrival_deadline
-        )
+        cargo = Cargo.new_booking(origin, destination, arrival_deadline)
         self.save(cargo)
         return cargo.uuid
 
-    def change_destination(
-        self, tracking_id: UUID, destination: Location
-    ) -> None:
+    def change_destination(self, tracking_id: UUID, destination: Location) -> None:
         cargo = self.get_cargo(tracking_id)
         cargo.change_destination(destination)
         self.save(cargo)
 
-    def request_possible_routes_for_cargo(
-        self, tracking_id: UUID
-    ) -> List[Itinerary]:
+    def request_possible_routes_for_cargo(self, tracking_id: UUID) -> List[Itinerary]:
         cargo = self.get_cargo(tracking_id)
-        from_location = (
-            cargo.last_known_location or cargo.origin
-        ).value
+        from_location = (cargo.last_known_location or cargo.origin).value
         to_location = cargo.destination.value
         try:
-            possible_routes = REGISTERED_ROUTES[
-                (from_location, to_location)
-            ]
+            possible_routes = REGISTERED_ROUTES[(from_location, to_location)]
         except KeyError:
             raise Exception(
-                "Can't find routes from {} to {}".format(
-                    from_location, to_location
-                )
+                "Can't find routes from {} to {}".format(from_location, to_location)
             )
 
         return possible_routes
 
-    def assign_route(
-        self, tracking_id: UUID, itinerary: Itinerary
-    ) -> None:
+    def assign_route(self, tracking_id: UUID, itinerary: Itinerary) -> None:
         cargo = self.get_cargo(tracking_id)
         cargo.assign_route(itinerary)
         self.save(cargo)

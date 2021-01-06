@@ -1,27 +1,24 @@
 from collections import defaultdict
 from threading import Lock
-from typing import (
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Set,
-)
+from typing import Dict, Iterable, List, Optional
 from uuid import UUID
 
 from eventsourcing.persistence import (
-    AggregateRecorder, ApplicationRecorder, InfrastructureFactory, Notification,
+    AggregateRecorder,
+    ApplicationRecorder,
+    InfrastructureFactory,
+    Notification,
     ProcessRecorder,
-    RecordConflictError, StoredEvent, Tracking,
+    RecordConflictError,
+    StoredEvent,
+    Tracking,
 )
 
 
 class POPOAggregateRecorder(AggregateRecorder):
     def __init__(self) -> None:
         self.stored_events: List[StoredEvent] = []
-        self.stored_events_index: Dict[
-            UUID, Dict[int, int]
-        ] = defaultdict(dict)
+        self.stored_events_index: Dict[UUID, Dict[int, int]] = defaultdict(dict)
         self.database_lock = Lock()
 
     def insert_events(
@@ -33,26 +30,17 @@ class POPOAggregateRecorder(AggregateRecorder):
             self.assert_uniqueness(stored_events, **kwargs)
             self.update_table(stored_events, **kwargs)
 
-    def assert_uniqueness(
-        self, stored_events: List[StoredEvent], **kwargs
-    ) -> None:
+    def assert_uniqueness(self, stored_events: List[StoredEvent], **kwargs) -> None:
         for s in stored_events:
-            if (
-                s.originator_version
-                in self.stored_events_index[
-                    s.originator_id
-                ]
-            ):
+            if s.originator_version in self.stored_events_index[s.originator_id]:
                 raise RecordConflictError
 
-    def update_table(
-        self, stored_events: List[StoredEvent], **kwargs
-    ) -> None:
+    def update_table(self, stored_events: List[StoredEvent], **kwargs) -> None:
         for s in stored_events:
             self.stored_events.append(s)
-            self.stored_events_index[s.originator_id][
-                s.originator_version
-            ] = (len(self.stored_events) - 1)
+            self.stored_events_index[s.originator_id][s.originator_version] = (
+                len(self.stored_events) - 1
+            )
 
     def select_events(
         self,
@@ -84,19 +72,13 @@ class POPOAggregateRecorder(AggregateRecorder):
             return results
 
 
-class POPOApplicationRecorder(
-    ApplicationRecorder, POPOAggregateRecorder
-):
-    def select_notifications(
-        self, start: int, limit: int
-    ) -> List[Notification]:
+class POPOApplicationRecorder(ApplicationRecorder, POPOAggregateRecorder):
+    def select_notifications(self, start: int, limit: int) -> List[Notification]:
         with self.database_lock:
             results = []
             i = start - 1
             j = i + limit
-            for notification_id, s in enumerate(
-                self.stored_events[i:j], start
-            ):
+            for notification_id, s in enumerate(self.stored_events[i:j], start):
                 n = Notification(  # type: ignore
                     id=notification_id,
                     originator_id=s.originator_id,
@@ -112,49 +94,29 @@ class POPOApplicationRecorder(
             return len(self.stored_events)
 
 
-class POPOProcessRecorder(
-    ProcessRecorder, POPOApplicationRecorder
-):
+class POPOProcessRecorder(ProcessRecorder, POPOApplicationRecorder):
     def __init__(self) -> None:
         super().__init__()
-        self.tracking_table: Dict[str, int] = defaultdict(
-            None
-        )
+        self.tracking_table: Dict[str, int] = defaultdict(None)
 
-    def assert_uniqueness(
-        self, stored_events: List[StoredEvent], **kwargs
-    ) -> None:
+    def assert_uniqueness(self, stored_events: List[StoredEvent], **kwargs) -> None:
         super().assert_uniqueness(stored_events, **kwargs)
-        tracking: Optional[Tracking] = kwargs.get(
-            "tracking", None
-        )
+        tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking:
-            last = self.tracking_table.get(
-                tracking.application_name, 0
-            )
+            last = self.tracking_table.get(tracking.application_name, 0)
             if tracking.notification_id <= last:
                 raise RecordConflictError
 
-    def update_table(
-        self, stored_events: List[StoredEvent], **kwargs
-    ) -> None:
+    def update_table(self, stored_events: List[StoredEvent], **kwargs) -> None:
         super().update_table(stored_events, **kwargs)
-        tracking: Optional[Tracking] = kwargs.get(
-            "tracking", None
-        )
+        tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking:
-            self.tracking_table[
-                tracking.application_name
-            ] = tracking.notification_id
+            self.tracking_table[tracking.application_name] = tracking.notification_id
 
-    def max_tracking_id(
-        self, application_name: str
-    ) -> int:
+    def max_tracking_id(self, application_name: str) -> int:
         with self.database_lock:
             try:
-                return self.tracking_table[
-                    application_name
-                ]
+                return self.tracking_table[application_name]
             except KeyError:
                 return 0
 

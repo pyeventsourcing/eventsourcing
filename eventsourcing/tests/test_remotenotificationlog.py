@@ -9,33 +9,26 @@ from unittest.case import TestCase
 from uuid import UUID
 
 from eventsourcing.application import TApplication
-from eventsourcing.interface import AbstractNotificationLogView, \
-    JSONNotificationLogView, NotificationLogAPI, \
-    RemoteNotificationLog
+from eventsourcing.interface import (
+    AbstractNotificationLogView,
+    JSONNotificationLogView,
+    NotificationLogAPI,
+    RemoteNotificationLog,
+)
 from eventsourcing.tests.test_application import BankAccounts
 
 
 class TestRemoteNotificationLog(TestCase):
     def test_directly(self):
-        client = BankAccountsJSONClient(
-            BankAccountsJSONAPI(BankAccounts())
-        )
-        account_id1 = client.open_account(
-            "Alice", "alice@example.com"
-        )
-        account_id2 = client.open_account(
-            "Bob", "bob@example.com"
-        )
+        client = BankAccountsJSONClient(BankAccountsJSONAPI(BankAccounts()))
+        account_id1 = client.open_account("Alice", "alice@example.com")
+        account_id2 = client.open_account("Bob", "bob@example.com")
 
         # Get the "first" section of log.
         section = client.log["1,10"]
         self.assertEqual(len(section.items), 2)
-        self.assertEqual(
-            section.items[0].originator_id, account_id1
-        )
-        self.assertEqual(
-            section.items[1].originator_id, account_id2
-        )
+        self.assertEqual(section.items[0].originator_id, account_id1)
+        self.assertEqual(section.items[1].originator_id, account_id2)
 
     def test_with_http(self):
         server_address = ("127.0.0.1", 8080)
@@ -51,27 +44,17 @@ class TestRemoteNotificationLog(TestCase):
 
         try:
             client = BankAccountsJSONClient(
-                BankAccountsHTTPClient(
-                    server_address=server_address
-                )
+                BankAccountsHTTPClient(server_address=server_address)
             )
 
-            account_id1 = client.open_account(
-                "Alice", "alice@example.com"
-            )
-            account_id2 = client.open_account(
-                "Bob", "bob@example.com"
-            )
+            account_id1 = client.open_account("Alice", "alice@example.com")
+            account_id2 = client.open_account("Bob", "bob@example.com")
 
             # Get the "first" section of log.
             section = client.log["1,10"]
             self.assertEqual(len(section.items), 2)
-            self.assertEqual(
-                section.items[0].originator_id, account_id1
-            )
-            self.assertEqual(
-                section.items[1].originator_id, account_id2
-            )
+            self.assertEqual(section.items[0].originator_id, account_id1)
+            self.assertEqual(section.items[1].originator_id, account_id2)
         finally:
             server.stop()
 
@@ -92,20 +75,14 @@ class TestRemoteNotificationLog(TestCase):
 
             def open_account():
                 client = BankAccountsJSONClient(
-                    BankAccountsHTTPClient(
-                        server_address=server_address
-                    )
+                    BankAccountsHTTPClient(server_address=server_address)
                 )
                 for _ in range(30):
                     try:
-                        account_id1 = client.open_account(
-                            "Alice", "alice@example.com"
-                        )
+                        account_id1 = client.open_account("Alice", "alice@example.com")
                         # print(threading.get_ident(), account_id1)
                     except Exception as e:
-                        print(
-                            threading.get_ident(), "error:", e
-                        )
+                        print(threading.get_ident(), "error:", e)
                         self.has_errors = True
                         raise
 
@@ -121,26 +98,14 @@ class TestRemoteNotificationLog(TestCase):
 
             # Check the notification log.
             client = BankAccountsJSONClient(
-                BankAccountsHTTPClient(
-                    server_address=server_address
-                )
+                BankAccountsHTTPClient(server_address=server_address)
             )
             self.assertEqual(len(client.log["1,10"].items), 10)
-            self.assertEqual(
-                len(client.log["11,20"].items), 10
-            )
-            self.assertEqual(
-                len(client.log["21,30"].items), 10
-            )
-            self.assertEqual(
-                len(client.log["31,40"].items), 10
-            )
-            self.assertEqual(
-                len(client.log["41,50"].items), 10
-            )
-            self.assertEqual(
-                len(client.log["51,60"].items), 10
-            )
+            self.assertEqual(len(client.log["11,20"].items), 10)
+            self.assertEqual(len(client.log["21,30"].items), 10)
+            self.assertEqual(len(client.log["31,40"].items), 10)
+            self.assertEqual(len(client.log["41,50"].items), 10)
+            self.assertEqual(len(client.log["51,60"].items), 10)
             self.assertEqual(len(client.log["61,70"].items), 0)
 
         finally:
@@ -186,9 +151,7 @@ class BankAccountsJSONClient:
         self.api = api
         self.log = RemoteNotificationLog(api)
 
-    def open_account(
-        self, full_name, email_address
-    ) -> UUID:
+    def open_account(self, full_name, email_address) -> UUID:
         body = json.dumps(
             {
                 "full_name": full_name,
@@ -203,9 +166,7 @@ class HTTPApplicationServer(Thread):
     prepare: List[Callable] = []
 
     def __init__(self, address, handler):
-        super(HTTPApplicationServer, self).__init__(
-            daemon=True
-        )
+        super(HTTPApplicationServer, self).__init__(daemon=True)
         self.server = HTTPServer(
             server_address=address,
             RequestHandlerClass=handler,
@@ -231,9 +192,7 @@ class BankAccountsHTTPHandler(BaseHTTPRequestHandler):
     def do_PUT(self):
         if self.path.startswith("/accounts/"):
             length = int(self.headers["Content-Length"])
-            request_msg = self.rfile.read(length).decode(
-                "utf8"
-            )
+            request_msg = self.rfile.read(length).decode("utf8")
             body = adapter.open_account(request_msg)
             status = 201
         else:
@@ -263,14 +222,10 @@ class BankAccountsHTTPClient(BankAccountsAPI):
         self.connection = HTTPConnection(*server_address)
 
     def get_log_section(self, section_id: str) -> str:
-        return self.request(
-            "GET", "/notifications/{}".format(section_id)
-        )
+        return self.request("GET", "/notifications/{}".format(section_id))
 
     def open_account(self, body: str) -> str:
-        return self.request(
-            "PUT", "/accounts/", body.encode("utf8")
-        )
+        return self.request("PUT", "/accounts/", body.encode("utf8"))
 
     def request(self, method, url, body=None):
         self.connection.request(method, url, body)

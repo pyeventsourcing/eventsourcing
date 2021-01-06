@@ -3,9 +3,12 @@ from abc import ABC, abstractmethod
 from base64 import b64decode, b64encode
 from uuid import UUID
 
+from eventsourcing.application import (
+    AbstractNotificationLog,
+    LocalNotificationLog,
+    Section,
+)
 from eventsourcing.persistence import Notification
-from eventsourcing.application import AbstractNotificationLog, LocalNotificationLog, \
-    Section
 
 
 class NotificationLogAPI(ABC):
@@ -24,10 +27,7 @@ class RemoteNotificationLog(AbstractNotificationLog):
         return Section(  # type: ignore
             section_id=section["section_id"],
             next_id=section["next_id"],
-            items=[
-                self.deserialise_item(item)
-                for item in section["items"]
-            ],
+            items=[self.deserialise_item(item) for item in section["items"]],
         )
 
     def deserialise_item(self, item: dict) -> Notification:
@@ -64,10 +64,7 @@ class JSONNotificationLogView(AbstractNotificationLogView):
             {
                 "section_id": section.section_id,
                 "next_id": section.next_id,
-                "items": [
-                    self.serialise_item(item)
-                    for item in section.items
-                ],
+                "items": [self.serialise_item(item) for item in section.items],
             }
         )
 

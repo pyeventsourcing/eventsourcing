@@ -4,9 +4,15 @@ from uuid import UUID
 
 from eventsourcing.domain import Aggregate, ImmutableObject, Snapshot
 from eventsourcing.persistence import (
-    AbstractTranscoder, ApplicationRecorder, DatetimeAsISO, DecimalAsStr, EventStore,
+    AbstractTranscoder,
+    ApplicationRecorder,
+    DatetimeAsISO,
+    DecimalAsStr,
+    EventStore,
     InfrastructureFactory,
-    Mapper, Notification, Transcoder,
+    Mapper,
+    Notification,
+    Transcoder,
     UUIDAsHex,
 )
 
@@ -22,13 +28,9 @@ class Application(ABC):
         self.log = self.construct_notification_log()
 
     def construct_factory(self) -> InfrastructureFactory:
-        return InfrastructureFactory.construct(
-            self.__class__.__name__
-        )
+        return InfrastructureFactory.construct(self.__class__.__name__)
 
-    def construct_mapper(
-        self, application_name=""
-    ) -> Mapper:
+    def construct_mapper(self, application_name="") -> Mapper:
         return self.factory.mapper(
             transcoder=self.construct_transcoder(),
             application_name=application_name,
@@ -39,9 +41,7 @@ class Application(ABC):
         self.register_transcodings(transcoder)
         return transcoder
 
-    def register_transcodings(
-        self, transcoder: Transcoder
-    ):
+    def register_transcodings(self, transcoder: Transcoder):
         transcoder.register(UUIDAsHex())
         transcoder.register(DecimalAsStr())
         transcoder.register(DatetimeAsISO())
@@ -75,9 +75,7 @@ class Application(ABC):
         )
 
     def construct_notification_log(self):
-        return LocalNotificationLog(
-            self.recorder, section_size=10
-        )
+        return LocalNotificationLog(self.recorder, section_size=10)
 
     def save(self, *aggregates: Aggregate) -> None:
         events = []
@@ -89,12 +87,8 @@ class Application(ABC):
     def notify(self, new_events: List[Aggregate.Event]):
         pass
 
-    def take_snapshot(
-        self, aggregate_id: UUID, version: int
-    ):
-        aggregate = self.repository.get(
-            aggregate_id, version
-        )
+    def take_snapshot(self, aggregate_id: UUID, version: int):
+        aggregate = self.repository.get(aggregate_id, version)
         snapshot = Snapshot.take(aggregate)
         self.snapshots.put([snapshot])
 
@@ -106,21 +100,15 @@ class Repository:
     def __init__(
         self,
         event_store: EventStore[Aggregate.Event],
-        snapshot_store: Optional[
-            EventStore[Snapshot]
-        ] = None,
+        snapshot_store: Optional[EventStore[Snapshot]] = None,
     ):
         self.event_store = event_store
         self.snapshot_store = snapshot_store
 
-    def get(
-        self, aggregate_id: UUID, at: int = None
-    ) -> Aggregate:
+    def get(self, aggregate_id: UUID, at: int = None) -> Aggregate:
 
         gt = None
-        domain_events: List[
-            Union[Snapshot, Aggregate.Event]
-        ] = []
+        domain_events: List[Union[Snapshot, Aggregate.Event]] = []
 
         # Try to get a snapshot.
         if self.snapshot_store is not None:
@@ -193,26 +181,18 @@ class LocalNotificationLog(AbstractNotificationLog):
         part1 = int(parts[0])
         part2 = int(parts[1])
         start = max(1, part1)
-        limit = min(
-            max(0, part2 - start + 1), self.section_size
-        )
+        limit = min(max(0, part2 - start + 1), self.section_size)
 
         # Select notifications.
-        notifications = self.recorder.select_notifications(
-            start, limit
-        )
+        notifications = self.recorder.select_notifications(start, limit)
 
         # Get next section ID.
         if len(notifications):
             last_id = notifications[-1].id
-            return_id = self.format_section_id(
-                notifications[0].id, last_id
-            )
+            return_id = self.format_section_id(notifications[0].id, last_id)
             if len(notifications) == limit:
                 next_start = last_id + 1
-                next_id = self.format_section_id(
-                    next_start, next_start + limit - 1
-                )
+                next_id = self.format_section_id(next_start, next_start + limit - 1)
             else:
                 next_id = None
         else:

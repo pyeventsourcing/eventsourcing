@@ -1,13 +1,6 @@
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import (
-    Any,
-    Dict,
-    List,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID, uuid4
 
 # Locations in the world.
@@ -61,9 +54,7 @@ class HandlingActivity(Enum):
 
 
 # Custom static types.
-CargoDetails = Dict[
-    str, Optional[Union[str, bool, datetime, Tuple]]
-]
+CargoDetails = Dict[str, Optional[Union[str, bool, datetime, Tuple]]]
 
 LegDetails = Dict[str, str]
 
@@ -159,16 +150,10 @@ class Cargo(Aggregate):
         self._transport_status: str = "NOT_RECEIVED"
         self._routing_status: str = "NOT_ROUTED"
         self._is_misdirected: bool = False
-        self._estimated_time_of_arrival: Optional[
-            datetime
-        ] = None
-        self._next_expected_activity: NextExpectedActivity = (
-            None
-        )
+        self._estimated_time_of_arrival: Optional[datetime] = None
+        self._next_expected_activity: NextExpectedActivity = None
         self._route: Optional[Itinerary] = None
-        self._last_known_location: Optional[
-            Location
-        ] = None
+        self._last_known_location: Optional[Location] = None
         self._current_voyage_number: Optional[str] = None
 
     @property
@@ -217,9 +202,7 @@ class Cargo(Aggregate):
     def current_voyage_number(self) -> Optional[str]:
         return self._current_voyage_number
 
-    def change_destination(
-        self, destination: Location
-    ) -> None:
+    def change_destination(self, destination: Location) -> None:
         self._trigger_(
             self.DestinationChanged,
             destination=destination,
@@ -240,9 +223,7 @@ class Cargo(Aggregate):
         def apply(self, obj: "Cargo") -> None:
             obj._route = self.route
             obj._routing_status = "ROUTED"
-            obj._estimated_time_of_arrival = (
-                datetime.now() + timedelta(weeks=1)
-            )
+            obj._estimated_time_of_arrival = datetime.now() + timedelta(weeks=1)
             obj._next_expected_activity = (
                 HandlingActivity.RECEIVE,
                 obj.origin,
@@ -272,10 +253,7 @@ class Cargo(Aggregate):
 
         def apply(self, obj: "Cargo") -> None:
             assert obj.route is not None
-            if (
-                self.handling_activity
-                == HandlingActivity.RECEIVE
-            ):
+            if self.handling_activity == HandlingActivity.RECEIVE:
                 obj._transport_status = "IN_PORT"
                 obj._last_known_location = self.location
                 obj._next_expected_activity = (
@@ -283,20 +261,12 @@ class Cargo(Aggregate):
                     self.location,
                     obj.route.legs[0].voyage_number,
                 )
-            elif (
-                self.handling_activity
-                == HandlingActivity.LOAD
-            ):
+            elif self.handling_activity == HandlingActivity.LOAD:
                 obj._transport_status = "ONBOARD_CARRIER"
-                obj._current_voyage_number = (
-                    self.voyage_number
-                )
+                obj._current_voyage_number = self.voyage_number
                 for leg in obj.route.legs:
                     if leg.origin == self.location.value:
-                        if (
-                            leg.voyage_number
-                            == self.voyage_number
-                        ):
+                        if leg.voyage_number == self.voyage_number:
                             obj._next_expected_activity = (
                                 HandlingActivity.UNLOAD,
                                 Location[leg.destination],
@@ -312,10 +282,7 @@ class Cargo(Aggregate):
                         )
                     )
 
-            elif (
-                self.handling_activity
-                == HandlingActivity.UNLOAD
-            ):
+            elif self.handling_activity == HandlingActivity.UNLOAD:
                 obj._current_voyage_number = None
                 obj._last_known_location = self.location
                 obj._transport_status = "IN_PORT"
@@ -324,24 +291,11 @@ class Cargo(Aggregate):
                         HandlingActivity.CLAIM,
                         self.location,
                     )
-                elif self.location.value in [
-                    leg.destination
-                    for leg in obj.route.legs
-                ]:
-                    for i, leg in enumerate(
-                        obj.route.legs
-                    ):
-                        if (
-                            leg.voyage_number
-                            == self.voyage_number
-                        ):
-                            next_leg: Leg = obj.route.legs[
-                                i + 1
-                            ]
-                            assert (
-                                Location[next_leg.origin]
-                                == self.location
-                            )
+                elif self.location.value in [leg.destination for leg in obj.route.legs]:
+                    for i, leg in enumerate(obj.route.legs):
+                        if leg.voyage_number == self.voyage_number:
+                            next_leg: Leg = obj.route.legs[i + 1]
+                            assert Location[next_leg.origin] == self.location
                             obj._next_expected_activity = (
                                 HandlingActivity.LOAD,
                                 self.location,
@@ -352,16 +306,11 @@ class Cargo(Aggregate):
                     obj._is_misdirected = True
                     obj._next_expected_activity = None
 
-            elif (
-                self.handling_activity
-                == HandlingActivity.CLAIM
-            ):
+            elif self.handling_activity == HandlingActivity.CLAIM:
                 obj._next_expected_activity = None
                 obj._transport_status = "CLAIMED"
 
             else:
                 raise Exception(
-                    "Unsupported handling event: {}".format(
-                        self.handling_activity
-                    )
+                    "Unsupported handling event: {}".format(self.handling_activity)
                 )

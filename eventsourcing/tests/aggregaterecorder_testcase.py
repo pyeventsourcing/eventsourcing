@@ -3,8 +3,11 @@ from timeit import timeit
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.persistence import AggregateRecorder, RecordConflictError, \
-    StoredEvent
+from eventsourcing.persistence import (
+    AggregateRecorder,
+    RecordConflictError,
+    StoredEvent,
+)
 
 
 class AggregateRecorderTestCase(TestCase, ABC):
@@ -21,9 +24,7 @@ class AggregateRecorderTestCase(TestCase, ABC):
         originator_id = uuid4()
 
         self.assertEqual(
-            recorder.select_events(
-                originator_id, desc=True, limit=1
-            ),
+            recorder.select_events(originator_id, desc=True, limit=1),
             [],
         )
 
@@ -40,25 +41,17 @@ class AggregateRecorderTestCase(TestCase, ABC):
             state=b"state2",
         )
 
-        recorder.insert_events(
-            [stored_event1, stored_event2]
-        )
+        recorder.insert_events([stored_event1, stored_event2])
 
-        stored_events = recorder.select_events(
-            originator_id
-        )
+        stored_events = recorder.select_events(originator_id)
 
         # Check we got what was written.
         self.assertEqual(len(stored_events), 2)
-        assert (
-            stored_events[0].originator_id == originator_id
-        )
+        assert stored_events[0].originator_id == originator_id
         assert stored_events[0].originator_version == 0
         assert stored_events[0].topic == "topic1"
         self.assertEqual(stored_events[0].state, b"state1")
-        assert (
-            stored_events[1].originator_id == originator_id
-        )
+        assert stored_events[1].originator_id == originator_id
         assert stored_events[1].originator_version == 1
         assert stored_events[1].topic == "topic2"
         assert stored_events[1].state == b"state2"
@@ -72,36 +65,26 @@ class AggregateRecorderTestCase(TestCase, ABC):
         )
 
         try:
-            recorder.insert_events(
-                [stored_event2, stored_event3]
-            )
+            recorder.insert_events([stored_event2, stored_event3])
         except RecordConflictError:
             pass
         else:
             self.fail("Integrity error not raised")
 
         # Check writing of events is atomic.
-        stored_events = recorder.select_events(
-            originator_id
-        )
+        stored_events = recorder.select_events(originator_id)
         assert len(stored_events) == 2, len(stored_events)
 
         # Check the third event can be written.
         recorder.insert_events([stored_event3])
-        stored_events = recorder.select_events(
-            originator_id
-        )
+        stored_events = recorder.select_events(originator_id)
         assert len(stored_events) == 3
-        assert (
-            stored_events[2].originator_id == originator_id
-        )
+        assert stored_events[2].originator_id == originator_id
         assert stored_events[2].originator_version == 2
         assert stored_events[2].topic == "topic3"
         assert stored_events[2].state == b"state3"
 
-        events = recorder.select_events(
-            originator_id, desc=True, limit=1
-        )
+        events = recorder.select_events(originator_id, desc=True, limit=1)
         self.assertEqual(
             events[0],
             stored_event3,

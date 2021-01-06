@@ -21,9 +21,7 @@ class InsufficientFundsError(TransactionError):
 
 
 class BankAccount(Aggregate):
-    def __init__(
-        self, full_name: str, email_address: str, **kwargs
-    ):
+    def __init__(self, full_name: str, email_address: str, **kwargs):
         super().__init__(**kwargs)
         self.full_name = full_name
         self.email_address = email_address
@@ -32,9 +30,7 @@ class BankAccount(Aggregate):
         self.is_closed = False
 
     @classmethod
-    def open(
-        cls, full_name: str, email_address: str
-    ) -> "BankAccount":
+    def open(cls, full_name: str, email_address: str) -> "BankAccount":
         return super()._create_(
             cls.Opened,
             uuid=uuid4(),
@@ -46,9 +42,7 @@ class BankAccount(Aggregate):
         full_name: str
         email_address: str
 
-    def append_transaction(
-        self, amount: Decimal, transaction_id: UUID = None
-    ) -> None:
+    def append_transaction(self, amount: Decimal, transaction_id: UUID = None) -> None:
         self.check_account_is_not_closed()
         self.check_has_sufficient_funds(amount)
         self._trigger_(
@@ -59,17 +53,11 @@ class BankAccount(Aggregate):
 
     def check_account_is_not_closed(self) -> None:
         if self.is_closed:
-            raise AccountClosedError(
-                {"account_id": self.uuid}
-            )
+            raise AccountClosedError({"account_id": self.uuid})
 
-    def check_has_sufficient_funds(
-        self, amount: Decimal
-    ) -> None:
+    def check_has_sufficient_funds(self, amount: Decimal) -> None:
         if self.balance + amount < -self.overdraft_limit:
-            raise InsufficientFundsError(
-                {"account_id": self.uuid}
-            )
+            raise InsufficientFundsError({"account_id": self.uuid})
 
     class TransactionAppended(Aggregate.Event):
         amount: Decimal
@@ -78,9 +66,7 @@ class BankAccount(Aggregate):
         def apply(self, obj: "BankAccount") -> None:
             obj.balance += self.amount
 
-    def set_overdraft_limit(
-        self, overdraft_limit: Decimal
-    ) -> None:
+    def set_overdraft_limit(self, overdraft_limit: Decimal) -> None:
         assert overdraft_limit > Decimal("0.00")
         self.check_account_is_not_closed()
         self._trigger_(

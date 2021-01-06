@@ -65,8 +65,6 @@ class EmailNotifications(ProcessApplication):
         notification = EmailNotification.create(
             to=domain_event.email_address,
             subject="Your New Account",
-            message="Dear {}, ...".format(
-                domain_event.full_name
-            ),
+            message="Dear {}, ...".format(domain_event.full_name),
         )
         process_event.collect([notification])

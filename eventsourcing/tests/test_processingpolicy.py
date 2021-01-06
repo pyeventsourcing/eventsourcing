@@ -3,8 +3,8 @@ from unittest.case import TestCase
 from uuid import uuid4
 
 from eventsourcing.domain import Aggregate
-from eventsourcing.system import ProcessEvent
 from eventsourcing.persistence import Tracking
+from eventsourcing.system import ProcessEvent
 from eventsourcing.tests.test_aggregate import BankAccount
 
 
@@ -14,9 +14,7 @@ def policy(domain_event, process_event):
         notification = EmailNotification.create(
             to=domain_event.email_address,
             subject="Your New Account",
-            message="Dear {}".format(
-                domain_event.full_name
-            ),
+            message="Dear {}".format(domain_event.full_name),
         )
         process_event.collect([notification])
 

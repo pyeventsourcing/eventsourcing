@@ -35,9 +35,7 @@ class Aggregate:
         Base domain event class for aggregates.
         """
 
-        def mutate(
-            self, obj: Optional["Aggregate"]
-        ) -> Optional["Aggregate"]:
+        def mutate(self, obj: Optional["Aggregate"]) -> Optional["Aggregate"]:
             """
             Changes the state of the aggregate
             according to domain event attributes.
@@ -47,9 +45,7 @@ class Aggregate:
             assert isinstance(obj, Aggregate)
             next_version = obj.version + 1
             if self.originator_version != next_version:
-                raise VersionError(
-                    self.originator_version, next_version
-                )
+                raise VersionError(self.originator_version, next_version)
             # Update the aggregate version.
             obj.version = next_version
             # Update the modified time.
@@ -60,9 +56,7 @@ class Aggregate:
         def apply(self, obj) -> None:
             pass
 
-    def __init__(
-        self, uuid: UUID, version: int, timestamp: datetime
-    ):
+    def __init__(self, uuid: UUID, version: int, timestamp: datetime):
         """
         Aggregate is constructed with a 'uuid',
         a 'version', and a 'timestamp'. The internal
@@ -109,9 +103,7 @@ class Aggregate:
 
         originator_topic: str
 
-        def mutate(
-            self, obj: Optional["Aggregate"]
-        ) -> "Aggregate":
+        def mutate(self, obj: Optional["Aggregate"]) -> "Aggregate":
             """
             Constructs aggregate instance defined
             by domain event object attributes.
@@ -122,13 +114,9 @@ class Aggregate:
             uuid = kwargs.pop("originator_id")
             version = kwargs.pop("originator_version")
             # Get the aggregate root class from topic.
-            aggregate_class = resolve_topic(
-                kwargs.pop("originator_topic")
-            )
+            aggregate_class = resolve_topic(kwargs.pop("originator_topic"))
             # Construct and return aggregate object.
-            return aggregate_class(
-                uuid=uuid, version=version, **kwargs
-            )
+            return aggregate_class(uuid=uuid, version=version, **kwargs)
 
     def _trigger_(
         self,
@@ -176,7 +164,7 @@ class Snapshot(DomainEvent):
     @classmethod
     def take(cls, aggregate: Aggregate) -> DomainEvent:
         state = dict(aggregate.__dict__)
-        state.pop('_pending_events_')
+        state.pop("_pending_events_")
         return cls(  # type: ignore
             originator_id=aggregate.uuid,
             originator_version=aggregate.version,
@@ -190,5 +178,5 @@ class Snapshot(DomainEvent):
         aggregate = object.__new__(cls)
         assert isinstance(aggregate, Aggregate)
         aggregate.__dict__.update(self.state)
-        aggregate.__dict__['_pending_events_'] = []
+        aggregate.__dict__["_pending_events_"] = []
         return aggregate

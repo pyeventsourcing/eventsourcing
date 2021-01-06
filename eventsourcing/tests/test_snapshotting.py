@@ -1,13 +1,16 @@
 from decimal import Decimal
 from unittest import TestCase
 
-from eventsourcing.persistence import DatetimeAsISO, DecimalAsStr, EventStore, \
-    Mapper, Transcoder, UUIDAsHex
 from eventsourcing.domain import Snapshot
-from eventsourcing.sqlite import (
-    SQLiteDatabase,
-    SQLiteAggregateRecorder,
+from eventsourcing.persistence import (
+    DatetimeAsISO,
+    DecimalAsStr,
+    EventStore,
+    Mapper,
+    Transcoder,
+    UUIDAsHex,
 )
+from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatabase
 from eventsourcing.tests.test_aggregate import BankAccount
 
 
@@ -43,15 +46,13 @@ class TestSnapshotting(TestCase):
         # Take a snapshot.
         snapshot = Snapshot.take(account)
 
-        self.assertNotIn('pending_events', snapshot.state)
+        self.assertNotIn("pending_events", snapshot.state)
 
         # Store snapshot.
         snapshot_store.put([snapshot])
 
         # Get snapshot.
-        snapshots = snapshot_store.get(
-            account.uuid, desc=True, limit=1
-        )
+        snapshots = snapshot_store.get(account.uuid, desc=True, limit=1)
         snapshot = next(snapshots)
         assert isinstance(snapshot, Snapshot)
 

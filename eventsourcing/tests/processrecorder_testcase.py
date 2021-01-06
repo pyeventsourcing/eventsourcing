@@ -3,7 +3,11 @@ from timeit import timeit
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.persistence import RecordConflictError, StoredEvent, Tracking
+from eventsourcing.persistence import (
+    RecordConflictError,
+    StoredEvent,
+    Tracking,
+)
 
 
 class ProcessRecordsTestCase(TestCase, ABC):
@@ -66,9 +70,7 @@ class ProcessRecordsTestCase(TestCase, ABC):
             1,
         )
 
-        with self.assertRaises(
-            RecordConflictError
-        ):
+        with self.assertRaises(RecordConflictError):
             recorder.insert_events(
                 stored_events=[stored_event3],
                 tracking=tracking1,

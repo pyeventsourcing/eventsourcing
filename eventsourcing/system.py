@@ -1,21 +1,22 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from threading import Event, Thread
-from typing import (
-    Dict,
-    Iterable,
-    List,
-    Set,
-    Tuple,
-    Type, TypeVar,
+from typing import Dict, Iterable, List, Set, Tuple, Type, TypeVar
+
+from eventsourcing.application import (
+    AbstractNotificationLog,
+    Application,
+    Section,
 )
-
 from eventsourcing.domain import Aggregate
-from eventsourcing.persistence import ApplicationRecorder, Mapper, Notification, \
-    ProcessRecorder, Tracking
-
+from eventsourcing.persistence import (
+    ApplicationRecorder,
+    Mapper,
+    Notification,
+    ProcessRecorder,
+    Tracking,
+)
 from eventsourcing.utils import get_topic, resolve_topic
-from eventsourcing.application import AbstractNotificationLog, Application, Section
 
 
 class ProcessEvent:
@@ -48,9 +49,7 @@ class Follower(Promptable, Application):
     def construct_recorder(self) -> ApplicationRecorder:
         return self.factory.process_recorder()
 
-    def follow(
-        self, name: str, log: AbstractNotificationLog
-    ):
+    def follow(self, name: str, log: AbstractNotificationLog):
         assert isinstance(self.recorder, ProcessRecorder)
         reader = NotificationLogReader(log)
         mapper = self.construct_mapper(name)
@@ -63,9 +62,7 @@ class Follower(Promptable, Application):
         reader, mapper = self.readers[name]
         start = self.recorder.max_tracking_id(name) + 1
         for notification in reader.read(start=start):
-            domain_event = mapper.to_domain_event(
-                notification
-            )
+            domain_event = mapper.to_domain_event(notification)
             process_event = ProcessEvent(
                 Tracking(  # type: ignore
                     application_name=name,
@@ -146,12 +143,8 @@ class System:
             topic = get_topic(nodes[name])
             self.nodes[name] = topic
         # Identify leaders and followers.
-        self.follows: Dict[str, List[str]] = defaultdict(
-            list
-        )
-        self.leads: Dict[str, List[str]] = defaultdict(
-            list
-        )
+        self.follows: Dict[str, List[str]] = defaultdict(list)
+        self.leads: Dict[str, List[str]] = defaultdict(list)
         for edge in edges:
             self.leads[edge[0]].append(edge[1])
             self.follows[edge[1]].append(edge[0])
@@ -159,20 +152,12 @@ class System:
         # Check followers are followers.
         for name in self.follows:
             if not issubclass(nodes[name], Follower):
-                raise TypeError(
-                    "Not a follower class: %s"
-                    % nodes[name]
-                )
+                raise TypeError("Not a follower class: %s" % nodes[name])
 
         # Check each process is a process application class.
         for name in self.processors:
-            if not issubclass(
-                nodes[name], ProcessApplication
-            ):
-                raise TypeError(
-                    "Not a follower class: %s"
-                    % nodes[name]
-                )
+            if not issubclass(nodes[name], ProcessApplication):
+                raise TypeError("Not a follower class: %s" % nodes[name])
 
     @property
     def leaders(self) -> Iterable[str]:
@@ -190,9 +175,7 @@ class System:
 
     @property
     def processors(self) -> Iterable[str]:
-        return set(self.leaders).intersection(
-            self.followers
-        )
+        return set(self.leaders).intersection(self.followers)
 
     def get_app_cls(self, name) -> Type[Application]:
         cls = resolve_topic(self.nodes[name])
@@ -271,9 +254,7 @@ class SingleThreadedRunner(Promptable, AbstractRunner):
             assert isinstance(leader, Leader)
             assert isinstance(follower, Follower)
             leader.lead(self)
-            follower.follow(
-                leader.__class__.__name__, leader.log
-            )
+            follower.follow(leader.__class__.__name__, leader.log)
 
     def receive_prompt(self, leader_name: str) -> None:
         if leader_name not in self.prompts_received:
@@ -333,9 +314,7 @@ class MultiThreadedRunner(AbstractRunner):
             follower = self.apps[edge[1]]
             assert isinstance(leader, Leader)
             assert isinstance(follower, Follower)
-            follower.follow(
-                leader.__class__.__name__, leader.log
-            )
+            follower.follow(leader.__class__.__name__, leader.log)
             thread = self.threads[edge[1]]
             leader.lead(thread)
 
@@ -359,9 +338,7 @@ class RunnerThread(Promptable, Thread):
     ):
         super(RunnerThread, self).__init__()
         if not issubclass(app_class, Follower):
-            raise TypeError(
-                "Not a follower: %s" % app_class
-            )
+            raise TypeError("Not a follower: %s" % app_class)
         self.app_class = app_class
         self.is_stopping = is_stopping
         self.is_prompted = Event()
@@ -401,16 +378,10 @@ class NotificationLogReader:
         self.notification_log = notification_log
         self.section_size = section_size
 
-    def read(
-        self, *, start: int
-    ) -> Iterable[Notification]:
-        section_id = "{},{}".format(
-            start, start + self.section_size - 1
-        )
+    def read(self, *, start: int) -> Iterable[Notification]:
+        section_id = "{},{}".format(start, start + self.section_size - 1)
         while True:
-            section: Section = self.notification_log[
-                section_id
-            ]
+            section: Section = self.notification_log[section_id]
             for item in section.items:
                 # Todo: Reintroduce if supporting
                 #  sections with regular alignment?

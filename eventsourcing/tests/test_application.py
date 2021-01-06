@@ -4,24 +4,17 @@ from timeit import timeit
 from unittest.case import TestCase
 from uuid import UUID, uuid4
 
-from eventsourcing.application import Application
-from eventsourcing.persistence import (
-    InfrastructureFactory,
-)
-from eventsourcing.application import AggregateNotFoundError
+from eventsourcing.application import AggregateNotFoundError, Application
+from eventsourcing.persistence import InfrastructureFactory
 from eventsourcing.tests.test_aggregate import BankAccount
 
 
 class TestApplication(TestCase):
     def setUp(self) -> None:
-        os.environ[
-            InfrastructureFactory.IS_SNAPSHOTTING_ENABLED
-        ] = "yes"
+        os.environ[InfrastructureFactory.IS_SNAPSHOTTING_ENABLED] = "yes"
 
     def tearDown(self) -> None:
-        del os.environ[
-            InfrastructureFactory.IS_SNAPSHOTTING_ENABLED
-        ]
+        del os.environ[InfrastructureFactory.IS_SNAPSHOTTING_ENABLED]
 
     def test(self):
         app = BankAccounts()
@@ -53,14 +46,10 @@ class TestApplication(TestCase):
         # Take snapshot.
         app.take_snapshot(account_id, version=2)
 
-        from_snapshot = app.repository.get(
-            account_id, at=3
-        )
+        from_snapshot = app.repository.get(account_id, at=3)
         self.assertIsInstance(from_snapshot, BankAccount)
         self.assertEqual(from_snapshot.version, 3)
-        self.assertEqual(
-            from_snapshot.balance, Decimal("35.00")
-        )
+        self.assertEqual(from_snapshot.balance, Decimal("35.00"))
 
     def test_performance(self):
 
@@ -96,9 +85,7 @@ class BankAccounts(Application):
         self.save(account)
         return account.uuid
 
-    def credit_account(
-        self, account_id: UUID, amount: Decimal
-    ) -> None:
+    def credit_account(self, account_id: UUID, amount: Decimal) -> None:
         account = self.get_account(account_id)
         account.append_transaction(amount)
         self.save(account)

@@ -1,12 +1,15 @@
 from decimal import Decimal
 from unittest.case import TestCase
 
-from eventsourcing.sqlite import (
-    SQLiteDatabase,
-    SQLiteAggregateRecorder,
+from eventsourcing.persistence import (
+    DatetimeAsISO,
+    DecimalAsStr,
+    EventStore,
+    Mapper,
+    Transcoder,
+    UUIDAsHex,
 )
-from eventsourcing.persistence import DatetimeAsISO, DecimalAsStr, EventStore, \
-    Mapper, Transcoder, UUIDAsHex
+from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatabase
 from eventsourcing.tests.test_aggregate import BankAccount
 
 
@@ -31,9 +34,7 @@ class TestEventStore(TestCase):
         transcoder.register(UUIDAsHex())
         transcoder.register(DecimalAsStr())
         transcoder.register(DatetimeAsISO())
-        recorder = SQLiteAggregateRecorder(
-            SQLiteDatabase(":memory:")
-        )
+        recorder = SQLiteAggregateRecorder(SQLiteDatabase(":memory:"))
         event_store = EventStore(
             mapper=Mapper(transcoder),
             recorder=recorder,
@@ -41,9 +42,7 @@ class TestEventStore(TestCase):
         recorder.create_table()
 
         # Get last event.
-        last_event = event_store.get(
-            account.uuid, desc=True, limit=1
-        )
+        last_event = event_store.get(account.uuid, desc=True, limit=1)
         assert list(last_event) == []
 
         # Store pending events.
@@ -62,15 +61,10 @@ class TestEventStore(TestCase):
         assert copy.balance == Decimal("65.00")
 
         # Get last event.
-        events = event_store.get(
-            account.uuid, desc=True, limit=1
-        )
+        events = event_store.get(account.uuid, desc=True, limit=1)
         events = list(events)
         assert len(events) == 1
         last_event = events[0]
 
         assert last_event.originator_id == account.uuid
-        assert (
-            type(last_event)
-            == BankAccount.TransactionAppended
-        )
+        assert type(last_event) == BankAccount.TransactionAppended

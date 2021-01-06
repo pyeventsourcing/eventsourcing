@@ -1,8 +1,17 @@
-from eventsourcing.tests.infrastructure_testcases import InfrastructureFactoryTestCase
-from eventsourcing.popo import POPOAggregateRecorder, POPOApplicationRecorder, \
-    POPOProcessRecorder
-from eventsourcing.tests.aggregaterecorder_testcase import AggregateRecorderTestCase
-from eventsourcing.tests.applicationrecorder_testcase import ApplicationRecorderTestCase
+from eventsourcing.popo import (
+    POPOAggregateRecorder,
+    POPOApplicationRecorder,
+    POPOProcessRecorder,
+)
+from eventsourcing.tests.aggregaterecorder_testcase import (
+    AggregateRecorderTestCase,
+)
+from eventsourcing.tests.applicationrecorder_testcase import (
+    ApplicationRecorderTestCase,
+)
+from eventsourcing.tests.infrastructure_testcases import (
+    InfrastructureFactoryTestCase,
+)
 from eventsourcing.tests.processrecorder_testcase import ProcessRecordsTestCase
 
 
@@ -11,9 +20,7 @@ class TestPopoAggregateRecorder(AggregateRecorderTestCase):
         return POPOAggregateRecorder()
 
 
-class TestPOPOApplicationRecorder(
-    ApplicationRecorderTestCase
-):
+class TestPOPOApplicationRecorder(ApplicationRecorderTestCase):
     def create_recorder(self):
         return POPOApplicationRecorder()
 
@@ -26,9 +33,7 @@ class TestPOPOProcessRecorder(ProcessRecordsTestCase):
         super().test_performance()
 
 
-class TestPOPOInfrastructureFactory(
-    InfrastructureFactoryTestCase
-):
+class TestPOPOInfrastructureFactory(InfrastructureFactoryTestCase):
     pass
 
 

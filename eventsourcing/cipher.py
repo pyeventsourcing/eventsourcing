@@ -13,9 +13,7 @@ class AESCipher(object):
 
     @staticmethod
     def create_key(num_bytes: int) -> str:
-        return b64encode(
-            AESCipher.random_bytes(num_bytes)
-        ).decode("utf8")
+        return b64encode(AESCipher.random_bytes(num_bytes)).decode("utf8")
 
     @staticmethod
     def random_bytes(num_bytes: int) -> bytes:
@@ -27,9 +25,7 @@ class AESCipher(object):
 
         :param cipher_key: 16, 24, or 32 random bytes
         """
-        self.key = b64decode(
-            cipher_key.encode("utf8")
-        )
+        self.key = b64decode(cipher_key.encode("utf8"))
         assert len(self.key) in [16, 24, 32], len(self.key)
 
     def encrypt(self, plaintext: bytes) -> bytes:
@@ -65,15 +61,11 @@ class AESCipher(object):
         # Split out the nonce, tag, and encrypted data.
         nonce = ciphertext[:12]
         if len(nonce) != 12:
-            raise ValueError(
-                "Damaged cipher text: invalid nonce length"
-            )
+            raise ValueError("Damaged cipher text: invalid nonce length")
 
         tag = ciphertext[12:28]
         if len(tag) != 16:
-            raise ValueError(
-                "Damaged cipher text: invalid tag length"
-            )
+            raise ValueError("Damaged cipher text: invalid tag length")
         encrypted = ciphertext[28:]
 
         # Construct AES cipher, with old nonce.
@@ -81,11 +73,7 @@ class AESCipher(object):
 
         # Decrypt and verify.
         try:
-            plaintext = cipher.decrypt_and_verify(
-                encrypted, tag
-            )
+            plaintext = cipher.decrypt_and_verify(encrypted, tag)
         except ValueError as e:
-            raise ValueError(
-                "Cipher text is damaged: {}".format(e)
-            )
+            raise ValueError("Cipher text is damaged: {}".format(e))
         return plaintext

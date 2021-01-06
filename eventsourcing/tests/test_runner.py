@@ -6,25 +6,25 @@ from unittest.case import TestCase
 import psycopg2.errors
 from psycopg2.errorcodes import UNDEFINED_TABLE
 
-from eventsourcing.tests.test_application import BankAccounts
-from eventsourcing.utils import get_topic
-from eventsourcing.tests.test_processapplication import EmailNotifications
 from eventsourcing.postgres import (
     PostgresDatabase,
     PostgresInfrastructureFactory,
 )
-from eventsourcing.tests.ramdisk import tmpfile_uris
-from eventsourcing.sqlite import (
-    SQLiteInfrastructureFactory,
+from eventsourcing.sqlite import SQLiteInfrastructureFactory
+from eventsourcing.system import (
+    AbstractRunner,
+    MultiThreadedRunner,
+    SingleThreadedRunner,
+    System,
 )
-from eventsourcing.system import AbstractRunner, MultiThreadedRunner, \
-    SingleThreadedRunner, System
+from eventsourcing.tests.ramdisk import tmpfile_uris
+from eventsourcing.tests.test_application import BankAccounts
+from eventsourcing.tests.test_processapplication import EmailNotifications
+from eventsourcing.utils import get_topic
 
 
 class TestSingleThreadedRunner(TestCase):
-    runner_class: Type[
-        AbstractRunner
-    ] = SingleThreadedRunner
+    runner_class: Type[AbstractRunner] = SingleThreadedRunner
 
     def test(self):
         system = System(
@@ -43,9 +43,7 @@ class TestSingleThreadedRunner(TestCase):
         notifications = runner.get(EmailNotifications)
 
         section = notifications.log["1,5"]
-        self.assertEqual(
-            len(section.items), 0, section.items
-        )
+        self.assertEqual(len(section.items), 0, section.items)
 
         accounts.open_account(
             full_name="Alice",
@@ -70,18 +68,14 @@ class TestMultiThreadedRunner(TestSingleThreadedRunner):
         sleep(0.1)
 
 
-class TestMultiThreadedRunnerWithSQLite(
-    TestMultiThreadedRunner
-):
+class TestMultiThreadedRunnerWithSQLite(TestMultiThreadedRunner):
     def setUp(self):
         topic = get_topic(SQLiteInfrastructureFactory)
         os.environ["INFRASTRUCTURE_FACTORY_TOPIC"] = topic
         uris = tmpfile_uris()
         os.environ["DO_CREATE_TABLE"] = "y"
         os.environ["BANKACCOUNTS_SQLITE_DBNAME"] = next(uris)
-        os.environ["EMAILNOTIFICATIONS_SQLITE_DBNAME"] = next(
-            uris
-        )
+        os.environ["EMAILNOTIFICATIONS_SQLITE_DBNAME"] = next(uris)
 
     def tearDown(self):
         del os.environ["DO_CREATE_TABLE"]
@@ -90,9 +84,7 @@ class TestMultiThreadedRunnerWithSQLite(
         del os.environ["EMAILNOTIFICATIONS_SQLITE_DBNAME"]
 
 
-class TestMultiThreadedRunnerWithPostgres(
-    TestMultiThreadedRunner
-):
+class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
     def setUp(self):
         if "POSTGRES_DBNAME" not in os.environ:
             os.environ["POSTGRES_DBNAME"] = "eventsourcing"

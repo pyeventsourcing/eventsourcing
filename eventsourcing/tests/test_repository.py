@@ -3,21 +3,19 @@ from decimal import Decimal
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.domain import (
-    Aggregate, Snapshot,
+from eventsourcing.application import AggregateNotFoundError, Repository
+from eventsourcing.domain import Aggregate, Snapshot
+from eventsourcing.persistence import (
+    DatetimeAsISO,
+    DecimalAsStr,
+    EventStore,
+    Mapper,
+    Transcoder,
+    UUIDAsHex,
 )
+from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatabase
 from eventsourcing.tests.test_aggregate import BankAccount
 from eventsourcing.utils import get_topic
-from eventsourcing.sqlite import (
-    SQLiteDatabase,
-    SQLiteAggregateRecorder,
-)
-from eventsourcing.persistence import DatetimeAsISO, DecimalAsStr, EventStore, \
-    Mapper, Transcoder, UUIDAsHex
-from eventsourcing.application import (
-    AggregateNotFoundError,
-)
-from eventsourcing.application import Repository
 
 
 class TestRepository(TestCase):
@@ -27,27 +25,19 @@ class TestRepository(TestCase):
         transcoder.register(DecimalAsStr())
         transcoder.register(DatetimeAsISO())
 
-        event_recorder = SQLiteAggregateRecorder(
-            SQLiteDatabase(":memory:")
-        )
+        event_recorder = SQLiteAggregateRecorder(SQLiteDatabase(":memory:"))
         event_recorder.create_table()
-        event_store: EventStore[
-            Aggregate.Event
-        ] = EventStore(
+        event_store: EventStore[Aggregate.Event] = EventStore(
             mapper=Mapper(transcoder=transcoder),
             recorder=event_recorder,
         )
-        snapshot_recorder = SQLiteAggregateRecorder(
-            SQLiteDatabase(":memory:")
-        )
+        snapshot_recorder = SQLiteAggregateRecorder(SQLiteDatabase(":memory:"))
         snapshot_recorder.create_table()
         snapshot_store: EventStore[Snapshot] = EventStore(
             mapper=Mapper(transcoder=transcoder),
             recorder=snapshot_recorder,
         )
-        repository: Repository = Repository(
-            event_store, snapshot_store
-        )
+        repository: Repository = Repository(event_store, snapshot_store)
 
         # Check key error.
         with self.assertRaises(AggregateNotFoundError):
@@ -104,9 +94,7 @@ class TestRepository(TestCase):
         assert copy3.balance == Decimal("75.00")
 
         # Check can get old version of account.
-        copy4 = repository.get(
-            account.uuid, at=copy.version
-        )
+        copy4 = repository.get(account.uuid, at=copy.version)
         assert isinstance(copy4, BankAccount)
         assert copy4.balance == Decimal("65.00")
 
@@ -120,15 +108,11 @@ class TestRepository(TestCase):
 
         copy7 = repository.get(account.uuid, at=3)
         assert isinstance(copy7, BankAccount)
-        assert copy7.balance == Decimal(
-            "35.00"
-        ), copy7.balance
+        assert copy7.balance == Decimal("35.00"), copy7.balance
 
         copy8 = repository.get(account.uuid, at=4)
         assert isinstance(copy8, BankAccount)
-        assert copy8.balance == Decimal(
-            "65.00"
-        ), copy8.balance
+        assert copy8.balance == Decimal("65.00"), copy8.balance
 
         # # Check the __getitem__ method is working
         # copy9 = repository[account.uuid]

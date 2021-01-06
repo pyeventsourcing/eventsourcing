@@ -1,7 +1,6 @@
 from datetime import datetime
-from unittest.case import TestCase
-
 from decimal import Decimal
+from unittest.case import TestCase
 from uuid import uuid4
 
 from eventsourcing.domain import Aggregate, VersionError
@@ -87,9 +86,7 @@ class TestAggregate(TestCase):
         except InsufficientFundsError:
             pass
         else:
-            raise Exception(
-                "Insufficient funds error not raised"
-            )
+            raise Exception("Insufficient funds error not raised")
 
         # Increase the overdraft limit.
         account.set_overdraft_limit(Decimal("100.00"))
@@ -109,9 +106,7 @@ class TestAggregate(TestCase):
         except AccountClosedError:
             pass
         else:
-            raise Exception(
-                "Account closed error not raised"
-            )
+            raise Exception("Account closed error not raised")
 
         # Collect pending events.
         pending = account._collect_()
@@ -123,9 +118,7 @@ class BankAccount(Aggregate):
     Aggregate root for bank accounts.
     """
 
-    def __init__(
-        self, full_name: str, email_address: str, **kwargs
-    ):
+    def __init__(self, full_name: str, email_address: str, **kwargs):
         super().__init__(**kwargs)
         self.full_name = full_name
         self.email_address = email_address
@@ -134,9 +127,7 @@ class BankAccount(Aggregate):
         self.is_closed = False
 
     @classmethod
-    def open(
-        cls, full_name: str, email_address: str
-    ) -> "BankAccount":
+    def open(cls, full_name: str, email_address: str) -> "BankAccount":
         """
         Creates new bank account object.
         """
@@ -164,17 +155,11 @@ class BankAccount(Aggregate):
 
     def check_account_is_not_closed(self) -> None:
         if self.is_closed:
-            raise AccountClosedError(
-                {"account_id": self.uuid}
-            )
+            raise AccountClosedError({"account_id": self.uuid})
 
-    def check_has_sufficient_funds(
-        self, amount: Decimal
-    ) -> None:
+    def check_has_sufficient_funds(self, amount: Decimal) -> None:
         if self.balance + amount < -self.overdraft_limit:
-            raise InsufficientFundsError(
-                {"account_id": self.uuid}
-            )
+            raise InsufficientFundsError({"account_id": self.uuid})
 
     class TransactionAppended(Aggregate.Event):
         """
@@ -190,9 +175,7 @@ class BankAccount(Aggregate):
             """
             account.balance += self.amount
 
-    def set_overdraft_limit(
-        self, overdraft_limit: Decimal
-    ) -> None:
+    def set_overdraft_limit(self, overdraft_limit: Decimal) -> None:
         """
         Sets the overdraft limit.
         """

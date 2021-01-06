@@ -3,12 +3,22 @@ import os
 import psycopg2.errors
 from psycopg2.errorcodes import UNDEFINED_TABLE
 
-from eventsourcing.tests.infrastructure_testcases import InfrastructureFactoryTestCase
 from eventsourcing.persistence import InfrastructureFactory
-from eventsourcing.postgres import PostgresAggregateRecorder, \
-    PostgresApplicationRecorder, PostgresInfrastructureFactory, PostgresProcessRecorder
-from eventsourcing.tests.aggregaterecorder_testcase import AggregateRecorderTestCase
-from eventsourcing.tests.applicationrecorder_testcase import ApplicationRecorderTestCase
+from eventsourcing.postgres import (
+    PostgresAggregateRecorder,
+    PostgresApplicationRecorder,
+    PostgresInfrastructureFactory,
+    PostgresProcessRecorder,
+)
+from eventsourcing.tests.aggregaterecorder_testcase import (
+    AggregateRecorderTestCase,
+)
+from eventsourcing.tests.applicationrecorder_testcase import (
+    ApplicationRecorderTestCase,
+)
+from eventsourcing.tests.infrastructure_testcases import (
+    InfrastructureFactoryTestCase,
+)
 from eventsourcing.tests.processrecorder_testcase import ProcessRecordsTestCase
 from eventsourcing.utils import get_topic
 
@@ -46,9 +56,7 @@ class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
         super().test_insert_and_select()
 
 
-class TestPostgresApplicationRecorder(
-    ApplicationRecorderTestCase
-):
+class TestPostgresApplicationRecorder(ApplicationRecorderTestCase):
     def setUp(self) -> None:
         recorder = PostgresApplicationRecorder(
             "",
@@ -110,13 +118,11 @@ class TestPostgresProcessRecorder(ProcessRecordsTestCase):
         super().test_performance()
 
 
-class TestPostgresInfrastructureFactory(
-    InfrastructureFactoryTestCase
-):
+class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
     def setUp(self) -> None:
-        os.environ[
-            InfrastructureFactory.TOPIC
-        ] = get_topic(PostgresInfrastructureFactory)
+        os.environ[InfrastructureFactory.TOPIC] = get_topic(
+            PostgresInfrastructureFactory
+        )
 
         if "POSTGRES_DBNAME" not in os.environ:
             os.environ["POSTGRES_DBNAME"] = "eventsourcing"
@@ -134,5 +140,3 @@ del AggregateRecorderTestCase
 del ApplicationRecorderTestCase
 del ProcessRecordsTestCase
 del InfrastructureFactoryTestCase
-
-

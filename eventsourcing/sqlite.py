@@ -6,9 +6,14 @@ from typing import Any, List, Optional
 from uuid import UUID
 
 from eventsourcing.persistence import (
-    AggregateRecorder, ApplicationRecorder, InfrastructureFactory, Notification,
+    AggregateRecorder,
+    ApplicationRecorder,
+    InfrastructureFactory,
+    Notification,
     ProcessRecorder,
-    RecordConflictError, StoredEvent, Tracking,
+    RecordConflictError,
+    StoredEvent,
+    Tracking,
 )
 
 
@@ -103,10 +108,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         stored_events: List[StoredEvent],
         **kwargs,
     ) -> None:
-        statement = (
-            f"INSERT INTO {self.table_name}"
-            " VALUES (?,?,?,?)"
-        )
+        statement = f"INSERT INTO {self.table_name}" " VALUES (?,?,?,?)"
         params = []
         for stored_event in stored_events:
             params.append(
@@ -130,11 +132,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         desc: bool = False,
         limit: Optional[int] = None,
     ) -> List[StoredEvent]:
-        statement = (
-            "SELECT * "
-            f"FROM {self.table_name} "
-            "WHERE originator_id=? "
-        )
+        statement = "SELECT * " f"FROM {self.table_name} " "WHERE originator_id=? "
         params: List[Any] = [originator_id.hex]
         if gt is not None:
             statement += "AND originator_version>? "
@@ -155,12 +153,8 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         for row in c.execute(statement, params):
             stored_events.append(
                 StoredEvent(  # type: ignore
-                    originator_id=UUID(
-                        row["originator_id"]
-                    ),
-                    originator_version=row[
-                        "originator_version"
-                    ],
+                    originator_id=UUID(row["originator_id"]),
+                    originator_version=row["originator_version"],
                     topic=row["topic"],
                     state=row["state"],
                 )
@@ -172,7 +166,6 @@ class SQLiteApplicationRecorder(
     SQLiteAggregateRecorder,
     ApplicationRecorder,
 ):
-
     def _create_table(self, c: Connection):
         statement = (
             "CREATE TABLE IF NOT EXISTS "
@@ -189,9 +182,7 @@ class SQLiteApplicationRecorder(
         except sqlite3.OperationalError as e:
             raise self.OperationalError(e)
 
-    def select_notifications(
-        self, start: int, limit: int
-    ) -> List[Notification]:
+    def select_notifications(self, start: int, limit: int) -> List[Notification]:
         """
         Returns a list of event notifications
         from 'start', limited by 'limit'.
@@ -212,12 +203,8 @@ class SQLiteApplicationRecorder(
             notifications.append(
                 Notification(  # type: ignore
                     id=row["rowid"],
-                    originator_id=UUID(
-                        row["originator_id"]
-                    ),
-                    originator_version=row[
-                        "originator_version"
-                    ],
+                    originator_id=UUID(row["originator_id"]),
+                    originator_version=row["originator_version"],
                     topic=row["topic"],
                     state=row["state"],
                 )
@@ -229,9 +216,7 @@ class SQLiteApplicationRecorder(
         Returns the maximum notification ID.
         """
         c = self.db.get_connection().cursor()
-        statement = (
-            f"SELECT MAX(rowid) FROM {self.table_name}"
-        )
+        statement = f"SELECT MAX(rowid) FROM {self.table_name}"
         c.execute(statement)
         return c.fetchone()[0] or 0
 
@@ -252,15 +237,11 @@ class SQLiteProcessRecorder(
         )
         c.execute(statement)
 
-    def max_tracking_id(
-        self, application_name: str
-    ) -> int:
+    def max_tracking_id(self, application_name: str) -> int:
         params = [application_name]
         c = self.db.get_connection().cursor()
         statement = (
-            "SELECT MAX(notification_id)"
-            "FROM tracking "
-            "WHERE application_name=?"
+            "SELECT MAX(notification_id)" "FROM tracking " "WHERE application_name=?"
         )
         c.execute(statement, params)
         return c.fetchone()[0] or 0
@@ -272,13 +253,9 @@ class SQLiteProcessRecorder(
         **kwargs,
     ) -> None:
         super()._insert_events(c, stored_events, **kwargs)
-        tracking: Optional[Tracking] = kwargs.get(
-            "tracking", None
-        )
+        tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking is not None:
-            statement = (
-                "INSERT INTO tracking " "VALUES (?,?)"
-            )
+            statement = "INSERT INTO tracking " "VALUES (?,?)"
             try:
                 c.execute(
                     statement,
@@ -304,22 +281,16 @@ class SQLiteInfrastructureFactory(InfrastructureFactory):
                 "in environment with key "
                 f"'{self.SQLITE_DBNAME}'"
             )
-        self.database = SQLiteDatabase(
-            db_name=db_name
-        )
+        self.database = SQLiteDatabase(db_name=db_name)
 
     def aggregate_recorder(self) -> AggregateRecorder:
-        recorder = SQLiteAggregateRecorder(
-            db=self.database
-        )
+        recorder = SQLiteAggregateRecorder(db=self.database)
         if self.do_create_table():
             recorder.create_table()
         return recorder
 
     def application_recorder(self) -> ApplicationRecorder:
-        recorder = SQLiteApplicationRecorder(
-            db=self.database
-        )
+        recorder = SQLiteApplicationRecorder(db=self.database)
         if self.do_create_table():
             recorder.create_table()
         return recorder
@@ -332,9 +303,4 @@ class SQLiteInfrastructureFactory(InfrastructureFactory):
 
     def do_create_table(self) -> bool:
         default = "no"
-        return bool(
-            strtobool(
-                self.getenv(self.DO_CREATE_TABLE, default)
-                or default
-            )
-        )
+        return bool(strtobool(self.getenv(self.DO_CREATE_TABLE, default) or default))

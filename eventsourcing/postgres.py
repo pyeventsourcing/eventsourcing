@@ -1,17 +1,21 @@
-
-import psycopg2
-import psycopg2.extras
 import threading
 from distutils.util import strtobool
 from typing import Any, List, Optional
 from uuid import UUID
 
-from psycopg2.extensions import cursor, connection
+import psycopg2
+import psycopg2.extras
+from psycopg2.extensions import connection, cursor
 
 from eventsourcing.persistence import (
-    AggregateRecorder, ApplicationRecorder, InfrastructureFactory, Notification,
+    AggregateRecorder,
+    ApplicationRecorder,
+    InfrastructureFactory,
+    Notification,
     ProcessRecorder,
-    RecordConflictError, StoredEvent, Tracking,
+    RecordConflictError,
+    StoredEvent,
+    Tracking,
 )
 
 psycopg2.extras.register_uuid()
@@ -49,9 +53,7 @@ class PostgresDatabase:
             self.c = connection
 
         def __enter__(self) -> cursor:
-            cursor = self.c.cursor(
-                cursor_factory=psycopg2.extras.DictCursor
-            )
+            cursor = self.c.cursor(cursor_factory=psycopg2.extras.DictCursor)
             # cursor.execute("BEGIN")
             return cursor
 
@@ -69,18 +71,11 @@ class PostgresDatabase:
 
 class PostgresAggregateRecorder(AggregateRecorder):
     def __init__(
-        self,
-        application_name: str,
-        db_name: str,
-        host: str,
-        user: str,
-        password: str
+        self, application_name: str, db_name: str, host: str, user: str, password: str
     ):
         self.application_name = application_name
         self.db = PostgresDatabase(db_name, host, user, password)
-        self.events_table = (
-            application_name.lower() + "events"
-        )
+        self.events_table = application_name.lower() + "events"
 
     def create_table(self):
         with self.db.transaction() as c:
@@ -112,10 +107,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         stored_events: List[StoredEvent],
         **kwargs,
     ) -> None:
-        statement = (
-            f"INSERT INTO {self.events_table}"
-            " VALUES (%s, %s, %s, %s)"
-        )
+        statement = f"INSERT INTO {self.events_table}" " VALUES (%s, %s, %s, %s)"
         params = []
         for stored_event in stored_events:
             params.append(
@@ -139,11 +131,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         desc: bool = False,
         limit: Optional[int] = None,
     ) -> List[StoredEvent]:
-        statement = (
-            "SELECT * "
-            f"FROM {self.events_table} "
-            "WHERE originator_id = %s "
-        )
+        statement = "SELECT * " f"FROM {self.events_table} " "WHERE originator_id = %s "
         params: List[Any] = [originator_id]
         if gt is not None:
             statement += "AND originator_version > %s "
@@ -167,9 +155,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
                 stored_events.append(
                     StoredEvent(  # type: ignore
                         originator_id=row["originator_id"],
-                        originator_version=row[
-                            "originator_version"
-                        ],
+                        originator_version=row["originator_version"],
                         topic=row["topic"],
                         state=bytes(row["state"]),
                     )
@@ -202,9 +188,7 @@ class PostgresApplicationRecorder(
         except psycopg2.OperationalError as e:
             raise self.OperationalError(e)
 
-    def select_notifications(
-        self, start: int, limit: int
-    ) -> List[Notification]:
+    def select_notifications(self, start: int, limit: int) -> List[Notification]:
         """
         Returns a list of event notifications
         from 'start', limited by 'limit'.
@@ -225,9 +209,7 @@ class PostgresApplicationRecorder(
                     Notification(  # type: ignore
                         id=row["notification_id"],
                         originator_id=row["originator_id"],
-                        originator_version=row[
-                            "originator_version"
-                        ],
+                        originator_version=row["originator_version"],
                         topic=row["topic"],
                         state=bytes(row["state"]),
                     )
@@ -239,9 +221,7 @@ class PostgresApplicationRecorder(
         Returns the maximum notification ID.
         """
         c = self.db.get_connection().cursor()
-        statement = (
-            f"SELECT MAX(notification_id) FROM {self.events_table}"
-        )
+        statement = f"SELECT MAX(notification_id) FROM {self.events_table}"
         c.execute(statement)
         return c.fetchone()[0] or 0
 
@@ -251,17 +231,10 @@ class PostgresProcessRecorder(
     ProcessRecorder,
 ):
     def __init__(
-        self,
-        application_name: str,
-        db_name: str,
-        host: str,
-        user: str,
-        password: str
+        self, application_name: str, db_name: str, host: str, user: str, password: str
     ):
         super().__init__(application_name, db_name, host, user, password)
-        self.tracking_table = (
-            self.application_name.lower() + "tracking"
-        )
+        self.tracking_table = self.application_name.lower() + "tracking"
 
     def _create_table(self, c: cursor):
         super()._create_table(c)
@@ -275,9 +248,7 @@ class PostgresProcessRecorder(
         )
         c.execute(statement)
 
-    def max_tracking_id(
-        self, application_name: str
-    ) -> int:
+    def max_tracking_id(self, application_name: str) -> int:
         params = [application_name]
         c = self.db.get_connection().cursor()
         statement = (
@@ -295,14 +266,9 @@ class PostgresProcessRecorder(
         **kwargs,
     ) -> None:
         super()._insert_events(c, stored_events, **kwargs)
-        tracking: Optional[Tracking] = kwargs.get(
-            "tracking", None
-        )
+        tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking is not None:
-            statement = (
-                f"INSERT INTO {self.tracking_table} "
-                "VALUES (%s, %s)"
-            )
+            statement = f"INSERT INTO {self.tracking_table} " "VALUES (%s, %s)"
             try:
                 c.execute(
                     statement,
@@ -358,11 +324,7 @@ class PostgresInfrastructureFactory(InfrastructureFactory):
 
     def aggregate_recorder(self) -> AggregateRecorder:
         recorder = PostgresAggregateRecorder(
-            self.application_name,
-            self.db_name,
-            self.host,
-            self.user,
-            self.password
+            self.application_name, self.db_name, self.host, self.user, self.password
         )
         if self.do_create_table():
             recorder.create_table()
@@ -370,11 +332,7 @@ class PostgresInfrastructureFactory(InfrastructureFactory):
 
     def application_recorder(self) -> ApplicationRecorder:
         recorder = PostgresApplicationRecorder(
-            self.application_name,
-            self.db_name,
-            self.host,
-            self.user,
-            self.password
+            self.application_name, self.db_name, self.host, self.user, self.password
         )
         if self.do_create_table():
             recorder.create_table()
@@ -382,11 +340,7 @@ class PostgresInfrastructureFactory(InfrastructureFactory):
 
     def process_recorder(self) -> ProcessRecorder:
         recorder = PostgresProcessRecorder(
-            self.application_name,
-            self.db_name,
-            self.host,
-            self.user,
-            self.password
+            self.application_name, self.db_name, self.host, self.user, self.password
         )
         if self.do_create_table():
             recorder.create_table()
@@ -394,9 +348,4 @@ class PostgresInfrastructureFactory(InfrastructureFactory):
 
     def do_create_table(self) -> bool:
         default = "no"
-        return bool(
-            strtobool(
-                self.getenv(self.DO_CREATE_TABLE, default)
-                or default
-            )
-        )
+        return bool(strtobool(self.getenv(self.DO_CREATE_TABLE, default) or default))

@@ -5,8 +5,14 @@ from unittest.case import TestCase
 from uuid import UUID, uuid4
 
 from eventsourcing.cipher import AESCipher
-from eventsourcing.persistence import DatetimeAsISO, DecimalAsStr, Mapper, Transcoder, \
-    Transcoding, UUIDAsHex
+from eventsourcing.persistence import (
+    DatetimeAsISO,
+    DecimalAsStr,
+    Mapper,
+    Transcoder,
+    Transcoding,
+    UUIDAsHex,
+)
 from eventsourcing.tests.test_aggregate import BankAccount
 
 
@@ -22,9 +28,7 @@ class TestMapper(TestCase):
         cipher = AESCipher(cipher_key=AESCipher.create_key(16))
 
         # Construct mapper with cipher.
-        mapper = Mapper(
-            transcoder=transcoder, cipher=cipher
-        )
+        mapper = Mapper(transcoder=transcoder, cipher=cipher)
 
         # Create a domain event.
         domain_event = BankAccount.TransactionAppended(
@@ -35,9 +39,7 @@ class TestMapper(TestCase):
         )
 
         # Map from domain event.
-        stored_event = mapper.from_domain_event(
-            domain_event
-        )
+        stored_event = mapper.from_domain_event(domain_event)
 
         # Map to domain event.
         copy = mapper.to_domain_event(stored_event)
@@ -46,28 +48,16 @@ class TestMapper(TestCase):
         assert "Alice" not in str(stored_event.state)
 
         # Check decrypted copy has correct values.
-        assert (
-            copy.originator_id
-            == domain_event.originator_id
-        )
-        assert (
-            copy.originator_version
-            == domain_event.originator_version
-        )
-        assert (
-            copy.timestamp == domain_event.timestamp
-        ), copy.timestamp
-        assert (
-            copy.originator_version
-            == domain_event.originator_version
-        )
+        assert copy.originator_id == domain_event.originator_id
+        assert copy.originator_version == domain_event.originator_version
+        assert copy.timestamp == domain_event.timestamp, copy.timestamp
+        assert copy.originator_version == domain_event.originator_version
 
-        assert len(stored_event.state) == 173, len(
-            stored_event.state
-        )
+        assert len(stored_event.state) == 173, len(stored_event.state)
 
         # Construct mapper with cipher and compressor.
         import zlib
+
         mapper = Mapper(
             transcoder=transcoder,
             cipher=cipher,
@@ -75,22 +65,14 @@ class TestMapper(TestCase):
         )
 
         # Map from domain event.
-        stored_event = mapper.from_domain_event(
-            domain_event
-        )
+        stored_event = mapper.from_domain_event(domain_event)
 
         # Map to domain event.
         copy = mapper.to_domain_event(stored_event)
 
         # Check decompressed copy has correct values.
-        assert (
-            copy.originator_id
-            == domain_event.originator_id
-        )
-        assert (
-            copy.originator_version
-            == domain_event.originator_version
-        )
+        assert copy.originator_id == domain_event.originator_id
+        assert copy.originator_version == domain_event.originator_version
 
         assert len(stored_event.state) in (
             134,
@@ -140,11 +122,7 @@ class CustomType2AsDict(Transcoding):
 class TestTranscoder(TestCase):
     def test(self):
         transcoder = Transcoder()
-        obj = CustomType2(
-            CustomType1(
-                UUID("b2723fe2c01a40d2875ea3aac6a09ff5")
-            )
-        )
+        obj = CustomType2(CustomType1(UUID("b2723fe2c01a40d2875ea3aac6a09ff5")))
         with self.assertRaises(TypeError):
             transcoder.encode(obj)
 

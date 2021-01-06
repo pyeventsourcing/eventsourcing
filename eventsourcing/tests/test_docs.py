@@ -11,7 +11,6 @@ base_dir = dirname(dirname(os.path.abspath(eventsourcing.__file__)))
 
 
 class TestDocs(TestCase):
-
     def test_readme(self):
         self._out = ""
 

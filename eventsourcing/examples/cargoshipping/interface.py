@@ -2,9 +2,7 @@ from datetime import datetime
 from typing import Any, List, Optional, Tuple, Union
 from uuid import UUID
 
-from eventsourcing.examples.cargoshipping.application import (
-    BookingApplication,
-)
+from eventsourcing.examples.cargoshipping.application import BookingApplication
 from eventsourcing.examples.cargoshipping.domainmodel import (
     CargoDetails,
     HandlingActivity,
@@ -34,15 +32,11 @@ class LocalClient(object):
         )
         return str(tracking_id)
 
-    def get_cargo_details(
-        self, tracking_id: str
-    ) -> CargoDetails:
+    def get_cargo_details(self, tracking_id: str) -> CargoDetails:
         cargo = self.app.get_cargo(UUID(tracking_id))
 
         # Present 'next_expected_activity'.
-        next_expected_activity: Optional[
-            Union[Tuple[Any, Any], Tuple[Any, Any, Any]]
-        ]
+        next_expected_activity: Optional[Union[Tuple[Any, Any], Tuple[Any, Any, Any]]]
         if cargo.next_expected_activity is None:
             next_expected_activity = None
         elif len(cargo.next_expected_activity) == 2:
@@ -67,9 +61,7 @@ class LocalClient(object):
         if cargo.last_known_location is None:
             last_known_location = None
         else:
-            last_known_location = (
-                cargo.last_known_location.value
-            )
+            last_known_location = cargo.last_known_location.value
 
         # Present the cargo details.
         return {
@@ -86,29 +78,14 @@ class LocalClient(object):
             "current_voyage_number": cargo.current_voyage_number,
         }
 
-    def change_destination(
-        self, tracking_id: str, destination: str
-    ) -> None:
-        self.app.change_destination(
-            UUID(tracking_id), Location[destination]
-        )
+    def change_destination(self, tracking_id: str, destination: str) -> None:
+        self.app.change_destination(UUID(tracking_id), Location[destination])
 
-    def request_possible_routes_for_cargo(
-        self, tracking_id: str
-    ) -> List[dict]:
-        routes = (
-            self.app.request_possible_routes_for_cargo(
-                UUID(tracking_id)
-            )
-        )
-        return [
-            self.dict_from_itinerary(route)
-            for route in routes
-        ]
+    def request_possible_routes_for_cargo(self, tracking_id: str) -> List[dict]:
+        routes = self.app.request_possible_routes_for_cargo(UUID(tracking_id))
+        return [self.dict_from_itinerary(route) for route in routes]
 
-    def dict_from_itinerary(
-        self, itinerary: Itinerary
-    ) -> ItineraryDetails:
+    def dict_from_itinerary(self, itinerary: Itinerary) -> ItineraryDetails:
         legs_details = []
         for leg in itinerary.legs:
             leg_details: LegDetails = {
@@ -129,18 +106,10 @@ class LocalClient(object):
         tracking_id: str,
         route_details: ItineraryDetails,
     ) -> None:
-        routes = (
-            self.app.request_possible_routes_for_cargo(
-                UUID(tracking_id)
-            )
-        )
+        routes = self.app.request_possible_routes_for_cargo(UUID(tracking_id))
         for route in routes:
-            if route_details == self.dict_from_itinerary(
-                route
-            ):
-                self.app.assign_route(
-                    UUID(tracking_id), route
-                )
+            if route_details == self.dict_from_itinerary(route):
+                self.app.assign_route(UUID(tracking_id), route)
 
     def register_handling_event(
         self,

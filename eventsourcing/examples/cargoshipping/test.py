@@ -1,9 +1,7 @@
 import unittest
 from datetime import datetime, timedelta
 
-from eventsourcing.examples.cargoshipping.application import (
-    BookingApplication,
-)
+from eventsourcing.examples.cargoshipping.application import BookingApplication
 from eventsourcing.examples.cargoshipping.interface import (
     LocalClient,
     select_preferred_itinerary,
@@ -15,9 +13,7 @@ class TestCargoShipping(unittest.TestCase):
         self.client = LocalClient(BookingApplication())
 
     def test_admin_can_book_new_cargo(self) -> None:
-        arrival_deadline = datetime.now() + timedelta(
-            weeks=3
-        )
+        arrival_deadline = datetime.now() + timedelta(weeks=3)
 
         cargo_id = self.client.book_new_cargo(
             origin="NLRTM",
@@ -25,24 +21,14 @@ class TestCargoShipping(unittest.TestCase):
             arrival_deadline=arrival_deadline,
         )
 
-        cargo_details = self.client.get_cargo_details(
-            cargo_id
-        )
+        cargo_details = self.client.get_cargo_details(cargo_id)
         self.assertTrue(cargo_details["id"])
         self.assertEqual(cargo_details["origin"], "NLRTM")
-        self.assertEqual(
-            cargo_details["destination"], "USDAL"
-        )
+        self.assertEqual(cargo_details["destination"], "USDAL")
 
-        self.client.change_destination(
-            cargo_id, destination="AUMEL"
-        )
-        cargo_details = self.client.get_cargo_details(
-            cargo_id
-        )
-        self.assertEqual(
-            cargo_details["destination"], "AUMEL"
-        )
+        self.client.change_destination(cargo_id, destination="AUMEL")
+        cargo_details = self.client.get_cargo_details(cargo_id)
+        self.assertEqual(cargo_details["destination"], "AUMEL")
         self.assertEqual(
             cargo_details["arrival_deadline"],
             arrival_deadline,
@@ -56,17 +42,13 @@ class TestCargoShipping(unittest.TestCase):
         # in no more than two weeks.
         origin = "HONGKONG"
         destination = "STOCKHOLM"
-        arrival_deadline = datetime.now() + timedelta(
-            weeks=2
-        )
+        arrival_deadline = datetime.now() + timedelta(weeks=2)
 
         # Use case 1: booking.
 
         # A new cargo is booked, and the unique tracking
         # id is assigned to the cargo.
-        tracking_id = self.client.book_new_cargo(
-            origin, destination, arrival_deadline
-        )
+        tracking_id = self.client.book_new_cargo(origin, destination, arrival_deadline)
 
         # The tracking id can be used to lookup the cargo
         # in the repository.
@@ -77,26 +59,18 @@ class TestCargoShipping(unittest.TestCase):
         # the cargo basically amounts to presenting
         # information extracted from the cargo aggregate
         # in a suitable way.
-        cargo_details = self.client.get_cargo_details(
-            tracking_id
-        )
+        cargo_details = self.client.get_cargo_details(tracking_id)
         self.assertEqual(
             cargo_details["transport_status"],
             "NOT_RECEIVED",
         )
-        self.assertEqual(
-            cargo_details["routing_status"], "NOT_ROUTED"
-        )
-        self.assertEqual(
-            cargo_details["is_misdirected"], False
-        )
+        self.assertEqual(cargo_details["routing_status"], "NOT_ROUTED")
+        self.assertEqual(cargo_details["is_misdirected"], False)
         self.assertEqual(
             cargo_details["estimated_time_of_arrival"],
             None,
         )
-        self.assertEqual(
-            cargo_details["next_expected_activity"], None
-        )
+        self.assertEqual(cargo_details["next_expected_activity"], None)
 
         # Use case 2: routing.
         #
@@ -106,37 +80,21 @@ class TestCargoShipping(unittest.TestCase):
         # Selection could be affected by things like price
         # and time of delivery, but this test simply uses
         # an arbitrary selection to mimic that process.
-        routes_details = (
-            self.client.request_possible_routes_for_cargo(
-                tracking_id
-            )
-        )
-        route_details = select_preferred_itinerary(
-            routes_details
-        )
+        routes_details = self.client.request_possible_routes_for_cargo(tracking_id)
+        route_details = select_preferred_itinerary(routes_details)
 
         # The cargo is then assigned to the selected
         # route, described by an itinerary.
-        self.client.assign_route(
-            tracking_id, route_details
-        )
+        self.client.assign_route(tracking_id, route_details)
 
-        cargo_details = self.client.get_cargo_details(
-            tracking_id
-        )
+        cargo_details = self.client.get_cargo_details(tracking_id)
         self.assertEqual(
             cargo_details["transport_status"],
             "NOT_RECEIVED",
         )
-        self.assertEqual(
-            cargo_details["routing_status"], "ROUTED"
-        )
-        self.assertEqual(
-            cargo_details["is_misdirected"], False
-        )
-        self.assertTrue(
-            cargo_details["estimated_time_of_arrival"]
-        )
+        self.assertEqual(cargo_details["routing_status"], "ROUTED")
+        self.assertEqual(cargo_details["is_misdirected"], False)
+        self.assertTrue(cargo_details["estimated_time_of_arrival"])
         self.assertEqual(
             cargo_details["next_expected_activity"],
             ("RECEIVE", "HONGKONG"),
@@ -157,15 +115,9 @@ class TestCargoShipping(unittest.TestCase):
         # rejected.
         #
         # Handling begins: cargo is received in Hongkong.
-        self.client.register_handling_event(
-            tracking_id, None, "HONGKONG", "RECEIVE"
-        )
-        cargo_details = self.client.get_cargo_details(
-            tracking_id
-        )
-        self.assertEqual(
-            cargo_details["transport_status"], "IN_PORT"
-        )
+        self.client.register_handling_event(tracking_id, None, "HONGKONG", "RECEIVE")
+        cargo_details = self.client.get_cargo_details(tracking_id)
+        self.assertEqual(cargo_details["transport_status"], "IN_PORT")
         self.assertEqual(
             cargo_details["last_known_location"],
             "HONGKONG",
@@ -176,15 +128,9 @@ class TestCargoShipping(unittest.TestCase):
         )
 
         # Load onto voyage V1.
-        self.client.register_handling_event(
-            tracking_id, "V1", "HONGKONG", "LOAD"
-        )
-        cargo_details = self.client.get_cargo_details(
-            tracking_id
-        )
-        self.assertEqual(
-            cargo_details["current_voyage_number"], "V1"
-        )
+        self.client.register_handling_event(tracking_id, "V1", "HONGKONG", "LOAD")
+        cargo_details = self.client.get_cargo_details(tracking_id)
+        self.assertEqual(cargo_details["current_voyage_number"], "V1")
         self.assertEqual(
             cargo_details["last_known_location"],
             "HONGKONG",
@@ -199,160 +145,84 @@ class TestCargoShipping(unittest.TestCase):
         )
 
         # Incorrectly unload in Tokyo.
-        self.client.register_handling_event(
-            tracking_id, "V1", "TOKYO", "UNLOAD"
-        )
-        cargo_details = self.client.get_cargo_details(
-            tracking_id
-        )
-        self.assertEqual(
-            cargo_details["current_voyage_number"], None
-        )
-        self.assertEqual(
-            cargo_details["last_known_location"], "TOKYO"
-        )
-        self.assertEqual(
-            cargo_details["transport_status"], "IN_PORT"
-        )
-        self.assertEqual(
-            cargo_details["is_misdirected"], True
-        )
-        self.assertEqual(
-            cargo_details["next_expected_activity"], None
-        )
+        self.client.register_handling_event(tracking_id, "V1", "TOKYO", "UNLOAD")
+        cargo_details = self.client.get_cargo_details(tracking_id)
+        self.assertEqual(cargo_details["current_voyage_number"], None)
+        self.assertEqual(cargo_details["last_known_location"], "TOKYO")
+        self.assertEqual(cargo_details["transport_status"], "IN_PORT")
+        self.assertEqual(cargo_details["is_misdirected"], True)
+        self.assertEqual(cargo_details["next_expected_activity"], None)
 
         # Reroute.
-        routes_details = (
-            self.client.request_possible_routes_for_cargo(
-                tracking_id
-            )
-        )
-        route_details = select_preferred_itinerary(
-            routes_details
-        )
-        self.client.assign_route(
-            tracking_id, route_details
-        )
+        routes_details = self.client.request_possible_routes_for_cargo(tracking_id)
+        route_details = select_preferred_itinerary(routes_details)
+        self.client.assign_route(tracking_id, route_details)
 
         # Load in Tokyo.
-        self.client.register_handling_event(
-            tracking_id, "V3", "TOKYO", "LOAD"
-        )
-        cargo_details = self.client.get_cargo_details(
-            tracking_id
-        )
-        self.assertEqual(
-            cargo_details["current_voyage_number"], "V3"
-        )
-        self.assertEqual(
-            cargo_details["last_known_location"], "TOKYO"
-        )
+        self.client.register_handling_event(tracking_id, "V3", "TOKYO", "LOAD")
+        cargo_details = self.client.get_cargo_details(tracking_id)
+        self.assertEqual(cargo_details["current_voyage_number"], "V3")
+        self.assertEqual(cargo_details["last_known_location"], "TOKYO")
         self.assertEqual(
             cargo_details["transport_status"],
             "ONBOARD_CARRIER",
         )
-        self.assertEqual(
-            cargo_details["is_misdirected"], False
-        )
+        self.assertEqual(cargo_details["is_misdirected"], False)
         self.assertEqual(
             cargo_details["next_expected_activity"],
             ("UNLOAD", "HAMBURG", "V3"),
         )
 
         # Unload in Hamburg.
-        self.client.register_handling_event(
-            tracking_id, "V3", "HAMBURG", "UNLOAD"
-        )
-        cargo_details = self.client.get_cargo_details(
-            tracking_id
-        )
-        self.assertEqual(
-            cargo_details["current_voyage_number"], None
-        )
-        self.assertEqual(
-            cargo_details["last_known_location"], "HAMBURG"
-        )
-        self.assertEqual(
-            cargo_details["transport_status"], "IN_PORT"
-        )
-        self.assertEqual(
-            cargo_details["is_misdirected"], False
-        )
+        self.client.register_handling_event(tracking_id, "V3", "HAMBURG", "UNLOAD")
+        cargo_details = self.client.get_cargo_details(tracking_id)
+        self.assertEqual(cargo_details["current_voyage_number"], None)
+        self.assertEqual(cargo_details["last_known_location"], "HAMBURG")
+        self.assertEqual(cargo_details["transport_status"], "IN_PORT")
+        self.assertEqual(cargo_details["is_misdirected"], False)
         self.assertEqual(
             cargo_details["next_expected_activity"],
             ("LOAD", "HAMBURG", "V4"),
         )
 
         # Load in Hamburg
-        self.client.register_handling_event(
-            tracking_id, "V4", "HAMBURG", "LOAD"
-        )
-        cargo_details = self.client.get_cargo_details(
-            tracking_id
-        )
-        self.assertEqual(
-            cargo_details["current_voyage_number"], "V4"
-        )
-        self.assertEqual(
-            cargo_details["last_known_location"], "HAMBURG"
-        )
+        self.client.register_handling_event(tracking_id, "V4", "HAMBURG", "LOAD")
+        cargo_details = self.client.get_cargo_details(tracking_id)
+        self.assertEqual(cargo_details["current_voyage_number"], "V4")
+        self.assertEqual(cargo_details["last_known_location"], "HAMBURG")
         self.assertEqual(
             cargo_details["transport_status"],
             "ONBOARD_CARRIER",
         )
-        self.assertEqual(
-            cargo_details["is_misdirected"], False
-        )
+        self.assertEqual(cargo_details["is_misdirected"], False)
         self.assertEqual(
             cargo_details["next_expected_activity"],
             ("UNLOAD", "STOCKHOLM", "V4"),
         )
 
         # Unload in Stockholm
-        self.client.register_handling_event(
-            tracking_id, "V4", "STOCKHOLM", "UNLOAD"
-        )
-        cargo_details = self.client.get_cargo_details(
-            tracking_id
-        )
-        self.assertEqual(
-            cargo_details["current_voyage_number"], None
-        )
+        self.client.register_handling_event(tracking_id, "V4", "STOCKHOLM", "UNLOAD")
+        cargo_details = self.client.get_cargo_details(tracking_id)
+        self.assertEqual(cargo_details["current_voyage_number"], None)
         self.assertEqual(
             cargo_details["last_known_location"],
             "STOCKHOLM",
         )
-        self.assertEqual(
-            cargo_details["transport_status"], "IN_PORT"
-        )
-        self.assertEqual(
-            cargo_details["is_misdirected"], False
-        )
+        self.assertEqual(cargo_details["transport_status"], "IN_PORT")
+        self.assertEqual(cargo_details["is_misdirected"], False)
         self.assertEqual(
             cargo_details["next_expected_activity"],
             ("CLAIM", "STOCKHOLM"),
         )
 
         # Finally, cargo is claimed in Stockholm.
-        self.client.register_handling_event(
-            tracking_id, None, "STOCKHOLM", "CLAIM"
-        )
-        cargo_details = self.client.get_cargo_details(
-            tracking_id
-        )
-        self.assertEqual(
-            cargo_details["current_voyage_number"], None
-        )
+        self.client.register_handling_event(tracking_id, None, "STOCKHOLM", "CLAIM")
+        cargo_details = self.client.get_cargo_details(tracking_id)
+        self.assertEqual(cargo_details["current_voyage_number"], None)
         self.assertEqual(
             cargo_details["last_known_location"],
             "STOCKHOLM",
         )
-        self.assertEqual(
-            cargo_details["transport_status"], "CLAIMED"
-        )
-        self.assertEqual(
-            cargo_details["is_misdirected"], False
-        )
-        self.assertEqual(
-            cargo_details["next_expected_activity"], None
-        )
+        self.assertEqual(cargo_details["transport_status"], "CLAIMED")
+        self.assertEqual(cargo_details["is_misdirected"], False)
+        self.assertEqual(cargo_details["next_expected_activity"], None)

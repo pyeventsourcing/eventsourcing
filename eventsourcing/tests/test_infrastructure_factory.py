@@ -10,10 +10,10 @@ class TestInfrastructureFactoryErrors(TestCase):
         del os.environ[InfrastructureFactory.TOPIC]
 
     def test_construct_raises_exception(self):
-        os.environ[InfrastructureFactory.TOPIC] = 'invalid topic'
+        os.environ[InfrastructureFactory.TOPIC] = "invalid topic"
         with self.assertRaises(EnvironmentError):
-            InfrastructureFactory.construct('')
+            InfrastructureFactory.construct("")
 
         os.environ[InfrastructureFactory.TOPIC] = get_topic(object)
         with self.assertRaises(AssertionError):
-            InfrastructureFactory.construct('')
+            InfrastructureFactory.construct("")

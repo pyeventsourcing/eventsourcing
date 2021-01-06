@@ -33,12 +33,11 @@ class TestAESCipher(TestCase):
         with self.assertRaises(AssertionError):
             AESCipher(key)
 
-
     def test_encrypt_and_decrypt(self):
         key = AESCipher.create_key(16)
 
         # Check plain text can be encrypted and recovered.
-        plain_text = b'some text'
+        plain_text = b"some text"
         cipher = AESCipher(key)
         cipher_text = cipher.encrypt(plain_text)
         cipher = AESCipher(key)
