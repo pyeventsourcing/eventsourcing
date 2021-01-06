@@ -9,7 +9,7 @@ from psycopg2.errorcodes import UNDEFINED_TABLE
 from eventsourcing.tests.test_application import BankAccounts
 from eventsourcing.utils import get_topic
 from eventsourcing.tests.test_processapplication import EmailNotifications
-from eventsourcing.postgresrecorders import (
+from eventsourcing.postgres import (
     PostgresDatabase,
     PostgresInfrastructureFactory,
 )

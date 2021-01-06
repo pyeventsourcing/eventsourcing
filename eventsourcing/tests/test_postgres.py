@@ -5,7 +5,7 @@ from psycopg2.errorcodes import UNDEFINED_TABLE
 
 from eventsourcing.tests.infrastructure_testcases import InfrastructureFactoryTestCase
 from eventsourcing.persistence import InfrastructureFactory
-from eventsourcing.postgresrecorders import PostgresAggregateRecorder, \
+from eventsourcing.postgres import PostgresAggregateRecorder, \
     PostgresApplicationRecorder, PostgresInfrastructureFactory, PostgresProcessRecorder
 from eventsourcing.tests.aggregaterecorder_testcase import AggregateRecorderTestCase
 from eventsourcing.tests.applicationrecorder_testcase import ApplicationRecorderTestCase
