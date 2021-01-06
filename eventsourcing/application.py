@@ -10,7 +10,6 @@ from eventsourcing.persistence import (
     UUIDAsHex,
 )
 
-# Todo: Make a method to create a snapshot for an aggregate ID.
 from eventsourcing.utils import ImmutableObject
 
 
