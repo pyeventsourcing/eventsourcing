@@ -315,7 +315,7 @@ class InfrastructureFactory(ABC):
     def construct(cls, name) -> "InfrastructureFactory":
         topic = os.getenv(
             cls.TOPIC,
-            "eventsourcing.poporecorders:POPOInfrastructureFactory",
+            "eventsourcing.popo:POPOInfrastructureFactory",
         )
         try:
             factory_cls = resolve_topic(topic)
