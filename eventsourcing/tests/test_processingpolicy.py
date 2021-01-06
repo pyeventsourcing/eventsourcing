@@ -3,7 +3,8 @@ from unittest.case import TestCase
 from uuid import uuid4
 
 from eventsourcing.domain import Aggregate
-from eventsourcing.system import ProcessEvent, Tracking
+from eventsourcing.system import ProcessEvent
+from eventsourcing.persistence import Tracking
 from eventsourcing.tests.test_aggregate import BankAccount
 
 

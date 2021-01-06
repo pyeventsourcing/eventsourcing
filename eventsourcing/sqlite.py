@@ -8,9 +8,8 @@ from uuid import UUID
 from eventsourcing.persistence import (
     AggregateRecorder, ApplicationRecorder, InfrastructureFactory, Notification,
     ProcessRecorder,
-    RecordConflictError, StoredEvent,
+    RecordConflictError, StoredEvent, Tracking,
 )
-from eventsourcing.system import Tracking
 
 
 class SQLiteDatabase:

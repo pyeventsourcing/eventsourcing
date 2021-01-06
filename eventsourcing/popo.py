@@ -9,11 +9,10 @@ from typing import (
 )
 from uuid import UUID
 
-from eventsourcing.system import Tracking
 from eventsourcing.persistence import (
     AggregateRecorder, ApplicationRecorder, InfrastructureFactory, Notification,
     ProcessRecorder,
-    RecordConflictError, StoredEvent,
+    RecordConflictError, StoredEvent, Tracking,
 )
 
 

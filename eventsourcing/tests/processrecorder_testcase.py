@@ -3,8 +3,7 @@ from timeit import timeit
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.system import Tracking
-from eventsourcing.persistence import RecordConflictError, StoredEvent
+from eventsourcing.persistence import RecordConflictError, StoredEvent, Tracking
 
 
 class ProcessRecordsTestCase(TestCase, ABC):

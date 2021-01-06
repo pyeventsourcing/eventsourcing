@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from threading import Event, Thread
 from typing import (
-    Any,
     Dict,
     Iterable,
     List,
@@ -11,17 +10,12 @@ from typing import (
     Type, TypeVar,
 )
 
-from eventsourcing.domain import Aggregate, ImmutableObject
+from eventsourcing.domain import Aggregate
 from eventsourcing.persistence import ApplicationRecorder, Mapper, Notification, \
-    ProcessRecorder
+    ProcessRecorder, Tracking
 
 from eventsourcing.utils import get_topic, resolve_topic
 from eventsourcing.application import AbstractNotificationLog, Application, Section
-
-
-class Tracking(ImmutableObject):
-    application_name: str
-    notification_id: int
 
 
 class ProcessEvent:
