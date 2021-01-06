@@ -244,7 +244,7 @@ Configure "production" environment using SQLite infrastructure.
 ```python
 import os
 
-from eventsourcing.aes import AESCipher
+from eventsourcing.cipher import AESCipher
 
 # Generate a cipher key (keep this safe).
 cipher_key = AESCipher.create_key(num_bytes=32)
@@ -252,7 +252,7 @@ cipher_key = AESCipher.create_key(num_bytes=32)
 # Cipher key.
 os.environ['CIPHER_KEY'] = cipher_key
 # Cipher topic.
-os.environ['CIPHER_TOPIC'] = "eventsourcing.aes:AESCipher"
+os.environ['CIPHER_TOPIC'] = "eventsourcing.cipher:AESCipher"
 # Compressor topic.
 os.environ['COMPRESSOR_TOPIC'] = "zlib"
 
@@ -282,7 +282,7 @@ Configure "production" environment using Postgres infrastructure.
 ```python
 import os
 
-from eventsourcing.aes import AESCipher
+from eventsourcing.cipher import AESCipher
 
 # Generate a cipher key (keep this safe).
 cipher_key = AESCipher.create_key(num_bytes=32)
@@ -290,7 +290,7 @@ cipher_key = AESCipher.create_key(num_bytes=32)
 # Cipher key.
 os.environ['CIPHER_KEY'] = cipher_key
 # Cipher topic.
-os.environ['CIPHER_TOPIC'] = "eventsourcing.aes:AESCipher"
+os.environ['CIPHER_TOPIC'] = "eventsourcing.cipher:AESCipher"
 # Compressor topic.
 os.environ['COMPRESSOR_TOPIC'] = "zlib"
 

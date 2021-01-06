@@ -4,7 +4,7 @@ from typing import Union
 from unittest.case import TestCase
 from uuid import UUID, uuid4
 
-from eventsourcing.aes import AESCipher
+from eventsourcing.cipher import AESCipher
 from eventsourcing.persistence import DatetimeAsISO, DecimalAsStr, Mapper, Transcoder, \
     Transcoding, UUIDAsHex
 from eventsourcing.tests.test_aggregate import BankAccount

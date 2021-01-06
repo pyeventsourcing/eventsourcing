@@ -1,6 +1,6 @@
 from unittest.case import TestCase
 
-from eventsourcing.aes import AESCipher
+from eventsourcing.cipher import AESCipher
 
 
 class TestAESCipher(TestCase):

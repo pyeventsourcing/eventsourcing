@@ -3,7 +3,7 @@ from datetime import datetime
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.aes import AESCipher
+from eventsourcing.cipher import AESCipher
 from eventsourcing.utils import get_topic
 from eventsourcing.domain import DomainEvent
 from eventsourcing.persistence import (
