@@ -1,7 +1,7 @@
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.sqliterecorders import (
+from eventsourcing.sqlite import (
     SQLiteApplicationRecorder,
     SQLiteDatabase,
 )

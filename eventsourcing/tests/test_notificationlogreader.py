@@ -3,7 +3,7 @@ from uuid import uuid4
 
 from eventsourcing.application import LocalNotificationLog
 from eventsourcing.system import NotificationLogReader
-from eventsourcing.sqliterecorders import (
+from eventsourcing.sqlite import (
     SQLiteDatabase,
     SQLiteProcessRecorder,
 )

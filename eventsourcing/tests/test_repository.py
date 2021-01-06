@@ -8,7 +8,7 @@ from eventsourcing.domain import (
 )
 from eventsourcing.tests.test_aggregate import BankAccount
 from eventsourcing.utils import get_topic
-from eventsourcing.sqliterecorders import (
+from eventsourcing.sqlite import (
     SQLiteDatabase,
     SQLiteAggregateRecorder,
 )

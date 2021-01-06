@@ -1,7 +1,7 @@
 from decimal import Decimal
 from unittest.case import TestCase
 
-from eventsourcing.sqliterecorders import (
+from eventsourcing.sqlite import (
     SQLiteDatabase,
     SQLiteAggregateRecorder,
 )

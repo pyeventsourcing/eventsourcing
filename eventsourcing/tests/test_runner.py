@@ -14,7 +14,7 @@ from eventsourcing.postgres import (
     PostgresInfrastructureFactory,
 )
 from eventsourcing.tests.ramdisk import tmpfile_uris
-from eventsourcing.sqliterecorders import (
+from eventsourcing.sqlite import (
     SQLiteInfrastructureFactory,
 )
 from eventsourcing.system import AbstractRunner, MultiThreadedRunner, \

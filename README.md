@@ -258,7 +258,7 @@ os.environ['COMPRESSOR_TOPIC'] = "zlib"
 
 # Use SQLite infrastructure.
 os.environ['INFRASTRUCTURE_FACTORY_TOPIC'] = (
-    'eventsourcing.sqliterecorders:SQLiteInfrastructureFactory'
+    'eventsourcing.sqlite:SQLiteInfrastructureFactory'
 )
 os.environ['SQLITE_DBNAME'] = ':memory:'  # Or path to a file on disk.
 os.environ['DO_CREATE_TABLE'] = 'y'
