@@ -2,15 +2,13 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, TypeVar, Union
 from uuid import UUID
 
-from eventsourcing.domain import Aggregate, Snapshot
+from eventsourcing.domain import Aggregate, ImmutableObject, Snapshot
 from eventsourcing.persistence import (
     AbstractTranscoder, ApplicationRecorder, DatetimeAsISO, DecimalAsStr, EventStore,
     InfrastructureFactory,
     Mapper, Notification, Transcoder,
     UUIDAsHex,
 )
-
-from eventsourcing.utils import ImmutableObject
 
 
 class Application(ABC):

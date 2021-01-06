@@ -11,11 +11,11 @@ from typing import (
     Type, TypeVar,
 )
 
-from eventsourcing.domain import Aggregate
+from eventsourcing.domain import Aggregate, ImmutableObject
 from eventsourcing.persistence import ApplicationRecorder, Mapper, Notification, \
     ProcessRecorder
 
-from eventsourcing.utils import ImmutableObject, get_topic, resolve_topic
+from eventsourcing.utils import get_topic, resolve_topic
 from eventsourcing.application import AbstractNotificationLog, Application, Section
 
 
