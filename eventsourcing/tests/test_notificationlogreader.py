@@ -2,9 +2,7 @@ from unittest.case import TestCase
 from uuid import uuid4
 
 from eventsourcing.application import LocalNotificationLog
-from eventsourcing.notificationlogreader import (
-    NotificationLogReader,
-)
+from eventsourcing.system import NotificationLogReader
 from eventsourcing.sqliterecorders import (
     SQLiteDatabase,
     SQLiteProcessRecorder,

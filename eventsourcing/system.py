@@ -12,11 +12,11 @@ from typing import (
 )
 
 from eventsourcing.domain import Aggregate
-from eventsourcing.notificationlogreader import NotificationLogReader
-from eventsourcing.persistence import ApplicationRecorder, Mapper, ProcessRecorder
+from eventsourcing.persistence import ApplicationRecorder, Mapper, Notification, \
+    ProcessRecorder
 
 from eventsourcing.utils import ImmutableObject, get_topic, resolve_topic
-from eventsourcing.application import AbstractNotificationLog, Application
+from eventsourcing.application import AbstractNotificationLog, Application, Section
 
 
 class Tracking(ImmutableObject):
@@ -394,3 +394,36 @@ class RunnerThread(Promptable, Thread):
     def receive_prompt(self, leader_name: str) -> None:
         self.prompted_names.append(leader_name)
         self.is_prompted.set()
+
+
+class NotificationLogReader:
+    DEFAULT_SECTION_SIZE = 10
+
+    def __init__(
+        self,
+        notification_log: AbstractNotificationLog,
+        section_size: int = DEFAULT_SECTION_SIZE,
+    ):
+        self.notification_log = notification_log
+        self.section_size = section_size
+
+    def read(
+        self, *, start: int
+    ) -> Iterable[Notification]:
+        section_id = "{},{}".format(
+            start, start + self.section_size - 1
+        )
+        while True:
+            section: Section = self.notification_log[
+                section_id
+            ]
+            for item in section.items:
+                # Todo: Reintroduce if supporting
+                #  sections with regular alignment?
+                # if item.id < start:
+                #     continue
+                yield item
+            if section.next_id is None:
+                break
+            else:
+                section_id = section.next_id
