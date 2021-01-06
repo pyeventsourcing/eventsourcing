@@ -61,11 +61,11 @@ lint: lint-black lint-flake8 lint-isort lint-mypy lint-dockerfile
 
 .PHONY: fmt-isort
 fmt-isort:
-	@isort -y --recursive .
+	@isort eventsourcing
 
 .PHONY: fmt-black
 fmt-black:
-	@black .
+	@black eventsourcing
 
 .PHONY: fmt
 fmt: fmt-black fmt-isort
