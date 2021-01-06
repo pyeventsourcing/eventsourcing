@@ -3,7 +3,7 @@ from timeit import timeit
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.tracking import Tracking
+from eventsourcing.system import Tracking
 from eventsourcing.persistence import RecordConflictError, StoredEvent
 
 

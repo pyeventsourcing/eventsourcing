@@ -14,11 +14,14 @@ from typing import (
 from eventsourcing.domain import Aggregate
 from eventsourcing.notificationlogreader import NotificationLogReader
 from eventsourcing.persistence import ApplicationRecorder, Mapper, ProcessRecorder
-from eventsourcing.tracking import Tracking
 
-from eventsourcing.utils import get_topic, resolve_topic
+from eventsourcing.utils import ImmutableObject, get_topic, resolve_topic
 from eventsourcing.application import AbstractNotificationLog, Application
 
+
+class Tracking(ImmutableObject):
+    application_name: str
+    notification_id: int
 
 
 class ProcessEvent:

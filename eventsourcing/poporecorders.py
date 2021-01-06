@@ -9,7 +9,7 @@ from typing import (
 )
 from uuid import UUID
 
-from eventsourcing.tracking import Tracking
+from eventsourcing.system import Tracking
 from eventsourcing.persistence import (
     AggregateRecorder, ApplicationRecorder, InfrastructureFactory, Notification,
     ProcessRecorder,

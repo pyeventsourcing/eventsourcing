@@ -13,7 +13,7 @@ from eventsourcing.persistence import (
     ProcessRecorder,
     RecordConflictError, StoredEvent,
 )
-from eventsourcing.tracking import Tracking
+from eventsourcing.system import Tracking
 
 psycopg2.extras.register_uuid()
 
