@@ -398,12 +398,13 @@ Infrastructure Factory
 
     import os
 
-    from eventsourcing.sqlite import SQLiteInfrastructureFactory
+    from eventsourcing.persistence import InfrastructureFactory
 
-    os.environ[SQLiteInfrastructureFactory.SQLITE_DBNAME] = ':memory:'
-    os.environ[SQLiteInfrastructureFactory.DO_CREATE_TABLE] = 'y'
+    os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.sqlite:Factory'
+    os.environ['SQLITE_DBNAME'] = ':memory:'
+    os.environ['DO_CREATE_TABLE'] = 'y'
 
-    factory = SQLiteInfrastructureFactory(application_name='')
+    factory = InfrastructureFactory.construct(application_name='')
 
     recorder = factory.application_recorder()
     mapper = factory.mapper(transcoder=transcoder)

@@ -33,7 +33,7 @@ class TestPOPOProcessRecorder(ProcessRecordsTestCase):
         super().test_performance()
 
 
-class TestPOPOInfrastructureFactory(InfrastructureFactoryTestCase):
+class TestFactory(InfrastructureFactoryTestCase):
     pass
 
 

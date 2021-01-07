@@ -5,7 +5,7 @@ from eventsourcing.sqlite import (
     SQLiteAggregateRecorder,
     SQLiteApplicationRecorder,
     SQLiteDatastore,
-    SQLiteInfrastructureFactory,
+    Factory,
     SQLiteProcessRecorder,
 )
 from eventsourcing.tests.aggregaterecorder_testcase import (
@@ -55,13 +55,13 @@ class TestSQLiteProcessRecorder(ProcessRecordsTestCase):
 
 class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase):
     def setUp(self) -> None:
-        os.environ[InfrastructureFactory.TOPIC] = get_topic(SQLiteInfrastructureFactory)
-        os.environ[SQLiteInfrastructureFactory.SQLITE_DBNAME] = ":memory:"
+        os.environ[InfrastructureFactory.TOPIC] = get_topic(Factory)
+        os.environ[Factory.SQLITE_DBNAME] = ":memory:"
         super().setUp()
 
     def tearDown(self) -> None:
         super().tearDown()
-        del os.environ[SQLiteInfrastructureFactory.SQLITE_DBNAME]
+        del os.environ[Factory.SQLITE_DBNAME]
 
 
 del AggregateRecorderTestCase

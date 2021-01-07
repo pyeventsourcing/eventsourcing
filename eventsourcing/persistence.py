@@ -286,7 +286,7 @@ class EventStore(Generic[TDomainEvent]):
 
 
 class InfrastructureFactory(ABC):
-    TOPIC = "INFRASTRUCTURE_FACTORY_TOPIC"
+    TOPIC = "INFRASTRUCTURE_FACTORY"
     CIPHER_TOPIC = "CIPHER_TOPIC"
     CIPHER_KEY = "CIPHER_KEY"
     MAPPER_TOPIC = "MAPPER_TOPIC"
@@ -294,10 +294,10 @@ class InfrastructureFactory(ABC):
     IS_SNAPSHOTTING_ENABLED = "IS_SNAPSHOTTING_ENABLED"
 
     @classmethod
-    def construct(cls, name) -> "InfrastructureFactory":
+    def construct(cls, application_name) -> "InfrastructureFactory":
         topic = os.getenv(
             cls.TOPIC,
-            "eventsourcing.popo:POPOInfrastructureFactory",
+            "eventsourcing.popo:Factory",
         )
         try:
             factory_cls = resolve_topic(topic)
@@ -311,7 +311,7 @@ class InfrastructureFactory(ABC):
 
         if not issubclass(factory_cls, InfrastructureFactory):
             raise AssertionError(f"Not an infrastructure factory: {topic}")
-        return factory_cls(application_name=name)
+        return factory_cls(application_name=application_name)
 
     def __init__(self, application_name):
         self.application_name = application_name

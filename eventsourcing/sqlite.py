@@ -268,7 +268,7 @@ class SQLiteProcessRecorder(
                 raise RecordConflictError(e)
 
 
-class SQLiteInfrastructureFactory(InfrastructureFactory):
+class Factory(InfrastructureFactory):
     SQLITE_DBNAME = "SQLITE_DBNAME"
     DO_CREATE_TABLE = "DO_CREATE_TABLE"
 

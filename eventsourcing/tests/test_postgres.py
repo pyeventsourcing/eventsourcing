@@ -7,7 +7,7 @@ from eventsourcing.persistence import InfrastructureFactory
 from eventsourcing.postgres import (
     PostgresAggregateRecorder,
     PostgresApplicationRecorder,
-    PostgresInfrastructureFactory,
+    Factory,
     PostgresProcessRecorder,
 )
 from eventsourcing.tests.aggregaterecorder_testcase import (
@@ -118,10 +118,10 @@ class TestPostgresProcessRecorder(ProcessRecordsTestCase):
         super().test_performance()
 
 
-class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
+class TestFactory(InfrastructureFactoryTestCase):
     def setUp(self) -> None:
         os.environ[InfrastructureFactory.TOPIC] = get_topic(
-            PostgresInfrastructureFactory
+            Factory
         )
 
         if "POSTGRES_DBNAME" not in os.environ:

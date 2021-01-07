@@ -281,7 +281,7 @@ class PostgresProcessRecorder(
                 raise RecordConflictError(e)
 
 
-class PostgresInfrastructureFactory(InfrastructureFactory):
+class Factory(InfrastructureFactory):
     DO_CREATE_TABLE = "DO_CREATE_TABLE"
     POSTGRES_DBNAME = "POSTGRES_DBNAME"
     POSTGRES_HOST = "POSTGRES_HOST"

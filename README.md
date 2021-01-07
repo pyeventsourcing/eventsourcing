@@ -257,9 +257,7 @@ os.environ['CIPHER_TOPIC'] = "eventsourcing.cipher:AESCipher"
 os.environ['COMPRESSOR_TOPIC'] = "zlib"
 
 # Use SQLite infrastructure.
-os.environ['INFRASTRUCTURE_FACTORY_TOPIC'] = (
-    'eventsourcing.sqlite:SQLiteInfrastructureFactory'
-)
+os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.sqlite:Factory'
 os.environ['SQLITE_DBNAME'] = ':memory:'  # Or path to a file on disk.
 os.environ['DO_CREATE_TABLE'] = 'y'
 ```
@@ -295,8 +293,8 @@ os.environ['CIPHER_TOPIC'] = "eventsourcing.cipher:AESCipher"
 os.environ['COMPRESSOR_TOPIC'] = "zlib"
 
 # Use Postgres infrastructure.
-os.environ['INFRASTRUCTURE_FACTORY_TOPIC'] = (
-    'eventsourcing.postgresrecorders:PostgresInfrastructureFactory'
+os.environ['INFRASTRUCTURE_FACTORY'] = (
+    'eventsourcing.postgresrecorders:Factory'
 )
 os.environ["POSTGRES_DBNAME"] = "eventsourcing"
 os.environ["POSTGRES_HOST"] = "127.0.0.1"

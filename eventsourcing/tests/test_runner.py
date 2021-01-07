@@ -8,9 +8,7 @@ from psycopg2.errorcodes import UNDEFINED_TABLE
 
 from eventsourcing.postgres import (
     PostgresDatabase,
-    PostgresInfrastructureFactory,
 )
-from eventsourcing.sqlite import SQLiteInfrastructureFactory
 from eventsourcing.system import (
     AbstractRunner,
     MultiThreadedRunner,
@@ -70,8 +68,7 @@ class TestMultiThreadedRunner(TestSingleThreadedRunner):
 
 class TestMultiThreadedRunnerWithSQLite(TestMultiThreadedRunner):
     def setUp(self):
-        topic = get_topic(SQLiteInfrastructureFactory)
-        os.environ["INFRASTRUCTURE_FACTORY_TOPIC"] = topic
+        os.environ["INFRASTRUCTURE_FACTORY"] = 'eventsourcing.sqlite:Factory'
         uris = tmpfile_uris()
         os.environ["DO_CREATE_TABLE"] = "y"
         os.environ["BANKACCOUNTS_SQLITE_DBNAME"] = next(uris)
@@ -79,7 +76,7 @@ class TestMultiThreadedRunnerWithSQLite(TestMultiThreadedRunner):
 
     def tearDown(self):
         del os.environ["DO_CREATE_TABLE"]
-        del os.environ["INFRASTRUCTURE_FACTORY_TOPIC"]
+        del os.environ["INFRASTRUCTURE_FACTORY"]
         del os.environ["BANKACCOUNTS_SQLITE_DBNAME"]
         del os.environ["EMAILNOTIFICATIONS_SQLITE_DBNAME"]
 
@@ -112,10 +109,9 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
         drop_table("emailnotificationsevents")
         drop_table("emailnotificationstracking")
 
-        topic = get_topic(PostgresInfrastructureFactory)
-        os.environ["INFRASTRUCTURE_FACTORY_TOPIC"] = topic
+        os.environ["INFRASTRUCTURE_FACTORY"] = 'eventsourcing.postgres:Factory'
         os.environ["DO_CREATE_TABLE"] = "y"
 
     def tearDown(self):
         del os.environ["DO_CREATE_TABLE"]
-        del os.environ["INFRASTRUCTURE_FACTORY_TOPIC"]
+        del os.environ["INFRASTRUCTURE_FACTORY"]
