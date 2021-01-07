@@ -17,7 +17,7 @@ class TestAESCipher(TestCase):
         key = AESCipher.create_key(32)
         AESCipher(key)
 
-        # Non-valid key lengths.
+        # Non-valid key lengths (on generate key).
         with self.assertRaises(ValueError):
             AESCipher.create_key(12)
 
@@ -30,6 +30,7 @@ class TestAESCipher(TestCase):
         with self.assertRaises(ValueError):
             AESCipher.create_key(36)
 
+        # Non-valid key lengths (on construction).
         def create_key(num_bytes):
             return b64encode(AESCipher.random_bytes(num_bytes)).decode("utf8")
 
