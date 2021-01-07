@@ -1,3 +1,4 @@
+from base64 import b64encode
 from unittest.case import TestCase
 
 from eventsourcing.cipher import AESCipher
@@ -17,20 +18,35 @@ class TestAESCipher(TestCase):
         AESCipher(key)
 
         # Non-valid key lengths.
-        key = AESCipher.create_key(12)
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
+            AESCipher.create_key(12)
+
+        with self.assertRaises(ValueError):
+            AESCipher.create_key(20)
+
+        with self.assertRaises(ValueError):
+            AESCipher.create_key(28)
+
+        with self.assertRaises(ValueError):
+            AESCipher.create_key(36)
+
+        def create_key(num_bytes):
+            return b64encode(AESCipher.random_bytes(num_bytes)).decode("utf8")
+
+        key = create_key(12)
+        with self.assertRaises(ValueError):
             AESCipher(key)
 
-        key = AESCipher.create_key(20)
-        with self.assertRaises(AssertionError):
+        key = create_key(20)
+        with self.assertRaises(ValueError):
             AESCipher(key)
 
-        key = AESCipher.create_key(28)
-        with self.assertRaises(AssertionError):
+        key = create_key(28)
+        with self.assertRaises(ValueError):
             AESCipher(key)
 
-        key = AESCipher.create_key(36)
-        with self.assertRaises(AssertionError):
+        key = create_key(36)
+        with self.assertRaises(ValueError):
             AESCipher(key)
 
     def test_encrypt_and_decrypt(self):
@@ -52,6 +68,12 @@ class TestAESCipher(TestCase):
         with self.assertRaises(ValueError):
             cipher.decrypt(cipher_text[:20])
 
-        # Check raises on invalid tag.
+        # Check raises on invalid data.
         with self.assertRaises(ValueError):
             cipher.decrypt(cipher_text[:30])
+
+        # Check raises on invalid key.
+        key = AESCipher.create_key(16)
+        cipher = AESCipher(key)
+        with self.assertRaises(ValueError):
+            cipher.decrypt(cipher_text)
