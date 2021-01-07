@@ -229,7 +229,7 @@ Mapper
 ======
 
 The library's :class:`~eventsourcing.persistence.Mapper` class
-can be constructed with a ``transcoder`` object.
+must be constructed with a ``transcoder`` object.
 
 .. code:: python
 
@@ -273,13 +273,17 @@ in the stored event.
 
 The library's :class:`~eventsourcing.cipher.AESCipher` class can
 be used to cryptographically encode and decode the state of stored
-events.
+events. It must be constructed with a cipher key. The class method
+``create_key()`` can be used to generate a cipher key. The AES cipher
+key must be either 16, 24, or 32 bytes long. Please note, the same
+cipher key must be used to decrypt stored events as that which was
+used to encrypt stored events.
 
 .. code:: python
 
     from eventsourcing.cipher import AESCipher
 
-    key = AESCipher.create_key(num_bytes=32)
+    key = AESCipher.create_key(num_bytes=32) # 16, 24, or 32
     cipher = AESCipher(cipher_key=key)
 
     mapper = Mapper(
