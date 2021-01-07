@@ -1,6 +1,6 @@
-==================
-Domain model layer
-==================
+=============
+Domain models
+=============
 
 The library's domain model layer has base classes for domain events and entities. They can
 be used to develop an event-sourced domain model.
@@ -1399,3 +1399,13 @@ Copy and replace
 Copy-and-replace is an alternative to upcasting.
 It is possible to accumulate so many changes that it becomes desirable
 to replace the old versions of stored events with new versions.
+
+Classes
+=======
+
+.. automodule:: eventsourcing.domain
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__

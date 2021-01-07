@@ -1,20 +1,89 @@
-====================
-Infrastructure layer
-====================
+===========
+Persistence
+===========
 
-The library's infrastructure layer provides a cohesive
-mechanism for storing events as sequences of items.
+The library's persistence module provides a cohesive
+mechanism for storing domain events.
+
+.. contents:: :local:
 
 The entire mechanism is encapsulated by the library's
-:class:`~eventsourcing.infrastructure.eventstore.EventStore`
-class. The event store uses a sequenced item mapper and a
-record manager.
+event store. The event store stores and retrieves
+domain events. The event store uses a mapper to convert
+domain events to stored events, and it uses a recorder
+to insert stored events in a datastore.
 
-The sequenced item mapper converts objects such as domain
-events to sequenced items, and the record manager
-writes sequenced items to database records. The sequenced
-item mapper and the record manager operate by
-reflection off a common sequenced item type.
+The mapper converts domain event objects of various types to
+stored event objects when domain events are stored in the event
+store. It also converts stored events objects back to domain
+event objects when domain events are retrieved from the event
+store. The mapper uses an extensible transcoder that is set up
+with transcoding objects that serialises and deserialises particular
+types of object, such as ``UUID``, ``datatime`` and ``Decimal``.
+The mapper will optionally use a compressor to compress and decompress
+the state of stored event objects, and will optionally use a cipher
+to encode and decode the state of stored event objects. If a compressor
+and a cipher are both in use, the state of the stored event will
+be compressed and then encoded when storing domain events, and
+will be decoded and then decompressed when retrieving domain events.
+
+The recorder inserts stored event objects in a datastore when domain
+events are stored in the event store, and selects stored events from
+a datastore when domain events are retrieved from the event store.
+Depending on the type of the recorder, it may also be possible to
+record tracking records along with the stored events, and it may
+be possible to select the stored events as event notifications.
+
+Mapper
+======
+
+The :class:`~eventsourcing.persistence.Mapper` uses a
+:class:`~eventsourcing.persistence.Transcoder` that has
+:class:`~eventsourcing.persistence.Transcoding` objects
+that converts particular types of object, such as
+:class:`~eventsourcing.persistence.UUIDAsHex` which
+transcodes ``UUID`` objects as hexadecimal strings,
+:class:`~eventsourcing.persistence.DatetimeAsISO` which
+transcodes ``datatime`` objects as ISO strings, and
+:class:`~eventsourcing.persistence.DecimalAsStr` which
+transcodes ``Decimal`` objects as decimal strings.
+
+.. code:: python
+
+    transcoder = Transcoder()
+    transcoder.register(UUIDAsHex())
+    transcoder.register(DecimalAsStr())
+    transcoder.register(DatetimeAsISO())
+
+
+The :class:`~eventsourcing.persistence.Mapper` converts
+:class:`~eventsourcing.domain.DomainEvent` objects to
+:class:`~eventsourcing.domain.StoredEvent` objects. The
+:class:`~eventsourcing.persistence.Recorder` inserts the
+:class:`~eventsourcing.domain.StoredEvent` objects in a
+datastore.
+
+Recorder
+========
+
+The library's :class:`~eventsourcing.persistence.Recorder`
+class...
+
+The :class:`~eventsourcing.persistence.Recorder` also selects the
+:class:`~eventsourcing.domain.StoredEvent` objects from a
+datastore. And the :class:`~eventsourcing.persistence.Mapper` also
+converts :class:`~eventsourcing.domain.StoredEvent` objects to
+:class:`~eventsourcing.domain.DomainEvent` objects.
+
+.. contents:: :local:
+
+Event Store
+===========
+
+The library's :class:`~eventsourcing.persistence.EventStore`
+class...
+
+.. code:: python
 
 .. contents:: :local:
 
@@ -1224,3 +1293,14 @@ helps with Cassandra.
 .. conflict. This feature currently works with Apache Cassandra only. Tests exist in the library, other
 .. documentation is forthcoming.
 ..
+
+
+Classes
+=======
+
+.. automodule:: eventsourcing.persistence
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__

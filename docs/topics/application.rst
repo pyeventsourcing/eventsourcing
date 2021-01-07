@@ -1,6 +1,6 @@
-=================
-Application layer
-=================
+============
+Applications
+============
 
 This section discusses how an :doc:`event-sourced domain model
 </topics/domainmodel>` can be combined with :doc:`library infrastructure
@@ -504,3 +504,13 @@ such as when this documentation is tested as part of the library's test suite).
 .. Todo: Something about publishing events to a message queue.
 
 .. Todo: Something about receiving events in a message queue worker.
+
+Classes
+=======
+
+.. automodule:: eventsourcing.application
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__

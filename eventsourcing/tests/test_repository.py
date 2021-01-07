@@ -13,7 +13,7 @@ from eventsourcing.persistence import (
     Transcoder,
     UUIDAsHex,
 )
-from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatabase
+from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatastore
 from eventsourcing.tests.test_aggregate import BankAccount
 from eventsourcing.utils import get_topic
 
@@ -25,13 +25,13 @@ class TestRepository(TestCase):
         transcoder.register(DecimalAsStr())
         transcoder.register(DatetimeAsISO())
 
-        event_recorder = SQLiteAggregateRecorder(SQLiteDatabase(":memory:"))
+        event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_recorder.create_table()
         event_store: EventStore[Aggregate.Event] = EventStore(
             mapper=Mapper(transcoder=transcoder),
             recorder=event_recorder,
         )
-        snapshot_recorder = SQLiteAggregateRecorder(SQLiteDatabase(":memory:"))
+        snapshot_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         snapshot_recorder.create_table()
         snapshot_store: EventStore[Snapshot] = EventStore(
             mapper=Mapper(transcoder=transcoder),

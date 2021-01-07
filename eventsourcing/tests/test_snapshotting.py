@@ -10,7 +10,7 @@ from eventsourcing.persistence import (
     Transcoder,
     UUIDAsHex,
 )
-from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatabase
+from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatastore
 from eventsourcing.tests.test_aggregate import BankAccount
 
 
@@ -34,7 +34,7 @@ class TestSnapshotting(TestCase):
         snapshot_store = EventStore(
             mapper=Mapper(transcoder=transcoder),
             recorder=SQLiteAggregateRecorder(
-                SQLiteDatabase(":memory:"),
+                SQLiteDatastore(":memory:"),
                 table_name="snapshots",
             ),
         )

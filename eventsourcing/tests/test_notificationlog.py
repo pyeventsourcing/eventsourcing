@@ -3,12 +3,12 @@ from uuid import uuid4
 
 from eventsourcing.application import LocalNotificationLog
 from eventsourcing.persistence import StoredEvent
-from eventsourcing.sqlite import SQLiteApplicationRecorder, SQLiteDatabase
+from eventsourcing.sqlite import SQLiteApplicationRecorder, SQLiteDatastore
 
 
 class TestNotificationLog(TestCase):
     def test(self):
-        recorder = SQLiteApplicationRecorder(SQLiteDatabase(":memory:"))
+        recorder = SQLiteApplicationRecorder(SQLiteDatastore(":memory:"))
         recorder.create_table()
 
         # Construct notification log.

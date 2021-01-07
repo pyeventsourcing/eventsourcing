@@ -24,7 +24,7 @@ class TestDocs(TestCase):
         #     self.skipTest("Skipped test, README file not found: {}".format(path))
         # self.check_code_snippets_in_file(path)
 
-    def _test_docs(self):
+    def test_docs(self):
 
         skipped = [
             # 'deployment.rst'
@@ -41,19 +41,19 @@ class TestDocs(TestCase):
             for name in filenames:
                 if name in skipped:
                     continue
-                if name.endswith(".rst"):
-                    # if name.endswith('domainmodel.rst'):
-                    # if name.endswith('quick_start.rst'):
-                    # if name.endswith('aggregates_in_ddd.rst'):
-                    # if name.endswith('example_application.rst'):
-                    # if name.endswith('everything.rst'):
-                    # if name.endswith('infrastructure.rst'):
-                    # if name.endswith('application.rst'):
-                    # if name.endswith('snapshotting.rst'):
-                    # if name.endswith('notifications.rst'):
-                    # if name.endswith('projections.rst'):
-                    # if name.endswith('deployment.rst'):
-                    # if name.endswith('process.rst'):
+                # if name.endswith(".rst"):
+                if name.endswith('persistence.rst'):
+                # if name.endswith('quick_start.rst'):
+                # if name.endswith('aggregates_in_ddd.rst'):
+                # if name.endswith('example_application.rst'):
+                # if name.endswith('everything.rst'):
+                # if name.endswith('infrastructure.rst'):
+                # if name.endswith('application.rst'):
+                # if name.endswith('snapshotting.rst'):
+                # if name.endswith('notifications.rst'):
+                # if name.endswith('projections.rst'):
+                # if name.endswith('deployment.rst'):
+                # if name.endswith('process.rst'):
                     file_paths.append(os.path.join(docs_path, dirpath, name))
 
         file_paths = sorted(file_paths)
@@ -68,7 +68,6 @@ class TestDocs(TestCase):
             # print("Testing code snippets in file: {}".format(path))
             try:
                 self.check_code_snippets_in_file(path)
-                assert_event_handlers_empty()
             except self.failureException as e:
                 failures.append(e)
                 failed.append(path)
@@ -98,7 +97,7 @@ class TestDocs(TestCase):
         is_rst = False
         last_line = ""
         with open(doc_path) as doc_file:
-            for orig_line in doc_file:
+            for line_index, orig_line in enumerate(doc_file):
                 line = orig_line.strip("\n")
                 if line.startswith("```python"):
                     # Start markdown code block.
@@ -114,7 +113,7 @@ class TestDocs(TestCase):
                 elif is_code and is_md and line.startswith("```"):
                     # Finish markdown code block.
                     if not num_code_lines_in_block:
-                        self.fail("No lines of code in block")
+                        self.fail(f"No lines of code in block: {line_index + 1}")
                     is_code = False
                     line = ""
                 elif is_code and is_rst and line.startswith("```"):
@@ -139,7 +138,7 @@ class TestDocs(TestCase):
                 elif is_code and is_rst and line and not line.startswith(" "):
                     # Finish restructured text code block.
                     if not num_code_lines_in_block:
-                        self.fail("No lines of code in block")
+                        self.fail(f"No lines of code in block: {line_index + 1}")
                     is_code = False
                     line = ""
                 elif is_code:

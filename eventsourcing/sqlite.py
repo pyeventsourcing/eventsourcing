@@ -17,7 +17,7 @@ from eventsourcing.persistence import (
 )
 
 
-class SQLiteDatabase:
+class SQLiteDatastore:
     def __init__(self, db_name):
         self.db_name = db_name
         self.connections = {}
@@ -70,15 +70,15 @@ class SQLiteDatabase:
 class SQLiteAggregateRecorder(AggregateRecorder):
     def __init__(
         self,
-        db: SQLiteDatabase,
+        datastore: SQLiteDatastore,
         table_name: str = "stored_events",
     ):
-        assert isinstance(db, SQLiteDatabase)
-        self.db = db
+        assert isinstance(datastore, SQLiteDatastore)
+        self.datastore = datastore
         self.table_name = table_name
 
     def create_table(self):
-        with self.db.transaction() as c:
+        with self.datastore.transaction() as c:
             self._create_table(c)
 
     def _create_table(self, c: Connection):
@@ -99,7 +99,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
             raise self.OperationalError(e)
 
     def insert_events(self, stored_events, **kwargs):
-        with self.db.transaction() as c:
+        with self.datastore.transaction() as c:
             self._insert_events(c, stored_events, **kwargs)
 
     def _insert_events(
@@ -148,7 +148,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         if limit is not None:
             statement += "LIMIT ? "
             params.append(limit)
-        c = self.db.get_connection()
+        c = self.datastore.get_connection()
         stored_events = []
         for row in c.execute(statement, params):
             stored_events.append(
@@ -196,7 +196,7 @@ class SQLiteApplicationRecorder(
             "LIMIT ?"
         )
         params = [start, limit]
-        c = self.db.get_connection().cursor()
+        c = self.datastore.get_connection().cursor()
         c.execute(statement, params)
         notifications = []
         for row in c.fetchall():
@@ -215,7 +215,7 @@ class SQLiteApplicationRecorder(
         """
         Returns the maximum notification ID.
         """
-        c = self.db.get_connection().cursor()
+        c = self.datastore.get_connection().cursor()
         statement = f"SELECT MAX(rowid) FROM {self.table_name}"
         c.execute(statement)
         return c.fetchone()[0] or 0
@@ -239,7 +239,7 @@ class SQLiteProcessRecorder(
 
     def max_tracking_id(self, application_name: str) -> int:
         params = [application_name]
-        c = self.db.get_connection().cursor()
+        c = self.datastore.get_connection().cursor()
         statement = (
             "SELECT MAX(notification_id)" "FROM tracking " "WHERE application_name=?"
         )
@@ -281,22 +281,22 @@ class SQLiteInfrastructureFactory(InfrastructureFactory):
                 "in environment with key "
                 f"'{self.SQLITE_DBNAME}'"
             )
-        self.database = SQLiteDatabase(db_name=db_name)
+        self.datastore = SQLiteDatastore(db_name=db_name)
 
     def aggregate_recorder(self) -> AggregateRecorder:
-        recorder = SQLiteAggregateRecorder(db=self.database)
+        recorder = SQLiteAggregateRecorder(datastore=self.datastore)
         if self.do_create_table():
             recorder.create_table()
         return recorder
 
     def application_recorder(self) -> ApplicationRecorder:
-        recorder = SQLiteApplicationRecorder(db=self.database)
+        recorder = SQLiteApplicationRecorder(datastore=self.datastore)
         if self.do_create_table():
             recorder.create_table()
         return recorder
 
     def process_recorder(self) -> ProcessRecorder:
-        recorder = SQLiteProcessRecorder(db=self.database)
+        recorder = SQLiteProcessRecorder(datastore=self.datastore)
         if self.do_create_table():
             recorder.create_table()
         return recorder

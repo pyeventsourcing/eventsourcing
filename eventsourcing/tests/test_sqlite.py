@@ -4,7 +4,7 @@ from eventsourcing.persistence import InfrastructureFactory
 from eventsourcing.sqlite import (
     SQLiteAggregateRecorder,
     SQLiteApplicationRecorder,
-    SQLiteDatabase,
+    SQLiteDatastore,
     SQLiteInfrastructureFactory,
     SQLiteProcessRecorder,
 )
@@ -24,7 +24,7 @@ from eventsourcing.utils import get_topic
 
 class TestSQLiteAggregateRecorder(AggregateRecorderTestCase):
     def create_recorder(self):
-        recorder = SQLiteAggregateRecorder(SQLiteDatabase(":memory:"))
+        recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         recorder.create_table()
         return recorder
 
@@ -41,14 +41,14 @@ class TestSQLiteApplicationRecorder(ApplicationRecorderTestCase):
         super().test_insert_select()
 
     def create_recorder(self):
-        recorder = SQLiteApplicationRecorder(SQLiteDatabase(self.db_uri))
+        recorder = SQLiteApplicationRecorder(SQLiteDatastore(self.db_uri))
         recorder.create_table()
         return recorder
 
 
 class TestSQLiteProcessRecorder(ProcessRecordsTestCase):
     def create_recorder(self):
-        recorder = SQLiteProcessRecorder(SQLiteDatabase(":memory:"))
+        recorder = SQLiteProcessRecorder(SQLiteDatastore(":memory:"))
         recorder.create_table()
         return recorder
 

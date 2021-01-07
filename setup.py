@@ -17,7 +17,7 @@ install_requires = [
     # "readerwriterlock<=1.0.99999",
 ]
 
-encryption_requires = [
+cipher_requires = [
     "pycryptodome<=3.9.99999"
 ]
 
@@ -43,7 +43,7 @@ postgresql_requires = [
 
 testing_requires = (
     postgresql_requires
-    + encryption_requires
+    + cipher_requires
     # + cassandra_requires
     # + sqlalchemy_requires
     # + axonserver_requires
@@ -125,8 +125,8 @@ setup(
         # "grpc": grpc_requires,
         # "ray": ray_requires,
         # "django": django_requires,
-        "postgresql": postgresql_requires,
-        "encryption": encryption_requires,
+        "postgres": postgresql_requires,
+        "cipher": cipher_requires,
         "tests": testing_requires,
         "testing": testing_requires,
         "docs": docs_requires,

@@ -2,6 +2,7 @@ import os
 from base64 import b64decode, b64encode
 
 from Crypto.Cipher import AES
+from Crypto.Cipher.AES import key_size
 from Crypto.Cipher._mode_gcm import GcmMode
 
 
@@ -11,9 +12,19 @@ class AESCipher(object):
     library AES cipher in GCM mode.
     """
 
+    KEY_SIZES = key_size
+
     @staticmethod
     def create_key(num_bytes: int) -> str:
+        AESCipher.check_key_size(num_bytes)
         return b64encode(AESCipher.random_bytes(num_bytes)).decode("utf8")
+
+    @staticmethod
+    def check_key_size(num_bytes):
+        if num_bytes not in AESCipher.KEY_SIZES:
+            raise ValueError("Invalid key size: {} not in {}".format(
+                num_bytes, AESCipher.KEY_SIZES
+            ))
 
     @staticmethod
     def random_bytes(num_bytes: int) -> bytes:
@@ -26,7 +37,7 @@ class AESCipher(object):
         :param cipher_key: 16, 24, or 32 random bytes
         """
         self.key = b64decode(cipher_key.encode("utf8"))
-        assert len(self.key) in [16, 24, 32], len(self.key)
+        AESCipher.check_key_size(len(self.key))
 
     def encrypt(self, plaintext: bytes) -> bytes:
         """Return ciphertext for given plaintext."""

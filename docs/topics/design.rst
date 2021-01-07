@@ -9,8 +9,6 @@ architecture, in that the domain layer has no dependencies any other
 layer. The application layer depends on the domain and infrastructure
 layers, and the interface layer depends only on the application layer.
 
-The library default functionality is designed to be extended or replaced easily.
-
 
 Onion architecture
 ==================

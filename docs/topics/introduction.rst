@@ -18,35 +18,6 @@ useful software. And several other design patterns are needed to ensure
 reliability, maintainability, and scalability.
 
 
-This library
-============
-
-This is a library for event sourcing in Python. At its core, this library
-supports storing and retrieving sequences of items, such as the domain events
-of event-sourced aggregates in a domain driven design. A variety of schemas
-and technologies can be used for sequencing and storing events, and this
-library supports several of these possibilities.
-
-To demonstrate how storing and retrieving domain events can be used effectively
-as a persistence mechanism in an event-sourced application, this library includes
-base classes for event-sourced domain entities and applications of different kinds.
-An domain model developed using these classes will not depend on infrastructure
-("onion" archictecture). A style is suggested for event-sourced aggregates: to have
-command methods which "trigger" domain events. Triggered domain events are used to
-mutate the state of the aggregate, and then stored. The stored events of an aggregate
-can be retrieved and used to obtain the current state of the aggregate. The stored
-events of an application can also be propagated and used to project the state of
-the application into the materialised views needed by users. Stored events can also
-be processed further by other applications in the same system, and by other systems.
-
-It is also possible to define an entire application, and indeed an entire distributed
-system of event-sourced applications, independently of infrastructure. That means system
-behaviours can be rapidly developed whilst running the entire system synchronously
-in a single thread with a single in-memory database. And then, the system can be run
-asynchronously on a cluster with durable databases, with the system effecting exactly
-the same behaviour.
-
-
 A cohesive mechanism
 ====================
 
@@ -78,6 +49,46 @@ of projects. It also functions as an informative "jumping off" point for those
 who want to create their own framework and "own" all their own code. And it is
 also used by many as a stable and convenient library that can be used to rapidly
 develop working software that will be used in production.
+
+
+This library
+============
+
+This is a library for event sourcing in Python. At its core, this library
+supports storing and retrieving sequences of items, such as the domain events
+of event-sourced aggregates in a domain driven design. A variety of schemas
+and technologies can be used for sequencing and storing events, and this
+library supports several of these possibilities.
+
+To demonstrate how storing and retrieving domain events can be used effectively
+as a persistence mechanism in an event-sourced application, this library includes
+base classes for event-sourced domain entities and applications of different kinds.
+An domain model developed using these classes will not depend on infrastructure
+("onion" archictecture). A style is suggested for event-sourced aggregates: to have
+command methods which "trigger" domain events. Triggered domain events are used to
+mutate the state of the aggregate, and then stored. The stored events of an aggregate
+can be retrieved and used to obtain the current state of the aggregate. The stored
+events of an application can also be propagated and used to project the state of
+the application into the materialised views needed by users. Stored events can also
+be processed further by other applications in the same system, and by other systems.
+
+It is also possible to define an entire application, and indeed an entire distributed
+system of event-sourced applications, independently of infrastructure. That means system
+behaviours can be rapidly developed whilst running the entire system synchronously
+in a single thread with a single in-memory database. And then, the system can be run
+asynchronously on a cluster with durable databases, with the system effecting exactly
+the same behaviour.
+
+
+Design overview
+===============
+
+The design of the library follows "layered architecture" in that there
+are distinct and separate layers for interfaces, application, domain and
+infrastructure. It also follows the "onion" or "hexagonal" or "clean"
+architecture, in that the domain layer has no dependencies any other
+layer. The application layer depends on the domain and infrastructure
+layers, and the interface layer depends only on the application layer.
 
 
 Register issues
