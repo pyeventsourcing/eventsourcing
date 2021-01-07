@@ -390,15 +390,32 @@ class...
 Infrastructure Factory
 ======================
 
+With "plain old Python objects" (the default)....
+
 .. code:: python
 
+    from eventsourcing.persistence import InfrastructureFactory
 
+    factory = InfrastructureFactory.construct(application_name='')
+
+    recorder = factory.application_recorder()
+    mapper = factory.mapper(transcoder=transcoder)
+    event_store = factory.event_store(
+        mapper=mapper,
+        recorder=recorder,
+    )
+
+    event_store.put([domain_event1])
+    stored_events = list(event_store.get(id1))
+    assert stored_events == [domain_event1]
+
+
+With SQLite....
 
 .. code:: python
 
     import os
 
-    from eventsourcing.persistence import InfrastructureFactory
 
     os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.sqlite:Factory'
     os.environ['SQLITE_DBNAME'] = ':memory:'
