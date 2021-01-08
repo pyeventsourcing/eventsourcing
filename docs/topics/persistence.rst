@@ -416,9 +416,35 @@ With SQLite....
 
     import os
 
-
     os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.sqlite:Factory'
     os.environ['SQLITE_DBNAME'] = ':memory:'
+    os.environ['DO_CREATE_TABLE'] = 'y'
+
+    factory = InfrastructureFactory.construct(application_name='')
+
+    recorder = factory.application_recorder()
+    mapper = factory.mapper(transcoder=transcoder)
+    event_store = factory.event_store(
+        mapper=mapper,
+        recorder=recorder,
+    )
+
+    event_store.put([domain_event1])
+    stored_events = list(event_store.get(id1))
+    assert stored_events == [domain_event1]
+
+
+With PostgreSQL....
+
+.. code:: python
+
+    import os
+
+    os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.postgres:Factory'
+    os.environ["POSTGRES_DBNAME"] = "eventsourcing"
+    os.environ["POSTGRES_HOST"] = "127.0.0.1"
+    os.environ["POSTGRES_USER"] = "eventsourcing"
+    os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
     os.environ['DO_CREATE_TABLE'] = 'y'
 
     factory = InfrastructureFactory.construct(application_name='')
