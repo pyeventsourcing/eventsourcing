@@ -31,9 +31,15 @@ class POPOAggregateRecorder(AggregateRecorder):
             self.update_table(stored_events, **kwargs)
 
     def assert_uniqueness(self, stored_events: List[StoredEvent], **kwargs) -> None:
+        new = set()
         for s in stored_events:
+            # Check events don't already exist.
             if s.originator_version in self.stored_events_index[s.originator_id]:
                 raise RecordConflictError
+            new.add((s.originator_id, s.originator_version))
+        # Check new events are unique.
+        if len(new) < len(stored_events):
+            raise RecordConflictError
 
     def update_table(self, stored_events: List[StoredEvent], **kwargs) -> None:
         for s in stored_events:

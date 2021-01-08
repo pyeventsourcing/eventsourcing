@@ -41,6 +41,9 @@ class AggregateRecorderTestCase(TestCase, ABC):
             state=b"state2",
         )
 
+        with self.assertRaises(RecordConflictError):
+            recorder.insert_events([stored_event1, stored_event1])
+
         recorder.insert_events([stored_event1, stored_event2])
 
         stored_events = recorder.select_events(originator_id)
