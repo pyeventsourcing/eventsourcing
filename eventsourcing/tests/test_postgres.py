@@ -1,6 +1,6 @@
 import os
 
-import psycopg2.errors
+import psycopg2
 from psycopg2.errorcodes import UNDEFINED_TABLE
 
 from eventsourcing.persistence import InfrastructureFactory
@@ -8,6 +8,7 @@ from eventsourcing.postgres import (
     PostgresAggregateRecorder,
     PostgresApplicationRecorder,
     Factory,
+    PostgresDatastore,
     PostgresProcessRecorder,
 )
 from eventsourcing.tests.aggregaterecorder_testcase import (
@@ -25,26 +26,18 @@ from eventsourcing.utils import get_topic
 
 class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
     def setUp(self) -> None:
-        recorder = PostgresAggregateRecorder(
-            "",
-            os.getenv("POSTGRES_DBNAME", "eventsourcing"),
-            os.getenv("POSTGRES_HOST", "127.0.0.1"),
-            os.getenv("POSTGRES_USER", "eventsourcing"),
-            os.getenv("POSTGRES_PASSWORD", "eventsourcing"),
+        self.datastore = PostgresDatastore(
+            "eventsourcing",
+            "127.0.0.1",
+            "eventsourcing",
+            "eventsourcing",
         )
-        try:
-            with recorder.db.transaction() as c:
-                c.execute("DROP TABLE stored_events;")
-        except psycopg2.errors.lookup(UNDEFINED_TABLE):
-            pass
+        drop_postgres_table(self.datastore, "stored_events")
 
     def create_recorder(self):
         recorder = PostgresAggregateRecorder(
-            "",
-            os.getenv("POSTGRES_DBNAME", "eventsourcing"),
-            os.getenv("POSTGRES_HOST", "127.0.0.1"),
-            os.getenv("POSTGRES_USER", "eventsourcing"),
-            os.getenv("POSTGRES_PASSWORD", "eventsourcing"),
+            datastore=self.datastore,
+            events_table_name="stored_events"
         )
         recorder.create_table()
         return recorder
@@ -58,26 +51,18 @@ class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
 
 class TestPostgresApplicationRecorder(ApplicationRecorderTestCase):
     def setUp(self) -> None:
-        recorder = PostgresApplicationRecorder(
-            "",
-            os.getenv("POSTGRES_DBNAME", "eventsourcing"),
-            os.getenv("POSTGRES_HOST", "127.0.0.1"),
-            os.getenv("POSTGRES_USER", "eventsourcing"),
-            os.getenv("POSTGRES_PASSWORD", "eventsourcing"),
+        self.datastore = PostgresDatastore(
+            "eventsourcing",
+            "127.0.0.1",
+            "eventsourcing",
+            "eventsourcing",
         )
-        try:
-            with recorder.db.transaction() as c:
-                c.execute("DROP TABLE events;")
-        except psycopg2.errors.lookup(UNDEFINED_TABLE):
-            pass
+        drop_postgres_table(self.datastore, "stored_events")
 
     def create_recorder(self):
         recorder = PostgresApplicationRecorder(
-            "",
-            os.getenv("POSTGRES_DBNAME", "eventsourcing"),
-            os.getenv("POSTGRES_HOST", "127.0.0.1"),
-            os.getenv("POSTGRES_USER", "eventsourcing"),
-            os.getenv("POSTGRES_PASSWORD", "eventsourcing"),
+            self.datastore,
+            events_table_name="stored_events"
         )
         recorder.create_table()
         return recorder
@@ -85,31 +70,20 @@ class TestPostgresApplicationRecorder(ApplicationRecorderTestCase):
 
 class TestPostgresProcessRecorder(ProcessRecordsTestCase):
     def setUp(self) -> None:
-        recorder = PostgresProcessRecorder(
-            "",
-            os.getenv("POSTGRES_DBNAME", "eventsourcing"),
-            os.getenv("POSTGRES_HOST", "127.0.0.1"),
-            os.getenv("POSTGRES_USER", "eventsourcing"),
-            os.getenv("POSTGRES_PASSWORD", "eventsourcing"),
+        self.datastore = PostgresDatastore(
+            "eventsourcing",
+            "127.0.0.1",
+            "eventsourcing",
+            "eventsourcing",
         )
-        try:
-            with recorder.db.transaction() as c:
-                c.execute("DROP TABLE stored_events;")
-        except psycopg2.errors.lookup(UNDEFINED_TABLE):
-            pass
-        try:
-            with recorder.db.transaction() as c:
-                c.execute("DROP TABLE tracking;")
-        except psycopg2.errors.lookup(UNDEFINED_TABLE):
-            pass
+        drop_postgres_table(self.datastore, "stored_events")
+        drop_postgres_table(self.datastore, "notification_tracking")
 
     def create_recorder(self):
         recorder = PostgresProcessRecorder(
-            "",
-            os.getenv("POSTGRES_DBNAME", "eventsourcing"),
-            os.getenv("POSTGRES_HOST", "127.0.0.1"),
-            os.getenv("POSTGRES_USER", "eventsourcing"),
-            os.getenv("POSTGRES_PASSWORD", "eventsourcing"),
+            datastore=self.datastore,
+            events_table_name="stored_events",
+            tracking_table_name="notification_tracking"
         )
         recorder.create_table()
         return recorder
@@ -123,20 +97,29 @@ class TestFactory(InfrastructureFactoryTestCase):
         os.environ[InfrastructureFactory.TOPIC] = get_topic(
             Factory
         )
-
-        if "POSTGRES_DBNAME" not in os.environ:
-            os.environ["POSTGRES_DBNAME"] = "eventsourcing"
-        if "POSTGRES_HOST" not in os.environ:
-            os.environ["POSTGRES_HOST"] = "127.0.0.1"
-        if "POSTGRES_USER" not in os.environ:
-            os.environ["POSTGRES_USER"] = "eventsourcing"
-        if "POSTGRES_PASSWORD" not in os.environ:
-            os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
-
+        os.environ["POSTGRES_DBNAME"] = "eventsourcing"
+        os.environ["POSTGRES_HOST"] = "127.0.0.1"
+        os.environ["POSTGRES_USER"] = "eventsourcing"
+        os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
         super().setUp()
+
+    def tearDown(self) -> None:
+        del os.environ["POSTGRES_DBNAME"]
+        del os.environ["POSTGRES_HOST"]
+        del os.environ["POSTGRES_USER"]
+        del os.environ["POSTGRES_PASSWORD"]
+        super().tearDown()
 
 
 del AggregateRecorderTestCase
 del ApplicationRecorderTestCase
 del ProcessRecordsTestCase
 del InfrastructureFactoryTestCase
+
+
+def drop_postgres_table(datastore: PostgresDatastore, table_name):
+    try:
+        with datastore.transaction() as c:
+            c.execute(f"DROP TABLE {table_name};")
+    except psycopg2.errors.lookup(UNDEFINED_TABLE):
+        print(f"Table does not exist: {table_name}")

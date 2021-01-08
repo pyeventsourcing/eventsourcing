@@ -3,11 +3,8 @@ from time import sleep
 from typing import Type
 from unittest.case import TestCase
 
-import psycopg2.errors
-from psycopg2.errorcodes import UNDEFINED_TABLE
-
 from eventsourcing.postgres import (
-    PostgresDatabase,
+    PostgresDatastore,
 )
 from eventsourcing.system import (
     AbstractRunner,
@@ -17,8 +14,8 @@ from eventsourcing.system import (
 )
 from eventsourcing.tests.ramdisk import tmpfile_uris
 from eventsourcing.tests.test_application import BankAccounts
+from eventsourcing.tests.test_postgres import drop_postgres_table
 from eventsourcing.tests.test_processapplication import EmailNotifications
-from eventsourcing.utils import get_topic
 
 
 class TestSingleThreadedRunner(TestCase):
@@ -83,31 +80,20 @@ class TestMultiThreadedRunnerWithSQLite(TestMultiThreadedRunner):
 
 class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
     def setUp(self):
-        if "POSTGRES_DBNAME" not in os.environ:
-            os.environ["POSTGRES_DBNAME"] = "eventsourcing"
-        if "POSTGRES_HOST" not in os.environ:
-            os.environ["POSTGRES_HOST"] = "127.0.0.1"
-        if "POSTGRES_USER" not in os.environ:
-            os.environ["POSTGRES_USER"] = "eventsourcing"
-        if "POSTGRES_PASSWORD" not in os.environ:
-            os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
+        os.environ["POSTGRES_DBNAME"] = "eventsourcing"
+        os.environ["POSTGRES_HOST"] = "127.0.0.1"
+        os.environ["POSTGRES_USER"] = "eventsourcing"
+        os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
 
-        def drop_table(table_name):
-            db = PostgresDatabase(
-                os.getenv("POSTGRES_DBNAME"),
-                os.getenv("POSTGRES_HOST"),
-                os.getenv("POSTGRES_USER"),
-                os.getenv("POSTGRES_PASSWORD"),
-            )
-            try:
-                with db.transaction() as c:
-                    c.execute(f"DROP TABLE {table_name};")
-            except psycopg2.errors.lookup(UNDEFINED_TABLE):
-                pass
-
-        drop_table("bankaccountsevents")
-        drop_table("emailnotificationsevents")
-        drop_table("emailnotificationstracking")
+        db = PostgresDatastore(
+            os.getenv("POSTGRES_DBNAME"),
+            os.getenv("POSTGRES_HOST"),
+            os.getenv("POSTGRES_USER"),
+            os.getenv("POSTGRES_PASSWORD"),
+        )
+        drop_postgres_table(db, "bankaccounts_events")
+        drop_postgres_table(db, "emailnotifications_events")
+        drop_postgres_table(db, "emailnotifications_tracking")
 
         os.environ["INFRASTRUCTURE_FACTORY"] = 'eventsourcing.postgres:Factory'
         os.environ["DO_CREATE_TABLE"] = "y"
@@ -115,3 +101,7 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
     def tearDown(self):
         del os.environ["DO_CREATE_TABLE"]
         del os.environ["INFRASTRUCTURE_FACTORY"]
+        del os.environ["POSTGRES_DBNAME"]
+        del os.environ["POSTGRES_HOST"]
+        del os.environ["POSTGRES_USER"]
+        del os.environ["POSTGRES_PASSWORD"]

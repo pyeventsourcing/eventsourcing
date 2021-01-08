@@ -6,7 +6,10 @@ from uuid import UUID, uuid4
 
 from eventsourcing.application import AggregateNotFoundError, Application
 from eventsourcing.persistence import InfrastructureFactory
+from eventsourcing.postgres import PostgresDatastore
+from eventsourcing.tests.ramdisk import tmpfile_uris
 from eventsourcing.tests.test_aggregate import BankAccount
+from eventsourcing.tests.test_postgres import drop_postgres_table
 
 
 class TestApplication(TestCase):
@@ -74,6 +77,54 @@ class TestApplication(TestCase):
         number = 500
         duration = timeit(insert, number=number)
         print(self, f"{duration / number:.9f}")
+
+
+class TestApplicationWithSQLite(TestApplication):
+    def setUp(self) -> None:
+        super().setUp()
+        self.uris = tmpfile_uris()
+        # self.db_uri = next(self.uris)
+
+        os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.sqlite:Factory"
+        os.environ["DO_CREATE_TABLE"] = "y"
+        os.environ["SQLITE_DBNAME"] = next(self.uris)
+
+    def tearDown(self) -> None:
+        del os.environ["INFRASTRUCTURE_FACTORY"]
+        del os.environ["DO_CREATE_TABLE"]
+        del os.environ["SQLITE_DBNAME"]
+        super().tearDown()
+
+
+class TestApplicationWithPostgres(TestApplication):
+    def setUp(self) -> None:
+        super().setUp()
+        self.uris = tmpfile_uris()
+
+        os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.postgres:Factory"
+        os.environ["DO_CREATE_TABLE"] = "y"
+        os.environ["POSTGRES_DBNAME"] = "eventsourcing"
+        os.environ["POSTGRES_HOST"] = "127.0.0.1"
+        os.environ["POSTGRES_USER"] = "eventsourcing"
+        os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
+
+        db = PostgresDatastore(
+            os.getenv("POSTGRES_DBNAME"),
+            os.getenv("POSTGRES_HOST"),
+            os.getenv("POSTGRES_USER"),
+            os.getenv("POSTGRES_PASSWORD"),
+        )
+        drop_postgres_table(db, "bankaccounts_events")
+        drop_postgres_table(db, "bankaccounts_snapshots")
+
+    def tearDown(self) -> None:
+        del os.environ["INFRASTRUCTURE_FACTORY"]
+        del os.environ["DO_CREATE_TABLE"]
+        del os.environ["POSTGRES_DBNAME"]
+        del os.environ["POSTGRES_HOST"]
+        del os.environ["POSTGRES_USER"]
+        del os.environ["POSTGRES_PASSWORD"]
+        super().tearDown()
 
 
 class BankAccounts(Application):

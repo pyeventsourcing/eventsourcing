@@ -12,6 +12,7 @@ from eventsourcing.persistence import (
     ApplicationRecorder,
     InfrastructureFactory,
     Notification,
+    OperationalError,
     ProcessRecorder,
     RecordConflictError,
     StoredEvent,
@@ -21,7 +22,7 @@ from eventsourcing.persistence import (
 psycopg2.extras.register_uuid()
 
 
-class PostgresDatabase:
+class PostgresDatastore:
     def __init__(self, dbname, host, user, password):
         self.dbname = dbname
         self.host = host
@@ -71,20 +72,21 @@ class PostgresDatabase:
 
 class PostgresAggregateRecorder(AggregateRecorder):
     def __init__(
-        self, application_name: str, db_name: str, host: str, user: str, password: str
+        self,
+        datastore: PostgresDatastore,
+        events_table_name: str
     ):
-        self.application_name = application_name
-        self.db = PostgresDatabase(db_name, host, user, password)
-        self.events_table = application_name.lower() + "events"
+        self.datastore = datastore
+        self.events_table_name = events_table_name
 
     def create_table(self):
-        with self.db.transaction() as c:
+        with self.datastore.transaction() as c:
             self._create_table(c)
 
     def _create_table(self, c: cursor):
         statement = (
-            "CREATE TABLE IF NOT EXISTS "
-            f"{self.events_table} ("
+            "CREATE TABLE "
+            f"{self.events_table_name} ("
             "originator_id uuid NOT NULL, "
             "originator_version integer NOT NULL, "
             "topic text, "
@@ -95,10 +97,10 @@ class PostgresAggregateRecorder(AggregateRecorder):
         try:
             c.execute(statement)
         except psycopg2.OperationalError as e:
-            raise self.OperationalError(e)
+            raise OperationalError(e)
 
     def insert_events(self, stored_events, **kwargs):
-        with self.db.transaction() as c:
+        with self.datastore.transaction() as c:
             self._insert_events(c, stored_events, **kwargs)
 
     def _insert_events(
@@ -107,7 +109,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         stored_events: List[StoredEvent],
         **kwargs,
     ) -> None:
-        statement = f"INSERT INTO {self.events_table}" " VALUES (%s, %s, %s, %s)"
+        statement = f"INSERT INTO {self.events_table_name}" " VALUES (%s, %s, %s, %s)"
         params = []
         for stored_event in stored_events:
             params.append(
@@ -131,7 +133,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         desc: bool = False,
         limit: Optional[int] = None,
     ) -> List[StoredEvent]:
-        statement = "SELECT * " f"FROM {self.events_table} " "WHERE originator_id = %s "
+        statement = "SELECT * " f"FROM {self.events_table_name} " "WHERE originator_id = %s "
         params: List[Any] = [originator_id]
         if gt is not None:
             statement += "AND originator_version > %s "
@@ -149,7 +151,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
             params.append(limit)
         # statement += ";"
         stored_events = []
-        with self.db.transaction() as c:
+        with self.datastore.transaction() as c:
             c.execute(statement, params)
             for row in c.fetchall():
                 stored_events.append(
@@ -170,23 +172,23 @@ class PostgresApplicationRecorder(
     def _create_table(self, c: cursor):
         super()._create_table(c)
         statement = (
-            f"ALTER TABLE {self.events_table} "
-            "ADD COLUMN IF NOT EXISTS "
+            f"ALTER TABLE {self.events_table_name} "
+            "ADD COLUMN "
             f"notification_id SERIAL"
         )
         try:
             c.execute(statement)
         except psycopg2.OperationalError as e:
-            raise self.OperationalError(e)
+            raise OperationalError(e)
 
         statement = (
-            "CREATE UNIQUE INDEX IF NOT EXISTS notification_id_idx "
-            f"ON {self.events_table} (notification_id ASC);"
+            f"CREATE UNIQUE INDEX {self.events_table_name}_notification_id_idx "
+            f"ON {self.events_table_name} (notification_id ASC);"
         )
         try:
             c.execute(statement)
         except psycopg2.OperationalError as e:
-            raise self.OperationalError(e)
+            raise OperationalError(e)
 
     def select_notifications(self, start: int, limit: int) -> List[Notification]:
         """
@@ -195,13 +197,13 @@ class PostgresApplicationRecorder(
         """
         statement = (
             "SELECT * "
-            f"FROM {self.events_table} "
+            f"FROM {self.events_table_name} "
             "WHERE notification_id>=%s "
             "ORDER BY notification_id "
             "LIMIT %s"
         )
         params = [start, limit]
-        with self.db.transaction() as c:
+        with self.datastore.transaction() as c:
             c.execute(statement, params)
             notifications = []
             for row in c.fetchall():
@@ -220,8 +222,8 @@ class PostgresApplicationRecorder(
         """
         Returns the maximum notification ID.
         """
-        c = self.db.get_connection().cursor()
-        statement = f"SELECT MAX(notification_id) FROM {self.events_table}"
+        c = self.datastore.get_connection().cursor()
+        statement = f"SELECT MAX(notification_id) FROM {self.events_table_name}"
         c.execute(statement)
         return c.fetchone()[0] or 0
 
@@ -230,17 +232,21 @@ class PostgresProcessRecorder(
     PostgresApplicationRecorder,
     ProcessRecorder,
 ):
+
     def __init__(
-        self, application_name: str, db_name: str, host: str, user: str, password: str
+        self,
+        datastore: PostgresDatastore,
+        events_table_name: str,
+        tracking_table_name: str
     ):
-        super().__init__(application_name, db_name, host, user, password)
-        self.tracking_table = self.application_name.lower() + "tracking"
+        super().__init__(datastore, events_table_name)
+        self.tracking_table_name = tracking_table_name
 
     def _create_table(self, c: cursor):
         super()._create_table(c)
         statement = (
-            "CREATE TABLE IF NOT EXISTS "
-            f"{self.tracking_table} ("
+            "CREATE TABLE "
+            f"{self.tracking_table_name} ("
             "application_name text, "
             "notification_id int, "
             "PRIMARY KEY "
@@ -250,10 +256,10 @@ class PostgresProcessRecorder(
 
     def max_tracking_id(self, application_name: str) -> int:
         params = [application_name]
-        c = self.db.get_connection().cursor()
+        c = self.datastore.get_connection().cursor()
         statement = (
             "SELECT MAX(notification_id)"
-            f"FROM {self.tracking_table} "
+            f"FROM {self.tracking_table_name} "
             "WHERE application_name=%s"
         )
         c.execute(statement, params)
@@ -268,7 +274,7 @@ class PostgresProcessRecorder(
         super()._insert_events(c, stored_events, **kwargs)
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking is not None:
-            statement = f"INSERT INTO {self.tracking_table} " "VALUES (%s, %s)"
+            statement = f"INSERT INTO {self.tracking_table_name} " "VALUES (%s, %s)"
             try:
                 c.execute(
                     statement,
@@ -290,57 +296,75 @@ class Factory(InfrastructureFactory):
 
     def __init__(self, application_name):
         super().__init__(application_name)
-        self.db_name = self.getenv(self.POSTGRES_DBNAME)
-        if self.db_name is None:
+        dbname = self.getenv(self.POSTGRES_DBNAME)
+        if dbname is None:
             raise EnvironmentError(
                 "Postgres database name not found "
                 "in environment with key "
                 f"'{self.POSTGRES_DBNAME}'"
             )
 
-        self.host = self.getenv(self.POSTGRES_HOST)
-        if self.host is None:
+        host = self.getenv(self.POSTGRES_HOST)
+        if host is None:
             raise EnvironmentError(
                 "Postgres host not found "
                 "in environment with key "
                 f"'{self.POSTGRES_HOST}'"
             )
 
-        self.user = self.getenv(self.POSTGRES_USER)
-        if self.user is None:
+        user = self.getenv(self.POSTGRES_USER)
+        if user is None:
             raise EnvironmentError(
                 "Postgres user not found "
                 "in environment with key "
                 f"'{self.POSTGRES_USER}'"
             )
 
-        self.password = self.getenv(self.POSTGRES_PASSWORD)
-        if self.password is None:
+        password = self.getenv(self.POSTGRES_PASSWORD)
+        if password is None:
             raise EnvironmentError(
                 "Postgres password not found "
                 "in environment with key "
                 f"'{self.POSTGRES_PASSWORD}'"
             )
+        self.datastore = PostgresDatastore(
+            dbname=dbname,
+            host=host,
+            user=user,
+            password=password,
+        )
 
-    def aggregate_recorder(self) -> AggregateRecorder:
+    def aggregate_recorder(self, purpose: str = "events") -> AggregateRecorder:
+        prefix = self.application_name or "stored"
+        events_table_name = prefix + "_" + purpose
         recorder = PostgresAggregateRecorder(
-            self.application_name, self.db_name, self.host, self.user, self.password
+            datastore=self.datastore,
+            events_table_name=events_table_name
         )
         if self.do_create_table():
             recorder.create_table()
         return recorder
 
     def application_recorder(self) -> ApplicationRecorder:
+        prefix = self.application_name or "stored"
+        events_table_name = prefix + "_events"
         recorder = PostgresApplicationRecorder(
-            self.application_name, self.db_name, self.host, self.user, self.password
+            datastore=self.datastore,
+            events_table_name=events_table_name
         )
         if self.do_create_table():
             recorder.create_table()
         return recorder
 
     def process_recorder(self) -> ProcessRecorder:
+        prefix = self.application_name or "stored"
+        events_table_name = prefix + "_events"
+        prefix = self.application_name or "notification"
+        tracking_table_name = prefix + "_tracking"
         recorder = PostgresProcessRecorder(
-            self.application_name, self.db_name, self.host, self.user, self.password
+            datastore=self.datastore,
+            events_table_name=events_table_name,
+            tracking_table_name=tracking_table_name
         )
         if self.do_create_table():
             recorder.create_table()

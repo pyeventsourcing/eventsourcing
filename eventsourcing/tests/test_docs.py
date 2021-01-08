@@ -123,7 +123,8 @@ class TestDocs(TestCase):
                     )
                 elif (
                     line.startswith(".. code:: python")
-                    and "exclude-when-testing" not in last_line
+                    or line.strip() == ".."
+                    # and "exclude-when-testing" not in last_line
                 ):
                     # Start restructured text code block.
                     if is_md:

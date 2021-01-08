@@ -10,6 +10,7 @@ from eventsourcing.persistence import (
     ApplicationRecorder,
     InfrastructureFactory,
     Notification,
+    OperationalError,
     ProcessRecorder,
     RecordConflictError,
     StoredEvent,
@@ -71,11 +72,11 @@ class SQLiteAggregateRecorder(AggregateRecorder):
     def __init__(
         self,
         datastore: SQLiteDatastore,
-        table_name: str = "stored_events",
+        events_table_name: str = "stored_events",
     ):
         assert isinstance(datastore, SQLiteDatastore)
         self.datastore = datastore
-        self.table_name = table_name
+        self.events_table_name = events_table_name
 
     def create_table(self):
         with self.datastore.transaction() as c:
@@ -83,8 +84,8 @@ class SQLiteAggregateRecorder(AggregateRecorder):
 
     def _create_table(self, c: Connection):
         statement = (
-            "CREATE TABLE IF NOT EXISTS "
-            f"{self.table_name} ("
+            "CREATE TABLE "
+            f"{self.events_table_name} ("
             "originator_id TEXT, "
             "originator_version INTEGER, "
             "topic TEXT, "
@@ -96,7 +97,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         try:
             c.execute(statement)
         except sqlite3.OperationalError as e:
-            raise self.OperationalError(e)
+            raise OperationalError(e)
 
     def insert_events(self, stored_events, **kwargs):
         with self.datastore.transaction() as c:
@@ -108,7 +109,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         stored_events: List[StoredEvent],
         **kwargs,
     ) -> None:
-        statement = f"INSERT INTO {self.table_name}" " VALUES (?,?,?,?)"
+        statement = f"INSERT INTO {self.events_table_name}" " VALUES (?,?,?,?)"
         params = []
         for stored_event in stored_events:
             params.append(
@@ -132,7 +133,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         desc: bool = False,
         limit: Optional[int] = None,
     ) -> List[StoredEvent]:
-        statement = "SELECT * " f"FROM {self.table_name} " "WHERE originator_id=? "
+        statement = "SELECT * " f"FROM {self.events_table_name} " "WHERE originator_id=? "
         params: List[Any] = [originator_id.hex]
         if gt is not None:
             statement += "AND originator_version>? "
@@ -168,8 +169,8 @@ class SQLiteApplicationRecorder(
 ):
     def _create_table(self, c: Connection):
         statement = (
-            "CREATE TABLE IF NOT EXISTS "
-            f"{self.table_name} ("
+            "CREATE TABLE "
+            f"{self.events_table_name} ("
             "originator_id TEXT, "
             "originator_version INTEGER, "
             "topic TEXT, "
@@ -180,7 +181,7 @@ class SQLiteApplicationRecorder(
         try:
             c.execute(statement)
         except sqlite3.OperationalError as e:
-            raise self.OperationalError(e)
+            raise OperationalError(e)
 
     def select_notifications(self, start: int, limit: int) -> List[Notification]:
         """
@@ -190,7 +191,7 @@ class SQLiteApplicationRecorder(
         statement = (
             "SELECT "
             "rowid, *"
-            f"FROM {self.table_name} "
+            f"FROM {self.events_table_name} "
             "WHERE rowid>=? "
             "ORDER BY rowid "
             "LIMIT ?"
@@ -216,7 +217,7 @@ class SQLiteApplicationRecorder(
         Returns the maximum notification ID.
         """
         c = self.datastore.get_connection().cursor()
-        statement = f"SELECT MAX(rowid) FROM {self.table_name}"
+        statement = f"SELECT MAX(rowid) FROM {self.events_table_name}"
         c.execute(statement)
         return c.fetchone()[0] or 0
 
@@ -283,8 +284,12 @@ class Factory(InfrastructureFactory):
             )
         self.datastore = SQLiteDatastore(db_name=db_name)
 
-    def aggregate_recorder(self) -> AggregateRecorder:
-        recorder = SQLiteAggregateRecorder(datastore=self.datastore)
+    def aggregate_recorder(self, purpose: str = "events") -> AggregateRecorder:
+        events_table_name = "stored_" + purpose
+        recorder = SQLiteAggregateRecorder(
+            datastore=self.datastore,
+            events_table_name=events_table_name,
+        )
         if self.do_create_table():
             recorder.create_table()
         return recorder

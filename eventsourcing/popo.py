@@ -128,7 +128,7 @@ class POPOProcessRecorder(ProcessRecorder, POPOApplicationRecorder):
 
 
 class Factory(InfrastructureFactory):
-    def aggregate_recorder(self) -> AggregateRecorder:
+    def aggregate_recorder(self, purpose: str = "events") -> AggregateRecorder:
         return POPOAggregateRecorder()
 
     def application_recorder(self) -> ApplicationRecorder:

@@ -62,7 +62,7 @@ class Application(ABC):
     ) -> Optional[EventStore[Snapshot]]:
         if not self.factory.is_snapshotting_enabled():
             return None
-        recorder = self.factory.aggregate_recorder()
+        recorder = self.factory.aggregate_recorder(purpose="snapshots")
         return self.factory.event_store(
             mapper=self.mapper,
             recorder=recorder,

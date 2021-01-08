@@ -366,7 +366,7 @@ class InfrastructureFactory(ABC):
         return EventStore(**kwargs)
 
     @abstractmethod
-    def aggregate_recorder(self) -> AggregateRecorder:
+    def aggregate_recorder(self, purpose: str = "events") -> AggregateRecorder:
         """Constructs aggregate recorder."""
 
     @abstractmethod

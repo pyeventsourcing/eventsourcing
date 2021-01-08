@@ -42,7 +42,7 @@ class Aggregate:
             """
             # Check event is next in its sequence.
             # Use counting to follow the sequence.
-            assert isinstance(obj, Aggregate)
+            assert isinstance(obj, Aggregate), (type(obj), self)
             next_version = obj.version + 1
             if self.originator_version != next_version:
                 raise VersionError(self.originator_version, next_version)

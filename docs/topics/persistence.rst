@@ -356,13 +356,13 @@ sourced applications.
     from eventsourcing.sqlite import SQLiteDatastore
 
     datastore = SQLiteDatastore(db_name=':memory:')
-
-    aggregate_recorder = SQLiteApplicationRecorder(datastore)
+    aggregate_recorder = SQLiteAggregateRecorder(datastore, "snapshots")
     aggregate_recorder.create_table()
 
     application_recorder = SQLiteApplicationRecorder(datastore)
     application_recorder.create_table()
 
+    datastore = SQLiteDatastore(db_name=':memory:')
     process_recorder = SQLiteProcessRecorder(datastore)
     process_recorder.create_table()
 
@@ -446,6 +446,14 @@ With PostgreSQL....
     os.environ["POSTGRES_USER"] = "eventsourcing"
     os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
     os.environ['DO_CREATE_TABLE'] = 'y'
+
+..
+    from eventsourcing.tests.test_postgres import drop_postgres_table
+    factory = InfrastructureFactory.construct(application_name='')
+    drop_postgres_table(factory.datastore, "stored_events")
+
+
+.. code:: python
 
     factory = InfrastructureFactory.construct(application_name='')
 

@@ -35,7 +35,7 @@ class TestSnapshotting(TestCase):
             mapper=Mapper(transcoder=transcoder),
             recorder=SQLiteAggregateRecorder(
                 SQLiteDatastore(":memory:"),
-                table_name="snapshots",
+                events_table_name="snapshots",
             ),
         )
         snapshot_store.recorder.create_table()
