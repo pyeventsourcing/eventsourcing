@@ -22,13 +22,13 @@ systems of application, previously in the "application" package, has been
 moved to a new "system" package.
 
 
-Version 8.3.0 (released date TBD)
----------------------------------
+Version 8.3.0 (released 9 January 2020)
+---------------------------------------
 
 Added gRPC runner. Improved Django record manager, so that it supports
 setting notification log IDs in the application like the SQLAlchemy
 record manager (this optionally avoids use of the "insert select max"
-statement and therebe makes it possible to exclude domain events from
+statement and thereby makes it possible to exclude domain events from
 the notification log at the risk of non-gapless notification log
 sequences). Also improved documentation.
 
