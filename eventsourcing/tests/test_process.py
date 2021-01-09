@@ -471,7 +471,8 @@ class TestPromptToPull(TestCase):
     def test_repr(self):
         prompt1 = PromptToPull("process1", pipeline_id=1)
         self.assertEqual(
-            repr(prompt1), "PromptToPull(process_name=process1, pipeline_id=1)"
+            repr(prompt1),
+            "PromptToPull(process_name=process1, pipeline_id=1, head_notification_id=None)",
         )
 
     def test_eq(self):

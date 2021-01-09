@@ -40,11 +40,35 @@ multiprocess
     :special-members:
     :exclude-members: __weakref__, __dict__
 
+grpc
+----
+
+.. automodule:: eventsourcing.system.grpc.runner
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__
+
+.. automodule:: eventsourcing.system.grpc.processor
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__
+
 
 actors
 ------
 
 .. automodule:: eventsourcing.system.thespian
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__
+
+.. automodule:: eventsourcing.system.ray
     :show-inheritance:
     :member-order: bysource
     :members:

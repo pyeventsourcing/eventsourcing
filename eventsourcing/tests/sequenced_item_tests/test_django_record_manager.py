@@ -43,11 +43,45 @@ class DjangoTestCase(TransactionTestCase):
         close_django_connection()
 
 
+class TestDjangoRecordManagerWithTimestampSequences(
+    DjangoTestCase, base.TimestampSequencedItemTestCase
+):
+    def construct_record_manager(self):
+        return self.construct_timestamp_sequenced_record_manager()
+
+
 class TestDjangoRecordManagerWithIntegerSequences(
     DjangoTestCase, base.IntegerSequencedRecordTestCase
 ):
     def construct_record_manager(self):
         return self.construct_entity_record_manager()
+
+
+class TestDjangoRecordManagerNotifications(
+    DjangoTestCase, base.RecordManagerNotificationsTestCase
+):
+    pass
+
+class TestDjangoRecordManagerTracking(
+    DjangoTestCase, base.RecordManagerTrackingRecordsTestCase
+):
+
+    def create_factory_kwargs(self):
+        kwargs = super().create_factory_kwargs()
+        from eventsourcing.infrastructure.django import models
+        kwargs['tracking_record_class'] = models.NotificationTrackingRecord
+        return kwargs
+
+
+class TestDjangoRecordManagerWithStoredEvents(
+    DjangoTestCase, base.RecordManagerStoredEventsTestCase
+):
+    def create_factory_kwargs(self):
+        kwargs = super().create_factory_kwargs()
+        from eventsourcing.infrastructure.django import models
+        kwargs['integer_sequenced_record_class'] = models.StoredEventRecord
+        return kwargs
+
 
 
 class TestDjangoRecordManagerWithoutContiguousRecordIDs(
@@ -57,13 +91,6 @@ class TestDjangoRecordManagerWithoutContiguousRecordIDs(
 
     def construct_record_manager(self):
         return self.construct_entity_record_manager()
-
-
-class TestDjangoRecordManagerWithTimestampSequences(
-    DjangoTestCase, base.TimestampSequencedItemTestCase
-):
-    def construct_record_manager(self):
-        return self.construct_timestamp_sequenced_record_manager()
 
 
 # class WithDjangoRecordManagers(DjangoTestCase, WithActiveRecordManagers):

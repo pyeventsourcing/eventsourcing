@@ -103,10 +103,10 @@ class StoredEventRecord(models.Model):
     originator_version = models.BigIntegerField()
 
     # Pipeline ID.
-    pipeline_id = models.IntegerField()
+    pipeline_id = models.IntegerField(null=True)
 
     # Notification ID.
-    notification_id = models.BigIntegerField()
+    notification_id = models.BigIntegerField(null=True)
 
     # Topic of the item (e.g. path to domain event class).
     topic = models.TextField()

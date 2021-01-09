@@ -12,7 +12,7 @@ To setup MySQL:
 $ brew install mysql
 $ brew services start mysql
 $ mysql -u root
-mysql> CREATE DATABASE EVENTSOURCING;
+mysql> CREATE DATABASE eventsourcing;
 mysql> CREATE USER 'eventsourcing'@'localhost' IDENTIFIED BY 'eventsourcing';
 mysql> GRANT ALL PRIVILEGES ON eventsourcing.* TO 'eventsourcing'@'localhost';
 

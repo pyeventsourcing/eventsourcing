@@ -16,7 +16,9 @@ from eventsourcing.infrastructure.sqlalchemy.records import (
     Base,
     IntegerSequencedNoIDRecord,
     IntegerSequencedWithIDRecord,
+    NotificationTrackingRecord,
     SnapshotRecord,
+    StoredEventRecord,
     TimestampSequencedNoIDRecord,
     TimestampSequencedWithIDRecord,
 )
@@ -54,6 +56,8 @@ class SQLAlchemyDatastoreTestCase(base.AbstractDatastoreTestCase):
                 TimestampSequencedWithIDRecord,
                 TimestampSequencedNoIDRecord,
                 SnapshotRecord,
+                NotificationTrackingRecord,
+                StoredEventRecord
             ),
             connection_strategy=self.connection_strategy,
             # **kwargs

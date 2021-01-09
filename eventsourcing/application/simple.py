@@ -30,10 +30,11 @@ from eventsourcing.domain.model.entity import (
 from eventsourcing.domain.model.events import DomainEvent, publish
 from eventsourcing.exceptions import ProgrammingError, PromptFailed
 from eventsourcing.infrastructure.base import (
-    DEFAULT_PIPELINE_ID,
     AbstractEventStore,
     AbstractRecordManager,
     BaseRecordManager,
+    DEFAULT_PIPELINE_ID,
+    EVENT_NOT_NOTIFIABLE,
     RecordManagerWithNotifications,
     RecordManagerWithTracking,
     TrackingKwargs,
@@ -258,8 +259,8 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
             msg = (
                 "Application class %s is not an subclass of %s."
                 " Try using or inheriting from or mixin() an application"
-                " class with concrete infrastructure such as SQLAlchemyApplication"
-                " or DjangoApplication or AxonApplication."
+                " class with concrete infrastructure such as"
+                " SQLAlchemyApplication or DjangoApplication or AxonApplication."
             ) % (type(self), ApplicationWithConcreteInfrastructure)
         else:
             msg = "Application class %s does not have a %s" % (
@@ -539,7 +540,7 @@ class SimpleApplication(Pipeable, Generic[TVersionedEntity, TVersionedEvent]):
                         setattr(event_record, notification_id_name, current_max)
                     else:
                         setattr(
-                            event_record, notification_id_name, "event-not-notifiable"
+                            event_record, notification_id_name, EVENT_NOT_NOTIFIABLE
                         )
             else:
                 if any((not e.__notifiable__ for e in pending_events)):
@@ -604,10 +605,12 @@ class PromptToPull(Prompt):
         )
 
     def __repr__(self) -> str:
-        return "{}({}={}, {}={})".format(
+        return "{}({}={}, {}={}, {}={})".format(
             type(self).__name__,
             "process_name",
             self.process_name,
             "pipeline_id",
             self.pipeline_id,
+            "head_notification_id",
+            self.head_notification_id,
         )

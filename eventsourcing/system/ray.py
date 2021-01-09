@@ -146,7 +146,7 @@ class RayRunner(AbstractSystemRunner):
         assert issubclass(process_class, ProcessApplication)
         process_name = process_class.create_name()
         ray_process = self.get_ray_process(process_name, pipeline_id)
-        return ProcessApplicationProxy(ray_process)
+        return ProxyApplication(ray_process)
 
 
 @ray.remote
@@ -206,7 +206,7 @@ class RayProcess:
         # print("Running do_jobs")
         while not self.has_been_stopped.is_set():
             try:
-                item = self.db_jobs_queue.get()  # timeout=1)
+                item = self.db_jobs_queue.get(timeout=1)
                 self.db_jobs_queue.task_done()
             except Empty:
                 if self.has_been_stopped.is_set():
@@ -373,6 +373,9 @@ class RayProcess:
         # Wait until prompted.
         self._has_been_prompted.wait()
 
+        if self.has_been_stopped.is_set():
+            return
+
         # self.print_timecheck('has been prompted')
         current_heads = {}
         with self.heads_lock:
@@ -483,7 +486,7 @@ class RayProcess:
                     upstream_name, notification.get("causal_dependencies")
                 )
                 # Get domain event from notification.
-                event = self.process_application.get_event_from_notification(
+                event = self.process_application.event_from_notification(
                     notification
                 )
                 # self.print_timecheck("obtained event", event)
@@ -679,9 +682,41 @@ class RayProcess:
         """
         Stops the process.
         """
+        # print("%s actor stopping %s" % (os.getpid(), datetime.datetime.now()))
         self.has_been_stopped.set()
+        # print("%s actor joining db_jobs_thread %s" % (os.getpid(),
+        #                                            datetime.datetime.now()))
+        self.db_jobs_queue.put(None)
+        self.upstream_event_queue.put(None)
+        self.downstream_prompt_queue.put(None)
+        self._has_been_prompted.set()
+        self.positions_initialised.set()
+        self.db_jobs_thread.join(timeout=1)
+        assert not self.db_jobs_thread.is_alive(), (
+            "DB jobs thread still alive"
+        )
+        # print("%s actor joining process_events_thread %s" % (os.getpid(),
+        #                                            datetime.datetime.now()))
+        self.process_events_thread.join(timeout=1)
+        assert not self.process_events_thread.is_alive(), (
+            "Process events thread still alive"
+        )
+        # print("%s actor joining process_prompts_thread %s" % (os.getpid(),
+        #                                            datetime.datetime.now()))
+        self.process_prompts_thread.join(timeout=1)
+        assert not self.process_prompts_thread.is_alive(), (
+            "Process prompts thread still alive"
+        )
+        # print("%s actor joining push_prompts_thread %s" % (os.getpid(),
+        #                                            datetime.datetime.now()))
+        self.push_prompts_thread.join(timeout=1)
+        assert not self.push_prompts_thread.is_alive(), (
+            "Push prompts thread still alive"
+        )
         self.process_application.close()
         unsubscribe(handler=self._enqueue_prompt_to_pull, predicate=is_prompt_to_pull)
+        # print("%s actor stopped %s" % (os.getpid(), datetime.datetime.now()))
+        ray.actor.exit_actor()
 
     def _print_timecheck(self, activity, *args):
         # pass
@@ -696,15 +731,15 @@ class RayProcess:
         )
 
 
-class ProcessApplicationProxy:
+class ProxyApplication:
     def __init__(self, ray_process: RayProcess):
         self.ray_process: RayProcess = ray_process
 
     def __getattr__(self, item):
-        return AttributeProxy(self.ray_process, item)
+        return ProxyMethod(self.ray_process, item)
 
 
-class AttributeProxy:
+class ProxyMethod:
     def __init__(self, ray_process: RayProcess, attribute_name: str):
         self.ray_process: RayProcess = ray_process
         self.attribute_name = attribute_name

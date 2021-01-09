@@ -966,6 +966,20 @@ Running the system with a single thread is useful when developing and testing
 a system of process applications, because it runs very quickly and the behaviour
 is very easy to follow.
 
+Multi-threaded runner
+~~~~~~~~~~~~~~~~~~~~~
+
+Todo: More about the :class:`~eventsourcing.system.runner.MultiThreadedRunner`.
+
+.. Pool of workers
+.. ~~~~~~~~~~~~~~~
+..
+.. An alternative to having a thread dedicated to every process application for each pipeline,
+.. the prompts could be sent to via a queue to a pool of workers, which change pipeline and
+.. application according to the prompt. Causal dependencies would be needed for all
+.. notifications, which is not the library default. The library does not currently
+.. support processing events with a pool of workers.
+
 
 Multiprocess runner
 ~~~~~~~~~~~~~~~~~~~
@@ -1243,11 +1257,11 @@ Thespian documentation for more information.
 Ray actor model runner
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`Ray <https://github.com/kquick/Thespian>`__,
-can also be used to run a multi-pipeline system of process applications.
+Ray can also be used to run a multi-pipeline system of process applications.
 
 The library's :class:`~eventsourcing.system.ray.RayRunner`
-is a system runner that uses Ray's actor model system.
+is a system runner that uses
+`Ray's actor model system <https://github.com/ray-project/ray>`__,.
 
 .. code:: python
 
@@ -1258,6 +1272,28 @@ is a system runner that uses Ray's actor model system.
         infrastructure_class=SQLAlchemyApplication,
         setup_tables=True,
         pipeline_ids=[0, 1, 2]
+    )
+
+Please refer to the test for more information about using this class.
+
+
+Pure gRPC runner
+~~~~~~~~~~~~~~~~
+
+Inspired by Ray's use of gRPC, the library offers a pure gRPC runner.
+
+The library's :class:`~eventsourcing.system.grpc.runner.GrpcRunner`
+is a system runner that uses `gRPC <https://grpc.io/>`__ to run
+a system of process applications.
+
+.. code:: python
+
+    from eventsourcing.system.grpc.runner import GrpcRunner
+
+    runner = GrpcRunner(
+        system=system,
+        infrastructure_class=SQLAlchemyApplication,
+        setup_tables=True,
     )
 
 Please refer to the test for more information about using this class.
@@ -1420,16 +1456,6 @@ Please refer to the test for more information about using this class.
 
 
 
-Pool of workers
-~~~~~~~~~~~~~~~
-
-An alternative to having a thread dedicated to every process application for each pipeline,
-the prompts could be sent to via a queue to a pool of workers, which change pipeline and
-application according to the prompt. Causal dependencies would be needed for all notifications,
-which is not the library default. The library does not currently support processing events with
-a pool of workers.
-
-
 Integration with APIs
 =====================
 
@@ -1480,8 +1506,6 @@ library doesn't currently have any such adapter process classes or documentation
 
 Process event pattern
 =====================
-
-`draft`
 
 A set of EVENT SOURCED APPLICATIONS can be composed into a system of applications. Application state can be propagated to other applications. Application state is defined by domain event records that have been committed. Each application has a policy which defines how it responds to the domain events it processes.
 
