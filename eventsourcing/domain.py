@@ -165,9 +165,11 @@ class Snapshot(DomainEvent):
     def take(cls, aggregate: Aggregate) -> DomainEvent:
         state = dict(aggregate.__dict__)
         state.pop("_pending_events_")
+        originator_id = state.pop("uuid")
+        originator_version = state.pop("version")
         return cls(  # type: ignore
-            originator_id=aggregate.uuid,
-            originator_version=aggregate.version,
+            originator_id=originator_id,
+            originator_version=originator_version,
             timestamp=datetime.now(),
             topic=get_topic(type(aggregate)),
             state=state,
@@ -179,4 +181,6 @@ class Snapshot(DomainEvent):
         assert isinstance(aggregate, Aggregate)
         aggregate.__dict__.update(self.state)
         aggregate.__dict__["_pending_events_"] = []
+        aggregate.__dict__["uuid"] = self.originator_id
+        aggregate.__dict__["version"] = self.originator_version
         return aggregate

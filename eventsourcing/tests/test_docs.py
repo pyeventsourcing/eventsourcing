@@ -42,7 +42,10 @@ class TestDocs(TestCase):
                 if name in skipped:
                     continue
                 # if name.endswith(".rst"):
-                if name.endswith('persistence.rst'):
+                if name.endswith('persistence.rst') \
+                or name.endswith('domain.rst') \
+                or name.endswith('application.rst') \
+                :
                 # if name.endswith('quick_start.rst'):
                 # if name.endswith('aggregates_in_ddd.rst'):
                 # if name.endswith('example_application.rst'):
