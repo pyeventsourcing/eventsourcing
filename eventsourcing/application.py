@@ -97,6 +97,8 @@ TApplication = TypeVar("TApplication", bound=Application)
 
 
 class Repository:
+    """Reconstructs aggregates from events in event store,
+    possibly using snapshot store to avoid replaying all events."""
     def __init__(
         self,
         event_store: EventStore[Aggregate.Event],
@@ -106,6 +108,9 @@ class Repository:
         self.snapshot_store = snapshot_store
 
     def get(self, aggregate_id: UUID, at: int = None) -> Aggregate:
+        """
+        Returns aggregate for given ID, optionally at given version.
+        """
 
         gt = None
         domain_events: List[Union[Snapshot, Aggregate.Event]] = []
