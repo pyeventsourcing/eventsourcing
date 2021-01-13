@@ -63,7 +63,7 @@ library supports several of these possibilities.
 To demonstrate how storing and retrieving domain events can be used effectively
 as a persistence mechanism in an event-sourced application, this library includes
 base classes for event-sourced domain entities and applications of different kinds.
-An domain model developed using these classes will not depend on infrastructure
+A domain model developed using these classes will not depend on infrastructure
 ("onion" archictecture). A style is suggested for event-sourced aggregates: to have
 command methods which "trigger" domain events. Triggered domain events are used to
 mutate the state of the aggregate, and then stored. The stored events of an aggregate
@@ -86,7 +86,7 @@ Design overview
 The design of the library follows "layered architecture" in that there
 are distinct and separate layers for interfaces, application, domain and
 infrastructure. It also follows the "onion" or "hexagonal" or "clean"
-architecture, in that the domain layer has no dependencies any other
+architecture, in that the domain layer has no dependencies on any other
 layer. The application layer depends on the domain and infrastructure
 layers, and the interface layer depends only on the application layer.
 
