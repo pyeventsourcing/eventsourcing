@@ -348,7 +348,7 @@ storing snapshots.
 
 The library includes concrete recorder classes for SQLite using
 the Python ``sqlite3`` module, and for PostgreSQL using the
-third-part ``psycopg2`` module. The library also includes
+third party ``psycopg2`` module. The library also includes
 recorder using "plain old Python objects" which provides
 a fast in-memory alternative for rapid development of event
 sourced applications.
