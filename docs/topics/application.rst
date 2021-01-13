@@ -207,9 +207,8 @@ is for the application's snapshotting functionality not to be enabled.
 Configuring persistence
 =======================
 
-By default, the application object uses the "Plain Old Python Object"
-infrastructure discussed in the :doc:`documentation of the persistence
-</topics/persistence> module`.
+By default, the application object uses the `"Plain Old Python Object"
+infrastructure <persistence.html#infrastructure-factory>`_
 
 To use other persistence infrastructure,
 set the environment variable ``INFRASTRUCTURE_FACTORY`` to the topic of
