@@ -21,8 +21,6 @@ that is scalable and maintainable.
 .. aggregates of a process that may inadvertently define pathological behaviour are
 .. considered to be a separate concern.
 
-.. contents:: :local:
-
 
 Overview
 ========
@@ -1523,13 +1521,3 @@ they can be passed into functions as a single argument.
 Then, the distributed system can be considered reliable in the sense that the facts in the database will represent either that a process event occurred or that it didn’t occur, and so application state will by entirely unaffected by infrastructure failures.
 
 Event sourced applications may be implemented with EVENT SOURCED AGGREGATES.  To scale the system, use CAUSAL DEPENDENCIES to synchronise parallel pipelines. Use SYSTEM RUNNERS to bind system to infrastructure it needs to run.
-
-Classes
-=======
-
-.. automodule:: eventsourcing.system
-    :show-inheritance:
-    :member-order: bysource
-    :members:
-    :special-members:
-    :exclude-members: __weakref__, __dict__

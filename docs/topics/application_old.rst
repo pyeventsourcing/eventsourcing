@@ -11,9 +11,6 @@ layer and depends on both a :doc:`domain layer </topics/domainmodel>`
 and an :doc:`infrastructure layer </topics/infrastructure>`.
 
 
-.. contents:: :local:
-
-
 Overview
 ========
 
@@ -504,13 +501,3 @@ such as when this documentation is tested as part of the library's test suite).
 .. Todo: Something about publishing events to a message queue.
 
 .. Todo: Something about receiving events in a message queue worker.
-
-Classes
-=======
-
-.. automodule:: eventsourcing.application
-    :show-inheritance:
-    :member-order: bysource
-    :members:
-    :special-members:
-    :exclude-members: __weakref__, __dict__

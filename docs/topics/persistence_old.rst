@@ -5,8 +5,6 @@ Persistence
 The library's persistence module provides a cohesive
 mechanism for storing domain events.
 
-.. contents:: :local:
-
 The entire mechanism is encapsulated by the library's
 event store. The event store stores and retrieves
 domain events. The event store uses a mapper to convert
@@ -1293,14 +1291,3 @@ helps with Cassandra.
 .. conflict. This feature currently works with Apache Cassandra only. Tests exist in the library, other
 .. documentation is forthcoming.
 ..
-
-
-Classes
-=======
-
-.. automodule:: eventsourcing.persistence
-    :show-inheritance:
-    :member-order: bysource
-    :members:
-    :special-members:
-    :exclude-members: __weakref__, __dict__
