@@ -1,21 +1,20 @@
-===========
-Persistence
-===========
+================================================
+:mod:`eventsourcing.persistence` --- Persistence
+================================================
 
-The library's persistence module provides a cohesive
-mechanism for storing domain events.
+This module provides a cohesive mechanism for storing domain events.
 
 The entire mechanism is encapsulated by the library's
-event store object class. An event store stores and retrieves
+**event store** object class. An event store stores and retrieves
 domain events. The event store uses a mapper to convert
 domain events to stored events, and it uses a recorder
 to insert stored events in a datastore.
 
-A mapper converts domain event objects of various types to
+A **mapper** converts domain event objects of various types to
 stored event objects when domain events are stored in the event
 store. It also converts stored events objects back to domain
 event objects when domain events are retrieved from the event
-store. A mapper uses an extensible transcoder that can be set up
+store. A mapper uses an extensible **transcoder** that can be set up
 with additional transcoding objects that serialise and deserialise
 particular types of object, such as Python's ``UUID``, ``datatime``
 and ``Decimal`` objects. A mapper may use a compressor to compress
@@ -26,15 +25,12 @@ stored event objects will be compressed and then encoded when storing
 domain events, and will be decoded and then decompressed when retrieving
 domain events.
 
-A recorder inserts stored event objects in a datastore when domain
+A **recorder** inserts stored event objects in a datastore when domain
 events are stored in an event store, and selects stored events from
 a datastore when domain events are retrieved from an event store.
-Depending on the type of the recorder
-it may be possible to select the stored events as event notifications,
-and
-it may be possible atomically to record tracking records along with the stored events,
-
-.. contents:: :local:
+Depending on the type of the recorder it may be possible to select
+the stored events as event notifications, and it may be possible
+atomically to record tracking records along with the stored events,
 
 
 Stored event objects
@@ -65,9 +61,10 @@ Event notification objects
 
 The library's :class:`~eventsourcing.persistence.Notification` class
 is a Python frozen dataclass that can be used to hold information
-about a domain event object between it be selected from a datastore
-from the total ordering of domain events in an application
-and being transmitted as an item in a section of a notification log.
+about a domain event object when being transmitted as an item in a
+section of a `notification log <application.html#notification-log>`_.
+It will be returned when selecting from the total ordering of stored
+domain events that comprise the recorded state of an application.
 
 .. code:: python
 
@@ -263,6 +260,10 @@ The ``to_domain_event()`` method of the ``mapper`` object converts
 
     assert mapper.to_domain_event(stored_event1) == domain_event1
 
+
+Encryption
+==========
+
 Without encryption, the state of the domain event will be visible
 in the stored event.
 
@@ -302,6 +303,10 @@ encryption" in an event sourced application.
 .. code:: python
 
     assert domain_event1.timestamp.isoformat() not in str(stored_event1.state)
+
+
+Compression
+===========
 
 The Python ``zlib`` module can be used to compress and decompress
 the state of stored events. The size of the state of a compressed
@@ -410,7 +415,8 @@ With "plain old Python objects" (the default)....
     assert stored_events == [domain_event1]
 
 
-With SQLite....
+SQLite
+======
 
 .. code:: python
 
@@ -434,7 +440,8 @@ With SQLite....
     assert stored_events == [domain_event1]
 
 
-With PostgreSQL....
+PostgreSQL
+==========
 
 .. code:: python
 

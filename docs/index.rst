@@ -18,8 +18,6 @@ Contents
    topics/persistence
    topics/application
    topics/system
-   topics/interface
-   topics/utils
    topics/release_notes
 
 

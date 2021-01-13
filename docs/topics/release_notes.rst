@@ -12,6 +12,31 @@ has been improved in a way that neither breaks backwards compatibility
 nor extends the functionality of the library.
 
 
+Version 9.x
+===========
+
+Version 9.x series is a rewrite of the library that distills most of
+the best parts of the previous versions of the library into faster
+and simpler code. This version is recommended for new projects.
+It is not backwards-compatible with previous versions.
+
+Version 9.0
+-----------
+
+*Currently under development.*
+
+Simpler documentation. More efficient storage. Changed to use database
+sequences to generate event notifications IDs, so there will potentially
+be gaps in the sequence. Changed persistence infrastructure base classes.
+Added dedicated SQLite infrastructure. Added dedicated PostgresSQL infrastructure.
+Extensible transcoder. Simplified domain model classes. Simplified application
+classes. Configuration of persistence infrastructure with environment variables.
+Removed persistence subscriber. Removed internal pub-sub mechanism. Changed
+saving of aggregates to always use application save() method. Changed repository
+to use get() method rather than indexing square-bracket syntax. Changed process
+application policy to collect new domain events on process event object.
+
+
 Version 8.x
 ===========
 

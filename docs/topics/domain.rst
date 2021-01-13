@@ -1,44 +1,44 @@
-=============
-Domain models
-=============
+=============================================
+:mod:`eventsourcing.domain` --- Domain models
+=============================================
 
-The library's domain module has a base class for event sourced aggregates that
-can be used to develop an event-sourced domain model. Event sourced aggregates
+
+This module helps with developing event sourced domain models.
+
+There is a base class for event sourced aggregates that can be
+used to develop an event-sourced domain model. Event sourced aggregates
 depend on domain events, and so the aggregate class has a nested event class
-that can be used to define aggregate events. There is also a snapshot
-class, which can be used to store the current state of an aggregate. Snapshots
-improve the time needed to reconstruct an aggregate, by avoiding the need to
-retrieve and apply all the domain events of an aggregate to reconstruct
-an aggregate object.
+that can be used to define aggregate events.
 
-.. contents:: :local:
+There is also a snapshot class, which can be used to store the current state
+of an aggregate. Snapshots improve the time needed to reconstruct an aggregate,
+by avoiding the need to retrieve and apply all the domain events of an aggregate
+to reconstruct an aggregate object.
 
-Aggregates
-==========
+Aggregates in DDD
+=================
 
-Eric Evans' book *Domain Driven Design* describes a design pattern called
-"aggregate":
+A design pattern called "aggregate" is described in Eric Evans' book *Domain Driven Design*:
 
 .. pull-quote::
 
     *"An aggregate is a cluster of associated objects that we treat as a unit
     for the purpose of data changes. Each aggregate has a root and a boundary.*
 
-    *Therefore,*
-
-    *Cluster the entities and value objects into aggregates and define
-    boundaries around each. Choose one entity to be the root of each
+    *Therefore ... cluster the entities and value objects into aggregates and
+    define boundaries around each. Choose one entity to be the root of each
     aggregate, and control all access to the objects inside the boundary
     through the root. Allow external objects to hold references to the
     root only."*
 
 An 'entity' is an object with a fixed unique identity that has variable attributes.
 A 'value object' is an object that does not change, and that does not necessarily
-have a unique identity. An 'aggregate' is a cluster of entities and value objects.
-The root object of this cluster is an entity, and its unique identity is used as
-the identity of the aggregate. External access to the state of the aggregate is
-made through the root entity. The 'root' entity therefore has command and query
-methods which change and present the state of the aggregate.
+have a unique identity. An 'aggregate' is a cluster of such entities and value objects.
+
+The 'root' object of this cluster is an entity, and its identity is used as
+to uniquely identity of the aggregate in a domain model. External access to
+the state of the aggregate is made through this root entity. The 'aggregate root'
+has command and query methods which change and present the state of the aggregate.
 
 The command methods of an event sourced aggregate trigger domain events, and the
 domain events are used to mutate the state of the aggregate. One command may result
@@ -48,6 +48,10 @@ events that are triggered by responding to a client request atomically atomicall
 otherwise the recorded state of the aggregate could become undesirable, or
 inconsistent, or unusual, or unworkable. The atomic recording of the changes to
 an aggregate defines the consistency 'boundary'.
+
+
+Event sourced aggregates
+========================
 
 The library's :class:`~eventsourcing.domain.Aggregate` class can be subclassed to develop
 event sourced domain model aggregates. The nested class
@@ -74,9 +78,9 @@ keyword-only arguments.
             self.history = []
 
         @classmethod
-        def create(self):
-            return self._create_(
-                event_class=Aggregate.Created,
+        def create(cls):
+            return cls._create_(
+                event_class=cls.Created,
                 uuid=uuid4(),
             )
 

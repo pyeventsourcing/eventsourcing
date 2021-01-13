@@ -4,7 +4,7 @@ from timeit import timeit
 from unittest.case import TestCase
 from uuid import UUID, uuid4
 
-from eventsourcing.application import AggregateNotFoundError, Application
+from eventsourcing.application import AggregateNotFound, Application
 from eventsourcing.persistence import InfrastructureFactory
 from eventsourcing.postgres import PostgresDatastore
 from eventsourcing.tests.ramdisk import tmpfile_uris
@@ -148,7 +148,7 @@ class BankAccounts(Application):
     def get_account(self, account_id: UUID) -> BankAccount:
         try:
             aggregate = self.repository.get(account_id)
-        except AggregateNotFoundError:
+        except AggregateNotFound:
             raise self.AccountNotFoundError(account_id)
         else:
             if not isinstance(aggregate, BankAccount):

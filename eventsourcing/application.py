@@ -144,14 +144,14 @@ class Repository:
 
         # Raise exception if not found.
         if aggregate is None:
-            raise AggregateNotFoundError((aggregate_id, at))
+            raise AggregateNotFound((aggregate_id, at))
 
         # Return the aggregate.
         assert isinstance(aggregate, Aggregate)
         return aggregate
 
 
-class AggregateNotFoundError(Exception):
+class AggregateNotFound(Exception):
     pass
 
 

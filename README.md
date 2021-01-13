@@ -123,7 +123,7 @@ class World(Aggregate):
 Define a test that exercises the domain model with an application.
 
 ```python
-from eventsourcing.application import AggregateNotFoundError, Application
+from eventsourcing.application import AggregateNotFound, Application
 from eventsourcing.system import NotificationLogReader
 
 
@@ -135,7 +135,7 @@ def test(app: Application):
     # Unsaved aggregate not yet in application repository.
     try:
         app.repository.get(world.uuid)
-    except AggregateNotFoundError:
+    except AggregateNotFound:
         pass
 
     # Execute aggregate commands.
@@ -177,7 +177,7 @@ def test(app: Application):
     # Discarded aggregate not found.
     try:
         app.repository.get(world.uuid)
-    except AggregateNotFoundError:
+    except AggregateNotFound:
         pass
 
     # Get historical state (at version from above).

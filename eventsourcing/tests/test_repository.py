@@ -3,7 +3,7 @@ from decimal import Decimal
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.application import AggregateNotFoundError, Repository
+from eventsourcing.application import AggregateNotFound, Repository
 from eventsourcing.domain import Aggregate, Snapshot
 from eventsourcing.persistence import (
     DatetimeAsISO,
@@ -40,7 +40,7 @@ class TestRepository(TestCase):
         repository: Repository = Repository(event_store, snapshot_store)
 
         # Check key error.
-        with self.assertRaises(AggregateNotFoundError):
+        with self.assertRaises(AggregateNotFound):
             repository.get(uuid4())
 
         # Open an account.

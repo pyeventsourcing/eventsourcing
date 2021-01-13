@@ -28,6 +28,10 @@ class ProcessEvent:
         for aggregate in aggregates:
             self.events += aggregate._collect_()
 
+    def save(self, *aggregates: Aggregate):
+        for aggregate in aggregates:
+            self.events += aggregate._collect_()
+
 
 class Promptable(ABC):
     @abstractmethod

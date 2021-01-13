@@ -45,6 +45,7 @@ class TestDocs(TestCase):
                 if name.endswith('persistence.rst') \
                 or name.endswith('domain.rst') \
                 or name.endswith('application.rst') \
+                or name.endswith('system.rst') \
                 :
                 # if name.endswith('quick_start.rst'):
                 # if name.endswith('aggregates_in_ddd.rst'):

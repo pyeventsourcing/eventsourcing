@@ -3,21 +3,21 @@ Support options
 ===============
 
 It has taken a lot of time and effort to create this library.
-Similarly, it will take some time and effort to understand and
-acquire the skills to create a well-designed event-sourced system.
+Similarly, it will take time and effort to understand and
+acquire the skills to create well-designed event-sourced applications.
 
 Training workshops and development services are available to
 support your professional use of this library. Community support
 is also available.
 
-Please also consider supporting the ongoing development and maintenance
+Please consider supporting the ongoing development and maintenance
 of this library by making a regular donation.
 
 Professional support
 ====================
 
-Design and development services are available to help managers and developers
-with the design and development of their event-sourced applications and systems.
+Design and development services are available to help developers and managers
+with the development and management of their event-sourced applications and systems.
 
 - Overall assessment of your existing implementation, with recommendations for improvement.
 - Address your specific concerns with how your event-sourced system is built (and running).

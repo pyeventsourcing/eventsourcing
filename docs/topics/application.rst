@@ -1,19 +1,87 @@
-============
-Applications
-============
+=================================================
+:mod:`eventsourcing.application` --- Applications
+=================================================
 
-This section discusses how an :doc:`event-sourced domain model
-</topics/domain>` can be combined with :doc:`library's persistence
-mechanism </topics/persistence>` to make an event sourced application.
 
-.. contents:: :local:
+This module helps with developing event sourced applications.
 
-Firstly let's recall the ``World`` aggregate discussed in
-the documentation about the library's :doc:`event-sourced domain module
-</topics/domain>`.
+An application has a repository from which domain model aggregates can
+be obtained, and notification log from which the state of the application
+can be propagated as a sequence of domain event notifications.
+
+
+Application layer in DDD
+========================
+
+
+In *Domain-Driven Design*, the application layer combines the
+:doc:`domain </topics/domain>`
+and
+:doc:`infrastructure </topics/persistence>`
+layers.
+
+The application layer implements commands which change the state of the application,
+and queries which present the state of the application. The application's command
+and queries are used by an interface layer. By keeping the business logic of the
+application in the application and domain layers, different interfaces can be
+developed for different technologies without duplicating business logic.
+
+
+Application object
+==================
+
+The library's :class:`~eventsourcing.application.Application` class can be
+subclassed to develop an event sourced application.
+
+Its ``save()`` method can be used to save an aggregate by collecting and
+storing pending domain events.
+
+The ``get()`` method of its ``repository`` can be used to
+reconstruct event sourced aggregates from their stored events.
+The application's repository is an instance of the library's
+:class:`~eventsourcing.application.LocalNotificationLog` class.
+
+The ``take_snapshot()`` method can be used to take snapshots of existing
+aggregates.
+
+In the example below, the ``Worlds`` application extends the library's
+application object class. Its command method ``create_world()`` creates
+and saves new ``World`` aggregates, returning a new ``world_id`` that
+can be used to identify the aggregate on subsequence method calls.
+The ``World`` aggregate is discussed in the
+:doc:`domain module documentation </topics/domain>`.
+
+The command method ``make_it_so()`` obtains an existing ``World`` aggregate
+from the repository, calls an aggregate command method, and saves the aggregate
+by calling the ``save()`` method. The query method ``get_world_history()``
+presents the current history of an existing aggregate.
 
 .. code:: python
 
+    from typing import List
+    from uuid import UUID
+
+    from eventsourcing.application import Application
+
+
+    class WorldsApplication(Application):
+
+        def create_world(self) -> UUID:
+            world = World.create()
+            self.save(world)
+            return world.uuid
+
+        def make_it_so(self, world_id: UUID, what: str):
+            world = self.repository.get(world_id)
+            world.make_it_so(what)
+            self.save(world)
+
+        def get_world_history(self, world_id: UUID) -> List[str]:
+            world = self.repository.get(world_id)
+            return list(world.history)
+
+
+..
     from uuid import uuid4
 
     from eventsourcing.domain import Aggregate
@@ -25,9 +93,9 @@ the documentation about the library's :doc:`event-sourced domain module
             self.history = []
 
         @classmethod
-        def create(self):
-            return self._create_(
-                event_class=Aggregate.Created,
+        def create(cls):
+            return cls._create_(
+                event_class=cls.Created,
                 uuid=uuid4(),
             )
 
@@ -41,29 +109,9 @@ the documentation about the library's :doc:`event-sourced domain module
                 world.history.append(self.what)
 
 
-Now let's define an application...
-
-
-.. code:: python
-
-    from eventsourcing.application import Application
-
-
-    class WorldsApplication(Application):
-
-        def create_world(self):
-            world = World.create()
-            self.save(world)
-            return world.uuid
-
-        def make_it_so(self, world_id, what):
-            world = self.repository.get(world_id)
-            world.make_it_so(what)
-            self.save(world)
-
-        def get_world_history(self, world_id):
-            world = self.repository.get(world_id)
-            return list(world.history)
+We can construct an instance of the ``Worlds`` application, and call its methods.
+In the example below, one new ``World`` aggregate is created. Three
+items are added to its history: 'dinosaurs', 'trucks', and 'internet'.
 
 
 .. code:: python
@@ -80,6 +128,19 @@ Now let's define an application...
     assert history[0] == 'dinosaurs'
     assert history[1] == 'trucks'
     assert history[2] == 'internet'
+
+
+Notification log
+================
+
+There are now four domain event notifications in the application's
+notification ``log``. The application's notificaiton log is an
+instance of the library's :class:`~eventsourcing.application.LocalNotificationLog` class.
+
+The notification log presents linked sections of event notifications. The sections
+are instances of the library's :class:`~eventsourcing.application.Section` class.
+The attribute ``items`` is a list of `event notification
+objects <persistence.html#event-notification-objects>`_.
 
 
 .. code:: python
@@ -115,6 +176,18 @@ Now let's define an application...
     assert b'internet' in section.items[3].state
 
 
+The application method ``take_snapshot()`` can be used to create
+a snapshot of the state of an aggregate. The ID and version of an
+aggregate to be snapshotted must be passed when calling this method.
+
+To enable the snapshotting functionality, the environment variable
+``IS_SNAPSHOTTING_ENABLED`` must be set to a valid "true"  value. The ``distutils.utils`` function
+``strtobool()`` is used to interpret the value of this environment variable,
+so that strings 'y', 'yes', 't', 'true', 'on', and '1' are considered to be
+"true" values, 'n', 'no', 'f', 'false', 'off', '0' are considered to be
+"false" values, and other values are considered to be invalid. The default
+is for the application's snapshotting functionality not to be enabled.
+
 .. code:: python
 
     import os
@@ -128,8 +201,25 @@ Now let's define an application...
     application.make_it_so(world_id, 'trucks')
     application.make_it_so(world_id, 'internet')
 
-    application.take_snapshot(world_id, version=2)
+    application.take_snapshot(world_id, version=4)
 
+
+Configuring persistence
+=======================
+
+By default, the application object uses the "Plain Old Python Object"
+infrastructure discussed in the :doc:`documentation of the persistence
+</topics/persistence> module`.
+
+To use other persistence infrastructure,
+set the environment variable ``INFRASTRUCTURE_FACTORY`` to the topic of
+another infrastructure factory. Often using other persistence infrastructure
+will involve setting other environment variables to condition access to a real
+database.
+
+In the example below, the library's SQLite infrastructure factory is used.
+In the case of the library's SQLite factory, the environment variables
+``SQLITE_DBNAME`` and ``DO_CREATE_TABLE`` must be set.
 
 .. code:: python
 
@@ -153,10 +243,16 @@ Now let's define an application...
     application.take_snapshot(world_id, version=2)
 
 
+By using a file on disk, the named temporary file ``tmpfile`` above,
+the state of the application will endure after the application has
+been reconstructed. The database table only needs to be created once,
+and so when creating an application for an already existing database
+the ``DO_CREATE_TABLE`` value must be a "false" value.
+
+
 .. code:: python
 
     os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.sqlite:Factory'
-    os.environ['SQLITE_DBNAME'] = tmpfile.name
     os.environ['DO_CREATE_TABLE'] = 'no'
     application = WorldsApplication()
 
@@ -166,6 +262,70 @@ Now let's define an application...
     assert history[2] == 'internet'
 
 
+Registering custom transcodings
+===============================
+
+The application method ``register_transcodings()`` can
+be extended to register custom transcodings for custom
+value objects used in your application's domain events.
+
+.. code:: python
+
+    from datetime import date
+    from typing import Union
+
+    from eventsourcing.persistence import Transcoder, Transcoding
+
+
+    class MyApplication(Application):
+
+        def register_transcodings(self, transcoder: Transcoder):
+            super().register_transcodings(transcoder)
+            transcoder.register(DateAsISO)
+
+
+    class DateAsISO(Transcoding):
+        type = date
+        name = "date_iso"
+
+        def encode(self, o: date) -> str:
+            return o.isoformat()
+
+        def decode(self, d: Union[str, dict]) -> date:
+            assert isinstance(d, str)
+            return date.fromisoformat(d)
+
+
+Encryption and compression
+==========================
+
+To enable encryption and compression, set the
+environment variables 'CIPHER_TOPIC', 'CIPHER_KEY',
+and 'COMPRESSOR_TOPIC'. You can use the static method
+``AESCipher.create_key()`` to generate a cipher key.
+
+.. code:: python
+
+    import os
+
+    from eventsourcing.cipher import AESCipher
+
+    # Generate a cipher key (keep this safe).
+    cipher_key = AESCipher.create_key(num_bytes=32)
+
+    # Configure cipher key.
+    os.environ['CIPHER_KEY'] = cipher_key
+    # Configure cipher topic.
+    os.environ['CIPHER_TOPIC'] = "eventsourcing.cipher:AESCipher"
+    # Configure compressor topic.
+    os.environ['COMPRESSOR_TOPIC'] = "zlib"
+
+
+
+..
+    #Todo: Register custom transcodings on transcoder.
+    #Todo: Show how to use UUID5.
+    #Todo: Show how to use ORM objects for read model.
 
 Classes
 =======

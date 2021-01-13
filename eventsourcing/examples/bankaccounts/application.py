@@ -1,7 +1,7 @@
 from decimal import Decimal
 from uuid import UUID
 
-from eventsourcing.application import AggregateNotFoundError, Application
+from eventsourcing.application import AggregateNotFound, Application
 from eventsourcing.examples.bankaccounts.domainmodel import BankAccount
 
 
@@ -21,7 +21,7 @@ class BankAccounts(Application):
     def get_account(self, account_id: UUID) -> BankAccount:
         try:
             aggregate = self.repository.get(account_id)
-        except AggregateNotFoundError:
+        except AggregateNotFound:
             raise AccountNotFoundError(account_id)
         else:
             return aggregate

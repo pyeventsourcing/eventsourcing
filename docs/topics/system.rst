@@ -1,37 +1,222 @@
-===================
-Systems and runners
-===================
+=======================================
+:mod:`eventsourcing.system` --- Systems
+=======================================
+
+This module shows how :doc:`event-sourced applications
+</topics/application>` can be combined to make an event driven
+system.
+
+System of applications
+======================
+
+The library's system class...
+
+.. code:: python
+
+    from eventsourcing.system import System
+
+.. code:: python
+
+    from uuid import uuid4
+
+    from eventsourcing.domain import Aggregate
 
 
-Overview
-========
+    class World(Aggregate):
+        def __init__(self, **kwargs):
+            super(World, self).__init__(**kwargs)
+            self.history = []
 
-A design for distributed systems is introduced that uses event-sourced
-applications as building blocks. The earlier design of the
-:doc:`event-sourced application </topics/application>` is extended in
-the design of the "process application". Process application classes
-can be composed into a set of pipeline expressions that together define
-a system pipeline. This definition of a system can be entirely independent
-of infrastructure. Such a system can be run in different ways with identical
-results.
+        @classmethod
+        def create(cls):
+            return cls._create_(
+                event_class=cls.Created,
+                uuid=uuid4(),
+            )
 
-Rather than seeking reliability in mathematics (e.g.
-`CSP <https://en.wikipedia.org/wiki/Communicating_sequential_processes>`__)
-or in physics (e.g. `Actor model <https://en.wikipedia.org/wiki/Actor_model>`__),
-the approach taken here is to seek reliable foundations in engineering empiricism,
-specifically in the empirical reliability of `counting <https://en.wikipedia.org/wiki/Counting>`__
-and of `ACID database transactions <https://en.wikipedia.org/wiki/ACID_(computer_science)>`__.
+        def make_it_so(self, what):
+            self._trigger_(World.SomethingHappened, what=what)
 
-Just as event sourcing "atomised" application state as a set of domain
-events, similarly the processing of domain events can be atomised as a
-potentially distributed set of local "process events" in which new domain
-events may occur. The subjective aim of a process event is "catching up
-on what happened".
+        class SomethingHappened(Aggregate.Event):
+            what: str
 
-The processing of domain events is designed to be atomic and successive
-so that processing can progress in a determinate manner according to
-infrastructure availability. A description of a design
-pattern for process events is included at the end of this section.
+            def apply(self, world):
+                world.history.append(self.what)
+
+
+Now let's define an application...
+
+
+.. code:: python
+
+    from eventsourcing.application import Application
+
+
+    class WorldsApplication(Application):
+
+        def create_world(self):
+            world = World.create()
+            self.save(world)
+            return world.uuid
+
+        def make_it_so(self, world_id, what):
+            world = self.repository.get(world_id)
+            world.make_it_so(what)
+            self.save(world)
+
+        def get_world_history(self, world_id):
+            world = self.repository.get(world_id)
+            return list(world.history)
+
+
+Now let's define an analytics application...
+
+.. code:: python
+
+    from uuid import uuid5, NAMESPACE_URL
+
+    class Counter(Aggregate):
+        def __init__(self, **kwargs):
+            super(Counter, self).__init__(**kwargs)
+            self.count = 0
+
+        @classmethod
+        def create(cls, name):
+            return cls._create_(
+                event_class=Aggregate.Created,
+                uuid=cls.create_id(name),
+            )
+
+        @classmethod
+        def create_id(cls, name):
+            return uuid5(NAMESPACE_URL, f'/counter/{name}')
+
+        def increment(self):
+            self._trigger_(self.Incremented)
+
+        class Incremented(Aggregate.Event):
+            def apply(self, counter):
+                counter.count += 1
+
+
+.. code:: python
+
+    from functools import singledispatchmethod
+
+    from eventsourcing.application import AggregateNotFound
+    from eventsourcing.system import ProcessApplication
+
+
+    class Counters(ProcessApplication):
+
+        def policy(self, domain_event, process_event):
+            pass
+
+        @singledispatchmethod
+        def policy(self, domain_event, process_event):
+            """Default policy"""
+
+        @policy.register(World.SomethingHappened)
+        def _(self, domain_event, process_event):
+            what = domain_event.what
+            counter_id = Counter.create_id(what)
+            try:
+                counter = self.repository.get(counter_id)
+            except AggregateNotFound:
+                counter = Counter.create(what)
+            counter.increment()
+            process_event.save(counter)
+
+        def get_count(self, what):
+            counter_id = Counter.create_id(what)
+            try:
+                counter = self.repository.get(counter_id)
+            except AggregateNotFound:
+                return 0
+            return counter.count
+
+
+.. code:: python
+
+    system = System(pipes=[[WorldsApplication, Counters]])
+
+
+Single-threaded runner
+======================
+
+.. code:: python
+
+    from eventsourcing.system import SingleThreadedRunner
+
+
+    runner= SingleThreadedRunner(system)
+    runner.start()
+    worlds = runner.get(WorldsApplication)
+    counters = runner.get(Counters)
+
+    world_id1 = worlds.create_world()
+    world_id2 = worlds.create_world()
+    world_id3 = worlds.create_world()
+
+    assert counters.get_count('dinosaurs') == 0
+    assert counters.get_count('trucks') == 0
+    assert counters.get_count('internet') == 0
+
+    worlds.make_it_so(world_id1, 'dinosaurs')
+    worlds.make_it_so(world_id2, 'dinosaurs')
+    worlds.make_it_so(world_id3, 'dinosaurs')
+
+    assert counters.get_count('dinosaurs') == 3
+    assert counters.get_count('trucks') == 0
+    assert counters.get_count('internet') == 0
+
+    worlds.make_it_so(world_id2, 'trucks')
+    worlds.make_it_so(world_id3, 'trucks')
+
+    assert counters.get_count('dinosaurs') == 3
+    assert counters.get_count('trucks') == 2
+    assert counters.get_count('internet') == 0
+
+    worlds.make_it_so(world_id3, 'internet')
+
+    assert counters.get_count('dinosaurs') == 3
+    assert counters.get_count('trucks') == 2
+    assert counters.get_count('internet') == 1
+
+
+Multi-threaded runner
+=====================
+
+.. code:: python
+
+    from eventsourcing.system import MultiThreadedRunner
+
+
+    runner= MultiThreadedRunner(system)
+    runner.start()
+    worlds = runner.get(WorldsApplication)
+    counters = runner.get(Counters)
+
+    world_id1 = worlds.create_world()
+    world_id2 = worlds.create_world()
+    world_id3 = worlds.create_world()
+
+    worlds.make_it_so(world_id1, 'dinosaurs')
+    worlds.make_it_so(world_id2, 'dinosaurs')
+    worlds.make_it_so(world_id3, 'dinosaurs')
+
+    worlds.make_it_so(world_id2, 'trucks')
+    worlds.make_it_so(world_id3, 'trucks')
+
+    worlds.make_it_so(world_id3, 'internet')
+
+    from time import sleep
+
+    sleep(0.00001)
+
+    assert counters.get_count('dinosaurs') == 3
+    assert counters.get_count('trucks') == 2
+    assert counters.get_count('internet') == 1
 
 ...
 

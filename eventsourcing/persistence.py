@@ -65,7 +65,9 @@ class Transcoder(AbstractTranscoder):
             transcoding = self.types[type(o)]
         except KeyError:
             raise TypeError(
-                f"Object of type " f"{o.__class__.__name__} " f"is not serializable"
+                f"Object of type {type(o)} is not "
+                "serializable. Please register a "
+                "custom transcoding for this type."
             )
         else:
             return {
@@ -287,9 +289,9 @@ class EventStore(Generic[TDomainEvent]):
 
 class InfrastructureFactory(ABC):
     TOPIC = "INFRASTRUCTURE_FACTORY"
+    MAPPER_TOPIC = "MAPPER_TOPIC"
     CIPHER_TOPIC = "CIPHER_TOPIC"
     CIPHER_KEY = "CIPHER_KEY"
-    MAPPER_TOPIC = "MAPPER_TOPIC"
     COMPRESSOR_TOPIC = "COMPRESSOR_TOPIC"
     IS_SNAPSHOTTING_ENABLED = "IS_SNAPSHOTTING_ENABLED"
 
