@@ -5,56 +5,72 @@
 
 This module helps with developing event sourced applications.
 
-An application has a repository from which domain model aggregates can
-be obtained, and notification log from which the state of the application
-can be propagated as a sequence of domain event notifications.
-
+There is a base class for event sourced **application** object. There is also
+a **repository** for class that is used to obtain already existing aggregates,
+and a **notification log** class that is used to propagate the state of
+the application as a sequence of domain event notifications.
 
 Application layer in DDD
 ========================
 
 
 In *Domain-Driven Design*, the application layer combines the
-:doc:`domain </topics/domain>`
-and
-:doc:`infrastructure </topics/persistence>`
+:doc:`domain </topics/domain>` and :doc:`infrastructure </topics/persistence>`
 layers.
 
-The application layer implements commands which change the state of the application,
-and queries which present the state of the application. The application's command
-and queries are used by an interface layer. By keeping the business logic of the
-application in the application and domain layers, different interfaces can be
-developed for different technologies without duplicating business logic.
+Generally speaking, the application layer implements commands which change the
+state of the application, and queries which present the state of the application.
+The application's command and queries are used by an interface layer. By keeping
+the business logic of the application in the application and domain layers,
+different interfaces can be developed for different technologies without
+duplicating business logic.
 
 
 Application object
 ==================
 
-The library's :class:`~eventsourcing.application.Application` class can be
+The library's :class:`~eventsourcing.application.Application` object class can be
 subclassed to develop an event sourced application.
 
-Its ``save()`` method can be used to save an aggregate by collecting and
-storing pending domain events.
+The general idea is to name your application object classes after the bounded
+context supported by its domain model, and the define command and query methods
+that allow interfaces to create, read, update and delete domain model aggregates.
 
-The ``get()`` method of its ``repository`` can be used to
-reconstruct event sourced aggregates from their stored events.
-The application's repository is an instance of the library's
-:class:`~eventsourcing.application.LocalNotificationLog` class.
+The application's ``save()`` method is used to update the recorded state of the application's
+`aggregates <domain.html#event-sourced-aggregates>`_. The aggregate's ``collect()``
+method is used to collect pending events, which are stored by calling the
+``put()`` method of application's `event store <persistence.html#event-store>`_.
 
-The ``take_snapshot()`` method can be used to take snapshots of existing
+The application's ``repository`` attribute has an `event sourced repository <#repository>`_. The
+repository ``get()`` method is used by application command and query methods to
+obtain already existing event sourced aggregates.
+
+The application's ``log`` attribute has an `local notification log <#notification-log>`_.
+The notification log can be used to propagate the state of the application as
+a sequence of domain event notifications.
+
+The application's ``take_snapshot()`` method can be used to take snapshots of existing
 aggregates.
 
-In the example below, the ``Worlds`` application extends the library's
-application object class. Its command method ``create_world()`` creates
-and saves new ``World`` aggregates, returning a new ``world_id`` that
-can be used to identify the aggregate on subsequence method calls.
-The ``World`` aggregate is discussed in the
-:doc:`domain module documentation </topics/domain>`.
+Basic example
+-------------
 
-The command method ``make_it_so()`` obtains an existing ``World`` aggregate
-from the repository, calls an aggregate command method, and saves the aggregate
-by calling the ``save()`` method. The query method ``get_world_history()``
-presents the current history of an existing aggregate.
+In the example below, the ``Worlds`` application extends the library's
+application object class. The ``World`` aggregate is defined and discussed
+in the :doc:`domain module documentation </topics/domain>`.
+
+The application's command method ``create_world()`` creates and saves
+new ``World`` aggregates, returning a new ``world_id`` that can be used
+to identify the aggregate on subsequence method calls.
+It saves the new aggregate by calling the base class ``save()`` method.
+
+The application's command method ``make_it_so()`` obtains an existing ``World``
+aggregate from the repository. It calls the ``World`` aggregate command method
+``make_it_so()``, and then saves the aggregate by calling the application's
+``save()`` method.
+
+The application's query method ``get_world_history()`` presents the current
+history of an existing aggregate.
 
 .. code:: python
 
@@ -109,9 +125,12 @@ presents the current history of an existing aggregate.
                 world.history.append(self.what)
 
 
-We can construct an instance of the ``Worlds`` application, and call its methods.
-In the example below, one new ``World`` aggregate is created. Three
-items are added to its history: 'dinosaurs', 'trucks', and 'internet'.
+In the example below, an instance of the ``Worlds`` application is constructed.
+A new ``World`` aggregate is created by calling the ``create_world()`` method.
+Three items are added to its history: 'dinosaurs', 'trucks', and 'internet' by
+calling the ``make_it_so()`` application command with the ``world_id`` aggregate
+ID. The history of the aggregate is obtained when the ``get_world_history()``
+method is called.
 
 
 .. code:: python
@@ -129,6 +148,11 @@ items are added to its history: 'dinosaurs', 'trucks', and 'internet'.
     assert history[1] == 'trucks'
     assert history[2] == 'internet'
 
+
+Repository
+==========
+
+Todo: more about object class :class:`~eventsourcing.application.Repository`.
 
 Notification log
 ================
