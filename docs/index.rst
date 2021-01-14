@@ -14,8 +14,8 @@ Contents
    topics/introduction
    topics/support
    topics/installing
-   topics/domain
    topics/application
+   topics/domain
    topics/persistence
    topics/system
    topics/release_notes
