@@ -14,10 +14,10 @@ Contents
    topics/introduction
    topics/support
    topics/installing
-   topics/application
    topics/domain
-   topics/persistence
+   topics/application
    topics/system
+   topics/persistence
    topics/release_notes
 
 
