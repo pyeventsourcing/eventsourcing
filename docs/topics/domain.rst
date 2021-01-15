@@ -4,13 +4,12 @@
 
 
 This module helps with developing event-sourced domain models.
-It includes a base class for event-sourced aggregates that can be
+It includes a base class for event-sourced **aggregates** that can be
 used to develop an event-sourced domain model. Event sourced aggregates
-depend on domain events, and so the aggregate class has a nested event class
+depend on **domain events**, and so the aggregate class has a nested event class
 that can be used to define aggregate events.
 
-There is also a snapshot class, which can be used to store the current state
-of an aggregate. Snapshots improve the time needed to reconstruct an aggregate,
+There is also a snapshot class. **Snapshots** improve the time needed to reconstruct an aggregate,
 by avoiding the need to retrieve and apply all the domain events of an aggregate
 to reconstruct an aggregate object.
 
