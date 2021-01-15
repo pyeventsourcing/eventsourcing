@@ -2,13 +2,14 @@
 :mod:`eventsourcing.application` --- Applications
 =================================================
 
-This module helps with developing event-sourced applications. It includes
-a base class for event-sourced **application** objects.
+This module helps with developing event-sourced applications.
 
-There is also a **repository** for class that is used to obtain already
-existing aggregates, and a **notification log** class that is used to
-propagate the state of the application as a sequence of domain event
-notifications.
+An event-sourced **application** object has command and query
+methods used by clients to interact with its domain model.
+An application object has an event-sourced **repository** used to obtain already
+existing event-sourced aggregates. It also has a **notification log**
+that is used to propagate the state of the application as a sequence
+of domain event notifications.
 
 
 Domain-driven design

@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID, uuid4
 
 # Locations in the world.
-from eventsourcing.domain import Aggregate
+from eventsourcing.domain import Aggregate, TZINFO
 
 
 class Location(Enum):

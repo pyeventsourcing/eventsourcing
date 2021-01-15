@@ -1,6 +1,7 @@
 import unittest
 from datetime import datetime, timedelta
 
+from eventsourcing.domain import TZINFO
 from eventsourcing.examples.cargoshipping.application import BookingApplication
 from eventsourcing.examples.cargoshipping.interface import (
     LocalClient,

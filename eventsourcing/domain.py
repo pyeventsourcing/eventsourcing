@@ -61,18 +61,6 @@ class Aggregate:
         def apply(self, obj) -> None:
             pass
 
-    def __init__(self, uuid: UUID, version: int, timestamp: datetime):
-        """
-        Aggregate is constructed with a 'uuid',
-        a 'version', and a 'timestamp'. The internal
-        '_pending_events_' list is also initialised.
-        """
-        self.uuid = uuid
-        self.version = version
-        self.created_on = timestamp
-        self.modified_on = timestamp
-        self._pending_events_: List[Aggregate.Event] = []
-
     @classmethod
     def _create_(
         cls,
@@ -122,6 +110,18 @@ class Aggregate:
             aggregate_class = resolve_topic(kwargs.pop("originator_topic"))
             # Construct and return aggregate object.
             return aggregate_class(uuid=uuid, version=version, **kwargs)
+
+    def __init__(self, uuid: UUID, version: int, timestamp: datetime):
+        """
+        Aggregate is constructed with a 'uuid',
+        a 'version', and a 'timestamp'. The internal
+        '_pending_events_' list is also initialised.
+        """
+        self.uuid = uuid
+        self.version = version
+        self.created_on = timestamp
+        self.modified_on = timestamp
+        self._pending_events_: List[Aggregate.Event] = []
 
     def _trigger_(
         self,
