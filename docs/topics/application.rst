@@ -44,10 +44,10 @@ of your project should guide the names of the application's command and query me
 along with those of its domain model aggregates.
 
 The application's ``save()`` method can be used to update the recorded state of one or
-many `domain model aggregates <domain.html#event-sourced-aggregates>`_.
-The ``save()`` method functions by using the aggregate's ``collect()`` method
-to collect pending domain events; the pending domain events are stored by
-calling the ``put()`` method of application's `event store <persistence.html#event-store>`_.
+many `domain model aggregates <domain.html#event-sourced-aggregates>`_. The ``save()``
+method functions by using the aggregate's ``_collect_()`` method to collect pending
+domain events; the pending domain events are stored by calling the ``put()`` method
+of application's `event store <persistence.html#event-store>`_.
 
 The application's ``repository`` attribute has an `event-sourced repository <#repository>`_.
 The repository's ``get()`` method can be used by your application's command and query methods
@@ -66,8 +66,8 @@ Basic example
 =============
 
 In the example below, the ``Worlds`` application extends the library's
-application object class. The ``World`` aggregate is defined and discussed
-in the :doc:`domain module documentation </topics/domain>`.
+application object base class. The ``World`` aggregate is defined and discussed
+in the `domain module documentation <domain.html#basic-example>`_.
 
 The application's ``create_world()`` method is a command method that creates
 and saves new ``World`` aggregates, returning a new ``world_id`` that can be
@@ -75,7 +75,7 @@ used to identify the aggregate on subsequence method calls. It saves the new
 aggregate by calling the base class ``save()`` method.
 
 The application's ``make_it_so()`` method is a command method that obtains an
-existing ``World`` aggregate from the repository,then calls the aggregate's
+existing ``World`` aggregate from the repository, then calls the aggregate's
 command method ``make_it_so()``, and then saves the aggregate by calling the
 application's ``save()`` method.
 

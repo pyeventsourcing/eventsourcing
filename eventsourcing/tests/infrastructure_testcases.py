@@ -4,7 +4,7 @@ from unittest.case import TestCase
 from uuid import uuid4
 
 from eventsourcing.cipher import AESCipher
-from eventsourcing.domain import DomainEvent
+from eventsourcing.domain import DomainEvent, TZINFO
 from eventsourcing.persistence import (
     AggregateRecorder,
     ApplicationRecorder,
@@ -140,7 +140,7 @@ class InfrastructureFactoryTestCase(TestCase):
         domain_event = DomainEvent(
             originator_id=uuid4(),
             originator_version=1,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=TZINFO),
         )
         stored_event = mapper1.from_domain_event(domain_event)
         copy = mapper1.to_domain_event(stored_event)

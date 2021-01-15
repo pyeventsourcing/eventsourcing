@@ -2,7 +2,7 @@ from datetime import datetime
 from unittest.case import TestCase
 from uuid import UUID, uuid4
 
-from eventsourcing.domain import DomainEvent
+from eventsourcing.domain import DomainEvent, TZINFO
 
 
 class TestDomainEvent(TestCase):
@@ -18,7 +18,7 @@ class TestDomainEvent(TestCase):
             originator_id=uuid4(),
             originator_version=0,
             full_name="Alice",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=TZINFO),
         )
 
         assert event3.full_name == "Alice"
@@ -35,7 +35,7 @@ class TestDomainEvent(TestCase):
             originator_id=event3.originator_id,
             originator_version=1,
             full_name="Bob",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=TZINFO),
         )
 
         # Check the attribute values of the domain event.

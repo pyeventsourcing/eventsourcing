@@ -1,9 +1,14 @@
+import os
 from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional, Type, TypeVar
 from uuid import UUID
 
 from eventsourcing.utils import get_topic, resolve_topic
+
+TZINFO = resolve_topic(
+    os.getenv('TZINFO_TOPIC', 'datetime:timezone.utc')
+)
 
 
 class FrozenDataClass(type):
@@ -86,7 +91,7 @@ class Aggregate:
             originator_id=uuid,
             originator_version=1,
             originator_topic=get_topic(cls),
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=TZINFO),
             **kwargs,
         )
         # Construct the aggregate object.
@@ -135,7 +140,7 @@ class Aggregate:
         event = event_class(
             originator_id=self.uuid,
             originator_version=next_version,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=TZINFO),
             **kwargs,
         )
         # Mutate aggregate with domain event.
@@ -170,7 +175,7 @@ class Snapshot(DomainEvent):
         return cls(  # type: ignore
             originator_id=originator_id,
             originator_version=originator_version,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=TZINFO),
             topic=get_topic(type(aggregate)),
             state=state,
         )

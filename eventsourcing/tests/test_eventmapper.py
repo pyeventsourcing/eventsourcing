@@ -5,6 +5,7 @@ from unittest.case import TestCase
 from uuid import UUID, uuid4
 
 from eventsourcing.cipher import AESCipher
+from eventsourcing.domain import TZINFO
 from eventsourcing.persistence import (
     DatetimeAsISO,
     DecimalAsStr,
@@ -34,7 +35,7 @@ class TestMapper(TestCase):
         domain_event = BankAccount.TransactionAppended(
             originator_id=uuid4(),
             originator_version=123456,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=TZINFO),
             amount=Decimal("10.00"),
         )
 
@@ -53,7 +54,7 @@ class TestMapper(TestCase):
         assert copy.timestamp == domain_event.timestamp, copy.timestamp
         assert copy.originator_version == domain_event.originator_version
 
-        assert len(stored_event.state) == 173, len(stored_event.state)
+        assert len(stored_event.state) == 179, len(stored_event.state)
 
         # Construct mapper with cipher and compressor.
         import zlib
@@ -75,13 +76,10 @@ class TestMapper(TestCase):
         assert copy.originator_version == domain_event.originator_version
 
         assert len(stored_event.state) in (
-            134,
-            135,
-            136,
-            137,
-            138,
-            139,
             140,
+            141,
+            142,
+            143,
         ), len(stored_event.state)
 
 

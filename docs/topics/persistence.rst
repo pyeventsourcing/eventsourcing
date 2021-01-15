@@ -247,12 +247,12 @@ The ``from_domain_event()`` method of the ``mapper`` object converts
 
 .. code:: python
 
-    from eventsourcing.domain import DomainEvent
+    from eventsourcing.domain import DomainEvent, TZINFO
 
     domain_event1 = DomainEvent(
         originator_id = id1,
         originator_version = 1,
-        timestamp = datetime.now(),
+        timestamp = datetime.now(tz=TZINFO),
     )
 
     stored_event1 = mapper.from_domain_event(domain_event1)

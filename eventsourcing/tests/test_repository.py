@@ -4,7 +4,7 @@ from unittest.case import TestCase
 from uuid import uuid4
 
 from eventsourcing.application import AggregateNotFound, Repository
-from eventsourcing.domain import Aggregate, Snapshot
+from eventsourcing.domain import Aggregate, Snapshot, TZINFO
 from eventsourcing.persistence import (
     DatetimeAsISO,
     DecimalAsStr,
@@ -69,7 +69,7 @@ class TestRepository(TestCase):
         snapshot = Snapshot(  # type: ignore
             originator_id=account.uuid,
             originator_version=account.version,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=TZINFO),
             topic=get_topic(type(account)),
             state=account.__dict__,
         )

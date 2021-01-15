@@ -223,7 +223,7 @@ class Cargo(Aggregate):
         def apply(self, obj: "Cargo") -> None:
             obj._route = self.route
             obj._routing_status = "ROUTED"
-            obj._estimated_time_of_arrival = datetime.now() + timedelta(weeks=1)
+            obj._estimated_time_of_arrival = datetime.now(tz=TZINFO) + timedelta(weeks=1)
             obj._next_expected_activity = (
                 HandlingActivity.RECEIVE,
                 obj.origin,

@@ -3,19 +3,19 @@ from decimal import Decimal
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.domain import Aggregate, VersionError
+from eventsourcing.domain import Aggregate, TZINFO, VersionError
 
 
 class TestAggregate(TestCase):
     def test_aggregate_base_class(self):
         # Check the _create_() method creates a new aggregate.
-        before_created = datetime.now()
+        before_created = datetime.now(tz=TZINFO)
         uuid = uuid4()
         a = Aggregate._create_(
             event_class=Aggregate.Created,
             uuid=uuid,
         )
-        after_created = datetime.now()
+        after_created = datetime.now(tz=TZINFO)
         self.assertIsInstance(a, Aggregate)
         self.assertEqual(a.uuid, uuid)
         self.assertEqual(a.version, 1)
@@ -39,7 +39,7 @@ class TestAggregate(TestCase):
         event = Aggregate.Event(
             originator_id=a.uuid,
             originator_version=next_version,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=TZINFO),
         )
         # Check raises "VersionError".
         with self.assertRaises(VersionError):
