@@ -4,8 +4,7 @@
 
 
 This module helps with developing event-sourced domain models.
-
-There is a base class for event-sourced aggregates that can be
+It includes a base class for event-sourced aggregates that can be
 used to develop an event-sourced domain model. Event sourced aggregates
 depend on domain events, and so the aggregate class has a nested event class
 that can be used to define aggregate events.

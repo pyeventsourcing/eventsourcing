@@ -2,12 +2,13 @@
 :mod:`eventsourcing.application` --- Applications
 =================================================
 
-This module helps with developing event-sourced applications.
+This module helps with developing event-sourced applications. It includes
+a base class for event-sourced **application** objects.
 
-There is a base class for event-sourced **application** object. There is also
-a **repository** for class that is used to obtain already existing aggregates,
-and a **notification log** class that is used to propagate the state of
-the application as a sequence of domain event notifications.
+There is also a **repository** for class that is used to obtain already
+existing aggregates, and a **notification log** class that is used to
+propagate the state of the application as a sequence of domain event
+notifications.
 
 
 Domain-driven design
@@ -28,14 +29,16 @@ application and domain logic.
 Event-sourced applications
 ==========================
 
-An application object brings together objects from the :doc:`domain </topics/domain>`
-and :doc:`persistence </topics/persistence>` modules.
+An event-sourced application object combines a domain model with
+a cohesive mechanism for storing and retrieving domain events.
 
-The library's :class:`~eventsourcing.application.Application` base class can be
-subclassed to develop event-sourced applications. The general idea is to name
+The library's :class:`~eventsourcing.application.Application` base class
+brings together objects from the :doc:`domain </topics/domain>` and
+:doc:`persistence </topics/persistence>` modules. It can be subclassed
+to develop event-sourced applications. The general idea is to name
 your application object class after the domain supported by its domain model,
 and then define command and query methods that allow interfaces to create, read,
-update and delete domain model aggregates. Domain model aggregates are discussed
+update and delete your domain model aggregates. Domain model aggregates are discussed
 in the :doc:`domain module documentation </topics/domain>`. The "ubiquitous language"
 of your project should guide the names of the application's command and query methods,
 along with those of its domain model aggregates.
@@ -46,11 +49,11 @@ The ``save()`` method functions by using the aggregate's ``collect()`` method
 to collect pending domain events; the pending domain events are stored by
 calling the ``put()`` method of application's `event store <persistence.html#event-store>`_.
 
-The application's ``repository`` attribute holds an `event-sourced repository <#repository>`_.
+The application's ``repository`` attribute has an `event-sourced repository <#repository>`_.
 The repository's ``get()`` method can be used by your application's command and query methods
 to obtain already existing aggregates.
 
-The application's ``log`` attribute holds a `local notification log <#notification-log>`_.
+The application's ``log`` attribute has a `local notification log <#notification-log>`_.
 The notification log can be used to propagate the state of an application as a sequence of
 domain event notifications.
 
@@ -156,7 +159,7 @@ method is called.
     assert history[2] == 'internet'
 
 By default, the application object uses the “Plain Old Python Object” infrastructure
-which holds stored domain events in memory only. To store the domain events in a real
+which has stored domain events in memory only. To store the domain events in a real
 database, you will need to `configure persistence <#configuring-persistence>`_.
 
 
@@ -165,7 +168,7 @@ Repository
 
 A repository is used to get the already existing aggregates of the application's domain model.
 
-The application object's ``repository`` attribute holds an instance of the
+The application object's ``repository`` attribute has an instance of the
 library's :class:`~eventsourcing.application.Repository` class.
 
 The repository's ``get()`` method is used to obtain already existing aggregates. It uses
@@ -214,13 +217,13 @@ Notification log
 A notification log can be used to propagate the state of an application as a
 sequence of domain event notifications.
 
-The application object's ``log`` attribute holds an instance of the library's
+The application object's ``log`` attribute has an instance of the library's
 :class:`~eventsourcing.application.LocalNotificationLog` class. The notification
 log presents linked sections of
 `event notification objects <persistence.html#event-notification-objects>`_.
 The sections are instances of the library's :class:`~eventsourcing.application.Section` class.
 
-Each event notification has an ``id`` that holds the unique integer ID of
+Each event notification has an ``id`` that has the unique integer ID of
 the event notification. The event notifications are ordered by their IDs,
 with later event notifications having higher values than earlier ones.
 
@@ -240,16 +243,16 @@ sequence of event notifications, in which case the last event notification
 included in the section may have a notification ID that is greater than that
 which was specified in the requested section ID.
 
-A notification log section has an attribute ``section_id`` that holds the section
+A notification log section has an attribute ``section_id`` that has the section
 ID. The section ID value will represent the event notification ID of the first
 and the last event notification included in the section. If there are no event
 notifications, the section ID will be ``None``.
 
-A notification log section has an attribute ``items`` that holds the list of
+A notification log section has an attribute ``items`` that has the list of
 `event notification objects <persistence.html#event-notification-objects>`_
 included in the section.
 
-A notification log section has an attribute ``next_id`` that holds the section ID
+A notification log section has an attribute ``next_id`` that has the section ID
 of the next section in the notification log. If the notification log section has
 less event notifications that were requested, the ``next_id`` value will be ``None``.
 
