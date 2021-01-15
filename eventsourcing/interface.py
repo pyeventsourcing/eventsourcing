@@ -25,7 +25,7 @@ class RemoteNotificationLog(AbstractNotificationLog):
         body = self.api.get_log_section(section_id)
         section = json.loads(body)
         return Section(  # type: ignore
-            section_id=section["section_id"],
+            id=section["id"],
             next_id=section["next_id"],
             items=[self.deserialise_item(item) for item in section["items"]],
         )
@@ -62,7 +62,7 @@ class JSONNotificationLogView(AbstractNotificationLogView):
         section = self.log[section_id]
         return json.dumps(
             {
-                "section_id": section.section_id,
+                "id": section.id,
                 "next_id": section.next_id,
                 "items": [self.serialise_item(item) for item in section.items],
             }

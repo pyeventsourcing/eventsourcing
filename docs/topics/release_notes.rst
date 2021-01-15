@@ -105,7 +105,7 @@ Added optional correlation and causation IDs for domain events,
 so that a story can be traced through a system of applications.
 
 Added AxonApplication and AxonRecordManager so that Axon Server can
-be used as an event store by event sourced applications.
+be used as an event store by event-sourced applications.
 
 Added RayRunner, which allows a system of applications to be run with
 the Ray framework.

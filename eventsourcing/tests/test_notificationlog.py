@@ -17,7 +17,7 @@ class TestNotificationLog(TestCase):
         # Get the "current" section of log.
         section = notification_log["1,10"]
         self.assertEqual(len(section.items), 0)  # event notifications
-        self.assertEqual(section.section_id, None)
+        self.assertEqual(section.id, None)
         self.assertEqual(section.next_id, None)
 
         # Write 5 events.
@@ -39,7 +39,7 @@ class TestNotificationLog(TestCase):
         self.assertEqual(section.items[2].id, 3)
         self.assertEqual(section.items[3].id, 4)
         self.assertEqual(section.items[4].id, 5)
-        self.assertEqual(section.section_id, "1,5")
+        self.assertEqual(section.id, "1,5")
         self.assertEqual(section.next_id, "6,10")
 
         # Get the "1,5" section of log.
@@ -50,13 +50,13 @@ class TestNotificationLog(TestCase):
         self.assertEqual(section.items[2].id, 3)
         self.assertEqual(section.items[3].id, 4)
         self.assertEqual(section.items[4].id, 5)
-        self.assertEqual(section.section_id, "1,5")
+        self.assertEqual(section.id, "1,5")
         self.assertEqual(section.next_id, "6,10")
 
         # Get the next section of log.
         section = notification_log["6,10"]
         self.assertEqual(len(section.items), 0)  # event notifications
-        self.assertEqual(section.section_id, None)
+        self.assertEqual(section.id, None)
         self.assertEqual(section.next_id, None)
 
         # Write 4 events.
@@ -77,7 +77,7 @@ class TestNotificationLog(TestCase):
         self.assertEqual(section.items[1].id, 7)
         self.assertEqual(section.items[2].id, 8)
         self.assertEqual(section.items[3].id, 9)
-        self.assertEqual(section.section_id, "6,9")
+        self.assertEqual(section.id, "6,9")
         self.assertEqual(section.next_id, None)
 
         # Start at non-regular section start.
@@ -88,7 +88,7 @@ class TestNotificationLog(TestCase):
         self.assertEqual(section.items[2].id, 5)
         self.assertEqual(section.items[3].id, 6)
         self.assertEqual(section.items[4].id, 7)
-        self.assertEqual(section.section_id, "3,7")
+        self.assertEqual(section.id, "3,7")
         self.assertEqual(section.next_id, "8,12")
 
         # Notification log limits section size.
@@ -99,7 +99,7 @@ class TestNotificationLog(TestCase):
         self.assertEqual(section.items[2].id, 5)
         self.assertEqual(section.items[3].id, 6)
         self.assertEqual(section.items[4].id, 7)
-        self.assertEqual(section.section_id, "3,7")
+        self.assertEqual(section.id, "3,7")
         self.assertEqual(section.next_id, "8,12")
 
         # Reader limits section size.
@@ -107,13 +107,13 @@ class TestNotificationLog(TestCase):
         self.assertEqual(len(section.items), 2)  # event notifications
         self.assertEqual(section.items[0].id, 3)
         self.assertEqual(section.items[1].id, 4)
-        self.assertEqual(section.section_id, "3,4")
+        self.assertEqual(section.id, "3,4")
         self.assertEqual(section.next_id, "5,6")
 
         # Meaningless section ID.
         section = notification_log["3,2"]
         self.assertEqual(len(section.items), 0)  # event notifications
-        self.assertEqual(section.section_id, None)
+        self.assertEqual(section.id, None)
         self.assertEqual(section.next_id, None)
 
         # # Numbers below 1.

@@ -29,7 +29,7 @@ These stand-alone library classes are implemented with "double underscore" metho
 to keep the normal object namespace free to be used for domain modelling.
 
 The library's infrastructure layer encapsulates infrastructural services
-required by event sourced applications, in particular by the event
+required by event-sourced applications, in particular by the event
 store. This layer is the original core of this library (the other
 layers were originally included merely as reference examples, to
 demonstrate how to use the infrastructure).

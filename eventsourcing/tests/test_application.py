@@ -49,7 +49,7 @@ class TestApplication(TestCase):
         # Take snapshot.
         app.take_snapshot(account_id, version=2)
 
-        from_snapshot = app.repository.get(account_id, at=3)
+        from_snapshot = app.repository.get(account_id, version=3)
         self.assertIsInstance(from_snapshot, BankAccount)
         self.assertEqual(from_snapshot.version, 3)
         self.assertEqual(from_snapshot.balance, Decimal("35.00"))

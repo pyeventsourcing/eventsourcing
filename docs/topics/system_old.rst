@@ -60,7 +60,7 @@ A process application is an event-sourced :doc:`projection </topics/projections>
 into an event-sourced :doc:`application </topics/application>`. One
 process application may "follow" another. A process application
 projects the state of the applications it follows into its own state.
-Being an event sourced application, the state of a process application
+Being an event-sourced application, the state of a process application
 can be obtained using a :doc:`notification log reader  </topics/notifications>`
 to obtain the state as a sequence of domain events. The projection itself
 is defined by the application's policy, which defines responses to domain
@@ -455,7 +455,7 @@ Commands
 
 Commands have been discussed previously as
 :doc:`methods on domain entities </topics/domainmodel>`. Here, system
-commands are introduced, as event sourced aggregates created within a
+commands are introduced, as event-sourced aggregates created within a
 separate "commands application".
 
 One advantage of having distinct command aggregates is that old commands
@@ -1408,7 +1408,7 @@ Please refer to the test for more information about using this class.
 .. Altogether, this collection of issues and remedies seems exciting at first but mostly
 .. inhibits confidence that the actor model offers a simple, reliable, and maintainable
 .. approach to propagating the state of an application. It seems like a unreliable
-.. approach for projecting the state of an event sourced application, and therefore cannot
+.. approach for projecting the state of an event-sourced application, and therefore cannot
 .. be the basis of a reliable system that processes domain events by generating other
 .. domain events. Most of the remedies each seem much more complicated than the notification
 .. log approach implemented in this library.

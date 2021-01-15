@@ -9,7 +9,7 @@ Core features
 sequenced item mapper with a record manager to map domain events
 to database records in ways that can be easily extended and replaced.
 
-**Layer base classes** — suggest how to structure an event sourced application.
+**Layer base classes** — suggest how to structure an event-sourced application.
 The library has base classes for application objects, domain entities, entity repositories,
 domain events of various types, mapping strategies, snapshotting strategies, cipher strategies,
 etc. They are well factored, relatively simple, and can be easily extended for your own

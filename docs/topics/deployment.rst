@@ -436,7 +436,7 @@ The library's Cassandra classes use the Cassandra Python library which the Djang
 project integrates into Django. So you can easily develop an event sourcing application
 using the capabilities of this library, and then write views in Django, and use the
 Django-Cassandra project as a means of integrating Django as an Web interface to an
-event sourced application that uses Cassandra.
+event-sourced application that uses Cassandra.
 
 It's also possible to use this library directly with Django and Cassandra. You
 just need to configure the connection and initialise the application before handling

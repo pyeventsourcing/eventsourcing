@@ -28,7 +28,7 @@ for this project, which you are [welcome to join](https://join.slack.com/t/event
 sequenced item mapper with a record strategy to map domain events
 to database records in ways that can be easily extended and replaced.
 
-**Abstract base classes** — suggest how to structure an event sourced
+**Abstract base classes** — suggest how to structure an event-sourced
 application. The library has base classes for application objects,
 domain entities, entity repositories, domain events of various types,
 mapping strategies, snapshotting strategies, cipher strategies, etc.

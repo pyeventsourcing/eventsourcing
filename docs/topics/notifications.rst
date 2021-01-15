@@ -39,7 +39,7 @@ notifications. The simple logic of an ascending sequence
 of integers can allow others to progress along an application's
 sequence of events. It is also possible to use timestamps.
 
-The first option implies that each event sourced application
+The first option implies that each event-sourced application
 functions cohesively also as a messaging service. Assuming that
 "messaging service" means an AMQP system, it seems impractical
 in a small library such as this to implement an AMQP broker,

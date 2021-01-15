@@ -1027,7 +1027,7 @@ Event store
 
 The library's :class:`~eventsourcing.infrastructure.eventstore.EventStore`
 provides an interface to the library's cohesive mechanism for storing events
-as sequences of items, and can be used directly within an event sourced
+as sequences of items, and can be used directly within an event-sourced
 application to append and retrieve its domain events.
 
 The :class:`~eventsourcing.infrastructure.eventstore.EventStore`

@@ -3,9 +3,9 @@
 =============================================
 
 
-This module helps with developing event sourced domain models.
+This module helps with developing event-sourced domain models.
 
-There is a base class for event sourced aggregates that can be
+There is a base class for event-sourced aggregates that can be
 used to develop an event-sourced domain model. Event sourced aggregates
 depend on domain events, and so the aggregate class has a nested event class
 that can be used to define aggregate events.
@@ -40,7 +40,7 @@ to uniquely identity of the aggregate in a domain model. External access to
 the state of the aggregate is made through this root entity. The 'aggregate root'
 has command and query methods which change and present the state of the aggregate.
 
-The command methods of an event sourced aggregate trigger domain events, and the
+The command methods of an event-sourced aggregate trigger domain events, and the
 domain events are used to mutate the state of the aggregate. One command may result
 in many events, and also responding to a client request may result in more than one
 command. In order to construct a consistency boundary, we need to record the domain
@@ -50,11 +50,11 @@ inconsistent, or unusual, or unworkable. The atomic recording of the changes to
 an aggregate defines the consistency 'boundary'.
 
 
-Event sourced aggregates
+Event-sourced aggregates
 ========================
 
 The library's :class:`~eventsourcing.domain.Aggregate` class can be subclassed to develop
-event sourced domain model aggregates. The nested class
+event-sourced domain model aggregates. The nested class
 :class:`~eventsourcing.domain.Aggregate.Event` can be subclassed to define domain event
 classes that will be triggered by the command methods of the domain model aggregates. The
 class method ``_create_()`` can be called to help with the creation of a new aggregate.

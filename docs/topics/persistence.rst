@@ -133,6 +133,11 @@ JSON objects.
 The transcoder uses the Python ``json`` module, and so
 by default only the object types supported by that module
 can be encoded and decoded.
+
+
+Transcodings
+============
+
 In order to encode and decode other types of object, custom
 transcodings need to be registered with the transcoder
 using the transcoder object's ``register()`` method.
@@ -182,6 +187,7 @@ transcodes Python ``Decimal`` objects as decimal strings.
     value = transcoder.encode(decimal1)
     assert transcoder.decode(value) == decimal1
 
+
 Trying to transcode an unsupported type will result in a ``TypeError``.
 
 .. code:: python
@@ -195,6 +201,7 @@ Trying to transcode an unsupported type will result in a ``TypeError``.
         pass
     else:
         raise Exception("shouldn't get here")
+
 
 The library's abstract base class :class:`~eventsourcing.persistence.Transcoding`
 can be subclassed to define custom transcodings for other object types.
@@ -298,7 +305,7 @@ used to encrypt stored events.
 
 With encryption, the state of the domain event will not be visible in the
 stored event. This feature can be used to implement "application-level
-encryption" in an event sourced application.
+encryption" in an event-sourced application.
 
 .. code:: python
 

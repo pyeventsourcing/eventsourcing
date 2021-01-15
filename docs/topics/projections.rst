@@ -3,11 +3,11 @@ Projections
 ===========
 
 A projection is a function of application state. If the state of
-an application is event sourced, projections can operate by processing
+an application is event-sourced, projections can operate by processing
 the events of an application. There are lots of different ways of implementing
 a projection. This section discusses three approaches: subscribing directly to
 domain events as are they are published from the domain model of
-an event sourced application; reading a notification log which presents
+an event-sourced application; reading a notification log which presents
 recorded domain events of an application in a serial order; and tracking a
 notification log with tracking records that are persisted in the same atomic
 transaction as the projected state.
@@ -39,7 +39,7 @@ processing a notification. Otherwise it is possible to track the position
 and fail to update the projection, or vice versa.
 
 Since projections can update more or less anything, they can also call
-command methods on event sourced aggregates. The important thing is for
+command methods on event-sourced aggregates. The important thing is for
 any new domain events that are triggered by the aggregates to be recorded
 in the same database transaction as the tracking records. For reliability,
 if these new domain events are also placed in a notification log, then the
@@ -147,7 +147,7 @@ to track the notifications is replication (see example below). However, with
 this technique, something must be written to the projection's sequence for
 each notification received. That can be tolerated by writing "null" records
 that extend the sequence without spoiling the projections, for example in
-the event sourced index example below, random keys are inserted
+the event-sourced index example below, random keys are inserted
 instead of email addresses to extend the sequence.
 
 An alternative which avoids writing unnecessarily to a projection's sequence
@@ -350,7 +350,7 @@ at each stage.
 
 For example, a sequence of events could be converted into a
 sequence of commands, and the sequence of commands could be used to update an
-event sourced index, in an index application. An event that does not affect the
+event-sourced index, in an index application. An event that does not affect the
 projection can be recorded as "noop", so that the position is maintained. All but
 the last noop could be deleted from the command log. If the command is committed
 in the same transaction as the events resulting from the command, then the reliability
@@ -757,7 +757,7 @@ Using custom ORM objects of a particular kind (ie. Django or SQLAlchemy) in
 a system of process applications renders that system dependent on particular infrastructure,
 and so it won't be possible using this technique to define an entire system of process
 applications independently of infrastructure. It wouldn't be so very hard to develop some
-non-event sourced projection model classes that are independent of infrastructure, but the
+non-event-sourced projection model classes that are independent of infrastructure, but the
 library doesn't include any support for that at the moment. Nevertheless, it is still possible
 to run with different system runners (ie single-threaded, multiprocessing, etc.).
 
@@ -798,7 +798,7 @@ to run with different system runners (ie single-threaded, multiprocessing, etc.)
 .. subscriber and one view?)
 
 .. Todo: So something for a view to maintain its position in the sequence,
-.. perhaps version the view updates (event sourced or snapshots) if there
+.. perhaps version the view updates (event-sourced or snapshots) if there
 .. are no transactions, or use a dedicated table if there are transactions.
 
 

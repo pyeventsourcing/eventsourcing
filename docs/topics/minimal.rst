@@ -2,7 +2,7 @@
 Stand-alone example
 ===================
 
-In this section, an event sourced application is developed that has minimal
+In this section, an event-sourced application is developed that has minimal
 dependencies on the library.
 
 A stand-alone domain model is developed without library classes, which shows
@@ -17,7 +17,7 @@ so you can understand how to make variations.
 Domain
 ======
 
-Let's start with the domain model. If the state of an event sourced application
+Let's start with the domain model. If the state of an event-sourced application
 is determined by a sequence of events, then we need to define some events.
 
 Domain events
@@ -471,7 +471,7 @@ to attributes of the domain event classes we defined in the domain model section
 Entity repository
 -----------------
 
-It is common to retrieve entities from a repository. An event sourced repository
+It is common to retrieve entities from a repository. An event-sourced repository
 for the ``example`` entity class can be constructed directly using library class
 :class:`~eventsourcing.infrastructure.eventsourcedrepository.EventSourcedRepository`.
 

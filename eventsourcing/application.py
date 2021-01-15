@@ -107,7 +107,7 @@ class Repository:
         self.event_store = event_store
         self.snapshot_store = snapshot_store
 
-    def get(self, aggregate_id: UUID, at: int = None) -> Aggregate:
+    def get(self, aggregate_id: UUID, version: int = None) -> Aggregate:
         """
         Returns aggregate for given ID, optionally at given version.
         """
@@ -121,7 +121,7 @@ class Repository:
                 originator_id=aggregate_id,
                 desc=True,
                 limit=1,
-                lte=at,
+                lte=version,
             )
             try:
                 snapshot = next(snapshots)
@@ -134,7 +134,7 @@ class Repository:
         domain_events += self.event_store.get(
             originator_id=aggregate_id,
             gt=gt,
-            lte=at,
+            lte=version,
         )
 
         # Project the domain events.
@@ -144,7 +144,7 @@ class Repository:
 
         # Raise exception if not found.
         if aggregate is None:
-            raise AggregateNotFound((aggregate_id, at))
+            raise AggregateNotFound((aggregate_id, version))
 
         # Return the aggregate.
         assert isinstance(aggregate, Aggregate)
@@ -156,7 +156,7 @@ class AggregateNotFound(Exception):
 
 
 class Section(ImmutableObject):
-    section_id: str
+    id: str
     items: List[Notification]
     next_id: Optional[str]
 
@@ -206,7 +206,7 @@ class LocalNotificationLog(AbstractNotificationLog):
 
         # Return a section of the notification log.
         return Section(  # type: ignore
-            section_id=return_id,
+            id=return_id,
             items=notifications,
             next_id=next_id,
         )

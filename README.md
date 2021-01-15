@@ -22,7 +22,7 @@ for this project, which you are [welcome to join](https://join.slack.com/t/event
 
 ## Features
 
-**Domain model and application classes** — base classes for event sourced
+**Domain model and application classes** — base classes for event-sourced
 domain models and applications. Applications can be developed that are
 independent of any particular infrastructure.
 
@@ -181,7 +181,7 @@ def test(app: Application):
         pass
 
     # Get historical state (at version from above).
-    old = app.repository.get(world.uuid, at=version)
+    old = app.repository.get(world.uuid, version=version)
     assert old.history[-1] == 'trucks' # internet not happened
     assert len(old.history) == 2
 

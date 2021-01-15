@@ -22,11 +22,11 @@ attribute values inhibiting performance and stability - different sizes could be
 
 * Optionally decouple topics from actual code, so classes can be moved
 
-* Base class for event sourced projections or views (forthcoming)
+* Base class for event-sourced projections or views (forthcoming)
 
-    * In memory event sourced projection, which needs to replay entire event stream when system starts up (forthcoming)
+    * In memory event-sourced projection, which needs to replay entire event stream when system starts up (forthcoming)
 
-    * Persistent event sourced projection, which stored its projected state, but needs to replay entire event stream
+    * Persistent event-sourced projection, which stored its projected state, but needs to replay entire event stream
       when initialized  (forthcoming)
 
 * Event pointer, object that refer to an event in a stream (forthcoming)
@@ -44,9 +44,9 @@ attribute values inhibiting performance and stability - different sizes could be
 * Boxes (forthcoming, experimental) The notification log pattern enables a flow of events between applications
 in different bounded contexts, and suggests an effective way of avoiding a monolithic
 application by developing a suite of smaller, collaborating, event driven
-and event sourced applications that can maintain integrity despite premature
+and event-sourced applications that can maintain integrity despite premature
 application termination and occasional network partitioning. "Box" is this project's working
-name for the archetypal event sourced application that is dedicated to a bounded context,
+name for the archetypal event-sourced application that is dedicated to a bounded context,
 whilst also being capable of collaborating (using notifications) with other such application
 in other bounded contexts. The well factored monolith amounts to having all boxes running in
 one container, with notifications being made synchronously in process. Microservices arise
