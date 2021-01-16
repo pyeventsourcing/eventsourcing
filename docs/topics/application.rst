@@ -341,12 +341,11 @@ long time to reconstruct the aggregate. Snapshotting aggregates can help to
 reduce access time of aggregates with lots of domain events.
 
 The application method :func:`~eventsourcing.application.Application.take_snapshot`
-can be used to create a snapshot of the state of an aggregate. The ID and version
-of an aggregate to be snapshotted must be passed when calling this method.
-By passing in the ID (and optional version number), rather than an actual
-aggregate object, the risk of snapshotting a somehow "corrupted" aggregate
-object that does not represent the actually recorded state of the aggregate
-is avoided.
+can be used to create a snapshot of the state of an aggregate. The ID of an aggregate
+to be snapshotted must be passed when calling this method. By passing in the ID
+(and optional version number), rather than an actual aggregate object, the risk of
+snapshotting a somehow "corrupted" aggregate object that does not represent the
+actually recorded state of the aggregate is avoided.
 
 To enable the snapshotting functionality, the environment variable
 ``IS_SNAPSHOTTING_ENABLED`` must be set to a valid "true"  value. The Python
@@ -379,10 +378,11 @@ to storing snapshots. The snapshots can be retrieved from the snapshot store.
 .. code:: python
 
     snapshots = application.snapshots.get(world_id, desc=True, limit=1)
-    snapshots = list(snapshots)
 
+    snapshots = list(snapshots)
     assert len(snapshots) == 1
     snapshot = snapshots[0]
+
     assert snapshot.originator_id == world_id
     assert snapshot.originator_version == 4
 
