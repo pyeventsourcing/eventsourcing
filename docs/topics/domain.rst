@@ -213,20 +213,23 @@ this value as the ``originator_version`` of the new domain event. It calls
 :func:`datetime.now` to create the ``timestamp`` value of the new domain event.
 
 The timestamp values are "timezone aware" datetime objects. The default timezone is
-UTC, as defined by Python's :data:`datetime.timezone.utc`. This default can be changed
-either by assigning a :class:`datetime.tzinfo` object to :data:`TZINFO` in the :mod:`eventsourcing.domain` module.
-The :data:`eventsourcing.domain.TZINFO` value can also be configured
-using environment variables, by setting the environment variable ``TZINFO_TOPIC`` to
-a string that describes the `topic <#topics>`_ of a Python :data:`datetime.tzinfo` object
+UTC, as defined by Python's :data:`datetime.timezone.utc`. It is recommended to store
+date-times as UTC values, and convert to a local timezone in the interface layer according
+to the particular timezone of a particular user. However, if necessary, this default can
+be changed either by assigning a :class:`datetime.tzinfo` object to :data:`TZINFO` in the
+:mod:`eventsourcing.domain` module. The :data:`eventsourcing.domain.TZINFO` value can also
+be configured using environment variables, by setting the environment variable ``TZINFO_TOPIC``
+to a string that describes the `topic <#topics>`_ of a Python :data:`datetime.tzinfo` object
 (for example ``datetime:timezone.utc``).
 
-The :class:`~eventsourcing.domain.Aggregate.Event` has a method :func:`~eventsourcing.domain.Aggregate.Event.apply`
-which can be overridden on custom domain event classes to mutate the state of the aggregate to
-which a domain event object pertains. It has an argument ``aggregate`` which is used to pass the
-aggregate object to which the domain event object pertains into the :func:`~eventsourcing.domain.Aggregate.Event.apply`
-method. The :func:`~eventsourcing.domain.Aggregate.Event.apply` method is called by the event's
-:func:`~eventsourcing.domain.Aggregate.Event.mutate` method, which is called when reconstructing an aggregate from
-its events.
+The :class:`~eventsourcing.domain.Aggregate.Event` has a method
+:func:`~eventsourcing.domain.Aggregate.Event.apply` which can be overridden on custom domain
+event classes to mutate the state of the aggregate to which a domain event object pertains. It
+has an argument ``aggregate`` which is used to pass the aggregate object to which the domain
+event object pertains into the :func:`~eventsourcing.domain.Aggregate.Event.apply` method. The
+:func:`~eventsourcing.domain.Aggregate.Event.apply` method is called by the event's
+:func:`~eventsourcing.domain.Aggregate.Event.mutate` method, which is called when
+reconstructing an aggregate from its events.
 
 
 Topics
