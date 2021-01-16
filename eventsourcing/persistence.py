@@ -10,7 +10,7 @@ from distutils.util import strtobool
 from typing import Any, Dict, Generic, Iterator, List, Optional, Union, cast
 from uuid import UUID
 
-from eventsourcing.domain import DomainEvent, ImmutableObject, TDomainEvent
+from eventsourcing.domain import DomainEvent, TDomainEvent
 from eventsourcing.utils import get_topic, resolve_topic
 
 

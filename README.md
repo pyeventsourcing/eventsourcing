@@ -86,6 +86,7 @@ the "history" of the world.
 
 ```python
 
+from dataclasses import dataclass
 from uuid import uuid4
 
 from eventsourcing.domain import Aggregate
@@ -104,6 +105,7 @@ class World(Aggregate):
     def make_it_so(self, something):
         self._trigger_(World.SomethingHappened, what=something)
 
+    @dataclass(frozen=True)
     class SomethingHappened(Aggregate.Event):
         what: str
 

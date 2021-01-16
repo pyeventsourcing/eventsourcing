@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from unittest.case import TestCase
@@ -138,6 +139,7 @@ class BankAccount(Aggregate):
             email_address=email_address,
         )
 
+    @dataclass(frozen=True)
     class Opened(Aggregate.Created):
         full_name: str
         email_address: str
@@ -161,6 +163,7 @@ class BankAccount(Aggregate):
         if self.balance + amount < -self.overdraft_limit:
             raise InsufficientFundsError({"account_id": self.id})
 
+    @dataclass(frozen=True)
     class TransactionAppended(Aggregate.Event):
         """
         Domain event for when transaction
@@ -187,6 +190,7 @@ class BankAccount(Aggregate):
             overdraft_limit=overdraft_limit,
         )
 
+    @dataclass(frozen=True)
     class OverdraftLimitSet(Aggregate.Event):
         """
         Domain event for when overdraft
@@ -204,6 +208,7 @@ class BankAccount(Aggregate):
         """
         self._trigger_(self.Closed)
 
+    @dataclass(frozen=True)
     class Closed(Aggregate.Event):
         """
         Domain event for when account is closed.

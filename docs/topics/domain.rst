@@ -272,6 +272,7 @@ append the ``what`` value to the aggregate's ``history``.
 
 .. code:: python
 
+    from dataclasses import dataclass
     from uuid import uuid4
 
     from eventsourcing.domain import Aggregate
@@ -292,6 +293,7 @@ append the ``what`` value to the aggregate's ``history``.
         def make_it_so(self, what):
             self._trigger_(World.SomethingHappened, what=what)
 
+        @dataclass(frozen=True)
         class SomethingHappened(Aggregate.Event):
             what: str
 

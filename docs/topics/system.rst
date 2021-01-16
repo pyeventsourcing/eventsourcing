@@ -17,6 +17,7 @@ The library's system class...
 
 .. code:: python
 
+    from dataclasses import dataclass
     from uuid import uuid4
 
     from eventsourcing.domain import Aggregate
@@ -37,6 +38,7 @@ The library's system class...
         def make_it_so(self, what):
             self._trigger_(World.SomethingHappened, what=what)
 
+        @dataclass(frozen=True)
         class SomethingHappened(Aggregate.Event):
             what: str
 

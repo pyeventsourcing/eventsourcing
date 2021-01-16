@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from functools import singledispatch
 from unittest.case import TestCase
 from uuid import uuid4
@@ -62,6 +63,7 @@ class EmailNotification(Aggregate):
             message=message,
         )
 
+    @dataclass(frozen=True)
     class Created(Aggregate.Created):
         to: str
         subject: str

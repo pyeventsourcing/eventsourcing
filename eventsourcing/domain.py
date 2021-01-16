@@ -11,17 +11,8 @@ TZINFO: tzinfo = resolve_topic(
 )
 
 
-class FrozenDataClass(type):
-    def __new__(cls, *args):
-        new_cls = super().__new__(cls, *args)
-        return dataclass(frozen=True)(new_cls)
-
-
-class ImmutableObject(metaclass=FrozenDataClass):
-    pass
-
-
-class DomainEvent(ImmutableObject):
+@dataclass(frozen=True)
+class DomainEvent:
     originator_id: UUID
     originator_version: int
     timestamp: datetime
@@ -35,6 +26,7 @@ class Aggregate:
     Base class for aggregate roots.
     """
 
+    @dataclass(frozen=True)
     class Event(DomainEvent):
         """
         Base domain event class for aggregates.
@@ -92,6 +84,7 @@ class Aggregate:
         # Return the aggregate.
         return aggregate
 
+    @dataclass(frozen=True)
     class Created(Event):
         """
         Domain event for when aggregate is created.
@@ -171,6 +164,7 @@ class VersionError(Exception):
     pass
 
 
+@dataclass(frozen=True)
 class Snapshot(DomainEvent):
     topic: str
     state: dict

@@ -116,6 +116,7 @@ presents the current history of an existing aggregate.
 
 
 ..
+    from dataclasses import dataclass
     from uuid import uuid4
 
     from eventsourcing.domain import Aggregate
@@ -136,6 +137,7 @@ presents the current history of an existing aggregate.
         def make_it_so(self, what):
             self._trigger_(World.SomethingHappened, what=what)
 
+        @dataclass(frozen=True)
         class SomethingHappened(Aggregate.Event):
             what: str
 

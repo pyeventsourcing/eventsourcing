@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -131,6 +132,7 @@ class Cargo(Aggregate):
             arrival_deadline=arrival_deadline,
         )
 
+    @dataclass(frozen=True)
     class BookingStarted(Aggregate.Created):
         origin: Location
         destination: Location
@@ -208,6 +210,7 @@ class Cargo(Aggregate):
             destination=destination,
         )
 
+    @dataclass(frozen=True)
     class DestinationChanged(Aggregate.Event):
         destination: Location
 
@@ -217,6 +220,7 @@ class Cargo(Aggregate):
     def assign_route(self, itinerary: Itinerary) -> None:
         self._trigger_(self.RouteAssigned, route=itinerary)
 
+    @dataclass(frozen=True)
     class RouteAssigned(Event):
         route: Itinerary
 
@@ -245,6 +249,7 @@ class Cargo(Aggregate):
             handling_activity=handling_activity,
         )
 
+    @dataclass(frozen=True)
     class HandlingEventRegistered(Event):
         tracking_id: UUID
         voyage_number: str

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime
 from unittest.case import TestCase
 from uuid import UUID, uuid4
@@ -9,6 +10,7 @@ class TestDomainEvent(TestCase):
     def test(self):
 
         # Define an 'account opened' domain event.
+        @dataclass(frozen=True)
         class AccountOpened(DomainEvent):
             full_name: str
             timestamp: datetime
@@ -26,6 +28,7 @@ class TestDomainEvent(TestCase):
         assert event3.originator_version == 0
 
         # Define a 'full name updated' domain event.
+        @dataclass(frozen=True)
         class FullNameUpdated(DomainEvent):
             full_name: str
             timestamp: datetime
