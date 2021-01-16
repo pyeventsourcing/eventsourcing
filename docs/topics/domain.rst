@@ -195,7 +195,7 @@ It is defined to have attributes ``originator_id`` which is a Python :class:`~uu
 
 The nested class :class:`~eventsourcing.domain.Aggregate.Created` represents the creation of
 an aggregate object instance. It extends the base class :class:`~eventsourcing.domain.Aggregate.Event`
-and has an attribute ``originator_topic`` which is Python ``str``. The value of this attribute
+and has an attribute ``originator_topic`` which is Python :class:`str`. The value of this attribute
 will be a `topic <#topics>`_ that describes the path to the aggregate instance's class.
 
 Domain event objects are usually created by aggregate methods, as part of a sequence
@@ -263,7 +263,7 @@ argument ``what``.
 
 The custom domain event class ``SomethingHappened`` extends the base class
 ``Aggregate.Event`` (a Python frozen dataclass) with a field ``what`` which
-is defined as a Python ``str``. The ``apply()`` method is implemented to
+is defined as a Python :class:`str`. The ``apply()`` method is implemented to
 append the ``what`` value to the aggregate's ``history``.
 
 
