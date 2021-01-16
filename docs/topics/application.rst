@@ -44,7 +44,8 @@ in the :doc:`domain module documentation </topics/domain>`. The "ubiquitous lang
 of your project should guide the names of the application's command and query methods,
 along with those of its domain model aggregates.
 
-The application's :func:`~eventsourcing.application.Application.save` method can be
+The :class:`~eventsourcing.application.Application` class defines an object method
+:func:`~eventsourcing.application.Application.save` which can be
 used to update the recorded state of one or many
 `domain model aggregates <domain.html#event-sourced-aggregates>`_. The
 :func:`~eventsourcing.application.Application.save`
@@ -53,15 +54,18 @@ method to collect pending domain events; the pending domain events are stored by
 :func:`~eventsourcing.persistence.EventStore.put` method of application's
 `event store <persistence.html#event-store>`_.
 
-The application's ``repository`` attribute has an `event-sourced repository <#repository>`_.
+The :class:`~eventsourcing.application.Application` class defines an
+object attribute ``repository`` which holds an `event-sourced repository <#repository>`_.
 The repository's :func:`~eventsourcing.application.Repository.get` method can be used by
 your application's command and query methods to obtain already existing aggregates.
 
-The application's ``log`` attribute has a `local notification log <#notification-log>`_.
+The :class:`~eventsourcing.application.Application` class defines an
+object attribute ``log`` which holds a `local notification log <#notification-log>`_.
 The notification log can be used to propagate the state of an application as a sequence of
 domain event notifications.
 
-The application's :func:`~eventsourcing.application.Application.take_snapshot` method can
+The :class:`~eventsourcing.application.Application` class defines an object method
+:func:`~eventsourcing.application.Application.take_snapshot` which can
 be used to `take snapshots <#snapshotting>`_ of existing aggregates. Snapshotting can help
 to reduce access time of aggregates with lots of domain events.
 
@@ -73,17 +77,17 @@ In the example below, the ``Worlds`` application extends the library's
 application object base class. The ``World`` aggregate is defined and discussed
 in the `domain module documentation <domain.html#basic-example>`_.
 
-The application's ``create_world()`` method is a command method that creates
+The ``Worlds`` application's ``create_world()`` method is a command method that creates
 and saves new ``World`` aggregates, returning a new ``world_id`` that can be
 used to identify the aggregate on subsequence method calls. It saves the new
 aggregate by calling the base class ``save()`` method.
 
-The application's ``make_it_so()`` method is a command method that obtains an
+The ``Worlds`` application's ``make_it_so()`` method is a command method that obtains an
 existing ``World`` aggregate from the repository, then calls the aggregate's
 command method ``make_it_so()``, and then saves the aggregate by calling the
 application's ``save()`` method.
 
-The application's ``get_world_history()`` method is a query method that
+The ``Worlds`` application's ``get_world_history()`` method is a query method that
 presents the current history of an existing aggregate.
 
 .. code:: python
@@ -316,7 +320,7 @@ are four notifications in the notification log.
     assert b'internet' in section.items[3].state
 
 A domain event can be reconstructed from an event notification by calling the
-application's mapper method :func:`eventsourcing.persistence.Mapper.to_domain_event`.
+application's mapper method :func:`~eventsourcing.persistence.Mapper.to_domain_event`.
 If the application is configured to encrypt stored events, the event notification
 will also be encrypted, but the mapper will decrypt the event notification.
 

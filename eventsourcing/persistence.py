@@ -145,6 +145,9 @@ class Mapper(Generic[TDomainEvent]):
         self.compressor = compressor
 
     def from_domain_event(self, domain_event: TDomainEvent) -> StoredEvent:
+        """
+        Converts the given domain event to a stored event object.
+        """
         topic: str = get_topic(domain_event.__class__)
         d = copy(domain_event.__dict__)
         d.pop("originator_id")
@@ -162,6 +165,9 @@ class Mapper(Generic[TDomainEvent]):
         )
 
     def to_domain_event(self, stored: StoredEvent) -> TDomainEvent:
+        """
+        Converts the given stored event to a domain event object.
+        """
         state: bytes = stored.state
         if self.cipher:
             state = self.cipher.decrypt(state)
