@@ -44,23 +44,26 @@ in the :doc:`domain module documentation </topics/domain>`. The "ubiquitous lang
 of your project should guide the names of the application's command and query methods,
 along with those of its domain model aggregates.
 
-The application's ``save()`` method can be used to update the recorded state of one or
-many `domain model aggregates <domain.html#event-sourced-aggregates>`_. The ``save()``
-method functions by using the aggregate's ``_collect_()`` method to collect pending
-domain events; the pending domain events are stored by calling the ``put()`` method
-of application's `event store <persistence.html#event-store>`_.
+The application's :func:`~eventsourcing.application.Application.save` method can be
+used to update the recorded state of one or many
+`domain model aggregates <domain.html#event-sourced-aggregates>`_. The
+:func:`~eventsourcing.application.Application.save`
+method functions by using the aggregate's :func:`~eventsourcing.domain.Aggregate._collect_`
+method to collect pending domain events; the pending domain events are stored by calling the
+:func:`~eventsourcing.persistence.EventStore.put` method of application's
+`event store <persistence.html#event-store>`_.
 
 The application's ``repository`` attribute has an `event-sourced repository <#repository>`_.
-The repository's ``get()`` method can be used by your application's command and query methods
-to obtain already existing aggregates.
+The repository's :func:`~eventsourcing.application.Repository.get` method can be used by
+your application's command and query methods to obtain already existing aggregates.
 
 The application's ``log`` attribute has a `local notification log <#notification-log>`_.
 The notification log can be used to propagate the state of an application as a sequence of
 domain event notifications.
 
-The application's ``take_snapshot()`` method can be used to `take snapshots <#snapshotting>`_
-of existing aggregates. Snapshotting can help to reduce access time of aggregates with
-lots of domain events.
+The application's :func:`~eventsourcing.application.Application.take_snapshot` method can
+be used to `take snapshots <#snapshotting>`_ of existing aggregates. Snapshotting can help
+to reduce access time of aggregates with lots of domain events.
 
 
 Basic example
@@ -172,14 +175,18 @@ A repository is used to get the already existing aggregates of the application's
 The application object's ``repository`` attribute has an instance of the
 library's :class:`~eventsourcing.application.Repository` class.
 
-The repository's ``get()`` method is used to obtain already existing aggregates. It uses
-the event store's ``get()`` method to retrieve the already existing domain event objects
-of the requested aggregate, and the ``mutate()`` methods of the domain event objects to
-reconstruct the state of the requested aggregate. The repository's ``get()`` method accepts
-two arguments: ``aggregate_id`` and ``version``:
+The repository's :func:`~eventsourcing.application.Repository.get` method is used to
+obtain already existing aggregates. It uses the event store's
+:func:`~eventsourcing.persistence.EventStore.get` method to retrieve
+the already existing domain event objects
+of the requested aggregate, and the :func:`~eventsourcing.domain.Aggregate.Event.mutate`
+methods of the domain event objects to reconstruct the state of the requested aggregate.
+The repository's :func:`~eventsourcing.application.Repository.get` method accepts two
+arguments: ``aggregate_id`` and ``version``:
 
 The ``aggregate_id`` argument is required, and should be the ID of an already existing
-aggregate. If the aggregate is not found, the exception ``AggregateNotFound`` will be raised.
+aggregate. If the aggregate is not found, the exception
+:class:`~eventsourcing.application.AggregateNotFound` will be raised.
 
 The ``version`` argument is optional, and represents the required version of the aggregate.
 If the requested version is greater than the highest available version of the aggregate, the
@@ -187,6 +194,12 @@ highest available version of the aggregate will be returned.
 
 
 .. code:: python
+
+    world_latest = application.repository.get(world_id)
+
+    assert world_latest._version_ == 4
+    assert len(world_latest.history) == 3
+
 
     world_v1 = application.repository.get(world_id, version=1)
 
@@ -210,6 +223,12 @@ highest available version of the aggregate will be returned.
     assert world_v4._version_ == 4
     assert len(world_v4.history) == 3
     assert world_v4.history[-1] == "internet"
+
+    world_v5 = application.repository.get(world_id, version=5)
+
+    assert world_v5._version_ == 4  # There is no version 5.
+    assert len(world_v5.history) == 3
+    assert world_v5.history[-1] == "internet"
 
 
 Notification log
@@ -305,17 +324,18 @@ a relatively large number of domain event objects, it can take a relatively
 long time to reconstruct the aggregate. Snapshotting aggregates can help to
 reduce access time of aggregates with lots of domain events.
 
-The application method ``take_snapshot()`` can be used to create
-a snapshot of the state of an aggregate. The ID and version of an
-aggregate to be snapshotted must be passed when calling this method.
-By passing in the ID and version, rather than an aggregate object,
-the risk of snapshotting an aggregate object that does not represent
-the actually recorded state of the aggregate is avoided.
+The application method :func:`~eventsourcing.application.Application.take_snapshot`
+can be used to create a snapshot of the state of an aggregate. The ID and version
+of an aggregate to be snapshotted must be passed when calling this method.
+By passing in the ID (and optional version number), rather than an actual
+aggregate object, the risk of snapshotting a somehow "corrupted" aggregate
+object that does not represent the actually recorded state of the aggregate
+is avoided.
 
 To enable the snapshotting functionality, the environment variable
-``IS_SNAPSHOTTING_ENABLED`` must be set to a valid "true"  value. The
-``distutils.utils`` function ``strtobool()`` is used to interpret the
-value of this environment variable, so that strings 'y', 'yes', 't',
+``IS_SNAPSHOTTING_ENABLED`` must be set to a valid "true"  value. The Python
+:mod:`distutils.utils` function :func:`~distutils.utils.strtobool` is used
+to interpret the value of this environment variable, so that strings 'y', 'yes', 't',
 'true', 'on', and '1' are considered to be "true" values, and 'n', 'no',
 'f', 'false', 'off', '0' are considered to be "false" values, and other
 values are considered to be invalid. The default is for the application's
@@ -413,17 +433,19 @@ for example custom value objects, `custom transcodings <persistence.html#transco
 for these objects will need to be implemented and registered with the application's
 transcoder.
 
-The application method ``register_transcodings()`` can
-be extended to register custom transcodings for custom
+The application method :func:`~eventsourcing.application.Application.register_transcodings`
+can be extended to register custom transcodings for custom
 value objects used in your application's domain events.
 The library's application base class registers transcodings
-for ``UUID``, ``Decimal``, and ``datetime`` objects.
+for :class:`~uuid.UUID`, :class:`~decimal.Decimal`, and
+:class:`~datetime.datetime` objects.
 
-For example, to define and register a transcoding the the Python ``date`` class,
+For example, to define and register a transcoding the the Python :class:`~datetime.date` class,
 implement a transcoding such as the ``DateAsISO`` class defined below, and
-extend the ``register_transcodings()`` method by calling both the application's
-``super()`` method with the given ``transcoder`` argument, and then the
-transcoder's ``register()`` method once for each of your custom transcodings.
+extend the :func:`~eventsourcing.application.Application.register_transcodings`
+method by calling both the application's ``super()`` method with the given ``transcoder``
+argument, and then the transcoder's :func:`~eventsourcing.persistence.Transcoder.register`
+method once for each of your custom transcodings.
 
 .. code:: python
 
@@ -462,13 +484,14 @@ event notifications across a network and for reducing the total
 size of recorded application state.
 
 The library's :class:`~eventsourcing.cipher.AESCipher` class can
-be used to encrypt stored domain events. The Python ``zlib`` module
+be used to encrypt stored domain events. The Python :mod:`zlib` module
 can be used to compress stored domain events.
 
 To enable encryption and compression, set the
 environment variables 'CIPHER_TOPIC', 'CIPHER_KEY',
 and 'COMPRESSOR_TOPIC'. You can use the static method
-``AESCipher.create_key()`` to generate a cipher key.
+:func:`~eventsourcing.cipher.AESCipher.create_key` to generate a cipher key.
+
 
 .. code:: python
 

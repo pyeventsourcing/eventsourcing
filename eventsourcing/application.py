@@ -160,6 +160,9 @@ class Application(ABC):
         return transcoder
 
     def register_transcodings(self, transcoder: Transcoder):
+        """
+        Registers transcoding objects on given transcoder.
+        """
         transcoder.register(UUIDAsHex())
         transcoder.register(DecimalAsStr())
         transcoder.register(DatetimeAsISO())
@@ -196,6 +199,10 @@ class Application(ABC):
         return LocalNotificationLog(self.recorder, section_size=10)
 
     def save(self, *aggregates: Aggregate) -> None:
+        """
+        Collects pending events from given aggregates and
+        puts them in the application's event store.
+        """
         events = []
         for aggregate in aggregates:
             events += aggregate._collect_()
@@ -205,7 +212,11 @@ class Application(ABC):
     def notify(self, new_events: List[Aggregate.Event]):
         pass
 
-    def take_snapshot(self, aggregate_id: UUID, version: int):
+    def take_snapshot(self, aggregate_id: UUID, version: Optional[int] = None):
+        """
+        Takes a snapshot of the recorded state of the aggregate,
+        and puts the snapshot in the snapshot store.
+        """
         aggregate = self.repository.get(aggregate_id, version)
         snapshot = Snapshot.take(aggregate)
         self.snapshots.put([snapshot])

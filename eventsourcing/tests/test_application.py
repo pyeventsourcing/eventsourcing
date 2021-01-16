@@ -46,13 +46,29 @@ class TestApplication(TestCase):
         section = app.log["1,10"]
         self.assertEqual(len(section.items), 4)
 
-        # Take snapshot.
+        # Take snapshot (specify version).
         app.take_snapshot(account_id, version=2)
+
+        snapshots = list(app.snapshots.get(account_id, desc=True, limit=1))
+        self.assertEqual(len(snapshots), 1)
+        self.assertEqual(snapshots[0].originator_version, 2)
 
         from_snapshot = app.repository.get(account_id, version=3)
         self.assertIsInstance(from_snapshot, BankAccount)
         self.assertEqual(from_snapshot._version_, 3)
         self.assertEqual(from_snapshot.balance, Decimal("35.00"))
+
+        # Take snapshot (don't specify version).
+        app.take_snapshot(account_id)
+        snapshots = list(app.snapshots.get(account_id, desc=True, limit=1))
+        self.assertEqual(len(snapshots), 1)
+        self.assertEqual(snapshots[0].originator_version, 4)
+
+        from_snapshot = app.repository.get(account_id)
+        self.assertIsInstance(from_snapshot, BankAccount)
+        self.assertEqual(from_snapshot._version_, 4)
+        self.assertEqual(from_snapshot.balance, Decimal("65.00"))
+
 
     def test_performance(self):
 

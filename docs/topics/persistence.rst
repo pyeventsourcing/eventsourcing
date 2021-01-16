@@ -16,8 +16,8 @@ store. It also converts stored events objects back to domain
 event objects when domain events are retrieved from the event
 store. A mapper uses an extensible **transcoder** that can be set up
 with additional transcoding objects that serialise and deserialise
-particular types of object, such as Python's ``UUID``, ``datatime``
-and ``Decimal`` objects. A mapper may use a compressor to compress
+particular types of object, such as Python's :class:`~uuid.UUID`, :class:`~datetime.datetime`
+and :class:`~decimal.Decimal` objects. A mapper may use a compressor to compress
 and decompress the state of stored event objects, and may use a
 cipher to encode and decode the state of stored event objects. If both
 a compressor and a cipher are being used by a mapper, the state of any
@@ -145,7 +145,7 @@ using the transcoder object's ``register()`` method.
 The library includes a limited collection of custom transcoding
 objects. For example, the library's
 :class:`~eventsourcing.persistence.UUIDAsHex` class
-transcodes Python ``UUID`` objects as hexadecimal strings.
+transcodes Python :class:`~uuid.UUID` objects as hexadecimal strings.
 
 .. code:: python
 
@@ -159,9 +159,9 @@ transcodes Python ``UUID`` objects as hexadecimal strings.
 
 
 Similarly, the library's :class:`~eventsourcing.persistence.DatetimeAsISO` class
-transcodes Python ``datatime`` objects as ISO strings, and
+transcodes Python :class:`~datetime.datetime` objects as ISO strings, and
 the class :class:`~eventsourcing.persistence.DecimalAsStr`
-transcodes Python ``Decimal`` objects as decimal strings.
+transcodes Python :class:`~decimal.Decimal` objects as decimal strings.
 
 .. code:: python
 

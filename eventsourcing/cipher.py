@@ -16,6 +16,12 @@ class AESCipher(object):
 
     @staticmethod
     def create_key(num_bytes: int) -> str:
+        """
+        Creates AES cipher key, with length num_bytes.
+
+        :param num_bytes: An int value, either 16, 24, or 32.
+
+        """
         AESCipher.check_key_size(num_bytes)
         return b64encode(AESCipher.random_bytes(num_bytes)).decode("utf8")
 
