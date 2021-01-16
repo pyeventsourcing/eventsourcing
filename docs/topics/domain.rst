@@ -68,6 +68,9 @@ of different kinds.
 
     from eventsourcing.domain import Aggregate
 
+The "sunder" (single-underscore) convention has been adopted for the base class method and attribute
+names, to keep the "normal" namespace clear so that developers are free to use whatever names work best
+in their project's "ubiquitous language".
 
 The :class:`~eventsourcing.domain.Aggregate` class defines a class method
 :func:`~eventsourcing.domain.Aggregate._create_` which can be called to create a new aggregate object. The
@@ -172,16 +175,12 @@ the time when an aggregate object was created. It is a Python :class:`~datetime.
 
 
 The :class:`~eventsourcing.domain.Aggregate` class also defines an object attribute ``_modified_on_``
-which holds the time when an aggregate object was last modified. It is also a Python :class:`~datetime.datetime` object.
+which holds the time when an aggregate object was last modified. It is also a Python
+:class:`~datetime.datetime` object.
 
 .. code:: python
 
     assert isinstance(aggregate._modified_on_, datetime)
-
-
-The "sunder" (single-underscore) convention has been adopted for the base class method and attribute
-names, to keep the "normal" namespace clear so that developers are free to use whatever names work best
-in their project's "ubiquitous language".
 
 
 Domain events
