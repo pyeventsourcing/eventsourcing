@@ -183,68 +183,6 @@ which holds the time when an aggregate object was last modified. It is also a Py
     assert isinstance(aggregate._modified_on_, datetime)
 
 
-Domain events
-=============
-
-Domain event objects represent decisions by the domain model. Domain events are created
-but do not change.
-
-The nested base class for aggregate events is :class:`~eventsourcing.domain.Aggregate.Event`.
-It is defined to have attributes ``originator_id`` which is a Python :class:`~uuid.UUID`, an
-``originator_version`` which is a Python :class:`int`, and ``timestamp`` which is a Python :class:`~datetime.datetime`.
-
-The nested class :class:`~eventsourcing.domain.Aggregate.Created` represents the creation of
-an aggregate object instance. It extends the base class :class:`~eventsourcing.domain.Aggregate.Event`
-and has an attribute ``originator_topic`` which is Python :class:`str`. The value of this attribute
-will be a `topic <#topics>`_ that describes the path to the aggregate instance's class.
-
-Domain event objects are usually created by aggregate methods, as part of a sequence
-that determines the state of an aggregate. The attribute values of new event objects are
-decided by these methods before the event is created. For example, the aggregate's
-:func:`~eventsourcing.domain.Aggregate._create_` method uses the given value of its ``id``
-argument as the new event's ``originator_id``. It sets the ``originator_version`` to the
-value of ``1``. It derives the ``originator_topic`` value from the aggregate class. And
-it calls Python's :func:`datetime.now` to create the ``timestamp`` value.
-
-Similarly, the aggregate :func:`~eventsourcing.domain.Aggregate._trigger_` method uses the
-``id`` attribute of the aggregate as the ``originator_id`` of the new domain event. It uses the current
-aggregate ``version`` to create the next version number (by adding ``1``) and uses
-this value as the ``originator_version`` of the new domain event. It calls
-:func:`datetime.now` to create the ``timestamp`` value of the new domain event.
-
-The timestamp values are "timezone aware" datetime objects. The default timezone is
-UTC, as defined by Python's :data:`datetime.timezone.utc`. It is recommended to store
-date-times as UTC values, and convert to a local timezone in the interface layer according
-to the particular timezone of a particular user. However, if necessary, this default can
-be changed either by assigning a :class:`datetime.tzinfo` object to :data:`TZINFO` in the
-:mod:`eventsourcing.domain` module. The :data:`eventsourcing.domain.TZINFO` value can also
-be configured using environment variables, by setting the environment variable ``TZINFO_TOPIC``
-to a string that describes the `topic <#topics>`_ of a Python :data:`datetime.tzinfo` object
-(for example ``datetime:timezone.utc``).
-
-The :class:`~eventsourcing.domain.Aggregate.Event` has a method
-:func:`~eventsourcing.domain.Aggregate.Event.apply` which can be overridden on custom domain
-event classes to mutate the state of the aggregate to which a domain event object pertains. It
-has an argument ``aggregate`` which is used to pass the aggregate object to which the domain
-event object pertains into the :func:`~eventsourcing.domain.Aggregate.Event.apply` method. The
-:func:`~eventsourcing.domain.Aggregate.Event.apply` method is called by the event's
-:func:`~eventsourcing.domain.Aggregate.Event.mutate` method, which is called when
-reconstructing an aggregate from its events.
-
-
-Topics
-======
-
-A "topic" in this library is a string formed from joining with a colon character
-(``':'``) the path to a Python module (e.g. ``'eventsourcing.domain'``) with the qualified
-name of an object in that module (e.g. ``'Aggregate.Created'``). For example
-``'eventsourcing.domain:Aggregate.Created'`` describes the path to the library's
-:class:`~eventsourcing.domain.Aggregate.Created` class. The library's module
-:mod:`eventsourcing.utils` contains functions :func:`~eventsourcing.utils.resolve_topic()`
-and :func:`~eventsourcing.utils.get_topic()` which are used in the library to resolve
-a given topic to a Python object, and to construct a topic for a given Python object.
-
-
 Basic example
 =============
 
@@ -401,6 +339,68 @@ be used to reconstruct a copy of the original aggregate object.
     assert copy._created_on_ == world._created_on_
     assert copy._modified_on_ == world._modified_on_
     assert copy.history == world.history
+
+
+Domain events
+=============
+
+Domain event objects represent decisions by the domain model. Domain events are created
+but do not change.
+
+The nested base class for aggregate events, :class:`~eventsourcing.domain.Aggregate.Event`,
+is defined to have attributes ``originator_id`` which is a Python :class:`~uuid.UUID`, an
+``originator_version`` which is a Python :class:`int`, and ``timestamp`` which is a Python :class:`~datetime.datetime`.
+
+The :class:`~eventsourcing.domain.Aggregate.Event` has a method
+:func:`~eventsourcing.domain.Aggregate.Event.apply` which can be overridden on custom domain
+event classes to mutate the state of the aggregate to which a domain event object pertains. It
+has an argument ``aggregate`` which is used to pass the aggregate object to which the domain
+event object pertains into the :func:`~eventsourcing.domain.Aggregate.Event.apply` method. The
+:func:`~eventsourcing.domain.Aggregate.Event.apply` method is called by the event's
+:func:`~eventsourcing.domain.Aggregate.Event.mutate` method, which is called when
+reconstructing an aggregate from its events.
+
+The nested class :class:`~eventsourcing.domain.Aggregate.Created` represents the creation of
+an aggregate object instance. It extends the base class :class:`~eventsourcing.domain.Aggregate.Event`
+with its attribute ``originator_topic`` which is Python :class:`str`. The value of this attribute
+will be a `topic <#topics>`_ that describes the path to the aggregate instance's class.
+
+Domain event objects are usually created by aggregate methods, as part of a sequence
+that determines the state of an aggregate. The attribute values of new event objects are
+decided by these methods before the event is created. For example, the aggregate's
+:func:`~eventsourcing.domain.Aggregate._create_` method uses the given value of its ``id``
+argument as the new event's ``originator_id``. It sets the ``originator_version`` to the
+value of ``1``. It derives the ``originator_topic`` value from the aggregate class. And
+it calls Python's :func:`datetime.now` to create the ``timestamp`` value.
+
+Similarly, the aggregate :func:`~eventsourcing.domain.Aggregate._trigger_` method uses the
+``id`` attribute of the aggregate as the ``originator_id`` of the new domain event. It uses the current
+aggregate ``version`` to create the next version number (by adding ``1``) and uses
+this value as the ``originator_version`` of the new domain event. It calls
+:func:`datetime.now` to create the ``timestamp`` value of the new domain event.
+
+The timestamp values are "timezone aware" datetime objects. The default timezone is
+UTC, as defined by Python's :data:`datetime.timezone.utc`. It is recommended to store
+date-times as UTC values, and convert to a local timezone in the interface layer according
+to the particular timezone of a particular user. However, if necessary, this default can
+be changed either by assigning a :class:`datetime.tzinfo` object to :data:`TZINFO` in the
+:mod:`eventsourcing.domain` module. The :data:`eventsourcing.domain.TZINFO` value can also
+be configured using environment variables, by setting the environment variable ``TZINFO_TOPIC``
+to a string that describes the `topic <#topics>`_ of a Python :data:`datetime.tzinfo` object
+(for example ``datetime:timezone.utc``).
+
+
+Topics
+======
+
+A "topic" in this library is a string formed from joining with a colon character
+(``':'``) the path to a Python module (e.g. ``'eventsourcing.domain'``) with the qualified
+name of an object in that module (e.g. ``'Aggregate.Created'``). For example
+``'eventsourcing.domain:Aggregate.Created'`` describes the path to the library's
+:class:`~eventsourcing.domain.Aggregate.Created` class. The library's module
+:mod:`eventsourcing.utils` contains functions :func:`~eventsourcing.utils.resolve_topic()`
+and :func:`~eventsourcing.utils.get_topic()` which are used in the library to resolve
+a given topic to a Python object, and to construct a topic for a given Python object.
 
 
 Snapshots
