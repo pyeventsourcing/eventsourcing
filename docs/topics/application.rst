@@ -315,6 +315,22 @@ are four notifications in the notification log.
     assert b'trucks' in section.items[2].state
     assert b'internet' in section.items[3].state
 
+A domain event can be reconstructed from an event notification by calling the
+application's mapper method :func:`eventsourcing.persistence.Mapper.to_domain_event`.
+If the application is configured to encrypt stored events, the event notification
+will also be encrypted, but the mapper will decrypt the event notification.
+
+.. code:: python
+
+    domain_event = application.mapper.to_domain_event(section.items[0])
+    assert isinstance(domain_event, Aggregate.Created)
+    assert domain_event.originator_id == world_id
+
+    domain_event = application.mapper.to_domain_event(section.items[3])
+    assert isinstance(domain_event, World.SomethingHappened)
+    assert domain_event.originator_id == world_id
+    assert domain_event.what == 'internet'
+
 
 Snapshotting
 ============
@@ -354,7 +370,21 @@ snapshotting functionality not to be enabled.
     application.make_it_so(world_id, 'trucks')
     application.make_it_so(world_id, 'internet')
 
-    application.take_snapshot(world_id, version=4)
+    application.take_snapshot(world_id)
+
+The snapshots are stored separately from the domain events. The application
+object has a ``snapshots`` attribute, which holds an event store dedicated
+to storing snapshots. The snapshots can be retrieved from the snapshot store.
+
+.. code:: python
+
+    snapshots = application.snapshots.get(world_id, desc=True, limit=1)
+    snapshots = list(snapshots)
+
+    assert len(snapshots) == 1
+    snapshot = snapshots[0]
+    assert snapshot.originator_id == world_id
+    assert snapshot.originator_version == 4
 
 
 Configuring persistence
