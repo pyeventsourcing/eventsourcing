@@ -40,80 +40,148 @@ has command and query methods which change and present the state of the aggregat
 Event-sourced aggregates
 ========================
 
-Event-sourced aggregates are the "enduring objects" of a domain model which enjoy
-"adventures of change". An aggregate has a unique identity in the domain model.
-For each event-sourced aggregate, there is a sequence of domain events objects.
-The state of an event-sourced aggregate is determined by its sequence of domain
-event objects. The state of an aggregate can change, but the domain event objects do
-not change. The notion of "change" is simply the contrast between successive
-domain events. The domain event objects are each uniquely identified and have a
-serial ordering.
+Aggregates are enduring objects which enjoy adventures of change. For each
+event-sourced aggregate, there is a sequence of domain event objects. The
+state of an event-sourced aggregate is determined by its sequence of domain
+event objects. The state of an aggregate can change, but the domain event
+objects do not change. The notion of "change" is the contrast between
+successive domain events.
 
-The domain event objects are created by the aggregate's command methods. The command
-methods of an event-sourced aggregate trigger domain events. The domain events are
-used to mutate the state of the aggregate. One command may result in many events,
-and a single client request may result in the execution of many commands. To
-maintain consistency, the domain events triggered by responding to a client request
-must be recorded atomically in the order they were created, otherwise the recorded
-state of the aggregate could become undesirable, or inconsistent, or unusual, or
-unworkable. The atomic recording of the changes to an aggregate defines the 'boundary'
-mentioned in the quote above. This boundary is sometimes referred to as a
-'consistency boundary'.
+The state of an aggregate is changed by calling its command methods. The command methods
+create new domain event objects. The domain events are used to mutate the state of the
+aggregate. By mutating the state of the aggregate via creating and applying domain events,
+the domain events can be used in future to reconstruct the state of the aggregate.
 
-The library's :class:`~eventsourcing.domain.Aggregate` base class can be subclassed
-to develop event-sourced domain model aggregates.
+One command may result in many new domain event objects, and a single client request may
+result in the execution of many commands. To maintain consistency in the domain model,
+the domain events triggered by responding to a client request must be recorded atomically
+in the order they were created, otherwise the recorded state of the aggregate could become
+inconsistent (with respect to that which was desired or expected). The atomic recording of
+the domain model events defines the 'boundary' mentioned in the quote above. This boundary
+is sometimes referred to as a 'consistency boundary'.
 
-The base class method ``_create_()`` is a class method which can be called to create a
-new aggregate object. The ``_create_()`` method has a required positional argument
-``event_class``, which is used to pass a domain event class that represents
-the creation of the aggregate. The ``_create_()`` method also has a required
-``id`` argument which must be a Python ``UUID`` object that will be used to
-uniquely identify the aggregate in the domain model. The ``_create_()`` method
-also accepts arbitrary keyword-only arguments, which will also be used to construct
+The library class :class:`~eventsourcing.domain.Aggregate` is a base class for event-sourced
+aggregates. It can be used directly, or subclassed to develop event-sourced domain model aggregates
+of different kinds.
+
+.. code:: python
+
+    from eventsourcing.domain import Aggregate
+
+
+The :class:`~eventsourcing.domain.Aggregate` class defines a class method
+:func:`~eventsourcing.domain.Aggregate._create_` which can be called to create a new aggregate object. The
+:func:`~eventsourcing.domain.Aggregate._create_` method has
+a required positional argument ``event_class``, which is used to pass a domain event
+class that represents the creation of the aggregate. The :func:`~eventsourcing.domain.Aggregate._create_` method also
+has a required ``id`` argument which must be a Python ``UUID`` object that will be used to
+uniquely identify the aggregate in the domain model. The :func:`~eventsourcing.domain.Aggregate._create_` method
+also accepts arbitrary keyword-only arguments, which will be used to construct
 the "created" event object.
 
-The nested class :class:`~eventsourcing.domain.Aggregate.Created`
-can be subclassed to define a custom "created" event class for your aggregate. The
-domain event classes are defined as a Python frozen data classes. Hence, any extra
-keyword arguments passed to the ``_create_()`` method must be matched by corresponding
-annotations on both the "created" domain event class and the aggregate initializer
-``__init__()``.
+.. code:: python
 
-The base class method ``_trigger_()`` is an object method which can be called on an aggregate
-object to create new domain events objects and apply them to the aggregate. The ``_trigger_()``
-method has a positional argument ``event_class``, which is used to pass the object type of
-the new domain event object. The ``_trigger_()`` method also accepts arbitrary keyword-only
-arguments, which will be used to construct the domain event object.
+    from uuid import uuid4
+
+    aggregate = Aggregate._create_(
+        event_class=Aggregate.Created,
+        id=uuid4(),
+    )
+
+The nested class :class:`~eventsourcing.domain.Aggregate.Created`
+can be used directly, or subclassed to define custom "created" event classes for your aggregate
+classes. The domain event classes are defined as Python frozen data classes. Hence, any extra
+keyword arguments passed to the :func:`~eventsourcing.domain.Aggregate._create_` method must be matched by corresponding
+annotations on both the "created" domain event class and the aggregate initializer
+:func:`~eventsourcing.domain.Aggregate.__init__`.
+
+An aggregate instance has a version number, stored in its ``_version_`` attribute, and the initial version is ``1``.
+
+.. code:: python
+
+    assert aggregate._version_ == 1
+
+
+The :class:`~eventsourcing.domain.Aggregate` class defines an object method
+:func:`~eventsourcing.domain.Aggregate._trigger_` which can be called on an aggregate object
+to create new domain events objects and apply them to the aggregate.
+The :func:`~eventsourcing.domain.Aggregate._trigger_` method has a positional argument ``event_class``, which
+is used to pass the object type of the new domain event object. The :func:`~eventsourcing.domain.Aggregate._trigger_`
+method also accepts arbitrary keyword-only arguments, which will be used to construct the domain event object.
+
+.. code:: python
+
+    aggregate._trigger_(
+        event_class=Aggregate.Event,
+    )
+
+    assert aggregate._version_ == 2
+
 
 The nested class :class:`~eventsourcing.domain.Aggregate.Event` can be subclassed to define custom
 domain event classes, for example the ``SomethingHappened`` class in the example below.
 Domain event classes are named using past participles, such as "Done", "Updated", "Closed",
-etc. The extra keyword-only arguments passed to the ``_trigger_()`` method will become the
-attribute values of the created domain event object. Since the domain event classes are defined
-as Python frozen data classes, the keyword-only arguments passed to the ``_trigger_()`` method
-will need to be matched by corresponding annotations on your aggregates' domain event class
-definitions. For example ``what: str`` on the ``SomethingHappened`` event class in the example
-below matches the ``what=what`` keyword argument passed in the call to the ``_trigger_()``
-method in the ``make_it_so()`` command.
+etc. The extra keyword-only arguments passed to the :func:`~eventsourcing.domain.Aggregate._trigger_`
+method will become the attribute values of the created domain event object. Since the domain event
+classes are defined as Python frozen data classes, the keyword-only arguments passed to the
+:func:`~eventsourcing.domain.Aggregate._trigger_` method will need to be matched by corresponding
+annotations on your aggregates' domain event class definitions. For example ``what: str`` on the
+``SomethingHappened`` event class in the example below matches the ``what=what`` keyword argument
+passed in the call to the :func:`~eventsourcing.domain.Aggregate._trigger_` method in the ``make_it_so()``
+command. Triggering a new domain event object will increase the version of the aggregate.
 
-The base class method ``_collect_()`` is an object method which can be called to collect the aggregate
-domain events that have been triggered but not yet recorded. It is called without any arguments,
-and returns a list of all the domain events that have been created by this aggregate since the
-previous call to ``_collect_()``.
+The :class:`~eventsourcing.domain.Aggregate` class defines an object method
+:func:`~eventsourcing.domain.Aggregate._collect_`
+which can be called to collect the aggregate domain events that have been triggered but not yet recorded.
+It is called without any arguments, and returns a list of all the domain events that have been created
+by this aggregate since the previous call to :func:`~eventsourcing.domain.Aggregate._collect_`.
 
-The base class attribute ``id`` holds the unique ID of an aggregate instance. It is a Python ``UUID``.
+.. code:: python
 
-The base class attribute ``_version_`` holds the version number of an aggregate instance. It is a Python ``int``.
+    pending_events = aggregate._collect_()
 
-The base class attribute ``_created_on_`` holds the time when the aggregate object was created. It is a
-Python ``datetime`` object.
+    assert len(pending_events) == 2
 
-The base class attribute ``_modified_on_`` holds the time when the aggregate object was last modified. It is a
-Python ``datetime`` object.
+
+The :class:`~eventsourcing.domain.Aggregate` class defines an object attribute ``id`` which holds the unique ID
+of an aggregate instance. It is a Python ``UUID``.
+
+.. code:: python
+
+    from uuid import UUID
+
+    assert isinstance(aggregate.id, UUID)
+
+
+The :class:`~eventsourcing.domain.Aggregate` class defines an object attribute ``_version_`` which holds the
+version number of an aggregate instance. It is a Python ``int``.
+
+.. code:: python
+
+    assert isinstance(aggregate._version_, int)
+
+
+The :class:`~eventsourcing.domain.Aggregate` class defines an object attribute ``_created_on_`` which holds
+the time when an aggregate object was created. It is a Python ``datetime`` object.
+
+.. code:: python
+
+    from datetime import datetime
+
+    assert isinstance(aggregate._created_on_, datetime)
+
+
+The :class:`~eventsourcing.domain.Aggregate` class also defines an object attribute ``_modified_on_``
+which holds the time when an aggregate object was last modified. It is also a Python ``datetime`` object.
+
+.. code:: python
+
+    assert isinstance(aggregate._modified_on_, datetime)
+
 
 The "sunder" (single-underscore) convention has been adopted for the base class method and attribute
-names, to keep the namespace free so that developers are free to use whatever names work best in their
-project's "ubiquitous language".
+names, to keep the "normal" namespace clear so that developers are free to use whatever names work best
+in their project's "ubiquitous language".
 
 
 Domain events
@@ -136,20 +204,20 @@ A "topic" in this library is a string formed from joining with a colon character
 name of an object in that module (e.g. ``'Aggregate.Created'``). For example
 ``'eventsourcing.domain:Aggregate.Created'`` describes the path to the library's
 :class:`~eventsourcing.domain.Aggregate.Created` class. The library's module
-``eventsourcing.utils`` contains functions ``resolve_topic()`` and ``get_topic()``
-which are used in the library to resolve a given topic to a Python object, and to
-construct a topic for a given Python object.
+:mod:`eventsourcing.utils` contains functions :func:`~eventsourcing.utils.resolve_topic()`
+and :func:`~eventsourcing.utils.get_topic()` which are used in the library to resolve
+a given topic to a Python object, and to construct a topic for a given Python object.
 
 Domain event objects are usually created by aggregate methods, as part of a sequence
 that determines the state of an aggregate. The attribute values of new event objects are
 decided by these methods before the event is created. For example, the aggregate's
-``_create_()`` method uses the given value of its ``id`` argument as the new event's
-``originator_id``. It sets the ``originator_version`` to the value of ``1``. It derives
-the ``originator_topic`` value from the aggregate class. And it calls ``datetime.now()``
-to create the ``timestamp`` value.
+:func:`~eventsourcing.domain.Aggregate._create_` method uses the given value of its ``id``
+argument as the new event's ``originator_id``. It sets the ``originator_version`` to the
+value of ``1``. It derives the ``originator_topic`` value from the aggregate class. And
+it calls ``datetime.now()`` to create the ``timestamp`` value.
 
-Similarly, the aggregate ``_trigger_()`` method uses the ``id`` attribute of the
-aggregate as the ``originator_id`` of the new domain event. It uses the current
+Similarly, the aggregate :func:`~eventsourcing.domain.Aggregate._trigger_` method uses the
+``id`` attribute of the aggregate as the ``originator_id`` of the new domain event. It uses the current
 aggregate ``version`` to create the next version number (by adding ``1``) and uses
 this value as the ``originator_version`` of the new domain event. It calls
 ``datetime.now()`` to create the ``timestamp`` value of the new domain event.
@@ -162,12 +230,13 @@ using environment variables, by setting the environment variable ``TZINFO_TOPIC`
 a string that describes the "topic" of a ``datetime.tzinfo`` object (for example
 ``datetime:timezone.utc``).
 
-The :class:`~eventsourcing.domain.Aggregate.Event` has a method ``apply()`` which can
-be overridden on custom domain event classes to mutate the state of the aggregate to
-which a domain event object pertains. It has an argument ``aggregate`` which is used
-to pass the aggregate object to which the domain event object pertains into the ``apply()``
-method. The ``apply()`` method is called by the event's ``mutate()`` method, which is
-called when reconstructing an aggregate from its events.
+The :class:`~eventsourcing.domain.Aggregate.Event` has a method :func:`~eventsourcing.domain.Aggregate.Event.apply`
+which can be overridden on custom domain event classes to mutate the state of the aggregate to
+which a domain event object pertains. It has an argument ``aggregate`` which is used to pass the
+aggregate object to which the domain event object pertains into the :func:`~eventsourcing.domain.Aggregate.Event.apply`
+method. The :func:`~eventsourcing.domain.Aggregate.Event.apply` method is called by the event's
+:func:`~eventsourcing.domain.Aggregate.Event.mutate` method, which is called when reconstructing an aggregate from
+its events.
 
 
 Basic example
@@ -330,13 +399,15 @@ Snapshots
 =========
 
 Snapshots speed up aggregate access time, by avoiding the need to retrieve
-and apply all the domain events when reconstructing an aggregate object.
+and apply all the domain events when reconstructing an aggregate object instance.
 
 The library's :class:`~eventsourcing.domain.Snapshot` class can be
-used to create and restore snapshots of aggregates.
+used to create and restore snapshots of aggregate object instances.
 
-The class method ``take()`` can be used to create a snapshot of an
-aggregate object.
+The class method :func:`~eventsourcing.domain.Snapshot.take` can be used to
+create a snapshot of an aggregate object instance. See the
+`discussion of snapshotting <application.html#snapshotting>`_ in the application
+module documentation for more information.
 
 .. code:: python
 
@@ -354,8 +425,8 @@ aggregate object.
     assert len(snapshot.state) == 3
 
 
-The snapshot object's ``mutate()`` method can be used to reconstruct the
-aggregate object.
+A snapshot's :func:`~eventsourcing.domain.Snapshot.mutate` method can be used to reconstruct its
+aggregate object instance.
 
 .. code:: python
 
@@ -368,18 +439,24 @@ aggregate object.
     assert copy._modified_on_ == world._modified_on_
     assert copy.history == world.history
 
-The signature of this method is the same as the aggregate event method
-of the same name, so that when reconstructing an aggregate a list that
-starts with a snapshot and continues with the subsequent domain events
-can be treated in the same way as a list of domain events that starts
-with the first aggregate event. This is used in the application
-`repository <application.html#repository>`_.
+The signature of this method is the same as the domain event object method
+of the same name. When reconstructing an aggregate, a list that starts with
+a snapshot and continues with the subsequent domain event objects can be
+treated in the same way as a list of all the domain event objects of an aggregate.
+This is used in the application `repository <application.html#repository>`_.
 
 
 Classes
 =======
 
 .. automodule:: eventsourcing.domain
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__
+
+.. automodule:: eventsourcing.utils
     :show-inheritance:
     :member-order: bysource
     :members:

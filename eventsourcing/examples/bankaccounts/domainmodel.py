@@ -66,8 +66,8 @@ class BankAccount(Aggregate):
         amount: Decimal
         transaction_id: UUID
 
-        def apply(self, obj: "BankAccount") -> None:
-            obj.balance += self.amount
+        def apply(self, aggregate: "BankAccount") -> None:
+            aggregate.balance += self.amount
 
     def set_overdraft_limit(self, overdraft_limit: Decimal) -> None:
         assert overdraft_limit > Decimal("0.00")
@@ -80,15 +80,15 @@ class BankAccount(Aggregate):
     class OverdraftLimitSet(Aggregate.Event):
         overdraft_limit: Decimal
 
-        def apply(self, obj: "BankAccount") -> None:
-            obj.overdraft_limit = self.overdraft_limit
+        def apply(self, aggregate: "BankAccount") -> None:
+            aggregate.overdraft_limit = self.overdraft_limit
 
     def close(self) -> None:
         self._trigger_(self.Closed)
 
     class Closed(Aggregate.Event):
-        def apply(self, obj: "BankAccount") -> None:
-            obj.is_closed = True
+        def apply(self, aggregate: "BankAccount") -> None:
+            aggregate.is_closed = True
 
     # def record_error(
     #     self, error: Exception, transaction_id=None

@@ -211,8 +211,8 @@ class Cargo(Aggregate):
     class DestinationChanged(Aggregate.Event):
         destination: Location
 
-        def apply(self, obj: "Cargo") -> None:
-            obj._destination = self.destination
+        def apply(self, aggregate: "Cargo") -> None:
+            aggregate._destination = self.destination
 
     def assign_route(self, itinerary: Itinerary) -> None:
         self._trigger_(self.RouteAssigned, route=itinerary)

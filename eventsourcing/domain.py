@@ -58,7 +58,10 @@ class Aggregate:
             self.apply(obj)
             return obj
 
-        def apply(self, obj) -> None:
+        def apply(self, aggregate: "Aggregate") -> None:
+            """
+            Applies the domain event to the aggregate.
+            """
             pass
 
     @classmethod
@@ -174,6 +177,7 @@ class Snapshot(DomainEvent):
 
     @classmethod
     def take(cls, aggregate: Aggregate) -> DomainEvent:
+        """Creates a snapshot of the given aggregate object."""
         state = dict(aggregate.__dict__)
         state.pop("_pending_events_")
         originator_id = state.pop("id")
@@ -187,6 +191,7 @@ class Snapshot(DomainEvent):
         )
 
     def mutate(self, _=None) -> Aggregate:
+        """Reconstructs the snapshotted aggregate object."""
         cls = resolve_topic(self.topic)
         aggregate = object.__new__(cls)
         assert isinstance(aggregate, Aggregate)
