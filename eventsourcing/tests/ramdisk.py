@@ -3,7 +3,7 @@ from tempfile import NamedTemporaryFile
 
 
 def tmpfile_uris():
-    tmp_files = []  # type: ignore
+    tmp_files = []
     ram_disk_path = "/Volumes/RAM DISK/"
     prefix = None
     if os.path.exists(ram_disk_path):

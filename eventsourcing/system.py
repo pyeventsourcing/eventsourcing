@@ -68,7 +68,7 @@ class Follower(Promptable, Application):
         for notification in reader.read(start=start):
             domain_event = mapper.to_domain_event(notification)
             process_event = ProcessEvent(
-                Tracking(  # type: ignore
+                Tracking(
                     application_name=name,
                     notification_id=notification.id,
                 )

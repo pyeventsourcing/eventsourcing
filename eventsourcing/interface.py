@@ -24,14 +24,14 @@ class RemoteNotificationLog(AbstractNotificationLog):
     def __getitem__(self, section_id: str) -> Section:
         body = self.api.get_log_section(section_id)
         section = json.loads(body)
-        return Section(  # type: ignore
+        return Section(
             id=section["id"],
             next_id=section["next_id"],
             items=[self.deserialise_item(item) for item in section["items"]],
         )
 
     def deserialise_item(self, item: dict) -> Notification:
-        return Notification(  # type: ignore
+        return Notification(
             id=item["id"],
             originator_id=UUID(item["originator_id"]),
             originator_version=item["originator_version"],

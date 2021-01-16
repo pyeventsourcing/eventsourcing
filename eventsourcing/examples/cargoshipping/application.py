@@ -81,7 +81,7 @@ class BookingApplication(Application):
     ) -> UUID:
         cargo = Cargo.new_booking(origin, destination, arrival_deadline)
         self.save(cargo)
-        return cargo.uuid
+        return cargo.id
 
     def change_destination(self, tracking_id: UUID, destination: Location) -> None:
         cargo = self.get_cargo(tracking_id)

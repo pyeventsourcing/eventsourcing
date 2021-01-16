@@ -31,7 +31,7 @@ The library's system class...
         def create(cls):
             return cls._create_(
                 event_class=cls.Created,
-                uuid=uuid4(),
+                id=uuid4(),
             )
 
         def make_it_so(self, what):
@@ -57,7 +57,7 @@ Now let's define an application...
         def create_world(self):
             world = World.create()
             self.save(world)
-            return world.uuid
+            return world.id
 
         def make_it_so(self, world_id, what):
             world = self.repository.get(world_id)
@@ -84,7 +84,7 @@ Now let's define an analytics application...
         def create(cls, name):
             return cls._create_(
                 event_class=Aggregate.Created,
-                uuid=cls.create_id(name),
+                id=cls.create_id(name),
             )
 
         @classmethod

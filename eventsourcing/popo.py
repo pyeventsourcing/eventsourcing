@@ -85,7 +85,7 @@ class POPOApplicationRecorder(ApplicationRecorder, POPOAggregateRecorder):
             i = start - 1
             j = i + limit
             for notification_id, s in enumerate(self.stored_events[i:j], start):
-                n = Notification(  # type: ignore
+                n = Notification(
                     id=notification_id,
                     originator_id=s.originator_id,
                     originator_version=s.originator_version,

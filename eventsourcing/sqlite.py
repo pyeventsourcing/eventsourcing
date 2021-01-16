@@ -78,7 +78,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         self.datastore = datastore
         self.events_table_name = events_table_name
 
-    def create_table(self):
+    def create_table(self) -> None:
         with self.datastore.transaction() as c:
             self._create_table(c)
 
@@ -153,7 +153,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         stored_events = []
         for row in c.execute(statement, params):
             stored_events.append(
-                StoredEvent(  # type: ignore
+                StoredEvent(
                     originator_id=UUID(row["originator_id"]),
                     originator_version=row["originator_version"],
                     topic=row["topic"],
@@ -202,7 +202,7 @@ class SQLiteApplicationRecorder(
         notifications = []
         for row in c.fetchall():
             notifications.append(
-                Notification(  # type: ignore
+                Notification(
                     id=row["rowid"],
                     originator_id=UUID(row["originator_id"]),
                     originator_version=row["originator_version"],

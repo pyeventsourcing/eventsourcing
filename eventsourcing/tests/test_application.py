@@ -51,7 +51,7 @@ class TestApplication(TestCase):
 
         from_snapshot = app.repository.get(account_id, version=3)
         self.assertIsInstance(from_snapshot, BankAccount)
-        self.assertEqual(from_snapshot.version, 3)
+        self.assertEqual(from_snapshot._version_, 3)
         self.assertEqual(from_snapshot.balance, Decimal("35.00"))
 
     def test_performance(self):
@@ -134,7 +134,7 @@ class BankAccounts(Application):
             email_address=email_address,
         )
         self.save(account)
-        return account.uuid
+        return account.id
 
     def credit_account(self, account_id: UUID, amount: Decimal) -> None:
         account = self.get_account(account_id)

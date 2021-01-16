@@ -52,7 +52,7 @@ class TestSnapshotting(TestCase):
         snapshot_store.put([snapshot])
 
         # Get snapshot.
-        snapshots = snapshot_store.get(account.uuid, desc=True, limit=1)
+        snapshots = snapshot_store.get(account.id, desc=True, limit=1)
         snapshot = next(snapshots)
         assert isinstance(snapshot, Snapshot)
 
@@ -61,5 +61,5 @@ class TestSnapshotting(TestCase):
         assert isinstance(copy, BankAccount)
 
         # Check copy has correct attribute values.
-        assert copy.uuid == account.uuid
+        assert copy.id == account.id
         assert copy.balance == Decimal("65.00")

@@ -1,4 +1,5 @@
 import importlib
+from typing import Any
 
 
 def get_topic(cls: type) -> str:
@@ -8,7 +9,7 @@ def get_topic(cls: type) -> str:
     return f"{cls.__module__}:{cls.__qualname__}"
 
 
-def resolve_topic(topic: str) -> type:
+def resolve_topic(topic: str) -> Any:
     """
     Returns a class located by the given string.
     """
@@ -17,7 +18,7 @@ def resolve_topic(topic: str) -> type:
     return resolve_attr(module, class_name)
 
 
-def resolve_attr(obj, path: str) -> type:
+def resolve_attr(obj: Any, path: str) -> Any:
     if not path:
         return obj
     else:

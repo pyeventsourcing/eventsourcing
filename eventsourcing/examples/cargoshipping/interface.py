@@ -65,7 +65,7 @@ class LocalClient(object):
 
         # Present the cargo details.
         return {
-            "id": str(cargo.uuid),
+            "id": str(cargo.id),
             "origin": cargo.origin.value,
             "destination": cargo.destination.value,
             "arrival_deadline": cargo.arrival_deadline,

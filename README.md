@@ -99,7 +99,7 @@ class World(Aggregate):
 
     @classmethod
     def create(self):
-        return self._create_(World.Created, uuid=uuid4())
+        return self._create_(World.Created, id=uuid4())
 
     def make_it_so(self, something):
         self._trigger_(World.SomethingHappened, what=something)
@@ -134,7 +134,7 @@ def test(app: Application):
 
     # Unsaved aggregate not yet in application repository.
     try:
-        app.repository.get(world.uuid)
+        app.repository.get(world.id)
     except AggregateNotFound:
         pass
 
@@ -147,7 +147,7 @@ def test(app: Application):
     assert world.history[1] == 'trucks'
 
     # Note version of object at this stage.
-    version = world.version
+    version = world._version_
 
     # Execute another command.
     world.make_it_so('internet')
@@ -156,13 +156,13 @@ def test(app: Application):
     app.save(world)
 
     # Aggregate now exists in repository.
-    assert app.repository.get(world.uuid)
+    assert app.repository.get(world.id)
 
     # Show the notification log has four items.
     assert len(app.log['1,10'].items) == 4
 
     # Replay stored events for aggregate.
-    copy = app.repository.get(world.uuid)
+    copy = app.repository.get(world.id)
 
     # View retrieved aggregate.
     assert isinstance(copy, World)
@@ -176,12 +176,12 @@ def test(app: Application):
 
     # Discarded aggregate not found.
     try:
-        app.repository.get(world.uuid)
+        app.repository.get(world.id)
     except AggregateNotFound:
         pass
 
     # Get historical state (at version from above).
-    old = app.repository.get(world.uuid, version=version)
+    old = app.repository.get(world.id, version=version)
     assert old.history[-1] == 'trucks' # internet not happened
     assert len(old.history) == 2
 

@@ -16,7 +16,7 @@ class BankAccounts(Application):
             email_address=email_address,
         )
         self.save(account)
-        return account.uuid
+        return account.id
 
     def get_account(self, account_id: UUID) -> BankAccount:
         try:

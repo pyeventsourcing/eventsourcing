@@ -1,12 +1,12 @@
 import os
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, tzinfo
 from typing import List, Optional, Type, TypeVar
 from uuid import UUID
 
 from eventsourcing.utils import get_topic, resolve_topic
 
-TZINFO = resolve_topic(
+TZINFO: tzinfo = resolve_topic(
     os.getenv('TZINFO_TOPIC', 'datetime:timezone.utc')
 )
 
@@ -48,13 +48,13 @@ class Aggregate:
             # Check event is next in its sequence.
             # Use counting to follow the sequence.
             assert isinstance(obj, Aggregate), (type(obj), self)
-            next_version = obj.version + 1
+            next_version = obj._version_ + 1
             if self.originator_version != next_version:
                 raise VersionError(self.originator_version, next_version)
             # Update the aggregate version.
-            obj.version = next_version
+            obj._version_ = next_version
             # Update the modified time.
-            obj.modified_on = self.timestamp
+            obj._modified_on_ = self.timestamp
             self.apply(obj)
             return obj
 
@@ -65,7 +65,7 @@ class Aggregate:
     def _create_(
         cls,
         event_class: Type["Aggregate.Created"],
-        uuid: UUID,
+        id: UUID,
         **kwargs,
     ):
         """
@@ -76,9 +76,9 @@ class Aggregate:
         # with an ID and version, and the
         # a topic for the aggregate class.
         event = event_class(
-            originator_id=uuid,
-            originator_version=1,
             originator_topic=get_topic(cls),
+            originator_id=id,
+            originator_version=1,
             timestamp=datetime.now(tz=TZINFO),
             **kwargs,
         )
@@ -103,24 +103,30 @@ class Aggregate:
             """
             # Copy the event attributes.
             kwargs = self.__dict__.copy()
-            # Separate the id and version.
-            uuid = kwargs.pop("originator_id")
-            version = kwargs.pop("originator_version")
-            # Get the aggregate root class from topic.
+            # Resolve originator topic.
             aggregate_class = resolve_topic(kwargs.pop("originator_topic"))
+            # Separate the base class keywords arguments.
+            id = kwargs.pop("originator_id")
+            _version_ = kwargs.pop("originator_version")
+            _created_on_ = kwargs.pop("timestamp")
             # Construct and return aggregate object.
-            return aggregate_class(uuid=uuid, version=version, **kwargs)
+            return aggregate_class(
+                id=id,
+                _version_=_version_,
+                _created_on_=_created_on_,
+                **kwargs
+            )
 
-    def __init__(self, uuid: UUID, version: int, timestamp: datetime):
+    def __init__(self, id: UUID, _version_: int, _created_on_: datetime):
         """
         Aggregate is constructed with a 'uuid',
         a 'version', and a 'timestamp'. The internal
         '_pending_events_' list is also initialised.
         """
-        self.uuid = uuid
-        self.version = version
-        self.created_on = timestamp
-        self.modified_on = timestamp
+        self.id = id
+        self._version_ = _version_
+        self._created_on_ = _created_on_
+        self._modified_on_ = _created_on_
         self._pending_events_: List[Aggregate.Event] = []
 
     def _trigger_(
@@ -136,9 +142,9 @@ class Aggregate:
         # Construct the domain event as the
         # next in the aggregate's sequence.
         # Use counting to generate the sequence.
-        next_version = self.version + 1
+        next_version = self._version_ + 1
         event = event_class(
-            originator_id=self.uuid,
+            originator_id=self.id,
             originator_version=next_version,
             timestamp=datetime.now(tz=TZINFO),
             **kwargs,
@@ -170,9 +176,9 @@ class Snapshot(DomainEvent):
     def take(cls, aggregate: Aggregate) -> DomainEvent:
         state = dict(aggregate.__dict__)
         state.pop("_pending_events_")
-        originator_id = state.pop("uuid")
-        originator_version = state.pop("version")
-        return cls(  # type: ignore
+        originator_id = state.pop("id")
+        originator_version = state.pop("_version_")
+        return cls(
             originator_id=originator_id,
             originator_version=originator_version,
             timestamp=datetime.now(tz=TZINFO),
@@ -185,7 +191,7 @@ class Snapshot(DomainEvent):
         aggregate = object.__new__(cls)
         assert isinstance(aggregate, Aggregate)
         aggregate.__dict__.update(self.state)
+        aggregate.__dict__["id"] = self.originator_id
+        aggregate.__dict__["_version_"] = self.originator_version
         aggregate.__dict__["_pending_events_"] = []
-        aggregate.__dict__["uuid"] = self.originator_id
-        aggregate.__dict__["version"] = self.originator_version
         return aggregate

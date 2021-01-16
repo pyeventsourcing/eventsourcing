@@ -3,6 +3,7 @@ import os
 import uuid
 from abc import ABC, abstractmethod
 from copy import copy
+from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from distutils.util import strtobool
@@ -124,7 +125,8 @@ class DatetimeAsISO(Transcoding):
         return datetime.fromisoformat(d)
 
 
-class StoredEvent(ImmutableObject):
+@dataclass(frozen=True)
+class StoredEvent:
     originator_id: uuid.UUID
     originator_version: int
     topic: str
@@ -152,7 +154,7 @@ class Mapper(Generic[TDomainEvent]):
             state = self.compressor.compress(state)
         if self.cipher:
             state = self.cipher.encrypt(state)
-        return StoredEvent(  # type: ignore
+        return StoredEvent(
             domain_event.originator_id,
             domain_event.originator_version,
             topic,
@@ -212,6 +214,7 @@ class AggregateRecorder(Recorder):
         """
 
 
+@dataclass(frozen=True)
 class Notification(StoredEvent):
     id: int
 
@@ -250,7 +253,7 @@ class EventStore(Generic[TDomainEvent]):
         self.mapper = mapper
         self.recorder = recorder
 
-    def put(self, events, **kwargs):
+    def put(self, events: List[TDomainEvent], **kwargs):
         """
         Stores domain events in aggregate sequence.
         """
@@ -386,6 +389,7 @@ class InfrastructureFactory(ABC):
         )
 
 
-class Tracking(ImmutableObject):
+@dataclass(frozen=True)
+class Tracking:
     application_name: str
     notification_id: int

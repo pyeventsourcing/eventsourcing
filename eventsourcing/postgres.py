@@ -79,11 +79,11 @@ class PostgresAggregateRecorder(AggregateRecorder):
         self.datastore = datastore
         self.events_table_name = events_table_name
 
-    def create_table(self):
+    def create_table(self) -> None:
         with self.datastore.transaction() as c:
             self._create_table(c)
 
-    def _create_table(self, c: cursor):
+    def _create_table(self, c: cursor) -> None:
         statement = (
             "CREATE TABLE "
             f"{self.events_table_name} ("
@@ -99,7 +99,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         except psycopg2.OperationalError as e:
             raise OperationalError(e)
 
-    def insert_events(self, stored_events, **kwargs):
+    def insert_events(self, stored_events: List[StoredEvent], **kwargs):
         with self.datastore.transaction() as c:
             self._insert_events(c, stored_events, **kwargs)
 
@@ -155,7 +155,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
             c.execute(statement, params)
             for row in c.fetchall():
                 stored_events.append(
-                    StoredEvent(  # type: ignore
+                    StoredEvent(
                         originator_id=row["originator_id"],
                         originator_version=row["originator_version"],
                         topic=row["topic"],
@@ -169,7 +169,7 @@ class PostgresApplicationRecorder(
     PostgresAggregateRecorder,
     ApplicationRecorder,
 ):
-    def _create_table(self, c: cursor):
+    def _create_table(self, c: cursor) -> None:
         super()._create_table(c)
         statement = (
             f"ALTER TABLE {self.events_table_name} "
@@ -208,7 +208,7 @@ class PostgresApplicationRecorder(
             notifications = []
             for row in c.fetchall():
                 notifications.append(
-                    Notification(  # type: ignore
+                    Notification(
                         id=row["notification_id"],
                         originator_id=row["originator_id"],
                         originator_version=row["originator_version"],
@@ -242,7 +242,7 @@ class PostgresProcessRecorder(
         super().__init__(datastore, events_table_name)
         self.tracking_table_name = tracking_table_name
 
-    def _create_table(self, c: cursor):
+    def _create_table(self, c: cursor) -> None:
         super()._create_table(c)
         statement = (
             "CREATE TABLE "

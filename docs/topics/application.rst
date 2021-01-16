@@ -96,7 +96,7 @@ presents the current history of an existing aggregate.
         def create_world(self) -> UUID:
             world = World.create()
             self.save(world)
-            return world.uuid
+            return world.id
 
         def make_it_so(self, world_id: UUID, what: str):
             world = self.repository.get(world_id)
@@ -123,7 +123,7 @@ presents the current history of an existing aggregate.
         def create(cls):
             return cls._create_(
                 event_class=cls.Created,
-                uuid=uuid4(),
+                id=uuid4(),
             )
 
         def make_it_so(self, what):
@@ -190,24 +190,24 @@ highest available version of the aggregate will be returned.
 
     world_v1 = application.repository.get(world_id, version=1)
 
-    assert world_v1.version == 1
+    assert world_v1._version_ == 1
     assert len(world_v1.history) == 0
 
     world_v2 = application.repository.get(world_id, version=2)
 
-    assert world_v2.version == 2
+    assert world_v2._version_ == 2
     assert len(world_v2.history) == 1
     assert world_v2.history[-1] == "dinosaurs"
 
     world_v3 = application.repository.get(world_id, version=3)
 
-    assert world_v3.version == 3
+    assert world_v3._version_ == 3
     assert len(world_v3.history) == 2
     assert world_v3.history[-1] == "trucks"
 
     world_v4 = application.repository.get(world_id, version=4)
 
-    assert world_v4.version == 4
+    assert world_v4._version_ == 4
     assert len(world_v4.history) == 3
     assert world_v4.history[-1] == "internet"
 
@@ -316,7 +316,7 @@ To enable the snapshotting functionality, the environment variable
 ``IS_SNAPSHOTTING_ENABLED`` must be set to a valid "true"  value. The
 ``distutils.utils`` function ``strtobool()`` is used to interpret the
 value of this environment variable, so that strings 'y', 'yes', 't',
-'true', 'on', and '1' are considered to be "true" values, 'n', 'no',
+'true', 'on', and '1' are considered to be "true" values, and 'n', 'no',
 'f', 'false', 'off', '0' are considered to be "false" values, and other
 values are considered to be invalid. The default is for the application's
 snapshotting functionality not to be enabled.
@@ -340,7 +340,10 @@ snapshotting functionality not to be enabled.
 Configuring persistence
 =======================
 
-By default, the application object uses the `"Plain Old Python Object"
+In the example above, the domain events have been stored in memory,
+using the default persistence infrastructure provided by the library.
+
+By default, the application object uses its `"Plain Old Python Object"
 infrastructure <persistence.html#infrastructure-factory>`_.
 
 To use other persistence infrastructure, you will need to
@@ -351,9 +354,12 @@ Often using other persistence infrastructure will involve setting
 other environment variables to configure access to a real database,
 such as a database name, a user name, and a password.
 
-In the example below, the library's SQLite infrastructure factory is used.
+In the example below, the library's `SQLite infrastructure <persistence.html#sqlite>`_ is used.
 In the case of the library's SQLite factory, the environment variables
-``SQLITE_DBNAME`` and ``DO_CREATE_TABLE`` must be set.
+``SQLITE_DBNAME`` must be set to a file path. And if the tables do not exist, the
+``DO_CREATE_TABLE`` must be set to a "true" value ('y', 'yes', 't',
+'true', 'on', or '1').
+
 
 .. code:: python
 
@@ -381,7 +387,8 @@ By using a file on disk, the named temporary file ``tmpfile`` above,
 the state of the application will endure after the application has
 been reconstructed. The database table only needs to be created once,
 and so when creating an application for an already existing database
-the ``DO_CREATE_TABLE`` value must be a "false" value.
+the ``DO_CREATE_TABLE`` value must be a "false" value ('n', 'no',
+'f', 'false', 'off', '0').
 
 
 .. code:: python
@@ -401,16 +408,22 @@ Registering custom transcodings
 
 The application's persistence mechanism serialises the domain events,
 using the library's transcoder. If your aggregates' domain event objects
-have objects of `types that are not already supported by the transcoder
-<persistence.html#transcodings>`_, for example custom value objects, support
-for transcoding these objects will need to be implemented and registered with
-the application's transcoder.
+have objects of types that are not already supported by the transcoder,
+for example custom value objects, `custom transcodings <persistence.html#transcodings>`_
+for these objects will need to be implemented and registered with the application's
+transcoder.
 
 The application method ``register_transcodings()`` can
 be extended to register custom transcodings for custom
 value objects used in your application's domain events.
 The library's application base class registers transcodings
 for ``UUID``, ``Decimal``, and ``datetime`` objects.
+
+For example, to define and register a transcoding the the Python ``date`` class,
+implement a transcoding such as the ``DateAsISO`` class defined below, and
+extend the ``register_transcodings()`` method by calling both the application's
+``super()`` method with the given ``transcoder`` argument, and then the
+transcoder's ``register()`` method once for each of your custom transcodings.
 
 .. code:: python
 

@@ -13,19 +13,19 @@ class TestAggregate(TestCase):
         uuid = uuid4()
         a = Aggregate._create_(
             event_class=Aggregate.Created,
-            uuid=uuid,
+            id=uuid,
         )
         after_created = datetime.now(tz=TZINFO)
         self.assertIsInstance(a, Aggregate)
-        self.assertEqual(a.uuid, uuid)
-        self.assertEqual(a.version, 1)
-        self.assertEqual(a.created_on, a.modified_on)
-        self.assertGreater(a.created_on, before_created)
-        self.assertGreater(after_created, a.created_on)
+        self.assertEqual(a.id, uuid)
+        self.assertEqual(a._version_, 1)
+        self.assertEqual(a._created_on_, a._modified_on_)
+        self.assertGreater(a._created_on_, before_created)
+        self.assertGreater(after_created, a._created_on_)
 
         # Check the aggregate can trigger further events.
         a._trigger_(Aggregate.Event)
-        self.assertLess(a.created_on, a.modified_on)
+        self.assertLess(a._created_on_, a._modified_on_)
 
         pending = a._collect_()
         self.assertEqual(len(pending), 2)
@@ -35,9 +35,9 @@ class TestAggregate(TestCase):
         self.assertEqual(pending[1].originator_version, 2)
 
         # Try to mutate aggregate with an invalid domain event.
-        next_version = a.version
+        next_version = a._version_
         event = Aggregate.Event(
-            originator_id=a.uuid,
+            originator_id=a.id,
             originator_version=next_version,
             timestamp=datetime.now(tz=TZINFO),
         )
@@ -53,8 +53,8 @@ class TestAggregate(TestCase):
             email_address="alice@example.com",
         )
 
-        # Check the created_on.
-        assert account.created_on == account.modified_on
+        # Check the _created_on_.
+        assert account._created_on_ == account._modified_on_
 
         # Check the initial balance.
         assert account.balance == 0
@@ -62,8 +62,8 @@ class TestAggregate(TestCase):
         # Credit the account.
         account.append_transaction(Decimal("10.00"))
 
-        # Check the modified_on time was updated.
-        assert account.created_on < account.modified_on
+        # Check the _modified_on_ time was updated.
+        assert account._created_on_ < account._modified_on_
 
         # Check the balance.
         assert account.balance == Decimal("10.00")
@@ -133,7 +133,7 @@ class BankAccount(Aggregate):
         """
         return super()._create_(
             cls.Opened,
-            uuid=uuid4(),
+            id=uuid4(),
             full_name=full_name,
             email_address=email_address,
         )
@@ -155,11 +155,11 @@ class BankAccount(Aggregate):
 
     def check_account_is_not_closed(self) -> None:
         if self.is_closed:
-            raise AccountClosedError({"account_id": self.uuid})
+            raise AccountClosedError({"account_id": self.id})
 
     def check_has_sufficient_funds(self, amount: Decimal) -> None:
         if self.balance + amount < -self.overdraft_limit:
-            raise InsufficientFundsError({"account_id": self.uuid})
+            raise InsufficientFundsError({"account_id": self.id})
 
     class TransactionAppended(Aggregate.Event):
         """

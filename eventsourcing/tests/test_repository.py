@@ -60,26 +60,26 @@ class TestRepository(TestCase):
         # Store pending events.
         event_store.put(pending)
 
-        copy = repository.get(account.uuid)
+        copy = repository.get(account.id)
         assert isinstance(copy, BankAccount)
         # Check copy has correct attribute values.
-        assert copy.uuid == account.uuid
+        assert copy.id == account.id
         assert copy.balance == Decimal("65.00")
 
-        snapshot = Snapshot(  # type: ignore
-            originator_id=account.uuid,
-            originator_version=account.version,
+        snapshot = Snapshot(
+            originator_id=account.id,
+            originator_version=account._version_,
             timestamp=datetime.now(tz=TZINFO),
             topic=get_topic(type(account)),
             state=account.__dict__,
         )
         snapshot_store.put([snapshot])
 
-        copy2 = repository.get(account.uuid)
+        copy2 = repository.get(account.id)
         assert isinstance(copy2, BankAccount)
 
         # Check copy has correct attribute values.
-        assert copy2.uuid == account.uuid
+        assert copy2.id == account.id
         assert copy2.balance == Decimal("65.00")
 
         # Credit the account.
@@ -87,30 +87,30 @@ class TestRepository(TestCase):
         event_store.put(account._collect_())
 
         # Check copy has correct attribute values.
-        copy3 = repository.get(account.uuid)
+        copy3 = repository.get(account.id)
         assert isinstance(copy3, BankAccount)
 
-        assert copy3.uuid == account.uuid
+        assert copy3.id == account.id
         assert copy3.balance == Decimal("75.00")
 
         # Check can get old version of account.
-        copy4 = repository.get(account.uuid, version=copy.version)
+        copy4 = repository.get(account.id, version=copy._version_)
         assert isinstance(copy4, BankAccount)
         assert copy4.balance == Decimal("65.00")
 
-        copy5 = repository.get(account.uuid, version=1)
+        copy5 = repository.get(account.id, version=1)
         assert isinstance(copy5, BankAccount)
         assert copy5.balance == Decimal("0.00")
 
-        copy6 = repository.get(account.uuid, version=2)
+        copy6 = repository.get(account.id, version=2)
         assert isinstance(copy6, BankAccount)
         assert copy6.balance == Decimal("10.00")
 
-        copy7 = repository.get(account.uuid, version=3)
+        copy7 = repository.get(account.id, version=3)
         assert isinstance(copy7, BankAccount)
         assert copy7.balance == Decimal("35.00"), copy7.balance
 
-        copy8 = repository.get(account.uuid, version=4)
+        copy8 = repository.get(account.id, version=4)
         assert isinstance(copy8, BankAccount)
         assert copy8.balance == Decimal("65.00"), copy8.balance
 

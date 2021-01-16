@@ -56,7 +56,7 @@ class EmailNotification(Aggregate):
     def create(cls, to, subject, message):
         return super()._create_(
             cls.Created,
-            uuid=uuid4(),
+            id=uuid4(),
             to=to,
             subject=subject,
             message=message,
