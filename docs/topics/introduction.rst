@@ -10,14 +10,6 @@ event-sourced application is determined by a sequence of events.
 Another definition has event sourcing as a persistence mechanism
 for domain driven design.
 
-That's the basic story, at least. In practice, because a sequence of
-stored events can be queried in only a limited number of ways, to obtain
-the views of the state of an application that users need when making
-command requests, several other design patterns are needed to develop
-useful software. And several other design patterns are needed to ensure
-reliability, maintainability, and scalability.
-
-
 A cohesive mechanism
 ====================
 
@@ -38,18 +30,6 @@ can be reproduced in code for each project, the persistence mechanism
 for event-sourced domain driven design appears as a conceptually cohesive
 mechanism, and so can be "partitioned into a separate lightweight framework".
 
-Whilst some advocate that event sourcing is such a simple thing that you
-can easily roll-your-own event sourcing framework for each project, in practice
-it turns out reaching understanding and satisfaction (reliability, scalability,
-maintainability) is a considerably more complicated and costly undertaking than
-is disclosed by the simple story that is often told.
-
-This library documents the experience of event sourcing across a broad range
-of projects. It also functions as an informative "jumping off" point for those
-who want to create their own framework and "own" all their own code. And it is
-also used by many as a stable and convenient library that can be used to rapidly
-develop working software that will be used in production.
-
 
 This library
 ============
@@ -62,17 +42,9 @@ library supports several of these possibilities.
 
 To demonstrate how storing and retrieving domain events can be used effectively
 as a persistence mechanism in an event-sourced application, this library includes
-base classes for event-sourced domain entities and applications of different kinds.
-A domain model developed using these classes will not depend on infrastructure
-("onion" archictecture). A style is suggested for event-sourced aggregates: to have
-command methods which "trigger" domain events. Triggered domain events are used to
-mutate the state of the aggregate, and then stored. The stored events of an aggregate
-can be retrieved and used to obtain the current state of the aggregate. The stored
-events of an application can also be propagated and used to project the state of
-the application into the materialised views needed by users. Stored events can also
-be processed further by other applications in the same system, and by other systems.
+base classes for event-sourced aggregates and applications.
 
-It is also possible to define an entire application, and indeed an entire distributed
+It is possible to define an entire application, and indeed an entire distributed
 system of event-sourced applications, independently of infrastructure. That means system
 behaviours can be rapidly developed whilst running the entire system synchronously
 in a single thread with a single in-memory database. And then, the system can be run
