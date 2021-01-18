@@ -63,6 +63,67 @@ layer. The application layer depends on the domain and infrastructure
 layers, and the interface layer depends only on the application layer.
 
 
+Features
+========
+
+*Domain models and application* — base classes for domain model aggregates
+and applications. Suggests how to structure an event-sourced application.
+
+*Flexible event store* — flexible persistence of domain events. Combines
+an event mapper and an event recorder in ways that can be easily extended.
+Mapper uses a transcoder that can be easily extended to support custom
+model object types. Recorders supporting different databases can be easily
+substituted and configured with environment variables.
+
+*Application-level encryption* — encrypts and decrypts events inside the application.
+This means data will be encrypted in transit across a network ("on the wire") and at
+disk level including backups ("at rest"), which is a legal requirement in some
+jurisdictions when dealing with personally identifiable information (PII) for example
+the EU's GDPR.
+
+*Snapshotting* — reduces aggregate access-time for aggregates with many domain events.
+
+*Optimistic concurrency control* — ensures a distributed or horizontally scaled
+application doesn't become inconsistent due to concurrent method execution. Leverages
+optimistic concurrency controls in adapted database management systems.
+
+*Compression* - reduces the size of stored domain events and snapshots, usually
+by around 25% to 50% of the original size. Compression reduces the size of data
+in the database and decreases transit time across a network.
+
+*Notifications and projections* — reliable propagation of application
+events with pull-based notifications allows the application state to be
+projected accurately into replicas, indexes, view models, and other applications.
+Supports materialized views and CQRS.
+
+*Event-driven systems* — reliable event processing. Event-driven systems
+can be defined independently of particular persistence infrastructure and mode of
+running.
+
+*Detailed documentation* — documentation provides general overview, introduction
+of concepts, explanation of usage, and detailed descriptions of library classes.
+
+*Worked examples* — includes examples showing how to develop aggregates, applications
+and systems.
+
+..
+    **Versioning** - allows model changes to be introduced after an application
+    has been deployed. Both domain events and domain entity classes can be versioned.
+    The recorded state of an older version can be upcast to be compatible with a new
+    version. Stored events and snapshots are upcast from older versions
+    to new versions before the event or entity object is reconstructed.
+
+..
+    **Hash chaining** — Sequences of events can be hash-chained, and the entire sequence
+    of events checked for data integrity. Information lost in transit or on the disk from
+    database corruption can be detected. If the last hash can be independently validated,
+    then so can the entire sequence.
+
+..
+    **Correlation and causation IDs** - Domain events can easily be given correlation and
+    causation IDs, which allows a story to be traced through a system of applications.
+
+
 Register issues
 ===============
 
