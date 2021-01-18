@@ -387,7 +387,7 @@ be changed either by assigning a :class:`datetime.tzinfo` object to :data:`TZINF
 :mod:`eventsourcing.domain` module. The :data:`eventsourcing.domain.TZINFO` value can also
 be configured using environment variables, by setting the environment variable ``TZINFO_TOPIC``
 to a string that describes the `topic <#topics>`_ of a Python :data:`datetime.tzinfo` object
-(for example ``datetime:timezone.utc``).
+(for example ``'datetime:timezone.utc'``).
 
 
 Topics
