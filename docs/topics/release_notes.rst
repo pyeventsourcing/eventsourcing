@@ -22,7 +22,7 @@ systems of application, previously in the "application" package, has been
 moved to a new "system" package.
 
 
-Version 8.3.0 (released 9 January 2020)
+Version 8.3.0 (released 9 January 2021)
 ---------------------------------------
 
 Added gRPC runner. Improved Django record manager, so that it supports
