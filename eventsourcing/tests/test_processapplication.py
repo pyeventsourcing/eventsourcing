@@ -1,4 +1,3 @@
-from functools import singledispatchmethod
 from unittest.case import TestCase
 
 from eventsourcing.domain import Aggregate
@@ -6,6 +5,7 @@ from eventsourcing.system import Leader, ProcessApplication, ProcessEvent
 from eventsourcing.tests.test_aggregate import BankAccount
 from eventsourcing.tests.test_application import BankAccounts
 from eventsourcing.tests.test_processingpolicy import EmailNotification
+from eventsourcing.utils import singledispatchmethod
 
 
 class TestProcessApplication(TestCase):

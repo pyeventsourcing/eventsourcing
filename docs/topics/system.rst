@@ -103,10 +103,9 @@ Now let's define an analytics application...
 
 .. code:: python
 
-    from functools import singledispatchmethod
-
     from eventsourcing.application import AggregateNotFound
     from eventsourcing.system import ProcessApplication
+    from eventsourcing.utils import singledispatchmethod
 
 
     class Counters(ProcessApplication):

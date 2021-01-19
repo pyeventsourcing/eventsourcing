@@ -14,7 +14,7 @@ be reduced by using **snapshots**.
 Aggregates in DDD
 =================
 
-A design pattern called "aggregate" is described in Eric Evans' book *Domain Driven Design*:
+A design pattern called "aggregate" is described in Eric Evans' book *Domain-Driven Design*:
 
 .. pull-quote::
 

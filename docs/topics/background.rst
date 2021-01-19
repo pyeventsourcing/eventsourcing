@@ -22,7 +22,7 @@ See also:
    <https://techbeacon.com/introduction-event-storming-easy-way-achieve-domain-driven-design>`__
    by a Steven Lowe
 
--  `An Introduction to Domain Driven Design
+-  `An Introduction to Domain-Driven Design
    <http://www.methodsandtools.com/archive/archive.php?id=97>`__
    by Dan Haywood
 

@@ -22,59 +22,45 @@ for this project, which you are [welcome to join](https://join.slack.com/t/event
 
 ## Features
 
-**Domain model and application classes** — base classes for event-sourced
-domain models and applications. Applications can be developed that are
-independent of any particular infrastructure.
+**Domain model and application** — base classes for domain model aggregates
+and applications. Suggests how to structure an event-sourced application.
 
-**Event mapper with extensible transcoder** — extensible convertion of
-domain events with custom value objects to standard stored event
-objects. Individual transcodings for custom value objects can be
-defined and registered.
+**Flexible event store** — flexible persistence of domain events. Combines
+an event mapper and an event recorder in ways that can be easily extended.
+Mapper uses a transcoder that can be easily extended to support custom
+model object types. Recorders supporting different databases can be easily
+substituted and configured with environment variables.
 
-**Event recorders** — inserts and selects stored event objects in a data
-store. Uses a standard interface defined in an abstract base class, allowing
-database management systems to be easily adapted. Recorders for SQLite and
-PostgreSQL recorders are included. A fast "plain old Python object" recorder
-is also included that supports rapid application development. Recorders
-for other database management systems, including cloud-native databases,
-are available.
+**Application-level encryption** — encrypts and decrypts events inside the application.
+This means data will be encrypted in transit across a network ("on the wire") and at
+disk level including backups ("at rest"), which is a legal requirement in some
+jurisdictions when dealing with personally identifiable information (PII) for example
+the EU's GDPR.
 
-**Generic event store** — stores and retrieves domain model event objects in a
-database management system using extensible event mapper and custom event recorders.
+**Snapshotting** — reduces aggregate access-time for aggregates with many domain events.
 
-**Application-level encryption** — encrypts and decrypts stored events and snapshots,
-using a cipher strategy passed as an option to the event mapper. Can be used
-to encrypt some events, or all events, or not applied at all (the default). This means
-data will be encrypted in transit across a network ("on the wire") and at disk level
-including backups ("at rest"), which is a legal requirement in some jurisdictions
-when dealing with personally identifiable information (PII) for example the EU's GDPR.
+**Optimistic concurrency control** — ensures a distributed or horizontally scaled
+application doesn't become inconsistent due to concurrent method execution. Leverages
+optimistic concurrency controls in adapted database management systems.
 
-**Compression** - compresses and decompresses stored events and snapshots, using
-a compression strategy passed as an option to the event mapper. Reduces the size
-of stored events and snapshots, usually by around 25% to 50% of the original size.
-Compression reduces the size of data in the database and decreases transit time
-across a network.
+**Compression** - reduces the size of stored domain events and snapshots, usually
+by around 25% to 50% of the original size. Compression reduces the size of data
+in the database and decreases transit time across a network.
 
-**Optimistic concurrency control** — ensures the recorded state of a distributed
-or horizontally scaled application doesn't become inconsistent due to concurrent
-method execution. Leverages optimistic concurrency controls in adapted database
-management systems.
+**Notifications and projections** — reliable propagation of application
+events with pull-based notifications allows the application state to be
+projected accurately into replicas, indexes, view models, and other applications.
+Supports materialized views and CQRS.
 
-**Notification logs and reader** — reliable propagation of application
-state. Pull-based event notifications allows the application state to
-be projected accurately into replicas, indexes, view models, and other
-applications.
+**Event-driven systems** — reliable event processing. Event-driven systems
+can be defined independently of particular persistence infrastructure and mode of
+running.
 
-**Snapshotting** — avoids replaying an entire event stream to
-obtain the state of an entity.
+**Detailed documentation** — documentation provides general overview, introduction
+of concepts, explanation of usage, and detailed descriptions of library classes.
 
-**Process and systems** — reliable event-driven systems can be defined
-independently of particular infrastructure. Systems can be run with a
-single thread, multiple threads, or across a network.
-
-**Worked examples** — library includes a collection of example applications and systems.
-
-
+**Worked examples** — includes examples showing how to develop aggregates, applications
+and systems.
 
 ## Synopsis
 
