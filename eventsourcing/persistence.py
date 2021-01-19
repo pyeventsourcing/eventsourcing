@@ -52,6 +52,7 @@ class Transcoder(AbstractTranscoder):
         self.decoder = json.JSONDecoder(object_hook=self._decode_obj)
 
     def register(self, transcoding: Transcoding):
+        """Registers given transcoding with the transcoder."""
         self.types[transcoding.type] = transcoding
         self.names[transcoding.name] = transcoding
 
