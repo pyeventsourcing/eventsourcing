@@ -2,8 +2,6 @@ dist: xenial   # required for Python >= 3.7
 language: python
 
 services:
-#  - redis-server
-#  - mysql
   - postgresql
 
 python:
@@ -11,40 +9,10 @@ python:
   - "3.8"
   - "3.9"
 
-
 before_install:
   - python --version
 
-  # Install OpenJDK 8 (Cassandra 3.11 needs it).
-#  - sudo apt-get -qq update
-#  - sudo apt-get install -y openjdk-8-jdk
-#  - sudo apt-get install -y icedtea-8-plugin
-#  #  - sudo update-java-alternatives --set /usr/lib/jvm/java-1.8.0-openjdk-amd64
-#  - sudo update-java-alternatives -v --set java-1.8.0-openjdk-amd64
-#  #  - source /etc/environment
-#  - export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64
-#  - java -version
-
-#  # Install Cassandra.
-#  - sudo rm -rf /var/lib/cassandra/*
-#  - wget http://www.us.apache.org/dist/cassandra/3.11.9/apache-cassandra-3.11.9-bin.tar.gz
-#    && tar -xzf apache-cassandra-3.11.9-bin.tar.gz
-
-#  # Start Cassandra.
-#  - sudo sh ./apache-cassandra-3.11.9/bin/cassandra -R
-
-#  # Download Axon Server.
-#  - ./dev/download_axon_server.sh
-
-#  # Run Axon Server.
-#  - ./axonserver/axonserver.jar &
-
-#  # Wait for the servers to start (replace this with polling?).
-#  - sleep 30
-
-
 before_script:
-#  - mysql -e 'CREATE DATABASE eventsourcing;'
   - psql -c 'CREATE DATABASE eventsourcing;' -U postgres
   - psql -c "CREATE USER eventsourcing WITH PASSWORD 'eventsourcing';" -U postgres
 
@@ -54,29 +22,13 @@ install:
   - source ../venv/bin/activate
   - which python
   - python --version
-  - pip install -U pip wheel
-#  - CASS_DRIVER_NO_CYTHON=1 pip install -e .[testing]
+  - pip install -U pip
   - pip install -e .[testing]
 
-#env:
-#  global:
-#    - CASSANDRA_HOSTS=127.0.0.1
-#    - MYSQL_USER=travis
-#    - MYSQL_PASSWORD=
-#    - POSTGRES_USER=postgres
-#    - POSTGRES_PASSWORD=
 
 script:
-  - if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then
-      coverage run --concurrency=multiprocessing -m unittest discover eventsourcing -v;
-    fi
-
-  - if [[ $TRAVIS_PYTHON_VERSION == pypy* ]]; then
-      python -m unittest discover eventsourcing -v;
-    fi
+    coverage run -m unittest discover eventsourcing -v;
 
 after_success:
-  - if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then
-      coverage combine;
-      coveralls;
-    fi
+    coverage combine;
+    coveralls;
