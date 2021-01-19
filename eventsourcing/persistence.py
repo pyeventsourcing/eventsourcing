@@ -55,10 +55,10 @@ class Transcoder(AbstractTranscoder):
         self.types[transcoding.type] = transcoding
         self.names[transcoding.name] = transcoding
 
-    def encode(self, o: Any) -> bytes:
+    def encode(self, o: dict) -> bytes:
         return self.encoder.encode(o).encode("utf8")
 
-    def decode(self, d: bytes) -> Any:
+    def decode(self, d: bytes) -> dict:
         return self.decoder.decode(d.decode("utf8"))
 
     def _encode_dict(self, o: Any) -> Dict[str, Union[str, dict]]:
