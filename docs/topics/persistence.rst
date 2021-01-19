@@ -36,10 +36,10 @@ atomically to record tracking records along with the stored events,
 Transcoder
 ==========
 
-A transcoder serialises and deserialises the state of domain model
-event objects. The state of domain model event object is expected
-to be a Python ``dict``. The serialised state is a Python ``bytes``
-object.
+A transcoder is used by a `mapper <#mapper>`_ to serialise and deserialise
+the state of domain model event objects. The state of domain model event object
+is expected to be a Python :class:`dict`. The serialised state is a Python
+:class:`bytes` object.
 
 The library's :class:`~eventsourcing.persistence.Transcoder` class
 can be constructed without any arguments.
@@ -50,8 +50,9 @@ can be constructed without any arguments.
 
     transcoder = Transcoder()
 
-The ``transcoder`` object has methods ``encode()`` and ``decode()``
-which are used to perform the serialisation and deserialisation.
+The ``transcoder`` object has methods :func:`~eventsourcing.persistence.Transcoder.encode`
+and :func:`~eventsourcing.persistence.Transcoder.decode`  which are used to perform the
+serialisation and deserialisation.
 
 .. code:: python
 
@@ -59,21 +60,21 @@ which are used to perform the serialisation and deserialisation.
     assert transcoder.decode(value) == {'a': 1}
 
 The library's :class:`~eventsourcing.persistence.Transcoder` uses the Python
-``json`` module. And so, by default, only the object types supported by that module
+:mod:`json` module. And so, by default, only the object types supported by that module
 can be encoded and decoded. The transcoder can be extended by registering transcodings
-for the data types used in your domain model. The transcoder method ``register()`` is
-used to register individual transcodings.
+for the data types used in your domain model. The transcoder method
+:func:`~eventsourcing.persistence.Transcoder.register` is used to register individual
+transcodings.
 
 
 Transcodings
 ============
 
+In order to encode and decode other types of object, custom transcodings need
+to be registered with the `transcoder <#transcoder>`_ using the transcoder object's
+:func:`~eventsourcing.persistence.Transcoder.register` method.
 A transcoding will serialise and deserialise an instance of a specific type of object
-to either a Python `str` or a Python ``dict``.
-
-In order to encode and decode other types of object, custom
-transcodings need to be registered with the transcoder
-using the transcoder object's ``register()`` method.
+to either a Python :class:`str` or a Python :class:`dict`.
 
 The library includes a limited collection of custom transcoding
 objects. For example, the library's
@@ -121,7 +122,7 @@ objects as decimal strings.
     assert transcoder.decode(value) == decimal1
 
 
-Trying to transcode an unsupported type will result in a ``TypeError``.
+Trying to transcode an unsupported type will result in a Python :class:`TypeError`.
 
 .. code:: python
 
@@ -195,10 +196,11 @@ Mapper
 ======
 
 A mapper maps between domain event objects and stored event objects. It brings
-together a transcoder, and optionally a cipher and a compressor.
+together a `transcoder <#transcoder>`_, and optionally a `cipher <#encryption>`_
+and a `compressor <#compression>`_. It is used by an `event store <#event-store>`_.
 
 The library's :class:`~eventsourcing.persistence.Mapper` class
-must be constructed with a ``transcoder`` object.
+must be constructed with a `transcoder <#transcoder>`_ object.
 
 .. code:: python
 
@@ -206,8 +208,8 @@ must be constructed with a ``transcoder`` object.
 
     mapper = Mapper(transcoder=transcoder)
 
-The ``from_domain_event()`` method of the ``mapper`` object converts
-:class:`~eventsourcing.domain.DomainEvent` objects to
+The :func:`~eventsourcing.persistence.Mapper.from_domain_event` method of the
+``mapper`` object converts :class:`~eventsourcing.domain.DomainEvent` objects to
 :class:`~eventsourcing.persistence.StoredEvent` objects.
 
 .. code:: python
@@ -224,8 +226,8 @@ The ``from_domain_event()`` method of the ``mapper`` object converts
     assert isinstance(stored_event1, StoredEvent)
 
 
-The ``to_domain_event()`` method of the ``mapper`` object converts
-:class:`~eventsourcing.persistence.StoredEvent` objects to
+The :func:`~eventsourcing.persistence.Mapper.to_domain_event` method of the
+``mapper`` object converts :class:`~eventsourcing.persistence.StoredEvent` objects to
 :class:`~eventsourcing.domain.DomainEvent` objects.
 
 .. code:: python
@@ -236,8 +238,8 @@ The ``to_domain_event()`` method of the ``mapper`` object converts
 Encryption
 ==========
 
-Using a cipher will make the state of your application encrypted "at rest"
-and "on the wire".
+Using a cryptographic cipher with your mapper will make the state of your application encrypted
+"at rest" and "on the wire".
 
 Without encryption, the state of the domain event will be visible in the
 recorded stored events in your database. For example, the ``timestamp``
@@ -252,10 +254,10 @@ in the stored event (``stored_event1``).
 The library's :class:`~eventsourcing.cipher.AESCipher` class can
 be used to cryptographically encode and decode the state of stored
 events. It must be constructed with a cipher key. The class method
-``create_key()`` can be used to generate a cipher key. The AES cipher
-key must be either 16, 24, or 32 bytes long. Please note, the same
-cipher key must be used to decrypt stored events as that which was
-used to encrypt stored events.
+:func:`~eventsourcing.cipher.AESCipher.create_key` can be used to
+generate a cipher key. The AES cipher key must be either 16, 24, or
+32 bytes long. Please note, the same cipher key must be used to
+decrypt stored events as that which was used to encrypt stored events.
 
 .. code:: python
 
@@ -287,7 +289,7 @@ Compression
 
 A compressor can be used to reduce the size of stored events.
 
-The Python ``zlib`` module can be used to compress and decompress
+The Python :mod:`zlib` module can be used to compress and decompress
 the state of stored events. The size of the state of a compressed
 and encrypted stored event will be less than size of the state of
 a stored event that is encrypted but not compressed.
@@ -312,13 +314,15 @@ Event notification objects
 ==========================
 
 Event notifications are used to propagate the state of an event
-sourced application. The stored events can be positioned in a
-"total order" by giving each a new domain event a notification
-ID that is higher that any previously recorded event. By recording
-the domain events atomically with their notification IDs, there
-will never be a domain event that is not available to be passed
+sourced application in a reliable way. The stored events can be
+positioned in a "total order" by giving each a new domain event
+a notification ID that is higher that any previously recorded event.
+By recording the domain events atomically with their notification IDs,
+there will never be a domain event that is not available to be passed
 as a message across a network, and there will never be a message
 passed across a network that doesn't correspond to a recorded event.
+This solves the "dual writing" problem that occurs when separately
+a domain model is updated and then a message is put on a message queue.
 
 The library's :class:`~eventsourcing.persistence.Notification` class
 is a Python frozen dataclass that can be used to hold information
@@ -326,7 +330,7 @@ about a domain event object when being transmitted as an item in a
 section of a `notification log <application.html#notification-log>`_.
 It will be returned when selecting event notifications from a
 `recorder <#recorder>`_, and presented in an application by a
-notification log.
+`notification log <applications.html#notification-log>`_.
 
 .. code:: python
 
@@ -354,7 +358,11 @@ objects. By ensuring the uniqueness of recorded tracking objects,
 we can ensure that a domain event notification is never processed
 twice. By recording the position of the last event notification that
 has been processed, we can ensure to resume processing event notifications
-at the correct position.
+at the correct position. This constructs "exactly once" semantics
+when processing event notifications, by solving the "dual writing"
+problem that occurs when separately an event notification is consumed
+from a message queue with updates made to materialized view, and then
+an acknowledgement is sent back to the message queue.
 
 The library's :class:`~eventsourcing.persistence.Tracking` class
 is a Python frozen dataclass that can be used to hold the notification
@@ -376,7 +384,7 @@ Recorder
 ========
 
 A recorder adapts a database management system for the purpose of
-recording stored events.
+recording stored events. It is used by an `event store <#event-store>`_.
 
 The library's :class:`~eventsourcing.persistence.Recorder` class
 is an abstract base for concrete recorder classes that will insert
@@ -393,8 +401,8 @@ being processed. The "aggregate recorder" can be used for
 storing snapshots.
 
 The library includes concrete recorder classes for SQLite using
-the Python ``sqlite3`` module, and for PostgreSQL using the
-third party ``psycopg2`` module. The library also includes
+the Python :mod:`sqlite3` module, and for PostgreSQL using the
+third party :mod:`psycopg2` module. The library also includes
 recorder using "plain old Python objects" which provides
 a fast in-memory alternative for rapid development of event
 sourced applications.
@@ -422,8 +430,8 @@ Event Store
 ===========
 
 An event store provides a common interface for storing and retrieving
-domain event objects. It combines a mapper and a recorder, so that
-domain event objects can be converted to stored event objects, and
+domain event objects. It combines a `mapper <#mapper>`_ and a `recorder <#recorder>`_,
+so that domain event objects can be converted to stored event objects, and
 then stored event objects can be recorded in a datastore.
 
 The library's :class:`~eventsourcing.persistence.EventStore` class must
@@ -446,16 +454,16 @@ be constructed with a `recorder <#recorder`_ and a `mapper <#mapper>`_.
 Infrastructure Factory
 ======================
 
-An infrastructure factory helps with the construction of the persistence
-objects. By reading and responding to particular environment variables,
-the persistence infrastructure of an event-sourced application can be easily
-configured in different ways at different times.
+An infrastructure factory helps with the construction of the persistence objects mentioned
+above. By reading and responding to particular environment variables, the persistence
+infrastructure of an event-sourced application can be `easily configured in different ways
+at different times <application.html#configuring-persistence>`_.
 
 The library's :class:`~eventsourcing.persistence.InfrastructureFactory` class
 is a base class for concrete infrastructure factories that help with the construction
 of persistence objects that use a particular database in a particular way.
 
-The class method :class:`~eventsourcing.persistence.InfrastructureFactory.construct()`
+The class method :class:`~eventsourcing.persistence.InfrastructureFactory.construct`
 will by default construct the library's "plain old Python objects" persistence infrastructure.
 
 .. code:: python
@@ -478,6 +486,11 @@ will by default construct the library's "plain old Python objects" persistence i
 
 SQLite
 ======
+
+The module :mod:`eventsourcing.sqlite` supports storing events in SQLite.
+
+The SQLite :class:`eventsourcing.sqlite:Factory` uses environment variables
+``'SQLITE_DBNAME'`` and ``'DO_CREATE_TABLE'``.
 
 .. code:: python
 
@@ -503,6 +516,13 @@ SQLite
 
 PostgreSQL
 ==========
+
+The module :mod:`eventsourcing.postgres` supports storing events in PostgresSQL.
+
+The SQLite :class:`eventsourcing.sqlite:Factory` uses environment variables
+``'POSTGRES_DBNAME'``, ``'POSTGRES_HOST'``, ``'POSTGRES_USER'``,
+``'POSTGRES_PASSWORD'``, and ``'DO_CREATE_TABLE'``.
+
 
 .. code:: python
 
