@@ -48,8 +48,8 @@ class Transcoder(AbstractTranscoder):
     def __init__(self):
         self.types: Dict[type, Transcoding] = {}
         self.names: Dict[str, Transcoding] = {}
-        self.encoder = json.JSONEncoder(default=self._encode_dict)
-        self.decoder = json.JSONDecoder(object_hook=self._decode_dict)
+        self.encoder = json.JSONEncoder(default=self._encode_obj)
+        self.decoder = json.JSONDecoder(object_hook=self._decode_obj)
 
     def register(self, transcoding: Transcoding):
         self.types[transcoding.type] = transcoding
@@ -61,7 +61,7 @@ class Transcoder(AbstractTranscoder):
     def decode(self, d: bytes) -> dict:
         return self.decoder.decode(d.decode("utf8"))
 
-    def _encode_dict(self, o: Any) -> Dict[str, Union[str, dict]]:
+    def _encode_obj(self, o: Any) -> Dict[str, Union[str, dict]]:
         try:
             transcoding = self.types[type(o)]
         except KeyError:
@@ -76,7 +76,7 @@ class Transcoder(AbstractTranscoder):
                 "__data__": transcoding.encode(o),
             }
 
-    def _decode_dict(self, d: Dict[str, Union[str, dict]]) -> Any:
+    def _decode_obj(self, d: Dict[str, Union[str, dict]]) -> Any:
         if set(d.keys()) == {
             "__type__",
             "__data__",
