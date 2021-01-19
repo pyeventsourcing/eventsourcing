@@ -12,6 +12,7 @@ is_pypy = platform.python_implementation() == "PyPy"
 #     os.environ["CASS_DRIVER_NO_CYTHON"] = "1"
 
 install_requires = [
+    "wheel"
     # "python-dateutil<=2.8.99999",
     # "requests<=2.25.99999",
     # "readerwriterlock<=1.0.99999",
