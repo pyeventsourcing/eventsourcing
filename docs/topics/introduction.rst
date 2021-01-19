@@ -8,12 +8,12 @@ What is event sourcing?
 What is event sourcing? One definition suggests the state of an
 event-sourced application is determined by a sequence of events.
 Another definition has event sourcing as a persistence mechanism
-for domain driven design.
+for domain-driven design.
 
 A cohesive mechanism
 ====================
 
-Quoting from Eric Evans' book `Domain Driven Design
+Quoting from Eric Evans' book `Domain-Driven Design
 <https://en.wikipedia.org/wiki/Domain-driven_design>`__:
 
 .. pull-quote::
@@ -27,7 +27,7 @@ Quoting from Eric Evans' book `Domain Driven Design
 
 Although the basic event sourcing patterns are quite simple, and
 can be reproduced in code for each project, the persistence mechanism
-for event-sourced domain driven design appears as a conceptually cohesive
+for event-sourced domain-driven design appears as a conceptually cohesive
 mechanism, and so can be "partitioned into a separate lightweight framework".
 
 
@@ -36,7 +36,7 @@ This library
 
 This is a library for event sourcing in Python. At its core, this library
 supports storing and retrieving sequences of items, such as the domain events
-of event-sourced aggregates in a domain driven design. A variety of schemas
+of event-sourced aggregates in a domain-driven design. A variety of schemas
 and technologies can be used for sequencing and storing events, and this
 library supports several of these possibilities.
 

@@ -15,9 +15,10 @@ of domain event notifications.
 Domain-driven design
 ====================
 
-*Domain-Driven Design* involves a "layered architecture" with four layers: interface,
-application, domain, and infrastructure. The application layer depends on the domain
-and infrastructure layers. The interface layer depends on the application layer.
+The book *Domain-Driven Design* describes a "layered architecture" with four layers:
+interface, application, domain, and infrastructure. The application layer depends on
+the domain and infrastructure layers. The interface layer depends on the application
+layer.
 
 Generally speaking, the application layer implements commands which change the
 state of the application, and queries which present the state of the application.

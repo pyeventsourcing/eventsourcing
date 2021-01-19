@@ -14,7 +14,7 @@ TAggregateEvent = TypeVar("TAggregateEvent", bound="BaseAggregateRoot.Event")
 
 class BaseAggregateRoot(TimestampedVersionedEntity, Generic[TAggregateEvent]):
     """
-    Root entity for an aggregate in a domain driven design.
+    Root entity for an aggregate in a domain-driven design.
     """
 
     class Event(TimestampedVersionedEntity.Event[TAggregate]):

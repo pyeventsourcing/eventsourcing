@@ -14,7 +14,7 @@ of notifications.
 Three options
 -------------
 
-Vaughn Vernon suggests in his book Implementing Domain Driven Design:
+Vaughn Vernon suggests in his book Implementing Domain-Driven Design:
 
 .. pull-quote::
 
@@ -649,7 +649,7 @@ conflicts.
 Notification logs
 -----------------
 
-As described in Implementing Domain Driven Design, a notification log
+As described in Implementing Domain-Driven Design, a notification log
 presents a sequence of notification items in linked sections.
 
 Sections are obtained from a notification log using Python's
@@ -920,7 +920,7 @@ so the sequence is contiguous.
 Remote notification logs
 ------------------------
 
-The RESTful API design in Implementing Domain Driven Design
+The RESTful API design in Implementing Domain-Driven Design
 suggests a good way to present the notification log, a way that
 is simple and can scale using established HTTP technology.
 

@@ -138,6 +138,7 @@ setup(
         "event sourcing",
         "event store",
         "domain driven design",
+        "domain-driven design",
         "ddd",
         "cqrs",
         "cqs",

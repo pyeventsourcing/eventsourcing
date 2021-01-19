@@ -973,7 +973,7 @@ entity class.
 Aggregate root
 ==============
 
-Eric Evans' book Domain Driven Design describes an abstraction called
+Eric Evans' book Domain-Driven Design describes an abstraction called
 "aggregate":
 
 .. pull-quote::
@@ -1021,7 +1021,7 @@ Base class
 
 The library has a domain entity class called
 :class:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot` that can be
-useful in a domain driven design, especially where a single command can cause
+useful in a domain-driven design, especially where a single command can cause
 many events to be published. The :class:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot`
 entity class extends :class:`~eventsourcing.domain.model.entity.TimestampedVersionedEntity`.
 Its method :func:`~eventsourcing.domain.model.aggregate.BaseAggregateRoot.__publish__` overrides
