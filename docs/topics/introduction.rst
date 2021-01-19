@@ -66,7 +66,7 @@ layers, and the interface layer depends only on the application layer.
 Features
 ========
 
-*Domain models and application* — base classes for domain model aggregates
+*Domain model and application* — base classes for domain model aggregates
 and applications. Suggests how to structure an event-sourced application.
 
 *Flexible event store* — flexible persistence of domain events. Combines
