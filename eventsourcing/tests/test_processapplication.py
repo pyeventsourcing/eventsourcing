@@ -1,17 +1,3 @@
-try:
-    from functools import singledispatchmethod
-except ImportError:
-    from functools import singledispatch, update_wrapper
-
-    def singledispatchmethod(func):
-        dispatcher = singledispatch(func)
-
-        def wrapper(*args, **kw):
-            return dispatcher.dispatch(args[1].__class__)(*args, **kw)
-        wrapper.register = dispatcher.register
-        update_wrapper(wrapper, func)
-        return wrapper
-
 from unittest.case import TestCase
 
 from eventsourcing.domain import Aggregate
@@ -19,6 +5,7 @@ from eventsourcing.system import Leader, ProcessApplication, ProcessEvent
 from eventsourcing.tests.test_aggregate import BankAccount
 from eventsourcing.tests.test_application import BankAccounts
 from eventsourcing.tests.test_processingpolicy import EmailNotification
+from eventsourcing.utils import singledispatchmethod
 
 
 class TestProcessApplication(TestCase):
