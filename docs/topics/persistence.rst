@@ -83,6 +83,8 @@ transcodes Python :class:`~uuid.UUID` objects as hexadecimal strings.
 
 .. code:: python
 
+    from uuid import uuid4
+
     from eventsourcing.persistence import UUIDAsHex
 
     transcoder.register(UUIDAsHex())
