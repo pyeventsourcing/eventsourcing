@@ -36,11 +36,11 @@ class Transcoding(ABC):
 
 class AbstractTranscoder(ABC):
     @abstractmethod
-    def encode(self, o: Any) -> bytes:
+    def encode(self, o: dict) -> bytes:
         """Encodes given object."""
 
     @abstractmethod
-    def decode(self, d: bytes) -> Any:
+    def decode(self, d: bytes) -> dict:
         """Decodes encoded object."""
 
 
