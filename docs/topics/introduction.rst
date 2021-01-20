@@ -66,7 +66,7 @@ layers, and the interface layer depends only on the application layer.
 Features
 ========
 
-*Domain model and application* — base classes for domain model aggregates
+*Domain models and applications* — base classes for domain model aggregates
 and applications. Suggests how to structure an event-sourced application.
 
 *Flexible event store* — flexible persistence of domain events. Combines
@@ -75,21 +75,25 @@ Mapper uses a transcoder that can be easily extended to support custom
 model object types. Recorders supporting different databases can be easily
 substituted and configured with environment variables.
 
-*Application-level encryption* — encrypts and decrypts events inside the application.
-This means data will be encrypted in transit across a network ("on the wire") and at
-disk level including backups ("at rest"), which is a legal requirement in some
+*Application-level encryption and compression* — encrypts and decrypts events inside the
+application. This means data will be encrypted in transit across a network ("on the wire")
+and at disk level including backups ("at rest"), which is a legal requirement in some
 jurisdictions when dealing with personally identifiable information (PII) for example
-the EU's GDPR.
+the EU's GDPR. Compression reduces the size of stored domain events and snapshots, usually
+by around 25% to 50% of the original size. Compression reduces the size of data
+in the database and decreases transit time across a network.
 
-*Snapshotting* — reduces aggregate access-time for aggregates with many domain events.
+*Snapshotting* — reduces access-time for aggregates with many domain events.
+
+*Versioning* - allows domain model changes to be introduced after an application
+has been deployed. Both domain events and aggregate classes can be versioned.
+The recorded state of an older version can be upcast to be compatible with a new
+version. Stored events and snapshots are upcast from older versions
+to new versions before the event or aggregate object is reconstructed.
 
 *Optimistic concurrency control* — ensures a distributed or horizontally scaled
 application doesn't become inconsistent due to concurrent method execution. Leverages
 optimistic concurrency controls in adapted database management systems.
-
-*Compression* - reduces the size of stored domain events and snapshots, usually
-by around 25% to 50% of the original size. Compression reduces the size of data
-in the database and decreases transit time across a network.
 
 *Notifications and projections* — reliable propagation of application
 events with pull-based notifications allows the application state to be
@@ -106,12 +110,6 @@ of concepts, explanation of usage, and detailed descriptions of library classes.
 *Worked examples* — includes examples showing how to develop aggregates, applications
 and systems.
 
-..
-    **Versioning** - allows model changes to be introduced after an application
-    has been deployed. Both domain events and domain entity classes can be versioned.
-    The recorded state of an older version can be upcast to be compatible with a new
-    version. Stored events and snapshots are upcast from older versions
-    to new versions before the event or entity object is reconstructed.
 
 ..
     **Hash chaining** — Sequences of events can be hash-chained, and the entire sequence
