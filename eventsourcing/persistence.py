@@ -152,6 +152,9 @@ class Mapper(Generic[TDomainEvent]):
         d = copy(domain_event.__dict__)
         d.pop("originator_id")
         d.pop("originator_version")
+        _class_version_ = type(domain_event)._class_version_
+        if _class_version_ > 1:
+            d['_class_version_'] = _class_version_
         state: bytes = self.transcoder.encode(d)
         if self.compressor:
             state = self.compressor.compress(state)
@@ -168,18 +171,26 @@ class Mapper(Generic[TDomainEvent]):
         """
         Converts the given stored event to a domain event object.
         """
-        state: bytes = stored.state
+        stored_state: bytes = stored.state
         if self.cipher:
-            state = self.cipher.decrypt(state)
+            stored_state = self.cipher.decrypt(stored_state)
         if self.compressor:
-            state = self.compressor.decompress(state)
-        d = self.transcoder.decode(state)
-        d["originator_id"] = stored.originator_id
-        d["originator_version"] = stored.originator_version
+            stored_state = self.compressor.decompress(stored_state)
+        state = self.transcoder.decode(stored_state)
+        class_version = state.pop("_class_version_", 1)
+        state["originator_id"] = stored.originator_id
+        state["originator_version"] = stored.originator_version
         cls = resolve_topic(stored.topic)
+        from_version = state.pop('_class_version_', 1)
+        to_version = from_version + 1
+        while from_version < cls._class_version_:
+            getattr(cls, f'_upcast_v{from_version}_v{to_version}_')(state)
+            from_version += 1
+            to_version += 1
+
         assert issubclass(cls, DomainEvent)
         domain_event: TDomainEvent = object.__new__(cls)
-        domain_event.__dict__.update(d)
+        domain_event.__dict__.update(state)
         return domain_event
 
 

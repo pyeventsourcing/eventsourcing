@@ -16,6 +16,7 @@ class DomainEvent:
     originator_id: UUID
     originator_version: int
     timestamp: datetime
+    _class_version_ = 1
 
 
 TDomainEvent = TypeVar("TDomainEvent", bound=DomainEvent)
@@ -25,6 +26,7 @@ class Aggregate:
     """
     Base class for aggregate roots.
     """
+    _class_version_ = 1
 
     @dataclass(frozen=True)
     class Event(DomainEvent):
@@ -174,6 +176,8 @@ class Snapshot(DomainEvent):
         """Creates a snapshot of the given aggregate object."""
         state = dict(aggregate.__dict__)
         state.pop("_pending_events_")
+        if type(aggregate)._class_version_ > 1:
+            state['_class_version_'] = type(aggregate)._class_version_
         originator_id = state.pop("id")
         originator_version = state.pop("_version_")
         return cls(
@@ -187,9 +191,18 @@ class Snapshot(DomainEvent):
     def mutate(self, _=None) -> Aggregate:
         """Reconstructs the snapshotted aggregate object."""
         cls = resolve_topic(self.topic)
+        assert issubclass(cls, Aggregate)
         aggregate = object.__new__(cls)
         assert isinstance(aggregate, Aggregate)
-        aggregate.__dict__.update(self.state)
+        state = dict(self.state)
+        from_version = state.pop('_class_version_', 1)
+        to_version = from_version + 1
+        while from_version < cls._class_version_:
+            getattr(cls, f'_upcast_v{from_version}_v{to_version}_')(state)
+            from_version += 1
+            to_version += 1
+
+        aggregate.__dict__.update(state)
         aggregate.__dict__["id"] = self.originator_id
         aggregate.__dict__["_version_"] = self.originator_version
         aggregate.__dict__["_pending_events_"] = []
