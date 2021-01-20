@@ -70,7 +70,6 @@ class TestUpcasting(TestCase):
         self.assertEqual(copy.b, 0)
         self.assertEqual(copy.c, [])
 
-
     def test_upcast_created_event_from_v2(self):
         app = Application()
 
@@ -130,7 +129,6 @@ class TestUpcasting(TestCase):
 
         self.assertEqual(copy.d, Decimal('10.0'))
 
-
     def test_upcast_aggregate_snapshot_from_v3(self):
         app = Application()
 
@@ -156,7 +154,6 @@ class TestUpcasting(TestCase):
 
         self.assertEqual(copy.d, Decimal('10.0'))
 
-
     class UpcastFixtureV1(Aggregate):
         _class_version_ = 1
 
@@ -174,7 +171,6 @@ class TestUpcasting(TestCase):
             a: str
 
     original_cls_v1 = UpcastFixtureV1
-
 
     class UpcastFixtureV2(Aggregate):
         _class_version_ = 2
@@ -204,7 +200,6 @@ class TestUpcasting(TestCase):
             def _upcast_v1_v2_(d):
                 d['a'] = d['a'].upper()
                 d['b'] = 0
-
 
     original_cls_v2 = UpcastFixtureV2
 
@@ -245,7 +240,6 @@ class TestUpcasting(TestCase):
             @staticmethod
             def _upcast_v2_v3_(d):
                 d['c'] = []
-
 
     original_cls_v3 = UpcastFixtureV3
 
@@ -294,5 +288,6 @@ class TestUpcasting(TestCase):
         @dataclass(frozen=True)
         class DUpdated(Aggregate.Event):
             d: Decimal
+
             def apply(self, aggregate: "Aggregate") -> None:
                 aggregate.d = self.d
