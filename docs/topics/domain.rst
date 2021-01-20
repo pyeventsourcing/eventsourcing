@@ -569,7 +569,7 @@ class, so that any snapshots will be upcast.
             _class_version_ = 3
             a: str
             b: int
-            c: List
+            c: list
 
             @staticmethod
             def _upcast_v1_v2_(state):
@@ -596,7 +596,7 @@ which updates ``d`` is defined. Since the ``Created`` event class has not change
             self.a = a
             self.b = b
             self.c = c
-            self.d: Optional[Decimal] = None
+            self.d: Optional[float] = None
 
         @staticmethod
         def _upcast_v1_v2_(state):
@@ -615,7 +615,7 @@ which updates ``d`` is defined. Since the ``Created`` event class has not change
             _class_version_ = 3
             a: str
             b: int
-            c: List
+            c: list
 
             @staticmethod
             def _upcast_v1_v2_(state):
@@ -625,15 +625,16 @@ which updates ``d`` is defined. Since the ``Created`` event class has not change
             def _upcast_v2_v3_(state):
                 state['c'] = []
 
-        def set_d(self, value: Decimal):
+        def set_d(self, value: float):
             self._trigger_(self.DUpdated, d=value)
 
         @dataclass(frozen=True)
         class DUpdated(Aggregate.Event):
-            d: Decimal
+            d: float
 
             def apply(self, aggregate: "Aggregate") -> None:
                 aggregate.d = self.d
+
 
 If the value objects used by your events also change, you may also need to define new transcodings with new
 names. Simply register the new transcodings after the old, and use a modified ``name`` value for the transcoding.
