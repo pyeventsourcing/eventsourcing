@@ -244,7 +244,6 @@ class TestUpcasting(TestCase):
         self.assertEqual(copy.d, 10)
 
     class UpcastFixtureV1(Aggregate):
-        _class_version_ = 1
 
         @classmethod
         def create(cls, *, a):
@@ -256,7 +255,6 @@ class TestUpcasting(TestCase):
 
         @dataclass(frozen=True)
         class Created(Aggregate.Created):
-            _class_version_ = 1
             a: str
 
     original_cls_v1 = UpcastFixtureV1
