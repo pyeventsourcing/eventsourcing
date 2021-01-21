@@ -79,11 +79,6 @@ another type of object that can be encoded by the transcoder, and will
 decode that object into the original type of object. This makes it possible
 to transcode custom types, including custom types that contain custom types.
 
-Please note, due to the way the Python :mod:`json` module works, it isn't
-currently possible to transcode subclasses of the basic Python types that
-are supported by default, such as :class:`dict`, :class:`list`, :class:`tuple`,
-:class:`str`, :class:`int`, :class:`float`, and :class:`bool`.
-
 The library includes a limited collection of custom transcoding objects. For
 example, the library's :class:`~eventsourcing.persistence.UUIDAsHex` class
 transcodes a Python :class:`~uuid.UUID` objects as a hexadecimal string.
@@ -97,8 +92,8 @@ transcodes a Python :class:`~uuid.UUID` objects as a hexadecimal string.
     transcoding = UUIDAsHex()
 
     id1 = uuid4()
-    value = transcoding.encode(id1)
-    assert transcoding.decode(value) == id1
+    data = transcoding.encode(id1)
+    assert transcoding.decode(data) == id1
 
 
 Similarly, the library's :class:`~eventsourcing.persistence.DatetimeAsISO` class
@@ -185,6 +180,11 @@ can be subclassed to define custom transcodings for other object types.
 
     data = transcoder.encode(date1)
     assert transcoder.decode(data) == date1
+
+Please note, due to the way the Python :mod:`json` module works, it isn't
+currently possible to transcode subclasses of the basic Python types that
+are supported by default, such as :class:`dict`, :class:`list`, :class:`tuple`,
+:class:`str`, :class:`int`, :class:`float`, and :class:`bool`.
 
 
 Stored event objects
