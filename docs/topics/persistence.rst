@@ -16,14 +16,14 @@ store. It also converts stored events objects back to domain
 event objects when domain events are retrieved from the event
 store. A mapper uses an extensible **transcoder** that can be set up
 with additional transcoding objects that serialise and deserialise
-particular types of object, such as Python's :class:`~uuid.UUID`, :class:`~datetime.datetime`
-and :class:`~decimal.Decimal` objects. A mapper may use a compressor to compress
-and decompress the state of stored event objects, and may use a
-cipher to encode and decode the state of stored event objects. If both
-a compressor and a cipher are being used by a mapper, the state of any
-stored event objects will be compressed and then encoded when storing
-domain events, and will be decoded and then decompressed when retrieving
-domain events.
+particular types of object, such as Python's :class:`~uuid.UUID`,
+:class:`~datetime.datetime` and :class:`~decimal.Decimal` objects.
+A mapper may use a compressor to compress and decompress the state
+of stored event objects, and may use a cipher to encode and decode
+the state of stored event objects. If both a compressor and a cipher
+are being used by a mapper, the state of any stored event objects will
+be compressed and then encoded when storing domain events, and will be
+decoded and then decompressed when retrieving domain events.
 
 A **recorder** inserts stored event objects in a datastore when domain
 events are stored in an event store, and selects stored events from
@@ -71,15 +71,22 @@ Transcodings
 ============
 
 In order to encode and decode other types of object, custom transcodings need
-to be registered with the `transcoder <#transcoder>`_ using the transcoder object's
+to be defined, and then registered with the `transcoder <#transcoder>`_ using
+the transcoder object's
 :func:`~eventsourcing.persistence.Transcoder.register` method.
-A transcoding will serialise and deserialise an instance of a specific type of object
-to either a Python :class:`str` or a Python :class:`dict`.
+A transcoding will encode an instance of a non-basic type of object into
+another type of object that can be encoded by the transcoder, and will
+decode that object into the original type of object. This makes it possible
+to transcode custom types, including custom types that contain custom types.
 
-The library includes a limited collection of custom transcoding
-objects. For example, the library's
-:class:`~eventsourcing.persistence.UUIDAsHex` class
-transcodes Python :class:`~uuid.UUID` objects as hexadecimal strings.
+Please note, due to the way the Python :mod:`json` module works, it isn't
+currently possible to transcode subclasses of the basic Python types that
+are supported by default, such as :class:`dict`, :class:`list`, :class:`tuple`,
+:class:`str`, :class:`int`, :class:`float`, and :class:`bool`.
+
+The library includes a limited collection of custom transcoding objects. For
+example, the library's :class:`~eventsourcing.persistence.UUIDAsHex` class
+transcodes a Python :class:`~uuid.UUID` objects as a hexadecimal string.
 
 .. code:: python
 
@@ -87,11 +94,11 @@ transcodes Python :class:`~uuid.UUID` objects as hexadecimal strings.
 
     from eventsourcing.persistence import UUIDAsHex
 
-    transcoder.register(UUIDAsHex())
+    transcoding = UUIDAsHex()
 
     id1 = uuid4()
-    value = transcoder.encode(id1)
-    assert transcoder.decode(value) == id1
+    value = transcoding.encode(id1)
+    assert transcoding.decode(value) == id1
 
 
 Similarly, the library's :class:`~eventsourcing.persistence.DatetimeAsISO` class
@@ -101,27 +108,42 @@ objects as decimal strings.
 
 .. code:: python
 
+    from datetime import datetime
+    from decimal import Decimal
+
     from eventsourcing.persistence import (
         DatetimeAsISO,
         DecimalAsStr,
     )
 
+    transcoding = DatetimeAsISO()
+    datetime1 = datetime(2021, 12, 31, 23, 59, 59)
+    value = transcoding.encode(datetime1)
+    assert transcoding.decode(value) == datetime1
+
+
+    transcoding = DecimalAsStr()
+    decimal1 = Decimal("1.2345")
+    value = transcoding.encode(decimal1)
+    assert transcoding.decode(value) == decimal1
+
+
+These transcodings can be registered with the transcoder.
+
+.. code:: python
+
+    transcoder.register(UUIDAsHex())
     transcoder.register(DatetimeAsISO())
     transcoder.register(DecimalAsStr())
 
+    data = transcoder.encode(id1)
+    assert transcoder.decode(data) == id1
 
-    from datetime import datetime
+    data = transcoder.encode(datetime1)
+    assert transcoder.decode(data) == datetime1
 
-    datetime1 = datetime(2021, 12, 31, 23, 59, 59)
-    value = transcoder.encode(datetime1)
-    assert transcoder.decode(value) == datetime1
-
-
-    from decimal import Decimal
-
-    decimal1 = Decimal("1.2345")
-    value = transcoder.encode(decimal1)
-    assert transcoder.decode(value) == decimal1
+    data = transcoder.encode(decimal1)
+    assert transcoder.decode(data) == decimal1
 
 
 Trying to transcode an unsupported type will result in a Python :class:`TypeError`.
@@ -132,7 +154,7 @@ Trying to transcode an unsupported type will result in a Python :class:`TypeErro
 
     date1 = date(2021, 12, 31)
     try:
-        value = transcoder.encode(date1)
+        data = transcoder.encode(date1)
     except TypeError:
         pass
     else:
@@ -147,22 +169,22 @@ can be subclassed to define custom transcodings for other object types.
     from eventsourcing.persistence import Transcoding
     from typing import Union
 
+
     class DateAsISO(Transcoding):
         type = date
         name = "date_iso"
 
-        def encode(self, o: date) -> str:
-            return o.isoformat()
+        def encode(self, obj: date) -> str:
+            return obj.isoformat()
 
-        def decode(self, d: Union[str, dict]) -> date:
-            assert isinstance(d, str)
-            return date.fromisoformat(d)
+        def decode(self, data: str) -> date:
+            return date.fromisoformat(data)
 
 
     transcoder.register(DateAsISO())
 
-    value = transcoder.encode(date1)
-    assert transcoder.decode(value) == date1
+    data = transcoder.encode(date1)
+    assert transcoder.decode(data) == date1
 
 
 Stored event objects
@@ -293,8 +315,8 @@ A compressor can be used to reduce the size of stored events.
 
 The Python :mod:`zlib` module can be used to compress and decompress
 the state of stored events. The size of the state of a compressed
-and encrypted stored event will be less than size of the state of
-a stored event that is encrypted but not compressed.
+and encrypted stored event will be less than or equal to the size of
+the state of a stored event that is encrypted but not compressed.
 
 .. code:: python
 
@@ -309,7 +331,7 @@ a stored event that is encrypted but not compressed.
     stored_event2 = mapper.from_domain_event(domain_event1)
     assert mapper.to_domain_event(stored_event2) == domain_event1
 
-    assert len(stored_event2.state) < len(stored_event1.state)
+    assert len(stored_event2.state) <= len(stored_event1.state)
 
 
 Event notification objects

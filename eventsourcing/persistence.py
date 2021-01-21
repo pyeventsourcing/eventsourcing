@@ -26,22 +26,22 @@ class Transcoding(ABC):
         """Name of transcoding."""
 
     @abstractmethod
-    def encode(self, o: Any) -> Union[str, dict]:
+    def encode(self, obj: Any) -> Any:
         """Encodes given object."""
 
     @abstractmethod
-    def decode(self, d: Union[str, dict]) -> Any:
+    def decode(self, data: Any) -> Any:
         """Decodes encoded object."""
 
 
 class AbstractTranscoder(ABC):
     @abstractmethod
-    def encode(self, o: dict) -> bytes:
-        """Encodes given dict as bytes."""
+    def encode(self, obj: Any) -> bytes:
+        """Encodes obj as bytes."""
 
     @abstractmethod
-    def decode(self, d: bytes) -> dict:
-        """Decodes encoded dict from bytes."""
+    def decode(self, data: bytes) -> Any:
+        """Decodes obj from bytes."""
 
 
 class Transcoder(AbstractTranscoder):
@@ -55,13 +55,13 @@ class Transcoder(AbstractTranscoder):
         self.types[transcoding.type] = transcoding
         self.names[transcoding.name] = transcoding
 
-    def encode(self, o: dict) -> bytes:
-        return self.encoder.encode(o).encode("utf8")
+    def encode(self, obj: Any) -> bytes:
+        return self.encoder.encode(obj).encode("utf8")
 
-    def decode(self, d: bytes) -> dict:
-        return self.decoder.decode(d.decode("utf8"))
+    def decode(self, data: bytes) -> Any:
+        return self.decoder.decode(data.decode("utf8"))
 
-    def _encode_obj(self, o: Any) -> Dict[str, Union[str, dict]]:
+    def _encode_obj(self, o: Any) -> Dict[str, Any]:
         try:
             transcoding = self.types[type(o)]
         except KeyError:
@@ -72,19 +72,19 @@ class Transcoder(AbstractTranscoder):
             )
         else:
             return {
-                "__type__": transcoding.name,
-                "__data__": transcoding.encode(o),
+                "_type_": transcoding.name,
+                "_data_": transcoding.encode(o),
             }
 
-    def _decode_obj(self, d: Dict[str, Union[str, dict]]) -> Any:
+    def _decode_obj(self, d: Dict[str, Any]) -> Any:
         if set(d.keys()) == {
-            "__type__",
-            "__data__",
+            "_type_",
+            "_data_",
         }:
-            t = d["__type__"]
+            t = d["_type_"]
             t = cast(str, t)
             transcoding = self.names[t]
-            return transcoding.decode(d["__data__"])
+            return transcoding.decode(d["_data_"])
         else:
             return d
 
@@ -93,36 +93,35 @@ class UUIDAsHex(Transcoding):
     type = UUID
     name = "uuid_hex"
 
-    def encode(self, o: UUID) -> str:
-        return o.hex
+    def encode(self, obj: UUID) -> str:
+        return obj.hex
 
-    def decode(self, d: Union[str, dict]) -> UUID:
-        assert isinstance(d, str)
-        return UUID(d)
+    def decode(self, data: Any) -> UUID:
+        assert isinstance(data, str)
+        return UUID(data)
 
 
 class DecimalAsStr(Transcoding):
     type = Decimal
     name = "decimal_str"
 
-    def encode(self, o: Decimal):
-        return str(o)
+    def encode(self, obj: Decimal) -> str:
+        return str(obj)
 
-    def decode(self, d: Union[str, dict]) -> Decimal:
-        assert isinstance(d, str)
-        return Decimal(d)
+    def decode(self, data: str) -> Decimal:
+        return Decimal(data)
 
 
 class DatetimeAsISO(Transcoding):
     type = datetime
     name = "datetime_iso"
 
-    def encode(self, o: datetime) -> str:
-        return o.isoformat()
+    def encode(self, obj: datetime) -> str:
+        return obj.isoformat()
 
-    def decode(self, d: Union[str, dict]) -> datetime:
-        assert isinstance(d, str)
-        return datetime.fromisoformat(d)
+    def decode(self, data: str) -> datetime:
+        assert isinstance(data, str)
+        return datetime.fromisoformat(data)
 
 
 @dataclass(frozen=True)
@@ -149,22 +148,22 @@ class Mapper(Generic[TDomainEvent]):
         Converts the given domain event to a stored event object.
         """
         topic: str = get_topic(domain_event.__class__)
-        d = copy(domain_event.__dict__)
-        d.pop("originator_id")
-        d.pop("originator_version")
-        _class_version_ = getattr(type(domain_event), '_class_version_', 1)
-        if _class_version_ > 1:
-            d['_class_version_'] = _class_version_
-        state: bytes = self.transcoder.encode(d)
+        event_state = copy(domain_event.__dict__)
+        originator_id = event_state.pop("originator_id")
+        originator_version = event_state.pop("originator_version")
+        class_version = getattr(type(domain_event), '_class_version_', 1)
+        if class_version > 1:
+            event_state['_class_version_'] = class_version
+        stored_state: bytes = self.transcoder.encode(event_state)
         if self.compressor:
-            state = self.compressor.compress(state)
+            stored_state = self.compressor.compress(stored_state)
         if self.cipher:
-            state = self.cipher.encrypt(state)
+            stored_state = self.cipher.encrypt(stored_state)
         return StoredEvent(
-            domain_event.originator_id,
-            domain_event.originator_version,
-            topic,
-            state,
+            originator_id=originator_id,
+            originator_version=originator_version,
+            topic=topic,
+            state=stored_state,
         )
 
     def to_domain_event(self, stored: StoredEvent) -> TDomainEvent:
@@ -176,19 +175,19 @@ class Mapper(Generic[TDomainEvent]):
             stored_state = self.cipher.decrypt(stored_state)
         if self.compressor:
             stored_state = self.compressor.decompress(stored_state)
-        state = self.transcoder.decode(stored_state)
-        state["originator_id"] = stored.originator_id
-        state["originator_version"] = stored.originator_version
+        event_state: dict = self.transcoder.decode(stored_state)
+        event_state["originator_id"] = stored.originator_id
+        event_state["originator_version"] = stored.originator_version
         cls = resolve_topic(stored.topic)
-        _class_version_ = getattr(cls, '_class_version_', 1)
-        from_version = state.pop('_class_version_', 1)
-        while from_version < _class_version_:
-            getattr(cls, f'_upcast_v{from_version}_v{from_version + 1}_')(state)
+        assert issubclass(cls, DomainEvent)
+        class_version = getattr(cls, '_class_version_', 1)
+        from_version = event_state.pop('_class_version_', 1)
+        while from_version < class_version:
+            getattr(cls, f'_upcast_v{from_version}_v{from_version + 1}_')(event_state)
             from_version += 1
 
-        assert issubclass(cls, DomainEvent)
-        domain_event: TDomainEvent = object.__new__(cls)
-        domain_event.__dict__.update(state)
+        domain_event = object.__new__(cls)
+        domain_event.__dict__.update(event_state)
         return domain_event
 
 

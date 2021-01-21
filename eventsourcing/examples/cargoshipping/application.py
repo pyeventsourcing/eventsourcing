@@ -21,48 +21,48 @@ class LocationAsName(Transcoding):
     type = Location
     name = "location"
 
-    def encode(self, o: Location) -> str:
-        return o.name
+    def encode(self, obj: Location) -> str:
+        return obj.name
 
-    def decode(self, d: str) -> Location:
-        assert isinstance(d, str)
-        return Location[d]
+    def decode(self, data: str) -> Location:
+        assert isinstance(data, str)
+        return Location[data]
 
 
 class HandlingActivityAsName(Transcoding):
     type = HandlingActivity
     name = "handling_activity"
 
-    def encode(self, o: HandlingActivity) -> str:
-        return o.name
+    def encode(self, obj: HandlingActivity) -> str:
+        return obj.name
 
-    def decode(self, d: str) -> HandlingActivity:
-        assert isinstance(d, str)
-        return HandlingActivity[d]
+    def decode(self, data: str) -> HandlingActivity:
+        assert isinstance(data, str)
+        return HandlingActivity[data]
 
 
 class ItineraryAsDict(Transcoding):
     type = Itinerary
     name = "itinerary"
 
-    def encode(self, o: Itinerary) -> dict:
-        return o.__dict__
+    def encode(self, obj: Itinerary) -> dict:
+        return obj.__dict__
 
-    def decode(self, d: dict) -> Itinerary:
-        assert isinstance(d, dict)
-        return Itinerary(**d)
+    def decode(self, data: dict) -> Itinerary:
+        assert isinstance(data, dict)
+        return Itinerary(**data)
 
 
 class LegAsDict(Transcoding):
     type = Leg
     name = "leg"
 
-    def encode(self, o: Leg) -> dict:
-        return o.__dict__
+    def encode(self, obj: Leg) -> dict:
+        return obj.__dict__
 
-    def decode(self, d: dict) -> Leg:
-        assert isinstance(d, dict)
-        return Leg(**d)
+    def decode(self, data: dict) -> Leg:
+        assert isinstance(data, dict)
+        return Leg(**data)
 
 
 class BookingApplication(Application):
