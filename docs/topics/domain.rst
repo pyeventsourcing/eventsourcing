@@ -641,9 +641,10 @@ names. Simply register the new transcodings after the old, and use a modified ``
 In this way, the existing encoded values will be decoded by the old transcoding, and the new instances of the
 value object class will be encoded with the new version of the transcoding.
 
-In order to support forward compatibility as well as backward compatibility, it is advisable to restrict changes
-to existing types to be additive only. If existing aspects need to be changed, for example renaming an attribute,
-then it is advisable to define a new type.
+In order to support forward compatibility as well as backward compatibility, so that consumers designed for
+old versions can still read new versions, it is advisable to restrict changes to existing types to be augmentive
+only, so that existing attributes are unchanged. If existing aspects need to be changed, for example by renaming
+or removing an attribute of an event, then it is advisable to define a new type.
 
 Classes
 =======
