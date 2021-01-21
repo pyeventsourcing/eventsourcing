@@ -477,12 +477,12 @@ In the example below, version ``1`` of the class ``MyAggregate`` is defined with
 .. code:: python
 
     class MyAggregate(Aggregate):
-        def __init__(self, a, **kwargs):
+        def __init__(self, a:str, **kwargs):
             super().__init__(**kwargs)
             self.a = a
 
         @classmethod
-        def create(cls, a):
+        def create(cls, a:str):
             return cls._create_(cls.Created, id=uuid4(), a=a)
 
         @dataclass(frozen=True)
