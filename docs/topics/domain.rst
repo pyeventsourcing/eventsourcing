@@ -468,7 +468,7 @@ version ``X`` to the next higher version ``Y``. Such upcast methods will be call
 to upcast the state from the version of the class with which it was created to the version of the class which
 will be reconstructed. For example, upcasting the stored state of an object created at version ``2`` of a
 class that will be used to reconstruct an object at version ``4`` of the class will involve calling upcast
-methods ``_upcast_2_3_``, and ``_upcast_3_4_``. If you aren't using snapshots, you don't need to define
+methods ``_upcast_2_3_()``, and ``_upcast_3_4_()``. If you aren't using snapshots, you don't need to define
 upcast methods or version numbers on the aggregate class.
 
 In the example below, version ``1`` of the class ``MyAggregate`` is defined with an attribute ``a``.
@@ -496,7 +496,7 @@ is added to the definition of the ``Created`` event, in order for the existing s
 constructed in a way that satisfies the new version of the class, the stored events will need to be
 upcast to have a value for ``b``. In the example below, the static method ``_upcast_v1_v2_()`` defined
 on the ``Created`` event sets a default value for ``b`` in the given ``state``. The class attribute
-``_class_version`` is set to ``2``. The same treatment is given to the aggregate class as the domain
+``_class_version_`` is set to ``2``. The same treatment is given to the aggregate class as the domain
 event class, so that snapshots can be upcast.
 
 .. code:: python
@@ -537,7 +537,7 @@ events from version 1 to be constructed in a way that satisfies the new version 
 will need to be upcast to include a value for ``b`` and ``c``. The existing stored events from version 2
 will need to be upcast to include a value for ``c``. The additional static method ``_upcast_v2_v3_()``
 defined on the ``Created`` event sets a default value for ``c`` in the given ``state``. The class attribute
-``_class_version`` is set to ``3``. The same treatment is given to the aggregate class as the domain event
+``_class_version_`` is set to ``3``. The same treatment is given to the aggregate class as the domain event
 class, so that any snapshots will be upcast.
 
 .. code:: python
@@ -582,7 +582,7 @@ class, so that any snapshots will be upcast.
 
 If subsequently a new event is added that manipulates a new attribute that is expected to be initialised when the
 aggregate is created, in order that snapshots from earlier version will be upcast, the aggregate class attribute
-``_class_version`` will need to be set to ``4`` and a static method ``_upcast_v3_v4_()`` defined on the aggregate
+``_class_version_`` will need to be set to ``4`` and a static method ``_upcast_v3_v4_()`` defined on the aggregate
 class. In the example below, the new attribute ``d`` is initialised in the ``__init__()`` method, and a domain event
 which updates ``d`` is defined. Since the ``Created`` event class has not changed, it remains at version ``3``.
 
