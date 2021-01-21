@@ -477,18 +477,18 @@ In the example below, version ``1`` of the class ``MyAggregate`` is defined with
 .. code:: python
 
     class MyAggregate(Aggregate):
+        def __init__(self, a, **kwargs):
+            super().__init__(**kwargs)
+            self.a = a
 
         @classmethod
         def create(cls, a):
             return cls._create_(cls.Created, id=uuid4(), a=a)
 
-        def __init__(self, a, **kwargs):
-            super().__init__(**kwargs)
-            self.a = a
-
         @dataclass(frozen=True)
         class Created(Aggregate.Created):
             a: str
+
 
 After an application that uses the above aggregate class has been deployed, its ``Created`` events
 will have been created and stored with the ``a`` attribute defined. If subsequently the attribute ``b``
@@ -501,33 +501,32 @@ event class, so that snapshots can be upcast.
 
 .. code:: python
 
-
     class MyAggregate(Aggregate):
-        _class_version_ = 2
-
-        @classmethod
-        def create(cls, a, b=0):
-            return cls._create_(cls.Created, id=uuid4(), a=a, b=b)
-
-        def __init__(self, a, b, **kwargs):
+        def __init__(self, a:str, b:int, **kwargs):
             super().__init__(**kwargs)
             self.a = a
             self.b = b
 
-        @staticmethod
-        def _upcast_v1_v2_(state):
-            state['b'] = 0
+        @classmethod
+        def create(cls, a:str, b: int = 0):
+            return cls._create_(cls.Created, id=uuid4(), a=a, b=b)
 
         @dataclass(frozen=True)
         class Created(Aggregate.Created):
-            _class_version_ = 2
-
             a: str
-            b: str
+            b: int
+
+            _class_version_ = 2
 
             @staticmethod
             def _upcast_v1_v2_(state):
                 state['b'] = 0
+
+        _class_version_ = 2
+
+        @staticmethod
+        def _upcast_v1_v2_(state):
+            state['b'] = 0
 
 
 After an application that uses the above version 2 aggregate class has been deployed, its ``Created``
@@ -543,25 +542,15 @@ class, so that any snapshots will be upcast.
 .. code:: python
 
     class MyAggregate(Aggregate):
-        _class_version_ = 3
-
-        @classmethod
-        def create(cls, a, b=0, c=0.0):
-            return cls._create_(cls.Created, id=uuid4(), a=a, b=b, c=c)
-
-        def __init__(self, a, b, c, **kwargs):
+        def __init__(self, a:str, b:int, c:float, **kwargs):
             super().__init__(**kwargs)
             self.a = a
             self.b = b
             self.c = c
 
-        @staticmethod
-        def _upcast_v1_v2_(state):
-            state['b'] = 0
-
-        @staticmethod
-        def _upcast_v2_v3_(state):
-            state['c'] = 0.0
+        @classmethod
+        def create(cls, a:str, b: int = 0, c: float = 0.0):
+            return cls._create_(cls.Created, id=uuid4(), a=a, b=b, c=c)
 
         @dataclass(frozen=True)
         class Created(Aggregate.Created):
@@ -577,6 +566,16 @@ class, so that any snapshots will be upcast.
             @staticmethod
             def _upcast_v2_v3_(state):
                 state['c'] = 0.0
+
+        _class_version_ = 3
+
+        @staticmethod
+        def _upcast_v1_v2_(state):
+            state['b'] = 0
+
+        @staticmethod
+        def _upcast_v2_v3_(state):
+            state['c'] = 0.0
 
 
 If subsequently a new event is added that manipulates a new attribute that is expected to be initialised when the
@@ -589,37 +588,24 @@ event class has not changed, it remains at version ``3``.
 .. code:: python
 
     class MyAggregate(Aggregate):
-        _class_version_ = 4
-
-        @classmethod
-        def create(cls, a, b=0, c=0.0):
-            return cls._create_(cls.Created, id=uuid4(), a=a, b=b, c=c)
-
-        def __init__(self, a, b, c, **kwargs):
+        def __init__(self, a:str, b:int, c:float, **kwargs):
             super().__init__(**kwargs)
             self.a = a
             self.b = b
             self.c = c
             self.d = False
 
-        @staticmethod
-        def _upcast_v1_v2_(state):
-            state['b'] = 0
-
-        @staticmethod
-        def _upcast_v2_v3_(state):
-            state['c'] = []
-
-        @staticmethod
-        def _upcast_v3_v4_(state):
-            state['d'] = False
+        @classmethod
+        def create(cls, a:str, b: int = 0, c: float = 0.0):
+            return cls._create_(cls.Created, id=uuid4(), a=a, b=b, c=c)
 
         @dataclass(frozen=True)
         class Created(Aggregate.Created):
-            _class_version_ = 3
             a: str
             b: int
             c: float
+
+            _class_version_ = 3
 
             @staticmethod
             def _upcast_v1_v2_(state):
@@ -629,8 +615,8 @@ event class has not changed, it remains at version ``3``.
             def _upcast_v2_v3_(state):
                 state['c'] = 0.0
 
-        def set_d(self, value: bool):
-            self._trigger_(self.DUpdated, d=value)
+        def set_d(self, d: bool):
+            self._trigger_(self.DUpdated, d=d)
 
         @dataclass(frozen=True)
         class DUpdated(Aggregate.Event):
@@ -638,6 +624,20 @@ event class has not changed, it remains at version ``3``.
 
             def apply(self, aggregate: "Aggregate") -> None:
                 aggregate.d = self.d
+
+        _class_version_ = 4
+
+        @staticmethod
+        def _upcast_v1_v2_(state):
+            state['b'] = 0
+
+        @staticmethod
+        def _upcast_v2_v3_(state):
+            state['c'] = 0.0
+
+        @staticmethod
+        def _upcast_v3_v4_(state):
+            state['d'] = False
 
 
 If the value objects used by your events also change, you may also need to define new transcodings with new
@@ -647,16 +647,17 @@ value object class will be encoded with the new version of the transcoding.
 
 In order to support forward compatibility as well as backward compatibility, so that consumers designed for
 old versions will not be broken by modifications, it is advisable to restrict changes to existing types to
-be augmentive only, so that existing attributes are unchanged. If existing aspects need to be changed, for
+be additions only, so that existing attributes are unchanged. If existing aspects need to be changed, for
 example by renaming or removing an attribute of an event, then it is advisable to define a new type. This
 approach depends on consumers overlooking or ignoring new attribute and new types, but they may effectively
 be broken anyway by such changes if they no longer see any data.
 
 Including model changes in the domain events may help to inform consumers of changes to the model schema,
-and would allow the domain model itself to be validated, so that classes are marked with new versions if
+and may allow the domain model itself to be validated, so that classes are marked with new versions if
 the attributes have changed. This may be addressed by a future version of this library. Considering model
 code changes as a sequence of immutable events brings the state of the domain model code itself into the same
 form of event-oriented consideration as the consideration of the state an application as a sequence of events.
+
 
 Classes
 =======
