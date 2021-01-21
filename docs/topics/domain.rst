@@ -464,12 +464,12 @@ On both aggregate and domain event classes, the class attribute ``_class_version
 the version of the class. This attribute is inferred to have a default value of ``1``. If the data model is
 changed, by adding or removing or renaming or changing the meaning of values of attributes, subsequent
 versions should be given a successively higher number than the previously deployed version. Static methods
-of the form ``_upcast_x_y_()`` will be called to update the state of a stored event or snapshot from a lower
-version ``x`` to the next higher version ``y``. Such upcast methods will be called  to upcast the state from
+of the form ``_upcast_vX_vY_()`` will be called to update the state of a stored event or snapshot from a lower
+version ``X`` to the next higher version ``Y``. Such upcast methods will be called  to upcast the state from
 the version of the class with which it was created to the version of the class which will be reconstructed.
 For example, upcasting the stored state of an object created at version ``2`` of a class that will be used
-to reconstruct an object at version ``4`` of the class will involve calling upcast methods ``_upcast_2_3_()``,
-and ``_upcast_3_4_()``. If you aren't using snapshots, you don't need to define upcast methods or version
+to reconstruct an object at version ``4`` of the class will involve calling upcast methods ``_upcast_v2_v3_()``,
+and ``_upcast_v3_v4_()``. If you aren't using snapshots, you don't need to define upcast methods or version
 numbers on the aggregate class.
 
 In the example below, version ``1`` of the class ``MyAggregate`` is defined with an attribute ``a``.
@@ -554,10 +554,11 @@ class, so that any snapshots will be upcast.
 
         @dataclass(frozen=True)
         class Created(Aggregate.Created):
-            _class_version_ = 3
             a: str
             b: int
             c: float
+
+            _class_version_ = 3
 
             @staticmethod
             def _upcast_v1_v2_(state):

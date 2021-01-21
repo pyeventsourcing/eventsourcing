@@ -243,15 +243,42 @@ class TestUpcasting(TestCase):
         self.assertEqual(copy.c, [1, 2])
         self.assertEqual(copy.d, 10)
 
+    def test_upcast_created_event_from_v4(self):
+        app = Application()
+
+        aggregate = self.UpcastFixtureV4.create(A='TEXT', b=1, c=[1, 2])
+        app.save(aggregate)
+        copy = app.repository.get(aggregate.id)
+        self.assertFalse(hasattr(copy, 'a'))
+        self.assertEqual(copy.A, 'TEXT')
+        self.assertEqual(copy.b, 1)
+        self.assertEqual(copy.c, [1, 2])
+        self.assertEqual(copy.d, None)
+
+    def test_upcast_aggregate_snapshot_from_v4(self):
+        app = Application()
+
+        aggregate = self.UpcastFixtureV4.create(A='TEXT', b=1, c=[1, 2])
+        app.save(aggregate)
+
+        app.take_snapshot(aggregate.id)
+
+        copy = app.repository.get(aggregate.id)
+        self.assertFalse(hasattr(copy, 'a'))
+        self.assertEqual(copy.A, 'TEXT')
+        self.assertEqual(copy.b, 1)
+        self.assertEqual(copy.c, [1, 2])
+        self.assertEqual(copy.d, None)
+
+
     class UpcastFixtureV1(Aggregate):
+        def __init__(self, a, **kwargs):
+            super().__init__(**kwargs)
+            self.a = a
 
         @classmethod
         def create(cls, *, a):
             return cls._create_(cls.Created, id=uuid4(), a=a)
-
-        def __init__(self, a, **kwargs):
-            super().__init__(**kwargs)
-            self.a = a
 
         @dataclass(frozen=True)
         class Created(Aggregate.Created):
@@ -260,64 +287,54 @@ class TestUpcasting(TestCase):
     original_cls_v1 = UpcastFixtureV1
 
     class UpcastFixtureV2(Aggregate):
-        _class_version_ = 2
-
-        @classmethod
-        def create(cls, *, A, b):
-            return cls._create_(cls.Created, id=uuid4(), A=A, b=b)
-
         def __init__(self, A, b, **kwargs):
             super().__init__(**kwargs)
             self.A = A
             self.b = b
 
-        @staticmethod
-        def _upcast_v1_v2_(state):
-            state['A'] = state.pop('a').upper()
-            state['b'] = 0
+        @classmethod
+        def create(cls, *, A, b):
+            return cls._create_(cls.Created, id=uuid4(), A=A, b=b)
 
         @dataclass(frozen=True)
         class Created(Aggregate.Created):
-            _class_version_ = 2
-
             A: str
             b: str
+
+            _class_version_ = 2
 
             @staticmethod
             def _upcast_v1_v2_(state):
                 state['A'] = state.pop('a').upper()
                 state['b'] = 0
 
-    original_cls_v2 = UpcastFixtureV2
-
-    class UpcastFixtureV3(Aggregate):
-        _class_version_ = 3
-
-        @classmethod
-        def create(cls, *, A, b, c):
-            return cls._create_(cls.Created, id=uuid4(), A=A, b=b, c=c)
-
-        def __init__(self, A, b, c, **kwargs):
-            super().__init__(**kwargs)
-            self.A = A
-            self.b = b
-            self.c = c
+        _class_version_ = 2
 
         @staticmethod
         def _upcast_v1_v2_(state):
             state['A'] = state.pop('a').upper()
             state['b'] = 0
 
-        @staticmethod
-        def _upcast_v2_v3_(state):
-            state['c'] = []
+    original_cls_v2 = UpcastFixtureV2
+
+    class UpcastFixtureV3(Aggregate):
+        def __init__(self, A, b, c, **kwargs):
+            super().__init__(**kwargs)
+            self.A = A
+            self.b = b
+            self.c = c
+
+        @classmethod
+        def create(cls, *, A, b, c):
+            return cls._create_(cls.Created, id=uuid4(), A=A, b=b, c=c)
 
         @dataclass(frozen=True)
         class Created(Aggregate.Created):
-            _class_version_ = 3
             A: str
             b: int
             c: List
+
+            _class_version_ = 3
 
             @staticmethod
             def _upcast_v1_v2_(state):
@@ -328,17 +345,7 @@ class TestUpcasting(TestCase):
             def _upcast_v2_v3_(state):
                 state['c'] = []
 
-    original_cls_v3 = UpcastFixtureV3
-
-    class UpcastFixtureV4(Aggregate):
-        _class_version_ = 4
-
-        def __init__(self, A, b, c, **kwargs):
-            super().__init__(**kwargs)
-            self.A = A
-            self.b = b
-            self.c = c
-            self.d: Optional[Decimal] = None
+        _class_version_ = 3
 
         @staticmethod
         def _upcast_v1_v2_(state):
@@ -349,16 +356,27 @@ class TestUpcasting(TestCase):
         def _upcast_v2_v3_(state):
             state['c'] = []
 
-        @staticmethod
-        def _upcast_v3_v4_(state):
-            state['d'] = None
+    original_cls_v3 = UpcastFixtureV3
+
+    class UpcastFixtureV4(Aggregate):
+        def __init__(self, A, b, c, **kwargs):
+            super().__init__(**kwargs)
+            self.A = A
+            self.b = b
+            self.c = c
+            self.d: Optional[Decimal] = None
+
+        @classmethod
+        def create(cls, *, A, b, c):
+            return cls._create_(cls.Created, id=uuid4(), A=A, b=b, c=c)
 
         @dataclass(frozen=True)
         class Created(Aggregate.Created):
-            _class_version_ = 3
-            a: str
+            A: str
             b: int
             c: List
+
+            _class_version_ = 3
 
             @staticmethod
             def _upcast_v1_v2_(state):
@@ -378,3 +396,19 @@ class TestUpcasting(TestCase):
 
             def apply(self, aggregate: "Aggregate") -> None:
                 aggregate.d = self.d
+
+        _class_version_ = 4
+
+        @staticmethod
+        def _upcast_v1_v2_(state):
+            state['A'] = state.pop('a').upper()
+            state['b'] = 0
+
+        @staticmethod
+        def _upcast_v2_v3_(state):
+            state['c'] = []
+
+        @staticmethod
+        def _upcast_v3_v4_(state):
+            state['d'] = None
+
