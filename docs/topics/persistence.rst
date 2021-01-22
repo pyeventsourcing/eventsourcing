@@ -459,7 +459,7 @@ so that domain event objects can be converted to stored event objects, and
 then stored event objects can be recorded in a datastore.
 
 The library's :class:`~eventsourcing.persistence.EventStore` class must
-be constructed with a `recorder <#recorder`_ and a `mapper <#mapper>`_.
+be constructed with a `recorder <#recorder>`_ and a `mapper <#mapper>`_.
 
 .. code:: python
 
