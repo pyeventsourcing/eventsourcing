@@ -54,7 +54,7 @@ class TestMapper(TestCase):
         assert copy.timestamp == domain_event.timestamp, copy.timestamp
         assert copy.originator_version == domain_event.originator_version
 
-        assert len(stored_event.state) == 179, len(stored_event.state)
+        assert len(stored_event.state) == 171, len(stored_event.state)
 
         # Construct mapper with cipher and compressor.
         import zlib
@@ -98,24 +98,24 @@ class CustomType1AsDict(Transcoding):
     type = CustomType1
     name = "custom_type1_as_dict"
 
-    def encode(self, o: CustomType1) -> dict:
-        return {"value": o.value}
+    def encode(self, obj: CustomType1) -> dict:
+        return {"value": obj.value}
 
-    def decode(self, d: Union[str, dict]) -> CustomType1:
-        assert isinstance(d, dict)
-        return CustomType1(d["value"])
+    def decode(self, data: dict) -> CustomType1:
+        assert isinstance(data, dict)
+        return CustomType1(data["value"])
 
 
 class CustomType2AsDict(Transcoding):
     type = CustomType2
     name = "custom_type2_as_dict"
 
-    def encode(self, o: CustomType1) -> dict:
-        return {"value": o.value}
+    def encode(self, obj: CustomType2) -> CustomType1:
+        return obj.value
 
-    def decode(self, d: Union[str, dict]) -> CustomType2:
-        assert isinstance(d, dict)
-        return CustomType2(d["value"])
+    def decode(self, data: CustomType1) -> CustomType2:
+        assert isinstance(data, CustomType1)
+        return CustomType2(data)
 
 
 class TestTranscoder(TestCase):
@@ -131,10 +131,9 @@ class TestTranscoder(TestCase):
 
         data = transcoder.encode(obj)
         expect = (
-            b'{"__type__": "custom_type2_as_dict", "__data__": {"value": '
-            b'{"__type__": "custom_type1_as_dict", "__data__": {"value": '
-            b'{"__type__": "uuid_hex", "__data__": "b2723fe2c01a40d2875ea'
-            b'3aac6a09ff5"}}}}}'
+            b'{"_type_": "custom_type2_as_dict", "_data_": {"_type_": '
+            b'"custom_type1_as_dict", "_data_": {"value": {"_type_": '
+            b'"uuid_hex", "_data_": "b2723fe2c01a40d2875ea3aac6a09ff5"}}}}'
         )
         self.assertEqual(data, expect)
         copy = transcoder.decode(data)

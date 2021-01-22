@@ -172,25 +172,37 @@ class Snapshot(DomainEvent):
     @classmethod
     def take(cls, aggregate: Aggregate) -> DomainEvent:
         """Creates a snapshot of the given aggregate object."""
-        state = dict(aggregate.__dict__)
-        state.pop("_pending_events_")
-        originator_id = state.pop("id")
-        originator_version = state.pop("_version_")
+        aggregate_state = dict(aggregate.__dict__)
+        aggregate_state.pop("_pending_events_")
+        class_version = getattr(type(aggregate), '_class_version_', 1)
+        if class_version > 1:
+            aggregate_state['_class_version_'] = class_version
+        originator_id = aggregate_state.pop("id")
+        originator_version = aggregate_state.pop("_version_")
         return cls(
             originator_id=originator_id,
             originator_version=originator_version,
             timestamp=datetime.now(tz=TZINFO),
             topic=get_topic(type(aggregate)),
-            state=state,
+            state=aggregate_state,
         )
 
     def mutate(self, _=None) -> Aggregate:
         """Reconstructs the snapshotted aggregate object."""
         cls = resolve_topic(self.topic)
+        assert issubclass(cls, Aggregate)
+        aggregate_state = dict(self.state)
+        from_version = aggregate_state.pop('_class_version_', 1)
+        class_version = getattr(cls, '_class_version_', 1)
+        while from_version < class_version:
+            upcast_name = f'_upcast_v{from_version}_v{from_version + 1}_'
+            upcast = getattr(cls, upcast_name)
+            upcast(aggregate_state)
+            from_version += 1
+
+        aggregate_state["id"] = self.originator_id
+        aggregate_state["_version_"] = self.originator_version
+        aggregate_state["_pending_events_"] = []
         aggregate = object.__new__(cls)
-        assert isinstance(aggregate, Aggregate)
-        aggregate.__dict__.update(self.state)
-        aggregate.__dict__["id"] = self.originator_id
-        aggregate.__dict__["_version_"] = self.originator_version
-        aggregate.__dict__["_pending_events_"] = []
+        aggregate.__dict__.update(aggregate_state)
         return aggregate
