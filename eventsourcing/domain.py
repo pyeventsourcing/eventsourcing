@@ -41,6 +41,12 @@ class Aggregate:
         """
         Base class for aggregate events. Subclasses will model
         decisions made by the domain model aggregates.
+
+        Constructor arguments:
+
+        :param UUID originator_id: ID of originating aggregate.
+        :param int originator_version: version of originating aggregate.
+        :param datetime timestamp: date-time of the event
         """
 
         def mutate(self, obj: Optional["Aggregate"]) -> Optional["Aggregate"]:
@@ -208,7 +214,9 @@ class Snapshot(DomainEvent):
 
     @classmethod
     def take(cls, aggregate: Aggregate) -> DomainEvent:
-        """Creates a snapshot of the given :class:`Aggregate` object."""
+        """
+        Creates a snapshot of the given :class:`Aggregate` object.
+        """
         aggregate_state = dict(aggregate.__dict__)
         aggregate_state.pop("_pending_events_")
         class_version = getattr(type(aggregate), '_class_version_', 1)
@@ -225,7 +233,9 @@ class Snapshot(DomainEvent):
         )
 
     def mutate(self, _=None) -> Aggregate:
-        """Reconstructs the snapshotted :class:`Aggregate` object."""
+        """
+        Reconstructs the snapshotted :class:`Aggregate` object.
+        """
         cls = resolve_topic(self.topic)
         assert issubclass(cls, Aggregate)
         aggregate_state = dict(self.state)
