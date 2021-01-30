@@ -13,9 +13,29 @@ def resolve_topic(topic: str) -> Any:
     """
     Returns a class located by the given string.
     """
-    module_name, _, class_name = topic.partition(":")
-    module = importlib.import_module(module_name)
-    return resolve_attr(module, class_name)
+    try:
+        obj = _objs_cache[topic]
+    except KeyError:
+        module_name, _, class_name = topic.partition(":")
+        module = get_module(module_name)
+        obj = resolve_attr(module, class_name)
+        _objs_cache[topic] = obj
+    return obj
+
+
+_objs_cache = {}
+
+
+def get_module(module_name):
+    try:
+        module = _modules_cache[module_name]
+    except KeyError:
+        module = importlib.import_module(module_name)
+        _modules_cache[module_name] = module
+    return module
+
+
+_modules_cache = {}
 
 
 def resolve_attr(obj: Any, path: str) -> Any:

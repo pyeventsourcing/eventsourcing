@@ -80,17 +80,17 @@ class TestApplication(TestCase):
         )
         account = app.get_account(account_id)
 
-        def insert():
+        def put():
             # Credit the account.
             account.append_transaction(Decimal("10.00"))
             app.save(account)
 
         # Warm up.
         number = 10
-        timeit(insert, number=number)
+        timeit(put, number=number)
 
         number = 1000
-        duration = timeit(insert, number=number)
+        duration = timeit(put, number=number)
         print(self, f"{1000 * duration / number:.3f}ms", f"{number / duration:.0f}/s")
 
 
@@ -103,14 +103,10 @@ class TestApplication(TestCase):
             full_name="Alice",
             email_address="alice@example.com",
         )
-        account = app.get_account(account_id)
-        account.append_transaction(Decimal("10.00"))
-        app.save(account)
 
         def read():
-            # Credit the account.
-            account.append_transaction(Decimal("10.00"))
-            app.save(account)
+            # Get the account.
+            app.get_account(account_id)
 
         # Warm up.
         timeit(read, number=10)
