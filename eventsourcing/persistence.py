@@ -15,6 +15,9 @@ from eventsourcing.utils import get_topic, resolve_topic
 
 
 class Transcoding(ABC):
+    """
+    Abstract base class for custom transcodings.
+    """
     @property
     @abstractmethod
     def type(self) -> type:
@@ -35,6 +38,9 @@ class Transcoding(ABC):
 
 
 class AbstractTranscoder(ABC):
+    """
+    Abstract base class for transcoders.
+    """
     @abstractmethod
     def encode(self, obj: Any) -> bytes:
         """Encodes obj as bytes."""
@@ -45,6 +51,9 @@ class AbstractTranscoder(ABC):
 
 
 class Transcoder(AbstractTranscoder):
+    """
+    Extensible transcoder that uses the Python :mod:`json` module.
+    """
     def __init__(self):
         self.types: Dict[type, Transcoding] = {}
         self.names: Dict[str, Transcoding] = {}
@@ -52,14 +61,22 @@ class Transcoder(AbstractTranscoder):
         self.decoder = json.JSONDecoder(object_hook=self._decode_obj)
 
     def register(self, transcoding: Transcoding):
-        """Registers given transcoding with the transcoder."""
+        """
+        Registers given transcoding with the transcoder.
+        """
         self.types[transcoding.type] = transcoding
         self.names[transcoding.name] = transcoding
 
     def encode(self, obj: Any) -> bytes:
+        """
+        Encodes given object as a bytes array.
+        """
         return self.encoder.encode(obj).encode("utf8")
 
     def decode(self, data: bytes) -> Any:
+        """
+        Decodes bytes array as previously encoded object.
+        """
         return self.decoder.decode(data.decode("utf8"))
 
     def _encode_obj(self, o: Any) -> Dict[str, Any]:
@@ -91,18 +108,24 @@ class Transcoder(AbstractTranscoder):
 
 
 class UUIDAsHex(Transcoding):
+    """
+    Transcoding that represents :class:`UUID` objects as hex values.
+    """
     type = UUID
     name = "uuid_hex"
 
     def encode(self, obj: UUID) -> str:
         return obj.hex
 
-    def decode(self, data: Any) -> UUID:
+    def decode(self, data: str) -> UUID:
         assert isinstance(data, str)
         return UUID(data)
 
 
 class DecimalAsStr(Transcoding):
+    """
+    Transcoding that represents :class:`Decimal` objects as strings.
+    """
     type = Decimal
     name = "decimal_str"
 
@@ -114,6 +137,9 @@ class DecimalAsStr(Transcoding):
 
 
 class DatetimeAsISO(Transcoding):
+    """
+    Transcoding that represents :class:`datetime` objects as ISO strings.
+    """
     type = datetime
     name = "datetime_iso"
 
@@ -127,6 +153,11 @@ class DatetimeAsISO(Transcoding):
 
 @dataclass(frozen=True)
 class StoredEvent:
+    """
+    Frozen dataclass that represents :class:`eventsourcing.domain.DomainEvent`
+    objects, such as aggregate :class:`eventsourcing.domain.Aggregate.Event`
+    objects and :class:`eventsourcing.domain.Snapshot` objects.
+    """
     originator_id: uuid.UUID
     originator_version: int
     topic: str
@@ -134,6 +165,11 @@ class StoredEvent:
 
 
 class Mapper(Generic[TDomainEvent]):
+    """
+    Converts between domain event objects and :class:`StoredEvent` objects.
+
+    Uses a :class:`Transcoder`, and optionally a cryptographic cipher and compressor.
+    """
     def __init__(
         self,
         transcoder: AbstractTranscoder,
@@ -146,7 +182,7 @@ class Mapper(Generic[TDomainEvent]):
 
     def from_domain_event(self, domain_event: TDomainEvent) -> StoredEvent:
         """
-        Converts the given domain event to a stored event object.
+        Converts the given domain event to a :class:`StoredEvent` object.
         """
         topic: str = get_topic(domain_event.__class__)
         event_state = copy(domain_event.__dict__)
@@ -169,7 +205,7 @@ class Mapper(Generic[TDomainEvent]):
 
     def to_domain_event(self, stored: StoredEvent) -> TDomainEvent:
         """
-        Converts the given stored event to a domain event object.
+        Converts the given :class:`StoredEvent` to a domain event object.
         """
         stored_state: bytes = stored.state
         if self.cipher:
@@ -201,10 +237,16 @@ class RecordConflictError(Exception):
 
 
 class Recorder(ABC):
-    pass
+    """
+    Abstract base class for stored event recorders.
+    """
 
 
 class AggregateRecorder(Recorder):
+    """
+    Abstract base class for recorders that record and
+    retrieve stored events for domain model aggregates.
+    """
     @abstractmethod
     def insert_events(
         self,
@@ -231,10 +273,23 @@ class AggregateRecorder(Recorder):
 
 @dataclass(frozen=True)
 class Notification(StoredEvent):
+    """
+    Frozen dataclass that represents domain event notifications.
+    """
     id: int
 
 
 class ApplicationRecorder(AggregateRecorder):
+    """
+    Abstract base class for recorders that record and
+    retrieve stored events for domain model aggregates.
+
+    Extends the behaviour of aggregate recorders by
+    recording aggregate events in a total order that
+    allows the stored events also to be retrieved
+    as event notifications.
+    """
+
     @abstractmethod
     def select_notifications(self, start: int, limit: int) -> List[Notification]:
         """
@@ -250,9 +305,21 @@ class ApplicationRecorder(AggregateRecorder):
 
 
 class ProcessRecorder(ApplicationRecorder):
+    """
+    Abstract base class for recorders that record and
+    retrieve stored events for domain model aggregates.
+
+    Extends the behaviour of applications recorders by
+    recording aggregate events with tracking information
+    that records the position of a processed event
+    notification in a notification log.
+    """
+
     @abstractmethod
     def max_tracking_id(self, application_name: str) -> int:
-        pass
+        """
+        Returns the last recorded notification ID from given application.
+        """
 
 
 class EventStore(Generic[TDomainEvent]):
@@ -306,6 +373,9 @@ class EventStore(Generic[TDomainEvent]):
 
 
 class InfrastructureFactory(ABC):
+    """
+    Abstract base class for infrastructure factories.
+    """
     TOPIC = "INFRASTRUCTURE_FACTORY"
     MAPPER_TOPIC = "MAPPER_TOPIC"
     CIPHER_TOPIC = "CIPHER_TOPIC"
@@ -315,6 +385,11 @@ class InfrastructureFactory(ABC):
 
     @classmethod
     def construct(cls, application_name) -> "InfrastructureFactory":
+        """
+        Constructs concrete infrastructure factory for given
+        named application. Reads and resolves infrastructure
+        factory class topic from environment variable 'INFRASTRUCTURE_FACTORY'.
+        """
         topic = os.getenv(
             cls.TOPIC,
             "eventsourcing.popo:Factory",
@@ -334,9 +409,15 @@ class InfrastructureFactory(ABC):
         return factory_cls(application_name=application_name)
 
     def __init__(self, application_name):
+        """
+        Initialises infrastructure factory object with given application name.
+        """
         self.application_name = application_name
 
     def getenv(self, key, default=None, application_name=""):
+        """
+        Returns value of environment variable defined by given key.
+        """
         if not application_name:
             application_name = self.application_name
         keys = [
@@ -354,6 +435,13 @@ class InfrastructureFactory(ABC):
         transcoder: AbstractTranscoder,
         application_name: str = "",
     ) -> Mapper:
+        """
+        Constructs a mapper. Reads environment variables
+        'CIPHER_TOPIC' and 'CIPHER_KEY' to decide whether
+        or not to use a cipher with the mapper. Reads
+        environment variable 'COMPRESSOR_TOPIC' to decide
+        whether or not to use a compressor with the mapper.
+        """
         cipher_topic = self.getenv(
             self.CIPHER_TOPIC,
             application_name=application_name,
@@ -383,21 +471,35 @@ class InfrastructureFactory(ABC):
         )
 
     def event_store(self, **kwargs) -> EventStore:
+        """
+        Constructs an event store.
+        """
         return EventStore(**kwargs)
 
     @abstractmethod
     def aggregate_recorder(self, purpose: str = "events") -> AggregateRecorder:
-        """Constructs aggregate recorder."""
+        """
+        Constructs an aggregate recorder.
+        """
 
     @abstractmethod
     def application_recorder(self) -> ApplicationRecorder:
-        """Constructs application recorder."""
+        """
+        Constructs an application recorder.
+        """
 
     @abstractmethod
     def process_recorder(self) -> ProcessRecorder:
-        """Constructs process recorder."""
+        """
+        Constructs a process recorder.
+        """
 
     def is_snapshotting_enabled(self) -> bool:
+        """
+        Decides whether or not snapshotting is enabled by
+        reading environment variable 'IS_SNAPSHOTTING_ENABLED'.
+        Snapshotting is not enabled by default.
+        """
         default = "no"
         return bool(
             strtobool(self.getenv(self.IS_SNAPSHOTTING_ENABLED, default) or default)
@@ -406,5 +508,9 @@ class InfrastructureFactory(ABC):
 
 @dataclass(frozen=True)
 class Tracking:
+    """
+    Frozen dataclass representing the position of a domain
+    event :class:`Notification` in an application's notification log.
+    """
     application_name: str
     notification_id: int

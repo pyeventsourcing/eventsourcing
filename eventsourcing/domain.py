@@ -13,6 +13,16 @@ TZINFO: tzinfo = resolve_topic(
 
 @dataclass(frozen=True)
 class DomainEvent:
+    """
+    Base class for domain events, such as aggregate :class:`Aggregate.Event`
+    and aggregate :class:`Snapshot`.
+
+    Constructor arguments:
+
+    :param UUID originator_id: ID of originating aggregate.
+    :param int originator_version: version of originating aggregate.
+    :param datetime timestamp: date-time of the event
+    """
     originator_id: UUID
     originator_version: int
     timestamp: datetime
@@ -29,7 +39,8 @@ class Aggregate:
     @dataclass(frozen=True)
     class Event(DomainEvent):
         """
-        Base domain event class for aggregates.
+        Base class for aggregate events. Subclasses will model
+        decisions made by the domain model aggregates.
         """
 
         def mutate(self, obj: Optional["Aggregate"]) -> Optional["Aggregate"]:
@@ -88,6 +99,14 @@ class Aggregate:
     class Created(Event):
         """
         Domain event for when aggregate is created.
+
+        Constructor arguments:
+
+        :param UUID originator_id: ID of originating aggregate.
+        :param int originator_version: version of originating aggregate.
+        :param datetime timestamp: date-time of the event
+        :param str topic: string that includes a class and its module
+        :param str originator_topic: topic of aggregate class
         """
 
         originator_topic: str
@@ -115,9 +134,9 @@ class Aggregate:
 
     def __init__(self, id: UUID, _version_: int, _created_on_: datetime):
         """
-        Aggregate is constructed with a 'uuid',
-        a 'version', and a 'timestamp'. The internal
-        '_pending_events_' list is also initialised.
+        Initialises an aggregate object with a :data:`id`, a :data:`_version_`,
+        and a :data:`_created_on_`. The internal :data:`_pending_events_` list
+        is also initialised.
         """
         self.id = id
         self._version_ = _version_
@@ -152,7 +171,8 @@ class Aggregate:
 
     def _collect_(self) -> List[Event]:
         """
-        Collects pending events.
+        Collects and returns a list of pending aggregate
+        :class:`Aggregate.Event` objects.
         """
         collected = []
         while self._pending_events_:
@@ -161,17 +181,34 @@ class Aggregate:
 
 
 class VersionError(Exception):
-    pass
+    """
+    Raised when a domain event can't be applied to
+    an aggregate due to version mismatch indicating
+    the domain event is not the next in the aggregate's
+    sequence of events.
+    """
 
 
 @dataclass(frozen=True)
 class Snapshot(DomainEvent):
+    """
+    Snapshots represent the state of an aggregate at a particular
+    version.
+
+    Constructor arguments:
+
+    :param UUID originator_id: ID of originating aggregate.
+    :param int originator_version: version of originating aggregate.
+    :param datetime timestamp: date-time of the event
+    :param str topic: string that includes a class and its module
+    :param dict state: version of originating aggregate.
+    """
     topic: str
     state: dict
 
     @classmethod
     def take(cls, aggregate: Aggregate) -> DomainEvent:
-        """Creates a snapshot of the given aggregate object."""
+        """Creates a snapshot of the given :class:`Aggregate` object."""
         aggregate_state = dict(aggregate.__dict__)
         aggregate_state.pop("_pending_events_")
         class_version = getattr(type(aggregate), '_class_version_', 1)
@@ -188,7 +225,7 @@ class Snapshot(DomainEvent):
         )
 
     def mutate(self, _=None) -> Aggregate:
-        """Reconstructs the snapshotted aggregate object."""
+        """Reconstructs the snapshotted :class:`Aggregate` object."""
         cls = resolve_topic(self.topic)
         assert issubclass(cls, Aggregate)
         aggregate_state = dict(self.state)

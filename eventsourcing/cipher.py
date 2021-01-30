@@ -8,8 +8,7 @@ from Crypto.Cipher._mode_gcm import GcmMode
 
 class AESCipher(object):
     """
-    Cipher strategy that uses Crypto
-    library AES cipher in GCM mode.
+    Cipher strategy that uses AES cipher in GCM mode.
     """
 
     KEY_SIZES = key_size

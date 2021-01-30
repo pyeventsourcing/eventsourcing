@@ -4,7 +4,7 @@ from base64 import b64decode, b64encode
 from uuid import UUID
 
 from eventsourcing.application import (
-    AbstractNotificationLog,
+    NotificationLog,
     LocalNotificationLog,
     Section,
 )
@@ -17,7 +17,7 @@ class NotificationLogAPI(ABC):
         pass
 
 
-class RemoteNotificationLog(AbstractNotificationLog):
+class RemoteNotificationLog(NotificationLog):
     def __init__(self, api: NotificationLogAPI):
         self.api = api
 

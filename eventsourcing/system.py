@@ -4,7 +4,7 @@ from threading import Event, Lock, Thread
 from typing import Dict, Iterable, Iterator, List, Set, Tuple, Type, TypeVar
 
 from eventsourcing.application import (
-    AbstractNotificationLog,
+    NotificationLog,
     Application,
     Section,
 )
@@ -65,7 +65,7 @@ class Follower(Application):
         """
         return self.factory.process_recorder()
 
-    def follow(self, name: str, log: AbstractNotificationLog):
+    def follow(self, name: str, log: NotificationLog):
         """
         Constructs a notification log reader and a mapper for
         the named application, and adds them to its collection
@@ -552,7 +552,7 @@ class NotificationLogReader:
 
     def __init__(
         self,
-        notification_log: AbstractNotificationLog,
+        notification_log: NotificationLog,
         section_size: int = DEFAULT_SECTION_SIZE,
     ):
         """
