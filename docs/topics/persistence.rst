@@ -113,14 +113,14 @@ objects as decimal strings.
 
     transcoding = DatetimeAsISO()
     datetime1 = datetime(2021, 12, 31, 23, 59, 59)
-    value = transcoding.encode(datetime1)
-    assert transcoding.decode(value) == datetime1
+    data = transcoding.encode(datetime1)
+    assert transcoding.decode(data) == datetime1
 
 
     transcoding = DecimalAsStr()
     decimal1 = Decimal("1.2345")
-    value = transcoding.encode(decimal1)
-    assert transcoding.decode(value) == decimal1
+    data = transcoding.encode(decimal1)
+    assert transcoding.decode(data) == decimal1
 
 
 These transcodings can be registered with the transcoder.

@@ -1,7 +1,8 @@
 from unittest.case import TestCase
 
 from eventsourcing.domain import Aggregate
-from eventsourcing.system import Leader, ProcessApplication, ProcessEvent
+from eventsourcing.system import Follower, Leader, ProcessApplication, ProcessEvent, \
+    Promptable
 from eventsourcing.tests.test_aggregate import BankAccount
 from eventsourcing.tests.test_application import BankAccounts
 from eventsourcing.tests.test_processingpolicy import EmailNotification
@@ -38,7 +39,7 @@ class TestProcessApplication(TestCase):
         section = notifications.log["1,5"]
         self.assertEqual(len(section.items), 1)
 
-        accounts.lead(notifications)
+        accounts.lead(PromptForwarder(notifications))
 
         accounts.open_account("Bob", "bob@example.com")
 
@@ -67,4 +68,12 @@ class EmailNotifications(ProcessApplication):
             subject="Your New Account",
             message="Dear {}, ...".format(domain_event.full_name),
         )
-        process_event.collect([notification])
+        process_event.save(notification)
+
+
+class PromptForwarder(Promptable):
+    def __init__(self, application: Follower):
+        self.application = application
+
+    def receive_prompt(self, leader_name: str) -> None:
+        self.application.pull_and_process(leader_name)

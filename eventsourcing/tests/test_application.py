@@ -69,8 +69,7 @@ class TestApplication(TestCase):
         self.assertEqual(from_snapshot._version_, 4)
         self.assertEqual(from_snapshot.balance, Decimal("65.00"))
 
-
-    def test_performance(self):
+    def test_put_performance(self):
 
         app = BankAccounts()
 
@@ -90,9 +89,35 @@ class TestApplication(TestCase):
         number = 10
         timeit(insert, number=number)
 
-        number = 500
+        number = 1000
         duration = timeit(insert, number=number)
-        print(self, f"{duration / number:.9f}")
+        print(self, f"{1000 * duration / number:.3f}ms", f"{number / duration:.0f}/s")
+
+
+    def test_get_performance(self):
+
+        app = BankAccounts()
+
+        # Open an account.
+        account_id = app.open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+        account = app.get_account(account_id)
+        account.append_transaction(Decimal("10.00"))
+        app.save(account)
+
+        def read():
+            # Credit the account.
+            account.append_transaction(Decimal("10.00"))
+            app.save(account)
+
+        # Warm up.
+        timeit(read, number=10)
+
+        number = 1000
+        duration = timeit(read, number=number)
+        print(self, f"{1000 * duration / number:.3f}ms", f"{number / duration:.0f}/s")
 
 
 class TestApplicationWithSQLite(TestApplication):

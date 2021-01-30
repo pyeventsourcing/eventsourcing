@@ -210,7 +210,12 @@ class Application(ABC):
         self.notify(events)
 
     def notify(self, new_events: List[Aggregate.Event]):
-        pass
+        """
+        Called after new domain events have been saved. This
+        method on this class class doesn't actually do anything,
+        but this method may be implemented by subclasses that
+        need to take action when new domain events have been saved.
+        """
 
     def take_snapshot(self, aggregate_id: UUID, version: Optional[int] = None):
         """

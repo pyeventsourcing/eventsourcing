@@ -171,14 +171,14 @@ Single-threaded runner
     assert counters.get_count('trucks') == 0
     assert counters.get_count('internet') == 0
 
+    worlds.make_it_so(world_id1, 'trucks')
     worlds.make_it_so(world_id2, 'trucks')
-    worlds.make_it_so(world_id3, 'trucks')
 
     assert counters.get_count('dinosaurs') == 3
     assert counters.get_count('trucks') == 2
     assert counters.get_count('internet') == 0
 
-    worlds.make_it_so(world_id3, 'internet')
+    worlds.make_it_so(world_id1, 'internet')
 
     assert counters.get_count('dinosaurs') == 3
     assert counters.get_count('trucks') == 2
@@ -206,10 +206,10 @@ Multi-threaded runner
     worlds.make_it_so(world_id2, 'dinosaurs')
     worlds.make_it_so(world_id3, 'dinosaurs')
 
+    worlds.make_it_so(world_id1, 'trucks')
     worlds.make_it_so(world_id2, 'trucks')
-    worlds.make_it_so(world_id3, 'trucks')
 
-    worlds.make_it_so(world_id3, 'internet')
+    worlds.make_it_so(world_id1, 'internet')
 
     from time import sleep
 

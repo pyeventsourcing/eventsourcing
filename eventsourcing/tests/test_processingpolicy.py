@@ -10,14 +10,14 @@ from eventsourcing.tests.test_aggregate import BankAccount
 
 
 @singledispatch
-def policy(domain_event, process_event):
+def policy(domain_event, process_event: ProcessEvent):
     if isinstance(domain_event, BankAccount.Created):
         notification = EmailNotification.create(
             to=domain_event.email_address,
             subject="Your New Account",
             message="Dear {}".format(domain_event.full_name),
         )
-        process_event.collect([notification])
+        process_event.save(notification)
 
 
 class TestProcessingPolicy(TestCase):

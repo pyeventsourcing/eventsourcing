@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from threading import Event, Thread
-from typing import Dict, Iterable, List, Set, Tuple, Type, TypeVar
+from threading import Event, Lock, Thread
+from typing import Dict, Iterable, Iterator, List, Set, Tuple, Type, TypeVar
 
 from eventsourcing.application import (
     AbstractNotificationLog,
@@ -20,26 +20,34 @@ from eventsourcing.utils import get_topic, resolve_topic
 
 
 class ProcessEvent:
+    """
+    Keeps together a :class:`~eventsourcing.persistence.Tracking`
+    object, which represents the position of a domain event notification
+    in the notification log of a particular application, and the
+    new domain events that result from processing that notification.
+    """
     def __init__(self, tracking: Tracking):
+        """
+        Initalises the process event with the given tracking object.
+        """
         self.tracking = tracking
         self.events: List[Aggregate.Event] = []
 
-    def collect(self, aggregates: List[Aggregate]):
-        for aggregate in aggregates:
-            self.events += aggregate._collect_()
-
     def save(self, *aggregates: Aggregate):
+        """
+        Collects pending domain events from the given aggregate.
+        """
         for aggregate in aggregates:
             self.events += aggregate._collect_()
 
 
-class Promptable(ABC):
-    @abstractmethod
-    def receive_prompt(self, leader_name: str) -> None:
-        pass
-
-
-class Follower(Promptable, Application):
+class Follower(Application):
+    """
+    Extends the :class:`~eventsourcing.application.Application` class
+    by using a process recorder as its application recorder, by keeping
+    track of the applications it is following, and pulling and processing
+    new domain event notifications through its :func:`policy` method.
+    """
     def __init__(self):
         super().__init__()
         self.readers: Dict[
@@ -51,18 +59,41 @@ class Follower(Promptable, Application):
         ] = {}
 
     def construct_recorder(self) -> ApplicationRecorder:
+        """
+        Constructs and returns a :class:`~eventsourcing.persistence.ProcessRecorder`
+        for the application to use as its application recorder.
+        """
         return self.factory.process_recorder()
 
     def follow(self, name: str, log: AbstractNotificationLog):
+        """
+        Constructs a notification log reader and a mapper for
+        the named application, and adds them to its collection
+        of readers.
+        """
         assert isinstance(self.recorder, ProcessRecorder)
         reader = NotificationLogReader(log)
         mapper = self.construct_mapper(name)
         self.readers[name] = (reader, mapper)
 
-    def receive_prompt(self, leader_name: str) -> None:
-        self.pull_and_process(leader_name)
-
     def pull_and_process(self, name: str) -> None:
+        """
+        Pulls and processes unseen domain event notifications
+        from the notification log reader of the names application.
+
+        Converts received event notifications to domain
+        event objects, and then calls the :func:`policy`
+        with a new :class:`ProcessEvent` object which
+        contains a :class:`~eventsourcing.persistence.Tracking`
+        object that keeps track of the name of the application
+        and the position in its notification log from which the
+        domain event notification was pulled. The policy will
+        save aggregates to the process event object, using its
+        :func:`~ProcessEvent.save` method, which collects pending domain
+        events using the aggregates' :func:`~eventsourcing.domain.Aggregate._collect_`
+        method, and the process event object will then be recorded
+        by calling the :func:`record` method.
+        """
         reader, mapper = self.readers[name]
         start = self.recorder.max_tracking_id(name) + 1
         for notification in reader.read(start=start):
@@ -79,45 +110,95 @@ class Follower(Promptable, Application):
             )
             self.record(process_event)
 
-    def record(self, process_event: ProcessEvent) -> None:
-        self.events.put(
-            **process_event.__dict__,
-        )
-        self.notify(process_event.events)
-
     @abstractmethod
     def policy(
         self,
         domain_event: Aggregate.Event,
         process_event: ProcessEvent,
     ):
-        pass
+        """
+        Abstract domain event processing policy method. Must be
+        implemented by event processing applications. When
+        processing the given domain event, event processing
+        applications must use the :func:`~ProcessEvent.save`
+        method of the given process event object (instead of
+        the application's :func:`~eventsourcing.application.Application.save`
+        method) to collect pending events from changed aggregates,
+        so that the new domain events will be recorded atomically
+        with tracking information about the position of the given
+        domain event's notification.
+        """
+
+    def record(self, process_event: ProcessEvent) -> None:
+        """
+        Records given process event in the application's process recorder.
+        """
+        self.events.put(
+            **process_event.__dict__,
+        )
+        self.notify(process_event.events)
+
+
+class Promptable(ABC):
+    """
+    Abstract base class for "promptable" objects.
+    """
+    @abstractmethod
+    def receive_prompt(self, leader_name: str) -> None:
+        """
+        Receives the name of leader that has new domain
+        event notifications.
+        """
 
 
 class Leader(Application):
+    """
+    Extends the :class:`~eventsourcing.application.Application`
+    class by also being responsible for keeping track of
+    followers, and prompting followers when there are new
+    domain event notifications to be pulled and processed.
+    """
     def __init__(self):
         super().__init__()
         self.followers: List[Promptable] = []
 
     def lead(self, follower: Promptable):
+        """
+        Adds given follower to a list of followers.
+        """
         self.followers.append(follower)
 
     def notify(self, new_events: List[Aggregate.Event]):
+        """
+        Extends the application :func:`~eventsourcing.application.Application.notify`
+        method by calling :func:`prompt_followers` whenever new events have just
+        been saved.
+        """
         super().notify(new_events)
         if len(new_events):
             self.prompt_followers()
 
     def prompt_followers(self):
+        """
+        Prompts followers by calling their :func:`~Promptable.receive_prompt`
+        methods with the name of the application.
+        """
         name = self.__class__.__name__
         for follower in self.followers:
             follower.receive_prompt(name)
 
 
-class ProcessApplication(Leader, Follower):
-    pass
+class ProcessApplication(Leader, Follower, ABC):
+    """
+    Base class for event processing applications
+    that are both "leaders" and followers".
+    """
 
 
 class System:
+    """
+    Defines a system of applications.
+    """
     def __init__(
         self,
         pipes: Iterable[Iterable[Type[Application]]],
@@ -208,13 +289,19 @@ class System:
 A = TypeVar("A")
 
 
-class AbstractRunner:
+class AbstractRunner(ABC):
+    """
+    Abstract base class for system runners.
+    """
     def __init__(self, system: System):
         self.system = system
         self.is_started = False
 
     @abstractmethod
     def start(self) -> None:
+        """
+        Starts the runner.
+        """
         if self.is_started:
             raise self.AlreadyStarted()
         self.is_started = True
@@ -224,21 +311,47 @@ class AbstractRunner:
 
     @abstractmethod
     def stop(self) -> None:
-        pass
+        """
+        Stops the runner.
+        """
 
     @abstractmethod
     def get(self, cls: Type[A]) -> A:
-        pass
+        """
+        Returns an application instance for given application class.
+        """
 
 
-class SingleThreadedRunner(Promptable, AbstractRunner):
+class SingleThreadedRunner(AbstractRunner, Promptable):
+    """
+    Runs a :class:`System` in a single thread.
+    A single threaded runner is a runner, and so implements the
+    :func:`start`, :func:`stop`, and :func:`get` methods.
+    A single threaded runner is also a :class:`Promptable` object, and
+    implements the :func:`receive_prompt` method by collecting prompted
+    names.
+    """
+
     def __init__(self, system: System):
-        super(SingleThreadedRunner, self).__init__(system)
+        """
+        Initialises runner with the given :class:`System`.
+        """
+        super().__init__(system)
         self.apps: Dict[str, Application] = {}
         self.prompts_received: List[str] = []
         self.is_prompting = False
 
     def start(self):
+        """
+        Starts the runner.
+        The applications are constructed, and setup to lead and follow
+        each other, according to the system definition.
+        The followers are setup to follow the applications they follow
+        (have a notification log reader with the notification log of the
+        leader), and their leaders are setup to lead the runner itself
+        (send prompts).
+        """
+
         super().start()
 
         # Construct followers.
@@ -261,6 +374,14 @@ class SingleThreadedRunner(Promptable, AbstractRunner):
             follower.follow(leader.__class__.__name__, leader.log)
 
     def receive_prompt(self, leader_name: str) -> None:
+        """
+        Receives prompt by appending name of
+        leader to list of prompted names.
+        Unless this method has previously been called but not
+        yet returned, it will then proceed to forward the prompts
+        received to its application by calling the application's
+        :func:`~Follower.pull_and_process` method for each prompted name.
+        """
         if leader_name not in self.prompts_received:
             self.prompts_received.append(leader_name)
         if not self.is_prompting:
@@ -270,7 +391,7 @@ class SingleThreadedRunner(Promptable, AbstractRunner):
                 for name in self.system.leads[prompt]:
                     follower = self.apps[name]
                     assert isinstance(follower, Follower)
-                    follower.receive_prompt(prompt)
+                    follower.pull_and_process(prompt)
             self.is_prompting = False
 
     def stop(self):
@@ -284,30 +405,48 @@ class SingleThreadedRunner(Promptable, AbstractRunner):
 
 class MultiThreadedRunner(AbstractRunner):
     """
-    Runs system with thread for each follower.
+    Runs a :class:`System` with a :class:`MultiThreadedRunnerThread` for each
+    follower in the system definition.
+    It is a runner, and so implements the :func:`start`, :func:`stop`,
+    and :func:`get` methods.
     """
 
-    def __init__(self, system):
+    def __init__(self, system: System):
+        """
+        Initialises runner with the given :class:`System`.
+        """
         super().__init__(system)
         self.apps: Dict[str, Application] = {}
-        self.threads: Dict[str, RunnerThread] = {}
+        self.threads: Dict[str, MultiThreadedRunnerThread] = {}
         self.is_stopping = Event()
 
     def start(self) -> None:
+        """
+        Starts the runner.
+
+        A multi-threaded runner thread is started for each
+        'follower' application in the system, and constructs
+        an instance of each non-follower leader application in
+        the system. The followers are then setup to follow the
+        applications they follow (have a notification log reader
+        with the notification log of the leader), and their leaders
+        are  setup to lead the follower's thead (send prompts).
+        """
         super().start()
 
         # Construct followers.
         for name in self.system.followers:
-            thread = RunnerThread(
+            thread = MultiThreadedRunnerThread(
                 app_class=self.system.follower_cls(name),
                 is_stopping=self.is_stopping,
             )
             thread.start()
-            thread.is_ready.wait(timeout=1)
+            if not thread.is_running.wait(timeout=5):
+                self.stop()
             self.threads[name] = thread
             self.apps[name] = thread.app
 
-        # Construct leaders.
+        # Construct non-follower leaders.
         for name in self.system.leaders_only:
             app = self.system.leader_cls(name)()
             self.apps[name] = app
@@ -334,44 +473,81 @@ class MultiThreadedRunner(AbstractRunner):
         return app
 
 
-class RunnerThread(Promptable, Thread):
+class MultiThreadedRunnerThread(Promptable, Thread):
+    """
+    Runs one process application for a
+    :class:`~eventsourcing.system.MultiThreadedRunner`.
+
+    A multi-threaded runner thread is a :class:`~eventsourcing.system.Promptable`
+    object, and implements the :func:`receive_prompt` method by collecting
+    prompted names and setting its threading event 'is_prompted'.
+
+    A multi-threaded runner thread is a Python :class:`threading.Thread` object,
+    and implements the thread's :func:`run` method by waiting until the
+    'is_prompted' event has been set and then calling its process application's
+    :func:`~eventsourcing.system.Follower.pull_and_process`
+    method once for each prompted name. It is expected that
+    the process application will have been set up by the runner
+    with a notification log reader from which event notifications
+    will be pulled.
+    """
     def __init__(
         self,
         app_class: Type[Follower],
         is_stopping: Event,
     ):
-        super(RunnerThread, self).__init__()
+        super().__init__()
         if not issubclass(app_class, Follower):
             raise TypeError("Not a follower: %s" % app_class)
         self.app_class = app_class
         self.is_stopping = is_stopping
         self.is_prompted = Event()
         self.prompted_names: List[str] = []
+        self.prompted_names_lock = Lock()
         self.setDaemon(True)
-        self.is_ready = Event()
+        self.is_running = Event()
 
     def run(self):
+        """
+        Begins by constructing an application instance from
+        given application class and then loops forever until
+        stopped. The loop blocks on waiting for the 'is_prompted'
+        event to be set, then forwards the prompts already received
+        to its application by calling the application's
+        :func:`~Follower.pull_and_process` method for each prompted name.
+        """
         try:
             self.app: Follower = self.app_class()
         except:
             self.is_stopping.set()
             raise
-        self.is_ready.set()
+        self.is_running.set()
         while True:
             self.is_prompted.wait()
             if self.is_stopping.is_set():
                 return
-            self.is_prompted.clear()
-            while self.prompted_names:
-                name = self.prompted_names.pop(0)
+            with self.prompted_names_lock:
+                prompted_names = self.prompted_names
+                self.prompted_names = []
+                self.is_prompted.clear()
+            for name in prompted_names:
                 self.app.pull_and_process(name)
 
     def receive_prompt(self, leader_name: str) -> None:
-        self.prompted_names.append(leader_name)
-        self.is_prompted.set()
+        """
+        Receives prompt by appending name of
+        leader to list of prompted names.
+        """
+        with self.prompted_names_lock:
+            if leader_name not in self.prompted_names:
+                self.prompted_names.append(leader_name)
+            self.is_prompted.set()
 
 
 class NotificationLogReader:
+    """
+    Reads domain event notifications from a notification log.
+    """
     DEFAULT_SECTION_SIZE = 10
 
     def __init__(
@@ -379,10 +555,29 @@ class NotificationLogReader:
         notification_log: AbstractNotificationLog,
         section_size: int = DEFAULT_SECTION_SIZE,
     ):
+        """
+        Initialises a reader with the given notification log,
+        and optionally a section size integer which determines
+        the requested number of domain event notifications in
+        each section retrieved from the notification log.
+        """
         self.notification_log = notification_log
         self.section_size = section_size
 
-    def read(self, *, start: int) -> Iterable[Notification]:
+    def read(self, *, start: int) -> Iterator[Notification]:
+        """
+        Returns a generator that yields event notifications
+        from the reader's notification log, starting from
+        given start position (a notification ID).
+
+        This method traverses the linked list of sections presented by
+        a notification log, and yields the individual event notifications
+        that are contained in each section. When all the event notifications
+        from a section have been yielded, the reader will retrieve the next
+        section, and continue yielding event notification until all subsequent
+        event notifications in the notification log from the start position
+        have been yielded.
+        """
         section_id = "{},{}".format(start, start + self.section_size - 1)
         while True:
             section: Section = self.notification_log[section_id]
