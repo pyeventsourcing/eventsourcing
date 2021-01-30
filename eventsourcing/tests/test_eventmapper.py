@@ -98,12 +98,12 @@ class CustomType1AsDict(Transcoding):
     type = CustomType1
     name = "custom_type1_as_dict"
 
-    def encode(self, obj: CustomType1) -> dict:
-        return {"value": obj.value}
+    def encode(self, obj: CustomType1) -> UUID:
+        return obj.value
 
-    def decode(self, data: dict) -> CustomType1:
-        assert isinstance(data, dict)
-        return CustomType1(data["value"])
+    def decode(self, data: UUID) -> CustomType1:
+        assert isinstance(data, UUID)
+        return CustomType1(value = data)
 
 
 class CustomType2AsDict(Transcoding):
@@ -130,11 +130,11 @@ class TestTranscoder(TestCase):
         transcoder.register(CustomType2AsDict())
 
         data = transcoder.encode(obj)
-        expect = (
-            b'{"_type_": "custom_type2_as_dict", "_data_": {"_type_": '
-            b'"custom_type1_as_dict", "_data_": {"value": {"_type_": '
-            b'"uuid_hex", "_data_": "b2723fe2c01a40d2875ea3aac6a09ff5"}}}}'
-        )
+        expect = (b'{"_type_": "custom_type2_as_dict", "_data_": '
+                  b'{"_type_": "custom_type1_as_dict", "_data_": '
+                  b'{"_type_": "uuid_hex", "_data_": "b2723fe2c01'
+                  b'a40d2875ea3aac6a09ff5"}}}')
+
         self.assertEqual(data, expect)
         copy = transcoder.decode(data)
         self.assertIsInstance(copy, CustomType2)

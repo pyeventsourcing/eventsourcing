@@ -37,9 +37,7 @@ Transcoder
 ==========
 
 A transcoder is used by a `mapper <#mapper>`_ to serialise and deserialise
-the state of domain model event objects. The state of domain model event object
-is expected to be a Python :class:`dict`. The serialised state is a Python
-:class:`bytes` object.
+the state of domain model event objects.
 
 The library's :class:`~eventsourcing.persistence.Transcoder` class
 can be constructed without any arguments.
@@ -52,32 +50,38 @@ can be constructed without any arguments.
 
 The ``transcoder`` object has methods :func:`~eventsourcing.persistence.Transcoder.encode`
 and :func:`~eventsourcing.persistence.Transcoder.decode`  which are used to perform the
-serialisation and deserialisation.
+serialisation and deserialisation. The serialised state is a Python :class:`bytes` object.
 
 .. code:: python
 
-    value = transcoder.encode({'a': 1})
-    assert transcoder.decode(value) == {'a': 1}
+    data = transcoder.encode({'a': 1})
+    copy = transcoder.decode(data)
+    assert copy == {'a': 1}
 
 The library's :class:`~eventsourcing.persistence.Transcoder` uses the Python
-:mod:`json` module. And so, by default, only the object types supported by that module
-can be encoded and decoded. The transcoder can be extended by registering transcodings
-for the data types used in your domain model. The transcoder method
-:func:`~eventsourcing.persistence.Transcoder.register` is used to register individual
-transcodings.
+:mod:`json` module. And so, by default, only the basic object types supported by that
+module can be encoded and decoded. The transcoder can be extended by registering
+transcodings for the other types of object used in your domain model's event objects.
+A transcoding will convert other types of object to a representation of the non-basic
+type of object that uses the basic types that are supported. The transcoder method
+:func:`~eventsourcing.persistence.Transcoder.register` is used to register
+individual transcodings with the transcoder.
 
 
 Transcodings
 ============
 
-In order to encode and decode other types of object, custom transcodings need
-to be defined, and then registered with the `transcoder <#transcoder>`_ using
-the transcoder object's
-:func:`~eventsourcing.persistence.Transcoder.register` method.
-A transcoding will encode an instance of a non-basic type of object into
-another type of object that can be encoded by the transcoder, and will
-decode that object into the original type of object. This makes it possible
-to transcode custom types, including custom types that contain custom types.
+In order to encode and decode non-basic types of object that are not supported by
+the transcoder by default, custom transcodings need to be defined in code and
+registered with the `transcoder <#transcoder>`_ using the transcoder object's
+:func:`~eventsourcing.persistence.Transcoder.register` method. A transcoding
+will encode an instance of a non-basic type of object that cannot by default be
+encoded by the transcoder into a basic type of object that can be encoded by the
+transcoder, and will decode that representation into the original type of object.
+This makes it possible to transcode custom value objects, including custom types
+that contain custom types. The transcoder works recursively through the object
+and so included custom types do not need to be encoded by the transcoder, but
+will be converted subsequently.
 
 The library includes a limited collection of custom transcoding objects. For
 example, the library's :class:`~eventsourcing.persistence.UUIDAsHex` class
@@ -93,37 +97,50 @@ transcodes a Python :class:`~uuid.UUID` objects as a hexadecimal string.
 
     id1 = uuid4()
     data = transcoding.encode(id1)
-    assert transcoding.decode(data) == id1
+    copy = transcoding.decode(data)
+    assert copy == id1
 
 
-Similarly, the library's :class:`~eventsourcing.persistence.DatetimeAsISO` class
-transcodes Python :class:`~datetime.datetime` objects as ISO strings. The class
-:class:`~eventsourcing.persistence.DecimalAsStr` transcodes Python :class:`~decimal.Decimal`
-objects as decimal strings.
+The library's :class:`~eventsourcing.persistence.DatetimeAsISO` class
+transcodes Python :class:`~datetime.datetime` objects as ISO strings.
 
 .. code:: python
 
     from datetime import datetime
-    from decimal import Decimal
 
     from eventsourcing.persistence import (
         DatetimeAsISO,
-        DecimalAsStr,
     )
 
     transcoding = DatetimeAsISO()
+
     datetime1 = datetime(2021, 12, 31, 23, 59, 59)
     data = transcoding.encode(datetime1)
-    assert transcoding.decode(data) == datetime1
+    copy = transcoding.decode(data)
+    assert copy == datetime1
 
+
+The library's :class:`~eventsourcing.persistence.DecimalAsStr` class
+transcodes Python :class:`~decimal.Decimal` objects as decimal strings.
+
+.. code:: python
+
+    from decimal import Decimal
+
+    from eventsourcing.persistence import (
+        DecimalAsStr,
+    )
 
     transcoding = DecimalAsStr()
+
     decimal1 = Decimal("1.2345")
     data = transcoding.encode(decimal1)
-    assert transcoding.decode(data) == decimal1
+    copy = transcoding.decode(data)
+    assert copy == decimal1
 
 
-These transcodings can be registered with the transcoder.
+Transcodings are registered with the transcoder using the transcoder object's
+:func:`~eventsourcing.persistence.Transcoder.register` method.
 
 .. code:: python
 
@@ -132,16 +149,19 @@ These transcodings can be registered with the transcoder.
     transcoder.register(DecimalAsStr())
 
     data = transcoder.encode(id1)
-    assert transcoder.decode(data) == id1
+    copy = transcoder.decode(data)
+    assert copy == id1
 
     data = transcoder.encode(datetime1)
-    assert transcoder.decode(data) == datetime1
+    copy = transcoder.decode(data)
+    assert copy == datetime1
 
     data = transcoder.encode(decimal1)
-    assert transcoder.decode(data) == decimal1
+    copy = transcoder.decode(data)
+    assert copy == decimal1
 
 
-Trying to transcode an unsupported type will result in a Python :class:`TypeError`.
+Attempting to transcode an unsupported type will result in a Python :class:`TypeError`.
 
 .. code:: python
 
@@ -150,14 +170,23 @@ Trying to transcode an unsupported type will result in a Python :class:`TypeErro
     date1 = date(2021, 12, 31)
     try:
         data = transcoder.encode(date1)
-    except TypeError:
-        pass
+    except TypeError as e:
+        assert e.args[0] == (
+            "Object of type <class 'datetime.date'> is not serializable. "
+            "Please register a custom transcoding for this type."
+        )
     else:
         raise Exception("shouldn't get here")
 
 
 The library's abstract base class :class:`~eventsourcing.persistence.Transcoding`
-can be subclassed to define custom transcodings for other object types.
+can be subclassed to define custom transcodings for other object types. To define
+a custom transcoding, simply subclass this base class, assign to the class attribute
+:data:`type` the class transcoded type, and assign a string to the :data:`type`.
+Then define a :func:`~eventsourcing.persistence.Transcoding.encode` that converts
+an instance of that type to a representation that uses a basic type, and a
+:func:`~eventsourcing.persistence.Transcoding.decode` method that will convert
+that representation back to an instance of that type.
 
 .. code:: python
 
@@ -179,12 +208,131 @@ can be subclassed to define custom transcodings for other object types.
     transcoder.register(DateAsISO())
 
     data = transcoder.encode(date1)
-    assert transcoder.decode(data) == date1
+    copy = transcoder.decode(data)
+    assert copy == date1
+
 
 Please note, due to the way the Python :mod:`json` module works, it isn't
 currently possible to transcode subclasses of the basic Python types that
 are supported by default, such as :class:`dict`, :class:`list`, :class:`tuple`,
-:class:`str`, :class:`int`, :class:`float`, and :class:`bool`.
+:class:`str`, :class:`int`, :class:`float`, and :class:`bool`. This behaviour
+also means an encoded :class:`tuple` will be decoded as a :class:`list`.
+This behaviour is coded in Python as C code, and can't be suspended without
+avoiding the use of this C code and thereby incurring a performance penalty
+in the transcoding of domain event objects.
+
+.. code:: python
+
+    data = transcoder.encode((1, 2, 3))
+    copy = transcoder.decode(data)
+    assert isinstance(copy, list)
+    assert copy == [1, 2, 3]
+
+
+Custom or non-basic types that contain other custom or non-basic types can be
+supported in the transcoder by registering a transcoding for each non-basic type.
+The transcoding for the type which contains non-basic types must return an object
+that represents that type by involving the included non-basic objects, and this
+representation will be subsequently transcoded by the transcoder using the applicable
+transcoding for the included non-basic types. In the example below, :class:`SimpleCustomValue`
+has a :class:`UUID` and a :class:`date` as its :data:`id` and :data:`data` attributes.
+The transcoding for :class:`SimpleCustomValue` returns a Python :class:`dict` that includes
+the non-basic :class:`UUID` and :class:`date` objects. The class :class:`ComplexCustomValue`
+simply has a :class:`ComplexCustomValue` object as its :class:`value` attribute, and its
+transcoding simply returns that object.
+
+.. code:: python
+
+    from uuid import UUID
+
+
+    class SimpleCustomValue:
+        def __init__(self, id: UUID, date: date):
+            self.id = id
+            self.date = date
+
+        def __eq__(self, other):
+            return (
+                isinstance(other, SimpleCustomValue) and
+                self.id == other.id and self.date == other.date
+            )
+
+    class ComplexCustomValue:
+        def __init__(self, value: SimpleCustomValue):
+            self.value = value
+
+        def __eq__(self, other):
+            return (
+                isinstance(other, ComplexCustomValue) and
+                self.value == other.value
+            )
+
+
+    class SimpleCustomValueAsDict(Transcoding):
+        type = SimpleCustomValue
+        name = "simple_custom_value"
+
+        def encode(self, obj: SimpleCustomValue) -> dict:
+            return {"id": obj.id, "date": obj.date}
+
+        def decode(self, data: dict) -> SimpleCustomValue:
+            assert isinstance(data, dict)
+            return SimpleCustomValue(**data)
+
+
+    class ComplexCustomValueAsDict(Transcoding):
+        type = ComplexCustomValue
+        name = "complex_custom_value"
+
+        def encode(self, obj: ComplexCustomValue) -> SimpleCustomValue:
+            return obj.value
+
+        def decode(self, data: SimpleCustomValue) -> ComplexCustomValue:
+            assert isinstance(data, SimpleCustomValue)
+            return ComplexCustomValue(data)
+
+
+The custom value object transcodings can be registered with the transcoder.
+
+.. code:: python
+
+    transcoder.register(SimpleCustomValueAsDict())
+    transcoder.register(ComplexCustomValueAsDict())
+
+We can now transcode an instance of :class:`ComplexCustomValueAsDict`.
+
+.. code:: python
+
+    obj1 = ComplexCustomValue(
+        SimpleCustomValue(
+            id=UUID("b2723fe2c01a40d2875ea3aac6a09ff5"),
+            date=date(2000, 2, 20)
+        )
+    )
+
+    data = transcoder.encode(obj1)
+    copy = transcoder.decode(data)
+    assert copy == obj1
+
+
+As you can see from the bytes representation below, the transcoder puts the return value
+of each transcodings' :func:`encode` method in a Python :class:`dict` that has two values
+:data:`_data_` and :data:`_type_`. The :data:`_data_` value is the return value of the
+transcoding's :func:`encode` method, and the :data:`_type_` value is the name of the
+transcoding. For this reason, it is necessary to avoid defining model objects to have a
+Python :class:`dict` that has only two attributes :data:`_data_` and :data:`_type_`, and
+avoid defining transcodings that return such a thing.
+
+.. code:: python
+
+    expected_data = (
+        b'{"_type_": "complex_custom_value", "_data_": {"_type_": '
+        b'"simple_custom_value", "_data_": {"id": {"_type_": '
+        b'"uuid_hex", "_data_": "b2723fe2c01a40d2875ea3aac6a09ff5"},'
+        b' "date": {"_type_": "date_iso", "_data_": "2000-02-20"}'
+        b'}}}'
+    )
+    assert data == expected_data
 
 
 Stored event objects
