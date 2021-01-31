@@ -116,6 +116,11 @@ root_url = "https://github.com/johnbywater/eventsourcing"
 root_icon = "py.png"
 root_include_title = True
 
+theme_root_name = "Python"
+theme_root_url = "https://github.com/johnbywater/eventsourcing"
+theme_root_icon = "py.png"
+theme_root_include_title = True
+
 # html_theme = "sphinx_rtd_theme"
 
 # import sphinx_rtd_theme
