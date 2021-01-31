@@ -108,11 +108,11 @@ todo_include_todos = False
 # html_theme = 'classic'
 
 
-import python_docs_theme
+# import python_docs_theme
 html_theme = "python_docs_theme"
+# html_theme = "sphinx_rtd_theme"
 
 import sphinx_rtd_theme
-# html_theme = "sphinx_rtd_theme"
 html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # html_theme_path = [alabaster.get_html_theme_path()]

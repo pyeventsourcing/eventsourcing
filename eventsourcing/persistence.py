@@ -154,9 +154,16 @@ class DatetimeAsISO(Transcoding):
 @dataclass(frozen=True)
 class StoredEvent:
     """
-    Frozen dataclass that represents :class:`eventsourcing.domain.DomainEvent`
-    objects, such as aggregate :class:`eventsourcing.domain.Aggregate.Event`
-    objects and :class:`eventsourcing.domain.Snapshot` objects.
+    Frozen dataclass that represents :class:`~eventsourcing.domain.DomainEvent`
+    objects, such as aggregate :class:`~eventsourcing.domain.Aggregate.Event`
+    objects and :class:`~eventsourcing.domain.Snapshot` objects.
+
+    Constructor parameters:
+
+    :param UUID originator_id: ID of the originating aggregate
+    :param int originator_id: version of the originating aggregate
+    :param str topic: topic of the domain event object class
+    :param bytes state: serialised state of the domain event object
     """
     originator_id: uuid.UUID
     originator_version: int

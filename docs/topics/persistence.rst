@@ -661,7 +661,7 @@ SQLite
 
 The module :mod:`eventsourcing.sqlite` supports storing events in SQLite.
 
-The SQLite :class:`eventsourcing.sqlite:Factory` uses environment variables
+The SQLite :class:`~eventsourcing.sqlite.Factory` uses environment variables
 ``'SQLITE_DBNAME'`` and ``'DO_CREATE_TABLE'``.
 
 .. code:: python
@@ -691,7 +691,7 @@ PostgreSQL
 
 The module :mod:`eventsourcing.postgres` supports storing events in PostgresSQL.
 
-The SQLite :class:`eventsourcing.sqlite:Factory` uses environment variables
+The PostgreSQL :class:`~eventsourcing.sqlite.Factory` uses environment variables
 ``'POSTGRES_DBNAME'``, ``'POSTGRES_HOST'``, ``'POSTGRES_USER'``,
 ``'POSTGRES_PASSWORD'``, and ``'DO_CREATE_TABLE'``.
 
