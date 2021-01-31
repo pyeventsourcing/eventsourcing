@@ -46,9 +46,10 @@ class Repository:
         for given ID, optionally at the given version.
         """
 
+        domain_events: Iterable[Union[Snapshot, Aggregate.Event]]
+
         if self.snapshot_store is None:
             # Get all the aggregate events.
-            domain_events: Iterable[Union[Snapshot, Aggregate.Event]]
             domain_events = self.event_store.get(
                 originator_id=aggregate_id,
                 lte=version,
