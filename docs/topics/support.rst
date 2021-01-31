@@ -2,16 +2,15 @@
 Support options
 ===============
 
-It has taken a lot of time and effort to create this library.
-Similarly, it will take time and effort to understand and
+It has taken quite a lot of time and effort to create this library.
+Similarly, it will take some time and effort to understand and
 acquire the skills to create well-designed event-sourced applications.
+Professional training workshops and development services are available.
+Friendly community support is also available on the Slack_ channel. Please
+support the continuing development and maintenance of this library by
+`starring the project on GitHub <https://github.com/johnbywater/eventsourcing>`_
+and by making a regular donation.
 
-Training workshops and development services are available to
-support your professional use of this library. Community support
-is also available.
-
-Please consider supporting the ongoing development and maintenance
-of this library by making a regular donation.
 
 Professional support
 ====================
