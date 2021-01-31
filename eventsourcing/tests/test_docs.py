@@ -46,6 +46,7 @@ class TestDocs(TestCase):
                 or name.endswith('domain.rst') \
                 or name.endswith('application.rst') \
                 or name.endswith('system.rst') \
+                or name.endswith('examples.rst') \
                 :
                 # if name.endswith('quick_start.rst'):
                 # if name.endswith('aggregates_in_ddd.rst'):
@@ -100,6 +101,7 @@ class TestDocs(TestCase):
         is_md = False
         is_rst = False
         last_line = ""
+        is_literalinclude = False
         with open(doc_path) as doc_file:
             for line_index, orig_line in enumerate(doc_file):
                 line = orig_line.strip("\n")
@@ -140,6 +142,23 @@ class TestDocs(TestCase):
                     is_rst = True
                     line = ""
                     num_code_lines_in_block = 0
+                elif line.startswith(".. literalinclude::"):
+                    is_literalinclude = True
+                    line = ""
+
+                elif is_literalinclude:
+                    if 'pyobject' in line:
+                        # Assume ".. literalinclude:: ../../xxx/xx.py"
+                        # Or ".. literalinclude:: ../xxx/xx.py"
+                        module = last_line.strip().split(' ')[-1][:-3]
+                        module = module.lstrip('./')
+                        module = module.replace('/', '.')
+                        # Assume "    :pyobject: xxxxxx"
+                        pyobject = line.strip().split(' ')[-1]
+                        statement = f"from {module} import {pyobject}"
+                        line = statement
+                        is_literalinclude = False
+
                 elif is_code and is_rst and line and not line.startswith(" "):
                     # Finish restructured text code block.
                     if not num_code_lines_in_block:

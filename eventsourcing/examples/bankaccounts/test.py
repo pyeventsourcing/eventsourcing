@@ -1,6 +1,5 @@
 import unittest
 from decimal import Decimal
-from unittest.case import TestCase
 from uuid import uuid4
 
 from eventsourcing.examples.bankaccounts.application import (
