@@ -110,6 +110,12 @@ todo_include_todos = False
 
 # import python_docs_theme
 html_theme = "python_docs_theme"
+
+root_name = "Python"
+root_url = "https://github.com/johnbywater/eventsourcing"
+root_icon = "py.png"
+root_include_title = True
+
 # html_theme = "sphinx_rtd_theme"
 
 # import sphinx_rtd_theme
