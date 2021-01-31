@@ -27,9 +27,16 @@ Version 9.0.0
 
 First release of the distilled version of the library. Compared with
 previous versions, the code and documentation are much simpler, and
-focuses directly on expressing the important concerns without the
+focus directly on expressing the important concerns without the
 extraneous detail and optional alternatives that had been accumulated
-over the past few years of learning. The storage format is more efficient,
+over the past few years of learning.
+Dedicated persistence modules for SQLite and PostgresSQL have been introduced,
+and support for SQLAlchemy and Django and other databases has been removed
+(the plan being to support these in separate package distributions). The
+default "plain old Python object" infrastructure continues to exist, and
+now offers event storage and retrieval performance of around 20x the speed
+of using PostgreSQL and around 4x the speed of using SQLite in memory.
+The storage format is more efficient,
 because originator IDs and originator versions are removed from the stored
 state before serialisation, then reinstated on serialisation. Database
 sequences are used generate event notifications rather than the use of
@@ -41,12 +48,12 @@ no risk of event notifications being inserted in the gaps after later
 event notifications have been processed, which was the motivation
 for using gapless sequences in previous versions. The notification log
 and log reader classes have been adjusted to support the possible
-existence of gaps in the notification log sequence. The transcoding
+existence of gaps in the notification log sequence. The transcoder
 is more easily extensible, with the definition and registering of individual
 transcoding objects to support types of object that are not supported
-by default. Domain event classes have been radically simplified, with
-the deep hierarchy of entity classes removed in favour of the simple
-aggregate base class. The repository has been changed to provide a
+by default. Domain event classes have been greatly simplified, with
+the deep hierarchy of entity and event classes removed in favour of the
+simple aggregate base class. The repository has been changed to provide a
 single get() method and no longer support the "indexing" square-bracket
 syntax, so that there is just one way to get an aggregate regardless of
 whether the requested version is specified or not. Application configuration
@@ -74,14 +81,12 @@ the notification log. The process event object existed
 in previous versions, was used to keep track of the position
 in a notification log of the event notification that was being
 processed by a policy, and continues to be used for that purpose.
-Dedicated infrastructure for SQLite and PostgresSQL has been introduced,
-and support for SQLAlchemy and Django and other databases has been removed
-(the plan being to support these in separate package distributions). The
-default "plain old Python object" infrastructure continues to exist, and
-now offers event storage and retrieval performance of around 20x the speed
-of using PostgreSQL and around 4x the speed of using SQLite in memory. These
-changes mean the core library now depends only on the Python Standard Library,
-except for the dependency on the cryptographic library and the PostgresSQL driver.
+The system runners have been reduced to the single-threaded and
+multi-threaded runners, with support for running with Ray and gRPC
+and so on removed (the plan being to support these in separate package
+distributions). Altogether, these changes mean the core library now depends
+only on the PythonStandard Library, except for the dependency on the
+cryptographic library (Pycryptodome) and the PostgresSQL driver (psycopg2).
 Altogether, these changes makes the test suite much faster to run (several
 seconds rather than several minutes for the previous version), the build time
 on Travis much quicker (less than one minute rather than nearly ten minutes for
