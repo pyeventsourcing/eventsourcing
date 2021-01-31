@@ -28,8 +28,8 @@ interfaces can be developed for different technologies without duplicating
 application and domain logic.
 
 
-Event-sourced applications
-==========================
+Applications objects
+====================
 
 An event-sourced application object combines a domain model with
 a cohesive mechanism for storing and retrieving domain events.
