@@ -80,7 +80,10 @@ class SQLiteAggregateRecorder(AggregateRecorder):
 
     def create_table(self) -> None:
         with self.datastore.transaction() as c:
-            self._create_table(c)
+            try:
+                self._create_table(c)
+            except sqlite3.OperationalError as e:
+                raise OperationalError(e)
 
     def _create_table(self, c: Connection):
         statement = (
@@ -94,14 +97,16 @@ class SQLiteAggregateRecorder(AggregateRecorder):
             "(originator_id, originator_version)) "
             "WITHOUT ROWID"
         )
-        try:
-            c.execute(statement)
-        except sqlite3.OperationalError as e:
-            raise OperationalError(e)
+        c.execute(statement)
 
     def insert_events(self, stored_events, **kwargs):
         with self.datastore.transaction() as c:
-            self._insert_events(c, stored_events, **kwargs)
+            try:
+                self._insert_events(c, stored_events, **kwargs)
+            except sqlite3.OperationalError as e:
+                raise OperationalError(e)
+            except sqlite3.IntegrityError as e:
+                raise RecordConflictError(e)
 
     def _insert_events(
         self,
@@ -120,10 +125,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
                     stored_event.state,
                 )
             )
-        try:
-            c.executemany(statement, params)
-        except sqlite3.IntegrityError as e:
-            raise RecordConflictError(e)
+        c.executemany(statement, params)
 
     def select_events(
         self,
@@ -149,17 +151,21 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         if limit is not None:
             statement += "LIMIT ? "
             params.append(limit)
-        c = self.datastore.get_connection()
-        stored_events = []
-        for row in c.execute(statement, params):
-            stored_events.append(
-                StoredEvent(
-                    originator_id=UUID(row["originator_id"]),
-                    originator_version=row["originator_version"],
-                    topic=row["topic"],
-                    state=row["state"],
+        try:
+            c = self.datastore.get_connection().cursor()
+            c.execute(statement, params)
+            stored_events = []
+            for row in c.fetchall():
+                stored_events.append(
+                    StoredEvent(
+                        originator_id=UUID(row["originator_id"]),
+                        originator_version=row["originator_version"],
+                        topic=row["topic"],
+                        state=row["state"],
+                    )
                 )
-            )
+        except sqlite3.OperationalError as e:
+            raise OperationalError(e)
         return stored_events
 
 
@@ -178,10 +184,7 @@ class SQLiteApplicationRecorder(
             "PRIMARY KEY "
             "(originator_id, originator_version))"
         )
-        try:
-            c.execute(statement)
-        except sqlite3.OperationalError as e:
-            raise OperationalError(e)
+        c.execute(statement)
 
     def select_notifications(self, start: int, limit: int) -> List[Notification]:
         """
@@ -197,29 +200,35 @@ class SQLiteApplicationRecorder(
             "LIMIT ?"
         )
         params = [start, limit]
-        c = self.datastore.get_connection().cursor()
-        c.execute(statement, params)
-        notifications = []
-        for row in c.fetchall():
-            notifications.append(
-                Notification(
-                    id=row["rowid"],
-                    originator_id=UUID(row["originator_id"]),
-                    originator_version=row["originator_version"],
-                    topic=row["topic"],
-                    state=row["state"],
+        try:
+            c = self.datastore.get_connection().cursor()
+            c.execute(statement, params)
+            notifications = []
+            for row in c.fetchall():
+                notifications.append(
+                    Notification(
+                        id=row["rowid"],
+                        originator_id=UUID(row["originator_id"]),
+                        originator_version=row["originator_version"],
+                        topic=row["topic"],
+                        state=row["state"],
+                    )
                 )
-            )
+        except sqlite3.OperationalError as e:
+            raise OperationalError(e)
         return notifications
 
     def max_notification_id(self) -> int:
         """
         Returns the maximum notification ID.
         """
-        c = self.datastore.get_connection().cursor()
-        statement = f"SELECT MAX(rowid) FROM {self.events_table_name}"
-        c.execute(statement)
-        return c.fetchone()[0] or 0
+        try:
+            c = self.datastore.get_connection().cursor()
+            statement = f"SELECT MAX(rowid) FROM {self.events_table_name}"
+            c.execute(statement)
+            return c.fetchone()[0] or 0
+        except sqlite3.OperationalError as e:
+            raise OperationalError(e)
 
 
 class SQLiteProcessRecorder(
@@ -240,12 +249,15 @@ class SQLiteProcessRecorder(
 
     def max_tracking_id(self, application_name: str) -> int:
         params = [application_name]
-        c = self.datastore.get_connection().cursor()
-        statement = (
-            "SELECT MAX(notification_id)" "FROM tracking " "WHERE application_name=?"
-        )
-        c.execute(statement, params)
-        return c.fetchone()[0] or 0
+        try:
+            c = self.datastore.get_connection().cursor()
+            statement = (
+                "SELECT MAX(notification_id)" "FROM tracking " "WHERE application_name=?"
+            )
+            c.execute(statement, params)
+            return c.fetchone()[0] or 0
+        except sqlite3.OperationalError as e:
+            raise OperationalError(e)
 
     def _insert_events(
         self,
@@ -257,16 +269,13 @@ class SQLiteProcessRecorder(
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking is not None:
             statement = "INSERT INTO tracking " "VALUES (?,?)"
-            try:
-                c.execute(
-                    statement,
-                    (
-                        tracking.application_name,
-                        tracking.notification_id,
-                    ),
-                )
-            except sqlite3.IntegrityError as e:
-                raise RecordConflictError(e)
+            c.execute(
+                statement,
+                (
+                    tracking.application_name,
+                    tracking.notification_id,
+                ),
+            )
 
 
 class Factory(InfrastructureFactory):

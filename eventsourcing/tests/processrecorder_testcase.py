@@ -31,13 +31,13 @@ class ProcessRecordsTestCase(TestCase, ABC):
 
         stored_event1 = StoredEvent(
             originator_id=originator_id1,
-            originator_version=0,
+            originator_version=1,
             topic="topic1",
             state=b"state1",
         )
         stored_event2 = StoredEvent(
             originator_id=originator_id1,
-            originator_version=1,
+            originator_version=2,
             topic="topic2",
             state=b"state2",
         )
@@ -46,6 +46,12 @@ class ProcessRecordsTestCase(TestCase, ABC):
             originator_version=1,
             topic="topic3",
             state=b"state3",
+        )
+        stored_event4 = StoredEvent(
+            originator_id=originator_id2,
+            originator_version=2,
+            topic="topic4",
+            state=b"state4",
         )
         tracking1 = Tracking(
             application_name="upstream_app",
@@ -56,6 +62,7 @@ class ProcessRecordsTestCase(TestCase, ABC):
             notification_id=2,
         )
 
+        # Insert two events with tracking info.
         recorder.insert_events(
             stored_events=[
                 stored_event1,
@@ -70,6 +77,7 @@ class ProcessRecordsTestCase(TestCase, ABC):
             1,
         )
 
+        # Check can't insert third event with same tracking info.
         with self.assertRaises(RecordConflictError):
             recorder.insert_events(
                 stored_events=[stored_event3],
@@ -82,6 +90,7 @@ class ProcessRecordsTestCase(TestCase, ABC):
             1,
         )
 
+        # Insert third event with different tracking info.
         recorder.insert_events(
             stored_events=[stored_event3],
             tracking=tracking2,
@@ -92,6 +101,19 @@ class ProcessRecordsTestCase(TestCase, ABC):
             recorder.max_tracking_id("upstream_app"),
             2,
         )
+
+        # Insert fourth event without tracking info.
+        recorder.insert_events(
+            stored_events=[stored_event4],
+        )
+
+        # Get current position.
+        self.assertEqual(
+            recorder.max_tracking_id("upstream_app"),
+            2,
+        )
+
+
 
     def test_performance(self):
 

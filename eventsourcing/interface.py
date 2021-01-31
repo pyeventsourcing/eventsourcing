@@ -14,7 +14,9 @@ from eventsourcing.persistence import Notification
 class NotificationLogAPI(ABC):
     @abstractmethod
     def get_log_section(self, section_id: str) -> str:
-        pass
+        """
+        Returns serialised section from notification log.
+        """
 
 
 class RemoteNotificationLog(NotificationLog):
