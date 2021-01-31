@@ -22,10 +22,14 @@ layer.
 
 Generally speaking, the application layer implements commands which change the
 state of the application, and queries which present the state of the application.
-The commands and queries are called from the interface layer. By keeping the
-application and domain logic in the application and domain layers, different
-interfaces can be developed for different technologies without duplicating
+The commands and queries ("application services") are called from the interface layer.
+By keeping the application and domain logic in the application and domain layers,
+different interfaces can be developed for different technologies without duplicating
 application and domain logic.
+
+The discussion below continues these ideas, by combining event-sourced aggregates
+and persistence objects in an application object that implements "application services"
+as object methods.
 
 
 Applications objects
@@ -34,7 +38,7 @@ Applications objects
 An event-sourced application object combines a domain model with
 a cohesive mechanism for storing and retrieving domain events.
 
-The library's :class:`~eventsourcing.application.Application` base class
+The library's :class:`~eventsourcing.application.Application` object class
 brings together objects from the :doc:`domain </topics/domain>` and
 :doc:`persistence </topics/persistence>` modules. It can be subclassed
 to develop event-sourced applications. The general idea is to name
@@ -67,8 +71,9 @@ domain event notifications.
 
 The :class:`~eventsourcing.application.Application` class defines an object method
 :func:`~eventsourcing.application.Application.take_snapshot` which can
-be used to `take snapshots <#snapshotting>`_ of existing aggregates. Snapshotting can help
-to reduce access time of aggregates with lots of domain events.
+be used to `take snapshots <#snapshotting>`_ of existing aggregates. Snapshotting
+isn't necessary, but can help to reduce the time it takes to access aggregates with
+lots of domain events.
 
 
 Basic example
