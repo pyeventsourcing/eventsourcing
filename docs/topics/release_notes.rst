@@ -20,21 +20,73 @@ the best parts of the previous versions of the library into faster
 and simpler code. This version is recommended for new projects.
 It is not backwards-compatible with previous versions.
 
-Version 9.0
------------
+Version 9.0.0
+-------------
 
 *Currently under development.*
 
-Simpler documentation. More efficient storage. Changed to use database
-sequences to generate event notifications IDs, so there will potentially
-be gaps in the sequence. Changed persistence infrastructure base classes.
-Added dedicated SQLite infrastructure. Added dedicated PostgresSQL infrastructure.
-Extensible transcoder. Simplified domain model classes. Simplified application
-classes. Configuration of persistence infrastructure with environment variables.
-Removed persistence subscriber. Removed internal pub-sub mechanism. Changed
-saving of aggregates to always use application save() method. Changed repository
-to use get() method rather than indexing square-bracket syntax. Changed process
-application policy to collect new domain events on process event object.
+First release of the distilled version of the library. Compared with
+previous versions, the code and documentation are much simpler, and
+focuses directly on expressing the important concerns without the
+extraneous detail and optional alternatives that had been accumulated
+over the past few years of learning. The storage format is more efficient,
+because originator IDs and originator versions are removed from the stored
+state before serialisation, then reinstated on serialisation. Database
+sequences are used generate event notifications rather than the use of
+"INSERT SELECT" SQL statement avoids table conflicts that sometimes
+caused conflicts and exceptions when storing events that could only
+be resolved with retries. Although this leads to notification ID
+sequences that may have gaps, the use of sequences means there is
+no risk of event notifications being inserted in the gaps after later
+event notifications have been processed, which was the motivation
+for using gapless sequences in previous versions. The notification log
+and log reader classes have been adjusted to support the possible
+existence of gaps in the notification log sequence. The transcoding
+is more easily extensible, with the definition and registering of individual
+transcoding objects to support types of object that are not supported
+by default. Domain event classes have been radically simplified, with
+the deep hierarchy of entity classes removed in favour of the simple
+aggregate base class. The repository has been changed to provide a
+single get() method and no longer support the "indexing" square-bracket
+syntax, so that there is just one way to get an aggregate regardless of
+whether the requested version is specified or not. Application configuration
+of persistence infrastructure is now driven by environment variables rather
+than constructor parameters, leading to a simpler interface for application
+object classes. The mechanism for storing domain events has been simplified,
+so that aggregates are saved using the application "save" method. The mechanism
+by which aggregates published their events and a "persistence subscriber"
+subscribed and persisted published domain events has been removed,
+since aggregates that are saved always need some persistence infrastructure
+to store the events, and it is the responsibility of the application
+to bring together the domain model and infrastructure, so that when
+an aggregate can be saved there is always an application. Process
+application policy methods are now given and will use a process event
+object to collect domain events, using its "save" method that has the same
+signature as the application "save" method. This allows policies to accumulate
+new events on the process event object in the order they were generated,
+whereas previously if new events were generated on one aggregate and
+then a second and then the first, the events of one aggregate would
+be stored first and the events of the second aggregate would be stored
+afterwards, leading to an incorrect ordering of the domain events in
+the notification log. The process event object existed
+in previous versions, was used to keep track of the position
+in a notification log of the event notification that was being
+processed by a policy, and continues to be used for that purpose.
+Dedicated infrastructure for SQLite and PostgresSQL has been introduced,
+and support for SQLAlchemy and Django and other databases has been removed
+(the plan being to support these in separate package distributions). The
+default "plain old Python object" infrastructure continues to exist, and
+now offers event storage and retrieval performance of around 20x the speed
+of using PostgreSQL and around 4x the speed of using SQLite in memory. These
+changes mean the core library now depends only on the Python Standard Library,
+except for the dependency on the cryptographic library and the PostgresSQL driver.
+Altogether, these changes makes the test suite much faster to run (several
+seconds rather than several minutes for the previous version), the build time
+on Travis much quicker (less than one minute rather than nearly ten minutes for
+the previous version), and the library more approachable and fun for users
+and library developers. Test coverage has been increased to 100%. The documentation
+has been rewritten to focus more on usage of the library code, and less on
+explaining surrounding concepts and considerations.
 
 
 Version 8.x
