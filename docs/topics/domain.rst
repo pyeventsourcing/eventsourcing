@@ -1,5 +1,5 @@
 =============================================
-:mod:`eventsourcing.domain` --- Domain models
+:mod:`~eventsourcing.domain` --- Domain models
 =============================================
 
 
@@ -384,7 +384,7 @@ UTC, as defined by Python's :data:`datetime.timezone.utc`. It is recommended to 
 date-times as UTC values, and convert to a local timezone in the interface layer according
 to the particular timezone of a particular user. However, if necessary, this default can
 be changed either by assigning a :class:`datetime.tzinfo` object to :data:`TZINFO` in the
-:mod:`eventsourcing.domain` module. The :data:`eventsourcing.domain.TZINFO` value can also
+:mod:`~eventsourcing.domain` module. The :data:`eventsourcing.domain.TZINFO` value can also
 be configured using environment variables, by setting the environment variable ``TZINFO_TOPIC``
 to a string that describes the `topic <#topics>`_ of a Python :data:`datetime.tzinfo` object
 (for example ``'datetime:timezone.utc'``).
@@ -397,8 +397,8 @@ A "topic" in this library is a string formed from joining with a colon character
 (``':'``) the path to a Python module (e.g. ``'eventsourcing.domain'``) with the qualified
 name of an object in that module (e.g. ``'Aggregate.Created'``). For example
 ``'eventsourcing.domain:Aggregate.Created'`` describes the path to the library's
-:class:`~eventsourcing.domain.Aggregate.Created` class. The library's module
-:mod:`eventsourcing.utils` contains functions :func:`~eventsourcing.utils.resolve_topic()`
+:class:`~eventsourcing.domain.Aggregate.Created` class. The library's
+:mod:`~eventsourcing.utils` module contains the functions :func:`~eventsourcing.utils.resolve_topic()`
 and :func:`~eventsourcing.utils.get_topic()` which are used in the library to resolve
 a given topic to a Python object, and to construct a topic for a given Python object.
 

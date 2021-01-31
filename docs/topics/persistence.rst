@@ -1,6 +1,6 @@
-================================================
-:mod:`eventsourcing.persistence` --- Persistence
-================================================
+====================================================
+:mod:`~eventsourcing.persistence` --- Infrastructure
+====================================================
 
 This module provides a cohesive mechanism for storing domain events.
 

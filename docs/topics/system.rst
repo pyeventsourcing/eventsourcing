@@ -1,6 +1,6 @@
-=======================================
-:mod:`eventsourcing.system` --- Systems
-=======================================
+=====================================================
+:mod:`~eventsourcing.system` --- Event-driven systems
+=====================================================
 
 This module shows how :doc:`event-sourced applications
 </topics/application>` can be combined to make an event driven
