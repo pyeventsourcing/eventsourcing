@@ -9,7 +9,7 @@ from eventsourcing.postgres import (
 from eventsourcing.system import (
     AbstractRunner,
     MultiThreadedRunner,
-    SingleThreadedRunner,
+    RunnerAlreadyStarted, SingleThreadedRunner,
     System,
 )
 from eventsourcing.tests.ramdisk import tmpfile_uris
@@ -18,10 +18,10 @@ from eventsourcing.tests.test_postgres import drop_postgres_table
 from eventsourcing.tests.test_processapplication import EmailNotifications
 
 
-class TestSingleThreadedRunner(TestCase):
-    runner_class: Type[AbstractRunner] = SingleThreadedRunner
+class RunnerTestCase(TestCase):
+    runner_class: Type[AbstractRunner] = AbstractRunner
 
-    def test(self):
+    def test_runs_ok(self):
         system = System(
             pipes=[
                 [
@@ -32,8 +32,11 @@ class TestSingleThreadedRunner(TestCase):
         )
 
         runner = self.runner_class(system)
-
         runner.start()
+
+        with self.assertRaises(RunnerAlreadyStarted):
+            runner.start()
+
         accounts = runner.get(BankAccounts)
         notifications = runner.get(EmailNotifications)
 
@@ -56,11 +59,115 @@ class TestSingleThreadedRunner(TestCase):
         pass
 
 
-class TestMultiThreadedRunner(TestSingleThreadedRunner):
+class TestSingleThreadedRunner(RunnerTestCase):
+    runner_class: Type[AbstractRunner] = SingleThreadedRunner
+
+    def test_prompts_received_doesnt_accumulate_names(self):
+        system = System(
+            pipes=[
+                [
+                    BankAccounts,
+                    EmailNotifications,
+                ],
+            ]
+        )
+
+        runner = self.runner_class(system)
+        runner.start()
+
+        with self.assertRaises(RunnerAlreadyStarted):
+            runner.start()
+
+        # Check prompts_received list doesn't accumulate.
+        runner.is_prompting = True
+        self.assertEqual(runner.prompts_received, [])
+        runner.receive_prompt("BankAccounts")
+        self.assertEqual(runner.prompts_received, ["BankAccounts"])
+        runner.receive_prompt("BankAccounts")
+        self.assertEqual(runner.prompts_received, ["BankAccounts"])
+        runner.is_prompting = False
+
+
+
+class TestMultiThreadedRunner(RunnerTestCase):
     runner_class = MultiThreadedRunner
 
     def wait_for_runner(self):
         sleep(0.1)
+
+    class BrokenInitialisation(EmailNotifications):
+        def __init__(self, *args, **kwargs):
+            raise Exception("My initialisation is broken")
+
+    class BrokenProcessing(EmailNotifications):
+        def pull_and_process(self, name: str) -> None:
+            raise Exception("My processing is broken")
+
+    def test_stops_if_app_initialisation_is_broken(self):
+        system = System(
+            pipes=[
+                [
+                    BankAccounts,
+                    TestMultiThreadedRunner.BrokenInitialisation,
+                ],
+            ]
+        )
+
+        runner = self.runner_class(system)
+        with self.assertRaises(Exception) as cm:
+            runner.start()
+        self.assertEqual(
+            cm.exception.args[0],
+            "Thread for 'BrokenInitialisation' failed to start"
+        )
+        self.assertTrue(runner.has_stopped)
+
+    def test_stops_if_app_processing_is_broken(self):
+        system = System(
+            pipes=[
+                [
+                    BankAccounts,
+                    TestMultiThreadedRunner.BrokenProcessing,
+                ],
+            ]
+        )
+
+        runner = self.runner_class(system)
+        runner.start()
+
+        accounts = runner.get(BankAccounts)
+        accounts.open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+
+        self.wait_for_runner()
+
+        self.assertTrue(runner.has_stopped)
+
+    def test_prompts_received_doesnt_accumulate_names(self):
+        system = System(
+            pipes=[
+                [
+                    BankAccounts,
+                    TestMultiThreadedRunner.BrokenProcessing,
+                ],
+            ]
+        )
+
+        runner = self.runner_class(system)
+        runner.start()
+        runner.stop()
+
+        for thread in runner.threads.values():
+            # Check the prompted names don't accumulate.
+            self.assertEqual(thread.prompted_names, [])
+            thread.receive_prompt("LeaderName")
+            self.assertEqual(thread.prompted_names, ["LeaderName"])
+            thread.receive_prompt("LeaderName")
+            self.assertEqual(thread.prompted_names, ["LeaderName"])
+
+
 
 
 class TestMultiThreadedRunnerWithSQLite(TestMultiThreadedRunner):
@@ -70,12 +177,14 @@ class TestMultiThreadedRunnerWithSQLite(TestMultiThreadedRunner):
         os.environ["DO_CREATE_TABLE"] = "y"
         os.environ["BANKACCOUNTS_SQLITE_DBNAME"] = next(uris)
         os.environ["EMAILNOTIFICATIONS_SQLITE_DBNAME"] = next(uris)
+        os.environ["BROKENPROCESSING_SQLITE_DBNAME"] = next(uris)
 
     def tearDown(self):
         del os.environ["DO_CREATE_TABLE"]
         del os.environ["INFRASTRUCTURE_FACTORY"]
         del os.environ["BANKACCOUNTS_SQLITE_DBNAME"]
         del os.environ["EMAILNOTIFICATIONS_SQLITE_DBNAME"]
+        del os.environ["BROKENPROCESSING_SQLITE_DBNAME"]
 
 
 class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
@@ -94,6 +203,8 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
         drop_postgres_table(db, "bankaccounts_events")
         drop_postgres_table(db, "emailnotifications_events")
         drop_postgres_table(db, "emailnotifications_tracking")
+        drop_postgres_table(db, "brokenprocessing_events")
+        drop_postgres_table(db, "brokenprocessing_tracking")
 
         os.environ["INFRASTRUCTURE_FACTORY"] = 'eventsourcing.postgres:Factory'
         os.environ["DO_CREATE_TABLE"] = "y"
@@ -105,3 +216,6 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
         del os.environ["POSTGRES_HOST"]
         del os.environ["POSTGRES_USER"]
         del os.environ["POSTGRES_PASSWORD"]
+
+
+del RunnerTestCase

@@ -242,7 +242,9 @@ class System:
         # Check each process is a process application class.
         for name in self.processors:
             if not issubclass(nodes[name], ProcessApplication):
-                raise TypeError("Not a follower class: %s" % nodes[name])
+                raise TypeError(
+                    "Not a process application class: %s" % nodes[name]
+                )
 
     @property
     def leaders(self) -> Iterable[str]:
@@ -303,11 +305,8 @@ class AbstractRunner(ABC):
         Starts the runner.
         """
         if self.is_started:
-            raise self.AlreadyStarted()
+            raise RunnerAlreadyStarted()
         self.is_started = True
-
-    class AlreadyStarted(Exception):
-        pass
 
     @abstractmethod
     def stop(self) -> None:
@@ -320,6 +319,11 @@ class AbstractRunner(ABC):
         """
         Returns an application instance for given application class.
         """
+
+
+class RunnerAlreadyStarted(Exception):
+    pass
+
 
 
 class SingleThreadedRunner(AbstractRunner, Promptable):
@@ -436,14 +440,16 @@ class MultiThreadedRunner(AbstractRunner):
 
         # Construct followers.
         for name in self.system.followers:
+            app_class = self.system.follower_cls(name)
             thread = MultiThreadedRunnerThread(
-                app_class=self.system.follower_cls(name),
+                app_class=app_class,
                 is_stopping=self.is_stopping,
             )
-            thread.start()
-            if not thread.is_running.wait(timeout=5):
-                self.stop()
             self.threads[name] = thread
+            thread.start()
+            if (not thread.is_running.wait(timeout=5)) or thread.has_stopped.is_set():
+                self.stop()
+                raise Exception(f"Thread for '{app_class.__name__}' failed to start")
             self.apps[name] = thread.app
 
         # Construct non-follower leaders.
@@ -466,6 +472,12 @@ class MultiThreadedRunner(AbstractRunner):
         for thread in self.threads.values():
             thread.is_prompted.set()
             thread.join()
+
+    @property
+    def has_stopped(self):
+        return all(
+            [t.has_stopped.is_set() for t in self.threads.values()]
+        )
 
     def get(self, cls: Type[A]) -> A:
         app = self.apps[cls.__name__]
@@ -497,10 +509,10 @@ class MultiThreadedRunnerThread(Promptable, Thread):
         is_stopping: Event,
     ):
         super().__init__()
-        if not issubclass(app_class, Follower):
-            raise TypeError("Not a follower: %s" % app_class)
         self.app_class = app_class
         self.is_stopping = is_stopping
+        self.has_stopped = Event()
+        self.has_errored = Event()
         self.is_prompted = Event()
         self.prompted_names: List[str] = []
         self.prompted_names_lock = Lock()
@@ -519,19 +531,29 @@ class MultiThreadedRunnerThread(Promptable, Thread):
         try:
             self.app: Follower = self.app_class()
         except:
-            self.is_stopping.set()
+            self.has_errored.set()
+            self.has_stopped.set()
             raise
-        self.is_running.set()
-        while True:
-            self.is_prompted.wait()
-            if self.is_stopping.is_set():
-                return
-            with self.prompted_names_lock:
-                prompted_names = self.prompted_names
-                self.prompted_names = []
-                self.is_prompted.clear()
-            for name in prompted_names:
-                self.app.pull_and_process(name)
+        finally:
+            self.is_running.set()
+
+        try:
+            while True:
+                self.is_prompted.wait()
+                if self.is_stopping.is_set():
+                    self.has_stopped.set()
+                    break
+                with self.prompted_names_lock:
+                    prompted_names = self.prompted_names
+                    self.prompted_names = []
+                    self.is_prompted.clear()
+                for name in prompted_names:
+                    self.app.pull_and_process(name)
+        except:
+            self.has_errored.set()
+            self.has_stopped.set()
+            self.is_stopping.is_set()
+            raise
 
     def receive_prompt(self, leader_name: str) -> None:
         """

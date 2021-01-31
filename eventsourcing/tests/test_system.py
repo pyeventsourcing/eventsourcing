@@ -2,15 +2,17 @@ from datetime import datetime
 from unittest.case import TestCase
 from uuid import uuid4
 
+from eventsourcing.application import Application
 from eventsourcing.domain import Aggregate
-from eventsourcing.system import Leader, Promptable, System
+from eventsourcing.system import Follower, Leader, ProcessApplication, Promptable, \
+    System
 from eventsourcing.tests.test_application import BankAccounts
 from eventsourcing.tests.test_processapplication import EmailNotifications
 from eventsourcing.utils import get_topic
 
 
 class TestSystem(TestCase):
-    def test(self):
+    def test_graph(self):
         system = System(
             pipes=[
                 [
@@ -37,6 +39,65 @@ class TestSystem(TestCase):
             ),
             system.edges,
         )
+
+    def test_raises_type_error_not_a_follower(self):
+        with self.assertRaises(TypeError) as cm:
+            System(
+                pipes=[
+                    [
+                        BankAccounts,
+                        Leader,
+                    ],
+                ]
+            )
+        exception = cm.exception
+        self.assertEqual(
+            exception.args[0],
+            "Not a follower class: <class 'eventsourcing.system.Leader'>"
+        )
+
+    def test_raises_type_error_not_a_processor(self):
+        with self.assertRaises(TypeError) as cm:
+            System(
+                pipes=[
+                    [
+                        BankAccounts,
+                        Follower,
+                        EmailNotifications,
+                    ],
+                ]
+            )
+        exception = cm.exception
+        self.assertEqual(
+            exception.args[0],
+            "Not a process application class: <class 'eventsourcing.system.Follower'>"
+        )
+
+    def test_is_leaders_only(self):
+        system = System(
+            pipes=[
+                [
+                    Leader,
+                    ProcessApplication,
+                    ProcessApplication,
+                ],
+            ]
+        )
+        self.assertEqual(list(system.leaders_only), ['Leader'])
+
+    def test_leader_class(self):
+        system = System(
+            pipes=[
+                [
+                    Application,
+                    ProcessApplication,
+                    ProcessApplication,
+                ],
+            ]
+        )
+        self.assertTrue(issubclass(system.leader_cls('Application'), Leader))
+        self.assertTrue(issubclass(system.leader_cls('ProcessApplication'), Leader))
+
 
 
 class TestLeader(TestCase):
