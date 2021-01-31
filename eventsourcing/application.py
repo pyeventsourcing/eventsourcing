@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Optional, TypeVar, Union
+from itertools import chain
+from typing import Iterable, List, Optional, TypeVar, Union
 from uuid import UUID
 
 from eventsourcing.domain import Aggregate, Snapshot
@@ -45,43 +46,45 @@ class Repository:
         for given ID, optionally at the given version.
         """
 
-        gt = None
-        domain_events: List[Union[Snapshot, Aggregate.Event]] = []
-
-        # Try to get a snapshot.
-        if self.snapshot_store is not None:
-            snapshots = self.snapshot_store.get(
+        if self.snapshot_store is None:
+            # Get all the aggregate events.
+            domain_events: Iterable[Union[Snapshot, Aggregate.Event]]
+            domain_events = self.event_store.get(
+                originator_id=aggregate_id,
+                lte=version,
+            )
+        else:
+            # Try to get a snapshot.
+            snapshots = list(self.snapshot_store.get(
                 originator_id=aggregate_id,
                 desc=True,
                 limit=1,
                 lte=version,
-            )
-            try:
-                snapshot = next(snapshots)
-                gt = snapshot.originator_version
-                domain_events.append(snapshot)
-            except StopIteration:
-                pass
+            ))
+            if snapshots:
+                gt = snapshots[0].originator_version
+            else:
+                gt = None
 
-        # Get the domain events.
-        domain_events += self.event_store.get(
-            originator_id=aggregate_id,
-            gt=gt,
-            lte=version,
-        )
+            # Get subsequent aggregate events.
+            domain_events = chain(snapshots, self.event_store.get(
+                originator_id=aggregate_id,
+                gt=gt,
+                lte=version,
+            ))
 
         # Project the domain events.
-        aggregate = None
+        aggregate: Optional[Aggregate] = None
         for domain_event in domain_events:
             aggregate = domain_event.mutate(aggregate)
 
         # Raise exception if not found.
         if aggregate is None:
             raise AggregateNotFound((aggregate_id, version))
-
-        # Return the aggregate.
-        assert isinstance(aggregate, Aggregate)
-        return aggregate
+        else:
+            # Return the aggregate.
+            # assert isinstance(aggregate, Aggregate)
+            return aggregate
 
 
 @dataclass(frozen=True)
