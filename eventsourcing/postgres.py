@@ -5,6 +5,8 @@ from uuid import UUID
 
 import psycopg2
 import psycopg2.extras
+import psycopg2.errors
+from psycopg2.errorcodes import DUPLICATE_TABLE, UNDEFINED_TABLE
 from psycopg2.extensions import connection, cursor
 
 from eventsourcing.persistence import (
@@ -81,7 +83,10 @@ class PostgresAggregateRecorder(AggregateRecorder):
 
     def create_table(self) -> None:
         with self.datastore.transaction() as c:
-            self._create_table(c)
+            try:
+                self._create_table(c)
+            except psycopg2.Error as e:
+                raise OperationalError(e)
 
     def _create_table(self, c: cursor) -> None:
         statement = (
@@ -94,14 +99,16 @@ class PostgresAggregateRecorder(AggregateRecorder):
             "PRIMARY KEY "
             "(originator_id, originator_version))"
         )
-        try:
-            c.execute(statement)
-        except psycopg2.OperationalError as e:
-            raise OperationalError(e)
+        c.execute(statement)
 
     def insert_events(self, stored_events: List[StoredEvent], **kwargs):
         with self.datastore.transaction() as c:
-            self._insert_events(c, stored_events, **kwargs)
+            try:
+                self._insert_events(c, stored_events, **kwargs)
+            except psycopg2.IntegrityError as e:
+                raise RecordConflictError(e)
+            except psycopg2.Error as e:
+                raise OperationalError(e)
 
     def _insert_events(
         self,
@@ -120,10 +127,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
                     stored_event.state,
                 )
             )
-        try:
-            c.executemany(statement, params)
-        except psycopg2.IntegrityError as e:
-            raise RecordConflictError(e)
+        c.executemany(statement, params)
 
     def select_events(
         self,
@@ -151,17 +155,20 @@ class PostgresAggregateRecorder(AggregateRecorder):
             params.append(limit)
         # statement += ";"
         stored_events = []
-        with self.datastore.transaction() as c:
-            c.execute(statement, params)
-            for row in c.fetchall():
-                stored_events.append(
-                    StoredEvent(
-                        originator_id=row["originator_id"],
-                        originator_version=row["originator_version"],
-                        topic=row["topic"],
-                        state=bytes(row["state"]),
+        try:
+            with self.datastore.transaction() as c:
+                c.execute(statement, params)
+                for row in c.fetchall():
+                    stored_events.append(
+                        StoredEvent(
+                            originator_id=row["originator_id"],
+                            originator_version=row["originator_version"],
+                            topic=row["topic"],
+                            state=bytes(row["state"]),
+                        )
                     )
-                )
+        except psycopg2.Error as e:
+            raise OperationalError(e)
         return stored_events
 
 
@@ -176,19 +183,13 @@ class PostgresApplicationRecorder(
             "ADD COLUMN "
             f"notification_id SERIAL"
         )
-        try:
-            c.execute(statement)
-        except psycopg2.OperationalError as e:
-            raise OperationalError(e)
+        c.execute(statement)
 
         statement = (
             f"CREATE UNIQUE INDEX {self.events_table_name}_notification_id_idx "
             f"ON {self.events_table_name} (notification_id ASC);"
         )
-        try:
-            c.execute(statement)
-        except psycopg2.OperationalError as e:
-            raise OperationalError(e)
+        c.execute(statement)
 
     def select_notifications(self, start: int, limit: int) -> List[Notification]:
         """
@@ -203,29 +204,35 @@ class PostgresApplicationRecorder(
             "LIMIT %s"
         )
         params = [start, limit]
-        with self.datastore.transaction() as c:
-            c.execute(statement, params)
-            notifications = []
-            for row in c.fetchall():
-                notifications.append(
-                    Notification(
-                        id=row["notification_id"],
-                        originator_id=row["originator_id"],
-                        originator_version=row["originator_version"],
-                        topic=row["topic"],
-                        state=bytes(row["state"]),
+        try:
+            with self.datastore.transaction() as c:
+                c.execute(statement, params)
+                notifications = []
+                for row in c.fetchall():
+                    notifications.append(
+                        Notification(
+                            id=row["notification_id"],
+                            originator_id=row["originator_id"],
+                            originator_version=row["originator_version"],
+                            topic=row["topic"],
+                            state=bytes(row["state"]),
+                        )
                     )
-                )
+        except psycopg2.Error as e:
+            raise OperationalError(e)
         return notifications
 
     def max_notification_id(self) -> int:
         """
         Returns the maximum notification ID.
         """
-        c = self.datastore.get_connection().cursor()
         statement = f"SELECT MAX(notification_id) FROM {self.events_table_name}"
-        c.execute(statement)
-        return c.fetchone()[0] or 0
+        try:
+            c = self.datastore.get_connection().cursor()
+            c.execute(statement)
+            return c.fetchone()[0] or 0
+        except psycopg2.Error as e:
+            raise OperationalError(e)
 
 
 class PostgresProcessRecorder(
@@ -256,14 +263,17 @@ class PostgresProcessRecorder(
 
     def max_tracking_id(self, application_name: str) -> int:
         params = [application_name]
-        c = self.datastore.get_connection().cursor()
         statement = (
             "SELECT MAX(notification_id)"
             f"FROM {self.tracking_table_name} "
             "WHERE application_name=%s"
         )
-        c.execute(statement, params)
-        return c.fetchone()[0] or 0
+        try:
+            c = self.datastore.get_connection().cursor()
+            c.execute(statement, params)
+            return c.fetchone()[0] or 0
+        except psycopg2.Error as e:
+            raise OperationalError(e)
 
     def _insert_events(
         self,
@@ -275,16 +285,13 @@ class PostgresProcessRecorder(
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking is not None:
             statement = f"INSERT INTO {self.tracking_table_name} " "VALUES (%s, %s)"
-            try:
-                c.execute(
-                    statement,
-                    (
-                        tracking.application_name,
-                        tracking.notification_id,
-                    ),
-                )
-            except psycopg2.IntegrityError as e:
-                raise RecordConflictError(e)
+            c.execute(
+                statement,
+                (
+                    tracking.application_name,
+                    tracking.notification_id,
+                ),
+            )
 
 
 class Factory(InfrastructureFactory):

@@ -115,7 +115,7 @@ class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase):
         if Factory.SQLITE_DBNAME in os.environ:
             del os.environ[Factory.SQLITE_DBNAME]
 
-    def test_environment_error_raised_when_dbname_not_set(self):
+    def test_environment_error_raised_when_dbname_missing(self):
         del os.environ[Factory.SQLITE_DBNAME]
         with self.assertRaises(EnvironmentError) as cm:
             self.factory = InfrastructureFactory.construct("TestCase")
