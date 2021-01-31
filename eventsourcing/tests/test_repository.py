@@ -19,7 +19,7 @@ from eventsourcing.utils import get_topic
 
 
 class TestRepository(TestCase):
-    def test(self) -> None:
+    def test_with_snapshot_store(self) -> None:
         transcoder = Transcoder()
         transcoder.register(UUIDAsHex())
         transcoder.register(DecimalAsStr())
@@ -122,3 +122,76 @@ class TestRepository(TestCase):
         # # assert isinstance(copy7, BankAccount)
         #
         # self.assertEqual(copy10.balance, Decimal("35.00"))
+
+    def test_without_snapshot_store(self) -> None:
+        transcoder = Transcoder()
+        transcoder.register(UUIDAsHex())
+        transcoder.register(DecimalAsStr())
+        transcoder.register(DatetimeAsISO())
+
+        event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
+        event_recorder.create_table()
+        event_store: EventStore[Aggregate.Event] = EventStore(
+            mapper=Mapper(transcoder=transcoder),
+            recorder=event_recorder,
+        )
+        repository: Repository = Repository(event_store)
+
+        # Check key error.
+        with self.assertRaises(AggregateNotFound):
+            repository.get(uuid4())
+
+        # Open an account.
+        account = BankAccount.open(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+
+        # Credit the account.
+        account.append_transaction(Decimal("10.00"))
+        account.append_transaction(Decimal("25.00"))
+        account.append_transaction(Decimal("30.00"))
+
+        # Collect pending events.
+        pending = account._collect_()
+
+        # Store pending events.
+        event_store.put(pending)
+
+        copy = repository.get(account.id)
+        assert isinstance(copy, BankAccount)
+        # Check copy has correct attribute values.
+        assert copy.id == account.id
+        assert copy.balance == Decimal("65.00")
+
+        # Credit the account.
+        account.append_transaction(Decimal("10.00"))
+        event_store.put(account._collect_())
+
+        # Check copy has correct attribute values.
+        copy2 = repository.get(account.id)
+        assert isinstance(copy2, BankAccount)
+
+        assert copy2.id == account.id
+        assert copy2.balance == Decimal("75.00")
+
+        # Check can get old version of account.
+        copy3 = repository.get(account.id, version=copy._version_)
+        assert isinstance(copy3, BankAccount)
+        assert copy3.balance == Decimal("65.00")
+
+        copy4 = repository.get(account.id, version=1)
+        assert isinstance(copy4, BankAccount)
+        assert copy4.balance == Decimal("0.00")
+
+        copy5 = repository.get(account.id, version=2)
+        assert isinstance(copy5, BankAccount)
+        assert copy5.balance == Decimal("10.00")
+
+        copy6 = repository.get(account.id, version=3)
+        assert isinstance(copy6, BankAccount)
+        assert copy6.balance == Decimal("35.00"), copy6.balance
+
+        copy7 = repository.get(account.id, version=4)
+        assert isinstance(copy7, BankAccount)
+        assert copy7.balance == Decimal("65.00"), copy7.balance
