@@ -53,9 +53,11 @@ whether the requested version is specified or not. Application configuration
 of persistence infrastructure is now driven by environment variables rather
 than constructor parameters, leading to a simpler interface for application
 object classes. The mechanism for storing domain events has been simplified,
-so that aggregates are saved using the application "save" method. The mechanism
+so that aggregates are saved using the application "save" method. A new
+"notify" method has been added to the application class, to support applications
+that need to know when new events have just been recorded. The mechanism
 by which aggregates published their events and a "persistence subscriber"
-subscribed and persisted published domain events has been removed,
+subscribed and persisted published domain events has been completely removed,
 since aggregates that are saved always need some persistence infrastructure
 to store the events, and it is the responsibility of the application
 to bring together the domain model and infrastructure, so that when
