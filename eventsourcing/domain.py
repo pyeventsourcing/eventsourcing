@@ -36,6 +36,18 @@ class Aggregate:
     Base class for aggregate roots.
     """
 
+    def __init__(self, id: UUID, _version_: int, _created_on_: datetime):
+        """
+        Initialises an aggregate object with a :data:`id`, a :data:`_version_`,
+        and a :data:`_created_on_`. The internal :data:`_pending_events_` list
+        is also initialised.
+        """
+        self.id = id
+        self._version_ = _version_
+        self._created_on_ = _created_on_
+        self._modified_on_ = _created_on_
+        self._pending_events_: List[Aggregate.Event] = []
+
     @dataclass(frozen=True)
     class Event(DomainEvent):
         """
@@ -137,18 +149,6 @@ class Aggregate:
                 _created_on_=_created_on_,
                 **kwargs
             )
-
-    def __init__(self, id: UUID, _version_: int, _created_on_: datetime):
-        """
-        Initialises an aggregate object with a :data:`id`, a :data:`_version_`,
-        and a :data:`_created_on_`. The internal :data:`_pending_events_` list
-        is also initialised.
-        """
-        self.id = id
-        self._version_ = _version_
-        self._created_on_ = _created_on_
-        self._modified_on_ = _created_on_
-        self._pending_events_: List[Aggregate.Event] = []
 
     def _trigger_(
         self,
