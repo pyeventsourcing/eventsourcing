@@ -194,7 +194,7 @@ a new ``World`` aggregate object. It uses the ``Created`` event class
 as the value of the ``event_class`` argument. It uses a new version 4
 :class:`~uuid.UUID` object as the value of the ``id`` argument.
 
-The ``__init__()`` object initializer method calls the ``super().__init__()``
+The ``__init__()`` initializer method calls the ``super().__init__()``
 method with the given ``**kwargs``, and then initialises a
 ``history`` attribute with an empty Python ``list`` object.
 
@@ -202,10 +202,10 @@ The ``make_it_so()`` method is a command method that triggers
 a ``SomethingHappened`` domain event. The event is triggered with the method
 argument ``what``.
 
-The custom domain event class ``SomethingHappened`` extends the base class
-``Aggregate.Event`` (a Python frozen dataclass) with a field ``what`` which
-is defined as a Python :class:`str`. The ``apply()`` method is implemented to
-append the ``what`` value to the aggregate's ``history``.
+The nested class ``SomethingHappened`` is a frozen data class that extends the
+base aggregate event class ``Aggregate.Event`` (also a frozen data class) with a
+field ``what`` which is defined as a Python :class:`str`. The ``apply()`` method
+is implemented to append the ``what`` value to the aggregate's ``history``.
 
 
 .. code:: python
@@ -388,19 +388,6 @@ be changed either by assigning a :class:`datetime.tzinfo` object to :data:`TZINF
 be configured using environment variables, by setting the environment variable ``TZINFO_TOPIC``
 to a string that describes the `topic <#topics>`_ of a Python :data:`datetime.tzinfo` object
 (for example ``'datetime:timezone.utc'``).
-
-
-Topics
-======
-
-A "topic" in this library is a string formed from joining with a colon character
-(``':'``) the path to a Python module (e.g. ``'eventsourcing.domain'``) with the qualified
-name of an object in that module (e.g. ``'Aggregate.Created'``). For example
-``'eventsourcing.domain:Aggregate.Created'`` describes the path to the library's
-:class:`~eventsourcing.domain.Aggregate.Created` class. The library's
-:mod:`~eventsourcing.utils` module contains the functions :func:`~eventsourcing.utils.resolve_topic()`
-and :func:`~eventsourcing.utils.get_topic()` which are used in the library to resolve
-a given topic to a Python object, and to construct a topic for a given Python object.
 
 
 Snapshots
@@ -658,6 +645,21 @@ and may allow the domain model itself to be validated, so that classes are marke
 the attributes have changed. This may be addressed by a future version of this library. Considering model
 code changes as a sequence of immutable events brings the state of the domain model code itself into the same
 form of event-oriented consideration as the consideration of the state an application as a sequence of events.
+
+
+
+
+Topics
+======
+
+A "topic" in this library is a string formed from joining with a colon character
+(``':'``) the path to a Python module (e.g. ``'eventsourcing.domain'``) with the qualified
+name of an object in that module (e.g. ``'Aggregate.Created'``). For example
+``'eventsourcing.domain:Aggregate.Created'`` describes the path to the library's
+:class:`~eventsourcing.domain.Aggregate.Created` class. The library's
+:mod:`~eventsourcing.utils` module contains the functions :func:`~eventsourcing.utils.resolve_topic()`
+and :func:`~eventsourcing.utils.get_topic()` which are used in the library to resolve
+a given topic to a Python object, and to construct a topic for a given Python object.
 
 
 Classes
