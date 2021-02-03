@@ -419,8 +419,8 @@ to install drivers for your database management system.
 
 
 
-Event store
------------
+Event store (old)
+-----------------
 
 To support different kinds of sequences in the domain model, and to allow for
 different database schemas, the library has an event store class

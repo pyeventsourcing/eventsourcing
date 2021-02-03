@@ -139,8 +139,8 @@ and the ``cipher_key`` value can be set as environment variable
 ``CIPHER_KEY``.
 
 
-Event store
------------
+Event store (old)
+-----------------
 
 Once constructed, the application object has an event store, provided
 by the library's :class:`~eventsourcing.infrastructure.eventstore.EventStore`

@@ -1022,8 +1022,8 @@ that is out of the scope of this package — if you wish to do that, perhaps som
 an actor framework or `Zookeeper <https://zookeeper.apache.org/>`__ might help.
 
 
-Event store
-===========
+Event store (old)
+=================
 
 The library's :class:`~eventsourcing.infrastructure.eventstore.EventStore`
 provides an interface to the library's cohesive mechanism for storing events
@@ -1197,8 +1197,8 @@ example by treating each aggregate as an actor within an actor framework, or wit
 by something like Zookeeper.
 
 
-Infrastructure factory
-======================
+Infrastructure factory......
+============================
 
 To help with construction of infrastructure objects, the library
 has a various infrastructure factory classes. The abstract base class
