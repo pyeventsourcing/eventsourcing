@@ -113,6 +113,27 @@ class TestAggregate(TestCase):
         pending = account._collect_()
         assert len(pending) == 7
 
+    def test_raises_type_error_when_created_event_is_broken(self):
+
+        class BrokenAggregate(Aggregate):
+            @classmethod
+            def create(cls, name):
+                return cls._create_(
+                    event_class=cls.Created,
+                    id=uuid4(),
+                    name=name
+                )
+
+        with self.assertRaises(TypeError) as cm:
+            BrokenAggregate.create('name')
+        self.assertEqual(
+            cm.exception.args[0], (
+                "Unable to construct event with class Aggregate.Created"
+                " and keyword args {'name': 'name'}: __init__() got an "
+                "unexpected keyword argument 'name'"
+            )
+        )
+
 
 class BankAccount(Aggregate):
     """
