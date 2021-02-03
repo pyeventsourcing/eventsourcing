@@ -646,7 +646,142 @@ the attributes have changed. This may be addressed by a future version of this l
 code changes as a sequence of immutable events brings the state of the domain model code itself into the same
 form of event-oriented consideration as the consideration of the state an application as a sequence of events.
 
+Namespaced IDs
+==============
 
+Aggregates can be created with `version 5 UUIDs <https://en.wikipedia
+.org/wiki/Universally_unique_identifier#Versions_3_and_5_(namespace_name-based)>`_
+so that they can be generated from a given name in a namespace. This can be useful
+to create indexes of mutable attributes of other aggregates. For example, if you have
+a collection of page aggregates with names that might change, and you want to be able
+to retrieve the pages by name, then you can create index aggregates with IDs that are
+generated from the names, and store the ID of the page aggregates in the index aggregates.
+It isn't possible to change the ID of an existing aggregate, because the domain events
+will need to be stored together in a single sequence.
+
+If we imagine that we can retrieve saved aggregates by ID, we can imagine pages aggregates
+can be retrieved using their names by firstly creating an index ID from the current page
+name, retrieving the index aggregate using the index ID, getting the page ID from the
+index aggregate, and then using the page ID to retrieve the page aggregate. This is
+demonstrated below and in the discussion about
+`saving multiple aggregates <application.html#saving-multiple-aggregates>`_.
+
+.. code:: python
+
+    from dataclasses import dataclass
+    from uuid import uuid5, NAMESPACE_URL
+
+    from eventsourcing.domain import Aggregate
+
+
+    class Page(Aggregate):
+        @classmethod
+        def create(cls, name: str, body: str = ""):
+            return cls._create_(
+                id=uuid4(),
+                event_class=cls.Created,
+                name=name,
+                body=body
+            )
+
+        @dataclass(frozen=True)
+        class Created(Aggregate.Created):
+            name: str
+            body: str
+
+        def __init__(self, name: str, body: str, **kwargs):
+            super(Page, self).__init__(**kwargs)
+            self.name = name
+            self.body = body
+
+        def update_name(self, name: str):
+            self._trigger_(self.NameUpdated, name=name)
+
+        @dataclass(frozen=True)
+        class NameUpdated(Aggregate.Event):
+            name: str
+
+            def apply(self, page: "Page"):
+                page.name = self.name
+
+
+    class Index(Aggregate):
+        @classmethod
+        def create(cls, page: Page):
+            return cls._create_(
+                event_class=cls.Created,
+                id=cls.create_id(page.name),
+                ref=page.id
+            )
+
+        @dataclass(frozen=True)
+        class Created(Aggregate.Created):
+            ref: UUID
+
+        @classmethod
+        def create_id(cls, name: str):
+            return uuid5(NAMESPACE_URL, f'/pages/{name}')
+
+        def __init__(self, ref, **kwargs):
+            super().__init__(**kwargs)
+            self.ref = ref
+
+        def update_ref(self, ref):
+            self._trigger_(self.RefUpdated, ref=ref)
+
+        @dataclass(frozen=True)
+        class RefUpdated(Aggregate.Event):
+            ref: UUID
+
+            def apply(self, index: "Index"):
+                index.ref = self.ref
+
+
+Let's create a page aggregate with a name that has a spelling mistake, for
+example 'Erth'. We can at the same time create an index object for the page.
+
+.. code:: python
+
+
+    page = Page.create(name='Erth')
+    index1 = Index.create(page)
+
+
+Let's imagine these two aggregate are saved together, and having
+been saved can be retrieved by ID.
+
+We can use the page name to create the index ID, and using the index
+ID to retrieve the index aggregate. We can then get the page ID from
+the index aggregate, and use the page ID to get the page aggregate.
+
+.. code:: python
+
+    index_id = Index.create_id('Erth')
+    assert index_id == index1.id
+    assert index1.ref == page.id
+
+
+Now let's imagine we want to correct the name of the page. We
+can update the name of the page, and create another index aggregate
+for the new name, so that later we can retrieve the page using
+its new name.
+
+.. code:: python
+
+    page.update_name('Earth')
+    index2 = Index.create(page)
+
+
+We can now use the new name to get the ID of the second index aggregate,
+and imagine using the second index aggregate to get the ID of the page.
+
+.. code:: python
+
+    index_id = Index.create_id('Earth')
+    assert index_id == index2.id
+    assert index2.ref == page.id
+
+Saving and retrieving aggregates by ID is discussed in `Event-sourced applications <application.html>`_.
 
 
 Topics

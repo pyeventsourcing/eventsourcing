@@ -99,13 +99,20 @@ class Aggregate:
         # Construct the domain event class,
         # with an ID and version, and the
         # a topic for the aggregate class.
-        event = event_class(
-            originator_topic=get_topic(cls),
-            originator_id=id,
-            originator_version=1,
-            timestamp=datetime.now(tz=TZINFO),
-            **kwargs,
-        )
+        try:
+            event = event_class(
+                originator_topic=get_topic(cls),
+                originator_id=id,
+                originator_version=1,
+                timestamp=datetime.now(tz=TZINFO),
+                **kwargs,
+            )
+        except TypeError as e:
+            msg = (
+                f"Unable to construct event with class {event_class.__qualname__} "
+                f"and keyword args {kwargs}: {e}"
+            )
+            raise TypeError(msg)
         # Construct the aggregate object.
         aggregate = event.mutate(None)
         # Append the domain event to pending list.

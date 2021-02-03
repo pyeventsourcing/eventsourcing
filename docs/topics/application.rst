@@ -295,7 +295,6 @@ are four notifications in the notification log.
 
     from eventsourcing.persistence import Notification
 
-
     section = application.log['1,10']
 
     assert len(section.items) == 4
@@ -550,6 +549,166 @@ and 'COMPRESSOR_TOPIC'. You can use the static method
     os.environ['CIPHER_TOPIC'] = "eventsourcing.cipher:AESCipher"
     # Configure compressor topic.
     os.environ['COMPRESSOR_TOPIC'] = "zlib"
+
+
+Saving multiple aggregates
+==========================
+
+In many cases, it is both possible and very useful to save more than
+one aggregate in the same atomic transaction. The example below continues
+the example from the `discussion of namespace IDs <domain.html#namespaced-ids>`_
+in the previous section. The classes :class:`Page` and :class:`Index` are
+defined in that section.
+
+..
+    from dataclasses import dataclass
+    from uuid import uuid5, NAMESPACE_URL
+
+    from eventsourcing.domain import Aggregate
+
+
+    class Page(Aggregate):
+        @classmethod
+        def create(cls, name: str, body: str = ""):
+            return cls._create_(
+                id=uuid4(),
+                event_class=cls.Created,
+                name=name,
+                body=body
+            )
+
+        @dataclass(frozen=True)
+        class Created(Aggregate.Created):
+            name: str
+            body: str
+
+        def __init__(self, name: str, body: str, **kwargs):
+            super(Page, self).__init__(**kwargs)
+            self.name = name
+            self.body = body
+
+        def update_name(self, name: str):
+            self._trigger_(self.NameUpdated, name=name)
+
+        @dataclass(frozen=True)
+        class NameUpdated(Aggregate.Event):
+            name: str
+
+            def apply(self, page: "Page"):
+                page.name = self.name
+
+
+    class Index(Aggregate):
+        @classmethod
+        def create(cls, page: Page):
+            return cls._create_(
+                event_class=cls.Created,
+                id=cls.create_id(page.name),
+                ref=page.id
+            )
+
+        @dataclass(frozen=True)
+        class Created(Aggregate.Created):
+            ref: UUID
+
+        @classmethod
+        def create_id(cls, name: str):
+            return uuid5(NAMESPACE_URL, f'/pages/{name}')
+
+        def __init__(self, ref, **kwargs):
+            super().__init__(**kwargs)
+            self.ref = ref
+
+        def update_ref(self, ref):
+            self._trigger_(self.RefUpdated, ref=ref)
+
+        @dataclass(frozen=True)
+        class RefUpdated(Aggregate.Event):
+            ref: UUID
+
+            def apply(self, index: "Index"):
+                index.ref = self.ref
+
+We can define a simple wiki application, which creates named
+pages. Pages can be retrieved by name. Names can be changed
+and the pages can be retrieved by the new name.
+
+.. code:: python
+
+    class Wiki(Application):
+
+        def create_page(self, name: str, body: str) -> None:
+            page = Page.create(name, body)
+            index = Index.create(page)
+            self.save(page, index)
+
+        def rename_page(self, name: str, new_name: str) -> None:
+            page = self.get_page(name)
+            page.update_name(new_name)
+            index = Index.create(page)
+            self.save(page, index)
+            return page.body
+
+        def get_page(self, name: str) -> Page:
+            index_id = Index.create_id(name)
+            index = self.repository.get(index_id)
+            page_id = index.ref
+            return self.repository.get(page_id)
+
+
+Now let's construct the application object, and create a new page.
+
+.. code:: python
+
+
+    wiki = Wiki()
+
+    wiki.create_page(name="Erth", body="Lorem ipsum...")
+
+
+We can use the page name to retrieve the body of the page.
+
+.. code:: python
+
+    assert wiki.get_page(name="Erth").body == "Lorem ipsum..."
+
+We can also update the name of the page, and then retrieve the page using the new name.
+
+.. code:: python
+
+    wiki.rename_page(name="Erth", new_name="Earth")
+
+    assert wiki.get_page(name="Earth").body == "Lorem ipsum..."
+
+The uniqueness constraint on the recording of stored domain event objects combined
+with the atomicity of recording domain events means that name collisions in the
+index will result in the wiki not being updated.
+
+.. code:: python
+
+    from eventsourcing.persistence import RecordConflictError
+
+    # Can't create another page using an existing name.
+    try:
+        wiki.create_page(name="Earth", body="Neque porro quisquam...")
+    except RecordConflictError:
+        pass
+    else:
+        raise Exception("shouldn't get here")
+
+    assert wiki.get_page(name="Earth").body == "Lorem ipsum..."
+
+    # Can't rename another page to an existing name.
+    wiki.create_page(name="Mars", body="Neque porro quisquam...")
+    try:
+        wiki.rename_page(name="Mars", new_name="Earth")
+    except RecordConflictError:
+        pass
+    else:
+        raise Exception("shouldn't get here")
+
+    assert wiki.get_page(name="Earth").body == "Lorem ipsum..."
+    assert wiki.get_page(name="Mars").body == "Neque porro quisquam..."
 
 
 
