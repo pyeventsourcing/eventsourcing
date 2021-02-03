@@ -408,10 +408,10 @@ persistence infrastructure <persistence.html#infrastructure-factory>`_,
 which simply keeps stored events in a data structure in memory.
 
 To use other persistence infrastructure, you will need to
-set the environment variable ``INFRASTRUCTURE_FACTORY`` to the "topic" of
-another infrastructure factory. The "topic" is the path to the infrastructure
-object class that will be used to construct the application persistence objects.
-Often using other persistence infrastructure will involve setting
+set the environment variable ``INFRASTRUCTURE_FACTORY`` to the `topic <domain.html#topics>`_
+of another infrastructure factory. The `topic <domain.html#topics>`_ is the path
+to the infrastructure object class that will be used to construct the application
+persistence objects. Often using other persistence infrastructure will involve setting
 other environment variables to configure access to a real database,
 such as a database name, a user name, and a password.
 
@@ -526,9 +526,13 @@ be used to encrypt stored domain events. The Python :mod:`zlib` module
 can be used to compress stored domain events.
 
 To enable encryption and compression, set the
-environment variables 'CIPHER_TOPIC', 'CIPHER_KEY',
-and 'COMPRESSOR_TOPIC'. You can use the static method
-:func:`~eventsourcing.cipher.AESCipher.create_key` to generate a cipher key.
+environment variables 'CIPHER_TOPIC' (a `topic <domain.html#topics>`_
+to a cipher class), 'CIPHER_KEY' (a valid encryption key),
+and 'COMPRESSOR_TOPIC' (`topic <domain.html#topics>`_ for a compressor).
+
+When using the library's :class:`~eventsourcing.cipher.AESCipher` class,
+you can use its static method :func:`~eventsourcing.cipher.AESCipher.create_key`
+to generate a valid encryption key.
 
 
 .. code:: python
