@@ -690,7 +690,7 @@ index will result in the wiki not being updated.
     except RecordConflictError:
         pass
     else:
-        raise Exception("shouldn't get here")
+        raise AssertionError("RecordConflictError not raised")
 
     assert wiki.get_page(name="Earth").body == "Lorem ipsum..."
 
@@ -701,7 +701,7 @@ index will result in the wiki not being updated.
     except RecordConflictError:
         pass
     else:
-        raise Exception("shouldn't get here")
+        raise AssertionError("RecordConflictError not raised")
 
     assert wiki.get_page(name="Earth").body == "Lorem ipsum..."
     assert wiki.get_page(name="Mars").body == "Neque porro quisquam..."

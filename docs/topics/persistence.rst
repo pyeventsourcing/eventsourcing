@@ -176,7 +176,7 @@ Attempting to transcode an unsupported type will result in a Python :class:`Type
             "Please register a custom transcoding for this type."
         )
     else:
-        raise Exception("shouldn't get here")
+        raise AssertionError("TypeError not raised")
 
 
 The library's abstract base class :class:`~eventsourcing.persistence.Transcoding`
