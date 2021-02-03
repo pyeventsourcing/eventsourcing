@@ -5,13 +5,15 @@ Introduction
 What is event sourcing?
 =======================
 
-What is event sourcing? One definition suggests the state of an
+One definition of event sourcing suggests the state of an
 event-sourced application is determined by a sequence of events.
 Another definition has event sourcing as a persistence mechanism
 for domain-driven design.
 
-A cohesive mechanism
-====================
+Although the basic event sourcing patterns are quite simple and
+can be reproduced in code for each project, the persistence mechanism
+for event-sourced domain-driven design appears as a conceptually cohesive
+mechanism, and so can be "partitioned into a separate lightweight framework".
 
 Quoting from Eric Evans' book `Domain-Driven Design
 <https://en.wikipedia.org/wiki/Domain-driven_design>`__:
@@ -24,11 +26,6 @@ Quoting from Eric Evans' book `Domain-Driven Design
     framework with an INTENTION-REVEALING INTERFACE. Now the other elements
     of the domain can focus on expressing the problem ('what'), delegating
     the intricacies of the solution ('how') to the framework."*
-
-Although the basic event sourcing patterns are quite simple, and
-can be reproduced in code for each project, the persistence mechanism
-for event-sourced domain-driven design appears as a conceptually cohesive
-mechanism, and so can be "partitioned into a separate lightweight framework".
 
 
 This library
@@ -66,16 +63,16 @@ layers, and the interface layer depends only on the application layer.
 Features
 ========
 
-*Domain models and applications* — base classes for domain model aggregates
+**Domain models and applications** — base classes for domain model aggregates
 and applications. Suggests how to structure an event-sourced application.
 
-*Flexible event store* — flexible persistence of domain events. Combines
+**Flexible event store** — flexible persistence of domain events. Combines
 an event mapper and an event recorder in ways that can be easily extended.
 Mapper uses a transcoder that can be easily extended to support custom
 model object types. Recorders supporting different databases can be easily
 substituted and configured with environment variables.
 
-*Application-level encryption and compression* — encrypts and decrypts events inside the
+**Application-level encryption and compression** — encrypts and decrypts events inside the
 application. This means data will be encrypted in transit across a network ("on the wire")
 and at disk level including backups ("at rest"), which is a legal requirement in some
 jurisdictions when dealing with personally identifiable information (PII) for example
@@ -83,31 +80,31 @@ the EU's GDPR. Compression reduces the size of stored domain events and snapshot
 by around 25% to 50% of the original size. Compression reduces the size of data
 in the database and decreases transit time across a network.
 
-*Snapshotting* — reduces access-time for aggregates with many domain events.
+**Snapshotting** — reduces access-time for aggregates with many domain events.
 
-*Versioning* - allows domain model changes to be introduced after an application
+**Versioning** - allows domain model changes to be introduced after an application
 has been deployed. Both domain events and aggregate classes can be versioned.
 The recorded state of an older version can be upcast to be compatible with a new
 version. Stored events and snapshots are upcast from older versions
 to new versions before the event or aggregate object is reconstructed.
 
-*Optimistic concurrency control* — ensures a distributed or horizontally scaled
+**Optimistic concurrency control** — ensures a distributed or horizontally scaled
 application doesn't become inconsistent due to concurrent method execution. Leverages
 optimistic concurrency controls in adapted database management systems.
 
-*Notifications and projections* — reliable propagation of application
+**Notifications and projections** — reliable propagation of application
 events with pull-based notifications allows the application state to be
 projected accurately into replicas, indexes, view models, and other applications.
 Supports materialized views and CQRS.
 
-*Event-driven systems* — reliable event processing. Event-driven systems
+**Event-driven systems** — reliable event processing. Event-driven systems
 can be defined independently of particular persistence infrastructure and mode of
 running.
 
-*Detailed documentation* — documentation provides general overview, introduction
+**Detailed documentation** — documentation provides general overview, introduction
 of concepts, explanation of usage, and detailed descriptions of library classes.
 
-*Worked examples* — includes examples showing how to develop aggregates, applications
+**Worked examples** — includes examples showing how to develop aggregates, applications
 and systems.
 
 
