@@ -32,8 +32,8 @@ and persistence objects in an application object that implements "application se
 as object methods.
 
 
-Applications objects
-====================
+Application objects
+===================
 
 An event-sourced application object combines a domain model with
 a cohesive mechanism for storing and retrieving domain events.

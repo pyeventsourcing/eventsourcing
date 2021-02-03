@@ -266,7 +266,7 @@ when the domain events occurred.
     assert isinstance(world._created_on_, datetime)
 
 
-Now we can call the aggregate object methods. The ``World`` aggregate has a command
+We can call the aggregate object methods. The ``World`` aggregate has a command
 method ``make_it_so()`` which triggers the ``SomethingHappened`` event. The
 ``apply()`` method of the ``SomethingHappened`` class appends the ``what``
 of the event to the ``history`` of the ``world``. So when we call the ``make_it_so()``
@@ -288,19 +288,23 @@ events can be used in future to reconstruct the state of the aggregate.
 
 
 Now that more than one domain event has been created, the aggregate's
-``_created_on_`` value is less than its ``_modified_on_`` value.
+``_modified_on_`` value is greater than its ``_created_on_`` value.
 
 .. code:: python
 
-    assert world._created_on_ < world._modified_on_
+    assert world._modified_on_ > world._created_on_
 
 
 The resulting domain events are now held internally in the aggregate in
-a list of pending events, in the ``_pending_events_`` attribute. They can
-be collected by calling the :func:`~eventsourcing.domain.Aggregate._collect_`
-method. So far, we have created four domain events and we have not yet collected
-them, and so there will be four pending events: the ``Created`` event, and three
-``SomethingHappened`` events.
+a list of pending events, in the ``_pending_events_`` attribute. The pending
+events can be collected by calling the aggregate's
+:func:`~eventsourcing.domain.Aggregate._collect_` method. These events are
+pending to be saved, and indeed the library's
+`application object <application.html#application-objects>`_ class has a
+:func:`~eventsourcing.application.Application.save` method which works by
+calling this method. So far, we have created four domain events and we have
+not yet collected them, and so there will be four pending events: one ``Created``
+event, and three ``SomethingHappened`` events.
 
 .. code:: python
 
@@ -325,7 +329,10 @@ them, and so there will be four pending events: the ``Created`` event, and three
 
 
 The domain events' :func:`~eventsourcing.domain.Aggregate.Event.mutate` methods can
-be used to reconstruct a copy of the original aggregate object.
+be used to reconstruct a copy of the original aggregate object. And indeed the
+`application repository <application.html#repository>`_ object class has a
+:func:`~eventsourcing.application.Repository.get` method which works by
+calling these methods.
 
 .. code:: python
 

@@ -80,12 +80,12 @@ class Repository:
                 ),
             )
 
-        # Project the domain events.
+        # Reconstruct the aggregate from its events.
         aggregate: Optional[Aggregate] = None
         for domain_event in domain_events:
             aggregate = domain_event.mutate(aggregate)
 
-        # Raise exception if not found.
+        # Raise exception if "not found".
         if aggregate is None:
             raise AggregateNotFound((aggregate_id, version))
         else:
