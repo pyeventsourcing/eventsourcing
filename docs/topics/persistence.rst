@@ -572,12 +572,15 @@ the position in a total ordering of domain events that is
 being processed. The "aggregate recorder" can be used for
 storing snapshots.
 
-The library includes concrete recorder classes for SQLite using
-the Python :mod:`sqlite3` module, and for PostgreSQL using the
-third party :mod:`psycopg2` module. The library also includes
-recorder using "plain old Python objects" which provides
-a fast in-memory alternative for rapid development of event
-sourced applications.
+The library includes in the :mod:`~eventsourcing.sqlite` module
+recorder classes for SQLite that use the Python :mod:`sqlite3`
+module, and in the :mod:`~eventsourcing.postgres` module recorders for
+PostgreSQL that use the third party :mod:`psycopg2` module.
+
+Recorder classes are conveniently constructed by using an `infrastructure
+factory <#infrastructure-factory>`_. For illustrative purposes, the direct
+use of the library's SQLite recorders is shown below. The other persistence
+modules follow a similar naming scheme and pattern of use.
 
 .. code:: python
 
@@ -596,6 +599,17 @@ sourced applications.
     datastore = SQLiteDatastore(db_name=':memory:')
     process_recorder = SQLiteProcessRecorder(datastore)
     process_recorder.create_table()
+
+
+The library also includes in the :mod:`~eventsourcing.popo` module recorders
+that use "plain old Python objects", which simply keep stored events in a
+data structure in memory, and provides the fastest alternative for rapid
+development of event sourced applications (~4x faster than using SQLite, and
+~20x faster than using PostgreSQL).
+
+Recorders compatible with this version of the library for popular ORMs such
+as SQLAlchemy and Django, specialist event stores such as EventStoreDB and
+AxonDB, and NoSQL databases such as DynamoDB and MongoDB are forthcoming.
 
 
 Event Store
@@ -626,8 +640,8 @@ be constructed with a `recorder <#recorder>`_ and a `mapper <#mapper>`_.
 Infrastructure Factory
 ======================
 
-An infrastructure factory helps with the construction of the persistence objects mentioned
-above. By reading and responding to particular environment variables, the persistence
+An infrastructure factory helps with the construction of the persistence infrastructure objects
+mentioned above. By reading and responding to particular environment variables, the persistence
 infrastructure of an event-sourced application can be `easily configured in different ways
 at different times <application.html#configuring-persistence>`_.
 
@@ -635,8 +649,10 @@ The library's :class:`~eventsourcing.persistence.InfrastructureFactory` class
 is a base class for concrete infrastructure factories that help with the construction
 of persistence objects that use a particular database in a particular way.
 
-The class method :class:`~eventsourcing.persistence.InfrastructureFactory.construct`
-will by default construct the library's "plain old Python objects" persistence infrastructure.
+The class method :func:`~eventsourcing.persistence.InfrastructureFactory.construct`
+will, by default, construct the library's "plain old Python objects"
+infrastructure :class:`~eventsourcing.popo.Factory`, which uses recorders that simply
+keep stored events in a data structure in memory (see :mod:`eventsourcing.popo`).
 
 .. code:: python
 
