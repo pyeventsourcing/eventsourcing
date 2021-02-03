@@ -367,6 +367,7 @@ from an aggregate sequence and being deserialised as a domain event object.
         topic="eventsourcing.model:DomainEvent",
     )
 
+
 .. _Mapper:
 
 Mapper
@@ -374,7 +375,7 @@ Mapper
 
 A mapper maps between domain event objects and stored event objects. It brings
 together a :ref:`transcoder<Transcoder>`, and optionally a :ref:`cipher<Encryption>`
-and a :ref:`compressor<Compression>`. It is used by an :ref:`event store<Event store>`.
+and a :ref:`compressor<Compression>`. It is used by an :ref:`event store<Store>`.
 
 The library's :class:`~eventsourcing.persistence.Mapper` class
 must be constructed with a :ref:`transcoder<Transcoder>` object.
@@ -509,10 +510,10 @@ a domain model is updated and then a message is put on a message queue.
 The library's :class:`~eventsourcing.persistence.Notification` class
 is a Python frozen dataclass that can be used to hold information
 about a domain event object when being transmitted as an item in a
-section of a `notification log <application.html#notification-log>`_.
+section of a :ref:`notification log<Notification Log>`.
 It will be returned when selecting event notifications from a
 :ref:`recorder<Recorder>`, and presented in an application by a
-`notification log <applications.html#notification-log>`_.
+:ref:`notification log<Notification log>`.
 
 .. code:: python
 
@@ -569,7 +570,7 @@ Recorder
 ========
 
 A recorder adapts a database management system for the purpose of
-recording stored events. It is used by an `event store <#event-store>`_.
+recording stored events. It is used by an :ref:`event store <Store>`.
 
 The library's :class:`~eventsourcing.persistence.Recorder` class
 is an abstract base for concrete recorder classes that will insert
@@ -590,8 +591,8 @@ recorder classes for SQLite that use the Python :mod:`sqlite3`
 module, and in its :mod:`~eventsourcing.postgres` module recorders for
 PostgreSQL that use the third party :mod:`psycopg2` module.
 
-Recorder classes are conveniently constructed by using an `infrastructure
-factory <#infrastructure-factory>`_. For illustrative purposes, the direct
+Recorder classes are conveniently constructed by using an
+:ref:`infrastructure factory <Factory>`. For illustrative purposes, the direct
 use of the library's SQLite recorders is shown below. The other persistence
 modules follow a similar naming scheme and pattern of use.
 
@@ -624,17 +625,20 @@ Recorders compatible with this version of the library for popular ORMs such
 as SQLAlchemy and Django, specialist event stores such as EventStoreDB and
 AxonDB, and NoSQL databases such as DynamoDB and MongoDB are forthcoming.
 
+
+.. _Store:
+
 Event store
 ===========
 
 An event store provides a common interface for storing and retrieving
-domain event objects. It combines a :ref:`mapper<Mapper>` and a :ref:`recorder<Recorder>`,
-so that domain event objects can be converted to stored event objects and
-then stored event objects can be recorded in a datastore.
-
+domain event objects. It combines a :ref:`mapper <Mapper>` and a
+:ref:`recorder <Recorder>`, so that domain event objects can be
+converted to stored event objects and then stored event objects
+can be recorded in a datastore.
 
 The library's :class:`~eventsourcing.persistence.EventStore` class must
-be constructed with a :ref:`recorder<Recorder>` and a :ref:`mapper<Mapper>`.
+be constructed with a :ref:`mapper <Mapper>` and a :ref:`recorder <Recorder>`.
 
 The :class:`~eventsourcing.persistence.EventStore` has an object method
 :func:`~eventsourcing.persistence.EventStore.put` which can be used to
@@ -661,8 +665,8 @@ in the order in which they were created.
     from eventsourcing.persistence import EventStore
 
     event_store = EventStore(
-        recorder=application_recorder,
         mapper=mapper,
+        recorder=application_recorder,
     )
 
     event_store.put([domain_event1])
@@ -671,15 +675,16 @@ in the order in which they were created.
     assert domain_events == [domain_event1]
 
 
-.. _Infrastructure factory:
+.. _Factory:
 
 Infrastructure factory
 ======================
 
-An infrastructure factory helps with the construction of the persistence infrastructure objects
-mentioned above. By reading and responding to particular environment variables, the persistence
-infrastructure of an event-sourced application can be `easily configured in different ways
-at different times <application.html#configuring-persistence>`_.
+An infrastructure factory helps with the construction of the persistence
+infrastructure objects mentioned above. By reading and responding to
+particular environment variables, the persistence infrastructure of an
+event-sourced application can be easily
+:ref:`configured in different ways<Persistence>` at different times.
 
 The library's :class:`~eventsourcing.persistence.InfrastructureFactory` class
 is a base class for concrete infrastructure factories that help with the construction

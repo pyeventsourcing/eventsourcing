@@ -21,7 +21,7 @@ from eventsourcing.persistence import (
 
 class Repository:
     """Reconstructs aggregates from events in an
-    :class:`eventsourcing.persistence.EventStore`,
+    :class:`~eventsourcing.persistence.EventStore`,
     possibly using snapshot store to avoid replaying
     all events."""
 
@@ -43,7 +43,7 @@ class Repository:
 
     def get(self, aggregate_id: UUID, version: Optional[int] = None) -> Aggregate:
         """
-        Returns an :class:`eventsourcing.domain.Aggregate`
+        Returns an :class:`~eventsourcing.domain.Aggregate`
         for given ID, optionally at the given version.
         """
 
@@ -99,7 +99,7 @@ class Section:
     """
     Frozen dataclass that represents a section from a :class:`NotificationLog`.
     The :data:`items` attribute contains a list of
-    :class:`eventsourcing.persistence.Notification` objects.
+    :class:`~eventsourcing.persistence.Notification` objects.
     The :data:`id` attribute is the section ID, two integers
     separated by a comma that described the first and last
     notification ID that are included in the section.

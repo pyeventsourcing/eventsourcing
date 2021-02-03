@@ -37,6 +37,8 @@ the state of the aggregate is made through this root entity. The 'aggregate root
 has command and query methods which change and present the state of the aggregate.
 
 
+.. _Aggregates:
+
 Event-sourced aggregates
 ========================
 
@@ -182,6 +184,7 @@ which holds the time when an aggregate object was last modified. It is also a Py
 
     assert isinstance(aggregate._modified_on_, datetime)
 
+.. _Aggregate basic example:
 
 Basic example
 =============
@@ -299,9 +302,8 @@ The resulting domain events are now held internally in the aggregate in
 a list of pending events, in the ``_pending_events_`` attribute. The pending
 events can be collected by calling the aggregate's
 :func:`~eventsourcing.domain.Aggregate._collect_` method. These events are
-pending to be saved, and indeed the library's
-`application object <application.html#application-objects>`_ class has a
-:func:`~eventsourcing.application.Application.save` method which works by
+pending to be saved, and indeed the library's :ref:`application <Application objects>`
+object has a :func:`~eventsourcing.application.Application.save` method which works by
 calling this method. So far, we have created four domain events and we have
 not yet collected them, and so there will be four pending events: one ``Created``
 event, and three ``SomethingHappened`` events.
@@ -330,7 +332,7 @@ event, and three ``SomethingHappened`` events.
 
 The domain events' :func:`~eventsourcing.domain.Aggregate.Event.mutate` methods can
 be used to reconstruct a copy of the original aggregate object. And indeed the
-`application repository <application.html#repository>`_ object class has a
+:ref:`repository <Repository>` object has a
 :func:`~eventsourcing.application.Repository.get` method which works by
 calling these methods.
 
@@ -348,6 +350,8 @@ calling these methods.
     assert copy.history == world.history
 
 
+.. _Events:
+
 Domain events
 =============
 
@@ -356,7 +360,8 @@ but do not change.
 
 The nested base class for aggregate events, :class:`~eventsourcing.domain.Aggregate.Event`,
 is defined to have attributes ``originator_id`` which is a Python :class:`~uuid.UUID`, an
-``originator_version`` which is a Python :class:`int`, and ``timestamp`` which is a Python :class:`~datetime.datetime`.
+``originator_version`` which is a Python :class:`int`, and ``timestamp`` which is a Python
+:class:`~datetime.datetime`.
 
 The :class:`~eventsourcing.domain.Aggregate.Event` has a method
 :func:`~eventsourcing.domain.Aggregate.Event.apply` which can be overridden on custom domain
@@ -370,7 +375,7 @@ reconstructing an aggregate from its events.
 The nested class :class:`~eventsourcing.domain.Aggregate.Created` represents the creation of
 an aggregate object instance. It extends the base class :class:`~eventsourcing.domain.Aggregate.Event`
 with its attribute ``originator_topic`` which is Python :class:`str`. The value of this attribute
-will be a `topic <#topics>`_ that describes the path to the aggregate instance's class.
+will be a :ref:`topic <Topics>` that describes the path to the aggregate instance's class.
 
 Domain event objects are usually created by aggregate methods, as part of a sequence
 that determines the state of an aggregate. The attribute values of new event objects are
@@ -393,7 +398,7 @@ to the particular timezone of a particular user. However, if necessary, this def
 be changed either by assigning a :class:`datetime.tzinfo` object to :data:`TZINFO` in the
 :mod:`~eventsourcing.domain` module. The :data:`eventsourcing.domain.TZINFO` value can also
 be configured using environment variables, by setting the environment variable ``TZINFO_TOPIC``
-to a string that describes the `topic <#topics>`_ of a Python :data:`datetime.tzinfo` object
+to a string that describes the :ref:`topic <Topics>` of a Python :data:`datetime.tzinfo` object
 (for example ``'datetime:timezone.utc'``).
 
 
@@ -411,7 +416,7 @@ used to create and restore snapshots of aggregate object instances.
 
 The class method :func:`~eventsourcing.domain.Snapshot.take` can be used to
 create a snapshot of an aggregate object instance. See the
-`discussion of snapshotting <application.html#snapshotting>`_ in the application
+discussion of :ref:`snapshotting <Snapshotting>` in the application
 module documentation for more information.
 
 .. code:: python
@@ -446,7 +451,7 @@ The signature of the :func:`~eventsourcing.domain.Snapshot.mutate` method is the
 domain event object method of the same name, so that when reconstructing an aggregate, a list
 that starts with a snapshot and continues with the subsequent domain event objects can be
 treated in the same way as a list of all the domain event objects of an aggregate.
-This convenience is used by the application `repository <application.html#repository>`_.
+This convenience is used by the application :ref:`repository <Repository>`.
 
 
 Versioning
@@ -653,25 +658,39 @@ the attributes have changed. This may be addressed by a future version of this l
 code changes as a sequence of immutable events brings the state of the domain model code itself into the same
 form of event-oriented consideration as the consideration of the state an application as a sequence of events.
 
+.. _Namespaced IDs:
+
 Namespaced IDs
 ==============
 
 Aggregates can be created with `version 5 UUIDs <https://en.wikipedia
 .org/wiki/Universally_unique_identifier#Versions_3_and_5_(namespace_name-based)>`_
-so that they can be generated from a given name in a namespace. This can be useful
-to create indexes of mutable attributes of other aggregates. For example, if you have
-a collection of page aggregates with names that might change, and you want to be able
-to retrieve the pages by name, then you can create index aggregates with IDs that are
-generated from the names, and store the ID of the page aggregates in the index aggregates.
-It isn't possible to change the ID of an existing aggregate, because the domain events
-will need to be stored together in a single sequence.
+so that their IDs can be generated from a given name in a namespace. They can
+be used for example to create IDs for aggregates with fixed names that you want
+to identify by name. For example, you can use this technique to identify a system
+configuration object. This technique can also be used to identify index aggregates
+that hold the IDs of aggregates with mutable names, or used to index other mutable
+attributes of an event sourced aggregate. It isn't possible to change the ID of an
+existing aggregate, because the domain events will need to be stored together in a
+single sequence. And so using an index aggregate with an ID that can be recreated
+from a mutable attribute value to hold the ID of the aggregate with the mutable
+attribute value makes it possible to identify the aggregate from the current
+attribute value.
 
-If we imagine that we can retrieve saved aggregates by ID, we can imagine pages aggregates
-can be retrieved using their names by firstly creating an index ID from the current page
-name, retrieving the index aggregate using the index ID, getting the page ID from the
-index aggregate, and then using the page ID to retrieve the page aggregate. This is
-demonstrated below and in the discussion about
-`saving multiple aggregates <application.html#saving-multiple-aggregates>`_.
+For example, if you have a collection of page aggregates with names that might change,
+and you want to be able to identify the pages by name, then you can create index
+aggregates with version 5 UUIDs that are generated from the names, and put the IDs
+of the page aggregates in the index aggregates. The classes :class:`Page` and :class:`Index`
+in the example code below shows how this can be done using event-sourced aggregates.
+
+If we imagine we can save these page and index aggregates and retrieve them by ID, we
+can imagine retrieving a page aggregate using its name by firstly recreating an index ID
+from the page name, retrieving the index aggregate using that ID, getting the page ID
+from the index aggregate, and then using that ID to retrieve the page aggregate. When
+the name is changed, a new index aggregate can be saved along with the page, so that
+later the page aggregate can be retrieved using the new name. See the discussion about
+:ref:`saving multiple aggregates <Saving multiple aggregates>` to see an example of
+saving both aggregates in the same atomic database operation.
 
 .. code:: python
 
@@ -744,8 +763,9 @@ demonstrated below and in the discussion about
                 index.ref = self.ref
 
 
-Let's create a page aggregate with a name that has a spelling mistake, for
-example 'Erth'. We can at the same time create an index object for the page.
+We can use the classes above to create a "page" aggregate with a name that
+we will then change. We can at the same time create an index object for the
+page.
 
 .. code:: python
 
@@ -755,11 +775,13 @@ example 'Erth'. We can at the same time create an index object for the page.
 
 
 Let's imagine these two aggregate are saved together, and having
-been saved can be retrieved by ID.
+been saved can be retrieved by ID. See the discussion about
+:ref:`saving multiple aggregates <Saving multiple aggregates>`
+to see how this works in an application object.
 
-We can use the page name to create the index ID, and using the index
-ID to retrieve the index aggregate. We can then get the page ID from
-the index aggregate, and use the page ID to get the page aggregate.
+We can use the page name to recreate the index ID, and use the index
+ID to retrieve the index aggregate. We can then obtain the page ID from
+the index aggregate, and then use the page ID to get the page aggregate.
 
 .. code:: python
 
@@ -788,8 +810,11 @@ and imagine using the second index aggregate to get the ID of the page.
     assert index_id == index2.id
     assert index2.ref == page.id
 
-Saving and retrieving aggregates by ID is discussed in `Event-sourced applications <application.html>`_.
+Saving and retrieving aggregates by ID is demonstrated in the discussion
+about :ref:`saving multiple aggregates <Saving multiple aggregates>` in
+the :ref:`Event-sourced applications <Application objects>` documentation.
 
+.. _Topics:
 
 Topics
 ======

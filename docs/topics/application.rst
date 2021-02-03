@@ -31,6 +31,7 @@ The discussion below continues these ideas, by combining event-sourced aggregate
 and persistence objects in an application object that implements "application services"
 as object methods.
 
+.. _Application objects:
 
 Application objects
 ===================
@@ -47,31 +48,31 @@ and then define command and query methods that allow interfaces to create, read,
 update and delete your domain model aggregates. Domain model aggregates are discussed
 in the :doc:`domain module documentation </topics/domain>`. The "ubiquitous language"
 of your project should guide the names of the application's command and query methods,
-along with those of its domain model aggregates.
+along with those of its :ref:`domain model aggregates <Aggregates>`.
 
 The :class:`~eventsourcing.application.Application` class defines an object method
 :func:`~eventsourcing.application.Application.save` which can be
 used to update the recorded state of one or many
-`domain model aggregates <domain.html#event-sourced-aggregates>`_. The
-:func:`~eventsourcing.application.Application.save`
-method functions by using the aggregate's :func:`~eventsourcing.domain.Aggregate._collect_`
-method to collect pending domain events; the pending domain events are stored by calling the
+:ref:`domain model aggregates <Aggregates>`. The
+:func:`~eventsourcing.application.Application.save` method functions by using
+the aggregate's :func:`~eventsourcing.domain.Aggregate._collect_` method to collect
+pending domain events; the pending domain events are stored by calling the
 :func:`~eventsourcing.persistence.EventStore.put` method of application's
-`event store <persistence.html#event-store>`_.
+:ref:`event store <Store>`.
 
 The :class:`~eventsourcing.application.Application` class defines an
-object attribute ``repository`` which holds an `event-sourced repository <#repository>`_.
+object attribute ``repository`` which holds an :ref:`event-sourced repository <Repository>`.
 The repository's :func:`~eventsourcing.application.Repository.get` method can be used by
 your application's command and query methods to obtain already existing aggregates.
 
 The :class:`~eventsourcing.application.Application` class defines an
-object attribute ``log`` which holds a `local notification log <#notification-log>`_.
+object attribute ``log`` which holds a :ref:`local notification log <Notification log>`.
 The notification log can be used to propagate the state of an application as a sequence of
 domain event notifications.
 
 The :class:`~eventsourcing.application.Application` class defines an object method
 :func:`~eventsourcing.application.Application.take_snapshot` which can
-be used to `take snapshots <#snapshotting>`_ of existing aggregates. Snapshotting
+be used for :ref:`snapshotting <Snapshotting>` existing aggregates. Snapshotting
 isn't necessary, but can help to reduce the time it takes to access aggregates with
 lots of domain events.
 
@@ -81,7 +82,7 @@ Basic example
 
 In the example below, the ``Worlds`` application extends the library's
 application object base class. The ``World`` aggregate is defined and discussed
-in the `domain module documentation <domain.html#basic-example>`_.
+as the :ref:`basic example <Aggregate basic example>` in the domain module documentation.
 
 The ``Worlds`` application's ``create_world()`` method is a command method that creates
 and saves new ``World`` aggregates, returning a new ``world_id`` that can be
@@ -175,8 +176,9 @@ method is called.
 
 By default, the application object uses the “Plain Old Python Object” infrastructure
 which has stored domain events in memory only. To store the domain events in a real
-database, you will need to `configure persistence <#configuring-persistence>`_.
+database, you will need to :ref:`configure persistence<Persistence>`.
 
+.. _Repository:
 
 Repository
 ==========
@@ -189,10 +191,11 @@ library's :class:`~eventsourcing.application.Repository` class.
 The repository's :func:`~eventsourcing.application.Repository.get` method is used to
 obtain already existing aggregates. It uses the event store's
 :func:`~eventsourcing.persistence.EventStore.get` method to retrieve
-the already existing domain event objects
-of the requested aggregate, and the :func:`~eventsourcing.domain.Aggregate.Event.mutate`
-methods of the domain event objects to reconstruct the state of the requested aggregate.
-The repository's :func:`~eventsourcing.application.Repository.get` method accepts two
+the already existing :ref:`domain event objects <Events>` of the requested
+aggregate, and the :func:`~eventsourcing.domain.Aggregate.Event.mutate`
+methods of the :ref:`domain event objects <Events>` to reconstruct the state
+of the requested aggregate. The repository's
+:func:`~eventsourcing.application.Repository.get` method accepts two
 arguments: ``aggregate_id`` and ``version``:
 
 The ``aggregate_id`` argument is required, and should be the ID of an already existing
@@ -241,7 +244,8 @@ highest available version of the aggregate will be returned.
     assert len(world_v5.history) == 3
     assert world_v5.history[-1] == "internet"
 
-.. _Notification log:
+
+.. _Notification Log:
 
 Notification log
 ================
@@ -252,7 +256,7 @@ sequence of domain event notifications.
 The application object's ``log`` attribute has an instance of the library's
 :class:`~eventsourcing.application.LocalNotificationLog` class. The notification
 log presents linked sections of
-`event notification objects <persistence.html#event-notification-objects>`_.
+:ref:`event notification objects <Event notification objects>`.
 The sections are instances of the library's :class:`~eventsourcing.application.Section` class.
 
 Each event notification has an ``id`` that has the unique integer ID of
@@ -281,8 +285,7 @@ and the last event notification included in the section. If there are no event
 notifications, the section ID will be ``None``.
 
 A notification log section has an attribute ``items`` that has the list of
-`event notification objects <persistence.html#event-notification-objects>`_
-included in the section.
+:ref:`event notification objects <Event notification objects>` included in the section.
 
 A notification log section has an attribute ``next_id`` that has the section ID
 of the next section in the notification log. If the notification log section has
@@ -342,6 +345,7 @@ will also be encrypted, but the mapper will decrypt the event notification.
     assert domain_event.originator_id == world_id
     assert domain_event.what == 'internet'
 
+.. _Snapshotting:
 
 Snapshotting
 ============
@@ -397,31 +401,32 @@ to storing snapshots. The snapshots can be retrieved from the snapshot store.
     assert snapshot.originator_id == world_id
     assert snapshot.originator_version == 4
 
+.. _Persistence:
 
 Configuring persistence
 =======================
 
-In the example above, the domain events have been stored in memory,
-using the default persistence infrastructure provided by the library.
+The example above uses the application's default persistence infrastructure.
+By default, the application object uses the library's "plain old Python objects"
+:ref:`infrastructure factory <Factory>`, which provides the application
+with infrastructure classes that simply keep stored events in a data structure
+in memory.
 
-By default, the application object uses its `"plain old Python objects"
-persistence infrastructure <persistence.html#infrastructure-factory>`_,
-which simply keeps stored events in a data structure in memory.
+To use alternative persistence infrastructure, you will need to
+set the environment variable ``INFRASTRUCTURE_FACTORY`` to the
+:ref:`topic <Topics>` of another infrastructure factory object
+class that will construct alternative application persistence objects.
+Using alternative persistence infrastructure will normally involve
+setting particular environment variables that configure access to
+a real database, such as a database name, a user name, and a password.
 
-To use other persistence infrastructure, you will need to
-set the environment variable ``INFRASTRUCTURE_FACTORY`` to the `topic <domain.html#topics>`_
-of another infrastructure factory. The `topic <domain.html#topics>`_ is the path
-to the infrastructure object class that will be used to construct the application
-persistence objects. Often using other persistence infrastructure will involve setting
-other environment variables to configure access to a real database,
-such as a database name, a user name, and a password.
-
-In the example below, the library's `SQLite infrastructure <persistence.html#sqlite>`_ is used.
-In the case of the library's SQLite factory, the environment variables
-``SQLITE_DBNAME`` must be set to a file path. And if the tables do not exist, the
-``DO_CREATE_TABLE`` must be set to a "true" value ('y', 'yes', 't',
-'true', 'on', or '1').
-
+The example below shows how to configure the application to use the library's
+:ref:`SQLite infrastructure <SQLite>`. In the case of the library's SQLite factory,
+the environment variable ``SQLITE_DBNAME`` must be set to a file path. And if the
+tables do not exist, the ``DO_CREATE_TABLE`` must be set to a "true" value (``'y'``,
+``'yes'``, ``'t'``, ``'true'``, ``'on'``, or ``'1'``). The function
+:func:`~distutils.utils.strtobool` from the Python :mod:`distutils.utils`
+module is used to interpret the value of this environment variable.
 
 .. code:: python
 
@@ -448,8 +453,9 @@ By using a file on disk, the named temporary file ``tmpfile`` above,
 the state of the application will endure after the application has
 been reconstructed. The database table only needs to be created once,
 and so when creating an application for an already existing database
-the ``DO_CREATE_TABLE`` value must be a "false" value ('n', 'no',
-'f', 'false', 'off', '0').
+the environment variable ``DO_CREATE_TABLE`` must either not be set,
+or set to a "false" value (``'n'``, ``'no'``, ``'f'``, ``'false'``,
+``'off'``, ``'0'``).
 
 .. code:: python
 
@@ -469,7 +475,7 @@ Registering custom transcodings
 The application's persistence mechanism serialises the domain events,
 using the library's transcoder. If your aggregates' domain event objects
 have objects of types that are not already supported by the transcoder,
-for example custom value objects, `custom transcodings <persistence.html#transcodings>`_
+for example custom value objects, custom :ref:`transcodings <Transcodings>`
 for these objects will need to be implemented and registered with the application's
 transcoder.
 
@@ -527,9 +533,9 @@ be used to encrypt stored domain events. The Python :mod:`zlib` module
 can be used to compress stored domain events.
 
 To enable encryption and compression, set the
-environment variables 'CIPHER_TOPIC' (a `topic <domain.html#topics>`_
+environment variables 'CIPHER_TOPIC' (a :ref:`topic <Topics>`
 to a cipher class), 'CIPHER_KEY' (a valid encryption key),
-and 'COMPRESSOR_TOPIC' (`topic <domain.html#topics>`_ for a compressor).
+and 'COMPRESSOR_TOPIC' (:ref:`topic <Topics>` for a compressor).
 
 When using the library's :class:`~eventsourcing.cipher.AESCipher` class,
 you can use its static method :func:`~eventsourcing.cipher.AESCipher.create_key`
@@ -553,12 +559,14 @@ to generate a valid encryption key.
     os.environ['COMPRESSOR_TOPIC'] = "zlib"
 
 
+.. _Saving multiple aggregates:
+
 Saving multiple aggregates
 ==========================
 
 In many cases, it is both possible and very useful to save more than
 one aggregate in the same atomic transaction. The example below continues
-the example from the `discussion of namespace IDs <domain.html#namespaced-ids>`_
+the example from the discussion of :ref:`namespaced IDs <Namespaced IDs>`
 in the previous section. The classes :class:`Page` and :class:`Index` are
 defined in that section.
 
