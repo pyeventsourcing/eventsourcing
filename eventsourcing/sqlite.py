@@ -135,7 +135,9 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         desc: bool = False,
         limit: Optional[int] = None,
     ) -> List[StoredEvent]:
-        statement = "SELECT * " f"FROM {self.events_table_name} " "WHERE originator_id=? "
+        statement = (
+            "SELECT * " f"FROM {self.events_table_name} " "WHERE originator_id=? "
+        )
         params: List[Any] = [originator_id.hex]
         if gt is not None:
             statement += "AND originator_version>? "
@@ -252,7 +254,9 @@ class SQLiteProcessRecorder(
         try:
             c = self.datastore.get_connection().cursor()
             statement = (
-                "SELECT MAX(notification_id)" "FROM tracking " "WHERE application_name=?"
+                "SELECT MAX(notification_id)"
+                "FROM tracking "
+                "WHERE application_name=?"
             )
             c.execute(statement, params)
             return c.fetchone()[0] or 0

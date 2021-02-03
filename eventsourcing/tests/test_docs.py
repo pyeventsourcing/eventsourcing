@@ -42,23 +42,24 @@ class TestDocs(TestCase):
                 if name in skipped:
                     continue
                 # if name.endswith(".rst"):
-                if name.endswith('persistence.rst') \
-                or name.endswith('domain.rst') \
-                or name.endswith('application.rst') \
-                or name.endswith('system.rst') \
-                or name.endswith('examples.rst') \
-                :
-                # if name.endswith('quick_start.rst'):
-                # if name.endswith('aggregates_in_ddd.rst'):
-                # if name.endswith('example_application.rst'):
-                # if name.endswith('everything.rst'):
-                # if name.endswith('infrastructure.rst'):
-                # if name.endswith('application.rst'):
-                # if name.endswith('snapshotting.rst'):
-                # if name.endswith('notifications.rst'):
-                # if name.endswith('projections.rst'):
-                # if name.endswith('deployment.rst'):
-                # if name.endswith('process.rst'):
+                if (
+                    name.endswith("persistence.rst")
+                    or name.endswith("domain.rst")
+                    or name.endswith("application.rst")
+                    or name.endswith("system.rst")
+                    or name.endswith("examples.rst")
+                ):
+                    # if name.endswith('quick_start.rst'):
+                    # if name.endswith('aggregates_in_ddd.rst'):
+                    # if name.endswith('example_application.rst'):
+                    # if name.endswith('everything.rst'):
+                    # if name.endswith('infrastructure.rst'):
+                    # if name.endswith('application.rst'):
+                    # if name.endswith('snapshotting.rst'):
+                    # if name.endswith('notifications.rst'):
+                    # if name.endswith('projections.rst'):
+                    # if name.endswith('deployment.rst'):
+                    # if name.endswith('process.rst'):
                     file_paths.append(os.path.join(docs_path, dirpath, name))
 
         file_paths = sorted(file_paths)
@@ -147,14 +148,14 @@ class TestDocs(TestCase):
                     line = ""
 
                 elif is_literalinclude:
-                    if 'pyobject' in line:
+                    if "pyobject" in line:
                         # Assume ".. literalinclude:: ../../xxx/xx.py"
                         # Or ".. literalinclude:: ../xxx/xx.py"
-                        module = last_line.strip().split(' ')[-1][:-3]
-                        module = module.lstrip('./')
-                        module = module.replace('/', '.')
+                        module = last_line.strip().split(" ")[-1][:-3]
+                        module = module.lstrip("./")
+                        module = module.replace("/", ".")
                         # Assume "    :pyobject: xxxxxx"
-                        pyobject = line.strip().split(' ')[-1]
+                        pyobject = line.strip().split(" ")[-1]
                         statement = f"from {module} import {pyobject}"
                         line = statement
                         is_literalinclude = False

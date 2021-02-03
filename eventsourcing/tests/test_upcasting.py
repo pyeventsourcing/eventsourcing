@@ -11,9 +11,8 @@ from eventsourcing.utils import get_topic, _objs_cache
 
 
 class TestUpcasting(TestCase):
-
     def setUp(self) -> None:
-        os.environ["IS_SNAPSHOTTING_ENABLED"] = 'y'
+        os.environ["IS_SNAPSHOTTING_ENABLED"] = "y"
 
     def tearDown(self) -> None:
         del os.environ["IS_SNAPSHOTTING_ENABLED"]
@@ -21,30 +20,29 @@ class TestUpcasting(TestCase):
         type(self).UpcastFixtureV2 = type(self).original_cls_v2
         type(self).UpcastFixtureV3 = type(self).original_cls_v3
 
-
         topic_v1 = get_topic(self.UpcastFixtureV1)
         topic_v1_created = get_topic(self.UpcastFixtureV1.Created)
 
         if topic_v1 in _objs_cache:
-            del(_objs_cache[topic_v1])
+            del _objs_cache[topic_v1]
         if topic_v1_created in _objs_cache:
-            del(_objs_cache[topic_v1_created])
+            del _objs_cache[topic_v1_created]
 
         topic_v2 = get_topic(self.UpcastFixtureV2)
         topic_v2_created = get_topic(self.UpcastFixtureV2.Created)
 
         if topic_v2 in _objs_cache:
-            del(_objs_cache[topic_v2])
+            del _objs_cache[topic_v2]
         if topic_v2_created in _objs_cache:
-            del(_objs_cache[topic_v2_created])
+            del _objs_cache[topic_v2_created]
 
         topic_v3 = get_topic(self.UpcastFixtureV3)
         topic_v3_created = get_topic(self.UpcastFixtureV3.Created)
 
         if topic_v3 in _objs_cache:
-            del(_objs_cache[topic_v3])
+            del _objs_cache[topic_v3]
         if topic_v3_created in _objs_cache:
-            del(_objs_cache[topic_v3_created])
+            del _objs_cache[topic_v3_created]
 
     def test_upcast_created_event_from_v1(self):
         app = Application()
@@ -52,44 +50,44 @@ class TestUpcasting(TestCase):
         topic_v1 = get_topic(self.UpcastFixtureV1)
         topic_v1_created = get_topic(self.UpcastFixtureV1.Created)
 
-        aggregate = self.UpcastFixtureV1.create(a='text')
+        aggregate = self.UpcastFixtureV1.create(a="text")
         app.save(aggregate)
         copy = app.repository.get(aggregate.id)
-        self.assertEqual(copy.a, 'text')
-        self.assertFalse(hasattr(copy, 'b'))
-        self.assertFalse(hasattr(copy, 'c'))
-        self.assertFalse(hasattr(copy, 'd'))
+        self.assertEqual(copy.a, "text")
+        self.assertFalse(hasattr(copy, "b"))
+        self.assertFalse(hasattr(copy, "c"))
+        self.assertFalse(hasattr(copy, "d"))
 
         # "Deploy" v2.
-        del(_objs_cache[topic_v1])
-        del(_objs_cache[topic_v1_created])
+        del _objs_cache[topic_v1]
+        del _objs_cache[topic_v1_created]
         type(self).UpcastFixtureV1 = self.UpcastFixtureV2
 
         copy = app.repository.get(aggregate.id)
-        self.assertFalse(hasattr(copy, 'a'))
-        self.assertEqual(copy.A, 'TEXT')
+        self.assertFalse(hasattr(copy, "a"))
+        self.assertEqual(copy.A, "TEXT")
         self.assertEqual(copy.b, 0)
-        self.assertFalse(hasattr(copy, 'c'))
-        self.assertFalse(hasattr(copy, 'd'))
+        self.assertFalse(hasattr(copy, "c"))
+        self.assertFalse(hasattr(copy, "d"))
 
         # "Deploy" v3.
-        del(_objs_cache[topic_v1])
-        del(_objs_cache[topic_v1_created])
+        del _objs_cache[topic_v1]
+        del _objs_cache[topic_v1_created]
         type(self).UpcastFixtureV1 = self.UpcastFixtureV3
 
         copy = app.repository.get(aggregate.id)
-        self.assertFalse(hasattr(copy, 'a'))
-        self.assertEqual(copy.A, 'TEXT')
+        self.assertFalse(hasattr(copy, "a"))
+        self.assertEqual(copy.A, "TEXT")
         self.assertEqual(copy.b, 0)
         self.assertEqual(copy.c, [])
 
         # "Deploy" v4.
-        del(_objs_cache[topic_v1])
+        del _objs_cache[topic_v1]
         type(self).UpcastFixtureV1 = self.UpcastFixtureV4
 
         copy = app.repository.get(aggregate.id)
-        self.assertFalse(hasattr(copy, 'a'))
-        self.assertEqual(copy.A, 'TEXT')
+        self.assertFalse(hasattr(copy, "a"))
+        self.assertEqual(copy.A, "TEXT")
         self.assertEqual(copy.b, 0)
         self.assertEqual(copy.c, [])
         self.assertEqual(copy.d, None)
@@ -99,44 +97,44 @@ class TestUpcasting(TestCase):
 
         topic_v1 = get_topic(self.UpcastFixtureV1)
 
-        aggregate = self.UpcastFixtureV1.create(a='text')
+        aggregate = self.UpcastFixtureV1.create(a="text")
         app.save(aggregate)
         copy = app.repository.get(aggregate.id)
-        self.assertEqual(copy.a, 'text')
-        self.assertFalse(hasattr(copy, 'b'))
-        self.assertFalse(hasattr(copy, 'c'))
-        self.assertFalse(hasattr(copy, 'd'))
+        self.assertEqual(copy.a, "text")
+        self.assertFalse(hasattr(copy, "b"))
+        self.assertFalse(hasattr(copy, "c"))
+        self.assertFalse(hasattr(copy, "d"))
 
         app.take_snapshot(aggregate.id)
 
         # "Deploy" v2.
-        del(_objs_cache[topic_v1])
+        del _objs_cache[topic_v1]
         type(self).UpcastFixtureV1 = self.UpcastFixtureV2
 
         copy = app.repository.get(aggregate.id)
-        self.assertEqual(copy.A, 'TEXT')
+        self.assertEqual(copy.A, "TEXT")
         self.assertEqual(copy.b, 0)
-        self.assertFalse(hasattr(copy, 'c'))
-        self.assertFalse(hasattr(copy, 'd'))
+        self.assertFalse(hasattr(copy, "c"))
+        self.assertFalse(hasattr(copy, "d"))
 
         # "Deploy" v3.
-        del(_objs_cache[topic_v1])
+        del _objs_cache[topic_v1]
         type(self).UpcastFixtureV1 = self.UpcastFixtureV3
 
         copy = app.repository.get(aggregate.id)
-        self.assertFalse(hasattr(copy, 'a'))
-        self.assertEqual(copy.A, 'TEXT')
+        self.assertFalse(hasattr(copy, "a"))
+        self.assertEqual(copy.A, "TEXT")
         self.assertEqual(copy.b, 0)
         self.assertEqual(copy.c, [])
-        self.assertFalse(hasattr(copy, 'd'))
+        self.assertFalse(hasattr(copy, "d"))
 
         # "Deploy" v4.
-        del(_objs_cache[topic_v1])
+        del _objs_cache[topic_v1]
         type(self).UpcastFixtureV1 = self.UpcastFixtureV4
 
         copy = app.repository.get(aggregate.id)
-        self.assertFalse(hasattr(copy, 'a'))
-        self.assertEqual(copy.A, 'TEXT')
+        self.assertFalse(hasattr(copy, "a"))
+        self.assertEqual(copy.A, "TEXT")
         self.assertEqual(copy.b, 0)
         self.assertEqual(copy.c, [])
         self.assertEqual(copy.d, None)
@@ -147,35 +145,35 @@ class TestUpcasting(TestCase):
         topic_v2 = get_topic(self.UpcastFixtureV2)
         topic_v2_created = get_topic(self.UpcastFixtureV2.Created)
 
-        aggregate = self.UpcastFixtureV2.create(A='TEXT', b=1)
+        aggregate = self.UpcastFixtureV2.create(A="TEXT", b=1)
         app.save(aggregate)
         copy = app.repository.get(aggregate.id)
-        self.assertFalse(hasattr(copy, 'a'))
-        self.assertEqual(copy.A, 'TEXT')
+        self.assertFalse(hasattr(copy, "a"))
+        self.assertEqual(copy.A, "TEXT")
         self.assertEqual(copy.b, 1)
-        self.assertFalse(hasattr(copy, 'c'))
-        self.assertFalse(hasattr(copy, 'd'))
+        self.assertFalse(hasattr(copy, "c"))
+        self.assertFalse(hasattr(copy, "d"))
 
         # "Deploy" v3.
-        del(_objs_cache[topic_v2])
-        del(_objs_cache[topic_v2_created])
+        del _objs_cache[topic_v2]
+        del _objs_cache[topic_v2_created]
         type(self).UpcastFixtureV2 = self.UpcastFixtureV3
 
         copy = app.repository.get(aggregate.id)
-        self.assertFalse(hasattr(copy, 'a'))
-        self.assertEqual(copy.A, 'TEXT')
+        self.assertFalse(hasattr(copy, "a"))
+        self.assertEqual(copy.A, "TEXT")
         self.assertEqual(copy.b, 1)
         self.assertEqual(copy.c, [])
-        self.assertFalse(hasattr(copy, 'd'))
+        self.assertFalse(hasattr(copy, "d"))
 
         # "Deploy" v4.
-        del(_objs_cache[topic_v2])
-        del(_objs_cache[topic_v2_created])
+        del _objs_cache[topic_v2]
+        del _objs_cache[topic_v2_created]
         type(self).UpcastFixtureV2 = self.UpcastFixtureV4
 
         copy = app.repository.get(aggregate.id)
-        self.assertFalse(hasattr(copy, 'a'))
-        self.assertEqual(copy.A, 'TEXT')
+        self.assertFalse(hasattr(copy, "a"))
+        self.assertEqual(copy.A, "TEXT")
         self.assertEqual(copy.b, 1)
         self.assertEqual(copy.c, [])
         self.assertEqual(copy.d, None)
@@ -185,35 +183,35 @@ class TestUpcasting(TestCase):
 
         topic_v2 = get_topic(self.UpcastFixtureV2)
 
-        aggregate = self.UpcastFixtureV2.create(A='TEXT', b=1)
+        aggregate = self.UpcastFixtureV2.create(A="TEXT", b=1)
         app.save(aggregate)
         copy = app.repository.get(aggregate.id)
-        self.assertFalse(hasattr(copy, 'a'))
-        self.assertEqual(copy.A, 'TEXT')
+        self.assertFalse(hasattr(copy, "a"))
+        self.assertEqual(copy.A, "TEXT")
         self.assertEqual(copy.b, 1)
-        self.assertFalse(hasattr(copy, 'c'))
-        self.assertFalse(hasattr(copy, 'd'))
+        self.assertFalse(hasattr(copy, "c"))
+        self.assertFalse(hasattr(copy, "d"))
 
         app.take_snapshot(aggregate.id)
 
         # "Deploy" v3.
-        del(_objs_cache[topic_v2])
+        del _objs_cache[topic_v2]
         type(self).UpcastFixtureV2 = self.UpcastFixtureV3
 
         copy = app.repository.get(aggregate.id)
-        self.assertFalse(hasattr(copy, 'a'))
-        self.assertEqual(copy.A, 'TEXT')
+        self.assertFalse(hasattr(copy, "a"))
+        self.assertEqual(copy.A, "TEXT")
         self.assertEqual(copy.b, 1)
         self.assertEqual(copy.c, [])
-        self.assertFalse(hasattr(copy, 'd'))
+        self.assertFalse(hasattr(copy, "d"))
 
         # "Deploy" v4.
-        del(_objs_cache[topic_v2])
+        del _objs_cache[topic_v2]
         type(self).UpcastFixtureV2 = self.UpcastFixtureV4
 
         copy = app.repository.get(aggregate.id)
-        self.assertFalse(hasattr(copy, 'a'))
-        self.assertEqual(copy.A, 'TEXT')
+        self.assertFalse(hasattr(copy, "a"))
+        self.assertEqual(copy.A, "TEXT")
         self.assertEqual(copy.b, 1)
         self.assertEqual(copy.c, [])
         self.assertEqual(copy.d, None)
@@ -224,33 +222,33 @@ class TestUpcasting(TestCase):
         topic_v3 = get_topic(self.UpcastFixtureV3)
         topic_v3_created = get_topic(self.UpcastFixtureV3.Created)
 
-        aggregate = self.UpcastFixtureV3.create(A='TEXT', b=1, c=[1, 2])
+        aggregate = self.UpcastFixtureV3.create(A="TEXT", b=1, c=[1, 2])
         app.save(aggregate)
         copy = app.repository.get(aggregate.id)
-        self.assertFalse(hasattr(copy, 'a'))
-        self.assertEqual(copy.A, 'TEXT')
+        self.assertFalse(hasattr(copy, "a"))
+        self.assertEqual(copy.A, "TEXT")
         self.assertEqual(copy.b, 1)
         self.assertEqual(copy.c, [1, 2])
-        self.assertFalse(hasattr(copy, 'd'))
+        self.assertFalse(hasattr(copy, "d"))
 
         # "Deploy" v3.
-        del(_objs_cache[topic_v3])
-        del(_objs_cache[topic_v3_created])
+        del _objs_cache[topic_v3]
+        del _objs_cache[topic_v3_created]
         type(self).UpcastFixtureV3 = self.UpcastFixtureV4
 
         copy = app.repository.get(aggregate.id)
-        self.assertFalse(hasattr(copy, 'a'))
-        self.assertEqual(copy.A, 'TEXT')
+        self.assertFalse(hasattr(copy, "a"))
+        self.assertEqual(copy.A, "TEXT")
         self.assertEqual(copy.b, 1)
         self.assertEqual(copy.c, [1, 2])
         self.assertEqual(copy.d, None)
 
-        copy.set_d(value=Decimal('10.0'))
+        copy.set_d(value=Decimal("10.0"))
         app.save(copy)
 
         copy = app.repository.get(aggregate.id)
-        self.assertFalse(hasattr(copy, 'a'))
-        self.assertEqual(copy.A, 'TEXT')
+        self.assertFalse(hasattr(copy, "a"))
+        self.assertEqual(copy.A, "TEXT")
         self.assertEqual(copy.b, 1)
         self.assertEqual(copy.c, [1, 2])
         self.assertEqual(copy.d, 10)
@@ -260,34 +258,34 @@ class TestUpcasting(TestCase):
 
         topic_v3 = get_topic(self.UpcastFixtureV3)
 
-        aggregate = self.UpcastFixtureV3.create(A='TEXT', b=1, c=[1, 2])
+        aggregate = self.UpcastFixtureV3.create(A="TEXT", b=1, c=[1, 2])
         app.save(aggregate)
         copy = app.repository.get(aggregate.id)
-        self.assertFalse(hasattr(copy, 'a'))
-        self.assertEqual(copy.A, 'TEXT')
+        self.assertFalse(hasattr(copy, "a"))
+        self.assertEqual(copy.A, "TEXT")
         self.assertEqual(copy.b, 1)
         self.assertEqual(copy.c, [1, 2])
-        self.assertFalse(hasattr(copy, 'd'))
+        self.assertFalse(hasattr(copy, "d"))
 
         app.take_snapshot(aggregate.id)
 
         # "Deploy" v3.
-        del(_objs_cache[topic_v3])
+        del _objs_cache[topic_v3]
         type(self).UpcastFixtureV3 = self.UpcastFixtureV4
 
         copy = app.repository.get(aggregate.id)
-        self.assertFalse(hasattr(copy, 'a'))
-        self.assertEqual(copy.A, 'TEXT')
+        self.assertFalse(hasattr(copy, "a"))
+        self.assertEqual(copy.A, "TEXT")
         self.assertEqual(copy.b, 1)
         self.assertEqual(copy.c, [1, 2])
         self.assertEqual(copy.d, None)
 
-        copy.set_d(value=Decimal('10.0'))
+        copy.set_d(value=Decimal("10.0"))
         app.save(copy)
 
         copy = app.repository.get(aggregate.id)
-        self.assertFalse(hasattr(copy, 'a'))
-        self.assertEqual(copy.A, 'TEXT')
+        self.assertFalse(hasattr(copy, "a"))
+        self.assertEqual(copy.A, "TEXT")
         self.assertEqual(copy.b, 1)
         self.assertEqual(copy.c, [1, 2])
         self.assertEqual(copy.d, 10)
@@ -295,8 +293,8 @@ class TestUpcasting(TestCase):
         app.take_snapshot(aggregate.id)
 
         copy = app.repository.get(aggregate.id)
-        self.assertFalse(hasattr(copy, 'a'))
-        self.assertEqual(copy.A, 'TEXT')
+        self.assertFalse(hasattr(copy, "a"))
+        self.assertEqual(copy.A, "TEXT")
         self.assertEqual(copy.b, 1)
         self.assertEqual(copy.c, [1, 2])
         self.assertEqual(copy.d, 10)
@@ -304,11 +302,11 @@ class TestUpcasting(TestCase):
     def test_upcast_created_event_from_v4(self):
         app = Application()
 
-        aggregate = self.UpcastFixtureV4.create(A='TEXT', b=1, c=[1, 2])
+        aggregate = self.UpcastFixtureV4.create(A="TEXT", b=1, c=[1, 2])
         app.save(aggregate)
         copy = app.repository.get(aggregate.id)
-        self.assertFalse(hasattr(copy, 'a'))
-        self.assertEqual(copy.A, 'TEXT')
+        self.assertFalse(hasattr(copy, "a"))
+        self.assertEqual(copy.A, "TEXT")
         self.assertEqual(copy.b, 1)
         self.assertEqual(copy.c, [1, 2])
         self.assertEqual(copy.d, None)
@@ -316,18 +314,17 @@ class TestUpcasting(TestCase):
     def test_upcast_aggregate_snapshot_from_v4(self):
         app = Application()
 
-        aggregate = self.UpcastFixtureV4.create(A='TEXT', b=1, c=[1, 2])
+        aggregate = self.UpcastFixtureV4.create(A="TEXT", b=1, c=[1, 2])
         app.save(aggregate)
 
         app.take_snapshot(aggregate.id)
 
         copy = app.repository.get(aggregate.id)
-        self.assertFalse(hasattr(copy, 'a'))
-        self.assertEqual(copy.A, 'TEXT')
+        self.assertFalse(hasattr(copy, "a"))
+        self.assertEqual(copy.A, "TEXT")
         self.assertEqual(copy.b, 1)
         self.assertEqual(copy.c, [1, 2])
         self.assertEqual(copy.d, None)
-
 
     class UpcastFixtureV1(Aggregate):
         def __init__(self, a, **kwargs):
@@ -363,15 +360,15 @@ class TestUpcasting(TestCase):
 
             @staticmethod
             def _upcast_v1_v2_(state):
-                state['A'] = state.pop('a').upper()
-                state['b'] = 0
+                state["A"] = state.pop("a").upper()
+                state["b"] = 0
 
         _class_version_ = 2
 
         @staticmethod
         def _upcast_v1_v2_(state):
-            state['A'] = state.pop('a').upper()
-            state['b'] = 0
+            state["A"] = state.pop("a").upper()
+            state["b"] = 0
 
     original_cls_v2 = UpcastFixtureV2
 
@@ -396,23 +393,23 @@ class TestUpcasting(TestCase):
 
             @staticmethod
             def _upcast_v1_v2_(state):
-                state['A'] = state.pop('a').upper()
-                state['b'] = 0
+                state["A"] = state.pop("a").upper()
+                state["b"] = 0
 
             @staticmethod
             def _upcast_v2_v3_(state):
-                state['c'] = []
+                state["c"] = []
 
         _class_version_ = 3
 
         @staticmethod
         def _upcast_v1_v2_(state):
-            state['A'] = state.pop('a').upper()
-            state['b'] = 0
+            state["A"] = state.pop("a").upper()
+            state["b"] = 0
 
         @staticmethod
         def _upcast_v2_v3_(state):
-            state['c'] = []
+            state["c"] = []
 
     original_cls_v3 = UpcastFixtureV3
 
@@ -438,12 +435,12 @@ class TestUpcasting(TestCase):
 
             @staticmethod
             def _upcast_v1_v2_(state):
-                state['A'] = state.pop('a').upper()
-                state['b'] = 0
+                state["A"] = state.pop("a").upper()
+                state["b"] = 0
 
             @staticmethod
             def _upcast_v2_v3_(state):
-                state['c'] = []
+                state["c"] = []
 
         def set_d(self, value: Decimal):
             self._trigger_(self.DUpdated, d=value)
@@ -459,14 +456,13 @@ class TestUpcasting(TestCase):
 
         @staticmethod
         def _upcast_v1_v2_(state):
-            state['A'] = state.pop('a').upper()
-            state['b'] = 0
+            state["A"] = state.pop("a").upper()
+            state["b"] = 0
 
         @staticmethod
         def _upcast_v2_v3_(state):
-            state['c'] = []
+            state["c"] = []
 
         @staticmethod
         def _upcast_v3_v4_(state):
-            state['d'] = None
-
+            state["d"] = None

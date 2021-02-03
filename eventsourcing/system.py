@@ -26,6 +26,7 @@ class ProcessEvent:
     in the notification log of a particular application, and the
     new domain events that result from processing that notification.
     """
+
     def __init__(self, tracking: Tracking):
         """
         Initalises the process event with the given tracking object.
@@ -48,6 +49,7 @@ class Follower(Application):
     track of the applications it is following, and pulling and processing
     new domain event notifications through its :func:`policy` method.
     """
+
     def __init__(self):
         super().__init__()
         self.readers: Dict[
@@ -143,6 +145,7 @@ class Promptable(ABC):
     """
     Abstract base class for "promptable" objects.
     """
+
     @abstractmethod
     def receive_prompt(self, leader_name: str) -> None:
         """
@@ -158,6 +161,7 @@ class Leader(Application):
     followers, and prompting followers when there are new
     domain event notifications to be pulled and processed.
     """
+
     def __init__(self):
         super().__init__()
         self.followers: List[Promptable] = []
@@ -199,6 +203,7 @@ class System:
     """
     Defines a system of applications.
     """
+
     def __init__(
         self,
         pipes: Iterable[Iterable[Type[Application]]],
@@ -242,9 +247,7 @@ class System:
         # Check each process is a process application class.
         for name in self.processors:
             if not issubclass(nodes[name], ProcessApplication):
-                raise TypeError(
-                    "Not a process application class: %s" % nodes[name]
-                )
+                raise TypeError("Not a process application class: %s" % nodes[name])
 
     @property
     def leaders(self) -> Iterable[str]:
@@ -295,6 +298,7 @@ class AbstractRunner(ABC):
     """
     Abstract base class for system runners.
     """
+
     def __init__(self, system: System):
         self.system = system
         self.is_started = False
@@ -323,7 +327,6 @@ class AbstractRunner(ABC):
 
 class RunnerAlreadyStarted(Exception):
     pass
-
 
 
 class SingleThreadedRunner(AbstractRunner, Promptable):
@@ -475,9 +478,7 @@ class MultiThreadedRunner(AbstractRunner):
 
     @property
     def has_stopped(self):
-        return all(
-            [t.has_stopped.is_set() for t in self.threads.values()]
-        )
+        return all([t.has_stopped.is_set() for t in self.threads.values()])
 
     def get(self, cls: Type[A]) -> A:
         app = self.apps[cls.__name__]
@@ -503,6 +504,7 @@ class MultiThreadedRunnerThread(Promptable, Thread):
     with a notification log reader from which event notifications
     will be pulled.
     """
+
     def __init__(
         self,
         app_class: Type[Follower],
@@ -570,6 +572,7 @@ class NotificationLogReader:
     """
     Reads domain event notifications from a notification log.
     """
+
     DEFAULT_SECTION_SIZE = 10
 
     def __init__(

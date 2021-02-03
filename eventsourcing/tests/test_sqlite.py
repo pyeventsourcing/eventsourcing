@@ -82,7 +82,6 @@ class TestSQLiteApplicationRecorder(ApplicationRecorderTestCase):
             recorder.max_notification_id()
 
 
-
 class TestSQLiteProcessRecorder(ProcessRecordsTestCase):
     def create_recorder(self):
         recorder = SQLiteProcessRecorder(SQLiteDatastore(":memory:"))
@@ -103,7 +102,6 @@ class TestSQLiteProcessRecorder(ProcessRecordsTestCase):
             recorder.max_tracking_id("application name")
 
 
-
 class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase):
     def setUp(self) -> None:
         os.environ[InfrastructureFactory.TOPIC] = get_topic(Factory)
@@ -121,9 +119,8 @@ class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase):
             self.factory = InfrastructureFactory.construct("TestCase")
         self.assertEqual(
             cm.exception.args[0],
-            "SQLite database name not found in environment with key 'SQLITE_DBNAME'"
+            "SQLite database name not found in environment with key 'SQLITE_DBNAME'",
         )
-
 
 
 del AggregateRecorderTestCase

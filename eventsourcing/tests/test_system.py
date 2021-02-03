@@ -4,8 +4,13 @@ from uuid import uuid4
 
 from eventsourcing.application import Application
 from eventsourcing.domain import Aggregate
-from eventsourcing.system import Follower, Leader, ProcessApplication, Promptable, \
-    System
+from eventsourcing.system import (
+    Follower,
+    Leader,
+    ProcessApplication,
+    Promptable,
+    System,
+)
 from eventsourcing.tests.test_application import BankAccounts
 from eventsourcing.tests.test_processapplication import EmailNotifications
 from eventsourcing.utils import get_topic
@@ -53,7 +58,7 @@ class TestSystem(TestCase):
         exception = cm.exception
         self.assertEqual(
             exception.args[0],
-            "Not a follower class: <class 'eventsourcing.system.Leader'>"
+            "Not a follower class: <class 'eventsourcing.system.Leader'>",
         )
 
     def test_raises_type_error_not_a_processor(self):
@@ -70,7 +75,7 @@ class TestSystem(TestCase):
         exception = cm.exception
         self.assertEqual(
             exception.args[0],
-            "Not a process application class: <class 'eventsourcing.system.Follower'>"
+            "Not a process application class: <class 'eventsourcing.system.Follower'>",
         )
 
     def test_is_leaders_only(self):
@@ -83,7 +88,7 @@ class TestSystem(TestCase):
                 ],
             ]
         )
-        self.assertEqual(list(system.leaders_only), ['Leader'])
+        self.assertEqual(list(system.leaders_only), ["Leader"])
 
     def test_leader_class(self):
         system = System(
@@ -95,13 +100,11 @@ class TestSystem(TestCase):
                 ],
             ]
         )
-        self.assertTrue(issubclass(system.leader_cls('Application'), Leader))
-        self.assertTrue(issubclass(system.leader_cls('ProcessApplication'), Leader))
-
+        self.assertTrue(issubclass(system.leader_cls("Application"), Leader))
+        self.assertTrue(issubclass(system.leader_cls("ProcessApplication"), Leader))
 
 
 class TestLeader(TestCase):
-
     def test(self):
 
         # Define fixture that receives prompts.
@@ -122,11 +125,15 @@ class TestLeader(TestCase):
         leader.lead(follower)
 
         # Check follower receives a prompt when there are new events.
-        leader.notify([Aggregate.Event(
-            originator_id=uuid4(),
-            originator_version=0,
-            timestamp=datetime.now()
-        )])
+        leader.notify(
+            [
+                Aggregate.Event(
+                    originator_id=uuid4(),
+                    originator_version=0,
+                    timestamp=datetime.now(),
+                )
+            ]
+        )
         self.assertEqual(follower.num_prompts, 2)
 
         # Check follower doesn't receive prompt when no new events.

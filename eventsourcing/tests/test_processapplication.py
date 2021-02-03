@@ -1,8 +1,13 @@
 from unittest.case import TestCase
 
 from eventsourcing.domain import Aggregate
-from eventsourcing.system import Follower, Leader, ProcessApplication, ProcessEvent, \
-    Promptable
+from eventsourcing.system import (
+    Follower,
+    Leader,
+    ProcessApplication,
+    ProcessEvent,
+    Promptable,
+)
 from eventsourcing.tests.test_aggregate import BankAccount
 from eventsourcing.tests.test_application import BankAccounts
 from eventsourcing.tests.test_processingpolicy import EmailNotification

@@ -24,6 +24,7 @@ class Repository:
     :class:`eventsourcing.persistence.EventStore`,
     possibly using snapshot store to avoid replaying
     all events."""
+
     def __init__(
         self,
         event_store: EventStore[Aggregate.Event],
@@ -56,23 +57,28 @@ class Repository:
             )
         else:
             # Try to get a snapshot.
-            snapshots = list(self.snapshot_store.get(
-                originator_id=aggregate_id,
-                desc=True,
-                limit=1,
-                lte=version,
-            ))
+            snapshots = list(
+                self.snapshot_store.get(
+                    originator_id=aggregate_id,
+                    desc=True,
+                    limit=1,
+                    lte=version,
+                )
+            )
             if snapshots:
                 gt = snapshots[0].originator_version
             else:
                 gt = None
 
             # Get subsequent aggregate events.
-            domain_events = chain(snapshots, self.event_store.get(
-                originator_id=aggregate_id,
-                gt=gt,
-                lte=version,
-            ))
+            domain_events = chain(
+                snapshots,
+                self.event_store.get(
+                    originator_id=aggregate_id,
+                    gt=gt,
+                    lte=version,
+                ),
+            )
 
         # Project the domain events.
         aggregate: Optional[Aggregate] = None
@@ -107,6 +113,7 @@ class Section:
     :param List[Notification] items: a list of event notifications
     :param str next_id: section ID of the next section in a notification log
     """
+
     id: str
     items: List[Notification]
     next_id: Optional[str]
@@ -116,6 +123,7 @@ class NotificationLog(ABC):
     """
     Abstract base class for application notification logs.
     """
+
     @abstractmethod
     def __getitem__(self, section_id: str) -> Section:
         """
@@ -128,6 +136,7 @@ class LocalNotificationLog(NotificationLog):
     Notification log that presents sections of event notifications
     retrieved from an :class:`~eventsourcing.persistence.ApplicationRecorder`.
     """
+
     DEFAULT_SECTION_SIZE = 10
 
     def __init__(
@@ -201,6 +210,7 @@ class Application(ABC):
     """
     Base class for event-sourced applications.
     """
+
     def __init__(self):
         """
         Initialises an application with an

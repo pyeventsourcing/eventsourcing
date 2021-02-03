@@ -93,7 +93,6 @@ class TestApplication(TestCase):
         duration = timeit(put, number=number)
         print(self, f"{1000 * duration / number:.3f}ms", f"{number / duration:.0f}/s")
 
-
     def test_get_performance(self):
 
         app = BankAccounts()

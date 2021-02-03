@@ -27,9 +27,9 @@ class AESCipher(object):
     @staticmethod
     def check_key_size(num_bytes):
         if num_bytes not in AESCipher.KEY_SIZES:
-            raise ValueError("Invalid key size: {} not in {}".format(
-                num_bytes, AESCipher.KEY_SIZES
-            ))
+            raise ValueError(
+                "Invalid key size: {} not in {}".format(num_bytes, AESCipher.KEY_SIZES)
+            )
 
     @staticmethod
     def random_bytes(num_bytes: int) -> bytes:

@@ -18,6 +18,7 @@ class Transcoding(ABC):
     """
     Abstract base class for custom transcodings.
     """
+
     @property
     @abstractmethod
     def type(self) -> type:
@@ -41,6 +42,7 @@ class AbstractTranscoder(ABC):
     """
     Abstract base class for transcoders.
     """
+
     @abstractmethod
     def encode(self, obj: Any) -> bytes:
         """Encodes obj as bytes."""
@@ -54,6 +56,7 @@ class Transcoder(AbstractTranscoder):
     """
     Extensible transcoder that uses the Python :mod:`json` module.
     """
+
     def __init__(self):
         self.types: Dict[type, Transcoding] = {}
         self.names: Dict[str, Transcoding] = {}
@@ -111,6 +114,7 @@ class UUIDAsHex(Transcoding):
     """
     Transcoding that represents :class:`UUID` objects as hex values.
     """
+
     type = UUID
     name = "uuid_hex"
 
@@ -126,6 +130,7 @@ class DecimalAsStr(Transcoding):
     """
     Transcoding that represents :class:`Decimal` objects as strings.
     """
+
     type = Decimal
     name = "decimal_str"
 
@@ -140,6 +145,7 @@ class DatetimeAsISO(Transcoding):
     """
     Transcoding that represents :class:`datetime` objects as ISO strings.
     """
+
     type = datetime
     name = "datetime_iso"
 
@@ -165,6 +171,7 @@ class StoredEvent:
     :param str topic: topic of the domain event object class
     :param bytes state: serialised state of the domain event object
     """
+
     originator_id: uuid.UUID
     originator_version: int
     topic: str
@@ -177,6 +184,7 @@ class Mapper(Generic[TDomainEvent]):
 
     Uses a :class:`Transcoder`, and optionally a cryptographic cipher and compressor.
     """
+
     def __init__(
         self,
         transcoder: AbstractTranscoder,
@@ -195,9 +203,9 @@ class Mapper(Generic[TDomainEvent]):
         event_state = copy(domain_event.__dict__)
         originator_id = event_state.pop("originator_id")
         originator_version = event_state.pop("originator_version")
-        class_version = getattr(type(domain_event), '_class_version_', 1)
+        class_version = getattr(type(domain_event), "_class_version_", 1)
         if class_version > 1:
-            event_state['_class_version_'] = class_version
+            event_state["_class_version_"] = class_version
         stored_state: bytes = self.transcoder.encode(event_state)
         if self.compressor:
             stored_state = self.compressor.compress(stored_state)
@@ -224,10 +232,10 @@ class Mapper(Generic[TDomainEvent]):
         event_state["originator_version"] = stored.originator_version
         cls = resolve_topic(stored.topic)
         assert issubclass(cls, DomainEvent)
-        class_version = getattr(cls, '_class_version_', 1)
-        from_version = event_state.pop('_class_version_', 1)
+        class_version = getattr(cls, "_class_version_", 1)
+        from_version = event_state.pop("_class_version_", 1)
         while from_version < class_version:
-            getattr(cls, f'_upcast_v{from_version}_v{from_version + 1}_')(event_state)
+            getattr(cls, f"_upcast_v{from_version}_v{from_version + 1}_")(event_state)
             from_version += 1
 
         domain_event = object.__new__(cls)
@@ -254,6 +262,7 @@ class AggregateRecorder(Recorder):
     Abstract base class for recorders that record and
     retrieve stored events for domain model aggregates.
     """
+
     @abstractmethod
     def insert_events(
         self,
@@ -283,6 +292,7 @@ class Notification(StoredEvent):
     """
     Frozen dataclass that represents domain event notifications.
     """
+
     id: int
 
 
@@ -383,6 +393,7 @@ class InfrastructureFactory(ABC):
     """
     Abstract base class for infrastructure factories.
     """
+
     TOPIC = "INFRASTRUCTURE_FACTORY"
     MAPPER_TOPIC = "MAPPER_TOPIC"
     CIPHER_TOPIC = "CIPHER_TOPIC"
@@ -519,5 +530,6 @@ class Tracking:
     Frozen dataclass representing the position of a domain
     event :class:`Notification` in an application's notification log.
     """
+
     application_name: str
     notification_id: int

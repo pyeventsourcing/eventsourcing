@@ -113,8 +113,6 @@ class ProcessRecordsTestCase(TestCase, ABC):
             2,
         )
 
-
-
     def test_performance(self):
 
         # Construct the recorder.

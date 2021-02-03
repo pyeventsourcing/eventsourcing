@@ -105,7 +105,6 @@ presents the current history of an existing aggregate.
 
 
     class Worlds(Application):
-
         def create_world(self) -> UUID:
             world = World.create()
             self.save(world)
@@ -359,13 +358,13 @@ snapshotting a somehow "corrupted" aggregate object that does not represent the
 actually recorded state of the aggregate is avoided.
 
 To enable the snapshotting functionality, the environment variable
-``IS_SNAPSHOTTING_ENABLED`` must be set to a valid "true"  value. The Python
-:mod:`distutils.utils` function :func:`~distutils.utils.strtobool` is used
-to interpret the value of this environment variable, so that strings 'y', 'yes', 't',
-'true', 'on', and '1' are considered to be "true" values, and 'n', 'no',
-'f', 'false', 'off', '0' are considered to be "false" values, and other
-values are considered to be invalid. The default is for the application's
-snapshotting functionality not to be enabled.
+``IS_SNAPSHOTTING_ENABLED`` must be set to a valid "true"  value. The
+function :func:`~distutils.utils.strtobool` from the Python :mod:`distutils.utils`
+module is used to interpret the value of this environment variable, so that strings
+``'y'``, ``'yes'``, ``'t'``, ``'true'``, ``'on'`` and ``'1'`` are considered to
+be "true" values, and ``'n'``, ``'no'``, ``'f'``, ``'false'``, ``'off'`` and ``'0'``
+are considered to be "false" values, and other values are considered to be invalid.
+The default is for an application's snapshotting functionality to be not enabled.
 
 .. code:: python
 
@@ -404,8 +403,9 @@ Configuring persistence
 In the example above, the domain events have been stored in memory,
 using the default persistence infrastructure provided by the library.
 
-By default, the application object uses its `"Plain Old Python Object"
-infrastructure <persistence.html#infrastructure-factory>`_.
+By default, the application object uses its `"plain old Python objects"
+persistence infrastructure <persistence.html#infrastructure-factory>`_,
+which simply keeps stored events in a data structure in memory.
 
 To use other persistence infrastructure, you will need to
 set the environment variable ``INFRASTRUCTURE_FACTORY`` to the "topic" of
@@ -423,7 +423,6 @@ In the case of the library's SQLite factory, the environment variables
 
 
 .. code:: python
-
 
     from tempfile import NamedTemporaryFile
 
@@ -450,7 +449,6 @@ been reconstructed. The database table only needs to be created once,
 and so when creating an application for an already existing database
 the ``DO_CREATE_TABLE`` value must be a "false" value ('n', 'no',
 'f', 'false', 'off', '0').
-
 
 .. code:: python
 
@@ -497,7 +495,6 @@ method once for each of your custom transcodings.
 
 
     class MyApplication(Application):
-
         def register_transcodings(self, transcoder: Transcoder):
             super().register_transcodings(transcoder)
             transcoder.register(DateAsISO)
@@ -636,7 +633,6 @@ and the pages can be retrieved by the new name.
 .. code:: python
 
     class Wiki(Application):
-
         def create_page(self, name: str, body: str) -> None:
             page = Page.create(name, body)
             index = Index.create(page)
@@ -656,7 +652,7 @@ and the pages can be retrieved by the new name.
             return self.repository.get(page_id)
 
 
-Now let's construct the application object, and create a new page.
+Now let's construct the application object and create a new page (with a deliberate spelling mistake).
 
 .. code:: python
 

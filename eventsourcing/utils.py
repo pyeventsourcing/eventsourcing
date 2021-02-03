@@ -57,6 +57,7 @@ except ImportError:
 
         def wrapper(*args, **kwargs):
             return dispatcher.dispatch(args[1].__class__)(*args, **kwargs)
+
         wrapper.register = dispatcher.register
         update_wrapper(wrapper, func)
         return wrapper

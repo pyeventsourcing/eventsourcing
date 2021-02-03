@@ -6,9 +6,7 @@ from uuid import UUID
 
 from eventsourcing.utils import get_topic, resolve_topic
 
-TZINFO: tzinfo = resolve_topic(
-    os.getenv('TZINFO_TOPIC', 'datetime:timezone.utc')
-)
+TZINFO: tzinfo = resolve_topic(os.getenv("TZINFO_TOPIC", "datetime:timezone.utc"))
 
 
 @dataclass(frozen=True)
@@ -23,6 +21,7 @@ class DomainEvent:
     :param int originator_version: version of originating aggregate.
     :param datetime timestamp: date-time of the event
     """
+
     originator_id: UUID
     originator_version: int
     timestamp: datetime
@@ -151,10 +150,7 @@ class Aggregate:
             _created_on_ = kwargs.pop("timestamp")
             # Construct and return aggregate object.
             return aggregate_class(
-                id=id,
-                _version_=_version_,
-                _created_on_=_created_on_,
-                **kwargs
+                id=id, _version_=_version_, _created_on_=_created_on_, **kwargs
             )
 
     def _trigger_(
@@ -216,6 +212,7 @@ class Snapshot(DomainEvent):
     :param str topic: string that includes a class and its module
     :param dict state: version of originating aggregate.
     """
+
     topic: str
     state: dict
 
@@ -226,9 +223,9 @@ class Snapshot(DomainEvent):
         """
         aggregate_state = dict(aggregate.__dict__)
         aggregate_state.pop("_pending_events_")
-        class_version = getattr(type(aggregate), '_class_version_', 1)
+        class_version = getattr(type(aggregate), "_class_version_", 1)
         if class_version > 1:
-            aggregate_state['_class_version_'] = class_version
+            aggregate_state["_class_version_"] = class_version
         originator_id = aggregate_state.pop("id")
         originator_version = aggregate_state.pop("_version_")
         return cls(
@@ -246,10 +243,10 @@ class Snapshot(DomainEvent):
         cls = resolve_topic(self.topic)
         assert issubclass(cls, Aggregate)
         aggregate_state = dict(self.state)
-        from_version = aggregate_state.pop('_class_version_', 1)
-        class_version = getattr(cls, '_class_version_', 1)
+        from_version = aggregate_state.pop("_class_version_", 1)
+        class_version = getattr(cls, "_class_version_", 1)
         while from_version < class_version:
-            upcast_name = f'_upcast_v{from_version}_v{from_version + 1}_'
+            upcast_name = f"_upcast_v{from_version}_v{from_version + 1}_"
             upcast = getattr(cls, upcast_name)
             upcast(aggregate_state)
             from_version += 1

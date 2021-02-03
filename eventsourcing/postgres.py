@@ -73,11 +73,7 @@ class PostgresDatastore:
 
 
 class PostgresAggregateRecorder(AggregateRecorder):
-    def __init__(
-        self,
-        datastore: PostgresDatastore,
-        events_table_name: str
-    ):
+    def __init__(self, datastore: PostgresDatastore, events_table_name: str):
         self.datastore = datastore
         self.events_table_name = events_table_name
 
@@ -137,7 +133,9 @@ class PostgresAggregateRecorder(AggregateRecorder):
         desc: bool = False,
         limit: Optional[int] = None,
     ) -> List[StoredEvent]:
-        statement = "SELECT * " f"FROM {self.events_table_name} " "WHERE originator_id = %s "
+        statement = (
+            "SELECT * " f"FROM {self.events_table_name} " "WHERE originator_id = %s "
+        )
         params: List[Any] = [originator_id]
         if gt is not None:
             statement += "AND originator_version > %s "
@@ -239,12 +237,11 @@ class PostgresProcessRecorder(
     PostgresApplicationRecorder,
     ProcessRecorder,
 ):
-
     def __init__(
         self,
         datastore: PostgresDatastore,
         events_table_name: str,
-        tracking_table_name: str
+        tracking_table_name: str,
     ):
         super().__init__(datastore, events_table_name)
         self.tracking_table_name = tracking_table_name
@@ -345,8 +342,7 @@ class Factory(InfrastructureFactory):
         prefix = self.application_name or "stored"
         events_table_name = prefix + "_" + purpose
         recorder = PostgresAggregateRecorder(
-            datastore=self.datastore,
-            events_table_name=events_table_name
+            datastore=self.datastore, events_table_name=events_table_name
         )
         if self.do_create_table():
             recorder.create_table()
@@ -356,8 +352,7 @@ class Factory(InfrastructureFactory):
         prefix = self.application_name or "stored"
         events_table_name = prefix + "_events"
         recorder = PostgresApplicationRecorder(
-            datastore=self.datastore,
-            events_table_name=events_table_name
+            datastore=self.datastore, events_table_name=events_table_name
         )
         if self.do_create_table():
             recorder.create_table()
@@ -371,7 +366,7 @@ class Factory(InfrastructureFactory):
         recorder = PostgresProcessRecorder(
             datastore=self.datastore,
             events_table_name=events_table_name,
-            tracking_table_name=tracking_table_name
+            tracking_table_name=tracking_table_name,
         )
         if self.do_create_table():
             recorder.create_table()

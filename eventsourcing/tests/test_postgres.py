@@ -4,8 +4,11 @@ from uuid import uuid4
 import psycopg2
 from psycopg2.errorcodes import UNDEFINED_TABLE
 
-from eventsourcing.persistence import InfrastructureFactory, OperationalError, \
-    StoredEvent
+from eventsourcing.persistence import (
+    InfrastructureFactory,
+    OperationalError,
+    StoredEvent,
+)
 from eventsourcing.postgres import (
     PostgresAggregateRecorder,
     PostgresApplicationRecorder,
@@ -38,8 +41,7 @@ class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
 
     def create_recorder(self):
         recorder = PostgresAggregateRecorder(
-            datastore=self.datastore,
-            events_table_name="stored_events"
+            datastore=self.datastore, events_table_name="stored_events"
         )
         recorder.create_table()
         return recorder
@@ -52,8 +54,7 @@ class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
 
     def test_raises_operational_error_when_creating_table_fails(self):
         recorder = PostgresAggregateRecorder(
-            datastore=self.datastore,
-            events_table_name="stored_events"
+            datastore=self.datastore, events_table_name="stored_events"
         )
         recorder.create_table()
         with self.assertRaises(OperationalError):
@@ -62,8 +63,7 @@ class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
     def test_raises_operational_error_when_inserting_fails(self):
         # Construct the recorder.
         recorder = PostgresAggregateRecorder(
-            datastore=self.datastore,
-            events_table_name="stored_events"
+            datastore=self.datastore, events_table_name="stored_events"
         )
         recorder.create_table()
 
@@ -85,8 +85,7 @@ class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
     def test_raises_operational_error_when_selecting_fails(self):
         # Construct the recorder.
         recorder = PostgresAggregateRecorder(
-            datastore=self.datastore,
-            events_table_name="stored_events"
+            datastore=self.datastore, events_table_name="stored_events"
         )
 
         originator_id = uuid4()
@@ -106,8 +105,7 @@ class TestPostgresApplicationRecorder(ApplicationRecorderTestCase):
 
     def create_recorder(self):
         recorder = PostgresApplicationRecorder(
-            self.datastore,
-            events_table_name="stored_events"
+            self.datastore, events_table_name="stored_events"
         )
         recorder.create_table()
         return recorder
@@ -115,8 +113,7 @@ class TestPostgresApplicationRecorder(ApplicationRecorderTestCase):
     def test_raises_operational_error_when_selecting_fails(self):
         # Construct the recorder.
         recorder = PostgresApplicationRecorder(
-            datastore=self.datastore,
-            events_table_name="stored_events"
+            datastore=self.datastore, events_table_name="stored_events"
         )
 
         with self.assertRaises(OperationalError):
@@ -141,7 +138,7 @@ class TestPostgresProcessRecorder(ProcessRecordsTestCase):
         recorder = PostgresProcessRecorder(
             datastore=self.datastore,
             events_table_name="stored_events",
-            tracking_table_name="notification_tracking"
+            tracking_table_name="notification_tracking",
         )
         recorder.create_table()
         return recorder
@@ -154,19 +151,16 @@ class TestPostgresProcessRecorder(ProcessRecordsTestCase):
         recorder = PostgresProcessRecorder(
             datastore=self.datastore,
             events_table_name="stored_events",
-            tracking_table_name="notification_tracking"
+            tracking_table_name="notification_tracking",
         )
 
         with self.assertRaises(OperationalError):
             recorder.max_tracking_id("application name")
 
 
-
 class TestFactory(InfrastructureFactoryTestCase):
     def setUp(self) -> None:
-        os.environ[InfrastructureFactory.TOPIC] = get_topic(
-            Factory
-        )
+        os.environ[InfrastructureFactory.TOPIC] = get_topic(Factory)
         os.environ["POSTGRES_DBNAME"] = "eventsourcing"
         os.environ["POSTGRES_HOST"] = "127.0.0.1"
         os.environ["POSTGRES_USER"] = "eventsourcing"
@@ -190,7 +184,7 @@ class TestFactory(InfrastructureFactoryTestCase):
             self.factory = InfrastructureFactory.construct("TestCase")
         self.assertEqual(
             cm.exception.args[0],
-            "Postgres database name not found in environment with key 'POSTGRES_DBNAME'"
+            "Postgres database name not found in environment with key 'POSTGRES_DBNAME'",
         )
 
     def test_environment_error_raised_when_dbhost_missing(self):
@@ -199,7 +193,7 @@ class TestFactory(InfrastructureFactoryTestCase):
             self.factory = InfrastructureFactory.construct("TestCase")
         self.assertEqual(
             cm.exception.args[0],
-            "Postgres host not found in environment with key 'POSTGRES_HOST'"
+            "Postgres host not found in environment with key 'POSTGRES_HOST'",
         )
 
     def test_environment_error_raised_when_user_missing(self):
@@ -208,7 +202,7 @@ class TestFactory(InfrastructureFactoryTestCase):
             self.factory = InfrastructureFactory.construct("TestCase")
         self.assertEqual(
             cm.exception.args[0],
-            "Postgres user not found in environment with key 'POSTGRES_USER'"
+            "Postgres user not found in environment with key 'POSTGRES_USER'",
         )
 
     def test_environment_error_raised_when_password_missing(self):
@@ -217,7 +211,7 @@ class TestFactory(InfrastructureFactoryTestCase):
             self.factory = InfrastructureFactory.construct("TestCase")
         self.assertEqual(
             cm.exception.args[0],
-            "Postgres password not found in environment with key 'POSTGRES_PASSWORD'"
+            "Postgres password not found in environment with key 'POSTGRES_PASSWORD'",
         )
 
 

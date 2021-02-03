@@ -9,7 +9,8 @@ from eventsourcing.postgres import (
 from eventsourcing.system import (
     AbstractRunner,
     MultiThreadedRunner,
-    RunnerAlreadyStarted, SingleThreadedRunner,
+    RunnerAlreadyStarted,
+    SingleThreadedRunner,
     System,
 )
 from eventsourcing.tests.ramdisk import tmpfile_uris
@@ -88,7 +89,6 @@ class TestSingleThreadedRunner(RunnerTestCase):
         runner.is_prompting = False
 
 
-
 class TestMultiThreadedRunner(RunnerTestCase):
     runner_class = MultiThreadedRunner
 
@@ -117,8 +117,7 @@ class TestMultiThreadedRunner(RunnerTestCase):
         with self.assertRaises(Exception) as cm:
             runner.start()
         self.assertEqual(
-            cm.exception.args[0],
-            "Thread for 'BrokenInitialisation' failed to start"
+            cm.exception.args[0], "Thread for 'BrokenInitialisation' failed to start"
         )
         self.assertTrue(runner.has_stopped)
 
@@ -168,11 +167,9 @@ class TestMultiThreadedRunner(RunnerTestCase):
             self.assertEqual(thread.prompted_names, ["LeaderName"])
 
 
-
-
 class TestMultiThreadedRunnerWithSQLite(TestMultiThreadedRunner):
     def setUp(self):
-        os.environ["INFRASTRUCTURE_FACTORY"] = 'eventsourcing.sqlite:Factory'
+        os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.sqlite:Factory"
         uris = tmpfile_uris()
         os.environ["DO_CREATE_TABLE"] = "y"
         os.environ["BANKACCOUNTS_SQLITE_DBNAME"] = next(uris)
@@ -206,7 +203,7 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
         drop_postgres_table(db, "brokenprocessing_events")
         drop_postgres_table(db, "brokenprocessing_tracking")
 
-        os.environ["INFRASTRUCTURE_FACTORY"] = 'eventsourcing.postgres:Factory'
+        os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.postgres:Factory"
         os.environ["DO_CREATE_TABLE"] = "y"
 
     def tearDown(self):
