@@ -690,7 +690,7 @@ from the index aggregate, and then using that ID to retrieve the page aggregate.
 the name is changed, a new index aggregate can be saved along with the page, so that
 later the page aggregate can be retrieved using the new name. See the discussion about
 :ref:`saving multiple aggregates <Saving multiple aggregates>` to see an example of
-saving both aggregates in the same atomic database operation.
+how this can work.
 
 .. code:: python
 
