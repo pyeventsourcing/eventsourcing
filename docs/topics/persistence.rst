@@ -572,9 +572,9 @@ the position in a total ordering of domain events that is
 being processed. The "aggregate recorder" can be used for
 storing snapshots.
 
-The library includes in the :mod:`~eventsourcing.sqlite` module
+The library includes in its :mod:`~eventsourcing.sqlite` module
 recorder classes for SQLite that use the Python :mod:`sqlite3`
-module, and in the :mod:`~eventsourcing.postgres` module recorders for
+module, and in its :mod:`~eventsourcing.postgres` module recorders for
 PostgreSQL that use the third party :mod:`psycopg2` module.
 
 Recorder classes are conveniently constructed by using an `infrastructure

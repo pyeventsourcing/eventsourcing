@@ -67,14 +67,18 @@ testing_requires = (
 )
 
 
-docs_requires = [
-    "Sphinx==1.8.5",
-    "python_docs_theme",
-    # "sphinx_py3doc_enhanced_theme",
-    "sphinx_rtd_theme==0.4.3",
-    # "Alabaster",
-    # "sphinx-autobuild",
-]
+docs_requires = (
+    postgresql_requires
+    + cipher_requires
+    + [
+        "Sphinx==1.8.5",
+        "python_docs_theme",
+        # "sphinx_py3doc_enhanced_theme",
+        "sphinx_rtd_theme==0.4.3",
+        # "Alabaster",
+        # "sphinx-autobuild",
+    ]
+)
 
 dev_requires = (
     testing_requires
