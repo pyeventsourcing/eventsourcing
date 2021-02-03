@@ -612,16 +612,36 @@ as SQLAlchemy and Django, specialist event stores such as EventStoreDB and
 AxonDB, and NoSQL databases such as DynamoDB and MongoDB are forthcoming.
 
 
-Event Store
+Event store
 ===========
 
 An event store provides a common interface for storing and retrieving
 domain event objects. It combines a `mapper <#mapper>`_ and a `recorder <#recorder>`_,
-so that domain event objects can be converted to stored event objects, and
+so that domain event objects can be converted to stored event objects and
 then stored event objects can be recorded in a datastore.
 
 The library's :class:`~eventsourcing.persistence.EventStore` class must
 be constructed with a `recorder <#recorder>`_ and a `mapper <#mapper>`_.
+
+The :class:`~eventsourcing.persistence.EventStore` has an object method
+:func:`~eventsourcing.persistence.EventStore.put` which can be used to
+store a list of new domain event objects. If any of these domain event
+objects conflict with any already existing domain event object (because
+they have the same aggregate ID and version number), an exception will
+be raised and none of the new events will be stored.
+
+The :class:`~eventsourcing.persistence.EventStore` has an object method
+:func:`~eventsourcing.persistence.EventStore.get` which can be used to
+get a list of domain event objects. Only the :data:`originator_id` argument
+is required, which is the ID of the aggregate for which existing events
+are wanted. The arguments :data:`gt`, :data:`lte`, :data:`limit`, and :data:`desc`
+condition the selection of events to be greater than a particular version
+number, less then or equal to a particular version number, limited in
+number, or selected in a descending fashion. The selection is by default
+ascending, unlimited, and otherwise unrestricted such that all the previously
+stored domain event objects for a particular aggregate will be returned
+in the order in which they were created.
+
 
 .. code:: python
 
@@ -633,11 +653,12 @@ be constructed with a `recorder <#recorder>`_ and a `mapper <#mapper>`_.
     )
 
     event_store.put([domain_event1])
-    stored_events = list(event_store.get(id1))
-    assert stored_events == [domain_event1]
+
+    domain_events = list(event_store.get(id1))
+    assert domain_events == [domain_event1]
 
 
-Infrastructure Factory
+Infrastructure factory
 ======================
 
 An infrastructure factory helps with the construction of the persistence infrastructure objects
