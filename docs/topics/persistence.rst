@@ -491,10 +491,10 @@ the state of a stored event that is encrypted but not compressed.
     assert len(stored_event2.state) <= len(stored_event1.state)
 
 
-.. _Event notification objects:
+.. _Notification objects:
 
-Event notification objects
-==========================
+Notification objects
+====================
 
 Event notifications are used to propagate the state of an event
 sourced application in a reliable way. The stored events can be

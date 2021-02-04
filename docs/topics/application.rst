@@ -256,7 +256,7 @@ sequence of domain event notifications.
 The application object's ``log`` attribute has an instance of the library's
 :class:`~eventsourcing.application.LocalNotificationLog` class. The notification
 log presents linked sections of
-:ref:`event notification objects <Event notification objects>`.
+:ref:`notification objects <Notification objects>`.
 The sections are instances of the library's :class:`~eventsourcing.application.Section` class.
 
 Each event notification has an ``id`` that has the unique integer ID of
@@ -285,7 +285,7 @@ and the last event notification included in the section. If there are no event
 notifications, the section ID will be ``None``.
 
 A notification log section has an attribute ``items`` that has the list of
-:ref:`event notification objects <Event notification objects>` included in the section.
+:ref:`notification objects <Notification objects>` included in the section.
 
 A notification log section has an attribute ``next_id`` that has the section ID
 of the next section in the notification log. If the notification log section has
