@@ -11,9 +11,10 @@ Another definition has event sourcing as a persistence mechanism
 for domain-driven design.
 
 Although the basic event sourcing patterns are quite simple and
-can be reproduced in code for each project, the persistence mechanism
-for event-sourced domain-driven design appears as a conceptually cohesive
-mechanism, and so can be "partitioned into a separate lightweight framework".
+can be reproduced in code for each project, event sourcing as a
+persistence mechanism for domain-driven design appears as a
+conceptually cohesive mechanism, and so can be partitioned into
+a separate lightweight framework.
 
 Quoting from Eric Evans' book `Domain-Driven Design
 <https://en.wikipedia.org/wiki/Domain-driven_design>`__:
@@ -34,19 +35,19 @@ This library
 This is a library for event sourcing in Python. At its core, this library
 supports storing and retrieving sequences of items, such as the domain events
 of event-sourced aggregates in a domain-driven design. A variety of schemas
-and technologies can be used for sequencing and storing events, and this
+and technologies can be used for storing events, and this
 library supports several of these possibilities.
 
 To demonstrate how storing and retrieving domain events can be used effectively
 as a persistence mechanism in an event-sourced application, this library includes
-base classes for event-sourced aggregates and applications.
+base classes and examples of event-sourced aggregates and event-sourced applications.
 
-It is possible to define an entire application, and indeed an entire distributed
-system of event-sourced applications, independently of infrastructure. That means system
-behaviours can be rapidly developed whilst running the entire system synchronously
-in a single thread with a single in-memory database. And then, the system can be run
-asynchronously on a cluster with durable databases, with the system effecting exactly
-the same behaviour.
+It is possible using this library to define an entire event-driven system of
+event-sourced applications independently of infrastructure and mode of running.
+That means system behaviours can be rapidly developed whilst running the entire
+system synchronously in a single thread with a single in-memory database. And
+then the system can be run asynchronously on a cluster with durable databases,
+with the system effecting exactly the same behaviour.
 
 
 Design overview

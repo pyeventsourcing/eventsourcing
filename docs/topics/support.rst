@@ -2,14 +2,20 @@
 Support options
 ===============
 
-It has taken quite a lot of time and effort to create this library.
-Similarly, it will take some time and effort to understand and
-acquire the skills to create well-designed event-sourced applications.
-Professional training workshops and development services are available.
-Friendly community support is also available on the Slack_ channel. Please
-support the continuing development and maintenance of this library by
-`starring the project on GitHub <https://github.com/johnbywater/eventsourcing>`_
-and by making a regular donation.
+I'm very grateful for your interest in this library. It has taken quite a
+lot of time to create this library. Similarly, it may take some time to
+understand the library and develop well-designed event-sourced applications.
+
+To supplement the detailed documentation, professional training workshops
+and development services are available. Friendly community support is also
+available on the Slack_ channel.
+
+Please support the continuing development and maintenance of this library
+by `starring the project on GitHub <https://github.com/johnbywater/eventsourcing>`_
+and if possible by making a regular donation. If you have any issues using
+the library or reading the documentation, please `raise an issue on GitHub
+<https://github.com/johnbywater/eventsourcing/issues>`_,
+feel free to start a discussion in the Slack_ channel, or create a pull request.
 
 
 Professional support
@@ -18,11 +24,11 @@ Professional support
 Design and development services are available to help developers and managers
 with the development and management of their event-sourced applications and systems.
 
-- Overall assessment of your existing implementation, with recommendations for improvement.
-- Address your specific concerns with how your event-sourced system is built (and running).
-- Coaching developers in the use of the library.
-- Development of sample applications and systems for guidance or demonstration purposes.
 - Development of working applications and systems for production use.
+- Development of sample applications and systems for guidance or demonstration purposes.
+- Overall assessment of your existing implementation, with recommendations for improvement.
+- Address specific concerns with how your event-sourced application or system is built and run.
+- Coaching developers in the use of the library.
 
 Please contact John Bywater via the Slack_ channel for more information about professional
 support.
