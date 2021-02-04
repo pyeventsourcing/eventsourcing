@@ -37,7 +37,7 @@ the extra dependencies associated with that option. If you installed
 without any options, you can easily install optional dependencies
 later by running the install command again with the options you want.
 
-For example, if you want to store events with PostgreSQL, the install with
+For example, if you want to store events with PostgreSQL, then install with
 the ``postgres`` option.
 
 ::
