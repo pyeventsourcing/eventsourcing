@@ -33,7 +33,7 @@ This library
 ============
 
 This is a library for event sourcing in Python. At its core, this library
-supports storing and retrieving sequences of items, such as the domain events
+supports storing and retrieving sequences of events, such as the domain events
 of event-sourced aggregates in a domain-driven design. A variety of schemas
 and technologies can be used for storing events, and this
 library supports several of these possibilities.
@@ -53,9 +53,9 @@ with the system effecting exactly the same behaviour.
 Design overview
 ===============
 
-The design of the library follows "layered architecture" in that there
-are distinct and separate layers for interfaces, application, domain and
-infrastructure. It also follows the "onion" or "hexagonal" or "clean"
+The design of the library follows the notion of a "layered architecture" in
+that there are distinct and separate layers for interfaces, application, domain
+and infrastructure. It also follows the "onion" or "hexagonal" or "clean"
 architecture, in that the domain layer has no dependencies on any other
 layer. The application layer depends on the domain and infrastructure
 layers, and the interface layer depends only on the application layer.

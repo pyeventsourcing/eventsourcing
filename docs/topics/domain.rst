@@ -31,7 +31,7 @@ An 'entity' is an object with a fixed unique identity that has variable attribut
 A 'value object' is an object that does not change, and that does not necessarily
 have a unique identity. An 'aggregate' is a cluster of such entities and value objects.
 
-The 'root' object of this cluster is an entity, and its identity is used as
+The 'root' object of this cluster is an entity, and its identity is used
 to uniquely identity of the aggregate in a domain model. External access to
 the state of the aggregate is made through this root entity. The 'aggregate root'
 has command and query methods which change and present the state of the aggregate.
