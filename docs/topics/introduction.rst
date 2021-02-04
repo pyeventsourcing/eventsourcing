@@ -50,28 +50,17 @@ then the system can be run asynchronously on a cluster with durable databases,
 with the system effecting exactly the same behaviour.
 
 
-Design overview
-===============
-
-The design of the library follows the notion of a "layered architecture" in
-that there are distinct and separate layers for interfaces, application, domain
-and infrastructure. It also follows the "onion" or "hexagonal" or "clean"
-architecture, in that the domain layer has no dependencies on any other
-layer. The application layer depends on the domain and infrastructure
-layers, and the interface layer depends only on the application layer.
-
-
 Features
 ========
-
-**Domain models and applications** — base classes for domain model aggregates
-and applications. Suggests how to structure an event-sourced application.
 
 **Flexible event store** — flexible persistence of domain events. Combines
 an event mapper and an event recorder in ways that can be easily extended.
 Mapper uses a transcoder that can be easily extended to support custom
 model object types. Recorders supporting different databases can be easily
 substituted and configured with environment variables.
+
+**Domain models and applications** — base classes for domain model aggregates
+and applications. Suggests how to structure an event-sourced application.
 
 **Application-level encryption and compression** — encrypts and decrypts events inside the
 application. This means data will be encrypted in transit across a network ("on the wire")
@@ -118,6 +107,18 @@ and systems.
 ..
     **Correlation and causation IDs** - Domain events can easily be given correlation and
     causation IDs, which allows a story to be traced through a system of applications.
+
+
+Design overview
+===============
+
+The design of the library follows the notion of a "layered architecture" in
+that there are distinct and separate layers for interfaces, application, domain,
+and infrastructure. It also follows the "onion" or "hexagonal" or "clean"
+architecture, in that the `domain layer <domain.html>`_ has no dependencies
+on any other layer. The `application layer <application.html>`_ depends on
+the domain and `infrastructure layers <persistence.html>`_, and the interface
+layer depends only on the application layer.
 
 
 Register issues
