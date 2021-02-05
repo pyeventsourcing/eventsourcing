@@ -2,6 +2,8 @@ import platform
 
 from setuptools import find_packages, setup
 
+from eventsourcing import __version__
+
 is_pypy = platform.python_implementation() == "PyPy"
 
 # # Read the docs doesn't need to build the Cassandra driver (and can't).
@@ -109,7 +111,7 @@ packages = find_packages(
 
 setup(
     name="eventsourcing",
-    version=_version_,
+    version=__version__,
     description="Event sourcing in Python",
     author="John Bywater",
     author_email="john.bywater@appropriatesoftware.net",
