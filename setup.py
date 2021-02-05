@@ -10,12 +10,6 @@ is_pypy = platform.python_implementation() == "PyPy"
 # if "READTHEDOCS" in os.environ:
 #     os.environ["CASS_DRIVER_NO_CYTHON"] = "1"
 
-install_requires = [
-    # "python-dateutil<=2.8.99999",
-    # "requests<=2.25.99999",
-    # "readerwriterlock<=1.0.99999",
-]
-
 cipher_requires = [
     "pycryptodome<=3.9.99999"
 ]
@@ -119,7 +113,7 @@ setup(
     license="BSD-3-Clause",
     packages=packages,
     package_data={"eventsourcing": ["py.typed"]},
-    install_requires=install_requires,
+    install_requires=[],
     extras_require={
         # "cassandra": cassandra_requires,
         # "sqlalchemy": sqlalchemy_requires,
