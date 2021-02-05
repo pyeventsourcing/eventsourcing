@@ -42,7 +42,7 @@ class InfrastructureFactoryTestCase(TestCase):
 
         self.factory = None
 
-    def test_create_mapper(self):
+    def test_createmapper(self):
 
         # Want to construct:
         #  - application recorder
@@ -79,7 +79,7 @@ class InfrastructureFactoryTestCase(TestCase):
         self.assertIsNone(mapper.cipher)
         self.assertIsNone(mapper.compressor)
 
-    def test_create_mapper_with_compressor(self):
+    def test_createmapper_with_compressor(self):
 
         # Create mapper with compressor.
         os.environ[self.factory.COMPRESSOR_TOPIC] = "zlib"
@@ -88,7 +88,7 @@ class InfrastructureFactoryTestCase(TestCase):
         self.assertIsNone(mapper.cipher)
         self.assertIsNotNone(mapper.compressor)
 
-    def test_create_mapper_with_cipher(self):
+    def test_createmapper_with_cipher(self):
 
         # Check cipher needs a key.
         os.environ[self.factory.CIPHER_TOPIC] = get_topic(AESCipher)
@@ -105,7 +105,7 @@ class InfrastructureFactoryTestCase(TestCase):
         self.assertIsNotNone(mapper.cipher)
         self.assertIsNone(mapper.compressor)
 
-    def test_create_mapper_with_cipher_and_compressor(
+    def test_createmapper_with_cipher_and_compressor(
         self,
     ):
 
@@ -151,14 +151,14 @@ class InfrastructureFactoryTestCase(TestCase):
         with self.assertRaises(ValueError):
             mapper2.to_domain_event(stored_event)
 
-    def test_create_event_recorder(self):
+    def test_createevent_recorder(self):
         recorder = self.factory.aggregate_recorder()
         self.assertIsInstance(recorder, AggregateRecorder)
 
-    def test_create_application_recorder(self):
+    def test_createapplication_recorder(self):
         recorder = self.factory.application_recorder()
         self.assertIsInstance(recorder, ApplicationRecorder)
 
-    def test_create_process_recorder(self):
+    def test_createprocess_recorder(self):
         recorder = self.factory.process_recorder()
         self.assertIsInstance(recorder, ProcessRecorder)

@@ -5,7 +5,7 @@ from eventsourcing.cipher import AESCipher
 
 
 class TestAESCipher(TestCase):
-    def test_create_key(self):
+    def test_createkey(self):
 
         # Valid key lengths.
         key = AESCipher.create_key(16)

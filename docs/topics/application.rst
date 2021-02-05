@@ -55,7 +55,7 @@ The :class:`~eventsourcing.application.Application` class defines an object meth
 used to update the recorded state of one or many
 :ref:`domain model aggregates <Aggregates>`. The
 :func:`~eventsourcing.application.Application.save` method functions by using
-the aggregate's :func:`~eventsourcing.domain.Aggregate._collect_` method to collect
+the aggregate's :func:`~eventsourcing.domain.Aggregate.collect_events` method to collect
 pending domain events; the pending domain events are stored by calling the
 :func:`~eventsourcing.persistence.EventStore.put` method of application's
 :ref:`event store <Store>`.
@@ -135,13 +135,13 @@ presents the current history of an existing aggregate.
 
         @classmethod
         def create(cls):
-            return cls._create_(
+            return cls._create(
                 event_class=cls.Created,
                 id=uuid4(),
             )
 
         def make_it_so(self, what):
-            self._trigger_(World.SomethingHappened, what=what)
+            self._trigger_event(World.SomethingHappened, what=what)
 
         @dataclass(frozen=True)
         class SomethingHappened(Aggregate.Event):
@@ -211,36 +211,36 @@ highest available version of the aggregate will be returned.
 
     world_latest = application.repository.get(world_id)
 
-    assert world_latest._version_ == 4
+    assert world_latest.version == 4
     assert len(world_latest.history) == 3
 
 
     world_v1 = application.repository.get(world_id, version=1)
 
-    assert world_v1._version_ == 1
+    assert world_v1.version == 1
     assert len(world_v1.history) == 0
 
     world_v2 = application.repository.get(world_id, version=2)
 
-    assert world_v2._version_ == 2
+    assert world_v2.version == 2
     assert len(world_v2.history) == 1
     assert world_v2.history[-1] == "dinosaurs"
 
     world_v3 = application.repository.get(world_id, version=3)
 
-    assert world_v3._version_ == 3
+    assert world_v3.version == 3
     assert len(world_v3.history) == 2
     assert world_v3.history[-1] == "trucks"
 
     world_v4 = application.repository.get(world_id, version=4)
 
-    assert world_v4._version_ == 4
+    assert world_v4.version == 4
     assert len(world_v4.history) == 3
     assert world_v4.history[-1] == "internet"
 
     world_v5 = application.repository.get(world_id, version=5)
 
-    assert world_v5._version_ == 4  # There is no version 5.
+    assert world_v5.version == 4  # There is no version 5.
     assert len(world_v5.history) == 3
     assert world_v5.history[-1] == "internet"
 
@@ -580,7 +580,7 @@ defined in that section.
     class Page(Aggregate):
         @classmethod
         def create(cls, name: str, body: str = ""):
-            return cls._create_(
+            return cls._create(
                 id=uuid4(),
                 event_class=cls.Created,
                 name=name,
@@ -598,7 +598,7 @@ defined in that section.
             self.body = body
 
         def update_name(self, name: str):
-            self._trigger_(self.NameUpdated, name=name)
+            self._trigger_event(self.NameUpdated, name=name)
 
         @dataclass(frozen=True)
         class NameUpdated(Aggregate.Event):
@@ -611,7 +611,7 @@ defined in that section.
     class Index(Aggregate):
         @classmethod
         def create(cls, page: Page):
-            return cls._create_(
+            return cls._create(
                 event_class=cls.Created,
                 id=cls.create_id(page.name),
                 ref=page.id
@@ -630,7 +630,7 @@ defined in that section.
             self.ref = ref
 
         def update_ref(self, ref):
-            self._trigger_(self.RefUpdated, ref=ref)
+            self._trigger_event(self.RefUpdated, ref=ref)
 
         @dataclass(frozen=True)
         class RefUpdated(Aggregate.Event):

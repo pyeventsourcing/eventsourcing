@@ -70,25 +70,21 @@ of different kinds.
 
     from eventsourcing.domain import Aggregate
 
-The "sunder" (single-underscore) convention has been adopted for the base class method and attribute
-names, to keep the "normal" namespace clear so that developers are free to use whatever names work best
-in their project's "ubiquitous language".
-
 The :class:`~eventsourcing.domain.Aggregate` class defines a class method
-:func:`~eventsourcing.domain.Aggregate._create_` which can be called to create a new aggregate object. The
-:func:`~eventsourcing.domain.Aggregate._create_` method has
+:func:`~eventsourcing.domain.Aggregate._create` which can be called to create a new aggregate object. The
+:func:`~eventsourcing.domain.Aggregate._create` method has
 a required positional argument ``event_class``, which is used to pass a domain event
-class that represents the creation of the aggregate. The :func:`~eventsourcing.domain.Aggregate._create_` method also
-has a required ``id`` argument which must be a Python :class:`~uuid.UUID` object that will be used to
-uniquely identify the aggregate in the domain model. The :func:`~eventsourcing.domain.Aggregate._create_` method
-also accepts arbitrary keyword-only arguments, which will be used to construct
-the "created" event object.
+class that represents the creation of the aggregate. The :func:`~eventsourcing.domain.Aggregate._create`
+method also has a required ``id`` argument which must be a Python :class:`~uuid.UUID` object that will be
+used to uniquely identify the aggregate in the domain model. The
+:func:`~eventsourcing.domain.Aggregate._create` method also accepts arbitrary keyword-only arguments,
+which will be used to construct the "created" event object.
 
 .. code:: python
 
     from uuid import uuid4
 
-    aggregate = Aggregate._create_(
+    aggregate = Aggregate._create(
         event_class=Aggregate.Created,
         id=uuid4(),
     )
@@ -96,60 +92,63 @@ the "created" event object.
 The nested class :class:`~eventsourcing.domain.Aggregate.Created`
 can be used directly, or subclassed to define custom "created" event classes for your aggregate
 classes. The domain event classes are defined as Python frozen data classes. Hence, any extra
-keyword arguments passed to the :func:`~eventsourcing.domain.Aggregate._create_` method must be matched by corresponding
-annotations on both the "created" domain event class and the aggregate initializer
-:func:`~eventsourcing.domain.Aggregate.__init__`.
+keyword arguments passed to the :func:`~eventsourcing.domain.Aggregate._create` method must be
+matched by corresponding annotations on both the "created" domain event class and the aggregate
+initializer :func:`~eventsourcing.domain.Aggregate.__init__`.
 
-An aggregate instance has a version number, stored in its ``_version_`` attribute, and the initial version is ``1``.
+An aggregate instance has a version number, stored in its ``version`` attribute, and the initial
+version is ``1``.
 
 .. code:: python
 
-    assert aggregate._version_ == 1
+    assert aggregate.version == 1
 
 
 The :class:`~eventsourcing.domain.Aggregate` class defines an object method
-:func:`~eventsourcing.domain.Aggregate._trigger_` which can be called on an aggregate object
+:func:`~eventsourcing.domain.Aggregate._trigger_event` which can be called on an aggregate object
 to create new domain events objects and apply them to the aggregate.
-The :func:`~eventsourcing.domain.Aggregate._trigger_` method has a positional argument ``event_class``, which
-is used to pass the object type of the new domain event object. The :func:`~eventsourcing.domain.Aggregate._trigger_`
-method also accepts arbitrary keyword-only arguments, which will be used to construct the domain event object.
+The :func:`~eventsourcing.domain.Aggregate._trigger_event` method has a positional argument
+``event_class``, which is used to pass the object type of the new domain event object. The
+:func:`~eventsourcing.domain.Aggregate._trigger_event` method also accepts arbitrary keyword-only
+arguments, which will be used to construct the domain event object.
 
 .. code:: python
 
-    aggregate._trigger_(
+    aggregate._trigger_event(
         event_class=Aggregate.Event,
     )
 
-    assert aggregate._version_ == 2
+    assert aggregate.version == 2
 
 
 The nested class :class:`~eventsourcing.domain.Aggregate.Event` can be subclassed to define custom
 domain event classes, for example the ``SomethingHappened`` class in the example below.
 Domain event classes are named using past participles, such as "Done", "Updated", "Closed",
-etc. The extra keyword-only arguments passed to the :func:`~eventsourcing.domain.Aggregate._trigger_`
+etc. The extra keyword-only arguments passed to the :func:`~eventsourcing.domain.Aggregate._trigger_event`
 method will become the attribute values of the created domain event object. Since the domain event
 classes are defined as Python frozen data classes, the keyword-only arguments passed to the
-:func:`~eventsourcing.domain.Aggregate._trigger_` method will need to be matched by corresponding
+:func:`~eventsourcing.domain.Aggregate._trigger_event` method will need to be matched by corresponding
 annotations on your aggregates' domain event class definitions. For example ``what: str`` on the
 ``SomethingHappened`` event class in the example below matches the ``what=what`` keyword argument
-passed in the call to the :func:`~eventsourcing.domain.Aggregate._trigger_` method in the ``make_it_so()``
-command. Triggering a new domain event object will increase the version of the aggregate.
+passed in the call to the :func:`~eventsourcing.domain.Aggregate._trigger_event` method in the
+``make_it_so()`` command. Triggering a new domain event object will increase the version of the
+aggregate.
 
 The :class:`~eventsourcing.domain.Aggregate` class defines an object method
-:func:`~eventsourcing.domain.Aggregate._collect_`
+:func:`~eventsourcing.domain.Aggregate.collect_events`
 which can be called to collect the aggregate domain events that have been triggered but not yet recorded.
 It is called without any arguments, and returns a list of all the domain events that have been created
-by this aggregate since the previous call to :func:`~eventsourcing.domain.Aggregate._collect_`.
+by this aggregate since the previous call to :func:`~eventsourcing.domain.Aggregate.collect_events`.
 
 .. code:: python
 
-    pending_events = aggregate._collect_()
+    pending_events = aggregate.collect_events()
 
     assert len(pending_events) == 2
 
 
-The :class:`~eventsourcing.domain.Aggregate` class defines an object attribute ``id`` which holds the unique ID
-of an aggregate instance. It is a Python :class:`~uuid.UUID`.
+The :class:`~eventsourcing.domain.Aggregate` class defines an object attribute ``id`` which holds the
+unique ID of an aggregate instance. It is a Python :class:`~uuid.UUID`.
 
 .. code:: python
 
@@ -158,31 +157,31 @@ of an aggregate instance. It is a Python :class:`~uuid.UUID`.
     assert isinstance(aggregate.id, UUID)
 
 
-The :class:`~eventsourcing.domain.Aggregate` class defines an object attribute ``_version_`` which holds the
-version number of an aggregate instance. It is a Python :class:`int`.
+The :class:`~eventsourcing.domain.Aggregate` class defines an object attribute ``version`` which holds
+the version number of an aggregate instance. It is a Python :class:`int`.
 
 .. code:: python
 
-    assert isinstance(aggregate._version_, int)
+    assert isinstance(aggregate.version, int)
 
 
-The :class:`~eventsourcing.domain.Aggregate` class defines an object attribute ``_created_on_`` which holds
+The :class:`~eventsourcing.domain.Aggregate` class defines an object attribute ``created_on`` which holds
 the time when an aggregate object was created. It is a Python :class:`~datetime.datetime` object.
 
 .. code:: python
 
     from datetime import datetime
 
-    assert isinstance(aggregate._created_on_, datetime)
+    assert isinstance(aggregate.created_on, datetime)
 
 
-The :class:`~eventsourcing.domain.Aggregate` class also defines an object attribute ``_modified_on_``
+The :class:`~eventsourcing.domain.Aggregate` class also defines an object attribute ``modified_on``
 which holds the time when an aggregate object was last modified. It is also a Python
 :class:`~datetime.datetime` object.
 
 .. code:: python
 
-    assert isinstance(aggregate._modified_on_, datetime)
+    assert isinstance(aggregate.modified_on, datetime)
 
 .. _Aggregate basic example:
 
@@ -222,7 +221,7 @@ is implemented to append the ``what`` value to the aggregate's ``history``.
     class World(Aggregate):
         @classmethod
         def create(cls):
-            return cls._create_(
+            return cls._create(
                 event_class=cls.Created,
                 id=uuid4(),
             )
@@ -232,7 +231,7 @@ is implemented to append the ``what`` value to the aggregate's ``history``.
             self.history = []
 
         def make_it_so(self, what):
-            self._trigger_(World.SomethingHappened, what=what)
+            self._trigger_event(World.SomethingHappened, what=what)
 
         @dataclass(frozen=True)
         class SomethingHappened(Aggregate.Event):
@@ -251,7 +250,7 @@ We can create a new ``World`` aggregate object by calling the
     world = World.create()
     assert isinstance(world, World)
 
-The aggregate's attributes ``_created_on_`` and ``_modified_on_`` show
+The aggregate's attributes ``created_on`` and ``modified_on`` show
 when the aggregate was created and when it was modified. Since there
 has only been one domain event, these are initially equal. The values
 of these attributes are timezone-aware Python :class:`~datetime.datetime` objects.
@@ -265,8 +264,8 @@ when the domain events occurred.
 
     from datetime import datetime
 
-    assert world._created_on_ == world._modified_on_
-    assert isinstance(world._created_on_, datetime)
+    assert world.created_on == world.modified_on
+    assert isinstance(world.created_on, datetime)
 
 
 We can call the aggregate object methods. The ``World`` aggregate has a command
@@ -291,17 +290,17 @@ events can be used in future to reconstruct the state of the aggregate.
 
 
 Now that more than one domain event has been created, the aggregate's
-``_modified_on_`` value is greater than its ``_created_on_`` value.
+``modified_on`` value is greater than its ``created_on`` value.
 
 .. code:: python
 
-    assert world._modified_on_ > world._created_on_
+    assert world.modified_on > world.created_on
 
 
 The resulting domain events are now held internally in the aggregate in
-a list of pending events, in the ``_pending_events_`` attribute. The pending
+a list of pending events, in the ``_pending_events`` attribute. The pending
 events can be collected by calling the aggregate's
-:func:`~eventsourcing.domain.Aggregate._collect_` method. These events are
+:func:`~eventsourcing.domain.Aggregate.collect_events` method. These events are
 pending to be saved, and indeed the library's :ref:`application <Application objects>`
 object has a :func:`~eventsourcing.application.Application.save` method which works by
 calling this method. So far, we have created four domain events and we have
@@ -311,12 +310,12 @@ event, and three ``SomethingHappened`` events.
 .. code:: python
 
     # Has four pending events.
-    assert len(world._pending_events_) == 4
+    assert len(world._pending_events) == 4
 
     # Collect pending events.
-    pending_events = world._collect_()
+    pending_events = world.collect_events()
     assert len(pending_events) == 4
-    assert len(world._pending_events_) == 0
+    assert len(world._pending_events) == 0
 
     assert isinstance(pending_events[0], Aggregate.Created)
     assert isinstance(pending_events[1], World.SomethingHappened)
@@ -326,8 +325,8 @@ event, and three ``SomethingHappened`` events.
     assert pending_events[2].what == 'trucks'
     assert pending_events[3].what == 'internet'
 
-    assert pending_events[0].timestamp == world._created_on_
-    assert pending_events[3].timestamp == world._modified_on_
+    assert pending_events[0].timestamp == world.created_on
+    assert pending_events[3].timestamp == world.modified_on
 
 
 The domain events' :func:`~eventsourcing.domain.Aggregate.Event.mutate` methods can
@@ -344,9 +343,9 @@ calling these methods.
 
     assert isinstance(copy, World)
     assert copy.id == world.id
-    assert copy._version_ == world._version_
-    assert copy._created_on_ == world._created_on_
-    assert copy._modified_on_ == world._modified_on_
+    assert copy.version == world.version
+    assert copy.created_on == world.created_on
+    assert copy.modified_on == world.modified_on
     assert copy.history == world.history
 
 
@@ -380,12 +379,12 @@ will be a :ref:`topic <Topics>` that describes the path to the aggregate instanc
 Domain event objects are usually created by aggregate methods, as part of a sequence
 that determines the state of an aggregate. The attribute values of new event objects are
 decided by these methods before the event is created. For example, the aggregate's
-:func:`~eventsourcing.domain.Aggregate._create_` method uses the given value of its ``id``
+:func:`~eventsourcing.domain.Aggregate._create` method uses the given value of its ``id``
 argument as the new event's ``originator_id``. It sets the ``originator_version`` to the
 value of ``1``. It derives the ``originator_topic`` value from the aggregate class. And
 it calls Python's :func:`datetime.now` to create the ``timestamp`` value.
 
-Similarly, the aggregate :func:`~eventsourcing.domain.Aggregate._trigger_` method uses the
+Similarly, the aggregate :func:`~eventsourcing.domain.Aggregate._trigger_event` method uses the
 ``id`` attribute of the aggregate as the ``originator_id`` of the new domain event. It uses the current
 aggregate ``version`` to create the next version number (by adding ``1``) and uses
 this value as the ``originator_version`` of the new domain event. It calls
@@ -425,11 +424,11 @@ module documentation for more information.
 
     assert isinstance(snapshot, Snapshot)
     assert snapshot.originator_id == world.id
-    assert snapshot.originator_version == world._version_
+    assert snapshot.originator_version == world.version
     assert snapshot.topic == '__main__:World', snapshot.topic
     assert snapshot.state['history'] == world.history
-    assert snapshot.state['_created_on_'] == world._created_on_
-    assert snapshot.state['_modified_on_'] == world._modified_on_
+    assert snapshot.state['_created_on'] == world.created_on
+    assert snapshot.state['_modified_on'] == world.modified_on
     assert len(snapshot.state) == 3
 
 
@@ -442,9 +441,9 @@ aggregate object instance.
 
     assert isinstance(copy, World)
     assert copy.id == world.id
-    assert copy._version_ == world._version_
-    assert copy._created_on_ == world._created_on_
-    assert copy._modified_on_ == world._modified_on_
+    assert copy.version == world.version
+    assert copy.created_on == world.created_on
+    assert copy.modified_on == world.modified_on
     assert copy.history == world.history
 
 The signature of the :func:`~eventsourcing.domain.Snapshot.mutate` method is the same as the
@@ -459,17 +458,17 @@ Versioning
 
 Versioning allows aggregate and domain event classes to be modified after an application has been deployed.
 
-On both aggregate and domain event classes, the class attribute ``_class_version_`` can be used to indicate
+On both aggregate and domain event classes, the class attribute ``class_version`` can be used to indicate
 the version of the class. This attribute is inferred to have a default value of ``1``. If the data model is
 changed, by adding or removing or renaming or changing the meaning of values of attributes, subsequent
 versions should be given a successively higher number than the previously deployed version. Static methods
-of the form ``_upcast_vX_vY_()`` will be called to update the state of a stored event or snapshot from a lower
+of the form ``upcast_vX_vY()`` will be called to update the state of a stored event or snapshot from a lower
 version ``X`` to the next higher version ``Y``. Such upcast methods will be called  to upcast the state from
 the version of the class with which it was created to the version of the class which will be reconstructed.
 For example, upcasting the stored state of an object created at version ``2`` of a class that will be used
-to reconstruct an object at version ``4`` of the class will involve calling upcast methods ``_upcast_v2_v3_()``,
-and ``_upcast_v3_v4_()``. If you aren't using snapshots, you don't need to define upcast methods or version
-numbers on the aggregate class.
+to reconstruct an object at version ``4`` of the class will involve calling upcast methods
+``upcast_v2_v3()``, and ``upcast_v3_v4()``. If you aren't using snapshots, you don't need to define
+upcast methods or version numbers on the aggregate class.
 
 In the example below, version ``1`` of the class ``MyAggregate`` is defined with an attribute ``a``.
 
@@ -482,7 +481,7 @@ In the example below, version ``1`` of the class ``MyAggregate`` is defined with
 
         @classmethod
         def create(cls, a:str):
-            return cls._create_(cls.Created, id=uuid4(), a=a)
+            return cls._create(cls.Created, id=uuid4(), a=a)
 
         @dataclass(frozen=True)
         class Created(Aggregate.Created):
@@ -493,9 +492,9 @@ After an application that uses the above aggregate class has been deployed, its 
 will have been created and stored with the ``a`` attribute defined. If subsequently the attribute ``b``
 is added to the definition of the ``Created`` event, in order for the existing stored events to be
 constructed in a way that satisfies the new version of the class, the stored events will need to be
-upcast to have a value for ``b``. In the example below, the static method ``_upcast_v1_v2_()`` defined
+upcast to have a value for ``b``. In the example below, the static method ``upcast_v1_v2()`` defined
 on the ``Created`` event sets a default value for ``b`` in the given ``state``. The class attribute
-``_class_version_`` is set to ``2``. The same treatment is given to the aggregate class as the domain
+``class_version`` is set to ``2``. The same treatment is given to the aggregate class as the domain
 event class, so that snapshots can be upcast.
 
 .. code:: python
@@ -508,23 +507,23 @@ event class, so that snapshots can be upcast.
 
         @classmethod
         def create(cls, a:str, b: int = 0):
-            return cls._create_(cls.Created, id=uuid4(), a=a, b=b)
+            return cls._create(cls.Created, id=uuid4(), a=a, b=b)
 
         @dataclass(frozen=True)
         class Created(Aggregate.Created):
             a: str
             b: int
 
-            _class_version_ = 2
+            class_version = 2
 
             @staticmethod
-            def _upcast_v1_v2_(state):
+            def upcast_v1_v2(state):
                 state['b'] = 0
 
-        _class_version_ = 2
+        class_version = 2
 
         @staticmethod
-        def _upcast_v1_v2_(state):
+        def upcast_v1_v2(state):
             state['b'] = 0
 
 
@@ -533,9 +532,9 @@ events will have be created and stored with both the ``a`` and ``b`` attributes.
 attribute ``c`` is added to the definition of the ``Created`` event, in order for the existing stored
 events from version 1 to be constructed in a way that satisfies the new version of the class, they
 will need to be upcast to include a value for ``b`` and ``c``. The existing stored events from version 2
-will need to be upcast to include a value for ``c``. The additional static method ``_upcast_v2_v3_()``
+will need to be upcast to include a value for ``c``. The additional static method ``upcast_v2_v3()``
 defined on the ``Created`` event sets a default value for ``c`` in the given ``state``. The class attribute
-``_class_version_`` is set to ``3``. The same treatment is given to the aggregate class as the domain event
+``class_version`` is set to ``3``. The same treatment is given to the aggregate class as the domain event
 class, so that any snapshots will be upcast.
 
 .. code:: python
@@ -549,7 +548,7 @@ class, so that any snapshots will be upcast.
 
         @classmethod
         def create(cls, a:str, b: int = 0, c: float = 0.0):
-            return cls._create_(cls.Created, id=uuid4(), a=a, b=b, c=c)
+            return cls._create(cls.Created, id=uuid4(), a=a, b=b, c=c)
 
         @dataclass(frozen=True)
         class Created(Aggregate.Created):
@@ -557,33 +556,33 @@ class, so that any snapshots will be upcast.
             b: int
             c: float
 
-            _class_version_ = 3
+            class_version = 3
 
             @staticmethod
-            def _upcast_v1_v2_(state):
+            def upcast_v1_v2(state):
                 state['b'] = 0
 
             @staticmethod
-            def _upcast_v2_v3_(state):
+            def upcast_v2_v3(state):
                 state['c'] = 0.0
 
-        _class_version_ = 3
+        class_version = 3
 
         @staticmethod
-        def _upcast_v1_v2_(state):
+        def upcast_v1_v2(state):
             state['b'] = 0
 
         @staticmethod
-        def _upcast_v2_v3_(state):
+        def upcast_v2_v3(state):
             state['c'] = 0.0
 
 
-If subsequently a new event is added that manipulates a new attribute that is expected to be initialised when the
-aggregate is created, in order that snapshots from earlier version will be upcast, the aggregate class attribute
-``_class_version_`` will need to be set to ``4`` and a static method ``_upcast_v3_v4_()`` defined on the aggregate
-class which upcasts the state of a previously created snapshot. In the example below, the new attribute ``d`` is
-initialised in the ``__init__()`` method, and a domain event which updates ``d`` is defined. Since the ``Created``
-event class has not changed, it remains at version ``3``.
+If subsequently a new event is added that manipulates a new attribute that is expected to be initialised
+when the aggregate is created, in order that snapshots from earlier version will be upcast, the aggregate
+class attribute ``class_version`` will need to be set to ``4`` and a static method ``upcast_v3_v4()``
+defined on the aggregate class which upcasts the state of a previously created snapshot. In the example
+below, the new attribute ``d`` is initialised in the ``__init__()`` method, and a domain event which
+updates ``d`` is defined. Since the ``Created`` event class has not changed, it remains at version ``3``.
 
 .. code:: python
 
@@ -597,7 +596,7 @@ event class has not changed, it remains at version ``3``.
 
         @classmethod
         def create(cls, a:str, b: int = 0, c: float = 0.0):
-            return cls._create_(cls.Created, id=uuid4(), a=a, b=b, c=c)
+            return cls._create(cls.Created, id=uuid4(), a=a, b=b, c=c)
 
         @dataclass(frozen=True)
         class Created(Aggregate.Created):
@@ -605,18 +604,18 @@ event class has not changed, it remains at version ``3``.
             b: int
             c: float
 
-            _class_version_ = 3
+            class_version = 3
 
             @staticmethod
-            def _upcast_v1_v2_(state):
+            def upcast_v1_v2(state):
                 state['b'] = 0
 
             @staticmethod
-            def _upcast_v2_v3_(state):
+            def upcast_v2_v3(state):
                 state['c'] = 0.0
 
         def set_d(self, d: bool):
-            self._trigger_(self.DUpdated, d=d)
+            self._trigger_event(self.DUpdated, d=d)
 
         @dataclass(frozen=True)
         class DUpdated(Aggregate.Event):
@@ -625,25 +624,25 @@ event class has not changed, it remains at version ``3``.
             def apply(self, aggregate: "Aggregate") -> None:
                 aggregate.d = self.d
 
-        _class_version_ = 4
+        class_version = 4
 
         @staticmethod
-        def _upcast_v1_v2_(state):
+        def upcast_v1_v2(state):
             state['b'] = 0
 
         @staticmethod
-        def _upcast_v2_v3_(state):
+        def upcast_v2_v3(state):
             state['c'] = 0.0
 
         @staticmethod
-        def _upcast_v3_v4_(state):
+        def upcast_v3_v4(state):
             state['d'] = False
 
 
-If the value objects used by your events also change, you may also need to define new transcodings with new
-names. Simply register the new transcodings after the old, and use a modified ``name`` value for the transcoding.
-In this way, the existing encoded values will be decoded by the old transcoding, and the new instances of the
-value object class will be encoded with the new version of the transcoding.
+If the value objects used by your events also change, you may also need to define new transcodings
+with new names. Simply register the new transcodings after the old, and use a modified ``name`` value
+for the transcoding. In this way, the existing encoded values will be decoded by the old transcoding,
+and the new instances of the value object class will be encoded with the new version of the transcoding.
 
 In order to support forward compatibility as well as backward compatibility, so that consumers designed for
 old versions will not be broken by modifications, it is advisable to restrict changes to existing types to
@@ -703,7 +702,7 @@ how this can work.
     class Page(Aggregate):
         @classmethod
         def create(cls, name: str, body: str = ""):
-            return cls._create_(
+            return cls._create(
                 id=uuid4(),
                 event_class=cls.Created,
                 name=name,
@@ -721,7 +720,7 @@ how this can work.
             self.body = body
 
         def update_name(self, name: str):
-            self._trigger_(self.NameUpdated, name=name)
+            self._trigger_event(self.NameUpdated, name=name)
 
         @dataclass(frozen=True)
         class NameUpdated(Aggregate.Event):
@@ -734,7 +733,7 @@ how this can work.
     class Index(Aggregate):
         @classmethod
         def create(cls, page: Page):
-            return cls._create_(
+            return cls._create(
                 event_class=cls.Created,
                 id=cls.create_id(page.name),
                 ref=page.id
@@ -753,7 +752,7 @@ how this can work.
             self.ref = ref
 
         def update_ref(self, ref):
-            self._trigger_(self.RefUpdated, ref=ref)
+            self._trigger_event(self.RefUpdated, ref=ref)
 
         @dataclass(frozen=True)
         class RefUpdated(Aggregate.Event):

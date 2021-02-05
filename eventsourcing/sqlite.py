@@ -81,11 +81,11 @@ class SQLiteAggregateRecorder(AggregateRecorder):
     def create_table(self) -> None:
         with self.datastore.transaction() as c:
             try:
-                self._create_table(c)
+                self._createtable(c)
             except sqlite3.OperationalError as e:
                 raise OperationalError(e)
 
-    def _create_table(self, c: Connection):
+    def _createtable(self, c: Connection):
         statement = (
             "CREATE TABLE "
             f"{self.events_table_name} ("
@@ -175,7 +175,7 @@ class SQLiteApplicationRecorder(
     SQLiteAggregateRecorder,
     ApplicationRecorder,
 ):
-    def _create_table(self, c: Connection):
+    def _createtable(self, c: Connection):
         statement = (
             "CREATE TABLE "
             f"{self.events_table_name} ("
@@ -237,8 +237,8 @@ class SQLiteProcessRecorder(
     SQLiteApplicationRecorder,
     ProcessRecorder,
 ):
-    def _create_table(self, c: Connection):
-        super()._create_table(c)
+    def _createtable(self, c: Connection):
+        super()._createtable(c)
         statement = (
             "CREATE TABLE tracking ("
             "application_name text, "
@@ -303,22 +303,22 @@ class Factory(InfrastructureFactory):
             datastore=self.datastore,
             events_table_name=events_table_name,
         )
-        if self.do_create_table():
+        if self.do_createtable():
             recorder.create_table()
         return recorder
 
     def application_recorder(self) -> ApplicationRecorder:
         recorder = SQLiteApplicationRecorder(datastore=self.datastore)
-        if self.do_create_table():
+        if self.do_createtable():
             recorder.create_table()
         return recorder
 
     def process_recorder(self) -> ProcessRecorder:
         recorder = SQLiteProcessRecorder(datastore=self.datastore)
-        if self.do_create_table():
+        if self.do_createtable():
             recorder.create_table()
         return recorder
 
-    def do_create_table(self) -> bool:
+    def do_createtable(self) -> bool:
         default = "no"
         return bool(strtobool(self.getenv(self.DO_CREATE_TABLE, default) or default))

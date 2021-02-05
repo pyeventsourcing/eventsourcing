@@ -203,9 +203,9 @@ class Mapper(Generic[TDomainEvent]):
         event_state = copy(domain_event.__dict__)
         originator_id = event_state.pop("originator_id")
         originator_version = event_state.pop("originator_version")
-        class_version = getattr(type(domain_event), "_class_version_", 1)
+        class_version = getattr(type(domain_event), "class_version", 1)
         if class_version > 1:
-            event_state["_class_version_"] = class_version
+            event_state["class_version"] = class_version
         stored_state: bytes = self.transcoder.encode(event_state)
         if self.compressor:
             stored_state = self.compressor.compress(stored_state)
@@ -232,10 +232,10 @@ class Mapper(Generic[TDomainEvent]):
         event_state["originator_version"] = stored.originator_version
         cls = resolve_topic(stored.topic)
         assert issubclass(cls, DomainEvent)
-        class_version = getattr(cls, "_class_version_", 1)
-        from_version = event_state.pop("_class_version_", 1)
+        class_version = getattr(cls, "class_version", 1)
+        from_version = event_state.pop("class_version", 1)
         while from_version < class_version:
-            getattr(cls, f"_upcast_v{from_version}_v{from_version + 1}_")(event_state)
+            getattr(cls, f"upcast_v{from_version}_v{from_version + 1}")(event_state)
             from_version += 1
 
         domain_event = object.__new__(cls)

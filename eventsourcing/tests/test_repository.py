@@ -55,7 +55,7 @@ class TestRepository(TestCase):
         account.append_transaction(Decimal("30.00"))
 
         # Collect pending events.
-        pending = account._collect_()
+        pending = account.collect_events()
 
         # Store pending events.
         event_store.put(pending)
@@ -68,7 +68,7 @@ class TestRepository(TestCase):
 
         snapshot = Snapshot(
             originator_id=account.id,
-            originator_version=account._version_,
+            originator_version=account.version,
             timestamp=datetime.now(tz=TZINFO),
             topic=get_topic(type(account)),
             state=account.__dict__,
@@ -84,7 +84,7 @@ class TestRepository(TestCase):
 
         # Credit the account.
         account.append_transaction(Decimal("10.00"))
-        event_store.put(account._collect_())
+        event_store.put(account.collect_events())
 
         # Check copy has correct attribute values.
         copy3 = repository.get(account.id)
@@ -94,7 +94,7 @@ class TestRepository(TestCase):
         assert copy3.balance == Decimal("75.00")
 
         # Check can get old version of account.
-        copy4 = repository.get(account.id, version=copy._version_)
+        copy4 = repository.get(account.id, version=copy.version)
         assert isinstance(copy4, BankAccount)
         assert copy4.balance == Decimal("65.00")
 
@@ -153,7 +153,7 @@ class TestRepository(TestCase):
         account.append_transaction(Decimal("30.00"))
 
         # Collect pending events.
-        pending = account._collect_()
+        pending = account.collect_events()
 
         # Store pending events.
         event_store.put(pending)
@@ -166,7 +166,7 @@ class TestRepository(TestCase):
 
         # Credit the account.
         account.append_transaction(Decimal("10.00"))
-        event_store.put(account._collect_())
+        event_store.put(account.collect_events())
 
         # Check copy has correct attribute values.
         copy2 = repository.get(account.id)
@@ -176,7 +176,7 @@ class TestRepository(TestCase):
         assert copy2.balance == Decimal("75.00")
 
         # Check can get old version of account.
-        copy3 = repository.get(account.id, version=copy._version_)
+        copy3 = repository.get(account.id, version=copy.version)
         assert isinstance(copy3, BankAccount)
         assert copy3.balance == Decimal("65.00")
 

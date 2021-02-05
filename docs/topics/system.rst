@@ -30,13 +30,13 @@ The library's system class...
 
         @classmethod
         def create(cls):
-            return cls._create_(
+            return cls._create(
                 event_class=cls.Created,
                 id=uuid4(),
             )
 
         def make_it_so(self, what):
-            self._trigger_(World.SomethingHappened, what=what)
+            self._trigger_event(World.SomethingHappened, what=what)
 
         @dataclass(frozen=True)
         class SomethingHappened(Aggregate.Event):
@@ -84,7 +84,7 @@ Now let's define an analytics application...
 
         @classmethod
         def create(cls, name):
-            return cls._create_(
+            return cls._create(
                 event_class=Aggregate.Created,
                 id=cls.create_id(name),
             )
@@ -94,7 +94,7 @@ Now let's define an analytics application...
             return uuid5(NAMESPACE_URL, f'/counter/{name}')
 
         def increment(self):
-            self._trigger_(self.Incremented)
+            self._trigger_event(self.Incremented)
 
         class Incremented(Aggregate.Event):
             def apply(self, counter):

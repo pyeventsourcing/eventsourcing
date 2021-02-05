@@ -322,7 +322,7 @@ class Application(ABC):
         """
         events = []
         for aggregate in aggregates:
-            events += aggregate._collect_()
+            events += aggregate.collect_events()
         self.events.put(events)
         self.notify(events)
 

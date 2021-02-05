@@ -333,7 +333,7 @@ class TestUpcasting(TestCase):
 
         @classmethod
         def create(cls, *, a):
-            return cls._create_(cls.Created, id=uuid4(), a=a)
+            return cls._create(cls.Created, id=uuid4(), a=a)
 
         @dataclass(frozen=True)
         class Created(Aggregate.Created):
@@ -349,24 +349,24 @@ class TestUpcasting(TestCase):
 
         @classmethod
         def create(cls, *, A, b):
-            return cls._create_(cls.Created, id=uuid4(), A=A, b=b)
+            return cls._create(cls.Created, id=uuid4(), A=A, b=b)
 
         @dataclass(frozen=True)
         class Created(Aggregate.Created):
             A: str
             b: str
 
-            _class_version_ = 2
+            class_version = 2
 
             @staticmethod
-            def _upcast_v1_v2_(state):
+            def upcast_v1_v2(state):
                 state["A"] = state.pop("a").upper()
                 state["b"] = 0
 
-        _class_version_ = 2
+        class_version = 2
 
         @staticmethod
-        def _upcast_v1_v2_(state):
+        def upcast_v1_v2(state):
             state["A"] = state.pop("a").upper()
             state["b"] = 0
 
@@ -381,7 +381,7 @@ class TestUpcasting(TestCase):
 
         @classmethod
         def create(cls, *, A, b, c):
-            return cls._create_(cls.Created, id=uuid4(), A=A, b=b, c=c)
+            return cls._create(cls.Created, id=uuid4(), A=A, b=b, c=c)
 
         @dataclass(frozen=True)
         class Created(Aggregate.Created):
@@ -389,26 +389,26 @@ class TestUpcasting(TestCase):
             b: int
             c: List
 
-            _class_version_ = 3
+            class_version = 3
 
             @staticmethod
-            def _upcast_v1_v2_(state):
+            def upcast_v1_v2(state):
                 state["A"] = state.pop("a").upper()
                 state["b"] = 0
 
             @staticmethod
-            def _upcast_v2_v3_(state):
+            def upcast_v2_v3(state):
                 state["c"] = []
 
-        _class_version_ = 3
+        class_version = 3
 
         @staticmethod
-        def _upcast_v1_v2_(state):
+        def upcast_v1_v2(state):
             state["A"] = state.pop("a").upper()
             state["b"] = 0
 
         @staticmethod
-        def _upcast_v2_v3_(state):
+        def upcast_v2_v3(state):
             state["c"] = []
 
     original_cls_v3 = UpcastFixtureV3
@@ -423,7 +423,7 @@ class TestUpcasting(TestCase):
 
         @classmethod
         def create(cls, *, A, b, c):
-            return cls._create_(cls.Created, id=uuid4(), A=A, b=b, c=c)
+            return cls._create(cls.Created, id=uuid4(), A=A, b=b, c=c)
 
         @dataclass(frozen=True)
         class Created(Aggregate.Created):
@@ -431,19 +431,19 @@ class TestUpcasting(TestCase):
             b: int
             c: List
 
-            _class_version_ = 3
+            class_version = 3
 
             @staticmethod
-            def _upcast_v1_v2_(state):
+            def upcast_v1_v2(state):
                 state["A"] = state.pop("a").upper()
                 state["b"] = 0
 
             @staticmethod
-            def _upcast_v2_v3_(state):
+            def upcast_v2_v3(state):
                 state["c"] = []
 
         def set_d(self, value: Decimal):
-            self._trigger_(self.DUpdated, d=value)
+            self._trigger_event(self.DUpdated, d=value)
 
         @dataclass(frozen=True)
         class DUpdated(Aggregate.Event):
@@ -452,17 +452,17 @@ class TestUpcasting(TestCase):
             def apply(self, aggregate: "Aggregate") -> None:
                 aggregate.d = self.d
 
-        _class_version_ = 4
+        class_version = 4
 
         @staticmethod
-        def _upcast_v1_v2_(state):
+        def upcast_v1_v2(state):
             state["A"] = state.pop("a").upper()
             state["b"] = 0
 
         @staticmethod
-        def _upcast_v2_v3_(state):
+        def upcast_v2_v3(state):
             state["c"] = []
 
         @staticmethod
-        def _upcast_v3_v4_(state):
+        def upcast_v3_v4(state):
             state["d"] = None
