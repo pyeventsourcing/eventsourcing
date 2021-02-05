@@ -80,11 +80,11 @@ class PostgresAggregateRecorder(AggregateRecorder):
     def create_table(self) -> None:
         with self.datastore.transaction() as c:
             try:
-                self._create_table(c)
+                self._createtable(c)
             except psycopg2.Error as e:
                 raise OperationalError(e)
 
-    def _create_table(self, c: cursor) -> None:
+    def _createtable(self, c: cursor) -> None:
         statement = (
             "CREATE TABLE "
             f"{self.events_table_name} ("
@@ -174,8 +174,8 @@ class PostgresApplicationRecorder(
     PostgresAggregateRecorder,
     ApplicationRecorder,
 ):
-    def _create_table(self, c: cursor) -> None:
-        super()._create_table(c)
+    def _createtable(self, c: cursor) -> None:
+        super()._createtable(c)
         statement = (
             f"ALTER TABLE {self.events_table_name} "
             "ADD COLUMN "
@@ -246,8 +246,8 @@ class PostgresProcessRecorder(
         super().__init__(datastore, events_table_name)
         self.tracking_table_name = tracking_table_name
 
-    def _create_table(self, c: cursor) -> None:
-        super()._create_table(c)
+    def _createtable(self, c: cursor) -> None:
+        super()._createtable(c)
         statement = (
             "CREATE TABLE "
             f"{self.tracking_table_name} ("
@@ -344,7 +344,7 @@ class Factory(InfrastructureFactory):
         recorder = PostgresAggregateRecorder(
             datastore=self.datastore, events_table_name=events_table_name
         )
-        if self.do_create_table():
+        if self.do_createtable():
             recorder.create_table()
         return recorder
 
@@ -354,7 +354,7 @@ class Factory(InfrastructureFactory):
         recorder = PostgresApplicationRecorder(
             datastore=self.datastore, events_table_name=events_table_name
         )
-        if self.do_create_table():
+        if self.do_createtable():
             recorder.create_table()
         return recorder
 
@@ -368,10 +368,10 @@ class Factory(InfrastructureFactory):
             events_table_name=events_table_name,
             tracking_table_name=tracking_table_name,
         )
-        if self.do_create_table():
+        if self.do_createtable():
             recorder.create_table()
         return recorder
 
-    def do_create_table(self) -> bool:
+    def do_createtable(self) -> bool:
         default = "no"
         return bool(strtobool(self.getenv(self.DO_CREATE_TABLE, default) or default))

@@ -91,10 +91,10 @@ class World(Aggregate):
 
     @classmethod
     def create(self):
-        return self._create_(World.Created, id=uuid4())
+        return self._create(World.Created, id=uuid4())
 
     def make_it_so(self, something):
-        self._trigger_(World.SomethingHappened, what=something)
+        self._trigger_event(World.SomethingHappened, what=something)
 
     @dataclass(frozen=True)
     class SomethingHappened(Aggregate.Event):
@@ -104,7 +104,7 @@ class World(Aggregate):
             aggregate.history.append(self.what)
 
     def discard(self):
-        self._trigger_(self.Discarded)
+        self._trigger_event(self.Discarded)
 
     class Discarded(Aggregate.Event):
         def mutate(self, obj):
@@ -140,7 +140,7 @@ def test(app: Application):
     assert world.history[1] == 'trucks'
 
     # Note version of object at this stage.
-    version = world._version_
+    version = world.version
 
     # Execute another command.
     world.make_it_so('internet')

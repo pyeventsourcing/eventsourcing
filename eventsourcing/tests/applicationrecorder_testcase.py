@@ -90,7 +90,7 @@ class ApplicationRecorderTestCase(TestCase, ABC):
 
         errors_happened = Event()
 
-        def _create_event():
+        def _createevent():
             stored_event = StoredEvent(
                 originator_id=uuid4(),
                 originator_version=0,
@@ -124,7 +124,7 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         with ThreadPoolExecutor(max_workers=4) as executor:
             futures = []
             for i in range(100):
-                future = executor.submit(_create_event)
+                future = executor.submit(_createevent)
                 futures.append(future)
             for future in futures:
                 # print(future.result())

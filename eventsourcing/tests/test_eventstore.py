@@ -27,7 +27,7 @@ class TestEventStore(TestCase):
         account.append_transaction(Decimal("30.00"))
 
         # Collect pending events.
-        pending = account._collect_()
+        pending = account.collect_events()
 
         # Construct event store.
         transcoder = Transcoder()

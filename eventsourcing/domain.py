@@ -35,17 +35,33 @@ class Aggregate:
     Base class for aggregate roots.
     """
 
-    def __init__(self, id: UUID, _version_: int, _created_on_: datetime):
+    def __init__(self, id: UUID, version: int, timestamp: datetime):
         """
-        Initialises an aggregate object with a :data:`id`, a :data:`_version_`,
-        and a :data:`_created_on_`. The internal :data:`_pending_events_` list
+        Initialises an aggregate object with a :data:`id`, a :data:`version`,
+        and a :data:`created_on`. The internal :data:`_pending_events` list
         is also initialised.
         """
-        self.id = id
-        self._version_ = _version_
-        self._created_on_ = _created_on_
-        self._modified_on_ = _created_on_
-        self._pending_events_: List[Aggregate.Event] = []
+        self._id = id
+        self._version = version
+        self._created_on = timestamp
+        self._modified_on = timestamp
+        self._pending_events: List[Aggregate.Event] = []
+
+    @property
+    def id(self) -> UUID:
+        return self._id
+
+    @property
+    def version(self) -> int:
+        return self._version
+
+    @property
+    def created_on(self) -> datetime:
+        return self._created_on
+
+    @property
+    def modified_on(self) -> datetime:
+        return self._modified_on
 
     @dataclass(frozen=True)
     class Event(DomainEvent):
@@ -68,13 +84,13 @@ class Aggregate:
             # Check event is next in its sequence.
             # Use counting to follow the sequence.
             assert isinstance(obj, Aggregate), (type(obj), self)
-            next_version = obj._version_ + 1
+            next_version = obj.version + 1
             if self.originator_version != next_version:
                 raise VersionError(self.originator_version, next_version)
             # Update the aggregate version.
-            obj._version_ = next_version
+            obj._version = next_version
             # Update the modified time.
-            obj._modified_on_ = self.timestamp
+            obj._modified_on = self.timestamp
             self.apply(obj)
             return obj
 
@@ -82,10 +98,9 @@ class Aggregate:
             """
             Applies the domain event to the aggregate.
             """
-            pass
 
     @classmethod
-    def _create_(
+    def _create(
         cls,
         event_class: Type["Aggregate.Created"],
         id: UUID,
@@ -115,7 +130,7 @@ class Aggregate:
         # Construct the aggregate object.
         aggregate = event.mutate(None)
         # Append the domain event to pending list.
-        aggregate._pending_events_.append(event)
+        aggregate._pending_events.append(event)
         # Return the aggregate.
         return aggregate
 
@@ -143,17 +158,17 @@ class Aggregate:
             # Copy the event attributes.
             kwargs = self.__dict__.copy()
             # Resolve originator topic.
-            aggregate_class = resolve_topic(kwargs.pop("originator_topic"))
+            aggregate_topic = kwargs.pop("originator_topic")
+            aggregate_class: Type[Aggregate] = resolve_topic(aggregate_topic)
             # Separate the base class keywords arguments.
             id = kwargs.pop("originator_id")
-            _version_ = kwargs.pop("originator_version")
-            _created_on_ = kwargs.pop("timestamp")
+            version = kwargs.pop("originator_version")
             # Construct and return aggregate object.
             return aggregate_class(
-                id=id, _version_=_version_, _created_on_=_created_on_, **kwargs
+                id=id, version=version, **kwargs
             )
 
-    def _trigger_(
+    def _trigger_event(
         self,
         event_class: Type["Aggregate.Event"],
         **kwargs,
@@ -166,7 +181,7 @@ class Aggregate:
         # Construct the domain event as the
         # next in the aggregate's sequence.
         # Use counting to generate the sequence.
-        next_version = self._version_ + 1
+        next_version = self.version + 1
         event = event_class(
             originator_id=self.id,
             originator_version=next_version,
@@ -176,16 +191,16 @@ class Aggregate:
         # Mutate aggregate with domain event.
         event.mutate(self)
         # Append the domain event to pending list.
-        self._pending_events_.append(event)
+        self._pending_events.append(event)
 
-    def _collect_(self) -> List[Event]:
+    def collect_events(self) -> List[Event]:
         """
         Collects and returns a list of pending aggregate
         :class:`Aggregate.Event` objects.
         """
         collected = []
-        while self._pending_events_:
-            collected.append(self._pending_events_.pop(0))
+        while self._pending_events:
+            collected.append(self._pending_events.pop(0))
         return collected
 
 
@@ -222,12 +237,12 @@ class Snapshot(DomainEvent):
         Creates a snapshot of the given :class:`Aggregate` object.
         """
         aggregate_state = dict(aggregate.__dict__)
-        aggregate_state.pop("_pending_events_")
-        class_version = getattr(type(aggregate), "_class_version_", 1)
+        aggregate_state.pop("_pending_events")
+        class_version = getattr(type(aggregate), "class_version", 1)
         if class_version > 1:
-            aggregate_state["_class_version_"] = class_version
-        originator_id = aggregate_state.pop("id")
-        originator_version = aggregate_state.pop("_version_")
+            aggregate_state["class_version"] = class_version
+        originator_id = aggregate_state.pop("_id")
+        originator_version = aggregate_state.pop("_version")
         return cls(
             originator_id=originator_id,
             originator_version=originator_version,
@@ -243,17 +258,17 @@ class Snapshot(DomainEvent):
         cls = resolve_topic(self.topic)
         assert issubclass(cls, Aggregate)
         aggregate_state = dict(self.state)
-        from_version = aggregate_state.pop("_class_version_", 1)
-        class_version = getattr(cls, "_class_version_", 1)
+        from_version = aggregate_state.pop("class_version", 1)
+        class_version = getattr(cls, "class_version", 1)
         while from_version < class_version:
-            upcast_name = f"_upcast_v{from_version}_v{from_version + 1}_"
+            upcast_name = f"upcast_v{from_version}_v{from_version + 1}"
             upcast = getattr(cls, upcast_name)
             upcast(aggregate_state)
             from_version += 1
 
-        aggregate_state["id"] = self.originator_id
-        aggregate_state["_version_"] = self.originator_version
-        aggregate_state["_pending_events_"] = []
+        aggregate_state["_id"] = self.originator_id
+        aggregate_state["_version"] = self.originator_version
+        aggregate_state["_pending_events"] = []
         aggregate = object.__new__(cls)
         aggregate.__dict__.update(aggregate_state)
         return aggregate

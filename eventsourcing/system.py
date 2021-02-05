@@ -39,7 +39,7 @@ class ProcessEvent:
         Collects pending domain events from the given aggregate.
         """
         for aggregate in aggregates:
-            self.events += aggregate._collect_()
+            self.events += aggregate.collect_events()
 
 
 class Follower(Application):
@@ -92,7 +92,7 @@ class Follower(Application):
         domain event notification was pulled. The policy will
         save aggregates to the process event object, using its
         :func:`~ProcessEvent.save` method, which collects pending domain
-        events using the aggregates' :func:`~eventsourcing.domain.Aggregate._collect_`
+        events using the aggregates' :func:`~eventsourcing.domain.Aggregate.collect_events`
         method, and the process event object will then be recorded
         by calling the :func:`record` method.
         """

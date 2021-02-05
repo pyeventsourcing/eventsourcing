@@ -1,9 +1,6 @@
-# import os
 import platform
 
 from setuptools import find_packages, setup
-
-from eventsourcing import __version__
 
 is_pypy = platform.python_implementation() == "PyPy"
 
@@ -112,7 +109,7 @@ packages = find_packages(
 
 setup(
     name="eventsourcing",
-    version=__version__,
+    version=_version_,
     description="Event sourcing in Python",
     author="John Bywater",
     author_email="john.bywater@appropriatesoftware.net",

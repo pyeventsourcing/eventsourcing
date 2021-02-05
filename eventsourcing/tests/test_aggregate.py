@@ -9,26 +9,26 @@ from eventsourcing.domain import Aggregate, TZINFO, VersionError
 
 class TestAggregate(TestCase):
     def test_aggregate_base_class(self):
-        # Check the _create_() method creates a new aggregate.
+        # Check the _create() method creates a new aggregate.
         before_created = datetime.now(tz=TZINFO)
         uuid = uuid4()
-        a = Aggregate._create_(
+        a = Aggregate._create(
             event_class=Aggregate.Created,
             id=uuid,
         )
         after_created = datetime.now(tz=TZINFO)
         self.assertIsInstance(a, Aggregate)
         self.assertEqual(a.id, uuid)
-        self.assertEqual(a._version_, 1)
-        self.assertEqual(a._created_on_, a._modified_on_)
-        self.assertGreater(a._created_on_, before_created)
-        self.assertGreater(after_created, a._created_on_)
+        self.assertEqual(a.version, 1)
+        self.assertEqual(a.created_on, a.modified_on)
+        self.assertGreater(a.created_on, before_created)
+        self.assertGreater(after_created, a.created_on)
 
         # Check the aggregate can trigger further events.
-        a._trigger_(Aggregate.Event)
-        self.assertLess(a._created_on_, a._modified_on_)
+        a._trigger_event(Aggregate.Event)
+        self.assertLess(a.created_on, a.modified_on)
 
-        pending = a._collect_()
+        pending = a.collect_events()
         self.assertEqual(len(pending), 2)
         self.assertIsInstance(pending[0], Aggregate.Created)
         self.assertEqual(pending[0].originator_version, 1)
@@ -36,7 +36,7 @@ class TestAggregate(TestCase):
         self.assertEqual(pending[1].originator_version, 2)
 
         # Try to mutate aggregate with an invalid domain event.
-        next_version = a._version_
+        next_version = a.version
         event = Aggregate.Event(
             originator_id=a.id,
             originator_version=next_version,
@@ -54,8 +54,8 @@ class TestAggregate(TestCase):
             email_address="alice@example.com",
         )
 
-        # Check the _created_on_.
-        assert account._created_on_ == account._modified_on_
+        # Check the created_on.
+        assert account.created_on == account.modified_on
 
         # Check the initial balance.
         assert account.balance == 0
@@ -63,8 +63,8 @@ class TestAggregate(TestCase):
         # Credit the account.
         account.append_transaction(Decimal("10.00"))
 
-        # Check the _modified_on_ time was updated.
-        assert account._created_on_ < account._modified_on_
+        # Check the modified_on time was updated.
+        assert account.created_on < account.modified_on
 
         # Check the balance.
         assert account.balance == Decimal("10.00")
@@ -110,7 +110,7 @@ class TestAggregate(TestCase):
             raise Exception("Account closed error not raised")
 
         # Collect pending events.
-        pending = account._collect_()
+        pending = account.collect_events()
         assert len(pending) == 7
 
     def test_raises_type_error_when_created_event_is_broken(self):
@@ -118,7 +118,7 @@ class TestAggregate(TestCase):
         class BrokenAggregate(Aggregate):
             @classmethod
             def create(cls, name):
-                return cls._create_(
+                return cls._create(
                     event_class=cls.Created,
                     id=uuid4(),
                     name=name
@@ -153,7 +153,7 @@ class BankAccount(Aggregate):
         """
         Creates new bank account object.
         """
-        return super()._create_(
+        return super()._create(
             cls.Opened,
             id=uuid4(),
             full_name=full_name,
@@ -171,7 +171,7 @@ class BankAccount(Aggregate):
         """
         self.check_account_is_not_closed()
         self.check_has_sufficient_funds(amount)
-        self._trigger_(
+        self._trigger_event(
             self.TransactionAppended,
             amount=amount,
         )
@@ -206,7 +206,7 @@ class BankAccount(Aggregate):
         # Check the limit is not a negative value.
         assert overdraft_limit >= Decimal("0.00")
         self.check_account_is_not_closed()
-        self._trigger_(
+        self._trigger_event(
             self.OverdraftLimitSet,
             overdraft_limit=overdraft_limit,
         )
@@ -227,7 +227,7 @@ class BankAccount(Aggregate):
         """
         Closes the bank account.
         """
-        self._trigger_(self.Closed)
+        self._trigger_event(self.Closed)
 
     @dataclass(frozen=True)
     class Closed(Aggregate.Event):

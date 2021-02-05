@@ -41,7 +41,7 @@ class TestSnapshotting(TestCase):
         snapshot_store.recorder.create_table()
 
         # Clear pending events.
-        account._collect_()
+        account.collect_events()
 
         # Take a snapshot.
         snapshot = Snapshot.take(account)

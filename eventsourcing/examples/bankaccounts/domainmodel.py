@@ -29,7 +29,7 @@ class BankAccount(Aggregate):
 
     @classmethod
     def open(cls, full_name: str, email_address: str) -> "BankAccount":
-        return super()._create_(
+        return super()._create(
             cls.Opened,
             id=uuid4(),
             full_name=full_name,
@@ -46,7 +46,7 @@ class BankAccount(Aggregate):
     ) -> None:
         self.check_account_is_not_closed()
         self.check_has_sufficient_funds(amount)
-        self._trigger_(
+        self._trigger_event(
             self.TransactionAppended,
             amount=amount,
             transaction_id=transaction_id,
@@ -71,7 +71,7 @@ class BankAccount(Aggregate):
     def set_overdraft_limit(self, overdraft_limit: Decimal) -> None:
         assert overdraft_limit > Decimal("0.00")
         self.check_account_is_not_closed()
-        self._trigger_(
+        self._trigger_event(
             self.OverdraftLimitSet,
             overdraft_limit=overdraft_limit,
         )
@@ -84,7 +84,7 @@ class BankAccount(Aggregate):
             aggregate.overdraft_limit = self.overdraft_limit
 
     def close(self) -> None:
-        self._trigger_(self.Closed)
+        self._trigger_event(self.Closed)
 
     @dataclass(frozen=True)
     class Closed(Aggregate.Event):
@@ -94,7 +94,7 @@ class BankAccount(Aggregate):
     # def record_error(
     #     self, error: Exception, transaction_id=None
     # ):
-    #     self._trigger_(
+    #     self._trigger_event(
     #         self.ErrorRecorded,
     #         error=error,
     #         transaction_id=transaction_id,

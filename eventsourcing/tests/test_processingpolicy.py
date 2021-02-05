@@ -27,7 +27,7 @@ class TestProcessingPolicy(TestCase):
             full_name="Alice",
             email_address="alice@example.com",
         )
-        events = account._collect_()
+        events = account.collect_events()
         created_event = events[0]
 
         process_event = ProcessEvent(
@@ -55,7 +55,7 @@ class EmailNotification(Aggregate):
 
     @classmethod
     def create(cls, to, subject, message):
-        return super()._create_(
+        return super()._create(
             cls.Created,
             id=uuid4(),
             to=to,

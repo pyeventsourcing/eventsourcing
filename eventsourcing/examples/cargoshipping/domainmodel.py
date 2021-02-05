@@ -124,7 +124,7 @@ class Cargo(Aggregate):
         destination: Location,
         arrival_deadline: datetime,
     ) -> "Cargo":
-        return cls._create_(
+        return cls._create(
             event_class=Cargo.BookingStarted,
             id=uuid4(),
             origin=origin,
@@ -205,7 +205,7 @@ class Cargo(Aggregate):
         return self._current_voyage_number
 
     def change_destination(self, destination: Location) -> None:
-        self._trigger_(
+        self._trigger_event(
             self.DestinationChanged,
             destination=destination,
         )
@@ -218,7 +218,7 @@ class Cargo(Aggregate):
             aggregate._destination = self.destination
 
     def assign_route(self, itinerary: Itinerary) -> None:
-        self._trigger_(self.RouteAssigned, route=itinerary)
+        self._trigger_event(self.RouteAssigned, route=itinerary)
 
     @dataclass(frozen=True)
     class RouteAssigned(Event):
@@ -243,7 +243,7 @@ class Cargo(Aggregate):
         location: Location,
         handling_activity: HandlingActivity,
     ) -> None:
-        self._trigger_(
+        self._trigger_event(
             self.HandlingEventRegistered,
             tracking_id=tracking_id,
             voyage_number=voyage_number,
