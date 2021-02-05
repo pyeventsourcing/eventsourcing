@@ -13,8 +13,8 @@ for domain-driven design.
 Whilst the basic event sourcing patterns are quite simple and
 can be reproduced in code for each project, event sourcing as a
 persistence mechanism for domain-driven design appears as a
-conceptually cohesive mechanism, and so can be partitioned into
-a separate lightweight framework.
+"conceptually cohesive mechanism" and so can be partitioned into
+a "separate lightweight framework".
 
 Quoting from Eric Evans' book `Domain-Driven Design
 <https://en.wikipedia.org/wiki/Domain-driven_design>`__:
@@ -34,9 +34,9 @@ This library
 
 This is a library for event sourcing in Python. At its core, this library
 supports storing and retrieving sequences of events, such as the domain events
-of event-sourced aggregates in a domain-driven design. A variety of schemas
-and technologies can be used for storing events, and this
-library supports several of these possibilities.
+of event-sourced aggregates in a domain-driven design, and snapshots of those
+aggregates. A variety of schemas and technologies can be used for storing events,
+and this library supports several of these possibilities.
 
 To demonstrate how storing and retrieving domain events can be used effectively
 as a persistence mechanism in an event-sourced application, this library includes
