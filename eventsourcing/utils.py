@@ -1,5 +1,6 @@
 import importlib
-from typing import Any
+from types import ModuleType
+from typing import Any, Dict
 
 
 def get_topic(cls: type) -> str:
@@ -23,10 +24,10 @@ def resolve_topic(topic: str) -> Any:
     return obj
 
 
-_objs_cache = {}
+_objs_cache: Dict[str, Any] = {}
 
 
-def get_module(module_name):
+def get_module(module_name: str) -> ModuleType:
     try:
         module = _modules_cache[module_name]
     except KeyError:
@@ -35,7 +36,7 @@ def get_module(module_name):
     return module
 
 
-_modules_cache = {}
+_modules_cache: Dict[str, Any] = {}
 
 
 def resolve_attr(obj: Any, path: str) -> Any:
@@ -52,10 +53,10 @@ try:
 except ImportError:
     from functools import singledispatch, update_wrapper
 
-    def singledispatchmethod(func):
+    def singledispatchmethod(func): # type: ignore
         dispatcher = singledispatch(func)
 
-        def wrapper(*args, **kwargs):
+        def wrapper(*args, **kwargs): # type: ignore
             return dispatcher.dispatch(args[1].__class__)(*args, **kwargs)
 
         wrapper.register = dispatcher.register
