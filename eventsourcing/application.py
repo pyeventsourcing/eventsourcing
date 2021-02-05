@@ -57,6 +57,7 @@ class Repository:
             )
         else:
             # Try to get a snapshot.
+            gt: Optional[int]
             snapshots = list(
                 self.snapshot_store.get(
                     originator_id=aggregate_id,
@@ -109,12 +110,12 @@ class Section:
 
     Constructor arguments:
 
-    :param str id: section ID e.g. "1,10"
+    :param Optional[str] id: section ID of this section e.g. "1,10"
     :param List[Notification] items: a list of event notifications
-    :param str next_id: section ID of the next section in a notification log
+    :param Optional[str] next_id: section ID of the following section
     """
 
-    id: str
+    id: Optional[str]
     items: List[Notification]
     next_id: Optional[str]
 
@@ -160,7 +161,7 @@ class LocalNotificationLog(NotificationLog):
         self.recorder = recorder
         self.section_size = section_size
 
-    def __getitem__(self, section_id: str) -> Section:
+    def __getitem__(self, requested_section_id: str) -> Section:
         """
         Returns a :class:`Section` of event notifications
         based on the requested section ID. The section ID of
@@ -172,7 +173,7 @@ class LocalNotificationLog(NotificationLog):
         are gaps in the sequence of recorded event notification.
         """
         # Interpret the section ID.
-        parts = section_id.split(",")
+        parts = requested_section_id.split(",")
         part1 = int(parts[0])
         part2 = int(parts[1])
         start = max(1, part1)
@@ -182,28 +183,33 @@ class LocalNotificationLog(NotificationLog):
         notifications = self.recorder.select_notifications(start, limit)
 
         # Get next section ID.
+        actual_section_id: Optional[str]
+        next_id: Optional[str]
         if len(notifications):
-            last_id = notifications[-1].id
-            return_id = self.format_section_id(notifications[0].id, last_id)
+            last_notification_id = notifications[-1].id
+            actual_section_id = self.format_section_id(
+                notifications[0].id, last_notification_id
+            )
             if len(notifications) == limit:
-                next_start = last_id + 1
-                next_id = self.format_section_id(next_start, next_start + limit - 1)
+                next_id = self.format_section_id(
+                    last_notification_id + 1, last_notification_id + limit
+                )
             else:
                 next_id = None
         else:
-            return_id = None
+            actual_section_id = None
             next_id = None
 
         # Return a section of the notification log.
         return Section(
-            id=return_id,
+            id=actual_section_id,
             items=notifications,
             next_id=next_id,
         )
 
     @staticmethod
-    def format_section_id(first, limit):
-        return "{},{}".format(first, limit)
+    def format_section_id(first_id: int, last_id: int) -> str:
+        return "{},{}".format(first_id, last_id)
 
 
 class Application(ABC):
@@ -211,7 +217,7 @@ class Application(ABC):
     Base class for event-sourced applications.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initialises an application with an
         :class:`~eventsourcing.persistence.InfrastructureFactory`,
@@ -236,7 +242,7 @@ class Application(ABC):
         """
         return InfrastructureFactory.construct(self.__class__.__name__)
 
-    def construct_mapper(self, application_name="") -> Mapper:
+    def construct_mapper(self, application_name: str = "") -> Mapper:
         """
         Constructs a :class:`~eventsourcing.persistence.Mapper`
         for use by the application.
@@ -255,7 +261,7 @@ class Application(ABC):
         self.register_transcodings(transcoder)
         return transcoder
 
-    def register_transcodings(self, transcoder: Transcoder):
+    def register_transcodings(self, transcoder: Transcoder) -> None:
         """
         Registers :class:`~eventsourcing.persistence.Transcoding`
         objects on given :class:`~eventsourcing.persistence.Transcoder`.
@@ -326,7 +332,7 @@ class Application(ABC):
         self.events.put(events)
         self.notify(events)
 
-    def notify(self, new_events: List[Aggregate.Event]):
+    def notify(self, new_events: List[Aggregate.Event]) -> None:
         """
         Called after new domain events have been saved. This
         method on this class class doesn't actually do anything,
@@ -334,14 +340,21 @@ class Application(ABC):
         need to take action when new domain events have been saved.
         """
 
-    def take_snapshot(self, aggregate_id: UUID, version: Optional[int] = None):
+    def take_snapshot(self, aggregate_id: UUID, version: Optional[int] = None) -> None:
         """
         Takes a snapshot of the recorded state of the aggregate,
         and puts the snapshot in the snapshot store.
         """
-        aggregate = self.repository.get(aggregate_id, version)
-        snapshot = Snapshot.take(aggregate)
-        self.snapshots.put([snapshot])
+        if self.snapshots is None:
+            raise AssertionError(
+                "Can't take snapshot without snapshots store. Please "
+                "set environment variable IS_SNAPSHOTTING_ENABLED to "
+                "a true value (e.g. 'y')."
+            )
+        else:
+            aggregate = self.repository.get(aggregate_id, version)
+            snapshot = Snapshot.take(aggregate)
+            self.snapshots.put([snapshot])
 
 
 TApplication = TypeVar("TApplication", bound=Application)

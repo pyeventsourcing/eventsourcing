@@ -172,7 +172,7 @@ class Leader(Application):
         """
         self.followers.append(follower)
 
-    def notify(self, new_events: List[Aggregate.Event]):
+    def notify(self, new_events: List[Aggregate.Event]) -> None:
         """
         Extends the application :func:`~eventsourcing.application.Application.notify`
         method by calling :func:`prompt_followers` whenever new events have just

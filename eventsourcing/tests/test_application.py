@@ -17,9 +17,10 @@ class TestApplication(TestCase):
         os.environ[InfrastructureFactory.IS_SNAPSHOTTING_ENABLED] = "yes"
 
     def tearDown(self) -> None:
-        del os.environ[InfrastructureFactory.IS_SNAPSHOTTING_ENABLED]
+        if InfrastructureFactory.IS_SNAPSHOTTING_ENABLED in os.environ:
+            del os.environ[InfrastructureFactory.IS_SNAPSHOTTING_ENABLED]
 
-    def test(self):
+    def test_example_application(self):
         app = BankAccounts()
 
         # Check AccountNotFound exception.
@@ -113,6 +114,19 @@ class TestApplication(TestCase):
         number = 1000
         duration = timeit(read, number=number)
         print(self, f"{1000 * duration / number:.3f}ms", f"{number / duration:.0f}/s")
+
+    def test_take_snapshot_raises_assertion_error_if_snapshotting_not_enabled(self):
+        del os.environ[InfrastructureFactory.IS_SNAPSHOTTING_ENABLED]
+        app = Application()
+        with self.assertRaises(AssertionError) as cm:
+            app.take_snapshot(uuid4())
+        self.assertEqual(
+            cm.exception.args[0], (
+                "Can't take snapshot without snapshots store. "
+                "Please set environment variable IS_SNAPSHOTTING_ENABLED "
+                "to a true value (e.g. 'y')."
+            )
+        )
 
 
 class TestApplicationWithSQLite(TestApplication):

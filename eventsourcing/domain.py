@@ -232,7 +232,7 @@ class Snapshot(DomainEvent):
     state: dict
 
     @classmethod
-    def take(cls, aggregate: Aggregate) -> DomainEvent:
+    def take(cls, aggregate: Aggregate) -> "Snapshot":
         """
         Creates a snapshot of the given :class:`Aggregate` object.
         """
