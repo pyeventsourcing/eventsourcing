@@ -25,7 +25,7 @@ class AESCipher(object):
         return b64encode(AESCipher.random_bytes(num_bytes)).decode("utf8")
 
     @staticmethod
-    def check_key_size(num_bytes):
+    def check_key_size(num_bytes: int) -> None:
         if num_bytes not in AESCipher.KEY_SIZES:
             raise ValueError(
                 "Invalid key size: {} not in {}".format(num_bytes, AESCipher.KEY_SIZES)
