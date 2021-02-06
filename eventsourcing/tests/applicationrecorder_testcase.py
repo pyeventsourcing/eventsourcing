@@ -123,7 +123,7 @@ class ApplicationRecorderTestCase(TestCase, ABC):
 
         with ThreadPoolExecutor(max_workers=4) as executor:
             futures = []
-            for i in range(100):
+            for _ in range(100):
                 future = executor.submit(_createevent)
                 futures.append(future)
             for future in futures:
