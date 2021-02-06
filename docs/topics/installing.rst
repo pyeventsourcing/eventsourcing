@@ -37,7 +37,15 @@ the extra dependencies associated with that option. If you installed
 without any options, you can easily install optional dependencies
 later by running the install command again with the options you want.
 
-For example, if you want to store events with PostgreSQL, then install with
+For example, if you want to store cryptographically encrypted events,
+then install with the ``crypto`` option.
+
+::
+
+    $ pip install eventsourcing[crypto]
+
+
+If you want to store events with PostgreSQL, then install with
 the ``postgres`` option.
 
 ::
@@ -45,20 +53,12 @@ the ``postgres`` option.
     $ pip install eventsourcing[postgres]
 
 
-If you want to store encrypted events, then install with
-the ``cipher`` option.
-
-::
-
-    $ pip install eventsourcing[cipher]
-
-
 Options can be combined, so that if you want to store encrypted events in PostgreSQL,
-then install with the ``postgres`` and ``cipher`` options.
+then install with the ``crypto`` and ``postgres`` options.
 
 ::
 
-    $ pip install eventsourcing[postgres,cipher]
+    $ pip install eventsourcing[crypto,postgres]
 
 
 Developers
