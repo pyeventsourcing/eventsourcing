@@ -800,13 +800,6 @@ Classes
     :special-members:
     :exclude-members: __weakref__, __dict__
 
-.. automodule:: eventsourcing.cipher
-    :show-inheritance:
-    :member-order: bysource
-    :members:
-    :special-members:
-    :exclude-members: __weakref__, __dict__
-
 .. automodule:: eventsourcing.popo
     :show-inheritance:
     :member-order: bysource

@@ -153,7 +153,7 @@ presents the current history of an existing aggregate.
 
 In the example below, an instance of the ``Worlds`` application is constructed.
 A new ``World`` aggregate is created by calling the ``create_world()`` method.
-Three items are added to its history: 'dinosaurs', 'trucks', and 'internet' by
+Three items are added to its history: "dinosaurs", "trucks", and "internet" by
 calling the ``make_it_so()`` application command with the ``world_id`` aggregate
 ID. The history of the aggregate is obtained when the ``get_world_history()``
 method is called.
@@ -165,14 +165,14 @@ method is called.
 
     world_id = application.create_world()
 
-    application.make_it_so(world_id, 'dinosaurs')
-    application.make_it_so(world_id, 'trucks')
-    application.make_it_so(world_id, 'internet')
+    application.make_it_so(world_id, "dinosaurs")
+    application.make_it_so(world_id, "trucks")
+    application.make_it_so(world_id, "internet")
 
     history = application.get_world_history(world_id)
-    assert history[0] == 'dinosaurs'
-    assert history[1] == 'trucks'
-    assert history[2] == 'internet'
+    assert history[0] == "dinosaurs"
+    assert history[1] == "trucks"
+    assert history[2] == "internet"
 
 By default, the application object uses the “Plain Old Python Object” infrastructure
 which has stored domain events in memory only. To store the domain events in a real
@@ -264,11 +264,11 @@ the event notification. The event notifications are ordered by their IDs,
 with later event notifications having higher values than earlier ones.
 
 A notification log section is identified by a section ID string that comprises
-two integers separated by a comma, for example ``'1,10'``. The first integer
+two integers separated by a comma, for example ``"1,10"``. The first integer
 specifies the notification ID of the first event notification included in the
 section. The second integer specifies the notification ID of the second event
 notification included in the section. Sections are requested from the notification
-using the Python square bracket syntax, for example ``application.log['1,10']``.
+using the Python square bracket syntax, for example ``application.log["1,10"]``.
 
 The notification log will return a section that has no more than the requested
 number of event notifications. Sometimes there will be less event notifications
@@ -298,10 +298,10 @@ are four notifications in the notification log.
 
     from eventsourcing.persistence import Notification
 
-    section = application.log['1,10']
+    section = application.log["1,10"]
 
     assert len(section.items) == 4
-    assert section.id == '1,4'
+    assert section.id == "1,4"
     assert section.next_id is None
 
     assert isinstance(section.items[0], Notification)
@@ -320,14 +320,14 @@ are four notifications in the notification log.
     assert section.items[2].originator_version == 3
     assert section.items[3].originator_version == 4
 
-    assert 'Aggregate.Created' in section.items[0].topic
-    assert 'World.SomethingHappened' in section.items[1].topic
-    assert 'World.SomethingHappened' in section.items[2].topic
-    assert 'World.SomethingHappened' in section.items[3].topic
+    assert "Aggregate.Created" in section.items[0].topic
+    assert "World.SomethingHappened" in section.items[1].topic
+    assert "World.SomethingHappened" in section.items[2].topic
+    assert "World.SomethingHappened" in section.items[3].topic
 
-    assert b'dinosaurs' in section.items[1].state
-    assert b'trucks' in section.items[2].state
-    assert b'internet' in section.items[3].state
+    assert b"dinosaurs" in section.items[1].state
+    assert b"trucks" in section.items[2].state
+    assert b"internet" in section.items[3].state
 
 A domain event can be reconstructed from an event notification by calling the
 application's mapper method :func:`~eventsourcing.persistence.Mapper.to_domain_event`.
@@ -343,7 +343,7 @@ will also be encrypted, but the mapper will decrypt the event notification.
     domain_event = application.mapper.to_domain_event(section.items[3])
     assert isinstance(domain_event, World.SomethingHappened)
     assert domain_event.originator_id == world_id
-    assert domain_event.what == 'internet'
+    assert domain_event.what == "internet"
 
 .. _Snapshotting:
 
@@ -366,8 +366,8 @@ To enable the snapshotting functionality, the environment variable
 ``IS_SNAPSHOTTING_ENABLED`` must be set to a valid "true"  value. The
 function :func:`~distutils.utils.strtobool` from the Python :mod:`distutils.utils`
 module is used to interpret the value of this environment variable, so that strings
-``'y'``, ``'yes'``, ``'t'``, ``'true'``, ``'on'`` and ``'1'`` are considered to
-be "true" values, and ``'n'``, ``'no'``, ``'f'``, ``'false'``, ``'off'`` and ``'0'``
+``"y"``, ``"yes"``, ``"t"``, ``"true"``, ``"on"`` and ``"1"`` are considered to
+be "true" values, and ``"n"``, ``"no"``, ``"f"``, ``"false"``, ``"off"`` and ``"0"``
 are considered to be "false" values, and other values are considered to be invalid.
 The default is for an application's snapshotting functionality to be not enabled.
 
@@ -375,14 +375,14 @@ The default is for an application's snapshotting functionality to be not enabled
 
     import os
 
-    os.environ['IS_SNAPSHOTTING_ENABLED'] = 'y'
+    os.environ["IS_SNAPSHOTTING_ENABLED"] = "y"
     application = Worlds()
 
     world_id = application.create_world()
 
-    application.make_it_so(world_id, 'dinosaurs')
-    application.make_it_so(world_id, 'trucks')
-    application.make_it_so(world_id, 'internet')
+    application.make_it_so(world_id, "dinosaurs")
+    application.make_it_so(world_id, "trucks")
+    application.make_it_so(world_id, "internet")
 
     application.take_snapshot(world_id)
 
@@ -423,8 +423,8 @@ a real database, such as a database name, a user name, and a password.
 The example below shows how to configure the application to use the library's
 :ref:`SQLite infrastructure <SQLite>`. In the case of the library's SQLite factory,
 the environment variable ``SQLITE_DBNAME`` must be set to a file path. And if the
-tables do not exist, the ``DO_CREATE_TABLE`` must be set to a "true" value (``'y'``,
-``'yes'``, ``'t'``, ``'true'``, ``'on'``, or ``'1'``). The function
+tables do not exist, the ``DO_CREATE_TABLE`` must be set to a "true" value (``"y"``,
+``"yes"``, ``"t"``, ``"true"``, ``"on"``, or ``"1"``). The function
 :func:`~distutils.utils.strtobool` from the Python :mod:`distutils.utils`
 module is used to interpret the value of this environment variable.
 
@@ -435,16 +435,16 @@ module is used to interpret the value of this environment variable.
     tmpfile = NamedTemporaryFile(suffix="_eventsourcing_test.db")
     tmpfile.name
 
-    os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.sqlite:Factory'
-    os.environ['SQLITE_DBNAME'] = tmpfile.name
-    os.environ['DO_CREATE_TABLE'] = 'yes'
+    os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.sqlite:Factory"
+    os.environ["SQLITE_DBNAME"] = tmpfile.name
+    os.environ["DO_CREATE_TABLE"] = "yes"
     application = Worlds()
 
     world_id = application.create_world()
 
-    application.make_it_so(world_id, 'dinosaurs')
-    application.make_it_so(world_id, 'trucks')
-    application.make_it_so(world_id, 'internet')
+    application.make_it_so(world_id, "dinosaurs")
+    application.make_it_so(world_id, "trucks")
+    application.make_it_so(world_id, "internet")
 
     application.take_snapshot(world_id, version=2)
 
@@ -454,19 +454,19 @@ the state of the application will endure after the application has
 been reconstructed. The database table only needs to be created once,
 and so when creating an application for an already existing database
 the environment variable ``DO_CREATE_TABLE`` must either not be set,
-or set to a "false" value (``'n'``, ``'no'``, ``'f'``, ``'false'``,
-``'off'``, ``'0'``).
+or set to a "false" value (``"n"``, ``"no"``, ``"f"``, ``"false"``,
+``"off"``, ``"0"``).
 
 .. code:: python
 
-    os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.sqlite:Factory'
-    os.environ['DO_CREATE_TABLE'] = 'no'
+    os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.sqlite:Factory"
+    os.environ["DO_CREATE_TABLE"] = "no"
     application = Worlds()
 
     history = application.get_world_history(world_id)
-    assert history[0] == 'dinosaurs'
-    assert history[1] == 'trucks'
-    assert history[2] == 'internet'
+    assert history[0] == "dinosaurs"
+    assert history[1] == "trucks"
+    assert history[2] == "internet"
 
 
 Registering custom transcodings
@@ -530,12 +530,15 @@ size of recorded application state.
 
 The library's :class:`~eventsourcing.cipher.AESCipher` class can
 be used to encrypt stored domain events. The Python :mod:`zlib` module
-can be used to compress stored domain events.
+can be used to compress stored domain events. It is encapsulated
+by the library's :class:`~eventsourcing.compressor.ZlibCompressor`
+class.
 
 To enable encryption and compression, set the
-environment variables 'CIPHER_TOPIC' (a :ref:`topic <Topics>`
-to a cipher class), 'CIPHER_KEY' (a valid encryption key),
-and 'COMPRESSOR_TOPIC' (:ref:`topic <Topics>` for a compressor).
+environment variables ``CIPHER_TOPIC`` (a :ref:`topic <Topics>`
+to a cipher class), ``CIPHER_KEY`` (a valid encryption key),
+and ``COMPRESSOR_TOPIC`` (:ref:`topic <Topics>` for a compressor
+class).
 
 When using the library's :class:`~eventsourcing.cipher.AESCipher` class,
 you can use its static method :func:`~eventsourcing.cipher.AESCipher.create_key`
@@ -552,11 +555,13 @@ to generate a valid encryption key.
     cipher_key = AESCipher.create_key(num_bytes=32)
 
     # Configure cipher key.
-    os.environ['CIPHER_KEY'] = cipher_key
+    os.environ["CIPHER_KEY"] = cipher_key
+
     # Configure cipher topic.
-    os.environ['CIPHER_TOPIC'] = "eventsourcing.cipher:AESCipher"
+    os.environ["CIPHER_TOPIC"] = "eventsourcing.cipher:AESCipher"
+
     # Configure compressor topic.
-    os.environ['COMPRESSOR_TOPIC'] = "eventsourcing.compressor:ZlibCompressor"
+    os.environ["COMPRESSOR_TOPIC"] = "eventsourcing.compressor:ZlibCompressor"
 
 
 .. _Saving multiple aggregates:
@@ -615,7 +620,7 @@ defined in that section.
 
         @classmethod
         def create_id(cls, name: str):
-            return uuid5(NAMESPACE_URL, f'/pages/{name}')
+            return uuid5(NAMESPACE_URL, f"/pages/{name}")
 
         @classmethod
         def create(cls, page: Page):
@@ -738,6 +743,20 @@ Classes
 =======
 
 .. automodule:: eventsourcing.application
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__
+
+.. automodule:: eventsourcing.cipher
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :special-members:
+    :exclude-members: __weakref__, __dict__
+
+.. automodule:: eventsourcing.compressor
     :show-inheritance:
     :member-order: bysource
     :members:
