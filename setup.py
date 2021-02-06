@@ -10,9 +10,7 @@ is_pypy = platform.python_implementation() == "PyPy"
 # if "READTHEDOCS" in os.environ:
 #     os.environ["CASS_DRIVER_NO_CYTHON"] = "1"
 
-cipher_requires = [
-    "pycryptodome<=3.9.99999"
-]
+cipher_requires = ["pycryptodome<=3.9.99999"]
 
 postgresql_requires = [
     "psycopg2cffi<=2.8.99999" if is_pypy else "psycopg2-binary<=2.8.99999"
