@@ -463,6 +463,19 @@ encryption" in an event-sourced application.
 
     assert domain_event1.timestamp.isoformat() not in str(stored_event1.state)
 
+The library's :class:`~eventsourcing.cipher.AESCipher` class uses the
+`AES cipher <https://pycryptodome.readthedocs.io/en/stable/src/cipher/aes.html>`_
+from the `Pycryptodome library <https://pycryptodome.readthedocs.io/en/stable/index.html>`_
+in `GCM mode <https://pycryptodome.readthedocs.io/en/stable/src/cipher/modern.html#gcm-mode>`_.
+AES is a very fast and secure symmetric block cipher, and is the de facto
+standard for symmetric encryption. Galois/Counter Mode (GCM) is a mode of
+operation for symmetric block ciphers that is designed to provide both data
+authenticity and confidentiality, and is widely adopted for its performance.
+
+The mapper expects an instance of :class:`~eventsourcing.cipher.AbstractCipher`,
+and :class:`~eventsourcing.cipher.AESCipher` implements this abstract base class,
+so if you want to use another cipher strategy simply implement the base class.
+
 
 .. _Compression:
 
@@ -471,25 +484,36 @@ Compression
 
 A compressor can be used to reduce the size of stored events.
 
-The Python :mod:`zlib` module can be used to compress and decompress
-the state of stored events. The size of the state of a compressed
-and encrypted stored event will be less than or equal to the size of
-the state of a stored event that is encrypted but not compressed.
+The library's :class:`~eventsourcing.compressor.ZlibCompressor` class
+can be used to compress and decompress the state of stored events. The
+size of the state of a compressed and encrypted stored event will be
+less than or equal to the size of the state of a stored event that is
+encrypted but not compressed.
 
 .. code:: python
 
-    import zlib
+    from eventsourcing.compressor import ZlibCompressor
+
+    compressor = ZlibCompressor()
 
     mapper = Mapper(
         transcoder=transcoder,
         cipher=cipher,
-        compressor=zlib,
+        compressor=compressor,
     )
 
     stored_event2 = mapper.from_domain_event(domain_event1)
     assert mapper.to_domain_event(stored_event2) == domain_event1
 
     assert len(stored_event2.state) <= len(stored_event1.state)
+
+
+The library's :class:`~eventsourcing.compressor.ZlibCompressor` class
+uses Python's :mod:`zlib` module.
+
+The mapper expects an instance of :class:`~eventsourcing.compressor.AbstractCompressor`,
+and :class:`~eventsourcing.compressor.ZlibCompressor` implements this abstract base class,
+so if you want to use another compression strategy simply implement the base class.
 
 
 .. _Notification objects:
