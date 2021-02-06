@@ -43,9 +43,8 @@ testing_requires = (
     # + thespian_requires
     # + django_requires
     + [
-        "python-coveralls<=2.9.99999",
-        # "coverage<5.0.0",  # v5 is incompatible ATM.
-        "coverage",  # v5 is incompatible ATM.
+        "python-coveralls",
+        "coverage",
         "black",
         "mypy",
         "flake8",
