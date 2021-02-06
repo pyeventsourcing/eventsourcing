@@ -27,8 +27,7 @@ install:
 
 
 script:
-    make lint
-    make test
+    make lint test;
 
 after_success:
     coverage combine;
