@@ -126,7 +126,8 @@ class Aggregate:
             )
         except TypeError as e:
             msg = (
-                f"Unable to construct event with class {event_class.__qualname__} "
+                f"Unable to construct 'aggregate created' "
+                f"event with class {event_class.__qualname__} "
                 f"and keyword args {kwargs}: {e}"
             )
             raise TypeError(msg)
