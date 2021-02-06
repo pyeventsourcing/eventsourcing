@@ -55,9 +55,9 @@ serialisation and deserialisation. The serialised state is a Python :class:`byte
 
 .. code:: python
 
-    data = transcoder.encode({'a': 1})
+    data = transcoder.encode({"a": 1})
     copy = transcoder.decode(data)
-    assert copy == {'a': 1}
+    assert copy == {"a": 1}
 
 The library's :class:`~eventsourcing.persistence.Transcoder` uses the Python
 :mod:`json` module. And so, by default, only the basic object types supported by that
@@ -412,6 +412,7 @@ The :func:`~eventsourcing.persistence.Mapper.to_domain_event` method of the
 
     assert mapper.to_domain_event(stored_event1) == domain_event1
 
+
 .. _Encryption:
 
 Encryption
@@ -561,7 +562,7 @@ ID of a notification that has been processed.
 
     tracking = Tracking(
         notification_id=123,
-        application_name='bounded_context1',
+        application_name="bounded_context1",
     )
 
 .. _Recorder:
@@ -603,14 +604,14 @@ modules follow a similar naming scheme and pattern of use.
     from eventsourcing.sqlite import SQLiteProcessRecorder
     from eventsourcing.sqlite import SQLiteDatastore
 
-    datastore = SQLiteDatastore(db_name=':memory:')
+    datastore = SQLiteDatastore(db_name=":memory:")
     aggregate_recorder = SQLiteAggregateRecorder(datastore, "snapshots")
     aggregate_recorder.create_table()
 
     application_recorder = SQLiteApplicationRecorder(datastore)
     application_recorder.create_table()
 
-    datastore = SQLiteDatastore(db_name=':memory:')
+    datastore = SQLiteDatastore(db_name=":memory:")
     process_recorder = SQLiteProcessRecorder(datastore)
     process_recorder.create_table()
 
@@ -699,7 +700,7 @@ keep stored events in a data structure in memory (see :mod:`eventsourcing.popo`)
 
     from eventsourcing.persistence import InfrastructureFactory
 
-    factory = InfrastructureFactory.construct(application_name='')
+    factory = InfrastructureFactory.construct(application_name="")
 
     recorder = factory.application_recorder()
     mapper = factory.mapper(transcoder=transcoder)
@@ -721,17 +722,17 @@ SQLite
 The module :mod:`eventsourcing.sqlite` supports storing events in SQLite.
 
 The SQLite :class:`~eventsourcing.sqlite.Factory` uses environment variables
-``'SQLITE_DBNAME'`` and ``'DO_CREATE_TABLE'``.
+``SQLITE_DBNAME`` and ``DO_CREATE_TABLE``.
 
 .. code:: python
 
     import os
 
-    os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.sqlite:Factory'
-    os.environ['SQLITE_DBNAME'] = ':memory:'
-    os.environ['DO_CREATE_TABLE'] = 'y'
+    os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.sqlite:Factory"
+    os.environ["SQLITE_DBNAME"] = "":memory:"
+    os.environ["DO_CREATE_TABLE"] = "y"
 
-    factory = InfrastructureFactory.construct(application_name='')
+    factory = InfrastructureFactory.construct(application_name=")
 
     recorder = factory.application_recorder()
     mapper = factory.mapper(transcoder=transcoder)
@@ -753,30 +754,30 @@ PostgreSQL
 The module :mod:`eventsourcing.postgres` supports storing events in PostgresSQL.
 
 The PostgreSQL :class:`~eventsourcing.sqlite.Factory` uses environment variables
-``'POSTGRES_DBNAME'``, ``'POSTGRES_HOST'``, ``'POSTGRES_USER'``,
-``'POSTGRES_PASSWORD'``, and ``'DO_CREATE_TABLE'``.
+``POSTGRES_DBNAME``, ``POSTGRES_HOST``, ``POSTGRES_USER``,
+``POSTGRES_PASSWORD``, and ``DO_CREATE_TABLE``.
 
 
 .. code:: python
 
     import os
 
-    os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.postgres:Factory'
+    os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.postgres:Factory"
     os.environ["POSTGRES_DBNAME"] = "eventsourcing"
     os.environ["POSTGRES_HOST"] = "127.0.0.1"
     os.environ["POSTGRES_USER"] = "eventsourcing"
     os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
-    os.environ['DO_CREATE_TABLE'] = 'y'
+    os.environ["DO_CREATE_TABLE"] = "y"
 
 ..
     from eventsourcing.tests.test_postgres import drop_postgres_table
-    factory = InfrastructureFactory.construct(application_name='')
+    factory = InfrastructureFactory.construct(application_name="")
     drop_postgres_table(factory.datastore, "stored_events")
 
 
 .. code:: python
 
-    factory = InfrastructureFactory.construct(application_name='')
+    factory = InfrastructureFactory.construct(application_name="")
 
     recorder = factory.application_recorder()
     mapper = factory.mapper(transcoder=transcoder)
