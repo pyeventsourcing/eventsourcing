@@ -6,7 +6,7 @@ DOTENV_FILE ?= .env
 .PHONY: install
 install:
 	CASS_DRIVER_NO_CYTHON=1
-	@pip install -e ".[cassandra,sqlalchemy,axonserver,axon,ray,django,testing,dev,docs]"
+	@pip install -e ".[dev]"
 
 .PHONY: docker-pull
 docker-pull:
@@ -37,7 +37,8 @@ docker-logs:
 
 .PHONY: lint-black
 lint-black:
-	@black --check --diff .
+	@black --check --diff eventsourcing
+	@black --check --diff setup.py
 
 .PHONY: lint-flake8
 lint-flake8:
@@ -45,18 +46,18 @@ lint-flake8:
 
 .PHONY: lint-isort
 lint-isort:
-	@isort --check-only --diff --recursive .
+	@isort --check-only --diff eventsourcing
 
 .PHONY: lint-mypy
 lint-mypy:
-	@mypy --ignore-missing-imports eventsourcing
+	@mypy eventsourcing
 
 .PHONY: lint-dockerfile
 lint-dockerfile:
 	@docker run --rm -i replicated/dockerfilelint:ad65813 < ./dev/Dockerfile_eventsourcing_requirements
 
 .PHONY: lint
-lint: lint-black lint-flake8 lint-isort lint-mypy lint-dockerfile
+lint: lint-black lint-flake8 lint-isort lint-mypy #lint-dockerfile
 
 
 .PHONY: fmt-isort
@@ -66,9 +67,10 @@ fmt-isort:
 .PHONY: fmt-black
 fmt-black:
 	@black eventsourcing
+	@black setup.py
 
 .PHONY: fmt
-fmt: fmt-black fmt-isort
+fmt: fmt-isort fmt-black
 
 
 .PHONY: test
@@ -80,11 +82,6 @@ test:
 	@coverage combine
 	@coverage report
 	@coverage html
-
-
-.PHONY: quick-test
-quick-test:
-	QUICK_TESTS_ONLY=1 python -m unittest discover eventsourcing -vv
 
 
 .PHONY: docs
