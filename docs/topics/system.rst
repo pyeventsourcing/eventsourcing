@@ -149,7 +149,6 @@ Single-threaded runner
 
     from eventsourcing.system import SingleThreadedRunner
 
-
     runner= SingleThreadedRunner(system)
     runner.start()
     worlds = runner.get(WorldsApplication)
@@ -191,7 +190,6 @@ Multi-threaded runner
 .. code:: python
 
     from eventsourcing.system import MultiThreadedRunner
-
 
     runner= MultiThreadedRunner(system)
     runner.start()
