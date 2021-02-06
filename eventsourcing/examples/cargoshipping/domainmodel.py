@@ -4,11 +4,14 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID, uuid4
 
-# Locations in the world.
 from eventsourcing.domain import Aggregate, TZINFO
+from eventsourcing.utils import singledispatchmethod
 
 
 class Location(Enum):
+    """
+    Locations in the world.
+    """
     HAMBURG = "HAMBURG"
     HONGKONG = "HONGKONG"
     NEWYORK = "NEWYORK"
@@ -120,30 +123,6 @@ class Cargo(Aggregate):
     happens to the cargo after it has been booked.
     """
 
-    class Event(Aggregate.Event):
-        pass
-
-    @classmethod
-    def new_booking(
-        cls,
-        origin: Location,
-        destination: Location,
-        arrival_deadline: datetime,
-    ) -> "Cargo":
-        return cls._create(
-            event_class=Cargo.BookingStarted,
-            id=uuid4(),
-            origin=origin,
-            destination=destination,
-            arrival_deadline=arrival_deadline,
-        )
-
-    @dataclass(frozen=True)
-    class BookingStarted(Aggregate.Created):
-        origin: Location
-        destination: Location
-        arrival_deadline: datetime
-
     def __init__(
         self,
         origin: Location,
@@ -216,12 +195,42 @@ class Cargo(Aggregate):
             destination=destination,
         )
 
+    @classmethod
+    def new_booking(
+        cls,
+        origin: Location,
+        destination: Location,
+        arrival_deadline: datetime,
+    ) -> "Cargo":
+        return cls._create(
+            event_class=Cargo.BookingStarted,
+            id=uuid4(),
+            origin=origin,
+            destination=destination,
+            arrival_deadline=arrival_deadline,
+        )
+
+    @dataclass(frozen=True)
+    class BookingStarted(Aggregate.Created):
+        origin: Location
+        destination: Location
+        arrival_deadline: datetime
+
+    class Event(Aggregate.Event["Cargo"]):
+        def apply(self, aggregate: "Cargo") -> None:
+            aggregate.projection(self)
+
+    @singledispatchmethod
+    def projection(self, event: "Cargo.Event") -> None:
+        pass
+
     @dataclass(frozen=True)
     class DestinationChanged(Event):
         destination: Location
 
-        def apply(self, aggregate: "Cargo") -> None:
-            aggregate._destination = self.destination
+    @projection.register(DestinationChanged)
+    def apply(self, event: DestinationChanged) -> None:
+        self._destination = event.destination
 
     def assign_route(self, itinerary: Itinerary) -> None:
         self._trigger_event(self.RouteAssigned, route=itinerary)
@@ -230,17 +239,18 @@ class Cargo(Aggregate):
     class RouteAssigned(Event):
         route: Itinerary
 
-        def apply(self, obj: "Cargo") -> None:
-            obj._route = self.route
-            obj._routing_status = "ROUTED"
-            obj._estimated_time_of_arrival = datetime.now(tz=TZINFO) + timedelta(
-                weeks=1
-            )
-            obj._next_expected_activity = (
-                HandlingActivity.RECEIVE,
-                obj.origin,
-            )
-            obj._is_misdirected = False
+    @projection.register(RouteAssigned)
+    def apply(self, event: RouteAssigned) -> None:
+        self._route = event.route
+        self._routing_status = "ROUTED"
+        self._estimated_time_of_arrival = datetime.now(tz=TZINFO) + timedelta(
+            weeks=1
+        )
+        self._next_expected_activity = (
+            HandlingActivity.RECEIVE,
+            self.origin,
+        )
+        self._is_misdirected = False
 
     def register_handling_event(
         self,
@@ -264,66 +274,67 @@ class Cargo(Aggregate):
         location: Location
         handling_activity: str
 
-        def apply(self, obj: "Cargo") -> None:
-            assert obj.route is not None
-            if self.handling_activity == HandlingActivity.RECEIVE:
-                obj._transport_status = "IN_PORT"
-                obj._last_known_location = self.location
-                obj._next_expected_activity = (
-                    HandlingActivity.LOAD,
-                    self.location,
-                    obj.route.legs[0].voyage_number,
-                )
-            elif self.handling_activity == HandlingActivity.LOAD:
-                obj._transport_status = "ONBOARD_CARRIER"
-                obj._current_voyage_number = self.voyage_number
-                for leg in obj.route.legs:
-                    if leg.origin == self.location.value:
-                        if leg.voyage_number == self.voyage_number:
-                            obj._next_expected_activity = (
-                                HandlingActivity.UNLOAD,
-                                Location[leg.destination],
-                                self.voyage_number,
-                            )
-                            break
-                else:
-                    raise Exception(
-                        "Can't find leg with origin={} and "
-                        "voyage_number={}".format(
-                            self.location,
-                            self.voyage_number,
+    @projection.register(HandlingEventRegistered)
+    def apply(self, event: HandlingEventRegistered) -> None:
+        assert self.route is not None
+        if event.handling_activity == HandlingActivity.RECEIVE:
+            self._transport_status = "IN_PORT"
+            self._last_known_location = event.location
+            self._next_expected_activity = (
+                HandlingActivity.LOAD,
+                event.location,
+                self.route.legs[0].voyage_number,
+            )
+        elif event.handling_activity == HandlingActivity.LOAD:
+            self._transport_status = "ONBOARD_CARRIER"
+            self._current_voyage_number = event.voyage_number
+            for leg in self.route.legs:
+                if leg.origin == event.location.value:
+                    if leg.voyage_number == event.voyage_number:
+                        self._next_expected_activity = (
+                            HandlingActivity.UNLOAD,
+                            Location[leg.destination],
+                            event.voyage_number,
                         )
-                    )
-
-            elif self.handling_activity == HandlingActivity.UNLOAD:
-                obj._current_voyage_number = None
-                obj._last_known_location = self.location
-                obj._transport_status = "IN_PORT"
-                if self.location == obj.destination:
-                    obj._next_expected_activity = (
-                        HandlingActivity.CLAIM,
-                        self.location,
-                    )
-                elif self.location.value in [leg.destination for leg in obj.route.legs]:
-                    for i, leg in enumerate(obj.route.legs):
-                        if leg.voyage_number == self.voyage_number:
-                            next_leg: Leg = obj.route.legs[i + 1]
-                            assert Location[next_leg.origin] == self.location
-                            obj._next_expected_activity = (
-                                HandlingActivity.LOAD,
-                                self.location,
-                                next_leg.voyage_number,
-                            )
-                            break
-                else:
-                    obj._is_misdirected = True
-                    obj._next_expected_activity = None
-
-            elif self.handling_activity == HandlingActivity.CLAIM:
-                obj._next_expected_activity = None
-                obj._transport_status = "CLAIMED"
-
+                        break
             else:
                 raise Exception(
-                    "Unsupported handling event: {}".format(self.handling_activity)
+                    "Can't find leg with origin={} and "
+                    "voyage_number={}".format(
+                        event.location,
+                        event.voyage_number,
+                    )
                 )
+
+        elif event.handling_activity == HandlingActivity.UNLOAD:
+            self._current_voyage_number = None
+            self._last_known_location = event.location
+            self._transport_status = "IN_PORT"
+            if event.location == self.destination:
+                self._next_expected_activity = (
+                    HandlingActivity.CLAIM,
+                    event.location,
+                )
+            elif event.location.value in [leg.destination for leg in self.route.legs]:
+                for i, leg in enumerate(self.route.legs):
+                    if leg.voyage_number == event.voyage_number:
+                        next_leg: Leg = self.route.legs[i + 1]
+                        assert Location[next_leg.origin] == event.location
+                        self._next_expected_activity = (
+                            HandlingActivity.LOAD,
+                            event.location,
+                            next_leg.voyage_number,
+                        )
+                        break
+            else:
+                self._is_misdirected = True
+                self._next_expected_activity = None
+
+        elif event.handling_activity == HandlingActivity.CLAIM:
+            self._next_expected_activity = None
+            self._transport_status = "CLAIMED"
+
+        else:
+            raise Exception(
+                "Unsupported handling event: {}".format(event.handling_activity)
+            )
