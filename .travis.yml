@@ -28,7 +28,7 @@ install:
 
 script:
     make lint
-    coverage run -m unittest discover eventsourcing -v;
+    make test
 
 after_success:
     coverage combine;
