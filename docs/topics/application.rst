@@ -682,6 +682,7 @@ We can use the page name to retrieve the body of the page.
 
     assert wiki.get_page(name="Erth").body == "Lorem ipsum..."
 
+
 We can also update the name of the page, and then retrieve the page using the new name.
 
 .. code:: python
@@ -689,6 +690,7 @@ We can also update the name of the page, and then retrieve the page using the ne
     wiki.rename_page(name="Erth", new_name="Earth")
 
     assert wiki.get_page(name="Earth").body == "Lorem ipsum..."
+
 
 The uniqueness constraint on the recording of stored domain event objects combined
 with the atomicity of recording domain events means that name collisions in the
@@ -720,6 +722,11 @@ index will result in the wiki not being updated.
     assert wiki.get_page(name="Earth").body == "Lorem ipsum..."
     assert wiki.get_page(name="Mars").body == "Neque porro quisquam..."
 
+
+A more refined implementation might release old index objects
+when page names are changed so that they can be reused by other
+pages, or update the old index to point to the new index, so that
+redirects can be implemented.
 
 
 ..
