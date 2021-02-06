@@ -5,7 +5,6 @@ DOTENV_FILE ?= .env
 
 .PHONY: install
 install:
-	CASS_DRIVER_NO_CYTHON=1
 	@pip install -e ".[dev]"
 
 .PHONY: docker-pull
