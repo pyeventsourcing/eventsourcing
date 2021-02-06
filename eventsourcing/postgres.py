@@ -25,7 +25,7 @@ psycopg2.extras.register_uuid()
 
 
 class PostgresDatastore:
-    def __init__(self, dbname: str, host: str, user: str, password: str) -> None:
+    def __init__(self, dbname: str, host: str, user: str, password: str):
         self.dbname = dbname
         self.host = host
         self.user = user
@@ -303,7 +303,7 @@ class Factory(InfrastructureFactory):
     POSTGRES_USER = "POSTGRES_USER"
     POSTGRES_PASSWORD = "POSTGRES_PASSWORD"
 
-    def __init__(self, application_name: str) -> None:
+    def __init__(self, application_name: str):
         super().__init__(application_name)
         dbname = self.getenv(self.POSTGRES_DBNAME)
         if dbname is None:

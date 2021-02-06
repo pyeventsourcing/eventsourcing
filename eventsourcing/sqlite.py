@@ -20,12 +20,12 @@ from eventsourcing.persistence import (
 
 
 class SQLiteDatastore:
-    def __init__(self, db_name: str) -> None:
+    def __init__(self, db_name: str):
         self.db_name = db_name
         self.connections: Dict[int, Connection] = {}
 
     class Transaction:
-        def __init__(self, connection: Connection) -> None:
+        def __init__(self, connection: Connection):
             self.c = connection
 
         def __enter__(self) -> Connection:
@@ -79,7 +79,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         self,
         datastore: SQLiteDatastore,
         events_table_name: str = "stored_events",
-    ) -> None:
+    ):
         assert isinstance(datastore, SQLiteDatastore)
         self.datastore = datastore
         self.events_table_name = events_table_name
@@ -292,7 +292,7 @@ class Factory(InfrastructureFactory):
     SQLITE_DBNAME = "SQLITE_DBNAME"
     DO_CREATE_TABLE = "DO_CREATE_TABLE"
 
-    def __init__(self, application_name: str) -> None:
+    def __init__(self, application_name: str):
         super().__init__(application_name)
         db_name = self.getenv(self.SQLITE_DBNAME)
         if not db_name:

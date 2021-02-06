@@ -192,7 +192,7 @@ class Mapper(Generic[TDomainEvent]):
         transcoder: AbstractTranscoder,
         compressor: Optional[AbstractCompressor] = None,
         cipher: Optional[AbstractCipher] = None,
-    ) -> None:
+    ):
         self.transcoder = transcoder
         self.compressor = compressor
         self.cipher = cipher
@@ -424,7 +424,7 @@ class InfrastructureFactory(ABC):
             raise AssertionError(f"Not an infrastructure factory: {topic}")
         return factory_cls(application_name=application_name)
 
-    def __init__(self, application_name: str) -> None:
+    def __init__(self, application_name: str):
         """
         Initialises infrastructure factory object with given application name.
         """

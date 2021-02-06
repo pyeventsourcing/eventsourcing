@@ -132,7 +132,7 @@ class Cargo(Aggregate):
         destination: Location,
         arrival_deadline: datetime,
         **kwargs: Any,
-    ) -> None:
+    ):
         super().__init__(**kwargs)
         self._origin: Location = origin
         self._destination: Location = destination
