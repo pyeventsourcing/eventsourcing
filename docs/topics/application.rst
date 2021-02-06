@@ -618,7 +618,7 @@ defined in that section.
             return uuid5(NAMESPACE_URL, f'/pages/{name}')
 
         @classmethod
-        def create(cls, page: Index):
+        def create(cls, page: Page):
             return cls._create(
                 event_class=cls.Created,
                 id=cls.create_id(page.name),
