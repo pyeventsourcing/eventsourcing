@@ -122,7 +122,7 @@ class Aggregate:
                 originator_id=id,
                 originator_version=1,
                 timestamp=datetime.now(tz=TZINFO),
-                **kwargs,
+                **kwargs,  # type: ignore
             )
         except TypeError as e:
             msg = (
@@ -138,7 +138,6 @@ class Aggregate:
         return aggregate
 
     @dataclass(frozen=True)
-    # class Created(Event, Generic[TAggregate]):
     class Created(Event["Aggregate"]):
         """
         Domain event for when aggregate is created.
@@ -191,7 +190,7 @@ class Aggregate:
             originator_id=self.id,
             originator_version=next_version,
             timestamp=datetime.now(tz=TZINFO),
-            **kwargs,
+            **kwargs,  # type: ignore
         )
         # Mutate aggregate with domain event.
         event.mutate(self)
