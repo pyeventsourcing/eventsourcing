@@ -46,19 +46,3 @@ def resolve_attr(obj: Any, path: str) -> Any:
         head, _, tail = path.partition(".")
         obj = getattr(obj, head)
         return resolve_attr(obj, tail)
-
-
-try:
-    from functools import singledispatchmethod
-except ImportError:  # pragma: no cover
-    from functools import singledispatch, update_wrapper
-
-    def singledispatchmethod(func):  # type: ignore
-        dispatcher = singledispatch(func)
-
-        def wrapper(*args, **kwargs):  # type: ignore
-            return dispatcher.dispatch(args[1].__class__)(*args, **kwargs)
-
-        wrapper.register = dispatcher.register
-        update_wrapper(wrapper, func)
-        return wrapper

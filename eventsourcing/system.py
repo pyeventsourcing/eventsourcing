@@ -323,7 +323,9 @@ class AbstractRunner(ABC):
 
 
 class RunnerAlreadyStarted(Exception):
-    pass
+    """
+    Raised when runner is already started.
+    """
 
 
 class SingleThreadedRunner(AbstractRunner, Promptable):

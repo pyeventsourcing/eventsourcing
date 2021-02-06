@@ -1,5 +1,6 @@
 from unittest.case import TestCase
 
+from eventsourcing.dispatch import singledispatchmethod
 from eventsourcing.domain import Aggregate
 from eventsourcing.system import (
     Follower,
@@ -11,7 +12,6 @@ from eventsourcing.system import (
 from eventsourcing.tests.test_aggregate import BankAccount
 from eventsourcing.tests.test_application import BankAccounts
 from eventsourcing.tests.test_processingpolicy import EmailNotification
-from eventsourcing.utils import singledispatchmethod
 
 
 class TestProcessApplication(TestCase):

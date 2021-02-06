@@ -117,12 +117,12 @@ class Aggregate:
         # with an ID and version, and the
         # a topic for the aggregate class.
         try:
-            event: TAggregateCreated = event_class(
+            event: TAggregateCreated = event_class(  # type: ignore
                 originator_topic=get_topic(cls),
                 originator_id=id,
                 originator_version=1,
                 timestamp=datetime.now(tz=TZINFO),
-                **kwargs,  # type: ignore
+                **kwargs,
             )
         except TypeError as e:
             msg = (
@@ -185,11 +185,11 @@ class Aggregate:
         # next in the aggregate's sequence.
         # Use counting to generate the sequence.
         next_version = self.version + 1
-        event = event_class(
+        event = event_class(  # type: ignore
             originator_id=self.id,
             originator_version=next_version,
             timestamp=datetime.now(tz=TZINFO),
-            **kwargs,  # type: ignore
+            **kwargs,
         )
         # Mutate aggregate with domain event.
         event.mutate(self)

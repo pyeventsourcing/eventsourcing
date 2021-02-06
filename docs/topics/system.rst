@@ -105,7 +105,7 @@ Now let's define an analytics application...
 
     from eventsourcing.application import AggregateNotFound
     from eventsourcing.system import ProcessApplication
-    from eventsourcing.utils import singledispatchmethod
+    from eventsourcing.dispatch import singledispatchmethod
 
 
     class Counters(ProcessApplication):

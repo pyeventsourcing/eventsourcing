@@ -4,8 +4,8 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID, uuid4
 
+from eventsourcing.dispatch import singledispatchmethod
 from eventsourcing.domain import TZINFO, Aggregate
-from eventsourcing.utils import singledispatchmethod
 
 
 class Location(Enum):

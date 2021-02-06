@@ -4,3 +4,4 @@ branch = True
 omit =
     */tests/*
     */examples/*
+    dispatch.py
