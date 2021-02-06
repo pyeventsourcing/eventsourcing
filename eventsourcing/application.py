@@ -214,7 +214,7 @@ class Application(ABC):
         a :class:`~eventsourcing.persistence.Mapper`,
         an :class:`~eventsourcing.persistence.ApplicationRecorder`,
         an :class:`~eventsourcing.persistence.EventStore`,
-        a :class:`~eventsourcing.application.Repository`,
+        a :class:`~eventsourcing.application.Repository`, and
         a :class:`~eventsourcing.application.LocalNotificationLog`.
         """
         self.factory = self.construct_factory()
