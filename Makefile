@@ -75,13 +75,18 @@ fmt: fmt-isort fmt-black
 
 .PHONY: test
 test:
-	@coverage run \
-		--concurrency=multiprocessing \
-		-m unittest discover \
+	@coverage run -m unittest discover eventsourcing -v
+#	@coverage run \
+#		--concurrency=multiprocessing \
+#		-m unittest discover \
 		eventsourcing -vv --failfast
-	@coverage combine
-	@coverage report
-	@coverage html
+#	@coverage combine
+	@coverage report --fail-under=100
+#	@coverage html
+
+
+.PHONY: prepush
+prepush: lint docs test
 
 
 .PHONY: docs
