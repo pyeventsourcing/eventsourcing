@@ -153,7 +153,7 @@ class BankAccount(Aggregate):
         """
         Creates new bank account object.
         """
-        return super()._create(
+        return cls._create(
             cls.Opened,
             id=uuid4(),
             full_name=full_name,

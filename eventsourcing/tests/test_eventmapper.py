@@ -1,10 +1,10 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Union
 from unittest.case import TestCase
 from uuid import UUID, uuid4
 
 from eventsourcing.cipher import AESCipher
+from eventsourcing.compressor import ZlibCompressor
 from eventsourcing.domain import TZINFO
 from eventsourcing.persistence import (
     DatetimeAsISO,
@@ -27,6 +27,9 @@ class TestMapper(TestCase):
 
         # Construct cipher.
         cipher = AESCipher(cipher_key=AESCipher.create_key(16))
+
+        # Construct compressor.
+        compressor = ZlibCompressor()
 
         # Construct mapper with cipher.
         mapper = Mapper(transcoder=transcoder, cipher=cipher)
@@ -57,12 +60,10 @@ class TestMapper(TestCase):
         assert len(stored_event.state) == 171, len(stored_event.state)
 
         # Construct mapper with cipher and compressor.
-        import zlib
-
         mapper = Mapper(
             transcoder=transcoder,
             cipher=cipher,
-            compressor=zlib,
+            compressor=compressor,
         )
 
         # Map from domain event.
@@ -76,6 +77,8 @@ class TestMapper(TestCase):
         assert copy.originator_version == domain_event.originator_version
 
         assert len(stored_event.state) in (
+            136,
+            137,
             138,
             139,
             140,

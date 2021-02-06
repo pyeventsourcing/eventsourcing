@@ -7,9 +7,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from distutils.util import strtobool
+from types import ModuleType
 from typing import Any, Dict, Generic, Iterator, List, Optional, Union, cast
 from uuid import UUID
 
+from eventsourcing.cipher import AbstractCipher
+from eventsourcing.compressor import AbstractCompressor
 from eventsourcing.domain import DomainEvent, TDomainEvent
 from eventsourcing.utils import get_topic, resolve_topic
 
@@ -57,13 +60,13 @@ class Transcoder(AbstractTranscoder):
     Extensible transcoder that uses the Python :mod:`json` module.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.types: Dict[type, Transcoding] = {}
         self.names: Dict[str, Transcoding] = {}
         self.encoder = json.JSONEncoder(default=self._encode_obj)
         self.decoder = json.JSONDecoder(object_hook=self._decode_obj)
 
-    def register(self, transcoding: Transcoding):
+    def register(self, transcoding: Transcoding) -> None:
         """
         Registers given transcoding with the transcoder.
         """
@@ -188,12 +191,12 @@ class Mapper(Generic[TDomainEvent]):
     def __init__(
         self,
         transcoder: AbstractTranscoder,
-        compressor=None,
-        cipher=None,
-    ):
+        compressor: Optional[AbstractCompressor] = None,
+        cipher: Optional[AbstractCipher] = None,
+    ) -> None:
         self.transcoder = transcoder
-        self.cipher = cipher
         self.compressor = compressor
+        self.cipher = cipher
 
     def from_domain_event(self, domain_event: TDomainEvent) -> StoredEvent:
         """
@@ -264,11 +267,7 @@ class AggregateRecorder(Recorder):
     """
 
     @abstractmethod
-    def insert_events(
-        self,
-        stored_events: List[StoredEvent],
-        **kwargs,
-    ) -> None:
+    def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
         """
         Writes stored events into database.
         """
@@ -352,7 +351,7 @@ class EventStore(Generic[TDomainEvent]):
         self.mapper = mapper
         self.recorder = recorder
 
-    def put(self, events: List[TDomainEvent], **kwargs):
+    def put(self, events: List[TDomainEvent], **kwargs: Any) -> None:
         """
         Stores domain events in aggregate sequence.
         """
@@ -402,7 +401,7 @@ class InfrastructureFactory(ABC):
     IS_SNAPSHOTTING_ENABLED = "IS_SNAPSHOTTING_ENABLED"
 
     @classmethod
-    def construct(cls, application_name) -> "InfrastructureFactory":
+    def construct(cls, application_name: str) -> "InfrastructureFactory":
         """
         Constructs concrete infrastructure factory for given
         named application. Reads and resolves infrastructure
@@ -426,13 +425,15 @@ class InfrastructureFactory(ABC):
             raise AssertionError(f"Not an infrastructure factory: {topic}")
         return factory_cls(application_name=application_name)
 
-    def __init__(self, application_name):
+    def __init__(self, application_name: str) -> None:
         """
         Initialises infrastructure factory object with given application name.
         """
         self.application_name = application_name
 
-    def getenv(self, key, default=None, application_name=""):
+    def getenv(
+        self, key: str, default: Optional[str] = None, application_name: str = ""
+    ) -> Optional[str]:
         """
         Returns value of environment variable defined by given key.
         """
@@ -481,14 +482,15 @@ class InfrastructureFactory(ABC):
                 )
         compressor_topic = self.getenv(self.COMPRESSOR_TOPIC)
         if compressor_topic:
-            compressor = resolve_topic(compressor_topic)
+            compressor_cls = resolve_topic(compressor_topic)
+            compressor = compressor_cls()
         return Mapper(
             transcoder=transcoder,
             cipher=cipher,
             compressor=compressor,
         )
 
-    def event_store(self, **kwargs) -> EventStore:
+    def event_store(self, **kwargs: Any) -> EventStore:
         """
         Constructs an event store.
         """

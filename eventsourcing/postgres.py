@@ -1,12 +1,12 @@
 import threading
 from distutils.util import strtobool
-from typing import Any, List, Optional
+from types import TracebackType
+from typing import Any, Dict, List, Optional, Type
 from uuid import UUID
 
 import psycopg2
 import psycopg2.extras
 import psycopg2.errors
-from psycopg2.errorcodes import DUPLICATE_TABLE, UNDEFINED_TABLE
 from psycopg2.extensions import connection, cursor
 
 from eventsourcing.persistence import (
@@ -25,12 +25,12 @@ psycopg2.extras.register_uuid()
 
 
 class PostgresDatastore:
-    def __init__(self, dbname, host, user, password):
+    def __init__(self, dbname: str, host: str, user: str, password: str) -> None:
         self.dbname = dbname
         self.host = host
         self.user = user
         self.password = password
-        self.connections = {}
+        self.connections: Dict[int, connection] = {}
 
     def get_connection(self) -> connection:
         thread_id = threading.get_ident()
@@ -60,7 +60,12 @@ class PostgresDatastore:
             # cursor.execute("BEGIN")
             return cursor
 
-        def __exit__(self, exc_type, exc_val, exc_tb):
+        def __exit__(
+            self,
+            exc_type: Type[BaseException],
+            exc_val: BaseException,
+            exc_tb: TracebackType
+        ) -> None:
             if exc_type:
                 # Roll back all changes
                 # if an exception occurs.
@@ -97,7 +102,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         )
         c.execute(statement)
 
-    def insert_events(self, stored_events: List[StoredEvent], **kwargs):
+    def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
         with self.datastore.transaction() as c:
             try:
                 self._insert_events(c, stored_events, **kwargs)
@@ -110,7 +115,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         self,
         c: cursor,
         stored_events: List[StoredEvent],
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         statement = f"INSERT INTO {self.events_table_name}" " VALUES (%s, %s, %s, %s)"
         params = []
@@ -276,7 +281,7 @@ class PostgresProcessRecorder(
         self,
         c: cursor,
         stored_events: List[StoredEvent],
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         super()._insert_events(c, stored_events, **kwargs)
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
@@ -298,7 +303,7 @@ class Factory(InfrastructureFactory):
     POSTGRES_USER = "POSTGRES_USER"
     POSTGRES_PASSWORD = "POSTGRES_PASSWORD"
 
-    def __init__(self, application_name):
+    def __init__(self, application_name: str) -> None:
         super().__init__(application_name)
         dbname = self.getenv(self.POSTGRES_DBNAME)
         if dbname is None:

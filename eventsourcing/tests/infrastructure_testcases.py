@@ -4,6 +4,7 @@ from unittest.case import TestCase
 from uuid import uuid4
 
 from eventsourcing.cipher import AESCipher
+from eventsourcing.compressor import ZlibCompressor
 from eventsourcing.domain import DomainEvent, TZINFO
 from eventsourcing.persistence import (
     AggregateRecorder,
@@ -82,7 +83,7 @@ class InfrastructureFactoryTestCase(TestCase):
     def test_createmapper_with_compressor(self):
 
         # Create mapper with compressor.
-        os.environ[self.factory.COMPRESSOR_TOPIC] = "zlib"
+        os.environ[self.factory.COMPRESSOR_TOPIC] = get_topic(ZlibCompressor)
         mapper = self.factory.mapper(transcoder=self.transcoder)
         self.assertIsInstance(mapper, Mapper)
         self.assertIsNone(mapper.cipher)
@@ -110,7 +111,7 @@ class InfrastructureFactoryTestCase(TestCase):
     ):
 
         # Create mapper with cipher and compressor.
-        os.environ[self.factory.COMPRESSOR_TOPIC] = "zlib"
+        os.environ[self.factory.COMPRESSOR_TOPIC] = get_topic(ZlibCompressor)
 
         os.environ[self.factory.CIPHER_TOPIC] = get_topic(AESCipher)
         cipher_key = AESCipher.create_key(16)

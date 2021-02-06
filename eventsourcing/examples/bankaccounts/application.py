@@ -10,7 +10,7 @@ class AccountNotFoundError(Exception):
 
 
 class BankAccounts(Application):
-    def open_account(self, full_name, email_address) -> UUID:
+    def open_account(self, full_name: str, email_address: str) -> UUID:
         account = BankAccount.open(
             full_name=full_name,
             email_address=email_address,
@@ -24,6 +24,7 @@ class BankAccounts(Application):
         except AggregateNotFound:
             raise AccountNotFoundError(account_id)
         else:
+            assert isinstance(aggregate, BankAccount)
             return aggregate
 
     def get_balance(self, account_id: UUID) -> Decimal:

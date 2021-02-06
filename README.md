@@ -247,7 +247,7 @@ os.environ['CIPHER_KEY'] = cipher_key
 # Cipher topic.
 os.environ['CIPHER_TOPIC'] = "eventsourcing.cipher:AESCipher"
 # Compressor topic.
-os.environ['COMPRESSOR_TOPIC'] = "zlib"
+os.environ['COMPRESSOR_TOPIC'] = "eventsourcing.compressor:ZlibCompressor"
 
 # Use SQLite infrastructure.
 os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.sqlite:Factory'
@@ -283,7 +283,7 @@ os.environ['CIPHER_KEY'] = cipher_key
 # Cipher topic.
 os.environ['CIPHER_TOPIC'] = "eventsourcing.cipher:AESCipher"
 # Compressor topic.
-os.environ['COMPRESSOR_TOPIC'] = "zlib"
+os.environ['COMPRESSOR_TOPIC'] = "eventsourcing.compressor:ZlibCompressor"
 
 # Use Postgres infrastructure.
 os.environ['INFRASTRUCTURE_FACTORY'] = (

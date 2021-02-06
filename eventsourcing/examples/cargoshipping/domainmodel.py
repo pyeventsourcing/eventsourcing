@@ -20,8 +20,10 @@ class Location(Enum):
     AUMEL = "AUMEL"
 
 
-# Leg of an Itinerary.
 class Leg(object):
+    """
+    Leg of an itinerary.
+    """
     def __init__(
         self,
         origin: str,
@@ -33,8 +35,10 @@ class Leg(object):
         self.voyage_number: str = voyage_number
 
 
-# Itinerary.
 class Itinerary(object):
+    """
+    An itinerary along which cargo is shipped.
+    """
     def __init__(
         self,
         origin: str,
@@ -46,7 +50,6 @@ class Itinerary(object):
         self.legs = legs
 
 
-# Handling activities.
 class HandlingActivity(Enum):
     RECEIVE = "RECEIVE"
     LOAD = "LOAD"
@@ -110,10 +113,13 @@ REGISTERED_ROUTES = {
 }
 
 
-# The Cargo aggregate is an event-sourced domain model aggregate that
-# specifies the routing from origin to destination, and can track what
-# happens to the cargo after it has been booked.
 class Cargo(Aggregate):
+    """
+    The Cargo aggregate is an event-sourced domain model aggregate that
+    specifies the routing from origin to destination, and can track what
+    happens to the cargo after it has been booked.
+    """
+
     class Event(Aggregate.Event):
         pass
 
@@ -211,7 +217,7 @@ class Cargo(Aggregate):
         )
 
     @dataclass(frozen=True)
-    class DestinationChanged(Aggregate.Event):
+    class DestinationChanged(Event):
         destination: Location
 
         def apply(self, aggregate: "Cargo") -> None:

@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
-from typing import List, Optional, Type, TypeVar
+from typing import Any, Generic, List, Optional, Type, TypeVar
 from uuid import UUID
 
 from eventsourcing.utils import get_topic, resolve_topic
@@ -28,6 +28,9 @@ class DomainEvent:
 
 
 TDomainEvent = TypeVar("TDomainEvent", bound=DomainEvent)
+TAggregate = TypeVar("TAggregate", bound="Aggregate")
+TAggregateEvent = TypeVar("TAggregateEvent", bound="Aggregate.Event")
+TAggregateCreated = TypeVar("TAggregateCreated", bound="Aggregate.Created")
 
 
 class Aggregate:
@@ -63,8 +66,7 @@ class Aggregate:
     def modified_on(self) -> datetime:
         return self._modified_on
 
-    @dataclass(frozen=True)
-    class Event(DomainEvent):
+    class Event(DomainEvent, Generic[TAggregate]):
         """
         Base class for aggregate events. Subclasses will model
         decisions made by the domain model aggregates.
@@ -76,15 +78,16 @@ class Aggregate:
         :param datetime timestamp: date-time of the event
         """
 
-        def mutate(self, obj: Optional["Aggregate"]) -> Optional["Aggregate"]:
+        def mutate(self, obj: Optional[TAggregate]) -> Optional[TAggregate]:
             """
             Changes the state of the aggregate
             according to domain event attributes.
             """
             # Check event is next in its sequence.
             # Use counting to follow the sequence.
-            assert isinstance(obj, Aggregate), (type(obj), self)
-            next_version = obj.version + 1
+            # assert isinstance(obj, Aggregate), (type(obj), self)
+            assert obj is not None
+            next_version = obj._version + 1
             if self.originator_version != next_version:
                 raise VersionError(self.originator_version, next_version)
             # Update the aggregate version.
@@ -94,18 +97,18 @@ class Aggregate:
             self.apply(obj)
             return obj
 
-        def apply(self, aggregate: "Aggregate") -> None:
+        def apply(self, aggregate: TAggregate) -> None:
             """
             Applies the domain event to the aggregate.
             """
 
     @classmethod
     def _create(
-        cls,
-        event_class: Type["Aggregate.Created"],
+        cls: Type[TAggregate],
+        event_class: Type[TAggregateCreated],
         id: UUID,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> TAggregate:
         """
         Factory method to construct a new
         aggregate object instance.
@@ -114,7 +117,7 @@ class Aggregate:
         # with an ID and version, and the
         # a topic for the aggregate class.
         try:
-            event = event_class(
+            event: TAggregateCreated = event_class(
                 originator_topic=get_topic(cls),
                 originator_id=id,
                 originator_version=1,
@@ -128,14 +131,15 @@ class Aggregate:
             )
             raise TypeError(msg)
         # Construct the aggregate object.
-        aggregate = event.mutate(None)
+        aggregate: TAggregate = event.mutate(None)
         # Append the domain event to pending list.
         aggregate._pending_events.append(event)
         # Return the aggregate.
         return aggregate
 
     @dataclass(frozen=True)
-    class Created(Event):
+    # class Created(Event, Generic[TAggregate]):
+    class Created(Event["Aggregate"]):
         """
         Domain event for when aggregate is created.
 
@@ -150,16 +154,17 @@ class Aggregate:
 
         originator_topic: str
 
-        def mutate(self, obj: Optional["Aggregate"]) -> "Aggregate":
+        def mutate(self, obj: Optional[TAggregate]) -> TAggregate:
             """
             Constructs aggregate instance defined
             by domain event object attributes.
             """
+            assert obj is None
             # Copy the event attributes.
             kwargs = self.__dict__.copy()
             # Resolve originator topic.
             aggregate_topic = kwargs.pop("originator_topic")
-            aggregate_class: Type[Aggregate] = resolve_topic(aggregate_topic)
+            aggregate_class: Type[TAggregate] = resolve_topic(aggregate_topic)
             # Separate the base class keywords arguments.
             id = kwargs.pop("originator_id")
             version = kwargs.pop("originator_version")
@@ -170,8 +175,8 @@ class Aggregate:
 
     def _trigger_event(
         self,
-        event_class: Type["Aggregate.Event"],
-        **kwargs,
+        event_class: Type[TAggregateEvent],
+        **kwargs: Any,
     ) -> None:
         """
         Triggers domain event of given type,
@@ -251,7 +256,7 @@ class Snapshot(DomainEvent):
             state=aggregate_state,
         )
 
-    def mutate(self, _=None) -> Aggregate:
+    def mutate(self, _: None = None) -> TAggregate:
         """
         Reconstructs the snapshotted :class:`Aggregate` object.
         """

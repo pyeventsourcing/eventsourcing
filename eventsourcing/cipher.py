@@ -1,4 +1,5 @@
 import os
+from abc import ABC, abstractmethod
 from base64 import b64decode, b64encode
 
 from Crypto.Cipher import AES
@@ -6,7 +7,21 @@ from Crypto.Cipher.AES import key_size
 from Crypto.Cipher._mode_gcm import GcmMode
 
 
-class AESCipher(object):
+class AbstractCipher(ABC):
+    @abstractmethod
+    def encrypt(self, plaintext: bytes) -> bytes:
+        """
+        Return ciphertext for given plaintext.
+        """
+
+    @abstractmethod
+    def decrypt(self, ciphertext: bytes) -> bytes:
+        """
+        Return plaintext for given ciphertext.
+        """
+
+
+class AESCipher(AbstractCipher):
     """
     Cipher strategy that uses AES cipher in GCM mode.
     """

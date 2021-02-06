@@ -556,7 +556,7 @@ to generate a valid encryption key.
     # Configure cipher topic.
     os.environ['CIPHER_TOPIC'] = "eventsourcing.cipher:AESCipher"
     # Configure compressor topic.
-    os.environ['COMPRESSOR_TOPIC'] = "zlib"
+    os.environ['COMPRESSOR_TOPIC'] = "eventsourcing.compressor:ZlibCompressor"
 
 
 .. _Saving multiple aggregates:

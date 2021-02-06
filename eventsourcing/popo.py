@@ -1,6 +1,6 @@
 from collections import defaultdict
 from threading import Lock
-from typing import Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 from uuid import UUID
 
 from eventsourcing.persistence import (
@@ -21,16 +21,14 @@ class POPOAggregateRecorder(AggregateRecorder):
         self.stored_events_index: Dict[UUID, Dict[int, int]] = defaultdict(dict)
         self.database_lock = Lock()
 
-    def insert_events(
-        self,
-        stored_events: List[StoredEvent],
-        **kwargs,
-    ) -> None:
+    def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
         with self.database_lock:
             self.assert_uniqueness(stored_events, **kwargs)
             self.update_table(stored_events, **kwargs)
 
-    def assert_uniqueness(self, stored_events: List[StoredEvent], **kwargs) -> None:
+    def assert_uniqueness(
+        self, stored_events: List[StoredEvent], **kwargs: Any
+    ) -> None:
         new = set()
         for s in stored_events:
             # Check events don't already exist.
@@ -41,7 +39,7 @@ class POPOAggregateRecorder(AggregateRecorder):
         if len(new) < len(stored_events):
             raise RecordConflictError
 
-    def update_table(self, stored_events: List[StoredEvent], **kwargs) -> None:
+    def update_table(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
         for s in stored_events:
             self.stored_events.append(s)
             self.stored_events_index[s.originator_id][s.originator_version] = (
@@ -105,7 +103,9 @@ class POPOProcessRecorder(ProcessRecorder, POPOApplicationRecorder):
         super().__init__()
         self.tracking_table: Dict[str, int] = defaultdict(None)
 
-    def assert_uniqueness(self, stored_events: List[StoredEvent], **kwargs) -> None:
+    def assert_uniqueness(
+        self, stored_events: List[StoredEvent], **kwargs: Any
+    ) -> None:
         super().assert_uniqueness(stored_events, **kwargs)
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking:
@@ -113,7 +113,7 @@ class POPOProcessRecorder(ProcessRecorder, POPOApplicationRecorder):
             if tracking.notification_id <= last:
                 raise RecordConflictError
 
-    def update_table(self, stored_events: List[StoredEvent], **kwargs) -> None:
+    def update_table(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
         super().update_table(stored_events, **kwargs)
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking:

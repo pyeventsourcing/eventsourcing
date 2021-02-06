@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from functools import reduce
 from itertools import chain
 from typing import Iterable, List, Optional, TypeVar, Union
 from uuid import UUID
@@ -47,42 +48,33 @@ class Repository:
         for given ID, optionally at the given version.
         """
 
-        domain_events: Iterable[Union[Snapshot, Aggregate.Event]]
+        aggregate: Optional[Aggregate] = None
+        gt: Optional[int] = None
 
-        if self.snapshot_store is None:
-            # Get all the aggregate events.
-            domain_events = self.event_store.get(
+        if self.snapshot_store is not None:
+            # Try to get a snapshot.
+            snapshots = self.snapshot_store.get(
                 originator_id=aggregate_id,
+                desc=True,
+                limit=1,
                 lte=version,
             )
-        else:
-            # Try to get a snapshot.
-            gt: Optional[int]
-            snapshots = list(
-                self.snapshot_store.get(
-                    originator_id=aggregate_id,
-                    desc=True,
-                    limit=1,
-                    lte=version,
-                )
-            )
-            if snapshots:
-                gt = snapshots[0].originator_version
+            try:
+                snapshot = next(snapshots)
+            except StopIteration:
+                pass
             else:
-                gt = None
+                gt = snapshot.originator_version
+                aggregate = snapshot.mutate()
 
-            # Get subsequent aggregate events.
-            domain_events = chain(
-                snapshots,
-                self.event_store.get(
-                    originator_id=aggregate_id,
-                    gt=gt,
-                    lte=version,
-                ),
-            )
+        # Get aggregate events.
+        domain_events = self.event_store.get(
+            originator_id=aggregate_id,
+            gt=gt,
+            lte=version,
+        )
 
         # Reconstruct the aggregate from its events.
-        aggregate: Optional[Aggregate] = None
         for domain_event in domain_events:
             aggregate = domain_event.mutate(aggregate)
 

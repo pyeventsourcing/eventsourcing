@@ -34,7 +34,7 @@ class ProcessEvent:
         self.tracking = tracking
         self.events: List[Aggregate.Event] = []
 
-    def save(self, *aggregates: Aggregate):
+    def save(self, *aggregates: Aggregate) -> None:
         """
         Collects pending domain events from the given aggregate.
         """
@@ -50,7 +50,7 @@ class Follower(Application):
     new domain event notifications through its :func:`policy` method.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.readers: Dict[
             str,
@@ -59,15 +59,16 @@ class Follower(Application):
                 Mapper[Aggregate.Event],
             ],
         ] = {}
+        self.recorder: ProcessRecorder
 
-    def construct_recorder(self) -> ApplicationRecorder:
+    def construct_recorder(self) -> ProcessRecorder:
         """
         Constructs and returns a :class:`~eventsourcing.persistence.ProcessRecorder`
         for the application to use as its application recorder.
         """
         return self.factory.process_recorder()
 
-    def follow(self, name: str, log: NotificationLog):
+    def follow(self, name: str, log: NotificationLog) -> None:
         """
         Constructs a notification log reader and a mapper for
         the named application, and adds them to its collection
@@ -117,7 +118,7 @@ class Follower(Application):
         self,
         domain_event: Aggregate.Event,
         process_event: ProcessEvent,
-    ):
+    ) -> None:
         """
         Abstract domain event processing policy method. Must be
         implemented by event processing applications. When
@@ -162,11 +163,11 @@ class Leader(Application):
     domain event notifications to be pulled and processed.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.followers: List[Promptable] = []
 
-    def lead(self, follower: Promptable):
+    def lead(self, follower: Promptable) -> None:
         """
         Adds given follower to a list of followers.
         """
@@ -182,7 +183,7 @@ class Leader(Application):
         if len(new_events):
             self.prompt_followers()
 
-    def prompt_followers(self):
+    def prompt_followers(self) -> None:
         """
         Prompts followers by calling their :func:`~Promptable.receive_prompt`
         methods with the name of the application.
@@ -267,12 +268,12 @@ class System:
     def processors(self) -> Iterable[str]:
         return set(self.leaders).intersection(self.followers)
 
-    def get_app_cls(self, name) -> Type[Application]:
+    def get_app_cls(self, name: str) -> Type[Application]:
         cls = resolve_topic(self.nodes[name])
         assert issubclass(cls, Application)
         return cls
 
-    def leader_cls(self, name) -> Type[Leader]:
+    def leader_cls(self, name: str) -> Type[Leader]:
         cls = self.get_app_cls(name)
         if issubclass(cls, Leader):
             return cls
@@ -285,7 +286,7 @@ class System:
             assert issubclass(cls, Leader)
             return cls
 
-    def follower_cls(self, name) -> Type[Follower]:
+    def follower_cls(self, name: str) -> Type[Follower]:
         cls = self.get_app_cls(name)
         assert issubclass(cls, Follower)
         return cls
@@ -348,7 +349,7 @@ class SingleThreadedRunner(AbstractRunner, Promptable):
         self.prompts_received: List[str] = []
         self.is_prompting = False
 
-    def start(self):
+    def start(self) -> None:
         """
         Starts the runner.
         The applications are constructed, and setup to lead and follow
@@ -363,13 +364,11 @@ class SingleThreadedRunner(AbstractRunner, Promptable):
 
         # Construct followers.
         for name in self.system.followers:
-            app = self.system.follower_cls(name)()
-            self.apps[name] = app
+            self.apps[name] = self.system.follower_cls(name)()
 
         # Construct leaders.
         for name in self.system.leaders_only:
-            app = self.system.leader_cls(name)()
-            self.apps[name] = app
+            self.apps[name] = self.system.leader_cls(name)()
 
         # Lead and follow.
         for edge in self.system.edges:
@@ -401,7 +400,7 @@ class SingleThreadedRunner(AbstractRunner, Promptable):
                     follower.pull_and_process(prompt)
             self.is_prompting = False
 
-    def stop(self):
+    def stop(self) -> None:
         self.apps.clear()
 
     def get(self, cls: Type[A]) -> A:
@@ -470,14 +469,14 @@ class MultiThreadedRunner(AbstractRunner):
             thread = self.threads[edge[1]]
             leader.lead(thread)
 
-    def stop(self):
+    def stop(self) -> None:
         self.is_stopping.set()
         for thread in self.threads.values():
             thread.is_prompted.set()
             thread.join()
 
     @property
-    def has_stopped(self):
+    def has_stopped(self) -> bool:
         return all([t.has_stopped.is_set() for t in self.threads.values()])
 
     def get(self, cls: Type[A]) -> A:
@@ -521,7 +520,7 @@ class MultiThreadedRunnerThread(Promptable, Thread):
         self.setDaemon(True)
         self.is_running = Event()
 
-    def run(self):
+    def run(self) -> None:
         """
         Begins by constructing an application instance from
         given application class and then loops forever until

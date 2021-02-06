@@ -13,6 +13,8 @@ from eventsourcing.tests.test_postgres import drop_postgres_table
 
 
 class TestApplication(TestCase):
+    timeit_number = 50000
+
     def setUp(self) -> None:
         os.environ[InfrastructureFactory.IS_SNAPSHOTTING_ENABLED] = "yes"
 
@@ -90,9 +92,12 @@ class TestApplication(TestCase):
         number = 10
         timeit(put, number=number)
 
-        number = 1000
-        duration = timeit(put, number=number)
-        print(self, f"{1000 * duration / number:.3f}ms", f"{number / duration:.0f}/s")
+        duration = timeit(put, number=self.timeit_number)
+        print(
+            self,
+            f"{1000 * duration / self.timeit_number:.3f}ms",
+            f"{self.timeit_number / duration:.0f}/s"
+        )
 
     def test_get_performance(self):
 
@@ -111,12 +116,16 @@ class TestApplication(TestCase):
         # Warm up.
         timeit(read, number=10)
 
-        number = 1000
-        duration = timeit(read, number=number)
-        print(self, f"{1000 * duration / number:.3f}ms", f"{number / duration:.0f}/s")
+        duration = timeit(read, number=self.timeit_number)
+        print(
+            self,
+            f"{1000 * duration / self.timeit_number:.3f}ms",
+            f"{self.timeit_number / duration:.0f}/s"
+        )
 
+
+class TestApplicationSnapshottingException(TestCase):
     def test_take_snapshot_raises_assertion_error_if_snapshotting_not_enabled(self):
-        del os.environ[InfrastructureFactory.IS_SNAPSHOTTING_ENABLED]
         app = Application()
         with self.assertRaises(AssertionError) as cm:
             app.take_snapshot(uuid4())
@@ -130,6 +139,8 @@ class TestApplication(TestCase):
 
 
 class TestApplicationWithSQLite(TestApplication):
+    timeit_number = 5000
+
     def setUp(self) -> None:
         super().setUp()
         self.uris = tmpfile_uris()
@@ -147,6 +158,8 @@ class TestApplicationWithSQLite(TestApplication):
 
 
 class TestApplicationWithPostgres(TestApplication):
+    timeit_number = 2000
+
     def setUp(self) -> None:
         super().setUp()
         self.uris = tmpfile_uris()

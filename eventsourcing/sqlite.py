@@ -2,7 +2,8 @@ import sqlite3
 import threading
 from distutils.util import strtobool
 from sqlite3 import Connection
-from typing import Any, List, Optional
+from types import TracebackType
+from typing import Any, Dict, List, Optional, Type
 from uuid import UUID
 
 from eventsourcing.persistence import (
@@ -19,12 +20,12 @@ from eventsourcing.persistence import (
 
 
 class SQLiteDatastore:
-    def __init__(self, db_name):
+    def __init__(self, db_name: str) -> None:
         self.db_name = db_name
-        self.connections = {}
+        self.connections: Dict[int, Connection] = {}
 
     class Transaction:
-        def __init__(self, connection: Connection):
+        def __init__(self, connection: Connection) -> None:
             self.c = connection
 
         def __enter__(self) -> Connection:
@@ -33,7 +34,12 @@ class SQLiteDatastore:
             self.c.execute("BEGIN")
             return self.c
 
-        def __exit__(self, exc_type, exc_val, exc_tb):
+        def __exit__(
+            self,
+            exc_type: Type[BaseException],
+            exc_val: BaseException,
+            exc_tb: TracebackType
+        ) -> None:
             if exc_type:
                 # Roll back all changes
                 # if an exception occurs.
@@ -73,7 +79,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         self,
         datastore: SQLiteDatastore,
         events_table_name: str = "stored_events",
-    ):
+    ) -> None:
         assert isinstance(datastore, SQLiteDatastore)
         self.datastore = datastore
         self.events_table_name = events_table_name
@@ -85,7 +91,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
             except sqlite3.OperationalError as e:
                 raise OperationalError(e)
 
-    def _createtable(self, c: Connection):
+    def _createtable(self, c: Connection) -> None:
         statement = (
             "CREATE TABLE "
             f"{self.events_table_name} ("
@@ -99,7 +105,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         )
         c.execute(statement)
 
-    def insert_events(self, stored_events, **kwargs):
+    def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
         with self.datastore.transaction() as c:
             try:
                 self._insert_events(c, stored_events, **kwargs)
@@ -108,11 +114,10 @@ class SQLiteAggregateRecorder(AggregateRecorder):
             except sqlite3.IntegrityError as e:
                 raise RecordConflictError(e)
 
-    def _insert_events(
-        self,
+    def _insert_events(self,
         c: Connection,
         stored_events: List[StoredEvent],
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         statement = f"INSERT INTO {self.events_table_name}" " VALUES (?,?,?,?)"
         params = []
@@ -175,7 +180,7 @@ class SQLiteApplicationRecorder(
     SQLiteAggregateRecorder,
     ApplicationRecorder,
 ):
-    def _createtable(self, c: Connection):
+    def _createtable(self, c: Connection) -> None:
         statement = (
             "CREATE TABLE "
             f"{self.events_table_name} ("
@@ -237,7 +242,7 @@ class SQLiteProcessRecorder(
     SQLiteApplicationRecorder,
     ProcessRecorder,
 ):
-    def _createtable(self, c: Connection):
+    def _createtable(self, c: Connection) -> None:
         super()._createtable(c)
         statement = (
             "CREATE TABLE tracking ("
@@ -267,7 +272,7 @@ class SQLiteProcessRecorder(
         self,
         c: Connection,
         stored_events: List[StoredEvent],
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         super()._insert_events(c, stored_events, **kwargs)
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
@@ -286,7 +291,7 @@ class Factory(InfrastructureFactory):
     SQLITE_DBNAME = "SQLITE_DBNAME"
     DO_CREATE_TABLE = "DO_CREATE_TABLE"
 
-    def __init__(self, application_name):
+    def __init__(self, application_name: str) -> None:
         super().__init__(application_name)
         db_name = self.getenv(self.SQLITE_DBNAME)
         if not db_name:

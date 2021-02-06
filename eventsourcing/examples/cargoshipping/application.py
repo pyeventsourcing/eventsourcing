@@ -66,7 +66,7 @@ class LegAsDict(Transcoding):
 
 
 class BookingApplication(Application):
-    def register_transcodings(self, transcoder: Transcoder):
+    def register_transcodings(self, transcoder: Transcoder) -> None:
         super(BookingApplication, self).register_transcodings(transcoder)
         transcoder.register(LocationAsName())
         transcoder.register(HandlingActivityAsName())

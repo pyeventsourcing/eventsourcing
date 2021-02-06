@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Optional
+from typing import Any, Optional
 from uuid import UUID, uuid4
 
 from eventsourcing.domain import Aggregate
@@ -19,7 +19,7 @@ class InsufficientFundsError(TransactionError):
 
 
 class BankAccount(Aggregate):
-    def __init__(self, full_name: str, email_address: str, **kwargs):
+    def __init__(self, full_name: str, email_address: str, **kwargs: Any):
         super().__init__(**kwargs)
         self.full_name = full_name
         self.email_address = email_address
