@@ -45,6 +45,11 @@ testing_requires = (
     + [
         "python-coveralls<=2.9.99999",
         "coverage<5.0.0",  # v5 is incompatible ATM.
+        "black",
+        "mypy",
+        "flake8",
+        "flake8-bugbear",
+        "isort",
         # "mock<=4.0.99999",
         # "flask<=1.1.99999",
         # "flask_sqlalchemy<=2.4.99",
@@ -75,11 +80,6 @@ dev_requires = (
     testing_requires
     + docs_requires
     + [
-        "black",
-        "mypy",
-        "flake8",
-        "flake8-bugbear",
-        "isort",
         # "grpcio-tools",
     ]
 )
