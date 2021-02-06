@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 from base64 import b64decode, b64encode
 
 from Crypto.Cipher import AES
-from Crypto.Cipher.AES import key_size
 from Crypto.Cipher._mode_gcm import GcmMode
+from Crypto.Cipher.AES import key_size
 
 
 class AbstractCipher(ABC):

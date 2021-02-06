@@ -1,5 +1,5 @@
-from abc import ABC, abstractmethod
 import zlib
+from abc import ABC, abstractmethod
 
 
 class AbstractCompressor(ABC):

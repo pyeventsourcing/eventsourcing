@@ -96,7 +96,7 @@ class TestApplication(TestCase):
         print(
             self,
             f"{1000 * duration / self.timeit_number:.3f}ms",
-            f"{self.timeit_number / duration:.0f}/s"
+            f"{self.timeit_number / duration:.0f}/s",
         )
 
     def test_get_performance_with_snapshotting_enabled(self):
@@ -127,7 +127,7 @@ class TestApplication(TestCase):
         print(
             self,
             f"{1000 * duration / self.timeit_number:.3f}ms",
-            f"{self.timeit_number / duration:.0f}/s"
+            f"{self.timeit_number / duration:.0f}/s",
         )
 
 
@@ -137,11 +137,12 @@ class TestApplicationSnapshottingException(TestCase):
         with self.assertRaises(AssertionError) as cm:
             app.take_snapshot(uuid4())
         self.assertEqual(
-            cm.exception.args[0], (
+            cm.exception.args[0],
+            (
                 "Can't take snapshot without snapshots store. "
                 "Please set environment variable IS_SNAPSHOTTING_ENABLED "
                 "to a true value (e.g. 'y')."
-            )
+            ),
         )
 
 

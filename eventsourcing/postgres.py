@@ -5,8 +5,8 @@ from typing import Any, Dict, List, Optional, Type
 from uuid import UUID
 
 import psycopg2
-import psycopg2.extras
 import psycopg2.errors
+import psycopg2.extras
 from psycopg2.extensions import connection, cursor
 
 from eventsourcing.persistence import (
@@ -64,7 +64,7 @@ class PostgresDatastore:
             self,
             exc_type: Type[BaseException],
             exc_val: BaseException,
-            exc_tb: TracebackType
+            exc_tb: TracebackType,
         ) -> None:
             if exc_type:
                 # Roll back all changes

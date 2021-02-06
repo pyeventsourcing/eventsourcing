@@ -10,9 +10,9 @@ from eventsourcing.persistence import (
     StoredEvent,
 )
 from eventsourcing.postgres import (
+    Factory,
     PostgresAggregateRecorder,
     PostgresApplicationRecorder,
-    Factory,
     PostgresDatastore,
     PostgresProcessRecorder,
 )

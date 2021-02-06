@@ -3,9 +3,7 @@ from time import sleep
 from typing import Type
 from unittest.case import TestCase
 
-from eventsourcing.postgres import (
-    PostgresDatastore,
-)
+from eventsourcing.postgres import PostgresDatastore
 from eventsourcing.system import (
     AbstractRunner,
     MultiThreadedRunner,

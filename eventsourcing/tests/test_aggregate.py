@@ -4,7 +4,7 @@ from decimal import Decimal
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.domain import Aggregate, TZINFO, VersionError
+from eventsourcing.domain import TZINFO, Aggregate, VersionError
 
 
 class TestAggregate(TestCase):
@@ -114,24 +114,20 @@ class TestAggregate(TestCase):
         assert len(pending) == 7
 
     def test_raises_type_error_when_created_event_is_broken(self):
-
         class BrokenAggregate(Aggregate):
             @classmethod
             def create(cls, name):
-                return cls._create(
-                    event_class=cls.Created,
-                    id=uuid4(),
-                    name=name
-                )
+                return cls._create(event_class=cls.Created, id=uuid4(), name=name)
 
         with self.assertRaises(TypeError) as cm:
-            BrokenAggregate.create('name')
+            BrokenAggregate.create("name")
         self.assertEqual(
-            cm.exception.args[0], (
+            cm.exception.args[0],
+            (
                 "Unable to construct 'aggregate created' event with class "
                 "Aggregate.Created and keyword args {'name': 'name'}: __init__() "
                 "got an unexpected keyword argument 'name'"
-            )
+            ),
         )
 
 

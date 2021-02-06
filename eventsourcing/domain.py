@@ -169,9 +169,7 @@ class Aggregate:
             id = kwargs.pop("originator_id")
             version = kwargs.pop("originator_version")
             # Construct and return aggregate object.
-            return aggregate_class(
-                id=id, version=version, **kwargs
-            )
+            return aggregate_class(id=id, version=version, **kwargs)
 
     def _trigger_event(
         self,

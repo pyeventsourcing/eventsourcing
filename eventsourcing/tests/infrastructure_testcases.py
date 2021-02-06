@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from eventsourcing.cipher import AESCipher
 from eventsourcing.compressor import ZlibCompressor
-from eventsourcing.domain import DomainEvent, TZINFO
+from eventsourcing.domain import TZINFO, DomainEvent
 from eventsourcing.persistence import (
     AggregateRecorder,
     ApplicationRecorder,

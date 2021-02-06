@@ -3,14 +3,9 @@ from collections import defaultdict
 from threading import Event, Lock, Thread
 from typing import Dict, Iterable, Iterator, List, Set, Tuple, Type, TypeVar
 
-from eventsourcing.application import (
-    NotificationLog,
-    Application,
-    Section,
-)
+from eventsourcing.application import Application, NotificationLog, Section
 from eventsourcing.domain import Aggregate
 from eventsourcing.persistence import (
-    ApplicationRecorder,
     Mapper,
     Notification,
     ProcessRecorder,

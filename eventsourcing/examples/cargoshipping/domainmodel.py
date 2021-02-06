@@ -4,7 +4,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID, uuid4
 
-from eventsourcing.domain import Aggregate, TZINFO
+from eventsourcing.domain import TZINFO, Aggregate
 from eventsourcing.utils import singledispatchmethod
 
 
@@ -12,6 +12,7 @@ class Location(Enum):
     """
     Locations in the world.
     """
+
     HAMBURG = "HAMBURG"
     HONGKONG = "HONGKONG"
     NEWYORK = "NEWYORK"
@@ -27,6 +28,7 @@ class Leg(object):
     """
     Leg of an itinerary.
     """
+
     def __init__(
         self,
         origin: str,
@@ -42,6 +44,7 @@ class Itinerary(object):
     """
     An itinerary along which cargo is shipped.
     """
+
     def __init__(
         self,
         origin: str,
@@ -243,9 +246,7 @@ class Cargo(Aggregate):
     def apply(self, event: RouteAssigned) -> None:
         self._route = event.route
         self._routing_status = "ROUTED"
-        self._estimated_time_of_arrival = datetime.now(tz=TZINFO) + timedelta(
-            weeks=1
-        )
+        self._estimated_time_of_arrival = datetime.now(tz=TZINFO) + timedelta(weeks=1)
         self._next_expected_activity = (
             HandlingActivity.RECEIVE,
             self.origin,

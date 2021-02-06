@@ -4,7 +4,7 @@ from unittest.case import TestCase
 from uuid import uuid4
 
 from eventsourcing.application import AggregateNotFound, Repository
-from eventsourcing.domain import Aggregate, Snapshot, TZINFO
+from eventsourcing.domain import TZINFO, Aggregate, Snapshot
 from eventsourcing.persistence import (
     DatetimeAsISO,
     DecimalAsStr,

@@ -53,10 +53,10 @@ try:
 except ImportError:
     from functools import singledispatch, update_wrapper
 
-    def singledispatchmethod(func): # type: ignore
+    def singledispatchmethod(func):  # type: ignore
         dispatcher = singledispatch(func)
 
-        def wrapper(*args, **kwargs): # type: ignore
+        def wrapper(*args, **kwargs):  # type: ignore
             return dispatcher.dispatch(args[1].__class__)(*args, **kwargs)
 
         wrapper.register = dispatcher.register

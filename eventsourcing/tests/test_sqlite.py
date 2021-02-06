@@ -4,10 +4,10 @@ from uuid import uuid4
 
 from eventsourcing.persistence import InfrastructureFactory, OperationalError
 from eventsourcing.sqlite import (
+    Factory,
     SQLiteAggregateRecorder,
     SQLiteApplicationRecorder,
     SQLiteDatastore,
-    Factory,
     SQLiteProcessRecorder,
 )
 from eventsourcing.tests.aggregaterecorder_testcase import (

@@ -4,8 +4,8 @@ from base64 import b64decode, b64encode
 from uuid import UUID
 
 from eventsourcing.application import (
-    NotificationLog,
     LocalNotificationLog,
+    NotificationLog,
     Section,
 )
 from eventsourcing.persistence import Notification

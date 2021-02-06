@@ -3,7 +3,7 @@ from datetime import datetime
 from unittest.case import TestCase
 from uuid import UUID, uuid4
 
-from eventsourcing.domain import DomainEvent, TZINFO
+from eventsourcing.domain import TZINFO, DomainEvent
 
 
 class TestDomainEvent(TestCase):

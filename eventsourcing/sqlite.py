@@ -38,7 +38,7 @@ class SQLiteDatastore:
             self,
             exc_type: Type[BaseException],
             exc_val: BaseException,
-            exc_tb: TracebackType
+            exc_tb: TracebackType,
         ) -> None:
             if exc_type:
                 # Roll back all changes
@@ -114,7 +114,8 @@ class SQLiteAggregateRecorder(AggregateRecorder):
             except sqlite3.IntegrityError as e:
                 raise RecordConflictError(e)
 
-    def _insert_events(self,
+    def _insert_events(
+        self,
         c: Connection,
         stored_events: List[StoredEvent],
         **kwargs: Any,

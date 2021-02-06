@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from eventsourcing.application import Application
 from eventsourcing.domain import Aggregate
-from eventsourcing.utils import get_topic, _objs_cache
+from eventsourcing.utils import _objs_cache, get_topic
 
 
 class TestUpcasting(TestCase):
