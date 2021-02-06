@@ -344,7 +344,7 @@ class Factory(InfrastructureFactory):
         )
 
     def aggregate_recorder(self, purpose: str = "events") -> AggregateRecorder:
-        prefix = self.application_name or "stored"
+        prefix = self.application_name.lower() or "stored"
         events_table_name = prefix + "_" + purpose
         recorder = PostgresAggregateRecorder(
             datastore=self.datastore, events_table_name=events_table_name
@@ -354,7 +354,7 @@ class Factory(InfrastructureFactory):
         return recorder
 
     def application_recorder(self) -> ApplicationRecorder:
-        prefix = self.application_name or "stored"
+        prefix = self.application_name.lower() or "stored"
         events_table_name = prefix + "_events"
         recorder = PostgresApplicationRecorder(
             datastore=self.datastore, events_table_name=events_table_name
@@ -364,9 +364,9 @@ class Factory(InfrastructureFactory):
         return recorder
 
     def process_recorder(self) -> ProcessRecorder:
-        prefix = self.application_name or "stored"
+        prefix = self.application_name.lower() or "stored"
         events_table_name = prefix + "_events"
-        prefix = self.application_name or "notification"
+        prefix = self.application_name.lower() or "notification"
         tracking_table_name = prefix + "_tracking"
         recorder = PostgresProcessRecorder(
             datastore=self.datastore,
