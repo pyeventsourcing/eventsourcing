@@ -192,12 +192,6 @@ class Cargo(Aggregate):
     def current_voyage_number(self) -> Optional[str]:
         return self._current_voyage_number
 
-    def change_destination(self, destination: Location) -> None:
-        self._trigger_event(
-            self.DestinationChanged,
-            destination=destination,
-        )
-
     @classmethod
     def new_booking(
         cls,
@@ -226,6 +220,12 @@ class Cargo(Aggregate):
     @singledispatchmethod
     def apply(self, event: "Cargo.Event") -> None:
         pass
+
+    def change_destination(self, destination: Location) -> None:
+        self._trigger_event(
+            self.DestinationChanged,
+            destination=destination,
+        )
 
     @dataclass(frozen=True)
     class DestinationChanged(Event):
