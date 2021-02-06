@@ -128,9 +128,9 @@ class TestAggregate(TestCase):
             BrokenAggregate.create('name')
         self.assertEqual(
             cm.exception.args[0], (
-                "Unable to construct event with class Aggregate.Created"
-                " and keyword args {'name': 'name'}: __init__() got an "
-                "unexpected keyword argument 'name'"
+                "Unable to construct 'aggregate created' event with class "
+                "Aggregate.Created and keyword args {'name': 'name'}: __init__() "
+                "got an unexpected keyword argument 'name'"
             )
         )
 
