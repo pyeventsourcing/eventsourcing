@@ -221,18 +221,18 @@ class Cargo(Aggregate):
 
     class Event(Aggregate.Event["Cargo"]):
         def apply(self, aggregate: "Cargo") -> None:
-            aggregate.projection(self)
+            aggregate.apply(self)
 
     @singledispatchmethod
-    def projection(self, event: "Cargo.Event") -> None:
+    def apply(self, event: "Cargo.Event") -> None:
         pass
 
     @dataclass(frozen=True)
     class DestinationChanged(Event):
         destination: Location
 
-    @projection.register(DestinationChanged)
-    def apply(self, event: DestinationChanged) -> None:
+    @apply.register(DestinationChanged)
+    def destination_changed(self, event: DestinationChanged) -> None:
         self._destination = event.destination
 
     def assign_route(self, itinerary: Itinerary) -> None:
@@ -242,8 +242,8 @@ class Cargo(Aggregate):
     class RouteAssigned(Event):
         route: Itinerary
 
-    @projection.register(RouteAssigned)  # type: ignore
-    def apply(self, event: RouteAssigned) -> None:
+    @apply.register(RouteAssigned)
+    def route_assigned(self, event: RouteAssigned) -> None:
         self._route = event.route
         self._routing_status = "ROUTED"
         self._estimated_time_of_arrival = datetime.now(tz=TZINFO) + timedelta(weeks=1)
@@ -275,8 +275,8 @@ class Cargo(Aggregate):
         location: Location
         handling_activity: str
 
-    @projection.register(HandlingEventRegistered)  # type: ignore
-    def apply(self, event: HandlingEventRegistered) -> None:
+    @apply.register(HandlingEventRegistered)
+    def handling_event_registered(self, event: HandlingEventRegistered) -> None:
         assert self.route is not None
         if event.handling_activity == HandlingActivity.RECEIVE:
             self._transport_status = "IN_PORT"
