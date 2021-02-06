@@ -99,7 +99,14 @@ class TestApplication(TestCase):
             f"{self.timeit_number / duration:.0f}/s"
         )
 
-    def test_get_performance(self):
+    def test_get_performance_with_snapshotting_enabled(self):
+        self._test_get_performance()
+
+    def test_get_performance_without_snapshotting_enabled(self):
+        del os.environ[InfrastructureFactory.IS_SNAPSHOTTING_ENABLED]
+        self._test_get_performance()
+
+    def _test_get_performance(self):
 
         app = BankAccounts()
 
