@@ -534,7 +534,8 @@ class MultiThreadedRunnerThread(Promptable, Thread):
             self.has_stopped.set()
             raise
         finally:
-            self.is_running.set()
+            self.is_running.set()  # pragma: no cover
+            # -----------------------^ weird branch coverage thing with Python 3.9
 
         try:
             while True:
