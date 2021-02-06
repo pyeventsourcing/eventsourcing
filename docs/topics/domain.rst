@@ -209,8 +209,8 @@ should express your project's ubiquitous language and take the grammatical
 form of a past participle (either regular or irregular).
 
 The ``make_it_so()`` method is a command method that triggers
-a ``SomethingHappened`` domain event. The event is triggered with the method
-argument ``what``.
+a ``World.SomethingHappened`` domain event. The event is triggered
+with the method argument ``what``.
 
 The nested class ``SomethingHappened`` is a frozen data class that extends the
 base aggregate event class ``Aggregate.Event`` (also a frozen data class) with a
@@ -290,14 +290,14 @@ events can be used in future to reconstruct the state of the aggregate.
 .. code:: python
 
     # Commands methods trigger events.
-    world.make_it_so('dinosaurs')
-    world.make_it_so('trucks')
-    world.make_it_so('internet')
+    world.make_it_so("dinosaurs")
+    world.make_it_so("trucks")
+    world.make_it_so("internet")
 
     # State of aggregate object has changed.
-    assert world.history[0] == 'dinosaurs'
-    assert world.history[1] == 'trucks'
-    assert world.history[2] == 'internet'
+    assert world.history[0] == "dinosaurs"
+    assert world.history[1] == "trucks"
+    assert world.history[2] == "internet"
 
 
 Now that more than one domain event has been created, the aggregate's
@@ -332,9 +332,9 @@ event, and three ``SomethingHappened`` events.
     assert isinstance(pending_events[1], World.SomethingHappened)
     assert isinstance(pending_events[2], World.SomethingHappened)
     assert isinstance(pending_events[3], World.SomethingHappened)
-    assert pending_events[1].what == 'dinosaurs'
-    assert pending_events[2].what == 'trucks'
-    assert pending_events[3].what == 'internet'
+    assert pending_events[1].what == "dinosaurs"
+    assert pending_events[2].what == "trucks"
+    assert pending_events[3].what == "internet"
 
     assert pending_events[0].timestamp == world.created_on
     assert pending_events[3].timestamp == world.modified_on
@@ -436,10 +436,10 @@ module documentation for more information.
     assert isinstance(snapshot, Snapshot)
     assert snapshot.originator_id == world.id
     assert snapshot.originator_version == world.version
-    assert snapshot.topic == '__main__:World', snapshot.topic
-    assert snapshot.state['history'] == world.history
-    assert snapshot.state['_created_on'] == world.created_on
-    assert snapshot.state['_modified_on'] == world.modified_on
+    assert snapshot.topic == "__main__:World", snapshot.topic
+    assert snapshot.state["history"] == world.history
+    assert snapshot.state["_created_on"] == world.created_on
+    assert snapshot.state["_modified_on"] == world.modified_on
     assert len(snapshot.state) == 3
 
 
@@ -529,13 +529,13 @@ event class, so that snapshots can be upcast.
 
             @staticmethod
             def upcast_v1_v2(state):
-                state['b'] = 0
+                state["b"] = 0
 
         class_version = 2
 
         @staticmethod
         def upcast_v1_v2(state):
-            state['b'] = 0
+            state["b"] = 0
 
 
 After an application that uses the above version 2 aggregate class has been deployed, its ``Created``
@@ -571,21 +571,21 @@ class, so that any snapshots will be upcast.
 
             @staticmethod
             def upcast_v1_v2(state):
-                state['b'] = 0
+                state["b"] = 0
 
             @staticmethod
             def upcast_v2_v3(state):
-                state['c'] = 0.0
+                state["c"] = 0.0
 
         class_version = 3
 
         @staticmethod
         def upcast_v1_v2(state):
-            state['b'] = 0
+            state["b"] = 0
 
         @staticmethod
         def upcast_v2_v3(state):
-            state['c'] = 0.0
+            state["c"] = 0.0
 
 
 If subsequently a new event is added that manipulates a new attribute that is expected to be initialised
@@ -619,11 +619,11 @@ updates ``d`` is defined. Since the ``Created`` event class has not changed, it 
 
             @staticmethod
             def upcast_v1_v2(state):
-                state['b'] = 0
+                state["b"] = 0
 
             @staticmethod
             def upcast_v2_v3(state):
-                state['c'] = 0.0
+                state["c"] = 0.0
 
         def set_d(self, d: bool):
             self._trigger_event(self.DUpdated, d=d)
@@ -639,15 +639,15 @@ updates ``d`` is defined. Since the ``Created`` event class has not changed, it 
 
         @staticmethod
         def upcast_v1_v2(state):
-            state['b'] = 0
+            state["b"] = 0
 
         @staticmethod
         def upcast_v2_v3(state):
-            state['c'] = 0.0
+            state["c"] = 0.0
 
         @staticmethod
         def upcast_v3_v4(state):
-            state['d'] = False
+            state["d"] = False
 
 
 If the value objects used by your events also change, you may also need to define new transcodings
@@ -667,6 +667,7 @@ and may allow the domain model itself to be validated, so that classes are marke
 the attributes have changed. This may be addressed by a future version of this library. Considering model
 code changes as a sequence of immutable events brings the state of the domain model code itself into the same
 form of event-oriented consideration as the consideration of the state an application as a sequence of events.
+
 
 .. _Namespaced IDs:
 
@@ -756,7 +757,7 @@ how this can work.
 
         @classmethod
         def create_id(cls, name: str):
-            return uuid5(NAMESPACE_URL, f'/pages/{name}')
+            return uuid5(NAMESPACE_URL, f"/pages/{name}"")
 
         def __init__(self, ref, **kwargs):
             super().__init__(**kwargs)
@@ -779,8 +780,7 @@ page.
 
 .. code:: python
 
-
-    page = Page.create(name='Erth')
+    page = Page.create(name="Erth")
     index1 = Index.create(page)
 
 
@@ -795,7 +795,7 @@ the index aggregate, and then use the page ID to get the page aggregate.
 
 .. code:: python
 
-    index_id = Index.create_id('Erth')
+    index_id = Index.create_id("Erth")
     assert index_id == index1.id
     assert index1.ref == page.id
 
@@ -807,7 +807,7 @@ its new name.
 
 .. code:: python
 
-    page.update_name('Earth')
+    page.update_name("Earth")
     index2 = Index.create(page)
 
 
@@ -816,7 +816,7 @@ and imagine using the second index aggregate to get the ID of the page.
 
 .. code:: python
 
-    index_id = Index.create_id('Earth')
+    index_id = Index.create_id("Earth")
     assert index_id == index2.id
     assert index2.ref == page.id
 
