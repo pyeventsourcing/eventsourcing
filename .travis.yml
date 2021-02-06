@@ -28,6 +28,7 @@ install:
 
 script:
     coverage run -m unittest discover eventsourcing -v;
+    mypy eventsourcing
 
 after_success:
     coverage combine;
