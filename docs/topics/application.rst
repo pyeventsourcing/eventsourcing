@@ -578,6 +578,11 @@ defined in that section.
 
 
     class Page(Aggregate):
+        def __init__(self, name: str, body: str, **kwargs):
+            super(Page, self).__init__(**kwargs)
+            self.name = name
+            self.body = body
+
         @classmethod
         def create(cls, name: str, body: str = ""):
             return cls._create(
@@ -592,11 +597,6 @@ defined in that section.
             name: str
             body: str
 
-        def __init__(self, name: str, body: str, **kwargs):
-            super(Page, self).__init__(**kwargs)
-            self.name = name
-            self.body = body
-
         def update_name(self, name: str):
             self._trigger_event(self.NameUpdated, name=name)
 
@@ -609,8 +609,16 @@ defined in that section.
 
 
     class Index(Aggregate):
+        def __init__(self, ref, **kwargs):
+            super().__init__(**kwargs)
+            self.ref = ref
+
         @classmethod
-        def create(cls, page: Page):
+        def create_id(cls, name: str):
+            return uuid5(NAMESPACE_URL, f'/pages/{name}')
+
+        @classmethod
+        def create(cls, page: Index):
             return cls._create(
                 event_class=cls.Created,
                 id=cls.create_id(page.name),
@@ -621,14 +629,6 @@ defined in that section.
         class Created(Aggregate.Created):
             ref: UUID
 
-        @classmethod
-        def create_id(cls, name: str):
-            return uuid5(NAMESPACE_URL, f'/pages/{name}')
-
-        def __init__(self, ref, **kwargs):
-            super().__init__(**kwargs)
-            self.ref = ref
-
         def update_ref(self, ref):
             self._trigger_event(self.RefUpdated, ref=ref)
 
@@ -638,6 +638,7 @@ defined in that section.
 
             def apply(self, index: "Index"):
                 index.ref = self.ref
+
 
 We can define a simple wiki application, which creates named
 pages. Pages can be retrieved by name. Names can be changed

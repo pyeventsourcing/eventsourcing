@@ -35,8 +35,11 @@ The library's system class...
                 id=uuid4(),
             )
 
+        class Created(Aggregate.Created):
+            pass
+
         def make_it_so(self, what):
-            self._trigger_event(World.SomethingHappened, what=what)
+            self._trigger_event(self.SomethingHappened, what=what)
 
         @dataclass(frozen=True)
         class SomethingHappened(Aggregate.Event):
@@ -83,15 +86,18 @@ Now let's define an analytics application...
             self.count = 0
 
         @classmethod
+        def create_id(cls, name):
+            return uuid5(NAMESPACE_URL, f'/counters/{name}')
+
+        @classmethod
         def create(cls, name):
             return cls._create(
-                event_class=Aggregate.Created,
+                event_class=cls.Created,
                 id=cls.create_id(name),
             )
 
-        @classmethod
-        def create_id(cls, name):
-            return uuid5(NAMESPACE_URL, f'/counter/{name}')
+        class Created(Aggregate.Created):
+            pass
 
         def increment(self):
             self._trigger_event(self.Incremented)

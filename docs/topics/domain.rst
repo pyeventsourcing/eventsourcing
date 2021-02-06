@@ -191,14 +191,22 @@ Basic example
 In the example below, the ``World`` aggregate extends the library's
 base class :class:`~eventsourcing.domain.Aggregate`.
 
+The ``__init__()`` initializer method calls the ``super().__init__()``
+method with the given ``**kwargs``, and then initialises a
+``history`` attribute with an empty Python ``list`` object.
+
 The ``create()`` method is a class method that creates and returns
 a new ``World`` aggregate object. It uses the ``Created`` event class
 as the value of the ``event_class`` argument. It uses a new version 4
 :class:`~uuid.UUID` object as the value of the ``id`` argument.
 
-The ``__init__()`` initializer method calls the ``super().__init__()``
-method with the given ``**kwargs``, and then initialises a
-``history`` attribute with an empty Python ``list`` object.
+The ``Created`` class is redefined. Although in this simple example
+this ``World.Created`` event class carries no more attributes than the
+base class event, it's always worth defining all event classes on the
+concrete aggregate class itself in case these classes need to be modified
+so that old instances can be upcast to new versions. Event class names
+should express your project's ubiquitous language and take the grammatical
+form of a past participle (either regular or irregular).
 
 The ``make_it_so()`` method is a command method that triggers
 a ``SomethingHappened`` domain event. The event is triggered with the method
@@ -219,6 +227,10 @@ is implemented to append the ``what`` value to the aggregate's ``history``.
 
 
     class World(Aggregate):
+        def __init__(self, **kwargs):
+            super(World, self).__init__(**kwargs)
+            self.history = []
+
         @classmethod
         def create(cls):
             return cls._create(
@@ -226,12 +238,11 @@ is implemented to append the ``what`` value to the aggregate's ``history``.
                 id=uuid4(),
             )
 
-        def __init__(self, **kwargs):
-            super(World, self).__init__(**kwargs)
-            self.history = []
+        class Created(Aggregate.Created):
+            pass
 
         def make_it_so(self, what):
-            self._trigger_event(World.SomethingHappened, what=what)
+            self._trigger_event(self.SomethingHappened, what=what)
 
         @dataclass(frozen=True)
         class SomethingHappened(Aggregate.Event):
@@ -317,7 +328,7 @@ event, and three ``SomethingHappened`` events.
     assert len(pending_events) == 4
     assert len(world._pending_events) == 0
 
-    assert isinstance(pending_events[0], Aggregate.Created)
+    assert isinstance(pending_events[0], World.Created)
     assert isinstance(pending_events[1], World.SomethingHappened)
     assert isinstance(pending_events[2], World.SomethingHappened)
     assert isinstance(pending_events[3], World.SomethingHappened)
