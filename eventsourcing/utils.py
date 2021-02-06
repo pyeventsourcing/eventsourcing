@@ -50,7 +50,7 @@ def resolve_attr(obj: Any, path: str) -> Any:
 
 try:
     from functools import singledispatchmethod
-except ImportError:
+except ImportError:  # pragma: no cover
     from functools import singledispatch, update_wrapper
 
     def singledispatchmethod(func):  # type: ignore
