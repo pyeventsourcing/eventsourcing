@@ -7,8 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from distutils.util import strtobool
-from types import ModuleType
-from typing import Any, Dict, Generic, Iterator, List, Optional, Union, cast
+from typing import Any, Dict, Generic, Iterator, List, Optional, cast
 from uuid import UUID
 
 from eventsourcing.cipher import AbstractCipher

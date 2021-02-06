@@ -79,7 +79,7 @@ class TestRemoteNotificationLog(TestCase):
                 )
                 for _ in range(30):
                     try:
-                        account_id1 = client.open_account("Alice", "alice@example.com")
+                        client.open_account("Alice", "alice@example.com")
                         # print(threading.get_ident(), account_id1)
                     except Exception as e:
                         print(threading.get_ident(), "error:", e)

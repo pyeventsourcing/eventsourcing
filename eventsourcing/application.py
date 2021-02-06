@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from functools import reduce
-from itertools import chain
-from typing import Iterable, List, Optional, TypeVar, Union
+from typing import List, Optional, TypeVar
 from uuid import UUID
 
 from eventsourcing.domain import Aggregate, Snapshot

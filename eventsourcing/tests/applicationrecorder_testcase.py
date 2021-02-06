@@ -99,7 +99,7 @@ class ApplicationRecorderTestCase(TestCase, ABC):
             )
             try:
                 recorder.insert_events([stored_event])
-            except:
+            except Exception:
                 errors_happened.set()
                 tb = traceback.format_exc()
                 print(tb)
@@ -113,7 +113,7 @@ class ApplicationRecorderTestCase(TestCase, ABC):
             while not stop_reading.is_set():
                 try:
                     recorder.select_notifications(0, 10)
-                except:
+                except Exception:
                     errors_happened.set()
                     tb = traceback.format_exc()
                     print(tb)

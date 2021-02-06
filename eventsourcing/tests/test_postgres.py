@@ -184,7 +184,8 @@ class TestFactory(InfrastructureFactoryTestCase):
             self.factory = InfrastructureFactory.construct("TestCase")
         self.assertEqual(
             cm.exception.args[0],
-            "Postgres database name not found in environment with key 'POSTGRES_DBNAME'",
+            "Postgres database name not found in environment "
+            "with key 'POSTGRES_DBNAME'",
         )
 
     def test_environment_error_raised_when_dbhost_missing(self):

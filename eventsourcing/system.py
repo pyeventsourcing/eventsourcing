@@ -87,8 +87,9 @@ class Follower(Application):
         and the position in its notification log from which the
         domain event notification was pulled. The policy will
         save aggregates to the process event object, using its
-        :func:`~ProcessEvent.save` method, which collects pending domain
-        events using the aggregates' :func:`~eventsourcing.domain.Aggregate.collect_events`
+        :func:`~ProcessEvent.save` method, which collects pending
+        domain events using the aggregates'
+        :func:`~eventsourcing.domain.Aggregate.collect_events`
         method, and the process event object will then be recorded
         by calling the :func:`record` method.
         """
@@ -526,7 +527,7 @@ class MultiThreadedRunnerThread(Promptable, Thread):
         """
         try:
             self.app: Follower = self.app_class()
-        except:
+        except Exception:
             self.has_errored.set()
             self.has_stopped.set()
             raise
@@ -545,7 +546,7 @@ class MultiThreadedRunnerThread(Promptable, Thread):
                     self.is_prompted.clear()
                 for name in prompted_names:
                     self.app.pull_and_process(name)
-        except:
+        except Exception:
             self.has_errored.set()
             self.has_stopped.set()
             self.is_stopping.is_set()
