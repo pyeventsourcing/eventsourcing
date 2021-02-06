@@ -239,7 +239,7 @@ class Cargo(Aggregate):
     class RouteAssigned(Event):
         route: Itinerary
 
-    @projection.register(RouteAssigned)
+    @projection.register(RouteAssigned)  # type: ignore
     def apply(self, event: RouteAssigned) -> None:
         self._route = event.route
         self._routing_status = "ROUTED"
@@ -274,7 +274,7 @@ class Cargo(Aggregate):
         location: Location
         handling_activity: str
 
-    @projection.register(HandlingEventRegistered)
+    @projection.register(HandlingEventRegistered)  # type: ignore
     def apply(self, event: HandlingEventRegistered) -> None:
         assert self.route is not None
         if event.handling_activity == HandlingActivity.RECEIVE:
