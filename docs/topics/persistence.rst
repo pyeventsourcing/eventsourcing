@@ -724,7 +724,7 @@ keep stored events in a data structure in memory (see :mod:`eventsourcing.popo`)
 
     from eventsourcing.persistence import InfrastructureFactory
 
-    factory = InfrastructureFactory.construct(application_name="")
+    factory = InfrastructureFactory.construct(application_name="application")
 
     recorder = factory.application_recorder()
     mapper = factory.mapper(transcoder=transcoder)
@@ -753,10 +753,10 @@ The SQLite :class:`~eventsourcing.sqlite.Factory` uses environment variables
     import os
 
     os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.sqlite:Factory"
-    os.environ["SQLITE_DBNAME"] = "":memory:"
+    os.environ["SQLITE_DBNAME"] = ":memory:"
     os.environ["DO_CREATE_TABLE"] = "y"
 
-    factory = InfrastructureFactory.construct(application_name=")
+    factory = InfrastructureFactory.construct(application_name="application")
 
     recorder = factory.application_recorder()
     mapper = factory.mapper(transcoder=transcoder)
@@ -795,13 +795,13 @@ The PostgreSQL :class:`~eventsourcing.sqlite.Factory` uses environment variables
 
 ..
     from eventsourcing.tests.test_postgres import drop_postgres_table
-    factory = InfrastructureFactory.construct(application_name="")
+    factory = InfrastructureFactory.construct(application_name="application")
     drop_postgres_table(factory.datastore, "stored_events")
 
 
 .. code:: python
 
-    factory = InfrastructureFactory.construct(application_name="")
+    factory = InfrastructureFactory.construct(application_name="application")
 
     recorder = factory.application_recorder()
     mapper = factory.mapper(transcoder=transcoder)

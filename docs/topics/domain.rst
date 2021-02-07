@@ -757,7 +757,7 @@ how this can work.
 
         @classmethod
         def create_id(cls, name: str):
-            return uuid5(NAMESPACE_URL, f"/pages/{name}"")
+            return uuid5(NAMESPACE_URL, f"/pages/{name}")
 
         def __init__(self, ref, **kwargs):
             super().__init__(**kwargs)
