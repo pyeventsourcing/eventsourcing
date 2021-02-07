@@ -85,15 +85,16 @@ The system runners have been reduced to the single-threaded and
 multi-threaded runners, with support for running with Ray and gRPC
 and so on removed (the plan being to support these in separate package
 distributions). Altogether, these changes mean the core library now depends
-only on the PythonStandard Library, except for the dependency on the
-cryptographic library (PyCryptodome) and the PostgresSQL driver (psycopg2).
-Altogether, these changes makes the test suite much faster to run (several
-seconds rather than several minutes for the previous version), the build time
-on Travis much quicker (less than one minute rather than nearly ten minutes for
-the previous version), and the library more approachable and fun for users
-and library developers. Test coverage has been increased to 100%. The documentation
-has been rewritten to focus more on usage of the library code, and less on
-explaining surrounding concepts and considerations.
+only on the PythonStandard Library, except for the optional extra dependencies
+on a cryptographic library (PyCryptodome) and a PostgresSQL driver (psycopg2),
+and the dependencies of development tools. Altogether, these changes makes the
+test suite much faster to run (several seconds rather than several minutes for
+the previous version), the build time on Travis much quicker (less than one
+minute rather than nearly ten minutes for the previous version), and the
+library more approachable and fun for users and library developers. Test
+coverage has been increased to 100%. The  documentation has been rewritten
+to focus more on usage of the library code, and less on explaining surrounding
+concepts and considerations.
 
 
 Version 8.x

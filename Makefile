@@ -56,7 +56,7 @@ lint-dockerfile:
 	@docker run --rm -i replicated/dockerfilelint:ad65813 < ./dev/Dockerfile_eventsourcing_requirements
 
 .PHONY: lint
-lint: lint-black lint-flake8 lint-isort lint-mypy #lint-dockerfile
+lint: lint-isort lint-black lint-flake8 lint-mypy #lint-dockerfile
 
 
 .PHONY: fmt-isort

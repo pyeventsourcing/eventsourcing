@@ -31,6 +31,10 @@ with major version number increments.
 This package depends only on modules from the Python Standard Library,
 except for the extra options described below.
 
+This version of the library is compatible with Python versions 3.7, 3.8,
+and 3.9. The library's suite of tests is run against these versions and
+has 100% line and branch coverage.
+
 
 Install options
 ===============
@@ -84,7 +88,8 @@ Sphinx, Coverage.py, Black, mypy, Flake8, and isort.
 
     $ pip install ".[dev]"
 
-Alternatively, the project's Makefile can be used to the same effect.
+Alternatively, the project's Makefile can be used to the same effect with
+the following command.
 
 ::
 
@@ -99,14 +104,28 @@ by the tests with the following command.
     $ make test
 
 
-You can also check the syntax and static types are correct with the following command.
+Before running the tests, you will need setup PostgreSQL. The following commands
+will install PostgreSQL on MacOS and setup the database and databas user you can run .
+
+::
+
+    $ brew install postgresql
+    $ brew services start postgresql
+    $ psql postgres
+    postgres=# CREATE DATABASE eventsourcing;
+    postgres=# CREATE USER eventsourcing WITH PASSWORD 'eventsourcing';
+
+
+You can also check the syntax and static types are correct with the
+following command (which uses isort, Black, Flake8, and mypy).
 
 ::
 
     $ make lint
 
 
-You can also make sure the docs build with the following command.
+You can also make sure the docs build with the following command
+(which uses Sphinx).
 
 ::
 
@@ -114,9 +133,16 @@ You can also make sure the docs build with the following command.
 
 
 If you wish to submit changes to the library, before submitting a pull
-request please check all three things (test, lint, and docs) which
-you can do conveniently with the following command.
+request please check all three things (lint, docs, and test) which you
+can do conveniently with the following command.
 
 ::
 
     $ make prepush
+
+
+The code can be automatically reformatted using the following command
+(which uses isort and Black).
+
+::
+    $ make fmt
