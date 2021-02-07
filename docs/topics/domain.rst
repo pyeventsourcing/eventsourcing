@@ -138,7 +138,7 @@ The initial version of a newly created aggregate is always 1.
     assert aggregate.version == 1
 
 
-A new aggregate instance also has :py:obj:`~eventsourcing.domain.Aggregate.created_on`
+A new aggregate instance also has a :py:obj:`~eventsourcing.domain.Aggregate.created_on`
 property which gives the date and time when an aggregate object was created, and is determined
 by the timestamp attribute of the first event in the aggregate's sequence, which is the "created"
 event. It is a Python :class:`~datetime.datetime` object.
