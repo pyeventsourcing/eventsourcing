@@ -220,8 +220,8 @@ After triggering a second event, the modified time will be greater than the crea
 
 The :class:`~eventsourcing.domain.Aggregate` class also defines an object method
 :func:`~eventsourcing.domain.Aggregate.collect_events`
-which can be called to collect the aggregate domain events that have been triggered but not yet recorded.
-It is called without any arguments, and returns a list of all the domain events that have been created
+which can be called to collect the aggregate events that have been triggered but not yet recorded.
+It is called without any arguments, and returns a list of all the events that have been created
 since the previous call to :func:`~eventsourcing.domain.Aggregate.collect_events`.
 
 .. code:: python
@@ -246,34 +246,41 @@ since the previous call to :func:`~eventsourcing.domain.Aggregate.collect_events
 Basic example
 =============
 
-In the example below, the ``World`` aggregate extends the library's
-base class :class:`~eventsourcing.domain.Aggregate`.
+In the example below, the ``World`` aggregate is a subclass of the library's
+base :class:`~eventsourcing.domain.Aggregate` class.
 
 The ``__init__()`` initializer method calls the ``super().__init__()``
 method with the given ``**kwargs``, and then initialises a
 ``history`` attribute with an empty Python ``list`` object.
 
 The ``create()`` method is a class method that creates and returns
-a new ``World`` aggregate object. It uses the ``Created`` event class
-as the value of the ``event_class`` argument. It uses a new version 4
-:class:`~uuid.UUID` object as the value of the ``id`` argument.
+a new ``World`` aggregate object. It calls the base class
+:func:`~eventsourcing.domain.Aggregate._create` method. It
+uses its ``Created`` event class as the value of the ``event_class``
+argument. It uses a new version 4 :class:`~uuid.UUID` object as the
+value of the ``id`` argument.
 
-The ``Created`` class is redefined. Although in this simple example
-this ``World.Created`` event class carries no more attributes than the
-base class event, it's always worth defining all event classes on the
-concrete aggregate class itself in case these classes need to be modified
-so that old instances can be upcast to new versions. Event class names
-should express your project's ubiquitous language and take the grammatical
-form of a past participle (either regular or irregular).
+A ``Created`` class is defined as a subclass of the base aggregate
+:class:`~eventsourcing.domain.Aggregate.Created` class. Although in
+this simple example this ``World.Created`` event class carries no more
+attributes than the base class event that it inherits, it's always worth
+defining all event classes on the concrete aggregate class itself in case
+these classes need to be modified so that old instances can be upcast to
+new versions (see :ref:`Versioning <Versioning>`). The name of an event class
+should express your project's ubiquitous language, take the grammatical
+form of a past participle (either regular or irregular), and describe the
+type of decision represented by the event class.
 
 The ``make_it_so()`` method is a command method that triggers
-a ``World.SomethingHappened`` domain event. The event is triggered
-with the method argument ``what``.
+a ``World.SomethingHappened`` domain event. It calls the base class
+:func:`~eventsourcing.domain.Aggregate._trigger_event` method.
+The event is triggered with the method argument ``what``.
 
 The nested class ``SomethingHappened`` is a frozen data class that extends the
 base aggregate event class ``Aggregate.Event`` (also a frozen data class) with a
-field ``what`` which is defined as a Python :class:`str`. The ``apply()`` method
-is implemented to append the ``what`` value to the aggregate's ``history``.
+field ``what`` which is defined as a Python :class:`str`. An ``apply()`` method
+is defined which appends the ``what`` value to the aggregate's ``history``. This
+method is called when the event is triggered (see :ref:`Domain events <Events>`).
 
 
 .. code:: python
@@ -307,13 +314,13 @@ is implemented to append the ``what`` value to the aggregate's ``history``.
                 world.history.append(self.what)
 
 
-We can create a new ``World`` aggregate object by calling the
-``World.create()`` class method.
+Having defined the ``World`` aggregate class, we can create a new ``World``
+aggregate object by calling the ``World.create()`` class method.
 
 .. code:: python
 
-    # Create new world.
     world = World.create()
+
     assert isinstance(world, World)
 
 The aggregate's attributes ``created_on`` and ``modified_on`` show
@@ -518,6 +525,7 @@ that starts with a snapshot and continues with the subsequent domain event objec
 treated in the same way as a list of all the domain event objects of an aggregate.
 This convenience is used by the application :ref:`repository <Repository>`.
 
+.. _Versioning:
 
 Versioning
 ==========
