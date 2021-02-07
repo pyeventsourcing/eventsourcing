@@ -42,7 +42,7 @@ later by running the install command again with the options you want.
 
 For example, if you want to store cryptographically encrypted events,
 then install with the ``crypto`` option. This simply installs
-`Pycryptodome <https://pypi.org/project/pycryptodome/>`_
+`PyCryptodome <https://pypi.org/project/pycryptodome/>`_
 so feel free to make your project depend on that instead.
 
 ::

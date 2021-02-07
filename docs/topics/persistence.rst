@@ -465,7 +465,7 @@ encryption" in an event-sourced application.
 
 The library's :class:`~eventsourcing.cipher.AESCipher` class uses the
 `AES cipher <https://pycryptodome.readthedocs.io/en/stable/src/cipher/aes.html>`_
-from the `Pycryptodome library <https://pycryptodome.readthedocs.io/en/stable/index.html>`_
+from the `PyCryptodome library <https://pycryptodome.readthedocs.io/en/stable/index.html>`_
 in `GCM mode <https://pycryptodome.readthedocs.io/en/stable/src/cipher/modern.html#gcm-mode>`_.
 AES is a very fast and secure symmetric block cipher, and is the de facto
 standard for symmetric encryption. Galois/Counter Mode (GCM) is a mode of

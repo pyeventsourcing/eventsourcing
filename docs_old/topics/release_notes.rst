@@ -86,7 +86,7 @@ multi-threaded runners, with support for running with Ray and gRPC
 and so on removed (the plan being to support these in separate package
 distributions). Altogether, these changes mean the core library now depends
 only on the PythonStandard Library, except for the dependency on the
-cryptographic library (Pycryptodome) and the PostgresSQL driver (psycopg2).
+cryptographic library (PyCryptodome) and the PostgresSQL driver (psycopg2).
 Altogether, these changes makes the test suite much faster to run (several
 seconds rather than several minutes for the previous version), the build time
 on Travis much quicker (less than one minute rather than nearly ten minutes for
