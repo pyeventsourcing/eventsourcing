@@ -406,11 +406,11 @@ The timestamp values are "timezone aware" datetime objects. The default timezone
 UTC, as defined by Python's :data:`datetime.timezone.utc`. It is recommended to store
 date-times as UTC values, and convert to a local timezone in the interface layer according
 to the particular timezone of a particular user. However, if necessary, this default can
-be changed either by assigning a :class:`datetime.tzinfo` object to :data:`TZINFO` in the
-:mod:`~eventsourcing.domain` module. The :data:`eventsourcing.domain.TZINFO` value can also
-be configured using environment variables, by setting the environment variable ``TZINFO_TOPIC``
-to a string that describes the :ref:`topic <Topics>` of a Python :data:`datetime.tzinfo` object
-(for example ``'datetime:timezone.utc'``).
+be changed either by assigning a :class:`datetime.tzinfo` object to the :data:`TZINFO`
+attribute of the :mod:`eventsourcing.domain` module. The :data:`eventsourcing.domain.TZINFO`
+value can also be configured using environment variables, by setting the environment variable
+``TZINFO_TOPIC`` to a string that describes the :ref:`topic <Topics>` of a Python
+:data:`datetime.tzinfo` object (for example ``'datetime:timezone.utc'``).
 
 
 Snapshots
