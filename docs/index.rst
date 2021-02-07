@@ -12,8 +12,8 @@ Contents
    :maxdepth: 2
 
    topics/introduction
-   topics/support
    topics/installing
+   topics/support
    topics/domain
    topics/application
    topics/persistence
