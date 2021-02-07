@@ -96,19 +96,17 @@ in the domain model.
 
     aggregate_id = uuid4()
 
-    aggregate = Aggregate._create(
-        event_class=Aggregate.Created,
-        id=aggregate_id,
-    )
+    aggregate = Aggregate._create(Aggregate.Created, id=aggregate_id)
 
 
 The :func:`~eventsourcing.domain.Aggregate._create` method also accepts arbitrary
 keyword-only arguments, which will be used to construct the event object. The event
 object will be constructed with these arguments, and so the extra method arguments
-must be matched by the expected values of the event class. The aggregate's initializer
-method :func:`__init__` must also be coded to accept and use these arguments.
+must be matched by the expected values of the event class. (The concrete aggregate
+class's initializer method :func:`__init__` should also be coded to accept these
+extra arguments.)
 
-A new aggregate instance has an ID. The ID is present by its
+A new aggregate instance has an ID. The ID is presented by its
 :py:obj:`~eventsourcing.domain.Aggregate.id` property. The ID will be identical to
 the value passed with the ``id`` argument to the :func:`~eventsourcing.domain.Aggregate._create`
 method.
@@ -175,9 +173,7 @@ are usually named using past participles, such as "Done", "Updated", "Closed", e
 
 .. code:: python
 
-    aggregate._trigger_event(
-        event_class=Aggregate.Event,
-    )
+    aggregate._trigger_event(Aggregate.Event)
 
 
 The :func:`~eventsourcing.domain.Aggregate._trigger_event` method also accepts arbitrary
@@ -275,10 +271,7 @@ is implemented to append the ``what`` value to the aggregate's ``history``.
 
         @classmethod
         def create(cls):
-            return cls._create(
-                event_class=cls.Created,
-                id=uuid4(),
-            )
+            return cls._create(cls.Created, id=uuid4())
 
         @dataclass(frozen=True)
         class Created(Aggregate.Created):
@@ -755,6 +748,11 @@ how this can work.
 
 
     class Page(Aggregate):
+        def __init__(self, name: str, body: str, **kwargs):
+            super(Page, self).__init__(**kwargs)
+            self.name = name
+            self.body = body
+
         @classmethod
         def create(cls, name: str, body: str = ""):
             return cls._create(
@@ -769,11 +767,6 @@ how this can work.
             name: str
             body: str
 
-        def __init__(self, name: str, body: str, **kwargs):
-            super(Page, self).__init__(**kwargs)
-            self.name = name
-            self.body = body
-
         def update_name(self, name: str):
             self._trigger_event(self.NameUpdated, name=name)
 
@@ -786,6 +779,14 @@ how this can work.
 
 
     class Index(Aggregate):
+        def __init__(self, ref, **kwargs):
+            super().__init__(**kwargs)
+            self.ref = ref
+
+        @classmethod
+        def create_id(cls, name: str):
+            return uuid5(NAMESPACE_URL, f"/pages/{name}")
+
         @classmethod
         def create(cls, page: Page):
             return cls._create(
@@ -797,14 +798,6 @@ how this can work.
         @dataclass(frozen=True)
         class Created(Aggregate.Created):
             ref: UUID
-
-        @classmethod
-        def create_id(cls, name: str):
-            return uuid5(NAMESPACE_URL, f"/pages/{name}")
-
-        def __init__(self, ref, **kwargs):
-            super().__init__(**kwargs)
-            self.ref = ref
 
         def update_ref(self, ref):
             self._trigger_event(self.RefUpdated, ref=ref)
