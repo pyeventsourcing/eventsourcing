@@ -118,6 +118,7 @@ class Aggregate:
     def _create(
         cls: Type[TAggregate],
         event_class: Type[TAggregateCreated],
+        *,
         id: UUID,
         **kwargs: Any,
     ) -> TAggregate:

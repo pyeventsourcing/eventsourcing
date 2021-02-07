@@ -64,18 +64,19 @@ the domain model events defines the 'boundary' mentioned in the quote above. Thi
 is sometimes referred to as a 'consistency boundary'.
 
 The library class :class:`~eventsourcing.domain.Aggregate` is a base class for event-sourced
-aggregates. It can be used directly, or subclassed to develop event-sourced domain model aggregates
-of different kinds.
+aggregates.
 
 .. code:: python
 
     from eventsourcing.domain import Aggregate
 
-The library's :class:`~eventsourcing.domain.Aggregate` base class defines a class method
-:func:`~eventsourcing.domain.Aggregate._create` which can be called to create a new aggregate
-object. Usually, this method will be called by an aggregate's factory method (a class method
-that returns a new aggregate) implemented on a concrete subclass of the base class, for example
-the ``create()`` method in the :ref:`basic example <Aggregate basic example>` below.
+The :class:`~eventsourcing.domain.Aggregate` base class can be subclassed in order to
+develop concrete event-sourced aggregates. It defines a class method
+:func:`~eventsourcing.domain.Aggregate._create` which can be called to create
+a new aggregate object instance. Usually, this method will be called by a factory
+method (a class method that returns a new aggregate) implemented on a concrete subclass,
+for example the ``create()`` method of the :class:`World` in the
+:ref:`basic example <Aggregate basic example>` below.
 
 The base class :func:`~eventsourcing.domain.Aggregate._create` method has a required argument
 ``event_class`` which is used to pass a domain event class that represents the creation of the aggregate.
