@@ -238,6 +238,7 @@ is implemented to append the ``what`` value to the aggregate's ``history``.
                 id=uuid4(),
             )
 
+        @dataclass(frozen=True)
         class Created(Aggregate.Created):
             pass
 

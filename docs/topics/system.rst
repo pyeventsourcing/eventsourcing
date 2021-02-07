@@ -35,6 +35,7 @@ The library's system class...
                 id=uuid4(),
             )
 
+        @dataclass(frozen=True)
         class Created(Aggregate.Created):
             pass
 
@@ -96,6 +97,7 @@ Now let's define an analytics application...
                 id=cls.create_id(name),
             )
 
+        @dataclass(frozen=True)
         class Created(Aggregate.Created):
             pass
 
