@@ -400,7 +400,7 @@ class InfrastructureFactory(ABC):
     IS_SNAPSHOTTING_ENABLED = "IS_SNAPSHOTTING_ENABLED"
 
     @classmethod
-    def construct(cls, application_name: str) -> "InfrastructureFactory":
+    def construct(cls, application_name: str = "") -> "InfrastructureFactory":
         """
         Constructs concrete infrastructure factory for given
         named application. Reads and resolves infrastructure

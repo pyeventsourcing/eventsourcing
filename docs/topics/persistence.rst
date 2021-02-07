@@ -318,7 +318,7 @@ We can now transcode an instance of :class:`ComplexCustomValueAsDict`.
 
 
 As you can see from the bytes representation below, the transcoder puts the return value
-of each transcodings' :func:`encode` method in a Python :class:`dict` that has two values
+of each transcoding's :func:`encode` method in a Python :class:`dict` that has two values
 :data:`_data_` and :data:`_type_`. The :data:`_data_` value is the return value of the
 transcoding's :func:`encode` method, and the :data:`_type_` value is the name of the
 transcoding. For this reason, it is necessary to avoid defining model objects to have a
@@ -724,7 +724,7 @@ keep stored events in a data structure in memory (see :mod:`eventsourcing.popo`)
 
     from eventsourcing.persistence import InfrastructureFactory
 
-    factory = InfrastructureFactory.construct(application_name="application")
+    factory = InfrastructureFactory.construct()
 
     recorder = factory.application_recorder()
     mapper = factory.mapper(transcoder=transcoder)
@@ -745,7 +745,7 @@ SQLite
 
 The module :mod:`eventsourcing.sqlite` supports storing events in SQLite.
 
-The SQLite :class:`~eventsourcing.sqlite.Factory` uses environment variables
+The library's SQLite :class:`~eventsourcing.sqlite.Factory` uses environment variables
 ``SQLITE_DBNAME`` and ``DO_CREATE_TABLE``.
 
 .. code:: python
@@ -756,7 +756,7 @@ The SQLite :class:`~eventsourcing.sqlite.Factory` uses environment variables
     os.environ["SQLITE_DBNAME"] = ":memory:"
     os.environ["DO_CREATE_TABLE"] = "y"
 
-    factory = InfrastructureFactory.construct(application_name="application")
+    factory = InfrastructureFactory.construct()
 
     recorder = factory.application_recorder()
     mapper = factory.mapper(transcoder=transcoder)
@@ -777,7 +777,7 @@ PostgreSQL
 
 The module :mod:`eventsourcing.postgres` supports storing events in PostgresSQL.
 
-The PostgreSQL :class:`~eventsourcing.sqlite.Factory` uses environment variables
+The library's PostgreSQL :class:`~eventsourcing.sqlite.Factory` uses environment variables
 ``POSTGRES_DBNAME``, ``POSTGRES_HOST``, ``POSTGRES_USER``,
 ``POSTGRES_PASSWORD``, and ``DO_CREATE_TABLE``.
 
@@ -795,13 +795,13 @@ The PostgreSQL :class:`~eventsourcing.sqlite.Factory` uses environment variables
 
 ..
     from eventsourcing.tests.test_postgres import drop_postgres_table
-    factory = InfrastructureFactory.construct(application_name="application")
+    factory = InfrastructureFactory.construct()
     drop_postgres_table(factory.datastore, "stored_events")
 
 
 .. code:: python
 
-    factory = InfrastructureFactory.construct(application_name="application")
+    factory = InfrastructureFactory.construct()
 
     recorder = factory.application_recorder()
     mapper = factory.mapper(transcoder=transcoder)
