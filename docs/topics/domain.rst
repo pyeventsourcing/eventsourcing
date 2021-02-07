@@ -84,8 +84,8 @@ The :class:`~eventsourcing.domain.Aggregate` base class defines a nested "create
 class :class:`~eventsourcing.domain.Aggregate.Created` which is a data class defined
 with various attributes such a the ID of the aggregate, a timestamp, and a version
 number. The "created" class can be used directly, but is normally subclassed to
-define custom "created" event classes with a suitable name and attributes for your
-particular concrete aggregate classes.
+define a custom "created" event class with a suitable name and attributes for your
+particular concrete aggregate class.
 
 The :func:`~eventsourcing.domain.Aggregate._create` method also has a required ``id`` argument which
 should be a Python :class:`~uuid.UUID` object that will be used to uniquely identify the aggregate
