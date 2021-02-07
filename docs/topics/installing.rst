@@ -104,8 +104,10 @@ by the tests with the following command.
     $ make test
 
 
-Before running the tests, you will need setup PostgreSQL. The following commands
-will install PostgreSQL on MacOS and setup the database and databas user you can run .
+Before the tests will pass, you will need setup PostgreSQL. The following commands
+will install PostgreSQL on MacOS and setup the database and database user. If you
+already have PostgreSQL installed, just create the database and user. If you prefer
+to run PostgreSQL in a Docker container, feel free to do that too.
 
 ::
 
@@ -124,7 +126,15 @@ following command (which uses isort, Black, Flake8, and mypy).
     $ make lint
 
 
-You can also make sure the docs build with the following command
+The code can be automatically reformatted using the following command
+(which uses isort and Black). Flake8 errors may need to be fixed by hand.
+
+::
+
+    $ make fmt
+
+
+You can build the docs, and make sure they build, with the following command
 (which uses Sphinx).
 
 ::
@@ -140,9 +150,5 @@ can do conveniently with the following command.
 
     $ make prepush
 
-
-The code can be automatically reformatted using the following command
-(which uses isort and Black).
-
-::
-    $ make fmt
+If you wish to submit a pull request on GitHub, please target the develop
+branch. Improvements of any size are always welcome.
