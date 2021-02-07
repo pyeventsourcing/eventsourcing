@@ -52,18 +52,30 @@ class Aggregate:
 
     @property
     def id(self) -> UUID:
+        """
+        The ID of the aggregate.
+        """
         return self._id
 
     @property
     def version(self) -> int:
+        """
+        The current version of the aggregate.
+        """
         return self._version
 
     @property
     def created_on(self) -> datetime:
+        """
+        The date and time when the aggregate was created.
+        """
         return self._created_on
 
     @property
     def modified_on(self) -> datetime:
+        """
+        The date and time when the aggregate was last modified.
+        """
         return self._modified_on
 
     class Event(DomainEvent, Generic[TAggregate]):
