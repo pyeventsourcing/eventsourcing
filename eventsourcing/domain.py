@@ -160,8 +160,7 @@ class Aggregate:
         :param UUID originator_id: ID of originating aggregate.
         :param int originator_version: version of originating aggregate.
         :param datetime timestamp: date-time of the event
-        :param str topic: string that includes a class and its module
-        :param str originator_topic: topic of aggregate class
+        :param str originator_topic: topic for the aggregate class
         """
 
         originator_topic: str
