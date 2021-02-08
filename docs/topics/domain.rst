@@ -402,9 +402,32 @@ event, and three ``SomethingHappened`` events.
     assert pending_events[3].timestamp == world.modified_on
 
 
-The domain events' :func:`~eventsourcing.domain.Aggregate.Event.mutate` methods can
-be used to reconstruct a copy of the original aggregate object. And indeed the
-:ref:`repository <Repository>` object has a
+.. _Events:
+
+Domain events
+=============
+
+Domain event objects represent decisions by the domain model. Domain events
+are created but do not change.
+
+The aggregate :class:`~eventsourcing.domain.Aggregate.Event` class
+is defined with attributes ``originator_id`` which is a Python :class:`~uuid.UUID`
+that holds the aggregate ID, an ``originator_version`` which is a Python :class:`int`
+that will be used to set the aggregate version, and ``timestamp`` which is a Python
+:class:`~datetime.datetime` which will be used to set the last modified time.
+
+The aggregate :class:`~eventsourcing.domain.Aggregate.Event` class has a method
+:func:`~eventsourcing.domain.Aggregate.Event.mutate` which adjusts the state
+of an aggregate. It has an optional argument ``aggregate`` which is used to pass
+the aggregate object to which the domain event object pertains into the
+method when it is called. It returns an optional ``aggregate`` object, and
+the return value can be passed in when calling this method on another event
+object. An initial "created" event can construct an aggregate object, a
+subsequent event can receive and return an aggregate, and a final "discarded"
+event can receive an aggregate and return ``None``. The
+:func:`~eventsourcing.domain.Aggregate.Event.mutate` methods of a sequence
+of aggregate events can be used to reconstruct a copy of the original aggregate
+object. And indeed the :ref:`repository <Repository>` object has a
 :func:`~eventsourcing.application.Repository.get` method which works by
 calling these methods.
 
@@ -422,32 +445,40 @@ calling these methods.
     assert copy.history == world.history
 
 
-.. _Events:
+The aggregate :class:`~eventsourcing.domain.Aggregate.Event` class has a method
+:func:`~eventsourcing.domain.Aggregate.Event.apply`. Like the
+:func:`~eventsourcing.domain.Aggregate.Event.mutate` method, it also has
+an argument ``aggregate`` which is used to pass the aggregate object
+to which the domain event object pertains into the method when it is called.
+The :func:`~eventsourcing.domain.Aggregate.Event.mutate` method calls the
+event's :func:`~eventsourcing.domain.Aggregate.Event.apply` method before it
+returns. The base class :func:`~eventsourcing.domain.Aggregate.Event.apply`
+method body is empty, and so this method can be simply overridden (implemented
+without a call to the superclass method). It is also not expected to return a value
+(any value that it does return will be ignored). Hence this method can be
+simply and conveniently implemented in aggregate event classes to apply the
+event attribute values to the aggregate.
 
-Domain events
-=============
+The ``mutate()`` and ``apply()`` methods of aggregate events effectively implement
+the "aggregate projection", which means the function by which the events are processed
+to reconstruct the state of the aggregate. An alternative to use ``apply()`` methods
+on the event classes is to define apply methods on the aggregate class. A base ``Event``
+class can be defined on the aggregate class which simply calls an ``apply()`` method
+on the aggregate class. This aggregate ``apply()`` method can be decorated with the
+``@singledispatchmethod`` decorator, and then event-specific methods can be defined
+and registered that will apply the events to the aggregate. See the ``Cargo`` aggregate
+of the :ref:`Cargo Shipping example <Cargo shipping>` for details.
 
-Domain event objects represent decisions by the domain model. Domain events are created
-but do not change.
-
-The nested base class for aggregate events, :class:`~eventsourcing.domain.Aggregate.Event`,
-is defined to have attributes ``originator_id`` which is a Python :class:`~uuid.UUID`, an
-``originator_version`` which is a Python :class:`int`, and ``timestamp`` which is a Python
-:class:`~datetime.datetime`.
-
-The :class:`~eventsourcing.domain.Aggregate.Event` has a method
-:func:`~eventsourcing.domain.Aggregate.Event.apply` which can be overridden on custom domain
-event classes to mutate the state of the aggregate to which a domain event object pertains. It
-has an argument ``aggregate`` which is used to pass the aggregate object to which the domain
-event object pertains into the :func:`~eventsourcing.domain.Aggregate.Event.apply` method. The
-:func:`~eventsourcing.domain.Aggregate.Event.apply` method is called by the event's
-:func:`~eventsourcing.domain.Aggregate.Event.mutate` method, which is called when
-reconstructing an aggregate from its events.
-
-The nested class :class:`~eventsourcing.domain.Aggregate.Created` represents the creation of
-an aggregate object instance. It extends the base class :class:`~eventsourcing.domain.Aggregate.Event`
-with its attribute ``originator_topic`` which is Python :class:`str`. The value of this attribute
-will be a :ref:`topic <Topics>` that describes the path to the aggregate instance's class.
+The aggregate :class:`~eventsourcing.domain.Aggregate.Created` class represents
+the creation of an aggregate object instance. It extends the base class
+:class:`~eventsourcing.domain.Aggregate.Event` with its attribute ``originator_topic``
+which is Python :class:`str`. The value of this attribute will be a
+:ref:`topic <Topics>` that describes the path to the aggregate instance's class.
+It has a :func:`~eventsourcing.domain.Aggregate.Created.mutate` method which
+constructs an aggregate object after resolving the ``originator_topic`` value
+to an aggregate class. It does not call :func:`~eventsourcing.domain.Aggregate.Event.apply`
+since the aggregate class ``__init__()`` method receives the "created" event attribute
+values and can fully initialise the aggregate object.
 
 Domain event objects are usually created by aggregate methods, as part of a sequence
 that determines the state of an aggregate. The attribute values of new event objects are

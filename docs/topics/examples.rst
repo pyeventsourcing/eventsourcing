@@ -53,6 +53,7 @@ Run the test...
     assert result.wasSuccessful()
 
 
+.. _Cargo shipping:
 
 Cargo shipping
 ==============
