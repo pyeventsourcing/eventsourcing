@@ -9,6 +9,12 @@ from Crypto.Cipher.AES import key_size
 
 class AbstractCipher(ABC):
     @abstractmethod
+    def __init__(self, cipher_key: str):
+        """
+        Initialise cipher with key.
+        """
+
+    @abstractmethod
     def encrypt(self, plaintext: bytes) -> bytes:
         """
         Return ciphertext for given plaintext.
@@ -54,7 +60,7 @@ class AESCipher(AbstractCipher):
         """
         Initialises AES cipher with ``cipher_key``.
 
-        :param cipher_key: 16, 24, or 32 random bytes
+        :param str cipher_key: 16, 24, or 32 bytes encoded as base64
         """
         self.key = b64decode(cipher_key.encode("utf8"))
         AESCipher.check_key_size(len(self.key))

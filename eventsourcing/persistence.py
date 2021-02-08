@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from distutils.util import strtobool
-from typing import Any, Dict, Generic, Iterator, List, Optional, cast
+from typing import Any, Dict, Generic, Iterator, List, Optional, Type, cast
 from uuid import UUID
 
 from eventsourcing.cipher import AbstractCipher
@@ -454,40 +454,47 @@ class InfrastructureFactory(ABC):
         application_name: str = "",
     ) -> Mapper:
         """
-        Constructs a mapper. Reads environment variables
-        'CIPHER_TOPIC' and 'CIPHER_KEY' to decide whether
-        or not to use a cipher with the mapper. Reads
-        environment variable 'COMPRESSOR_TOPIC' to decide
-        whether or not to use a compressor with the mapper.
+        Constructs a mapper.
         """
-        cipher_topic = self.getenv(
-            self.CIPHER_TOPIC,
-            application_name=application_name,
+        return Mapper(
+            transcoder=transcoder,
+            cipher=self.cipher(application_name),
+            compressor=self.compressor(application_name),
         )
-        cipher_key = self.getenv(
-            self.CIPHER_KEY,
-            application_name=application_name,
-        )
-        cipher = None
-        compressor = None
+
+    def cipher(self, application_name: str) -> Optional[AbstractCipher]:
+        """
+        Reads environment variables 'CIPHER_TOPIC'
+        and 'CIPHER_KEY' to decide whether or not
+        to construct a cipher.
+        """
+        cipher_topic = self.getenv(self.CIPHER_TOPIC, application_name=application_name)
+        cipher_key = self.getenv(self.CIPHER_KEY, application_name=application_name)
+        cipher: Optional[AbstractCipher] = None
         if cipher_topic:
             if cipher_key:
-                cipher_cls = resolve_topic(cipher_topic)
+                cipher_cls: Type[AbstractCipher] = resolve_topic(cipher_topic)
                 cipher = cipher_cls(cipher_key=cipher_key)
             else:
                 raise EnvironmentError(
                     "Cipher key was not found in env, "
                     "although cipher topic was found"
                 )
-        compressor_topic = self.getenv(self.COMPRESSOR_TOPIC)
-        if compressor_topic:
-            compressor_cls = resolve_topic(compressor_topic)
-            compressor = compressor_cls()
-        return Mapper(
-            transcoder=transcoder,
-            cipher=cipher,
-            compressor=compressor,
+        return cipher
+
+    def compressor(self, application_name: str) -> Optional[AbstractCompressor]:
+        """
+        Reads environment variable 'COMPRESSOR_TOPIC' to
+        decide whether or not to construct a compressor.
+        """
+        compressor: Optional[AbstractCompressor] = None
+        compressor_topic = self.getenv(
+            self.COMPRESSOR_TOPIC, application_name=application_name
         )
+        if compressor_topic:
+            compressor_cls: Type[AbstractCompressor] = resolve_topic(compressor_topic)
+            compressor = compressor_cls()
+        return compressor
 
     def event_store(self, **kwargs: Any) -> EventStore:
         """
