@@ -55,8 +55,8 @@ The state of an aggregate, event-sourced or not, is changed by calling its
 command methods. In an event-sourced aggregate, the command methods create
 new domain event objects. The domain events are used to mutate the state of
 the aggregate. By mutating the state of the aggregate via creating and applying
-domain events, the domain events can be used in future to reconstruct the state
-of the aggregate.
+domain events, the domain events can be recorded and used in future to reconstruct
+the state of the aggregate.
 
 One command may result in many new domain event objects, and a single client request may
 result in the execution of many commands. To maintain consistency in the domain model,
@@ -345,9 +345,7 @@ We can call the aggregate object methods. The ``World`` aggregate has a command
 method ``make_it_so()`` which triggers the ``SomethingHappened`` event. The
 ``apply()`` method of the ``SomethingHappened`` class appends the ``what``
 of the event to the ``history`` of the ``world``. So when we call the ``make_it_so()``
-command, the argument ``what`` will be appended to the ``history``. By mutating
-the state of the aggregate via triggering and applying domain events, the domain
-events can be used in future to reconstruct the state of the aggregate.
+command, the argument ``what`` will be appended to the ``history``.
 
 .. code:: python
 
