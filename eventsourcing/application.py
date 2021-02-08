@@ -81,7 +81,6 @@ class Repository:
             raise AggregateNotFound((aggregate_id, version))
         else:
             # Return the aggregate.
-            # assert isinstance(aggregate, Aggregate)
             return aggregate
 
 

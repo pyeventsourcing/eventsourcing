@@ -407,14 +407,21 @@ event, and three ``SomethingHappened`` events.
 Domain events
 =============
 
-Domain event objects represent decisions by the domain model. Domain events
-are created but do not change.
+Domain events are created but do not change.
 
-The aggregate :class:`~eventsourcing.domain.Aggregate.Event` class
-is defined with attributes ``originator_id`` which is a Python :class:`~uuid.UUID`
-that holds the aggregate ID, an ``originator_version`` which is a Python :class:`int`
-that will be used to set the aggregate version, and ``timestamp`` which is a Python
-:class:`~datetime.datetime` which will be used to set the last modified time.
+The base class :class:`~eventsourcing.domain.DomainEvent` is defined as a
+frozen data class with an ``originator_id`` attribute which is a Python
+:class:`~uuid.UUID` that holds an aggregate ID, an ``originator_version``
+attribute which is a Python :class:`int` that holds the version of an
+aggregate, and ``timestamp`` attribute which is a Python :class:`~datetime.datetime`
+that represents when the event was created. This class is used (inherited)
+by both the aggregate :class:`~eventsourcing.domain.Aggregate.Event` class
+and the :class:`~eventsourcing.domain.Snapshot` class.
+
+The aggregate :class:`~eventsourcing.domain.Aggregate.Event` class is defined as
+a subclass of the domain event base class :class:`~eventsourcing.domain.DomainEvent`.
+Aggregate event objects represent original decisions by a domain model
+that advance the state of an application.
 
 The aggregate :class:`~eventsourcing.domain.Aggregate.Event` class has a method
 :func:`~eventsourcing.domain.Aggregate.Event.mutate` which adjusts the state
@@ -427,7 +434,7 @@ subsequent event can receive and return an aggregate, and a final "discarded"
 event can receive an aggregate and return ``None``. The
 :func:`~eventsourcing.domain.Aggregate.Event.mutate` methods of a sequence
 of aggregate events can be used to reconstruct a copy of the original aggregate
-object. And indeed the :ref:`repository <Repository>` object has a
+object. And indeed the :ref:`application repository <Repository>` object has a
 :func:`~eventsourcing.application.Repository.get` method which works by
 calling these methods.
 
@@ -470,13 +477,13 @@ and registered that will apply the events to the aggregate. See the ``Cargo`` ag
 of the :ref:`Cargo Shipping example <Cargo shipping>` for details.
 
 The aggregate :class:`~eventsourcing.domain.Aggregate.Created` class represents
-the creation of an aggregate object instance. It extends the base class
-:class:`~eventsourcing.domain.Aggregate.Event` with its attribute ``originator_topic``
-which is Python :class:`str`. The value of this attribute will be a
-:ref:`topic <Topics>` that describes the path to the aggregate instance's class.
-It has a :func:`~eventsourcing.domain.Aggregate.Created.mutate` method which
-constructs an aggregate object after resolving the ``originator_topic`` value
-to an aggregate class. It does not call :func:`~eventsourcing.domain.Aggregate.Event.apply`
+the creation of an aggregate object instance. It is defined as a frozen data class
+that extends the base class :class:`~eventsourcing.domain.Aggregate.Event` with
+its attribute ``originator_topic`` which is Python :class:`str`. The value of this
+attribute will be a :ref:`topic <Topics>` that describes the path to the aggregate
+instance's class. It has a :func:`~eventsourcing.domain.Aggregate.Created.mutate`
+method which constructs an aggregate object after resolving the ``originator_topic``
+value to an aggregate class. It does not call :func:`~eventsourcing.domain.Aggregate.Event.apply`
 since the aggregate class ``__init__()`` method receives the "created" event attribute
 values and can fully initialise the aggregate object.
 
@@ -513,14 +520,21 @@ and apply all the domain events when reconstructing an aggregate object instance
 The library's :class:`~eventsourcing.domain.Snapshot` class can be
 used to create and restore snapshots of aggregate object instances.
 
+The :class:`~eventsourcing.domain.Snapshot` class is defined as
+a subclass of the domain event base class :class:`~eventsourcing.domain.DomainEvent`.
+It is defined as a frozen data class and extends the base class with attributes
+``topic`` and ``state``, which hold the topic of an aggregate object class and
+the current state of an aggregate object.
+
 .. code:: python
 
     from eventsourcing.domain import Snapshot
 
 The class method :func:`~eventsourcing.domain.Snapshot.take` can be used to
-create a snapshot of an aggregate object instance. See the
-discussion of :ref:`snapshotting <Snapshotting>` in the application
-module documentation for more information.
+create a snapshot of an aggregate object. (See the discussion of
+:ref:`snapshotting <Snapshotting>` in the application module
+documentation for more information about taking snapshots in an
+event-sourced application.)
 
 .. code:: python
 
@@ -554,7 +568,9 @@ The signature of the :func:`~eventsourcing.domain.Snapshot.mutate` method is the
 domain event object method of the same name, so that when reconstructing an aggregate, a list
 that starts with a snapshot and continues with the subsequent domain event objects can be
 treated in the same way as a list of all the domain event objects of an aggregate.
-This convenience is used by the application :ref:`repository <Repository>`.
+This similarity is needed by the application :ref:`repository <Repository>`, since
+some specialist event stores (e.g. AxonDB) return a snapshot as the first domain event.
+
 
 .. _Versioning:
 
