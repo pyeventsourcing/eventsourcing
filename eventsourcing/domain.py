@@ -40,8 +40,8 @@ class Aggregate:
 
     def __init__(self, id: UUID, version: int, timestamp: datetime):
         """
-        Initialises an aggregate object with a :data:`id`, a :data:`version`,
-        and a :data:`created_on`. The internal :data:`_pending_events` list
+        Initialises an aggregate object with an :data:`id`, a :data:`version`
+        number, and a :data:`timestamp`. The internal :data:`_pending_events` list
         is also initialised.
         """
         self._id = id
