@@ -219,7 +219,9 @@ class Cargo(Aggregate):
 
     @singledispatchmethod
     def apply(self, event: "Cargo.Event") -> None:
-        pass
+        """
+        Default aggregate projection.
+        """
 
     def change_destination(self, destination: Location) -> None:
         self._trigger_event(

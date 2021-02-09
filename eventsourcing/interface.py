@@ -1,80 +1,87 @@
 import json
 from abc import ABC, abstractmethod
 from base64 import b64decode, b64encode
+from typing import Generic
 from uuid import UUID
 
-from eventsourcing.application import (
-    LocalNotificationLog,
-    NotificationLog,
-    Section,
-)
+from eventsourcing.application import NotificationLog, Section, TApplication
 from eventsourcing.persistence import Notification
 
 
-class NotificationLogAPI(ABC):
+class NotificationLogInterface(ABC):
+    """
+    Abstract base class for obtaining serialised
+    sections of a notification log.
+    """
+
     @abstractmethod
     def get_log_section(self, section_id: str) -> str:
         """
-        Returns serialised section from notification log.
+        Returns a serialised :class:`~eventsourcing.application.Section`
+        from a notification log.
         """
 
 
-class RemoteNotificationLog(NotificationLog):
-    def __init__(self, api: NotificationLogAPI):
-        self.api = api
-
-    def __getitem__(self, section_id: str) -> Section:
-        body = self.api.get_log_section(section_id)
-        section = json.loads(body)
-        return Section(
-            id=section["id"],
-            next_id=section["next_id"],
-            items=[self.deserialise_item(item) for item in section["items"]],
-        )
-
-    def deserialise_item(self, item: dict) -> Notification:
-        return Notification(
-            id=item["id"],
-            originator_id=UUID(item["originator_id"]),
-            originator_version=item["originator_version"],
-            topic=item["topic"],
-            state=b64decode(item["state"].encode("utf8")),
-        )
-
-
-class AbstractNotificationLogView(ABC):
+class NotificationLogJSONService(NotificationLogInterface, Generic[TApplication]):
     """
-    Presents serialised notification log sections.
+    Presents serialised sections of a notification log.
     """
 
-    def __init__(self, log: LocalNotificationLog):
-        self.log = log
+    def __init__(self, app: TApplication):
+        """
+        Initialises service with given application.
+        """
+        self.app = app
 
-    @abstractmethod
-    def get(self, section_id: str) -> str:
-        """Returns notification log section"""
-
-
-class JSONNotificationLogView(AbstractNotificationLogView):
-    """
-    Presents notification log sections in JSON format.
-    """
-
-    def get(self, section_id: str) -> str:
-        section = self.log[section_id]
+    def get_log_section(self, section_id: str) -> str:
+        """
+        Returns JSON serialised :class:`~eventsourcing.application.Section`
+        from a notification log.
+        """
+        section = self.app.log[section_id]
         return json.dumps(
             {
                 "id": section.id,
                 "next_id": section.next_id,
-                "items": [self.serialise_item(item) for item in section.items],
+                "items": [
+                    {
+                        "id": item.id,
+                        "originator_id": item.originator_id.hex,
+                        "originator_version": item.originator_version,
+                        "topic": item.topic,
+                        "state": b64encode(item.state).decode("utf8"),
+                    }
+                    for item in section.items
+                ],
             }
         )
 
-    def serialise_item(self, item: Notification) -> dict:
-        return {
-            "id": item.id,
-            "originator_id": item.originator_id.hex,
-            "originator_version": item.originator_version,
-            "topic": item.topic,
-            "state": b64encode(item.state).decode("utf8"),
-        }
+
+class NotificationLogJSONClient(NotificationLog):
+    """
+    Presents deserialised sections of a notification log.
+    """
+
+    def __init__(self, interface: NotificationLogInterface):
+        """
+        Initialises log with a given interface.
+        """
+        self.interface = interface
+
+    def __getitem__(self, section_id: str) -> Section:
+        body = self.interface.get_log_section(section_id)
+        section = json.loads(body)
+        return Section(
+            id=section["id"],
+            next_id=section["next_id"],
+            items=[
+                Notification(
+                    id=item["id"],
+                    originator_id=UUID(item["originator_id"]),
+                    originator_version=item["originator_version"],
+                    topic=item["topic"],
+                    state=b64decode(item["state"].encode("utf8")),
+                )
+                for item in section["items"]
+            ],
+        )

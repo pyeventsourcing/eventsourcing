@@ -189,9 +189,8 @@ class Aggregate:
         **kwargs: Any,
     ) -> None:
         """
-        Triggers domain event of given type,
-        extending the sequence of domain
-        events for this aggregate object.
+        Triggers domain event of given type, by creating
+        an event object and using it to mutate the aggregate.
         """
         # Construct the domain event as the
         # next in the aggregate's sequence.

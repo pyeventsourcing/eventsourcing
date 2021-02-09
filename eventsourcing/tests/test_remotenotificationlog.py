@@ -1,26 +1,24 @@
 import json
 import threading
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from http.client import HTTPConnection
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Event, Thread
-from typing import Callable, Generic, List
+from typing import Callable, List
 from unittest.case import TestCase
 from uuid import UUID
 
-from eventsourcing.application import TApplication
 from eventsourcing.interface import (
-    AbstractNotificationLogView,
-    JSONNotificationLogView,
-    NotificationLogAPI,
-    RemoteNotificationLog,
+    NotificationLogInterface,
+    NotificationLogJSONClient,
+    NotificationLogJSONService,
 )
 from eventsourcing.tests.test_application import BankAccounts
 
 
 class TestRemoteNotificationLog(TestCase):
     def test_directly(self):
-        client = BankAccountsJSONClient(BankAccountsJSONAPI(BankAccounts()))
+        client = BankAccountsJSONClient(BankAccountsJSONService(BankAccounts()))
         account_id1 = client.open_account("Alice", "alice@example.com")
         account_id2 = client.open_account("Bob", "bob@example.com")
 
@@ -112,34 +110,16 @@ class TestRemoteNotificationLog(TestCase):
             server.stop()
 
 
-class ApplicationAdapter(ABC, Generic[TApplication]):
-    def __init__(self, app: TApplication):
-        self.app = app
-        self.log = self.construct_log_view()
-
-    @abstractmethod
-    def construct_log_view(
-        self,
-    ) -> AbstractNotificationLogView:
-        pass
-
-
-class BankAccountsAPI(NotificationLogAPI):
+class BankAccountsInterface(NotificationLogInterface):
     @abstractmethod
     def open_account(self, body: str) -> str:
         pass
 
 
-class BankAccountsJSONAPI(
-    BankAccountsAPI,
-    ApplicationAdapter[BankAccounts],
+class BankAccountsJSONService(
+    BankAccountsInterface,
+    NotificationLogJSONService[BankAccounts],
 ):
-    def construct_log_view(self):
-        return JSONNotificationLogView(self.app.log)
-
-    def get_log_section(self, section_id: str) -> str:
-        return self.log.get(section_id)
-
     def open_account(self, request: str) -> str:
         kwargs = json.loads(request)
         account_id = self.app.open_account(**kwargs)
@@ -147,9 +127,9 @@ class BankAccountsJSONAPI(
 
 
 class BankAccountsJSONClient:
-    def __init__(self, api: BankAccountsAPI):
-        self.api = api
-        self.log = RemoteNotificationLog(api)
+    def __init__(self, interface: BankAccountsInterface):
+        self.interface = interface
+        self.log = NotificationLogJSONClient(interface)
 
     def open_account(self, full_name, email_address) -> UUID:
         body = json.dumps(
@@ -158,7 +138,7 @@ class BankAccountsJSONClient:
                 "email_address": email_address,
             }
         )
-        body = self.api.open_account(body)
+        body = self.interface.open_account(body)
         return UUID(json.loads(body)["account_id"])
 
 
@@ -193,7 +173,7 @@ class BankAccountsHTTPHandler(BaseHTTPRequestHandler):
         if self.path.startswith("/accounts/"):
             length = int(self.headers["Content-Length"])
             request_msg = self.rfile.read(length).decode("utf8")
-            body = adapter.open_account(request_msg)
+            body = bank_accounts_service.open_account(request_msg)
             status = 201
         else:
             body = "Not found: " + self.path
@@ -203,7 +183,7 @@ class BankAccountsHTTPHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith("/notifications/"):
             section_id = self.path.split("/")[-1]
-            body = adapter.get_log_section(section_id)
+            body = bank_accounts_service.get_log_section(section_id)
             status = 200
         else:
             body = "Not found: " + self.path
@@ -217,29 +197,26 @@ class BankAccountsHTTPHandler(BaseHTTPRequestHandler):
         self.wfile.write(body.encode("utf8"))
 
 
-class BankAccountsHTTPClient(BankAccountsAPI):
+class BankAccountsHTTPClient(BankAccountsInterface):
     def __init__(self, server_address):
         self.connection = HTTPConnection(*server_address)
 
     def get_log_section(self, section_id: str) -> str:
-        return self.request("GET", "/notifications/{}".format(section_id))
+        return self._request("GET", "/notifications/{}".format(section_id))
 
     def open_account(self, body: str) -> str:
-        return self.request("PUT", "/accounts/", body.encode("utf8"))
+        return self._request("PUT", "/accounts/", body.encode("utf8"))
 
-    def request(self, method, url, body=None):
+    def _request(self, method, url, body=None):
         self.connection.request(method, url, body)
-        return self.get_response()
-
-    def get_response(self):
         response = self.connection.getresponse()
         return response.read().decode()
 
 
-adapter: BankAccountsAPI
+bank_accounts_service: BankAccountsInterface
 
 
 @HTTPApplicationServer.before_first_request
 def init_bank_accounts() -> None:
-    global adapter
-    adapter = BankAccountsJSONAPI(BankAccounts())
+    global bank_accounts_service
+    bank_accounts_service = BankAccountsJSONService(BankAccounts())

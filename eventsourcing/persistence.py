@@ -10,8 +10,8 @@ from distutils.util import strtobool
 from typing import Any, Dict, Generic, Iterator, List, Optional, Type, cast
 from uuid import UUID
 
-from eventsourcing.cipher import AbstractCipher
-from eventsourcing.compressor import AbstractCompressor
+from eventsourcing.cipher import Cipher
+from eventsourcing.compressor import Compressor
 from eventsourcing.domain import DomainEvent, TDomainEvent
 from eventsourcing.utils import get_topic, resolve_topic
 
@@ -40,10 +40,21 @@ class Transcoding(ABC):
         """Decodes encoded object."""
 
 
-class AbstractTranscoder(ABC):
+class Transcoder(ABC):
     """
     Abstract base class for transcoders.
     """
+
+    def __init__(self) -> None:
+        self.types: Dict[type, Transcoding] = {}
+        self.names: Dict[str, Transcoding] = {}
+
+    def register(self, transcoding: Transcoding) -> None:
+        """
+        Registers given transcoding with the transcoder.
+        """
+        self.types[transcoding.type] = transcoding
+        self.names[transcoding.name] = transcoding
 
     @abstractmethod
     def encode(self, obj: Any) -> bytes:
@@ -54,23 +65,15 @@ class AbstractTranscoder(ABC):
         """Decodes obj from bytes."""
 
 
-class Transcoder(AbstractTranscoder):
+class JSONTranscoder(Transcoder):
     """
     Extensible transcoder that uses the Python :mod:`json` module.
     """
 
     def __init__(self) -> None:
-        self.types: Dict[type, Transcoding] = {}
-        self.names: Dict[str, Transcoding] = {}
+        super().__init__()
         self.encoder = json.JSONEncoder(default=self._encode_obj)
         self.decoder = json.JSONDecoder(object_hook=self._decode_obj)
-
-    def register(self, transcoding: Transcoding) -> None:
-        """
-        Registers given transcoding with the transcoder.
-        """
-        self.types[transcoding.type] = transcoding
-        self.names[transcoding.name] = transcoding
 
     def encode(self, obj: Any) -> bytes:
         """
@@ -189,9 +192,9 @@ class Mapper(Generic[TDomainEvent]):
 
     def __init__(
         self,
-        transcoder: AbstractTranscoder,
-        compressor: Optional[AbstractCompressor] = None,
-        cipher: Optional[AbstractCipher] = None,
+        transcoder: Transcoder,
+        compressor: Optional[Compressor] = None,
+        cipher: Optional[Cipher] = None,
     ):
         self.transcoder = transcoder
         self.compressor = compressor
@@ -450,7 +453,7 @@ class InfrastructureFactory(ABC):
 
     def mapper(
         self,
-        transcoder: AbstractTranscoder,
+        transcoder: Transcoder,
         application_name: str = "",
     ) -> Mapper:
         """
@@ -462,7 +465,7 @@ class InfrastructureFactory(ABC):
             compressor=self.compressor(application_name),
         )
 
-    def cipher(self, application_name: str) -> Optional[AbstractCipher]:
+    def cipher(self, application_name: str) -> Optional[Cipher]:
         """
         Reads environment variables 'CIPHER_TOPIC'
         and 'CIPHER_KEY' to decide whether or not
@@ -470,10 +473,10 @@ class InfrastructureFactory(ABC):
         """
         cipher_topic = self.getenv(self.CIPHER_TOPIC, application_name=application_name)
         cipher_key = self.getenv(self.CIPHER_KEY, application_name=application_name)
-        cipher: Optional[AbstractCipher] = None
+        cipher: Optional[Cipher] = None
         if cipher_topic:
             if cipher_key:
-                cipher_cls: Type[AbstractCipher] = resolve_topic(cipher_topic)
+                cipher_cls: Type[Cipher] = resolve_topic(cipher_topic)
                 cipher = cipher_cls(cipher_key=cipher_key)
             else:
                 raise EnvironmentError(
@@ -482,17 +485,17 @@ class InfrastructureFactory(ABC):
                 )
         return cipher
 
-    def compressor(self, application_name: str) -> Optional[AbstractCompressor]:
+    def compressor(self, application_name: str) -> Optional[Compressor]:
         """
         Reads environment variable 'COMPRESSOR_TOPIC' to
         decide whether or not to construct a compressor.
         """
-        compressor: Optional[AbstractCompressor] = None
+        compressor: Optional[Compressor] = None
         compressor_topic = self.getenv(
             self.COMPRESSOR_TOPIC, application_name=application_name
         )
         if compressor_topic:
-            compressor_cls: Type[AbstractCompressor] = resolve_topic(compressor_topic)
+            compressor_cls: Type[Compressor] = resolve_topic(compressor_topic)
             compressor = compressor_cls()
         return compressor
 

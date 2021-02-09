@@ -9,8 +9,8 @@ from eventsourcing.persistence import (
     DatetimeAsISO,
     DecimalAsStr,
     EventStore,
+    JSONTranscoder,
     Mapper,
-    Transcoder,
     UUIDAsHex,
 )
 from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatastore
@@ -20,7 +20,7 @@ from eventsourcing.utils import get_topic
 
 class TestRepository(TestCase):
     def test_with_snapshot_store(self) -> None:
-        transcoder = Transcoder()
+        transcoder = JSONTranscoder()
         transcoder.register(UUIDAsHex())
         transcoder.register(DecimalAsStr())
         transcoder.register(DatetimeAsISO())
@@ -124,7 +124,7 @@ class TestRepository(TestCase):
         # self.assertEqual(copy10.balance, Decimal("35.00"))
 
     def test_without_snapshot_store(self) -> None:
-        transcoder = Transcoder()
+        transcoder = JSONTranscoder()
         transcoder.register(UUIDAsHex())
         transcoder.register(DecimalAsStr())
         transcoder.register(DatetimeAsISO())

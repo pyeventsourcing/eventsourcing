@@ -5,12 +5,12 @@ from uuid import UUID
 
 from eventsourcing.domain import Aggregate, Snapshot
 from eventsourcing.persistence import (
-    AbstractTranscoder,
     ApplicationRecorder,
     DatetimeAsISO,
     DecimalAsStr,
     EventStore,
     InfrastructureFactory,
+    JSONTranscoder,
     Mapper,
     Notification,
     Transcoder,
@@ -111,13 +111,13 @@ class Section:
 
 class NotificationLog(ABC):
     """
-    Abstract base class for application notification logs.
+    Abstract base class for notification logs.
     """
 
     @abstractmethod
     def __getitem__(self, section_id: str) -> Section:
         """
-        Returns :class:`Section` from a notification log.
+        Returns a :class:`Section` from a notification log.
         """
 
 
@@ -241,19 +241,19 @@ class Application(ABC):
             application_name=application_name,
         )
 
-    def construct_transcoder(self) -> AbstractTranscoder:
+    def construct_transcoder(self) -> Transcoder:
         """
         Constructs a :class:`~eventsourcing.persistence.Transcoder`
         for use by the application.
         """
-        transcoder = Transcoder()
+        transcoder = JSONTranscoder()
         self.register_transcodings(transcoder)
         return transcoder
 
     def register_transcodings(self, transcoder: Transcoder) -> None:
         """
         Registers :class:`~eventsourcing.persistence.Transcoding`
-        objects on given :class:`~eventsourcing.persistence.Transcoder`.
+        objects on given :class:`~eventsourcing.persistence.JSONTranscoder`.
         """
         transcoder.register(UUIDAsHex())
         transcoder.register(DecimalAsStr())
@@ -266,9 +266,7 @@ class Application(ABC):
         """
         return self.factory.application_recorder()
 
-    def construct_event_store(
-        self,
-    ) -> EventStore[Aggregate.Event]:
+    def construct_event_store(self) -> EventStore[Aggregate.Event]:
         """
         Constructs an :class:`~eventsourcing.persistence.EventStore`
         for use by the application to store and retrieve aggregate
@@ -279,9 +277,7 @@ class Application(ABC):
             recorder=self.recorder,
         )
 
-    def construct_snapshot_store(
-        self,
-    ) -> Optional[EventStore[Snapshot]]:
+    def construct_snapshot_store(self) -> Optional[EventStore[Snapshot]]:
         """
         Constructs an :class:`~eventsourcing.persistence.EventStore`
         for use by the application to store and retrieve aggregate

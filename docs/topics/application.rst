@@ -490,7 +490,7 @@ For example, to define and register a transcoding the the Python :class:`~dateti
 implement a transcoding such as the ``DateAsISO`` class defined below, and
 extend the :func:`~eventsourcing.application.Application.register_transcodings`
 method by calling both the application's ``super()`` method with the given ``transcoder``
-argument, and then the transcoder's :func:`~eventsourcing.persistence.Transcoder.register`
+argument, and then the transcoder's :func:`~eventsourcing.persistence.JSONTranscoder.register`
 method once for each of your custom transcodings.
 
 .. code:: python

@@ -4,31 +4,31 @@ from datetime import datetime, timedelta
 from eventsourcing.domain import TZINFO
 from eventsourcing.examples.cargoshipping.application import BookingApplication
 from eventsourcing.examples.cargoshipping.interface import (
-    LocalClient,
+    BookingService,
     select_preferred_itinerary,
 )
 
 
-class TestCargoShipping(unittest.TestCase):
+class TestBookingService(unittest.TestCase):
     def setUp(self) -> None:
-        self.client = LocalClient(BookingApplication())
+        self.service = BookingService(BookingApplication())
 
     def test_admin_can_book_new_cargo(self) -> None:
         arrival_deadline = datetime.now(tz=TZINFO) + timedelta(weeks=3)
 
-        cargo_id = self.client.book_new_cargo(
+        cargo_id = self.service.book_new_cargo(
             origin="NLRTM",
             destination="USDAL",
             arrival_deadline=arrival_deadline,
         )
 
-        cargo_details = self.client.get_cargo_details(cargo_id)
+        cargo_details = self.service.get_cargo_details(cargo_id)
         self.assertTrue(cargo_details["id"])
         self.assertEqual(cargo_details["origin"], "NLRTM")
         self.assertEqual(cargo_details["destination"], "USDAL")
 
-        self.client.change_destination(cargo_id, destination="AUMEL")
-        cargo_details = self.client.get_cargo_details(cargo_id)
+        self.service.change_destination(cargo_id, destination="AUMEL")
+        cargo_details = self.service.get_cargo_details(cargo_id)
         self.assertEqual(cargo_details["destination"], "AUMEL")
         self.assertEqual(
             cargo_details["arrival_deadline"],
@@ -49,7 +49,7 @@ class TestCargoShipping(unittest.TestCase):
 
         # A new cargo is booked, and the unique tracking
         # id is assigned to the cargo.
-        tracking_id = self.client.book_new_cargo(origin, destination, arrival_deadline)
+        tracking_id = self.service.book_new_cargo(origin, destination, arrival_deadline)
 
         # The tracking id can be used to lookup the cargo
         # in the repository.
@@ -60,7 +60,7 @@ class TestCargoShipping(unittest.TestCase):
         # the cargo basically amounts to presenting
         # information extracted from the cargo aggregate
         # in a suitable way.
-        cargo_details = self.client.get_cargo_details(tracking_id)
+        cargo_details = self.service.get_cargo_details(tracking_id)
         self.assertEqual(
             cargo_details["transport_status"],
             "NOT_RECEIVED",
@@ -81,14 +81,14 @@ class TestCargoShipping(unittest.TestCase):
         # Selection could be affected by things like price
         # and time of delivery, but this test simply uses
         # an arbitrary selection to mimic that process.
-        routes_details = self.client.request_possible_routes_for_cargo(tracking_id)
+        routes_details = self.service.request_possible_routes_for_cargo(tracking_id)
         route_details = select_preferred_itinerary(routes_details)
 
         # The cargo is then assigned to the selected
         # route, described by an itinerary.
-        self.client.assign_route(tracking_id, route_details)
+        self.service.assign_route(tracking_id, route_details)
 
-        cargo_details = self.client.get_cargo_details(tracking_id)
+        cargo_details = self.service.get_cargo_details(tracking_id)
         self.assertEqual(
             cargo_details["transport_status"],
             "NOT_RECEIVED",
@@ -116,8 +116,8 @@ class TestCargoShipping(unittest.TestCase):
         # rejected.
         #
         # Handling begins: cargo is received in Hongkong.
-        self.client.register_handling_event(tracking_id, None, "HONGKONG", "RECEIVE")
-        cargo_details = self.client.get_cargo_details(tracking_id)
+        self.service.register_handling_event(tracking_id, None, "HONGKONG", "RECEIVE")
+        cargo_details = self.service.get_cargo_details(tracking_id)
         self.assertEqual(cargo_details["transport_status"], "IN_PORT")
         self.assertEqual(
             cargo_details["last_known_location"],
@@ -129,8 +129,8 @@ class TestCargoShipping(unittest.TestCase):
         )
 
         # Load onto voyage V1.
-        self.client.register_handling_event(tracking_id, "V1", "HONGKONG", "LOAD")
-        cargo_details = self.client.get_cargo_details(tracking_id)
+        self.service.register_handling_event(tracking_id, "V1", "HONGKONG", "LOAD")
+        cargo_details = self.service.get_cargo_details(tracking_id)
         self.assertEqual(cargo_details["current_voyage_number"], "V1")
         self.assertEqual(
             cargo_details["last_known_location"],
@@ -146,8 +146,8 @@ class TestCargoShipping(unittest.TestCase):
         )
 
         # Incorrectly unload in Tokyo.
-        self.client.register_handling_event(tracking_id, "V1", "TOKYO", "UNLOAD")
-        cargo_details = self.client.get_cargo_details(tracking_id)
+        self.service.register_handling_event(tracking_id, "V1", "TOKYO", "UNLOAD")
+        cargo_details = self.service.get_cargo_details(tracking_id)
         self.assertEqual(cargo_details["current_voyage_number"], None)
         self.assertEqual(cargo_details["last_known_location"], "TOKYO")
         self.assertEqual(cargo_details["transport_status"], "IN_PORT")
@@ -155,13 +155,13 @@ class TestCargoShipping(unittest.TestCase):
         self.assertEqual(cargo_details["next_expected_activity"], None)
 
         # Reroute.
-        routes_details = self.client.request_possible_routes_for_cargo(tracking_id)
+        routes_details = self.service.request_possible_routes_for_cargo(tracking_id)
         route_details = select_preferred_itinerary(routes_details)
-        self.client.assign_route(tracking_id, route_details)
+        self.service.assign_route(tracking_id, route_details)
 
         # Load in Tokyo.
-        self.client.register_handling_event(tracking_id, "V3", "TOKYO", "LOAD")
-        cargo_details = self.client.get_cargo_details(tracking_id)
+        self.service.register_handling_event(tracking_id, "V3", "TOKYO", "LOAD")
+        cargo_details = self.service.get_cargo_details(tracking_id)
         self.assertEqual(cargo_details["current_voyage_number"], "V3")
         self.assertEqual(cargo_details["last_known_location"], "TOKYO")
         self.assertEqual(
@@ -175,8 +175,8 @@ class TestCargoShipping(unittest.TestCase):
         )
 
         # Unload in Hamburg.
-        self.client.register_handling_event(tracking_id, "V3", "HAMBURG", "UNLOAD")
-        cargo_details = self.client.get_cargo_details(tracking_id)
+        self.service.register_handling_event(tracking_id, "V3", "HAMBURG", "UNLOAD")
+        cargo_details = self.service.get_cargo_details(tracking_id)
         self.assertEqual(cargo_details["current_voyage_number"], None)
         self.assertEqual(cargo_details["last_known_location"], "HAMBURG")
         self.assertEqual(cargo_details["transport_status"], "IN_PORT")
@@ -187,8 +187,8 @@ class TestCargoShipping(unittest.TestCase):
         )
 
         # Load in Hamburg
-        self.client.register_handling_event(tracking_id, "V4", "HAMBURG", "LOAD")
-        cargo_details = self.client.get_cargo_details(tracking_id)
+        self.service.register_handling_event(tracking_id, "V4", "HAMBURG", "LOAD")
+        cargo_details = self.service.get_cargo_details(tracking_id)
         self.assertEqual(cargo_details["current_voyage_number"], "V4")
         self.assertEqual(cargo_details["last_known_location"], "HAMBURG")
         self.assertEqual(
@@ -202,8 +202,8 @@ class TestCargoShipping(unittest.TestCase):
         )
 
         # Unload in Stockholm
-        self.client.register_handling_event(tracking_id, "V4", "STOCKHOLM", "UNLOAD")
-        cargo_details = self.client.get_cargo_details(tracking_id)
+        self.service.register_handling_event(tracking_id, "V4", "STOCKHOLM", "UNLOAD")
+        cargo_details = self.service.get_cargo_details(tracking_id)
         self.assertEqual(cargo_details["current_voyage_number"], None)
         self.assertEqual(
             cargo_details["last_known_location"],
@@ -217,8 +217,8 @@ class TestCargoShipping(unittest.TestCase):
         )
 
         # Finally, cargo is claimed in Stockholm.
-        self.client.register_handling_event(tracking_id, None, "STOCKHOLM", "CLAIM")
-        cargo_details = self.client.get_cargo_details(tracking_id)
+        self.service.register_handling_event(tracking_id, None, "STOCKHOLM", "CLAIM")
+        cargo_details = self.service.get_cargo_details(tracking_id)
         self.assertEqual(cargo_details["current_voyage_number"], None)
         self.assertEqual(
             cargo_details["last_known_location"],

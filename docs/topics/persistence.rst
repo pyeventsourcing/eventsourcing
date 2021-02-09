@@ -40,17 +40,17 @@ Transcoder
 A transcoder is used by a :ref:`mapper<Mapper>` to serialise and deserialise
 the state of domain model event objects.
 
-The library's :class:`~eventsourcing.persistence.Transcoder` class
+The library's :class:`~eventsourcing.persistence.JSONTranscoder` class
 can be constructed without any arguments.
 
 .. code:: python
 
-    from eventsourcing.persistence import Transcoder
+    from eventsourcing.persistence import JSONTranscoder
 
-    transcoder = Transcoder()
+    transcoder = JSONTranscoder()
 
-The :data:`transcoder` object has methods :func:`~eventsourcing.persistence.Transcoder.encode`
-and :func:`~eventsourcing.persistence.Transcoder.decode`  which are used to perform the
+The :data:`transcoder` object has methods :func:`~eventsourcing.persistence.JSONTranscoder.encode`
+and :func:`~eventsourcing.persistence.JSONTranscoder.decode`  which are used to perform the
 serialisation and deserialisation. The serialised state is a Python :class:`bytes` object.
 
 .. code:: python
@@ -59,13 +59,13 @@ serialisation and deserialisation. The serialised state is a Python :class:`byte
     copy = transcoder.decode(data)
     assert copy == {"a": 1}
 
-The library's :class:`~eventsourcing.persistence.Transcoder` uses the Python
+The library's :class:`~eventsourcing.persistence.JSONTranscoder` uses the Python
 :mod:`json` module. And so, by default, only the basic object types supported by that
 module can be encoded and decoded. The transcoder can be extended by registering
 transcodings for the other types of object used in your domain model's event objects.
 A transcoding will convert other types of object to a representation of the non-basic
 type of object that uses the basic types that are supported. The transcoder method
-:func:`~eventsourcing.persistence.Transcoder.register` is used to register
+:func:`~eventsourcing.persistence.JSONTranscoder.register` is used to register
 individual transcodings with the transcoder.
 
 .. _Transcodings:
@@ -76,7 +76,7 @@ Transcodings
 In order to encode and decode non-basic types of object that are not supported by
 the transcoder by default, custom transcodings need to be defined in code and
 registered with the :ref:`transcoder<Transcoder>` using the transcoder object's
-:func:`~eventsourcing.persistence.Transcoder.register` method. A transcoding
+:func:`~eventsourcing.persistence.JSONTranscoder.register` method. A transcoding
 will encode an instance of a non-basic type of object that cannot by default be
 encoded by the transcoder into a basic type of object that can be encoded by the
 transcoder, and will decode that representation into the original type of object.
@@ -142,7 +142,7 @@ transcodes Python :class:`~decimal.Decimal` objects as decimal strings.
 
 
 Transcodings are registered with the transcoder using the transcoder object's
-:func:`~eventsourcing.persistence.Transcoder.register` method.
+:func:`~eventsourcing.persistence.JSONTranscoder.register` method.
 
 .. code:: python
 
@@ -472,7 +472,7 @@ standard for symmetric encryption. Galois/Counter Mode (GCM) is a mode of
 operation for symmetric block ciphers that is designed to provide both data
 authenticity and confidentiality, and is widely adopted for its performance.
 
-The mapper expects an instance of :class:`~eventsourcing.cipher.AbstractCipher`,
+The mapper expects an instance of the abstract base class :class:`~eventsourcing.cipher.Cipher`,
 and :class:`~eventsourcing.cipher.AESCipher` implements this abstract base class,
 so if you want to use another cipher strategy simply implement the base class.
 
@@ -511,9 +511,11 @@ encrypted but not compressed.
 The library's :class:`~eventsourcing.compressor.ZlibCompressor` class
 uses Python's :mod:`zlib` module.
 
-The mapper expects an instance of :class:`~eventsourcing.compressor.AbstractCompressor`,
-and :class:`~eventsourcing.compressor.ZlibCompressor` implements this abstract base class,
-so if you want to use another compression strategy simply implement the base class.
+The mapper expects an instance of the abstract base class
+:class:`~eventsourcing.compressor.Compressor`, and
+:class:`~eventsourcing.compressor.ZlibCompressor` implements this
+abstract base class, so if you want to use another compression
+strategy simply implement the base class.
 
 
 .. _Notification objects:

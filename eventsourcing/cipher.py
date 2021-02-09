@@ -7,7 +7,7 @@ from Crypto.Cipher._mode_gcm import GcmMode
 from Crypto.Cipher.AES import key_size
 
 
-class AbstractCipher(ABC):
+class Cipher(ABC):
     @abstractmethod
     def __init__(self, cipher_key: str):
         """
@@ -27,7 +27,7 @@ class AbstractCipher(ABC):
         """
 
 
-class AESCipher(AbstractCipher):
+class AESCipher(Cipher):
     """
     Cipher strategy that uses AES cipher in GCM mode.
     """

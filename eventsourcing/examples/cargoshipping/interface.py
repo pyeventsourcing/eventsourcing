@@ -13,9 +13,12 @@ from eventsourcing.examples.cargoshipping.domainmodel import (
 )
 
 
-# The application services are presented in a client interface that
-# deals with simple types of object (str, bool, datetime).
-class LocalClient(object):
+class BookingService(object):
+    """
+    Presents an application interface that uses
+    simple types of object (str, bool, datetime).
+    """
+
     def __init__(self, app: BookingApplication):
         self.app = app
 

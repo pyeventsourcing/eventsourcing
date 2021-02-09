@@ -12,7 +12,7 @@ def get_topic(cls: type) -> str:
 
 def resolve_topic(topic: str) -> Any:
     """
-    Returns a class located by the given string.
+    Returns an object located by the given string.
     """
     try:
         obj = _objs_cache[topic]

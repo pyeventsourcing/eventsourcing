@@ -61,12 +61,12 @@ Cargo shipping
 Test first...
 
 .. literalinclude:: ../../eventsourcing/examples/cargoshipping/test.py
-    :pyobject: TestCargoShipping
+    :pyobject: TestBookingService
 
 Interface...
 
 .. literalinclude:: ../../eventsourcing/examples/cargoshipping/interface.py
-    :pyobject: LocalClient
+    :pyobject: BookingService
 
 .. literalinclude:: ../../eventsourcing/examples/cargoshipping/interface.py
     :pyobject: select_preferred_itinerary
@@ -115,8 +115,8 @@ Run the test...
 .. code:: python
 
     suite = unittest.TestSuite()
-    suite.addTest(TestCargoShipping("test_admin_can_book_new_cargo"))
-    suite.addTest(TestCargoShipping("test_scenario_cargo_from_hongkong_to_stockholm"))
+    suite.addTest(TestBookingService("test_admin_can_book_new_cargo"))
+    suite.addTest(TestBookingService("test_scenario_cargo_from_hongkong_to_stockholm"))
 
     runner = unittest.TextTestRunner()
     result = runner.run(suite)

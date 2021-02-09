@@ -291,7 +291,7 @@ class System:
 A = TypeVar("A")
 
 
-class AbstractRunner(ABC):
+class Runner(ABC):
     """
     Abstract base class for system runners.
     """
@@ -328,7 +328,7 @@ class RunnerAlreadyStarted(Exception):
     """
 
 
-class SingleThreadedRunner(AbstractRunner, Promptable):
+class SingleThreadedRunner(Runner, Promptable):
     """
     Runs a :class:`System` in a single thread.
     A single threaded runner is a runner, and so implements the
@@ -407,7 +407,7 @@ class SingleThreadedRunner(AbstractRunner, Promptable):
         return app
 
 
-class MultiThreadedRunner(AbstractRunner):
+class MultiThreadedRunner(Runner):
     """
     Runs a :class:`System` with a :class:`MultiThreadedRunnerThread` for each
     follower in the system definition.

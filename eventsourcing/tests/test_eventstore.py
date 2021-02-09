@@ -5,8 +5,8 @@ from eventsourcing.persistence import (
     DatetimeAsISO,
     DecimalAsStr,
     EventStore,
+    JSONTranscoder,
     Mapper,
-    Transcoder,
     UUIDAsHex,
 )
 from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatastore
@@ -30,7 +30,7 @@ class TestEventStore(TestCase):
         pending = account.collect_events()
 
         # Construct event store.
-        transcoder = Transcoder()
+        transcoder = JSONTranscoder()
         transcoder.register(UUIDAsHex())
         transcoder.register(DecimalAsStr())
         transcoder.register(DatetimeAsISO())

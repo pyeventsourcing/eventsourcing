@@ -9,8 +9,8 @@ from eventsourcing.domain import TZINFO
 from eventsourcing.persistence import (
     DatetimeAsISO,
     DecimalAsStr,
+    JSONTranscoder,
     Mapper,
-    Transcoder,
     Transcoding,
     UUIDAsHex,
 )
@@ -20,7 +20,7 @@ from eventsourcing.tests.test_aggregate import BankAccount
 class TestMapper(TestCase):
     def test(self):
         # Construct transcoder.
-        transcoder = Transcoder()
+        transcoder = JSONTranscoder()
         transcoder.register(UUIDAsHex())
         transcoder.register(DecimalAsStr())
         transcoder.register(DatetimeAsISO())
@@ -124,7 +124,7 @@ class CustomType2AsDict(Transcoding):
 
 class TestTranscoder(TestCase):
     def test(self):
-        transcoder = Transcoder()
+        transcoder = JSONTranscoder()
         obj = CustomType2(CustomType1(UUID("b2723fe2c01a40d2875ea3aac6a09ff5")))
         with self.assertRaises(TypeError):
             transcoder.encode(obj)

@@ -5,8 +5,8 @@ from unittest.case import TestCase
 
 from eventsourcing.postgres import PostgresDatastore
 from eventsourcing.system import (
-    AbstractRunner,
     MultiThreadedRunner,
+    Runner,
     RunnerAlreadyStarted,
     SingleThreadedRunner,
     System,
@@ -18,7 +18,7 @@ from eventsourcing.tests.test_processapplication import EmailNotifications
 
 
 class RunnerTestCase(TestCase):
-    runner_class: Type[AbstractRunner] = AbstractRunner
+    runner_class: Type[Runner] = Runner
 
     def test_runs_ok(self):
         system = System(
@@ -59,7 +59,7 @@ class RunnerTestCase(TestCase):
 
 
 class TestSingleThreadedRunner(RunnerTestCase):
-    runner_class: Type[AbstractRunner] = SingleThreadedRunner
+    runner_class: Type[Runner] = SingleThreadedRunner
 
     def test_prompts_received_doesnt_accumulate_names(self):
         system = System(
@@ -95,11 +95,11 @@ class TestMultiThreadedRunner(RunnerTestCase):
 
     class BrokenInitialisation(EmailNotifications):
         def __init__(self, *args, **kwargs):
-            raise Exception("My initialisation is broken")
+            raise Exception("Testing exception is raised: broken initialisation")
 
     class BrokenProcessing(EmailNotifications):
         def pull_and_process(self, name: str) -> None:
-            raise Exception("My processing is broken")
+            raise Exception("Testing exception is raised: broken processing")
 
     def test_stops_if_app_initialisation_is_broken(self):
         system = System(

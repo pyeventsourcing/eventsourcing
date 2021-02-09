@@ -6,8 +6,8 @@ from eventsourcing.persistence import (
     DatetimeAsISO,
     DecimalAsStr,
     EventStore,
+    JSONTranscoder,
     Mapper,
-    Transcoder,
     UUIDAsHex,
 )
 from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatastore
@@ -27,7 +27,7 @@ class TestSnapshotting(TestCase):
         account.append_transaction(Decimal("25.00"))
         account.append_transaction(Decimal("30.00"))
 
-        transcoder = Transcoder()
+        transcoder = JSONTranscoder()
         transcoder.register(UUIDAsHex())
         transcoder.register(DecimalAsStr())
         transcoder.register(DatetimeAsISO())

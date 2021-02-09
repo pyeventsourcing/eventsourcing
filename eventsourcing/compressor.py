@@ -2,7 +2,7 @@ import zlib
 from abc import ABC, abstractmethod
 
 
-class AbstractCompressor(ABC):
+class Compressor(ABC):
     @abstractmethod
     def compress(self, data: bytes) -> bytes:
         """
@@ -16,7 +16,7 @@ class AbstractCompressor(ABC):
         """
 
 
-class ZlibCompressor(AbstractCompressor):
+class ZlibCompressor(Compressor):
     def compress(self, data: bytes) -> bytes:
         """
         Compress bytes using zlib.

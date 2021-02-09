@@ -12,9 +12,9 @@ from eventsourcing.persistence import (
     DatetimeAsISO,
     DecimalAsStr,
     InfrastructureFactory,
+    JSONTranscoder,
     Mapper,
     ProcessRecorder,
-    Transcoder,
     UUIDAsHex,
 )
 from eventsourcing.utils import get_topic
@@ -23,7 +23,7 @@ from eventsourcing.utils import get_topic
 class InfrastructureFactoryTestCase(TestCase):
     def setUp(self) -> None:
         self.factory = InfrastructureFactory.construct("TestCase")
-        self.transcoder = Transcoder()
+        self.transcoder = JSONTranscoder()
         self.transcoder.register(UUIDAsHex())
         self.transcoder.register(DecimalAsStr())
         self.transcoder.register(DatetimeAsISO())
