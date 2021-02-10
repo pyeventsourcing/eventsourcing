@@ -63,3 +63,9 @@ eventsourcing/tests/djangoproject/db.sqlite3
 
 # Virtualenv
 venv
+
+#Eclipse IDE
+.project
+.pydevproject
+.settings
+.dbeaver
