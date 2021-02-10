@@ -39,8 +39,8 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Setup database
       run: |
-        psql -c 'CREATE DATABASE eventsourcing;' -U postgres
-        psql -c "CREATE USER eventsourcing WITH PASSWORD 'eventsourcing';" -U postgres
+        PGPASSWORD=postgres psql -c 'CREATE DATABASE eventsourcing;' -U postgres -h localhost
+        PGPASSWORD=postgres psql -c "CREATE USER eventsourcing WITH PASSWORD 'eventsourcing';" -U postgres -h localhost
     - name: Install
       run: make install
     - name: Lint
