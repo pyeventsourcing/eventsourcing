@@ -1,6 +1,6 @@
 name: Python package
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   build:
@@ -41,9 +41,27 @@ jobs:
       run: |
         PGPASSWORD=postgres psql -c 'CREATE DATABASE eventsourcing;' -U postgres -h localhost
         PGPASSWORD=postgres psql -c "CREATE USER eventsourcing WITH PASSWORD 'eventsourcing';" -U postgres -h localhost
+
     - name: Install
       run: make install
+
     - name: Lint
       run: make lint
+
     - name: Test
       run: make test
+
+    - name: Coveralls
+      uses: AndreMiras/coveralls-python-action@develop
+      with:
+        parallel: true
+        flag-name: Unit Test
+
+  coveralls_finish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Coveralls Finished
+      uses: AndreMiras/coveralls-python-action@develop
+      with:
+        parallel-finished: true
