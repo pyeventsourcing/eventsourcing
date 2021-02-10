@@ -109,20 +109,20 @@ todo_include_todos = False
 
 
 # import python_docs_theme
-html_theme = "python_docs_theme"
+# html_theme = "python_docs_theme"
 
-html_context = {
-    'theme_root_name': "Python",
-    'theme_root_url': "https://github.com/johnbywater/eventsourcing",
-    'theme_root_icon': "py.png",
-    'theme_root_include_title': True,
-}
+# html_context = {
+#     'theme_root_name': "Python",
+#     'theme_root_url': "https://github.com/johnbywater/eventsourcing",
+#     'theme_root_icon': "py.png",
+#     'theme_root_include_title': True,
+# }
 
 
-# html_theme = "sphinx_rtd_theme"
+html_theme = "sphinx_rtd_theme"
 
-# import sphinx_rtd_theme
-# html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+import sphinx_rtd_theme
+html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # html_theme_path = [alabaster.get_html_theme_path()]
 
