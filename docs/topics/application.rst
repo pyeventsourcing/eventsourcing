@@ -488,9 +488,9 @@ for :class:`~uuid.UUID`, :class:`~decimal.Decimal`, and
 
 For example, to define and register a :class:`~eventsourcing.persistence.Transcoding`
 for the Python :class:`~datetime.date` class, define a class such as the
-``DateAsISO`` class below, and extend the
+``DateAsISO`` class below, and extend the application
 :func:`~eventsourcing.application.Application.register_transcodings`
-method by calling both the application's ``super()`` method with the given ``transcoder``
+method by calling the ``super()`` method with the given ``transcoder``
 argument, and then the transcoder's :func:`~eventsourcing.persistence.Transcoder.register`
 method once for each of your custom transcodings.
 
