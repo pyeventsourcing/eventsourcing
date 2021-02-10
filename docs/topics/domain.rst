@@ -930,7 +930,7 @@ and imagine using the second index aggregate to get the ID of the page.
 
 Saving and retrieving aggregates by ID is demonstrated in the discussion
 about :ref:`saving multiple aggregates <Saving multiple aggregates>` in
-the :ref:`Event-sourced applications <Application objects>` documentation.
+the :ref:`applications <Application objects>` documentation.
 
 .. _Topics:
 
