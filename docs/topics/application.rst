@@ -486,11 +486,12 @@ The library's application base class registers transcodings
 for :class:`~uuid.UUID`, :class:`~decimal.Decimal`, and
 :class:`~datetime.datetime` objects.
 
-For example, to define and register a transcoding the the Python :class:`~datetime.date` class,
-implement a transcoding such as the ``DateAsISO`` class defined below, and
-extend the :func:`~eventsourcing.application.Application.register_transcodings`
+For example, to define and register a :class:`~eventsourcing.persistence.Transcoding`
+the the Python :class:`~datetime.date` class, define a class such as the
+``DateAsISO`` class below, and extend the
+:func:`~eventsourcing.application.Application.register_transcodings`
 method by calling both the application's ``super()`` method with the given ``transcoder``
-argument, and then the transcoder's :func:`~eventsourcing.persistence.JSONTranscoder.register`
+argument, and then the transcoder's :func:`~eventsourcing.persistence.Transcoder.register`
 method once for each of your custom transcodings.
 
 .. code:: python

@@ -65,7 +65,7 @@ module can be encoded and decoded. The transcoder can be extended by registering
 transcodings for the other types of object used in your domain model's event objects.
 A transcoding will convert other types of object to a representation of the non-basic
 type of object that uses the basic types that are supported. The transcoder method
-:func:`~eventsourcing.persistence.JSONTranscoder.register` is used to register
+:func:`~eventsourcing.persistence.Transcoder.register` is used to register
 individual transcodings with the transcoder.
 
 .. _Transcodings:
@@ -76,7 +76,7 @@ Transcodings
 In order to encode and decode non-basic types of object that are not supported by
 the transcoder by default, custom transcodings need to be defined in code and
 registered with the :ref:`transcoder<Transcoder>` using the transcoder object's
-:func:`~eventsourcing.persistence.JSONTranscoder.register` method. A transcoding
+:func:`~eventsourcing.persistence.Transcoder.register` method. A transcoding
 will encode an instance of a non-basic type of object that cannot by default be
 encoded by the transcoder into a basic type of object that can be encoded by the
 transcoder, and will decode that representation into the original type of object.
@@ -142,7 +142,7 @@ transcodes Python :class:`~decimal.Decimal` objects as decimal strings.
 
 
 Transcodings are registered with the transcoder using the transcoder object's
-:func:`~eventsourcing.persistence.JSONTranscoder.register` method.
+:func:`~eventsourcing.persistence.Transcoder.register` method.
 
 .. code:: python
 
