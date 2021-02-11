@@ -132,13 +132,13 @@ The :class:`~eventsourcing.domain.Aggregate` base class has three methods which 
 be used by subclasses:
 
 * the "private" class method :func:`~eventsourcing.domain.Aggregate._create`
-  which is used to create aggregate objects;
+  is used to create aggregate objects;
 
 * the "private" object method :func:`~eventsourcing.domain.Aggregate._trigger_event`
-  which is used to trigger subsequent events; and
+  is used to trigger subsequent events; and
 
 * the "public" object method :func:`~eventsourcing.domain.Aggregate.collect_events`
-  which is used to collect aggregate events.
+  is used to collect aggregate events.
 
 These methods are explained below.
 
