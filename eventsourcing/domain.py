@@ -175,13 +175,16 @@ class Aggregate:
             # Copy the event attributes.
             kwargs = self.__dict__.copy()
             # Resolve originator topic.
-            aggregate_topic = kwargs.pop("originator_topic")
-            aggregate_class: Type[TAggregate] = resolve_topic(aggregate_topic)
+            aggregate_class: Type[TAggregate] = resolve_topic(
+                kwargs.pop("originator_topic")
+            )
             # Separate the base class keywords arguments.
-            id = kwargs.pop("originator_id")
-            version = kwargs.pop("originator_version")
             # Construct and return aggregate object.
-            return aggregate_class(id=id, version=version, **kwargs)
+            return aggregate_class(
+                id=kwargs.pop("originator_id"),
+                version=kwargs.pop("originator_version"),
+                **kwargs,
+            )
 
     def _trigger_event(
         self,
