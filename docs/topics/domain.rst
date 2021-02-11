@@ -95,7 +95,7 @@ event objects do not change. They are what they are. The notion of 'change'
 is the contrast between successive domain events in an aggregate's sequence
 (contrasted from the standpoint of the cluster of objects within an aggregate's consistency
 boundary, which is a standpoint that may change since there must be a function
-that applies the the events to the cluster, and this function can be adjusted.
+that applies the events to the cluster, and this function can be adjusted.
 Hence it isn't strictly true to say that the state of an aggregate is determined
 by a sequence of events. The events merely contribute determination, and the
 state is in fact determined by a combination of the sequence of events and
@@ -132,13 +132,13 @@ The :class:`~eventsourcing.domain.Aggregate` base class has three methods which 
 be used by subclasses:
 
 * the "private" class method :func:`~eventsourcing.domain.Aggregate._create`
-  which is used to create new aggregate objects;
+  which is used to create aggregate objects;
 
 * the "private" object method :func:`~eventsourcing.domain.Aggregate._trigger_event`
   which is used to trigger subsequent events; and
 
 * the "public" object method :func:`~eventsourcing.domain.Aggregate.collect_events`
-  which is used to collect aggregate events that haven't yet been collected.
+  which is used to collect aggregate events.
 
 These methods are explained below.
 
@@ -196,12 +196,12 @@ participle that describes the beginning of something, such as "Started",
 
 The :func:`~eventsourcing.domain.Aggregate._create` method also accepts arbitrary
 keyword-only arguments, which if given will also be used to construct the event object
-in addition to those mentioned above. The event object will be constructed with these
+in addition to those mentioned above. The "created" event object will be constructed with these
 additional arguments, and so the extra method arguments must be matched by the attributes of the
 "created" event class. (The concrete aggregate class's initializer method :func:`__init__`
 should also be coded to accept these extra arguments.)
 
-Having been created, a new aggregate instance will have an aggregate ID. The ID is presented
+Having been created, an aggregate object will have an aggregate ID. The ID is presented
 by its :py:obj:`~eventsourcing.domain.Aggregate.id` property. The ID will be identical to
 the value passed with the ``id`` argument to the :func:`~eventsourcing.domain.Aggregate._create`
 method.
@@ -211,7 +211,7 @@ method.
     assert aggregate.id == aggregate_id
 
 
-A new aggregate instance also has a version number. The version number is presented by its
+A new aggregate instance has a version number. The version number is presented by its
 :py:obj:`~eventsourcing.domain.Aggregate.version` property, and is a Python :class:`int`.
 The initial version of a newly created aggregate is always 1.
 
@@ -220,7 +220,7 @@ The initial version of a newly created aggregate is always 1.
     assert aggregate.version == 1
 
 
-A new aggregate instance also has a :py:obj:`~eventsourcing.domain.Aggregate.created_on`
+A new aggregate instance has a :py:obj:`~eventsourcing.domain.Aggregate.created_on`
 property which gives the date and time when an aggregate object was created, and is determined
 by the timestamp attribute of the first event in the aggregate's sequence, which is the "created"
 event. It is a Python :class:`~datetime.datetime` object.
@@ -244,7 +244,7 @@ by the timestamp attribute of the last event in the aggregate's sequence. It is 
     assert isinstance(aggregate.modified_on, datetime)
 
 Initially, since there is only one event in the aggregate's sequence, the ``created_on``
-and ``modified_on`` values are identical, and are equal to the timestamp of the "created" event.
+and ``modified_on`` values are identical, and equal to the timestamp of the "created" event.
 
 .. code:: python
 
@@ -254,7 +254,7 @@ and ``modified_on`` values are identical, and are equal to the timestamp of the 
 Triggering subsequent events
 ----------------------------
 
-Secondly, the :class:`~eventsourcing.domain.Aggregate` class has an "private" object
+Secondly, the :class:`~eventsourcing.domain.Aggregate` class has a "private" object
 method :func:`~eventsourcing.domain.Aggregate._trigger_event` which can be called
 to create subsequent aggregate event objects and apply them to the aggregate.
 This method is usually called by a particular command method implemented on a
