@@ -573,7 +573,7 @@ Saving multiple aggregates
 In many cases, it is both possible and very useful to save more than
 one aggregate in the same atomic transaction. The example below continues
 the example from the discussion of :ref:`namespaced IDs <Namespaced IDs>`
-in the previous section. The classes :class:`Page` and :class:`Index` are
+in the previous section. The aggregate classes ``Page`` and ``Index`` are
 defined in that section.
 
 ..
