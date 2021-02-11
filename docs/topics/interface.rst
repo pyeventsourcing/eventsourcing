@@ -2,6 +2,8 @@
 :mod:`~eventsourcing.interface` --- Interface
 =============================================
 
+*this page is under development --- please check back soon*
+
 Classes
 =======
 
@@ -11,4 +13,3 @@ Classes
     :members:
     :special-members:
     :exclude-members: __weakref__, __dict__
-

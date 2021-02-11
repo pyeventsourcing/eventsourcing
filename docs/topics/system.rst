@@ -6,6 +6,8 @@ This module shows how :doc:`event-sourced applications
 </topics/application>` can be combined to make an event driven
 system.
 
+*this page is under development --- please check back soon*
+
 System of applications
 ======================
 
