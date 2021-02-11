@@ -274,14 +274,14 @@ The :class:`~eventsourcing.domain.Aggregate` class has a nested
 :class:`~eventsourcing.domain.Aggregate.Event` class. It is defined
 as a `frozen Python data class <https://docs.python.org/3/library/dataclasses.html>`_
 with three attributes: the ID of an aggregate, a version number, and a timestamp.
-It can be used as a base class to define the particular event classes for a
-particular concrete aggregate. The :class:`~eventsourcing.domain.Aggregate.Created`
-event class discussed above is a subclass of :class:`~eventsourcing.domain.Aggregate.Event`.
-For another example, see the ``SomethingHappened`` class in the :ref:`basic example <Aggregate basic example>`
+It can be used as a base class to define aggregate event classes. The
+:class:`~eventsourcing.domain.Aggregate.Created` event class discussed above is a
+subclass of :class:`~eventsourcing.domain.Aggregate.Event`. For another example, see
+the ``SomethingHappened`` class in the :ref:`basic example <Aggregate basic example>`
 below. Aggregate event classes are usually named using past participles to describe
 what was decided by the command method, such as "Done", "Updated", "Closed", etc.
 See the :ref:`Domain events <Events>` section below for more information about
-aggregate event classes.
+aggregate event classes. They can be defined on aggregate classes as nested classes.
 
 The :func:`~eventsourcing.domain.Aggregate._trigger_event` method also accepts arbitrary
 keyword-only arguments, which will be used to construct the aggregate event object. As with the
@@ -408,6 +408,11 @@ base aggregate event class ``Aggregate.Event`` (also a frozen data class) with a
 field ``what`` which is defined as a Python :class:`str`. An ``apply()`` method
 is defined which appends the ``what`` value to the aggregate's ``history``. This
 method is called when the event is triggered (see :ref:`Domain events <Events>`).
+
+By defining the event class under the command method which triggers it, and then
+defining an apply() method as part of the event class definition, the story of
+calling a command method, triggering an event, and evolving the state of the aggregate
+is expressed neatly in three parts.
 
 Having defined the ``World`` aggregate class, we can create a new ``World``
 aggregate object by calling the ``World.create()`` class method.
