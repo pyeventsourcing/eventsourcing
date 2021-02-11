@@ -270,17 +270,15 @@ triggered.
 
     aggregate._trigger_event(Aggregate.Event)
 
-The :class:`~eventsourcing.domain.Aggregate` base class has a nested base class
-:class:`~eventsourcing.domain.Aggregate.Event` which will normally be subclassed to define
-the particular event classes for a particular concrete aggregate.
-The :class:`~eventsourcing.domain.Aggregate.Created` class is defined as a
-`frozen Python data class <https://docs.python.org/3/library/dataclasses.html>`_
+The :class:`~eventsourcing.domain.Aggregate` class has a nested
+:class:`~eventsourcing.domain.Aggregate.Event` class. It is defined
+as a `frozen Python data class <https://docs.python.org/3/library/dataclasses.html>`_
 with three attributes: the ID of an aggregate, a version number, and a timestamp.
-The :class:`~eventsourcing.domain.Aggregate.Created` class discussed above
-is a subclass of :class:`~eventsourcing.domain.Aggregate.Event`. For another
-example, see the ``SomethingHappened`` class in the
-:ref:`basic example <Aggregate basic example>` below.
-Aggregate event classes are usually named using past participles to describe
+It can be used as a base class to define the particular event classes for a
+particular concrete aggregate. The :class:`~eventsourcing.domain.Aggregate.Created`
+event class discussed above is a subclass of :class:`~eventsourcing.domain.Aggregate.Event`.
+For another example, see the ``SomethingHappened`` class in the :ref:`basic example <Aggregate basic example>`
+below. Aggregate event classes are usually named using past participles to describe
 what was decided by the command method, such as "Done", "Updated", "Closed", etc.
 See the :ref:`Domain events <Events>` section below for more information about
 aggregate event classes.
