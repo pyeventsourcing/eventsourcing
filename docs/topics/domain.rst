@@ -34,16 +34,16 @@ called "aggregate" in the following way.
 
 An aggregate is a cluster of 'entities' and 'value objects'. An entity is an
 object with a fixed unique identity and other attributes that may vary. A
-value object has attributes that do not vary, and does not necessarily have
-a unique identity. This basic notion of a cluster of software objects is
-understandable as straightforward `object-oriented programming
+value object does not vary, and does not necessarily have a unique identity.
+This basic notion of a cluster of software objects is understandable as
+straightforward `object-oriented programming
 <https://en.wikipedia.org/wiki/Object-oriented_programming>`_.
 
-An aggregate has a 'root'. The 'root' of an aggregate is an entity, and its
-identity is used to uniquely identify the cluster of objects in a domain model.
-This entity is known as the 'root entity' or the 'aggregate root'. External
-references to the cluster of objects use the ID of the root entity. Access
-to the cluster of objects is made through the root entity.
+An aggregate has a 'root'. The 'root' of an aggregate is an entity.
+This entity is known as the 'root entity' or the 'aggregate root'. Entities
+have IDs and the ID of the root entity is used to uniquely identify the
+cluster of objects in a domain model. Access to the cluster of objects
+is made through the root entity.
 
 Changes to the cluster of objects are made using 'command methods' defined on
 the root entity, and the state of the cluster of objects is obtained by using
