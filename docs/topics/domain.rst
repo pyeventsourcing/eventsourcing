@@ -257,8 +257,8 @@ Triggering subsequent events
 Secondly, the :class:`~eventsourcing.domain.Aggregate` class has a "private" object
 method :func:`~eventsourcing.domain.Aggregate._trigger_event` which can be called
 to create subsequent aggregate event objects and apply them to the aggregate.
-This method is usually called by a particular command method implemented on a
-particular aggregate class to express the decisions that it makes. For example,
+This method is usually called by the command methods of an aggregate to
+express the decisions that it makes. For example,
 see the ``make_it_so()`` method of the ``World`` class in the :ref:`basic example
 <Aggregate basic example>` below.
 
@@ -270,8 +270,8 @@ triggered.
 
     aggregate._trigger_event(Aggregate.Event)
 
-The :class:`~eventsourcing.domain.Aggregate.Event` base class defines a nested base class
-:class:`~eventsourcing.domain.Aggregate.Event`. which will normally be subclassed to define
+The :class:`~eventsourcing.domain.Aggregate` base class has a nested base class
+:class:`~eventsourcing.domain.Aggregate.Event` which will normally be subclassed to define
 the particular event classes for a particular concrete aggregate.
 The :class:`~eventsourcing.domain.Aggregate.Created` class is defined as a
 `frozen Python data class <https://docs.python.org/3/library/dataclasses.html>`_
