@@ -138,8 +138,9 @@ be used by subclasses:
   which is used to trigger subsequent events; and
 
 * the "public" object method :func:`~eventsourcing.domain.Aggregate.collect_events`
-  which is used to collect aggregate events that haven't yet been collected. These
-  methods are explained below.
+  which is used to collect aggregate events that haven't yet been collected.
+
+These methods are explained below.
 
 
 Creating new aggregates
