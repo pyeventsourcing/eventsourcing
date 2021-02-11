@@ -305,11 +305,6 @@ After triggering a second event, the modified time will be greater than the crea
 
     assert aggregate.modified_on > aggregate.created_on
 
-The timestamps have no consequences for the operation of the library. The aggregate
-events objects are ordered in their sequence by their version numbers, and not by
-their timestamps. The timestamps exist only to give a general indication to
-humans of when things occurred.
-
 
 Collecting pending events
 -------------------------
@@ -505,17 +500,31 @@ event, and three ``SomethingHappened`` events.
 Domain events
 =============
 
-Domain events are created but do not change.
+Domain events are created but do not change. They are uniquely identifiable
+in a domain model by a aggregate ID which identifies the sequence to which
+they belong and and a version number which determines their position in
+that sequence.
 
-The base class :class:`~eventsourcing.domain.DomainEvent` is defined as a
-frozen data class with an ``originator_id`` attribute which is a Python
-:class:`~uuid.UUID` that holds an aggregate ID, an ``originator_version``
-attribute which is a Python :class:`int` that holds the version of an
-aggregate, and ``timestamp`` attribute which is a Python :class:`~datetime.datetime`
-that represents when the event was created. This class is used (inherited)
-by both the aggregate :class:`~eventsourcing.domain.Aggregate.Event` class
-and the :class:`~eventsourcing.domain.Snapshot` class.
+The library's :class:`~eventsourcing.domain.DomainEvent` class is a base
+class for domain events. It is defined as a frozen data class with an
+``originator_id`` attribute which is a Python :class:`~uuid.UUID` that holds
+an aggregate ID and identifies the sequence to which a domain event object
+belongs, an ``originator_version`` attribute which is a Python :class:`int`
+that holds the version of an aggregate and determines the position of a domain
+event object in its sequence, and a ``timestamp`` attribute which is a Python
+:class:`~datetime.datetime` that represents when the event was created.
 
+The timestamps have no consequences for the operation of the library. The aggregate
+events objects are ordered in their sequence by their version numbers, and not by
+their timestamps. The timestamps exist only to give a general indication to
+humans of when things occurred.
+
+
+The library's :class:`~eventsourcing.domain.DomainEvent` class is used (inherited)
+by the aggregate :class:`~eventsourcing.domain.Aggregate.Event` class.
+The library's :class:`~eventsourcing.domain.Snapshot` class also inherits from
+the :class:`~eventsourcing.domain.DomainEvent` class --- see :ref:`Snapshots <Snapshots>`
+for more information about snapshots.
 The aggregate :class:`~eventsourcing.domain.Aggregate.Event` class is defined as
 a subclass of the domain event base class :class:`~eventsourcing.domain.DomainEvent`.
 Aggregate event objects represent original decisions by a domain model
@@ -610,13 +619,17 @@ value can also be configured using environment variables, by setting the environ
 :data:`datetime.tzinfo` object (for example ``'datetime:timezone.utc'``).
 
 
+.. _Snapshots:
+
 Snapshots
 =========
 
 Snapshots speed up aggregate access time, by avoiding the need to retrieve
 and apply all the domain events when reconstructing an aggregate object instance.
-The library's :class:`~eventsourcing.domain.Snapshot` class can be
-used to create and restore snapshots of aggregate object instances.
+The library's :class:`~eventsourcing.domain.Snapshot` class can be used to create
+and restore snapshots of aggregate object instances. See :ref:`Snapshotting <Snapshotting>`
+in the application module documentation for more information about taking snapshots
+in an event-sourced application.
 
 The :class:`~eventsourcing.domain.Snapshot` class is defined as
 a subclass of the domain event base class :class:`~eventsourcing.domain.DomainEvent`.
@@ -629,10 +642,7 @@ the current state of an aggregate object.
     from eventsourcing.domain import Snapshot
 
 The class method :func:`~eventsourcing.domain.Snapshot.take` can be used to
-create a snapshot of an aggregate object. (See the discussion of
-:ref:`snapshotting <Snapshotting>` in the application module
-documentation for more information about taking snapshots in an
-event-sourced application.)
+create a snapshot of an aggregate object.
 
 .. code:: python
 
