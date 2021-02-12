@@ -25,10 +25,11 @@ def aggregate(cls) -> Type[Aggregate]:
         attribute = getattr(cls, name)
         if isinstance(attribute, event):
             # Prepare the subsequent aggregate events.
+            original_method = attribute.original_method
             event_cls_name = event_name_from_method_name(name)
             event_cls_qualname = ".".join([cls.__qualname__, event_cls_name])
 
-            method_signature = inspect.signature(attribute.original_method)
+            method_signature = inspect.signature(original_method)
             annotations = {}
             for param_name in method_signature.parameters:
                 if param_name == "self":
@@ -45,13 +46,16 @@ def aggregate(cls) -> Type[Aggregate]:
             event_cls = dataclass(event_cls, frozen=True)
             event_cls.__qualname__ = event_cls_qualname
             event_cls.__module__ = cls.__module__
+
             def apply(self, aggregate):
                 event_obj_dict = copy(self.__dict__)
                 event_obj_dict.pop("originator_id")
                 event_obj_dict.pop("originator_version")
                 event_obj_dict.pop("timestamp")
-                attribute.original_method(aggregate, **event_obj_dict)
+                self.original_method(aggregate, **event_obj_dict)
+
             event_cls.apply = apply
+            event_cls.original_method = staticmethod(original_method)
             fullqualname = ".".join((cls.__module__, event_cls.__qualname__))
             event_classes[fullqualname] = event_cls
             setattr(new_cls, event_cls_name, event_cls)
@@ -128,6 +132,13 @@ class World:
     def something_happened(self, what):
         self.history.append(what)
 
+    def set_name(self, name):
+        self._trigger_event(self.NameChanged, name=name)
+
+    @event
+    def name_changed(self, name):
+        self.name = name
+
 
 class TestDeclarativeSyntax(TestCase):
 
@@ -141,14 +152,14 @@ class TestDeclarativeSyntax(TestCase):
         world.make_it_so("Trucks")
         self.assertEqual(world.history, ["Trucks"])
 
-        # world.set_name("Mars")
+        world.set_name("Mars")
         # self.assertEqual(world.name, "Mars")
 
         pending_events = world.collect_events()
-        self.assertEqual(len(pending_events), 2)
+        self.assertEqual(len(pending_events), 3)
         self.assertIsInstance(pending_events[0], World.Created)
         self.assertIsInstance(pending_events[1], World.SomethingHappened)
-        # self.assertIsInstance(pending_events[2], World.NameChanged)
+        self.assertIsInstance(pending_events[2], World.NameChanged)
 
     def test_with_application(self):
         world = World(name="Earth")
