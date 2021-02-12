@@ -2,6 +2,9 @@
 Installation guide
 ==================
 
+This version of the library is compatible with Python versions 3.7, 3.8,
+and 3.9.
+
 It is recommended always to install into a virtual environment.
 
 You can use pip to install the library from the
@@ -31,10 +34,8 @@ with major version number increments.
 This package depends only on modules from the Python Standard Library,
 except for the extra options described below.
 
-This version of the library is compatible with Python versions 3.7, 3.8,
-and 3.9. The library's suite of tests is run against these versions and
+The library's suite of tests is run against these versions and
 has 100% line and branch coverage.
-
 
 Install options
 ===============
