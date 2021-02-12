@@ -1,13 +1,12 @@
 import inspect
 from copy import copy
-from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Dict, List, Type, cast
+from dataclasses import dataclass
+from typing import Dict, Type, cast
 from unittest import TestCase
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from eventsourcing.application import Application
-from eventsourcing.domain import Aggregate, TAggregate
+from eventsourcing.domain import Aggregate
 
 aggregate_classes: Dict["aggregate", Aggregate] = {}
 event_classes: Dict["str", Aggregate.Event] = {}
@@ -36,12 +35,9 @@ def aggregate(cls) -> Type[Aggregate]:
                     continue
                 annotations[param_name] = "typing.Any"
 
-            event_cls_dict = {
-                "__annotations__": annotations
-            }
+            event_cls_dict = {"__annotations__": annotations}
 
             event_cls = type(event_cls_name, (Aggregate.Event,), event_cls_dict)
-
 
             event_cls = dataclass(event_cls, frozen=True)
             event_cls.__qualname__ = event_cls_qualname
@@ -68,9 +64,7 @@ def aggregate(cls) -> Type[Aggregate]:
                     continue
                 annotations[param_name] = "typing.Any"
 
-            event_cls_dict = {
-                "__annotations__": annotations
-            }
+            event_cls_dict = {"__annotations__": annotations}
 
             created_cls = type("Created", (Aggregate.Created,), event_cls_dict)
             created_cls.__qualname__ = ".".join([cls.__qualname__, "Created"])
@@ -103,7 +97,7 @@ def aggregate(cls) -> Type[Aggregate]:
 
 
 def event_name_from_method_name(name):
-    return "".join([s.capitalize() for s in name.split('_')])
+    return "".join([s.capitalize() for s in name.split("_")])
 
 
 class event:
@@ -113,7 +107,7 @@ class event:
 
 def get_event_class_from_original_method(method):
     event_name = event_name_from_method_name(method.__name__)
-    qualname_prefix = method.__qualname__[:-len(method.__name__)-1]
+    qualname_prefix = method.__qualname__[: -len(method.__name__) - 1]
     module_name = method.__module__
     fullqualname = ".".join([module_name, qualname_prefix, event_name])
     return event_classes[fullqualname]
@@ -141,7 +135,6 @@ class World:
 
 
 class TestDeclarativeSyntax(TestCase):
-
     def test_aggregate_and_event(self):
         world = World(name="Earth")
         self.assertIsInstance(world, World)
@@ -153,7 +146,7 @@ class TestDeclarativeSyntax(TestCase):
         self.assertEqual(world.history, ["Trucks"])
 
         world.set_name("Mars")
-        # self.assertEqual(world.name, "Mars")
+        self.assertEqual(world.name, "Mars")
 
         pending_events = world.collect_events()
         self.assertEqual(len(pending_events), 3)
@@ -171,4 +164,3 @@ class TestDeclarativeSyntax(TestCase):
         self.assertIsInstance(copy, World)
         self.assertEqual(copy.name, "Earth")
         self.assertEqual(copy.history, ["Trucks"])
-
