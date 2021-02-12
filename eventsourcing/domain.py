@@ -180,11 +180,15 @@ class Aggregate:
             )
             # Separate the base class keywords arguments.
             # Construct and return aggregate object.
-            return aggregate_class(
+            aggregate = object.__new__(
+                aggregate_class
+            )
+            aggregate.__init__(
                 id=kwargs.pop("originator_id"),
                 version=kwargs.pop("originator_version"),
                 **kwargs,
             )
+            return aggregate
 
     def _trigger_event(
         self,
