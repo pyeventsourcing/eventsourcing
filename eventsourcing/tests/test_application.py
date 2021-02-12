@@ -11,9 +11,11 @@ from eventsourcing.tests.ramdisk import tmpfile_uris
 from eventsourcing.tests.test_aggregate import BankAccount
 from eventsourcing.tests.test_postgres import drop_postgres_table
 
+TIMEIT_FACTOR = int(os.environ.get("TEST_TIMEIT_FACTOR", default=1))
+
 
 class TestApplication(TestCase):
-    timeit_number = 10000
+    timeit_number = 100 * TIMEIT_FACTOR
 
     def setUp(self) -> None:
         os.environ[InfrastructureFactory.IS_SNAPSHOTTING_ENABLED] = "yes"
@@ -147,7 +149,7 @@ class TestApplicationSnapshottingException(TestCase):
 
 
 class TestApplicationWithSQLite(TestApplication):
-    timeit_number = 2000
+    timeit_number = 20 * TIMEIT_FACTOR
 
     def setUp(self) -> None:
         super().setUp()
@@ -166,7 +168,7 @@ class TestApplicationWithSQLite(TestApplication):
 
 
 class TestApplicationWithPostgres(TestApplication):
-    timeit_number = 1000
+    timeit_number = 10 * TIMEIT_FACTOR
 
     def setUp(self) -> None:
         super().setUp()
