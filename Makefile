@@ -1,5 +1,5 @@
 .EXPORT_ALL_VARIABLES:
-DOTENV_FILE ?= .env
+DOTENV_FILE ?= dev/.env
 
 -include $(DOTENV_FILE)
 
@@ -71,22 +71,41 @@ fmt-black:
 .PHONY: fmt
 fmt: fmt-isort fmt-black
 
+.PHONY: unittest
+unittest:
+	@python -m unittest discover eventsourcing -v
 
-.PHONY: test
-test:
+.PHONY: timetest
+timetest:
+	TEST_TIMEIT_FACTOR=500 python -m unittest eventsourcing.tests.test_application
+
+.PHONY: coveragetest
+coveragetest:
 	@coverage run -m unittest discover eventsourcing -v
 #	@coverage run \
 #		--concurrency=multiprocessing \
 #		-m unittest discover \
 		eventsourcing -vv --failfast
 #	@coverage combine
-	@coverage report --fail-under=100
+#	@coverage report
 #	@coverage html
 
+.PHONY: coverage100
+coverage100:
+	@coverage report --fail-under=100
+
+.PHONY: coveragehtml
+coveragehtml:
+	@coverage html
+
+.PHONY: test
+test: coveragetest coverage100 timetest
+
+.PHONY: coverage
+coverage: coveragetest coveragehtml coverage100
 
 .PHONY: prepush
 prepush: lint docs test
-
 
 .PHONY: docs
 docs:
@@ -95,19 +114,19 @@ docs:
 
 .PHONY: brew-services-start
 brew-services-start:
-	brew services start mysql
+#	brew services start mysql
 	brew services start postgresql
-	brew services start redis
-	~/axonserver/axonserver.jar &
-	cassandra -f &
+#	brew services start redis
+#	~/axonserver/axonserver.jar &
+#	cassandra -f &
 
 
 .PHONY: brew-services-stop
 brew-services-stop:
-	brew services stop mysql || echo "Mysql couldn't be stopped"
+#	brew services stop mysql || echo "Mysql couldn't be stopped"
 	brew services stop postgresql || echo "PostgreSQL couldn't be stopped"
-	brew services stop redis || echo "Redis couldn't be stopped"
-	pkill -15 java
+#	brew services stop redis || echo "Redis couldn't be stopped"
+#	pkill -15 java
 
 
 .PHONY: prepare-distribution
@@ -124,13 +143,13 @@ release-distribution:
 test-released-distribution:
 	python ./dev/test-released-distribution.py
 
-.PHONY: generate-grpc-protos
-generate-grpc-protos:
-	python -m grpc_tools.protoc \
-	  --proto_path=./eventsourcing/system/grpc \
-	  --python_out=eventsourcing/system/grpc \
-	  --grpc_python_out=eventsourcing/system/grpc \
-	  eventsourcing/system/grpc/processor.proto
+#.PHONY: generate-grpc-protos
+#generate-grpc-protos:
+#	python -m grpc_tools.protoc \
+#	  --proto_path=./eventsourcing/system/grpc \
+#	  --python_out=eventsourcing/system/grpc \
+#	  --grpc_python_out=eventsourcing/system/grpc \
+#	  eventsourcing/system/grpc/processor.proto
 
 .PHONY: ramdisk
 ramdisk:
