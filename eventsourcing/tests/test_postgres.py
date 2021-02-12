@@ -57,6 +57,7 @@ class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
             datastore=self.datastore, events_table_name="stored_events"
         )
         recorder.create_table()
+        recorder.create_table_statements = ["BLAH"]
         with self.assertRaises(OperationalError):
             recorder.create_table()
 
@@ -67,8 +68,8 @@ class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
         )
         recorder.create_table()
 
-        # Mess up the table name.
-        recorder.events_table_name += "_broken"
+        # Mess up the statement.
+        recorder.insert_events_statement = "BLAH"
 
         # Write two stored events.
         originator_id = uuid4()
@@ -227,4 +228,4 @@ def drop_postgres_table(datastore: PostgresDatastore, table_name):
         with datastore.transaction() as c:
             c.execute(f"DROP TABLE {table_name};")
     except psycopg2.errors.lookup(UNDEFINED_TABLE):
-        print(f"Table does not exist: {table_name}")
+        pass  # print(f"Table does not exist: {table_name}")

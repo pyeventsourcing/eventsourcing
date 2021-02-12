@@ -81,17 +81,17 @@ class PostgresAggregateRecorder(AggregateRecorder):
     def __init__(self, datastore: PostgresDatastore, events_table_name: str):
         self.datastore = datastore
         self.events_table_name = events_table_name
+        self.create_table_statements = self.construct_create_table_statements()
+        self.insert_events_statement = (
+            f"INSERT INTO {self.events_table_name} VALUES (%s, %s, %s, %s)"
+        )
+        self.select_events_statement = (
+            f"SELECT * FROM {self.events_table_name} WHERE originator_id = %s "
+        )
 
-    def create_table(self) -> None:
-        with self.datastore.transaction() as c:
-            try:
-                self._createtable(c)
-            except psycopg2.Error as e:
-                raise OperationalError(e)
-
-    def _createtable(self, c: cursor) -> None:
+    def construct_create_table_statements(self) -> List[str]:
         statement = (
-            "CREATE TABLE "
+            "CREATE TABLE IF NOT EXISTS "
             f"{self.events_table_name} ("
             "originator_id uuid NOT NULL, "
             "originator_version integer NOT NULL, "
@@ -100,7 +100,15 @@ class PostgresAggregateRecorder(AggregateRecorder):
             "PRIMARY KEY "
             "(originator_id, originator_version))"
         )
-        c.execute(statement)
+        return [statement]
+
+    def create_table(self) -> None:
+        with self.datastore.transaction() as c:
+            try:
+                for statement in self.create_table_statements:
+                    c.execute(statement)
+            except psycopg2.Error as e:
+                raise OperationalError(e)
 
     def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
         with self.datastore.transaction() as c:
@@ -117,7 +125,6 @@ class PostgresAggregateRecorder(AggregateRecorder):
         stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> None:
-        statement = f"INSERT INTO {self.events_table_name}" " VALUES (%s, %s, %s, %s)"
         params = []
         for stored_event in stored_events:
             params.append(
@@ -128,7 +135,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
                     stored_event.state,
                 )
             )
-        c.executemany(statement, params)
+        c.executemany(self.insert_events_statement, params)
 
     def select_events(
         self,
@@ -138,9 +145,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         desc: bool = False,
         limit: Optional[int] = None,
     ) -> List[StoredEvent]:
-        statement = (
-            "SELECT * " f"FROM {self.events_table_name} " "WHERE originator_id = %s "
-        )
+        statement = self.select_events_statement
         params: List[Any] = [originator_id]
         if gt is not None:
             statement += "AND originator_version > %s "
@@ -179,37 +184,48 @@ class PostgresApplicationRecorder(
     PostgresAggregateRecorder,
     ApplicationRecorder,
 ):
-    def _createtable(self, c: cursor) -> None:
-        super()._createtable(c)
-        statement = (
-            f"ALTER TABLE {self.events_table_name} "
-            "ADD COLUMN "
-            f"notification_id SERIAL"
-        )
-        c.execute(statement)
-
-        statement = (
-            f"CREATE UNIQUE INDEX {self.events_table_name}_notification_id_idx "
-            f"ON {self.events_table_name} (notification_id ASC);"
-        )
-        c.execute(statement)
-
-    def select_notifications(self, start: int, limit: int) -> List[Notification]:
-        """
-        Returns a list of event notifications
-        from 'start', limited by 'limit'.
-        """
-        statement = (
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.statement_notifications_statement = (
             "SELECT * "
             f"FROM {self.events_table_name} "
             "WHERE notification_id>=%s "
             "ORDER BY notification_id "
             "LIMIT %s"
         )
+        self.select_max_notification_id_statement = (
+            f"SELECT MAX(notification_id) FROM {self.events_table_name}"
+        )
+
+    def construct_create_table_statements(self) -> List[str]:
+        statements = []
+        statements.append(
+            "CREATE TABLE IF NOT EXISTS "
+            f"{self.events_table_name} ("
+            "originator_id uuid NOT NULL, "
+            "originator_version integer NOT NULL, "
+            "topic text, "
+            "state bytea, "
+            "notification_id SERIAL, "
+            "PRIMARY KEY "
+            "(originator_id, originator_version))"
+        )
+        statements.append(
+            f"CREATE UNIQUE INDEX IF NOT EXISTS "
+            f"{self.events_table_name}_notification_id_idx "
+            f"ON {self.events_table_name} (notification_id ASC);"
+        )
+        return statements
+
+    def select_notifications(self, start: int, limit: int) -> List[Notification]:
+        """
+        Returns a list of event notifications
+        from 'start', limited by 'limit'.
+        """
         params = [start, limit]
         try:
             with self.datastore.transaction() as c:
-                c.execute(statement, params)
+                c.execute(self.statement_notifications_statement, params)
                 notifications = []
                 for row in c.fetchall():
                     notifications.append(
@@ -229,10 +245,9 @@ class PostgresApplicationRecorder(
         """
         Returns the maximum notification ID.
         """
-        statement = f"SELECT MAX(notification_id) FROM {self.events_table_name}"
         try:
             c = self.datastore.get_connection().cursor()
-            c.execute(statement)
+            c.execute(self.select_max_notification_id_statement)
             return c.fetchone()[0] or 0
         except psycopg2.Error as e:
             raise OperationalError(e)
@@ -248,20 +263,20 @@ class PostgresProcessRecorder(
         events_table_name: str,
         tracking_table_name: str,
     ):
-        super().__init__(datastore, events_table_name)
         self.tracking_table_name = tracking_table_name
+        super().__init__(datastore, events_table_name)
 
-    def _createtable(self, c: cursor) -> None:
-        super()._createtable(c)
-        statement = (
-            "CREATE TABLE "
+    def construct_create_table_statements(self) -> List[str]:
+        statements = super().construct_create_table_statements()
+        statements.append(
+            "CREATE TABLE IF NOT EXISTS "
             f"{self.tracking_table_name} ("
             "application_name text, "
             "notification_id int, "
             "PRIMARY KEY "
             "(application_name, notification_id))"
         )
-        c.execute(statement)
+        return statements
 
     def max_tracking_id(self, application_name: str) -> int:
         params = [application_name]

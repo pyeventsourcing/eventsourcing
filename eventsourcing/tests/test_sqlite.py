@@ -35,6 +35,7 @@ class TestSQLiteRecorderErrors(TestCase):
     def test_raises_operational_error_when_creating_table_fails(self):
         recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         recorder.create_table()
+        recorder.create_table_statements = ["BLAH"]
         with self.assertRaises(OperationalError):
             recorder.create_table()
 

@@ -83,17 +83,17 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         assert isinstance(datastore, SQLiteDatastore)
         self.datastore = datastore
         self.events_table_name = events_table_name
+        self.create_table_statements = self.construct_create_table_statements()
+        self.insert_events_statement = (
+            f"INSERT INTO {self.events_table_name} VALUES (?,?,?,?)"
+        )
+        self.select_events_statement = (
+            "SELECT * " f"FROM {self.events_table_name} " "WHERE originator_id=? "
+        )
 
-    def create_table(self) -> None:
-        with self.datastore.transaction() as c:
-            try:
-                self._createtable(c)
-            except sqlite3.OperationalError as e:
-                raise OperationalError(e)
-
-    def _createtable(self, c: Connection) -> None:
+    def construct_create_table_statements(self):
         statement = (
-            "CREATE TABLE "
+            "CREATE TABLE IF NOT EXISTS "
             f"{self.events_table_name} ("
             "originator_id TEXT, "
             "originator_version INTEGER, "
@@ -103,7 +103,15 @@ class SQLiteAggregateRecorder(AggregateRecorder):
             "(originator_id, originator_version)) "
             "WITHOUT ROWID"
         )
-        c.execute(statement)
+        return [statement]
+
+    def create_table(self) -> None:
+        with self.datastore.transaction() as c:
+            try:
+                for statement in self.create_table_statements:
+                    c.execute(statement)
+            except sqlite3.OperationalError as e:
+                raise OperationalError(e)
 
     def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
         with self.datastore.transaction() as c:
@@ -120,7 +128,6 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> None:
-        statement = f"INSERT INTO {self.events_table_name}" " VALUES (?,?,?,?)"
         params = []
         for stored_event in stored_events:
             params.append(
@@ -131,7 +138,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
                     stored_event.state,
                 )
             )
-        c.executemany(statement, params)
+        c.executemany(self.insert_events_statement, params)
 
     def select_events(
         self,
@@ -141,9 +148,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         desc: bool = False,
         limit: Optional[int] = None,
     ) -> List[StoredEvent]:
-        statement = (
-            "SELECT * " f"FROM {self.events_table_name} " "WHERE originator_id=? "
-        )
+        statement = self.select_events_statement
         params: List[Any] = [originator_id.hex]
         if gt is not None:
             statement += "AND originator_version>? "
@@ -181,9 +186,20 @@ class SQLiteApplicationRecorder(
     SQLiteAggregateRecorder,
     ApplicationRecorder,
 ):
-    def _createtable(self, c: Connection) -> None:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.select_max_notification_id_statement = (
+            f"SELECT MAX(rowid) FROM {self.events_table_name}"
+        )
+        self.select_notifications_statement = (
+            f"SELECT rowid, * FROM {self.events_table_name} "
+            "WHERE rowid>=? ORDER BY rowid LIMIT ?"
+        )
+
+
+    def construct_create_table_statements(self) -> List[str]:
         statement = (
-            "CREATE TABLE "
+            "CREATE TABLE IF NOT EXISTS "
             f"{self.events_table_name} ("
             "originator_id TEXT, "
             "originator_version INTEGER, "
@@ -192,25 +208,17 @@ class SQLiteApplicationRecorder(
             "PRIMARY KEY "
             "(originator_id, originator_version))"
         )
-        c.execute(statement)
+        return [statement]
 
     def select_notifications(self, start: int, limit: int) -> List[Notification]:
         """
         Returns a list of event notifications
         from 'start', limited by 'limit'.
         """
-        statement = (
-            "SELECT "
-            "rowid, *"
-            f"FROM {self.events_table_name} "
-            "WHERE rowid>=? "
-            "ORDER BY rowid "
-            "LIMIT ?"
-        )
         params = [start, limit]
         try:
             c = self.datastore.get_connection().cursor()
-            c.execute(statement, params)
+            c.execute(self.select_notifications_statement, params)
             notifications = []
             for row in c.fetchall():
                 notifications.append(
@@ -232,8 +240,7 @@ class SQLiteApplicationRecorder(
         """
         try:
             c = self.datastore.get_connection().cursor()
-            statement = f"SELECT MAX(rowid) FROM {self.events_table_name}"
-            c.execute(statement)
+            c.execute(self.select_max_notification_id_statement)
             return c.fetchone()[0] or 0
         except sqlite3.OperationalError as e:
             raise OperationalError(e)
@@ -243,17 +250,21 @@ class SQLiteProcessRecorder(
     SQLiteApplicationRecorder,
     ProcessRecorder,
 ):
-    def _createtable(self, c: Connection) -> None:
-        super()._createtable(c)
-        statement = (
-            "CREATE TABLE tracking ("
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.insert_tracking_statement = "INSERT INTO tracking " "VALUES (?,?)"
+
+    def construct_create_table_statements(self) -> List[str]:
+        statements = super().construct_create_table_statements()
+        statements.append(
+            "CREATE TABLE IF NOT EXISTS tracking ("
             "application_name text, "
             "notification_id int, "
             "PRIMARY KEY "
             "(application_name, notification_id)) "
             "WITHOUT ROWID"
         )
-        c.execute(statement)
+        return  statements
 
     def max_tracking_id(self, application_name: str) -> int:
         params = [application_name]
@@ -278,9 +289,8 @@ class SQLiteProcessRecorder(
         super()._insert_events(c, stored_events, **kwargs)
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking is not None:
-            statement = "INSERT INTO tracking " "VALUES (?,?)"
             c.execute(
-                statement,
+                self.insert_tracking_statement,
                 (
                     tracking.application_name,
                     tracking.notification_id,
