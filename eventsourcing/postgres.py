@@ -184,8 +184,12 @@ class PostgresApplicationRecorder(
     PostgresAggregateRecorder,
     ApplicationRecorder,
 ):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        datastore: PostgresDatastore,
+        events_table_name: str = "stored_events",
+    ):
+        super().__init__(datastore, events_table_name)
         self.statement_notifications_statement = (
             "SELECT * "
             f"FROM {self.events_table_name} "

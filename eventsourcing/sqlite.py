@@ -91,7 +91,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
             "SELECT * " f"FROM {self.events_table_name} " "WHERE originator_id=? "
         )
 
-    def construct_create_table_statements(self):
+    def construct_create_table_statements(self) -> List[str]:
         statement = (
             "CREATE TABLE IF NOT EXISTS "
             f"{self.events_table_name} ("
@@ -186,8 +186,12 @@ class SQLiteApplicationRecorder(
     SQLiteAggregateRecorder,
     ApplicationRecorder,
 ):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        datastore: SQLiteDatastore,
+        events_table_name: str = "stored_events",
+    ):
+        super().__init__(datastore, events_table_name)
         self.select_max_notification_id_statement = (
             f"SELECT MAX(rowid) FROM {self.events_table_name}"
         )
@@ -195,7 +199,6 @@ class SQLiteApplicationRecorder(
             f"SELECT rowid, * FROM {self.events_table_name} "
             "WHERE rowid>=? ORDER BY rowid LIMIT ?"
         )
-
 
     def construct_create_table_statements(self) -> List[str]:
         statement = (
@@ -250,8 +253,12 @@ class SQLiteProcessRecorder(
     SQLiteApplicationRecorder,
     ProcessRecorder,
 ):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        datastore: SQLiteDatastore,
+        events_table_name: str = "stored_events",
+    ):
+        super().__init__(datastore, events_table_name)
         self.insert_tracking_statement = "INSERT INTO tracking " "VALUES (?,?)"
 
     def construct_create_table_statements(self) -> List[str]:
@@ -264,7 +271,7 @@ class SQLiteProcessRecorder(
             "(application_name, notification_id)) "
             "WITHOUT ROWID"
         )
-        return  statements
+        return statements
 
     def max_tracking_id(self, application_name: str) -> int:
         params = [application_name]
