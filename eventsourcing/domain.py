@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
-from typing import Any, Generic, List, Optional, Type, TypeVar
+from typing import Any, Generic, List, Optional, Type, TypeVar, cast
 from uuid import UUID
 
 from eventsourcing.utils import get_topic, resolve_topic
@@ -180,15 +180,13 @@ class Aggregate:
             )
             # Separate the base class keywords arguments.
             # Construct and return aggregate object.
-            aggregate = object.__new__(
-                aggregate_class
-            )
+            aggregate = object.__new__(aggregate_class)
             aggregate.__init__(
                 id=kwargs.pop("originator_id"),
                 version=kwargs.pop("originator_version"),
                 **kwargs,
             )
-            return aggregate
+            return cast(TAggregate, aggregate)
 
     def _trigger_event(
         self,
