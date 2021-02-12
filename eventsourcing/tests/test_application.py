@@ -13,7 +13,7 @@ from eventsourcing.tests.test_postgres import drop_postgres_table
 
 
 class TestApplication(TestCase):
-    timeit_number = 5000
+    timeit_number = 10000
 
     def setUp(self) -> None:
         os.environ[InfrastructureFactory.IS_SNAPSHOTTING_ENABLED] = "yes"
@@ -147,7 +147,7 @@ class TestApplicationSnapshottingException(TestCase):
 
 
 class TestApplicationWithSQLite(TestApplication):
-    timeit_number = 500
+    timeit_number = 2000
 
     def setUp(self) -> None:
         super().setUp()
@@ -166,7 +166,7 @@ class TestApplicationWithSQLite(TestApplication):
 
 
 class TestApplicationWithPostgres(TestApplication):
-    timeit_number = 200
+    timeit_number = 1000
 
     def setUp(self) -> None:
         super().setUp()
