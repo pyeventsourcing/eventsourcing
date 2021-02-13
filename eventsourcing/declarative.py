@@ -2,8 +2,8 @@ import inspect
 from builtins import property
 from copy import copy
 from dataclasses import dataclass
-from types import FunctionType
-from typing import Any, Dict, Type, Union, cast
+from types import FunctionType, MethodType
+from typing import Any, Dict, Optional, Type, Union, cast
 from uuid import uuid4
 
 from eventsourcing.domain import Aggregate
@@ -55,7 +55,7 @@ def aggregate(original_cls: Type[Any]) -> Type[Aggregate]:
         if has_init_method:
             original_cls.__init__(self, **kwargs)
 
-    def __getattribute__(self, item):
+    def __getattribute__(self: Aggregate, item: str) -> Any:
         attr = super(Aggregate, self).__getattribute__(item)
         if isinstance(attr, event):
             return bound_event(attr, self)
@@ -111,6 +111,7 @@ def aggregate(original_cls: Type[Any]) -> Type[Aggregate]:
             if isinstance(original_method, property):
                 assert original_method.setter
                 original_method = original_method.fset
+            assert original_method
             method_signature = inspect.signature(original_method)
             annotations = {}
             for param_name in method_signature.parameters:
@@ -147,8 +148,9 @@ def aggregate(original_cls: Type[Any]) -> Type[Aggregate]:
 class event:
     def __init__(self, arg: Union[FunctionType, str]):
         self.is_property_setter = False
-        self.propery_attribute_name = None
+        self.propery_attribute_name: Optional[str] = None
         assert isinstance(arg, (FunctionType, str))
+        self.original_method: Optional[FunctionType]
         if isinstance(arg, FunctionType):
             self.original_method = arg
             name = arg.__name__
@@ -157,16 +159,17 @@ class event:
             self.event_cls_name = arg
             self.original_method = None
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         if self.original_method is None:
             assert len(kwargs) == 0
             assert len(args) == 1
-            assert isinstance(args[0], (FunctionType, property))
+            assert isinstance(args[0], FunctionType)
             self.original_method = args[0]
             return self
         elif len(args) == 2 and len(kwargs) == 0 and isinstance(args[0], Aggregate):
             # Property assignment?
             assert self.is_property_setter
+            assert self.propery_attribute_name
             kwargs = {self.propery_attribute_name: args[1]}
             bound = bound_event(self, args[0])
             bound.trigger(**kwargs)
@@ -181,11 +184,12 @@ class bound_event:
         self.event = event
         self.aggregate = aggregate
 
-    def trigger(self, *args, **kwargs):
+    def trigger(self, *args: Any, **kwargs: Any) -> None:
         if args:
+            assert self.event.original_method
             method_signature = inspect.signature(self.event.original_method)
             kwargs = dict(kwargs)
-            args = list(args)
+            args = tuple(args)
             counter = 0
             for name, param in method_signature.parameters.items():
                 if name == "self":
@@ -198,5 +202,5 @@ class bound_event:
         event_cls = getattr(self.aggregate, self.event.event_cls_name)
         self.aggregate._trigger_event(event_cls, **kwargs)
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Any, **kwargs: Any) -> None:
         self.trigger(*args, **kwargs)
