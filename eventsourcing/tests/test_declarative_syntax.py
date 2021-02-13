@@ -85,7 +85,7 @@ class TestDeclarativeSyntax(TestCase):
         self.assertEqual(world.history, ["Trucks"])
 
         # Set the name.
-        world.set_name("Mars")
+        world.name = "Mars"
 
         # Check the name has changed.
         self.assertEqual(world.name, "Mars")
@@ -152,58 +152,59 @@ class TestDeclarativeSyntax(TestCase):
 
 
 
-#
-# @aggregate
-# class World1:
-#     def __init__(self, name):
-#         self.name = name
-#         self.history = []
-#
-#     def make_it_so(self, what):
-#         self._trigger_event(self.SomethingHappened, what=what)
-#
-#     @event
-#     def _something_happened(self, what):
-#         self.history.append(what)
-#
-#     def set_name(self, name):
-#         self._trigger_event(self.NameChanged, name=name)
-#
-#     @event
-#     def _name_changed(self, name):
-#         self.name = name
-#
-#
-# @aggregate
-# class World2(Aggregate):
-#
-#     def __init__(self, name):
-#         self._name = name
-#         self._a = 1
-#         self.history = []
-#
-#     @event("AUpdated")
-#     def set_a(self, a):
-#         self._a = a
-#
-#     @property
-#     def name(self):
-#         return self._name
-#
-#     @event
-#     def name_changed(self, name):
-#         self._name = name
-#
-#     @name.setter
-#     def name(self, name):
-#         self.name_changed.trigger(name=name)
-#
-#     @event
-#     def something_happened(self, what):
-#         self.history.append(what)
-#
-#     def make_it_so(self, what):
-#         self.something_happened(what=what)
+
+@aggregate
+class World1:
+    def __init__(self, name):
+        self.name = name
+        self.history = []
+
+    def make_it_so(self, what):
+        self._trigger_event(self.SomethingHappened, what=what)
+
+    @event
+    def _something_happened(self, what):
+        self.history.append(what)
+
+    def set_name(self, name):
+        self._trigger_event(self.NameChanged, name=name)
+
+    @event
+    def _name_changed(self, name):
+        self.name = name
+
+
+@aggregate
+class World2(Aggregate):
+
+    def __init__(self, name):
+        self._name = name
+        self._a = 1
+        self.history = []
+
+    @event("AUpdated")
+    def set_a(self, a):
+        self._a = a
+
+    @property
+    def name(self):
+        return self._name
+
+    @event
+    def name_changed(self, name):
+        self._name = name
+
+    @name.setter
+    def name(self, name):
+        self.name_changed.trigger(name=name)
+
+    @event
+    def something_happened(self, what):
+        self.history.append(what)
+
+    def make_it_so(self, what):
+        self.something_happened(what=what)
+
 
 @aggregate
 class World3:
@@ -220,13 +221,12 @@ class World3:
         self._name = name
 
 
+@aggregate
+class AggregateWithoutInit(Aggregate):
+    @event
+    def name_changed(self, name):
+        self.name = name
 
-# @aggregate
-# class AggregateWithoutInit(Aggregate):
-#     @event
-#     def name_changed(self, name):
-#         self.name = name
-#
-#     def set_name(self, name):
-#         self._trigger_event(self.NameChanged, name=name)
+    def set_name(self, name):
+        self._trigger_event(self.NameChanged, name=name)
 

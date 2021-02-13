@@ -133,7 +133,6 @@ def aggregate(original_cls: Type[Any]) -> Type[Aggregate]:
             if attribute.fset:
                 raise Exception(inspect.signature(attribute.fset))
 
-
     return cast(Type[Aggregate], aggregate_cls)
 
 
