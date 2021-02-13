@@ -164,7 +164,7 @@ class TestDeclarativeSyntax(TestCase):
         self.assertEqual(world.name, "Earth")
         world.name = "Mars"
         self.assertEqual(world.name, "Mars")
-        self.assertIsInstance(world._pending_events[-1],  World3.NameChanged)
+        self.assertIsInstance(world._pending_events[-1], World3.NameChanged)
 
     # def test_world4_positional_only_params(self):
     #     # Create a new world.
@@ -181,8 +181,6 @@ class TestDeclarativeSyntax(TestCase):
         pending = aggregate.collect_events()
         self.assertEqual(len(pending), 2)
         self.assertIsInstance(pending[-1], AggregateWithoutInit.NameChanged)
-
-
 
 
 @aggregate
@@ -209,9 +207,9 @@ class World1:
 # Todo: Put method signature in event decorator, so that args can be mapped to names.
 # Todo: Maybe allow __init__ to call super, in which case don't redefine __init__.
 
+
 @aggregate
 class World2(Aggregate):
-
     def __init__(self, name):
         self._name = name
         self.history = []

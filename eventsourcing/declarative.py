@@ -2,7 +2,7 @@ import inspect
 from builtins import property
 from copy import copy
 from dataclasses import dataclass
-from types import FunctionType, MethodType
+from types import FunctionType
 from typing import Any, Dict, Optional, Type, Union, cast
 from uuid import uuid4
 
@@ -191,7 +191,7 @@ class bound_event:
             kwargs = dict(kwargs)
             args = tuple(args)
             counter = 0
-            for name, param in method_signature.parameters.items():
+            for name in method_signature.parameters:
                 if name == "self":
                     continue
                 if name not in kwargs:
