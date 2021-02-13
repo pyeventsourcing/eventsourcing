@@ -79,6 +79,35 @@ class TestDeclarativeSyntax(TestCase):
         self.assertEqual(world.history, [])
 
         # Make trucks so.
+        world.make_it_so(what="Trucks")
+
+        # Check the history.
+        self.assertEqual(world.history, ["Trucks"])
+
+        # Set the name.
+        world.name = "Mars"
+
+        # Check the name has changed.
+        self.assertEqual(world.name, "Mars")
+
+        # Check the domain events were triggered.
+        pending_events = world.collect_events()
+        self.assertEqual(len(pending_events), 3)
+        self.assertIsInstance(pending_events[0], World2.Created)
+        self.assertIsInstance(pending_events[1], World2.SomethingHappened)
+        self.assertIsInstance(pending_events[2], World2.NameChanged)
+
+    def test_world2_aggregate_and_event_args_not_kwargs(self):
+
+        # Create a new world.
+        world = World2(name="Earth")
+
+        # Check the aggregate.
+        self.assertIsInstance(world, World2)
+        self.assertEqual(world.name, "Earth")
+        self.assertEqual(world.history, [])
+
+        # Make trucks so.
         world.make_it_so("Trucks")
 
         # Check the history.
@@ -102,7 +131,7 @@ class TestDeclarativeSyntax(TestCase):
         # Construct application and aggregate.
         app = Application()
         world = World2(name="Earth")
-        world.make_it_so("Trucks")
+        world.make_it_so(what="Trucks")
         world.name = "Mars"
         app.save(cast(Aggregate, world))
 
@@ -128,13 +157,6 @@ class TestDeclarativeSyntax(TestCase):
         self.assertEqual(copy.history, ["Trucks"])
         self.assertEqual(copy.name, "Mars")
 
-    def test_event_with_event_name(self):
-        world = World2(name="Earth")
-        self.assertEqual(world._a, 1)
-        world.set_a(a=2)
-        self.assertEqual(world._a, 2)
-        self.assertIsInstance(world._pending_events[-1],  World2.AUpdated)
-
     def test_world3_set_name(self):
 
         # Create a new world.
@@ -144,11 +166,21 @@ class TestDeclarativeSyntax(TestCase):
         self.assertEqual(world.name, "Mars")
         self.assertIsInstance(world._pending_events[-1],  World3.NameChanged)
 
+    # def test_world4_positional_only_params(self):
+    #     # Create a new world.
+    #     world = World4()
+    #     world.make_it_so("Trucks")
+    #     self.assertEqual(world.history[-1], "Trucks")
+    #     self.assertIsInstance(world._pending_events[-1],  World4.SomethingHappened)
+
     def test_missing_init(self):
         aggregate = AggregateWithoutInit()
         self.assertIsInstance(aggregate.id, UUID)
         aggregate.set_name("name")
         self.assertEqual(aggregate.name, "name")
+        pending = aggregate.collect_events()
+        self.assertEqual(len(pending), 2)
+        self.assertIsInstance(pending[-1], AggregateWithoutInit.NameChanged)
 
 
 
@@ -167,43 +199,38 @@ class World1:
         self.history.append(what)
 
     def set_name(self, name):
-        self._trigger_event(self.NameChanged, name=name)
+        self._name_changed.trigger(name)
 
     @event
     def _name_changed(self, name):
         self.name = name
 
 
+# Todo: Put method signature in event decorator, so that args can be mapped to names.
+# Todo: Maybe allow __init__ to call super, in which case don't redefine __init__.
+
 @aggregate
 class World2(Aggregate):
 
     def __init__(self, name):
         self._name = name
-        self._a = 1
         self.history = []
 
-    @event("AUpdated")
-    def set_a(self, a):
-        self._a = a
+    @event("SomethingHappened")
+    def make_it_so(self, what):
+        self.history.append(what)
 
     @property
     def name(self):
         return self._name
 
+    @name.setter
+    def name(self, name):
+        self.name_changed(name=name)
+
     @event
     def name_changed(self, name):
         self._name = name
-
-    @name.setter
-    def name(self, name):
-        self.name_changed.trigger(name=name)
-
-    @event
-    def something_happened(self, what):
-        self.history.append(what)
-
-    def make_it_so(self, what):
-        self.something_happened(what=what)
 
 
 @aggregate
@@ -221,12 +248,20 @@ class World3:
         self._name = name
 
 
+# Todo: Move to >3.7 module and selectively import.
+# @aggregate
+# class World4(Aggregate):
+#
+#     def __init__(self):
+#         self.history = []
+#
+#     @event("SomethingHappened")
+#     def make_it_so(self, what, /):
+#         self.history.append(what)
+
+
 @aggregate
-class AggregateWithoutInit(Aggregate):
-    @event
-    def name_changed(self, name):
-        self.name = name
-
+class AggregateWithoutInit:
+    @event("NameChanged")
     def set_name(self, name):
-        self._trigger_event(self.NameChanged, name=name)
-
+        self.name = name

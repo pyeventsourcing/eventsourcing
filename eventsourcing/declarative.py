@@ -82,7 +82,15 @@ def aggregate(original_cls: Type[Any]) -> Type[Aggregate]:
         event_obj_dict.pop("originator_id")
         event_obj_dict.pop("originator_version")
         event_obj_dict.pop("timestamp")
-        original_methods[type(self)](aggregate, **event_obj_dict)
+        original_method = original_methods[type(self)]
+        method_signature = inspect.signature(original_method)
+        args = []
+        for name, param in method_signature.parameters.items():
+            if name == "self":
+                continue
+            if param.kind == param.POSITIONAL_ONLY:
+                args.append(event_obj_dict.pop(name))
+        original_method(aggregate, *args, **event_obj_dict)
 
     for name in dir(original_cls):
         attribute = getattr(original_cls, name)
@@ -173,9 +181,22 @@ class bound_event:
         self.event = event
         self.aggregate = aggregate
 
-    def trigger(self, **kwargs):
+    def trigger(self, *args, **kwargs):
+        if args:
+            method_signature = inspect.signature(self.event.original_method)
+            kwargs = dict(kwargs)
+            args = list(args)
+            counter = 0
+            for name, param in method_signature.parameters.items():
+                if name == "self":
+                    continue
+                if name not in kwargs:
+                    kwargs[name] = args[counter]
+                    counter += 1
+                    if counter == len(args):
+                        break
         event_cls = getattr(self.aggregate, self.event.event_cls_name)
         self.aggregate._trigger_event(event_cls, **kwargs)
 
     def __call__(self, *args, **kwargs):
-        self.trigger(**kwargs)
+        self.trigger(*args, **kwargs)
