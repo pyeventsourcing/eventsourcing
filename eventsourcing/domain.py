@@ -201,12 +201,18 @@ class Aggregate:
         # next in the aggregate's sequence.
         # Use counting to generate the sequence.
         next_version = self.version + 1
-        event = event_class(  # type: ignore
-            originator_id=self.id,
-            originator_version=next_version,
-            timestamp=datetime.now(tz=TZINFO),
-            **kwargs,
-        )
+        try:
+            event = event_class(  # type: ignore
+                originator_id=self.id,
+                originator_version=next_version,
+                timestamp=datetime.now(tz=TZINFO),
+                **kwargs,
+            )
+        except TypeError as e:
+            raise TypeError(
+                f"Can't construct event {event_class}: {e}"
+            )
+
         # Mutate aggregate with domain event.
         event.mutate(self)
         # Append the domain event to pending list.

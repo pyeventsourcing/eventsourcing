@@ -7,7 +7,9 @@ def get_topic(cls: type) -> str:
     """
     Returns a string that locates the given class.
     """
-    return f"{cls.__module__}:{cls.__qualname__}"
+    topic = f"{cls.__module__}:{cls.__qualname__}"
+    _objs_cache[topic] = cls
+    return topic
 
 
 def resolve_topic(topic: str) -> Any:

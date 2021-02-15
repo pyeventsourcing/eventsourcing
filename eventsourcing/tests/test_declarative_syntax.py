@@ -1,4 +1,4 @@
-from typing import cast
+from datetime import datetime
 from unittest import TestCase
 from uuid import UUID
 
@@ -8,258 +8,515 @@ from eventsourcing.domain import Aggregate
 
 
 class TestDeclarativeSyntax(TestCase):
-    def test_world1_aggregate_and_event(self):
+    def test_no_init(self):
+        @aggregate
+        class MyAgg:
+            pass
 
-        # Create a new world.
-        world = World1(name="Earth")
+        a = MyAgg()
+        self.assertIsInstance(a, MyAgg)
+        self.assertIsInstance(a, Aggregate)
+        self.assertIsInstance(a.id, UUID)
+        self.assertIsInstance(a.version, int)
+        self.assertEqual(a.version, 1)
+        self.assertIsInstance(a.created_on, datetime)
+        self.assertIsInstance(a.modified_on, datetime)
+        self.assertEqual(len(a._pending_events), 1)
+        self.assertIsInstance(a._pending_events[0], MyAgg.Created)
 
-        # Check the aggregate.
-        self.assertIsInstance(world, World1)
-        self.assertEqual(world.name, "Earth")
-        self.assertEqual(world.history, [])
+    def test_init_with_positional_args(self):
+        @aggregate
+        class MyAgg:
+            def __init__(self, value):
+                self.value = value
 
-        # Make trucks so.
-        world.make_it_so("Trucks")
+        a = MyAgg(1)
+        self.assertIsInstance(a, MyAgg)
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a._pending_events), 1)
 
-        # Check the history.
-        self.assertEqual(world.history, ["Trucks"])
+    def test_init_with_keyword_arg(self):
+        @aggregate
+        class MyAgg:
+            def __init__(self, value):
+                self.value = value
 
-        # Set the name.
-        world.set_name("Mars")
+        a = MyAgg(value=1)
+        self.assertIsInstance(a, MyAgg)
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a._pending_events), 1)
 
-        # Check the name has changed.
-        self.assertEqual(world.name, "Mars")
+    def test_raises_when_init_has_variable_positional_params(self):
+        with self.assertRaises(TypeError) as cm:
+            @aggregate
+            class _:
+                def __init__(self, *values):
+                    pass
 
-        # Check the domain events were triggered.
-        pending_events = world.collect_events()
-        self.assertEqual(len(pending_events), 3)
-        self.assertIsInstance(pending_events[0], World1.Created)
-        self.assertIsInstance(pending_events[1], World1.SomethingHappened)
-        self.assertIsInstance(pending_events[2], World1.NameChanged)
+        self.assertEqual(
+            cm.exception.args[0],
+            "variable positional parameters not supported"
+        )
 
-    def test_world1_with_application(self):
+    def test_raises_when_init_has_variable_keyword_params(self):
+        with self.assertRaises(TypeError) as cm:
+            @aggregate
+            class _:
+                def __init__(self, **values):
+                    pass
 
-        # Construct application and aggregate.
-        app = Application()
-        world = World1(name="Earth")
-        world.make_it_so("Trucks")
-        world.set_name("Mars")
-        app.save(cast(Aggregate, world))
+        self.assertEqual(
+            cm.exception.args[0],
+            "variable keyword parameters not supported"
+        )
 
-        # Check the recorded state at current version.
-        copy = app.repository.get(world.id)
-        self.assertIsInstance(copy, World1)
-        self.assertEqual(copy.name, "Mars")
-        self.assertEqual(copy.history, ["Trucks"])
+    def test_event_name_inferred_from_method_no_args(self):
+        @aggregate
+        class MyAgg:
+            @event
+            def heartbeat(self):
+                pass
 
-        # Check the recorded state at previous versions.
-        copy = app.repository.get(world.id, version=1)
-        self.assertIsInstance(copy, World1)
-        self.assertEqual(copy.name, "Earth")
-        self.assertEqual(copy.history, [])
+        a = MyAgg()
+        self.assertIsInstance(a, MyAgg)
+        a.heartbeat()
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(a.version, 2)
+        self.assertEqual(len(a._pending_events), 2)
+        self.assertIsInstance(a._pending_events[1], MyAgg.Heartbeat)
 
-        copy = app.repository.get(world.id, version=2)
-        self.assertIsInstance(copy, World1)
-        self.assertEqual(copy.history, ["Trucks"])
-        self.assertEqual(copy.name, "Earth")
+    def test_event_name_inferred_from_method_with_arg(self):
+        @aggregate
+        class MyAgg:
+            @event
+            def value_changed(self, value):
+                self.value = value
 
-        copy = app.repository.get(world.id, version=3)
-        self.assertIsInstance(copy, World1)
-        self.assertEqual(copy.history, ["Trucks"])
-        self.assertEqual(copy.name, "Mars")
+        a = MyAgg()
+        self.assertIsInstance(a, MyAgg)
+        a.value_changed(1)
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(a.version, 2)
+        self.assertEqual(len(a._pending_events), 2)
+        self.assertIsInstance(a._pending_events[1], MyAgg.ValueChanged)
 
-    def test_world2_aggregate_and_event(self):
+    def test_event_name_inferred_from_method_with_kwarg(self):
+        @aggregate
+        class MyAgg:
+            @event
+            def value_changed(self, value):
+                self.value = value
 
-        # Create a new world.
-        world = World2(name="Earth")
+        a = MyAgg()
+        self.assertIsInstance(a, MyAgg)
+        a.value_changed(value=1)
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a._pending_events), 2)
+        self.assertIsInstance(a._pending_events[1], MyAgg.ValueChanged)
 
-        # Check the aggregate.
-        self.assertIsInstance(world, World2)
-        self.assertEqual(world.name, "Earth")
-        self.assertEqual(world.history, [])
+    # Todo: Support default values?
+    # def test_event_name_inferred_from_method_with_default_kwarg(self):
+    #     @aggregate
+    #     class MyAgg:
+    #         @event
+    #         def value_changed(self, value=3):
+    #             self.value = value
+    #
+    #     a = MyAgg()
+    #     self.assertIsInstance(a, MyAgg)
+    #     a.value_changed()
+    #     self.assertEqual(a.value, 3)
+    #     self.assertIsInstance(a, Aggregate)
+    #     self.assertEqual(len(a._pending_events), 2)
+    #     self.assertIsInstance(a._pending_events[1], MyAgg.ValueChanged)
 
-        # Make trucks so.
-        world.make_it_so(what="Trucks")
+    def test_method_called_with_positional_when_defined_with_keyword_only(self):
+        @aggregate
+        class MyAgg:
+            @event
+            def value_changed(self, *, value):
+                pass
 
-        # Check the history.
-        self.assertEqual(world.history, ["Trucks"])
+        a = MyAgg()
 
-        # Set the name.
-        world.name = "Mars"
+        with self.assertRaises(TypeError) as cm:
+            a.value_changed(1)
+        self.assertTrue(
+            cm.exception.args[0].startswith("Can't construct event"),
+            cm.exception.args[0]
+        )
 
-        # Check the name has changed.
-        self.assertEqual(world.name, "Mars")
+    def test_method_called_with_positional_defined_with_keyword_params(self):
+        @aggregate
+        class MyAgg:
+            @event
+            def values_changed(self, a=None, b=None):
+                self.a = a
+                self.b = b
 
-        # Check the domain events were triggered.
-        pending_events = world.collect_events()
-        self.assertEqual(len(pending_events), 3)
-        self.assertIsInstance(pending_events[0], World2.Created)
-        self.assertIsInstance(pending_events[1], World2.SomethingHappened)
-        self.assertIsInstance(pending_events[2], World2.NameChanged)
+        a = MyAgg()
+        a.values_changed(1, 2)
 
-    def test_world2_aggregate_and_event_args_not_kwargs(self):
+    def test_method_called_with_keyword_defined_with_positional_params(self):
+        @aggregate
+        class MyAgg:
+            @event
+            def values_changed(self, a, b):
+                self.a = a
+                self.b = b
 
-        # Create a new world.
-        world = World2(name="Earth")
+        a = MyAgg()
+        a.values_changed(a=1, b=2)
 
-        # Check the aggregate.
-        self.assertIsInstance(world, World2)
-        self.assertEqual(world.name, "Earth")
-        self.assertEqual(world.history, [])
+    # @skipIf(sys.version_info[0:2] < (3, 8), "Positional only params not supported")
+    # def test_method_called_with_keyword_defined_with_positional_only(self):
+    #     @aggregate
+    #     class MyAgg:
+    #         @event
+    #         def values_changed(self, a, b, /):
+    #             self.a = a
+    #             self.b = b
+    #
+    #     a = MyAgg()
+    #     a.values_changed(1, 2)
 
-        # Make trucks so.
-        world.make_it_so("Trucks")
+    def test_raises_when_method_has_positional_only_params(self):
+        @aggregate
+        class MyAgg:
+            @event
+            def values_changed(self, a, b, /):
+                self.a = a
+                self.b = b
 
-        # Check the history.
-        self.assertEqual(world.history, ["Trucks"])
+        with self.assertRaises(TypeError) as cm:
 
-        # Set the name.
-        world.name = "Mars"
+            a = MyAgg()
+            a.values_changed(1, 2)
 
-        # Check the name has changed.
-        self.assertEqual(world.name, "Mars")
+        # self.assertTrue(cm.exception.args[0].startswith(
+        #     "values_changed() got some positional-only arguments"
+        # ))
 
-        # Check the domain events were triggered.
-        pending_events = world.collect_events()
-        self.assertEqual(len(pending_events), 3)
-        self.assertIsInstance(pending_events[0], World2.Created)
-        self.assertIsInstance(pending_events[1], World2.SomethingHappened)
-        self.assertIsInstance(pending_events[2], World2.NameChanged)
+    def test_raises_when_event_called_with_missing_arg(self):
+        @aggregate
+        class MyAgg:
+            @event
+            def value_changed(self, value):
+                pass
 
-    def test_world2_with_application(self):
+        a = MyAgg()
+        self.assertIsInstance(a, MyAgg)
+        with self.assertRaises(TypeError) as cm:
+            a.value_changed()
+        self.assertTrue(
+            cm.exception.args[0].startswith("Can't construct event "),
+            cm.exception.args[0]
+        )
 
-        # Construct application and aggregate.
-        app = Application()
-        world = World2(name="Earth")
-        world.make_it_so(what="Trucks")
-        world.name = "Mars"
-        app.save(cast(Aggregate, world))
+    def test_event_name_set_in_decorator(self):
+        @aggregate
+        class MyAgg:
+            @event("ValueChanged")
+            def set_value(self, value):
+                self.value = value
 
-        # Check the recorded state at current version.
-        copy = app.repository.get(world.id)
-        self.assertIsInstance(copy, World2)
-        self.assertEqual(copy.name, "Mars")
-        self.assertEqual(copy.history, ["Trucks"])
+        a = MyAgg()
+        a.set_value(value=1)
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a._pending_events), 2)
+        self.assertIsInstance(a._pending_events[1], MyAgg.ValueChanged)
 
-        # Check the recorded state at previous versions.
-        copy = app.repository.get(world.id, version=1)
-        self.assertIsInstance(copy, World2)
-        self.assertEqual(copy.name, "Earth")
-        self.assertEqual(copy.history, [])
+    def test_event_with_name_decorates_property(self):
+        @aggregate
+        class MyAgg:
+            def __init__(self, value):
+                self._value = value
 
-        copy = app.repository.get(world.id, version=2)
-        self.assertIsInstance(copy, World2)
-        self.assertEqual(copy.history, ["Trucks"])
-        self.assertEqual(copy.name, "Earth")
+            @property
+            def value(self):
+                return self._value
 
-        copy = app.repository.get(world.id, version=3)
-        self.assertIsInstance(copy, World2)
-        self.assertEqual(copy.history, ["Trucks"])
-        self.assertEqual(copy.name, "Mars")
+            @event("ValueChanged")
+            @value.setter
+            def value(self, value):
+                self._value = value
 
-    def test_world3_set_name(self):
+        a = MyAgg(0)
+        self.assertEqual(a.value, 0)
+        a.value = 1
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a._pending_events), 2)
+        self.assertIsInstance(a._pending_events[1], MyAgg.ValueChanged)
 
-        # Create a new world.
-        world = World3(name="Earth")
-        self.assertEqual(world.name, "Earth")
-        world.name = "Mars"
-        self.assertEqual(world.name, "Mars")
-        self.assertIsInstance(world._pending_events[-1], World3.NameChanged)
+    def test_property_decorates_event_with_name(self):
+        @aggregate
+        class MyAgg:
+            @property
+            def value(self):
+                return self._value
 
-    # def test_world4_positional_only_params(self):
-    #     # Create a new world.
-    #     world = World4()
-    #     world.make_it_so("Trucks")
-    #     self.assertEqual(world.history[-1], "Trucks")
-    #     self.assertIsInstance(world._pending_events[-1],  World4.SomethingHappened)
+            @value.setter
+            @event("ValueChanged")
+            def value(self, value):
+                self._value = value
 
-    def test_missing_init(self):
-        aggregate = AggregateWithoutInit()
-        self.assertIsInstance(aggregate.id, UUID)
-        aggregate.set_name("name")
-        self.assertEqual(aggregate.name, "name")
-        pending = aggregate.collect_events()
-        self.assertEqual(len(pending), 2)
-        self.assertIsInstance(pending[-1], AggregateWithoutInit.NameChanged)
+        a = MyAgg()
+        a.value = 1
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a._pending_events), 2)
+        self.assertIsInstance(a._pending_events[1], MyAgg.ValueChanged)
 
 
-@aggregate
-class World1:
-    def __init__(self, name):
-        self.name = name
-        self.history = []
+    def test_raises_when_event_decorates_property_getter(self):
+        with self.assertRaises(TypeError) as cm:
+            @aggregate
+            class _:
+                @event("ValueChanged")
+                @property
+                def value(self):
+                    return None
 
-    def make_it_so(self, what):
-        self._trigger_event(self.SomethingHappened, what=what)
+        self.assertEqual(cm.exception.args[0], "@event can't decorate property getter")
 
-    @event
-    def _something_happened(self, what):
-        self.history.append(what)
+        with self.assertRaises(TypeError) as cm:
+            @aggregate
+            class _:
+                @event("ValueChanged")
+                @property
+                def value(self):
+                    return None
 
-    def set_name(self, name):
-        self._name_changed.trigger(name)
+        self.assertEqual(cm.exception.args[0], "@event can't decorate property getter")
 
-    @event
-    def _name_changed(self, name):
-        self.name = name
+
+    def test_raises_when_event_without_name_decorates_property(self):
+        with self.assertRaises(ValueError) as cm:
+            @aggregate
+            class _:
+                def __init__(self, _):
+                    pass
+
+                @property
+                def value(self):
+                    return None
+
+                @event
+                @value.setter
+                def value(self, value):
+                    pass
+
+        self.assertEqual(
+            cm.exception.args[0],
+            "Can't decorate property without explicit event name"
+        )
+
+    def test_raises_when_property_decorates_event_without_name(self):
+        with self.assertRaises(ValueError) as cm:
+            @aggregate
+            class _:
+                def __init__(self, _):
+                    pass
+
+                @property
+                def value(self):
+                    return None
+
+                @value.setter
+                @event
+                def value(self, _):
+                    pass
+
+        self.assertEqual(
+            cm.exception.args[0],
+            "Can't decorate property without explicit event name"
+        )
+
+    def test_raises_unsupported_usage(self):
+        with self.assertRaises(ValueError) as cm:
+            event(1)
+        self.assertEqual(
+            cm.exception.args[0],
+            "Unsupported usage: <class 'int'> is not a str or a FunctionType"
+        )
+
+        with self.assertRaises(ValueError) as cm:
+            event("EventName")(1)
+        self.assertEqual(
+            cm.exception.args[0],
+            "Unsupported usage: <class 'int'> is not a str or a FunctionType"
+        )
+
+        @aggregate
+        class MyAgg:
+            @event("EventName")
+            def method(self):
+                pass
+
+        with self.assertRaises(ValueError) as cm:
+            MyAgg.method()  # called on class (not a bound event)...
+        self.assertEqual(
+            cm.exception.args[0],
+            "Unsupported usage: event object was called directly"
+        )
+
+    def test_raises_when_method_has_args_or_kwargs(self):
+
+        with self.assertRaises(TypeError) as cm:
+            @aggregate
+            class _:
+                @event  # no event name
+                def method(self, *args):
+                    pass
+
+        self.assertEqual(
+            cm.exception.args[0],
+            "variable positional parameters not supported"
+        )
+
+        with self.assertRaises(TypeError) as cm:
+            @aggregate
+            class _:
+                @event("EventName")  # has event name
+                def method(self, *args):
+                    pass
+
+        self.assertEqual(
+            cm.exception.args[0],
+            "variable positional parameters not supported"
+        )
+
+        with self.assertRaises(TypeError) as cm:
+            @aggregate
+            class _:
+                @event  # no event name
+                def method(self, **kwargs):
+                    pass
+
+        self.assertEqual(
+            cm.exception.args[0],
+            "variable keyword parameters not supported"
+        )
+
+        with self.assertRaises(TypeError) as cm:
+            @aggregate
+            class _:
+                @event("EventName")  # no event name
+                def method(self, **kwargs):
+                    pass
+
+        self.assertEqual(
+            cm.exception.args[0],
+            "variable keyword parameters not supported"
+        )
+
+        # With property.
+        with self.assertRaises(TypeError) as cm:
+            @aggregate
+            class _:
+                @property
+                def name(self):
+                    return None
+
+                @event("EventName")  # before setter
+                @name.setter
+                def name(self, **kwargs):
+                    pass
+
+        self.assertEqual(
+            cm.exception.args[0],
+            "variable keyword parameters not supported"
+        )
+
+        with self.assertRaises(TypeError) as cm:
+            @aggregate
+            class _:
+                @property
+                def name(self):
+                    return None
+
+                @name.setter
+                @event("EventName")   # after setter (same as without property)
+                def name(self, **kwargs):
+                    pass
+
+        self.assertEqual(
+            cm.exception.args[0],
+            "variable keyword parameters not supported"
+        )
+
+
+    # Todo: Somehow deal with custom decorators?
+    # def test_custom_decorators(self):
+    #
+    #     def mydecorator(f):
+    #         def g(*args, **kwargs):
+    #             f(*args, **kwargs)
+    #         return g
+    #
+    #     @aggregate
+    #     class MyAgg:
+    #         @event
+    #         @mydecorator
+    #         def method(self):
+    #             raise Exception("Shou")
+    #
+    #     a = MyAgg()
+    #     a.method()
+    #
+
+    def test_order_with_app(self):
+
+        @aggregate
+        class Order:
+            def __init__(self):
+                self.confirmed_at = None
+                self.pickedup_at = None
+
+            @event("Confirmed")
+            def confirm(self, at):
+                self.confirmed_at = at
+
+            def pickup(self, at):
+                if self.confirmed_at:
+                    self._pickup(at)
+                else:
+                    raise Exception('Order is not confirmed')
+
+            @event("Pickedup")
+            def _pickup(self, at):
+                self.pickedup_at = at
+
+        order = Order()
+        with self.assertRaises(Exception) as cm:
+            order.pickup(datetime.now())
+        self.assertEqual(cm.exception.args[0], "Order is not confirmed")
+
+        self.assertEqual(order.confirmed_at, None)
+        self.assertEqual(order.pickedup_at, None)
+
+        order.confirm(datetime.now())
+        self.assertIsInstance(order.confirmed_at, datetime)
+        self.assertEqual(order.pickedup_at, None)
+
+        order.pickup(datetime.now())
+        self.assertIsInstance(order.confirmed_at, datetime)
+        self.assertIsInstance(order.pickedup_at, datetime)
+
+        app: Application[Order] = Application()
+        app.save(order)
+
+        copy = app.repository.get(order.id)
+
+        self.assertEqual(copy.pickedup_at, order.pickedup_at)
 
 
 # Todo: Put method signature in event decorator, so that args can be mapped to names.
 # Todo: Maybe allow __init__ to call super, in which case don't redefine __init__.
 
-
-@aggregate
-class World2(Aggregate):
-    def __init__(self, name):
-        self._name = name
-        self.history = []
-
-    @event("SomethingHappened")
-    def make_it_so(self, what):
-        self.history.append(what)
-
-    @property
-    def name(self):
-        return self._name
-
-    @name.setter
-    def name(self, name):
-        self.name_changed(name=name)
-
-    @event
-    def name_changed(self, name):
-        self._name = name
-
-
-@aggregate
-class World3:
-    def __init__(self, name):
-        self._name = name
-
-    @property
-    def name(self):
-        return self._name
-
-    @name.setter
-    @event("NameChanged")
-    def name(self, name):
-        self._name = name
-
-
-# Todo: Move to >3.7 module and selectively import.
-# @aggregate
-# class World4(Aggregate):
-#
-#     def __init__(self):
-#         self.history = []
-#
-#     @event("SomethingHappened")
-#     def make_it_so(self, what, /):
-#         self.history.append(what)
-
-
-@aggregate
-class AggregateWithoutInit:
-    @event("NameChanged")
-    def set_name(self, name):
-        self.name = name
