@@ -6,13 +6,9 @@ from types import FunctionType
 from typing import Any, Dict, Iterable, Optional, Type, Union, cast
 from uuid import uuid4
 
-from mypy.types import TypeVar
-
 from eventsourcing.domain import Aggregate
 
 original_methods: Dict[Type[Aggregate.Event], FunctionType] = {}
-
-T = TypeVar("T")
 
 
 def aggregate(original_cls: Any) -> Type[Aggregate]:
