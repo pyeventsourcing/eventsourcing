@@ -69,7 +69,9 @@ def aggregate(original_cls: Any) -> Type[Aggregate]:
         attr = super(Aggregate, self).__getattribute__(item)
         if isinstance(attr, event):
             if attr.is_decorating_a_property:
-                return attr.decorated_property.fget(self)
+                assert attr.decorated_property
+                assert attr.decorated_property.fget
+                return attr.decorated_property.fget(self)  # type: ignore
             else:
                 return bound_event(attr, self)
         else:
@@ -230,6 +232,7 @@ class event:
                 self.decorated_property = arg
                 if arg.fset is None:
                     raise TypeError("@event can't decorate property getter")
+                assert isinstance(arg.fset, FunctionType)
                 self.original_method = arg.fset
                 assert self.original_method
                 check_no_variable_params(self.original_method)
