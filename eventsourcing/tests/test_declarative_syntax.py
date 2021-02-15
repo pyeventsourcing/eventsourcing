@@ -50,26 +50,26 @@ class TestDeclarativeSyntax(TestCase):
 
     def test_raises_when_init_has_variable_positional_params(self):
         with self.assertRaises(TypeError) as cm:
+
             @aggregate
             class _:
                 def __init__(self, *values):
                     pass
 
         self.assertEqual(
-            cm.exception.args[0],
-            "variable positional parameters not supported"
+            cm.exception.args[0], "variable positional parameters not supported"
         )
 
     def test_raises_when_init_has_variable_keyword_params(self):
         with self.assertRaises(TypeError) as cm:
+
             @aggregate
             class _:
                 def __init__(self, **values):
                     pass
 
         self.assertEqual(
-            cm.exception.args[0],
-            "variable keyword parameters not supported"
+            cm.exception.args[0], "variable keyword parameters not supported"
         )
 
     def test_event_name_inferred_from_method_no_args(self):
@@ -147,7 +147,7 @@ class TestDeclarativeSyntax(TestCase):
             a.value_changed(1)
         self.assertTrue(
             cm.exception.args[0].startswith("Can't construct event"),
-            cm.exception.args[0]
+            cm.exception.args[0],
         )
 
     def test_method_called_with_positional_defined_with_keyword_params(self):
@@ -184,22 +184,26 @@ class TestDeclarativeSyntax(TestCase):
     #     a = MyAgg()
     #     a.values_changed(1, 2)
 
-    def test_raises_when_method_has_positional_only_params(self):
-        @aggregate
-        class MyAgg:
-            @event
-            def values_changed(self, a, b, /):
-                self.a = a
-                self.b = b
-
-        with self.assertRaises(TypeError) as cm:
-
-            a = MyAgg()
-            a.values_changed(1, 2)
-
-        # self.assertTrue(cm.exception.args[0].startswith(
-        #     "values_changed() got some positional-only arguments"
-        # ))
+    # def test_raises_when_method_has_positional_only_params(self):
+    #     @aggregate
+    #     class MyAgg:
+    #         @event
+    #         def values_changed(self, a, b, /):
+    #             self.a = a
+    #             self.b = b
+    #
+    #     with self.assertRaises(TypeError) as cm:
+    #
+    #         a = MyAgg()
+    #         a.values_changed(1, 2)
+    #
+    #     self.assertTrue(
+    #         cm.exception.args[0].startswith(
+    #             # "values_changed() got some positional-only arguments"
+    #             "Can't construct event"
+    #         ),
+    #         cm.exception.args[0],
+    #     )
 
     def test_raises_when_event_called_with_missing_arg(self):
         @aggregate
@@ -214,7 +218,7 @@ class TestDeclarativeSyntax(TestCase):
             a.value_changed()
         self.assertTrue(
             cm.exception.args[0].startswith("Can't construct event "),
-            cm.exception.args[0]
+            cm.exception.args[0],
         )
 
     def test_event_name_set_in_decorator(self):
@@ -273,9 +277,9 @@ class TestDeclarativeSyntax(TestCase):
         self.assertEqual(len(a._pending_events), 2)
         self.assertIsInstance(a._pending_events[1], MyAgg.ValueChanged)
 
-
     def test_raises_when_event_decorates_property_getter(self):
         with self.assertRaises(TypeError) as cm:
+
             @aggregate
             class _:
                 @event("ValueChanged")
@@ -286,6 +290,7 @@ class TestDeclarativeSyntax(TestCase):
         self.assertEqual(cm.exception.args[0], "@event can't decorate property getter")
 
         with self.assertRaises(TypeError) as cm:
+
             @aggregate
             class _:
                 @event("ValueChanged")
@@ -294,10 +299,10 @@ class TestDeclarativeSyntax(TestCase):
                     return None
 
         self.assertEqual(cm.exception.args[0], "@event can't decorate property getter")
-
 
     def test_raises_when_event_without_name_decorates_property(self):
         with self.assertRaises(ValueError) as cm:
+
             @aggregate
             class _:
                 def __init__(self, _):
@@ -313,12 +318,12 @@ class TestDeclarativeSyntax(TestCase):
                     pass
 
         self.assertEqual(
-            cm.exception.args[0],
-            "Can't decorate property without explicit event name"
+            cm.exception.args[0], "Can't decorate property without explicit event name"
         )
 
     def test_raises_when_property_decorates_event_without_name(self):
         with self.assertRaises(ValueError) as cm:
+
             @aggregate
             class _:
                 def __init__(self, _):
@@ -334,8 +339,7 @@ class TestDeclarativeSyntax(TestCase):
                     pass
 
         self.assertEqual(
-            cm.exception.args[0],
-            "Can't decorate property without explicit event name"
+            cm.exception.args[0], "Can't decorate property without explicit event name"
         )
 
     def test_raises_unsupported_usage(self):
@@ -343,14 +347,14 @@ class TestDeclarativeSyntax(TestCase):
             event(1)
         self.assertEqual(
             cm.exception.args[0],
-            "Unsupported usage: <class 'int'> is not a str or a FunctionType"
+            "Unsupported usage: <class 'int'> is not a str or a FunctionType",
         )
 
         with self.assertRaises(ValueError) as cm:
             event("EventName")(1)
         self.assertEqual(
             cm.exception.args[0],
-            "Unsupported usage: <class 'int'> is not a str or a FunctionType"
+            "Unsupported usage: <class 'int'> is not a str or a FunctionType",
         )
 
         @aggregate
@@ -362,13 +366,13 @@ class TestDeclarativeSyntax(TestCase):
         with self.assertRaises(ValueError) as cm:
             MyAgg.method()  # called on class (not a bound event)...
         self.assertEqual(
-            cm.exception.args[0],
-            "Unsupported usage: event object was called directly"
+            cm.exception.args[0], "Unsupported usage: event object was called directly"
         )
 
     def test_raises_when_method_has_args_or_kwargs(self):
 
         with self.assertRaises(TypeError) as cm:
+
             @aggregate
             class _:
                 @event  # no event name
@@ -376,11 +380,11 @@ class TestDeclarativeSyntax(TestCase):
                     pass
 
         self.assertEqual(
-            cm.exception.args[0],
-            "variable positional parameters not supported"
+            cm.exception.args[0], "variable positional parameters not supported"
         )
 
         with self.assertRaises(TypeError) as cm:
+
             @aggregate
             class _:
                 @event("EventName")  # has event name
@@ -388,11 +392,11 @@ class TestDeclarativeSyntax(TestCase):
                     pass
 
         self.assertEqual(
-            cm.exception.args[0],
-            "variable positional parameters not supported"
+            cm.exception.args[0], "variable positional parameters not supported"
         )
 
         with self.assertRaises(TypeError) as cm:
+
             @aggregate
             class _:
                 @event  # no event name
@@ -400,11 +404,11 @@ class TestDeclarativeSyntax(TestCase):
                     pass
 
         self.assertEqual(
-            cm.exception.args[0],
-            "variable keyword parameters not supported"
+            cm.exception.args[0], "variable keyword parameters not supported"
         )
 
         with self.assertRaises(TypeError) as cm:
+
             @aggregate
             class _:
                 @event("EventName")  # no event name
@@ -412,12 +416,12 @@ class TestDeclarativeSyntax(TestCase):
                     pass
 
         self.assertEqual(
-            cm.exception.args[0],
-            "variable keyword parameters not supported"
+            cm.exception.args[0], "variable keyword parameters not supported"
         )
 
         # With property.
         with self.assertRaises(TypeError) as cm:
+
             @aggregate
             class _:
                 @property
@@ -430,11 +434,11 @@ class TestDeclarativeSyntax(TestCase):
                     pass
 
         self.assertEqual(
-            cm.exception.args[0],
-            "variable keyword parameters not supported"
+            cm.exception.args[0], "variable keyword parameters not supported"
         )
 
         with self.assertRaises(TypeError) as cm:
+
             @aggregate
             class _:
                 @property
@@ -442,15 +446,13 @@ class TestDeclarativeSyntax(TestCase):
                     return None
 
                 @name.setter
-                @event("EventName")   # after setter (same as without property)
+                @event("EventName")  # after setter (same as without property)
                 def name(self, **kwargs):
                     pass
 
         self.assertEqual(
-            cm.exception.args[0],
-            "variable keyword parameters not supported"
+            cm.exception.args[0], "variable keyword parameters not supported"
         )
-
 
     # Todo: Somehow deal with custom decorators?
     # def test_custom_decorators(self):
@@ -472,7 +474,6 @@ class TestDeclarativeSyntax(TestCase):
     #
 
     def test_order_with_app(self):
-
         @aggregate
         class Order:
             def __init__(self):
@@ -487,7 +488,7 @@ class TestDeclarativeSyntax(TestCase):
                 if self.confirmed_at:
                     self._pickup(at)
                 else:
-                    raise Exception('Order is not confirmed')
+                    raise Exception("Order is not confirmed")
 
             @event("Pickedup")
             def _pickup(self, at):
@@ -519,4 +520,3 @@ class TestDeclarativeSyntax(TestCase):
 
 # Todo: Put method signature in event decorator, so that args can be mapped to names.
 # Todo: Maybe allow __init__ to call super, in which case don't redefine __init__.
-

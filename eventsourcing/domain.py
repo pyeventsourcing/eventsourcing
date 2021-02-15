@@ -209,9 +209,7 @@ class Aggregate:
                 **kwargs,
             )
         except TypeError as e:
-            raise TypeError(
-                f"Can't construct event {event_class}: {e}"
-            )
+            raise TypeError(f"Can't construct event {event_class}: {e}")
 
         # Mutate aggregate with domain event.
         event.mutate(self)

@@ -3,7 +3,7 @@ from builtins import property
 from copy import copy
 from dataclasses import dataclass
 from types import FunctionType
-from typing import Any, Dict, Optional, Type, Union, cast
+from typing import Any, Dict, Iterable, Optional, Type, Union, cast
 from uuid import uuid4
 
 from mypy.types import TypeVar
@@ -15,7 +15,7 @@ original_methods: Dict[Type[Aggregate.Event], FunctionType] = {}
 T = TypeVar("T")
 
 
-def aggregate(original_cls: Type[T]) -> Type[Union[T, Aggregate]]:
+def aggregate(original_cls: Any) -> Type[Aggregate]:
 
     # Prepare the "created" event class.
     created_cls_annotations = {}
@@ -48,12 +48,13 @@ def aggregate(original_cls: Type[T]) -> Type[Union[T, Aggregate]]:
     # Prepare the aggregate class.
     # Todo: Put this in a metaclass... (then don't need *args in __init__ and it
     #  won't be called twice).
-    def __new__(cls: Type[Aggregate], *args, **kwargs: Any) -> Aggregate:
-        if original_cls.__init__ != object.__init__:
+    def __new__(cls: Type[Aggregate], *args: Any, **kwargs: Any) -> Aggregate:
+        # if original_cls.__init__ != object.__init__:
+        if has_init_method:
             kwargs = coerce_args_to_kwargs(original_cls.__init__, args, kwargs)
         return cls._create(event_class=created_cls, id=uuid4(), **kwargs)
 
-    def __init__(self: Aggregate, *args, **kwargs: Any) -> None:
+    def __init__(self: Aggregate, *args: Any, **kwargs: Any) -> None:
         if "id" not in kwargs:
             return  # Python calls me again...
         base_kwargs = {}
@@ -64,7 +65,7 @@ def aggregate(original_cls: Type[T]) -> Type[Union[T, Aggregate]]:
         if has_init_method:
             original_cls.__init__(self, **kwargs)
 
-    def __getattribute__(self: Aggregate, item: str) -> Any:
+    def getattribute(self: Aggregate, item: str) -> Any:
         attr = super(Aggregate, self).__getattribute__(item)
         if isinstance(attr, event):
             if attr.is_decorating_a_property:
@@ -97,7 +98,7 @@ def aggregate(original_cls: Type[T]) -> Type[Union[T, Aggregate]]:
         "__doc__": original_cls.__doc__,
         "__new__": __new__,
         "__init__": __init__,
-        "__getattribute__": __getattribute__,
+        "__getattribute__": getattribute,
         "__setattr__": __setattr__,
         "Created": created_cls,
     }
@@ -114,8 +115,9 @@ def aggregate(original_cls: Type[T]) -> Type[Union[T, Aggregate]]:
         event_obj_dict.pop("timestamp")
         original_method = original_methods[type(self)]
         method_signature = inspect.signature(original_method)
-        args = []
-        for name, param in method_signature.parameters.items():
+        # args = []
+        # for name, param in method_signature.parameters.items():
+        for name in method_signature.parameters:
             if name == "self":
                 continue
         #     if param.kind == param.POSITIONAL_ONLY:
@@ -129,9 +131,7 @@ def aggregate(original_cls: Type[T]) -> Type[Union[T, Aggregate]]:
         if isinstance(attribute, property) and isinstance(attribute.fset, event):
             attribute = attribute.fset
             if attribute.is_name_inferred_from_method:
-                raise ValueError(
-                    "Can't decorate property without explicit event name"
-                )
+                raise ValueError("Can't decorate property without explicit event name")
             # Attribute is a property decorating an event decorator.
             attribute.is_property_setter = True
 
@@ -148,7 +148,7 @@ def aggregate(original_cls: Type[T]) -> Type[Union[T, Aggregate]]:
 
             method_signature = inspect.signature(original_method)
             annotations = {}
-            for param_name, param in method_signature.parameters.items():
+            for param_name in method_signature.parameters:
                 if param_name == "self":
                     continue
                 elif attribute.is_property_setter:
@@ -185,7 +185,7 @@ class event:
         self.propery_attribute_name: Optional[str] = None
         self.is_decorating_a_property = False
         self.decorated_property: Optional[property] = None
-        self.original_method: Optional[FunctionType]
+        self.original_method: Optional[FunctionType] = None
         # Initialising an instance.
         if isinstance(arg, str):
             # Decorator used with an explicit name.
@@ -194,15 +194,13 @@ class event:
             # Decorator used without explicit name.
             self.initialise_from_decorated_method(original_method=arg)
         elif isinstance(arg, property):
-            raise ValueError(
-                "Can't decorate property without explicit event name"
-            )
+            raise ValueError("Can't decorate property without explicit event name")
         else:
             raise ValueError(
                 f"Unsupported usage: {type(arg)} is not a str or a FunctionType"
             )
 
-    def initialise_from_decorated_method(self, original_method: FunctionType):
+    def initialise_from_decorated_method(self, original_method: FunctionType) -> None:
         self.is_name_inferred_from_method = True
         self.event_cls_name = "".join(
             [s.capitalize() for s in original_method.__name__.split("_")]
@@ -210,10 +208,9 @@ class event:
         self.original_method = original_method
         check_no_variable_params(self.original_method)
 
-    def initialise_from_explicit_name(self, event_cls_name: str):
+    def initialise_from_explicit_name(self, event_cls_name: str) -> None:
         self.is_name_inferred_from_method = False
         self.event_cls_name = event_cls_name
-        self.original_method = None
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         # Calling an instance.
@@ -234,6 +231,7 @@ class event:
                 if arg.fset is None:
                     raise TypeError("@event can't decorate property getter")
                 self.original_method = arg.fset
+                assert self.original_method
                 check_no_variable_params(self.original_method)
             else:
                 raise ValueError(
@@ -250,28 +248,25 @@ class event:
             bound = bound_event(self, args[0])
             bound.trigger(**kwargs)
         else:
-            raise ValueError(
-                f"Unsupported usage: event object was called directly"
-            )
+            raise ValueError("Unsupported usage: event object was called directly")
 
-def check_no_variable_params(method):
+
+def check_no_variable_params(method: FunctionType) -> None:
     for param in inspect.signature(method).parameters.values():
         if param.kind is param.VAR_POSITIONAL:
-            raise TypeError(
-                "variable positional parameters not supported"
-            )
+            raise TypeError("variable positional parameters not supported")
             # Todo: Support VAR_POSITIONAL?
             # annotations["__star_args__"] = "typing.Any"
 
         elif param.kind is param.VAR_KEYWORD:
             # Todo: Support VAR_KEYWORD?
             # annotations["__star_kwargs__"] = "typing.Any"
-            raise TypeError(
-                "variable keyword parameters not supported"
-            )
+            raise TypeError("variable keyword parameters not supported")
 
 
-def coerce_args_to_kwargs(method, args, kwargs):
+def coerce_args_to_kwargs(
+    method: FunctionType, args: Iterable[Any], kwargs: Dict[str, Any]
+) -> Dict[str, Any]:
     assert method
     method_signature = inspect.signature(method)
     kwargs = dict(kwargs)
@@ -301,6 +296,7 @@ class bound_event:
 
     def trigger(self, *args: Any, **kwargs: Any) -> None:
         method = self.event.original_method
+        assert method
         if args:
             kwargs = coerce_args_to_kwargs(method, args, kwargs)
         event_cls = getattr(self.aggregate, self.event.event_cls_name)
