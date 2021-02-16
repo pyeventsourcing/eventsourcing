@@ -82,12 +82,8 @@ class TestAggregate(TestCase):
         assert account.balance == Decimal("5.00")
 
         # Fail to debit account (insufficient funds).
-        try:
+        with self.assertRaises(InsufficientFundsError):
             account.append_transaction(Decimal("-15.00"))
-        except InsufficientFundsError:
-            pass
-        else:
-            raise Exception("Insufficient funds error not raised")
 
         # Increase the overdraft limit.
         account.set_overdraft_limit(Decimal("100.00"))
@@ -102,12 +98,8 @@ class TestAggregate(TestCase):
         account.close()
 
         # Fail to debit account (account closed).
-        try:
+        with self.assertRaises(AccountClosedError):
             account.append_transaction(Decimal("-15.00"))
-        except AccountClosedError:
-            pass
-        else:
-            raise Exception("Account closed error not raised")
 
         # Collect pending events.
         pending = account.collect_events()
@@ -125,9 +117,28 @@ class TestAggregate(TestCase):
             cm.exception.args[0],
             (
                 "Unable to construct 'aggregate created' event with class "
-                "Aggregate.Created and keyword args {'name': 'name'}: __init__() "
+                "BaseAggregate.Created and keyword args {'name': 'name'}: __init__() "
                 "got an unexpected keyword argument 'name'"
             ),
+        )
+
+    def test_raises_type_error_when_aggregate_event_is_broken(self):
+        class BrokenAggregate(Aggregate):
+            @classmethod
+            def create(cls):
+                return cls._create(event_class=cls.Created, id=uuid4())
+
+            @dataclass(frozen=True)
+            class ValueUpdated(Aggregate.Event):
+                a: int
+
+        a = BrokenAggregate.create()
+
+        with self.assertRaises(TypeError) as cm:
+            a._trigger_event(BrokenAggregate.ValueUpdated)
+        self.assertTrue(
+            cm.exception.args[0].startswith("Can't construct event"),
+            cm.exception.args[0],
         )
 
 

@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Optional, TypeVar
+from typing import Generic, List, Optional, TypeVar
 from uuid import UUID
 
-from eventsourcing.domain import Aggregate, Snapshot
+from eventsourcing.domain import Aggregate, BaseAggregate, Snapshot, TAggregate
 from eventsourcing.persistence import (
     ApplicationRecorder,
     DatetimeAsISO,
@@ -18,7 +18,7 @@ from eventsourcing.persistence import (
 )
 
 
-class Repository:
+class Repository(Generic[TAggregate]):
     """Reconstructs aggregates from events in an
     :class:`~eventsourcing.persistence.EventStore`,
     possibly using snapshot store to avoid replaying
@@ -40,13 +40,13 @@ class Repository:
         self.event_store = event_store
         self.snapshot_store = snapshot_store
 
-    def get(self, aggregate_id: UUID, version: Optional[int] = None) -> Aggregate:
+    def get(self, aggregate_id: UUID, version: Optional[int] = None) -> TAggregate:
         """
         Returns an :class:`~eventsourcing.domain.Aggregate`
         for given ID, optionally at the given version.
         """
 
-        aggregate: Optional[Aggregate] = None
+        aggregate: Optional[TAggregate] = None
         gt: Optional[int] = None
 
         if self.snapshot_store is not None:
@@ -201,7 +201,7 @@ class LocalNotificationLog(NotificationLog):
         return "{},{}".format(first_id, last_id)
 
 
-class Application(ABC):
+class Application(ABC, Generic[TAggregate]):
     """
     Base class for event-sourced applications.
     """
@@ -221,7 +221,7 @@ class Application(ABC):
         self.recorder = self.construct_recorder()
         self.events = self.construct_event_store()
         self.snapshots = self.construct_snapshot_store()
-        self.repository = self.construct_repository()
+        self.repository: Repository[TAggregate] = self.construct_repository()
         self.log = self.construct_notification_log()
 
     def construct_factory(self) -> InfrastructureFactory:
@@ -291,7 +291,7 @@ class Application(ABC):
             recorder=recorder,
         )
 
-    def construct_repository(self) -> Repository:
+    def construct_repository(self) -> Repository[TAggregate]:
         """
         Constructs a :class:`Repository` for use by the application.
         """
@@ -306,7 +306,7 @@ class Application(ABC):
         """
         return LocalNotificationLog(self.recorder, section_size=10)
 
-    def save(self, *aggregates: Aggregate) -> None:
+    def save(self, *aggregates: BaseAggregate) -> None:
         """
         Collects pending events from given aggregates and
         puts them in the application's event store.

@@ -221,7 +221,7 @@ Multi-threaded runner
 
     from time import sleep
 
-    sleep(0.0001)
+    sleep(0.001)
 
     assert counters.get_count('dinosaurs') == 3
     assert counters.get_count('trucks') == 2

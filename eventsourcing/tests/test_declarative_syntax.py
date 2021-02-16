@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime
 from unittest import TestCase
 from uuid import UUID
@@ -47,6 +48,212 @@ class TestDeclarativeSyntax(TestCase):
         self.assertEqual(a.value, 1)
         self.assertIsInstance(a, Aggregate)
         self.assertEqual(len(a._pending_events), 1)
+
+    def test_init_with_1_default_keyword_arg(self):
+        @aggregate
+        class MyAgg:
+            def __init__(self, value=0):
+                self.value = value
+
+        a = MyAgg()
+        self.assertIsInstance(a, MyAgg)
+        self.assertEqual(a.value, 0)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a._pending_events), 1)
+
+    def test_init_with_default_keyword_arg_required_positional_and_keyword_only(self):
+        @aggregate
+        class MyAgg:
+            def __init__(self, a, b=0, *, c):
+                self.a = a
+                self.b = b
+                self.c = c
+
+        x = MyAgg(1, c=2)
+        self.assertEqual(x.a, 1)
+        self.assertEqual(x.b, 0)
+        self.assertEqual(x.c, 2)
+
+    def test_init_missing_1_required_positional_arg(self):
+        @aggregate
+        class MyAgg:
+            def __init__(self, value):
+                self.value = value
+
+        with self.assertRaises(TypeError) as cm:
+            MyAgg()
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() missing 1 required positional argument: 'value'",
+        )
+
+    def test_init_missing_1_required_keyword_only_arg(self):
+        @aggregate
+        class MyAgg:
+            def __init__(self, *, value):
+                self.value = value
+
+        with self.assertRaises(TypeError) as cm:
+            MyAgg()
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() missing 1 required keyword-only argument: 'value'",
+        )
+
+    def test_init_with_missing_required_positional_and_keyword_only_arg(self):
+        @aggregate
+        class MyAgg:
+            def __init__(self, a, *, b):
+                pass
+
+        with self.assertRaises(TypeError) as cm:
+            MyAgg()
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() missing 1 required positional argument: 'a'",
+        )
+
+    def test_init_missing_2_required_positional_args(self):
+        @aggregate
+        class MyAgg:
+            def __init__(self, a, b, *, c):
+                pass
+
+        with self.assertRaises(TypeError) as cm:
+            MyAgg()
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() missing 2 required positional arguments: 'a' and 'b'",
+        )
+
+    def test_init_with_default_keyword_arg_missing_positional_and_keyword_only(self):
+        @aggregate
+        class MyAgg:
+            def __init__(self, a, b=0, *, c):
+                self.a = a
+                self.b = b
+                self.c = c
+
+        with self.assertRaises(TypeError) as cm:
+            MyAgg(c=2)
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() missing 1 required positional argument: 'a'",
+        )
+
+    def test_dataclass_aggregate_no_defaults(self):
+        @aggregate
+        @dataclass
+        class MyAgg:
+            value: int
+
+        a = MyAgg(1)
+        self.assertIsInstance(a, MyAgg)
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a._pending_events), 1)
+
+    def test_dataclass_aggregate_default_also_passed_to_constructor(self):
+        @aggregate
+        @dataclass
+        class MyAgg:
+            value: int = 0
+
+        a = MyAgg(1)
+        self.assertIsInstance(a, MyAgg)
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a._pending_events), 1)
+
+    def test_dataclass_aggregate_default_value_not_passed_to_constructor(self):
+        @aggregate
+        @dataclass
+        class MyAgg:
+            value: int = 0
+
+        a = MyAgg()
+        self.assertIsInstance(a, MyAgg)
+        self.assertEqual(a.value, 0)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a._pending_events), 1)
+
+    def test_dataclass_aggregate_mixture_of_default_values(self):
+        @aggregate
+        @dataclass
+        class MyAgg:
+            a: int
+            b: int
+            c: int = 1
+            d: int = 2
+
+        # This to check aggregate performs the same behaviour.
+        @dataclass
+        class Data:
+            a: int
+            b: int
+            c: int = 1
+            d: int = 2
+
+        d = Data(b=1, a=2)
+        self.assertEqual(d.a, 2)
+        self.assertEqual(d.b, 1)
+        self.assertEqual(d.c, 1)
+        self.assertEqual(d.d, 2)
+        x = MyAgg(b=1, a=2)
+        self.assertEqual(x.a, 2)
+        self.assertEqual(x.b, 1)
+        self.assertEqual(x.c, 1)
+        self.assertEqual(x.d, 2)
+
+        d = Data(1, 2, 3, 4)
+        self.assertEqual(d.a, 1)
+        self.assertEqual(d.b, 2)
+        self.assertEqual(d.c, 3)
+        self.assertEqual(d.d, 4)
+        x = MyAgg(1, 2, 3, 4)
+        self.assertEqual(x.a, 1)
+        self.assertEqual(x.b, 2)
+        self.assertEqual(x.c, 3)
+        self.assertEqual(x.d, 4)
+
+        with self.assertRaises(TypeError) as cm:
+            d = Data(1, 2, 3, c=4)
+            self.assertEqual(d.a, 1)
+            self.assertEqual(d.b, 2)
+            self.assertEqual(d.c, 4)
+            self.assertEqual(d.d, 3)
+        self.assertEqual(
+            cm.exception.args[0], "__init__() got multiple values for argument 'c'"
+        )
+
+        with self.assertRaises(TypeError) as cm:
+            x = MyAgg(1, 2, 3, c=4)
+            self.assertEqual(x.a, 1)
+            self.assertEqual(x.b, 2)
+            self.assertEqual(x.c, 4)
+            self.assertEqual(x.d, 3)
+        self.assertEqual(
+            cm.exception.args[0], "__init__() got multiple values for argument 'c'"
+        )
+
+        with self.assertRaises(TypeError) as cm:
+            d = Data(1, a=2, d=3, c=4)
+            self.assertEqual(d.a, 2)
+            self.assertEqual(d.b, 1)
+            self.assertEqual(d.c, 4)
+            self.assertEqual(d.d, 3)
+        self.assertEqual(
+            cm.exception.args[0], "__init__() got multiple values for argument 'a'"
+        )
+        with self.assertRaises(TypeError) as cm:
+            x = MyAgg(1, a=2, d=3, c=4)
+            self.assertEqual(x.a, 2)
+            self.assertEqual(x.b, 1)
+            self.assertEqual(x.c, 4)
+            self.assertEqual(x.d, 3)
+        self.assertEqual(
+            cm.exception.args[0], "__init__() got multiple values for argument 'a'"
+        )
 
     def test_raises_when_init_has_variable_positional_params(self):
         with self.assertRaises(TypeError) as cm:
@@ -134,20 +341,288 @@ class TestDeclarativeSyntax(TestCase):
     #     self.assertEqual(len(a._pending_events), 2)
     #     self.assertIsInstance(a._pending_events[1], MyAgg.ValueChanged)
 
-    def test_method_called_with_positional_when_defined_with_keyword_only(self):
+    def test_raises_when_method_takes_1_positional_argument_but_2_were_given(self):
         @aggregate
         class MyAgg:
             @event
-            def value_changed(self, *, value):
+            def value_changed(self):
                 pass
+
+        class Data:
+            def value_changed(self):
+                pass
+
+        d = Data()
+        with self.assertRaises(TypeError) as cm:
+            d.value_changed(1)
+        self.assertEqual(
+            cm.exception.args[0],
+            "value_changed() takes 1 positional argument but 2 were given",
+        )
 
         a = MyAgg()
 
         with self.assertRaises(TypeError) as cm:
             a.value_changed(1)
-        self.assertTrue(
-            cm.exception.args[0].startswith("Can't construct event"),
+        self.assertEqual(
             cm.exception.args[0],
+            "value_changed() takes 1 positional argument but 2 were given",
+        )
+
+    def test_raises_when_method_takes_2_positional_argument_but_3_were_given(self):
+        @aggregate
+        class MyAgg:
+            @event
+            def value_changed(self, value):
+                pass
+
+        class Data:
+            def value_changed(self, value):
+                pass
+
+        d = Data()
+        with self.assertRaises(TypeError) as cm:
+            d.value_changed(1, 2)
+        self.assertEqual(
+            cm.exception.args[0],
+            "value_changed() takes 2 positional arguments but 3 were given",
+        )
+
+        a = MyAgg()
+
+        with self.assertRaises(TypeError) as cm:
+            a.value_changed(1, 2)
+        self.assertEqual(
+            cm.exception.args[0],
+            "value_changed() takes 2 positional arguments but 3 were given",
+        )
+
+    def test_raises_when_missing_1_required_positional_argument(self):
+        @aggregate
+        class MyAgg:
+            @event
+            def value_changed(self, a):
+                pass
+
+        class Data:
+            def value_changed(self, a):
+                pass
+
+        d = Data()
+        with self.assertRaises(TypeError) as cm:
+            d.value_changed()
+        self.assertEqual(
+            cm.exception.args[0],
+            "value_changed() missing 1 required positional argument: 'a'",
+        )
+
+        a = MyAgg()
+
+        with self.assertRaises(TypeError) as cm:
+            a.value_changed()
+        self.assertEqual(
+            cm.exception.args[0],
+            "value_changed() missing 1 required positional argument: 'a'",
+        )
+
+    def test_raises_when_missing_2_required_positional_arguments(self):
+        @aggregate
+        class MyAgg:
+            @event
+            def value_changed(self, a, b):
+                pass
+
+        class Data:
+            def value_changed(self, a, b):
+                pass
+
+        d = Data()
+        with self.assertRaises(TypeError) as cm:
+            d.value_changed()
+        self.assertEqual(
+            cm.exception.args[0],
+            "value_changed() missing 2 required positional arguments: 'a' and 'b'",
+        )
+
+        a = MyAgg()
+
+        with self.assertRaises(TypeError) as cm:
+            a.value_changed()
+        self.assertEqual(
+            cm.exception.args[0],
+            "value_changed() missing 2 required positional arguments: 'a' and 'b'",
+        )
+
+    def test_raises_when_missing_3_required_positional_arguments(self):
+        @aggregate
+        class MyAgg:
+            @event
+            def value_changed(self, a, b, c):
+                pass
+
+        class Data:
+            def value_changed(self, a, b, c):
+                pass
+
+        d = Data()
+        with self.assertRaises(TypeError) as cm:
+            d.value_changed()
+        self.assertEqual(
+            cm.exception.args[0],
+            "value_changed() missing 3 required positional arguments: 'a', 'b', and 'c'",
+        )
+
+        a = MyAgg()
+
+        with self.assertRaises(TypeError) as cm:
+            a.value_changed()
+        self.assertEqual(
+            cm.exception.args[0],
+            "value_changed() missing 3 required positional arguments: 'a', 'b', and 'c'",
+        )
+
+    def test_raises_when_missing_1_required_keyword_only_argument(self):
+        @aggregate
+        class MyAgg:
+            @event
+            def value_changed(self, a, *, b):
+                pass
+
+        class Data:
+            def value_changed(self, a, *, b):
+                pass
+
+        d = Data()
+        with self.assertRaises(TypeError) as cm:
+            d.value_changed(1)
+        self.assertEqual(
+            cm.exception.args[0],
+            "value_changed() missing 1 required keyword-only argument: 'b'",
+        )
+
+        a = MyAgg()
+
+        with self.assertRaises(TypeError) as cm:
+            a.value_changed(1)
+        self.assertEqual(
+            cm.exception.args[0],
+            "value_changed() missing 1 required keyword-only argument: 'b'",
+        )
+
+    def test_raises_when_missing_2_required_keyword_only_arguments(self):
+        @aggregate
+        class MyAgg:
+            @event
+            def value_changed(self, a, *, b, c):
+                pass
+
+        class Data:
+            def value_changed(self, a, *, b, c):
+                pass
+
+        d = Data()
+        with self.assertRaises(TypeError) as cm:
+            d.value_changed(1)
+        self.assertEqual(
+            cm.exception.args[0],
+            "value_changed() missing 2 required keyword-only arguments: 'b' and 'c'",
+        )
+
+        a = MyAgg()
+
+        with self.assertRaises(TypeError) as cm:
+            a.value_changed(1)
+        self.assertEqual(
+            cm.exception.args[0],
+            "value_changed() missing 2 required keyword-only arguments: 'b' and 'c'",
+        )
+
+    def test_raises_when_missing_3_required_keyword_only_arguments(self):
+        @aggregate
+        class MyAgg:
+            @event
+            def value_changed(self, a, *, b, c, d):
+                pass
+
+        class Data:
+            def value_changed(self, a, *, b, c, d):
+                pass
+
+        d = Data()
+        with self.assertRaises(TypeError) as cm:
+            d.value_changed(1)
+        self.assertEqual(
+            cm.exception.args[0],
+            "value_changed() missing 3 required keyword-only arguments: "
+            "'b', 'c', and 'd'",
+        )
+
+        a = MyAgg()
+
+        with self.assertRaises(TypeError) as cm:
+            a.value_changed(1)
+        self.assertEqual(
+            cm.exception.args[0],
+            "value_changed() missing 3 required keyword-only arguments: "
+            "'b', 'c', and 'd'",
+        )
+
+    def test_raises_when_missing_positional_and_required_keyword_only_arguments(self):
+        @aggregate
+        class MyAgg:
+            @event
+            def value_changed(self, a, *, b, c, d):
+                pass
+
+        class Data:
+            def value_changed(self, a, *, b, c, d):
+                pass
+
+        d = Data()
+        with self.assertRaises(TypeError) as cm:
+            d.value_changed()
+        self.assertEqual(
+            cm.exception.args[0],
+            "value_changed() missing 1 required positional argument: 'a'",
+        )
+
+        a = MyAgg()
+
+        with self.assertRaises(TypeError) as cm:
+            a.value_changed()
+        self.assertEqual(
+            cm.exception.args[0],
+            "value_changed() missing 1 required positional argument: 'a'",
+        )
+
+    def test_raises_when_method_is_staticmethod(self):
+        with self.assertRaises(TypeError) as cm:
+
+            @aggregate
+            class MyAgg:
+                @event
+                @staticmethod
+                def value_changed():
+                    pass
+
+        self.assertEqual(
+            cm.exception.args[0],
+            "value_changed() staticmethod can't be used to update aggregate state",
+        )
+
+    def test_raises_when_method_is_classmethod(self):
+        with self.assertRaises(TypeError) as cm:
+
+            @aggregate
+            class MyAgg:
+                @event
+                @classmethod
+                def value_changed(cls):
+                    pass
+
+        self.assertEqual(
+            cm.exception.args[0],
+            "value_changed() classmethod can't be used to update aggregate state",
         )
 
     def test_method_called_with_positional_defined_with_keyword_params(self):
@@ -204,22 +679,6 @@ class TestDeclarativeSyntax(TestCase):
     #         ),
     #         cm.exception.args[0],
     #     )
-
-    def test_raises_when_event_called_with_missing_arg(self):
-        @aggregate
-        class MyAgg:
-            @event
-            def value_changed(self, value):
-                pass
-
-        a = MyAgg()
-        self.assertIsInstance(a, MyAgg)
-        with self.assertRaises(TypeError) as cm:
-            a.value_changed()
-        self.assertTrue(
-            cm.exception.args[0].startswith("Can't construct event "),
-            cm.exception.args[0],
-        )
 
     def test_event_name_set_in_decorator(self):
         @aggregate
@@ -287,7 +746,9 @@ class TestDeclarativeSyntax(TestCase):
                 def value(self):
                     return None
 
-        self.assertEqual(cm.exception.args[0], "@event can't decorate property getter")
+        self.assertEqual(
+            cm.exception.args[0], "@event can't decorate value() property getter"
+        )
 
         with self.assertRaises(TypeError) as cm:
 
@@ -298,10 +759,12 @@ class TestDeclarativeSyntax(TestCase):
                 def value(self):
                     return None
 
-        self.assertEqual(cm.exception.args[0], "@event can't decorate property getter")
+        self.assertEqual(
+            cm.exception.args[0], "@event can't decorate value() property getter"
+        )
 
     def test_raises_when_event_without_name_decorates_property(self):
-        with self.assertRaises(ValueError) as cm:
+        with self.assertRaises(TypeError) as cm:
 
             @aggregate
             class _:
@@ -318,7 +781,8 @@ class TestDeclarativeSyntax(TestCase):
                     pass
 
         self.assertEqual(
-            cm.exception.args[0], "Can't decorate property without explicit event name"
+            cm.exception.args[0],
+            "@event on value() property setter requires event class name",
         )
 
     def test_raises_when_property_decorates_event_without_name(self):
@@ -339,11 +803,12 @@ class TestDeclarativeSyntax(TestCase):
                     pass
 
         self.assertEqual(
-            cm.exception.args[0], "Can't decorate property without explicit event name"
+            cm.exception.args[0],
+            "@event on value() property setter requires event class name",
         )
 
     def test_raises_unsupported_usage(self):
-        with self.assertRaises(ValueError) as cm:
+        with self.assertRaises(TypeError) as cm:
             event(1)
         self.assertEqual(
             cm.exception.args[0],
@@ -516,6 +981,50 @@ class TestDeclarativeSyntax(TestCase):
         copy = app.repository.get(order.id)
 
         self.assertEqual(copy.pickedup_at, order.pickedup_at)
+
+    # def test_inherit_from_declarative_aggregate(self) -> None:
+    #     class Order(DeclarativeAggregate):
+    #         def __init__(self, **kwargs) -> None:
+    #             super().__init__(**kwargs)
+    #             self.confirmed_at = None
+    #             self.pickedup_at = None
+    #
+    #         @event("Confirmed")
+    #         def confirm(self, at):
+    #             self.confirmed_at = at
+    #
+    #         def pickup(self, at):
+    #             if self.confirmed_at:
+    #                 self._pickup(at)
+    #             else:
+    #                 raise Exception("Order is not confirmed")
+    #
+    #         @event("Pickedup")
+    #         def _pickup(self, at):
+    #             self.pickedup_at = at
+    #
+    #     order = Order()
+    #     with self.assertRaises(Exception) as cm:
+    #         order.pickup(datetime.now())
+    #     self.assertEqual(cm.exception.args[0], "Order is not confirmed")
+    #
+    #     self.assertEqual(order.confirmed_at, None)
+    #     self.assertEqual(order.pickedup_at, None)
+    #
+    #     order.confirm(datetime.now())
+    #     self.assertIsInstance(order.confirmed_at, datetime)
+    #     self.assertEqual(order.pickedup_at, None)
+    #
+    #     order.pickup(datetime.now())
+    #     self.assertIsInstance(order.confirmed_at, datetime)
+    #     self.assertIsInstance(order.pickedup_at, datetime)
+    #
+    #     app: Application[Order] = Application()
+    #     app.save(order)
+    #
+    #     copy = app.repository.get(order.id)
+    #
+    #     self.assertEqual(copy.pickedup_at, order.pickedup_at)
 
 
 # Todo: Put method signature in event decorator, so that args can be mapped to names.

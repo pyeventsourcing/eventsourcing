@@ -28,12 +28,16 @@ class DomainEvent:
 
 
 TDomainEvent = TypeVar("TDomainEvent", bound=DomainEvent)
-TAggregate = TypeVar("TAggregate", bound="Aggregate")
-TAggregateEvent = TypeVar("TAggregateEvent", bound="Aggregate.Event")
-TAggregateCreated = TypeVar("TAggregateCreated", bound="Aggregate.Created")
+TAggregate = TypeVar("TAggregate", bound="BaseAggregate")
+TAggregateEvent = TypeVar("TAggregateEvent", bound="BaseAggregate.Event")
+TAggregateCreated = TypeVar("TAggregateCreated", bound="BaseAggregate.Created")
 
 
-class Aggregate:
+class MetaAggregate(type):
+    pass
+
+
+class BaseAggregate(metaclass=MetaAggregate):
     """
     Base class for aggregate roots.
     """
@@ -180,12 +184,11 @@ class Aggregate:
             )
             # Separate the base class keywords arguments.
             # Construct and return aggregate object.
+            kwargs["id"] = kwargs.pop("originator_id")
+            kwargs["version"] = kwargs.pop("originator_version")
+
             aggregate = object.__new__(aggregate_class)
-            aggregate.__init__(
-                id=kwargs.pop("originator_id"),
-                version=kwargs.pop("originator_version"),
-                **kwargs,
-            )
+            aggregate.__init__(**kwargs)
             return cast(TAggregate, aggregate)
 
     def _trigger_event(
@@ -227,6 +230,10 @@ class Aggregate:
         return collected
 
 
+class Aggregate(BaseAggregate):
+    pass
+
+
 class VersionError(Exception):
     """
     Raised when a domain event can't be applied to
@@ -255,7 +262,7 @@ class Snapshot(DomainEvent):
     state: dict
 
     @classmethod
-    def take(cls, aggregate: Aggregate) -> "Snapshot":
+    def take(cls, aggregate: TAggregate) -> "Snapshot":
         """
         Creates a snapshot of the given :class:`Aggregate` object.
         """
