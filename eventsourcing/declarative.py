@@ -259,11 +259,6 @@ class MetaDeclarativeAggregate(MetaAggregate):
                 for param_name, param in method_signature.parameters.items():
                     if param_name == "self":
                         continue
-                    elif param.kind is param.VAR_POSITIONAL:
-                        raise TypeError("variable positional parameters not supported")
-                    elif param.kind is param.VAR_KEYWORD:
-                        continue  # Assuming these are the base aggregate init kwargs.
-
                     created_cls_annotations[param_name] = "typing.Any"
 
             created_cls_name = "Created"
