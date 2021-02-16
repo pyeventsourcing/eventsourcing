@@ -189,7 +189,7 @@ class BaseAggregate(metaclass=MetaAggregate):
 
             aggregate = cast(TAggregate, object.__new__(aggregate_class))
             aggregate.__init__(**kwargs)
-            return cast(TAggregate, aggregate)
+            return aggregate
 
     def _trigger_event(
         self,
