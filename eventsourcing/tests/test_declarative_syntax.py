@@ -4,7 +4,7 @@ from unittest import TestCase
 from uuid import UUID
 
 from eventsourcing.application import Application
-from eventsourcing.declarative import aggregate, event
+from eventsourcing.declarative import DeclarativeAggregate, aggregate, event
 from eventsourcing.domain import Aggregate
 
 
@@ -785,7 +785,7 @@ class TestDeclarativeSyntax(TestCase):
         )
 
     def test_raises_when_property_decorates_event_without_name(self):
-        with self.assertRaises(ValueError) as cm:
+        with self.assertRaises(TypeError) as cm:
 
             @aggregate
             class _:
@@ -803,7 +803,7 @@ class TestDeclarativeSyntax(TestCase):
 
         self.assertEqual(
             cm.exception.args[0],
-            "@event on value() property setter requires event class name",
+            "@event under value() property setter requires event class name",
         )
 
     def test_raises_unsupported_usage(self):
@@ -981,49 +981,59 @@ class TestDeclarativeSyntax(TestCase):
 
         self.assertEqual(copy.pickedup_at, order.pickedup_at)
 
-    # def test_inherit_from_declarative_aggregate(self) -> None:
-    #     class Order(DeclarativeAggregate):
-    #         def __init__(self, **kwargs) -> None:
-    #             super().__init__(**kwargs)
-    #             self.confirmed_at = None
-    #             self.pickedup_at = None
-    #
-    #         @event("Confirmed")
-    #         def confirm(self, at):
-    #             self.confirmed_at = at
-    #
-    #         def pickup(self, at):
-    #             if self.confirmed_at:
-    #                 self._pickup(at)
-    #             else:
-    #                 raise Exception("Order is not confirmed")
-    #
-    #         @event("Pickedup")
-    #         def _pickup(self, at):
-    #             self.pickedup_at = at
-    #
-    #     order = Order()
-    #     with self.assertRaises(Exception) as cm:
-    #         order.pickup(datetime.now())
-    #     self.assertEqual(cm.exception.args[0], "Order is not confirmed")
-    #
-    #     self.assertEqual(order.confirmed_at, None)
-    #     self.assertEqual(order.pickedup_at, None)
-    #
-    #     order.confirm(datetime.now())
-    #     self.assertIsInstance(order.confirmed_at, datetime)
-    #     self.assertEqual(order.pickedup_at, None)
-    #
-    #     order.pickup(datetime.now())
-    #     self.assertIsInstance(order.confirmed_at, datetime)
-    #     self.assertIsInstance(order.pickedup_at, datetime)
-    #
-    #     app: Application[Order] = Application()
-    #     app.save(order)
-    #
-    #     copy = app.repository.get(order.id)
-    #
-    #     self.assertEqual(copy.pickedup_at, order.pickedup_at)
+    def test_inherit_from_declarative_aggregate(self) -> None:
+        class Order(DeclarativeAggregate):
+            def __init__(self, name) -> None:
+                self.name = name
+                self.confirmed_at = None
+                self.pickedup_at = None
+
+            # class Started(Aggregate.Created):
+            #     pass
+            #
+            @event("Confirmed")
+            def confirm(self, at):
+                self.confirmed_at = at
+
+            def pickup(self, at):
+                if self.confirmed_at:
+                    self._pickup(at)
+                else:
+                    raise Exception("Order is not confirmed")
+
+            @event("Pickedup")
+            def _pickup(self, at):
+                self.pickedup_at = at
+
+        order = Order("name")
+        self.assertEqual(order.name, "name")
+        with self.assertRaises(Exception) as cm:
+            order.pickup(datetime.now())
+        self.assertEqual(cm.exception.args[0], "Order is not confirmed")
+
+        self.assertEqual(order.confirmed_at, None)
+        self.assertEqual(order.pickedup_at, None)
+
+        order.confirm(datetime.now())
+        self.assertIsInstance(order.confirmed_at, datetime)
+        self.assertEqual(order.pickedup_at, None)
+
+        order.pickup(datetime.now())
+        self.assertIsInstance(order.confirmed_at, datetime)
+        self.assertIsInstance(order.pickedup_at, datetime)
+
+        pending = order._pending_events
+        # self.assertIsInstance(pending[0], Order.Started)
+
+        app: Application = Application()
+        app.save(order)
+
+        copy: Order = app.repository.get(order.id)
+
+        self.assertEqual(copy.pickedup_at, order.pickedup_at)
+
+
+# Todo: Test with own "created" event.
 
 
 # Todo: Put method signature in event decorator, so that args can be mapped to names.
