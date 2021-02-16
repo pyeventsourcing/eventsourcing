@@ -140,7 +140,33 @@ class TestDeclarativeSyntax(TestCase):
             "__init__() missing 2 required positional arguments: 'a' and 'b'",
         )
 
-    def test_dataclass_aggregate_no_defaults(self):
+    def test_raises_when_unexpected_keyword_argument(self):
+        @aggregate
+        class MyAgg:
+            def __init__(self, a=1):
+                pass
+        with self.assertRaises(TypeError) as cm:
+            MyAgg(b=1)
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() got an unexpected keyword argument 'b'",
+        )
+
+        with self.assertRaises(TypeError) as cm:
+            MyAgg(c=1)
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() got an unexpected keyword argument 'c'",
+        )
+
+        with self.assertRaises(TypeError) as cm:
+            MyAgg(b=1, c=1)
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() got an unexpected keyword argument 'b'",
+        )
+
+    def test_aggregate_on_dataclass_no_defaults(self):
         @aggregate
         @dataclass
         class MyAgg:
@@ -152,7 +178,7 @@ class TestDeclarativeSyntax(TestCase):
         self.assertIsInstance(a, Aggregate)
         self.assertEqual(len(a._pending_events), 1)
 
-    def test_dataclass_aggregate_default_also_passed_to_constructor(self):
+    def test_aggregate_on_dataclass_default_also_passed_to_constructor(self):
         @aggregate
         @dataclass
         class MyAgg:
@@ -164,7 +190,7 @@ class TestDeclarativeSyntax(TestCase):
         self.assertIsInstance(a, Aggregate)
         self.assertEqual(len(a._pending_events), 1)
 
-    def test_dataclass_aggregate_default_value_not_passed_to_constructor(self):
+    def test_aggregate_on_dataclass_default_value_not_passed_to_constructor(self):
         @aggregate
         @dataclass
         class MyAgg:
@@ -176,7 +202,7 @@ class TestDeclarativeSyntax(TestCase):
         self.assertIsInstance(a, Aggregate)
         self.assertEqual(len(a._pending_events), 1)
 
-    def test_dataclass_aggregate_mixture_of_default_values(self):
+    def test_aggregate_on_dataclass_mixture_of_default_values(self):
         @aggregate
         @dataclass
         class MyAgg:
@@ -253,6 +279,49 @@ class TestDeclarativeSyntax(TestCase):
         self.assertEqual(
             cm.exception.args[0], "__init__() got multiple values for argument 'a'"
         )
+
+    def test_aggregate_is_dataclass(self):
+        @aggregate(is_dataclass=True)
+        class MyAgg:
+            value: int = 0
+
+        a = MyAgg()
+        self.assertIsInstance(a, MyAgg)
+        self.assertEqual(a.value, 0)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a._pending_events), 1)
+
+        a = MyAgg(1)
+        self.assertIsInstance(a, MyAgg)
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a._pending_events), 1)
+
+        a = MyAgg(value=1)
+        self.assertIsInstance(a, MyAgg)
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a._pending_events), 1)
+
+        with self.assertRaises(TypeError) as cm:
+            a = MyAgg(wrong=1)
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() got an unexpected keyword argument 'wrong'"
+        )
+
+    def test_raises_when_aggregate_is_not_dataclass_but_cls_has_annotations(self):
+        @aggregate
+        class MyAgg:
+            value: int
+
+        with self.assertRaises(TypeError) as cm:
+            MyAgg(0)
+        self.assertEqual(cm.exception.args[0], "MyAgg() takes no args")
+
+        with self.assertRaises(TypeError) as cm:
+            MyAgg(value=1)
+        self.assertEqual(cm.exception.args[0], "MyAgg() takes no args")
 
     def test_raises_when_init_has_variable_positional_params(self):
         with self.assertRaises(TypeError) as cm:
@@ -396,7 +465,7 @@ class TestDeclarativeSyntax(TestCase):
             "value_changed() takes 2 positional arguments but 3 were given",
         )
 
-    def test_raises_when_missing_1_required_positional_argument(self):
+    def test_raises_when_method_missing_1_required_positional_argument(self):
         @aggregate
         class MyAgg:
             @event
@@ -424,7 +493,7 @@ class TestDeclarativeSyntax(TestCase):
             "value_changed() missing 1 required positional argument: 'a'",
         )
 
-    def test_raises_when_missing_2_required_positional_arguments(self):
+    def test_raises_when_method_missing_2_required_positional_arguments(self):
         @aggregate
         class MyAgg:
             @event
@@ -452,7 +521,7 @@ class TestDeclarativeSyntax(TestCase):
             "value_changed() missing 2 required positional arguments: 'a' and 'b'",
         )
 
-    def test_raises_when_missing_3_required_positional_arguments(self):
+    def test_raises_when_method_missing_3_required_positional_arguments(self):
         @aggregate
         class MyAgg:
             @event
@@ -480,7 +549,7 @@ class TestDeclarativeSyntax(TestCase):
             "value_changed() missing 3 required positional arguments: 'a', 'b', and 'c'",
         )
 
-    def test_raises_when_missing_1_required_keyword_only_argument(self):
+    def test_raises_when_method_missing_1_required_keyword_only_argument(self):
         @aggregate
         class MyAgg:
             @event
@@ -508,7 +577,7 @@ class TestDeclarativeSyntax(TestCase):
             "value_changed() missing 1 required keyword-only argument: 'b'",
         )
 
-    def test_raises_when_missing_2_required_keyword_only_arguments(self):
+    def test_raises_when_method_missing_2_required_keyword_only_arguments(self):
         @aggregate
         class MyAgg:
             @event
@@ -536,7 +605,7 @@ class TestDeclarativeSyntax(TestCase):
             "value_changed() missing 2 required keyword-only arguments: 'b' and 'c'",
         )
 
-    def test_raises_when_missing_3_required_keyword_only_arguments(self):
+    def test_raises_when_method_missing_3_required_keyword_only_arguments(self):
         @aggregate
         class MyAgg:
             @event
@@ -592,6 +661,33 @@ class TestDeclarativeSyntax(TestCase):
         self.assertEqual(
             cm.exception.args[0],
             "value_changed() missing 1 required positional argument: 'a'",
+        )
+
+    def test_raises_when_method_gets_unexpected_keyword_argument(
+        self):
+        @aggregate
+        class MyAgg:
+            @event
+            def value_changed(self, a):
+                pass
+
+        class Data:
+            def value_changed(self, a):
+                pass
+
+        d = Data()
+        with self.assertRaises(TypeError) as cm:
+            d.value_changed(b=1)
+        self.assertEqual(
+            cm.exception.args[0],
+            "value_changed() got an unexpected keyword argument 'b'",
+        )
+
+        with self.assertRaises(TypeError) as cm:
+            d.value_changed(b=1)
+        self.assertEqual(
+            cm.exception.args[0],
+            "value_changed() got an unexpected keyword argument 'b'",
         )
 
     def test_raises_when_method_is_staticmethod(self):
@@ -1026,7 +1122,6 @@ class TestDeclarativeSyntax(TestCase):
 
         self.assertEqual(copy.pickedup_at, order.pickedup_at)
 
-
     def test_define_own_created_event_called_started(self) -> None:
         class Order(DeclarativeAggregate):
             def __init__(self, name) -> None:
@@ -1039,6 +1134,7 @@ class TestDeclarativeSyntax(TestCase):
                 name: str
 
         order = Order("name")
+        self.assertIsInstance(order, Aggregate)
         self.assertEqual(order.name, "name")
 
         pending = order._pending_events

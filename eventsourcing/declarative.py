@@ -16,13 +16,25 @@ from eventsourcing.domain import (
 original_methods: Dict[Type[Aggregate.Event], FunctionType] = {}
 
 
-def aggregate(original_cls: Any) -> "MetaDeclarativeAggregate":
-    original_cls_dict = {k: v for k, v in original_cls.__dict__.items()}
-    original_cls_dict["__qualname__"] = original_cls.__qualname__
-    return type(original_cls.__name__, (original_cls, DeclarativeAggregate), original_cls_dict)
+def aggregate(
+    cls: Optional[type] = None, *, is_dataclass: Optional[bool] = None
+) -> "MetaDeclarativeAggregate":
+
+    def wrapper(cls) -> "MetaDeclarativeAggregate":
+        if is_dataclass:
+            cls = dataclass(cls)
+        cls_dict = {k: v for k, v in cls.__dict__.items()}
+        cls_dict["__qualname__"] = cls.__qualname__
+        return type(cls.__name__, (cls, DeclarativeAggregate), cls_dict)
+
+    if cls:
+        assert is_dataclass is None
+        return wrapper(cls)
+    else:
+        return wrapper
 
 
-class event:
+class EventDecorator:
     def __init__(self, arg: Union[FunctionType, str]):
         self.is_property_setter = False
         self.propery_attribute_name: Optional[str] = None
@@ -103,10 +115,13 @@ class event:
             assert len(kwargs) == 0
             assert isinstance(args[0], Aggregate)
             kwargs = {self.propery_attribute_name: args[1]}
-            bound = bound_event(self, args[0])
+            bound = BoundEvent(self, args[0])
             bound.trigger(**kwargs)
         else:
             raise ValueError("Unsupported usage: event object was called directly")
+
+
+event = EventDecorator
 
 
 def _check_no_variable_params(method: FunctionType) -> None:
@@ -127,13 +142,12 @@ def _coerce_args_to_kwargs(
 ) -> Dict[str, Any]:
     assert method
     method_signature = inspect.signature(method)
-    kwargs = dict(kwargs)
+    copy_kwargs = dict(kwargs)
     args = tuple(args)
     positional_names = []
     keyword_defaults = {}
     required_positional = []
     required_keyword_only = []
-    missing_keyword_only_arguments = []
 
     for name, param in method_signature.parameters.items():
         if name == "self":
@@ -148,9 +162,11 @@ def _coerce_args_to_kwargs(
         if param.default != param.empty:
             keyword_defaults[name] = param.default
 
-    for name in required_keyword_only:
-        if name not in kwargs:
-            missing_keyword_only_arguments.append(name)
+    for name in kwargs:
+        if name not in required_keyword_only and name not in positional_names:
+            raise TypeError(
+                f"{method.__name__}() got an unexpected keyword argument '{name}'"
+            )
 
     counter = 0
     if len(args) > len(positional_names):
@@ -185,12 +201,17 @@ def _coerce_args_to_kwargs(
         if counter + 1 > len(args):
             break
         if name not in kwargs:
-            kwargs[name] = args[counter]
+            copy_kwargs[name] = args[counter]
             counter += 1
         else:
             raise TypeError(
                 f"{method.__name__}() got multiple values for argument '{name}'"
             )
+
+    missing_keyword_only_arguments = []
+    for name in required_keyword_only:
+        if name not in kwargs:
+            missing_keyword_only_arguments.append(name)
 
     if missing_keyword_only_arguments:
         missing_names = [f"'{name}'" for name in missing_keyword_only_arguments]
@@ -209,13 +230,17 @@ def _coerce_args_to_kwargs(
         raise TypeError(msg)
 
     for name, value in keyword_defaults.items():
-        if name not in kwargs:
-            kwargs[name] = value
-    return kwargs
+        if name not in copy_kwargs:
+            copy_kwargs[name] = value
+    return copy_kwargs
 
 
-class bound_event:
-    def __init__(self, event: event, aggregate: TAggregate):
+class BoundEvent:
+    """
+    Wraps an EventDecorator instance when attribute is accessed
+    on an aggregate so that the aggregate methods can be accessed.
+    """
+    def __init__(self, event: EventDecorator, aggregate: TAggregate):
         self.event = event
         self.aggregate = aggregate
 
@@ -294,7 +319,7 @@ class MetaDeclarativeAggregate(MetaAggregate):
         for attribute in tuple(cls_dict.values()):
 
             # Watch out for @property that sits over an @event.
-            if isinstance(attribute, property) and isinstance(attribute.fset, event):
+            if isinstance(attribute, property) and isinstance(attribute.fset, EventDecorator):
                 attribute = attribute.fset
                 if attribute.is_name_inferred_from_method:
                     method_name = attribute.original_method.__name__
@@ -306,7 +331,7 @@ class MetaDeclarativeAggregate(MetaAggregate):
                 attribute.is_property_setter = True
 
             # Attribute is an event decorator.
-            if isinstance(attribute, event):
+            if isinstance(attribute, EventDecorator):
                 # Prepare the subsequent aggregate events.
                 original_method = attribute.original_method
                 assert isinstance(original_method, FunctionType)
@@ -335,36 +360,38 @@ class MetaDeclarativeAggregate(MetaAggregate):
                 original_methods[event_cls] = original_method
                 cls_dict[event_cls_name] = event_cls
 
-        aggregate_class = MetaAggregate.__new__(
-            cls,
-            cls_name,
-            (
-                DeclarativeAggregate,
-                Aggregate,
-            ),
-            cls_dict,
-        )
+        bases += (Aggregate,)
+        aggregate_class = super().__new__(cls, cls_name,
+                                                bases, cls_dict)
         return cast(MetaDeclarativeAggregate, aggregate_class)
 
-    def __init__(self, *args, **kwargs):
-        pass
+
+    # def __init__(self, cls_name: str, bases: tuple, cls_dict: Dict[str, Any]):
+    #     pass
         # self._original_init_method = None
 
     def __call__(self, *args: Any, **kwargs: Any) -> TAggregate:
         if self._original_init_method is not None:
             kwargs = _coerce_args_to_kwargs(self._original_init_method, args, kwargs)
         else:
-            assert not args
-            assert not kwargs
-        return self._create(
+            if args or kwargs:
+                raise TypeError(
+                    f"{self.__name__}() takes no args"
+                )
+        aggregate = self._create(
             event_class=self._created_cls,
             id=uuid4(),
             **kwargs,
         )
+        return aggregate
 
 
 class DeclarativeEvent(BaseAggregate.Event):
     def apply(self, aggregate: TAggregate) -> None:
+        """
+        Applies event to aggregate by calling
+        method decorated by @event.
+        """
         event_obj_dict = copy(self.__dict__)
         event_obj_dict.pop("originator_id")
         event_obj_dict.pop("originator_version")
@@ -387,13 +414,13 @@ class DeclarativeAggregate(BaseAggregate, metaclass=MetaDeclarativeAggregate):
 
     def __getattribute__(self, item: str) -> Any:
         attr = super().__getattribute__(item)
-        if isinstance(attr, event):
+        if isinstance(attr, EventDecorator):
             if attr.is_decorating_a_property:
                 assert attr.decorated_property
                 assert attr.decorated_property.fget
                 return attr.decorated_property.fget(self)  # type: ignore
             else:
-                return bound_event(attr, self)
+                return BoundEvent(attr, self)
         else:
             return attr
 
@@ -404,9 +431,9 @@ class DeclarativeAggregate(BaseAggregate, metaclass=MetaDeclarativeAggregate):
             # Set new attribute.
             super().__setattr__(name, value)
         else:
-            if isinstance(attr, event):
+            if isinstance(attr, EventDecorator):
                 # Set property.
-                b = bound_event(attr, self)
+                b = BoundEvent(attr, self)
                 kwargs = {name: value}
                 b.trigger(**kwargs)
 
