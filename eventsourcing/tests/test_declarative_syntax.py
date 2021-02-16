@@ -74,7 +74,7 @@ class TestDeclarativeSyntax(TestCase):
         self.assertEqual(x.b, 0)
         self.assertEqual(x.c, 2)
 
-    def test_init_missing_1_required_positional_arg(self):
+    def test_raises_when_init_missing_1_required_positional_arg(self):
         @aggregate
         class MyAgg:
             def __init__(self, value):
@@ -87,7 +87,7 @@ class TestDeclarativeSyntax(TestCase):
             "__init__() missing 1 required positional argument: 'value'",
         )
 
-    def test_init_missing_1_required_keyword_only_arg(self):
+    def test_raises_when_init_missing_1_required_keyword_only_arg(self):
         @aggregate
         class MyAgg:
             def __init__(self, *, value):
@@ -100,7 +100,7 @@ class TestDeclarativeSyntax(TestCase):
             "__init__() missing 1 required keyword-only argument: 'value'",
         )
 
-    def test_init_with_missing_required_positional_and_keyword_only_arg(self):
+    def test_raises_when_init_missing_required_positional_and_keyword_only_arg(self):
         @aggregate
         class MyAgg:
             def __init__(self, a, *, b):
@@ -113,20 +113,6 @@ class TestDeclarativeSyntax(TestCase):
             "__init__() missing 1 required positional argument: 'a'",
         )
 
-    def test_init_missing_2_required_positional_args(self):
-        @aggregate
-        class MyAgg:
-            def __init__(self, a, b, *, c):
-                pass
-
-        with self.assertRaises(TypeError) as cm:
-            MyAgg()
-        self.assertEqual(
-            cm.exception.args[0],
-            "__init__() missing 2 required positional arguments: 'a' and 'b'",
-        )
-
-    def test_init_with_default_keyword_arg_missing_positional_and_keyword_only(self):
         @aggregate
         class MyAgg:
             def __init__(self, a, b=0, *, c):
@@ -139,6 +125,19 @@ class TestDeclarativeSyntax(TestCase):
         self.assertEqual(
             cm.exception.args[0],
             "__init__() missing 1 required positional argument: 'a'",
+        )
+
+    def test_raises_when_init_missing_2_required_positional_args(self):
+        @aggregate
+        class MyAgg:
+            def __init__(self, a, b, *, c):
+                pass
+
+        with self.assertRaises(TypeError) as cm:
+            MyAgg()
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() missing 2 required positional arguments: 'a' and 'b'",
         )
 
     def test_dataclass_aggregate_no_defaults(self):
