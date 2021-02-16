@@ -811,7 +811,7 @@ class TestDeclarativeSyntax(TestCase):
             event(1)
         self.assertEqual(
             cm.exception.args[0],
-            "Unsupported usage: <class 'int'> is not a str or a FunctionType",
+            "Unsupported usage: <class 'int'> is not a str or function",
         )
 
         with self.assertRaises(ValueError) as cm:
@@ -988,9 +988,6 @@ class TestDeclarativeSyntax(TestCase):
                 self.confirmed_at = None
                 self.pickedup_at = None
 
-            # class Started(Aggregate.Created):
-            #     pass
-            #
             @event("Confirmed")
             def confirm(self, at):
                 self.confirmed_at = at
@@ -1022,9 +1019,6 @@ class TestDeclarativeSyntax(TestCase):
         self.assertIsInstance(order.confirmed_at, datetime)
         self.assertIsInstance(order.pickedup_at, datetime)
 
-        pending = order._pending_events
-        # self.assertIsInstance(pending[0], Order.Started)
-
         app: Application = Application()
         app.save(order)
 
@@ -1033,7 +1027,29 @@ class TestDeclarativeSyntax(TestCase):
         self.assertEqual(copy.pickedup_at, order.pickedup_at)
 
 
-# Todo: Test with own "created" event.
+    def test_define_own_created_event_called_started(self) -> None:
+        class Order(DeclarativeAggregate):
+            def __init__(self, name) -> None:
+                self.name = name
+                self.confirmed_at = None
+                self.pickedup_at = None
+
+            @dataclass(frozen=True)
+            class Started(Aggregate.Created):
+                name: str
+
+        order = Order("name")
+        self.assertEqual(order.name, "name")
+
+        pending = order._pending_events
+        self.assertIsInstance(pending[0], Order.Started)
+
+        app: Application = Application()
+        app.save(order)
+
+        copy: Order = app.repository.get(order.id)
+
+        self.assertEqual(copy.name, "name")
 
 
 # Todo: Put method signature in event decorator, so that args can be mapped to names.

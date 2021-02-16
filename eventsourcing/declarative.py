@@ -2,7 +2,7 @@ import inspect
 from builtins import property
 from copy import copy
 from dataclasses import dataclass
-from types import FunctionType, MethodType
+from types import FunctionType
 from typing import Any, Dict, Iterable, Optional, Type, Union, cast
 from uuid import uuid4
 
@@ -11,203 +11,15 @@ from eventsourcing.domain import (
     BaseAggregate,
     MetaAggregate,
     TAggregate,
-    TAggregateEvent,
 )
 
 original_methods: Dict[Type[Aggregate.Event], FunctionType] = {}
 
 
-def aggregate(original_cls: Any) -> Type[Aggregate]:
-    original_cls_dict = {k:v for k,v in original_cls.__dict__.items()}
+def aggregate(original_cls: Any) -> "MetaDeclarativeAggregate":
+    original_cls_dict = {k: v for k, v in original_cls.__dict__.items()}
     original_cls_dict["__qualname__"] = original_cls.__qualname__
-    return MetaDeclarativeAggregate(
-        original_cls.__name__, (original_cls, DeclarativeAggregate), original_cls_dict
-    )
-
-def _aggregate(original_cls: Any) -> Type[Aggregate]:
-
-    # Prepare the "created" event class.
-    created_cls_annotations = {}
-    try:
-        cls_init_method = original_cls.__dict__["__init__"]
-    except KeyError:
-        has_init_method = False
-    else:
-        has_init_method = True
-        check_no_variable_params(cls_init_method)
-        method_signature = inspect.signature(cls_init_method)
-        for param_name in method_signature.parameters:
-            if param_name == "self":
-                continue
-            created_cls_annotations[param_name] = "typing.Any"
-
-    created_cls_dict = {
-        "__annotations__": created_cls_annotations,
-        "__qualname__": ".".join([original_cls.__qualname__, "Created"]),
-        "__module__": original_cls.__module__,
-    }
-
-    created_cls = cast(
-        Type[Aggregate.Created],
-        type("Created", (Aggregate.Created,), created_cls_dict),
-    )
-
-    created_cls = dataclass(frozen=True)(created_cls)
-
-    # Prepare the aggregate class.
-    # Todo: Put this in a metaclass... (then don't need *args in __init__ and it
-    #  won't be called twice).
-    def __new__(cls: Type[Aggregate], *args: Any, **kwargs: Any) -> Aggregate:
-        # if original_cls.__init__ != object.__init__:
-        if has_init_method:
-            kwargs = coerce_args_to_kwargs(original_cls.__init__, args, kwargs)
-        return cls._create(event_class=created_cls, id=uuid4(), **kwargs)
-
-    def __init__(self: Aggregate, *args: Any, **kwargs: Any) -> None:
-        if "id" not in kwargs:
-            return  # Python calls me again...
-        base_kwargs = {}
-        base_kwargs["id"] = kwargs.pop("id")
-        base_kwargs["version"] = kwargs.pop("version")
-        base_kwargs["timestamp"] = kwargs.pop("timestamp")
-        Aggregate.__init__(self, **base_kwargs)
-        if has_init_method:
-            original_cls.__init__(self, **kwargs)
-
-    def getattribute(self: Aggregate, item: str) -> Any:
-        attr = super(Aggregate, self).__getattribute__(item)
-        if isinstance(attr, event):
-            if attr.is_decorating_a_property:
-                assert attr.decorated_property
-                assert attr.decorated_property.fget
-                return attr.decorated_property.fget(self)  # type: ignore
-            else:
-                return bound_event(attr, self)
-        else:
-            return attr
-
-    def __setattr__(self: Aggregate, name: str, value: Any) -> Any:
-        try:
-            attr = super(Aggregate, self).__getattribute__(name)
-        except AttributeError:
-            # Set new attribute.
-            super(Aggregate, self).__setattr__(name, value)
-        else:
-            if isinstance(attr, event):
-                # Set property.
-                b = bound_event(attr, self)
-                kwargs = {name: value}
-                b.trigger(**kwargs)
-
-            else:
-                # Set existing attribute.
-                super(Aggregate, self).__setattr__(name, value)
-
-    aggregate_cls_dict = {
-        "__module__": original_cls.__module__,
-        "__qualname__": original_cls.__qualname__,
-        "__doc__": original_cls.__doc__,
-        "__new__": __new__,
-        "__init__": __init__,
-        "__getattribute__": getattribute,
-        "__setattr__": __setattr__,
-        "Created": created_cls,
-    }
-    aggregate_cls = cast(
-        Aggregate,
-        type(original_cls.__name__, (original_cls, Aggregate), aggregate_cls_dict),
-    )
-
-    for name in dir(original_cls):
-        attribute = getattr(original_cls, name)
-
-        if isinstance(attribute, property) and isinstance(attribute.fset, event):
-            attribute = attribute.fset
-            if attribute.is_name_inferred_from_method:
-                method_name = attribute.original_method.__name__
-                raise ValueError(
-                    f"@event on {method_name}() property setter requires event class "
-                    f"name"
-                )
-            # Attribute is a property decorating an event decorator.
-            attribute.is_property_setter = True
-
-        # Attribute is an event decorator.
-        if isinstance(attribute, event):
-            # Prepare the subsequent aggregate events.
-            original_method = attribute.original_method
-            assert isinstance(original_method, FunctionType)
-
-            event_cls_name = attribute.event_cls_name
-            event_cls_qualname = ".".join([original_cls.__qualname__, event_cls_name])
-
-            assert isinstance(original_method, FunctionType)
-
-            method_signature = inspect.signature(original_method)
-            annotations = {}
-            for param_name in method_signature.parameters:
-                if param_name == "self":
-                    continue
-                elif attribute.is_property_setter:
-                    assert len(method_signature.parameters) == 2
-                    attribute.propery_attribute_name = param_name
-                    annotations[param_name] = "typing.Any"
-
-                else:
-                    annotations[param_name] = "typing.Any"
-
-            event_cls_dict = {
-                "__annotations__": annotations,
-                "__module__": original_cls.__module__,
-                "__qualname__": event_cls_qualname,
-            }
-
-            event_cls = type(event_cls_name, (DeclarativeEvent,), event_cls_dict)
-
-            event_cls = dataclass(frozen=True)(event_cls)
-
-            original_methods[event_cls] = original_method
-            setattr(aggregate_cls, event_cls_name, event_cls)
-
-    return cast(Type[Aggregate], aggregate_cls)
-
-
-# def apply(self: Aggregate.Event, aggregate: Aggregate) -> None:
-#     event_obj_dict = copy(self.__dict__)
-#     event_obj_dict.pop("originator_id")
-#     event_obj_dict.pop("originator_version")
-#     event_obj_dict.pop("timestamp")
-#     original_method = original_methods[type(self)]
-#     method_signature = inspect.signature(original_method)
-#     # args = []
-#     # for name, param in method_signature.parameters.items():
-#     for name in method_signature.parameters:
-#         if name == "self":
-#             continue
-#     #     if param.kind == param.POSITIONAL_ONLY:
-#     #         args.append(event_obj_dict.pop(name))
-#     # original_method(aggregate, *args, **event_obj_dict)
-#     original_method(aggregate, **event_obj_dict)
-
-
-class DeclarativeEvent(BaseAggregate.Event):
-
-    def apply(self, aggregate: TAggregate) -> None:
-        event_obj_dict = copy(self.__dict__)
-        event_obj_dict.pop("originator_id")
-        event_obj_dict.pop("originator_version")
-        event_obj_dict.pop("timestamp")
-        original_method = original_methods[type(self)]
-        method_signature = inspect.signature(original_method)
-        # args = []
-        # for name, param in method_signature.parameters.items():
-        for name in method_signature.parameters:
-            if name == "self":
-                continue
-        #     if param.kind == param.POSITIONAL_ONLY:
-        #         args.append(event_obj_dict.pop(name))
-        # original_method(aggregate, *args, **event_obj_dict)
-        original_method(aggregate, **event_obj_dict)
+    return type(original_cls.__name__, (original_cls, DeclarativeAggregate), original_cls_dict)
 
 
 class event:
@@ -240,9 +52,7 @@ class event:
                 f"used to update aggregate state"
             )
         else:
-            raise TypeError(
-                f"Unsupported usage: {type(arg)} is not a str or a FunctionType"
-            )
+            raise TypeError(f"Unsupported usage: {type(arg)} is not a str or function")
 
     def initialise_from_decorated_method(self, original_method: FunctionType) -> None:
         self.is_name_inferred_from_method = True
@@ -250,7 +60,7 @@ class event:
             [s.capitalize() for s in original_method.__name__.split("_")]
         )
         self.original_method = original_method
-        check_no_variable_params(self.original_method)
+        _check_no_variable_params(self.original_method)
 
     def initialise_from_explicit_name(self, event_cls_name: str) -> None:
         self.is_name_inferred_from_method = False
@@ -267,7 +77,7 @@ class event:
             if isinstance(arg, FunctionType):
                 # Decorating a function.
                 self.original_method = arg
-                check_no_variable_params(self.original_method)
+                _check_no_variable_params(self.original_method)
             elif isinstance(arg, property):
                 # Decorating a property.
                 self.is_decorating_a_property = True
@@ -280,7 +90,7 @@ class event:
                 assert isinstance(arg.fset, FunctionType)
                 self.original_method = arg.fset
                 assert self.original_method
-                check_no_variable_params(self.original_method)
+                _check_no_variable_params(self.original_method)
             else:
                 raise ValueError(
                     f"Unsupported usage: {type(arg)} is not a str or a FunctionType"
@@ -299,7 +109,7 @@ class event:
             raise ValueError("Unsupported usage: event object was called directly")
 
 
-def check_no_variable_params(method: FunctionType) -> None:
+def _check_no_variable_params(method: FunctionType) -> None:
     for param in inspect.signature(method).parameters.values():
         if param.kind is param.VAR_POSITIONAL:
             raise TypeError("variable positional parameters not supported")
@@ -312,8 +122,8 @@ def check_no_variable_params(method: FunctionType) -> None:
             raise TypeError("variable keyword parameters not supported")
 
 
-def coerce_args_to_kwargs(
-    method: MethodType, args: Iterable[Any], kwargs: Dict[str, Any]
+def _coerce_args_to_kwargs(
+    method: FunctionType, args: Iterable[Any], kwargs: Dict[str, Any]
 ) -> Dict[str, Any]:
     assert method
     method_signature = inspect.signature(method)
@@ -412,7 +222,7 @@ class bound_event:
     def trigger(self, *args: Any, **kwargs: Any) -> None:
         method = self.event.original_method
         assert method
-        kwargs = coerce_args_to_kwargs(method, args, kwargs)
+        kwargs = _coerce_args_to_kwargs(method, args, kwargs)
         event_cls = getattr(self.aggregate, self.event.event_cls_name)
         self.aggregate._trigger_event(event_cls, **kwargs)
 
@@ -421,10 +231,10 @@ class bound_event:
 
 
 class MetaDeclarativeAggregate(MetaAggregate):
-    def __new__(cls, cls_name, bases, cls_dict):
+    def __new__(cls, cls_name: str, bases: tuple, cls_dict: Dict[str, Any]) -> "MetaDeclarativeAggregate":
         if cls_name == "DeclarativeAggregate":
             aggregate_class = MetaAggregate.__new__(cls, cls_name, bases, cls_dict)
-            return cast(Type[BaseAggregate], aggregate_class)
+            return cast(MetaDeclarativeAggregate, aggregate_class)
 
         aggregate_cls_qualname = cls_dict["__qualname__"]
         aggregate_cls_module = cls_dict["__module__"]
@@ -436,7 +246,7 @@ class MetaDeclarativeAggregate(MetaAggregate):
 
         # Prepare the "created" event class.
         # Todo: Go through the cls_dict and look for a Created event...
-        for attr_name, cls_attr in tuple(cls_dict.items()):
+        for cls_attr in tuple(cls_dict.values()):
             if isinstance(cls_attr, type) and issubclass(cls_attr, Aggregate.Created):
                 # Found a "created" class on the aggregate.
                 cls_dict["_created_cls"] = cls_attr
@@ -444,7 +254,7 @@ class MetaDeclarativeAggregate(MetaAggregate):
         else:
             created_cls_annotations = {}
             if cls_init_method:
-                check_no_variable_params(cls_init_method)
+                _check_no_variable_params(cls_init_method)
                 method_signature = inspect.signature(cls_init_method)
                 for param_name, param in method_signature.parameters.items():
                     if param_name == "self":
@@ -486,7 +296,7 @@ class MetaDeclarativeAggregate(MetaAggregate):
             cls_dict["__init__"] = __init__
 
         # Prepare the subsequent event classes.
-        for name, attribute in tuple(cls_dict.items()):
+        for attribute in tuple(cls_dict.values()):
 
             # Watch out for @property that sits over an @event.
             if isinstance(attribute, property) and isinstance(attribute.fset, event):
@@ -539,11 +349,15 @@ class MetaDeclarativeAggregate(MetaAggregate):
             ),
             cls_dict,
         )
-        return cast(Type[TAggregate], aggregate_class)
+        return cast(MetaDeclarativeAggregate, aggregate_class)
 
-    def __call__(self: TAggregate, *args, **kwargs) -> TAggregate:
+    def __init__(self, *args, **kwargs):
+        pass
+        # self._original_init_method = None
+
+    def __call__(self, *args: Any, **kwargs: Any) -> TAggregate:
         if self._original_init_method is not None:
-            kwargs = coerce_args_to_kwargs(self._original_init_method, args, kwargs)
+            kwargs = _coerce_args_to_kwargs(self._original_init_method, args, kwargs)
         else:
             assert not args
             assert not kwargs
@@ -552,6 +366,25 @@ class MetaDeclarativeAggregate(MetaAggregate):
             id=uuid4(),
             **kwargs,
         )
+
+
+class DeclarativeEvent(BaseAggregate.Event):
+    def apply(self, aggregate: TAggregate) -> None:
+        event_obj_dict = copy(self.__dict__)
+        event_obj_dict.pop("originator_id")
+        event_obj_dict.pop("originator_version")
+        event_obj_dict.pop("timestamp")
+        original_method = original_methods[type(self)]
+        method_signature = inspect.signature(original_method)
+        # args = []
+        # for name, param in method_signature.parameters.items():
+        for name in method_signature.parameters:
+            if name == "self":
+                continue
+        #     if param.kind == param.POSITIONAL_ONLY:
+        #         args.append(event_obj_dict.pop(name))
+        # original_method(aggregate, *args, **event_obj_dict)
+        original_method(aggregate, **event_obj_dict)
 
 
 class DeclarativeAggregate(BaseAggregate, metaclass=MetaDeclarativeAggregate):
@@ -569,12 +402,12 @@ class DeclarativeAggregate(BaseAggregate, metaclass=MetaDeclarativeAggregate):
         else:
             return attr
 
-    def __setattr__(self: Aggregate, name: str, value: Any) -> Any:
+    def __setattr__(self, name: str, value: Any) -> Any:
         try:
-            attr = super(Aggregate, self).__getattribute__(name)
+            attr = super().__getattribute__(name)
         except AttributeError:
             # Set new attribute.
-            super(Aggregate, self).__setattr__(name, value)
+            super().__setattr__(name, value)
         else:
             if isinstance(attr, event):
                 # Set property.
@@ -584,4 +417,4 @@ class DeclarativeAggregate(BaseAggregate, metaclass=MetaDeclarativeAggregate):
 
             else:
                 # Set existing attribute.
-                super(Aggregate, self).__setattr__(name, value)
+                super().__setattr__(name, value)
