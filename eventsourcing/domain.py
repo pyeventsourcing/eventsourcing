@@ -34,7 +34,41 @@ TAggregateCreated = TypeVar("TAggregateCreated", bound="BaseAggregate.Created")
 
 
 class MetaAggregate(type):
-    pass
+    def _create(
+        cls: "MetaAggregate",
+        event_class: Type[TAggregateCreated],
+        *,
+        id: UUID,
+        **kwargs: Any,
+    ) -> TAggregate:
+        """
+        Factory method to construct a new
+        aggregate object instance.
+        """
+        # Construct the domain event class,
+        # with an ID and version, and the
+        # a topic for the aggregate class.
+        try:
+            event: TAggregateCreated = event_class(  # type: ignore
+                originator_topic=get_topic(cls),
+                originator_id=id,
+                originator_version=1,
+                timestamp=datetime.now(tz=TZINFO),
+                **kwargs,
+            )
+        except TypeError as e:
+            msg = (
+                f"Unable to construct 'aggregate created' "
+                f"event with class {event_class.__qualname__} "
+                f"and keyword args {kwargs}: {e}"
+            )
+            raise TypeError(msg)
+        # Construct the aggregate object.
+        aggregate: TAggregate = event.mutate(None)
+        # Append the domain event to pending list.
+        aggregate._pending_events.append(event)
+        # Return the aggregate.
+        return aggregate
 
 
 class BaseAggregate(metaclass=MetaAggregate):
@@ -118,43 +152,6 @@ class BaseAggregate(metaclass=MetaAggregate):
             Applies the domain event to the aggregate.
             """
 
-    @classmethod
-    def _create(
-        cls: Type[TAggregate],
-        event_class: Type[TAggregateCreated],
-        *,
-        id: UUID,
-        **kwargs: Any,
-    ) -> TAggregate:
-        """
-        Factory method to construct a new
-        aggregate object instance.
-        """
-        # Construct the domain event class,
-        # with an ID and version, and the
-        # a topic for the aggregate class.
-        try:
-            event: TAggregateCreated = event_class(  # type: ignore
-                originator_topic=get_topic(cls),
-                originator_id=id,
-                originator_version=1,
-                timestamp=datetime.now(tz=TZINFO),
-                **kwargs,
-            )
-        except TypeError as e:
-            msg = (
-                f"Unable to construct 'aggregate created' "
-                f"event with class {event_class.__qualname__} "
-                f"and keyword args {kwargs}: {e}"
-            )
-            raise TypeError(msg)
-        # Construct the aggregate object.
-        aggregate: TAggregate = event.mutate(None)
-        # Append the domain event to pending list.
-        aggregate._pending_events.append(event)
-        # Return the aggregate.
-        return aggregate
-
     @dataclass(frozen=True)
     class Created(Event["Aggregate"]):
         """
@@ -188,7 +185,7 @@ class BaseAggregate(metaclass=MetaAggregate):
             kwargs["version"] = kwargs.pop("originator_version")
 
             aggregate = cast(TAggregate, object.__new__(aggregate_class))
-            aggregate.__init__(**kwargs)
+            aggregate.__init__(**kwargs)  # type: ignore
             return aggregate
 
     def _trigger_event(

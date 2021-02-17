@@ -29,7 +29,7 @@ class BankAccount(Aggregate):
 
     @classmethod
     def open(cls, full_name: str, email_address: str) -> "BankAccount":
-        return super()._create(
+        return cls._create(
             cls.Opened,
             id=uuid4(),
             full_name=full_name,

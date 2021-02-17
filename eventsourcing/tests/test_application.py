@@ -14,7 +14,7 @@ from eventsourcing.tests.test_postgres import drop_postgres_table
 TIMEIT_FACTOR = int(os.environ.get("TEST_TIMEIT_FACTOR", default=1))
 
 
-class TestApplication(TestCase):
+class TestApplicationWithPOPO(TestCase):
     timeit_number = 100 * TIMEIT_FACTOR
 
     def setUp(self) -> None:
@@ -95,20 +95,17 @@ class TestApplication(TestCase):
         timeit(put, number=number)
 
         duration = timeit(put, number=self.timeit_number)
-        print(
-            self,
-            f"{1000 * duration / self.timeit_number:.3f}ms",
-            f"{self.timeit_number / duration:.0f}/s",
-        )
+        self.print_time("store events", duration)
 
     def test_get_performance_with_snapshotting_enabled(self):
-        self._test_get_performance()
+        print()
+        self._test_get_performance("get with snapshotting")
 
     def test_get_performance_without_snapshotting_enabled(self):
         del os.environ[InfrastructureFactory.IS_SNAPSHOTTING_ENABLED]
-        self._test_get_performance()
+        self._test_get_performance("get no snapshotting")
 
-    def _test_get_performance(self):
+    def _test_get_performance(self, test_label):
 
         app = BankAccounts()
 
@@ -126,10 +123,17 @@ class TestApplication(TestCase):
         timeit(read, number=10)
 
         duration = timeit(read, number=self.timeit_number)
+
+        self.print_time(test_label, duration)
+
+    def print_time(self, test_label, duration):
+        rate = f"{self.timeit_number / duration:.0f} events/s"
         print(
-            self,
-            f"{1000 * duration / self.timeit_number:.3f}ms",
-            f"{self.timeit_number / duration:.0f}/s",
+            "\t",
+            f"{type(self).__name__: <29}",
+            f"{test_label: <21}",
+            f"{rate: >15}",
+            f"  {1000 * duration / self.timeit_number:.3f} ms/event",
         )
 
 
@@ -148,7 +152,7 @@ class TestApplicationSnapshottingException(TestCase):
         )
 
 
-class TestApplicationWithSQLite(TestApplication):
+class TestApplicationWithSQLite(TestApplicationWithPOPO):
     timeit_number = 20 * TIMEIT_FACTOR
 
     def setUp(self) -> None:
@@ -167,7 +171,7 @@ class TestApplicationWithSQLite(TestApplication):
         super().tearDown()
 
 
-class TestApplicationWithPostgres(TestApplication):
+class TestApplicationWithPostgres(TestApplicationWithPOPO):
     timeit_number = 10 * TIMEIT_FACTOR
 
     def setUp(self) -> None:

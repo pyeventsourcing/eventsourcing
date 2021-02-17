@@ -145,6 +145,7 @@ class TestDeclarativeSyntax(TestCase):
         class MyAgg:
             def __init__(self, a=1):
                 pass
+
         with self.assertRaises(TypeError) as cm:
             MyAgg(b=1)
         self.assertEqual(
@@ -307,7 +308,7 @@ class TestDeclarativeSyntax(TestCase):
             a = MyAgg(wrong=1)
         self.assertEqual(
             cm.exception.args[0],
-            "__init__() got an unexpected keyword argument 'wrong'"
+            "__init__() got an unexpected keyword argument 'wrong'",
         )
 
     def test_raises_when_aggregate_is_not_dataclass_but_cls_has_annotations(self):
@@ -663,8 +664,7 @@ class TestDeclarativeSyntax(TestCase):
             "value_changed() missing 1 required positional argument: 'a'",
         )
 
-    def test_raises_when_method_gets_unexpected_keyword_argument(
-        self):
+    def test_raises_when_method_gets_unexpected_keyword_argument(self):
         @aggregate
         class MyAgg:
             @event
