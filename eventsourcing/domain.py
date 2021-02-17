@@ -2,7 +2,7 @@ import os
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
 from typing import Any, Generic, List, Optional, Type, TypeVar, cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from eventsourcing.utils import get_topic, resolve_topic
 
@@ -34,11 +34,15 @@ TAggregateCreated = TypeVar("TAggregateCreated", bound="BaseAggregate.Created")
 
 
 class MetaAggregate(type):
+    @staticmethod
+    def create_id(**kwargs) -> UUID:
+        return uuid4()
+
     def _create(
-        cls: "MetaAggregate",
+        self,
         event_class: Type[TAggregateCreated],
         *,
-        id: UUID,
+        id: Optional[UUID] = None,
         **kwargs: Any,
     ) -> TAggregate:
         """
@@ -50,8 +54,8 @@ class MetaAggregate(type):
         # a topic for the aggregate class.
         try:
             event: TAggregateCreated = event_class(  # type: ignore
-                originator_topic=get_topic(cls),
-                originator_id=id,
+                originator_topic=get_topic(self),
+                originator_id=id or self.create_id(**kwargs),
                 originator_version=1,
                 timestamp=datetime.now(tz=TZINFO),
                 **kwargs,
