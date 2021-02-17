@@ -2,9 +2,10 @@ import inspect
 from builtins import property
 from copy import copy
 from dataclasses import dataclass
+from datetime import datetime
 from types import FunctionType
-from typing import Any, Dict, Iterable, Optional, Type, Union, cast
-from uuid import uuid4
+from typing import Any, Callable, Dict, Iterable, Optional, Type, Union, cast
+from uuid import UUID
 
 from eventsourcing.domain import (
     Aggregate,
@@ -16,15 +17,21 @@ from eventsourcing.domain import (
 original_methods: Dict[Type[BaseAggregate.Event], FunctionType] = {}
 
 
-def aggregate(cls=None, *, is_dataclass=None):  # type: ignore
-    def wrapper(cls):  # type: ignore
+def aggregate(
+    cls: Any = None, *, is_dataclass: Optional[bool]=None
+) -> Union[
+    Type[TAggregate], Callable[[Any], Type[TAggregate]]
+]:
+    """
+
+    :rtype: Union[Type[TAggregate], Callable[[Any], Type[TAggregate]]]
+    """
+    def wrapper(cls: Any) -> Type[TAggregate]:  # type: ignore
         if is_dataclass:
             cls = dataclass(cls)
         cls_dict = {k: v for k, v in cls.__dict__.items()}
         cls_dict["__qualname__"] = cls.__qualname__
-        return MetaDeclarativeAggregate(
-            cls.__name__, (cls, DeclarativeAggregate), cls_dict
-        )
+        return type(DecoratedAggregate)(cls.__name__, (cls,), cls_dict)
 
     if cls:
         assert is_dataclass is None
@@ -255,38 +262,40 @@ class BoundEvent:
         self.trigger(*args, **kwargs)
 
 
-class MetaDeclarativeAggregate(MetaAggregate):
+class MetaDecoratedAggregate(MetaAggregate):
     def __new__(
         cls, cls_name: str, bases: tuple, cls_dict: Dict[str, Any]
-    ) -> "MetaDeclarativeAggregate":
-        if cls_name == "DeclarativeAggregate":
+    ) -> "MetaDecoratedAggregate":
+        if cls_name == "DecoratedAggregate":
             aggregate_class = MetaAggregate.__new__(cls, cls_name, bases, cls_dict)
-            return cast(MetaDeclarativeAggregate, aggregate_class)
+            return cast(MetaDecoratedAggregate, aggregate_class)
         else:
             if "__init__" in cls_dict:
                 cls_dict["_original_init_method"] = cls_dict.pop("__init__")
                 # Avoid inherits from DeclarativeBase...
-                if not issubclass(bases[0], DeclarativeAggregate):
+                if not issubclass(bases[0], DecoratedAggregate):
                     del bases[0].__init__
+                # else:
+                #     raise Exception("Blah")
             else:
                 cls_dict["_original_init_method"] = None
 
-            # bases = (Initialiser,) + bases + (Aggregate,)
             bases = bases + (Initialiser,)
             aggregate_class = super().__new__(cls, cls_name, bases, cls_dict)
-            return cast(MetaDeclarativeAggregate, aggregate_class)
+            return cast(MetaDecoratedAggregate, aggregate_class)
 
     def __init__(self, cls_name: str, bases: tuple, cls_dict: Dict[str, Any]):
         super().__init__(cls_name, bases, cls_dict)
-        if cls_name == "DeclarativeAggregate":
+        if cls_name == "DecoratedAggregate":
             return
 
         original_init_method = cls_dict["_original_init_method"]
 
         # Prepare the "created" event class.
         for cls_attr in tuple(cls_dict.values()):
-            if isinstance(cls_attr, type) and issubclass(cls_attr,
-                                                         BaseAggregate.Created):
+            if isinstance(cls_attr, type) and issubclass(
+                cls_attr, BaseAggregate.Created
+            ):
                 # Found a "created" class on the aggregate.
                 self._created_cls = cls_attr
                 break
@@ -308,8 +317,9 @@ class MetaDeclarativeAggregate(MetaAggregate):
             }
 
             # Define the created class.
-            created_cls = type(created_cls_name, (BaseAggregate.Created,),
-                               created_cls_dict)
+            created_cls = type(
+                created_cls_name, (BaseAggregate.Created,), created_cls_dict
+            )
             # Make it into a frozen dataclass.
             created_cls = dataclass(frozen=True)(created_cls)
             # Put it in the aggregate class dict.
@@ -360,7 +370,7 @@ class MetaDeclarativeAggregate(MetaAggregate):
                     "__qualname__": event_cls_qualname,
                 }
 
-                event_cls = type(event_cls_name, (DeclarativeEvent,), event_cls_dict)
+                event_cls = type(event_cls_name, (DecoratedEvent,), event_cls_dict)
                 event_cls = dataclass(frozen=True)(event_cls)
 
                 original_methods[event_cls] = original_method
@@ -375,13 +385,13 @@ class MetaDeclarativeAggregate(MetaAggregate):
                 raise TypeError(f"{self.__name__}() takes no args")
         aggregate: TAggregate = self._create(
             event_class=self._created_cls,
-            id=uuid4(),
+            # id=self.create_id(**kwargs),
             **kwargs,
         )
         return aggregate
 
 
-class DeclarativeEvent(BaseAggregate.Event):
+class DecoratedEvent(BaseAggregate.Event):
     def apply(self, aggregate: TAggregate) -> None:
         """
         Applies event to aggregate by calling
@@ -404,8 +414,24 @@ class DeclarativeEvent(BaseAggregate.Event):
         original_method(aggregate, **event_obj_dict)
 
 
-class DeclarativeAggregate(BaseAggregate, metaclass=MetaDeclarativeAggregate):
-    _created_cls = BaseAggregate.Created
+class DecoratedAggregate(metaclass=MetaDecoratedAggregate):
+    id: UUID
+    version: int
+    created_on: datetime
+    modified_on: datetime
+
+
+class Initialiser(Aggregate):
+    _original_init_method: Optional[FunctionType]
+
+    def __init__(self, **kwargs: Any) -> None:
+        base_kwargs = {}
+        base_kwargs["id"] = kwargs.pop("id")
+        base_kwargs["version"] = kwargs.pop("version")
+        base_kwargs["timestamp"] = kwargs.pop("timestamp")
+        super().__init__(**base_kwargs)
+        if self._original_init_method:
+            self._original_init_method(**kwargs)
 
     def __getattribute__(self, item: str) -> Any:
         attr = super().__getattribute__(item)
@@ -427,7 +453,7 @@ class DeclarativeAggregate(BaseAggregate, metaclass=MetaDeclarativeAggregate):
             super().__setattr__(name, value)
         else:
             if isinstance(attr, EventDecorator):
-                # Set property.
+                # Set decorated property.
                 b = BoundEvent(attr, self)
                 kwargs = {name: value}
                 b.trigger(**kwargs)
@@ -435,16 +461,3 @@ class DeclarativeAggregate(BaseAggregate, metaclass=MetaDeclarativeAggregate):
             else:
                 # Set existing attribute.
                 super().__setattr__(name, value)
-
-
-class Initialiser(Aggregate):
-    _original_init_method: Optional[FunctionType]
-
-    def __init__(self, **kwargs: Any) -> None:
-        base_kwargs = {}
-        base_kwargs["id"] = kwargs.pop("id")
-        base_kwargs["version"] = kwargs.pop("version")
-        base_kwargs["timestamp"] = kwargs.pop("timestamp")
-        super().__init__(**base_kwargs)
-        if self._original_init_method:
-            self._original_init_method(**kwargs)

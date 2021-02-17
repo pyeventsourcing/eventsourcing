@@ -1,16 +1,33 @@
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Union
 from unittest import TestCase
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 from eventsourcing.application import Application
-from eventsourcing.declarative import DeclarativeAggregate, aggregate, event
-from eventsourcing.domain import Aggregate
+from eventsourcing.declarative import DecoratedAggregate, aggregate, event
+from eventsourcing.domain import Aggregate, BaseAggregate
 
 
 class TestDeclarativeSyntax(TestCase):
     def test_no_init(self):
         @aggregate
+        class MyAgg:
+            pass
+
+        a = MyAgg()
+        self.assertIsInstance(a, MyAgg)
+        self.assertIsInstance(a, Aggregate)
+        self.assertIsInstance(a.id, UUID)
+        self.assertIsInstance(a.version, int)
+        self.assertEqual(a.version, 1)
+        self.assertIsInstance(a.created_on, datetime)
+        self.assertIsInstance(a.modified_on, datetime)
+        self.assertEqual(len(a._pending_events), 1)
+        self.assertIsInstance(a._pending_events[0], MyAgg.Created)
+
+        # Again, with decorator called with no args.
+        @aggregate()
         class MyAgg:
             pass
 
@@ -140,7 +157,7 @@ class TestDeclarativeSyntax(TestCase):
             "__init__() missing 2 required positional arguments: 'a' and 'b'",
         )
 
-    def test_raises_when_unexpected_keyword_argument(self):
+    def test_raises_when_init_gets_unexpected_keyword_argument(self):
         @aggregate
         class MyAgg:
             def __init__(self, a=1):
@@ -166,6 +183,46 @@ class TestDeclarativeSyntax(TestCase):
             cm.exception.args[0],
             "__init__() got an unexpected keyword argument 'b'",
         )
+
+    def test_define_custom_create_id_as_uuid5(self):
+        @aggregate
+        class MyAgg:
+            def __init__(self, name):
+                self.name = name
+
+            @classmethod
+            def create_id(cls, name):
+                return uuid5(NAMESPACE_URL, f'/names/{name}')
+
+        a = MyAgg("name")
+        self.assertEqual(a.name, "name")
+        self.assertEqual(a.id, MyAgg.create_id("name"))
+
+        # Do it again as a dataclass.
+        @aggregate(is_dataclass=True)
+        class MyAgg:
+            name: str
+
+            @classmethod
+            def create_id(cls, name):
+                return uuid5(NAMESPACE_URL, f'/names/{name}')
+
+        a = MyAgg("name")
+        self.assertEqual(a.name, "name")
+        self.assertEqual(a.id, MyAgg.create_id("name"))
+
+        # Do it again as a dataclass (method defined as staticmethod).
+        @aggregate(is_dataclass=True)
+        class MyAgg:
+            name: str
+
+            @staticmethod
+            def create_id(name):
+                return uuid5(NAMESPACE_URL, f'/names/{name}')
+
+        a = MyAgg("name")
+        self.assertEqual(a.name, "name")
+        self.assertEqual(a.id, MyAgg.create_id("name"))
 
     def test_aggregate_on_dataclass_no_defaults(self):
         @aggregate
@@ -1033,7 +1090,7 @@ class TestDeclarativeSyntax(TestCase):
     #     a.method()
     #
 
-    def test_order_with_app(self):
+    def test_order_with_app(self) -> None:
         @aggregate
         class Order:
             def __init__(self):
@@ -1070,7 +1127,7 @@ class TestDeclarativeSyntax(TestCase):
         self.assertIsInstance(order.confirmed_at, datetime)
         self.assertIsInstance(order.pickedup_at, datetime)
 
-        app: Application[Order] = Application()
+        app = Application()
         app.save(order)
 
         copy = app.repository.get(order.id)
@@ -1078,7 +1135,7 @@ class TestDeclarativeSyntax(TestCase):
         self.assertEqual(copy.pickedup_at, order.pickedup_at)
 
     def test_inherit_from_declarative_aggregate(self) -> None:
-        class Order(DeclarativeAggregate):
+        class Order(DecoratedAggregate):
             def __init__(self, name) -> None:
                 self.name = name
                 self.confirmed_at = None
@@ -1099,6 +1156,7 @@ class TestDeclarativeSyntax(TestCase):
                 self.pickedup_at = at
 
         order = Order("name")
+
         self.assertEqual(order.name, "name")
         with self.assertRaises(Exception) as cm:
             order.pickup(datetime.now())
@@ -1118,12 +1176,17 @@ class TestDeclarativeSyntax(TestCase):
         app: Application = Application()
         app.save(order)
 
-        copy: Order = app.repository.get(order.id)
+        copy = app.repository.get(order.id)
 
         self.assertEqual(copy.pickedup_at, order.pickedup_at)
 
+        self.assertIsInstance(order, Aggregate)
+        self.assertIsInstance(order, Order)
+        self.assertIsInstance(copy, Aggregate)
+        self.assertIsInstance(copy, Order)
+
     def test_define_own_created_event_called_started(self) -> None:
-        class Order(DeclarativeAggregate):
+        class Order(DecoratedAggregate):
             def __init__(self, name) -> None:
                 self.name = name
                 self.confirmed_at = None
@@ -1134,18 +1197,54 @@ class TestDeclarativeSyntax(TestCase):
                 name: str
 
         order = Order("name")
+        self.assertEqual(order.name, "name")
+
+        pending = order._pending_events  # type: ignore
+        self.assertIsInstance(pending[0], Order.Started)
+
+        app: Application = Application()
+
+        app.save(order)
+
+        copy: Order = app.repository.get(order.id)
+
+        self.assertEqual(copy.name, "name")
+
         self.assertIsInstance(order, Aggregate)
+        self.assertIsInstance(order, Order)
+        self.assertIsInstance(copy, Aggregate)
+        self.assertIsInstance(copy, Order)
+
+    def test_decorated_and_inherit_aggregagte(self) -> None:
+        @aggregate
+        class Order(Aggregate):
+            def __init__(self, name) -> None:
+                self.name = name
+                self.confirmed_at = None
+                self.pickedup_at = None
+
+            @dataclass(frozen=True)
+            class Started(Aggregate.Created):
+                name: str
+
+        order = Order("name")
         self.assertEqual(order.name, "name")
 
         pending = order._pending_events
         self.assertIsInstance(pending[0], Order.Started)
 
         app: Application = Application()
+
         app.save(order)
 
         copy: Order = app.repository.get(order.id)
 
         self.assertEqual(copy.name, "name")
+
+        self.assertIsInstance(order, Aggregate)
+        self.assertIsInstance(order, Order)
+        self.assertIsInstance(copy, Aggregate)
+        self.assertIsInstance(copy, Order)
 
 
 # Todo: Put method signature in event decorator, so that args can be mapped to names.
