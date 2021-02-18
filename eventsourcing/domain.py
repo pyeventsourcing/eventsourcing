@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
-from typing import Any, Generic, List, Optional, Type, TypeVar, cast
+from typing import Any, Generic, List, Optional, Type, TypeVar
 from uuid import UUID, uuid4
 
 from eventsourcing.utils import get_topic, resolve_topic
