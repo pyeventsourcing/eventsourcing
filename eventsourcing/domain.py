@@ -35,7 +35,7 @@ TAggregateCreated = TypeVar("TAggregateCreated", bound="BaseAggregate.Created")
 
 class MetaAggregate(type):
     @staticmethod
-    def create_id(**kwargs) -> UUID:
+    def create_id(**kwargs: Any) -> UUID:
         return uuid4()
 
     def _create(
