@@ -17,31 +17,10 @@ from eventsourcing.domain import (
 original_methods: Dict[Type[BaseAggregate.Event], FunctionType] = {}
 
 
-def aggregate(
-    cls: Any = None, *, is_dataclass: Optional[bool]=None
-) -> Union[
-    Type[TAggregate], Callable[[Any], Type[TAggregate]]
-]:
-    """
-
-    :rtype: Union[Type[TAggregate], Callable[[Any], Type[TAggregate]]]
-    """
-    def wrapper(cls: Any) -> Type[TAggregate]:  # type: ignore
-        if is_dataclass:
-            cls = dataclass(cls)
-        cls_dict = {k: v for k, v in cls.__dict__.items()}
-        cls_dict["__qualname__"] = cls.__qualname__
-        return type(DecoratedAggregate)(cls.__name__, (cls,), cls_dict)
-
-    if cls:
-        assert is_dataclass is None
-        return wrapper(cls)
-    else:
-        return wrapper
-
-
 class EventDecorator:
-    def __init__(self, arg: Union[FunctionType, str]):
+    def __init__(self, arg: Union[FunctionType, str, Type[BaseAggregate.Event]]):
+        self.is_name_inferred_from_method = False
+        self.given_event_cls: Optional[Type[BaseAggregate.Event]] = None
         self.is_property_setter = False
         self.propery_attribute_name: Optional[str] = None
         self.is_decorating_a_property = False
@@ -51,6 +30,8 @@ class EventDecorator:
         if isinstance(arg, str):
             # Decorator used with an explicit name.
             self.initialise_from_explicit_name(event_cls_name=arg)
+        elif isinstance(arg, type) and issubclass(arg, BaseAggregate.Event):
+            self.initialise_from_event_cls(event_cls=arg)
         elif isinstance(arg, FunctionType):
             # Decorator used without explicit name.
             self.initialise_from_decorated_method(original_method=arg)
@@ -80,8 +61,10 @@ class EventDecorator:
         self.original_method = original_method
         _check_no_variable_params(self.original_method)
 
+    def initialise_from_event_cls(self, event_cls: Type[BaseAggregate.Event]) -> None:
+        self.given_event_cls = event_cls
+
     def initialise_from_explicit_name(self, event_cls_name: str) -> None:
-        self.is_name_inferred_from_method = False
         self.event_cls_name = event_cls_name
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
@@ -113,6 +96,17 @@ class EventDecorator:
                 raise ValueError(
                     f"Unsupported usage: {type(arg)} is not a str or a FunctionType"
                 )
+            if self.given_event_cls:
+                # Set decorated event apply() method on given event class.
+                if "apply" in self.given_event_cls.__dict__:
+                    name = self.given_event_cls.__name__
+                    raise TypeError(f"{name} event class has unexpected apply() method")
+                # self.given_event_cls.apply = DecoratedEvent.apply  # type: ignore
+                setattr(  # noqa: B010
+                    self.given_event_cls, "apply", DecoratedEvent.apply
+                )
+                # Register the decorated method under the given event class.
+                original_methods[self.given_event_cls] = self.original_method
             return self
         elif self.is_property_setter:
             # Called by a decorating property (as its fset) so trigger an event.
@@ -127,7 +121,7 @@ class EventDecorator:
             raise ValueError("Unsupported usage: event object was called directly")
 
 
-event = EventDecorator
+triggers = event = EventDecorator
 
 
 def _check_no_variable_params(method: FunctionType) -> None:
@@ -255,38 +249,32 @@ class BoundEvent:
         method = self.event.original_method
         assert method
         kwargs = _coerce_args_to_kwargs(method, args, kwargs)
-        event_cls = getattr(self.aggregate, self.event.event_cls_name)
+        if self.event.given_event_cls:
+            event_cls = self.event.given_event_cls
+        else:
+            event_cls = getattr(self.aggregate, self.event.event_cls_name)
         self.aggregate._trigger_event(event_cls, **kwargs)
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:
         self.trigger(*args, **kwargs)
 
 
-class MetaDecoratedAggregate(MetaAggregate):
+class MetaDecoratableAggregate(MetaAggregate):
     def __new__(
         cls, cls_name: str, bases: tuple, cls_dict: Dict[str, Any]
-    ) -> "MetaDecoratedAggregate":
-        if cls_name == "DecoratedAggregate":
+    ) -> "MetaDecoratableAggregate":
+        if cls_name == "DecoratableAggregate":
             aggregate_class = MetaAggregate.__new__(cls, cls_name, bases, cls_dict)
-            return cast(MetaDecoratedAggregate, aggregate_class)
+            return cast(MetaDecoratableAggregate, aggregate_class)
         else:
-            if "__init__" in cls_dict:
-                cls_dict["_original_init_method"] = cls_dict.pop("__init__")
-                # Avoid inherits from DeclarativeBase...
-                if not issubclass(bases[0], DecoratedAggregate):
-                    del bases[0].__init__
-                # else:
-                #     raise Exception("Blah")
-            else:
-                cls_dict["_original_init_method"] = None
-
-            bases = bases + (Initialiser,)
+            cls_dict["_original_init_method"] = cls_dict.pop("__init__", None)
+            bases = bases + (DecoratedAggregate,)
             aggregate_class = super().__new__(cls, cls_name, bases, cls_dict)
-            return cast(MetaDecoratedAggregate, aggregate_class)
+            return cast(MetaDecoratableAggregate, aggregate_class)
 
     def __init__(self, cls_name: str, bases: tuple, cls_dict: Dict[str, Any]):
         super().__init__(cls_name, bases, cls_dict)
-        if cls_name == "DecoratedAggregate":
+        if cls_name == "DecoratableAggregate":
             return
 
         original_init_method = cls_dict["_original_init_method"]
@@ -338,6 +326,7 @@ class MetaDecoratedAggregate(MetaAggregate):
             ):
                 attribute = attribute.fset
                 if attribute.is_name_inferred_from_method:
+                    # We don't want name inferred from property (not past participle).
                     method_name = attribute.original_method.__name__
                     raise TypeError(
                         f"@event under {method_name}() property setter requires event "
@@ -362,20 +351,28 @@ class MetaDecoratedAggregate(MetaAggregate):
                         attribute.propery_attribute_name = param_name
                     annotations[param_name] = "typing.Any"  # Todo: Improve this?
 
-                event_cls_name = attribute.event_cls_name
-                event_cls_qualname = ".".join([self.__qualname__, event_cls_name])
-                event_cls_dict = {
-                    "__annotations__": annotations,
-                    "__module__": self.__module__,
-                    "__qualname__": event_cls_qualname,
-                }
+                if not attribute.given_event_cls:
+                    event_cls_name = attribute.event_cls_name
 
-                event_cls = type(event_cls_name, (DecoratedEvent,), event_cls_dict)
-                event_cls = dataclass(frozen=True)(event_cls)
+                    # Check event class isn't already defined.
+                    if event_cls_name in cls_dict:
+                        raise TypeError(
+                            f"{event_cls_name} event already defined on {cls_name}"
+                        )
 
-                original_methods[event_cls] = original_method
-                cls_dict[event_cls_name] = event_cls
-                setattr(self, event_cls_name, event_cls)
+                    event_cls_qualname = ".".join([self.__qualname__, event_cls_name])
+                    event_cls_dict = {
+                        "__annotations__": annotations,
+                        "__module__": self.__module__,
+                        "__qualname__": event_cls_qualname,
+                    }
+
+                    event_cls = type(event_cls_name, (DecoratedEvent,), event_cls_dict)
+                    event_cls = dataclass(frozen=True)(event_cls)
+
+                    original_methods[event_cls] = original_method
+                    cls_dict[event_cls_name] = event_cls
+                    setattr(self, event_cls_name, event_cls)
 
     def __call__(self, *args: Any, **kwargs: Any) -> TAggregate:
         if self._original_init_method is not None:
@@ -385,7 +382,6 @@ class MetaDecoratedAggregate(MetaAggregate):
                 raise TypeError(f"{self.__name__}() takes no args")
         aggregate: TAggregate = self._create(
             event_class=self._created_cls,
-            # id=self.create_id(**kwargs),
             **kwargs,
         )
         return aggregate
@@ -414,15 +410,18 @@ class DecoratedEvent(BaseAggregate.Event):
         original_method(aggregate, **event_obj_dict)
 
 
-class DecoratedAggregate(metaclass=MetaDecoratedAggregate):
+class DecoratableAggregate(metaclass=MetaDecoratableAggregate):
     id: UUID
     version: int
     created_on: datetime
     modified_on: datetime
 
 
-class Initialiser(Aggregate):
-    _original_init_method: Optional[FunctionType]
+class DecoratedAggregate(Aggregate):
+    _original_init_method: Optional[FunctionType] = None
+
+    def __new__(cls, *args: Any, **kwargs: Any) -> Any:
+        return super(DecoratedAggregate, cls).__new__(cls, *args, **kwargs)
 
     def __init__(self, **kwargs: Any) -> None:
         base_kwargs = {}
@@ -461,3 +460,26 @@ class Initialiser(Aggregate):
             else:
                 # Set existing attribute.
                 super().__setattr__(name, value)
+
+
+def aggregate(
+    cls: Any = None, *, is_dataclass: Optional[bool] = None
+) -> Union[MetaDecoratableAggregate, Callable[[Any], MetaDecoratableAggregate]]:
+    """Returns the same class as was passed in, with dunder methods
+    added based on the fields defined in the class.
+
+    :rtype: Union[MetaDecoratableAggregate, Callable[[Any], MetaDecoratableAggregate]]
+    """
+
+    def wrapper(cls: Any) -> MetaDecoratableAggregate:
+        if is_dataclass:
+            cls = dataclass(cls)
+        cls_dict = {k: v for k, v in cls.__dict__.items()}
+        cls_dict["__qualname__"] = cls.__qualname__
+        return MetaDecoratableAggregate(cls.__name__, (), cls_dict)
+
+    if cls:
+        assert is_dataclass is None
+        return wrapper(cls)
+    else:
+        return wrapper

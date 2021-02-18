@@ -1,12 +1,18 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Union
 from unittest import TestCase
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from eventsourcing.application import Application
-from eventsourcing.declarative import DecoratedAggregate, aggregate, event
-from eventsourcing.domain import Aggregate, BaseAggregate
+from eventsourcing.declarative import (
+    DecoratableAggregate,
+    DecoratedAggregate,
+    MetaDecoratableAggregate,
+    aggregate,
+    event,
+    triggers,
+)
+from eventsourcing.domain import Aggregate
 
 
 class TestDeclarativeSyntax(TestCase):
@@ -192,7 +198,7 @@ class TestDeclarativeSyntax(TestCase):
 
             @classmethod
             def create_id(cls, name):
-                return uuid5(NAMESPACE_URL, f'/names/{name}')
+                return uuid5(NAMESPACE_URL, f"/names/{name}")
 
         a = MyAgg("name")
         self.assertEqual(a.name, "name")
@@ -205,7 +211,7 @@ class TestDeclarativeSyntax(TestCase):
 
             @classmethod
             def create_id(cls, name):
-                return uuid5(NAMESPACE_URL, f'/names/{name}')
+                return uuid5(NAMESPACE_URL, f"/names/{name}")
 
         a = MyAgg("name")
         self.assertEqual(a.name, "name")
@@ -218,7 +224,7 @@ class TestDeclarativeSyntax(TestCase):
 
             @staticmethod
             def create_id(name):
-                return uuid5(NAMESPACE_URL, f'/names/{name}')
+                return uuid5(NAMESPACE_URL, f"/names/{name}")
 
         a = MyAgg("name")
         self.assertEqual(a.name, "name")
@@ -1134,8 +1140,59 @@ class TestDeclarativeSyntax(TestCase):
 
         self.assertEqual(copy.pickedup_at, order.pickedup_at)
 
-    def test_inherit_from_declarative_aggregate(self) -> None:
-        class Order(DecoratedAggregate):
+    def test_define_aggregae_with_decoratable_metaclass(self) -> None:
+        class Order(metaclass=MetaDecoratableAggregate):
+            def __init__(self, name) -> None:
+                self.name = name
+                self.confirmed_at = None
+                self.pickedup_at = None
+
+            @event("Confirmed")
+            def confirm(self, at):
+                self.confirmed_at = at
+
+            def pickup(self, at):
+                if self.confirmed_at:
+                    self._pickup(at)
+                else:
+                    raise Exception("Order is not confirmed")
+
+            @event("Pickedup")
+            def _pickup(self, at):
+                self.pickedup_at = at
+
+        order = Order("name")
+
+        self.assertEqual(order.name, "name")
+        with self.assertRaises(Exception) as cm:
+            order.pickup(datetime.now())
+        self.assertEqual(cm.exception.args[0], "Order is not confirmed")
+
+        self.assertEqual(order.confirmed_at, None)
+        self.assertEqual(order.pickedup_at, None)
+
+        order.confirm(datetime.now())
+        self.assertIsInstance(order.confirmed_at, datetime)
+        self.assertEqual(order.pickedup_at, None)
+
+        order.pickup(datetime.now())
+        self.assertIsInstance(order.confirmed_at, datetime)
+        self.assertIsInstance(order.pickedup_at, datetime)
+
+        app: Application = Application()
+        app.save(order)
+
+        copy = app.repository.get(order.id)
+
+        self.assertEqual(copy.pickedup_at, order.pickedup_at)
+
+        self.assertIsInstance(order, Aggregate)
+        self.assertIsInstance(order, Order)
+        self.assertIsInstance(copy, Aggregate)
+        self.assertIsInstance(copy, Order)
+
+    def test_inherit_from_decoratable_aggregate(self) -> None:
+        class Order(DecoratableAggregate):
             def __init__(self, name) -> None:
                 self.name = name
                 self.confirmed_at = None
@@ -1186,7 +1243,7 @@ class TestDeclarativeSyntax(TestCase):
         self.assertIsInstance(copy, Order)
 
     def test_define_own_created_event_called_started(self) -> None:
-        class Order(DecoratedAggregate):
+        class Order(DecoratableAggregate):
             def __init__(self, name) -> None:
                 self.name = name
                 self.confirmed_at = None
@@ -1245,6 +1302,142 @@ class TestDeclarativeSyntax(TestCase):
         self.assertIsInstance(order, Order)
         self.assertIsInstance(copy, Aggregate)
         self.assertIsInstance(copy, Order)
+
+    def test_inherit_from_decorated_aggregate_class(self) -> None:
+        # Here we just use the @event decorator to trigger events
+        # that are applied using the decorated method.
+        class Order(DecoratedAggregate):
+            def __init__(self, name, **kwargs) -> None:
+                super(Order, self).__init__(**kwargs)
+
+                self.name = name
+                self.confirmed_at = None
+                self.pickedup_at = None
+
+            @dataclass(frozen=True)
+            class Created(DecoratedAggregate.Created):
+                name: str
+
+            @dataclass(frozen=True)
+            class Confirmed(DecoratedAggregate.Event):
+                at: datetime
+
+            @triggers(Confirmed)
+            def confirm(self, at):
+                self.confirmed_at = at
+
+            def pickup(self, at):
+                if self.confirmed_at:
+                    self._pickup(at)
+                else:
+                    raise Exception("Order is not confirmed")
+
+            @dataclass(frozen=True)
+            class Pickedup(DecoratedAggregate.Event):
+                at: datetime
+
+            @triggers(Pickedup)
+            def _pickup(self, at):
+                self.pickedup_at = at
+
+        order = Order._create(event_class=Order.Created, name="name")
+
+        self.assertEqual(order.name, "name")
+        with self.assertRaises(Exception) as cm:
+            order.pickup(datetime.now())
+        self.assertEqual(cm.exception.args[0], "Order is not confirmed")
+
+        self.assertEqual(order.confirmed_at, None)
+        self.assertEqual(order.pickedup_at, None)
+
+        order.confirm(datetime.now())
+        self.assertIsInstance(order.confirmed_at, datetime)
+        self.assertEqual(order.pickedup_at, None)
+
+        order.pickup(datetime.now())
+        self.assertIsInstance(order.confirmed_at, datetime)
+        self.assertIsInstance(order.pickedup_at, datetime)
+
+        app: Application = Application()
+        app.save(order)
+
+        copy = app.repository.get(order.id)
+
+        self.assertEqual(copy.pickedup_at, order.pickedup_at)
+
+        self.assertIsInstance(order, Aggregate)
+        self.assertIsInstance(order, Order)
+        self.assertIsInstance(copy, Aggregate)
+        self.assertIsInstance(copy, Order)
+
+    def test_raises_when_event_class_has_apply_method(self) -> None:
+        # Check raises when defining an apply method on an
+        # event used in a decorator when aggregate inherits
+        # from DecoratedAggregate class.
+        with self.assertRaises(TypeError) as cm:
+
+            class _(DecoratedAggregate):
+                @dataclass(frozen=True)
+                class Confirmed(DecoratedAggregate.Event):
+                    def apply(self, aggregate):
+                        pass
+
+                @triggers(Confirmed)
+                def confirm(self):
+                    pass
+
+        self.assertEqual(
+            cm.exception.args[0], "Confirmed event class has unexpected apply() method"
+        )
+
+    def test_use_aggregate_decorator_with_explicit_event_classes(self) -> None:
+        # Here we just use the @event decorator to trigger events
+        # that are applied using the decorated method.
+        @aggregate
+        class Order(DecoratedAggregate):
+            @dataclass(frozen=True)
+            class Confirmed(DecoratedAggregate.Event):
+                at: datetime
+
+            @triggers(Confirmed)
+            def confirm(self, at):
+                self.confirmed_at = at
+
+        order = Order()
+
+        order.confirm(datetime.now())
+        self.assertIsInstance(order.confirmed_at, datetime)
+
+        app: Application = Application()
+        app.save(order)
+
+        copy = app.repository.get(order.id)
+
+        self.assertEqual(copy.confirmed_at, order.confirmed_at)
+
+        self.assertIsInstance(order, Aggregate)
+        self.assertIsInstance(order, Order)
+        self.assertIsInstance(copy, Aggregate)
+        self.assertIsInstance(copy, Order)
+
+    def test_raises_when_event_class_already_defined(self) -> None:
+        # Here we just use the @event decorator to trigger events
+        # that are applied using the decorated method.
+        with self.assertRaises(TypeError) as cm:
+
+            @aggregate
+            class Order(DecoratedAggregate):
+                @dataclass(frozen=True)
+                class Confirmed(DecoratedAggregate.Event):
+                    at: datetime
+
+                @triggers("Confirmed")
+                def confirm(self, at):
+                    self.confirmed_at = at
+
+        self.assertEqual(
+            cm.exception.args[0], "Confirmed event already defined on Order"
+        )
 
 
 # Todo: Put method signature in event decorator, so that args can be mapped to names.
