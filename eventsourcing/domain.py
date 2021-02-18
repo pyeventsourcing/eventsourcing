@@ -80,6 +80,9 @@ class BaseAggregate(metaclass=MetaAggregate):
     Base class for aggregate roots.
     """
 
+    def __new__(cls, *args: Any, **kwargs: Any) -> Any:
+        return object.__new__(cls)
+
     def __init__(self, id: UUID, version: int, timestamp: datetime):
         """
         Initialises an aggregate object with an :data:`id`, a :data:`version`
