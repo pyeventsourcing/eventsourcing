@@ -191,7 +191,9 @@ class BaseAggregate(metaclass=MetaAggregate):
             kwargs["id"] = kwargs.pop("originator_id")
             kwargs["version"] = kwargs.pop("originator_version")
 
-            aggregate = cast(TAggregate, object.__new__(aggregate_class))
+            # Call __new__ and __init__ (avoid calling class
+            # because might trigger event if @aggregate in use).
+            aggregate: TAggregate = aggregate_class.__new__(aggregate_class, **kwargs)
             aggregate.__init__(**kwargs)  # type: ignore
             return aggregate
 
