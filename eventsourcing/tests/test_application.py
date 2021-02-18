@@ -1,4 +1,6 @@
 import os
+import sys
+from datetime import datetime
 from decimal import Decimal
 from timeit import timeit
 from unittest.case import TestCase
@@ -11,11 +13,14 @@ from eventsourcing.tests.ramdisk import tmpfile_uris
 from eventsourcing.tests.test_aggregate import BankAccount
 from eventsourcing.tests.test_postgres import drop_postgres_table
 
-TIMEIT_FACTOR = int(os.environ.get("TEST_TIMEIT_FACTOR", default=1))
+TIMEIT_FACTOR = int(os.environ.get("TEST_TIMEIT_FACTOR", default=10))
 
 
 class TestApplicationWithPOPO(TestCase):
     timeit_number = 100 * TIMEIT_FACTOR
+
+    started_ats = {}
+    counts = {}
 
     def setUp(self) -> None:
         os.environ[InfrastructureFactory.IS_SNAPSHOTTING_ENABLED] = "yes"
@@ -23,6 +28,29 @@ class TestApplicationWithPOPO(TestCase):
     def tearDown(self) -> None:
         if InfrastructureFactory.IS_SNAPSHOTTING_ENABLED in os.environ:
             del os.environ[InfrastructureFactory.IS_SNAPSHOTTING_ENABLED]
+
+    def print_time(self, test_label, duration):
+        cls = type(self)
+        if cls not in self.started_ats:
+            self.started_ats[cls] = datetime.now()
+            print("\t", f"{cls.__name__: <29} timeit number: {cls.timeit_number}")
+            self.counts[cls] = 1
+        else:
+            self.counts[cls] += 1
+
+        rate = f"{self.timeit_number / duration:.0f} events/s"
+        print(
+            "\t",
+            f"{cls.__name__: <29}",
+            f"{test_label: <21}",
+            f"{rate: >15}",
+            f"  {1000 * duration / self.timeit_number:.3f} ms/event",
+        )
+
+        if self.counts[cls] == 3:
+            duration = datetime.now() - cls.started_ats[cls]
+            print("\t", f"{cls.__name__: <29} timeit duration: {duration}")
+            sys.stdout.flush()
 
     def test_example_application(self):
         app = BankAccounts()
@@ -74,7 +102,7 @@ class TestApplicationWithPOPO(TestCase):
         self.assertEqual(from_snapshot.version, 4)
         self.assertEqual(from_snapshot.balance, Decimal("65.00"))
 
-    def test_put_performance(self):
+    def test__put_performance(self):
 
         app = BankAccounts()
 
@@ -97,11 +125,11 @@ class TestApplicationWithPOPO(TestCase):
         duration = timeit(put, number=self.timeit_number)
         self.print_time("store events", duration)
 
-    def test_get_performance_with_snapshotting_enabled(self):
+    def test__get_performance_with_snapshotting_enabled(self):
         print()
         self._test_get_performance("get with snapshotting")
 
-    def test_get_performance_without_snapshotting_enabled(self):
+    def test__get_performance_without_snapshotting_enabled(self):
         del os.environ[InfrastructureFactory.IS_SNAPSHOTTING_ENABLED]
         self._test_get_performance("get no snapshotting")
 
@@ -126,16 +154,6 @@ class TestApplicationWithPOPO(TestCase):
 
         self.print_time(test_label, duration)
 
-    def print_time(self, test_label, duration):
-        rate = f"{self.timeit_number / duration:.0f} events/s"
-        print(
-            "\t",
-            f"{type(self).__name__: <29}",
-            f"{test_label: <21}",
-            f"{rate: >15}",
-            f"  {1000 * duration / self.timeit_number:.3f} ms/event",
-        )
-
 
 class TestApplicationSnapshottingException(TestCase):
     def test_take_snapshot_raises_assertion_error_if_snapshotting_not_enabled(self):
@@ -153,7 +171,7 @@ class TestApplicationSnapshottingException(TestCase):
 
 
 class TestApplicationWithSQLite(TestApplicationWithPOPO):
-    timeit_number = 20 * TIMEIT_FACTOR
+    timeit_number = 30 * TIMEIT_FACTOR
 
     def setUp(self) -> None:
         super().setUp()
@@ -172,7 +190,7 @@ class TestApplicationWithSQLite(TestApplicationWithPOPO):
 
 
 class TestApplicationWithPostgres(TestApplicationWithPOPO):
-    timeit_number = 10 * TIMEIT_FACTOR
+    timeit_number = 5 * TIMEIT_FACTOR
 
     def setUp(self) -> None:
         super().setUp()
