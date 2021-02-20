@@ -1271,6 +1271,36 @@ class TestDeclarativeSyntax(TestCase):
         self.assertIsInstance(copy, Aggregate)
         self.assertIsInstance(copy, Order)
 
+        @aggregate
+        class Order:
+            def __init__(self, name) -> None:
+                self.name = name
+                self.confirmed_at = None
+                self.pickedup_at = None
+
+            @dataclass(frozen=True)
+            class Started(Aggregate.Created):
+                name: str
+
+        order = Order("name")
+        self.assertEqual(order.name, "name")
+
+        pending = order._pending_events  # type: ignore
+        self.assertIsInstance(pending[0], Order.Started)
+
+        app: Application = Application()
+
+        app.save(order)
+
+        copy: Order = app.repository.get(order.id)
+
+        self.assertEqual(copy.name, "name")
+
+        self.assertIsInstance(order, Aggregate)
+        self.assertIsInstance(order, Order)
+        self.assertIsInstance(copy, Aggregate)
+        self.assertIsInstance(copy, Order)
+
     def test_decorated_and_inherit_aggregagte(self) -> None:
         @aggregate
         class Order(Aggregate):
