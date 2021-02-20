@@ -2,8 +2,9 @@ import logging
 import os
 from uuid import NAMESPACE_OID, uuid5
 
-from eventsourcing.application.process import ProcessApplication, WrappedRepository
+from eventsourcing.application.process import ProcessApplication, WrappedRepository, ProcessApplicationWithSnapshotting
 from eventsourcing.domain.model.aggregate import BaseAggregateRoot
+from eventsourcing.domain.model.collection import Collection
 from eventsourcing.domain.model.decorators import retry
 from eventsourcing.exceptions import OperationalError, RecordConflictError
 from eventsourcing.tests.test_process import ExampleAggregate
@@ -96,6 +97,13 @@ class Payment(BaseAggregateRoot):
         return self.__create__(order_id=order_id)
 
 
+class Counter(BaseAggregateRoot, Collection):
+    __subclassevents__ = True
+
+    class Event(BaseAggregateRoot.Event):
+        pass
+
+
 @retry((OperationalError, RecordConflictError), max_attempts=10, wait=0.01)
 def create_new_order():
     order = Order.__create__()
@@ -144,6 +152,25 @@ class Orders(ProcessApplication[Order, Order.Event]):
             return (repository or self.repository)[order_id]
         except KeyError:
             return None
+
+
+class CounterApp(ProcessApplicationWithSnapshotting):
+    persist_event_type = Counter.Event
+    snapshot_period = 1
+
+    def get_or_create_counter(self, repository: WrappedRepository = None):
+        counter_id = uuid5(NAMESPACE_OID, 'counter')
+        try:
+            return (repository or self.repository)[counter_id]
+        except KeyError:
+            counter = Counter.__create__(counter_id)
+            return counter
+
+    def policy(self, repository, event):
+        if isinstance(event, Order.Created):
+            counter = self.get_or_create_counter()
+            counter.add_item(event.originator_id)
+            return counter
 
 
 class Reservations(ProcessApplication[Reservation, Reservation.Event]):

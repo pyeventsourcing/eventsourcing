@@ -290,8 +290,6 @@ class MultiThreadedRunner(InProcessRunner):
                 outbox.put(prompt)
 
     def close(self) -> None:
-        super(MultiThreadedRunner, self).close()
-
         if self.clock_speed:
             self.clock_event.set()
             self.stop_clock_event.set()
@@ -305,6 +303,7 @@ class MultiThreadedRunner(InProcessRunner):
         self.threads.clear()
         self.outboxes.clear()
         self.inboxes.clear()
+        super(MultiThreadedRunner, self).close()
 
 
 class PromptOutbox(Generic[T]):
