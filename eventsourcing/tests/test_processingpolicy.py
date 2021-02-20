@@ -63,7 +63,6 @@ class EmailNotification(Aggregate):
             message=message,
         )
 
-    @dataclass(frozen=True)
     class Created(Aggregate.Created):
         to: str
         subject: str

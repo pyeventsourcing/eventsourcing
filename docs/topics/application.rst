@@ -143,7 +143,6 @@ presents the current history of an existing aggregate.
         def make_it_so(self, what):
             self._trigger_event(World.SomethingHappened, what=what)
 
-        @dataclass(frozen=True)
         class SomethingHappened(Aggregate.Event):
             what: str
 
@@ -598,7 +597,6 @@ defined in that section.
                 body=body
             )
 
-        @dataclass(frozen=True)
         class Created(Aggregate.Created):
             name: str
             body: str
@@ -606,7 +604,6 @@ defined in that section.
         def update_name(self, name: str):
             self._trigger_event(self.NameUpdated, name=name)
 
-        @dataclass(frozen=True)
         class NameUpdated(Aggregate.Event):
             name: str
 
@@ -631,14 +628,12 @@ defined in that section.
                 ref=page.id
             )
 
-        @dataclass(frozen=True)
         class Created(Aggregate.Created):
             ref: UUID
 
         def update_ref(self, ref):
             self._trigger_event(self.RefUpdated, ref=ref)
 
-        @dataclass(frozen=True)
         class RefUpdated(Aggregate.Event):
             ref: UUID
 

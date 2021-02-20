@@ -4,7 +4,7 @@ from decimal import Decimal
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.domain import TZINFO, Aggregate, VersionError
+from eventsourcing.domain import Aggregate, TZINFO, VersionError
 
 
 class TestAggregate(TestCase):
@@ -47,7 +47,6 @@ class TestAggregate(TestCase):
             event.mutate(a)
 
     def test_subclass_bank_account(self):
-
         # Open an account.
         account: BankAccount = BankAccount.open(
             full_name="Alice",
@@ -128,7 +127,6 @@ class TestAggregate(TestCase):
             def create(cls):
                 return cls._create(event_class=cls.Created, id=uuid4())
 
-            @dataclass(frozen=True)
             class ValueUpdated(Aggregate.Event):
                 a: int
 
@@ -167,7 +165,6 @@ class BankAccount(Aggregate):
             email_address=email_address,
         )
 
-    @dataclass(frozen=True)
     class Opened(Aggregate.Created):
         full_name: str
         email_address: str
@@ -191,7 +188,6 @@ class BankAccount(Aggregate):
         if self.balance + amount < -self.overdraft_limit:
             raise InsufficientFundsError({"account_id": self.id})
 
-    @dataclass(frozen=True)
     class TransactionAppended(Aggregate.Event):
         """
         Domain event for when transaction
@@ -218,7 +214,6 @@ class BankAccount(Aggregate):
             overdraft_limit=overdraft_limit,
         )
 
-    @dataclass(frozen=True)
     class OverdraftLimitSet(Aggregate.Event):
         """
         Domain event for when overdraft
@@ -236,7 +231,6 @@ class BankAccount(Aggregate):
         """
         self._trigger_event(self.Closed)
 
-    @dataclass(frozen=True)
     class Closed(Aggregate.Event):
         """
         Domain event for when account is closed.

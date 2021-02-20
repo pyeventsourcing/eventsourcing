@@ -9,8 +9,18 @@ from eventsourcing.utils import get_topic, resolve_topic
 TZINFO: tzinfo = resolve_topic(os.getenv("TZINFO_TOPIC", "datetime:timezone.utc"))
 
 
-@dataclass(frozen=True)
-class DomainEvent:
+class MetaDomainEvent(type):
+    def __new__(cls, *args, **kwargs):
+        event_cls = type.__new__(cls, *args, **kwargs)
+        event_cls = dataclass(frozen=True)(event_cls)
+        return event_cls
+
+    def __init__(self, *args, **kwargs):
+
+        super(MetaDomainEvent, self).__init__(*args, **kwargs)
+
+
+class DomainEvent(metaclass=MetaDomainEvent):
     """
     Base class for domain events, such as aggregate :class:`Aggregate.Event`
     and aggregate :class:`Snapshot`.
@@ -159,7 +169,6 @@ class BaseAggregate(metaclass=MetaAggregate):
             Applies the domain event to the aggregate.
             """
 
-    @dataclass(frozen=True)
     class Created(Event["Aggregate"]):
         """
         Domain event for when aggregate is created.
@@ -249,7 +258,6 @@ class VersionError(Exception):
     """
 
 
-@dataclass(frozen=True)
 class Snapshot(DomainEvent):
     """
     Snapshots represent the state of an aggregate at a particular

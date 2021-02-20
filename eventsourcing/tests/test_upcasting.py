@@ -335,7 +335,6 @@ class TestUpcasting(TestCase):
         def create(cls, *, a):
             return cls._create(cls.Created, id=uuid4(), a=a)
 
-        @dataclass(frozen=True)
         class Created(Aggregate.Created):
             a: str
 
@@ -351,7 +350,6 @@ class TestUpcasting(TestCase):
         def create(cls, *, A, b):
             return cls._create(cls.Created, id=uuid4(), A=A, b=b)
 
-        @dataclass(frozen=True)
         class Created(Aggregate.Created):
             A: str
             b: str
@@ -383,7 +381,6 @@ class TestUpcasting(TestCase):
         def create(cls, *, A, b, c):
             return cls._create(cls.Created, id=uuid4(), A=A, b=b, c=c)
 
-        @dataclass(frozen=True)
         class Created(Aggregate.Created):
             A: str
             b: int
@@ -425,7 +422,6 @@ class TestUpcasting(TestCase):
         def create(cls, *, A, b, c):
             return cls._create(cls.Created, id=uuid4(), A=A, b=b, c=c)
 
-        @dataclass(frozen=True)
         class Created(Aggregate.Created):
             A: str
             b: int
@@ -445,7 +441,6 @@ class TestUpcasting(TestCase):
         def set_d(self, value: Decimal):
             self._trigger_event(self.DUpdated, d=value)
 
-        @dataclass(frozen=True)
         class DUpdated(Aggregate.Event):
             d: Decimal
 

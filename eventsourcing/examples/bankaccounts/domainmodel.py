@@ -36,7 +36,6 @@ class BankAccount(Aggregate):
             email_address=email_address,
         )
 
-    @dataclass(frozen=True)
     class Opened(Aggregate.Created):
         full_name: str
         email_address: str
@@ -60,7 +59,6 @@ class BankAccount(Aggregate):
         if self.balance + amount < -self.overdraft_limit:
             raise InsufficientFundsError({"account_id": self.id})
 
-    @dataclass(frozen=True)
     class TransactionAppended(Aggregate.Event):
         amount: Decimal
         transaction_id: UUID
@@ -76,7 +74,6 @@ class BankAccount(Aggregate):
             overdraft_limit=overdraft_limit,
         )
 
-    @dataclass(frozen=True)
     class OverdraftLimitSet(Aggregate.Event):
         overdraft_limit: Decimal
 
@@ -86,7 +83,6 @@ class BankAccount(Aggregate):
     def close(self) -> None:
         self._trigger_event(self.Closed)
 
-    @dataclass(frozen=True)
     class Closed(Aggregate.Event):
         def apply(self, aggregate: "BankAccount") -> None:
             aggregate.is_closed = True

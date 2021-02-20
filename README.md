@@ -96,7 +96,6 @@ class World(Aggregate):
     def make_it_so(self, something):
         self._trigger_event(World.SomethingHappened, what=something)
 
-    @dataclass(frozen=True)
     class SomethingHappened(Aggregate.Event):
         what: str
 

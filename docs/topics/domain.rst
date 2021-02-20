@@ -372,14 +372,12 @@ The event is triggered with the method argument ``what``.
         def create(cls):
             return cls._create(cls.Created, id=uuid4())
 
-        @dataclass(frozen=True)
         class Created(Aggregate.Created):
             pass
 
         def make_it_so(self, what):
             self._trigger_event(self.SomethingHappened, what=what)
 
-        @dataclass(frozen=True)
         class SomethingHappened(Aggregate.Event):
             what: str
 
@@ -712,7 +710,6 @@ In the example below, version ``1`` of the class ``MyAggregate`` is defined with
         def create(cls, a:str):
             return cls._create(cls.Created, id=uuid4(), a=a)
 
-        @dataclass(frozen=True)
         class Created(Aggregate.Created):
             a: str
 
@@ -738,7 +735,6 @@ event class, so that snapshots can be upcast.
         def create(cls, a:str, b: int = 0):
             return cls._create(cls.Created, id=uuid4(), a=a, b=b)
 
-        @dataclass(frozen=True)
         class Created(Aggregate.Created):
             a: str
             b: int
@@ -779,7 +775,6 @@ class, so that any snapshots will be upcast.
         def create(cls, a:str, b: int = 0, c: float = 0.0):
             return cls._create(cls.Created, id=uuid4(), a=a, b=b, c=c)
 
-        @dataclass(frozen=True)
         class Created(Aggregate.Created):
             a: str
             b: int
@@ -827,7 +822,6 @@ updates ``d`` is defined. Since the ``Created`` event class has not changed, it 
         def create(cls, a:str, b: int = 0, c: float = 0.0):
             return cls._create(cls.Created, id=uuid4(), a=a, b=b, c=c)
 
-        @dataclass(frozen=True)
         class Created(Aggregate.Created):
             a: str
             b: int
@@ -846,7 +840,6 @@ updates ``d`` is defined. Since the ``Created`` event class has not changed, it 
         def set_d(self, d: bool):
             self._trigger_event(self.DUpdated, d=d)
 
-        @dataclass(frozen=True)
         class DUpdated(Aggregate.Event):
             d: bool
 
@@ -945,7 +938,6 @@ how this can work.
                 body=body
             )
 
-        @dataclass(frozen=True)
         class Created(Aggregate.Created):
             name: str
             body: str
@@ -953,7 +945,6 @@ how this can work.
         def update_name(self, name: str):
             self._trigger_event(self.NameUpdated, name=name)
 
-        @dataclass(frozen=True)
         class NameUpdated(Aggregate.Event):
             name: str
 
@@ -978,14 +969,12 @@ how this can work.
                 ref=page.id
             )
 
-        @dataclass(frozen=True)
         class Created(Aggregate.Created):
             ref: UUID
 
         def update_ref(self, ref):
             self._trigger_event(self.RefUpdated, ref=ref)
 
-        @dataclass(frozen=True)
         class RefUpdated(Aggregate.Event):
             ref: UUID
 

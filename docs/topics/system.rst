@@ -37,14 +37,12 @@ The library's system class...
                 id=uuid4(),
             )
 
-        @dataclass(frozen=True)
         class Created(Aggregate.Created):
             pass
 
         def make_it_so(self, what):
             self._trigger_event(self.SomethingHappened, what=what)
 
-        @dataclass(frozen=True)
         class SomethingHappened(Aggregate.Event):
             what: str
 
@@ -99,7 +97,6 @@ Now let's define an analytics application...
                 id=cls.create_id(name),
             )
 
-        @dataclass(frozen=True)
         class Created(Aggregate.Created):
             pass
 

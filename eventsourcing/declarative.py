@@ -308,8 +308,6 @@ class MetaDecoratableAggregate(MetaAggregate):
             created_cls = type(
                 created_cls_name, (BaseAggregate.Created,), created_cls_dict
             )
-            # Make it into a frozen dataclass.
-            created_cls = dataclass(frozen=True)(created_cls)
             # Put it in the aggregate class dict.
             cls_dict[created_cls_name] = created_cls
             self._created_cls = created_cls
@@ -366,10 +364,7 @@ class MetaDecoratableAggregate(MetaAggregate):
                         "__module__": self.__module__,
                         "__qualname__": event_cls_qualname,
                     }
-
                     event_cls = type(event_cls_name, (DecoratedEvent,), event_cls_dict)
-                    event_cls = dataclass(frozen=True)(event_cls)
-
                     original_methods[event_cls] = original_method
                     cls_dict[event_cls_name] = event_cls
                     setattr(self, event_cls_name, event_cls)

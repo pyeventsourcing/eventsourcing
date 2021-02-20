@@ -1248,7 +1248,6 @@ class TestDeclarativeSyntax(TestCase):
                 self.confirmed_at = None
                 self.pickedup_at = None
 
-            @dataclass(frozen=True)
             class Started(Aggregate.Created):
                 name: str
 
@@ -1278,7 +1277,6 @@ class TestDeclarativeSyntax(TestCase):
                 self.confirmed_at = None
                 self.pickedup_at = None
 
-            @dataclass(frozen=True)
             class Started(Aggregate.Created):
                 name: str
 
@@ -1309,7 +1307,6 @@ class TestDeclarativeSyntax(TestCase):
                 self.confirmed_at = None
                 self.pickedup_at = None
 
-            @dataclass(frozen=True)
             class Started(Aggregate.Created):
                 name: str
 
@@ -1343,11 +1340,9 @@ class TestDeclarativeSyntax(TestCase):
                 self.confirmed_at = None
                 self.pickedup_at = None
 
-            @dataclass(frozen=True)
             class Created(DecoratedAggregate.Created):
                 name: str
 
-            @dataclass(frozen=True)
             class Confirmed(DecoratedAggregate.Event):
                 at: datetime
 
@@ -1361,7 +1356,6 @@ class TestDeclarativeSyntax(TestCase):
                 else:
                     raise Exception("Order is not confirmed")
 
-            @dataclass(frozen=True)
             class Pickedup(DecoratedAggregate.Event):
                 at: datetime
 
@@ -1406,7 +1400,6 @@ class TestDeclarativeSyntax(TestCase):
         with self.assertRaises(TypeError) as cm:
 
             class _(DecoratedAggregate):
-                @dataclass(frozen=True)
                 class Confirmed(DecoratedAggregate.Event):
                     def apply(self, aggregate):
                         pass
@@ -1424,7 +1417,6 @@ class TestDeclarativeSyntax(TestCase):
         # that are applied using the decorated method.
         @aggregate
         class Order(DecoratedAggregate):
-            @dataclass(frozen=True)
             class Confirmed(DecoratedAggregate.Event):
                 at: datetime
 
@@ -1456,7 +1448,6 @@ class TestDeclarativeSyntax(TestCase):
 
             @aggregate
             class Order(DecoratedAggregate):
-                @dataclass(frozen=True)
                 class Confirmed(DecoratedAggregate.Event):
                     at: datetime
 
