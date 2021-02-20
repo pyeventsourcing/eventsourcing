@@ -457,21 +457,20 @@ class TestDeclarativeSyntax(TestCase):
         self.assertEqual(len(a._pending_events), 2)
         self.assertIsInstance(a._pending_events[1], MyAgg.ValueChanged)
 
-    # Todo: Support default values?
-    # def test_event_name_inferred_from_method_with_default_kwarg(self):
-    #     @aggregate
-    #     class MyAgg:
-    #         @event
-    #         def value_changed(self, value=3):
-    #             self.value = value
-    #
-    #     a = MyAgg()
-    #     self.assertIsInstance(a, MyAgg)
-    #     a.value_changed()
-    #     self.assertEqual(a.value, 3)
-    #     self.assertIsInstance(a, Aggregate)
-    #     self.assertEqual(len(a._pending_events), 2)
-    #     self.assertIsInstance(a._pending_events[1], MyAgg.ValueChanged)
+    def test_event_name_inferred_from_method_with_default_kwarg(self):
+        @aggregate
+        class MyAgg:
+            @event
+            def value_changed(self, value=3):
+                self.value = value
+
+        a = MyAgg()
+        self.assertIsInstance(a, MyAgg)
+        a.value_changed()
+        self.assertEqual(a.value, 3)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a._pending_events), 2)
+        self.assertIsInstance(a._pending_events[1], MyAgg.ValueChanged)
 
     def test_raises_when_method_takes_1_positional_argument_but_2_were_given(self):
         @aggregate
