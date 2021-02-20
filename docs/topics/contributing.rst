@@ -181,7 +181,7 @@ To stop the services, you can run::
 Before running the tests for the first time, create a database in MySQL, and configure user access::
 
     $ mysql -u root
-    mysql> CREATE DATABASE EVENTSOURCING;
+    mysql> CREATE DATABASE eventsourcing;
     mysql> CREATE USER 'eventsourcing'@'localhost' IDENTIFIED BY 'eventsourcing';
     mysql> GRANT ALL PRIVILEGES ON eventsourcing.* TO 'eventsourcing'@'localhost';
 
