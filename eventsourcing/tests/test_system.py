@@ -14,6 +14,7 @@ from eventsourcing.system.multiprocess import MultiprocessRunner
 from eventsourcing.system.runner import MultiThreadedRunner
 from eventsourcing.tests.system_test_fixtures import (
     Examples,
+    CounterApp,
     Order,
     Orders,
     Payment,
@@ -265,6 +266,33 @@ class TestSystem(TestCase):
                     assert retries, "Failed set order.is_paid"
 
             print(f"Duration: { time() - started :.4f}s")
+
+    def test_multithreaded_runner_should_wait_for_processes_to_finish_before_close(self):
+        system = System(
+            Orders | CounterApp,
+            setup_tables=True,
+            infrastructure_class=self.infrastructure_class,
+        )
+
+        self.set_db_uri()
+        order_ids = []
+        num_orders = 10
+
+        with MultiThreadedRunner(system) as runner:
+            orders = runner.get(Orders)
+            for i in range(num_orders):
+                order_id = orders.create_new_order()
+                order_ids.append(order_id)
+
+        # at this point system should run to completion
+        # all process threads should finish
+
+        with system as runner:
+            app = runner.get(CounterApp)
+            counter = app.get_or_create_counter()
+            for order_id in order_ids:
+                assert order_id in counter.items
+
 
     def test_clocked_multithreaded_runner_with_multiapp_system(self):
         system = System(
