@@ -47,6 +47,7 @@ before_install:
 before_script:
   - mysql -e 'CREATE DATABASE eventsourcing;'
   - psql -c 'CREATE DATABASE eventsourcing;' -U postgres
+  - psql -c 'CREATE DATABASE eventsourcing_secondary;' -U postgres
 
 install:
   - pip install -U virtualenv

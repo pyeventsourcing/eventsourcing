@@ -12,12 +12,14 @@ class DjangoInfrastructureFactory(InfrastructureFactory):
 
     record_manager_class = DjangoRecordManager
     tracking_record_class: Any = None
+    db_alias: str = None
 
     def __init__(
-        self, tracking_record_class: Optional[type] = None, *args: Any, **kwargs: Any
+        self, db_alias: str, tracking_record_class: Optional[type] = None, *args: Any, **kwargs: Any
     ):
         super(DjangoInfrastructureFactory, self).__init__(*args, **kwargs)
         self._tracking_record_class = tracking_record_class
+        self.db_alias = db_alias
 
     @property
     def integer_sequenced_record_class(self) -> Optional[type]:  # type: ignore
@@ -52,5 +54,7 @@ class DjangoInfrastructureFactory(InfrastructureFactory):
         return super(
             DjangoInfrastructureFactory, self
         ).construct_integer_sequenced_record_manager(
-            tracking_record_class=tracking_record_class, **kwargs
+            tracking_record_class=tracking_record_class,
+            db_alias=self.db_alias,
+            **kwargs
         )

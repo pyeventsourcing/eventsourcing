@@ -1,3 +1,7 @@
+from time import sleep
+
+from django.core.management import call_command
+
 from eventsourcing.application.django import DjangoApplication
 from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import (
     DjangoTestCase,
@@ -14,6 +18,22 @@ class TestSystemWithDjango(DjangoTestCase, TestSystem):
     def set_db_uri(self):
         # The Django settings module doesn't currently recognise DB_URI.
         pass
+
+
+class SecondaryDjangoApplication(DjangoApplication):
+
+    def construct_infrastructure(self):
+        super(SecondaryDjangoApplication, self).construct_infrastructure(db_alias='secondary')
+
+
+class TestSystemWithSecondaryDBDjango(DjangoTestCase, TestSystem):
+    infrastructure_class = SecondaryDjangoApplication
+    databases = ["secondary", "default"]
+
+    def setUp(self):
+        super(DjangoTestCase, self).setUp()
+        call_command("migrate", database="secondary", verbosity=0, interactive=False)
+        sleep(1)
 
 
 # Avoid running imported test case.

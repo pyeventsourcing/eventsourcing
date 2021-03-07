@@ -1,13 +1,22 @@
 from typing import Any, Dict, Iterable, Optional, Sequence
 from uuid import UUID
 
-from django.db import IntegrityError, ProgrammingError, connection, transaction
+from django.db import IntegrityError, ProgrammingError, connection, transaction, connections
 
 from eventsourcing.infrastructure.base import SQLRecordManager, TrackingKwargs
 
 
 class DjangoRecordManager(SQLRecordManager):
     _where_application_name_tmpl = " WHERE application_name = %s AND pipeline_id = %s"
+    _db_alias = 'default'
+
+    def __init__(self, db_alias=None, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self._db_alias = db_alias or 'default'
+
+    @property
+    def objects(self):
+        return self.record_class.objects.using(self._db_alias).all()
 
     def write_records(
         self,
@@ -17,8 +26,8 @@ class DjangoRecordManager(SQLRecordManager):
         orm_objs_pending_delete: Optional[Sequence[Any]] = None,
     ) -> None:
         try:
-            with transaction.atomic(self.record_class.objects.db):  # type: ignore
-                with connection.cursor() as cursor:
+            with transaction.atomic(self._db_alias):  # type: ignore
+                with connections[self._db_alias].cursor() as cursor:
                     # Insert tracking record.
                     if tracking_kwargs:
                         params = [
@@ -102,7 +111,7 @@ class DjangoRecordManager(SQLRecordManager):
             self.field_names.sequence_id: sequence_id,
             self.field_names.position: position,
         }
-        records = self.record_class.objects.filter(**kwargs)  # type: ignore
+        records = self.objects.filter(**kwargs)  # type: ignore
         # Todo: try/except for native error here, call self.raise_index_error()
         return records.all()[0]
 
@@ -121,7 +130,7 @@ class DjangoRecordManager(SQLRecordManager):
         assert limit is None or limit >= 1, limit
 
         filter_kwargs = {self.field_names.sequence_id: sequence_id}
-        objects = self.record_class.objects.filter(**filter_kwargs)  # type: ignore
+        objects = self.objects.filter(**filter_kwargs)  # type: ignore
 
         if hasattr(self.record_class, "application_name"):
             objects = objects.filter(application_name=self.application_name)
@@ -180,7 +189,7 @@ class DjangoRecordManager(SQLRecordManager):
             filter_kwargs["%s__gte" % self.notification_id_name] = start + 1
         if stop is not None:
             filter_kwargs["%s__lt" % self.notification_id_name] = stop + 1
-        objects = self.record_class.objects.filter(**filter_kwargs)  # type: ignore
+        objects = self.objects.filter(**filter_kwargs)  # type: ignore
 
         if hasattr(self.record_class, "application_name"):
             objects = objects.filter(application_name=self.application_name)
@@ -203,7 +212,7 @@ class DjangoRecordManager(SQLRecordManager):
     def get_max_notification_id(self) -> int:
         assert self.notification_id_name
         try:
-            objects = self.record_class.objects  # type: ignore
+            objects = self.objects  # type: ignore
             if hasattr(self.record_class, "application_name"):
                 objects = objects.filter(application_name=self.application_name)
             if hasattr(self.record_class, "pipeline_id"):
@@ -240,7 +249,7 @@ class DjangoRecordManager(SQLRecordManager):
 
     def all_sequence_ids(self) -> Iterable[UUID]:
         sequence_id_fieldname = self.field_names.sequence_id
-        values_queryset = self.record_class.objects.values(  # type: ignore
+        values_queryset = self.objects.values(  # type: ignore
             sequence_id_fieldname
         ).distinct()
         for values in values_queryset:
