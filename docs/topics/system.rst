@@ -22,7 +22,7 @@ The library's system class...
     from dataclasses import dataclass
     from uuid import uuid4
 
-    from eventsourcing.domain import Aggregate
+    from eventsourcing.domain import Aggregate, AggregateCreated, AggregateEvent
 
 
     class World(Aggregate):
@@ -37,13 +37,13 @@ The library's system class...
                 id=uuid4(),
             )
 
-        class Created(Aggregate.Created):
+        class Created(AggregateCreated):
             pass
 
         def make_it_so(self, what):
-            self._trigger_event(self.SomethingHappened, what=what)
+            self.trigger_event(self.SomethingHappened, what=what)
 
-        class SomethingHappened(Aggregate.Event):
+        class SomethingHappened(AggregateEvent):
             what: str
 
             def apply(self, world):
@@ -97,13 +97,13 @@ Now let's define an analytics application...
                 id=cls.create_id(name),
             )
 
-        class Created(Aggregate.Created):
+        class Created(AggregateCreated):
             pass
 
         def increment(self):
-            self._trigger_event(self.Incremented)
+            self.trigger_event(self.Incremented)
 
-        class Incremented(Aggregate.Event):
+        class Incremented(AggregateEvent):
             def apply(self, counter):
                 counter.count += 1
 

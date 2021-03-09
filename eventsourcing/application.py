@@ -3,7 +3,12 @@ from dataclasses import dataclass
 from typing import Generic, List, Optional, TypeVar
 from uuid import UUID
 
-from eventsourcing.domain import Aggregate, BaseAggregate, Snapshot, TAggregate
+from eventsourcing.domain import (
+    Aggregate,
+    AggregateEvent,
+    Snapshot,
+    TAggregate,
+)
 from eventsourcing.persistence import (
     ApplicationRecorder,
     DatetimeAsISO,
@@ -26,13 +31,13 @@ class Repository(Generic[TAggregate]):
 
     def __init__(
         self,
-        event_store: EventStore[Aggregate.Event],
+        event_store: EventStore[AggregateEvent],
         snapshot_store: Optional[EventStore[Snapshot]] = None,
     ):
         """
         Initialises repository with given event store (an
         :class:`~eventsourcing.persistence.EventStore` for aggregate
-        :class:`~eventsourcing.domain.Aggregate.Event` objects)
+        :class:`~eventsourcing.domain.AggregateEvent` objects)
         and optionally a snapshot store (an
         :class:`~eventsourcing.persistence.EventStore` for aggregate
         :class:`~eventsourcing.domain.Snapshot` objects).
@@ -266,11 +271,11 @@ class Application(ABC, Generic[TAggregate]):
         """
         return self.factory.application_recorder()
 
-    def construct_event_store(self) -> EventStore[Aggregate.Event]:
+    def construct_event_store(self) -> EventStore[AggregateEvent]:
         """
         Constructs an :class:`~eventsourcing.persistence.EventStore`
         for use by the application to store and retrieve aggregate
-        :class:`~eventsourcing.domain.Aggregate.Event` objects.
+        :class:`~eventsourcing.domain.AggregateEvent` objects.
         """
         return self.factory.event_store(
             mapper=self.mapper,
@@ -306,7 +311,7 @@ class Application(ABC, Generic[TAggregate]):
         """
         return LocalNotificationLog(self.recorder, section_size=10)
 
-    def save(self, *aggregates: BaseAggregate) -> None:
+    def save(self, *aggregates: Aggregate) -> None:
         """
         Collects pending events from given aggregates and
         puts them in the application's event store.
@@ -317,7 +322,7 @@ class Application(ABC, Generic[TAggregate]):
         self.events.put(events)
         self.notify(events)
 
-    def notify(self, new_events: List[Aggregate.Event]) -> None:
+    def notify(self, new_events: List[AggregateEvent]) -> None:
         """
         Called after new domain events have been saved. This
         method on this class class doesn't actually do anything,

@@ -125,12 +125,11 @@ presents the current history of an existing aggregate.
     from dataclasses import dataclass
     from uuid import uuid4
 
-    from eventsourcing.domain import Aggregate
+    from eventsourcing.domain import Aggregate, AggregateEvent
 
 
     class World(Aggregate):
-        def __init__(self, **kwargs):
-            super(World, self).__init__(**kwargs)
+        def __init__(self):
             self.history = []
 
         @classmethod
@@ -141,9 +140,9 @@ presents the current history of an existing aggregate.
             )
 
         def make_it_so(self, what):
-            self._trigger_event(World.SomethingHappened, what=what)
+            self.trigger_event(World.SomethingHappened, what=what)
 
-        class SomethingHappened(Aggregate.Event):
+        class SomethingHappened(AggregateEvent):
             what: str
 
             def apply(self, world):
@@ -191,7 +190,7 @@ The repository's :func:`~eventsourcing.application.Repository.get` method is use
 obtain already existing aggregates. It uses the event store's
 :func:`~eventsourcing.persistence.EventStore.get` method to retrieve
 the already existing :ref:`domain event objects <Events>` of the requested
-aggregate, and the :func:`~eventsourcing.domain.Aggregate.Event.mutate`
+aggregate, and the :func:`~eventsourcing.domain.AggregateEvent.mutate`
 methods of the :ref:`domain event objects <Events>` to reconstruct the state
 of the requested aggregate. The repository's
 :func:`~eventsourcing.application.Repository.get` method accepts two
@@ -319,7 +318,7 @@ are four notifications in the notification log.
     assert section.items[2].originator_version == 3
     assert section.items[3].originator_version == 4
 
-    assert "Aggregate.Created" in section.items[0].topic
+    assert "World.Created" in section.items[0].topic
     assert "World.SomethingHappened" in section.items[1].topic
     assert "World.SomethingHappened" in section.items[2].topic
     assert "World.SomethingHappened" in section.items[3].topic
@@ -336,7 +335,7 @@ will also be encrypted, but the mapper will decrypt the event notification.
 .. code:: python
 
     domain_event = application.mapper.to_domain_event(section.items[0])
-    assert isinstance(domain_event, Aggregate.Created)
+    assert isinstance(domain_event, World.Created)
     assert domain_event.originator_id == world_id
 
     domain_event = application.mapper.to_domain_event(section.items[3])
@@ -579,7 +578,7 @@ defined in that section.
     from dataclasses import dataclass
     from uuid import uuid5, NAMESPACE_URL
 
-    from eventsourcing.domain import Aggregate
+    from eventsourcing.domain import Aggregate, AggregateEvent, AggregateCreated
 
 
     class Page(Aggregate):
@@ -597,14 +596,14 @@ defined in that section.
                 body=body
             )
 
-        class Created(Aggregate.Created):
+        class Created(AggregateCreated):
             name: str
             body: str
 
         def update_name(self, name: str):
-            self._trigger_event(self.NameUpdated, name=name)
+            self.trigger_event(self.NameUpdated, name=name)
 
-        class NameUpdated(Aggregate.Event):
+        class NameUpdated(AggregateEvent):
             name: str
 
             def apply(self, page: "Page"):
@@ -628,13 +627,13 @@ defined in that section.
                 ref=page.id
             )
 
-        class Created(Aggregate.Created):
+        class Created(AggregateCreated):
             ref: UUID
 
         def update_ref(self, ref):
-            self._trigger_event(self.RefUpdated, ref=ref)
+            self.trigger_event(self.RefUpdated, ref=ref)
 
-        class RefUpdated(Aggregate.Event):
+        class RefUpdated(AggregateEvent):
             ref: UUID
 
             def apply(self, index: "Index"):

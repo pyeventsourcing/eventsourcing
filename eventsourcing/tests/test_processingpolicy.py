@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from functools import singledispatch
 from unittest.case import TestCase
 from uuid import uuid4
@@ -11,7 +10,7 @@ from eventsourcing.tests.test_aggregate import BankAccount
 
 @singledispatch
 def policy(domain_event, process_event: ProcessEvent):
-    if isinstance(domain_event, BankAccount.Created):
+    if isinstance(domain_event, BankAccount.Opened):
         notification = EmailNotification.create(
             to=domain_event.email_address,
             subject="Your New Account",

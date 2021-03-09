@@ -77,38 +77,17 @@ the "history" of the world.
 
 ```python
 
-from dataclasses import dataclass
-from uuid import uuid4
-
-from eventsourcing.domain import Aggregate
+from eventsourcing.domain import Aggregate, event
 
 
 class World(Aggregate):
 
-    def __init__(self, **kwargs):
-        super(World, self).__init__(**kwargs)
+    def __init__(self):
         self.history = []
 
-    @classmethod
-    def create(self):
-        return self._create(World.Created, id=uuid4())
-
-    def make_it_so(self, something):
-        self._trigger_event(World.SomethingHappened, what=something)
-
-    class SomethingHappened(Aggregate.Event):
-        what: str
-
-        def apply(self, aggregate):
-            aggregate.history.append(self.what)
-
-    def discard(self):
-        self._trigger_event(self.Discarded)
-
-    class Discarded(Aggregate.Event):
-        def mutate(self, obj):
-            super().mutate(obj)
-            return None
+    @event("SomethingHappened")
+    def make_it_so(self, what):
+        self.history.append(what)
 
 ```
 
@@ -122,7 +101,7 @@ from eventsourcing.system import NotificationLogReader
 def test(app: Application):
 
     # Create a new aggregate.
-    world = World.create()
+    world = World()
 
     # Unsaved aggregate not yet in application repository.
     try:
@@ -162,16 +141,6 @@ def test(app: Application):
     assert copy.history[1] == 'trucks'
     assert copy.history[2] == 'internet'
 
-    # Discard aggregate.
-    world.discard()
-    app.save(world)
-
-    # Discarded aggregate not found.
-    try:
-        app.repository.get(world.id)
-    except AggregateNotFound:
-        pass
-
     # Get historical state (at version from above).
     old = app.repository.get(world.id, version=version)
     assert old.history[-1] == 'trucks' # internet not happened
@@ -191,18 +160,18 @@ def test(app: Application):
     # Project application event notifications.
     reader = NotificationLogReader(app.log)
     notification_ids = [n.id for n in reader.read(start=1)]
-    assert notification_ids == [1, 2, 3, 4, 5]
+    assert notification_ids == [1, 2, 3, 4]
 
     # - create two more aggregates
-    world2 = World.create()
+    world2 = World()
     app.save(world2)
 
-    world3 = World.create()
+    world3 = World()
     app.save(world3)
 
     # - get the new event notifications from the reader
-    notification_ids = [n.id for n in reader.read(start=6)]
-    assert notification_ids == [6, 7]
+    notification_ids = [n.id for n in reader.read(start=5)]
+    assert notification_ids == [5, 6]
 ```
 
 Run the code in default "development" environment (uses default "Plain Old Python Object"

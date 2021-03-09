@@ -3,7 +3,7 @@ from datetime import datetime
 from unittest.case import TestCase
 from uuid import UUID, uuid4
 
-from eventsourcing.domain import MetaDomainEvent, TZINFO, DomainEvent
+from eventsourcing.domain import TZINFO, DomainEvent, MetaDomainEvent
 
 
 class TestMetaDomainEvent(TestCase):
@@ -28,7 +28,7 @@ class TestDomainEvent(TestCase):
         a = DomainEvent(
             originator_id=originator_id,
             originator_version=originator_version,
-            timestamp=timestamp
+            timestamp=timestamp,
         )
         self.assertEqual(a.originator_id, originator_id)
         self.assertEqual(a.originator_version, originator_version)

@@ -131,13 +131,13 @@ event-sourced aggregates. See for example the ``World`` aggregate in the
 The :class:`~eventsourcing.domain.Aggregate` base class has three methods which can
 be used by subclasses:
 
-* the "private" class method :func:`~eventsourcing.domain.Aggregate._create`
+* the class method :func:`~eventsourcing.domain.Aggregate._create`
   is used to create aggregate objects;
 
-* the "private" object method :func:`~eventsourcing.domain.Aggregate._trigger_event`
+* the object method :func:`~eventsourcing.domain.Aggregate.trigger_event`
   is used to trigger subsequent events; and
 
-* the "public" object method :func:`~eventsourcing.domain.Aggregate.collect_events`
+* the object method :func:`~eventsourcing.domain.Aggregate.collect_events`
   is used to collect aggregate events.
 
 These methods are explained below.
@@ -254,21 +254,23 @@ and ``modified_on`` values are identical, and equal to the timestamp of the "cre
 Triggering subsequent events
 ----------------------------
 
-Secondly, the :class:`~eventsourcing.domain.Aggregate` class has a "private" object
-method :func:`~eventsourcing.domain.Aggregate._trigger_event` which can be called
+Secondly, the :class:`~eventsourcing.domain.Aggregate` class has a
+method :func:`~eventsourcing.domain.Aggregate.trigger_event` which can be called
 to create subsequent aggregate event objects and apply them to the aggregate.
 This method is usually called by the command methods of an aggregate to
 express the decisions that it makes. For example,
 see the ``make_it_so()`` method of the ``World`` class in the :ref:`basic example
 <Aggregate basic example>` below.
 
-The :func:`~eventsourcing.domain.Aggregate._trigger_event` method has a positional
+The :func:`~eventsourcing.domain.Aggregate.trigger_event` method has a positional
 argument ``event_class``, which is used to pass the type of aggregate event to be
 triggered.
 
 .. code:: python
 
-    aggregate._trigger_event(Aggregate.Event)
+    from eventsourcing.domain import AggregateEvent
+
+    aggregate.trigger_event(AggregateEvent)
 
 The :class:`~eventsourcing.domain.Aggregate` class has a nested
 :class:`~eventsourcing.domain.Aggregate.Event` class. It is defined
@@ -283,13 +285,13 @@ what was decided by the command method, such as "Done", "Updated", "Closed", etc
 See the :ref:`Domain events <Events>` section below for more information about
 aggregate event classes. They can be defined on aggregate classes as nested classes.
 
-The :func:`~eventsourcing.domain.Aggregate._trigger_event` method also accepts arbitrary
+The :func:`~eventsourcing.domain.Aggregate.trigger_event` method also accepts arbitrary
 keyword-only arguments, which will be used to construct the aggregate event object. As with the
 :func:`~eventsourcing.domain.Aggregate._create` method described above, the event object will be constructed
 with these arguments, and so any extra arguments must be matched by the expected values of
 the event class. For example ``what: str`` on the ``SomethingHappened`` event class in the
 :ref:`basic example <Aggregate basic example>` below matches the ``what=what`` keyword
-argument passed in the call to the :func:`~eventsourcing.domain.Aggregate._trigger_event`
+argument passed in the call to the :func:`~eventsourcing.domain.Aggregate.trigger_event`
 method in the ``make_it_so()`` command.
 
 The ``version`` will be incremented by 1 for each event that is triggered.
@@ -317,16 +319,18 @@ constructed. This method is called without any arguments.
 
 .. code:: python
 
+    from eventsourcing.domain import AggregateCreated
+
     pending_events = aggregate.collect_events()
 
     assert len(pending_events) == 2
 
-    assert isinstance(pending_events[0], Aggregate.Created)
+    assert isinstance(pending_events[0], AggregateCreated)
     assert pending_events[0].originator_id == aggregate.id
     assert pending_events[0].originator_version == 1
     assert pending_events[0].timestamp == aggregate.created_on
 
-    assert isinstance(pending_events[1], Aggregate.Event)
+    assert isinstance(pending_events[1], AggregateEvent)
     assert pending_events[1].originator_id == aggregate.id
     assert pending_events[1].originator_version == 2
     assert pending_events[1].timestamp == aggregate.modified_on
@@ -353,7 +357,7 @@ section below for a discussion about using version 5 UUIDs.)
 
 The ``make_it_so()`` method is a command method that triggers
 a ``World.SomethingHappened`` domain event. It calls the base class
-:func:`~eventsourcing.domain.Aggregate._trigger_event` method.
+:func:`~eventsourcing.domain.Aggregate.trigger_event` method.
 The event is triggered with the method argument ``what``.
 
 .. code:: python
@@ -372,13 +376,13 @@ The event is triggered with the method argument ``what``.
         def create(cls):
             return cls._create(cls.Created, id=uuid4())
 
-        class Created(Aggregate.Created):
+        class Created(AggregateCreated):
             pass
 
         def make_it_so(self, what):
-            self._trigger_event(self.SomethingHappened, what=what)
+            self.trigger_event(self.SomethingHappened, what=what)
 
-        class SomethingHappened(Aggregate.Event):
+        class SomethingHappened(AggregateEvent):
             what: str
 
             def apply(self, world):
@@ -462,7 +466,7 @@ Now that more than one domain event has been created, the aggregate's
 
 
 The resulting domain events are now held internally in the aggregate in
-a list of pending events, in the ``_pending_events`` attribute. The pending
+a list of pending events, in the ``pending_events`` attribute. The pending
 events can be collected by calling the aggregate's
 :func:`~eventsourcing.domain.Aggregate.collect_events` method. These events are
 pending to be saved, and indeed the library's :ref:`application <Application objects>`
@@ -474,12 +478,12 @@ event, and three ``SomethingHappened`` events.
 .. code:: python
 
     # Has four pending events.
-    assert len(world._pending_events) == 4
+    assert len(world.pending_events) == 4
 
     # Collect pending events.
     pending_events = world.collect_events()
     assert len(pending_events) == 4
-    assert len(world._pending_events) == 0
+    assert len(world.pending_events) == 0
 
     assert isinstance(pending_events[0], World.Created)
     assert isinstance(pending_events[1], World.SomethingHappened)
@@ -600,7 +604,7 @@ argument as the new event's ``originator_id``. It sets the ``originator_version`
 value of ``1``. It derives the ``originator_topic`` value from the aggregate class. And
 it calls Python's :func:`datetime.now` to create the ``timestamp`` value.
 
-Similarly, the aggregate :func:`~eventsourcing.domain.Aggregate._trigger_event` method uses the
+Similarly, the aggregate :func:`~eventsourcing.domain.Aggregate.trigger_event` method uses the
 ``id`` attribute of the aggregate as the ``originator_id`` of the new domain event. It uses the current
 aggregate ``version`` to create the next version number (by adding ``1``) and uses
 this value as the ``originator_version`` of the new domain event. It calls
@@ -652,7 +656,7 @@ create a snapshot of an aggregate object.
     assert snapshot.topic == "__main__:World", snapshot.topic
     assert snapshot.state["history"] == world.history
     assert snapshot.state["_created_on"] == world.created_on
-    assert snapshot.state["_modified_on"] == world.modified_on
+    assert snapshot.state["modified_on"] == world.modified_on
     assert len(snapshot.state) == 3
 
 
@@ -838,9 +842,9 @@ updates ``d`` is defined. Since the ``Created`` event class has not changed, it 
                 state["c"] = 0.0
 
         def set_d(self, d: bool):
-            self._trigger_event(self.DUpdated, d=d)
+            self.trigger_event(self.DUpdated, d=d)
 
-        class DUpdated(Aggregate.Event):
+        class DUpdated(AggregateEvent):
             d: bool
 
             def apply(self, aggregate: "Aggregate") -> None:
@@ -938,14 +942,14 @@ how this can work.
                 body=body
             )
 
-        class Created(Aggregate.Created):
+        class Created(AggregateCreated):
             name: str
             body: str
 
         def update_name(self, name: str):
-            self._trigger_event(self.NameUpdated, name=name)
+            self.trigger_event(self.NameUpdated, name=name)
 
-        class NameUpdated(Aggregate.Event):
+        class NameUpdated(AggregateEvent):
             name: str
 
             def apply(self, page: "Page"):
@@ -969,13 +973,13 @@ how this can work.
                 ref=page.id
             )
 
-        class Created(Aggregate.Created):
+        class Created(AggregateCreated):
             ref: UUID
 
         def update_ref(self, ref):
-            self._trigger_event(self.RefUpdated, ref=ref)
+            self.trigger_event(self.RefUpdated, ref=ref)
 
-        class RefUpdated(Aggregate.Event):
+        class RefUpdated(AggregateEvent):
             ref: UUID
 
             def apply(self, index: "Index"):

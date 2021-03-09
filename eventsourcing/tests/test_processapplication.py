@@ -1,7 +1,7 @@
 from unittest.case import TestCase
 
 from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain import Aggregate
+from eventsourcing.domain import AggregateEvent
 from eventsourcing.system import (
     Follower,
     Leader,
@@ -56,7 +56,7 @@ class EmailNotifications(ProcessApplication):
     @singledispatchmethod
     def policy(
         self,
-        domain_event: Aggregate.Event,
+        domain_event: AggregateEvent,
         process_event: ProcessEvent,
     ):
         """Default policy"""
@@ -64,7 +64,7 @@ class EmailNotifications(ProcessApplication):
     @policy.register(BankAccount.Opened)
     def _(
         self,
-        domain_event: Aggregate.Event,
+        domain_event: AggregateEvent,
         process_event: ProcessEvent,
     ):
         assert isinstance(domain_event, BankAccount.Opened)

@@ -1,9 +1,8 @@
-from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any, Optional
+from typing import Optional
 from uuid import UUID, uuid4
 
-from eventsourcing.domain import Aggregate
+from eventsourcing.domain import Aggregate, AggregateCreated, AggregateEvent
 
 
 class TransactionError(Exception):
@@ -19,8 +18,7 @@ class InsufficientFundsError(TransactionError):
 
 
 class BankAccount(Aggregate):
-    def __init__(self, full_name: str, email_address: str, **kwargs: Any):
-        super().__init__(**kwargs)
+    def __init__(self, full_name: str, email_address: str):
         self.full_name = full_name
         self.email_address = email_address
         self.balance = Decimal("0.00")
@@ -36,7 +34,7 @@ class BankAccount(Aggregate):
             email_address=email_address,
         )
 
-    class Opened(Aggregate.Created):
+    class Opened(AggregateCreated):
         full_name: str
         email_address: str
 
@@ -45,7 +43,7 @@ class BankAccount(Aggregate):
     ) -> None:
         self.check_account_is_not_closed()
         self.check_has_sufficient_funds(amount)
-        self._trigger_event(
+        self.trigger_event(
             self.TransactionAppended,
             amount=amount,
             transaction_id=transaction_id,
@@ -59,7 +57,7 @@ class BankAccount(Aggregate):
         if self.balance + amount < -self.overdraft_limit:
             raise InsufficientFundsError({"account_id": self.id})
 
-    class TransactionAppended(Aggregate.Event):
+    class TransactionAppended(AggregateEvent):
         amount: Decimal
         transaction_id: UUID
 
@@ -69,34 +67,34 @@ class BankAccount(Aggregate):
     def set_overdraft_limit(self, overdraft_limit: Decimal) -> None:
         assert overdraft_limit > Decimal("0.00")
         self.check_account_is_not_closed()
-        self._trigger_event(
+        self.trigger_event(
             self.OverdraftLimitSet,
             overdraft_limit=overdraft_limit,
         )
 
-    class OverdraftLimitSet(Aggregate.Event):
+    class OverdraftLimitSet(AggregateEvent):
         overdraft_limit: Decimal
 
         def apply(self, aggregate: "BankAccount") -> None:
             aggregate.overdraft_limit = self.overdraft_limit
 
     def close(self) -> None:
-        self._trigger_event(self.Closed)
+        self.trigger_event(self.Closed)
 
-    class Closed(Aggregate.Event):
+    class Closed(AggregateEvent):
         def apply(self, aggregate: "BankAccount") -> None:
             aggregate.is_closed = True
 
     # def record_error(
     #     self, error: Exception, transaction_id=None
     # ):
-    #     self._trigger_event(
+    #     self.trigger_event(
     #         self.ErrorRecorded,
     #         error=error,
     #         transaction_id=transaction_id,
     #     )
     #
-    # class ErrorRecorded(Aggregate.Event):
+    # class ErrorRecorded(AggregateEvent):
     #     @property
     #     def error(self):
     #         return self.__dict__["error"]
