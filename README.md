@@ -71,9 +71,119 @@ and systems.
 
 Define a domain model. Here we define a model with an aggregate
 called "World", which has a command method called "make_it_so", that
-triggers a domain event called "SomethingHappened", which applies the
-event to the aggregate by appending the "what" of the domain event to
-the "history" of the world.
+triggers a domain event called "SomethingHappened", which has an
+"apply" method that applies the event to the aggregate by appending
+the "what" of the domain event to the "history" of the world. The
+event class is interpreted by the library as a Python dataclass.
+
+```python
+
+from eventsourcing.domain import Aggregate, AggregateEvent, event
+
+
+class World(Aggregate):
+
+    def __init__(self):
+        self.history = []
+
+    def make_it_so(self, what: str):
+        self.trigger_event(self.SomethingHappened, what=what)
+
+    class SomethingHappened(AggregateEvent):
+        what: str
+
+        def apply(self, aggregate: "World"):
+            aggregate.history.append(self.what)
+```
+
+An alternative way of expressing the same thing is to write
+a method on the aggregate which is decorated with the library's
+"@event" decorator. The command method then calls this second
+method rather than triggering an event directly using the
+"trigger_event()" method. The decorator mentions the event class,
+and the decorated method arguments match the event attributes.
+When the decorated method is called by the command method "make_it_so()",
+the decorator triggers the event that it mentions, and the body of
+the method is used when the event is applied to the aggregate.
+
+This style allows the event class to be defined more simply, and
+the apply method can be written in a more natural style.
+
+```python
+
+class World(Aggregate):
+
+    def __init__(self):
+        self.history = []
+
+    def make_it_so(self, what: str):
+        self.something_happened(what)
+
+    class SomethingHappened(AggregateEvent):
+        what: str
+
+    @event(SomethingHappened)
+    def something_happened(self, what: str):
+        self.history.append(what)
+```
+
+An alternative way of expressing the same thing is to
+simply define an event name in the decorator. In this
+case, the event will be automatically defined by inspecting
+the decorated method signature. The command method "make_it_so()"
+again call the decorated method, and an event is triggered.
+The decorated method body is used when the event is applied
+to the aggregate.
+
+```python
+
+class World(Aggregate):
+
+    def __init__(self):
+        self.history = []
+
+    def make_it_so(self, what: str):
+        self.something_happened(what)
+
+    @event("SomethingHappened")
+    def something_happened(self, what: str):
+        self.history.append(what)
+```
+
+An alternative way of expressing the same thing is to
+simply decorate the method without mentioning the event
+class name. In this case, the event class name will be
+created from the name of the method. The event class
+attributes will, as above, be inferred from the method
+arguments. When using this style, the event class name
+is constructed by splitting the method name by underscore,
+capitalising each part, and then joining the parts.
+
+```python
+
+class World(Aggregate):
+
+    def __init__(self):
+        self.history = []
+
+    def make_it_so(self, what: str):
+        self.something_happened(what)
+
+    @event
+    def something_happened(self, what: str):
+        self.history.append(what)
+```
+
+An alternative way of expressing the same thing
+is simple to decorate a command method with
+the "@event" decorator. When the command method
+"make_it_so()" is called an event will be triggered,
+and the method body will be used to apply the event
+to the aggregate. Because command methods should be
+named with imperatives, and events should be named
+with part participles, it is recommended to define
+the name of the event in the decorator.
+
 
 ```python
 
@@ -91,7 +201,8 @@ class World(Aggregate):
 
 ```
 
-Define a test that exercises the domain model with an application.
+Let's define a test that uses the library's event sourced application class
+to exercise the domain model aggregate defined above.
 
 ```python
 from eventsourcing.application import AggregateNotFound, Application
@@ -174,8 +285,9 @@ def test(app: Application):
     assert notification_ids == [5, 6]
 ```
 
-Run the code in default "development" environment (uses default "Plain Old Python Object"
-infrastructure, with no encryption and no compression).
+We can run the code in default "development" environment (uses
+default "Plain Old Python Object" infrastructure, with no encryption
+and no compression).
 
 ```python
 
