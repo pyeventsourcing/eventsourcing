@@ -99,15 +99,16 @@ class World(Aggregate):
             aggregate.history.append(self.what)
 ```
 
-An alternative way of expressing the same thing is to write an
-apply method on the aggregate which is decorated with the library's
-`@event` decorator. The command method can call this decorated
-method rather than triggering an event directly using the
-`trigger_event()` method. The decorator mentions the event class.
-The decorated method arguments must match the event attributes.
-When the decorated method is called, the decorator triggers the
-event, and the body of the method is executed in order to apply
-the event to the aggregate.
+An alternative way of expressing the same thing is to define a
+second method on the aggregate which is decorated with the library's
+`@event` decorator. This decorated method will do the work of triggering
+and applying an event. The command method can then call the decorated
+method rather than triggering an event directly using the `trigger_event()`
+method. In this case, the event class is defined without an `apply()`
+method, the decorator mentions the event class, and the decorated method
+arguments must match the event attributes. When the decorated method is
+called, the decorator triggers the event, and the body of the decorated
+method is used to apply the event attributes to the aggregate.
 
 ```python
 
@@ -131,14 +132,14 @@ class World(Aggregate):
 ```
 
 It is sometimes useful to have the event class defined
-explicitly in this way, but whenever there is no need to
-refer to the event class in other places, the event class
-can be generated automatically from the method signature.
+explicitly, but whenever there is no need to refer to the
+event class in other places, the event class can be
+automatically generated from the method signature.
 
 A simpler way of expressing the same thing as above is simply
-to  define an event name in the `@event` decorator using a string.
+to define an event name in the `@event` decorator using a string.
 In this case, the decorator will automatically define an event
-class from the given name and the decorated method arguments.
+class using the decorated method arguments and the given event name.
 
 ```python
 
@@ -178,19 +179,19 @@ class World(Aggregate):
         self.history.append(what)
 ```
 
-An alternative way of expressing the same thing
-is to decorate the command method with the "@event"
-decorator. When the command method "make_it_so()"
-is called an event will be triggered, and the method
-body will be used to apply the event to the aggregate.
-Because command methods should be named with imperatives,
-and events should be named with part participles, it
-is recommended to define the name of the event in the
-decorator. This style can be used for trivial commands
-that would simply trigger an event will the given arguments.
-Commands that need to do some work on the given arguments
-before triggering an event will need to use one of the
-styles above.
+For trivial commands that would simply trigger an event
+wilh the given arguments, an alternative way of expressing
+the same thing as above is to decorate the command method
+with the `@event` decorator. In this case, when the command
+method `make_it_so()` is called an event will be triggered,
+and the command method body will be used to apply the event
+to the aggregate. Because command methods should be named
+with imperatives, and events should be named with part
+participles, it is recommended to define the name of the event
+in the decorator. Commands that need to do some work on the
+given arguments before triggering an event will need to use
+one of the styles above. Of course, in some cases it may
+be more natural to use a past participle as the method name.
 
 
 ```python
