@@ -1428,9 +1428,5 @@ class TestDeclarativeSyntax(TestCase):
 
         self.assertEqual(
             cm.exception.args[0],
-            "Confirmed event class used in more than one decorator"
+            "Confirmed event class used in more than one decorator",
         )
-
-
-# Todo: Put method signature in event decorator, so that args can be mapped to names.
-# Todo: Maybe allow __init__ to call super, in which case don't redefine __init__.
