@@ -625,6 +625,8 @@ class Aggregate(ABC, metaclass=MetaAggregate):
     Base class for aggregate roots.
     """
 
+    Event = AggregateEvent
+
     def __new__(cls, *args: Any, **kwargs: Any) -> Any:
         return object.__new__(cls)
 
