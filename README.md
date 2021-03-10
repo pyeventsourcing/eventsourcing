@@ -70,15 +70,15 @@ and systems.
 ## Synopsis
 
 Let's define a domain model that has an aggregate called `World`,
-which has a command method called `make_it_so()`, that
-triggers a domain event `SomethingHappened`, which has an
-`apply()` method that applies the event to the aggregate by appending
-the `what` of the domain event to the `self.history` of a `World`. The
-event class is interpreted by the library as a Python dataclass. The
-method `trigger_event()` is defined on the library's `Aggregate` base class.
+which has a command method called `make_it_so()`, that triggers a
+domain event `SomethingHappened`, which has an `apply()` method
+that applies the event to the aggregate by appending the `what` of
+the domain event to the `self.history` of a `World`. The event class
+is interpreted by the library as a Python dataclass. The method
+`trigger_event()` is defined on the library's `Aggregate` base class.
 
-Please note, it is recommended to name command methods in an imperative
-style, and to name events using past participles.
+Please note, generally it is recommended to use an imperative style
+when naming command methods, and to name events using past participles.
 
 ```python
 
