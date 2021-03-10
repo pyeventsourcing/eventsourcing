@@ -3,7 +3,7 @@ from unittest.case import TestCase
 from uuid import uuid4
 
 from eventsourcing.application import Application
-from eventsourcing.domain import Aggregate
+from eventsourcing.domain import AggregateEvent
 from eventsourcing.system import (
     Follower,
     Leader,
@@ -127,7 +127,7 @@ class TestLeader(TestCase):
         # Check follower receives a prompt when there are new events.
         leader.notify(
             [
-                Aggregate.Event(
+                AggregateEvent(
                     originator_id=uuid4(),
                     originator_version=0,
                     timestamp=datetime.now(),

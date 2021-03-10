@@ -1,11 +1,15 @@
-from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 from uuid import UUID, uuid4
 
 from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain import TZINFO, Aggregate
+from eventsourcing.domain import (
+    TZINFO,
+    Aggregate,
+    AggregateCreated,
+    AggregateEvent,
+)
 
 
 class Location(Enum):
@@ -131,9 +135,7 @@ class Cargo(Aggregate):
         origin: Location,
         destination: Location,
         arrival_deadline: datetime,
-        **kwargs: Any,
     ):
-        super().__init__(**kwargs)
         self._origin: Location = origin
         self._destination: Location = destination
         self._arrival_deadline: datetime = arrival_deadline
@@ -207,13 +209,12 @@ class Cargo(Aggregate):
             arrival_deadline=arrival_deadline,
         )
 
-    @dataclass(frozen=True)
-    class BookingStarted(Aggregate.Created):
+    class BookingStarted(AggregateCreated):
         origin: Location
         destination: Location
         arrival_deadline: datetime
 
-    class Event(Aggregate.Event["Cargo"]):
+    class Event(AggregateEvent["Cargo"]):
         def apply(self, aggregate: "Cargo") -> None:
             aggregate.apply(self)
 
@@ -224,12 +225,11 @@ class Cargo(Aggregate):
         """
 
     def change_destination(self, destination: Location) -> None:
-        self._trigger_event(
+        self.trigger_event(
             self.DestinationChanged,
             destination=destination,
         )
 
-    @dataclass(frozen=True)
     class DestinationChanged(Event):
         destination: Location
 
@@ -238,9 +238,8 @@ class Cargo(Aggregate):
         self._destination = event.destination
 
     def assign_route(self, itinerary: Itinerary) -> None:
-        self._trigger_event(self.RouteAssigned, route=itinerary)
+        self.trigger_event(self.RouteAssigned, route=itinerary)
 
-    @dataclass(frozen=True)
     class RouteAssigned(Event):
         route: Itinerary
 
@@ -262,7 +261,7 @@ class Cargo(Aggregate):
         location: Location,
         handling_activity: HandlingActivity,
     ) -> None:
-        self._trigger_event(
+        self.trigger_event(
             self.HandlingEventRegistered,
             tracking_id=tracking_id,
             voyage_number=voyage_number,
@@ -270,7 +269,6 @@ class Cargo(Aggregate):
             handling_activity=handling_activity,
         )
 
-    @dataclass(frozen=True)
     class HandlingEventRegistered(Event):
         tracking_id: UUID
         voyage_number: str

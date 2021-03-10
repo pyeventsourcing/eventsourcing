@@ -1,12 +1,11 @@
 import os
-from dataclasses import dataclass
 from decimal import Decimal
 from typing import List, Optional
 from unittest import TestCase
 from uuid import uuid4
 
 from eventsourcing.application import Application
-from eventsourcing.domain import Aggregate
+from eventsourcing.domain import Aggregate, AggregateEvent
 from eventsourcing.utils import _objs_cache, get_topic
 
 
@@ -335,7 +334,6 @@ class TestUpcasting(TestCase):
         def create(cls, *, a):
             return cls._create(cls.Created, id=uuid4(), a=a)
 
-        @dataclass(frozen=True)
         class Created(Aggregate.Created):
             a: str
 
@@ -351,7 +349,6 @@ class TestUpcasting(TestCase):
         def create(cls, *, A, b):
             return cls._create(cls.Created, id=uuid4(), A=A, b=b)
 
-        @dataclass(frozen=True)
         class Created(Aggregate.Created):
             A: str
             b: str
@@ -383,7 +380,6 @@ class TestUpcasting(TestCase):
         def create(cls, *, A, b, c):
             return cls._create(cls.Created, id=uuid4(), A=A, b=b, c=c)
 
-        @dataclass(frozen=True)
         class Created(Aggregate.Created):
             A: str
             b: int
@@ -425,7 +421,6 @@ class TestUpcasting(TestCase):
         def create(cls, *, A, b, c):
             return cls._create(cls.Created, id=uuid4(), A=A, b=b, c=c)
 
-        @dataclass(frozen=True)
         class Created(Aggregate.Created):
             A: str
             b: int
@@ -443,10 +438,9 @@ class TestUpcasting(TestCase):
                 state["c"] = []
 
         def set_d(self, value: Decimal):
-            self._trigger_event(self.DUpdated, d=value)
+            self.trigger_event(self.DUpdated, d=value)
 
-        @dataclass(frozen=True)
-        class DUpdated(Aggregate.Event):
+        class DUpdated(AggregateEvent):
             d: Decimal
 
             def apply(self, aggregate: "Aggregate") -> None:

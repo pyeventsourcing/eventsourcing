@@ -69,51 +69,150 @@ and systems.
 
 ## Synopsis
 
-Define a domain model. Here we define a model with an aggregate
-called "World", which has a command method called "make_it_so", that
-triggers a domain event called "SomethingHappened", which applies the
-event to the aggregate by appending the "what" of the domain event to
-the "history" of the world.
+Let's define a domain model that has an aggregate called `World`,
+which has a command method called `make_it_so()`, that triggers a
+domain event `SomethingHappened`, which has an `apply()` method
+that applies the event to the aggregate by appending the `what` of
+the domain event to the `self.history` of a `World`. The event class
+is interpreted by the library as a Python dataclass. The method
+`trigger_event()` is defined on the library's `Aggregate` base class.
+
+Please note, generally it is recommended to use an imperative style
+when naming command methods, and to name events using past participles.
 
 ```python
 
-from dataclasses import dataclass
-from uuid import uuid4
-
-from eventsourcing.domain import Aggregate
+from eventsourcing.domain import Aggregate, AggregateEvent
 
 
 class World(Aggregate):
 
-    def __init__(self, **kwargs):
-        super(World, self).__init__(**kwargs)
+    def __init__(self):
         self.history = []
 
-    @classmethod
-    def create(self):
-        return self._create(World.Created, id=uuid4())
+    def make_it_so(self, what: str):
+        self.trigger_event(self.SomethingHappened, what=what)
 
-    def make_it_so(self, something):
-        self._trigger_event(World.SomethingHappened, what=something)
-
-    @dataclass(frozen=True)
-    class SomethingHappened(Aggregate.Event):
+    class SomethingHappened(AggregateEvent):
         what: str
 
-        def apply(self, aggregate):
+        def apply(self, aggregate: "World"):
             aggregate.history.append(self.what)
+```
 
-    def discard(self):
-        self._trigger_event(self.Discarded)
+An alternative way of expressing the same thing is to define a
+second method on the aggregate which is decorated with the library's
+`@event` decorator. This decorated method will do the work of triggering
+and applying an event. The command method can then call the decorated
+method rather than triggering an event directly using the `trigger_event()`
+method. In this case, the event class is defined without an `apply()`
+method, the decorator mentions the event class, and the decorated method
+arguments must match the event attributes. When the decorated method is
+called, the decorator triggers the event, and the body of the decorated
+method is used to apply the event attributes to the aggregate.
 
-    class Discarded(Aggregate.Event):
-        def mutate(self, obj):
-            super().mutate(obj)
-            return None
+```python
+
+from eventsourcing.domain import event
+
+
+class World(Aggregate):
+
+    def __init__(self):
+        self.history = []
+
+    def make_it_so(self, what: str):
+        self.something_happened(what)
+
+    class SomethingHappened(AggregateEvent):
+        what: str
+
+    @event(SomethingHappened)
+    def something_happened(self, what: str):
+        self.history.append(what)
+```
+
+It is sometimes useful to have the event class defined
+explicitly, but whenever there is no need to refer to the
+event class in other places, the event class can be
+automatically generated from the method signature.
+
+A simpler way of expressing the same thing as above is simply
+to define an event name in the `@event` decorator using a string.
+In this case, the decorator will automatically define an event
+class using the decorated method arguments and the given event name.
+
+```python
+
+class World(Aggregate):
+
+    def __init__(self):
+        self.history = []
+
+    def make_it_so(self, what: str):
+        self.something_happened(what)
+
+    @event("SomethingHappened")
+    def something_happened(self, what: str):
+        self.history.append(what)
+```
+
+An alternative way of expressing the same thing is to
+simply use the `@event` decorator without mentioning an
+event class or an event class name. In this case, an event
+class name will be constructed from the decorated method name.
+The event class name is constructed by splitting the method
+name by its underscores, capitalising each part, and then
+joining the parts to make the class name `SomethingHappened`.
+
+```python
+
+class World(Aggregate):
+
+    def __init__(self):
+        self.history = []
+
+    def make_it_so(self, what: str):
+        self.something_happened(what)
+
+    @event
+    def something_happened(self, what: str):
+        self.history.append(what)
+```
+
+For trivial commands that would simply trigger an event
+wilh the given arguments, an alternative way of expressing
+the same thing as above is to decorate the command method
+with the `@event` decorator. In this case, when the command
+method `make_it_so()` is called an event will be triggered,
+and the command method body will be used to apply the event
+to the aggregate. Because command methods should be named
+with imperatives, and events should be named with part
+participles, it is recommended to define the name of the event
+in the decorator. Commands that need to do some work on the
+given arguments before triggering an event will need to use
+one of the styles above. Of course, in some cases it may
+be more natural to use a past participle as the method name.
+
+
+```python
+
+from eventsourcing.domain import Aggregate, event
+
+
+class World(Aggregate):
+
+    def __init__(self):
+        self.history = []
+
+    @event("SomethingHappened")
+    def make_it_so(self, what):
+        self.history.append(what)
 
 ```
 
-Define a test that exercises the domain model with an application.
+Let's define a test that uses the library's event sourced application class
+to exercise the domain model aggregate defined above.
 
 ```python
 from eventsourcing.application import AggregateNotFound, Application
@@ -123,7 +222,7 @@ from eventsourcing.system import NotificationLogReader
 def test(app: Application):
 
     # Create a new aggregate.
-    world = World.create()
+    world = World()
 
     # Unsaved aggregate not yet in application repository.
     try:
@@ -163,16 +262,6 @@ def test(app: Application):
     assert copy.history[1] == 'trucks'
     assert copy.history[2] == 'internet'
 
-    # Discard aggregate.
-    world.discard()
-    app.save(world)
-
-    # Discarded aggregate not found.
-    try:
-        app.repository.get(world.id)
-    except AggregateNotFound:
-        pass
-
     # Get historical state (at version from above).
     old = app.repository.get(world.id, version=version)
     assert old.history[-1] == 'trucks' # internet not happened
@@ -192,22 +281,23 @@ def test(app: Application):
     # Project application event notifications.
     reader = NotificationLogReader(app.log)
     notification_ids = [n.id for n in reader.read(start=1)]
-    assert notification_ids == [1, 2, 3, 4, 5]
+    assert notification_ids == [1, 2, 3, 4]
 
     # - create two more aggregates
-    world2 = World.create()
+    world2 = World()
     app.save(world2)
 
-    world3 = World.create()
+    world3 = World()
     app.save(world3)
 
     # - get the new event notifications from the reader
-    notification_ids = [n.id for n in reader.read(start=6)]
-    assert notification_ids == [6, 7]
+    notification_ids = [n.id for n in reader.read(start=5)]
+    assert notification_ids == [5, 6]
 ```
 
-Run the code in default "development" environment (uses default "Plain Old Python Object"
-infrastructure, with no encryption and no compression).
+We can run the code in default "development" environment (uses
+default "Plain Old Python Object" infrastructure, with no encryption
+and no compression).
 
 ```python
 

@@ -4,7 +4,7 @@ from threading import Event, Lock, Thread
 from typing import Dict, Iterable, Iterator, List, Set, Tuple, Type, TypeVar
 
 from eventsourcing.application import Application, NotificationLog, Section
-from eventsourcing.domain import Aggregate
+from eventsourcing.domain import Aggregate, AggregateEvent
 from eventsourcing.persistence import (
     Mapper,
     Notification,
@@ -27,7 +27,7 @@ class ProcessEvent:
         Initalises the process event with the given tracking object.
         """
         self.tracking = tracking
-        self.events: List[Aggregate.Event] = []
+        self.events: List[AggregateEvent] = []
 
     def save(self, *aggregates: Aggregate) -> None:
         """
@@ -51,7 +51,7 @@ class Follower(Application):
             str,
             Tuple[
                 NotificationLogReader,
-                Mapper[Aggregate.Event],
+                Mapper[AggregateEvent],
             ],
         ] = {}
         self.recorder: ProcessRecorder
@@ -112,7 +112,7 @@ class Follower(Application):
     @abstractmethod
     def policy(
         self,
-        domain_event: Aggregate.Event,
+        domain_event: AggregateEvent,
         process_event: ProcessEvent,
     ) -> None:
         """
@@ -169,7 +169,7 @@ class Leader(Application):
         """
         self.followers.append(follower)
 
-    def notify(self, new_events: List[Aggregate.Event]) -> None:
+    def notify(self, new_events: List[AggregateEvent]) -> None:
         """
         Extends the application :func:`~eventsourcing.application.Application.notify`
         method by calling :func:`prompt_followers` whenever new events have just

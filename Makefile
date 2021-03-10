@@ -75,8 +75,8 @@ fmt: fmt-isort fmt-black
 unittest:
 	@python -m unittest discover eventsourcing -v
 
-.PHONY: timetest
-timetest:
+.PHONY: timeit
+timeit:
 	TEST_TIMEIT_FACTOR=500 python -m unittest eventsourcing.tests.test_application
 
 .PHONY: coveragetest
@@ -99,7 +99,7 @@ coveragehtml:
 	@coverage html
 
 .PHONY: test
-test: coveragetest coverage100 timetest
+test: coveragetest coverage100 timeit
 
 .PHONY: coverage
 coverage: coveragetest coveragehtml coverage100

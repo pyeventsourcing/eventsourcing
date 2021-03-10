@@ -1,9 +1,14 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Optional, TypeVar
+from typing import Generic, List, Optional, TypeVar
 from uuid import UUID
 
-from eventsourcing.domain import Aggregate, Snapshot
+from eventsourcing.domain import (
+    Aggregate,
+    AggregateEvent,
+    Snapshot,
+    TAggregate,
+)
 from eventsourcing.persistence import (
     ApplicationRecorder,
     DatetimeAsISO,
@@ -18,7 +23,7 @@ from eventsourcing.persistence import (
 )
 
 
-class Repository:
+class Repository(Generic[TAggregate]):
     """Reconstructs aggregates from events in an
     :class:`~eventsourcing.persistence.EventStore`,
     possibly using snapshot store to avoid replaying
@@ -26,13 +31,13 @@ class Repository:
 
     def __init__(
         self,
-        event_store: EventStore[Aggregate.Event],
+        event_store: EventStore[AggregateEvent],
         snapshot_store: Optional[EventStore[Snapshot]] = None,
     ):
         """
         Initialises repository with given event store (an
         :class:`~eventsourcing.persistence.EventStore` for aggregate
-        :class:`~eventsourcing.domain.Aggregate.Event` objects)
+        :class:`~eventsourcing.domain.AggregateEvent` objects)
         and optionally a snapshot store (an
         :class:`~eventsourcing.persistence.EventStore` for aggregate
         :class:`~eventsourcing.domain.Snapshot` objects).
@@ -40,13 +45,13 @@ class Repository:
         self.event_store = event_store
         self.snapshot_store = snapshot_store
 
-    def get(self, aggregate_id: UUID, version: Optional[int] = None) -> Aggregate:
+    def get(self, aggregate_id: UUID, version: Optional[int] = None) -> TAggregate:
         """
         Returns an :class:`~eventsourcing.domain.Aggregate`
         for given ID, optionally at the given version.
         """
 
-        aggregate: Optional[Aggregate] = None
+        aggregate: Optional[TAggregate] = None
         gt: Optional[int] = None
 
         if self.snapshot_store is not None:
@@ -201,7 +206,7 @@ class LocalNotificationLog(NotificationLog):
         return "{},{}".format(first_id, last_id)
 
 
-class Application(ABC):
+class Application(ABC, Generic[TAggregate]):
     """
     Base class for event-sourced applications.
     """
@@ -221,7 +226,7 @@ class Application(ABC):
         self.recorder = self.construct_recorder()
         self.events = self.construct_event_store()
         self.snapshots = self.construct_snapshot_store()
-        self.repository = self.construct_repository()
+        self.repository: Repository[TAggregate] = self.construct_repository()
         self.log = self.construct_notification_log()
 
     def construct_factory(self) -> InfrastructureFactory:
@@ -266,11 +271,11 @@ class Application(ABC):
         """
         return self.factory.application_recorder()
 
-    def construct_event_store(self) -> EventStore[Aggregate.Event]:
+    def construct_event_store(self) -> EventStore[AggregateEvent]:
         """
         Constructs an :class:`~eventsourcing.persistence.EventStore`
         for use by the application to store and retrieve aggregate
-        :class:`~eventsourcing.domain.Aggregate.Event` objects.
+        :class:`~eventsourcing.domain.AggregateEvent` objects.
         """
         return self.factory.event_store(
             mapper=self.mapper,
@@ -291,7 +296,7 @@ class Application(ABC):
             recorder=recorder,
         )
 
-    def construct_repository(self) -> Repository:
+    def construct_repository(self) -> Repository[TAggregate]:
         """
         Constructs a :class:`Repository` for use by the application.
         """
@@ -317,7 +322,7 @@ class Application(ABC):
         self.events.put(events)
         self.notify(events)
 
-    def notify(self, new_events: List[Aggregate.Event]) -> None:
+    def notify(self, new_events: List[AggregateEvent]) -> None:
         """
         Called after new domain events have been saved. This
         method on this class class doesn't actually do anything,
