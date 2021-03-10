@@ -1,5 +1,6 @@
 import inspect
 import os
+from abc import ABC, ABCMeta
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
 from types import FunctionType, WrapperDescriptorType
@@ -26,9 +27,9 @@ TZINFO: tzinfo = resolve_topic(os.getenv("TZINFO_TOPIC", "datetime:timezone.utc"
 TAggregate = TypeVar("TAggregate", bound="Aggregate")
 
 
-class MetaDomainEvent(type):
+class MetaDomainEvent(ABCMeta):
     def __new__(mcs, name: str, bases: tuple, cls_dict: dict) -> "MetaDomainEvent":
-        event_cls = type.__new__(mcs, name, bases, cls_dict)
+        event_cls = ABCMeta.__new__(mcs, name, bases, cls_dict)
         event_cls = dataclass(frozen=True)(event_cls)
         return cast(MetaDomainEvent, event_cls)
 
@@ -36,7 +37,7 @@ class MetaDomainEvent(type):
         super().__init__(*args, **kwargs)
 
 
-class DomainEvent(metaclass=MetaDomainEvent):
+class DomainEvent(ABC, metaclass=MetaDomainEvent):
     # noinspection PyUnresolvedReferences
     """
     Base class for domain events, such as aggregate :class:`AggregateEvent`
@@ -451,11 +452,11 @@ def raise_missing_names_type_error(missing_names: List[str], msg: str) -> None:
     raise TypeError(msg)
 
 
-class MetaAggregate(type):
+class MetaAggregate(ABCMeta):
     def __new__(
         mcs, cls_name: str, cls_bases: Tuple, cls_dict: Dict
     ) -> "MetaAggregate":
-        event_cls = type.__new__(mcs, cls_name, cls_bases, cls_dict)
+        event_cls = ABCMeta.__new__(mcs, cls_name, cls_bases, cls_dict)
         # if cls_bases:
         #     event_cls = dataclass(event_cls)
         return cast(MetaAggregate, event_cls)
@@ -619,7 +620,7 @@ class MetaAggregate(type):
         return agg
 
 
-class Aggregate(metaclass=MetaAggregate):
+class Aggregate(ABC, metaclass=MetaAggregate):
     """
     Base class for aggregate roots.
     """
