@@ -360,18 +360,42 @@ class TestDeclarativeSyntax(TestCase):
             "__init__() got an unexpected keyword argument 'wrong'",
         )
 
-    def test_raises_when_aggregate_is_not_dataclass_but_cls_has_annotations(self):
+    def test_raises_when_aggregate_takes_no_args(self):
+        @dataclass
+        class MyClass:
+            pass
+
+        with self.assertRaises(TypeError) as cm:
+            MyClass(0)
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() takes 1 positional argument but 2 were given",
+        )
+
+        with self.assertRaises(TypeError) as cm:
+            MyClass(value=0)
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() got an unexpected keyword argument 'value'",
+        )
+
         @aggregate
         class MyAgg:
-            value: int
+            pass
 
         with self.assertRaises(TypeError) as cm:
             MyAgg(0)
-        self.assertEqual(cm.exception.args[0], "MyAgg() takes no args")
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() takes 1 positional argument but 2 were given",
+        )
 
         with self.assertRaises(TypeError) as cm:
             MyAgg(value=1)
-        self.assertEqual(cm.exception.args[0], "MyAgg() takes no args")
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() got an unexpected keyword argument 'value'",
+        )
 
     def test_raises_when_init_has_variable_positional_params(self):
         with self.assertRaises(TypeError) as cm:

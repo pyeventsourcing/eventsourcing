@@ -16,20 +16,22 @@ from eventsourcing.domain import (
 
 
 class TestAggregateSubclassDefinition(TestCase):
-    def test_aggregate_class_is_not_a_dataclass(self):
-        self.assertFalse("__dataclass_params__" in Aggregate.__dict__)
+    # def test_aggregate_class_is_not_a_dataclass(self):
+    #     self.assertFalse("__dataclass_params__" in Aggregate.__dict__)
 
     def test_aggregate_class_has_a_created_event_class(self):
         self.assertTrue(hasattr(Aggregate, "_created_event_class"))
         self.assertTrue(issubclass(Aggregate._created_event_class, AggregateCreated))
         self.assertEqual(Aggregate._created_event_class, Aggregate.Created)
 
-    def test_aggregate_subclass_is_a_dataclass_only_if_declared_as_such(self):
+    def test_aggregate_subclass_is_a_dataclass(self):
         # Not a dataclass.
         class MyAggregate(Aggregate):
             pass
 
-        self.assertFalse("__dataclass_params__" in MyAggregate.__dict__)
+        self.assertTrue("__dataclass_params__" in MyAggregate.__dict__)
+        self.assertIsInstance(MyAggregate.__dataclass_params__, _DataclassParams)
+        self.assertFalse(MyAggregate.__dataclass_params__.frozen)
 
         # Is a dataclass.
         @dataclass
@@ -186,8 +188,8 @@ class TestAggregateCreation(TestCase):
 
 
 class TestAggregate(TestCase):
-    def test_aggregate_class_is_not_a_dataclass(self):
-        self.assertFalse("__dataclass_params__" in Aggregate.__dict__)
+    # def test_aggregate_class_is_not_a_dataclass(self):
+    #     self.assertFalse("__dataclass_params__" in Aggregate.__dict__)
 
     def test_aggregate_class_has_a_created_event_class(self):
         self.assertTrue(hasattr(Aggregate, "_created_event_class"))

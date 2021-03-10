@@ -457,8 +457,7 @@ class MetaAggregate(ABCMeta):
         mcs, cls_name: str, cls_bases: Tuple, cls_dict: Dict
     ) -> "MetaAggregate":
         event_cls = ABCMeta.__new__(mcs, cls_name, cls_bases, cls_dict)
-        # if cls_bases:
-        #     event_cls = dataclass(event_cls)
+        event_cls = dataclass(event_cls)
         return cast(MetaAggregate, event_cls)
 
     def __init__(cls, cls_name: str, cls_bases: Tuple, cls_dict: Dict) -> None:
@@ -476,13 +475,12 @@ class MetaAggregate(ABCMeta):
                 created_cls_annotations = {}
                 # noinspection PyTypeChecker
                 init_method: WrapperDescriptorType = cls.__init__  # type: ignore
-                if init_method is not object.__init__:
-                    _check_no_variable_params(init_method)
-                    method_signature = inspect.signature(init_method)
-                    for param_name in method_signature.parameters:
-                        if param_name == "self":
-                            continue
-                        created_cls_annotations[param_name] = "typing.Any"
+                _check_no_variable_params(init_method)
+                method_signature = inspect.signature(init_method)
+                for param_name in method_signature.parameters:
+                    if param_name == "self":
+                        continue
+                    created_cls_annotations[param_name] = "typing.Any"
 
                 created_event_class = type(
                     "Created",
@@ -494,8 +492,6 @@ class MetaAggregate(ABCMeta):
                     },
                 )
                 cls.Created = created_event_class
-                # setattr(self, "Created", created_event_class)
-                created_event_class = created_event_class
             elif len(created_event_classes) == 1:
                 created_event_class = created_event_classes[0]
 
@@ -559,13 +555,8 @@ class MetaAggregate(ABCMeta):
                     setattr(cls, event_cls_name, event_cls)
 
     def __call__(cls: "MetaAggregate", *args: Any, **kwargs: Any) -> TAggregate:
-        object_init = object.__init__
         # noinspection PyTypeChecker
         self_init: WrapperDescriptorType = cls.__init__  # type: ignore
-        if self_init is object_init:
-            if args or kwargs:
-                raise TypeError(f"{cls.__name__}() takes no args")
-
         kwargs = _coerce_args_to_kwargs(self_init, args, kwargs)
 
         if cls._created_event_class is None:
