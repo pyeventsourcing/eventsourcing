@@ -1389,6 +1389,48 @@ class TestDeclarativeSyntax(TestCase):
             cm.exception.args[0], "Confirmed event already defined on Order"
         )
 
+    def test_raises_when_event_class_name_used_twice(self) -> None:
+        # Here we make sure the same event class name can't be
+        # declared on two decorators.
+        with self.assertRaises(TypeError) as cm:
+
+            @aggregate
+            class Order(Aggregate):
+                @triggers("Confirmed")
+                def confirm1(self, at):
+                    self.confirmed_at = at
+
+                @triggers("Confirmed")
+                def confirm2(self, at):
+                    self.confirmed_at = at
+
+        self.assertEqual(
+            cm.exception.args[0], "Confirmed event already defined on Order"
+        )
+
+    def test_raises_when_event_class_used_twice(self) -> None:
+        # Here we make sure the same event class can't be
+        # mentioned on two decorators.
+        with self.assertRaises(TypeError) as cm:
+
+            @aggregate
+            class Order(Aggregate):
+                class Confirmed(AggregateEvent):
+                    at: datetime
+
+                @triggers(Confirmed)
+                def confirm1(self, at):
+                    self.confirmed_at = at
+
+                @triggers(Confirmed)
+                def confirm2(self, at):
+                    self.confirmed_at = at
+
+        self.assertEqual(
+            cm.exception.args[0],
+            "Confirmed event class used in more than one decorator"
+        )
+
 
 # Todo: Put method signature in event decorator, so that args can be mapped to names.
 # Todo: Maybe allow __init__ to call super, in which case don't redefine __init__.

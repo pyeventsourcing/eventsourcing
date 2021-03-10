@@ -216,6 +216,12 @@ class EventDecorator:
                     f"Unsupported usage: {type(arg)} is not a str or a FunctionType"
                 )
             if self.given_event_cls:
+                if self.given_event_cls in original_methods:
+                    name = self.given_event_cls.__name__
+                    raise TypeError(
+                        f"{name} event class used in more than one decorator"
+                    )
+
                 # Set decorated event apply() method on given event class.
                 if "apply" in self.given_event_cls.__dict__:
                     name = self.given_event_cls.__name__
