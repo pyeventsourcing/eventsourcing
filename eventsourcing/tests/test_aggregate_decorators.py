@@ -453,6 +453,7 @@ class TestEventDecorator(TestCase):
 
     def test_raises_when_method_is_staticmethod(self):
         with self.assertRaises(TypeError) as cm:
+
             class MyAgg(Aggregate):
                 @event
                 @staticmethod
@@ -466,6 +467,7 @@ class TestEventDecorator(TestCase):
 
     def test_raises_when_method_is_classmethod(self):
         with self.assertRaises(TypeError) as cm:
+
             class MyAgg(Aggregate):
                 @event
                 @classmethod
@@ -598,6 +600,7 @@ class TestEventDecorator(TestCase):
 
     def test_raises_when_event_decorates_property_getter(self):
         with self.assertRaises(TypeError) as cm:
+
             class MyAgg(Aggregate):
                 @event("ValueChanged")
                 @property
@@ -623,6 +626,7 @@ class TestEventDecorator(TestCase):
 
     def test_raises_when_event_without_name_decorates_property(self):
         with self.assertRaises(TypeError) as cm:
+
             class MyAgg(Aggregate):
                 def __init__(self, _):
                     pass
@@ -643,6 +647,7 @@ class TestEventDecorator(TestCase):
 
     def test_raises_when_property_decorates_event_without_name(self):
         with self.assertRaises(TypeError) as cm:
+
             class MyAgg(Aggregate):
                 def __init__(self, _):
                     pass
@@ -691,6 +696,7 @@ class TestEventDecorator(TestCase):
     def test_raises_when_decorated_method_has_variable_args(self):
 
         with self.assertRaises(TypeError) as cm:
+
             class MyAgg(Aggregate):
                 @event  # no event name
                 def method(self, *args):
@@ -715,7 +721,8 @@ class TestEventDecorator(TestCase):
     def test_raises_when_decorated_method_has_variable_kwargs(self):
 
         with self.assertRaises(TypeError) as cm:
-            class MyAgg(Aggregate):
+
+            class _(Aggregate):
                 @event  # no event name
                 def method(self, **kwargs):
                     pass
@@ -725,7 +732,8 @@ class TestEventDecorator(TestCase):
         )
 
         with self.assertRaises(TypeError) as cm:
-            class MyAgg(Aggregate):
+
+            class _(Aggregate):
                 @event("EventName")  # no event name
                 def method(self, **kwargs):
                     pass
@@ -736,7 +744,8 @@ class TestEventDecorator(TestCase):
 
         # With property.
         with self.assertRaises(TypeError) as cm:
-            class MyAgg(Aggregate):
+
+            class _(Aggregate):
                 @property
                 def name(self):
                     return None
@@ -751,7 +760,8 @@ class TestEventDecorator(TestCase):
         )
 
         with self.assertRaises(TypeError) as cm:
-            class MyAgg(Aggregate):
+
+            class _(Aggregate):
                 @property
                 def name(self):
                     return None
