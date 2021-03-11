@@ -337,7 +337,6 @@ os.environ['COMPRESSOR_TOPIC'] = "eventsourcing.compressor:ZlibCompressor"
 # Use SQLite infrastructure.
 os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.sqlite:Factory'
 os.environ['SQLITE_DBNAME'] = ':memory:'  # Or path to a file on disk.
-os.environ['CREATE_TABLE'] = 'y'
 ```
 
 Run the code in "production" environment.
@@ -378,9 +377,6 @@ os.environ["POSTGRES_DBNAME"] = "eventsourcing"
 os.environ["POSTGRES_HOST"] = "127.0.0.1"
 os.environ["POSTGRES_USER"] = "eventsourcing"
 os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
-
-# Assume database already created.
-os.environ['CREATE_TABLE'] = 'n'
 ```
 
 

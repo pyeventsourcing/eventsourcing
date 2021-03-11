@@ -314,11 +314,11 @@ class PostgresProcessRecorder(
 
 
 class Factory(InfrastructureFactory):
-    CREATE_TABLE = "CREATE_TABLE"
     POSTGRES_DBNAME = "POSTGRES_DBNAME"
     POSTGRES_HOST = "POSTGRES_HOST"
     POSTGRES_USER = "POSTGRES_USER"
     POSTGRES_PASSWORD = "POSTGRES_PASSWORD"
+    CREATE_TABLE = "CREATE_TABLE"
 
     def __init__(self, application_name: str):
         super().__init__(application_name)
@@ -366,7 +366,7 @@ class Factory(InfrastructureFactory):
         recorder = PostgresAggregateRecorder(
             datastore=self.datastore, events_table_name=events_table_name
         )
-        if self.do_create_table():
+        if self.env_create_table():
             recorder.create_table()
         return recorder
 
@@ -376,7 +376,7 @@ class Factory(InfrastructureFactory):
         recorder = PostgresApplicationRecorder(
             datastore=self.datastore, events_table_name=events_table_name
         )
-        if self.do_create_table():
+        if self.env_create_table():
             recorder.create_table()
         return recorder
 
@@ -390,10 +390,10 @@ class Factory(InfrastructureFactory):
             events_table_name=events_table_name,
             tracking_table_name=tracking_table_name,
         )
-        if self.do_create_table():
+        if self.env_create_table():
             recorder.create_table()
         return recorder
 
-    def do_create_table(self) -> bool:
-        default = "no"
+    def env_create_table(self) -> bool:
+        default = "yes"
         return bool(strtobool(self.getenv(self.CREATE_TABLE, default) or default))

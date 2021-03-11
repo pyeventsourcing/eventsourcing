@@ -35,6 +35,7 @@ class InfrastructureFactoryTestCase(TestCase):
             InfrastructureFactory.COMPRESSOR_TOPIC,
             InfrastructureFactory.CIPHER_TOPIC,
             InfrastructureFactory.CIPHER_KEY,
+            "CREATE_TABLE",
         ]:
             try:
                 del os.environ[key]
@@ -152,14 +153,26 @@ class InfrastructureFactoryTestCase(TestCase):
         with self.assertRaises(ValueError):
             mapper2.to_domain_event(stored_event)
 
-    def test_createevent_recorder(self):
+    def test_create_event_recorder(self):
         recorder = self.factory.aggregate_recorder()
         self.assertIsInstance(recorder, AggregateRecorder)
 
-    def test_createapplication_recorder(self):
+        # Exercise code path where table is not created.
+        os.environ["CREATE_TABLE"] = "f"
+        recorder = self.factory.aggregate_recorder()
+
+    def test_create_application_recorder(self):
         recorder = self.factory.application_recorder()
         self.assertIsInstance(recorder, ApplicationRecorder)
 
-    def test_createprocess_recorder(self):
+        # Exercise code path where table is not created.
+        os.environ["CREATE_TABLE"] = "f"
+        recorder = self.factory.application_recorder()
+
+    def test_create_process_recorder(self):
         recorder = self.factory.process_recorder()
         self.assertIsInstance(recorder, ProcessRecorder)
+
+        # Exercise code path where table is not created.
+        os.environ["CREATE_TABLE"] = "f"
+        recorder = self.factory.process_recorder()

@@ -87,6 +87,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         self.insert_events_statement = (
             f"INSERT INTO {self.events_table_name} VALUES (?,?,?,?)"
         )
+        # noinspection SqlResolve
         self.select_events_statement = (
             "SELECT * " f"FROM {self.events_table_name} " "WHERE originator_id=? "
         )
@@ -259,6 +260,7 @@ class SQLiteProcessRecorder(
         events_table_name: str = "stored_events",
     ):
         super().__init__(datastore, events_table_name)
+        # noinspection SqlResolve
         self.insert_tracking_statement = "INSERT INTO tracking " "VALUES (?,?)"
 
     def construct_create_table_statements(self) -> List[str]:
@@ -326,22 +328,22 @@ class Factory(InfrastructureFactory):
             datastore=self.datastore,
             events_table_name=events_table_name,
         )
-        if self.do_createtable():
+        if self.env_create_table():
             recorder.create_table()
         return recorder
 
     def application_recorder(self) -> ApplicationRecorder:
         recorder = SQLiteApplicationRecorder(datastore=self.datastore)
-        if self.do_createtable():
+        if self.env_create_table():
             recorder.create_table()
         return recorder
 
     def process_recorder(self) -> ProcessRecorder:
         recorder = SQLiteProcessRecorder(datastore=self.datastore)
-        if self.do_createtable():
+        if self.env_create_table():
             recorder.create_table()
         return recorder
 
-    def do_createtable(self) -> bool:
-        default = "no"
+    def env_create_table(self) -> bool:
+        default = "yes"
         return bool(strtobool(self.getenv(self.CREATE_TABLE, default) or default))

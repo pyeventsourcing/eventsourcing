@@ -421,8 +421,8 @@ a real database, such as a database name, a user name, and a password.
 The example below shows how to configure the application to use the library's
 :ref:`SQLite infrastructure <SQLite>`. In the case of the library's SQLite factory,
 the environment variable ``SQLITE_DBNAME`` must be set to a file path. And if the
-tables do not exist, the ``CREATE_TABLE`` must be set to a "true" value (``"y"``,
-``"yes"``, ``"t"``, ``"true"``, ``"on"``, or ``"1"``). The function
+tables already exist, the ``CREATE_TABLE`` may be set to a "false" value (``"n"``,
+``"no"``, ``"f"``, ``"false"``, ``"off"``, or ``"0"``). The function
 :func:`~distutils.utils.strtobool` from the Python :mod:`distutils.utils`
 module is used to interpret the value of this environment variable.
 
@@ -435,7 +435,6 @@ module is used to interpret the value of this environment variable.
 
     os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.sqlite:Factory"
     os.environ["SQLITE_DBNAME"] = tmpfile.name
-    os.environ["CREATE_TABLE"] = "yes"
     application = Worlds()
 
     world_id = application.create_world()
@@ -451,14 +450,12 @@ By using a file on disk, the named temporary file ``tmpfile`` above,
 the state of the application will endure after the application has
 been reconstructed. The database table only needs to be created once,
 and so when creating an application for an already existing database
-the environment variable ``CREATE_TABLE`` must either not be set,
-or set to a "false" value (``"n"``, ``"no"``, ``"f"``, ``"false"``,
-``"off"``, ``"0"``).
+the environment variable ``CREATE_TABLE`` may be set to a "false"
+value (``"n"``, ``"no"``, ``"f"``, ``"false"``, ``"off"``, ``"0"``).
 
 .. code:: python
 
     os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.sqlite:Factory"
-    os.environ["CREATE_TABLE"] = "no"
     application = Worlds()
 
     history = application.get_world_history(world_id)

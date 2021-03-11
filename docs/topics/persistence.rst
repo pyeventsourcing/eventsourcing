@@ -750,13 +750,19 @@ The module :mod:`eventsourcing.sqlite` supports storing events in SQLite.
 The library's SQLite :class:`~eventsourcing.sqlite.Factory` uses environment variables
 ``SQLITE_DBNAME`` and ``CREATE_TABLE``.
 
+The ``SQLITE_DBNAME`` value is the name of a database, normally a file path, but
+the special name ``:memory:`` can be used to create an in-memory database.
+
+If the tables already exist, the ``CREATE_TABLE`` may be set to a "false" value (``"n"``,
+``"no"``, ``"f"``, ``"false"``, ``"off"``, or ``"0"``). This value is by default "true"
+which is normally okay because the tables are created only if they do not exist.
+
 .. code:: python
 
     import os
 
     os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.sqlite:Factory"
     os.environ["SQLITE_DBNAME"] = ":memory:"
-    os.environ["CREATE_TABLE"] = "y"
 
     factory = InfrastructureFactory.construct()
 
@@ -783,6 +789,13 @@ The library's PostgreSQL :class:`~eventsourcing.sqlite.Factory` uses environment
 ``POSTGRES_DBNAME``, ``POSTGRES_HOST``, ``POSTGRES_USER``,
 ``POSTGRES_PASSWORD``, and ``CREATE_TABLE``.
 
+The values of ``POSTGRES_DBNAME``, ``POSTGRES_HOST``, ``POSTGRES_USER``, and
+``POSTGRES_PASSWORD`` are used to set the name of a database, the database server's
+host name, the database user name, and the password for that user.
+
+If the tables already exist, the ``CREATE_TABLE`` may be set to a "false" value (``"n"``,
+``"no"``, ``"f"``, ``"false"``, ``"off"``, or ``"0"``). This value is by default "true"
+which is normally okay because the tables are created only if they do not exist.
 
 .. code:: python
 
@@ -793,7 +806,6 @@ The library's PostgreSQL :class:`~eventsourcing.sqlite.Factory` uses environment
     os.environ["POSTGRES_HOST"] = "127.0.0.1"
     os.environ["POSTGRES_USER"] = "eventsourcing"
     os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
-    os.environ["CREATE_TABLE"] = "y"
 
 ..
     from eventsourcing.tests.test_postgres import drop_postgres_table
