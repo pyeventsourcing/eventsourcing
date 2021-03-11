@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
 from unittest import TestCase
-from uuid import NAMESPACE_URL, uuid5
 
 from eventsourcing.application import Application
 from eventsourcing.domain import (
@@ -15,7 +14,7 @@ from eventsourcing.domain import (
 
 
 class TestAggregateDecorator(TestCase):
-    def test_class_with_no_bases(self):
+    def test_decorate_class_with_no_bases(self):
         @aggregate
         class MyAgg:
             """My doc"""
@@ -35,7 +34,7 @@ class TestAggregateDecorator(TestCase):
         self.assertIsInstance(agg, Aggregate)
         self.assertIsInstance(agg, MyAgg)
 
-    def test_class_with_one_base(self):
+    def test_decorate_class_with_one_base(self):
         class MyBase:
             "My base doc"
 
@@ -60,7 +59,7 @@ class TestAggregateDecorator(TestCase):
         self.assertIsInstance(agg, MyAgg)
         self.assertIsInstance(agg, MyBase)
 
-    def test_class_with_two_bases(self):
+    def test_decorate_class_with_two_bases(self):
         class MyAbstract(object):
             "My base doc"
 
@@ -90,7 +89,7 @@ class TestAggregateDecorator(TestCase):
         self.assertIsInstance(agg, MyBase)
         self.assertIsInstance(agg, MyAbstract)
 
-    def test_raises_if_decorating_aggregate(self):
+    def test_raises_when_decorating_aggregate_subclass(self):
         with self.assertRaises(TypeError) as cm:
             # noinspection PyUnusedLocal
             @aggregate
@@ -99,192 +98,7 @@ class TestAggregateDecorator(TestCase):
 
         self.assertEqual(cm.exception.args[0], "MyAgg is already an Aggregate")
 
-
-class TestEventDecorator(TestCase):
-    def test_init_with_positional_args(self):
-        class MyAgg(Aggregate):
-            def __init__(self, value):
-                self.value = value
-
-        a = MyAgg(1)
-        self.assertIsInstance(a, MyAgg)
-        self.assertEqual(a.value, 1)
-        self.assertIsInstance(a, Aggregate)
-        self.assertEqual(len(a.pending_events), 1)
-
-    def test_init_with_keyword_arg(self):
-        @aggregate
-        class MyAgg:
-            def __init__(self, value):
-                self.value = value
-
-        a = MyAgg(value=1)
-        self.assertIsInstance(a, MyAgg)
-        self.assertEqual(a.value, 1)
-        self.assertIsInstance(a, Aggregate)
-        self.assertEqual(len(a.pending_events), 1)
-
-    def test_init_with_1_default_keyword_arg(self):
-        @aggregate
-        class MyAgg:
-            def __init__(self, value=0):
-                self.value = value
-
-        a = MyAgg()
-        self.assertIsInstance(a, MyAgg)
-        self.assertEqual(a.value, 0)
-        self.assertIsInstance(a, Aggregate)
-        self.assertEqual(len(a.pending_events), 1)
-
-    def test_init_with_default_keyword_arg_required_positional_and_keyword_only(self):
-        @aggregate
-        class MyAgg:
-            def __init__(self, a, b=0, *, c):
-                self.a = a
-                self.b = b
-                self.c = c
-
-        x = MyAgg(1, c=2)
-        self.assertEqual(x.a, 1)
-        self.assertEqual(x.b, 0)
-        self.assertEqual(x.c, 2)
-
-    def test_raises_when_init_missing_1_required_positional_arg(self):
-        @aggregate
-        class MyAgg:
-            def __init__(self, value):
-                self.value = value
-
-        with self.assertRaises(TypeError) as cm:
-            MyAgg()
-        self.assertEqual(
-            cm.exception.args[0],
-            "__init__() missing 1 required positional argument: 'value'",
-        )
-
-    def test_raises_when_init_missing_1_required_keyword_only_arg(self):
-        @aggregate
-        class MyAgg:
-            def __init__(self, *, value):
-                self.value = value
-
-        with self.assertRaises(TypeError) as cm:
-            MyAgg()
-        self.assertEqual(
-            cm.exception.args[0],
-            "__init__() missing 1 required keyword-only argument: 'value'",
-        )
-
-    def test_raises_when_init_missing_required_positional_and_keyword_only_arg(self):
-        @aggregate
-        class MyAgg:
-            def __init__(self, a, *, b):
-                pass
-
-        with self.assertRaises(TypeError) as cm:
-            MyAgg()
-        self.assertEqual(
-            cm.exception.args[0],
-            "__init__() missing 1 required positional argument: 'a'",
-        )
-
-        @aggregate
-        class MyAgg:
-            def __init__(self, a, b=0, *, c):
-                self.a = a
-                self.b = b
-                self.c = c
-
-        with self.assertRaises(TypeError) as cm:
-            MyAgg(c=2)
-        self.assertEqual(
-            cm.exception.args[0],
-            "__init__() missing 1 required positional argument: 'a'",
-        )
-
-    def test_raises_when_init_missing_2_required_positional_args(self):
-        @aggregate
-        class MyAgg:
-            def __init__(self, a, b, *, c):
-                pass
-
-        with self.assertRaises(TypeError) as cm:
-            MyAgg()
-        self.assertEqual(
-            cm.exception.args[0],
-            "__init__() missing 2 required positional arguments: 'a' and 'b'",
-        )
-
-    def test_raises_when_init_gets_unexpected_keyword_argument(self):
-        @aggregate
-        class MyAgg:
-            def __init__(self, a=1):
-                pass
-
-        with self.assertRaises(TypeError) as cm:
-            MyAgg(b=1)
-        self.assertEqual(
-            cm.exception.args[0],
-            "__init__() got an unexpected keyword argument 'b'",
-        )
-
-        with self.assertRaises(TypeError) as cm:
-            MyAgg(c=1)
-        self.assertEqual(
-            cm.exception.args[0],
-            "__init__() got an unexpected keyword argument 'c'",
-        )
-
-        with self.assertRaises(TypeError) as cm:
-            MyAgg(b=1, c=1)
-        self.assertEqual(
-            cm.exception.args[0],
-            "__init__() got an unexpected keyword argument 'b'",
-        )
-
-    def test_define_custom_create_id_as_uuid5(self):
-        @aggregate
-        class MyAgg:
-            def __init__(self, name):
-                self.name = name
-
-            @classmethod
-            def create_id(cls, name):
-                return uuid5(NAMESPACE_URL, f"/names/{name}")
-
-        a = MyAgg("name")
-        self.assertEqual(a.name, "name")
-        self.assertEqual(a.id, MyAgg.create_id("name"))
-
-        # Do it again as a dataclass.
-        @aggregate
-        @dataclass
-        class MyAgg:
-            name: str
-
-            @classmethod
-            def create_id(cls, name):
-                return uuid5(NAMESPACE_URL, f"/names/{name}")
-
-        a = MyAgg("name")
-        self.assertEqual(a.name, "name")
-        self.assertEqual(a.id, MyAgg.create_id("name"))
-
-        # Do it again as a dataclass (method defined as staticmethod).
-        @aggregate
-        @dataclass
-        class MyAgg:
-            name: str
-
-            @staticmethod
-            def create_id(name):
-                return uuid5(NAMESPACE_URL, f"/names/{name}")
-
-        a = MyAgg("name")
-        self.assertEqual(a.name, "name")
-        self.assertEqual(a.id, MyAgg.create_id("name"))
-
-    def test_aggregate_on_dataclass_no_defaults(self):
+    def test_aggregate_on_dataclass(self):
         @aggregate
         @dataclass
         class MyAgg:
@@ -296,11 +110,11 @@ class TestEventDecorator(TestCase):
         self.assertIsInstance(a, Aggregate)
         self.assertEqual(len(a.pending_events), 1)
 
-    def test_aggregate_on_dataclass_default_also_passed_to_constructor(self):
-        @aggregate
+    def test_dataclass_on_aggregate(self):
         @dataclass
+        @aggregate
         class MyAgg:
-            value: int = 0
+            value: int
 
         a = MyAgg(1)
         self.assertIsInstance(a, MyAgg)
@@ -308,191 +122,10 @@ class TestEventDecorator(TestCase):
         self.assertIsInstance(a, Aggregate)
         self.assertEqual(len(a.pending_events), 1)
 
-    def test_aggregate_on_dataclass_default_value_not_passed_to_constructor(self):
-        @aggregate
-        @dataclass
-        class MyAgg:
-            value: int = 0
 
-        a = MyAgg()
-        self.assertIsInstance(a, MyAgg)
-        self.assertEqual(a.value, 0)
-        self.assertIsInstance(a, Aggregate)
-        self.assertEqual(len(a.pending_events), 1)
-
-    def test_aggregate_on_dataclass_mixture_of_default_values(self):
-        @aggregate
-        @dataclass
-        class MyAgg:
-            a: int
-            b: int
-            c: int = 1
-            d: int = 2
-
-        # This to check aggregate performs the same behaviour.
-        @dataclass
-        class Data:
-            a: int
-            b: int
-            c: int = 1
-            d: int = 2
-
-        d = Data(b=1, a=2)
-        self.assertEqual(d.a, 2)
-        self.assertEqual(d.b, 1)
-        self.assertEqual(d.c, 1)
-        self.assertEqual(d.d, 2)
-        x = MyAgg(b=1, a=2)
-        self.assertEqual(x.a, 2)
-        self.assertEqual(x.b, 1)
-        self.assertEqual(x.c, 1)
-        self.assertEqual(x.d, 2)
-
-        d = Data(1, 2, 3, 4)
-        self.assertEqual(d.a, 1)
-        self.assertEqual(d.b, 2)
-        self.assertEqual(d.c, 3)
-        self.assertEqual(d.d, 4)
-        x = MyAgg(1, 2, 3, 4)
-        self.assertEqual(x.a, 1)
-        self.assertEqual(x.b, 2)
-        self.assertEqual(x.c, 3)
-        self.assertEqual(x.d, 4)
-
-        with self.assertRaises(TypeError) as cm:
-            d = Data(1, 2, 3, c=4)
-            self.assertEqual(d.a, 1)
-            self.assertEqual(d.b, 2)
-            self.assertEqual(d.c, 4)
-            self.assertEqual(d.d, 3)
-        self.assertEqual(
-            cm.exception.args[0], "__init__() got multiple values for argument 'c'"
-        )
-
-        with self.assertRaises(TypeError) as cm:
-            x = MyAgg(1, 2, 3, c=4)
-            self.assertEqual(x.a, 1)
-            self.assertEqual(x.b, 2)
-            self.assertEqual(x.c, 4)
-            self.assertEqual(x.d, 3)
-        self.assertEqual(
-            cm.exception.args[0], "__init__() got multiple values for argument 'c'"
-        )
-
-        with self.assertRaises(TypeError) as cm:
-            d = Data(1, a=2, d=3, c=4)
-            self.assertEqual(d.a, 2)
-            self.assertEqual(d.b, 1)
-            self.assertEqual(d.c, 4)
-            self.assertEqual(d.d, 3)
-        self.assertEqual(
-            cm.exception.args[0], "__init__() got multiple values for argument 'a'"
-        )
-        with self.assertRaises(TypeError) as cm:
-            x = MyAgg(1, a=2, d=3, c=4)
-            self.assertEqual(x.a, 2)
-            self.assertEqual(x.b, 1)
-            self.assertEqual(x.c, 4)
-            self.assertEqual(x.d, 3)
-        self.assertEqual(
-            cm.exception.args[0], "__init__() got multiple values for argument 'a'"
-        )
-
-    def test_aggregate_is_dataclass(self):
-        @aggregate
-        @dataclass
-        class MyAgg:
-            value: int = 0
-
-        a = MyAgg()
-        self.assertIsInstance(a, MyAgg)
-        self.assertEqual(a.value, 0)
-        self.assertIsInstance(a, Aggregate)
-        self.assertEqual(len(a.pending_events), 1)
-
-        a = MyAgg(1)
-        self.assertIsInstance(a, MyAgg)
-        self.assertEqual(a.value, 1)
-        self.assertIsInstance(a, Aggregate)
-        self.assertEqual(len(a.pending_events), 1)
-
-        a = MyAgg(value=1)
-        self.assertIsInstance(a, MyAgg)
-        self.assertEqual(a.value, 1)
-        self.assertIsInstance(a, Aggregate)
-        self.assertEqual(len(a.pending_events), 1)
-
-        with self.assertRaises(TypeError) as cm:
-            a = MyAgg(wrong=1)
-        self.assertEqual(
-            cm.exception.args[0],
-            "__init__() got an unexpected keyword argument 'wrong'",
-        )
-
-    def test_raises_when_aggregate_takes_no_args(self):
-        @dataclass
-        class MyClass:
-            pass
-
-        with self.assertRaises(TypeError) as cm:
-            MyClass(0)
-        self.assertEqual(
-            cm.exception.args[0],
-            "__init__() takes 1 positional argument but 2 were given",
-        )
-
-        with self.assertRaises(TypeError) as cm:
-            MyClass(value=0)
-        self.assertEqual(
-            cm.exception.args[0],
-            "__init__() got an unexpected keyword argument 'value'",
-        )
-
-        @aggregate
-        class MyAgg:
-            pass
-
-        with self.assertRaises(TypeError) as cm:
-            MyAgg(0)
-        self.assertEqual(
-            cm.exception.args[0],
-            "__init__() takes 1 positional argument but 2 were given",
-        )
-
-        with self.assertRaises(TypeError) as cm:
-            MyAgg(value=1)
-        self.assertEqual(
-            cm.exception.args[0],
-            "__init__() got an unexpected keyword argument 'value'",
-        )
-
-    def test_raises_when_init_has_variable_positional_params(self):
-        with self.assertRaises(TypeError) as cm:
-
-            @aggregate
-            class _:
-                def __init__(self, *values):
-                    pass
-
-        self.assertEqual(
-            cm.exception.args[0], "variable positional parameters not supported"
-        )
-
-    def test_raises_when_init_has_variable_keyword_params(self):
-        with self.assertRaises(TypeError) as cm:
-
-            @aggregate
-            class _:
-                def __init__(self, **values):
-                    pass
-
-        self.assertEqual(
-            cm.exception.args[0], "variable keyword parameters not supported"
-        )
-
+class TestEventDecorator(TestCase):
     def test_event_name_inferred_from_method_no_args(self):
-        @aggregate
-        class MyAgg:
+        class MyAgg(Aggregate):
             @event
             def heartbeat(self):
                 pass
@@ -506,8 +139,7 @@ class TestEventDecorator(TestCase):
         self.assertIsInstance(a.pending_events[1], MyAgg.Heartbeat)
 
     def test_event_name_inferred_from_method_with_arg(self):
-        @aggregate
-        class MyAgg:
+        class MyAgg(Aggregate):
             @event
             def value_changed(self, value):
                 self.value = value
@@ -522,8 +154,7 @@ class TestEventDecorator(TestCase):
         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
 
     def test_event_name_inferred_from_method_with_kwarg(self):
-        @aggregate
-        class MyAgg:
+        class MyAgg(Aggregate):
             @event
             def value_changed(self, value):
                 self.value = value
@@ -537,8 +168,7 @@ class TestEventDecorator(TestCase):
         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
 
     def test_event_name_inferred_from_method_with_default_kwarg(self):
-        @aggregate
-        class MyAgg:
+        class MyAgg(Aggregate):
             @event
             def value_changed(self, value=3):
                 self.value = value
@@ -552,8 +182,7 @@ class TestEventDecorator(TestCase):
         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
 
     def test_raises_when_method_takes_1_positional_argument_but_2_were_given(self):
-        @aggregate
-        class MyAgg:
+        class MyAgg(Aggregate):
             @event
             def value_changed(self):
                 pass
@@ -580,8 +209,7 @@ class TestEventDecorator(TestCase):
         )
 
     def test_raises_when_method_takes_2_positional_argument_but_3_were_given(self):
-        @aggregate
-        class MyAgg:
+        class MyAgg(Aggregate):
             @event
             def value_changed(self, value):
                 pass
@@ -608,8 +236,7 @@ class TestEventDecorator(TestCase):
         )
 
     def test_raises_when_method_missing_1_required_positional_argument(self):
-        @aggregate
-        class MyAgg:
+        class MyAgg(Aggregate):
             @event
             def value_changed(self, a):
                 pass
@@ -636,8 +263,7 @@ class TestEventDecorator(TestCase):
         )
 
     def test_raises_when_method_missing_2_required_positional_arguments(self):
-        @aggregate
-        class MyAgg:
+        class MyAgg(Aggregate):
             @event
             def value_changed(self, a, b):
                 pass
@@ -664,8 +290,7 @@ class TestEventDecorator(TestCase):
         )
 
     def test_raises_when_method_missing_3_required_positional_arguments(self):
-        @aggregate
-        class MyAgg:
+        class MyAgg(Aggregate):
             @event
             def value_changed(self, a, b, c):
                 pass
@@ -692,8 +317,7 @@ class TestEventDecorator(TestCase):
         )
 
     def test_raises_when_method_missing_1_required_keyword_only_argument(self):
-        @aggregate
-        class MyAgg:
+        class MyAgg(Aggregate):
             @event
             def value_changed(self, a, *, b):
                 pass
@@ -720,8 +344,7 @@ class TestEventDecorator(TestCase):
         )
 
     def test_raises_when_method_missing_2_required_keyword_only_arguments(self):
-        @aggregate
-        class MyAgg:
+        class MyAgg(Aggregate):
             @event
             def value_changed(self, a, *, b, c):
                 pass
@@ -748,8 +371,7 @@ class TestEventDecorator(TestCase):
         )
 
     def test_raises_when_method_missing_3_required_keyword_only_arguments(self):
-        @aggregate
-        class MyAgg:
+        class MyAgg(Aggregate):
             @event
             def value_changed(self, a, *, b, c, d):
                 pass
@@ -778,8 +400,7 @@ class TestEventDecorator(TestCase):
         )
 
     def test_raises_when_missing_positional_and_required_keyword_only_arguments(self):
-        @aggregate
-        class MyAgg:
+        class MyAgg(Aggregate):
             @event
             def value_changed(self, a, *, b, c, d):
                 pass
@@ -806,8 +427,7 @@ class TestEventDecorator(TestCase):
         )
 
     def test_raises_when_method_gets_unexpected_keyword_argument(self):
-        @aggregate
-        class MyAgg:
+        class MyAgg(Aggregate):
             @event
             def value_changed(self, a):
                 pass
@@ -833,9 +453,7 @@ class TestEventDecorator(TestCase):
 
     def test_raises_when_method_is_staticmethod(self):
         with self.assertRaises(TypeError) as cm:
-
-            @aggregate
-            class MyAgg:
+            class MyAgg(Aggregate):
                 @event
                 @staticmethod
                 def value_changed():
@@ -848,9 +466,7 @@ class TestEventDecorator(TestCase):
 
     def test_raises_when_method_is_classmethod(self):
         with self.assertRaises(TypeError) as cm:
-
-            @aggregate
-            class MyAgg:
+            class MyAgg(Aggregate):
                 @event
                 @classmethod
                 def value_changed(cls):
@@ -862,8 +478,7 @@ class TestEventDecorator(TestCase):
         )
 
     def test_method_called_with_positional_defined_with_keyword_params(self):
-        @aggregate
-        class MyAgg:
+        class MyAgg(Aggregate):
             @event
             def values_changed(self, a=None, b=None):
                 self.a = a
@@ -873,8 +488,7 @@ class TestEventDecorator(TestCase):
         a.values_changed(1, 2)
 
     def test_method_called_with_keyword_defined_with_positional_params(self):
-        @aggregate
-        class MyAgg:
+        class MyAgg(Aggregate):
             @event
             def values_changed(self, a, b):
                 self.a = a
@@ -930,8 +544,7 @@ class TestEventDecorator(TestCase):
         )
 
     def test_event_name_set_in_decorator(self):
-        @aggregate
-        class MyAgg:
+        class MyAgg(Aggregate):
             @event("ValueChanged")
             def set_value(self, value):
                 self.value = value
@@ -944,8 +557,7 @@ class TestEventDecorator(TestCase):
         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
 
     def test_event_with_name_decorates_property(self):
-        @aggregate
-        class MyAgg:
+        class MyAgg(Aggregate):
             def __init__(self, value):
                 self._value = value
 
@@ -967,8 +579,7 @@ class TestEventDecorator(TestCase):
         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
 
     def test_property_decorates_event_with_name(self):
-        @aggregate
-        class MyAgg:
+        class MyAgg(Aggregate):
             @property
             def value(self):
                 return self._value
@@ -987,9 +598,7 @@ class TestEventDecorator(TestCase):
 
     def test_raises_when_event_decorates_property_getter(self):
         with self.assertRaises(TypeError) as cm:
-
-            @aggregate
-            class _:
+            class MyAgg(Aggregate):
                 @event("ValueChanged")
                 @property
                 def value(self):
@@ -1014,9 +623,7 @@ class TestEventDecorator(TestCase):
 
     def test_raises_when_event_without_name_decorates_property(self):
         with self.assertRaises(TypeError) as cm:
-
-            @aggregate
-            class _:
+            class MyAgg(Aggregate):
                 def __init__(self, _):
                     pass
 
@@ -1036,9 +643,7 @@ class TestEventDecorator(TestCase):
 
     def test_raises_when_property_decorates_event_without_name(self):
         with self.assertRaises(TypeError) as cm:
-
-            @aggregate
-            class _:
+            class MyAgg(Aggregate):
                 def __init__(self, _):
                     pass
 
@@ -1071,8 +676,6 @@ class TestEventDecorator(TestCase):
             "Unsupported usage: <class 'int'> is not a str or a FunctionType",
         )
 
-        # @aggregate
-        # class MyAgg:
         class MyAgg(Aggregate):
             @event("EventName")
             def method(self):
@@ -1085,12 +688,10 @@ class TestEventDecorator(TestCase):
             "Unsupported usage: event object used without instance",
         )
 
-    def test_raises_when_method_has_args_or_kwargs(self):
+    def test_raises_when_decorated_method_has_variable_args(self):
 
         with self.assertRaises(TypeError) as cm:
-
-            @aggregate
-            class _:
+            class MyAgg(Aggregate):
                 @event  # no event name
                 def method(self, *args):
                     pass
@@ -1111,10 +712,10 @@ class TestEventDecorator(TestCase):
             cm.exception.args[0], "variable positional parameters not supported"
         )
 
-        with self.assertRaises(TypeError) as cm:
+    def test_raises_when_decorated_method_has_variable_kwargs(self):
 
-            @aggregate
-            class _:
+        with self.assertRaises(TypeError) as cm:
+            class MyAgg(Aggregate):
                 @event  # no event name
                 def method(self, **kwargs):
                     pass
@@ -1124,9 +725,7 @@ class TestEventDecorator(TestCase):
         )
 
         with self.assertRaises(TypeError) as cm:
-
-            @aggregate
-            class _:
+            class MyAgg(Aggregate):
                 @event("EventName")  # no event name
                 def method(self, **kwargs):
                     pass
@@ -1137,9 +736,7 @@ class TestEventDecorator(TestCase):
 
         # With property.
         with self.assertRaises(TypeError) as cm:
-
-            @aggregate
-            class _:
+            class MyAgg(Aggregate):
                 @property
                 def name(self):
                     return None
@@ -1154,9 +751,7 @@ class TestEventDecorator(TestCase):
         )
 
         with self.assertRaises(TypeError) as cm:
-
-            @aggregate
-            class _:
+            class MyAgg(Aggregate):
                 @property
                 def name(self):
                     return None
@@ -1189,244 +784,7 @@ class TestEventDecorator(TestCase):
     #     a.method()
     #
 
-    def test_order_with_app(self) -> None:
-        @aggregate
-        class Order:
-            def __init__(self):
-                self.confirmed_at = None
-                self.pickedup_at = None
-
-            @event("Confirmed")
-            def confirm(self, at):
-                self.confirmed_at = at
-
-            def pickup(self, at):
-                if self.confirmed_at:
-                    self._pickup(at)
-                else:
-                    raise Exception("Order is not confirmed")
-
-            @event("Pickedup")
-            def _pickup(self, at):
-                self.pickedup_at = at
-
-        order = Order()
-        with self.assertRaises(Exception) as cm:
-            order.pickup(datetime.now())
-        self.assertEqual(cm.exception.args[0], "Order is not confirmed")
-
-        self.assertEqual(order.confirmed_at, None)
-        self.assertEqual(order.pickedup_at, None)
-
-        order.confirm(datetime.now())
-        self.assertIsInstance(order.confirmed_at, datetime)
-        self.assertEqual(order.pickedup_at, None)
-
-        order.pickup(datetime.now())
-        self.assertIsInstance(order.confirmed_at, datetime)
-        self.assertIsInstance(order.pickedup_at, datetime)
-
-        app = Application()
-        app.save(order)
-
-        copy = app.repository.get(order.id)
-
-        self.assertEqual(copy.pickedup_at, order.pickedup_at)
-
-    def test_inherit_from_decoratable_aggregate(self) -> None:
-        # Todo: is this now a repeat of previous test?
-        class Order(Aggregate):
-            def __init__(self, name) -> None:
-                self.name = name
-                self.confirmed_at = None
-                self.pickedup_at = None
-
-            @event("Confirmed")
-            def confirm(self, at):
-                self.confirmed_at = at
-
-            def pickup(self, at):
-                if self.confirmed_at:
-                    self._pickup(at)
-                else:
-                    raise Exception("Order is not confirmed")
-
-            @event("Pickedup")
-            def _pickup(self, at):
-                self.pickedup_at = at
-
-        order = Order("name")
-
-        self.assertEqual(order.name, "name")
-        with self.assertRaises(Exception) as cm:
-            order.pickup(datetime.now())
-        self.assertEqual(cm.exception.args[0], "Order is not confirmed")
-
-        self.assertEqual(order.confirmed_at, None)
-        self.assertEqual(order.pickedup_at, None)
-
-        order.confirm(datetime.now())
-        self.assertIsInstance(order.confirmed_at, datetime)
-        self.assertEqual(order.pickedup_at, None)
-
-        order.pickup(datetime.now())
-        self.assertIsInstance(order.confirmed_at, datetime)
-        self.assertIsInstance(order.pickedup_at, datetime)
-
-        app: Application = Application()
-        app.save(order)
-
-        copy = app.repository.get(order.id)
-
-        self.assertEqual(copy.pickedup_at, order.pickedup_at)
-
-        self.assertIsInstance(order, Aggregate)
-        self.assertIsInstance(order, Order)
-        self.assertIsInstance(copy, Aggregate)
-        self.assertIsInstance(copy, Order)
-
-    def test_define_own_created_event_called_started(self) -> None:
-        class Order(Aggregate):
-            def __init__(self, name) -> None:
-                self.name = name
-                self.confirmed_at = None
-                self.pickedup_at = None
-
-            class Started(AggregateCreated):
-                name: str
-
-        order = Order("name")
-        self.assertEqual(order.name, "name")
-
-        pending = order.pending_events  # type: ignore
-        self.assertIsInstance(pending[0], Order.Started)
-
-        app: Application = Application()
-
-        app.save(order)
-
-        copy: Order = app.repository.get(order.id)
-
-        self.assertEqual(copy.name, "name")
-
-        self.assertIsInstance(order, Aggregate)
-        self.assertIsInstance(order, Order)
-        self.assertIsInstance(copy, Aggregate)
-        self.assertIsInstance(copy, Order)
-
-        @aggregate
-        class Order:
-            def __init__(self, name) -> None:
-                self.name = name
-                self.confirmed_at = None
-                self.pickedup_at = None
-
-            class Started(Aggregate.Created):
-                name: str
-
-        order = Order("name")
-        self.assertEqual(order.name, "name")
-
-        pending = order.pending_events  # type: ignore
-        self.assertIsInstance(pending[0], Order.Started)
-
-        app: Application = Application()
-
-        app.save(order)
-
-        copy: Order = app.repository.get(order.id)
-
-        self.assertEqual(copy.name, "name")
-
-        self.assertIsInstance(order, Aggregate)
-        self.assertIsInstance(order, Order)
-        self.assertIsInstance(copy, Aggregate)
-        self.assertIsInstance(copy, Order)
-
-    def test_inherit_from_decorated_aggregate_class(self) -> None:
-        # Here we just use the @event decorator to trigger events
-        # that are applied using the decorated method.
-        class Order(Aggregate):
-            def __init__(self, name, **kwargs) -> None:
-                super(Order, self).__init__(**kwargs)
-
-                self.name = name
-                self.confirmed_at = None
-                self.pickedup_at = None
-
-            class Created(Aggregate.Created):
-                name: str
-
-            class Confirmed(AggregateEvent):
-                at: datetime
-
-            @triggers(Confirmed)
-            def confirm(self, at):
-                self.confirmed_at = at
-
-            def pickup(self, at):
-                if self.confirmed_at:
-                    self._pickup(at)
-                else:
-                    raise Exception("Order is not confirmed")
-
-            class Pickedup(AggregateEvent):
-                at: datetime
-
-            @triggers(Pickedup)
-            def _pickup(self, at):
-                self.pickedup_at = at
-
-        order = Order._create(event_class=Order.Created, name="name")
-
-        self.assertEqual(order.name, "name")
-        with self.assertRaises(Exception) as cm:
-            order.pickup(datetime.now())
-        self.assertEqual(cm.exception.args[0], "Order is not confirmed")
-
-        self.assertEqual(order.confirmed_at, None)
-        self.assertEqual(order.pickedup_at, None)
-
-        order.confirm(datetime.now())
-        self.assertIsInstance(order.confirmed_at, datetime)
-        self.assertEqual(order.pickedup_at, None)
-
-        order.pickup(datetime.now())
-        self.assertIsInstance(order.confirmed_at, datetime)
-        self.assertIsInstance(order.pickedup_at, datetime)
-
-        app: Application = Application()
-        app.save(order)
-
-        copy = app.repository.get(order.id)
-
-        self.assertEqual(copy.pickedup_at, order.pickedup_at)
-
-        self.assertIsInstance(order, Aggregate)
-        self.assertIsInstance(order, Order)
-        self.assertIsInstance(copy, Aggregate)
-        self.assertIsInstance(copy, Order)
-
-    def test_raises_when_event_class_has_apply_method(self) -> None:
-        # Check raises when defining an apply method on an
-        # event used in a decorator when aggregate inherits
-        # from Aggregate class.
-        with self.assertRaises(TypeError) as cm:
-
-            class _(Aggregate):
-                class Confirmed(AggregateEvent):
-                    def apply(self, aggregate):
-                        pass
-
-                @triggers(Confirmed)
-                def confirm(self):
-                    pass
-
-        self.assertEqual(
-            cm.exception.args[0], "Confirmed event class has unexpected apply() method"
-        )
-
-    def test_use_aggregate_decorator_with_explicit_event_classes(self) -> None:
+    def test_event_decorator_uses_explicit_event_classes(self) -> None:
         # Here we just use the @event decorator to trigger events
         # that are applied using the decorated method.
         @aggregate
@@ -1454,6 +812,25 @@ class TestEventDecorator(TestCase):
         self.assertIsInstance(order, Order)
         self.assertIsInstance(copy, Aggregate)
         self.assertIsInstance(copy, Order)
+
+    def test_raises_when_event_class_has_apply_method(self) -> None:
+        # Check raises when defining an apply method on an
+        # event used in a decorator when aggregate inherits
+        # from Aggregate class.
+        with self.assertRaises(TypeError) as cm:
+
+            class _(Aggregate):
+                class Confirmed(AggregateEvent):
+                    def apply(self, aggregate):
+                        pass
+
+                @triggers(Confirmed)
+                def confirm(self):
+                    pass
+
+        self.assertEqual(
+            cm.exception.args[0], "Confirmed event class has unexpected apply() method"
+        )
 
     def test_raises_when_event_class_already_defined(self) -> None:
         # Here we just use the @event decorator to trigger events
@@ -1514,3 +891,59 @@ class TestEventDecorator(TestCase):
             cm.exception.args[0],
             "Confirmed event class used in more than one decorator",
         )
+
+
+class TestOrder(TestCase):
+    def test(self) -> None:
+        class Order(Aggregate):
+            def __init__(self, name):
+                self.name = name
+                self.confirmed_at = None
+                self.pickedup_at = None
+
+            class Started(AggregateCreated):
+                name: str
+
+            @event("Confirmed")
+            def confirm(self, at):
+                self.confirmed_at = at
+
+            def pickup(self, at):
+                if self.confirmed_at:
+                    self._pickup(at)
+                else:
+                    raise Exception("Order is not confirmed")
+
+            @event("Pickedup")
+            def _pickup(self, at):
+                self.pickedup_at = at
+
+        order = Order("my order")
+        self.assertEqual(order.name, "my order")
+
+        with self.assertRaises(Exception) as cm:
+            order.pickup(datetime.now())
+        self.assertEqual(cm.exception.args[0], "Order is not confirmed")
+
+        self.assertEqual(order.confirmed_at, None)
+        self.assertEqual(order.pickedup_at, None)
+
+        order.confirm(datetime.now())
+        self.assertIsInstance(order.confirmed_at, datetime)
+        self.assertEqual(order.pickedup_at, None)
+
+        order.pickup(datetime.now())
+        self.assertIsInstance(order.confirmed_at, datetime)
+        self.assertIsInstance(order.pickedup_at, datetime)
+
+        # Check the events determine the state correctly.
+        pending_events = order.collect_events()
+        copy = None
+        for e in pending_events:
+            copy = e.mutate(copy)
+
+        self.assertEqual(copy.name, order.name)
+        self.assertEqual(copy.created_on, order.created_on)
+        self.assertEqual(copy.modified_on, order.modified_on)
+        self.assertEqual(copy.confirmed_at, order.confirmed_at)
+        self.assertEqual(copy.pickedup_at, order.pickedup_at)

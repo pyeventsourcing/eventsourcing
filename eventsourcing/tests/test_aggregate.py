@@ -3,7 +3,7 @@ from dataclasses import _DataclassParams, dataclass
 from datetime import datetime
 from decimal import Decimal
 from unittest.case import TestCase
-from uuid import UUID, uuid4
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from eventsourcing.domain import (
     TZINFO,
@@ -88,6 +88,29 @@ class TestAggregateCreation(TestCase):
         self.assertGreater(a.created_on, before_created)
         self.assertGreater(after_created, a.created_on)
 
+    def test_raises_when_create_args_mismatch_created_event(self):
+        p = (
+            "TestAggregateCreation"
+            ".test_raises_when_create_args_mismatch_created_event"
+            ".<locals>."
+        )
+
+        class BrokenAggregate(Aggregate):
+            @classmethod
+            def create(cls, name):
+                return cls._create(event_class=cls.Created, id=uuid4(), name=name)
+
+        with self.assertRaises(TypeError) as cm:
+            BrokenAggregate.create("name")
+        self.assertEqual(
+            (
+                f"Unable to construct 'aggregate created' event with class {p}"
+                "BrokenAggregate.Created and keyword args {'name': 'name'}: "
+                f"__init__() got an unexpected keyword argument 'name'"
+            ),
+            cm.exception.args[0],
+        )
+
     def test_call_base_class(self):
         before_created = datetime.now(tz=TZINFO)
         a = Aggregate()
@@ -153,9 +176,9 @@ class TestAggregateCreation(TestCase):
         self.assertIsInstance(events[0], AggregateCreated)
         self.assertEqual(f"{prefix}MyAggregate.Started", type(events[0]).__qualname__)
 
-    def test_call_subclass_with_init_that_has_no_args(self):
+    def test_init_no_args(self):
         qualname = type(self).__qualname__
-        prefix = f"{qualname}.test_call_subclass_with_init_that_has_no_args.<locals>."
+        prefix = f"{qualname}.test_init_no_args.<locals>."
 
         class MyAggregate(Aggregate):
             def __init__(self):
@@ -202,28 +225,341 @@ class TestAggregateCreation(TestCase):
         self.assertIsInstance(events[0], AggregateCreated)
         self.assertEqual(f"{prefix}MyAggregate.Started", type(events[0]).__qualname__)
 
-    def test_raises_when_create_args_mismatch_created_event(self):
-        p = (
-            "TestAggregateCreation"
-            ".test_raises_when_create_args_mismatch_created_event"
-            ".<locals>."
-        )
-
-        class BrokenAggregate(Aggregate):
-            @classmethod
-            def create(cls, name):
-                return cls._create(event_class=cls.Created, id=uuid4(), name=name)
+    def test_raises_when_init_with_no_args_called_with_args(self):
+        # First, with a normal dataclass, to document the errors.
+        @dataclass
+        class MyClass(Aggregate):
+            pass
 
         with self.assertRaises(TypeError) as cm:
-            BrokenAggregate.create("name")
+            MyClass(0)
         self.assertEqual(
-            (
-                f"Unable to construct 'aggregate created' event with class {p}"
-                "BrokenAggregate.Created and keyword args {'name': 'name'}: "
-                f"__init__() got an unexpected keyword argument 'name'"
-            ),
             cm.exception.args[0],
+            "__init__() takes 1 positional argument but 2 were given",
         )
+
+        with self.assertRaises(TypeError) as cm:
+            MyClass(value=0)
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() got an unexpected keyword argument 'value'",
+        )
+
+        # Now with an aggregate class, to replicate same errors.
+        @dataclass
+        class MyAgg(Aggregate):
+            pass
+
+        with self.assertRaises(TypeError) as cm:
+            MyAgg(0)
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() takes 1 positional argument but 2 were given",
+        )
+
+        with self.assertRaises(TypeError) as cm:
+            MyAgg(value=1)
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() got an unexpected keyword argument 'value'",
+        )
+
+    def test_init_defined_with_positional_or_keyword_arg(self):
+        class MyAgg(Aggregate):
+            def __init__(self, value):
+                self.value = value
+
+        a = MyAgg(1)
+        self.assertIsInstance(a, MyAgg)
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a.pending_events), 1)
+
+        a = MyAgg(value=1)
+        self.assertIsInstance(a, MyAgg)
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a.pending_events), 1)
+
+    def test_init_defined_with_default_keyword_arg(self):
+        class MyAgg(Aggregate):
+            def __init__(self, value=0):
+                self.value = value
+
+        a = MyAgg()
+        self.assertIsInstance(a, MyAgg)
+        self.assertEqual(a.value, 0)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a.pending_events), 1)
+
+    def test_init_with_default_keyword_arg_required_positional_and_keyword_only(self):
+        class MyAgg(Aggregate):
+            def __init__(self, a, b=0, *, c):
+                self.a = a
+                self.b = b
+                self.c = c
+
+        x = MyAgg(1, c=2)
+        self.assertEqual(x.a, 1)
+        self.assertEqual(x.b, 0)
+        self.assertEqual(x.c, 2)
+
+    def test_raises_when_init_missing_1_required_positional_arg(self):
+        class MyAgg(Aggregate):
+            def __init__(self, value):
+                self.value = value
+
+        with self.assertRaises(TypeError) as cm:
+            MyAgg()
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() missing 1 required positional argument: 'value'",
+        )
+
+    def test_raises_when_init_missing_1_required_keyword_only_arg(self):
+        class MyAgg(Aggregate):
+            def __init__(self, *, value):
+                self.value = value
+
+        with self.assertRaises(TypeError) as cm:
+            MyAgg()
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() missing 1 required keyword-only argument: 'value'",
+        )
+
+    def test_raises_when_init_missing_required_positional_and_keyword_only_arg(self):
+        class MyAgg(Aggregate):
+            def __init__(self, a, *, b):
+                pass
+
+        with self.assertRaises(TypeError) as cm:
+            MyAgg()
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() missing 1 required positional argument: 'a'",
+        )
+
+        class MyAgg(Aggregate):
+            def __init__(self, a, b=0, *, c):
+                self.a = a
+                self.b = b
+                self.c = c
+
+        with self.assertRaises(TypeError) as cm:
+            MyAgg(c=2)
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() missing 1 required positional argument: 'a'",
+        )
+
+    def test_raises_when_init_missing_2_required_positional_args(self):
+        class MyAgg(Aggregate):
+            def __init__(self, a, b, *, c):
+                pass
+
+        with self.assertRaises(TypeError) as cm:
+            MyAgg()
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() missing 2 required positional arguments: 'a' and 'b'",
+        )
+
+    def test_raises_when_init_gets_unexpected_keyword_argument(self):
+        class MyAgg(Aggregate):
+            def __init__(self, a=1):
+                pass
+
+        with self.assertRaises(TypeError) as cm:
+            MyAgg(b=1)
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() got an unexpected keyword argument 'b'",
+        )
+
+        with self.assertRaises(TypeError) as cm:
+            MyAgg(c=1)
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() got an unexpected keyword argument 'c'",
+        )
+
+        with self.assertRaises(TypeError) as cm:
+            MyAgg(b=1, c=1)
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() got an unexpected keyword argument 'b'",
+        )
+
+    def test_init_defined_as_dataclass_no_default(self):
+        class MyAgg(Aggregate):
+            value: int
+
+        a = MyAgg(1)
+        self.assertIsInstance(a, MyAgg)
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a.pending_events), 1)
+
+        a = MyAgg(value=1)
+        self.assertIsInstance(a, MyAgg)
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a.pending_events), 1)
+
+    def test_init_defined_as_dataclass_with_default(self):
+        class MyAgg(Aggregate):
+            value: int = 0
+
+        a = MyAgg(1)
+        self.assertIsInstance(a, MyAgg)
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a.pending_events), 1)
+
+        a = MyAgg(value=1)
+        self.assertIsInstance(a, MyAgg)
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a.pending_events), 1)
+
+        a = MyAgg()
+        self.assertIsInstance(a, MyAgg)
+        self.assertEqual(a.value, 0)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a.pending_events), 1)
+
+        with self.assertRaises(TypeError) as cm:
+            MyAgg(wrong=1)
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() got an unexpected keyword argument 'wrong'",
+        )
+
+    def test_init_defined_as_dataclass_mixture_of_nondefault_and_default_values(self):
+        @dataclass
+        class MyAgg(Aggregate):
+            a: int
+            b: int
+            c: int = 1
+            d: int = 2
+
+        # This to check aggregate performs the same behaviour.
+        @dataclass
+        class Data:
+            a: int
+            b: int
+            c: int = 1
+            d: int = 2
+
+        d = Data(b=1, a=2)
+        self.assertEqual(d.a, 2)
+        self.assertEqual(d.b, 1)
+        self.assertEqual(d.c, 1)
+        self.assertEqual(d.d, 2)
+        x = MyAgg(b=1, a=2)
+        self.assertEqual(x.a, 2)
+        self.assertEqual(x.b, 1)
+        self.assertEqual(x.c, 1)
+        self.assertEqual(x.d, 2)
+
+        d = Data(1, 2, 3, 4)
+        self.assertEqual(d.a, 1)
+        self.assertEqual(d.b, 2)
+        self.assertEqual(d.c, 3)
+        self.assertEqual(d.d, 4)
+        x = MyAgg(1, 2, 3, 4)
+        self.assertEqual(x.a, 1)
+        self.assertEqual(x.b, 2)
+        self.assertEqual(x.c, 3)
+        self.assertEqual(x.d, 4)
+
+        with self.assertRaises(TypeError) as cm:
+            d = Data(1, 2, 3, c=4)
+            self.assertEqual(d.a, 1)
+            self.assertEqual(d.b, 2)
+            self.assertEqual(d.c, 4)
+            self.assertEqual(d.d, 3)
+        self.assertEqual(
+            cm.exception.args[0], "__init__() got multiple values for argument 'c'"
+        )
+
+        with self.assertRaises(TypeError) as cm:
+            x = MyAgg(1, 2, 3, c=4)
+            self.assertEqual(x.a, 1)
+            self.assertEqual(x.b, 2)
+            self.assertEqual(x.c, 4)
+            self.assertEqual(x.d, 3)
+        self.assertEqual(
+            cm.exception.args[0], "__init__() got multiple values for argument 'c'"
+        )
+
+        with self.assertRaises(TypeError) as cm:
+            d = Data(1, a=2, d=3, c=4)
+            self.assertEqual(d.a, 2)
+            self.assertEqual(d.b, 1)
+            self.assertEqual(d.c, 4)
+            self.assertEqual(d.d, 3)
+        self.assertEqual(
+            cm.exception.args[0], "__init__() got multiple values for argument 'a'"
+        )
+        with self.assertRaises(TypeError) as cm:
+            x = MyAgg(1, a=2, d=3, c=4)
+            self.assertEqual(x.a, 2)
+            self.assertEqual(x.b, 1)
+            self.assertEqual(x.c, 4)
+            self.assertEqual(x.d, 3)
+        self.assertEqual(
+            cm.exception.args[0], "__init__() got multiple values for argument 'a'"
+        )
+
+    def test_raises_when_init_has_variable_positional_params(self):
+        with self.assertRaises(TypeError) as cm:
+
+            class _(Aggregate):
+                def __init__(self, *values):
+                    pass
+
+        self.assertEqual(
+            cm.exception.args[0], "variable positional parameters not supported"
+        )
+
+    def test_raises_when_init_has_variable_keyword_params(self):
+        with self.assertRaises(TypeError) as cm:
+
+            class _(Aggregate):
+                def __init__(self, **values):
+                    pass
+
+        self.assertEqual(
+            cm.exception.args[0], "variable keyword parameters not supported"
+        )
+
+    def test_define_custom_create_id_as_uuid5(self):
+        class MyAgg(Aggregate):
+            def __init__(self, name):
+                self.name = name
+
+            @classmethod
+            def create_id(cls, name):
+                return uuid5(NAMESPACE_URL, f"/names/{name}")
+
+        a = MyAgg("name")
+        self.assertEqual(a.name, "name")
+        self.assertEqual(a.id, MyAgg.create_id("name"))
+
+        # Do it again with method defined as staticmethod.
+        @dataclass
+        class MyAgg(Aggregate):
+            name: str
+
+            @staticmethod
+            def create_id(name):
+                return uuid5(NAMESPACE_URL, f"/names/{name}")
+
+        a = MyAgg("name")
+        self.assertEqual(a.name, "name")
+        self.assertEqual(a.id, MyAgg.create_id("name"))
 
     def test_refuse_implicit_choice_of_alternative_created_events(self):
         # In case aggregates were created with old Created event,
