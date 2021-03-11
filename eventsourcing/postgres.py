@@ -314,7 +314,7 @@ class PostgresProcessRecorder(
 
 
 class Factory(InfrastructureFactory):
-    DO_CREATE_TABLE = "DO_CREATE_TABLE"
+    CREATE_TABLE = "CREATE_TABLE"
     POSTGRES_DBNAME = "POSTGRES_DBNAME"
     POSTGRES_HOST = "POSTGRES_HOST"
     POSTGRES_USER = "POSTGRES_USER"
@@ -396,4 +396,4 @@ class Factory(InfrastructureFactory):
 
     def do_create_table(self) -> bool:
         default = "no"
-        return bool(strtobool(self.getenv(self.DO_CREATE_TABLE, default) or default))
+        return bool(strtobool(self.getenv(self.CREATE_TABLE, default) or default))

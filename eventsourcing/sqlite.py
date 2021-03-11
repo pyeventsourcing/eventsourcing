@@ -307,7 +307,7 @@ class SQLiteProcessRecorder(
 
 class Factory(InfrastructureFactory):
     SQLITE_DBNAME = "SQLITE_DBNAME"
-    DO_CREATE_TABLE = "DO_CREATE_TABLE"
+    CREATE_TABLE = "CREATE_TABLE"
 
     def __init__(self, application_name: str):
         super().__init__(application_name)
@@ -344,4 +344,4 @@ class Factory(InfrastructureFactory):
 
     def do_createtable(self) -> bool:
         default = "no"
-        return bool(strtobool(self.getenv(self.DO_CREATE_TABLE, default) or default))
+        return bool(strtobool(self.getenv(self.CREATE_TABLE, default) or default))

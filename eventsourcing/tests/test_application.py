@@ -179,12 +179,12 @@ class TestApplicationWithSQLite(TestApplicationWithPOPO):
         # self.db_uri = next(self.uris)
 
         os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.sqlite:Factory"
-        os.environ["DO_CREATE_TABLE"] = "y"
+        os.environ["CREATE_TABLE"] = "y"
         os.environ["SQLITE_DBNAME"] = next(self.uris)
 
     def tearDown(self) -> None:
         del os.environ["INFRASTRUCTURE_FACTORY"]
-        del os.environ["DO_CREATE_TABLE"]
+        del os.environ["CREATE_TABLE"]
         del os.environ["SQLITE_DBNAME"]
         super().tearDown()
 
@@ -197,7 +197,7 @@ class TestApplicationWithPostgres(TestApplicationWithPOPO):
         self.uris = tmpfile_uris()
 
         os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.postgres:Factory"
-        os.environ["DO_CREATE_TABLE"] = "y"
+        os.environ["CREATE_TABLE"] = "y"
         os.environ["POSTGRES_DBNAME"] = "eventsourcing"
         os.environ["POSTGRES_HOST"] = "127.0.0.1"
         os.environ["POSTGRES_USER"] = "eventsourcing"
@@ -214,7 +214,7 @@ class TestApplicationWithPostgres(TestApplicationWithPOPO):
 
     def tearDown(self) -> None:
         del os.environ["INFRASTRUCTURE_FACTORY"]
-        del os.environ["DO_CREATE_TABLE"]
+        del os.environ["CREATE_TABLE"]
         del os.environ["POSTGRES_DBNAME"]
         del os.environ["POSTGRES_HOST"]
         del os.environ["POSTGRES_USER"]

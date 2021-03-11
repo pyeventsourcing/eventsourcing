@@ -748,7 +748,7 @@ SQLite
 The module :mod:`eventsourcing.sqlite` supports storing events in SQLite.
 
 The library's SQLite :class:`~eventsourcing.sqlite.Factory` uses environment variables
-``SQLITE_DBNAME`` and ``DO_CREATE_TABLE``.
+``SQLITE_DBNAME`` and ``CREATE_TABLE``.
 
 .. code:: python
 
@@ -756,7 +756,7 @@ The library's SQLite :class:`~eventsourcing.sqlite.Factory` uses environment var
 
     os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.sqlite:Factory"
     os.environ["SQLITE_DBNAME"] = ":memory:"
-    os.environ["DO_CREATE_TABLE"] = "y"
+    os.environ["CREATE_TABLE"] = "y"
 
     factory = InfrastructureFactory.construct()
 
@@ -781,7 +781,7 @@ The module :mod:`eventsourcing.postgres` supports storing events in PostgresSQL.
 
 The library's PostgreSQL :class:`~eventsourcing.sqlite.Factory` uses environment variables
 ``POSTGRES_DBNAME``, ``POSTGRES_HOST``, ``POSTGRES_USER``,
-``POSTGRES_PASSWORD``, and ``DO_CREATE_TABLE``.
+``POSTGRES_PASSWORD``, and ``CREATE_TABLE``.
 
 
 .. code:: python
@@ -793,7 +793,7 @@ The library's PostgreSQL :class:`~eventsourcing.sqlite.Factory` uses environment
     os.environ["POSTGRES_HOST"] = "127.0.0.1"
     os.environ["POSTGRES_USER"] = "eventsourcing"
     os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
-    os.environ["DO_CREATE_TABLE"] = "y"
+    os.environ["CREATE_TABLE"] = "y"
 
 ..
     from eventsourcing.tests.test_postgres import drop_postgres_table

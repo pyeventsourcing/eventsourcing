@@ -169,13 +169,13 @@ class TestMultiThreadedRunnerWithSQLite(TestMultiThreadedRunner):
     def setUp(self):
         os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.sqlite:Factory"
         uris = tmpfile_uris()
-        os.environ["DO_CREATE_TABLE"] = "y"
+        os.environ["CREATE_TABLE"] = "y"
         os.environ["BANKACCOUNTS_SQLITE_DBNAME"] = next(uris)
         os.environ["EMAILNOTIFICATIONS_SQLITE_DBNAME"] = next(uris)
         os.environ["BROKENPROCESSING_SQLITE_DBNAME"] = next(uris)
 
     def tearDown(self):
-        del os.environ["DO_CREATE_TABLE"]
+        del os.environ["CREATE_TABLE"]
         del os.environ["INFRASTRUCTURE_FACTORY"]
         del os.environ["BANKACCOUNTS_SQLITE_DBNAME"]
         del os.environ["EMAILNOTIFICATIONS_SQLITE_DBNAME"]
@@ -202,10 +202,10 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
         drop_postgres_table(db, "brokenprocessing_tracking")
 
         os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.postgres:Factory"
-        os.environ["DO_CREATE_TABLE"] = "y"
+        os.environ["CREATE_TABLE"] = "y"
 
     def tearDown(self):
-        del os.environ["DO_CREATE_TABLE"]
+        del os.environ["CREATE_TABLE"]
         del os.environ["INFRASTRUCTURE_FACTORY"]
         del os.environ["POSTGRES_DBNAME"]
         del os.environ["POSTGRES_HOST"]
