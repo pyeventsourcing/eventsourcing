@@ -25,7 +25,7 @@ class TestAggregateSubclassDefinition(TestCase):
         self.assertEqual(Aggregate._created_event_class, Aggregate.Created)
 
     def test_aggregate_subclass_is_a_dataclass(self):
-        # Not a dataclass.
+        # No dataclass decorator.
         class MyAggregate(Aggregate):
             pass
 
@@ -33,7 +33,7 @@ class TestAggregateSubclassDefinition(TestCase):
         self.assertIsInstance(MyAggregate.__dataclass_params__, _DataclassParams)
         self.assertFalse(MyAggregate.__dataclass_params__.frozen)
 
-        # Is a dataclass.
+        # Has a dataclass decorator (helps IDE know what's going on).
         @dataclass
         class MyAggregate(Aggregate):
             pass
@@ -56,6 +56,21 @@ class TestAggregateSubclassDefinition(TestCase):
                 pass
 
         self.assertTrue(hasattr(MyAggregate, "_created_event_class"))
+        self.assertTrue(issubclass(MyAggregate._created_event_class, AggregateCreated))
+        self.assertEqual(MyAggregate._created_event_class, MyAggregate.Started)
+
+    def test_aggregate_subclass_has_a_custom_created_event_class_name(self):
+        @dataclass
+        class MyAggregate(Aggregate, created_event_name="Started"):
+            pass
+
+        a = MyAggregate()
+        self.assertEqual(type(a.pending_events[0]).__name__, "Started")
+
+        self.assertTrue(hasattr(MyAggregate, "_created_event_class"))
+        created_event_cls = getattr(MyAggregate, "_created_event_class")
+        self.assertEqual(created_event_cls.__name__, "Started")
+        self.assertTrue(created_event_cls.__qualname__.endswith("MyAggregate.Started"))
         self.assertTrue(issubclass(MyAggregate._created_event_class, AggregateCreated))
         self.assertEqual(MyAggregate._created_event_class, MyAggregate.Started)
 

@@ -987,7 +987,7 @@ class TestDeclarativeSyntax(TestCase):
             "@event under value() property setter requires event class name",
         )
 
-    def test_raises_unsupported_usage(self):
+    def test_raises_unsupported_usage_when_event_decorator_used_with_wrong_args(self):
         with self.assertRaises(TypeError) as cm:
             event(1)
         self.assertEqual(

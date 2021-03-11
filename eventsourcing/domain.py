@@ -454,14 +454,15 @@ def raise_missing_names_type_error(missing_names: List[str], msg: str) -> None:
 
 class MetaAggregate(ABCMeta):
     def __new__(
-        mcs, cls_name: str, cls_bases: Tuple, cls_dict: Dict
+        mcs, name: str, bases: Tuple, cls_dict: Dict, created_event_name="Created"
     ) -> "MetaAggregate":
-        event_cls = ABCMeta.__new__(mcs, cls_name, cls_bases, cls_dict)
-        event_cls = dataclass(event_cls)
-        return cast(MetaAggregate, event_cls)
+        cls = ABCMeta.__new__(mcs, name, bases, cls_dict)
+        cls = dataclass(cls)
+        cls._created_event_name = created_event_name
+        return cast(MetaAggregate, cls)
 
-    def __init__(cls, cls_name: str, cls_bases: Tuple, cls_dict: Dict) -> None:
-        super().__init__(cls_name, cls_bases, cls_dict)
+    def __init__(cls, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         created_event_classes = []
         created_event_class = None
         for name, value in tuple(cls.__dict__.items()):
@@ -483,22 +484,24 @@ class MetaAggregate(ABCMeta):
                     created_cls_annotations[param_name] = "typing.Any"
 
                 created_event_class = type(
-                    "Created",
+                    cls._created_event_name,
                     (AggregateCreated,),
                     {
                         "__annotations__": created_cls_annotations,
                         "__module__": cls.__module__,
-                        "__qualname__": ".".join([cls.__qualname__, "Created"]),
+                        "__qualname__": ".".join(
+                            [cls.__qualname__, cls._created_event_name]
+                        ),
                     },
                 )
-                cls.Created = created_event_class
+                setattr(cls, cls._created_event_name, created_event_class)
             elif len(created_event_classes) == 1:
                 created_event_class = created_event_classes[0]
 
             cls._created_event_class = created_event_class
 
         # Prepare the subsequent event classes.
-        for attribute in tuple(cls_dict.values()):
+        for attribute in tuple(cls.__dict__.values()):
 
             # Watch out for @property that sits over an @event.
             if isinstance(attribute, property) and isinstance(
@@ -536,9 +539,9 @@ class MetaAggregate(ABCMeta):
                     event_cls_name = attribute.event_cls_name
 
                     # Check event class isn't already defined.
-                    if event_cls_name in cls_dict:
+                    if event_cls_name in cls.__dict__:
                         raise TypeError(
-                            f"{event_cls_name} event already defined on {cls_name}"
+                            f"{event_cls_name} event already defined on {cls.__name__}"
                         )
 
                     event_cls_qualname = ".".join([cls.__qualname__, event_cls_name])
@@ -551,7 +554,6 @@ class MetaAggregate(ABCMeta):
                         event_cls_name, (DecoratedEvent,), event_cls_dict
                     )
                     original_methods[event_cls] = original_method
-                    cls_dict[event_cls_name] = event_cls
                     setattr(cls, event_cls_name, event_cls)
 
     def __call__(cls: "MetaAggregate", *args: Any, **kwargs: Any) -> TAggregate:
