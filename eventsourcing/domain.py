@@ -20,6 +20,7 @@ from uuid import UUID, uuid4
 
 from eventsourcing.utils import get_topic, resolve_topic
 
+# noinspection SpellCheckingInspection
 TZINFO: tzinfo = resolve_topic(os.getenv("TZINFO_TOPIC", "datetime:timezone.utc"))
 
 # noinspection PyTypeChecker
@@ -165,6 +166,7 @@ class EventDecorator:
                 f"used to update aggregate state"
             )
         elif isinstance(arg, classmethod):
+            # noinspection SpellCheckingInspection
             raise TypeError(
                 f"{arg.__func__.__name__}() classmethod can't be "
                 f"used to update aggregate state"
@@ -188,6 +190,7 @@ class EventDecorator:
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         # Calling an instance.
+        # noinspection SpellCheckingInspection
         if self.original_method is None:
             # Decorator used with name, still decorating...
             assert len(kwargs) == 0, "Unsupported usage"
@@ -274,8 +277,8 @@ class BoundEvent:
     def __init__(self, event_decorator: EventDecorator, aggregate: TAggregate):
         """
 
-        :param event_decorator EventDecorator:
-        :param aggregate Aggregate:
+        :param EventDecorator event_decorator:
+        :param Aggregate aggregate:
         """
         self.event_decorator = event_decorator
         self.aggregate = aggregate
@@ -303,6 +306,7 @@ original_methods: Dict[MetaDomainEvent, FunctionType] = {}
 
 
 class DecoratedEvent(AggregateEvent):
+    # noinspection PyShadowingNames
     def apply(self, aggregate: TAggregate) -> None:
         """
         Applies event to aggregate by calling
@@ -452,8 +456,8 @@ def raise_missing_names_type_error(missing_names: List[str], msg: str) -> None:
 
 
 class MetaAggregate(ABCMeta):
-    def __new__(*args: Any, **kwargs: Any) -> "MetaAggregate":
-        cls = ABCMeta.__new__(*args)
+    def __new__(mcs, *args: Any, **kwargs: Any) -> "MetaAggregate":
+        cls = ABCMeta.__new__(mcs, *args)
         cls = dataclass(cls)
         return cast(MetaAggregate, cls)
 
@@ -792,6 +796,7 @@ class Snapshot(DomainEvent):
         aggregate_state["_id"] = self.originator_id
         aggregate_state["version"] = self.originator_version
         aggregate_state["_pending_events"] = []
+        # noinspection PyShadowingNames
         aggregate = object.__new__(cls)
         aggregate.__dict__.update(aggregate_state)
         return aggregate
