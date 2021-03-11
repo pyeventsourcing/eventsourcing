@@ -11,12 +11,10 @@ from eventsourcing.domain import (
     AggregateCreated,
     AggregateEvent,
     VersionError,
-    aggregate,
 )
 
 
 class TestMetaAggregate(TestCase):
-
     def test_aggregate_class_has_a_created_event_class(self):
         self.assertTrue(hasattr(Aggregate, "_created_event_class"))
         self.assertTrue(issubclass(Aggregate._created_event_class, AggregateCreated))
@@ -241,8 +239,7 @@ class TestAggregateCreation(TestCase):
         with self.assertRaises(TypeError) as cm:
             MyAggregate()
         self.assertEqual(
-            cm.exception.args[0],
-            "attribute '_created_event_class' not set on class"
+            cm.exception.args[0], "attribute '_created_event_class' not set on class"
         )
 
         # Can still create an aggregate, by calling the _create() method.
@@ -271,7 +268,6 @@ class TestAggregateCreation(TestCase):
 
 
 class TestSubsequentEvents(TestCase):
-
     def test_trigger_event(self):
         a = Aggregate()
 

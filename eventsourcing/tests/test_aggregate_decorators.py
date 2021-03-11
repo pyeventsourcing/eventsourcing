@@ -19,6 +19,7 @@ class TestAggregateDecorator(TestCase):
         @aggregate
         class MyAgg:
             """My doc"""
+
             a: int
 
         self.assertTrue(issubclass(MyAgg, Aggregate))
@@ -26,7 +27,7 @@ class TestAggregateDecorator(TestCase):
         self.assertTrue(MyAgg.__name__, "MyAgg")
         self.assertTrue(MyAgg.__doc__, "My doc")
         self.assertEqual(MyAgg.__bases__, (Aggregate,))
-        self.assertEqual(MyAgg.__annotations__, {'a': int})
+        self.assertEqual(MyAgg.__annotations__, {"a": int})
 
         agg = MyAgg(a=1)
         self.assertEqual(agg.a, 1)
@@ -41,6 +42,7 @@ class TestAggregateDecorator(TestCase):
         @aggregate
         class MyAgg(MyBase):
             """My doc"""
+
             a: int
 
         self.assertTrue(issubclass(MyAgg, Aggregate))
@@ -49,7 +51,7 @@ class TestAggregateDecorator(TestCase):
         self.assertTrue(MyAgg.__name__, "MyAgg")
         self.assertTrue(MyAgg.__doc__, "My doc")
         self.assertEqual(MyAgg.__bases__, (MyBase, Aggregate))
-        self.assertEqual(MyAgg.__annotations__, {'a': int})
+        self.assertEqual(MyAgg.__annotations__, {"a": int})
 
         agg = MyAgg(a=1)
         self.assertEqual(agg.a, 1)
@@ -68,6 +70,7 @@ class TestAggregateDecorator(TestCase):
         @aggregate
         class MyAgg(MyBase):
             """My doc"""
+
             a: int
 
         self.assertTrue(issubclass(MyAgg, Aggregate))
@@ -77,7 +80,7 @@ class TestAggregateDecorator(TestCase):
         self.assertTrue(MyAgg.__name__, "MyAgg")
         self.assertTrue(MyAgg.__doc__, "My doc")
         self.assertEqual(MyAgg.__bases__, (MyBase, Aggregate))
-        self.assertEqual(MyAgg.__annotations__, {'a': int})
+        self.assertEqual(MyAgg.__annotations__, {"a": int})
 
         agg = MyAgg(a=1)
         self.assertEqual(agg.a, 1)
@@ -93,11 +96,11 @@ class TestAggregateDecorator(TestCase):
             @aggregate
             class MyAgg(Aggregate):
                 pass
+
         self.assertEqual(cm.exception.args[0], "MyAgg is already an Aggregate")
 
 
 class TestEventDecorator(TestCase):
-
     def test_init_with_positional_args(self):
         class MyAgg(Aggregate):
             def __init__(self, value):
