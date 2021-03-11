@@ -116,7 +116,6 @@ from eventsourcing.domain import event
 
 
 class World(Aggregate):
-
     def __init__(self):
         self.history = []
 
@@ -144,7 +143,6 @@ class using the decorated method arguments and the given event name.
 ```python
 
 class World(Aggregate):
-
     def __init__(self):
         self.history = []
 
@@ -167,7 +165,6 @@ joining the parts to make the class name `SomethingHappened`.
 ```python
 
 class World(Aggregate):
-
     def __init__(self):
         self.history = []
 
@@ -200,7 +197,6 @@ from eventsourcing.domain import Aggregate, event
 
 
 class World(Aggregate):
-
     def __init__(self):
         self.history = []
 
