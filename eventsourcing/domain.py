@@ -11,7 +11,6 @@ from typing import (
     Iterable,
     List,
     Optional,
-    Tuple,
     Type,
     TypeVar,
     Union,
@@ -453,16 +452,19 @@ def raise_missing_names_type_error(missing_names: List[str], msg: str) -> None:
 
 
 class MetaAggregate(ABCMeta):
-    def __new__(
-        mcs, name: str, bases: Tuple, cls_dict: Dict, created_event_name="Created"
-    ) -> "MetaAggregate":
-        cls = ABCMeta.__new__(mcs, name, bases, cls_dict)
+    def __new__(*args: Any, **kwargs: Any) -> "MetaAggregate":
+        cls = ABCMeta.__new__(*args)
         cls = dataclass(cls)
-        cls._created_event_name = created_event_name
         return cast(MetaAggregate, cls)
 
-    def __init__(cls, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(
+        cls,
+        *args: Any,
+        created_event_name: str = "Created",
+    ) -> None:
+        super().__init__(*args)
+
+        # Prepare created event class.
         created_event_classes = []
         created_event_class = None
         for name, value in tuple(cls.__dict__.items()):
@@ -484,17 +486,17 @@ class MetaAggregate(ABCMeta):
                     created_cls_annotations[param_name] = "typing.Any"
 
                 created_event_class = type(
-                    cls._created_event_name,
+                    created_event_name,
                     (AggregateCreated,),
                     {
                         "__annotations__": created_cls_annotations,
                         "__module__": cls.__module__,
                         "__qualname__": ".".join(
-                            [cls.__qualname__, cls._created_event_name]
+                            [cls.__qualname__, created_event_name]
                         ),
                     },
                 )
-                setattr(cls, cls._created_event_name, created_event_class)
+                setattr(cls, created_event_name, created_event_class)
             elif len(created_event_classes) == 1:
                 created_event_class = created_event_classes[0]
 

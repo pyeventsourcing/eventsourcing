@@ -68,11 +68,11 @@ class TestAggregateSubclassDefinition(TestCase):
         self.assertEqual(type(a.pending_events[0]).__name__, "Started")
 
         self.assertTrue(hasattr(MyAggregate, "_created_event_class"))
-        created_event_cls = getattr(MyAggregate, "_created_event_class")
+        created_event_cls = MyAggregate._created_event_class
         self.assertEqual(created_event_cls.__name__, "Started")
         self.assertTrue(created_event_cls.__qualname__.endswith("MyAggregate.Started"))
-        self.assertTrue(issubclass(MyAggregate._created_event_class, AggregateCreated))
-        self.assertEqual(MyAggregate._created_event_class, MyAggregate.Started)
+        self.assertTrue(issubclass(created_event_cls, AggregateCreated))
+        self.assertEqual(created_event_cls, MyAggregate.Started)
 
 
 class TestAggregateCreation(TestCase):
