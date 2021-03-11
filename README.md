@@ -86,7 +86,6 @@ from eventsourcing.domain import Aggregate, AggregateEvent
 
 
 class World(Aggregate):
-
     def __init__(self):
         self.history = []
 
