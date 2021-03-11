@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from unittest import TestCase
-from uuid import NAMESPACE_URL, UUID, uuid5
+from uuid import NAMESPACE_URL, uuid5
 
 from eventsourcing.application import Application
 from eventsourcing.domain import (
