@@ -91,6 +91,7 @@ class Repository(Generic[TAggregate]):
 
 @dataclass(frozen=True)
 class Section:
+    # noinspection PyUnresolvedReferences
     """
     Frozen dataclass that represents a section from a :class:`NotificationLog`.
     The :data:`items` attribute contains a list of
@@ -148,8 +149,7 @@ class LocalNotificationLog(NotificationLog):
 
         :param ApplicationRecorder recorder: application recorder from which event
             notifications will be selected
-        :param List[Notification] items: a list of event notifications
-        :param str next_id: section ID of the next section in a notification log
+        :param int section_size: number of notifications to include in a section
 
         """
         self.recorder = recorder
@@ -255,6 +255,7 @@ class Application(ABC, Generic[TAggregate]):
         self.register_transcodings(transcoder)
         return transcoder
 
+    # noinspection SpellCheckingInspection
     def register_transcodings(self, transcoder: Transcoder) -> None:
         """
         Registers :class:`~eventsourcing.persistence.Transcoding`

@@ -52,13 +52,12 @@ class PostgresDatastore:
         return c
 
     class Transaction:
+        # noinspection PyShadowingNames
         def __init__(self, connection: connection):
             self.c = connection
 
         def __enter__(self) -> cursor:
-            cursor = self.c.cursor(cursor_factory=psycopg2.extras.DictCursor)
-            # cursor.execute("BEGIN")
-            return cursor
+            return self.c.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
         def __exit__(
             self,
@@ -77,6 +76,7 @@ class PostgresDatastore:
         return self.Transaction(self.get_connection())
 
 
+# noinspection SqlResolve
 class PostgresAggregateRecorder(AggregateRecorder):
     def __init__(self, datastore: PostgresDatastore, events_table_name: str):
         self.datastore = datastore
@@ -180,6 +180,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         return stored_events
 
 
+# noinspection SqlResolve
 class PostgresApplicationRecorder(
     PostgresAggregateRecorder,
     ApplicationRecorder,
@@ -202,8 +203,7 @@ class PostgresApplicationRecorder(
         )
 
     def construct_create_table_statements(self) -> List[str]:
-        statements = []
-        statements.append(
+        statements = [
             "CREATE TABLE IF NOT EXISTS "
             f"{self.events_table_name} ("
             "originator_id uuid NOT NULL, "
@@ -212,13 +212,11 @@ class PostgresApplicationRecorder(
             "state bytea, "
             "notification_id SERIAL, "
             "PRIMARY KEY "
-            "(originator_id, originator_version))"
-        )
-        statements.append(
+            "(originator_id, originator_version))",
             f"CREATE UNIQUE INDEX IF NOT EXISTS "
             f"{self.events_table_name}_notification_id_idx "
-            f"ON {self.events_table_name} (notification_id ASC);"
-        )
+            f"ON {self.events_table_name} (notification_id ASC);",
+        ]
         return statements
 
     def select_notifications(self, start: int, limit: int) -> List[Notification]:
@@ -368,7 +366,7 @@ class Factory(InfrastructureFactory):
         recorder = PostgresAggregateRecorder(
             datastore=self.datastore, events_table_name=events_table_name
         )
-        if self.do_createtable():
+        if self.do_create_table():
             recorder.create_table()
         return recorder
 
@@ -378,7 +376,7 @@ class Factory(InfrastructureFactory):
         recorder = PostgresApplicationRecorder(
             datastore=self.datastore, events_table_name=events_table_name
         )
-        if self.do_createtable():
+        if self.do_create_table():
             recorder.create_table()
         return recorder
 
@@ -392,10 +390,10 @@ class Factory(InfrastructureFactory):
             events_table_name=events_table_name,
             tracking_table_name=tracking_table_name,
         )
-        if self.do_createtable():
+        if self.do_create_table():
             recorder.create_table()
         return recorder
 
-    def do_createtable(self) -> bool:
+    def do_create_table(self) -> bool:
         default = "no"
         return bool(strtobool(self.getenv(self.DO_CREATE_TABLE, default) or default))

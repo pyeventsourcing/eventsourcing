@@ -3,6 +3,7 @@ try:
 except ImportError:
     from functools import singledispatch, update_wrapper
 
+    # noinspection SpellCheckingInspection
     def singledispatchmethod(func):
         dispatcher = singledispatch(func)
 

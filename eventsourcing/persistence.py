@@ -17,6 +17,7 @@ from eventsourcing.utils import get_topic, resolve_topic
 
 
 class Transcoding(ABC):
+    # noinspection SpellCheckingInspection
     """
     Abstract base class for custom transcodings.
     """
@@ -24,6 +25,7 @@ class Transcoding(ABC):
     @property
     @abstractmethod
     def type(self) -> type:
+        # noinspection SpellCheckingInspection
         """Object type of transcoded object."""
 
     @property
@@ -164,6 +166,7 @@ class DatetimeAsISO(Transcoding):
 
 @dataclass(frozen=True)
 class StoredEvent:
+    # noinspection PyUnresolvedReferences
     """
     Frozen dataclass that represents :class:`~eventsourcing.domain.DomainEvent`
     objects, such as aggregate :class:`~eventsourcing.domain.Aggregate.Event`
@@ -409,6 +412,7 @@ class InfrastructureFactory(ABC):
         named application. Reads and resolves infrastructure
         factory class topic from environment variable 'INFRASTRUCTURE_FACTORY'.
         """
+        # noinspection SpellCheckingInspection
         topic = os.getenv(
             cls.TOPIC,
             "eventsourcing.popo:Factory",
@@ -433,6 +437,7 @@ class InfrastructureFactory(ABC):
         """
         self.application_name = application_name
 
+    # noinspection SpellCheckingInspection
     def getenv(
         self, key: str, default: Optional[str] = None, application_name: str = ""
     ) -> Optional[str]:
@@ -499,7 +504,8 @@ class InfrastructureFactory(ABC):
             compressor = compressor_cls()
         return compressor
 
-    def event_store(self, **kwargs: Any) -> EventStore:
+    @staticmethod
+    def event_store(**kwargs: Any) -> EventStore:
         """
         Constructs an event store.
         """

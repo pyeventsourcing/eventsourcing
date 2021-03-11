@@ -8,10 +8,11 @@ from Crypto.Cipher.AES import key_size
 
 
 class Cipher(ABC):
+    # noinspection PyUnusedLocal
     @abstractmethod
     def __init__(self, cipher_key: str):
         """
-        Initialise cipher with key.
+        Initialises cipher with given key.
         """
 
     @abstractmethod
@@ -56,14 +57,16 @@ class AESCipher(Cipher):
     def random_bytes(num_bytes: int) -> bytes:
         return os.urandom(num_bytes)
 
+    # noinspection PyMissingConstructor
     def __init__(self, cipher_key: str):
         """
         Initialises AES cipher with ``cipher_key``.
 
         :param str cipher_key: 16, 24, or 32 bytes encoded as base64
         """
-        self.key = b64decode(cipher_key.encode("utf8"))
-        AESCipher.check_key_size(len(self.key))
+        key = b64decode(cipher_key.encode("utf8"))
+        AESCipher.check_key_size(len(key))
+        self.key = key
 
     def encrypt(self, plaintext: bytes) -> bytes:
         """Return ciphertext for given plaintext."""

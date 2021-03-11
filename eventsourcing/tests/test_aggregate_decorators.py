@@ -123,6 +123,7 @@ class TestAggregateDecorator(TestCase):
         self.assertEqual(len(a.pending_events), 1)
 
 
+# noinspection PyUnresolvedReferences
 class TestEventDecorator(TestCase):
     def test_event_name_inferred_from_method_no_args(self):
         class MyAgg(Aggregate):
@@ -193,6 +194,7 @@ class TestEventDecorator(TestCase):
 
         d = Data()
         with self.assertRaises(TypeError) as cm:
+            # noinspection PyArgumentList
             d.value_changed(1)
         self.assertEqual(
             cm.exception.args[0],
@@ -220,6 +222,7 @@ class TestEventDecorator(TestCase):
 
         d = Data()
         with self.assertRaises(TypeError) as cm:
+            # noinspection PyArgumentList
             d.value_changed(1, 2)
         self.assertEqual(
             cm.exception.args[0],
@@ -718,6 +721,7 @@ class TestEventDecorator(TestCase):
             cm.exception.args[0], "variable positional parameters not supported"
         )
 
+    # noinspection PyPep8Naming
     def test_raises_when_decorated_method_has_variable_kwargs(self):
 
         with self.assertRaises(TypeError) as cm:

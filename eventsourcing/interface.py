@@ -59,7 +59,7 @@ class NotificationLogJSONService(NotificationLogInterface, Generic[TApplication]
 
 class NotificationLogJSONClient(NotificationLog):
     """
-    Presents deserialised sections of a notification log.
+    Presents deserialized sections of a notification log.
     """
 
     def __init__(self, interface: NotificationLogInterface):
