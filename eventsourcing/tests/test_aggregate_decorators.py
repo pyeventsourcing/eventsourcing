@@ -14,26 +14,92 @@ from eventsourcing.domain import (
 )
 
 
-class TestDeclarativeSyntax(TestCase):
-    def test_no_init(self):
+class TestAggregateDecorator(TestCase):
+    def test_class_with_no_bases(self):
         @aggregate
         class MyAgg:
-            pass
+            """My doc"""
+            a: int
 
-        a = MyAgg()
-        self.assertIsInstance(a, MyAgg)
-        self.assertIsInstance(a, Aggregate)
-        self.assertIsInstance(a.id, UUID)
-        self.assertIsInstance(a.version, int)
-        self.assertEqual(a.version, 1)
-        self.assertIsInstance(a.created_on, datetime)
-        self.assertIsInstance(a.modified_on, datetime)
-        self.assertEqual(len(a.pending_events), 1)
-        self.assertIsInstance(a.pending_events[0], MyAgg.Created)
+        self.assertTrue(issubclass(MyAgg, Aggregate))
+        self.assertTrue(issubclass(MyAgg, MyAgg))
+        self.assertTrue(MyAgg.__name__, "MyAgg")
+        self.assertTrue(MyAgg.__doc__, "My doc")
+        self.assertEqual(MyAgg.__bases__, (Aggregate,))
+        self.assertEqual(MyAgg.__annotations__, {'a': int})
+
+        agg = MyAgg(a=1)
+        self.assertEqual(agg.a, 1)
+        self.assertEqual(len(agg.pending_events), 1)
+        self.assertIsInstance(agg, Aggregate)
+        self.assertIsInstance(agg, MyAgg)
+
+    def test_class_with_one_base(self):
+        class MyBase:
+            "My base doc"
+
+        @aggregate
+        class MyAgg(MyBase):
+            """My doc"""
+            a: int
+
+        self.assertTrue(issubclass(MyAgg, Aggregate))
+        self.assertTrue(issubclass(MyAgg, MyAgg))
+        self.assertTrue(issubclass(MyAgg, MyBase))
+        self.assertTrue(MyAgg.__name__, "MyAgg")
+        self.assertTrue(MyAgg.__doc__, "My doc")
+        self.assertEqual(MyAgg.__bases__, (MyBase, Aggregate))
+        self.assertEqual(MyAgg.__annotations__, {'a': int})
+
+        agg = MyAgg(a=1)
+        self.assertEqual(agg.a, 1)
+        self.assertEqual(len(agg.pending_events), 1)
+        self.assertIsInstance(agg, Aggregate)
+        self.assertIsInstance(agg, MyAgg)
+        self.assertIsInstance(agg, MyBase)
+
+    def test_class_with_two_bases(self):
+        class MyAbstract(object):
+            "My base doc"
+
+        class MyBase(MyAbstract):
+            "My base doc"
+
+        @aggregate
+        class MyAgg(MyBase):
+            """My doc"""
+            a: int
+
+        self.assertTrue(issubclass(MyAgg, Aggregate))
+        self.assertTrue(issubclass(MyAgg, MyAgg))
+        self.assertTrue(issubclass(MyAgg, MyBase))
+        self.assertTrue(issubclass(MyAgg, MyAbstract))
+        self.assertTrue(MyAgg.__name__, "MyAgg")
+        self.assertTrue(MyAgg.__doc__, "My doc")
+        self.assertEqual(MyAgg.__bases__, (MyBase, Aggregate))
+        self.assertEqual(MyAgg.__annotations__, {'a': int})
+
+        agg = MyAgg(a=1)
+        self.assertEqual(agg.a, 1)
+        self.assertEqual(len(agg.pending_events), 1)
+        self.assertIsInstance(agg, Aggregate)
+        self.assertIsInstance(agg, MyAgg)
+        self.assertIsInstance(agg, MyBase)
+        self.assertIsInstance(agg, MyAbstract)
+
+    def test_raises_if_decorating_aggregate(self):
+        with self.assertRaises(TypeError) as cm:
+            # noinspection PyUnusedLocal
+            @aggregate
+            class MyAgg(Aggregate):
+                pass
+        self.assertEqual(cm.exception.args[0], "MyAgg is already an Aggregate")
+
+
+class TestEventDecorator(TestCase):
 
     def test_init_with_positional_args(self):
-        @aggregate
-        class MyAgg:
+        class MyAgg(Aggregate):
             def __init__(self, value):
                 self.value = value
 
@@ -1273,15 +1339,6 @@ class TestDeclarativeSyntax(TestCase):
         self.assertIsInstance(order, Order)
         self.assertIsInstance(copy, Aggregate)
         self.assertIsInstance(copy, Order)
-
-    def test_decorated_and_inherit_aggregagte(self) -> None:
-        with self.assertRaises(TypeError) as cm:
-
-            @aggregate
-            class _(Aggregate):
-                pass
-
-        self.assertEqual(cm.exception.args[0], "already an Aggregate")
 
     def test_inherit_from_decorated_aggregate_class(self) -> None:
         # Here we just use the @event decorator to trigger events

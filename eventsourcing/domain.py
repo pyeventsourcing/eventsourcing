@@ -716,8 +716,13 @@ def aggregate(cls: Any) -> MetaAggregate:
             pass
     """
     if issubclass(cls, Aggregate):
-        raise TypeError("already an Aggregate")
-    return MetaAggregate(cls.__name__, (Aggregate,), dict(cls.__dict__))
+        raise TypeError(f"{cls.__name__} is already an Aggregate")
+    bases = cls.__bases__
+    if bases == (object,):
+        bases = (Aggregate,)
+    else:
+        bases += (Aggregate,)
+    return MetaAggregate(cls.__name__, bases, dict(cls.__dict__))
 
 
 class VersionError(Exception):

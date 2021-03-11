@@ -15,9 +15,7 @@ from eventsourcing.domain import (
 )
 
 
-class TestAggregateSubclassDefinition(TestCase):
-    # def test_aggregate_class_is_not_a_dataclass(self):
-    #     self.assertFalse("__dataclass_params__" in Aggregate.__dict__)
+class TestMetaAggregate(TestCase):
 
     def test_aggregate_class_has_a_created_event_class(self):
         self.assertTrue(hasattr(Aggregate, "_created_event_class"))
@@ -76,29 +74,51 @@ class TestAggregateSubclassDefinition(TestCase):
 
 
 class TestAggregateCreation(TestCase):
-    def test_base_class_call(self):
+    def test_call_class_method_create(self):
+        # Check the _create() method creates a new aggregate.
+        before_created = datetime.now(tz=TZINFO)
+        uuid = uuid4()
+        a = Aggregate._create(
+            event_class=AggregateCreated,
+            id=uuid,
+        )
+        after_created = datetime.now(tz=TZINFO)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(a.id, uuid)
+        self.assertEqual(a.version, 1)
+        self.assertEqual(a.created_on, a.modified_on)
+        self.assertGreater(a.created_on, before_created)
+        self.assertGreater(after_created, a.created_on)
+
+    def test_call_base_class(self):
+        before_created = datetime.now(tz=TZINFO)
         a = Aggregate()
+        after_created = datetime.now(tz=TZINFO)
+        self.assertIsInstance(a, Aggregate)
         self.assertIsInstance(a.id, UUID)
         self.assertIsInstance(a.version, int)
+        self.assertEqual(a.version, 1)
         self.assertIsInstance(a.created_on, datetime)
         self.assertIsInstance(a.modified_on, datetime)
-        self.assertEqual(a.version, 1)
+        self.assertEqual(a.created_on, a.modified_on)
+        self.assertGreater(a.created_on, before_created)
+        self.assertGreater(after_created, a.created_on)
 
         events = a.collect_events()
         self.assertIsInstance(events[0], AggregateCreated)
         self.assertEqual("Aggregate.Created", type(events[0]).__qualname__)
 
-    def test_aggregate_subclass_call_no_args(self):
+    def test_call_subclass_with_no_init(self):
         qualname = type(self).__qualname__
-        prefix = f"{qualname}.test_aggregate_subclass_call_no_args.<locals>."
+        prefix = f"{qualname}.test_call_subclass_with_no_init.<locals>."
 
         class MyAggregate(Aggregate):
-            def __init__(self):
-                pass
+            pass
 
         a = MyAggregate()
         self.assertIsInstance(a.id, UUID)
         self.assertIsInstance(a.version, int)
+        self.assertEqual(a.version, 1)
         self.assertIsInstance(a.created_on, datetime)
         self.assertIsInstance(a.modified_on, datetime)
 
@@ -107,8 +127,7 @@ class TestAggregateCreation(TestCase):
         self.assertIsInstance(events[0], AggregateCreated)
         self.assertEqual(f"{prefix}MyAggregate.Created", type(events[0]).__qualname__)
 
-        #
-        # Do it again using @dataclass (makes no difference)...
+        # Do it again using @dataclass
         @dataclass  # ...this just makes the code completion work in the IDE.
         class MyAggregate(Aggregate):
             pass
@@ -136,9 +155,82 @@ class TestAggregateCreation(TestCase):
         self.assertIsInstance(events[0], AggregateCreated)
         self.assertEqual(f"{prefix}MyAggregate.Started", type(events[0]).__qualname__)
 
-    def test_aggregate_subclass_has_created_event_fallback(self):
-        # In case events were created with default Created event, they will
-        # still be
+    def test_call_subclass_with_init_that_has_no_args(self):
+        qualname = type(self).__qualname__
+        prefix = f"{qualname}.test_call_subclass_with_init_that_has_no_args.<locals>."
+
+        class MyAggregate(Aggregate):
+            def __init__(self):
+                pass
+
+        a = MyAggregate()
+        self.assertIsInstance(a.id, UUID)
+        self.assertIsInstance(a.version, int)
+        self.assertIsInstance(a.created_on, datetime)
+        self.assertIsInstance(a.modified_on, datetime)
+
+        events = a.collect_events()
+        self.assertEqual(len(events), 1)
+        self.assertIsInstance(events[0], AggregateCreated)
+        self.assertEqual(f"{prefix}MyAggregate.Created", type(events[0]).__qualname__)
+
+        #
+        # Do it again using @dataclass (makes no difference)...
+        @dataclass  # ...this just makes the code completion work in the IDE.
+        class MyAggregate(Aggregate):
+            def __init__(self):
+                pass
+
+        # Check the init method takes no args (except "self").
+        init_params = inspect.signature(MyAggregate.__init__).parameters
+        self.assertEqual(len(init_params), 1)
+        self.assertEqual(list(init_params)[0], "self")
+
+        #
+        # Do it again with custom "created" event.
+        @dataclass
+        class MyAggregate(Aggregate):
+            class Started(AggregateCreated):
+                pass
+
+        a = MyAggregate()
+        self.assertIsInstance(a.id, UUID)
+        self.assertIsInstance(a.version, int)
+        self.assertIsInstance(a.created_on, datetime)
+        self.assertIsInstance(a.modified_on, datetime)
+
+        events = a.collect_events()
+        self.assertEqual(len(events), 1)
+        self.assertIsInstance(events[0], AggregateCreated)
+        self.assertEqual(f"{prefix}MyAggregate.Started", type(events[0]).__qualname__)
+
+    def test_raises_when_create_args_mismatch_created_event(self):
+        p = (
+            "TestAggregateCreation"
+            ".test_raises_when_create_args_mismatch_created_event"
+            ".<locals>."
+        )
+
+        class BrokenAggregate(Aggregate):
+            @classmethod
+            def create(cls, name):
+                return cls._create(event_class=cls.Created, id=uuid4(), name=name)
+
+        with self.assertRaises(TypeError) as cm:
+            BrokenAggregate.create("name")
+        self.assertEqual(
+            (
+                f"Unable to construct 'aggregate created' event with class {p}"
+                "BrokenAggregate.Created and keyword args {'name': 'name'}: "
+                f"__init__() got an unexpected keyword argument 'name'"
+            ),
+            cm.exception.args[0],
+        )
+
+    def test_refuse_implicit_choice_of_alternative_created_events(self):
+        # In case aggregates were created with old Created event,
+        # there may need to be several defined. Then, when calling
+        # aggregate class, require explicit statement of which to use.
         class MyAggregate(Aggregate):
             class Started(AggregateCreated):
                 pass
@@ -149,9 +241,20 @@ class TestAggregateCreation(TestCase):
         with self.assertRaises(TypeError) as cm:
             MyAggregate()
         self.assertEqual(
-            cm.exception.args[0], "attribute '_created_event_class' not set on class"
+            cm.exception.args[0],
+            "attribute '_created_event_class' not set on class"
         )
 
+        # Can still create an aggregate, by calling the _create() method.
+        a = MyAggregate._create(MyAggregate.Opened)
+        events = a.collect_events()
+        self.assertIsInstance(events[0], MyAggregate.Opened)
+
+        a = MyAggregate._create(MyAggregate.Started)
+        events = a.collect_events()
+        self.assertIsInstance(events[0], MyAggregate.Started)
+
+        # Say which created event class to use on aggregate class.
         class MyAggregate(Aggregate):
             class Started(AggregateCreated):
                 pass
@@ -161,170 +264,67 @@ class TestAggregateCreation(TestCase):
 
             _created_event_class = Started
 
-        a = MyAggregate._create(MyAggregate.Created)
+        # Call class, and expect Started event will be used.
+        a = MyAggregate()
         events = a.collect_events()
-        self.assertIsInstance(events[0], MyAggregate.Created)
+        self.assertIsInstance(events[0], MyAggregate.Started)
 
-    def test_aggregate_subclass_with_more_than_one_created_events(self):
-        class MyAggregate(Aggregate):
-            class Started(AggregateCreated):
-                pass
 
-            class Opened(AggregateCreated):
-                pass
+class TestSubsequentEvents(TestCase):
+
+    def test_trigger_event(self):
+        a = Aggregate()
+
+        # Check the aggregate can trigger further events.
+        a.trigger_event(AggregateEvent)
+        self.assertLess(a.created_on, a.modified_on)
+
+        pending = a.collect_events()
+        self.assertEqual(len(pending), 2)
+        self.assertIsInstance(pending[0], AggregateCreated)
+        self.assertEqual(pending[0].originator_version, 1)
+        self.assertIsInstance(pending[1], AggregateEvent)
+        self.assertEqual(pending[1].originator_version, 2)
+
+    def test_event_mutate_raises_version_error(self):
+        a = Aggregate()
+
+        # Try to mutate aggregate with an invalid domain event.
+        event = AggregateEvent(
+            originator_id=a.id,
+            originator_version=a.version,  # NB not +1.
+            timestamp=datetime.now(tz=TZINFO),
+        )
+        # Check raises "VersionError".
+        with self.assertRaises(VersionError):
+            event.mutate(a)
+
+    def test_raises_when_triggering_event_with_mismatched_args(self):
+        class MyAgg(Aggregate):
+            @classmethod
+            def create(cls):
+                return cls._create(event_class=cls.Created, id=uuid4())
+
+            class ValueUpdated(AggregateEvent):
+                a: int
+
+        a = MyAgg.create()
 
         with self.assertRaises(TypeError) as cm:
-            MyAggregate()
-        self.assertEqual(
-            cm.exception.args[0], "attribute '_created_event_class' not set on class"
+            a.trigger_event(MyAgg.ValueUpdated)
+        self.assertTrue(
+            cm.exception.args[0].startswith("Can't construct event"),
+            cm.exception.args[0],
+        )
+        self.assertTrue(
+            cm.exception.args[0].endswith(
+                "__init__() missing 1 required positional argument: 'a'"
+            ),
+            cm.exception.args[0],
         )
 
-        a = MyAggregate._create(MyAggregate.Opened)
-        events = a.collect_events()
-        self.assertIsInstance(events[0], MyAggregate.Opened)
 
-        a = MyAggregate._create(MyAggregate.Started)
-        events = a.collect_events()
-        self.assertIsInstance(events[0], MyAggregate.Started)
-
-        # Set created event class to "Opened" class.
-        MyAggregate._created_event_class = MyAggregate.Opened
-
-        a = MyAggregate()
-        events = a.collect_events()
-        self.assertIsInstance(events[0], MyAggregate.Opened)
-
-        # Set created event class to "Started" class.
-        MyAggregate._created_event_class = MyAggregate.Started
-
-        a = MyAggregate()
-        events = a.collect_events()
-        self.assertIsInstance(events[0], MyAggregate.Started)
-
-
-class TestAggregate(TestCase):
-    # def test_aggregate_class_is_not_a_dataclass(self):
-    #     self.assertFalse("__dataclass_params__" in Aggregate.__dict__)
-
-    def test_aggregate_class_has_a_created_event_class(self):
-        self.assertTrue(hasattr(Aggregate, "_created_event_class"))
-        self.assertTrue(issubclass(Aggregate._created_event_class, AggregateCreated))
-        self.assertEqual(Aggregate._created_event_class, Aggregate.Created)
-
-    def test_aggregate_subclass_is_a_dataclass(self):
-        @dataclass
-        class MyAggregate(Aggregate):
-            pass
-
-        self.assertTrue("__dataclass_params__" in MyAggregate.__dict__)
-        self.assertIsInstance(MyAggregate.__dataclass_params__, _DataclassParams)
-        self.assertFalse(MyAggregate.__dataclass_params__.frozen)
-
-    def test_aggregate_subclass_gets_a_default_created_event_class(self):
-        class MyAggregate(Aggregate):
-            pass
-
-        self.assertTrue(hasattr(MyAggregate, "_created_event_class"))
-        self.assertTrue(issubclass(MyAggregate._created_event_class, AggregateCreated))
-        self.assertEqual(MyAggregate._created_event_class, MyAggregate.Created)
-
-    def test_aggregate_subclass_has_a_custom_created_event_class(self):
-        class MyAggregate(Aggregate):
-            class Started(AggregateCreated):
-                pass
-
-        self.assertTrue(hasattr(MyAggregate, "_created_event_class"))
-        self.assertTrue(issubclass(MyAggregate._created_event_class, AggregateCreated))
-        self.assertEqual(MyAggregate._created_event_class, MyAggregate.Started)
-
-    def test_aggregate_subclass_can_define_own_created_event_class(self):
-        class MyAggregate(Aggregate):
-            class Created(AggregateCreated):
-                pass
-
-        self.assertTrue(hasattr(MyAggregate, "_created_event_class"))
-        self.assertTrue(issubclass(MyAggregate._created_event_class, AggregateCreated))
-        self.assertEqual(MyAggregate.Created, MyAggregate._created_event_class)
-
-    def test_aggregate_create_method(self):
-        # Check the _create() method creates a new aggregate.
-        before_created = datetime.now(tz=TZINFO)
-        uuid = uuid4()
-        a = Aggregate._create(
-            event_class=AggregateCreated,
-            id=uuid,
-        )
-        after_created = datetime.now(tz=TZINFO)
-        self.assertIsInstance(a, Aggregate)
-        self.assertEqual(a.id, uuid)
-        self.assertEqual(a.version, 1)
-        self.assertEqual(a.created_on, a.modified_on)
-        self.assertGreater(a.created_on, before_created)
-        self.assertGreater(after_created, a.created_on)
-
-        # Check the aggregate can trigger further events.
-        a.trigger_event(AggregateEvent)
-        self.assertLess(a.created_on, a.modified_on)
-
-        pending = a.collect_events()
-        self.assertEqual(len(pending), 2)
-        self.assertIsInstance(pending[0], AggregateCreated)
-        self.assertEqual(pending[0].originator_version, 1)
-        self.assertIsInstance(pending[1], AggregateEvent)
-        self.assertEqual(pending[1].originator_version, 2)
-
-        # Try to mutate aggregate with an invalid domain event.
-        next_version = a.version
-        event = AggregateEvent(
-            originator_id=a.id,
-            originator_version=next_version,
-            timestamp=datetime.now(tz=TZINFO),
-        )
-        # Check raises "VersionError".
-        with self.assertRaises(VersionError):
-            event.mutate(a)
-
-    def test_aggregate_call_method(self):
-        # Check the _create() method creates a new aggregate.
-        before_created = datetime.now(tz=TZINFO)
-        a = Aggregate()
-        after_created = datetime.now(tz=TZINFO)
-        self.assertIsInstance(a, Aggregate)
-        self.assertIsInstance(a.id, UUID)
-        self.assertEqual(a.version, 1)
-        self.assertEqual(a.created_on, a.modified_on)
-        self.assertGreater(a.created_on, before_created)
-        self.assertGreater(after_created, a.created_on)
-
-        # Check the aggregate can trigger further events.
-        a.trigger_event(AggregateEvent)
-        self.assertLess(a.created_on, a.modified_on)
-
-        pending = a.collect_events()
-        self.assertEqual(len(pending), 2)
-        self.assertIsInstance(pending[0], AggregateCreated)
-        self.assertEqual(pending[0].originator_version, 1)
-        self.assertIsInstance(pending[1], AggregateEvent)
-        self.assertEqual(pending[1].originator_version, 2)
-
-        # Try to mutate aggregate with an invalid domain event.
-        next_version = a.version
-        event = AggregateEvent(
-            originator_id=a.id,
-            originator_version=next_version,
-            timestamp=datetime.now(tz=TZINFO),
-        )
-        # Check raises "VersionError".
-        with self.assertRaises(VersionError):
-            event.mutate(a)
-
-    def test_aggregate_decorator_gives_an_aggregate_class(self):
-        @aggregate
-        class A:
-            pass
-
-        self.assertTrue(issubclass(A, Aggregate))
-
+class TestBankAccount(TestCase):
     def test_subclass_bank_account(self):
         # Open an account.
         account: BankAccount = BankAccount.open(
@@ -382,43 +382,6 @@ class TestAggregate(TestCase):
         # Collect pending events.
         pending = account.collect_events()
         assert len(pending) == 7
-
-    def test_raises_type_error_when_created_event_is_broken(self):
-        p = "TestAggregate.test_raises_type_error_when_created_event_is_broken.<locals>."
-
-        class BrokenAggregate(Aggregate):
-            @classmethod
-            def create(cls, name):
-                return cls._create(event_class=cls.Created, id=uuid4(), name=name)
-
-        with self.assertRaises(TypeError) as cm:
-            BrokenAggregate.create("name")
-        self.assertEqual(
-            (
-                f"Unable to construct 'aggregate created' event with class {p}"
-                "BrokenAggregate.Created and keyword args {'name': 'name'}: "
-                f"__init__() got an unexpected keyword argument 'name'"
-            ),
-            cm.exception.args[0],
-        )
-
-    def test_raises_type_error_when_aggregate_event_is_broken(self):
-        class BrokenAggregate(Aggregate):
-            @classmethod
-            def create(cls):
-                return cls._create(event_class=cls.Created, id=uuid4())
-
-            class ValueUpdated(AggregateEvent):
-                a: int
-
-        a = BrokenAggregate.create()
-
-        with self.assertRaises(TypeError) as cm:
-            a.trigger_event(BrokenAggregate.ValueUpdated)
-        self.assertTrue(
-            cm.exception.args[0].startswith("Can't construct event"),
-            cm.exception.args[0],
-        )
 
 
 class BankAccount(Aggregate):
