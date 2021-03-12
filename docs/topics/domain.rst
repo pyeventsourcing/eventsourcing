@@ -1110,7 +1110,7 @@ This example also shows how Python dataclass annotations can be used to define t
 
     # Create a new page and index.
 
-    page = Page(name="Erth")
+    page = Page("Erth")
     index1 = Index(page.name, page.id)
 
     # The page name can be used to recreate
@@ -1141,6 +1141,36 @@ This example also shows how Python dataclass annotations can be used to define t
     assert index2.ref == page.id
     assert index2.name == page.name
 
+
+Please note, when using the dataclass style of defining the ``__init__()`` method
+with class annotations it will help to inform your IDE of the ``__init__()`` method
+signature to add the ``@dataclass`` decorator to the aggregate class definition.
+
+.. code:: python
+
+    from dataclasses import dataclass
+
+
+    @dataclass
+    class Page(Aggregate):
+        name: str
+        body: str = ""
+
+
+    @dataclass
+    class Index(Aggregate):
+        name: str
+        ref: UUID
+
+
+    # IDE helps with code completion.
+    page = Page(name="Earth")
+    index = Index(name=page.name, ref=page.id)
+
+
+Using the @dataclass decorator in this case helps with code completion and syntax
+checking, but the code will run just the same with or without the ``@dataclass``
+decorator.
 
 As a final example, consider the following ``Order`` class. It is an ordinary
 Python object class. Its ``__init__()`` method takes a ``name`` argument. The
@@ -1257,30 +1287,6 @@ shown in the example below.
             self.name = name
             self.confirmed_at = None
             self.pickedup_at = None
-
-Please note, when using the dataclass style of defining the ``__init__()`` method
-with class annotations it will help to inform your IDE of the ``__init__()`` method
-signature to add the ``@dataclass`` decorator to the aggregate class definition.
-
-.. code:: python
-
-    from dataclasses import dataclass
-
-
-    @dataclass
-    class Order(Aggregate, created_event_name="Started"):
-        name: str
-        confirmed_at: datetime = None
-        pickedup_at: datetime = None
-
-
-    # IDE helps with code completion.
-    order = Order(name="my order")
-
-
-Using the @dataclass decorator in this case helps with code completion and syntax
-checking, but the code will run just the same with or without the ``@dataclass``
-decorator.
 
 
 .. _Topics:
