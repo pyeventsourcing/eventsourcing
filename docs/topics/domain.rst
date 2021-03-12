@@ -1139,14 +1139,6 @@ method, from which the created event class will be defined.
         def update_ref(self, ref: Optional[UUID]):
             self.ref = ref
 
-This example also demonstrates the how version 5 UUIDs can be created from
-the arguments used to create an aggregate. If a ``create_id`` method is defined
-on the aggregate class, the base class method :class:`~eventsourcing.domain.MetaAggregate.create_id()``
-will be overridden. It will return a UUID that is a function of the arguments used
-to create the aggregate. The arguments used in this method must be a subset of the
-arguments used to create the aggregate. The base class method simply returns a
-version 4 UUID, which is the default behaviour for generating aggregate IDs.
-
 Please note, when using the dataclass-style for defining ``__init__()``
 methods, using the :data:`@dataclass` decorator will inform your IDE of
 the method signature. The annotations will in any case be used to create
@@ -1191,6 +1183,53 @@ are defined using this style.
     assert index_id == index2.id
     assert index2.ref == page.id
     assert index2.name == page.name
+
+
+The example above also demonstrates the how version 5 UUIDs can be created from
+the arguments used to create an aggregate. If a ``create_id`` method is defined
+on the aggregate class, the base class method :class:`~eventsourcing.domain.MetaAggregate.create_id()``
+will be overridden. It will return a UUID that is a function of the arguments used
+to create the aggregate. The arguments used in this method must be a subset of the
+arguments used to create the aggregate. The base class method simply returns a
+version 4 UUID, which is the default behaviour for generating aggregate IDs.
+
+It's also possible to pass in a UUID directly to the constructor. You can do this
+either by defining an ``id`` annotation when the dataclass-style is used to
+define an ``__init__()`` method, or by including an ``id`` argument in an
+explicitly defined ``__init__()`` method.
+
+.. code:: python
+
+    def create_index_id(name: str):
+        return uuid5(NAMESPACE_URL, f"/pages/{name}")
+
+
+    @dataclass
+    class Index(Aggregate):
+        id: UUID
+        ref: Optional[UUID]
+
+
+    index_id = create_index_id("name")
+    index = Index(id=index_id, ref=uuid4())
+    assert index.id == index_id
+
+
+When defining an explicit ``__init__()`` method, the ``id`` argument can
+be set as ``self._id`` because ``self.id`` is defined as a read-only
+property on the base aggregate class.
+
+.. code:: python
+
+    class Index(Aggregate):
+        def __init__(self, id: UUID, ref: UUID):
+            self._id = id
+            self.ref = ref
+
+
+    index_id = create_index_id("name")
+    index = Index(id=index_id, ref=uuid4())
+    assert index.id == index_id
 
 
 Non-trivial command methods

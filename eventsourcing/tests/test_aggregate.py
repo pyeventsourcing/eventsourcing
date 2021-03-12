@@ -708,6 +708,70 @@ class TestAggregateCreation(TestCase):
             "to given created_event_name 'Started'",
         )
 
+    def test_define_create_id(self):
+        @dataclass
+        class Index(Aggregate):
+            name: str
+
+            @staticmethod
+            def create_id(name: str):
+                return uuid5(NAMESPACE_URL, f"/pages/{name}")
+
+        index = Index(name="name")
+        self.assertEqual(index.name, "name")
+        self.assertEqual(index.id, Index.create_id("name"))
+
+    def test_init_has_id_dataclass_style(self):
+        @dataclass
+        class MyDataclass:
+            id: UUID
+            name: str
+
+        with self.assertRaises(TypeError) as cm:
+            # noinspection PyArgumentList
+            MyDataclass()
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() missing 2 required positional arguments: 'id' and 'name'",
+        )
+
+        @dataclass
+        class Index(Aggregate):
+            id: UUID
+            name: str
+
+            @staticmethod
+            def create_id(name: str):
+                return uuid5(NAMESPACE_URL, f"/pages/{name}")
+
+        name = "name"
+        index_id = Index.create_id(name)
+        index = Index(name=name, id=index_id)
+        self.assertEqual(index.id, index_id)
+
+        with self.assertRaises(TypeError) as cm:
+            # noinspection PyArgumentList
+            Index()
+        self.assertEqual(
+            cm.exception.args[0],
+            "__init__() missing 2 required positional arguments: 'id' and 'name'",
+        )
+
+    def test_init_has_id_explicitly(self):
+        class Index(Aggregate):
+            def __init__(self, id: UUID, name: str):
+                self._id = id
+                self.name = name
+
+            @staticmethod
+            def create_id(name: str):
+                return uuid5(NAMESPACE_URL, f"/pages/{name}")
+
+        name = "name"
+        index_id = Index.create_id(name)
+        index = Index(name=name, id=index_id)
+        self.assertEqual(index.id, index_id)
+
 
 class TestSubsequentEvents(TestCase):
     def test_trigger_event(self):

@@ -131,9 +131,16 @@ class AggregateCreated(AggregateEvent["Aggregate"]):
             "version": kwargs.pop("originator_version"),
             "timestamp": kwargs.pop("timestamp"),
         }
+        # Call the base class init method.
         Aggregate.__base_init__(agg, **base_kwargs)
+        # Call the aggregate class init method.
+        # noinspection PyTypeChecker
+        init_method = agg.__init__  # type: ignore
+        # Provide the id, if the init method expects it.
+        if aggregate_class._init_mentions_id:
+            kwargs["id"] = base_kwargs["id"]
         # noinspection PyArgumentList
-        agg.__init__(**kwargs)  # type: ignore
+        init_method(**kwargs)
         return agg
 
 
@@ -410,6 +417,7 @@ def _coerce_args_to_kwargs(
     method: Union[FunctionType, WrapperDescriptorType],
     args: Iterable[Any],
     kwargs: Dict[str, Any],
+    expects_id: bool = False,
 ) -> Dict[str, Any]:
     assert isinstance(method, (FunctionType, WrapperDescriptorType))
     method_signature = inspect.signature(method)
@@ -420,6 +428,9 @@ def _coerce_args_to_kwargs(
     required_positional = []
     required_keyword_only = []
 
+    if expects_id:
+        positional_names.append("id")
+        required_positional.append("id")
     for name, param in method_signature.parameters.items():
         if name == "self":
             continue
@@ -509,7 +520,16 @@ def raise_missing_names_type_error(missing_names: List[str], msg: str) -> None:
 
 
 class MetaAggregate(ABCMeta):
+    _annotations_mention_id = False
+    _init_mentions_id = False
+
     def __new__(mcs, *args: Any, **kwargs: Any) -> "MetaAggregate":
+        try:
+            args[2]["__annotations__"].pop("id")
+        except KeyError:
+            pass
+        else:
+            args[2]["_annotations_mention_id"] = True
         cls = ABCMeta.__new__(mcs, *args)
         cls = dataclass(cls)
         return cast(MetaAggregate, cls)
@@ -555,6 +575,9 @@ class MetaAggregate(ABCMeta):
                 method_signature = inspect.signature(init_method)
                 for param_name in method_signature.parameters:
                     if param_name == "self":
+                        continue
+                    if param_name == "id":
+                        cls._init_mentions_id = True
                         continue
                     created_cls_annotations[param_name] = "typing.Any"
 
@@ -635,13 +658,24 @@ class MetaAggregate(ABCMeta):
     def __call__(cls: "MetaAggregate", *args: Any, **kwargs: Any) -> TAggregate:
         # noinspection PyTypeChecker
         self_init: WrapperDescriptorType = cls.__init__  # type: ignore
-        kwargs = _coerce_args_to_kwargs(self_init, args, kwargs)
-
+        # if cls._annotations_mention_id:
+        #     if "id" in kwargs:
+        #         id = kwargs.pop("id")
+        #     else:
+        #         raise TypeError(
+        #             "__init__() missing 1 required positional argument: 'id'"
+        #         )
+        # else:
+        #     id = None
+        kwargs = _coerce_args_to_kwargs(
+            self_init, args, kwargs, expects_id=cls._annotations_mention_id
+        )
         if cls._created_event_class is None:
             raise TypeError("attribute '_created_event_class' not set on class")
         else:
             new_aggregate: TAggregate = cls._create(
                 event_class=cls._created_event_class,
+                # id=id,
                 **kwargs,
             )
             return new_aggregate
