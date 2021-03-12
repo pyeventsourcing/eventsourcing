@@ -1117,10 +1117,10 @@ also shows how Python's dataclass annotations can be used to define an aggregate
 
 Please note, when using the dataclass way of defining the ``__init__()``
 method with class annotations it will help to inform your IDE of the
-``__init__()`` method signature to add the ``@dataclass`` decorator
-to the aggregate class definition. Using the @dataclass decorator
+``__init__()`` method signature to add the dataclass decorator
+to the aggregate class definition. Using the dataclass decorator
 helps with code completion and syntax checking, but the code will
-run just the same with or without the ``@dataclass`` decorator.
+run just the same with or without the dataclass decorator.
 
 .. code:: python
 
@@ -1307,9 +1307,9 @@ defined and used when calling the aggregate class.
 
 
 Just for fun, as an alternative to using the ``Aggregate`` class, the library's
-``@aggregate`` decorator can been used to define the ``Order`` class as an event
-sourced aggregate. This is equivalent to inheriting from the library's ``Aggregate``
-class. The created event name can be defined using the ``created_event_name``
+:func:`~eventsourcing.domain.aggregate` decorator can been used to define the ``Order``
+class as an event sourced aggregate. This is equivalent to inheriting from the library's
+``Aggregate`` class. The created event name can be defined using the ``created_event_name``
 argument of the decorator. However, it is recommended to inherit from the
 ``Aggregate`` class rather than using the ``@aggregate`` decorator so that
 full the ``Aggregate`` class definition will be visible to your IDE.
