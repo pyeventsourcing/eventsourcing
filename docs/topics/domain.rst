@@ -1341,8 +1341,6 @@ full the ``Aggregate`` class definition will be visible to your IDE.
             self.pickedup_at = at
 
 
-.. code:: python
-
     order = Order("my order")
     created_event = order.collect_events()[0]
     assert type(created_event).__name__ == "Started"
