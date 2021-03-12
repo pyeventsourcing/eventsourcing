@@ -129,13 +129,13 @@ brew-services-stop:
 #	pkill -15 java
 
 
-.PHONY: prepare-distribution
-prepare-distribution:
+.PHONY: prepare-dist
+prepare-dist:
 	python ./dev/prepare-distribution.py
 
 
-.PHONY: release-distribution
-release-distribution:
+.PHONY: release-dist
+release-dist:
 	python ./dev/release-distribution.py
 
 

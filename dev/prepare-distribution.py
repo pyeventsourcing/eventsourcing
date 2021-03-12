@@ -69,11 +69,11 @@ def main():
         )
 
         # Install from built distribution.
-        pip_install_from_testpypi = [
+        pip_install_cmd = [
             pip_path,
             "install",
             "--no-cache-dir",
-            distribution_path+"[testing]",
+            distribution_path+"[postgres_dev,crypto]",
         ]
 
         patience = 10
@@ -81,7 +81,7 @@ def main():
         sleep(1)
         while True:
             try:
-                subprocess.check_call(pip_install_from_testpypi, cwd=venv_path)
+                subprocess.check_call(pip_install_cmd, cwd=venv_path)
                 is_test_pass = True
                 break
             except CalledProcessError:
@@ -91,7 +91,7 @@ def main():
                 print("Patience:", patience)
                 sleep(1)
         if not is_test_pass:
-            print("Failed to install from testpypi.")
+            print("Failed to install.")
             sys.exit(1)
 
         # Check installed tests all pass.
