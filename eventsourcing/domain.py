@@ -517,20 +517,36 @@ class MetaAggregate(ABCMeta):
     def __init__(
         cls,
         *args: Any,
-        created_event_name: str = "Created",
+        created_event_name: Optional[str] = None,
     ) -> None:
         super().__init__(*args)
 
         # Prepare created event class.
-        created_event_classes = []
+        created_event_classes = {}
         created_event_class = None
         for name, value in tuple(cls.__dict__.items()):
-            if isinstance(value, type) and issubclass(value, AggregateCreated):
-                created_event_classes.append(value)
             if name == "_created_event_class":
                 created_event_class = value
-        if created_event_class is None:
-            if len(created_event_classes) == 0:
+                # The names must match...
+                if created_event_name and value.__name__ != created_event_name:
+                    raise TypeError(
+                        f"Name of _created_event_class '{value.__name__}' not "
+                        f"equal to given created_event_name '{created_event_name}'"
+                    )
+                break
+
+        for name, value in tuple(cls.__dict__.items()):
+            if isinstance(value, type) and issubclass(value, AggregateCreated):
+                created_event_classes[name] = value
+
+        # Use the class as the created class, if so named.
+        if created_event_name in created_event_classes:
+            created_event_class = created_event_classes[created_event_name]
+
+        elif created_event_class is None:
+            if len(created_event_classes) == 0 or created_event_name:
+                if not created_event_name:
+                    created_event_name = "Created"
                 # Define a "created" event for this class.
                 created_cls_annotations = {}
                 # noinspection PyTypeChecker
@@ -554,10 +570,11 @@ class MetaAggregate(ABCMeta):
                     },
                 )
                 setattr(cls, created_event_name, created_event_class)
-            elif len(created_event_classes) == 1:
-                created_event_class = created_event_classes[0]
 
-            cls._created_event_class = created_event_class
+            elif len(created_event_classes) == 1:
+                created_event_class = list(created_event_classes.values())[0]
+
+        cls._created_event_class = created_event_class
 
         # Prepare the subsequent event classes.
         for attribute in tuple(cls.__dict__.values()):
@@ -760,7 +777,7 @@ class Aggregate(ABC, metaclass=MetaAggregate):
 
 
 def aggregate(
-    cls: Optional[MetaAggregate] = None, *, created_event_name: str = "Created"
+    cls: Optional[MetaAggregate] = None, *, created_event_name: Optional[str] = None
 ) -> Union[MetaAggregate, Callable]:
     """
     Converts the class that was passed in to inherit from Aggregate.

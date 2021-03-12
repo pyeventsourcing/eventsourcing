@@ -1162,15 +1162,16 @@ signature to add the ``@dataclass`` decorator to the aggregate class definition.
         name: str
         ref: UUID
 
+Using the @dataclass decorator in this case helps with code completion and syntax
+checking, but the code will run just the same with or without the ``@dataclass``
+decorator.
+
+.. code:: python
 
     # IDE helps with code completion.
     page = Page(name="Earth")
     index = Index(name=page.name, ref=page.id)
 
-
-Using the @dataclass decorator in this case helps with code completion and syntax
-checking, but the code will run just the same with or without the ``@dataclass``
-decorator.
 
 As a final example, consider the following ``Order`` class. It is an ordinary
 Python object class. Its ``__init__()`` method takes a ``name`` argument. The
@@ -1199,6 +1200,8 @@ If the order has not been confirmed, an exception will be raised.
         def _pickup(self, at):
             self.pickedup_at = at
 
+
+.. code:: python
 
     # Create an order, confirm, and pick up.
     order = Order("my order")
@@ -1276,9 +1279,9 @@ a database and used in future to determine the state of the order.
 Please note, using the ``@aggregate`` decorator is equivalent to inheriting
 from the ``Aggregate`` class. It is recommended to inherit from the ``Aggregate``
 class rather than using the ``@aggregate`` decorator because then the ``Aggregate``
-class definition will be visible to your IDE. It's possible to provide a name
-for the started event class using the class argument ``created_event_name`` as
-shown in the example below.
+class definition will be visible to your IDE. When inheriting from the ``Aggregate``
+class, it's possible to provide a name for the created event class using the class
+argument ``created_event_name`` as shown in the example below.
 
 .. code:: python
 
@@ -1287,6 +1290,15 @@ shown in the example below.
             self.name = name
             self.confirmed_at = None
             self.pickedup_at = None
+
+        class Created(AggregateCreated):
+            name: str
+
+.. code:: python
+
+    order = Order("my order")
+    created_event = order.collect_events()[0]
+    assert type(created_event).__name__ == "Started"
 
 
 .. _Topics:

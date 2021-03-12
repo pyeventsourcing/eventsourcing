@@ -602,6 +602,56 @@ class TestAggregateCreation(TestCase):
         events = a.collect_events()
         self.assertIsInstance(events[0], MyAggregate.Started)
 
+    def test_refuse_implicit_choice_of_alternative_created_events_on_subclass(self):
+        # In case aggregates were created with old Created event,
+        # there may need to be several defined. Then, when calling
+        # aggregate class, require explicit statement of which to use.
+        class MyBaseAggregate(Aggregate, created_event_name="Opened"):
+            class Started(AggregateCreated):
+                pass
+
+            class Opened(AggregateCreated):
+                pass
+
+            _create_event_class = Opened
+
+        class MyAggregate(MyBaseAggregate):
+            class Started(AggregateCreated):
+                pass
+
+            class Opened(AggregateCreated):
+                pass
+
+        with self.assertRaises(TypeError) as cm:
+            MyAggregate()
+        self.assertEqual(
+            cm.exception.args[0], "attribute '_created_event_class' not set on class"
+        )
+
+        # Can still create an aggregate, by calling the _create() method.
+        a = MyAggregate._create(MyAggregate.Opened)
+        events = a.collect_events()
+        self.assertIsInstance(events[0], MyAggregate.Opened)
+
+        a = MyAggregate._create(MyAggregate.Started)
+        events = a.collect_events()
+        self.assertIsInstance(events[0], MyAggregate.Started)
+
+        # Say which created event class to use on aggregate class.
+        class MyAggregate(Aggregate):
+            class Started(AggregateCreated):
+                pass
+
+            class Opened(AggregateCreated):
+                pass
+
+            _created_event_class = Started
+
+        # Call class, and expect Started event will be used.
+        a = MyAggregate()
+        events = a.collect_events()
+        self.assertIsInstance(events[0], MyAggregate.Started)
+
 
 class TestSubsequentEvents(TestCase):
     def test_trigger_event(self):
