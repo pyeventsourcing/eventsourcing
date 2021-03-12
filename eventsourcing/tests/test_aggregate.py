@@ -652,6 +652,62 @@ class TestAggregateCreation(TestCase):
         events = a.collect_events()
         self.assertIsInstance(events[0], MyAggregate.Started)
 
+    def test_uses_predefined_created_event_when_given_name_is_predefined(self):
+        class Order(Aggregate, created_event_name="Started"):
+            def __init__(self, name):
+                self.name = name
+                self.confirmed_at = None
+                self.pickedup_at = None
+
+            class Created(AggregateCreated):
+                name: str
+
+            class Started(AggregateCreated):
+                name: str
+
+        order = Order("name")
+        pending = order.collect_events()
+        self.assertEqual(type(pending[0]).__name__, "Started")
+
+    def test_defines_created_event_when_given_name_not_predefined(self):
+        class Order(Aggregate, created_event_name="Started"):
+            def __init__(self, name):
+                self.name = name
+                self.confirmed_at = None
+                self.pickedup_at = None
+
+            class Created(AggregateCreated):
+                name: str
+
+        order = Order("name")
+        pending = order.collect_events()
+        self.assertEqual(type(pending[0]).__name__, "Started")
+
+    def test_raises_when_given_created_event_name_conflicts_with_created_event_class(
+        self,
+    ):
+        with self.assertRaises(TypeError) as cm:
+
+            class Order(Aggregate, created_event_name="Started"):
+                def __init__(self, name):
+                    self.name = name
+                    self.confirmed_at = None
+                    self.pickedup_at = None
+
+                class Created(AggregateCreated):
+                    name: str
+
+                class Started(AggregateCreated):
+                    name: str
+
+                _created_event_class = Created
+
+        self.assertEqual(
+            cm.exception.args[0],
+            "Name of _created_event_class 'Created' not equal "
+            "to given created_event_name 'Started'",
+        )
+
 
 class TestSubsequentEvents(TestCase):
     def test_trigger_event(self):

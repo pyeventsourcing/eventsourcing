@@ -1039,12 +1039,13 @@ method, on an event class, and in an apply method. The library offers a more con
 way to express aggregates, using the library's :func:`~eventsourcing.domain.event` decorator.
 
 The ``World`` example above can be expressed more concisely in the following way.
-The ``World.Created`` event is automatically defined by inspecting the ``World.__init__()``
-method signature. The ``World.SomethingHappened`` event is automatically defined by
-inspecting the decorated ``make_it_so()`` method signature. The body of the decorated
-``make_it_so()`` method will be used as the ``apply()`` method of the ``World.SomethingHappened``
-event, both when the event is triggered and when the aggregate is reconstructed from stored
-events.
+The aggregate's created event is automatically defined by inspecting the aggregate's
+``__init__()`` method. The created event is named "Created" by default, but this can
+be changed (see below). The ``World.SomethingHappened`` event is automatically defined by
+inspecting the decorated ``make_it_so()`` method. The name is defined in the decorator.
+The body of the decorated ``make_it_so()`` method will be used as the ``apply()`` method
+of the ``World.SomethingHappened`` event, both when the event is triggered and when
+the aggregate is reconstructed from stored events.
 
 .. code:: python
 
@@ -1059,31 +1060,39 @@ events.
         def make_it_so(self, what):
             self.history.append(what)
 
+
 To make the syntax even closer to normal Python classes, rather than defining and calling
 a ``create()`` class method, the aggregate class can be called directly. Calling the class
-directly will trigger the automatically defined ``World.Created`` event, then the event's
-``mutate()`` method will be called which constructs an aggregate object, and then the
-resulting aggregate will be initialised with the event attribute values and returned to
-the caller. Similarly, calling the ``make_it_so()`` method will trigger a ``World.SomethingHappened``
-event, and this event will be used to mutate the state of the aggregate, such that the
-``make_it_so()`` method argument ``what`` will eventually be appended to the aggregate's
-``history`` attribute.
+directly will call the ``Aggregate`` ``_create()`` method (discussed above) with the
+automatically defined ``World.Created`` event. Calling the ``make_it_so()`` method will
+trigger a ``World.SomethingHappened`` event, and this event will be used to mutate the
+state of the aggregate, such that the ``make_it_so()`` method argument ``what`` will
+eventually be appended to the aggregate's ``history`` attribute.
 
 .. code:: python
 
     world = World()
     world.make_it_so("dinosaurs")
+    world.make_it_so("trucks")
+    world.make_it_so("internet")
 
     assert world.history[0] == "dinosaurs"
-    assert len(world.collect_events()) == 2
+    assert world.history[1] == "trucks"
+    assert world.history[2] == "internet"
+    assert len(world.collect_events()) == 4
 
 
-Similarly, the ``Page`` and ``Index`` aggregates can be expressed in the following way.
-This example also shows how Python dataclass annotations can be used to define the
-``__init__()`` method.
+Similarly, the ``Page`` and ``Index`` aggregates from the example in the above discussion
+about namespaced IDs can be expressed more concisely in the following way. The example below
+also shows how Python's dataclass annotations can be used to define an aggregate's
+``__init__()`` method, from which the created event class will be defined.
 
 .. code:: python
 
+    from dataclasses import dataclass
+
+
+    @dataclass
     class Page(Aggregate):
         name: str
         body: str = ""
@@ -1093,6 +1102,7 @@ This example also shows how Python dataclass annotations can be used to define t
             self.name = name
 
 
+    @dataclass
     class Index(Aggregate):
         name: str
         ref: UUID
@@ -1105,13 +1115,19 @@ This example also shows how Python dataclass annotations can be used to define t
         def update_ref(self, ref: UUID):
             self.ref = ref
 
+Please note, when using the dataclass way of defining the ``__init__()``
+method with class annotations it will help to inform your IDE of the
+``__init__()`` method signature to add the ``@dataclass`` decorator
+to the aggregate class definition. Using the @dataclass decorator
+helps with code completion and syntax checking, but the code will
+run just the same with or without the ``@dataclass`` decorator.
 
 .. code:: python
 
     # Create a new page and index.
 
-    page = Page("Erth")
-    index1 = Index(page.name, page.id)
+    page = Page(name="Erth")
+    index1 = Index(name=page.name, ref=page.id)
 
     # The page name can be used to recreate
     # the index ID. The index ID can be used
@@ -1119,7 +1135,7 @@ This example also shows how Python dataclass annotations can be used to define t
     # gives the page ID, and then the page ID
     # can be used to retrive the page aggregate.
 
-    index_id = Index.create_id("Erth")
+    index_id = Index.create_id(name="Erth")
     assert index_id == index1.id
     assert index1.ref == page.id
     assert index1.name == page.name
@@ -1127,8 +1143,8 @@ This example also shows how Python dataclass annotations can be used to define t
     # Later, the page name can be updated,
     # and a new index created for the page.
 
-    page.update_name("Earth")
-    index2 = Index(page.name, page.id)
+    page.update_name(name="Earth")
+    index2 = Index(name=page.name, ref=page.id)
 
     # The new page name can be used to recreate
     # the new index ID. The new index ID can be
@@ -1136,41 +1152,10 @@ This example also shows how Python dataclass annotations can be used to define t
     # which gives the page ID, and then the page
     # ID can be used to retrieve the renamed page.
 
-    index_id = Index.create_id("Earth")
+    index_id = Index.create_id(name="Earth")
     assert index_id == index2.id
     assert index2.ref == page.id
     assert index2.name == page.name
-
-
-Please note, when using the dataclass style of defining the ``__init__()`` method
-with class annotations it will help to inform your IDE of the ``__init__()`` method
-signature to add the ``@dataclass`` decorator to the aggregate class definition.
-
-.. code:: python
-
-    from dataclasses import dataclass
-
-
-    @dataclass
-    class Page(Aggregate):
-        name: str
-        body: str = ""
-
-
-    @dataclass
-    class Index(Aggregate):
-        name: str
-        ref: UUID
-
-Using the @dataclass decorator in this case helps with code completion and syntax
-checking, but the code will run just the same with or without the ``@dataclass``
-decorator.
-
-.. code:: python
-
-    # IDE helps with code completion.
-    page = Page(name="Earth")
-    index = Index(name=page.name, ref=page.id)
 
 
 As a final example, consider the following ``Order`` class. It is an ordinary
@@ -1210,27 +1195,26 @@ If the order has not been confirmed, an exception will be raised.
 
 This ordinary Python class can be easily converted into an event sourced
 aggregate by applying the library's ``@event`` decorator to the ``confirm()``
-and ``_pickup()`` methods. Now when the ``confirm()`` method is called,
-a "Confirmed" event will be triggered. When the ``_pickup()`` method is called,
-a "PickedUp" event will be triggered. These events are defined automatically
-from the method signatures. The decorating of the ``_pickup()`` method and
-not of the ``pickup()`` method is a good example of a command method that needs
-to do some work before an event is triggered. The body of the ``pickup()`` method
-is only executed when the command method is called, whereas the body of the ``_pickup()``
-method is executed each time the event is applied to evolve the state of the aggregate.
+and ``_pickup()`` methods.
 
-Just for fun in this example, the library's ``@aggregate`` decorator has also
-been used to decorate the the ``Order`` class. This is equivalent to changing
-the ``Order`` class to inherit from the library's ``Aggregate`` class. Please note,
-the created event class name has been defined to be called "Started" by using the
-decorator argument ``created_event_name``.
+With these decorators, when the ``confirm()`` method
+is called, an ``Order.Confirmed`` event will be triggered. When the ``_pickup()``
+method is called, an ``Order.PickedUp`` event will be triggered. These events
+are defined automatically from the method signatures. The decorating of the
+``_pickup()`` method and not of the ``pickup()`` method is a good example of
+a command method that needs to do some work before an event is triggered.
+The body of the ``pickup()`` method is only executed when the command method
+is called, whereas the body of the ``_pickup()`` method is executed each time
+the event is applied to evolve the state of the aggregate.
+
+When inheriting from the ``Aggregate`` class, it is possible to provide a name for the
+created event class using the class argument ``created_event_name`` as shown in the example
+below. The name of the created event class has been defined to be called "Started", so
+that an ``Order.Started`` event will be created with the ``Order`` class is called.
 
 .. code:: python
 
-    from eventsourcing.domain import aggregate
-
-    @aggregate(created_event_name="Started")
-    class Order:
+    class Order(Aggregate, created_event_name="Started"):
         def __init__(self, name):
             self.name = name
             self.confirmed_at = None
@@ -1252,7 +1236,7 @@ decorator argument ``created_event_name``.
 
 
 We can use the event sourced ``Order`` aggregate in the same way as the undecorated
-ordinary Python ``Order`` class above. The event sourced version has the advantage
+ordinary Python ``Order`` class. The event sourced version has the advantage
 that using it will trigger a sequence of aggregate events that can be persisted in
 a database and used in future to determine the state of the order.
 
@@ -1276,23 +1260,86 @@ a database and used in future to determine the state of the order.
 
     assert type(pending_events[0]).__name__ == "Started"
 
-Please note, using the ``@aggregate`` decorator is equivalent to inheriting
-from the ``Aggregate`` class. It is recommended to inherit from the ``Aggregate``
-class rather than using the ``@aggregate`` decorator because then the ``Aggregate``
-class definition will be visible to your IDE. When inheriting from the ``Aggregate``
-class, it's possible to provide a name for the created event class using the class
-argument ``created_event_name`` as shown in the example below.
+
+If a created event class is defined explicitly, it will be used
+when calling the aggregate class. This can be useful when old
+created events need to be upcast. If more than one created event
+class is defined, perhaps the name of the created event classs
+was changed, the ``created_event_name`` can be used to identify
+which created event class is the current one. If the ``created_event_name``
+value is provided but does not match one of the created event classes
+that are explicitly defined, then an event class will be automatically
+defined and used when calling the aggregate class.
 
 .. code:: python
 
-    class Order(Aggregate, created_event_name="Started"):
+    class Order(Aggregate):
         def __init__(self, name):
             self.name = name
             self.confirmed_at = None
             self.pickedup_at = None
 
-        class Created(AggregateCreated):
+        class Started(AggregateCreated):
             name: str
+
+        @event("Confirmed")
+        def confirm(self, at):
+            self.confirmed_at = at
+
+        def pickup(self, at):
+            if self.confirmed_at:
+                self._pickup(at)
+            else:
+                raise Exception("Order is not confirmed")
+
+        @event("PickedUp")
+        def _pickup(self, at):
+            self.pickedup_at = at
+
+
+    order = Order("my order")
+    order.confirm(datetime.now())
+    order.pickup(datetime.now())
+
+    pending_events = order.collect_events()
+    assert len(pending_events) == 3
+    assert type(pending_events[0]).__name__ == "Started"
+
+
+Just for fun, as an alternative to using the ``Aggregate`` class, the library's
+``@aggregate`` decorator can been used to define the ``Order`` class as an event
+sourced aggregate. This is equivalent to inheriting from the library's ``Aggregate``
+class. The created event name can be defined using the ``created_event_name``
+argument of the decorator. However, it is recommended to inherit from the
+``Aggregate`` class rather than using the ``@aggregate`` decorator so that
+full the ``Aggregate`` class definition will be visible to your IDE.
+
+.. code:: python
+
+    from eventsourcing.domain import aggregate
+
+
+    @aggregate(created_event_name="Started")
+    class Order:
+        def __init__(self, name):
+            self.name = name
+            self.confirmed_at = None
+            self.pickedup_at = None
+
+        @event("Confirmed")
+        def confirm(self, at):
+            self.confirmed_at = at
+
+        def pickup(self, at):
+            if self.confirmed_at:
+                self._pickup(at)
+            else:
+                raise Exception("Order is not confirmed")
+
+        @event("PickedUp")
+        def _pickup(self, at):
+            self.pickedup_at = at
+
 
 .. code:: python
 
