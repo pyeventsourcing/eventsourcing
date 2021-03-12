@@ -6,6 +6,7 @@ from datetime import datetime, tzinfo
 from types import FunctionType, WrapperDescriptorType
 from typing import (
     Any,
+    Callable,
     Dict,
     Generic,
     Iterable,
@@ -267,6 +268,61 @@ class EventDecorator:
         b.trigger(**kwargs)
 
 
+def event(arg: Union[FunctionType, str, Type[AggregateEvent]]) -> EventDecorator:
+    """
+    Can be used to decorate an aggregate method so that when the
+    method is called an event is triggered. The body of the method
+    will be used to apply the event to the aggregate, both when the
+    event is triggered and when the aggregate is reconstructed from
+    stored events.
+
+    .. code-block:: python
+
+        class MyAggregate(Aggregate):
+            @event("NameChanged")
+            def set_name(self, name: str):
+                self.name = name
+
+    ...is equivalent to...
+
+    .. code-block:: python
+
+        class MyAggregate(Aggregate):
+            def set_name(self, name: str):
+                self.trigger_event(self.NameChanged, name=name)
+
+            class NameChanged(Aggregate.Event):
+                name: str
+
+                def apply(self, aggregate):
+                    aggregate.name = self.name
+
+    In the example above, the event "NameChanged" is defined automatically
+    by inspecting the signature of the `set_name()` method. If it is
+    preferred to declare the event class explicitly, for example to define
+    upcasting of old events, the event class itself can be mentioned in the
+    event decorator rather than just providing the name of the event as a
+    string.
+
+    .. code-block:: python
+
+        class MyAggregate(Aggregate):
+
+            class NameChanged(Aggregate.Event):
+                name: str
+
+            @event(NameChanged)
+            def set_name(self, name: str):
+                aggregate.name = self.name
+
+
+    """
+    return EventDecorator(arg)
+
+
+triggers = event
+
+
 class BoundEvent:
     """
     Wraps an EventDecorator instance when attribute is accessed
@@ -327,9 +383,6 @@ class DecoratedEvent(AggregateEvent):
         #         args.append(event_obj_dict.pop(name))
         # original_method(aggregate, *args, **event_obj_dict)
         original_method(aggregate, **event_obj_dict)
-
-
-triggers = event = EventDecorator
 
 
 TDomainEvent = TypeVar("TDomainEvent", bound=DomainEvent)
@@ -596,10 +649,14 @@ class MetaAggregate(ABCMeta):
         # Construct the domain event class,
         # with an ID and version, and the
         # a topic for the aggregate class.
+        create_id_kwargs = {}
+        for param in inspect.signature(self.create_id).parameters:
+            if param in kwargs:
+                create_id_kwargs[param] = kwargs[param]
         try:
             created_event: TAggregateCreated = event_class(  # type: ignore
                 originator_topic=get_topic(self),
-                originator_id=id or self.create_id(**kwargs),
+                originator_id=id or self.create_id(**create_id_kwargs),
                 originator_version=1,
                 timestamp=datetime.now(tz=TZINFO),
                 **kwargs,
@@ -702,7 +759,9 @@ class Aggregate(ABC, metaclass=MetaAggregate):
         return collected
 
 
-def aggregate(cls: Any) -> MetaAggregate:
+def aggregate(
+    cls: Optional[MetaAggregate] = None, *, created_event_name: str = "Created"
+) -> Union[MetaAggregate, Callable]:
     """
     Converts the class that was passed in to inherit from Aggregate.
 
@@ -719,14 +778,26 @@ def aggregate(cls: Any) -> MetaAggregate:
         class MyAggregate(Aggregate):
             pass
     """
-    if issubclass(cls, Aggregate):
-        raise TypeError(f"{cls.__name__} is already an Aggregate")
-    bases = cls.__bases__
-    if bases == (object,):
-        bases = (Aggregate,)
+
+    def decorator(cls: Any) -> MetaAggregate:
+        if issubclass(cls, Aggregate):
+            raise TypeError(f"{cls.__name__} is already an Aggregate")
+        bases = cls.__bases__
+        if bases == (object,):
+            bases = (Aggregate,)
+        else:
+            bases += (Aggregate,)
+        return MetaAggregate(
+            cls.__name__,
+            bases,
+            dict(cls.__dict__),
+            created_event_name=created_event_name,
+        )
+
+    if cls:
+        return decorator(cls)
     else:
-        bases += (Aggregate,)
-    return MetaAggregate(cls.__name__, bases, dict(cls.__dict__))
+        return decorator
 
 
 class VersionError(Exception):

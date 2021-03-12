@@ -122,6 +122,18 @@ class TestAggregateDecorator(TestCase):
         self.assertIsInstance(a, Aggregate)
         self.assertEqual(len(a.pending_events), 1)
 
+    def test_aggregate_decorator_called_with_create_event_name(self):
+        @aggregate(created_event_name="Started")
+        class MyAgg:
+            value: int
+
+        a = MyAgg(1)
+        self.assertIsInstance(a, MyAgg)
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a.pending_events), 1)
+        self.assertEqual(type(a.pending_events[0]).__name__, "Started")
+
 
 # noinspection PyUnresolvedReferences
 class TestEventDecorator(TestCase):
