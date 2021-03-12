@@ -918,6 +918,32 @@ class TestEventDecorator(TestCase):
             "Confirmed event class used in more than one decorator",
         )
 
+    def test_dirty_style_isnt_so_dirty_after_all(self):
+        class Order(Aggregate):
+            def __init__(self, name):
+                self.name = name
+                self.confirmed_at = None
+                self.pickedup_at = None
+
+            @event("Confirmed")
+            def confirm(self, at):
+                self.confirmed_at = at
+
+            @event("PickedUp")
+            def pickup(self, at):
+                if self.confirmed_at is None:
+                    raise RuntimeError("Order is not confirmed")
+                else:
+                    self.pickedup_at = at
+
+        order = Order("name")
+        self.assertEqual(len(order.pending_events), 1)
+        try:
+            order.pickup(datetime.now())
+        except RuntimeError:
+            pass
+        self.assertEqual(len(order.pending_events), 1)
+
 
 class TestOrder(TestCase):
     def test(self) -> None:

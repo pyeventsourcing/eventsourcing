@@ -1185,9 +1185,12 @@ are defined using this style.
     assert index2.name == page.name
 
 
+Declaring the aggregate ID
+--------------------------
+
 The example above also demonstrates the how version 5 UUIDs can be created from
 the arguments used to create an aggregate. If a ``create_id`` method is defined
-on the aggregate class, the base class method :class:`~eventsourcing.domain.MetaAggregate.create_id()``
+on the aggregate class, the base class method :class:`~eventsourcing.domain.MetaAggregate.create_id()`
 will be overridden. It will return a UUID that is a function of the arguments used
 to create the aggregate. The arguments used in this method must be a subset of the
 arguments used to create the aggregate. The base class method simply returns a
@@ -1216,8 +1219,8 @@ explicitly defined ``__init__()`` method.
 
 
 When defining an explicit ``__init__()`` method, the ``id`` argument can
-be set as ``self._id`` because ``self.id`` is defined as a read-only
-property on the base aggregate class.
+be set on the object as ``self._id``. Assigning to ``self.id`` won't work
+because ``id`` is defined as a read-only property on the base aggregate class.
 
 .. code:: python
 
@@ -1358,23 +1361,31 @@ a database and used in future to determine the state of the order.
     assert copy.pickedup_at == order.pickedup_at
 
 
+Raising exceptions in the body of decorated methods
+---------------------------------------------------
+
 It is actually possible to decorate the ``pickup()`` command method
 with the :data:`@event` decorator, but if a decorated command method
-has conditional logic, you must take care always to raise an exception
-whenever something goes wrong, and never save or continue to use an
-aggregate instance that has raised such an exception, because storing
-the triggered event will mean that the exception will be raised each
-time the aggregate is retrieved from the database. And also in this case,
-the conditional expression will be perhaps needlessly be evaluated each
-time the aggregate is reconstructed from stored events. However, this
-conditional logic may be considered as validation of the projection of
-earlier events, for example checking the the ``Confirmed`` event is
-working properly, and so may in some cases have positive value. But
-in many cases, the command method arguments will not be the same as
-the attributes that need to be included in the triggered domain event,
-and in those cases it is necessary to have two different methods: a
-command method that is not decorated and a decorated method that
-triggers and applies an aggregate event.
+has conditional logic that would mean the state of the aggregate
+should not be evolved, you must take care to raise an exception
+rather than returning early, and raise an exception before changing
+the state of the aggregate at all. By raising an exception in the body
+of a decorated method, the triggered event will not in fact be appended
+to the aggregate's list of pending events, and it will be as if it never
+happened. However, the conditional expression will be perhaps needlessly
+evaluated each time the aggregate is reconstructed from stored events. Of
+course this conditional logic may be useful and considered as validation
+of the projection of earlier events, for example checking the the ``Confirmed``
+event is working properly.
+
+If you wish to use this style, just make sure to raise an exception rather
+than returning early, and make sure not to change the state of the aggregate
+if an exception may be raised later. Returning early will mean the event
+will be appended to the list of pending events. Changing the state before
+raising an exception will the state will be different when the aggregate
+is reconstructed from stored events. So if your method does change state
+and then raise an exception, make sure to obtain a fresh version of the
+aggregate before continuing to trigger events.
 
 .. code:: python
 
@@ -1394,6 +1405,31 @@ triggers and applies an aggregate event.
                 self.pickedup_at = at
             else:
                 raise RuntimeError("Order is not confirmed")
+
+
+        # Creating the aggregate causes one pending event.
+        order = Order("name")
+        assert len(order.pending_events) == 1
+
+        # Call pickup() too early raises an exception.
+        try:
+            order.pickup(datetime.now())
+        except RuntimeError:
+            pass
+        else:
+            raise Exception("Shouldn't get here")
+
+        # There is still only one pending event.
+        assert len(order.pending_events) == 1
+
+
+In many cases, a command will do work on the given attributes and trigger
+an aggregate event that has attributes that are different from the command,
+and in those cases it is necessary to have two different methods: a
+command method that is not decorated and a decorated method that
+triggers and applies an aggregate event. Recording command arguments
+and reprocessing them each time the aggregate is reconstructed is
+perhaps best described as "command sourcing".
 
 
 Declaring created event classes
@@ -1458,8 +1494,6 @@ which created event class is the current one.
     class Order(Aggregate, created_event_name="Opened"):
         def __init__(self, name):
             self.name = name
-            self.confirmed_at = None
-            self.pickedup_at = None
 
         class Opened(AggregateCreated):
             name: str
@@ -1474,6 +1508,7 @@ which created event class is the current one.
     assert type(pending_events[0]).__name__ == "Opened"
 
 
+
 If the ``created_event_name`` value is provided but does not match one of
 the created event classes that are explicitly defined, then an event class
 will be automatically defined, and it will be used when calling the aggregate
@@ -1484,8 +1519,6 @@ class.
     class Order(Aggregate, created_event_name="Opened"):
         def __init__(self, name):
             self.name = name
-            self.confirmed_at = None
-            self.pickedup_at = None
 
         class Started(AggregateCreated):
             name: str
@@ -1499,14 +1532,13 @@ class.
 The :data:`@aggregate` decorator
 --------------------------------
 
-Just for fun, as an alternative to using the :class:`~eventsourcing.domain.Aggregate` class, the library's
-:func:`~eventsourcing.domain.aggregate` function can been used to decorate the ``Order``
-class to declare the class as an event sourced aggregate. This is equivalent to inheriting
-from the library's :class:`~eventsourcing.domain.Aggregate` class. The created event name can be defined using
-the ``created_event_name`` argument of the decorator. However, it is recommended to inherit
-from the :class:`~eventsourcing.domain.Aggregate` class rather than using the
-``@aggregate`` decorator so that full the :class:`~eventsourcing.domain.Aggregate`
-class definition will be visible to your IDE.
+Just for fun, the library's :func:`~eventsourcing.domain.aggregate` function can be
+used to declare event sourced aggregate classes. This is equivalent to inheriting
+from the library's :class:`~eventsourcing.domain.Aggregate` class. The created
+event name can be defined using the ``created_event_name`` argument of the decorator.
+However, it is recommended to inherit from the :class:`~eventsourcing.domain.Aggregate`
+class rather than using the ``@aggregate`` decorator so that full the
+:class:`~eventsourcing.domain.Aggregate` class definition will be visible to your IDE.
 
 .. code:: python
 
@@ -1517,22 +1549,6 @@ class definition will be visible to your IDE.
     class Order:
         def __init__(self, name):
             self.name = name
-            self.confirmed_at = None
-            self.pickedup_at = None
-
-        @event("Confirmed")
-        def confirm(self, at):
-            self.confirmed_at = at
-
-        def pickup(self, at):
-            if self.confirmed_at:
-                self._pickup(at)
-            else:
-                raise RuntimeError("Order is not confirmed")
-
-        @event("PickedUp")
-        def _pickup(self, at):
-            self.pickedup_at = at
 
 
     order = Order("my order")
