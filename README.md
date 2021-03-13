@@ -70,10 +70,13 @@ and systems.
 ## Synopsis
 
 The example below uses the library's new declarative syntax to
-define an event sourced aggregate called `World`. It has a
-command method `make_it_so()` which triggers an event called
-`SomethingHappened` that appends the given value of `what`
-to the `history` attribute of an instance of the aggregate.
+define an event sourced aggregate called `World`.
+The `World` class uses the `Aggregate` class and the `event`
+decorator from the `eventsourcing.domain` module. The `World`
+class has a command method `make_it_so()` which triggers an
+event called `SomethingHappened` that appends the given value
+of `what` to the `history` attribute of an instance of the
+aggregate.
 
 ```python
 from eventsourcing.domain import Aggregate, event
