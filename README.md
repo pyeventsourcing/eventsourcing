@@ -8,8 +8,8 @@ A library for event sourcing in Python.
 
 ## Synopsis
 
-The example below uses the library's new declarative syntax to
-define an event sourced aggregate called `World`.
+The example below uses the library's declarative syntax (new in v9.0)
+to define an event sourced aggregate called `World`.
 The `World` class uses the `Aggregate` class and the `event`
 decorator from the `eventsourcing.domain` module. The `World`
 class has a command method `make_it_so()` which triggers an
