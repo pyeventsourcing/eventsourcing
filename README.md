@@ -69,16 +69,75 @@ and systems.
 
 ## Synopsis
 
-Let's define a domain model that has an aggregate called `World`,
-which has a command method called `make_it_so()`, that triggers a
-domain event `SomethingHappened`, which has an `apply()` method
-that applies the event to the aggregate by appending the `what` of
-the domain event to the `self.history` of a `World`. The event class
-is interpreted by the library as a Python dataclass. The method
-`trigger_event()` is defined on the library's `Aggregate` base class.
+The example below uses the library's new declarative syntax to
+define an event sourced aggregate called `World`.
 
-Please note, generally it is recommended to use an imperative style
-when naming command methods, and to name events using past participles.
+```python
+from eventsourcing.domain import Aggregate, event
+
+
+class World(Aggregate):
+    def __init__(self):
+        self.history = []
+
+    @event("SomethingHappened")
+    def make_it_so(self, what):
+        self.history.append(what)
+```
+
+When the `World` aggregate class is called, a created event object is
+created and used to construct an instance of `World`.
+
+When the command method `make_it_so()` is called on an instance of
+`World`, a `SomethingHappened` event is triggered with a value of
+`what`, which results in the `what` value being appended to the
+`history` of the `World` aggregate instance.
+
+The resulting events can be collected using the `collect_events()`
+method.
+
+```python
+
+# Create a new aggregate.
+world = World()
+
+# Execute a command.
+world.make_it_so('dinosaurs')
+
+# View aggregate state.
+assert world.history[0] == 'dinosaurs'
+
+# Collect events.
+pending_events = world.collect_events()
+assert len(pending_events) == 2
+assert type(pending_events[0]).__name__ == 'Created'
+assert type(pending_events[1]).__name__ == 'SomethingHappened'
+```
+
+Please note, it is recommended to use an imperative style when
+naming command methods, and to name event classes using past
+participles.
+
+# Domain model
+
+The examples below explain how the declarative syntax works, using
+the underlying methods and mechanisms provided by the library's
+`Aggregate` base class for event sourced aggregates. Please read the
+[documentation](https://eventsourcing.readthedocs.io/) for more information.
+
+The `World` aggregate below has a command method `make_it_so()` which
+has an argument `what`. The `make_it_so()` method triggers a domain
+event `SomethingHappened` with the value of the `what` arg.
+The event class `SomethingHappened` is interpreted as a Python
+dataclass, so that the annotation `what: str` is used to define
+the class `__init__()` method. The `SomethingHappened` has an
+`apply()` method that has a `World` aggregate argument. The
+`apply()` method body appends the value of the event's
+`what` attribute to the `self.history` of the `World` aggregate.
+The method `trigger_event()` is defined on the library's
+`Aggregate` base class, and constructs the given event class
+and applies the event to the aggregate.
+
 
 ```python
 
@@ -205,6 +264,8 @@ class World(Aggregate):
         self.history.append(what)
 
 ```
+
+# Application
 
 Let's define a test that uses the library's event sourced application class
 to exercise the domain model aggregate defined above.
