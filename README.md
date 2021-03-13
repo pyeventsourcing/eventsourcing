@@ -318,7 +318,7 @@ assert type(pending_events[1]).__name__ == 'SomethingHappened'
 ## Application
 
 Let's define a test that uses the library's event sourced application class
-to exercise the domain model aggregate defined above.
+to exercise the `World` aggregate defined above.
 
 ```python
 from eventsourcing.application import AggregateNotFound, Application
