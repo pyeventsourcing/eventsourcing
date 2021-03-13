@@ -2,6 +2,8 @@
 [![Build Status](https://travis-ci.org/johnbywater/eventsourcing.svg?branch=master)](https://travis-ci.org/johnbywater/eventsourcing)
 [![Coverage Status](https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg?branch=master#)](https://coveralls.io/github/johnbywater/eventsourcing)
 
+# Event Sourcing in Python
+
 A library for event sourcing in Python.
 
 ## Installation
@@ -123,7 +125,7 @@ Please note, it is recommended to use an imperative style when
 naming command methods, and to name event classes using past
 participles.
 
-# Domain model
+## Domain model
 
 The examples below explain how the declarative syntax works, using
 the underlying methods and mechanisms provided by the library's
@@ -270,7 +272,7 @@ class World(Aggregate):
 
 ```
 
-# Application
+## Application
 
 Let's define a test that uses the library's event sourced application class
 to exercise the domain model aggregate defined above.
