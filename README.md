@@ -17,6 +17,11 @@ event called `SomethingHappened` that appends the given value
 of `what` to the `history` attribute of an instance of the
 aggregate.
 
+It is generally recommended to use an imperative style when
+naming command methods, and to name event classes using past
+participles.
+
+
 ```python
 from eventsourcing.domain import Aggregate, event
 
@@ -57,10 +62,6 @@ assert len(pending_events) == 2
 assert type(pending_events[0]).__name__ == 'Created'
 assert type(pending_events[1]).__name__ == 'SomethingHappened'
 ```
-
-It is generally recommended to use an imperative style when
-naming command methods, and to name event classes using past
-participles.
 
 
 ## Installation
