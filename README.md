@@ -72,11 +72,6 @@ the Python Package Index.
 
 Please refer to the [documentation](https://eventsourcing.readthedocs.io/) for installation and usage guides.
 
-Register questions, requests and [issues on GitHub](https://github.com/johnbywater/eventsourcing/issues).
-
-There is a [Slack channel](https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTJjMmJjYTc3ODQ3M2YwOTMwMDJlODJkMjk3ZmE1MGYyZDM4MjIxODZmYmVkZmJkODRhZDg5N2MwZjk1YzU3NmY)
-for this project, which you are [welcome to join](https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTJjMmJjYTc3ODQ3M2YwOTMwMDJlODJkMjk3ZmE1MGYyZDM4MjIxODZmYmVkZmJkODRhZDg5N2MwZjk1YzU3NmY).
-
 
 ## Features
 
@@ -449,3 +444,9 @@ os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
 ## Project
 
 This project is [hosted on GitHub](https://github.com/johnbywater/eventsourcing).
+
+Please register questions, requests and [issues on GitHub](https://github.com/johnbywater/eventsourcing/issues), or
+post in the project's Slack channel.
+
+There is a [Slack channel](https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTJjMmJjYTc3ODQ3M2YwOTMwMDJlODJkMjk3ZmE1MGYyZDM4MjIxODZmYmVkZmJkODRhZDg5N2MwZjk1YzU3NmY)
+for this project, which you are [welcome to join](https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTJjMmJjYTc3ODQ3M2YwOTMwMDJlODJkMjk3ZmE1MGYyZDM4MjIxODZmYmVkZmJkODRhZDg5N2MwZjk1YzU3NmY).
