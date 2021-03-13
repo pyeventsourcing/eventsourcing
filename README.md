@@ -386,8 +386,8 @@ def test(app: Application):
 
     # Project application event notifications.
     reader = NotificationLogReader(app.log)
-    notification_ids = [n.id for n in reader.read(start=1)]
-    assert notification_ids == [1, 2, 3, 4]
+    notifications = reader.read(start=1)
+    assert len(list(notifications)) == 4
 
     # - create two more aggregates
     world2 = World()
@@ -397,8 +397,8 @@ def test(app: Application):
     app.save(world3)
 
     # - get the new event notifications from the reader
-    notification_ids = [n.id for n in reader.read(start=5)]
-    assert notification_ids == [5, 6]
+    notifications = reader.read(start=5)
+    assert len(list(notifications)) == 2
 ```
 
 We can run the code in default "development" environment (uses
@@ -450,7 +450,7 @@ os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.sqlite:Factory'
 os.environ['SQLITE_DBNAME'] = ':memory:'  # Or path to a file on disk.
 ```
 
-Run the code in "production" environment.
+Run the code in "production" SQLite environment.
 
 ```python
 # Construct an application object.
@@ -463,7 +463,7 @@ test(app)
 assert count_visible_values(app) == 0
 ```
 
-Configure "production" environment using Postgres infrastructure.
+Configure "production" environment using PostgresSQL infrastructure.
 
 ```python
 import os
@@ -482,12 +482,25 @@ os.environ['COMPRESSOR_TOPIC'] = "eventsourcing.compressor:ZlibCompressor"
 
 # Use Postgres infrastructure.
 os.environ['INFRASTRUCTURE_FACTORY'] = (
-    'eventsourcing.postgresrecorders:Factory'
+    'eventsourcing.postgres:Factory'
 )
 os.environ["POSTGRES_DBNAME"] = "eventsourcing"
 os.environ["POSTGRES_HOST"] = "127.0.0.1"
 os.environ["POSTGRES_USER"] = "eventsourcing"
 os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
+```
+
+Run the code in "production" PostgreSQL environment.
+
+```python
+# Construct an application object.
+app = Application()
+
+# Run the test.
+test(app)
+
+# Records are encrypted (values not visible in stored data).
+assert count_visible_values(app) == 0
 ```
 
 

@@ -6,11 +6,56 @@ from tempfile import NamedTemporaryFile
 from unittest.case import TestCase
 
 import eventsourcing
+from eventsourcing.postgres import PostgresDatastore
+from eventsourcing.tests.ramdisk import tmpfile_uris
+from eventsourcing.tests.test_postgres import drop_postgres_table
 
 base_dir = dirname(dirname(os.path.abspath(eventsourcing.__file__)))
 
 
 class TestDocs(TestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.uris = tmpfile_uris()
+
+        os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.postgres:Factory"
+        os.environ["POSTGRES_DBNAME"] = "eventsourcing"
+        os.environ["POSTGRES_HOST"] = "127.0.0.1"
+        os.environ["POSTGRES_USER"] = "eventsourcing"
+        os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
+
+        db = PostgresDatastore(
+            os.getenv("POSTGRES_DBNAME"),
+            os.getenv("POSTGRES_HOST"),
+            os.getenv("POSTGRES_USER"),
+            os.getenv("POSTGRES_PASSWORD"),
+        )
+        drop_postgres_table(db, "application_events")
+
+        del(os.environ["INFRASTRUCTURE_FACTORY"])
+        del(os.environ["POSTGRES_DBNAME"])
+        del(os.environ["POSTGRES_HOST"])
+        del(os.environ["POSTGRES_USER"])
+        del(os.environ["POSTGRES_PASSWORD"])
+
+    def tearDown(self) -> None:
+        keys = [
+            "INFRASTRUCTURE_FACTORY",
+            "POSTGRES_DBNAME",
+            "POSTGRES_HOST",
+            "POSTGRES_USER",
+            "POSTGRES_PASSWORD",
+            "SQLITE_DBNAME",
+            "CIPHER_TOPIC",
+            "CIPHER_KEY",
+            "COMPRESSOR_TOPIC",
+        ]
+        for key in keys:
+            try:
+                del(os.environ[key])
+            except KeyError:
+                pass
+
     def test_readme(self):
         self._out = ""
 
