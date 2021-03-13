@@ -1106,7 +1106,7 @@ Dataclass-style init methods
 ----------------------------
 
 Similarly, the ``Page`` and ``Index`` aggregates defined in the above
-discussion about :ref:`namespaced IDs <Namespaced IDs>` can be expressed more
+:ref:`discussion about namespaced IDs <Namespaced IDs>` can be expressed more
 concisely in the following way. The example below also shows how Python's
 dataclass annotations can be used to define an aggregate's ``__init__()``
 method, from which the created event class will be defined.
