@@ -151,7 +151,6 @@ and applies the event to the aggregate.
 
 from eventsourcing.domain import Aggregate, AggregateEvent
 
-
 class World(Aggregate):
     def __init__(self):
         self.history = []
@@ -179,8 +178,7 @@ method is used to apply the event attributes to the aggregate.
 
 ```python
 
-from eventsourcing.domain import event
-
+from eventsourcing.domain import Aggregate, AggregateEvent, event
 
 class World(Aggregate):
     def __init__(self):
@@ -208,6 +206,7 @@ In this case, the decorator will automatically define an event
 class using the decorated method arguments and the given event name.
 
 ```python
+from eventsourcing.domain import Aggregate, event
 
 class World(Aggregate):
     def __init__(self):
@@ -230,6 +229,7 @@ name by its underscores, capitalising each part, and then
 joining the parts to make the class name `SomethingHappened`.
 
 ```python
+from eventsourcing.domain import Aggregate, event
 
 class World(Aggregate):
     def __init__(self):
@@ -262,7 +262,6 @@ be more natural to use a past participle as the method name.
 
 from eventsourcing.domain import Aggregate, event
 
-
 class World(Aggregate):
     def __init__(self):
         self.history = []
@@ -270,7 +269,6 @@ class World(Aggregate):
     @event("SomethingHappened")
     def make_it_so(self, what):
         self.history.append(what)
-
 ```
 
 ## Application
