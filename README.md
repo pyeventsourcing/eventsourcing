@@ -81,7 +81,6 @@ aggregate.
 ```python
 from eventsourcing.domain import Aggregate, event
 
-
 class World(Aggregate):
     def __init__(self):
         self.history = []
