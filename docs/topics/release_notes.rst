@@ -17,23 +17,22 @@ Version 9.x
 
 Version 9.x series is a rewrite of the library that distills most of
 the best parts of the previous versions of the library into faster
-and simpler code. The highlight is the new
-:ref:`declarative syntax <Declarative syntax>` for event sourced
-domain models. This version is recommended for new projects.
+and simpler code. This version is recommended for new projects.
 It is not backwards-compatible with previous versions, however
 the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
-Version 9.0.0
--------------
-
-*Currently under development.*
+Version 9.0.0 (released 13 March 2021)
+--------------------------------------
 
 First release of the distilled version of the library. Compared with
 previous versions, the code and documentation are much simpler, and
 focus directly on expressing the important concerns without the
 extraneous detail and optional alternatives that had been accumulated
 over the past few years of learning.
+
+The highlight is the new :ref:`declarative syntax <Declarative syntax>`
+for event sourced domain models.
 
 Dedicated persistence modules for SQLite and PostgresSQL have been
 introduced, and support for SQLAlchemy and Django and other databases
