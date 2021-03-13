@@ -654,19 +654,15 @@ class MetaAggregate(ABCMeta):
                     )
                     original_methods[event_cls] = original_method
                     setattr(cls, event_cls_name, event_cls)
+        # Inspect the parameters of the create_id method.
+        cls._create_id_param_names = []
+        for name, param in inspect.signature(cls.create_id).parameters.items():
+            if param.kind in [param.KEYWORD_ONLY, param.POSITIONAL_OR_KEYWORD]:
+                cls._create_id_param_names.append(name)
 
     def __call__(cls: "MetaAggregate", *args: Any, **kwargs: Any) -> TAggregate:
         # noinspection PyTypeChecker
         self_init: WrapperDescriptorType = cls.__init__  # type: ignore
-        # if cls._annotations_mention_id:
-        #     if "id" in kwargs:
-        #         id = kwargs.pop("id")
-        #     else:
-        #         raise TypeError(
-        #             "__init__() missing 1 required positional argument: 'id'"
-        #         )
-        # else:
-        #     id = None
         kwargs = _coerce_args_to_kwargs(
             self_init, args, kwargs, expects_id=cls._annotations_mention_id
         )
@@ -687,7 +683,7 @@ class MetaAggregate(ABCMeta):
 
     # noinspection PyShadowingBuiltins
     def _create(
-        self,
+        cls,
         event_class: Type[TAggregateCreated],
         *,
         id: Optional[UUID] = None,
@@ -700,14 +696,14 @@ class MetaAggregate(ABCMeta):
         # Construct the domain event class,
         # with an ID and version, and the
         # a topic for the aggregate class.
-        create_id_kwargs = {}
-        for param in inspect.signature(self.create_id).parameters:
-            if param in kwargs:
-                create_id_kwargs[param] = kwargs[param]
+        create_id_kwargs = {
+            k: v for k, v in kwargs.items() if k in cls._create_id_param_names
+        }
+
         try:
             created_event: TAggregateCreated = event_class(  # type: ignore
-                originator_topic=get_topic(self),
-                originator_id=id or self.create_id(**create_id_kwargs),
+                originator_topic=get_topic(cls),
+                originator_id=id or cls.create_id(**create_id_kwargs),
                 originator_version=1,
                 timestamp=datetime.now(tz=TZINFO),
                 **kwargs,
