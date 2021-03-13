@@ -476,8 +476,9 @@ assert count_visible_values(app) == 0
 
 Configure "production" environment using PostgresSQL infrastructure.
 The example below also uses zlib to compress stored events and AES to
-encrypt stored events. It is assumed that the database and database
-user have already been created.
+encrypt stored events. It is assumed the database and database
+user have already been created, and the database server is running
+locally.
 
 ```python
 import os
