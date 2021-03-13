@@ -66,6 +66,21 @@ assert type(pending_events[0]).__name__ == 'Created'
 assert type(pending_events[1]).__name__ == 'SomethingHappened'
 ```
 
+The events can be stored and used to reconstruct the state of the aggregate.
+
+```python
+
+copy = None
+for event in pending_events:
+    copy = event.mutate(copy)
+
+assert copy.history == world.history
+assert copy.id == world.id
+assert copy.version == world.version
+assert copy.created_on == world.created_on
+assert copy.modified_on == world.modified_on
+```
+
 This example can be adjusted and extended for any event sourced domain model.
 
 ## Installation
