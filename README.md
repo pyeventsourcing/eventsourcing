@@ -65,6 +65,7 @@ assert type(pending_events[0]).__name__ == 'Created'
 assert type(pending_events[1]).__name__ == 'SomethingHappened'
 ```
 
+This example can be adjusted and extended for any event sourced domain model.
 
 ## Installation
 
