@@ -32,11 +32,11 @@ class TestDocs(TestCase):
         )
         drop_postgres_table(db, "application_events")
 
-        del(os.environ["INFRASTRUCTURE_FACTORY"])
-        del(os.environ["POSTGRES_DBNAME"])
-        del(os.environ["POSTGRES_HOST"])
-        del(os.environ["POSTGRES_USER"])
-        del(os.environ["POSTGRES_PASSWORD"])
+        del os.environ["INFRASTRUCTURE_FACTORY"]
+        del os.environ["POSTGRES_DBNAME"]
+        del os.environ["POSTGRES_HOST"]
+        del os.environ["POSTGRES_USER"]
+        del os.environ["POSTGRES_PASSWORD"]
 
     def tearDown(self) -> None:
         keys = [
@@ -52,7 +52,7 @@ class TestDocs(TestCase):
         ]
         for key in keys:
             try:
-                del(os.environ[key])
+                del os.environ[key]
             except KeyError:
                 pass
 
