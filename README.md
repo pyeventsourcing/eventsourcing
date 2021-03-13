@@ -54,6 +54,7 @@ The resulting events can be collected using the `collect_events()`
 method.
 
 ```python
+
 # Collect events.
 pending_events = world.collect_events()
 assert len(pending_events) == 2
@@ -157,6 +158,15 @@ class World(Aggregate):
 
         def apply(self, aggregate: "World"):
             aggregate.history.append(self.what)
+
+
+world = World()
+world.make_it_so('dinosaurs')
+assert world.history[0] == 'dinosaurs'
+pending_events = world.collect_events()
+assert len(pending_events) == 2
+assert type(pending_events[0]).__name__ == 'Created'
+assert type(pending_events[1]).__name__ == 'SomethingHappened'
 ```
 
 An alternative way of expressing the same thing is to define a
@@ -187,6 +197,16 @@ class World(Aggregate):
     @event(SomethingHappened)
     def something_happened(self, what: str):
         self.history.append(what)
+
+
+world = World()
+world.make_it_so('dinosaurs')
+assert world.history[0] == 'dinosaurs'
+pending_events = world.collect_events()
+assert len(pending_events) == 2
+assert type(pending_events[0]).__name__ == 'Created'
+assert type(pending_events[1]).__name__ == 'SomethingHappened'
+
 ```
 
 It is sometimes useful to have the event class defined
@@ -212,6 +232,16 @@ class World(Aggregate):
     @event("SomethingHappened")
     def something_happened(self, what: str):
         self.history.append(what)
+
+
+world = World()
+world.make_it_so('dinosaurs')
+assert world.history[0] == 'dinosaurs'
+pending_events = world.collect_events()
+assert len(pending_events) == 2
+assert type(pending_events[0]).__name__ == 'Created'
+assert type(pending_events[1]).__name__ == 'SomethingHappened'
+
 ```
 
 An alternative way of expressing the same thing is to
@@ -235,6 +265,16 @@ class World(Aggregate):
     @event
     def something_happened(self, what: str):
         self.history.append(what)
+
+
+world = World()
+world.make_it_so('dinosaurs')
+assert world.history[0] == 'dinosaurs'
+pending_events = world.collect_events()
+assert len(pending_events) == 2
+assert type(pending_events[0]).__name__ == 'Created'
+assert type(pending_events[1]).__name__ == 'SomethingHappened'
+
 ```
 
 For trivial commands that would simply trigger an event
@@ -263,6 +303,16 @@ class World(Aggregate):
     @event("SomethingHappened")
     def make_it_so(self, what):
         self.history.append(what)
+
+
+world = World()
+world.make_it_so('dinosaurs')
+assert world.history[0] == 'dinosaurs'
+pending_events = world.collect_events()
+assert len(pending_events) == 2
+assert type(pending_events[0]).__name__ == 'Created'
+assert type(pending_events[1]).__name__ == 'SomethingHappened'
+
 ```
 
 ## Application
