@@ -14,8 +14,8 @@ The `World` class uses the `Aggregate` class and the `event`
 decorator from the `eventsourcing.domain` module. The `World`
 class has a command method `make_it_so()` which triggers an
 event called `SomethingHappened` that appends the given value
-of `what` to the `history` attribute of an instance of the
-aggregate. It is generally recommended to use an imperative
+of `what` to the `history` attribute of an instance of `World`.
+It is generally recommended to use an imperative
 style when naming command methods, and to name event classes
 using past participles.
 
