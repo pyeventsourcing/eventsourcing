@@ -70,7 +70,10 @@ and systems.
 ## Synopsis
 
 The example below uses the library's new declarative syntax to
-define an event sourced aggregate called `World`.
+define an event sourced aggregate called `World`. It has a
+command method `make_it_so()` which triggers an event called
+`SomethingHappened` that appends the given value of `what`
+to the `history` attribute of an instance of the aggregate.
 
 ```python
 from eventsourcing.domain import Aggregate, event
@@ -86,18 +89,13 @@ class World(Aggregate):
 ```
 
 When the `World` aggregate class is called, a created event object is
-created and used to construct an instance of `World`.
-
-When the command method `make_it_so()` is called on an instance of
+created and used to construct an instance of `World`. And when the
+command method `make_it_so()` is called on an instance of
 `World`, a `SomethingHappened` event is triggered with a value of
 `what`, which results in the `what` value being appended to the
 `history` of the `World` aggregate instance.
 
-The resulting events can be collected using the `collect_events()`
-method.
-
 ```python
-
 # Create a new aggregate.
 world = World()
 
@@ -106,7 +104,12 @@ world.make_it_so('dinosaurs')
 
 # View aggregate state.
 assert world.history[0] == 'dinosaurs'
+```
 
+The resulting events can be collected using the `collect_events()`
+method.
+
+```python
 # Collect events.
 pending_events = world.collect_events()
 assert len(pending_events) == 2
