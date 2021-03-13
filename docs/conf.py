@@ -6,17 +6,17 @@ import sys
 import types
 from os.path import abspath, dirname
 
-import django
+# import django
 
 sys.path.append(str(dirname(dirname(abspath(__file__)))))
 
 from eventsourcing import __version__
 
 
-os.environ['DJANGO_SETTINGS_MODULE'] = 'eventsourcing.tests.djangoproject.djangoproject.settings'
+# os.environ['DJANGO_SETTINGS_MODULE'] = 'eventsourcing.tests.djangoproject.djangoproject.settings'
 
 
-django.setup()
+# django.setup()
 
 #
 # eventsourcing documentation build configuration file, created by
@@ -68,7 +68,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'eventsourcing'
-copyright = '2019, John Bywater'
+copyright = '2021, John Bywater'
 author = 'John Bywater'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -107,8 +107,21 @@ todo_include_todos = False
 # html_theme = 'alabaster'
 # html_theme = 'classic'
 
-import sphinx_rtd_theme
+
+# import python_docs_theme
+# html_theme = "python_docs_theme"
+
+# html_context = {
+#     'theme_root_name': "Python",
+#     'theme_root_url': "https://github.com/johnbywater/eventsourcing",
+#     'theme_root_icon': "py.png",
+#     'theme_root_include_title': True,
+# }
+
+
 html_theme = "sphinx_rtd_theme"
+
+import sphinx_rtd_theme
 html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # html_theme_path = [alabaster.get_html_theme_path()]

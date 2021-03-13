@@ -6,43 +6,11 @@ from tempfile import NamedTemporaryFile
 from unittest.case import TestCase
 
 import eventsourcing
-from eventsourcing.domain.model.events import (
-    assert_event_handlers_empty,
-    clear_event_handlers,
-)
-from eventsourcing.infrastructure.sqlalchemy.datastore import (
-    SQLAlchemyDatastore,
-    SQLAlchemySettings,
-)
-from eventsourcing.infrastructure.sqlalchemy.records import Base
 
 base_dir = dirname(dirname(os.path.abspath(eventsourcing.__file__)))
 
 
 class TestDocs(TestCase):
-    def setUp(self) -> None:
-        assert_event_handlers_empty()
-
-    def tearDown(self):
-        clear_event_handlers()
-
-        # Need to drop the stored events, because the __main__#Order topics
-        # mess up the multiprocessing tests (because the Orders application
-        # has the same ID so events from one test cause another to fail).
-        os.environ[
-            "DB_URI"
-        ] = "mysql+pymysql://{}:{}@{}/eventsourcing?charset=utf8mb4&binary_prefix=true".format(
-            os.getenv("MYSQL_USER", "eventsourcing"),
-            os.getenv("MYSQL_PASSWORD", "eventsourcing"),
-            os.getenv("MYSQL_HOST", "127.0.0.1"),
-        )
-        database = SQLAlchemyDatastore(settings=SQLAlchemySettings())
-        database.setup_connection()
-        # Might as well drop everything....
-        Base.metadata.drop_all(database._engine)
-
-        del os.environ["DB_URI"]
-
     def test_readme(self):
         self._out = ""
 
@@ -51,10 +19,10 @@ class TestDocs(TestCase):
             self.skipTest("Skipped test, README file not found: {}".format(path))
         self.check_code_snippets_in_file(path)
 
-        path = join(base_dir, "README_example_with_axon.md")
-        if not os.path.exists(path):
-            self.skipTest("Skipped test, README file not found: {}".format(path))
-        self.check_code_snippets_in_file(path)
+        # path = join(base_dir, "README_example_with_axon.md")
+        # if not os.path.exists(path):
+        #     self.skipTest("Skipped test, README file not found: {}".format(path))
+        # self.check_code_snippets_in_file(path)
 
     def test_docs(self):
 
@@ -73,8 +41,14 @@ class TestDocs(TestCase):
             for name in filenames:
                 if name in skipped:
                     continue
-                if name.endswith(".rst"):
-                    # if name.endswith('domainmodel.rst'):
+                # if name.endswith(".rst"):
+                if (
+                    name.endswith("persistence.rst")
+                    or name.endswith("domain.rst")
+                    or name.endswith("application.rst")
+                    or name.endswith("system.rst")
+                    or name.endswith("examples.rst")
+                ):
                     # if name.endswith('quick_start.rst'):
                     # if name.endswith('aggregates_in_ddd.rst'):
                     # if name.endswith('example_application.rst'):
@@ -100,7 +74,6 @@ class TestDocs(TestCase):
             # print("Testing code snippets in file: {}".format(path))
             try:
                 self.check_code_snippets_in_file(path)
-                assert_event_handlers_empty()
             except self.failureException as e:
                 failures.append(e)
                 failed.append(path)
@@ -129,14 +102,16 @@ class TestDocs(TestCase):
         is_md = False
         is_rst = False
         last_line = ""
+        is_literalinclude = False
         with open(doc_path) as doc_file:
-            for orig_line in doc_file:
+            for line_index, orig_line in enumerate(doc_file):
                 line = orig_line.strip("\n")
                 if line.startswith("```python"):
                     # Start markdown code block.
                     if is_rst:
                         self.fail(
-                            "Markdown code block found after restructured text block in same file."
+                            "Markdown code block found after restructured text block "
+                            "in same file."
                         )
                     is_code = True
                     is_md = True
@@ -145,7 +120,7 @@ class TestDocs(TestCase):
                 elif is_code and is_md and line.startswith("```"):
                     # Finish markdown code block.
                     if not num_code_lines_in_block:
-                        self.fail("No lines of code in block")
+                        self.fail(f"No lines of code in block: {line_index + 1}")
                     is_code = False
                     line = ""
                 elif is_code and is_rst and line.startswith("```"):
@@ -155,21 +130,40 @@ class TestDocs(TestCase):
                     )
                 elif (
                     line.startswith(".. code:: python")
-                    and "exclude-when-testing" not in last_line
+                    or line.strip() == ".."
+                    # and "exclude-when-testing" not in last_line
                 ):
                     # Start restructured text code block.
                     if is_md:
                         self.fail(
-                            "Restructured text code block found after markdown block in same file."
+                            "Restructured text code block found after markdown block "
+                            "in same file."
                         )
                     is_code = True
                     is_rst = True
                     line = ""
                     num_code_lines_in_block = 0
+                elif line.startswith(".. literalinclude::"):
+                    is_literalinclude = True
+                    line = ""
+
+                elif is_literalinclude:
+                    if "pyobject" in line:
+                        # Assume ".. literalinclude:: ../../xxx/xx.py"
+                        # Or ".. literalinclude:: ../xxx/xx.py"
+                        module = last_line.strip().split(" ")[-1][:-3]
+                        module = module.lstrip("./")
+                        module = module.replace("/", ".")
+                        # Assume "    :pyobject: xxxxxx"
+                        pyobject = line.strip().split(" ")[-1]
+                        statement = f"from {module} import {pyobject}"
+                        line = statement
+                        is_literalinclude = False
+
                 elif is_code and is_rst and line and not line.startswith(" "):
                     # Finish restructured text code block.
                     if not num_code_lines_in_block:
-                        self.fail("No lines of code in block")
+                        self.fail(f"No lines of code in block: {line_index + 1}")
                     is_code = False
                     line = ""
                 elif is_code:

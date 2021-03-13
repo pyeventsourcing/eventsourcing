@@ -12,6 +12,115 @@ has been improved in a way that neither breaks backwards compatibility
 nor extends the functionality of the library.
 
 
+Version 9.x
+===========
+
+Version 9.x series is a rewrite of the library that distills most of
+the best parts of the previous versions of the library into faster
+and simpler code. The highlight is the new
+:ref:`declarative syntax <Declarative syntax>` for event sourced
+domain models. This version is recommended for new projects.
+It is not backwards-compatible with previous versions, however
+the underlying principles are the same, and so conversion of
+code and stored events is very possible.
+
+Version 9.0.0
+-------------
+
+*Currently under development.*
+
+First release of the distilled version of the library. Compared with
+previous versions, the code and documentation are much simpler, and
+focus directly on expressing the important concerns without the
+extraneous detail and optional alternatives that had been accumulated
+over the past few years of learning.
+
+Dedicated persistence modules for SQLite and PostgresSQL have been
+introduced, and support for SQLAlchemy and Django and other databases
+has been removed (the plan being to support these in separate package
+distributions). The default "plain old Python object" infrastructure
+continues to exist, and now offers event storage and retrieval
+performance of around 20x the speed of using PostgreSQL and around
+4x the speed of using SQLite in memory.
+
+The storage format is more efficient, because originator IDs and
+originator versions are removed from the stored state before serialisation,
+then reinstated on serialisation.
+
+Database sequences are used generate event notifications rather than the
+use of "INSERT SELECT" SQL statement avoids table conflicts that sometimes
+caused conflicts and exceptions when storing events that could only
+be resolved with retries. Although this leads to notification ID
+sequences that may have gaps, the use of sequences means there is
+no risk of event notifications being inserted in the gaps after later
+event notifications have been processed, which was the motivation
+for using gapless sequences in previous versions. The notification log
+and log reader classes have been adjusted to support the possible
+existence of gaps in the notification log sequence.
+
+The transcoder is more easily extensible, with the new style for defining
+and registering individual transcoding objects to support individual types
+of object that are not supported by default.
+
+Domain event classes have been greatly simplified, with the deep hierarchy
+of entity and event classes removed in favour of the simple aggregate base
+class.
+
+The repository class has been changed to provide a single get() method. It no
+longer supports the Python "indexing" square-bracket syntax, so that there is
+just one way to get an aggregate regardless of whether the requested version
+is specified or not.
+
+Application configuration of persistence infrastructure is now driven by
+environment variables rather than constructor parameters, leading to a
+simpler interface for application object classes. The mechanism for storing
+aggregates has been simplified, so that aggregates are saved using the
+application "save" method. A new "notify" method has been added to the
+application class, to support applications that need to know when new
+events have just been recorded.
+
+The mechanism by which aggregates published their events and a
+"persistence subscriber" subscribed and persisted published domain events
+has been completely removed, since aggregates that are saved always need
+some persistence infrastructure to store the events, and it is the
+responsibility of the application to bring together the domain model and
+infrastructure, so that when an aggregate can be saved there is always
+an application.
+
+Process application policy methods are now given a process event object
+and will use it to collect domain events, using its "save" method, which
+has the same method signature as the application "save" method. This
+allows policies to accumulate new events on the process event object
+in the order they were generated, whereas previously if new events
+were generated on one aggregate and then a second and then the first,
+the events of one aggregate would be stored first and the events of
+the second aggregate would be stored afterwards, leading to an incorrect
+ordering of the domain events in the notification log. The process
+event object existed in previous versions, was used to keep track
+of the position in a notification log of the event notification
+that was being processed by a policy, and continues to be used
+for that purpose.
+
+The system runners have been reduced to the single-threaded and
+multi-threaded runners, with support for running with Ray and gRPC
+and so on removed (the plan being to support these in separate package
+distributions).
+
+Altogether, these changes mean the core library now depends only on
+the PythonStandard Library, except for the optional extra dependencies
+on a cryptographic library (PyCryptodome) and a PostgresSQL driver (psycopg2),
+and the dependencies of development tools. Altogether, these changes make the
+test suite much faster to run (several seconds rather than several minutes for
+the previous version). These changes make the build time on CI services much
+quicker (around one minute, rather than nearly ten minutes for the previous
+version). And these changes make the library more approachable and fun for
+users and library developers. Test coverage has been increased to 100% line
+and branch coverage. Also mypy and flake8 checking is done.
+
+The documentation has been rewritten to focus more on usage of the library code,
+and less on explaining surrounding concepts and considerations.
+
+
 Version 8.x
 ===========
 
@@ -80,7 +189,7 @@ Added optional correlation and causation IDs for domain events,
 so that a story can be traced through a system of applications.
 
 Added AxonApplication and AxonRecordManager so that Axon Server can
-be used as an event store by event sourced applications.
+be used as an event store by event-sourced applications.
 
 Added RayRunner, which allows a system of applications to be run with
 the Ray framework.

@@ -20,6 +20,9 @@ To setup PostgreSQL:
 
 $ brew install postgresql
 $ brew services start postgresql
+$ psql postgres
+postgres=# CREATE DATABASE eventsourcing;
+postgres=# CREATE USER eventsourcing WITH PASSWORD 'eventsourcing';
 
 
 To setup Redis:

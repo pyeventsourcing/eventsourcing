@@ -1,5 +1,3 @@
-# Event Sourcing in Python
-
 [![Latest Release](https://badge.fury.io/py/eventsourcing.svg)](https://pypi.org/project/eventsourcing/)
 [![Build Status](https://travis-ci.org/johnbywater/eventsourcing.svg?branch=master)](https://travis-ci.org/johnbywater/eventsourcing)
 [![Coverage Status](https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg?branch=master)](https://coveralls.io/github/johnbywater/eventsourcing)
@@ -24,129 +22,210 @@ for this project, which you are [welcome to join](https://join.slack.com/t/event
 
 ## Features
 
-**Event store** — appends and retrieves domain events. Uses a
-sequenced item mapper with a record manager to map domain events
-to database records in ways that can be easily extended and replaced.
+**Domain models and applications** — base classes for domain model aggregates
+and applications. Suggests how to structure an event-sourced application.
 
-**Layer base classes** — suggest how to structure an event sourced application.
-The library has base classes for application objects, domain entities, entity repositories,
-domain events of various types, mapping strategies, snapshotting strategies, cipher strategies,
-etc. They are well factored, relatively simple, and can be easily extended for your own
-purposes. If you wanted to create a domain model that is entirely stand-alone (recommended by
-purists for maximum longevity), you might start by replicating the library classes.
+**Flexible event store** — flexible persistence of domain events. Combines
+an event mapper and an event recorder in ways that can be easily extended.
+Mapper uses a transcoder that can be easily extended to support custom
+model object types. Recorders supporting different databases can be easily
+substituted and configured with environment variables.
 
-**Notifications and projections** — reliable propagation of application
-events with pull-based notifications allows the application state to be
-projected accurately into replicas, indexes, view models, and other applications.
-
-**Process and systems** — scalable event processing with application pipelines. Runnable
-with single thread, multiprocessing on a single machine, and in a cluster of machines
-using the actor model. Parallel pipelines are synchronised with causal dependencies.
-
-
-### Additional features
-
-**Versioning** - allows model changes to be introduced after an application
-has been deployed. Both domain events and domain entity classes can be versioned.
-The recorded state of an older version can be upcast to be compatible with a new
-version. Stored events and snapshots are upcast from older versions
-to new versions before the event or entity object is reconstructed.
-
-**Snapshotting** — avoids replaying an entire event stream to
-obtain the state of an entity. A snapshot strategy is included which reuses
-the capabilities of this library by implementing snapshots as events.
-
-**Hash chaining** — Sequences of events can be hash-chained, and the entire sequence
-of events checked for data integrity. Information lost in transit or on the disk from
-database corruption can be detected. If the last hash can be independently validated,
-then so can the entire sequence.
-
-**Correlation and causation IDs** - Domain events can easily be given correlation and
-causation IDs, which allows a story to be traced through a system of applications.
-
-**Compression** - reduces the size of stored domain events and snapshots, usually
+**Application-level encryption and compression** — encrypts and decrypts events inside the
+application. This means data will be encrypted in transit across a network ("on the wire")
+and at disk level including backups ("at rest"), which is a legal requirement in some
+jurisdictions when dealing with personally identifiable information (PII) for example
+the EU's GDPR. Compression reduces the size of stored domain events and snapshots, usually
 by around 25% to 50% of the original size. Compression reduces the size of data
 in the database and decreases transit time across a network.
 
-**Application-level encryption** — encrypts and decrypts stored events and snapshots,
-using a cipher strategy passed as an option to the sequenced item mapper. Can be used
-to encrypt some events, or all events, or not applied at all (the default). This means
-data will be encrypted in transit across a network ("on the wire") and at disk level
-including backups ("at rest"), which is a legal requirement in some jurisdictions
-when dealing with personally identifiable information (PII) for example the EU's GDPR.
+**Snapshotting** — reduces access-time for aggregates with many domain events.
+
+**Versioning** - allows domain model changes to be introduced after an application
+has been deployed. Both domain events and aggregate classes can be versioned.
+The recorded state of an older version can be upcast to be compatible with a new
+version. Stored events and snapshots are upcast from older versions
+to new versions before the event or aggregate object is reconstructed.
 
 **Optimistic concurrency control** — ensures a distributed or horizontally scaled
 application doesn't become inconsistent due to concurrent method execution. Leverages
 optimistic concurrency controls in adapted database management systems.
 
-**Worked examples** — simple example application and systems, with an example entity
-class, example domain events, and an example database table. Plus lots of examples
-in the documentation.
+**Notifications and projections** — reliable propagation of application
+events with pull-based notifications allows the application state to be
+projected accurately into replicas, indexes, view models, and other applications.
+Supports materialized views and CQRS.
+
+**Event-driven systems** — reliable event processing. Event-driven systems
+can be defined independently of particular persistence infrastructure and mode of
+running.
+
+**Detailed documentation** — documentation provides general overview, introduction
+of concepts, explanation of usage, and detailed descriptions of library classes.
+
+**Worked examples** — includes examples showing how to develop aggregates, applications
+and systems.
 
 
 ## Synopsis
 
-Define a domain model. Here we define a model with one aggregate root
-class called "World", which has a command method called "make_it_so" that
-triggers a domain event called "SomethingHappened", which mutates the
-aggregate by appending the "what" of the domain event to the "history"
-of the world.
+Let's define a domain model that has an aggregate called `World`,
+which has a command method called `make_it_so()`, that triggers a
+domain event `SomethingHappened`, which has an `apply()` method
+that applies the event to the aggregate by appending the `what` of
+the domain event to the `self.history` of a `World`. The event class
+is interpreted by the library as a Python dataclass. The method
+`trigger_event()` is defined on the library's `Aggregate` base class.
+
+Please note, generally it is recommended to use an imperative style
+when naming command methods, and to name events using past participles.
 
 ```python
-from eventsourcing.domain.model.aggregate import AggregateRoot
+
+from eventsourcing.domain import Aggregate, AggregateEvent
 
 
-class World(AggregateRoot):
-
-    def __init__(self, **kwargs):
-        super(World, self).__init__(**kwargs)
+class World(Aggregate):
+    def __init__(self):
         self.history = []
 
-    def make_it_so(self, something):
-        self.__trigger_event__(World.SomethingHappened, what=something)
+    def make_it_so(self, what: str):
+        self.trigger_event(self.SomethingHappened, what=what)
 
-    class SomethingHappened(AggregateRoot.Event):
-        def mutate(self, aggregate):
+    class SomethingHappened(AggregateEvent):
+        what: str
+
+        def apply(self, aggregate: "World"):
             aggregate.history.append(self.what)
 ```
 
-Generate a cipher key (optional).
+An alternative way of expressing the same thing is to define a
+second method on the aggregate which is decorated with the library's
+`@event` decorator. This decorated method will do the work of triggering
+and applying an event. The command method can then call the decorated
+method rather than triggering an event directly using the `trigger_event()`
+method. In this case, the event class is defined without an `apply()`
+method, the decorator mentions the event class, and the decorated method
+arguments must match the event attributes. When the decorated method is
+called, the decorator triggers the event, and the body of the decorated
+method is used to apply the event attributes to the aggregate.
 
 ```python
-from eventsourcing.utils.random import encoded_random_bytes
 
-# Keep this safe.
-cipher_key = encoded_random_bytes(num_bytes=32)
+from eventsourcing.domain import event
+
+
+class World(Aggregate):
+    def __init__(self):
+        self.history = []
+
+    def make_it_so(self, what: str):
+        self.something_happened(what)
+
+    class SomethingHappened(AggregateEvent):
+        what: str
+
+    @event(SomethingHappened)
+    def something_happened(self, what: str):
+        self.history.append(what)
 ```
 
-Configure environment variables (optional).
+It is sometimes useful to have the event class defined
+explicitly, but whenever there is no need to refer to the
+event class in other places, the event class can be
+automatically generated from the method signature.
+
+A simpler way of expressing the same thing as above is simply
+to define an event name in the `@event` decorator using a string.
+In this case, the decorator will automatically define an event
+class using the decorated method arguments and the given event name.
 
 ```python
-import os
 
-# Cipher key (random bytes encoded with Base64).
-os.environ['CIPHER_KEY'] = cipher_key
+class World(Aggregate):
+    def __init__(self):
+        self.history = []
 
-# SQLAlchemy-style database connection string.
-os.environ['DB_URI'] = 'sqlite:///:memory:'
+    def make_it_so(self, what: str):
+        self.something_happened(what)
+
+    @event("SomethingHappened")
+    def something_happened(self, what: str):
+        self.history.append(what)
 ```
 
-Run the code. Construct application and use as context manager.
+An alternative way of expressing the same thing is to
+simply use the `@event` decorator without mentioning an
+event class or an event class name. In this case, an event
+class name will be constructed from the decorated method name.
+The event class name is constructed by splitting the method
+name by its underscores, capitalising each part, and then
+joining the parts to make the class name `SomethingHappened`.
 
 ```python
-from eventsourcing.application.notificationlog import NotificationLogReader
-from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
-from eventsourcing.exceptions import ConcurrencyError
 
-with SQLAlchemyApplication(persist_event_type=World.Event) as app:
+class World(Aggregate):
+    def __init__(self):
+        self.history = []
 
-    # Create new aggregate.
-    world = World.__create__()
+    def make_it_so(self, what: str):
+        self.something_happened(what)
 
-    # Aggregate not yet in repository.
-    assert world.id not in app.repository
+    @event
+    def something_happened(self, what: str):
+        self.history.append(what)
+```
 
-    # Execute commands.
+For trivial commands that would simply trigger an event
+wilh the given arguments, an alternative way of expressing
+the same thing as above is to decorate the command method
+with the `@event` decorator. In this case, when the command
+method `make_it_so()` is called an event will be triggered,
+and the command method body will be used to apply the event
+to the aggregate. Because command methods should be named
+with imperatives, and events should be named with part
+participles, it is recommended to define the name of the event
+in the decorator. Commands that need to do some work on the
+given arguments before triggering an event will need to use
+one of the styles above. Of course, in some cases it may
+be more natural to use a past participle as the method name.
+
+
+```python
+
+from eventsourcing.domain import Aggregate, event
+
+
+class World(Aggregate):
+    def __init__(self):
+        self.history = []
+
+    @event("SomethingHappened")
+    def make_it_so(self, what):
+        self.history.append(what)
+
+```
+
+Let's define a test that uses the library's event sourced application class
+to exercise the domain model aggregate defined above.
+
+```python
+from eventsourcing.application import AggregateNotFound, Application
+from eventsourcing.system import NotificationLogReader
+
+
+def test(app: Application):
+
+    # Create a new aggregate.
+    world = World()
+
+    # Unsaved aggregate not yet in application repository.
+    try:
+        app.repository.get(world.id)
+    except AggregateNotFound:
+        pass
+
+    # Execute aggregate commands.
     world.make_it_so('dinosaurs')
     world.make_it_so('trucks')
 
@@ -155,22 +234,22 @@ with SQLAlchemyApplication(persist_event_type=World.Event) as app:
     assert world.history[1] == 'trucks'
 
     # Note version of object at this stage.
-    version = world.__version__
+    version = world.version
 
     # Execute another command.
     world.make_it_so('internet')
 
     # Store pending domain events.
-    world.__save__()
+    app.save(world)
 
     # Aggregate now exists in repository.
-    assert world.id in app.repository
+    assert app.repository.get(world.id)
 
     # Show the notification log has four items.
-    assert len(app.notification_log['current'].items) == 4
+    assert len(app.log['1,10'].items) == 4
 
     # Replay stored events for aggregate.
-    copy = app.repository[world.id]
+    copy = app.repository.get(world.id)
 
     # View retrieved aggregate.
     assert isinstance(copy, World)
@@ -178,87 +257,127 @@ with SQLAlchemyApplication(persist_event_type=World.Event) as app:
     assert copy.history[1] == 'trucks'
     assert copy.history[2] == 'internet'
 
-    # Verify retrieved state (cryptographically).
-    assert copy.__head__ == world.__head__
-
-    # Delete aggregate.
-    world.__discard__()
-    world.__save__()
-
-    # Discarded aggregate not found.
-    assert world.id not in app.repository
-    try:
-        # Repository raises key error.
-        app.repository[world.id]
-    except KeyError:
-        pass
-    else:
-        raise Exception("Shouldn't get here")
-
     # Get historical state (at version from above).
-    old = app.repository.get_entity(world.id, at=version)
+    old = app.repository.get(world.id, version=version)
     assert old.history[-1] == 'trucks' # internet not happened
     assert len(old.history) == 2
 
     # Optimistic concurrency control (no branches).
+    from eventsourcing.persistence import RecordConflictError
+
     old.make_it_so('future')
     try:
-        old.__save__()
-    except ConcurrencyError:
+        app.save(old)
+    except RecordConflictError:
         pass
     else:
         raise Exception("Shouldn't get here")
 
-    # Check domain event data integrity (happens also during replay).
-    events = app.event_store.list_events(world.id)
-    last_hash = ''
-    for event in events:
-        event.__check_hash__()
-        assert event.__previous_hash__ == last_hash
-        last_hash = event.__event_hash__
-
-    # Verify stored sequence of events against known value.
-    assert last_hash == world.__head__
-
-    # Check records are encrypted (values not visible in database).
-    record_manager = app.event_store.record_manager
-    items = record_manager.get_items(world.id)
-    for item in items:
-        for what in [b'dinosaurs', b'trucks', b'internet']:
-            assert what not in item.state
-        assert world.id == item.originator_id
-
     # Project application event notifications.
-    reader = NotificationLogReader(app.notification_log)
-    notification_ids = [n['id'] for n in reader.read()]
-    assert notification_ids == [1, 2, 3, 4, 5]
+    reader = NotificationLogReader(app.log)
+    notification_ids = [n.id for n in reader.read(start=1)]
+    assert notification_ids == [1, 2, 3, 4]
 
     # - create two more aggregates
-    world = World.__create__()
-    world.__save__()
+    world2 = World()
+    app.save(world2)
 
-    world = World.__create__()
-    world.__save__()
+    world3 = World()
+    app.save(world3)
 
     # - get the new event notifications from the reader
-    notification_ids = [n['id'] for n in reader.read()]
-    assert notification_ids == [6, 7]
+    notification_ids = [n.id for n in reader.read(start=5)]
+    assert notification_ids == [5, 6]
 ```
 
-The double leading and trailing underscore naming style, seen above,
-is used consistently in the library's domain entity and event
-base classes for attribute and method names, so that developers can
-begin with a clean namespace. The intention is that the library
-functionality is included in the application by aliasing these library
-names with names that work within the project's ubiquitous language.
+We can run the code in default "development" environment (uses
+default "Plain Old Python Object" infrastructure, with no encryption
+and no compression).
 
-This style breaks PEP8, but it seems worthwhile in order to keep the
-"normal" Python object namespace free for domain modelling. It is a style
-used by other libraries (such as SQLAlchemy and Django) for similar reasons.
+```python
 
-The exception is the ``id`` attribute of the domain entity base class,
-which is assumed to be required by all domain entities (or aggregates) in
-all domains.
+# Construct an application object.
+app = Application()
+
+# Run the test.
+test(app)
+
+# Records are not encrypted (values are visible in stored data).
+def count_visible_values(app):
+    num_visible_values = 0
+    values = [b'dinosaurs', b'trucks', b'internet']
+    reader = NotificationLogReader(app.log)
+    for notification in reader.read(start=1):
+        for what in values:
+            if what in notification.state:
+                num_visible_values += 1
+                break
+    return num_visible_values
+
+assert count_visible_values(app) == 3
+```
+
+Configure "production" environment using SQLite infrastructure.
+
+```python
+import os
+
+from eventsourcing.cipher import AESCipher
+
+# Generate a cipher key (keep this safe).
+cipher_key = AESCipher.create_key(num_bytes=32)
+
+# Cipher key.
+os.environ['CIPHER_KEY'] = cipher_key
+# Cipher topic.
+os.environ['CIPHER_TOPIC'] = "eventsourcing.cipher:AESCipher"
+# Compressor topic.
+os.environ['COMPRESSOR_TOPIC'] = "eventsourcing.compressor:ZlibCompressor"
+
+# Use SQLite infrastructure.
+os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.sqlite:Factory'
+os.environ['SQLITE_DBNAME'] = ':memory:'  # Or path to a file on disk.
+```
+
+Run the code in "production" environment.
+
+```python
+# Construct an application object.
+app = Application()
+
+# Run the test.
+test(app)
+
+# Records are encrypted (values not visible in stored data).
+assert count_visible_values(app) == 0
+```
+
+Configure "production" environment using Postgres infrastructure.
+
+```python
+import os
+
+from eventsourcing.cipher import AESCipher
+
+# Generate a cipher key (keep this safe).
+cipher_key = AESCipher.create_key(num_bytes=32)
+
+# Cipher key.
+os.environ['CIPHER_KEY'] = cipher_key
+# Cipher topic.
+os.environ['CIPHER_TOPIC'] = "eventsourcing.cipher:AESCipher"
+# Compressor topic.
+os.environ['COMPRESSOR_TOPIC'] = "eventsourcing.compressor:ZlibCompressor"
+
+# Use Postgres infrastructure.
+os.environ['INFRASTRUCTURE_FACTORY'] = (
+    'eventsourcing.postgresrecorders:Factory'
+)
+os.environ["POSTGRES_DBNAME"] = "eventsourcing"
+os.environ["POSTGRES_HOST"] = "127.0.0.1"
+os.environ["POSTGRES_USER"] = "eventsourcing"
+os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
+```
 
 
 ## Project
