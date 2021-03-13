@@ -6,6 +6,9 @@
 
 A library for event sourcing in Python.
 
+Please refer to the [documentation](https://eventsourcing.readthedocs.io/) for installation and usage guides.
+
+
 ## Synopsis
 
 The example below uses the library's declarative syntax (new in v9.0)
@@ -69,9 +72,6 @@ Use pip to install the [stable distribution](https://pypi.org/project/eventsourc
 the Python Package Index.
 
     $ pip install eventsourcing
-
-
-Please refer to the [documentation](https://eventsourcing.readthedocs.io/) for installation and usage guides.
 
 
 ## Features
@@ -500,3 +500,5 @@ post in the project's Slack channel.
 
 There is a [Slack channel](https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTJjMmJjYTc3ODQ3M2YwOTMwMDJlODJkMjk3ZmE1MGYyZDM4MjIxODZmYmVkZmJkODRhZDg5N2MwZjk1YzU3NmY)
 for this project, which you are [welcome to join](https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTJjMmJjYTc3ODQ3M2YwOTMwMDJlODJkMjk3ZmE1MGYyZDM4MjIxODZmYmVkZmJkODRhZDg5N2MwZjk1YzU3NmY).
+
+Please refer to the [documentation](https://eventsourcing.readthedocs.io/) for installation and usage guides.
