@@ -405,8 +405,9 @@ def test(app: Application):
 ## Development environment
 
 We can run the code in default "development" environment (uses
-default "Plain Old Python Object" infrastructure, with no encryption
-and no compression).
+default "Plain Old Python Object" infrastructure. The example
+below runs with no encryption and no compression of the stored
+events.
 
 ```python
 
@@ -434,6 +435,9 @@ assert count_visible_values(app) == 3
 ## SQLite environment
 
 Configure "production" environment using SQLite infrastructure.
+The example below uses zlib to compress stored events and AES to
+encrypt stored events. An in-memory SQLite database is used, but
+it would work the same way if a file path were set as the `SQLITE_DBNAME`.
 
 ```python
 import os
@@ -471,6 +475,9 @@ assert count_visible_values(app) == 0
 ## PostgreSQL environment
 
 Configure "production" environment using PostgresSQL infrastructure.
+The example below also uses zlib to compress stored events and AES to
+encrypt stored events. It is assumed that the database and database
+user have already been created.
 
 ```python
 import os
