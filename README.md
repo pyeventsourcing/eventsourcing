@@ -401,7 +401,7 @@ def test(app: Application):
     assert len(list(notifications)) == 2
 ```
 
-## Development mode
+## Development environment
 
 We can run the code in default "development" environment (uses
 default "Plain Old Python Object" infrastructure, with no encryption
@@ -430,7 +430,7 @@ def count_visible_values(app):
 assert count_visible_values(app) == 3
 ```
 
-## SQLite
+## SQLite environment
 
 Configure "production" environment using SQLite infrastructure.
 
@@ -467,7 +467,7 @@ test(app)
 assert count_visible_values(app) == 0
 ```
 
-## PostgreSQL
+## PostgreSQL environment
 
 Configure "production" environment using PostgresSQL infrastructure.
 
