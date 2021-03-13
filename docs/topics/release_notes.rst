@@ -114,8 +114,8 @@ test suite much faster to run (several seconds rather than several minutes for
 the previous version). These changes make the build time on CI services much
 quicker (around one minute, rather than nearly ten minutes for the previous
 version). And these changes make the library more approachable and fun for
-users and library developers. Test coverage has been increased to 100%, and
-mypy and flake8 checking is done.
+users and library developers. Test coverage has been increased to 100% line
+and branch coverage. Also mypy and flake8 checking is done.
 
 The documentation has been rewritten to focus more on usage of the library code,
 and less on explaining surrounding concepts and considerations.

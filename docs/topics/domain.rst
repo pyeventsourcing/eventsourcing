@@ -1189,8 +1189,8 @@ Declaring the aggregate ID
 --------------------------
 
 The example above also demonstrates the how version 5 UUIDs can be created from
-the arguments used to create an aggregate. If a ``create_id`` method is defined
-on the aggregate class, the base class method :class:`~eventsourcing.domain.MetaAggregate.create_id()`
+the arguments used to create an aggregate. If a ``create_id()`` method is defined
+on the aggregate class, the base class method :func:`~eventsourcing.domain.MetaAggregate.create_id`
 will be overridden. It will return a UUID that is a function of the arguments used
 to create the aggregate. The arguments used in this method must be a subset of the
 arguments used to create the aggregate. The base class method simply returns a
@@ -1566,8 +1566,8 @@ A "topic" in this library is a string formed from joining with a colon character
 name of an object in that module (e.g. ``'Aggregate.Created'``). For example
 ``'eventsourcing.domain:Aggregate.Created'`` describes the path to the library's
 :class:`~eventsourcing.domain.Aggregate.Created` class. The library's
-:mod:`~eventsourcing.utils` module contains the functions :func:`~eventsourcing.utils.resolve_topic()`
-and :func:`~eventsourcing.utils.get_topic()` which are used in the library to resolve
+:mod:`~eventsourcing.utils` module contains the functions :func:`~eventsourcing.utils.resolve_topic`
+and :func:`~eventsourcing.utils.get_topic` which are used in the library to resolve
 a given topic to a Python object, and to construct a topic for a given Python object.
 
 

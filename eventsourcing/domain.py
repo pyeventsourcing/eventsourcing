@@ -679,6 +679,9 @@ class MetaAggregate(ABCMeta):
     # noinspection PyUnusedLocal
     @staticmethod
     def create_id(**kwargs: Any) -> UUID:
+        """
+        Returns a new aggregate ID.
+        """
         return uuid4()
 
     # noinspection PyShadowingBuiltins
