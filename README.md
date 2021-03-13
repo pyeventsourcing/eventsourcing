@@ -54,7 +54,8 @@ assert world.history[0] == 'dinosaurs'
 ```
 
 The resulting events can be collected using the `collect_events()`
-method.
+method. The `collect_events()` method is used by the `Application`
+`save()` method (see below).
 
 ```python
 
