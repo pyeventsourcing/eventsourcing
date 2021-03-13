@@ -6,6 +6,63 @@
 
 A library for event sourcing in Python.
 
+## Synopsis
+
+The example below uses the library's new declarative syntax to
+define an event sourced aggregate called `World`.
+The `World` class uses the `Aggregate` class and the `event`
+decorator from the `eventsourcing.domain` module. The `World`
+class has a command method `make_it_so()` which triggers an
+event called `SomethingHappened` that appends the given value
+of `what` to the `history` attribute of an instance of the
+aggregate.
+
+```python
+from eventsourcing.domain import Aggregate, event
+
+class World(Aggregate):
+    def __init__(self):
+        self.history = []
+
+    @event("SomethingHappened")
+    def make_it_so(self, what):
+        self.history.append(what)
+```
+
+When the `World` aggregate class is called, a created event object is
+created and used to construct an instance of `World`. And when the
+command method `make_it_so()` is called on an instance of
+`World`, a `SomethingHappened` event is triggered with a value of
+`what`, which results in the `what` value being appended to the
+`history` of the `World` aggregate instance.
+
+```python
+# Create a new aggregate.
+world = World()
+
+# Execute a command.
+world.make_it_so('dinosaurs')
+
+# View aggregate state.
+assert world.history[0] == 'dinosaurs'
+```
+
+The resulting events can be collected using the `collect_events()`
+method.
+
+```python
+# Collect events.
+pending_events = world.collect_events()
+assert len(pending_events) == 2
+assert type(pending_events[0]).__name__ == 'Created'
+assert type(pending_events[1]).__name__ == 'SomethingHappened'
+```
+
+Please note, it is recommended to use an imperative style when
+naming command methods, and to name event classes using past
+participles.
+
+
 ## Installation
 
 Use pip to install the [stable distribution](https://pypi.org/project/eventsourcing/) from
@@ -69,65 +126,9 @@ of concepts, explanation of usage, and detailed descriptions of library classes.
 and systems.
 
 
-## Synopsis
-
-The example below uses the library's new declarative syntax to
-define an event sourced aggregate called `World`.
-The `World` class uses the `Aggregate` class and the `event`
-decorator from the `eventsourcing.domain` module. The `World`
-class has a command method `make_it_so()` which triggers an
-event called `SomethingHappened` that appends the given value
-of `what` to the `history` attribute of an instance of the
-aggregate.
-
-```python
-from eventsourcing.domain import Aggregate, event
-
-class World(Aggregate):
-    def __init__(self):
-        self.history = []
-
-    @event("SomethingHappened")
-    def make_it_so(self, what):
-        self.history.append(what)
-```
-
-When the `World` aggregate class is called, a created event object is
-created and used to construct an instance of `World`. And when the
-command method `make_it_so()` is called on an instance of
-`World`, a `SomethingHappened` event is triggered with a value of
-`what`, which results in the `what` value being appended to the
-`history` of the `World` aggregate instance.
-
-```python
-# Create a new aggregate.
-world = World()
-
-# Execute a command.
-world.make_it_so('dinosaurs')
-
-# View aggregate state.
-assert world.history[0] == 'dinosaurs'
-```
-
-The resulting events can be collected using the `collect_events()`
-method.
-
-```python
-# Collect events.
-pending_events = world.collect_events()
-assert len(pending_events) == 2
-assert type(pending_events[0]).__name__ == 'Created'
-assert type(pending_events[1]).__name__ == 'SomethingHappened'
-```
-
-Please note, it is recommended to use an imperative style when
-naming command methods, and to name event classes using past
-participles.
-
 ## Domain model
 
-The examples below explain how the declarative syntax works, using
+The examples below explain how the declarative syntax works using
 the underlying methods and mechanisms provided by the library's
 `Aggregate` base class for event sourced aggregates. Please read the
 [documentation](https://eventsourcing.readthedocs.io/) for more information.
