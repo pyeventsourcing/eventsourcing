@@ -58,7 +58,7 @@ assert type(pending_events[0]).__name__ == 'Created'
 assert type(pending_events[1]).__name__ == 'SomethingHappened'
 ```
 
-Please note, it is recommended to use an imperative style when
+It is generally recommended to use an imperative style when
 naming command methods, and to name event classes using past
 participles.
 
