@@ -1,5 +1,5 @@
 [![Latest Release](https://badge.fury.io/py/eventsourcing.svg)](https://pypi.org/project/eventsourcing/)
-[![Build Status](https://github.com/johnbywater/eventsourcing/actions/workflows/runtests.yml/badge.svg?branch=master)]
+![Build Status](https://github.com/johnbywater/eventsourcing/actions/workflows/runtests.yaml/badge.svg?branch=master)
 [![Coverage Status](https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg?branch=master#)](https://coveralls.io/github/johnbywater/eventsourcing)
 
 # Event Sourcing in Python
