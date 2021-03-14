@@ -47,13 +47,15 @@ command method `make_it_so()` is called on an instance of
 # Create a new aggregate.
 world = World()
 
-# Execute a command.
+# Execute aggregate commands.
 world.make_it_so('dinosaurs')
 world.make_it_so('trucks')
 world.make_it_so('internet')
 
 # View aggregate state.
 assert world.history[0] == 'dinosaurs'
+assert world.history[1] == 'trucks'
+assert world.history[2] == 'internet'
 ```
 
 The resulting events can be collected using the `collect_events()`
@@ -63,20 +65,20 @@ method. The `collect_events()` method is used by the `Application`
 ```python
 
 # Collect events.
-pending_events = world.collect_events()
-assert len(pending_events) == 4
-assert type(pending_events[0]).__name__ == 'Created'
-assert type(pending_events[1]).__name__ == 'SomethingHappened'
-assert type(pending_events[2]).__name__ == 'SomethingHappened'
-assert type(pending_events[3]).__name__ == 'SomethingHappened'
+events = world.collect_events()
+assert len(events) == 4
+assert type(events[0]).__name__ == 'Created'
+assert type(events[1]).__name__ == 'SomethingHappened'
+assert type(events[2]).__name__ == 'SomethingHappened'
+assert type(events[3]).__name__ == 'SomethingHappened'
 ```
 
-The events can be stored and used to reconstruct the state of the aggregate.
+The aggregate events can be used to reconstruct the state of the aggregate.
 
 ```python
 
 copy = None
-for event in pending_events:
+for event in events:
     copy = event.mutate(copy)
 
 assert copy.history == world.history
@@ -185,10 +187,10 @@ class World(Aggregate):
 world = World()
 world.make_it_so('dinosaurs')
 assert world.history[0] == 'dinosaurs'
-pending_events = world.collect_events()
-assert len(pending_events) == 2
-assert type(pending_events[0]).__name__ == 'Created'
-assert type(pending_events[1]).__name__ == 'SomethingHappened'
+events = world.collect_events()
+assert len(events) == 2
+assert type(events[0]).__name__ == 'Created'
+assert type(events[1]).__name__ == 'SomethingHappened'
 ```
 
 An alternative way of expressing the same thing is to define a
@@ -224,10 +226,10 @@ class World(Aggregate):
 world = World()
 world.make_it_so('dinosaurs')
 assert world.history[0] == 'dinosaurs'
-pending_events = world.collect_events()
-assert len(pending_events) == 2
-assert type(pending_events[0]).__name__ == 'Created'
-assert type(pending_events[1]).__name__ == 'SomethingHappened'
+events = world.collect_events()
+assert len(events) == 2
+assert type(events[0]).__name__ == 'Created'
+assert type(events[1]).__name__ == 'SomethingHappened'
 
 ```
 
@@ -259,10 +261,10 @@ class World(Aggregate):
 world = World()
 world.make_it_so('dinosaurs')
 assert world.history[0] == 'dinosaurs'
-pending_events = world.collect_events()
-assert len(pending_events) == 2
-assert type(pending_events[0]).__name__ == 'Created'
-assert type(pending_events[1]).__name__ == 'SomethingHappened'
+events = world.collect_events()
+assert len(events) == 2
+assert type(events[0]).__name__ == 'Created'
+assert type(events[1]).__name__ == 'SomethingHappened'
 
 ```
 
@@ -292,10 +294,10 @@ class World(Aggregate):
 world = World()
 world.make_it_so('dinosaurs')
 assert world.history[0] == 'dinosaurs'
-pending_events = world.collect_events()
-assert len(pending_events) == 2
-assert type(pending_events[0]).__name__ == 'Created'
-assert type(pending_events[1]).__name__ == 'SomethingHappened'
+events = world.collect_events()
+assert len(events) == 2
+assert type(events[0]).__name__ == 'Created'
+assert type(events[1]).__name__ == 'SomethingHappened'
 
 ```
 
@@ -330,10 +332,10 @@ class World(Aggregate):
 world = World()
 world.make_it_so('dinosaurs')
 assert world.history[0] == 'dinosaurs'
-pending_events = world.collect_events()
-assert len(pending_events) == 2
-assert type(pending_events[0]).__name__ == 'Created'
-assert type(pending_events[1]).__name__ == 'SomethingHappened'
+events = world.collect_events()
+assert len(events) == 2
+assert type(events[0]).__name__ == 'Created'
+assert type(events[1]).__name__ == 'SomethingHappened'
 
 ```
 
