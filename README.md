@@ -1,6 +1,7 @@
-[![Latest Release](https://badge.fury.io/py/eventsourcing.svg)](https://pypi.org/project/eventsourcing/)
-[![Build Status](https://github.com/johnbywater/eventsourcing/actions/workflows/runtests.yaml/badge.svg?branch=9.0)](https://github.com/johnbywater/eventsourcing/blob/9.0/README.md)
+[![Build Status](https://github.com/johnbywater/eventsourcing/actions/workflows/runtests.yaml/badge.svg?branch=master)](https://github.com/johnbywater/eventsourcing/blob/master/README.md)
 [![Coverage Status](https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg?branch=master#)](https://coveralls.io/github/johnbywater/eventsourcing)
+[![Documentation Status](https://readthedocs.org/projects/eventsourcing/badge/?version=latest)](https://eventsourcing.readthedocs.io/en/stable/?badge=latest)
+[![Latest Release](https://badge.fury.io/py/eventsourcing.svg)](https://pypi.org/project/eventsourcing/)
 
 # Event Sourcing in Python
 
