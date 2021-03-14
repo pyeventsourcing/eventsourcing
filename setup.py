@@ -32,6 +32,8 @@ cassandra_requires = ["cassandra-driver<=3.23.99999"]
 
 django_requires = ["django<=3.1.99999"]
 
+dynamodb_requires = ["pynamodb<=4.3.2"]
+
 testing_requires = (
     cassandra_requires
     + sqlalchemy_requires
@@ -40,6 +42,7 @@ testing_requires = (
     + ray_requires
     + thespian_requires
     + django_requires
+    + dynamodb_requires
     + [
         "mock<=4.0.99999",
         "flask<=1.1.99999",
@@ -115,6 +118,7 @@ setup(
         "testing": testing_requires,
         "dev": dev_requires,
         "docs": docs_requires,
+        "dynamodb": dynamodb_requires,
     },
     zip_safe=False,
     long_description=long_description,

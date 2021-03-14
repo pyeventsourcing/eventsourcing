@@ -2,6 +2,7 @@ from copy import copy
 from typing import Dict
 from unittest import TestCase
 
+from eventsourcing.application.dynamodb import DynamoDbApplication
 from eventsourcing.application.snapshotting import SnapshottingApplication
 from eventsourcing.application.sqlalchemy import SQLAlchemyApplication
 from eventsourcing.domain.model.aggregate import BaseAggregateRoot
@@ -114,6 +115,9 @@ class UpcastableEventFixture(DomainEvent):
 
 
 class TestUpcastingActiveWhenStoringAndRetrievingEvents(TestCase):
+
+    application_class = SQLAlchemyApplication
+
     def tearDown(self) -> None:
         # Reset class versions (in case running in suite).
         MultiVersionAggregateFixture.Triggered.__class_version__ = 0
@@ -129,7 +133,7 @@ class TestUpcastingActiveWhenStoringAndRetrievingEvents(TestCase):
         but this test is decoupled from implementation, and simply checks
         upcasting is active when storing and retrieving aggregate state.
         """
-        app = SQLAlchemyApplication(persist_event_type=BaseAggregateRoot.Event)
+        app = self.application_class(persist_event_type=BaseAggregateRoot.Event)
         with app:
             my_aggregate = MultiVersionAggregateFixture.__create__()
             # Trigger without any kwargs (original behaviour).
@@ -222,7 +226,7 @@ class TestUpcastingActiveWhenStoringAndRetrievingEvents(TestCase):
         but this test is decoupled from implementation, and simply checks
         upcasting is active when storing and retrieving aggregate state.
         """
-        app = SnapshottingApplication.mixin(SQLAlchemyApplication)(
+        app = SnapshottingApplication.mixin(self.application_class)(
             persist_event_type=BaseAggregateRoot.Event,
         )
         with app:
@@ -290,6 +294,14 @@ class TestUpcastingActiveWhenStoringAndRetrievingEvents(TestCase):
             assert isinstance(copy, MultiVersionAggregateFixture)
             self.assertEqual(copy.value, 10)
             self.assertEqual(copy.units, "")  # gets default
+
+
+class TestUpcastingWithSQLAlchemy(TestUpcastingActiveWhenStoringAndRetrievingEvents):
+    application_class = SQLAlchemyApplication
+
+
+class TestUpcastingWithDynamoDb(TestUpcastingActiveWhenStoringAndRetrievingEvents):
+    application_class = DynamoDbApplication
 
 
 class MultiVersionAggregateFixture(BaseAggregateRoot):

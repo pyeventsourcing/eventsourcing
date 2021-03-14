@@ -6,7 +6,7 @@ DOTENV_FILE ?= .env
 .PHONY: install
 install:
 	CASS_DRIVER_NO_CYTHON=1
-	@pip install -e ".[cassandra,sqlalchemy,axonserver,axon,ray,django,testing,dev,docs]"
+	@pip install -e ".[cassandra,sqlalchemy,axonserver,axon,ray,django,testing,dev,docs,dynamodb]"
 
 .PHONY: docker-pull
 docker-pull:
@@ -98,6 +98,7 @@ brew-services-start:
 	brew services start postgresql
 	brew services start redis
 	~/axonserver/axonserver.jar &
+	java -Djava.library.path=./dynamodb_local/DynamoDBLocal_lib -jar ./dynamodb_local/DynamoDBLocal.jar -sharedDb &
 	cassandra -f &
 
 

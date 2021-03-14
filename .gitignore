@@ -60,3 +60,7 @@ target/
 eventsourcing/tests/djangoproject/db.sqlite3
 .mypy_cache/
 .dmypy.json
+
+# DynamoDB Local
+shared-local-instance.db
+dynamodb_local/

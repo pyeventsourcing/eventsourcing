@@ -30,6 +30,9 @@ from eventsourcing.tests.sequenced_item_tests.test_cassandra_record_manager impo
 from eventsourcing.tests.sequenced_item_tests.test_django_record_manager import (
     DjangoTestCase,
 )
+from eventsourcing.tests.sequenced_item_tests.test_dynamodb_record_manager import (
+    WithDynamoDbRecordManagers,
+)
 from eventsourcing.tests.sequenced_item_tests.test_popo_record_manager import (
     PopoTestCase,
 )
@@ -323,6 +326,11 @@ class TestDjangoPerformance(DjangoTestCase, PerformanceTestCase):
 
 
 @notquick
+class TestDynamoDbPerformance(WithDynamoDbRecordManagers, PerformanceTestCase):
+    pass
+
+
+@notquick
 class TestDjangoPerformanceWithEncryption(WithEncryption, TestDjangoPerformance):
     pass
 
@@ -336,6 +344,11 @@ class TestPopoPerformance(PopoTestCase, PerformanceTestCase):
 
 @notquick
 class TestCassandraPerformanceWithEncryption(WithEncryption, TestCassandraPerformance):
+    pass
+
+
+@notquick
+class TestDynamoDbPerformanceWithEncryption(WithEncryption, TestDjangoPerformance):
     pass
 
 

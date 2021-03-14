@@ -148,6 +148,9 @@ class ExampleApplicationTestCase(WithExampleApplication):
             if self.datastore:
                 self.datastore.drop_table(record_strategy.record_class)
 
+                # Check it doesn't matter if drop_table() is called twice.
+                self.datastore.drop_table(record_strategy.record_class)
+
             # - check exception is raised when records can't be deleted, so that
             #   test case runs through 'except' block, so rollback() is called
             for record in records:

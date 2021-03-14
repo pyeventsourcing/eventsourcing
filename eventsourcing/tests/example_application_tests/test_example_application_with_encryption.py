@@ -2,6 +2,9 @@ from eventsourcing.tests.example_application_tests import base
 from eventsourcing.tests.example_application_tests.test_example_application_with_cassandra import (
     TestExampleApplicationWithCassandra,
 )
+from eventsourcing.tests.example_application_tests.test_example_application_with_dynamodb import (
+    TestExampleApplicationWithDynamoDb,
+)
 from eventsourcing.tests.example_application_tests.test_example_application_with_sqlalchemy import (
     TestExampleApplicationWithSQLAlchemy,
 )
@@ -21,5 +24,11 @@ class TestEncryptedApplicationWithCassandra(
 
 class TestEncryptedApplicationWithSQLAlchemy(
     WithEncryption, TestExampleApplicationWithSQLAlchemy
+):
+    pass
+
+
+class TestEncryptedApplicationWithDynamoDb(
+    WithEncryption, TestExampleApplicationWithDynamoDb
 ):
     pass

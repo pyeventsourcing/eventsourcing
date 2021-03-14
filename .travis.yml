@@ -26,6 +26,14 @@ before_install:
   - export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64
   - java -version
 
+  # Install DynamoDB Local
+  - ./dev/download_dynamodb_local.sh
+
+  # Start DynamoDB Local
+  - java -Djava.library.path=./dynamodb_local/DynamoDBLocal_lib -jar ./dynamodb_local/DynamoDBLocal.jar -sharedDb &
+
+  - sleep 10
+
   # Install Cassandra.
   - sudo rm -rf /var/lib/cassandra/*
   - wget http://www.us.apache.org/dist/cassandra/3.11.9/apache-cassandra-3.11.9-bin.tar.gz
@@ -64,6 +72,11 @@ env:
     - MYSQL_PASSWORD=
     - POSTGRES_USER=postgres
     - POSTGRES_PASSWORD=
+
+    # DynamoDB Local
+    - DYNAMODB_HOST=http://127.0.0.1:8000
+    - AWS_ACCESS_KEY_ID=foo
+    - AWS_SECRET_ACCESS_KEY=foo
 
 script:
   - if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then
