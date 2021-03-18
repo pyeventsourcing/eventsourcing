@@ -2,6 +2,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg?branch=master)](https://coveralls.io/github/johnbywater/eventsourcing)
 [![Documentation Status](https://readthedocs.org/projects/eventsourcing/badge/?version=latest)](https://eventsourcing.readthedocs.io/en/latest/)
 [![Latest Release](https://badge.fury.io/py/eventsourcing.svg)](https://pypi.org/project/eventsourcing/)
+![Latest Release](https://shields.io/packagecontrol/dd/eventsourcing)
 
 # Event Sourcing in Python
 
@@ -12,13 +13,17 @@ Please refer to the [documentation](https://eventsourcing.readthedocs.io/) for i
 
 ## Synopsis
 
-The example below uses the library's declarative syntax (new in v9.0)
+You can use the library's `Aggregate` class to define event sourced aggregates.
+
+The example below uses the library's declarative syntax
 to define an event sourced aggregate called `World`.
 The `World` class uses the `Aggregate` class and the `event`
-decorator from the `eventsourcing.domain` module. The `World`
-class has a command method `make_it_so()` which triggers an
-event called `SomethingHappened` that appends the given value
+decorator from the `eventsourcing.domain` module.
+
+The `World` class has a command method `make_it_so()` which triggers
+an  event called `SomethingHappened` that appends the given value
 of `what` to the `history` attribute of an instance of `World`.
+
 It is generally recommended to use an imperative
 style when naming command methods, and to name event classes
 using past participles.
@@ -341,66 +346,105 @@ assert type(events[1]).__name__ == 'SomethingHappened'
 
 ## Application
 
-Let's define a test that uses the library's event sourced `Application` class
-to exercise the `World` aggregate defined above. The `Application` class
-brings together a domain model and persistence infrastructure.
+You can use the library's `Application` class to define event sourced
+applications. The `Application` class brings together a domain model
+and persistence infrastructure.
+
+The `Worlds` application class in the example below uses the library's
+`Application` class and the `World` aggregate defined above.
+
+The `create_world()` method creates and saves a new `World` aggregate
+instance, and returns the UUID of the new instance. The `make_it_so()`
+method uses the given `world_id` to retrieve an `World` aggregate from
+the application's repository (reconstructs aggregate from stored events),
+then calls the aggregate's `make_it_so()` method, and then saves the
+aggregate (collects and stores new aggregate event). The `get_history()`
+method uses the given `world_id` to retrieve an `World` aggregate from
+the application's repository and then returns the aggregate's history.
+
 
 ```python
-from eventsourcing.application import AggregateNotFound, Application
+
+from eventsourcing.application import Application
+
+class Worlds(Application):
+
+    def create_world(self):
+        world = World()
+        self.save(world)
+        return world.id
+
+    def make_it_so(self, world_id, what):
+        world = self.repository.get(world_id)
+        world.make_it_so(what)
+        self.save(world)
+
+    def get_history(self, world_id):
+        world = self.repository.get(world_id)
+        return world.history
+```
+
+Let's define a test that uses the Worlds` application. Below, we will
+run this test with different persistence infrastructure.
+
+```python
+from eventsourcing.persistence import RecordConflictError
 from eventsourcing.system import NotificationLogReader
 
 
-def test(app: Application):
+def test(app: Worlds, expect_visible_in_db: bool):
+
+    # Check app has zero event notifications.
+    assert len(app.log['1,10'].items) == 0, len(app.log['1,10'].items)
 
     # Create a new aggregate.
-    world = World()
+    world_id = app.create_world()
 
-    # Unsaved aggregate not yet in application repository.
-    try:
-        app.repository.get(world.id)
-    except AggregateNotFound:
-        pass
+    # Execute application commands.
+    app.make_it_so(world_id, 'dinosaurs')
+    app.make_it_so(world_id, 'trucks')
 
-    # Execute aggregate commands.
-    world.make_it_so('dinosaurs')
-    world.make_it_so('trucks')
-
-    # View current state of aggregate object.
-    assert world.history[0] == 'dinosaurs'
-    assert world.history[1] == 'trucks'
-
-    # Note version of object at this stage.
-    version = world.version
+    # Check recorded state of the aggregate.
+    assert app.get_history(world_id) == [
+        'dinosaurs',
+        'trucks'
+    ]
 
     # Execute another command.
-    world.make_it_so('internet')
+    app.make_it_so(world_id, 'internet')
 
-    # Store pending domain events.
-    app.save(world)
+    # Check recorded state of the aggregate.
+    assert app.get_history(world_id) == [
+        'dinosaurs',
+        'trucks',
+        'internet'
+    ]
 
-    # Aggregate now exists in repository.
-    assert app.repository.get(world.id)
+    # Check values are (or aren't visibible) in the database.
+    values = [b'dinosaurs', b'trucks', b'internet']
+    if expect_visible_in_db:
+        expected_num_visible = len(values)
+    else:
+        expected_num_visible = 0
 
-    # Show the notification log has four items.
-    assert len(app.log['1,10'].items) == 4
-
-    # Replay stored events for aggregate.
-    copy = app.repository.get(world.id)
-
-    # View retrieved aggregate.
-    assert isinstance(copy, World)
-    assert copy.history[0] == 'dinosaurs'
-    assert copy.history[1] == 'trucks'
-    assert copy.history[2] == 'internet'
+    actual_num_visible = 0
+    reader = NotificationLogReader(app.log)
+    for notification in reader.read(start=1):
+        for what in values:
+            if what in notification.state:
+                actual_num_visible += 1
+                break
+    assert expected_num_visible == actual_num_visible
 
     # Get historical state (at version from above).
-    old = app.repository.get(world.id, version=version)
+    old = app.repository.get(world_id, version=3)
     assert old.history[-1] == 'trucks' # internet not happened
     assert len(old.history) == 2
 
-    # Optimistic concurrency control (no branches).
-    from eventsourcing.persistence import RecordConflictError
+    # Check app has four event notifications.
+    assert len(app.log['1,10'].items) == 4, len(app.log['1,10'].items)
 
+    # Optimistic concurrency control (no branches).
     old.make_it_so('future')
     try:
         app.save(old)
@@ -409,21 +453,34 @@ def test(app: Application):
     else:
         raise Exception("Shouldn't get here")
 
-    # Project application event notifications.
+    # Check app still has only four event notifications.
+    assert len(app.log['1,10'].items) == 4, len(app.log['1,10'].items)
+
+    # Read event notifications.
     reader = NotificationLogReader(app.log)
-    notifications = reader.read(start=1)
-    assert len(list(notifications)) == 4
+    notifications = list(reader.read(start=1))
+    assert len(notifications) == 4
 
-    # - create two more aggregates
-    world2 = World()
-    app.save(world2)
+    # Create eight more aggregate events.
+    world_id = app.create_world()
+    app.make_it_so(world_id, 'plants')
+    app.make_it_so(world_id, 'fish')
+    app.make_it_so(world_id, 'mammals')
 
-    world3 = World()
-    app.save(world3)
+    world_id = app.create_world()
+    app.make_it_so(world_id, 'morning')
+    app.make_it_so(world_id, 'afternoon')
+    app.make_it_so(world_id, 'evening')
 
-    # - get the new event notifications from the reader
-    notifications = reader.read(start=5)
-    assert len(list(notifications)) == 2
+    # Get the new event notifications from the reader.
+    last_id = notifications[-1].id
+    notifications = list(reader.read(start=last_id + 1))
+    assert len(notifications) == 8
+
+    # Get all the event notifications from the reader.
+    last_id = notifications[-1].id
+    notifications = list(reader.read(start=1))
+    assert len(notifications) == 12
 ```
 
 ## Development environment
@@ -436,24 +493,11 @@ events.
 ```python
 
 # Construct an application object.
-app = Application()
+app = Worlds()
 
 # Run the test.
-test(app)
+test(app, expect_visible_in_db=True)
 
-# Records are not encrypted (values are visible in stored data).
-def count_visible_values(app):
-    num_visible_values = 0
-    values = [b'dinosaurs', b'trucks', b'internet']
-    reader = NotificationLogReader(app.log)
-    for notification in reader.read(start=1):
-        for what in values:
-            if what in notification.state:
-                num_visible_values += 1
-                break
-    return num_visible_values
-
-assert count_visible_values(app) == 3
 ```
 
 ## SQLite environment
@@ -487,13 +531,10 @@ Run the code in "production" SQLite environment.
 
 ```python
 # Construct an application object.
-app = Application()
+app = Worlds()
 
 # Run the test.
-test(app)
-
-# Records are encrypted (values not visible in stored data).
-assert count_visible_values(app) == 0
+test(app, expect_visible_in_db=False)
 ```
 
 ## PostgreSQL environment
@@ -533,13 +574,10 @@ Run the code in "production" PostgreSQL environment.
 
 ```python
 # Construct an application object.
-app = Application()
+app = Worlds()
 
 # Run the test.
-test(app)
-
-# Records are encrypted (values not visible in stored data).
-assert count_visible_values(app) == 0
+test(app, expect_visible_in_db=False)
 ```
 
 
