@@ -355,8 +355,8 @@ The `Worlds` application class in the example below uses the library's
 
 The `create_world()` method creates and saves a new `World` aggregate
 instance, and returns the UUID of the new instance. The `make_it_so()`
-method uses the given `world_id` to retrieve an `World` aggregate from
-the application's repository (reconstructs aggregate from stored events),
+method uses the given `world_id` to retrieve a `World` aggregate instance
+from the application's repository (reconstructs aggregate stored events),
 then calls the aggregate's `make_it_so()` method, and then saves the
 aggregate (collects and stores new aggregate event). The `get_history()`
 method uses the given `world_id` to retrieve an `World` aggregate from
