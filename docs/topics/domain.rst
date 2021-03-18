@@ -1179,10 +1179,11 @@ feature of the dataclasses module.
 .. code:: python
 
     from dataclasses import field
+    from typing import List
 
     @dataclass
     class MyAggregate(Aggregate):
-        history: list[str] = field(default_factory=list, init=False)
+        history: List[str] = field(default_factory=list, init=False)
 
 
     # Call the class without a name.
