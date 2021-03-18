@@ -28,7 +28,6 @@ class TestExample(TestCase):
         from eventsourcing.application import Application
 
         class Worlds(Application):
-
             def create_world(self):
                 world = World()
                 self.save(world)
@@ -54,7 +53,6 @@ class TestExample(TestCase):
 
 
 class TestDocs(TestCase):
-
     def setUp(self) -> None:
         super().setUp()
         self.uris = tmpfile_uris()
