@@ -1113,10 +1113,10 @@ attribute ``name``.
     # The pending event is a created event.
     assert isinstance(pending_events[0], MyAggregate.Created)
 
-    # The pending event has a 'name' attribute.
+    # The created event has a 'name' attribute.
     pending_events[0].name == "foo"
 
-    # The pending event can be used to reconstruct the aggregate.
+    # The created event can be used to reconstruct the aggregate.
     copy = pending_events[0].mutate(None)
     assert copy.name == agg.name
 
@@ -1137,19 +1137,15 @@ defined from this method.
         name: str
 
 
-    # Call the class with a 'name' argument.
+    # Create a new aggregate.
     agg = MyAggregate(name="foo")
 
     # The aggregate has a 'name' attribute
     assert agg.name == "foo"
 
-    # The pending event has a 'name' attribute.
+    # The created event has a 'name' attribute.
     pending_events = agg.collect_events()
     pending_events[0].name == "foo"
-
-    # The pending event can be used to reconstruct the aggregate.
-    copy = pending_events[0].mutate(None)
-    assert copy.name == agg.name
 
 
 Optional arguments can be defined by providing default
@@ -1186,8 +1182,10 @@ feature of the dataclasses module.
         history: List[str] = field(default_factory=list, init=False)
 
 
-    # Call the class without a name.
+    # Create a new aggregate.
     agg = MyAggregate()
+
+    # The aggregate has a list.
     assert agg.history == []
 
 
@@ -1212,13 +1210,12 @@ To give the created event class a particular name, use the class argument 'creat
     class MyAggregate(Aggregate, created_event_name="Started"):
         name: str
 
-    # Call the class.
+    # Create a new aggregate.
     agg = MyAggregate("foo")
 
     # The created event class is called "Started".
     pending_events = agg.collect_events()
     assert isinstance(pending_events[0], MyAggregate.Started)
-    assert pending_events[0].name == "foo"
 
 
 This is equivalent to declaring the created event class explicitly
@@ -1230,7 +1227,7 @@ on the aggregate class using a particular name.
         class Started(Aggregate.Created):
             pass
 
-    # Call the class.
+    # Create a new aggregate.
     agg = MyAggregate()
 
     # The created event class is called "Started".
@@ -1255,7 +1252,7 @@ with upcasting old events, discussed above.
             pass
 
 
-    # Call the class.
+    # Create a new aggregate.
     agg = MyAggregate()
 
     # The created event class is called "Started".
@@ -1278,7 +1275,7 @@ will be used when creating new aggregate instances.
             pass
 
 
-    # Call the class.
+    # Create a new aggregate.
     agg = MyAggregate()
 
     # The created event class is called "Opened".
@@ -1303,7 +1300,8 @@ aggregate. You can do this by defining a ``create_id()`` method.
         def create_id(name: str):
             return uuid5(NAMESPACE_URL, f"/my_aggregates/{name}")
 
-    # Call the class with a 'name' argument.
+
+    # Create a new aggregate.
     agg = MyAggregate(name="foo")
     assert agg.name == "foo"
 
@@ -1328,8 +1326,10 @@ class, and an ID supplied directly when creating new aggregates.
         id: UUID
 
 
-    # Call the class with a 'name' argument.
+    # Create an ID.
     agg_id = create_id(name="foo")
+
+    # Create an aggregate with the ID.
     agg = MyAggregate(id=agg_id)
     assert agg.id == agg_id
 
@@ -1345,6 +1345,7 @@ because ``id`` is defined as a read-only property on the base aggregate class.
             self._id = id
 
 
+    # Create an aggregate with the ID.
     agg = MyAggregate(id=agg_id)
     assert agg.id == agg_id
 
@@ -1529,7 +1530,7 @@ concisely in the following way.
             self.ref = ref
 
 
-    # Create a new page and index.
+    # Create new page and index aggregates.
     page = Page(name="Erth")
     index1 = Index(name=page.name, ref=page.id)
 
@@ -1538,7 +1539,6 @@ concisely in the following way.
     # to retrieve the index aggregate, which
     # gives the page ID, and then the page ID
     # can be used to retrive the page aggregate.
-
     index_id = Index.create_id(name="Erth")
     assert index_id == index1.id
     assert index1.ref == page.id
@@ -1546,7 +1546,6 @@ concisely in the following way.
 
     # Later, the page name can be updated,
     # and a new index created for the page.
-
     page.update_name(name="Earth")
     index1.update_ref(ref=None)
     index2 = Index(name=page.name, ref=page.id)
@@ -1556,7 +1555,6 @@ concisely in the following way.
     # used to retrieve the new index aggregate,
     # which gives the page ID, and then the page
     # ID can be used to retrieve the renamed page.
-
     index_id = Index.create_id(name="Earth")
     assert index_id == index2.id
     assert index2.ref == page.id
@@ -1787,8 +1785,8 @@ class rather than using the ``@aggregate`` decorator so that full the
 
 
     order = Order("my order")
-    created_event = order.collect_events()[0]
-    assert type(created_event).__name__ == "Started"
+    pending_events = order.collect_events()
+    assert isinstance(pending_events[0], Order.Started)
 
 
 .. _Topics:
