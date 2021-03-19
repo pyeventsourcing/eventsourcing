@@ -1087,13 +1087,14 @@ Using the init method to define the created event class
 -------------------------------------------------------
 
 If a created event class is not defined on an aggregate class,
-the one will be automatically defined by inspecting the signature
-of the ``__init__()`` method. The example below has an init method
-that has a ``name`` argument. Because this example doesn't have a created
-event class defined explicitly on the aggregate class, a created event
-class will be defined automatically to match the signature of the init
-method. That is, a created event class will be defined that has an
-attribute ``name``.
+one will be automatically defined. The attributes of this event
+class will be derived by inspecting the signature of the ``__init__()`` method.
+The example below has an init method that has a ``name`` argument.
+Because this example doesn't have a created event class defined
+explicitly on the aggregate class, a created event class will be
+defined automatically to match the signature of the init method.
+That is, a created event class will be defined that has an attribute
+``name``.
 
 .. code:: python
 
