@@ -1403,7 +1403,13 @@ Inferring the event class name from the method name
 The :data:`@event` decorator can be used without providing
 the name of an event. If the decorator is used without any
 arguments, the name of the event will be derived from the
-method name.
+method name. The method name is assumed to be lower case
+and underscore-separated. The name of the event class is
+constructed by firstly splitting the name of the method by its
+underscore characters, then by capitalising the resulting parts,
+and then by concatenating the capitalised parts to give an
+"upper camel case" class name. For example, a method name
+``name_updated`` would give an event class name ``NameUpdated``.
 
 
 .. code:: python
@@ -1439,7 +1445,45 @@ method name.
 
 However, this creates a slight tension in the naming conventions
 because methods should normally be named using the imperative form
-and event names should normally be past participles.
+and event names should normally be past participles. However, this
+can be useful when naming methods that will be only called by aggregate
+command methods under certain conditions.
+
+For example, if an attempt is made to update the value of an attribute,
+but the given value happens to be identical to the existing value, then
+it might be desirable to skip on having an event triggered.
+
+.. code:: python
+
+    class MyAggregate(Aggregate):
+        name: str
+
+        def update_name(self, name):
+            if name != self.name:
+                self.name_updated(name)
+
+        @event
+        def name_updated(self, name):
+            self.name = name
+
+    # Create an aggregate.
+    agg = MyAggregate(name="foo")
+    assert agg.name == "foo"
+
+    # Update the name lots of times.
+    agg.update_name("foo")
+    agg.update_name("foo")
+    agg.update_name("foo")
+    agg.update_name("bar")
+    agg.update_name("bar")
+    agg.update_name("bar")
+    agg.update_name("bar")
+
+    # There are two pending events (not eight).
+    pending_events = agg.collect_events()
+    assert len(pending_events) == 2, len(pending_events)
+
+
 
 The World aggregate class revisited
 -----------------------------------
