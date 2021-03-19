@@ -2,7 +2,6 @@
 [![Coverage Status](https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg?branch=master)](https://coveralls.io/github/johnbywater/eventsourcing)
 [![Documentation Status](https://readthedocs.org/projects/eventsourcing/badge/?version=latest)](https://eventsourcing.readthedocs.io/en/latest/)
 [![Latest Release](https://badge.fury.io/py/eventsourcing.svg)](https://pypi.org/project/eventsourcing/)
-![Latest Release](https://shields.io/packagecontrol/dd/eventsourcing)
 
 # Event Sourcing in Python
 
