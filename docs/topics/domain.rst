@@ -1355,16 +1355,18 @@ because ``id`` is defined as a read-only property on the base aggregate class.
 The :data:`@event` decorator
 ----------------------------
 
-Another area of repetition was defining and triggering subsequent
-aggregate events. A more concise way of expressing the concerns
-can be achieved by using the library function :func:`~eventsourcing.domain.event`
-to decorate aggregate command methods.
+A more concise way of expressing the concerns around defining, triggering and
+applying subsequent aggregate events can be achieved by using the library function
+:func:`~eventsourcing.domain.event` to decorate aggregate command methods.
 
 When decorating a method with the :data:`@event` decorator, the method signature
 will be used to automatically define an aggregate event class. And when the
-method is called, the event will be triggered with the values given when
-calling the method, and the method body will be used as the ``apply()`` method
-of the event.
+method is called, the event will firstly be triggered with the values given
+when calling the method, so that an event is created and used to mutate the
+state of the aggregate. The body of the decorated method will be used as the
+``apply()`` method of the event both after the event has been triggered and
+when the aggregate is reconstructed from stored events. The name of the event
+class can be passed to the decorator.
 
 .. code:: python
 
