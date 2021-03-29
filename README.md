@@ -38,7 +38,7 @@ class World(Aggregate):
         self.history.append(what)
 ```
 
-The `World` class has a command method `make_it_so()` which triggers
+The `World` aggregate has a command method `make_it_so()` which triggers
 an  event called `SomethingHappened` that appends the given value
 of `what` to the `history` attribute of an instance of `World`.
 It is generally recommended to use an imperative
@@ -49,7 +49,7 @@ You can use the library's `Application` class to define event sourced
 applications. The `Application` class brings together a domain model
 and persistence infrastructure.
 
-The `Worlds` application class in the example below uses the library's
+The `Worlds` application in the example below uses the library's
 `Application` class and the `World` aggregate defined above.
 
 ```python
