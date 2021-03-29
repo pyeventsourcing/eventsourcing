@@ -18,9 +18,16 @@ Version 9.x
 Version 9.x series is a rewrite of the library that distills most of
 the best parts of the previous versions of the library into faster
 and simpler code. This version is recommended for new projects.
-It is not backwards-compatible with previous versions, however
+It is not backwards-compatible with previous major versions. However
 the underlying principles are the same, and so conversion of
 code and stored events is very possible.
+
+
+Version 9.0.1 (released 29 March 2021)
+--------------------------------------
+
+Improved documentation. Moved cipher base class to avoid importing cipher module.
+
 
 Version 9.0.0 (released 13 March 2021)
 --------------------------------------

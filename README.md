@@ -1,6 +1,6 @@
 [![Build Status](https://github.com/johnbywater/eventsourcing/actions/workflows/runtests.yaml/badge.svg?branch=9.0)](https://github.com/johnbywater/eventsourcing/tree/9.0)
 [![Coverage Status](https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg?branch=9.0)](https://coveralls.io/github/johnbywater/eventsourcing?branch=9.0)
-[![Documentation Status](https://readthedocs.org/projects/eventsourcing/badge/?version=v9.0.0)](https://eventsourcing.readthedocs.io/en/v9.0.0/)
+[![Documentation Status](https://readthedocs.org/projects/eventsourcing/badge/?version=v9.0.1)](https://eventsourcing.readthedocs.io/en/v9.0.1/)
 [![Latest Release](https://badge.fury.io/py/eventsourcing.svg)](https://pypi.org/project/eventsourcing/)
 
 
