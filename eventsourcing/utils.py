@@ -12,6 +12,7 @@ def get_topic(cls: type) -> str:
     return topic
 
 
+# Todo: Implement substitutions, so classes can be moved to another module.
 def resolve_topic(topic: str) -> Any:
     """
     Returns an object located by the given string.
