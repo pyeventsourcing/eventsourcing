@@ -1,31 +1,11 @@
 import os
-from abc import ABC, abstractmethod
 from base64 import b64decode, b64encode
 
 from Crypto.Cipher import AES
 from Crypto.Cipher._mode_gcm import GcmMode
 from Crypto.Cipher.AES import key_size
 
-
-class Cipher(ABC):
-    # noinspection PyUnusedLocal
-    @abstractmethod
-    def __init__(self, cipher_key: str):
-        """
-        Initialises cipher with given key.
-        """
-
-    @abstractmethod
-    def encrypt(self, plaintext: bytes) -> bytes:
-        """
-        Return ciphertext for given plaintext.
-        """
-
-    @abstractmethod
-    def decrypt(self, ciphertext: bytes) -> bytes:
-        """
-        Return plaintext for given ciphertext.
-        """
+from eventsourcing.persistence import Cipher
 
 
 class AESCipher(Cipher):

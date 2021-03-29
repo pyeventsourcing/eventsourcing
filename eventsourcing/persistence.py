@@ -10,8 +10,6 @@ from distutils.util import strtobool
 from typing import Any, Dict, Generic, Iterator, List, Optional, Type, cast
 from uuid import UUID
 
-from eventsourcing.cipher import Cipher
-from eventsourcing.compressor import Compressor
 from eventsourcing.domain import DomainEvent, TDomainEvent
 from eventsourcing.utils import get_topic, resolve_topic
 
@@ -186,6 +184,49 @@ class StoredEvent:
     state: bytes
 
 
+class Compressor(ABC):
+    """
+    Base class for compressors.
+    """
+
+    @abstractmethod
+    def compress(self, data: bytes) -> bytes:
+        """
+        Compress bytes.
+        """
+
+    @abstractmethod
+    def decompress(self, data: bytes) -> bytes:
+        """
+        Decompress bytes.
+        """
+
+
+class Cipher(ABC):
+    """
+    Base class for ciphers.
+    """
+
+    # noinspection PyUnusedLocal
+    @abstractmethod
+    def __init__(self, cipher_key: str):
+        """
+        Initialises cipher with given key.
+        """
+
+    @abstractmethod
+    def encrypt(self, plaintext: bytes) -> bytes:
+        """
+        Return ciphertext for given plaintext.
+        """
+
+    @abstractmethod
+    def decrypt(self, ciphertext: bytes) -> bytes:
+        """
+        Return plaintext for given ciphertext.
+        """
+
+
 class Mapper(Generic[TDomainEvent]):
     """
     Converts between domain event objects and :class:`StoredEvent` objects.
@@ -277,6 +318,7 @@ class AggregateRecorder(Recorder):
         Writes stored events into database.
         """
 
+    # Todo: Change the implementations to get in batches, in case lots of events.
     @abstractmethod
     def select_events(
         self,

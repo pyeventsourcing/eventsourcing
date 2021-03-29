@@ -1,19 +1,6 @@
 import zlib
-from abc import ABC, abstractmethod
 
-
-class Compressor(ABC):
-    @abstractmethod
-    def compress(self, data: bytes) -> bytes:
-        """
-        Compress bytes.
-        """
-
-    @abstractmethod
-    def decompress(self, data: bytes) -> bytes:
-        """
-        Decompress bytes.
-        """
+from eventsourcing.persistence import Compressor
 
 
 class ZlibCompressor(Compressor):

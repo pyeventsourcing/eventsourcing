@@ -1048,23 +1048,461 @@ Declarative syntax
 You may have noticed a certain amount of repetition in the definitions of the
 aggregates above. In several places, the same argument was defined in a command
 method, on an event class, and in an apply method. The library offers a more concise
-way to express aggregates, using the library's :func:`~eventsourcing.domain.event` function
-to decorate methods.
+way to express aggregates by using a declarative syntax.
+
+
+Create new aggregate by calling the aggregate class directly
+------------------------------------------------------------
+
+A new event sourced aggregate can be created by calling the aggregate class
+directly. You don't actually need to define a class method to do this, although
+you may wish to express your project's ubiquitous language by doing so.
+
+Calling the aggregate class directly will firstly create a created event (an instance
+of the aggregate's created event class) and use that event object to construct an
+instance of the aggregate class.
+
+.. code:: python
+
+    class MyAggregate(Aggregate):
+        class Created(Aggregate.Created):
+            pass
+
+
+    # Call the class directly.
+    agg = MyAggregate()
+
+    # There is one pending event.
+    pending_events = agg.collect_events()
+    assert len(pending_events) == 1
+    assert isinstance(pending_events[0], MyAggregate.Created)
+
+    # The pending event can be used to reconstruct the aggregate.
+    copy = pending_events[0].mutate(None)
+    assert copy.id == agg.id
+    assert copy.created_on == agg.created_on
+
+
+Using the init method to define the created event class
+-------------------------------------------------------
+
+If a created event class is not defined on an aggregate class,
+one will be automatically defined. The attributes of this event
+class will be derived by inspecting the signature of the ``__init__()`` method.
+The example below has an init method that has a ``name`` argument.
+Because this example doesn't have a created event class defined
+explicitly on the aggregate class, a created event class will be
+defined automatically to match the signature of the init method.
+That is, a created event class will be defined that has an attribute
+``name``.
+
+.. code:: python
+
+    class MyAggregate(Aggregate):
+        def __init__(self, name):
+            self.name = name
+
+
+    # Call the class with a 'name' argument.
+    agg = MyAggregate(name="foo")
+    assert agg.name == "foo"
+
+    # There is one pending event.
+    pending_events = agg.collect_events()
+    assert len(pending_events) == 1
+
+    # The pending event is a created event.
+    assert isinstance(pending_events[0], MyAggregate.Created)
+
+    # The created event has a 'name' attribute.
+    pending_events[0].name == "foo"
+
+    # The created event can be used to reconstruct the aggregate.
+    copy = pending_events[0].mutate(None)
+    assert copy.name == agg.name
+
+
+Dataclass-style init methods
+----------------------------
+
+Python's dataclass annotations can be used to define an aggregate's
+``__init__()`` method. A created event class can be automatically
+defined from this method.
+
+.. code:: python
+
+    from dataclasses import dataclass
+
+    @dataclass
+    class MyAggregate(Aggregate):
+        name: str
+
+
+    # Create a new aggregate.
+    agg = MyAggregate(name="foo")
+
+    # The aggregate has a 'name' attribute
+    assert agg.name == "foo"
+
+    # The created event has a 'name' attribute.
+    pending_events = agg.collect_events()
+    pending_events[0].name == "foo"
+
+
+Optional arguments can be defined by providing default
+values on the dataclass attribute definitions.
+
+.. code:: python
+
+    from dataclasses import dataclass
+
+    @dataclass
+    class MyAggregate(Aggregate):
+        name: str = "bar"
+
+
+    # Call the class without a name.
+    agg = MyAggregate()
+    assert agg.name == "bar"
+
+    # Call the class with a name.
+    agg = MyAggregate("foo")
+    assert agg.name == "foo"
+
+Anything that works on a dataclass should work here too. For example,
+you can define non-init argument attributes by using the ``field``
+feature of the dataclasses module.
+
+.. code:: python
+
+    from dataclasses import field
+    from typing import List
+
+    @dataclass
+    class MyAggregate(Aggregate):
+        history: List[str] = field(default_factory=list, init=False)
+
+
+    # Create a new aggregate.
+    agg = MyAggregate()
+
+    # The aggregate has a list.
+    assert agg.history == []
+
+
+Please note, when using the dataclass-style for defining ``__init__()``
+methods, using the :data:`@dataclass` decorator will inform your IDE of
+the method signature. The annotations will in any case be used to create
+an ``__init__()`` method when the class does not already have an ``__init__()``.
+Using the dataclass decorator merely enables code completion and syntax
+checking, but the code will run just the same with or without the
+:data:`@dataclass` decorator being applied to aggregate classes that
+are defined using this style.
+
+
+
+Declaring the created event class name
+--------------------------------------
+
+To give the created event class a particular name, use the class argument 'created_event_name'.
+
+.. code:: python
+
+    class MyAggregate(Aggregate, created_event_name="Started"):
+        name: str
+
+    # Create a new aggregate.
+    agg = MyAggregate("foo")
+
+    # The created event class is called "Started".
+    pending_events = agg.collect_events()
+    assert isinstance(pending_events[0], MyAggregate.Started)
+
+
+This is equivalent to declaring the created event class explicitly
+on the aggregate class using a particular name.
+
+.. code:: python
+
+    class MyAggregate(Aggregate):
+        class Started(Aggregate.Created):
+            pass
+
+    # Create a new aggregate.
+    agg = MyAggregate()
+
+    # The created event class is called "Started".
+    pending_events = agg.collect_events()
+    assert isinstance(pending_events[0], MyAggregate.Started)
+
+
+If more than one created event class is defined on the aggregate class, perhaps
+because the name of the created event class was changed and there are stored events
+that were created using the old created event class that still need to be supported,
+the ``created_event_name`` class argument can be used to identify which created event
+class is the one to use when creating new aggregate instances. This can be combined
+with upcasting old events, discussed above.
+
+.. code:: python
+
+    class MyAggregate(Aggregate, created_event_name="Started"):
+        class Created(Aggregate.Created):
+            pass
+
+        class Started(Aggregate.Created):
+            pass
+
+
+    # Create a new aggregate.
+    agg = MyAggregate()
+
+    # The created event class is called "Started".
+    pending_events = agg.collect_events()
+    assert isinstance(pending_events[0], MyAggregate.Started)
+
+
+If the ``created_event_name`` argument is used but the value does not match
+the name of one the created event classes that are explicitly defined on the
+aggregate class, then an event class will be automatically defined, and it
+will be used when creating new aggregate instances.
+
+.. code:: python
+
+    class MyAggregate(Aggregate, created_event_name="Opened"):
+        class Created(Aggregate.Created):
+            pass
+
+        class Started(Aggregate.Created):
+            pass
+
+
+    # Create a new aggregate.
+    agg = MyAggregate()
+
+    # The created event class is called "Opened".
+    pending_events = agg.collect_events()
+    assert isinstance(pending_events[0], MyAggregate.Opened)
+
+
+Defining the aggregate ID
+-------------------------
+
+By default, the aggregate ID will be a version 4 UUID, automatically
+generated when a new aggregate is created. However, the aggregate ID
+can also be defined as a function of the arguments used to create the
+aggregate. You can do this by defining a ``create_id()`` method.
+
+.. code:: python
+
+    class MyAggregate(Aggregate):
+        name: str
+
+        @staticmethod
+        def create_id(name: str):
+            return uuid5(NAMESPACE_URL, f"/my_aggregates/{name}")
+
+
+    # Create a new aggregate.
+    agg = MyAggregate(name="foo")
+    assert agg.name == "foo"
+
+    # The aggregate ID is a version 5 UUID.
+    assert agg.id == MyAggregate.create_id("foo")
+
+If a ``create_id()`` method is defined on the aggregate class, the base class
+method :func:`~eventsourcing.domain.MetaAggregate.create_id`
+will be overridden. The arguments used in this method must be a subset of the
+arguments used to create the aggregate. The base class method simply returns a
+version 4 UUID, which is the default behaviour for generating aggregate IDs.
+
+Alternatively, an 'id' attribute can be declared on the aggregate
+class, and an ID supplied directly when creating new aggregates.
+
+.. code:: python
+
+    def create_id(name: str):
+        return uuid5(NAMESPACE_URL, f"/my_aggregates/{name}")
+
+    class MyAggregate(Aggregate):
+        id: UUID
+
+
+    # Create an ID.
+    agg_id = create_id(name="foo")
+
+    # Create an aggregate with the ID.
+    agg = MyAggregate(id=agg_id)
+    assert agg.id == agg_id
+
+
+When defining an explicit ``__init__()`` method, the ``id`` argument can
+be set on the object as ``self._id``. Assigning to ``self.id`` won't work
+because ``id`` is defined as a read-only property on the base aggregate class.
+
+.. code:: python
+
+    class MyAggregate(Aggregate):
+        def __init__(self, id: UUID):
+            self._id = id
+
+
+    # Create an aggregate with the ID.
+    agg = MyAggregate(id=agg_id)
+    assert agg.id == agg_id
+
 
 
 The :data:`@event` decorator
 ----------------------------
 
-The ``World`` aggregate in the :ref:`basic example <Aggregate basic example>` above
-can be expressed more concisely in the following way. The aggregate's created event is
-automatically defined by inspecting the aggregate's ``__init__()`` method. The
-created event is named ``Created`` by default, but this can be changed by using
-the class argument ``created_event_name`` (see below). The
-``World.SomethingHappened`` event is automatically defined by inspecting the decorated
-``make_it_so()`` method. The event class name is given to the decorator. The body of the
-decorated ``make_it_so()`` method will be used as the ``apply()`` method of the
-``World.SomethingHappened`` event, both when the event is triggered and when the
-aggregate is reconstructed from stored events.
+A more concise way of expressing the concerns around defining, triggering and
+applying subsequent aggregate events can be achieved by using the library function
+:func:`~eventsourcing.domain.event` to decorate aggregate command methods.
+
+When decorating a method with the :data:`@event` decorator, the method signature
+will be used to automatically define an aggregate event class. And when the
+method is called, the event will firstly be triggered with the values given
+when calling the method, so that an event is created and used to mutate the
+state of the aggregate. The body of the decorated method will be used as the
+``apply()`` method of the event both after the event has been triggered and
+when the aggregate is reconstructed from stored events. The name of the event
+class can be passed to the decorator.
+
+.. code:: python
+
+    from eventsourcing.domain import event
+
+    class MyAggregate(Aggregate):
+        name: str
+
+        @event("NameUpdated")
+        def update_name(self, name):
+            self.name = name
+
+
+    # Create an aggregate.
+    agg = MyAggregate(name="foo")
+    assert agg.name == "foo"
+
+    # Update the name.
+    agg.update_name("bar")
+    assert agg.name == "bar"
+
+    # There are two pending events.
+    pending_events = agg.collect_events()
+    assert len(pending_events) == 2
+    assert pending_events[0].name == "foo"
+
+    # The second pending event is a 'NameUpdated' event.
+    assert isinstance(pending_events[1], MyAggregate.NameUpdated)
+
+    # The second pending event has a 'name' attribute.
+    assert pending_events[1].name == "bar"
+
+
+Inferring the event class name from the method name
+---------------------------------------------------
+
+The :data:`@event` decorator can be used without providing
+the name of an event. If the decorator is used without any
+arguments, the name of the event will be derived from the
+method name. The method name is assumed to be lower case
+and underscore-separated. The name of the event class is
+constructed by firstly splitting the name of the method by its
+underscore characters, then by capitalising the resulting parts,
+and then by concatenating the capitalised parts to give an
+"upper camel case" class name. For example, a method name
+``name_updated`` would give an event class name ``NameUpdated``.
+
+
+.. code:: python
+
+    from eventsourcing.domain import event
+
+    class MyAggregate(Aggregate):
+        name: str
+
+        @event
+        def name_updated(self, name):
+            self.name = name
+
+
+    # Create an aggregate.
+    agg = MyAggregate(name="foo")
+    assert agg.name == "foo"
+
+    # Update the name.
+    agg.name_updated("bar")
+    assert agg.name == "bar"
+
+    # There are two pending events.
+    pending_events = agg.collect_events()
+    assert len(pending_events) == 2
+    assert pending_events[0].name == "foo"
+
+    # The second pending event is a 'NameUpdated' event.
+    assert isinstance(pending_events[1], MyAggregate.NameUpdated)
+
+    # The second pending event has a 'name' attribute.
+    assert pending_events[1].name == "bar"
+
+However, this creates a slight tension in the naming conventions
+because methods should normally be named using the imperative form
+and event names should normally be past participles. However, this
+can be useful when naming methods that will be only called by aggregate
+command methods under certain conditions.
+
+For example, if an attempt is made to update the value of an attribute,
+but the given value happens to be identical to the existing value, then
+it might be desirable to skip on having an event triggered.
+
+.. code:: python
+
+    class MyAggregate(Aggregate):
+        name: str
+
+        def update_name(self, name):
+            if name != self.name:
+                self.name_updated(name)
+
+        @event
+        def name_updated(self, name):
+            self.name = name
+
+    # Create an aggregate.
+    agg = MyAggregate(name="foo")
+    assert agg.name == "foo"
+
+    # Update the name lots of times.
+    agg.update_name("foo")
+    agg.update_name("foo")
+    agg.update_name("foo")
+    agg.update_name("bar")
+    agg.update_name("bar")
+    agg.update_name("bar")
+    agg.update_name("bar")
+
+    # There are two pending events (not eight).
+    pending_events = agg.collect_events()
+    assert len(pending_events) == 2, len(pending_events)
+
+
+
+The World aggregate class revisited
+-----------------------------------
+
+Using the declarative syntax described above, the ``World`` aggregate in
+the :ref:`basic example <Aggregate basic example>` above can be
+expressed more concisely in the following way.
+
+In the example below, the ``World`` aggregate's created event is automatically
+defined by inspecting the aggregate's ``__init__()`` method. The created event
+is named ``Created``. The ``World.SomethingHappened`` event is automatically
+defined by inspecting the decorated ``make_it_so()`` method. The event class
+name "SomethingHappened" is given to the event decorator. The body of the decorated
+``make_it_so()`` method will be used as the ``apply()`` method of the
+``World.SomethingHappened`` event, both when the event is triggered and
+when the aggregate is reconstructed from stored events.
 
 .. code:: python
 
@@ -1080,14 +1518,14 @@ aggregate is reconstructed from stored events.
             self.history.append(what)
 
 
-To make the syntax even closer to normal Python classes, rather than defining and calling
-a ``create()`` class method, the aggregate class can be called directly. Calling the class
-directly will call the :class:`~eventsourcing.domain.Aggregate`
-:func:`~eventsourcing.domain.MetaAggregate._create` method (discussed above) with the automatically
-defined ``World.Created`` event. Calling the ``make_it_so()`` method will trigger a
-``World.SomethingHappened`` event, and this event will be used to mutate the state
-of the aggregate, such that the ``make_it_so()`` method argument ``what`` will
-eventually be appended to the aggregate's ``history`` attribute.
+The ``World`` aggregate class can be called directly. Calling the
+class directly will call the :class:`~eventsourcing.domain.Aggregate`
+:func:`~eventsourcing.domain.MetaAggregate._create` method with the
+automatically defined ``World.Created`` event. Calling the ``make_it_so()``
+method will trigger a ``World.SomethingHappened`` event, and this event
+will be used to mutate the state of the aggregate, such that the
+``make_it_so()`` method argument ``what`` will eventually be appended
+to the aggregate's ``history`` attribute.
 
 .. code:: python
 
@@ -1102,14 +1540,13 @@ eventually be appended to the aggregate's ``history`` attribute.
     assert len(world.collect_events()) == 4
 
 
-Dataclass-style init methods
-----------------------------
 
-Similarly, the ``Page`` and ``Index`` aggregates defined in the above
+The Page and Index aggregates revisited
+---------------------------------------
+
+The ``Page`` and ``Index`` aggregates defined in the above
 :ref:`discussion about namespaced IDs <Namespaced IDs>` can be expressed more
-concisely in the following way. The example below also shows how Python's
-dataclass annotations can be used to define an aggregate's ``__init__()``
-method, from which the created event class will be defined.
+concisely in the following way.
 
 .. code:: python
 
@@ -1139,19 +1576,8 @@ method, from which the created event class will be defined.
         def update_ref(self, ref: Optional[UUID]):
             self.ref = ref
 
-Please note, when using the dataclass-style for defining ``__init__()``
-methods, using the :data:`@dataclass` decorator will inform your IDE of
-the method signature. The annotations will in any case be used to create
-an ``__init__()`` method when the class does not already have an ``__init__()``.
-Using the dataclass decorator merely enables code completion and syntax
-checking, but the code will run just the same with or without the
-:data:`@dataclass` decorator being applied to aggregate classes that
-are defined using this style.
 
-.. code:: python
-
-    # Create a new page and index.
-
+    # Create new page and index aggregates.
     page = Page(name="Erth")
     index1 = Index(name=page.name, ref=page.id)
 
@@ -1160,7 +1586,6 @@ are defined using this style.
     # to retrieve the index aggregate, which
     # gives the page ID, and then the page ID
     # can be used to retrive the page aggregate.
-
     index_id = Index.create_id(name="Erth")
     assert index_id == index1.id
     assert index1.ref == page.id
@@ -1168,7 +1593,6 @@ are defined using this style.
 
     # Later, the page name can be updated,
     # and a new index created for the page.
-
     page.update_name(name="Earth")
     index1.update_ref(ref=None)
     index2 = Index(name=page.name, ref=page.id)
@@ -1178,61 +1602,11 @@ are defined using this style.
     # used to retrieve the new index aggregate,
     # which gives the page ID, and then the page
     # ID can be used to retrieve the renamed page.
-
     index_id = Index.create_id(name="Earth")
     assert index_id == index2.id
     assert index2.ref == page.id
     assert index2.name == page.name
 
-
-Declaring the aggregate ID
---------------------------
-
-The example above also demonstrates the how version 5 UUIDs can be created from
-the arguments used to create an aggregate. If a ``create_id()`` method is defined
-on the aggregate class, the base class method :func:`~eventsourcing.domain.MetaAggregate.create_id`
-will be overridden. It will return a UUID that is a function of the arguments used
-to create the aggregate. The arguments used in this method must be a subset of the
-arguments used to create the aggregate. The base class method simply returns a
-version 4 UUID, which is the default behaviour for generating aggregate IDs.
-
-It's also possible to pass in a UUID directly to the constructor. You can do this
-either by defining an ``id`` annotation when the dataclass-style is used to
-define an ``__init__()`` method, or by including an ``id`` argument in an
-explicitly defined ``__init__()`` method.
-
-.. code:: python
-
-    def create_index_id(name: str):
-        return uuid5(NAMESPACE_URL, f"/pages/{name}")
-
-
-    @dataclass
-    class Index(Aggregate):
-        id: UUID
-        ref: Optional[UUID]
-
-
-    index_id = create_index_id("name")
-    index = Index(id=index_id, ref=uuid4())
-    assert index.id == index_id
-
-
-When defining an explicit ``__init__()`` method, the ``id`` argument can
-be set on the object as ``self._id``. Assigning to ``self.id`` won't work
-because ``id`` is defined as a read-only property on the base aggregate class.
-
-.. code:: python
-
-    class Index(Aggregate):
-        def __init__(self, id: UUID, ref: UUID):
-            self._id = id
-            self.ref = ref
-
-
-    index_id = create_index_id("name")
-    index = Index(id=index_id, ref=uuid4())
-    assert index.id == index_id
 
 
 Non-trivial command methods
@@ -1242,7 +1616,8 @@ Tn the examples above, the work of the command methods is "trivial", in
 that the command method arguments are always used directly as the aggregate event
 attribute values. But often a command method needs to do some work before
 triggering an event. The event attributes may not be the same as the command
-method arguments. The command may conditonally not trigger an event.
+method arguments. The logic of the command may be such that under some conditions
+an event should not be triggered.
 
 As a final example, consider the following ``Order`` class. It is an ordinary
 Python object class. Its ``__init__()`` method takes a ``name`` argument. The
@@ -1423,110 +1798,15 @@ aggregate before continuing to trigger events.
         assert len(order.pending_events) == 1
 
 
-In many cases, a command will do work on the given attributes and trigger
+Recording command arguments and reprocessing them each time the aggregate is
+reconstructed is perhaps best described as "command sourcing".
+
+In many cases, a command will do some work and trigger
 an aggregate event that has attributes that are different from the command,
-and in those cases it is necessary to have two different methods: a
-command method that is not decorated and a decorated method that
-triggers and applies an aggregate event. Recording command arguments
-and reprocessing them each time the aggregate is reconstructed is
-perhaps best described as "command sourcing".
-
-
-Declaring created event classes
--------------------------------
-
-The examples so far have all involved automatically defining
-a created event named ``Created``.
-
-.. code:: python
-
-    assert type(pending_events[0]).__name__ == "Created"
-
-
-It is possible to set the name of the created event class, and
-also explicitly to declare created event classes.
-
-When inheriting from the :class:`~eventsourcing.domain.Aggregate` class, it is
-possible to provide a name for the created event class using the class argument
-``created_event_name``. In the example below, the name of the created
-event class has been declarted to be "Started", so that an ``Order.Started``
-event will be occur when the ``Order`` class is called.
-
-.. code:: python
-
-    class Order(Aggregate, created_event_name="Started"):
-        def __init__(self, name):
-            self.name = name
-
-
-    order = Order("my order")
-    pending_events = order.collect_events()
-    assert type(pending_events[0]).__name__ == "Started"
-
-
-If a created event class is defined explicitly on the aggregate class, it
-will be used when calling the aggregate class. The example below shows a
-``Started`` event that inherits from :class:`~eventsourcing.domain.AggregateCreated`.
-This can be useful when old created events need to be upcast.
-
-.. code:: python
-
-    class Order(Aggregate):
-        def __init__(self, name):
-            self.name = name
-
-        class Started(AggregateCreated):
-            name: str
-
-
-    order = Order("my order")
-    pending_events = order.collect_events()
-    assert type(pending_events[0]).__name__ == "Started"
-
-
-If more than one created event class is defined, perhaps because the name of the
-created event class was changed and there are stored events that were created
-using the old class, the ``created_event_name`` can be used to identify
-which created event class is the current one.
-
-.. code:: python
-
-    class Order(Aggregate, created_event_name="Opened"):
-        def __init__(self, name):
-            self.name = name
-
-        class Opened(AggregateCreated):
-            name: str
-
-        class Started(AggregateCreated):  # old name
-            name: str
-
-
-    order = Order("my order")
-
-    pending_events = order.collect_events()
-    assert type(pending_events[0]).__name__ == "Opened"
-
-
-
-If the ``created_event_name`` value is provided but does not match one of
-the created event classes that are explicitly defined, then an event class
-will be automatically defined, and it will be used when calling the aggregate
-class.
-
-.. code:: python
-
-    class Order(Aggregate, created_event_name="Opened"):
-        def __init__(self, name):
-            self.name = name
-
-        class Started(AggregateCreated):
-            name: str
-
-
-    order = Order("my order")
-    pending_events = order.collect_events()
-    assert type(pending_events[0]).__name__ == "Opened"
+and in those cases it is necessary to have two different methods with different
+signatures: a command method that is not decorated and a decorated method that
+triggers and applies an aggregate event. This second method may arguably be
+well named by using a past participle rather than the imperative form.
 
 
 The :data:`@aggregate` decorator
@@ -1552,8 +1832,8 @@ class rather than using the ``@aggregate`` decorator so that full the
 
 
     order = Order("my order")
-    created_event = order.collect_events()[0]
-    assert type(created_event).__name__ == "Started"
+    pending_events = order.collect_events()
+    assert isinstance(pending_events[0], Order.Started)
 
 
 .. _Topics:
