@@ -325,9 +325,9 @@ cipher_key = AESCipher.create_key(num_bytes=32)
 # Cipher key.
 os.environ['CIPHER_KEY'] = cipher_key
 # Cipher topic.
-os.environ['CIPHER_TOPIC'] = "eventsourcing.cipher:AESCipher"
+os.environ['CIPHER_TOPIC'] = 'eventsourcing.cipher:AESCipher'
 # Compressor topic.
-os.environ['COMPRESSOR_TOPIC'] = "eventsourcing.compressor:ZlibCompressor"
+os.environ['COMPRESSOR_TOPIC'] = 'eventsourcing.compressor:ZlibCompressor'
 
 # Use SQLite infrastructure.
 os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.sqlite:Factory'
@@ -363,18 +363,16 @@ cipher_key = AESCipher.create_key(num_bytes=32)
 # Cipher key.
 os.environ['CIPHER_KEY'] = cipher_key
 # Cipher topic.
-os.environ['CIPHER_TOPIC'] = "eventsourcing.cipher:AESCipher"
+os.environ['CIPHER_TOPIC'] = 'eventsourcing.cipher:AESCipher'
 # Compressor topic.
-os.environ['COMPRESSOR_TOPIC'] = "eventsourcing.compressor:ZlibCompressor"
+os.environ['COMPRESSOR_TOPIC'] = 'eventsourcing.compressor:ZlibCompressor'
 
 # Use Postgres infrastructure.
-os.environ['INFRASTRUCTURE_FACTORY'] = (
-    'eventsourcing.postgres:Factory'
-)
-os.environ["POSTGRES_DBNAME"] = "eventsourcing"
-os.environ["POSTGRES_HOST"] = "127.0.0.1"
-os.environ["POSTGRES_USER"] = "eventsourcing"
-os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
+os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.postgres:Factory'
+os.environ['POSTGRES_DBNAME'] = 'eventsourcing'
+os.environ['POSTGRES_HOST'] = '127.0.0.1'
+os.environ['POSTGRES_USER'] = 'eventsourcing'
+os.environ['POSTGRES_PASSWORD'] = 'eventsourcing'
 ```
 
 Run the code in "production" PostgreSQL environment.
