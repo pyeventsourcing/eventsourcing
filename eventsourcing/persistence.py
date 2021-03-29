@@ -277,6 +277,7 @@ class AggregateRecorder(Recorder):
         Writes stored events into database.
         """
 
+    # Todo: Change the implementations to get in batches, in case lots of events.
     @abstractmethod
     def select_events(
         self,
