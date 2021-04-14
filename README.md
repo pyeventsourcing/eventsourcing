@@ -34,7 +34,7 @@ class World(Aggregate):
     def __init__(self):
         self.history = []
 
-    @event("SomethingHappened")
+    @event('SomethingHappened')
     def make_it_so(self, what):
         self.history.append(what)
 ```
