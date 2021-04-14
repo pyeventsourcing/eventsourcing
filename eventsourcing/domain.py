@@ -275,7 +275,9 @@ class EventDecorator:
         b.trigger(**kwargs)
 
 
-def event(arg: Union[FunctionType, str, Type[AggregateEvent]]) -> EventDecorator:
+def event(
+    arg: Optional[Union[FunctionType, str, Type[AggregateEvent]]] = None
+) -> Union[EventDecorator, Type[EventDecorator]]:
     """
     Can be used to decorate an aggregate method so that when the
     method is called an event is triggered. The body of the method
@@ -324,7 +326,10 @@ def event(arg: Union[FunctionType, str, Type[AggregateEvent]]) -> EventDecorator
 
 
     """
-    return EventDecorator(arg)
+    if arg is None:
+        return EventDecorator
+    else:
+        return EventDecorator(arg)
 
 
 triggers = event

@@ -151,6 +151,20 @@ class TestEventDecorator(TestCase):
         self.assertEqual(len(a.pending_events), 2)
         self.assertIsInstance(a.pending_events[1], MyAgg.Heartbeat)
 
+    def test_event_decorator_called_without_args(self):
+        class MyAgg(Aggregate):
+            @event()
+            def heartbeat(self):
+                pass
+
+        a = MyAgg()
+        self.assertIsInstance(a, MyAgg)
+        a.heartbeat()
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(a.version, 2)
+        self.assertEqual(len(a.pending_events), 2)
+        self.assertIsInstance(a.pending_events[1], MyAgg.Heartbeat)
+
     def test_event_name_inferred_from_method_with_arg(self):
         class MyAgg(Aggregate):
             @event
