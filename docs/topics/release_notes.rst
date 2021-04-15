@@ -23,7 +23,7 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
-Version 9.0.2 (released 15 April 2021)
+Version 9.0.2 (released 16 April 2021)
 --------------------------------------
 
 Fixed issue with type hints in PyCharm v2021.1 for methods decorated with the @event decorator.
