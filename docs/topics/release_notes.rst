@@ -26,7 +26,7 @@ code and stored events is very possible.
 Version 9.0.2 (released 15 April 2021)
 --------------------------------------
 
-Fixed issue with type hints for methods decorated with event decorator caused by PyCharm v2021.1.
+Fixed issue with type hints in PyCharm v2021.1 for methods decorated with the @event decorator.
 
 
 Version 9.0.1 (released 29 March 2021)
