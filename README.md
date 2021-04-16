@@ -158,7 +158,7 @@ assert world.history[2] == 'internet'
 
 The resulting events can be collected using the `collect_events()`
 method. The `collect_events()` method is used by the `Application.save()`
-method (see below).
+method.
 
 ```python
 
@@ -172,6 +172,8 @@ assert type(events[3]).__qualname__ == 'World.SomethingHappened'
 ```
 
 The aggregate events can be used to reconstruct the state of the aggregate.
+An application's `repository.get()` method reconstructs aggregates from
+stored events in this way.
 
 ```python
 
