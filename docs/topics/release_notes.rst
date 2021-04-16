@@ -39,36 +39,36 @@ Version 9.0.0 (released 13 March 2021)
 --------------------------------------
 
 First release of the distilled version of the library. Compared with
-previous versions, the code and documentation are much simpler, and
-focus directly on expressing the important concerns without the
-extraneous detail and optional alternatives that had been accumulated
-over the past few years of learning.
+previous versions, the code and documentation are much simpler. This
+version focuses directly on expressing the important concerns, without
+the variations and alternatives that had been accumulated over the past
+few years of learning and pathfinding.
 
 The highlight is the new :ref:`declarative syntax <Declarative syntax>`
 for event sourced domain models.
 
 Dedicated persistence modules for SQLite and PostgresSQL have been
-introduced, and support for SQLAlchemy and Django and other databases
-has been removed (the plan being to support these in separate package
-distributions). The default "plain old Python object" infrastructure
+introduced. Support for SQLAlchemy and Django, and other databases,
+has been removed. The plan is to support these in separate package
+distributions. The default "plain old Python object" infrastructure
 continues to exist, and now offers event storage and retrieval
 performance of around 20x the speed of using PostgreSQL and around
 4x the speed of using SQLite in memory.
 
-The storage format is more efficient, because originator IDs and
-originator versions are removed from the stored state before serialisation,
-then reinstated on serialisation.
+The event storage format is more efficient, because originator IDs and
+originator versions are removed from the stored event state before
+serialisation, and then reinstated on serialisation.
 
-Database sequences are used generate event notifications rather than the
-use of "INSERT SELECT" SQL statement avoids table conflicts that sometimes
-caused conflicts and exceptions when storing events that could only
-be resolved with retries. Although this leads to notification ID
-sequences that may have gaps, the use of sequences means there is
-no risk of event notifications being inserted in the gaps after later
-event notifications have been processed, which was the motivation
-for using gapless sequences in previous versions. The notification log
-and log reader classes have been adjusted to support the possible
-existence of gaps in the notification log sequence.
+Rather than the using "INSERT SELECT MAX" SQL statements, database
+sequences are used to generate event notifications. This avoids table
+conflicts that sometimes caused exceptions and required retries when
+storing events. Although this leads to notification ID sequences that
+may have gaps, the use of sequences means there is still no risk of
+event notifications being inserted in the gaps after later event
+notifications have been processed, which was the motivation for using
+gapless sequences in previous versions. The notification log and log
+reader classes have been adjusted to support the possible existence of
+gaps in the notification log sequence.
 
 The transcoder is more easily extensible, with the new style for defining
 and registering individual transcoding objects to support individual types
