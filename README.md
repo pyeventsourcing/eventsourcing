@@ -39,13 +39,6 @@ class World(Aggregate):
         self.history.append(what)
 ```
 
-The `World` aggregate has a command method `make_it_so()` which triggers
-an  event called `SomethingHappened` that appends the given value
-of `what` to the `history` attribute of an instance of `World`.
-It is generally recommended to use an imperative
-style when naming command methods, and to name event classes
-using past participles.
-
 You can use the library's `Application` class to define event sourced
 applications. The `Application` class brings together a domain model
 and persistence infrastructure.
@@ -72,17 +65,6 @@ class Worlds(Application):
         world = self.repository.get(world_id)
         return world.history
 ```
-
-The `create_world()` factory method creates and saves a new `World`
-aggregate instance, and returns the UUID of the new instance. The
-`make_it_so()` command method uses the given `world_id` to retrieve
-a `World` aggregate instance from the application's repository
-(reconstructs the aggregate from its stored events),  then calls
-the aggregate's `make_it_so()` method, and then saves the aggregate
-(collects and stores new aggregate event). The `get_history()` query
-method uses the given `world_id` to retrieve an `World` aggregate
-from the application's repository and then returns the aggregate's
-history.
 
 
 ## Features
@@ -194,8 +176,25 @@ This example can be adjusted and extended for any event sourced domain model.
 ## Application
 
 
-Let's define a test that uses the `Worlds` application. Below, we will
-run this test with different persistence infrastructure.
+The `Worlds` application's `create_world()` method creates and saves a
+new instance of the `World` aggregate, and returns the UUID of the new
+instance. The application's `make_it_so()` command method uses the given
+`world_id` to retrieve  a `World` aggregate instance from the application's
+repository (reconstructs the aggregate from its stored events), then calls
+the aggregate's `make_it_so()` method, and then saves the aggregate
+(collects and stores new aggregate event). The `get_history()` query
+method uses the given `world_id` to retrieve an `World` aggregate
+from the application's repository and then returns the aggregate's
+history.
+
+The application's `repository.get()` method can be used to retrieve
+stored aggregates, by reconstructing them from their stored events.
+Historical state of an aggregate can be obtained by using the optional
+`version` argument.
+
+The application's `log` can be used to read all the stored events
+of the application as "event notifications" in the order they were
+recorded.
 
 ```python
 from eventsourcing.persistence import RecordConflictError
@@ -230,7 +229,7 @@ def test(app: Worlds, expect_visible_in_db: bool):
         'internet'
     ]
 
-    # Check values are (or aren't visibible) in the database.
+    # Check values are (or aren't visible) in the database.
     values = [b'dinosaurs', b'trucks', b'internet']
     if expect_visible_in_db:
         expected_num_visible = len(values)
@@ -295,9 +294,9 @@ def test(app: Worlds, expect_visible_in_db: bool):
 ## Development environment
 
 We can run the code in default "development" environment using
-the default "Plain Old Python Object" infrastructure. The example
-below runs with no compression or encryption of the stored
-events.
+the default "Plain Old Python Object" infrastructure (which keeps
+stored events in memory). The example below runs with no compression or
+encryption of the stored events.
 
 ```python
 
@@ -311,10 +310,11 @@ test(app, expect_visible_in_db=True)
 
 ## SQLite environment
 
-Configure "production" environment using SQLite infrastructure.
-The example below uses zlib and AES to compress and encrypt
-the stored events. An in-memory SQLite database is used, but
-it would work the same way if a file path were set as the `SQLITE_DBNAME`.
+Configure "production" environment using SQLite infrastructure
+(which keeps stored events in an SQLite database). The example below
+uses zlib and AES to compress and encrypt the stored events.
+An in-memory SQLite database is used, but it would work the
+same way if a file path were set as the `SQLITE_DBNAME`.
 
 ```python
 import os
@@ -348,11 +348,11 @@ test(app, expect_visible_in_db=False)
 
 ## PostgreSQL environment
 
-Configure "production" environment using PostgresSQL infrastructure.
-The example below uses zlib and AES to compress and encrypt
-the stored events. It is assumed the database and database
-user have already been created, and the database server is running
-locally.
+Configure "production" environment using PostgresSQL infrastructure
+(which keeps stored events in a PostgreSQL database). The example
+below uses zlib and AES to compress and encrypt the stored events.
+It is assumed the database and database user have already been
+created, and the database server is running locally.
 
 ```python
 import os
