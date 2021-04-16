@@ -134,10 +134,10 @@ and systems.
 
 ## Domain model
 
-When the `World` aggregate class is called, a created event object is
+When the `World` aggregate class is called, a `World.Created` event object is
 created and used to construct an instance of `World`. And when the
 command method `make_it_so()` is called on an instance of
-`World`, a `SomethingHappened` event is triggered with a value of
+`World`, a `World.SomethingHappened` event is triggered with a value of
 `what`, which results in the `what` value being appended to the
 `history` of the `World` aggregate instance.
 
@@ -157,18 +157,18 @@ assert world.history[2] == 'internet'
 ```
 
 The resulting events can be collected using the `collect_events()`
-method. The `collect_events()` method is used by the `Application`
-`save()` method (see below).
+method. The `collect_events()` method is used by the `Application.save()`
+method (see below).
 
 ```python
 
 # Collect events.
 events = world.collect_events()
 assert len(events) == 4
-assert type(events[0]).__name__ == 'Created'
-assert type(events[1]).__name__ == 'SomethingHappened'
-assert type(events[2]).__name__ == 'SomethingHappened'
-assert type(events[3]).__name__ == 'SomethingHappened'
+assert type(events[0]).__qualname__ == 'World.Created'
+assert type(events[1]).__qualname__ == 'World.SomethingHappened'
+assert type(events[2]).__qualname__ == 'World.SomethingHappened'
+assert type(events[3]).__qualname__ == 'World.SomethingHappened'
 ```
 
 The aggregate events can be used to reconstruct the state of the aggregate.
@@ -244,10 +244,10 @@ def test(app: Worlds, expect_visible_in_db: bool):
                 break
     assert expected_num_visible == actual_num_visible
 
-    # Get historical state (at version from above).
+    # Get historical state (at version 3, before 'internet' happened).
     old = app.repository.get(world_id, version=3)
-    assert old.history[-1] == 'trucks' # internet not happened
     assert len(old.history) == 2
+    assert old.history[-1] == 'trucks' # last thing to have happened was 'trucks'
 
     # Check app has four event notifications.
     assert len(app.log['1,10'].items) == 4, len(app.log['1,10'].items)
@@ -262,7 +262,7 @@ def test(app: Worlds, expect_visible_in_db: bool):
         raise Exception("Shouldn't get here")
 
     # Check app still has only four event notifications.
-    assert len(app.log['1,10'].items) == 4, len(app.log['1,10'].items)
+    assert len(app.log['1,10'].items) == 4
 
     # Read event notifications.
     reader = NotificationLogReader(app.log)
@@ -285,8 +285,7 @@ def test(app: Worlds, expect_visible_in_db: bool):
     notifications = list(reader.read(start=last_id + 1))
     assert len(notifications) == 8
 
-    # Get all the event notifications from the reader.
-    last_id = notifications[-1].id
+    # Get all the event notifications from the application log.
     notifications = list(reader.read(start=1))
     assert len(notifications) == 12
 ```
