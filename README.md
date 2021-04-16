@@ -20,12 +20,11 @@ the Python Package Index.
 
 ## Synopsis
 
-You can use the library's `Aggregate` class to define event sourced aggregates.
-
-The example below uses the library's declarative syntax
-to define an event sourced aggregate called `World`.
-The `World` class uses the `Aggregate` class and the `event`
-decorator from the `eventsourcing.domain` module.
+You can use the library's `Aggregate` class and the `@event` decorator to define
+event sourced aggregates. The example below defines an event sourced aggregate
+called `World` that will trigger a `World.Created` event when the class is called. The
+`World` class has a `make_it_so()` method that will trigger a `World.SomethingHappened`
+event when the method is called.
 
 ```python
 from eventsourcing.domain import Aggregate, event
