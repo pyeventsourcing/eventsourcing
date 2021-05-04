@@ -704,8 +704,7 @@ class TestAggregateCreation(TestCase):
 
         self.assertEqual(
             cm.exception.args[0],
-            "Name of _created_event_class 'Created' not equal "
-            "to given created_event_name 'Started'",
+            "Can't use both '_created_event_class' and 'created_event_name'",
         )
 
     def test_define_create_id(self):

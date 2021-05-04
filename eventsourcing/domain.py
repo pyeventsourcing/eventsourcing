@@ -183,17 +183,21 @@ class EventDecorator:
             raise TypeError(f"Unsupported usage: {type(arg)} is not a str or function")
 
     def initialise_from_decorated_method(self, original_method: FunctionType) -> None:
-        self.is_name_inferred_from_method = True
-        self.event_cls_name = "".join(
-            [s.capitalize() for s in original_method.__name__.split("_")]
-        )
         self.original_method = original_method
+        original_method_name = original_method.__name__
+        if original_method_name != "__init__":
+            self.is_name_inferred_from_method = True
+            self.event_cls_name = "".join(
+                [s.capitalize() for s in original_method_name.split("_")]
+            )
         _check_no_variable_params(self.original_method)
 
     def initialise_from_event_cls(self, event_cls: Type[AggregateEvent]) -> None:
         self.given_event_cls = event_cls
 
     def initialise_from_explicit_name(self, event_cls_name: str) -> None:
+        if event_cls_name == "":
+            raise ValueError("Can't use empty string as name of event class")
         self.event_cls_name = event_cls_name
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
@@ -405,7 +409,7 @@ TAggregateCreated = TypeVar("TAggregateCreated", bound=AggregateCreated)
 def _check_no_variable_params(
     method: Union[FunctionType, WrapperDescriptorType]
 ) -> None:
-    assert isinstance(method, (FunctionType, WrapperDescriptorType))
+    assert isinstance(method, (FunctionType, WrapperDescriptorType)), type(method)
     for param in inspect.signature(method).parameters.values():
         if param.kind is param.VAR_POSITIONAL:
             raise TypeError("variable positional parameters not supported")
@@ -548,17 +552,41 @@ class MetaAggregate(ABCMeta):
 
         # Prepare created event class.
         created_event_classes = {}
-        created_event_class = None
-        for name, value in tuple(cls.__dict__.items()):
-            if name == "_created_event_class":
-                created_event_class = value
-                # The names must match...
-                if created_event_name and value.__name__ != created_event_name:
-                    raise TypeError(
-                        f"Name of _created_event_class '{value.__name__}' not "
-                        f"equal to given created_event_name '{created_event_name}'"
-                    )
-                break
+
+        try:
+            created_event_class = cls.__dict__["_created_event_class"]
+            if created_event_name:
+                raise TypeError(
+                    "Can't use both '_created_event_class' and 'created_event_name'"
+                )
+        except KeyError:
+            created_event_class = None
+
+        if isinstance(cls.__dict__["__init__"], EventDecorator):
+            init_decorator: EventDecorator = cls.__dict__["__init__"]
+            init_method = init_decorator.original_method
+            if created_event_name:
+                raise TypeError(
+                    "Can't use both 'created_event_name' and __init__ @event decorator"
+                )
+            elif created_event_class:
+                raise TypeError(
+                    "Can't use both '_created_event_class' and __init__ @event "
+                    "decorator"
+                )
+            elif init_decorator.event_cls_name:
+                created_event_name = init_decorator.event_cls_name
+            elif init_decorator.given_event_cls:
+                created_event_class = init_decorator.given_event_cls
+            else:
+                raise TypeError(
+                    "Neither name nor class given to __init__ @event decorator"
+                )
+            cls.__init__ = init_method  # type: ignore
+        else:
+            init_method = cls.__dict__["__init__"]
+
+        assert isinstance(init_method, FunctionType)
 
         for name, value in tuple(cls.__dict__.items()):
             if isinstance(value, type) and issubclass(value, AggregateCreated):
@@ -574,8 +602,6 @@ class MetaAggregate(ABCMeta):
                     created_event_name = "Created"
                 # Define a "created" event for this class.
                 created_cls_annotations = {}
-                # noinspection PyTypeChecker
-                init_method: WrapperDescriptorType = cls.__init__  # type: ignore
                 _check_no_variable_params(init_method)
                 method_signature = inspect.signature(init_method)
                 for param_name in method_signature.parameters:
