@@ -656,7 +656,7 @@ create a snapshot of an aggregate object.
     assert snapshot.topic == "__main__:World", snapshot.topic
     assert snapshot.state["history"] == world.history
     assert snapshot.state["_created_on"] == world.created_on
-    assert snapshot.state["modified_on"] == world.modified_on
+    assert snapshot.state["_modified_on"] == world.modified_on
     assert len(snapshot.state) == 3
 
 

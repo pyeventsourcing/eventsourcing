@@ -775,9 +775,9 @@ class Aggregate(ABC, metaclass=MetaAggregate):
         is also initialised.
         """
         self._id = id
-        self.version = version
+        self._version = version
         self._created_on = timestamp
-        self.modified_on = timestamp
+        self._modified_on = timestamp
         self._pending_events: List[AggregateEvent] = []
 
     @property
@@ -788,11 +788,33 @@ class Aggregate(ABC, metaclass=MetaAggregate):
         return self._id
 
     @property
+    def version(self) -> int:
+        """
+        The version number of the aggregate.
+        """
+        return self._version
+
+    @version.setter
+    def version(self, version: int) -> None:
+        self._version = version
+
+    @property
     def created_on(self) -> datetime:
         """
         The date and time when the aggregate was created.
         """
         return self._created_on
+
+    @property
+    def modified_on(self) -> datetime:
+        """
+        The date and time when the aggregate was last modified.
+        """
+        return self._modified_on
+
+    @modified_on.setter
+    def modified_on(self, modified_on: datetime) -> None:
+        self._modified_on = modified_on
 
     @property
     def pending_events(self) -> List[AggregateEvent]:
@@ -920,7 +942,7 @@ class Snapshot(DomainEvent):
         if class_version > 1:
             aggregate_state["class_version"] = class_version
         originator_id = aggregate_state.pop("_id")
-        originator_version = aggregate_state.pop("version")
+        originator_version = aggregate_state.pop("_version")
         # noinspection PyArgumentList
         return cls(  # type: ignore
             originator_id=originator_id,
@@ -946,7 +968,7 @@ class Snapshot(DomainEvent):
             from_version += 1
 
         aggregate_state["_id"] = self.originator_id
-        aggregate_state["version"] = self.originator_version
+        aggregate_state["_version"] = self.originator_version
         aggregate_state["_pending_events"] = []
         # noinspection PyShadowingNames
         aggregate = object.__new__(cls)
