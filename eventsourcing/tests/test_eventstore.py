@@ -11,6 +11,7 @@ from eventsourcing.persistence import (
 )
 from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatastore
 from eventsourcing.tests.test_aggregate import BankAccount
+from eventsourcing.tests.test_application import EmailAddressAsStr
 
 
 class TestEventStore(TestCase):
@@ -34,6 +35,7 @@ class TestEventStore(TestCase):
         transcoder.register(UUIDAsHex())
         transcoder.register(DecimalAsStr())
         transcoder.register(DatetimeAsISO())
+        transcoder.register(EmailAddressAsStr())
         recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_store = EventStore(
             mapper=Mapper(transcoder),

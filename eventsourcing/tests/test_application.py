@@ -1,5 +1,6 @@
 import os
 import sys
+from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from timeit import timeit
@@ -7,10 +8,10 @@ from unittest.case import TestCase
 from uuid import UUID, uuid4
 
 from eventsourcing.application import AggregateNotFound, Application
-from eventsourcing.persistence import InfrastructureFactory
+from eventsourcing.persistence import InfrastructureFactory, Transcoder, Transcoding
 from eventsourcing.postgres import PostgresDatastore
 from eventsourcing.tests.ramdisk import tmpfile_uris
-from eventsourcing.tests.test_aggregate import BankAccount
+from eventsourcing.tests.test_aggregate import BankAccount, EmailAddress
 from eventsourcing.tests.test_postgres import drop_postgres_table
 
 TIMEIT_FACTOR = int(os.environ.get("TEST_TIMEIT_FACTOR", default=10))
@@ -222,7 +223,22 @@ class TestApplicationWithPostgres(TestApplicationWithPOPO):
         super().tearDown()
 
 
+class EmailAddressAsStr(Transcoding):
+    type = EmailAddress
+    name = "email_address_as_str"
+
+    def encode(self, obj: EmailAddress) -> str:
+        return obj.address
+
+    def decode(self, data: str) -> EmailAddress:
+        return EmailAddress(data)
+
+
 class BankAccounts(Application):
+    def register_transcodings(self, transcoder: Transcoder) -> None:
+        super(BankAccounts, self).register_transcodings(transcoder)
+        transcoder.register(EmailAddressAsStr())
+
     def open_account(self, full_name, email_address):
         account = BankAccount.open(
             full_name=full_name,

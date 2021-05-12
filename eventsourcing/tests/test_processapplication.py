@@ -2,6 +2,7 @@ from unittest.case import TestCase
 
 from eventsourcing.dispatch import singledispatchmethod
 from eventsourcing.domain import AggregateEvent
+from eventsourcing.persistence import Transcoder
 from eventsourcing.system import (
     Follower,
     Leader,
@@ -10,7 +11,7 @@ from eventsourcing.system import (
     Promptable,
 )
 from eventsourcing.tests.test_aggregate import BankAccount
-from eventsourcing.tests.test_application import BankAccounts
+from eventsourcing.tests.test_application import BankAccounts, EmailAddressAsStr
 from eventsourcing.tests.test_processingpolicy import EmailNotification
 
 
@@ -53,6 +54,10 @@ class TestProcessApplication(TestCase):
 
 
 class EmailNotifications(ProcessApplication):
+    def register_transcodings(self, transcoder: Transcoder) -> None:
+        super(EmailNotifications, self).register_transcodings(transcoder)
+        transcoder.register(EmailAddressAsStr())
+
     @singledispatchmethod
     def policy(
         self,

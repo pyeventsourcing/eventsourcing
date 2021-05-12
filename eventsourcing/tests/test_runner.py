@@ -208,5 +208,13 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
         del os.environ["POSTGRES_USER"]
         del os.environ["POSTGRES_PASSWORD"]
 
+    def test2_prompts_received_doesnt_accumulate_names(self):
+        pass
+
+    def test_prompts_received_doesnt_accumulate_names(self):
+
+        super().test_prompts_received_doesnt_accumulate_names()
+
+
 
 del RunnerTestCase

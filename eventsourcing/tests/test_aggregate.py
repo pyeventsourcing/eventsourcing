@@ -885,12 +885,17 @@ class TestBankAccount(TestCase):
         assert len(pending) == 7
 
 
+@dataclass(frozen=True)
+class EmailAddress:
+    address: str
+
+
 class BankAccount(Aggregate):
     """
     Aggregate root for bank accounts.
     """
 
-    def __init__(self, full_name: str, email_address: str, **kwargs):
+    def __init__(self, full_name: str, email_address: EmailAddress, **kwargs):
         super().__init__(**kwargs)
         self.full_name = full_name
         self.email_address = email_address
@@ -907,7 +912,7 @@ class BankAccount(Aggregate):
             cls.Opened,
             id=uuid4(),
             full_name=full_name,
-            email_address=email_address,
+            email_address=EmailAddress(email_address),
         )
 
     class Opened(AggregateCreated):
