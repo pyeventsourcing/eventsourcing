@@ -21,14 +21,9 @@ the Python Package Index.
 ## Synopsis
 
 The example below defines an event sourced aggregate `World` that will trigger
-an event named `Created` when the class is called. The `World` class has a method
-`make_it_so()` that triggers an event named `SomethingHappened` event when it
-is called.
-
-The aggregate class `World` uses the library's aggregate base class `Aggregate`.
-It uses the library's `@event` decorator to define aggregate events by inspecting
-the parameters of the decorated method. The decorated method body is used to evolve
-the state of the aggregate.
+an aggregate event named `Created` when the class is called. The `World` class
+has a method `make_it_so()` that triggers an aggregate event named
+`SomethingHappened` when it is called.
 
 ```python
 from eventsourcing.domain import Aggregate, event
@@ -43,12 +38,13 @@ class World(Aggregate):
         self.history.append(what)
 ```
 
+The aggregate class `World` uses the library's aggregate base class `Aggregate`.
+It uses the library's `@event` decorator to define aggregate events by inspecting
+the parameters of the decorated method. The decorated method body is used to evolve
+the state of the aggregate. Events are triggered when decorated methods are called.
+
 The example below defines an event sourced application `Worlds`
 that creates and uses instances of the `World` aggregate class.
-
-The application class `Worlds` uses the library's application base
-class `Application`. The `Application` class brings together a domain
-model and persistence infrastructure.
 
 ```python
 
@@ -69,6 +65,10 @@ class Worlds(Application):
         world = self.repository.get(world_id)
         return world.history
 ```
+The application class `Worlds` uses the library's application base
+class `Application`. The `Application` class brings together a domain
+model of event sourced aggregates and persistence infrastructure that
+persists aggregate events.
 
 Please refer to the sections below for more details and further explanation.
 
