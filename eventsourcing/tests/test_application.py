@@ -1,6 +1,5 @@
 import os
 import sys
-from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from timeit import timeit
@@ -8,7 +7,11 @@ from unittest.case import TestCase
 from uuid import UUID, uuid4
 
 from eventsourcing.application import AggregateNotFound, Application
-from eventsourcing.persistence import InfrastructureFactory, Transcoder, Transcoding
+from eventsourcing.persistence import (
+    InfrastructureFactory,
+    Transcoder,
+    Transcoding,
+)
 from eventsourcing.postgres import PostgresDatastore
 from eventsourcing.tests.ramdisk import tmpfile_uris
 from eventsourcing.tests.test_aggregate import BankAccount, EmailAddress
