@@ -20,18 +20,21 @@ the Python Package Index.
 
 ## Synopsis
 
-You can use the library's `Aggregate` class with the `@event` decorator to define
-event sourced aggregates.
-
 The example below defines an event sourced aggregate `World` that will trigger
-an event `World.Created` when the class is called. The `World` class has a method
-`make_it_so()` that will trigger a `World.SomethingHappened` event when the method
+an event named `Created` when the class is called. The `World` class has a method
+`make_it_so()` that triggers an event named `SomethingHappened` event when it
 is called.
+
+The aggregate class `World` uses the library's aggregate base class `Aggregate`.
+It uses the library's `@event` decorator to define aggregate events by inspecting
+the parameters of the decorated method. The decorated method body is used to evolve
+the state of the aggregate.
 
 ```python
 from eventsourcing.domain import Aggregate, event
 
 class World(Aggregate):
+    @event('Created')
     def __init__(self):
         self.history = []
 
@@ -40,12 +43,12 @@ class World(Aggregate):
         self.history.append(what)
 ```
 
-You can use the library's `Application` class to define event sourced
-applications. The `Application` class brings together a domain model
-and persistence infrastructure.
-
 The example below defines an event sourced application `Worlds`
 that creates and uses instances of the `World` aggregate class.
+
+The application class `Worlds` uses the library's application base
+class `Application`. The `Application` class brings together a domain
+model and persistence infrastructure.
 
 ```python
 
