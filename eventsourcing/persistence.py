@@ -109,7 +109,15 @@ class JSONTranscoder(Transcoder):
         }:
             t = d["_type_"]
             t = cast(str, t)
-            transcoding = self.names[t]
+            try:
+                transcoding = self.names[t]
+            except KeyError:
+                raise TypeError(
+                    f"Data serialized with name '{t}' is not "
+                    "deserializable. Please register a "
+                    "custom transcoding for this type."
+                )
+
             return transcoding.decode(d["_data_"])
         else:
             return d

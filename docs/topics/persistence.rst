@@ -163,7 +163,7 @@ Transcodings are registered with the transcoder using the transcoder object's
     assert copy == decimal1
 
 
-Attempting to transcode an unsupported type will result in a Python :class:`TypeError`.
+Attempting to serialize an unsupported type will result in a Python :class:`TypeError`.
 
 .. code:: python
 
@@ -175,6 +175,21 @@ Attempting to transcode an unsupported type will result in a Python :class:`Type
     except TypeError as e:
         assert e.args[0] == (
             "Object of type <class 'datetime.date'> is not serializable. "
+            "Please register a custom transcoding for this type."
+        )
+    else:
+        raise AssertionError("TypeError not raised")
+
+
+Attempting to deserialize an unsupported type will also result in a Python :class:`TypeError`.
+
+.. code:: python
+
+    try:
+        JSONTranscoder().decode(data)
+    except TypeError as e:
+        assert e.args[0] == (
+            "Data serialized with name 'decimal_str' is not deserializable. "
             "Please register a custom transcoding for this type."
         )
     else:

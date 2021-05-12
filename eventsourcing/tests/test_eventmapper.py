@@ -127,8 +127,17 @@ class TestTranscoder(TestCase):
     def test(self):
         transcoder = JSONTranscoder()
         obj = CustomType2(CustomType1(UUID("b2723fe2c01a40d2875ea3aac6a09ff5")))
-        with self.assertRaises(TypeError):
+        with self.assertRaises(TypeError) as cm:
             transcoder.encode(obj)
+
+        self.assertEqual(
+            cm.exception.args[0],
+            (
+                "Object of type <class 'eventsourcing.tests.test_eventmapper."
+                "CustomType2'> is not serializable. Please register a custom "
+                "transcoding for this type."
+            ),
+        )
 
         transcoder.register(UUIDAsHex())
         transcoder.register(CustomType1AsDict())
@@ -148,3 +157,15 @@ class TestTranscoder(TestCase):
         self.assertIsInstance(copy.value, CustomType1)
         self.assertIsInstance(copy.value.value, UUID)
         self.assertEqual(copy.value.value, obj.value.value)
+
+        transcoder = JSONTranscoder()
+        with self.assertRaises(TypeError) as cm:
+            transcoder.decode(data)
+
+        self.assertEqual(
+            cm.exception.args[0],
+            (
+                "Data serialized with name 'uuid_hex' is not deserializable. "
+                "Please register a custom transcoding for this type."
+            ),
+        )

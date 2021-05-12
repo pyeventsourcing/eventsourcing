@@ -235,4 +235,3 @@ def drop_postgres_table(datastore: PostgresDatastore, table_name):
         pass  # print(f"Table does not exist: {table_name}")
     except Exception:
         print("Strange error:", statement)
-

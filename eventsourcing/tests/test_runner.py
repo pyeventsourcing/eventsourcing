@@ -216,5 +216,4 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
         super().test_prompts_received_doesnt_accumulate_names()
 
 
-
 del RunnerTestCase
