@@ -248,9 +248,9 @@ class PostgresApplicationRecorder(
         Returns the maximum notification ID.
         """
         try:
-            c = self.datastore.get_connection().cursor()
-            c.execute(self.select_max_notification_id_statement)
-            return c.fetchone()[0] or 0
+            with self.datastore.transaction() as c:
+                c.execute(self.select_max_notification_id_statement)
+                return c.fetchone()[0] or 0
         except psycopg2.Error as e:
             raise OperationalError(e)
 
@@ -283,14 +283,14 @@ class PostgresProcessRecorder(
     def max_tracking_id(self, application_name: str) -> int:
         params = [application_name]
         statement = (
-            "SELECT MAX(notification_id)"
+            "SELECT MAX(notification_id) "
             f"FROM {self.tracking_table_name} "
             "WHERE application_name=%s"
         )
         try:
-            c = self.datastore.get_connection().cursor()
-            c.execute(statement, params)
-            return c.fetchone()[0] or 0
+            with self.datastore.transaction() as c:
+                c.execute(statement, params)
+                return c.fetchone()[0] or 0
         except psycopg2.Error as e:
             raise OperationalError(e)
 
