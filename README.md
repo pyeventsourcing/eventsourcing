@@ -20,9 +20,9 @@ the Python Package Index.
 
 ## Synopsis
 
-The example below defines an event sourced aggregate `World` that will trigger
-an aggregate event named `Created` when the class is called. The `World` class
-has a method `make_it_so()` that triggers an aggregate event named
+The example below defines an event sourced aggregate `World`. An aggregate event
+named `Created` will be triggered when the class is called. The `World` class
+has a method `make_it_so()` which triggers an aggregate event named
 `SomethingHappened` when it is called.
 
 ```python
