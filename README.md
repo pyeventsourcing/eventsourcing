@@ -70,6 +70,7 @@ class Worlds(Application):
         return world.history
 ```
 
+Please refer to the sections below for more details and further explanation.
 
 ## Features
 
