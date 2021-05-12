@@ -23,9 +23,10 @@ the Python Package Index.
 You can use the library's `Aggregate` class with the `@event` decorator to define
 event sourced aggregates.
 
-The example below defines an event sourced aggregate called `World` that will trigger
-a `World.Created` event when the class is called. The `World` class has a `make_it_so()`
-method that will trigger a `World.SomethingHappened` event when the method is called.
+The example below defines an event sourced aggregate `World` that will trigger
+an event `World.Created` when the class is called. The `World` class has a method
+`make_it_so()` that will trigger a `World.SomethingHappened` event when the method
+is called.
 
 ```python
 from eventsourcing.domain import Aggregate, event
@@ -43,8 +44,8 @@ You can use the library's `Application` class to define event sourced
 applications. The `Application` class brings together a domain model
 and persistence infrastructure.
 
-The example below defines an event sourced application called `Worlds`
-that creates and uses instances of the `World` aggregate class defined above.
+The example below defines an event sourced application `Worlds`
+that creates and uses instances of the `World` aggregate class.
 
 ```python
 
@@ -154,8 +155,8 @@ assert type(events[3]).__qualname__ == 'World.SomethingHappened'
 ```
 
 The aggregate events can be used to reconstruct the state of the aggregate.
-An application's `repository.get()` method reconstructs aggregates from
-stored events in this way.
+An application repository method `repository.get()` reconstructs aggregates
+from stored events in this way.
 
 ```python
 
@@ -176,23 +177,23 @@ This example can be adjusted and extended for any event sourced domain model.
 ## Application
 
 
-The `Worlds` application's `create_world()` method creates and saves a
-new instance of the `World` aggregate, and returns the UUID of the new
-instance. The application's `make_it_so()` command method uses the given
-`world_id` to retrieve  a `World` aggregate instance from the application's
+The command method `create_world()` creates and saves
+a new instance of the aggregate class `World`, and returns the UUID of the
+new instance. The command method `make_it_so()` uses the given `world_id`
+to retrieve  a `World` aggregate instance from the application's
 repository (reconstructs the aggregate from its stored events), then calls
-the aggregate's `make_it_so()` method, and then saves the aggregate
-(collects and stores new aggregate event). The `get_history()` query
-method uses the given `world_id` to retrieve an `World` aggregate
-from the application's repository and then returns the aggregate's
+the aggregate command method `make_it_so()`, and then saves the aggregate
+(collects and stores new aggregate event). The application query method
+`get_history()` uses the given `world_id` to retrieve a `World` aggregate
+instance from the application repository, and then returns the aggregate's
 history.
 
-The application's `repository.get()` method can be used to retrieve
+The application repository method `repository.get()` is used to retrieve
 stored aggregates, by reconstructing them from their stored events.
 Historical state of an aggregate can be obtained by using the optional
 `version` argument.
 
-The application's `log` can be used to read all the stored events
+The application notification log `log` can be used to read all the stored events
 of the application as "event notifications" in the order they were
 recorded.
 
