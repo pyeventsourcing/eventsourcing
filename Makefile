@@ -73,7 +73,7 @@ fmt: fmt-isort fmt-black
 
 .PHONY: unittest
 unittest:
-	@python -m unittest discover eventsourcing -v
+	@python -m unittest discover . -v
 
 .PHONY: timeit
 timeit:
@@ -81,7 +81,7 @@ timeit:
 
 .PHONY: coveragetest
 coveragetest:
-	@coverage run -m unittest discover eventsourcing -v
+	@coverage run -m unittest discover . -v
 #	@coverage run \
 #		--concurrency=multiprocessing \
 #		-m unittest discover \
