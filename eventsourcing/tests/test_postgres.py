@@ -34,6 +34,7 @@ class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
         self.datastore = PostgresDatastore(
             "eventsourcing",
             "127.0.0.1",
+            "5432",
             "eventsourcing",
             "eventsourcing",
         )
@@ -99,6 +100,7 @@ class TestPostgresApplicationRecorder(ApplicationRecorderTestCase):
         self.datastore = PostgresDatastore(
             "eventsourcing",
             "127.0.0.1",
+            "5432",
             "eventsourcing",
             "eventsourcing",
         )
@@ -129,6 +131,7 @@ class TestPostgresProcessRecorder(ProcessRecordsTestCase):
         self.datastore = PostgresDatastore(
             "eventsourcing",
             "127.0.0.1",
+            "5432",
             "eventsourcing",
             "eventsourcing",
         )
@@ -164,6 +167,7 @@ class TestFactory(InfrastructureFactoryTestCase):
         os.environ[InfrastructureFactory.TOPIC] = get_topic(Factory)
         os.environ["POSTGRES_DBNAME"] = "eventsourcing"
         os.environ["POSTGRES_HOST"] = "127.0.0.1"
+        os.environ["POSTGRES_PORT"] = "5432"
         os.environ["POSTGRES_USER"] = "eventsourcing"
         os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
         super().setUp()
@@ -173,6 +177,8 @@ class TestFactory(InfrastructureFactoryTestCase):
             del os.environ["POSTGRES_DBNAME"]
         if "POSTGRES_HOST" in os.environ:
             del os.environ["POSTGRES_HOST"]
+        if "POSTGRES_PORT" in os.environ:
+            del os.environ["POSTGRES_PORT"]
         if "POSTGRES_USER" in os.environ:
             del os.environ["POSTGRES_USER"]
         if "POSTGRES_PASSWORD" in os.environ:

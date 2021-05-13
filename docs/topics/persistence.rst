@@ -801,10 +801,10 @@ PostgreSQL
 The module :mod:`eventsourcing.postgres` supports storing events in PostgresSQL.
 
 The library's PostgreSQL :class:`~eventsourcing.sqlite.Factory` uses environment variables
-``POSTGRES_DBNAME``, ``POSTGRES_HOST``, ``POSTGRES_USER``,
+``POSTGRES_DBNAME``, ``POSTGRES_HOST``, ``POSTGRES_PORT``, ``POSTGRES_USER``,
 ``POSTGRES_PASSWORD``, and ``CREATE_TABLE``.
 
-The values of ``POSTGRES_DBNAME``, ``POSTGRES_HOST``, ``POSTGRES_USER``, and
+The values of ``POSTGRES_DBNAME``, ``POSTGRES_HOST``, ``POSTGRES_PORT``, ``POSTGRES_USER``, and
 ``POSTGRES_PASSWORD`` are used to set the name of a database, the database server's
 host name, the database user name, and the password for that user.
 
@@ -819,6 +819,7 @@ which is normally okay because the tables are created only if they do not exist.
     os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.postgres:Factory"
     os.environ["POSTGRES_DBNAME"] = "eventsourcing"
     os.environ["POSTGRES_HOST"] = "127.0.0.1"
+    os.environ["POSTGRES_PORT"] = "5432"
     os.environ["POSTGRES_USER"] = "eventsourcing"
     os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
 

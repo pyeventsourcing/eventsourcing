@@ -381,6 +381,7 @@ os.environ['COMPRESSOR_TOPIC'] = 'eventsourcing.compressor:ZlibCompressor'
 os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.postgres:Factory'
 os.environ['POSTGRES_DBNAME'] = 'eventsourcing'
 os.environ['POSTGRES_HOST'] = '127.0.0.1'
+os.environ['POSTGRES_PORT'] = '5432'
 os.environ['POSTGRES_USER'] = 'eventsourcing'
 os.environ['POSTGRES_PASSWORD'] = 'eventsourcing'
 ```
