@@ -204,12 +204,14 @@ class TestApplicationWithPostgres(TestApplicationWithPOPO):
         os.environ["CREATE_TABLE"] = "y"
         os.environ["POSTGRES_DBNAME"] = "eventsourcing"
         os.environ["POSTGRES_HOST"] = "127.0.0.1"
+        os.environ["POSTGRES_PORT"] = "5432"
         os.environ["POSTGRES_USER"] = "eventsourcing"
         os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
 
         db = PostgresDatastore(
             os.getenv("POSTGRES_DBNAME"),
             os.getenv("POSTGRES_HOST"),
+            os.getenv("POSTGRES_PORT"),
             os.getenv("POSTGRES_USER"),
             os.getenv("POSTGRES_PASSWORD"),
         )
@@ -221,6 +223,7 @@ class TestApplicationWithPostgres(TestApplicationWithPOPO):
         del os.environ["CREATE_TABLE"]
         del os.environ["POSTGRES_DBNAME"]
         del os.environ["POSTGRES_HOST"]
+        del os.environ["POSTGRES_PORT"]
         del os.environ["POSTGRES_USER"]
         del os.environ["POSTGRES_PASSWORD"]
         super().tearDown()

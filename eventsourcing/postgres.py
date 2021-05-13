@@ -25,9 +25,10 @@ psycopg2.extras.register_uuid()
 
 
 class PostgresDatastore:
-    def __init__(self, dbname: str, host: str, user: str, password: str):
+    def __init__(self, dbname: str, host: str, port: str, user: str, password: str):
         self.dbname = dbname
         self.host = host
+        self.port = port
         self.user = user
         self.password = password
         self.connections: Dict[int, connection] = {}
@@ -46,6 +47,7 @@ class PostgresDatastore:
         c = psycopg2.connect(
             dbname=self.dbname,
             host=self.host,
+            port=self.port,
             user=self.user,
             password=self.password,
         )
@@ -316,6 +318,7 @@ class PostgresProcessRecorder(
 class Factory(InfrastructureFactory):
     POSTGRES_DBNAME = "POSTGRES_DBNAME"
     POSTGRES_HOST = "POSTGRES_HOST"
+    POSTGRES_PORT = "POSTGRES_PORT"
     POSTGRES_USER = "POSTGRES_USER"
     POSTGRES_PASSWORD = "POSTGRES_PASSWORD"
     CREATE_TABLE = "CREATE_TABLE"
@@ -338,6 +341,8 @@ class Factory(InfrastructureFactory):
                 f"'{self.POSTGRES_HOST}'"
             )
 
+        port = self.getenv(self.POSTGRES_PORT, "5432")
+
         user = self.getenv(self.POSTGRES_USER)
         if user is None:
             raise EnvironmentError(
@@ -356,6 +361,7 @@ class Factory(InfrastructureFactory):
         self.datastore = PostgresDatastore(
             dbname=dbname,
             host=host,
+            port=port,
             user=user,
             password=password,
         )

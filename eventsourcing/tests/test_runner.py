@@ -184,12 +184,14 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
     def setUp(self):
         os.environ["POSTGRES_DBNAME"] = "eventsourcing"
         os.environ["POSTGRES_HOST"] = "127.0.0.1"
+        os.environ["POSTGRES_PORT"] = "5432"
         os.environ["POSTGRES_USER"] = "eventsourcing"
         os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
 
         db = PostgresDatastore(
             os.getenv("POSTGRES_DBNAME"),
             os.getenv("POSTGRES_HOST"),
+            os.getenv("POSTGRES_PORT"),
             os.getenv("POSTGRES_USER"),
             os.getenv("POSTGRES_PASSWORD"),
         )
@@ -205,6 +207,7 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
         del os.environ["INFRASTRUCTURE_FACTORY"]
         del os.environ["POSTGRES_DBNAME"]
         del os.environ["POSTGRES_HOST"]
+        del os.environ["POSTGRES_PORT"]
         del os.environ["POSTGRES_USER"]
         del os.environ["POSTGRES_PASSWORD"]
 
