@@ -341,7 +341,7 @@ class Factory(InfrastructureFactory):
                 f"'{self.POSTGRES_HOST}'"
             )
 
-        port = self.getenv(self.POSTGRES_PORT, "5432")
+        port = self.getenv(self.POSTGRES_PORT) or "5432"
 
         user = self.getenv(self.POSTGRES_USER)
         if user is None:
