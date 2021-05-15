@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Generic, List, Optional, TypeVar
+from typing import Any, Generic, List, Optional, TypeVar
 from uuid import UUID
 
 from eventsourcing.domain import (
@@ -312,7 +312,7 @@ class Application(ABC, Generic[TAggregate]):
         """
         return LocalNotificationLog(self.recorder, section_size=10)
 
-    def save(self, *aggregates: Aggregate) -> None:
+    def save(self, *aggregates: Aggregate, **kwargs: Any) -> None:
         """
         Collects pending events from given aggregates and
         puts them in the application's event store.
@@ -320,7 +320,7 @@ class Application(ABC, Generic[TAggregate]):
         events = []
         for aggregate in aggregates:
             events += aggregate.collect_events()
-        self.events.put(events)
+        self.events.put(events, **kwargs)
         self.notify(events)
 
     def notify(self, new_events: List[AggregateEvent]) -> None:
