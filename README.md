@@ -26,11 +26,11 @@ It is recommended to install Python packages into a Python virtual environment.
 
 ## Synopsis
 
-The example below defines an event-sourced aggregate `World`. An event
-named `Created` will be triggered when the class is called. The aggregate
+The example below shows an event-sourced aggregate class named `World`. An event
+named `Created` will be triggered when the aggregate class is called. The aggregate
 has a command method `make_it_so()`. An event named `SomethingHappened`
-will be triggered when the method is called. The events are used to evolve
-the state of the aggregate object.
+will be triggered when this method is called. The events are used to evolve the
+state of the created aggregate object.
 
 ```python
 from eventsourcing.domain import Aggregate, event
@@ -49,7 +49,8 @@ The `World` class uses the aggregate base class `Aggregate` from the library's
 `domain` module. The `@event` decorator is used to define aggregate
 event classes by inspecting the parameters of the decorated method signatures.
 Aggregate event objects are triggered when the decorated methods are called. The
-decorated method bodies are used to evolve the state of the aggregate object.
+decorated method bodies are used by these events to evolve the state of the aggregate
+object.
 
 ```python
 # Create a new aggregate.
@@ -62,12 +63,13 @@ world.make_it_so('something')
 assert world.history == ['something']
 ```
 
-The example below defines an event-sourced application `Worlds`
-that creates instances of the aggregate class `World`. It has
-a command method `create_world()` that creates and saves new aggregates.
-It has a command method `make_it_so()` that calls `make_it_so()` on already
-existing aggregates. And it has a query method `get_history()` that
-returns the `history` of an aggregate.
+The example below defines an event-sourced application `Worlds`.
+It has a command method `create_world()` that creates and saves
+new instances of the aggregate class `World`. It has a command
+method `make_it_so()` that calls the aggregate command method
+`make_it_so()` on already existing aggregates. And it has a query
+method `get_history()` that returns the `history` of an aggregate
+object.
 
 ```python
 
