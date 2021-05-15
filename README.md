@@ -25,10 +25,9 @@ into a Python virtual environment.
 ## Synopsis
 
 The example below shows an event-sourced aggregate class named `World`.
-Aggregate objects will be initialised with a `history` attribute and
-will have a command method `make_it_so()`. The aggregate class also
-defines two event classes, `Created` and `SomethingHappened`.
-
+The aggregate class also defines two event classes, `Created` and
+`SomethingHappened`. Aggregate objects will be initialised with a
+`history` attribute and will have a command method `make_it_so()`.
 
 ```python
 from eventsourcing.domain import Aggregate, event
@@ -46,7 +45,10 @@ class World(Aggregate):
 When the `World` aggregate class is called, a new `World` object will be returned.
 When the aggregate object's command method `make_it_so()` is called, the given value
 of `what` will be appended to the `history` of the aggregate object. These calls
-also trigger two events, a `Created` event and a `SomethingHappened` event.
+also trigger two events, a `Created` event and a `SomethingHappened` event. A `Created`
+event was triggered when the `World` aggregate class was called, and a `SomethingHappened`
+event was triggered when the aggregate object's command method `make_it_so()` was called.
+Internally, the aggregate object now has two events that are pending to be saved.
 
 ```python
 # Create a new aggregate.
@@ -66,14 +68,9 @@ match the parameters of the decorated method signature. When a decorated method
 is called, an event object is instantiated with the given method arguments. The
 event object is then "applied" to the aggregate, using the decorated method body,
 to evolve the state of the aggregate object. The event object is then appended
-to a list of pending events internal to the aggregate object.
-
-Hence, in the example above, a `Created` event was triggered when the `World`
-aggregate class was called, and a `SomethingHappened` event was triggered when
-the aggregate object's command method `make_it_so()` was called. There are now
-two events pending to be saved in the `world` aggregate object. The pending
+to a list of pending events internal to the aggregate object. The pending
 events can be collected and stored, and used again later to reconstruct the
-state of the aggregate.
+current state of the aggregate.
 
 The example below defines an event-sourced application `Worlds`.
 It has a command method `create_world()` that creates and saves
@@ -106,8 +103,9 @@ class Worlds(Application):
 The application class `Worlds` uses the application base class `Application`
 from the library's `application` module. The `Application` class brings together
 a domain model of event-sourced aggregates with persistence infrastructure that
-can store and retrieve the aggregate's events. It has a `save()` method and a
-`repository` which has a `get()` method.
+can store and retrieve the aggregate's events. It provides a `save()` method
+which is used to save aggregate events, and a `repository` which is used to
+reconstruct aggregates from saved events.
 
 ```python
 # Construct the application.
