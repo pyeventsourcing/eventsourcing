@@ -153,8 +153,10 @@ and systems.
 ## Domain model
 
 Continuing the examples defined above, when the class `World`
-is called, a `World.Created` event is created and used to construct
-an instance of `World`.
+is called, a `Created` event object is constructed. This initial
+event is used to construct an instance of `World`. Please note,
+aggregate events are defined on the aggregate class, so that they
+are "namespaced" within the aggregate class.
 
 ```python
 # Create a new aggregate.
@@ -162,10 +164,11 @@ world = World()
 assert isinstance(world, World)
 ```
 
-The initial event is appended to the aggregate's internal list of pending events.
-Pending event objects can be collected using the aggregate's `collect_events()`
-method. The `collect_events()` method is used by the `Application.save()`
-method to collect events before they are stored in a database.
+The initial event object is immediately appended to the aggregate's internal
+list of pending events. Pending event objects can be collected using the
+aggregate's `collect_events()` method. Pleae note, the `collect_events()`
+method is used by the `Application.save()` method to collect aggregate
+events, so they can be stored in a database.
 
 ```python
 # Collect events.
@@ -176,9 +179,11 @@ assert type(events[0]).__qualname__ == 'World.Created'
 ```
 
 When the command method `make_it_so()` is called on an instance of
-the `World` class, a `World.SomethingHappened` event is
-triggered with a value of `what`. The event object is used to append
+the `World` class, a `SomethingHappened` event is triggered with the
+value of the `what` argument. The event object is used to append
 the value `what` to the `history` of the `World` aggregate instance.
+The event is "applied" to the aggregate using the body of the decorated
+method.
 
 ```python
 # Execute aggregate commands.
@@ -192,8 +197,30 @@ assert world.history[1] == 'trucks'
 assert world.history[2] == 'internet'
 ```
 
-The subsequent events are appended to the aggregate's internal list of
-pending events, and can be collected using the `collect_events()` method.
+Please note, that the decorated method body will be executed each time the event
+is applied to evolve the state of the aggregate, both when the event is triggered
+and when reconstructing aggregates from stored events. For this reason, return
+statements are ignored: the decorated method body should not return any values.
+If you need to return values from your aggregate command methods, use a non-decorated
+method that calls a decorated method, and return the value from that method. Any
+processing of command arguments that should not be repeated when reconstructing
+aggregates from stored events should also be done in a separate method before the
+event is triggered. For example, if the triggered event will have a new UUID, you
+will need to use a separate method, and not generate the UUID in the decorated method
+body, otherwise a new UUID will be created each time the aggregate is reconstructed,
+rather than being fixed in the stored state of the aggregate, which is probably not
+what you want. See the library's [domain module documentation](https://eventsourcing.readthedocs.io/)
+for more information.
+
+After the event has been applied to the aggregate, the subsequent events are
+immediately appended to the aggregate's internal list of pending events, and
+can be collected using the `collect_events()` method. Please note, if an
+exception is raised in the method body, the event will not be appended to
+the pending list – this can be used to validate method arguments, but be
+careful to do all the validation before adjusting the state of the aggregate
+if you wish to catch the exception in an application method and continue using
+the same aggregate instance (otherwise you can retrieve a fresh instance from
+the repository).
 
 ```python
 # Collect events.
@@ -340,6 +367,8 @@ def test(app: Worlds, expect_visible_in_db: bool):
     notifications = list(reader.read(start=1))
     assert len(notifications) == 12
 ```
+
+This example can be adjusted and extended for any event-sourced application.
 
 ## Development environment
 
