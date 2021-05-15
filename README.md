@@ -81,9 +81,9 @@ The example below defines an event-sourced application named `Worlds`.
 It has a command method `create_world()` that creates and saves
 new instances of the aggregate class `World`. It has a command
 method `make_it_so()` that calls the aggregate command method
-`make_it_so()` of an already existing `World` aggregate. And it
+`make_it_so()` of an already existing aggregate object. And it
 has a query method `get_history()` that returns the `history` of
-an already existing `World` aggregate.
+an aggregate object.
 
 ```python
 
@@ -108,7 +108,7 @@ class Worlds(Application):
 The application class `Worlds` uses the application base class `Application`
 from the library's `application` module. The `Application` class brings together
 a domain model of event-sourced aggregates with persistence infrastructure that
-can store and retrieve the aggregate's events. It provides a `save()` method
+can store and retrieve aggregate events. It provides a `save()` method
 which is used to save aggregate events, and a `repository` which is used to
 reconstruct aggregates from saved events.
 
