@@ -401,6 +401,23 @@ def test(app: Worlds, expect_visible_in_db: bool):
 This example can be adjusted and extended for any event-sourced application.
 
 
+## Project structure
+
+You are free to structure your project files however you wish. You
+may wish to put your aggregate classes in a file named
+`domainmodel.py` and your application class in a file named
+`application.py`.
+
+    myproject/
+    myproject/application.py
+    myproject/domainmodel.py
+    myproject/tests.py
+
+But you can start by first writing a failing test in `tests.py`, then define
+your application and aggregate classes in the test module, and then refactor
+by moving things to separate Python modules.
+
+
 ## Development environment
 
 We can run the code in default "development" environment using
