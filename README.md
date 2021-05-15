@@ -8,6 +8,8 @@
 
 A library for event sourcing in Python.
 
+*"totally amazing and a pleasure to use"*
+
 [Read the documentation here](https://eventsourcing.readthedocs.io/).
 
 ## Installation
