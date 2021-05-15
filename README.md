@@ -165,8 +165,8 @@ and systems.
 
 ## Project structure
 
-You are free to create project files however you like. To begin, you
-may wish to start by putting your aggregate classes in a file named
+You are free to structure your project files however you like. You
+may wish to putt your aggregate classes in a file named
 `domainmodel.py` and your application class in a file named
 `application.py`.
 
@@ -177,7 +177,7 @@ may wish to start by putting your aggregate classes in a file named
 
 But you can start by first writing a failing test in `tests.py`, then define
 your application and aggregate classes in the test module, and then refactor
-by moving things to separate modules later.
+by moving things to separate modules.
 
 
 ## Domain model
