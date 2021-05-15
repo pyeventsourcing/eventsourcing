@@ -22,8 +22,7 @@ the Python Package Index.
 It is recommended to install Python packages into a Python virtual environment.
 
     $ python -m venv venv
-    $ ./venv/bin/python -m pip install --upgrade pip
-    $ ./venv/bin/python -m pip install eventsourcing
+    $ ./venv/bin/pip install eventsourcing
 
 ## Synopsis
 
@@ -58,7 +57,11 @@ assert world.history == ['something']
 ```
 
 The example below defines an event-sourced application `Worlds`
-that creates instances of the aggregate class `World`.
+that creates instances of the aggregate class `World`. It has
+a method `create_world()` that creates and saves new aggregates.
+It has a `make_it_so()` method that calls `make_it_so()` on already
+existing aggregates. And it has a `get_history()` method that
+returns the `history` of an aggregate.
 
 ```python
 
@@ -83,7 +86,7 @@ class Worlds(Application):
 The application class `Worlds` uses the library's application base
 class `Application`. The `Application` class brings together a domain
 model of event-sourced aggregates and persistence infrastructure that
-persists aggregate events.
+can store and retreive aggregate events.
 
 ```python
 application = Worlds()
@@ -92,12 +95,18 @@ application.make_it_so(world_id, 'something')
 assert application.get_history(world_id) == ['something']
 ```
 
+Pending aggregate events will collected when the application's `save()`
+method is called. When the application repository's `get()` method is
+called, the aggregate events will be retrieved and used to reconstruct
+the state of the aggregate
+
 Please refer to the sections below for more details and explanation.
 
 ## Features
 
 **Domain models and applications** — base classes for domain model aggregates
-and applications. Suggests how to structure an event-sourced application.
+and applications. Suggests how to structure an event-sourced application. All
+classes are fully type-hinted to guide developers in using the library.
 
 **Flexible event store** — flexible persistence of domain events. Combines
 an event mapper and an event recorder in ways that can be easily extended.
@@ -154,7 +163,6 @@ assert isinstance(world, World)
 ```
 
 The initial event is appended to the aggregate's internal list of pending events.
-
 Pending event objects can be collected using the aggregate's `collect_events()`
 method. The `collect_events()` method is used by the `Application.save()`
 method to collect events before they are stored in a database.
