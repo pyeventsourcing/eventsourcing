@@ -13,13 +13,26 @@ A library for event sourcing in Python.
 [Read the documentation here](https://eventsourcing.readthedocs.io/).
 
 
+
+## Installation
+
+It is recommended to install Python packages into a Python virtual environment.
+
+    $ python -m venv ./myproject/venv
+    $ source ./myproject/venv/bin/activate
+
+Use pip to install the [stable distribution](https://pypi.org/project/eventsourcing/)
+from the Python Package Index.
+
+    $ pip install eventsourcing
+
+
 ## Synopsis
 
-The example below shows an event-sourced aggregate class named `World`. An event
-named `Created` will be triggered when the aggregate class is called. The aggregate
-has a command method `make_it_so()`. An event named `SomethingHappened` will be
-triggered when this method is called. These events are used instantiate and evolve
-the state of a `World` aggregate object.
+The example below shows an event-sourced aggregate class named `World`.
+The aggregate class defines two events, `Created` and `SomethingHappened`.
+Instances of the `World` class will have an attribute `history` and a command
+method `make_it_so()`.
 
 ```python
 from eventsourcing.domain import Aggregate, event
@@ -34,13 +47,11 @@ class World(Aggregate):
         self.history.append(what)
 ```
 
-The `World` class uses the aggregate base class `Aggregate` from the library's
-`domain` module. The `@event` decorator is used to define aggregate event classes.
-The attributes of the event classes are defined to match the parameters of the
-decorated method signature. When a decorated method is called, an event object
-is constructed with the given method arguments. The event is then "applied" to
-the aggregate, and the decorated method body is used to evolve the state of the
-aggregate object.
+When the `World` aggregate class is called, a `Created` event will
+be triggered, and a new `World` object will be returned. When the
+aggregate object's command method `make_it_so()` is called with a
+given value of `what`, a `SomethingHappened` event will be triggered,
+and the value will be appended to the `history` of the aggregate object.
 
 ```python
 # Create a new aggregate.
@@ -52,6 +63,14 @@ world.make_it_so('something')
 # Check the state of the aggregate.
 assert world.history == ['something']
 ```
+
+The `World` class uses the aggregate base class `Aggregate` from the library's
+`domain` module. The `@event` decorator is used to define aggregate event classes.
+The attributes of the event classes are defined to match the parameters of the
+decorated method signature. When a decorated method is called, an event object
+is constructed with the given method arguments. The event is then "applied" to
+the aggregate, using the decorated method body to evolve the state of the
+aggregate object.
 
 The example below defines an event-sourced application `Worlds`.
 It has a command method `create_world()` that creates and saves
@@ -83,8 +102,8 @@ class Worlds(Application):
 
 The application class `Worlds` uses the application base class `Application`
 from the library's `application` module. The `Application` class brings together
-a domain model of event-sourced aggregates and persistence infrastructure that
-can store and retrieve aggregate events.
+a domain model of event-sourced aggregates with persistence infrastructure that
+can store and retrieve the aggregate's events.
 
 ```python
 # Construct the application.
@@ -155,58 +174,10 @@ of concepts, explanation of usage, and detailed descriptions of library classes.
 and systems.
 
 
-## Installation
-
-It is recommended to install Python packages into a Python virtual environment.
-
-    $ python -m venv ./venv
-    $ source ./venv/bin/activate
-
-Use pip to install the [stable distribution](https://pypi.org/project/eventsourcing/)
-from the Python Package Index.
-
-    $ pip install eventsourcing
-
-Please note, to use the library's encryption functionality,
-please install the library with the `crypto` option (or just
-install the `pycryptodome` package.)
-
-    $ pip install eventsourcing[crypto]
-
-Please note, to use the library's PostgreSQL functionality,
-please install the library with the `postgres` option (or just
-install the `psycopg2` package.)
-
-    $ pip install eventsourcing[postgres]
-
-Please note, the library option `postgres_dev` will install the
-`psycopg2-binary` which is much faster, but this is not recommended
-for production use. The binary package is a practical choice for
-development and testing but in production it is advised to use
-the package built from sources.
-
-
-## Project structure
-
-You are free to structure your project files however you wish. You
-may wish to put your aggregate classes in a file named
-`domainmodel.py` and your application class in a file named
-`application.py`.
-
-    myproject/
-    myproject/application.py
-    myproject/domainmodel.py
-    myproject/tests.py
-
-But you can start by first writing a failing test in `tests.py`, then define
-your application and aggregate classes in the test module, and then refactor
-by moving things to separate Python modules.
-
-
 ## Domain model
 
-Continuing the examples defined above, when the class `World`
-is called, a `Created` event object is constructed. This initial
+As shown in the Synopsis above, when the class `World`
+is called, a `Created` event object is constructed. This
 event is used to construct an instance of `World`.
 
 ```python
@@ -426,6 +397,24 @@ def test(app: Worlds, expect_visible_in_db: bool):
 
 This example can be adjusted and extended for any event-sourced application.
 
+
+## Project structure
+
+You are free to structure your project files however you wish. You
+may wish to put your aggregate classes in a file named
+`domainmodel.py` and your application class in a file named
+`application.py`.
+
+    myproject/
+    myproject/application.py
+    myproject/domainmodel.py
+    myproject/tests.py
+
+But you can start by first writing a failing test in `tests.py`, then define
+your application and aggregate classes in the test module, and then refactor
+by moving things to separate Python modules.
+
+
 ## Development environment
 
 We can run the code in default "development" environment using
@@ -434,7 +423,6 @@ stored events in memory). The example below runs with no compression or
 encryption of the stored events.
 
 ```python
-
 # Construct an application object.
 app = Worlds()
 
@@ -445,11 +433,20 @@ test(app, expect_visible_in_db=True)
 
 ## SQLite environment
 
-Configure "production" environment using SQLite infrastructure
-(which keeps stored events in an SQLite database). The example below
-uses zlib and AES to compress and encrypt the stored events.
-An in-memory SQLite database is used, but it would work the
-same way if a file path were set as the `SQLITE_DBNAME`.
+You can configure "production" environment to use the library's
+SQLite infrastructure with the following environment variables.
+Using SQLite infrastructure will keep stored events in an
+SQLite database.
+
+The example below uses zlib and AES to compress and encrypt the stored
+events in an SQLite database (but this is optional). To use the library's
+encryption functionality, please install the library with the `crypto`
+option (or just install the `pycryptodome` package.)
+
+    $ pip install eventsourcing[crypto]
+
+An in-memory SQLite database is used in this example. To store your events on
+disk, use a file path as the value of the `SQLITE_DBNAME` environment variable.
 
 ```python
 import os
@@ -471,7 +468,8 @@ os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.sqlite:Factory'
 os.environ['SQLITE_DBNAME'] = ':memory:'  # Or path to a file on disk.
 ```
 
-Run the code in "production" SQLite environment.
+Having configured the application with these environment variables, we
+can construct the application and run the test using SQLite.
 
 ```python
 # Construct an application object.
@@ -483,11 +481,34 @@ test(app, expect_visible_in_db=False)
 
 ## PostgreSQL environment
 
-Configure "production" environment using PostgresSQL infrastructure
-(which keeps stored events in a PostgreSQL database). The example
-below uses zlib and AES to compress and encrypt the stored events.
-It is assumed the database and database user have already been
-created, and the database server is running locally.
+You can configure "production" environment to use the library's
+PostgresSQL infrastructure with the following environment variables.
+Using PostgresSQL infrastructure will keep stored events in a
+PostgresSQL database.
+
+Please note, to use the library's PostgreSQL functionality,
+please install the library with the `postgres` option (or just
+install the `psycopg2` package.)
+
+    $ pip install eventsourcing[postgres]
+
+Please note, the library option `postgres_dev` will install the
+`psycopg2-binary` which is much faster, but this is not recommended
+for production use. The binary package is a practical choice for
+development and testing but in production it is advised to use
+the package built from sources.
+
+The example below also uses zlib and AES to compress and encrypt the
+stored events (but this is optional). To use the library's
+encryption functionality with PostgreSQL, please install the library
+with both the `crypto` and the `postgres` option (or just install the
+`pycryptodome` and `psycopg2` packages.)
+
+    $ pip install eventsourcing[crypto,postgres]
+
+
+It is assumed for this example that the database and database user have
+already been created, and the database server is running locally.
 
 ```python
 import os
@@ -513,7 +534,9 @@ os.environ['POSTGRES_USER'] = 'eventsourcing'
 os.environ['POSTGRES_PASSWORD'] = 'eventsourcing'
 ```
 
-Run the code in "production" PostgreSQL environment.
+Having configured the application with these environment variables,
+we can construct the application and run the test using PostgreSQL.
+
 
 ```python
 # Construct an application object.
@@ -522,6 +545,7 @@ app = Worlds()
 # Run the test.
 test(app, expect_visible_in_db=False)
 ```
+
 
 ## Project
 
