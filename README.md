@@ -29,7 +29,8 @@ It is recommended to install Python packages into a Python virtual environment.
 The example below defines an event-sourced aggregate `World`. An event
 named `Created` will be triggered when the class is called. The aggregate
 has a command method `make_it_so()`. An event named `SomethingHappened`
-will be triggered when the method is called.
+will be triggered when the method is called. The events are used to evolve
+the state of the aggregate object.
 
 ```python
 from eventsourcing.domain import Aggregate, event
@@ -46,9 +47,9 @@ class World(Aggregate):
 
 The `World` class uses the aggregate base class `Aggregate` from the library's
 `domain` module. The `@event` decorator is used to define aggregate
-event classes by inspecting the parameters of the decorated method signature.
+event classes by inspecting the parameters of the decorated method signatures.
 Aggregate event objects are triggered when the decorated methods are called. The
-decorated method body is used to evolve the state of an aggregate instance.
+decorated method bodies are used to evolve the state of the aggregate object.
 
 ```python
 # Call the aggregate class.
