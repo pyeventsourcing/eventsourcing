@@ -163,6 +163,23 @@ of concepts, explanation of usage, and detailed descriptions of library classes.
 and systems.
 
 
+## Project structure
+
+You are free to create project files however you like. To begin, you
+may wish to start by putting your aggregate classes in a file named
+`domainmodel.py` and your application class in a file named
+`application.py`.
+
+    myproject/
+    myproject/application.py
+    myproject/domainmodel.py
+    myproject/tests.py
+
+But you can start by first writing a failing test in `tests.py`, then define
+your application and aggregate classes in the test module, and then refactor
+by moving things to separate modules later.
+
+
 ## Domain model
 
 Continuing the examples defined above, when the class `World`
