@@ -456,6 +456,14 @@ app = Worlds()
 test(app, expect_visible_in_db=False)
 ```
 
+Please note, to use the library's encryption functionality,
+please install the library with the `crypto` option (or just
+install the `pycryptodome` package.)
+
+    $ python -m venv ./venv
+    $ ./venv/bin/pip install eventsourcing[crypto]
+
+
 ## PostgreSQL environment
 
 Configure "production" environment using PostgresSQL infrastructure
@@ -498,6 +506,18 @@ app = Worlds()
 test(app, expect_visible_in_db=False)
 ```
 
+Please note, to use the library's PostgreSQL functionality,
+please install the library with the `postgres` option (or just
+install the `psycopg2` package.)
+
+    $ python -m venv ./venv
+    $ ./venv/bin/pip install eventsourcing[postgres]
+
+Please note, the library option `postgres_dev` will install the
+`psycopg2-binary` which is much faster, but this is not recommended
+for production use. The binary package is a practical choice for
+development and testing but in production it is advised to use
+the package built from sources.
 
 ## Project
 
