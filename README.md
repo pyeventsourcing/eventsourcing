@@ -30,9 +30,8 @@ from the Python Package Index.
 ## Synopsis
 
 The example below shows an event-sourced aggregate class named `World`.
-The aggregate class defines two events, `Created` and `SomethingHappened`.
-Instances of the `World` class will have an attribute `history` and a command
-method `make_it_so()`.
+The aggregate class defines two event classes, `Created` and `SomethingHappened`.
+`World` objects have an attribute `history` and a command method `make_it_so()`.
 
 ```python
 from eventsourcing.domain import Aggregate, event
