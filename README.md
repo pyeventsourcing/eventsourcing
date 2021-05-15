@@ -101,7 +101,7 @@ application.make_it_so(world_id, 'something')
 assert application.get_history(world_id) == ['something']
 ```
 
-Pending aggregate events will be collected when the application's `save()`
+Pending aggregate events will be collected and stored when the application's `save()`
 method is called. When the application repository's `get()` method is
 called, the aggregate events will be retrieved and used to reconstruct
 the state of the aggregate
