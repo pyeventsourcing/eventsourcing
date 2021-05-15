@@ -51,8 +51,13 @@ The events are triggered when the decorated methods are called. The decorated
 method body is used to evolve the state of the aggregate.
 
 ```python
+# Call the aggregate class.
 world = World()
+
+# Call an aggregate method.
 world.make_it_so('something')
+
+# Check the state of the aggregate.
 assert world.history == ['something']
 ```
 
@@ -83,10 +88,10 @@ class Worlds(Application):
         return world.history
 ```
 
-The application class `Worlds` uses the library's application base
-class `Application`. The `Application` class brings together a domain
-model of event-sourced aggregates and persistence infrastructure that
-can store and retreive aggregate events.
+The application class `Worlds` uses the application base class `Application`
+from the library's `application` module. The `Application` class brings together
+a domain model of event-sourced aggregates and persistence infrastructure that
+can store and retrieve aggregate events.
 
 ```python
 application = Worlds()
