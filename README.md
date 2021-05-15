@@ -55,7 +55,7 @@ decorated method bodies are used to evolve the state of the aggregate object.
 # Call the aggregate class.
 world = World()
 
-# Call an aggregate method.
+# Call the aggregate method.
 world.make_it_so('something')
 
 # Check the state of the aggregate.
@@ -101,7 +101,7 @@ application.make_it_so(world_id, 'something')
 assert application.get_history(world_id) == ['something']
 ```
 
-Pending aggregate events will collected when the application's `save()`
+Pending aggregate events will be collected when the application's `save()`
 method is called. When the application repository's `get()` method is
 called, the aggregate events will be retrieved and used to reconstruct
 the state of the aggregate
