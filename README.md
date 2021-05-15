@@ -16,8 +16,8 @@ A library for event sourcing in Python.
 ## Installation
 
 Use pip to install the [stable distribution](https://pypi.org/project/eventsourcing/)
-from the Python Package Index. It is recommended to install Python packages into a
-Python virtual environment.
+from the Python Package Index. Please note, it is recommended to install Python packages
+into a Python virtual environment.
 
     $ pip install eventsourcing
 
