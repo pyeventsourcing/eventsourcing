@@ -49,9 +49,9 @@ class World(Aggregate):
 
 When the `World` aggregate class is called, a `Created` event will
 be triggered, and a new `World` object will be returned. When the
-aggregate object's command method `make_it_so()` is called with a
-given value of `what`, a `SomethingHappened` event will be triggered,
-and the value will be appended to the `history` of the aggregate object.
+aggregate object's command method `make_it_so()` is called, a
+`SomethingHappened` event will be triggered, and the given value
+of `what` will be appended to the `history` of the aggregate object.
 
 ```python
 # Create a new aggregate.
