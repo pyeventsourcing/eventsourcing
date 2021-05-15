@@ -26,7 +26,7 @@ into a Python virtual environment.
 
 The example below shows an event-sourced aggregate class named `World`.
 The aggregate class also defines two event classes, `Created` and
-`SomethingHappened`. Aggregate object instances of this class will
+`SomethingHappened`. Aggregate object instances of the `World` class will
 have a command method `make_it_so()` that takes an argument `what`,
 and will be initialised with a `history` attribute that is an empty
 list.
