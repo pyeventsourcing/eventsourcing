@@ -46,10 +46,11 @@ When the `World` aggregate class is called, a new `World` object will be returne
 When the aggregate object's command method `make_it_so()` is called, the given value
 of the `what` argument will be appended to the `history` of the aggregate object.
 These calls also trigger two events, a `Created` event and a `SomethingHappened`
-event. A `Created` event was triggered when the `World` aggregate class was called,
-and a `SomethingHappened` event was triggered when the aggregate object's command
-method `make_it_so()` was called. Internally, the aggregate object now has two
-events that are pending to be saved.
+event. A `Created` event will be triggered when the `World` aggregate class is called,
+and a `SomethingHappened` event will be triggered when an aggregate object's command
+method `make_it_so()` is called. Hence, after a new `World` aggregate has been created,
+and the `make_it_so()` command has been called once, internally the aggregate object
+will have two events that are pending to be saved.
 
 ```python
 # Create a new aggregate.
