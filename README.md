@@ -46,11 +46,12 @@ class World(Aggregate):
 ```
 
 The `World` class uses the aggregate base class `Aggregate` from the library's
-`domain` module. The `@event` decorator is used to define aggregate
-event classes by inspecting the parameters of the decorated method signatures.
-Aggregate event objects are triggered when the decorated methods are called. The
-decorated method bodies are used by these events to evolve the state of the aggregate
-object.
+`domain` module. The `@event` decorator is used to define aggregate event classes.
+The attributes of the event classes are defined to match the parameters of the
+decorated method signature. When a decorated method is called, an event object
+is constructed with the given method arguments. The event is then "applied" to
+the aggregate, and the decorated method body is used to evolve the state of the
+aggregate object.
 
 ```python
 # Create a new aggregate.
@@ -67,9 +68,9 @@ The example below defines an event-sourced application `Worlds`.
 It has a command method `create_world()` that creates and saves
 new instances of the aggregate class `World`. It has a command
 method `make_it_so()` that calls the aggregate command method
-`make_it_so()` on already existing aggregates. And it has a query
-method `get_history()` that returns the `history` of an aggregate
-object.
+`make_it_so()` of an already existing `World` aggregate. And it
+has a query method `get_history()` that returns the `history` of
+an already existing `World` aggregate.
 
 ```python
 
@@ -169,9 +170,7 @@ and systems.
 
 Continuing the examples defined above, when the class `World`
 is called, a `Created` event object is constructed. This initial
-event is used to construct an instance of `World`. Please note,
-aggregate events are defined on the aggregate class, so that they
-are "namespaced" within the aggregate class.
+event is used to construct an instance of `World`.
 
 ```python
 # Create a new aggregate.
@@ -179,11 +178,15 @@ world = World()
 assert isinstance(world, World)
 ```
 
-The initial event object is immediately appended to the aggregate's internal
-list of pending events. Pending event objects can be collected using the
-aggregate's `collect_events()` method. Pleae note, the `collect_events()`
-method is used by the `Application.save()` method to collect aggregate
-events, so they can be stored in a database.
+After the aggregate object is instantiated, the `Created` event object
+is then appended to the aggregate's internal list of pending events.
+Pending event objects can be collected using the aggregate's `collect_events()`
+method. The aggregate event classes are defined on the aggregate class, so that
+they are "namespaced" within the aggregate class. Hence, the "fully qualified"
+name of the `Created` event is `World.Created`. Please note, the `collect_events()`
+method is used by the `Application.save()` method to collect aggregate events, so
+they can be stored in a database: you will never need to call this method explicitly
+in project code.
 
 ```python
 # Collect events.
@@ -195,10 +198,9 @@ assert type(events[0]).__qualname__ == 'World.Created'
 
 When the command method `make_it_so()` is called on an instance of
 the `World` class, a `SomethingHappened` event is triggered with the
-value of the `what` argument. The event object is used to append
-the value `what` to the `history` of the `World` aggregate instance.
-The event is "applied" to the aggregate using the body of the decorated
-method.
+value of the `what` argument. The event is "applied" to the aggregate
+using the body of the decorated method. Hence, the value `what` is
+appended to the `history` of the `World` aggregate instance.
 
 ```python
 # Execute aggregate commands.
@@ -215,27 +217,27 @@ assert world.history[2] == 'internet'
 Please note, that the decorated method body will be executed each time the event
 is applied to evolve the state of the aggregate, both when the event is triggered
 and when reconstructing aggregates from stored events. For this reason, return
-statements are ignored: the decorated method body should not return any values.
-If you need to return values from your aggregate command methods, use a non-decorated
-method that calls a decorated method, and return the value from that method. Any
-processing of command arguments that should not be repeated when reconstructing
-aggregates from stored events should also be done in a separate method before the
+statements are ignored, and so the decorated method body should not return any values.
+If you do need to return values from your aggregate command methods, use a non-decorated
+command method that calls a decorated method, and return the value from the non-decorated
+method. Also, any processing of command arguments that should not be repeated when reconstructing
+aggregates from stored events should be done in a separate method before the
 event is triggered. For example, if the triggered event will have a new UUID, you
-will need to use a separate method, and not generate the UUID in the decorated method
-body, otherwise a new UUID will be created each time the aggregate is reconstructed,
-rather than being fixed in the stored state of the aggregate, which is probably not
-what you want. See the library's [domain module documentation](https://eventsourcing.readthedocs.io/)
-for more information.
+will probably want to use a separate command method and not generate the UUID in the
+decorated method body, otherwise a new UUID will be created each time the aggregate is
+reconstructed, rather than being fixed by the stored state of the aggregate. See the
+library's [domain module documentation](https://eventsourcing.readthedocs.io/) for
+more information.
 
-After the event has been applied to the aggregate, the subsequent events are
+After the event has been applied to the aggregate, the event is
 immediately appended to the aggregate's internal list of pending events, and
 can be collected using the `collect_events()` method. Please note, if an
 exception is raised in the method body, the event will not be appended to
-the pending list – this can be used to validate method arguments, but be
-careful to do all the validation before adjusting the state of the aggregate
-if you wish to catch the exception in an application method and continue using
-the same aggregate instance (otherwise you can retrieve a fresh instance from
-the repository).
+the internal list of pending events. This behaviour can be used to validate
+method arguments, but if you wish to catch the exception in an application
+method and continue using the same aggregate instance be careful to do all
+the validation before adjusting the state of the aggregate (otherwise retrieve
+a fresh instance from the repository).
 
 ```python
 # Collect events.
@@ -247,7 +249,7 @@ assert type(events[2]).__qualname__ == 'World.SomethingHappened'
 assert type(events[3]).__qualname__ == 'World.SomethingHappened'
 ```
 
-The event objects can be used to reconstruct the state of
+The collected event objects can be used to reconstruct the state of
 the aggregate. The application repository's method `get()`
 reconstructs aggregates from stored events in this way (see below).
 
