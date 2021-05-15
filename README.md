@@ -52,10 +52,10 @@ Aggregate event objects are triggered when the decorated methods are called. The
 decorated method bodies are used to evolve the state of the aggregate object.
 
 ```python
-# Call the aggregate class.
+# Create a new aggregate.
 world = World()
 
-# Call the aggregate method.
+# Call the aggregate command.
 world.make_it_so('something')
 
 # Check the state of the aggregate.
@@ -64,9 +64,9 @@ assert world.history == ['something']
 
 The example below defines an event-sourced application `Worlds`
 that creates instances of the aggregate class `World`. It has
-a method `create_world()` that creates and saves new aggregates.
-It has a `make_it_so()` method that calls `make_it_so()` on already
-existing aggregates. And it has a `get_history()` method that
+a command method `create_world()` that creates and saves new aggregates.
+It has a command method `make_it_so()` that calls `make_it_so()` on already
+existing aggregates. And it has a query method `get_history()` that
 returns the `history` of an aggregate.
 
 ```python
@@ -95,15 +95,22 @@ a domain model of event-sourced aggregates and persistence infrastructure that
 can store and retrieve aggregate events.
 
 ```python
+# Construct the application.
 application = Worlds()
+
+# Create a new aggregate.
 world_id = application.create_world()
+
+# Call the application command method.
 application.make_it_so(world_id, 'something')
+
+# Call the application query method.
 assert application.get_history(world_id) == ['something']
 ```
 
-Pending aggregate events will be collected and stored when the application's `save()`
+Pending aggregate events are collected and stored when the application's `save()`
 method is called. When the application repository's `get()` method is
-called, the aggregate events will be retrieved and used to reconstruct
+called, the aggregate events are retrieved and used to reconstruct
 the state of the aggregate
 
 Please refer to the sections below for more details and explanation.
@@ -239,7 +246,7 @@ assert type(events[3]).__qualname__ == 'World.SomethingHappened'
 ```
 
 The event objects can be used to reconstruct the state of
-the aggregate. The application repository method `repository.get()`
+the aggregate. The application repository's method `get()`
 reconstructs aggregates from stored events in this way (see below).
 
 ```python
