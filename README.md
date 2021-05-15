@@ -44,7 +44,8 @@ class World(Aggregate):
 
 When the `World` aggregate class is called, a new `World` object will be returned.
 When the aggregate object's command method `make_it_so()` is called, the given value
-of `what` will be appended to the `history` of the aggregate object.
+of `what` will be appended to the `history` of the aggregate object. These calls
+also trigger two events, a `Created` event and a `SomethingHappened` event.
 
 ```python
 # Create a new aggregate.
@@ -58,7 +59,7 @@ assert world.history == ['something']
 ```
 
 The `World` class uses the aggregate base class `Aggregate` from the library's
-`domain` module. The `@event` decorator is used to define aggregate event classes.
+`domain` module. The `@event` decorator is used to define the event classes.
 The attributes of the event classes are automatically defined by the decorator to
 match the parameters of the decorated method signature. When a decorated method
 is called, an event object is instantiated with the given method arguments. The
