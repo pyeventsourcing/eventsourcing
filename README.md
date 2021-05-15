@@ -25,8 +25,9 @@ into a Python virtual environment.
 ## Synopsis
 
 The example below shows an event-sourced aggregate class named `World`.
-Aggregate objects will have an attribute `history` and a command method `make_it_so()`.
-The aggregate class also defines two event classes, `Created` and `SomethingHappened`.
+Aggregate objects will be initialised with a `history` attribute and
+will have a command method `make_it_so()`. The aggregate class also
+defines two event classes, `Created` and `SomethingHappened`.
 
 
 ```python
