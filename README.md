@@ -76,7 +76,7 @@ current state of the aggregate. Collecting and storing aggregate events, and
 reconstructing aggregates from stored events, are responsibilities of the
 library's `Application` class.
 
-The example below defines an event-sourced application `Worlds`.
+The example below defines an event-sourced application named `Worlds`.
 It has a command method `create_world()` that creates and saves
 new instances of the aggregate class `World`. It has a command
 method `make_it_so()` that calls the aggregate command method
