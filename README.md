@@ -12,14 +12,6 @@ A library for event sourcing in Python.
 
 [Read the documentation here](https://eventsourcing.readthedocs.io/).
 
-## Installation
-
-Use pip to install the [stable distribution](https://pypi.org/project/eventsourcing/)
-from the Python Package Index. It is recommended to install Python packages into a Python
-virtual environment.
-
-    $ python -m venv ./venv
-    $ ./venv/bin/pip install eventsourcing
 
 ## Synopsis
 
@@ -163,6 +155,37 @@ of concepts, explanation of usage, and detailed descriptions of library classes.
 and systems.
 
 
+## Installation
+
+It is recommended to install Python packages into a Python virtual environment.
+
+    $ python -m venv ./venv
+    $ source ./venv/bin/activate
+
+Use pip to install the [stable distribution](https://pypi.org/project/eventsourcing/)
+from the Python Package Index.
+
+    $ pip install eventsourcing
+
+Please note, to use the library's encryption functionality,
+please install the library with the `crypto` option (or just
+install the `pycryptodome` package.)
+
+    $ pip install eventsourcing[crypto]
+
+Please note, to use the library's PostgreSQL functionality,
+please install the library with the `postgres` option (or just
+install the `psycopg2` package.)
+
+    $ pip install eventsourcing[postgres]
+
+Please note, the library option `postgres_dev` will install the
+`psycopg2-binary` which is much faster, but this is not recommended
+for production use. The binary package is a practical choice for
+development and testing but in production it is advised to use
+the package built from sources.
+
+
 ## Project structure
 
 You are free to structure your project files however you wish. You
@@ -197,10 +220,7 @@ is then appended to the aggregate's internal list of pending events.
 Pending event objects can be collected using the aggregate's `collect_events()`
 method. The aggregate event classes are defined on the aggregate class, so that
 they are "namespaced" within the aggregate class. Hence, the "fully qualified"
-name of the `Created` event is `World.Created`. Please note, the `collect_events()`
-method is used by the `Application.save()` method to collect aggregate events, so
-they can be stored in a database: you will never need to call this method explicitly
-in project code.
+name of the `Created` event is `World.Created`.
 
 ```python
 # Collect events.
@@ -209,6 +229,11 @@ assert len(events) == 1
 assert type(events[0]).__name__ == 'Created'
 assert type(events[0]).__qualname__ == 'World.Created'
 ```
+
+Please note, the `collect_events()`
+method is used by the `Application.save()` method to collect aggregate events, so
+they can be stored in a database: you will never need to call this method explicitly
+in project code.
 
 When the command method `make_it_so()` is called on an instance of
 the `World` class, a `SomethingHappened` event is triggered with the
@@ -456,14 +481,6 @@ app = Worlds()
 test(app, expect_visible_in_db=False)
 ```
 
-Please note, to use the library's encryption functionality,
-please install the library with the `crypto` option (or just
-install the `pycryptodome` package.)
-
-    $ python -m venv ./venv
-    $ ./venv/bin/pip install eventsourcing[crypto]
-
-
 ## PostgreSQL environment
 
 Configure "production" environment using PostgresSQL infrastructure
@@ -505,19 +522,6 @@ app = Worlds()
 # Run the test.
 test(app, expect_visible_in_db=False)
 ```
-
-Please note, to use the library's PostgreSQL functionality,
-please install the library with the `postgres` option (or just
-install the `psycopg2` package.)
-
-    $ python -m venv ./venv
-    $ ./venv/bin/pip install eventsourcing[postgres]
-
-Please note, the library option `postgres_dev` will install the
-`psycopg2-binary` which is much faster, but this is not recommended
-for production use. The binary package is a practical choice for
-development and testing but in production it is advised to use
-the package built from sources.
 
 ## Project
 
