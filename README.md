@@ -68,7 +68,7 @@ The `World` class uses the aggregate base class `Aggregate` from the library's
 The attributes of the event classes are automatically defined by the decorator to
 match the parameters of the decorated method signature. When a decorated method
 is called, an event object is instantiated with the given method arguments. The
-event object is then "applied" to the aggregate, using the decorated method body,
+event object is then "applied" to the aggregate, using the body of the decorated method
 to evolve the state of the aggregate object. The event object is then appended
 to a list of pending events internal to the aggregate object. The pending
 events can be collected and stored, and used again later to reconstruct the
