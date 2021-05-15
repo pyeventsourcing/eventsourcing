@@ -22,7 +22,7 @@ the Python Package Index.
 
 ## Synopsis
 
-The example below defines an event sourced aggregate `World`. An aggregate event
+The example below defines an event-sourced aggregate `World`. An aggregate event
 named `Created` will be triggered when the class is called. The `World` class
 has a method `make_it_so()` which triggers an aggregate event named
 `SomethingHappened` when it is called.
@@ -45,7 +45,7 @@ It uses the library's `@event` decorator to define aggregate events by inspectin
 the parameters of the decorated method. The decorated method body is used to evolve
 the state of the aggregate. Events are triggered when decorated methods are called.
 
-The example below defines an event sourced application `Worlds`
+The example below defines an event-sourced application `Worlds`
 that creates and uses instances of the `World` aggregate class.
 
 ```python
@@ -69,7 +69,7 @@ class Worlds(Application):
 ```
 The application class `Worlds` uses the library's application base
 class `Application`. The `Application` class brings together a domain
-model of event sourced aggregates and persistence infrastructure that
+model of event-sourced aggregates and persistence infrastructure that
 persists aggregate events.
 
 Please refer to the sections below for more details and further explanation.
@@ -181,7 +181,7 @@ assert copy.created_on == world.created_on
 assert copy.modified_on == world.modified_on
 ```
 
-This example can be adjusted and extended for any event sourced domain model.
+This example can be adjusted and extended for any event-sourced domain model.
 
 
 ## Application
