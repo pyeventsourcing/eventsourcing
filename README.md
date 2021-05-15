@@ -28,9 +28,9 @@ It is recommended to install Python packages into a Python virtual environment.
 
 The example below shows an event-sourced aggregate class named `World`. An event
 named `Created` will be triggered when the aggregate class is called. The aggregate
-has a command method `make_it_so()`. An event named `SomethingHappened`
-will be triggered when this method is called. The events are used to evolve the
-state of the created aggregate object.
+has a command method `make_it_so()`. An event named `SomethingHappened` will be
+triggered when this method is called. These events are used instantiate and evolve
+the state of a `World` aggregate object.
 
 ```python
 from eventsourcing.domain import Aggregate, event
