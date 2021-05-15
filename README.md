@@ -30,7 +30,7 @@ from the Python Package Index.
 ## Synopsis
 
 The example below shows an event-sourced aggregate class named `World`.
-`World` objects have an attribute `history` and a command method `make_it_so()`.
+Aggregate objects will have an attribute `history` and a command method `make_it_so()`.
 The aggregate class also defines two event classes, `Created` and `SomethingHappened`.
 
 
