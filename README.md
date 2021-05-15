@@ -47,8 +47,8 @@ class World(Aggregate):
 The `World` class uses the aggregate base class `Aggregate` from the library's
 `domain` module. The `@event` decorator is used to define aggregate
 event classes by inspecting the parameters of the decorated method signature.
-The events are triggered when the decorated methods are called. The decorated
-method body is used to evolve the state of the aggregate.
+Aggregate event objects are triggered when the decorated methods are called. The
+decorated method body is used to evolve the state of an aggregate instance.
 
 ```python
 # Call the aggregate class.
