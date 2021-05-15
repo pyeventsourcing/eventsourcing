@@ -72,8 +72,8 @@ event object is then "applied" to the aggregate, using the body of the decorated
 to evolve the state of the aggregate object. The event object is then appended
 to a list of pending events internal to the aggregate object. The pending
 events can be collected and stored, and used again later to reconstruct the
-current state of the aggregate. Collecting storing aggregate events, and
-reconstructing aggregates from stored events is the responsibility of the
+current state of the aggregate. Collecting and storing aggregate events, and
+reconstructing aggregates from stored events, are responsibilities of the
 library's `Application` class.
 
 The example below defines an event-sourced application `Worlds`.
