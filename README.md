@@ -174,7 +174,9 @@ none of them will be. It provides a `repository` which has a `get()` method that
 can be used to obtain previously saved aggregates. The `get()` method is called with
 an aggregate ID. It retrieves stored events for an aggregate from an event store,
 then reconstructs the aggregate object from its previously stored events, and then
-returns the reconstructed aggregate object to the caller.
+returns the reconstructed aggregate object to the caller. The application class
+can be configured using environment variables to work with different databases,
+and optionally to encrypt and compress stored events.
 
 The `Application` class also has a `log` object which can be used to get all the
 aggregate events that have been stored across all the aggregates of an application,
