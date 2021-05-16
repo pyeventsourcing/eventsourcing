@@ -146,8 +146,8 @@ world_id = application.create_world()
 ```
 
 When the application command method `make_it_so()` is called with
-the ID of the new aggregate, the aggregate is reconstructed by calling repository's
-`get()` method, the aggregate's `make_it_so()` method is called with the given value of `what`,
+the ID of an aggregate, the repository is used to get the aggregate,
+the aggregate's `make_it_so()` method is called with the given value of `what`,
 and the aggregate is saved by calling the application's `save()` method.
 
 ```python
@@ -155,9 +155,9 @@ and the aggregate is saved by calling the application's `save()` method.
 application.make_it_so(world_id, 'something')
 ```
 
-When the application query method `get_history()` is called, the
-aggregate is reconstructed by calling the repository's `get()` method, and
-the value of the aggregate's `history` attribute is returned to the caller.
+When the application query method `get_history()` is called with the ID
+of an aggregate, the repository is used to get the aggregate, and the
+value of the aggregate's `history` attribute is returned to the caller.
 
 ```python
 # Call the application query method.
@@ -168,19 +168,19 @@ How does it work? The `Application` class provides persistence infrastructure
 that can collect, serialise, and store aggregate events. It can also reconstruct
 aggregates from stored events. It provides a `save()` method which saves aggregates
 by collecting and storing pending aggregate events. The `save()` method calls the
-given aggregates' `collect_events()` method and puts the pending aggregate events
+given aggregate's `collect_events()` method and puts the pending aggregate events
 in an event store, with a guarantee that either all the events will be stored or
 none of them will be. It provides a `repository` which has a `get()` method that
-can be used to get previously saved aggregates. The `get()` method retrieves stored
-events for an aggregate from an event store and reconstructs the aggregate object from
-its stored events.
+can be used to get previously saved aggregates. The `get()` method is called with
+an aggregate ID, retrieves stored events for an aggregate from an event store, and
+then reconstructs the aggregate object from its previously stored events.
 
 The `Application` class also has a `log` object which can be used to get all the
 aggregate events that have been stored across all the aggregates of an application,
 in the order in which they were stored, as a sequence of event notifications. Each
 of the event notifications has an integer ID which increases along the sequence.
 The `log` can be used to propagate the state of the application in a manner that
-supports deterministic processing of the application state in event-driven systems.
+supports deterministic processing of the application state in an event-driven systems.
 
 ```python
 assert len(application.log['1,10'].items) == 2
