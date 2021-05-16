@@ -126,7 +126,8 @@ following command (which uses isort, Black, Flake8, and mypy).
 
 
 The code can be automatically reformatted using the following command
-(which uses isort and Black). Flake8 errors may need to be fixed by hand.
+(which uses isort and Black). Flake8 and mypy errors will often need
+to be fixed by hand.
 
 ::
 
