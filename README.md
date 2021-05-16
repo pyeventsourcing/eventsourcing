@@ -176,7 +176,10 @@ an aggregate ID. It retrieves stored events for an aggregate from an event store
 then reconstructs the aggregate object from its previously stored events, and then
 returns the reconstructed aggregate object to the caller. The application class
 can be configured using environment variables to work with different databases,
-and optionally to encrypt and compress stored events.
+and optionally to encrypt and compress stored events. By default, the application
+serialises aggregate events using JSON, and stores them in memory as "plain old
+Python objects". The library includes support for storing events in SQLite and
+PosgreSQL (see below). Other databases are available.
 
 The `Application` class also has a `log` object which can be used to get all the
 aggregate events that have been stored across all the aggregates of an application,
