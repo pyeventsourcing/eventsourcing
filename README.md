@@ -47,7 +47,7 @@ class World(Aggregate):
 ```
 
 When the `World` aggregate class is called, the `Created` event will
-be triggered, and a new `World` object will be returned.
+be triggered, and a new `World` object will be returned to the caller.
 
 ```python
 # Call the aggregate class to create a new aggregate object.
@@ -171,9 +171,10 @@ by collecting and storing pending aggregate events. The `save()` method calls th
 given aggregate's `collect_events()` method and puts the pending aggregate events
 in an event store, with a guarantee that either all the events will be stored or
 none of them will be. It provides a `repository` which has a `get()` method that
-can be used to get previously saved aggregates. The `get()` method is called with
-an aggregate ID, retrieves stored events for an aggregate from an event store, and
-then reconstructs the aggregate object from its previously stored events.
+can be used to obtain previously saved aggregates. The `get()` method is called with
+an aggregate ID. It retrieves stored events for an aggregate from an event store,
+then reconstructs the aggregate object from its previously stored events, and then
+returns the reconstructed aggregate object to the caller.
 
 The `Application` class also has a `log` object which can be used to get all the
 aggregate events that have been stored across all the aggregates of an application,
