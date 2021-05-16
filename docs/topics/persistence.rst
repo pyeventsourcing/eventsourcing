@@ -199,7 +199,7 @@ Attempting to deserialize an unsupported type will also result in a Python :clas
 The library's abstract base class :class:`~eventsourcing.persistence.Transcoding`
 can be subclassed to define custom transcodings for other object types. To define
 a custom transcoding, simply subclass this base class, assign to the class attribute
-:data:`type` the class transcoded type, and assign a string to the :data:`type`.
+:data:`type` the class transcoded type, and assign a string to the :data:`name`.
 Then define a :func:`~eventsourcing.persistence.Transcoding.encode` that converts
 an instance of that type to a representation that uses a basic type, and a
 :func:`~eventsourcing.persistence.Transcoding.decode` method that will convert
