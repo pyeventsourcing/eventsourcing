@@ -3,12 +3,12 @@ Installation guide
 ==================
 
 This version of the library is compatible with Python versions 3.7, 3.8,
-and 3.9.
-
-It is recommended always to install into a virtual environment.
+and 3.9. The library's suite of tests is run against these versions and
+has 100% line and branch coverage.
 
 You can use pip to install the library from the
 `Python Package Index <https://pypi.org/project/eventsourcing/>`__.
+It is recommended always to install into a virtual environment.
 
 ::
 
@@ -34,8 +34,6 @@ with major version number increments.
 This package depends only on modules from the Python Standard Library,
 except for the extra options described below.
 
-The library's suite of tests is run against these versions and
-has 100% line and branch coverage.
 
 Install options
 ===============
@@ -151,5 +149,5 @@ can do conveniently with the following command.
 
     $ make prepush
 
-If you wish to submit a pull request on GitHub, please target the develop
+If you wish to submit a pull request on GitHub, please target the main
 branch. Improvements of any size are always welcome.
