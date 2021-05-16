@@ -25,11 +25,13 @@ into a Python virtual environment.
 ## Synopsis
 
 The example below shows an event-sourced aggregate class named `World`.
-The aggregate class also defines two event classes, `Created` and
-`SomethingHappened`. Aggregate object instances of the `World` class will
-have a command method `make_it_so()` that takes an argument `what`,
-and will be initialised with a `history` attribute that is an empty
-list.
+Its ``__init__()`` method initialises a `history` attribute. It has a
+method `make_it_so()` that takes an argument `what`. The aggregate
+class also defines two event classes, `Created` and `SomethingHappened`.
+
+The `World` class uses the aggregate base class `Aggregate`
+from the library's `domain` module. The `@event` decorator is used to define
+the event classes.
 
 ```python
 from eventsourcing.domain import Aggregate, event
@@ -44,47 +46,67 @@ class World(Aggregate):
         self.history.append(what)
 ```
 
-When the `World` aggregate class is called, a new `World` object will be returned.
-When the aggregate object's command method `make_it_so()` is called, the given value
-of the `what` argument will be appended to the `history` of the aggregate object.
-These calls also trigger two events, a `Created` event and a `SomethingHappened`
-event. A `Created` event will be triggered when the `World` aggregate class is called,
-and a `SomethingHappened` event will be triggered when an aggregate object's command
-method `make_it_so()` is called. Hence, after a new `World` aggregate has been created,
-and the `make_it_so()` command has been called once, internally the aggregate object
-will have two events that are pending to be saved.
+When the `World` aggregate class is called, the `Created` event will
+be triggered, and a new `World` object will be returned.
 
 ```python
-# Create a new aggregate.
+# Call the aggregate class to create a new aggregate object.
 world = World()
 
-# Call the aggregate command.
+# Check the state of the new aggregate object.
+assert world.history == []
+```
+
+The aggregate object has a universally unique ID.
+
+```python
+from uuid import UUID
+
+# The aggregate has an ID.
+assert isinstance(world.id, UUID)
+```
+
+When the `make_it_so()` method is called, a `SomethingHappened` event
+will be triggered, and the given value of the `what` argument will be
+appended to the `history` of the aggregate object.
+
+```python
+# Call the aggregate command method.
 world.make_it_so('something')
 
 # Check the state of the aggregate.
 assert world.history == ['something']
 ```
 
-The `World` class uses the aggregate base class `Aggregate` from the library's
-`domain` module. The `@event` decorator is used to define the event classes.
-The attributes of the event classes are automatically defined by the decorator to
-match the parameters of the decorated method signature. When a decorated method
-is called, an event object is instantiated with the given method arguments. The
-event object is then "applied" to the aggregate, using the body of the decorated method
-to evolve the state of the aggregate object. The event object is then appended
-to a list of pending events internal to the aggregate object. The pending
-events can be collected and stored, and used again later to reconstruct the
-current state of the aggregate. Collecting and storing aggregate events, and
-reconstructing aggregates from stored events, are responsibilities of the
-library's `Application` class.
+After a new `World` aggregate has been created and its `make_it_so()` command
+has been called once, internally it will have two aggregate events that are
+pending to be saved. These pending events can be collected by calling the
+`collect_events()` method defined by the `Aggregate` base class.
+
+```python
+# There are two pending events.
+assert len(world.collect_events()) == 2
+```
+
+How does it work? The attributes of the event classes are automatically defined
+by the `@event` decorator to match the parameters of the decorated method signature.
+When a decorated method is called, an event object is instantiated with the given
+method arguments. The event object is then "applied" to the aggregate, using
+the body of the decorated method to evolve the state of the aggregate object.
+The event object is then appended to a list of pending events internal to the
+aggregate object. The pending events can be collected and stored, and used
+again later to reconstruct the current state of the aggregate. Collecting
+and storing aggregate events and reconstructing aggregates from stored events
+are responsibilities of the library's `Application` class.
 
 The example below defines an event-sourced application named `Worlds`.
-It has a command method `create_world()` that creates and saves
-new instances of the aggregate class `World`. It has a command
-method `make_it_so()` that calls the aggregate command method
-`make_it_so()` of an already existing aggregate object. And it
-has a query method `get_history()` that returns the `history` of
-an aggregate object.
+The application class `Worlds` uses the application base class `Application`
+from the library's `application` module. The `Worlds` application has
+a command method `create_world()` that creates and saves new instances
+of the aggregate class `World`. It has a command method `make_it_so()`
+that calls the aggregate command method `make_it_so()` of an already
+existing aggregate object. And it has a query method `get_history()`
+that returns the `history` of an aggregate object.
 
 ```python
 
@@ -106,31 +128,63 @@ class Worlds(Application):
         return world.history
 ```
 
-The application class `Worlds` uses the application base class `Application`
-from the library's `application` module. The `Application` class brings together
-a domain model of event-sourced aggregates with persistence infrastructure that
-can store and retrieve aggregate events. It provides a `save()` method
-which is used to save aggregate events, and a `repository` which is used to
-reconstruct aggregates from saved events.
+When the `Worlds` application class is called, an application object is constructed.
 
 ```python
 # Construct the application.
 application = Worlds()
+```
 
+When the application command method `create_world()` is called, a new `World`
+aggregate object is created, the new aggregate object is saved by calling the
+application's `save()` method, and then the ID of the aggregate is returned
+to the caller.
+
+```python
 # Create a new aggregate.
 world_id = application.create_world()
+```
 
+When the application command method `make_it_so()` is called with
+the ID of the new aggregate, the aggregate is reconstructed by calling repository's
+`get()` method, the aggregate's `make_it_so()` method is called with the given value of `what`,
+and the aggregate is saved by calling the application's `save()` method.
+
+```python
 # Call the application command method.
 application.make_it_so(world_id, 'something')
+```
 
+When the application query method `get_history()` is called, the
+aggregate is reconstructed by calling the repository's `get()` method, and
+the value of the aggregate's `history` attribute is returned to the caller.
+
+```python
 # Call the application query method.
 assert application.get_history(world_id) == ['something']
 ```
 
-Pending aggregate events are collected and stored when the application's `save()`
-method is called. When the application repository's `get()` method is
-called, the previously stored aggregate events are retrieved and used to
-reconstruct the state of the aggregate
+How does it work? The `Application` class provides persistence infrastructure
+that can collect, serialise, and store aggregate events. It can also reconstruct
+aggregates from stored events. It provides a `save()` method which saves aggregates
+by collecting and storing pending aggregate events. The `save()` method calls the
+given aggregates' `collect_events()` method and puts the pending aggregate events
+in an event store, with a guarantee that either all the events will be stored or
+none of them will be. It provides a `repository` which has a `get()` method that
+can be used to get previously saved aggregates. The `get()` method retrieves stored
+events for an aggregate from an event store and reconstructs the aggregate object from
+its stored events.
+
+The `Application` class also has a `log` object which can be used to get all the
+aggregate events that have been stored across all the aggregates of an application,
+in the order in which they were stored, as a sequence of event notifications. Each
+of the event notifications has an integer ID which increases along the sequence.
+The `log` can be used to propagate the state of the application in a manner that
+supports deterministic processing of the application state in event-driven systems.
+
+```python
+assert len(application.log['1,10'].items) == 2
+```
 
 Please refer to the sections below for more details and explanation.
 
@@ -317,7 +371,7 @@ from eventsourcing.system import NotificationLogReader
 def test(app: Worlds, expect_visible_in_db: bool):
 
     # Check app has zero event notifications.
-    assert len(app.log['1,10'].items) == 0, len(app.log['1,10'].items)
+    assert len(app.log['1,10'].items) == 0
 
     # Create a new aggregate.
     world_id = app.create_world()
@@ -364,7 +418,7 @@ def test(app: Worlds, expect_visible_in_db: bool):
     assert old.history[-1] == 'trucks' # last thing to have happened was 'trucks'
 
     # Check app has four event notifications.
-    assert len(app.log['1,10'].items) == 4, len(app.log['1,10'].items)
+    assert len(app.log['1,10'].items) == 4
 
     # Optimistic concurrency control (no branches).
     old.make_it_so('future')
