@@ -186,7 +186,7 @@ aggregate events that have been stored across all the aggregates of an applicati
 in the order in which they were stored, as a sequence of event notifications. Each
 of the event notifications has an integer ID which increases along the sequence.
 The `log` can be used to propagate the state of the application in a manner that
-supports deterministic processing of the application state in an event-driven systems.
+supports deterministic processing of the application state in event-driven systems.
 
 ```python
 assert len(application.log['1,10'].items) == 2
