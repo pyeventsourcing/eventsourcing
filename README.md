@@ -111,31 +111,6 @@ history = application.get_history(world_id)
 assert history == ('dinosaurs', 'trucks', 'internet')
 ```
 
-Propagate the state of the application by reading sections
-from the application's log of event notifications.
-
-```python
-log_section = application.log['1,4']
-notifications = log_section.items
-assert [n.id for n in notifications] == [1, 2, 3, 4]
-
-assert 'World.Created' in notifications[0].topic
-assert 'World.SomethingHappened' in notifications[1].topic
-assert 'World.SomethingHappened' in notifications[2].topic
-assert 'World.SomethingHappened' in notifications[3].topic
-
-assert b'Earth' in notifications[0].state
-assert b'dinosaurs' in notifications[1].state
-assert b'trucks' in notifications[2].state
-assert b'internet' in notifications[3].state
-
-assert world_id == notifications[0].originator_id
-assert world_id == notifications[1].originator_id
-assert world_id == notifications[2].originator_id
-assert world_id == notifications[3].originator_id
-
-```
-
 See the discussion below and the library's
 [documentation](https://eventsourcing.readthedocs.io/)
 for more information.
@@ -409,6 +384,27 @@ increases along the sequence. The `log` can be used to propagate
 the state of the application in a manner that supports
 deterministic processing of the application state in
 event-driven systems.
+
+```python
+log_section = application.log['1,4']
+notifications = log_section.items
+assert [n.id for n in notifications] == [1, 2, 3, 4]
+
+assert 'World.Created' in notifications[0].topic
+assert 'World.SomethingHappened' in notifications[1].topic
+assert 'World.SomethingHappened' in notifications[2].topic
+assert 'World.SomethingHappened' in notifications[3].topic
+
+assert b'Earth' in notifications[0].state
+assert b'dinosaurs' in notifications[1].state
+assert b'trucks' in notifications[2].state
+assert b'internet' in notifications[3].state
+
+assert world_id == notifications[0].originator_id
+assert world_id == notifications[1].originator_id
+assert world_id == notifications[2].originator_id
+assert world_id == notifications[3].originator_id
+```
 
 The `test()` function below demonstrates the example in more detail,
 by creating many aggregates in one application, reading event
