@@ -24,7 +24,10 @@ install Python packages into a Python virtual environment.
 
 ## Synopsis
 
-Use the library's `Aggregate` base class and `event` decorator to define an event-sourced aggregate.
+Use the library's `Aggregate` base class and `event` decorator to define an
+event-sourced aggregate. Derive your aggregate classes from the `Aggregate`
+base class. Use the `@event` decorator to define aggregate event classes
+that will be triggered when command methods are called.
 
 ```python
 from eventsourcing.domain import Aggregate, event
@@ -42,6 +45,8 @@ class World(Aggregate):
 ```
 
 Use the library's `Application` class to define an event-sourced application.
+Derive your application classes from the `Application` base class. Add command
+and query methods to manipulate and access the aggregates of the application.
 
 ```python
 from typing import Tuple
@@ -66,7 +71,7 @@ class Universe(Application):
         return world.history
 ```
 
-Construct the application.
+Construct the application by calling the application class.
 
 ```python
 # Construct the application.
@@ -74,13 +79,14 @@ application = Universe()
 
 ```
 
-Create a new aggregate.
+Create a new aggregate by calling application methods.
 
 ```python
 world_id = application.create_world('Earth')
 ```
 
-Call command method.
+Evolve the state of the application's aggregates by calling
+command method.
 
 ```python
 # Call command method.
@@ -90,17 +96,35 @@ application.make_it_so(world_id, 'internet')
 
 ```
 
-Call query method.
+Access the state of the application by calling query methods.
 
 ```python
 history = application.get_history(world_id)
 assert history == ('dinosaurs', 'trucks', 'internet')
 ```
 
-Read the appllication's log of event notifications.
+Propagate the state of the application by read the application's
+log of event notifications.
 
 ```python
-assert len(application.log['1,4'].items) == 4
+notifications = application.log['1,4'].items
+assert [n.id for n in notifications] == [1, 2, 3, 4]
+
+assert 'World.Created' in notifications[0].topic
+assert 'World.SomethingHappened' in notifications[1].topic
+assert 'World.SomethingHappened' in notifications[2].topic
+assert 'World.SomethingHappened' in notifications[3].topic
+
+assert b'Earth' in notifications[0].state
+assert b'dinosaurs' in notifications[1].state
+assert b'trucks' in notifications[2].state
+assert b'internet' in notifications[3].state
+
+assert world_id == notifications[0].originator_id
+assert world_id == notifications[1].originator_id
+assert world_id == notifications[2].originator_id
+assert world_id == notifications[3].originator_id
+
 ```
 
 See the discussion below and the library's
