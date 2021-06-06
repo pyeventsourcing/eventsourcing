@@ -25,10 +25,12 @@ install Python packages into a Python virtual environment.
 ## Synopsis
 
 Use the library's `Aggregate` base class and `@event` decorator to define an
-event-sourced aggregate. Derive your aggregate classes from the `Aggregate`
-base class. You can create a new aggregate instance by calling the aggregate
-class. Use the `@event` decorator to define aggregate event classes.
-Events will be triggered when decorated methods are called.
+event-sourced aggregate.
+
+Derive your aggregate classes from the `Aggregate`
+base class. Create new aggregate instances by calling the derived
+aggregate class. Use the `@event` decorator to define aggregate event
+classes. Events will be triggered when decorated methods are called.
 
 ```python
 from eventsourcing.domain import Aggregate, event
@@ -46,6 +48,7 @@ class World(Aggregate):
 ```
 
 Use the library's `Application` class to define an event-sourced application.
+
 Derive your application classes from the `Application` base class. Add command
 and query methods to manipulate and access the state of the application.
 
@@ -63,13 +66,18 @@ class Universe(Application):
         return world.id
 
     def make_it_so(self, world_id: UUID, what: str) -> None:
-        world = self.repository.get(world_id)
+        world = self._get_world(world_id)
         world.make_it_so(what)
         self.save(world)
 
     def get_history(self, world_id) -> Tuple:
+        return self._get_world(world_id).history
+
+    def _get_world(self, world_id) -> World:
         world = self.repository.get(world_id)
-        return world.history
+        assert isinstance(world, World)
+        return world
+
 ```
 
 Construct an instance of the application by calling the application class.
