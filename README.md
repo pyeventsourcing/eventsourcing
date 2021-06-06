@@ -74,7 +74,6 @@ class Universe(Application):
 Construct the application by calling the application class.
 
 ```python
-# Construct the application.
 application = Universe()
 
 ```
@@ -89,7 +88,6 @@ Evolve the state of the application's aggregates by calling
 command method.
 
 ```python
-# Call command method.
 application.make_it_so(world_id, 'dinosaurs')
 application.make_it_so(world_id, 'trucks')
 application.make_it_so(world_id, 'internet')
