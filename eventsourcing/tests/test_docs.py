@@ -71,7 +71,7 @@ class TestDocs(TestCase):
             os.getenv("POSTGRES_USER"),
             os.getenv("POSTGRES_PASSWORD"),
         )
-        drop_postgres_table(db, "worlds_events")
+        drop_postgres_table(db, "universe_events")
 
         del os.environ["INFRASTRUCTURE_FACTORY"]
         del os.environ["POSTGRES_DBNAME"]
