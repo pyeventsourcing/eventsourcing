@@ -24,7 +24,7 @@ install Python packages into a Python virtual environment.
 
 ## Synopsis
 
-Define an event-sourced aggregate.
+Use the library's `Aggregate` base class and `event` decorator to define an event-sourced aggregate.
 
 ```python
 from eventsourcing.domain import Aggregate, event
@@ -32,7 +32,7 @@ from eventsourcing.domain import Aggregate, event
 
 class World(Aggregate):
     @event('Created')
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         self.name = name
         self.history = ()
 
@@ -41,7 +41,7 @@ class World(Aggregate):
         self.history += (what,)
 ```
 
-Define an event-sourced application.
+Use the library's `Application` class to define an event-sourced application.
 
 ```python
 from typing import Tuple
@@ -97,7 +97,7 @@ history = application.get_history(world_id)
 assert history == ('dinosaurs', 'trucks', 'internet')
 ```
 
-Read the log of event notifications.
+Read the appllication's log of event notifications.
 
 ```python
 assert len(application.log['1,4'].items) == 4
