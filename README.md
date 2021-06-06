@@ -170,7 +170,8 @@ The example above shows an event-sourced aggregate class named
 is used to initialise the `name` attribute, and also initialises
 a `history` attribute as an empty list. It has a method `make_it_so()`
 that takes an argument `what` and appends the given value to the
-`history` of the `World`.
+`history` of the `World`. This example can be adjusted and extended
+for any event-sourced domain model.
 
 The `World` class uses the aggregate base class `Aggregate` from
 the library's `domain` module. The `@event` decorator is used to
@@ -181,9 +182,6 @@ to match the parameters of the decorated method signature. Instances
 of the `Created` event class will have a `name` attribute value. And
 instances of the `SomethingHappened` event class will have a `what`
 attribute value.
-
-This example can be adjusted and extended for any event-sourced
-domain model.
 
 When the `World` aggregate class is called, an instance of the
 `Created` event class is constructed. This event object instance
