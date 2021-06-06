@@ -181,7 +181,7 @@ class StoredEvent:
     Constructor parameters:
 
     :param UUID originator_id: ID of the originating aggregate
-    :param int originator_id: version of the originating aggregate
+    :param int originator_version: version of the originating aggregate
     :param str topic: topic of the domain event object class
     :param bytes state: serialised state of the domain event object
     """
