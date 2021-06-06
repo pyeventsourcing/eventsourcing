@@ -26,9 +26,9 @@ install Python packages into a Python virtual environment.
 
 Use the library's `Aggregate` base class and `@event` decorator to define an
 event-sourced aggregate. Derive your aggregate classes from the `Aggregate`
-base class. Use the `@event` decorator to define aggregate event classes
-that will be triggered when command methods are called. You can create
-a new aggregate instance by calling the aggregate class.
+base class. You can create a new aggregate instance by calling the aggregate
+class. Use the `@event` decorator to define aggregate event classes.
+Events will be triggered when decorated methods are called.
 
 ```python
 from eventsourcing.domain import Aggregate, event
