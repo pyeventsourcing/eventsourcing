@@ -24,7 +24,7 @@ install Python packages into a Python virtual environment.
 
 ## Synopsis
 
-Use the library's `Aggregate` base class and `event` decorator to define an
+Use the library's `Aggregate` base class and `@event` decorator to define an
 event-sourced aggregate. Derive your aggregate classes from the `Aggregate`
 base class. Use the `@event` decorator to define aggregate event classes
 that will be triggered when command methods are called. You can create
