@@ -137,7 +137,7 @@ assert world_id == notifications[3].originator_id
 ```
 
 See the discussion below and the library's
-[domain module documentation](https://eventsourcing.readthedocs.io/)
+[documentation](https://eventsourcing.readthedocs.io/)
 for more information.
 
 ## Features
