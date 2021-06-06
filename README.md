@@ -27,7 +27,8 @@ install Python packages into a Python virtual environment.
 Use the library's `Aggregate` base class and `event` decorator to define an
 event-sourced aggregate. Derive your aggregate classes from the `Aggregate`
 base class. Use the `@event` decorator to define aggregate event classes
-that will be triggered when command methods are called.
+that will be triggered when command methods are called. You can create
+a new aggregate instance by calling the aggregate class.
 
 ```python
 from eventsourcing.domain import Aggregate, event
@@ -46,7 +47,7 @@ class World(Aggregate):
 
 Use the library's `Application` class to define an event-sourced application.
 Derive your application classes from the `Application` base class. Add command
-and query methods to manipulate and access the aggregates of the application.
+and query methods to manipulate and access the state of the application.
 
 ```python
 from typing import Tuple
@@ -71,21 +72,21 @@ class Universe(Application):
         return world.history
 ```
 
-Construct the application by calling the application class.
+Construct an instance of the application by calling the application class.
 
 ```python
 application = Universe()
 
 ```
 
-Create a new aggregate by calling application methods.
+Create a new enduring aggregate by calling the application method `create_world()`.
 
 ```python
 world_id = application.create_world('Earth')
 ```
 
-Evolve the state of the application's aggregates by calling
-command method.
+Evolve the state of the application's aggregate by calling the
+application command method `make_it_so()`.
 
 ```python
 application.make_it_so(world_id, 'dinosaurs')
@@ -94,18 +95,20 @@ application.make_it_so(world_id, 'internet')
 
 ```
 
-Access the state of the application by calling query methods.
+Access the state of the application's aggregate by calling the
+application query method `get_history()`.
 
 ```python
 history = application.get_history(world_id)
 assert history == ('dinosaurs', 'trucks', 'internet')
 ```
 
-Propagate the state of the application by read the application's
-log of event notifications.
+Propagate the state of the application by reading sections
+from the application's log of event notifications.
 
 ```python
-notifications = application.log['1,4'].items
+log_section = application.log['1,4']
+notifications = log_section.items
 assert [n.id for n in notifications] == [1, 2, 3, 4]
 
 assert 'World.Created' in notifications[0].topic
