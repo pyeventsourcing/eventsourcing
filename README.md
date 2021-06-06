@@ -47,7 +47,6 @@ Define an event-sourced application.
 from typing import Tuple
 from uuid import UUID
 
-
 from eventsourcing.application import Application
 
 
