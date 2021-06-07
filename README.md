@@ -168,7 +168,7 @@ and systems.
 The example above shows an event-sourced aggregate class named
 `World`. Its ``__init__()`` method takes a `name` argument which
 is used to initialise the `name` attribute, and also initialises
-a `history` attribute as an empty list. It has a method `make_it_so()`
+a `history` attribute as an empty tuple. It has a method `make_it_so()`
 that takes an argument `what` and appends the given value to the
 `history` of the `World`. This example can be adjusted and extended
 for any event-sourced domain model.
@@ -237,10 +237,9 @@ When the aggregate command method `make_it_so()` is called, a
 `SomethingHappened` event is constructed. The `SomethingHappened`
 event object class is defined with an attribute `what`. The event
 object instance will have the value of the `what` argument given
-when calling the command method the command as the value of its
-`what` attribute. The event object is used to evolve the state
-of the aggregate object, using the body of the decorated method.
-Hence, the value `what` is appended to the `history` of the
+when calling the command method. The event object is used to evolve
+the state of the aggregate object, using the body of the decorated
+method. Hence, the value `what` is appended to the `history` of the
 `World` aggregate instance.
 
 ```python
