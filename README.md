@@ -256,35 +256,29 @@ assert world.history[2] == 'internet'
 
 Please note, the body of a method decorated with the `@event`
 decorator will be executed each time the associated event is applied
-to evolve the state of the aggregate, both when the event is
-triggered and when reconstructing aggregates from stored events. For
-this reason, return statements are ignored, and so your decorated
-method bodies should not return any values. If you do need to return
-values from your aggregate command methods, use a normal
-(non-decorated) command method that calls a decorated method, and
-return the value from the non-decorated method. Also, any processing
-of command arguments that should not be repeated when reconstructing
-aggregates from stored events should be done in a separate method
-before the event is triggered. For example, if the triggered event
-will have a new UUID, you will probably want to use a separate
-command method (or create this value in the expression used when
-calling the method) and not generate the UUID in the decorated
-method body, otherwise a new UUID will be created each time the
-aggregate is reconstructed, rather than being fixed in the stored
-state of the aggregate. See the library's
+to evolve the state of the aggregate, both just after triggering the event
+and each time when reconstructing aggregates from stored events. For
+this reason, the body of the decorated method should return the Python
+value `None`. It is normal for command methods to return `None`. However,
+if you do need to return values from your aggregate command methods, then
+define a command method that is not decorated with the `@event` decorator,
+and return the value from the non-decorated method after calling the decorated
+method.
+
+Please also note, any processing of method arguments that should be done
+only once, and not repeated when reconstructing aggregates from stored events,
+should be done in the calling method. For example, if the triggered event will
+have a new UUID, you will either want to use a separate command method, or create
+this value in the expression used when calling the method, and not generate the
+UUID in the decorated method body. Otherwise, rather than being fixed in the
+stored state of the aggregate, a new UUID will be created each time the aggregate
+is reconstructed. See the library's
 [domain module documentation](https://eventsourcing.readthedocs.io/)
 for more information.
 
-After the event has been applied to the aggregate, the event is
+After the event has been applied to the aggregate, the event will be
 immediately appended to the aggregate's internal list of pending
 events, and can be collected using the `collect_events()` method.
-Please note, if an exception is raised in the method body, the event
-will not be appended to the internal list of pending events. This
-behaviour can be used to validate method arguments, but if you wish
-to catch the exception in an application method and continue using
-the same aggregate instance be careful to do all the validation
-before adjusting the state of the aggregate (otherwise retrieve
-a fresh instance from the repository).
 
 ```python
 # Collect events.
@@ -295,6 +289,16 @@ assert type(events[1]).__qualname__ == 'World.SomethingHappened'
 assert type(events[2]).__qualname__ == 'World.SomethingHappened'
 assert type(events[3]).__qualname__ == 'World.SomethingHappened'
 ```
+
+Please note, if an exception happens to be raised in the decorated method
+body, then the triggered event will not be appended to the internal list of
+pending events as described above. If you are careful, this behaviour of not
+appending the event to the list of pending events can be used to validate
+the state of the event against the current state of the aggregate. But if
+you wish to continue using the same aggregate instance after catching the
+exception in the caller of the decorated method, please just be careful
+to complete all validation before adjusting the state of the aggregate,
+otherwise you will need to retrieve a fresh instance from the repository.
 
 The collected event objects can be used to reconstruct the state of
 the aggregate. The application repository's `get()` method
