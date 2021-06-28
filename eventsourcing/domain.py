@@ -85,7 +85,12 @@ class AggregateEvent(DomainEvent, Generic[TAggregate]):
         obj.version = next_version
         # Update the modified time.
         obj.modified_on = self.timestamp
-        self.apply(obj)
+        if self.apply(obj) is not None:  # type: ignore
+            raise TypeError(
+                f"Unexpected value returned from "
+                f"{type(self).apply.__qualname__}(). Values "
+                f"returned from 'apply' methods are discarded."
+            )
         return obj
 
     # noinspection PyShadowingNames
@@ -398,7 +403,13 @@ class DecoratedEvent(AggregateEvent):
         #     if param.kind == param.POSITIONAL_ONLY:
         #         args.append(event_obj_dict.pop(name))
         # original_method(aggregate, *args, **event_obj_dict)
-        original_method(aggregate, **event_obj_dict)
+        returned_value = original_method(aggregate, **event_obj_dict)
+        if returned_value is not None:
+            raise TypeError(
+                f"Unexpected value returned from "
+                f"{original_method.__qualname__}(). Values "
+                f"returned from 'apply' methods are discarded."
+            )
 
 
 TDomainEvent = TypeVar("TDomainEvent", bound=DomainEvent)

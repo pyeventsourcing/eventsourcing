@@ -10,6 +10,7 @@ from eventsourcing.domain import (
     Aggregate,
     AggregateCreated,
     AggregateEvent,
+    TAggregate,
     VersionError,
 )
 
@@ -822,6 +823,28 @@ class TestSubsequentEvents(TestCase):
                 "__init__() missing 1 required positional argument: 'a'"
             ),
             cm.exception.args[0],
+        )
+
+    def test_raises_when_apply_method_returns_value(self):
+        class MyAgg(Aggregate):
+            class ValueUpdated(AggregateEvent):
+                a: int
+
+                def apply(self, aggregate: TAggregate) -> None:
+                    return 1
+
+        a = MyAgg()
+        with self.assertRaises(TypeError) as cm:
+            a.trigger_event(MyAgg.ValueUpdated, a=1)
+        msg = str(cm.exception.args[0])
+
+        self.assertTrue(msg.startswith("Unexpected value returned from "), msg)
+        self.assertTrue(
+            msg.endswith(
+                "MyAgg.ValueUpdated.apply(). Values returned from 'apply' methods are "
+                "discarded."
+            ),
+            msg,
         )
 
 

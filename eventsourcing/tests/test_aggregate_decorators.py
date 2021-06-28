@@ -1232,6 +1232,26 @@ class TestEventDecorator(TestCase):
             "Neither name nor class given to __init__ @event decorator",
         )
 
+    def test_raises_when_apply_method_returns_value(self):
+        # Different name.
+        class MyAgg(Aggregate):
+            @event("EventName")
+            def name(self):
+                return 1
+
+        a = MyAgg()
+
+        with self.assertRaises(TypeError) as cm:
+            a.name()
+        msg = str(cm.exception.args[0])
+        self.assertTrue(msg.startswith("Unexpected value returned from "), msg)
+        self.assertTrue(
+            msg.endswith(
+                "MyAgg.name(). Values returned from 'apply' methods are discarded."
+            ),
+            msg,
+        )
+
 
 class TestOrder(TestCase):
     def test(self) -> None:
