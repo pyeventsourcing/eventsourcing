@@ -93,8 +93,8 @@ class JSONTranscoder(Transcoder):
         except KeyError:
             raise TypeError(
                 f"Object of type {type(o)} is not "
-                "serializable. Please register a "
-                "custom transcoding for this type."
+                "serializable. Please define and register "
+                "a custom transcoding for this type."
             )
         else:
             return {

@@ -175,7 +175,7 @@ Attempting to serialize an unsupported type will result in a Python :class:`Type
     except TypeError as e:
         assert e.args[0] == (
             "Object of type <class 'datetime.date'> is not serializable. "
-            "Please register a custom transcoding for this type."
+            "Please define and register a custom transcoding for this type."
         )
     else:
         raise AssertionError("TypeError not raised")

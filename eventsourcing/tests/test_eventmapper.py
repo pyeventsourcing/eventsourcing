@@ -134,8 +134,8 @@ class TestTranscoder(TestCase):
             cm.exception.args[0],
             (
                 "Object of type <class 'eventsourcing.tests.test_eventmapper."
-                "CustomType2'> is not serializable. Please register a custom "
-                "transcoding for this type."
+                "CustomType2'> is not serializable. Please define and register "
+                "a custom transcoding for this type."
             ),
         )
 
