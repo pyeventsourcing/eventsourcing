@@ -105,7 +105,12 @@ test: coveragetest coverage100 timeit
 coverage: coveragetest coveragehtml coverage100
 
 .PHONY: prepush
-prepush: lint docs test
+prepush: updatetools lint docs test
+
+.PHONY: updatetools
+updatetools:
+	pip install -U pip
+	pip install -U black mypy flake8 flake8-bugbear isort
 
 .PHONY: docs
 docs:

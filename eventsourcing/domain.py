@@ -31,8 +31,8 @@ TAggregate = TypeVar("TAggregate", bound="Aggregate")
 class MetaDomainEvent(ABCMeta):
     def __new__(mcs, name: str, bases: tuple, cls_dict: dict) -> "MetaDomainEvent":
         event_cls = ABCMeta.__new__(mcs, name, bases, cls_dict)
-        event_cls = dataclass(frozen=True)(event_cls)
-        return cast(MetaDomainEvent, event_cls)
+        event_cls = dataclass(frozen=True)(event_cls)  # type: ignore
+        return event_cls
 
     def __init__(cls, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -223,6 +223,7 @@ class EventDecorator:
                 self.is_decorating_a_property = True
                 self.decorated_property = arg
                 if arg.fset is None:
+                    assert arg.fget is not None
                     method_name = arg.fget.__name__
                     raise TypeError(
                         f"@event can't decorate {method_name}() property getter"
