@@ -16,6 +16,7 @@ from eventsourcing.postgres import PostgresDatastore
 from eventsourcing.tests.ramdisk import tmpfile_uris
 from eventsourcing.tests.test_aggregate import BankAccount, EmailAddress
 from eventsourcing.tests.test_postgres import drop_postgres_table
+from eventsourcing.utils import get_topic
 
 TIMEIT_FACTOR = int(os.environ.get("TEST_TIMEIT_FACTOR", default=10))
 
@@ -25,6 +26,7 @@ class TestApplicationWithPOPO(TestCase):
 
     started_ats = {}
     counts = {}
+    expected_factory_topic = "eventsourcing.popo:Factory"
 
     def setUp(self) -> None:
         os.environ[InfrastructureFactory.IS_SNAPSHOTTING_ENABLED] = "yes"
@@ -58,6 +60,8 @@ class TestApplicationWithPOPO(TestCase):
 
     def test_example_application(self):
         app = BankAccounts()
+
+        self.assertFactoryTopic(app, self.expected_factory_topic)
 
         # Check AccountNotFound exception.
         with self.assertRaises(BankAccounts.AccountNotFoundError):
@@ -158,6 +162,9 @@ class TestApplicationWithPOPO(TestCase):
 
         self.print_time(test_label, duration)
 
+    def assertFactoryTopic(self, app, expected_topic):
+        self.assertEqual(get_topic(type(app.factory)), expected_topic)
+
 
 class TestApplicationSnapshottingException(TestCase):
     def test_take_snapshot_raises_assertion_error_if_snapshotting_not_enabled(self):
@@ -176,6 +183,7 @@ class TestApplicationSnapshottingException(TestCase):
 
 class TestApplicationWithSQLite(TestApplicationWithPOPO):
     timeit_number = 30 * TIMEIT_FACTOR
+    expected_factory_topic = "eventsourcing.sqlite:Factory"
 
     def setUp(self) -> None:
         super().setUp()
@@ -195,6 +203,7 @@ class TestApplicationWithSQLite(TestApplicationWithPOPO):
 
 class TestApplicationWithPostgres(TestApplicationWithPOPO):
     timeit_number = 5 * TIMEIT_FACTOR
+    expected_factory_topic = "eventsourcing.postgres:Factory"
 
     def setUp(self) -> None:
         super().setUp()

@@ -1,6 +1,7 @@
+import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Generic, List, Optional, TypeVar
+from typing import Any, Generic, List, Mapping, Optional, TypeVar
 from uuid import UUID
 
 from eventsourcing.domain import (
@@ -211,7 +212,7 @@ class Application(ABC, Generic[TAggregate]):
     Base class for event-sourced applications.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, env: Optional[Mapping] = None) -> None:
         """
         Initialises an application with an
         :class:`~eventsourcing.persistence.InfrastructureFactory`,
@@ -221,6 +222,7 @@ class Application(ABC, Generic[TAggregate]):
         a :class:`~eventsourcing.application.Repository`, and
         a :class:`~eventsourcing.application.LocalNotificationLog`.
         """
+        self.env = self.construct_env(env)
         self.factory = self.construct_factory()
         self.mapper = self.construct_mapper()
         self.recorder = self.construct_recorder()
@@ -229,12 +231,18 @@ class Application(ABC, Generic[TAggregate]):
         self.repository: Repository[TAggregate] = self.construct_repository()
         self.log = self.construct_notification_log()
 
+    def construct_env(self, env: Optional[Mapping] = None) -> Mapping:
+        """
+        Constructs environment from which application will be configured.
+        """
+        return env if env is not None else os.environ
+
     def construct_factory(self) -> InfrastructureFactory:
         """
         Constructs an :class:`~eventsourcing.persistence.InfrastructureFactory`
         for use by the application.
         """
-        return InfrastructureFactory.construct(self.__class__.__name__)
+        return InfrastructureFactory.construct(self.__class__.__name__, env=self.env)
 
     def construct_mapper(self, application_name: str = "") -> Mapper:
         """

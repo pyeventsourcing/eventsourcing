@@ -3,7 +3,7 @@ import threading
 from distutils.util import strtobool
 from sqlite3 import Connection
 from types import TracebackType
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Mapping, Optional, Type
 from uuid import UUID
 
 from eventsourcing.persistence import (
@@ -311,8 +311,8 @@ class Factory(InfrastructureFactory):
     SQLITE_DBNAME = "SQLITE_DBNAME"
     CREATE_TABLE = "CREATE_TABLE"
 
-    def __init__(self, application_name: str):
-        super().__init__(application_name)
+    def __init__(self, application_name: str, env: Mapping):
+        super().__init__(application_name, env)
         db_name = self.getenv(self.SQLITE_DBNAME)
         if not db_name:
             raise EnvironmentError(

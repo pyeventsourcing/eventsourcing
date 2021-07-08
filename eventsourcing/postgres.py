@@ -1,7 +1,7 @@
 import threading
 from distutils.util import strtobool
 from types import TracebackType
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Mapping, Optional, Type
 from uuid import UUID
 
 import psycopg2
@@ -323,8 +323,8 @@ class Factory(InfrastructureFactory):
     POSTGRES_PASSWORD = "POSTGRES_PASSWORD"
     CREATE_TABLE = "CREATE_TABLE"
 
-    def __init__(self, application_name: str):
-        super().__init__(application_name)
+    def __init__(self, application_name: str, env: Mapping):
+        super().__init__(application_name, env)
         dbname = self.getenv(self.POSTGRES_DBNAME)
         if dbname is None:
             raise EnvironmentError(

@@ -7,7 +7,17 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from distutils.util import strtobool
-from typing import Any, Dict, Generic, Iterator, List, Optional, Type, cast
+from typing import (
+    Any,
+    Dict,
+    Generic,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Type,
+    cast,
+)
 from uuid import UUID
 
 from eventsourcing.domain import DomainEvent, TDomainEvent
@@ -456,14 +466,19 @@ class InfrastructureFactory(ABC):
     IS_SNAPSHOTTING_ENABLED = "IS_SNAPSHOTTING_ENABLED"
 
     @classmethod
-    def construct(cls, application_name: str = "") -> "InfrastructureFactory":
+    def construct(
+        cls,
+        application_name: str = "",
+        env: Optional[Mapping] = None,
+    ) -> "InfrastructureFactory":
         """
         Constructs concrete infrastructure factory for given
         named application. Reads and resolves infrastructure
         factory class topic from environment variable 'INFRASTRUCTURE_FACTORY'.
         """
         # noinspection SpellCheckingInspection
-        topic = os.getenv(
+        env = env if env is not None else os.environ
+        topic = env.get(
             cls.TOPIC,
             "eventsourcing.popo:Factory",
         )
@@ -479,13 +494,14 @@ class InfrastructureFactory(ABC):
 
         if not issubclass(factory_cls, InfrastructureFactory):
             raise AssertionError(f"Not an infrastructure factory: {topic}")
-        return factory_cls(application_name=application_name)
+        return factory_cls(application_name=application_name, env=env)
 
-    def __init__(self, application_name: str):
+    def __init__(self, application_name: str, env: Mapping):
         """
         Initialises infrastructure factory object with given application name.
         """
         self.application_name = application_name
+        self.env = env
 
     # noinspection SpellCheckingInspection
     def getenv(
@@ -501,7 +517,7 @@ class InfrastructureFactory(ABC):
             key,
         ]
         for key in keys:
-            value = os.getenv(key)
+            value = self.env.get(key)
             if value is not None:
                 return value
         return default
