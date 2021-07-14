@@ -81,16 +81,16 @@ class AggregateEvent(DomainEvent, Generic[TAggregate]):
         next_version = obj.version + 1
         if self.originator_version != next_version:
             raise VersionError(self.originator_version, next_version)
-        # Update the aggregate version.
-        obj.version = next_version
-        # Update the modified time.
-        obj.modified_on = self.timestamp
         if self.apply(obj) is not None:  # type: ignore
             raise TypeError(
                 f"Unexpected value returned from "
                 f"{type(self).apply.__qualname__}(). Values "
                 f"returned from 'apply' methods are discarded."
             )
+        # Update the aggregate version.
+        obj.version = self.originator_version
+        # Update the modified time.
+        obj.modified_on = self.timestamp
         return obj
 
     # noinspection PyShadowingNames
@@ -150,12 +150,12 @@ class AggregateCreated(AggregateEvent["Aggregate"]):
 
 
 class EventDecorator:
-    def __init__(self, arg: Union[FunctionType, str, Type[AggregateEvent]]):
+    def __init__(self, arg: Union[Callable, str, Type[AggregateEvent]]):
         self.is_name_inferred_from_method = False
         self.given_event_cls: Optional[Type[AggregateEvent]] = None
         self.event_cls_name: Optional[str] = None
         self.is_property_setter = False
-        self.property_attribute_name: Optional[str] = None
+        self.property_setter_arg_name: Optional[str] = None
         self.is_decorating_a_property = False
         self.decorated_property: Optional[property] = None
         self.original_method: Optional[FunctionType] = None
@@ -231,6 +231,9 @@ class EventDecorator:
                 assert isinstance(arg.fset, FunctionType)
                 self.original_method = arg.fset
                 assert self.original_method
+                setter_arg_names = list(inspect.signature(arg.fset).parameters)
+                assert len(setter_arg_names) == 2
+                self.property_setter_arg_name = setter_arg_names[1]
                 _check_no_variable_params(self.original_method)
             else:
                 raise ValueError(
@@ -257,11 +260,11 @@ class EventDecorator:
         else:
             assert self.is_property_setter
             # Called by a decorating property (as its fset) so trigger an event.
-            assert self.property_attribute_name
+            assert self.property_setter_arg_name
             assert len(args) == 2
             assert len(kwargs) == 0
             assert isinstance(args[0], Aggregate)
-            kwargs = {self.property_attribute_name: args[1]}
+            kwargs = {self.property_setter_arg_name: args[1]}
             bound = BoundEvent(self, args[0])
             bound.trigger(**kwargs)
 
@@ -279,15 +282,14 @@ class EventDecorator:
         assert self.is_decorating_a_property
         # Set decorated property.
         b = BoundEvent(self, instance)
-        assert self.original_method
-        name = self.original_method.__name__
-        kwargs = {name: value}
+        assert self.property_setter_arg_name
+        kwargs = {self.property_setter_arg_name: value}
         b.trigger(**kwargs)
 
 
 def event(
     arg: Optional[Union[FunctionType, str, Type[AggregateEvent]]] = None
-) -> Union[EventDecorator, Type[EventDecorator]]:
+) -> EventDecorator:
     """
     Can be used to decorate an aggregate method so that when the
     method is called an event is triggered. The body of the method
@@ -337,7 +339,7 @@ def event(
 
     """
     if arg is None:
-        return EventDecorator
+        return event  # type: ignore
     else:
         return EventDecorator(arg)
 
@@ -673,7 +675,7 @@ class MetaAggregate(ABCMeta):
                         continue
                     elif attribute.is_property_setter:
                         assert len(method_signature.parameters) == 2
-                        attribute.property_attribute_name = param_name
+                        attribute.property_setter_arg_name = param_name
                     annotations[param_name] = "typing.Any"  # Todo: Improve this?
 
                 if not attribute.given_event_cls:

@@ -28,20 +28,40 @@ class Person:
 class Invoice(Aggregate):
     @event("Initiated")
     def __init__(self, number: str, amount: Decimal, issued_to: Person):
-        self.number = number
-        self.amount = amount
+        self._number = number
+        self._amount = amount
         self.issued_to = issued_to
         self.initiated_at = self.modified_on
         self.status = Status.INITIATED
 
+    @property
+    def number(self) -> str:
+        return self._number
+
+    @number.setter  # type: ignore
+    @event("NumberUpdated")
+    def number(self, value: str) -> None:
+        assert self.status == Status.INITIATED
+        self._number = value
+
+    @property
+    def amount(self) -> Decimal:
+        return self._amount
+
+    @event("AmountUpdated")  # type: ignore
+    @amount.setter
+    def amount(self, value: Decimal) -> None:
+        assert self.status == Status.INITIATED
+        self._amount = value
+
     @event("Issued")
-    def issue(self, issued_by: str):
+    def issue(self, issued_by: str) -> None:
         self.issued_by = issued_by
         self.issued_at = self.modified_on
         self.status = Status.ISSUED
 
     @event("Sent")
-    def send(self, sent_via: SendMethod):
+    def send(self, sent_via: SendMethod) -> None:
         self.sent_via = sent_via
         self.sent_at = self.modified_on
         self.status = Status.SENT
@@ -81,7 +101,7 @@ class StatusAsStr(Transcoding):
 
 
 class TestInvoice(TestCase):
-    def test(self):
+    def test(self) -> None:
         invoice = Invoice(
             number="INV/2021/11/01",
             amount=Decimal("34.20"),
@@ -94,15 +114,27 @@ class TestInvoice(TestCase):
         )
         self.assertEqual(invoice.status, Status.INITIATED)
 
+        invoice.number = "INV/2021/11/02"
+        self.assertEqual(invoice.number, "INV/2021/11/02")
+
+        invoice.amount = Decimal("43.20")
+        self.assertEqual(invoice.number, "INV/2021/11/02")
+
         invoice.issue(issued_by="Cookie Monster")
         self.assertEqual(invoice.issued_by, "Cookie Monster")
         self.assertEqual(invoice.status, Status.ISSUED)
+
+        with self.assertRaises(AssertionError):
+            invoice.number = "INV/2021/11/03"
+
+        with self.assertRaises(AssertionError):
+            invoice.amount = Decimal("54.20")
 
         invoice.send(sent_via=SendMethod.EMAIL)
         self.assertEqual(invoice.sent_via, SendMethod.EMAIL)
         self.assertEqual(invoice.status, Status.SENT)
 
-        app = Application(env={"IS_SNAPSHOTTING_ENABLED": "y"})
+        app: Application[Invoice] = Application(env={"IS_SNAPSHOTTING_ENABLED": "y"})
         app.mapper.transcoder.register(PersonAsDict())
         app.mapper.transcoder.register(SendMethodAsStr())
         app.mapper.transcoder.register(StatusAsStr())
@@ -112,6 +144,7 @@ class TestInvoice(TestCase):
         copy = app.repository.get(invoice.id)
         self.assertEqual(invoice, copy)
 
+        assert app.snapshots is not None
         snapshots = list(app.snapshots.get(invoice.id))
         self.assertEqual(len(snapshots), 0)
 

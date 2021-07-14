@@ -228,7 +228,7 @@ class Application(ABC, Generic[TAggregate]):
         self.recorder = self.construct_recorder()
         self.events = self.construct_event_store()
         self.snapshots = self.construct_snapshot_store()
-        self.repository: Repository[TAggregate] = self.construct_repository()
+        self.repository = self.construct_repository()
         self.log = self.construct_notification_log()
 
     def construct_env(self, env: Optional[Mapping] = None) -> Mapping:

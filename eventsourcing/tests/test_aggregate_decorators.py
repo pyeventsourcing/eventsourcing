@@ -611,8 +611,8 @@ class TestEventDecorator(TestCase):
 
             @event("ValueChanged")
             @value.setter
-            def value(self, value):
-                self._value = value
+            def value(self, x):
+                self._value = x
 
         a = MyAgg(0)
         self.assertEqual(a.value, 0)
@@ -630,8 +630,8 @@ class TestEventDecorator(TestCase):
 
             @value.setter
             @event("ValueChanged")
-            def value(self, value):
-                self._value = value
+            def value(self, x):
+                self._value = x
 
         a = MyAgg()
         a.value = 1
@@ -679,7 +679,7 @@ class TestEventDecorator(TestCase):
 
                 @event
                 @value.setter
-                def value(self, value):
+                def value(self, x):
                     pass
 
         self.assertEqual(

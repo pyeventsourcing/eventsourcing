@@ -952,7 +952,6 @@ class TestSubsequentEvents(TestCase):
         )
         self.assertEqual(expect, repr(a))
 
-
         @dataclass(repr=False)
         class MyAggregate(Aggregate):
             a: int

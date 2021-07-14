@@ -13,7 +13,7 @@ from eventsourcing.examples.bankaccounts.domainmodel import (
 
 
 class TestBankAccounts(unittest.TestCase):
-    def test(self):
+    def test(self) -> None:
         app = BankAccounts()
 
         # Check account not found error.
