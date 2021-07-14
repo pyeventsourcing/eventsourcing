@@ -776,6 +776,9 @@ class Aggregate(ABC, metaclass=MetaAggregate):
 
     Event = AggregateEvent
 
+    class Created(AggregateCreated):
+        pass
+
     def __new__(cls, *args: Any, **kwargs: Any) -> Any:
         return object.__new__(cls)
 
