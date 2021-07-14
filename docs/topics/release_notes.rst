@@ -23,6 +23,18 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.1.0 (released TBD)
+--------------------------------------
+
+Added support for setting environment when constructing application.
+Added __eq__ and __repr__ methods on aggregate base class.
+Reinstated explicit definition of Aggregate.Created class.
+Added Invoice example.
+Fixed bug when decorating property setter (use method argument name).
+Fixed some mypy issues.
+Adjusted order of mutate() method, so apply() method is called first.
+
+
 Version 9.0.3 (released 17 May 2021)
 --------------------------------------
 
