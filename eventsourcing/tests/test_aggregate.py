@@ -847,6 +847,146 @@ class TestSubsequentEvents(TestCase):
             msg,
         )
 
+    def test_eq(self):
+        class MyAggregate(Aggregate):
+            id: UUID
+
+        id_a = uuid4()
+        id_b = uuid4()
+        a = MyAggregate(id=id_a)
+        self.assertEqual(a, a)
+
+        b = MyAggregate(id=id_b)
+        self.assertNotEqual(a, b)
+
+        c = MyAggregate(id=id_a)
+        self.assertNotEqual(a, c)
+
+        a_copy = a.collect_events()[0].mutate(None)
+        self.assertEqual(a, a_copy)
+
+        # Check the aggregate can trigger further events.
+        a.trigger_event(AggregateEvent)
+        self.assertNotEqual(a, a_copy)
+        a.collect_events()
+        self.assertNotEqual(a, a_copy)
+
+        @dataclass(eq=False)
+        class MyAggregate(Aggregate):
+            id: UUID
+
+        id_a = uuid4()
+        id_b = uuid4()
+        a = MyAggregate(id=id_a)
+        self.assertEqual(a, a)
+
+        b = MyAggregate(id=id_b)
+        self.assertNotEqual(a, b)
+
+        c = MyAggregate(id=id_a)
+        self.assertNotEqual(a, c)
+
+        a_copy = a.collect_events()[0].mutate(None)
+        self.assertEqual(a, a_copy)
+
+        # Check the aggregate can trigger further events.
+        a.trigger_event(AggregateEvent)
+        self.assertNotEqual(a, a_copy)
+        a.collect_events()
+        self.assertNotEqual(a, a_copy)
+
+    def test_repr_baseclass(self):
+        a = Aggregate()
+
+        expect = (
+            f"Aggregate(id={a.id!r}, "
+            "version=1, "
+            f"created_on={a.created_on!r}, "
+            f"modified_on={a.modified_on!r}"
+            ")"
+        )
+        self.assertEqual(expect, repr(a))
+
+        a.trigger_event(AggregateEvent)
+
+        expect = (
+            f"Aggregate(id={a.id!r}, "
+            "version=2, "
+            f"created_on={a.created_on!r}, "
+            f"modified_on={a.modified_on!r}"
+            ")"
+        )
+        self.assertEqual(expect, repr(a))
+
+    def test_repr_subclass(self):
+        class MyAggregate(Aggregate):
+            a: int
+
+            class ValueAssigned(AggregateEvent):
+                b: int
+
+                def apply(self, aggregate: TAggregate) -> None:
+                    aggregate.b = self.b
+
+        a = MyAggregate(a=1)
+        expect = (
+            f"MyAggregate(id={a.id!r}, "
+            "version=1, "
+            f"created_on={a.created_on!r}, "
+            f"modified_on={a.modified_on!r}, "
+            f"a=1"
+            ")"
+        )
+        self.assertEqual(expect, repr(a))
+
+        a.trigger_event(MyAggregate.ValueAssigned, b=2)
+
+        expect = (
+            f"MyAggregate(id={a.id!r}, "
+            "version=2, "
+            f"created_on={a.created_on!r}, "
+            f"modified_on={a.modified_on!r}, "
+            f"a=1, "
+            f"b=2"
+            ")"
+        )
+        self.assertEqual(expect, repr(a))
+
+
+        @dataclass(repr=False)
+        class MyAggregate(Aggregate):
+            a: int
+
+            class ValueAssigned(AggregateEvent):
+                b: int
+
+                def apply(self, aggregate: TAggregate) -> None:
+                    aggregate.b = self.b
+
+        a = MyAggregate(a=1)
+        expect = (
+            f"MyAggregate(id={a.id!r}, "
+            "version=1, "
+            f"created_on={a.created_on!r}, "
+            f"modified_on={a.modified_on!r}, "
+            f"a=1"
+            ")"
+        )
+        self.assertEqual(expect, repr(a))
+
+        a.trigger_event(MyAggregate.ValueAssigned, b=2)
+
+        expect = (
+            f"MyAggregate(id={a.id!r}, "
+            "version=2, "
+            f"created_on={a.created_on!r}, "
+            f"modified_on={a.modified_on!r}, "
+            f"a=1, "
+            f"b=2"
+            ")"
+        )
+        self.assertEqual(expect, repr(a))
+
 
 class TestBankAccount(TestCase):
     def test_subclass_bank_account(self):

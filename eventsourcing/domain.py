@@ -552,7 +552,7 @@ class MetaAggregate(ABCMeta):
         else:
             args[2]["_annotations_mention_id"] = True
         cls = ABCMeta.__new__(mcs, *args)
-        cls = dataclass(cls)
+        cls = dataclass(eq=False, repr=False)(cls)
         return cast(MetaAggregate, cls)
 
     def __init__(
@@ -781,6 +781,17 @@ class Aggregate(ABC, metaclass=MetaAggregate):
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Any:
         return object.__new__(cls)
+
+    def __eq__(self, other: Any) -> bool:
+        return type(self) == type(other) and self.__dict__ == other.__dict__
+
+    def __repr__(self) -> str:
+        attrs = [
+            f"{k.lstrip('_')}={v!r}"
+            for k, v in self.__dict__.items()
+            if k != "_pending_events"
+        ]
+        return f"{type(self).__name__}({', '.join(attrs)})"
 
     # noinspection PyShadowingBuiltins
     def __base_init__(self, id: UUID, version: int, timestamp: datetime) -> None:
