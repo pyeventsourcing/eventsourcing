@@ -2,7 +2,6 @@ import json
 import os
 import uuid
 from abc import ABC, abstractmethod
-from copy import copy
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -267,7 +266,7 @@ class Mapper(Generic[TDomainEvent]):
         Converts the given domain event to a :class:`StoredEvent` object.
         """
         topic: str = get_topic(domain_event.__class__)
-        event_state = copy(domain_event.__dict__)
+        event_state = domain_event.__dict__.copy()
         originator_id = event_state.pop("originator_id")
         originator_version = event_state.pop("originator_version")
         class_version = getattr(type(domain_event), "class_version", 1)
