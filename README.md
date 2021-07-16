@@ -656,13 +656,28 @@ app = Universe()
 test(app, expect_visible_in_db=False)
 ```
 
+## Extensions
+
+The GitHub organisation
+[Event Sourcing in Python](https://github.com/pyeventsourcing)
+hosts extension projects for the Python eventsourcing library.
+These projects aim to provide functionality supported by v8
+of this library that was put out of scope in v9. There are
+projects that support ORMs such as Django and SQLAlchemy.
+There are database projects supporting AxomDB, DynamoDB,
+EventStoreDB, and Apache Kafka. Other projects support
+alternatives to the library defaults, such as transcoding
+of domain events with Protocol Buffers rather than JSON.
+There are also projects that provide examples of using the
+library with such things as FastAPI, Flask, and serverless.
 
 ## Project
 
 This project is [hosted on GitHub](https://github.com/johnbywater/eventsourcing).
 
-Please register questions, requests and [issues on GitHub](https://github.com/johnbywater/eventsourcing/issues), or
-post in the project's Slack channel.
+Please register questions, requests and
+[issues on GitHub](https://github.com/johnbywater/eventsourcing/issues),
+or post in the project's Slack channel.
 
 There is a [Slack channel](https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTJjMmJjYTc3ODQ3M2YwOTMwMDJlODJkMjk3ZmE1MGYyZDM4MjIxODZmYmVkZmJkODRhZDg5N2MwZjk1YzU3NmY)
 for this project, which you are [welcome to join](https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTJjMmJjYTc3ODQ3M2YwOTMwMDJlODJkMjk3ZmE1MGYyZDM4MjIxODZmYmVkZmJkODRhZDg5N2MwZjk1YzU3NmY).
