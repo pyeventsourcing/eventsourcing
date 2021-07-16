@@ -664,7 +664,7 @@ hosts extension projects for the Python eventsourcing library.
 These projects aim to provide functionality supported by v8
 of this library that was put out of scope in v9. There are
 projects that support ORMs such as Django and SQLAlchemy.
-There are database projects supporting AxomDB, DynamoDB,
+There are database projects supporting AxonDB, DynamoDB,
 EventStoreDB, and Apache Kafka. Other projects support
 alternatives to the library defaults, such as transcoding
 of domain events with Protocol Buffers rather than JSON.
