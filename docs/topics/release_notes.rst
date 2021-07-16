@@ -23,11 +23,11 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
-Version 9.1.0 (released TBD)
+Version 9.1.0 (release TBD)
 --------------------------------------
 
 Added support for setting environment when constructing application.
-Added __eq__ and __repr__ methods on aggregate base class.
+Added "eq" and "repr" methods on aggregate base class.
 Reinstated explicit definition of Aggregate.Created class.
 Added Invoice example.
 Fixed bug when decorating property setter (use method argument name).
