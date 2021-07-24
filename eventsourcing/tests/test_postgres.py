@@ -25,7 +25,9 @@ from eventsourcing.tests.applicationrecorder_testcase import (
 from eventsourcing.tests.infrastructure_testcases import (
     InfrastructureFactoryTestCase,
 )
-from eventsourcing.tests.processrecorder_testcase import ProcessRecorderTestCase
+from eventsourcing.tests.processrecorder_testcase import (
+    ProcessRecorderTestCase,
+)
 from eventsourcing.utils import get_topic
 
 
