@@ -10,7 +10,7 @@ from eventsourcing.persistence import (
 )
 
 
-class ProcessRecordsTestCase(TestCase, ABC):
+class ProcessRecorderTestCase(TestCase, ABC):
     @abstractmethod
     def create_recorder(self):
         pass

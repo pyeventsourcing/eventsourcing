@@ -19,7 +19,7 @@ from eventsourcing.tests.applicationrecorder_testcase import (
 from eventsourcing.tests.infrastructure_testcases import (
     InfrastructureFactoryTestCase,
 )
-from eventsourcing.tests.processrecorder_testcase import ProcessRecordsTestCase
+from eventsourcing.tests.processrecorder_testcase import ProcessRecorderTestCase
 from eventsourcing.tests.ramdisk import tmpfile_uris
 from eventsourcing.utils import get_topic
 
@@ -83,7 +83,7 @@ class TestSQLiteApplicationRecorder(ApplicationRecorderTestCase):
             recorder.max_notification_id()
 
 
-class TestSQLiteProcessRecorder(ProcessRecordsTestCase):
+class TestSQLiteProcessRecorder(ProcessRecorderTestCase):
     def create_recorder(self):
         recorder = SQLiteProcessRecorder(SQLiteDatastore(":memory:"))
         recorder.create_table()
@@ -126,5 +126,5 @@ class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase):
 
 del AggregateRecorderTestCase
 del ApplicationRecorderTestCase
-del ProcessRecordsTestCase
+del ProcessRecorderTestCase
 del InfrastructureFactoryTestCase

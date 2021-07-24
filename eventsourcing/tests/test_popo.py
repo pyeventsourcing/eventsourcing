@@ -12,7 +12,7 @@ from eventsourcing.tests.applicationrecorder_testcase import (
 from eventsourcing.tests.infrastructure_testcases import (
     InfrastructureFactoryTestCase,
 )
-from eventsourcing.tests.processrecorder_testcase import ProcessRecordsTestCase
+from eventsourcing.tests.processrecorder_testcase import ProcessRecorderTestCase
 
 
 class TestPopoAggregateRecorder(AggregateRecorderTestCase):
@@ -25,7 +25,7 @@ class TestPOPOApplicationRecorder(ApplicationRecorderTestCase):
         return POPOApplicationRecorder()
 
 
-class TestPOPOProcessRecorder(ProcessRecordsTestCase):
+class TestPOPOProcessRecorder(ProcessRecorderTestCase):
     def create_recorder(self):
         return POPOProcessRecorder()
 
@@ -39,5 +39,5 @@ class TestFactory(InfrastructureFactoryTestCase):
 
 del AggregateRecorderTestCase
 del ApplicationRecorderTestCase
-del ProcessRecordsTestCase
+del ProcessRecorderTestCase
 del InfrastructureFactoryTestCase

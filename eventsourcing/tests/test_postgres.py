@@ -25,7 +25,7 @@ from eventsourcing.tests.applicationrecorder_testcase import (
 from eventsourcing.tests.infrastructure_testcases import (
     InfrastructureFactoryTestCase,
 )
-from eventsourcing.tests.processrecorder_testcase import ProcessRecordsTestCase
+from eventsourcing.tests.processrecorder_testcase import ProcessRecorderTestCase
 from eventsourcing.utils import get_topic
 
 
@@ -126,7 +126,7 @@ class TestPostgresApplicationRecorder(ApplicationRecorderTestCase):
             recorder.max_notification_id()
 
 
-class TestPostgresProcessRecorder(ProcessRecordsTestCase):
+class TestPostgresProcessRecorder(ProcessRecorderTestCase):
     def setUp(self) -> None:
         self.datastore = PostgresDatastore(
             "eventsourcing",
@@ -225,7 +225,7 @@ class TestFactory(InfrastructureFactoryTestCase):
 
 del AggregateRecorderTestCase
 del ApplicationRecorderTestCase
-del ProcessRecordsTestCase
+del ProcessRecorderTestCase
 del InfrastructureFactoryTestCase
 
 
