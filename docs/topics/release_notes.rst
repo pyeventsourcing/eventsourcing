@@ -40,7 +40,7 @@ Version 9.0.3 (released 17 May 2021)
 
 Changed PostgreSQL queries to use transaction class context manager
 (transactions were started and not closed). Added possibility to
-specify a port for Postgres (thanks to Valentin Dion). Added **kwargs
+specify a port for Postgres (thanks to Valentin Dion). Added \*\*kwargs
 to Application.save() method signature, so other things can be
 passed down the stack. Fixed reference in installing.rst (thanks to
 Karl Heinrichmeyer). Made properties out of aggregate attributes:
