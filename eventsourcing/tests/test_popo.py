@@ -17,7 +17,7 @@ from eventsourcing.tests.processrecorder_testcase import (
 )
 
 
-class TestPopoAggregateRecorder(AggregateRecorderTestCase):
+class TestPOPOAggregateRecorder(AggregateRecorderTestCase):
     def create_recorder(self):
         return POPOAggregateRecorder()
 
