@@ -164,7 +164,19 @@ class TestPostgresProcessRecorder(ProcessRecorderTestCase):
             recorder.max_tracking_id("application name")
 
 
-class TestFactory(InfrastructureFactoryTestCase):
+class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
+    def expected_factory_class(self):
+        return Factory
+
+    def expected_aggregate_recorder_class(self):
+        return PostgresAggregateRecorder
+
+    def expected_application_recorder_class(self):
+        return PostgresApplicationRecorder
+
+    def expected_process_recorder_class(self):
+        return PostgresProcessRecorder
+
     def setUp(self) -> None:
         os.environ[InfrastructureFactory.TOPIC] = get_topic(Factory)
         os.environ["POSTGRES_DBNAME"] = "eventsourcing"

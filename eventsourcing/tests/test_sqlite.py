@@ -106,6 +106,18 @@ class TestSQLiteProcessRecorder(ProcessRecorderTestCase):
 
 
 class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase):
+    def expected_factory_class(self):
+        return Factory
+
+    def expected_aggregate_recorder_class(self):
+        return SQLiteAggregateRecorder
+
+    def expected_application_recorder_class(self):
+        return SQLiteApplicationRecorder
+
+    def expected_process_recorder_class(self):
+        return SQLiteProcessRecorder
+
     def setUp(self) -> None:
         os.environ[InfrastructureFactory.TOPIC] = get_topic(Factory)
         os.environ[Factory.SQLITE_DBNAME] = ":memory:"

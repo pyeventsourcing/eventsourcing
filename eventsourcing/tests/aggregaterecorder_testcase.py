@@ -87,9 +87,32 @@ class AggregateRecorderTestCase(TestCase, ABC):
         assert stored_events[2].topic == "topic3"
         assert stored_events[2].state == b"state3"
 
+        # Check we could get the last snapshot ever.
         events = recorder.select_events(originator_id, desc=True, limit=1)
+        self.assertEqual(len(events), 1)
         self.assertEqual(
             events[0],
+            stored_event3,
+        )
+
+        # Check we could get the last snapshot before a particular version.
+        events = recorder.select_events(originator_id, lte=1, desc=True, limit=1)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(
+            events[0],
+            stored_event2,
+        )
+
+        # Check we could get subsequent events after a particular
+        # snapshot and before a particular version.
+        events = recorder.select_events(originator_id, gt=0, lte=2)
+        self.assertEqual(len(events), 2)
+        self.assertEqual(
+            events[0],
+            stored_event2,
+        )
+        self.assertEqual(
+            events[1],
             stored_event3,
         )
 

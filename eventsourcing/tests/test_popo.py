@@ -1,4 +1,5 @@
 from eventsourcing.popo import (
+    Factory,
     POPOAggregateRecorder,
     POPOApplicationRecorder,
     POPOProcessRecorder,
@@ -35,8 +36,18 @@ class TestPOPOProcessRecorder(ProcessRecorderTestCase):
         super().test_performance()
 
 
-class TestFactory(InfrastructureFactoryTestCase):
-    pass
+class TestPOPOInfrastructureFactory(InfrastructureFactoryTestCase):
+    def expected_factory_class(self):
+        return Factory
+
+    def expected_aggregate_recorder_class(self):
+        return POPOAggregateRecorder
+
+    def expected_application_recorder_class(self):
+        return POPOApplicationRecorder
+
+    def expected_process_recorder_class(self):
+        return POPOProcessRecorder
 
 
 del AggregateRecorderTestCase

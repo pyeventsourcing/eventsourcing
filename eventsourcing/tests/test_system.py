@@ -11,7 +11,7 @@ from eventsourcing.system import (
     Promptable,
     System,
 )
-from eventsourcing.tests.test_application import BankAccounts
+from eventsourcing.tests.test_application_with_popo import BankAccounts
 from eventsourcing.tests.test_processapplication import EmailNotifications
 from eventsourcing.utils import get_topic
 

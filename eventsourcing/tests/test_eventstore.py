@@ -11,7 +11,7 @@ from eventsourcing.persistence import (
 )
 from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatastore
 from eventsourcing.tests.test_aggregate import BankAccount
-from eventsourcing.tests.test_application import EmailAddressAsStr
+from eventsourcing.tests.test_application_with_popo import EmailAddressAsStr
 
 
 class TestEventStore(TestCase):

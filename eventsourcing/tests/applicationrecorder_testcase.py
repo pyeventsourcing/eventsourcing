@@ -17,6 +17,11 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         # Construct the recorder.
         recorder = self.create_recorder()
 
+        self.assertEqual(
+            recorder.max_notification_id(),
+            0,
+        )
+
         # Write two stored events.
         originator_id1 = uuid4()
         originator_id2 = uuid4()
@@ -47,21 +52,21 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         stored_events2 = recorder.select_events(originator_id2)
 
         # Check we got what was written.
-        assert len(stored_events1) == 2
-        assert len(stored_events2) == 1
+        self.assertEqual(len(stored_events1), 2)
+        self.assertEqual(len(stored_events2), 1)
 
         notifications = recorder.select_notifications(1, 3)
-        assert len(notifications) == 3
+        self.assertEqual(len(notifications), 3)
         self.assertEqual(notifications[0].id, 1)
         self.assertEqual(notifications[0].originator_id, originator_id1)
-        assert notifications[0].topic == "topic1"
+        self.assertEqual(notifications[0].topic, "topic1")
         self.assertEqual(notifications[0].state, b"state1")
-        assert notifications[1].id == 2
-        assert notifications[1].topic == "topic2"
-        assert notifications[1].state == b"state2"
-        assert notifications[2].id == 3
-        assert notifications[2].topic == "topic3"
-        assert notifications[2].state == b"state3"
+        self.assertEqual(notifications[1].id, 2)
+        self.assertEqual(notifications[1].topic, "topic2")
+        self.assertEqual(notifications[1].state, b"state2")
+        self.assertEqual(notifications[2].id, 3)
+        self.assertEqual(notifications[2].topic, "topic3")
+        self.assertEqual(notifications[2].state, b"state3")
 
         self.assertEqual(
             recorder.max_notification_id(),
@@ -69,8 +74,8 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         )
 
         notifications = recorder.select_notifications(1, 1)
-        assert len(notifications) == 1
-        assert notifications[0].id == 1
+        self.assertEqual(len(notifications), 1)
+        self.assertEqual(notifications[0].id, 1)
 
         notifications = recorder.select_notifications(2, 1)
         self.assertEqual(len(notifications), 1)

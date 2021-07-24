@@ -12,10 +12,7 @@ from eventsourcing.persistence import (
     Transcoder,
     Transcoding,
 )
-from eventsourcing.postgres import PostgresDatastore
-from eventsourcing.tests.ramdisk import tmpfile_uris
 from eventsourcing.tests.test_aggregate import BankAccount, EmailAddress
-from eventsourcing.tests.test_postgres import drop_postgres_table
 from eventsourcing.utils import get_topic
 
 TIMEIT_FACTOR = int(os.environ.get("TEST_TIMEIT_FACTOR", default=10))
@@ -179,63 +176,6 @@ class TestApplicationSnapshottingException(TestCase):
                 "to a true value (e.g. 'y')."
             ),
         )
-
-
-class TestApplicationWithSQLite(TestApplicationWithPOPO):
-    timeit_number = 30 * TIMEIT_FACTOR
-    expected_factory_topic = "eventsourcing.sqlite:Factory"
-
-    def setUp(self) -> None:
-        super().setUp()
-        self.uris = tmpfile_uris()
-        # self.db_uri = next(self.uris)
-
-        os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.sqlite:Factory"
-        os.environ["CREATE_TABLE"] = "y"
-        os.environ["SQLITE_DBNAME"] = next(self.uris)
-
-    def tearDown(self) -> None:
-        del os.environ["INFRASTRUCTURE_FACTORY"]
-        del os.environ["CREATE_TABLE"]
-        del os.environ["SQLITE_DBNAME"]
-        super().tearDown()
-
-
-class TestApplicationWithPostgres(TestApplicationWithPOPO):
-    timeit_number = 5 * TIMEIT_FACTOR
-    expected_factory_topic = "eventsourcing.postgres:Factory"
-
-    def setUp(self) -> None:
-        super().setUp()
-        self.uris = tmpfile_uris()
-
-        os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.postgres:Factory"
-        os.environ["CREATE_TABLE"] = "y"
-        os.environ["POSTGRES_DBNAME"] = "eventsourcing"
-        os.environ["POSTGRES_HOST"] = "127.0.0.1"
-        os.environ["POSTGRES_PORT"] = "5432"
-        os.environ["POSTGRES_USER"] = "eventsourcing"
-        os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
-
-        db = PostgresDatastore(
-            os.getenv("POSTGRES_DBNAME"),
-            os.getenv("POSTGRES_HOST"),
-            os.getenv("POSTGRES_PORT"),
-            os.getenv("POSTGRES_USER"),
-            os.getenv("POSTGRES_PASSWORD"),
-        )
-        drop_postgres_table(db, "bankaccounts_events")
-        drop_postgres_table(db, "bankaccounts_snapshots")
-
-    def tearDown(self) -> None:
-        del os.environ["INFRASTRUCTURE_FACTORY"]
-        del os.environ["CREATE_TABLE"]
-        del os.environ["POSTGRES_DBNAME"]
-        del os.environ["POSTGRES_HOST"]
-        del os.environ["POSTGRES_PORT"]
-        del os.environ["POSTGRES_USER"]
-        del os.environ["POSTGRES_PASSWORD"]
-        super().tearDown()
 
 
 class EmailAddressAsStr(Transcoding):

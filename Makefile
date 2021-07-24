@@ -77,7 +77,9 @@ unittest:
 
 .PHONY: timeit
 timeit:
-	TEST_TIMEIT_FACTOR=500 python -m unittest eventsourcing.tests.test_application
+	TEST_TIMEIT_FACTOR=500 python -m unittest eventsourcing.tests.test_application_with_popo
+	TEST_TIMEIT_FACTOR=500 python -m unittest eventsourcing.tests.test_application_with_sqlite
+	TEST_TIMEIT_FACTOR=500 python -m unittest eventsourcing.tests.test_application_with_postgres
 
 .PHONY: coveragetest
 coveragetest:

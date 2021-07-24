@@ -11,7 +11,7 @@ from eventsourcing.system import (
     Promptable,
 )
 from eventsourcing.tests.test_aggregate import BankAccount
-from eventsourcing.tests.test_application import (
+from eventsourcing.tests.test_application_with_popo import (
     BankAccounts,
     EmailAddressAsStr,
 )

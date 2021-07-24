@@ -1,4 +1,5 @@
 import os
+from abc import ABC, abstractmethod
 from datetime import datetime
 from unittest.case import TestCase
 from uuid import uuid4
@@ -20,7 +21,23 @@ from eventsourcing.persistence import (
 from eventsourcing.utils import get_topic
 
 
-class InfrastructureFactoryTestCase(TestCase):
+class InfrastructureFactoryTestCase(ABC, TestCase):
+    @abstractmethod
+    def expected_factory_class(self):
+        pass
+
+    @abstractmethod
+    def expected_aggregate_recorder_class(self):
+        pass
+
+    @abstractmethod
+    def expected_application_recorder_class(self):
+        pass
+
+    @abstractmethod
+    def expected_process_recorder_class(self):
+        pass
+
     def setUp(self) -> None:
         self.factory = InfrastructureFactory.construct("TestCase")
         self.transcoder = JSONTranscoder()
@@ -155,24 +172,31 @@ class InfrastructureFactoryTestCase(TestCase):
 
     def test_create_event_recorder(self):
         recorder = self.factory.aggregate_recorder()
+        self.assertEqual(type(recorder), self.expected_aggregate_recorder_class())
+
         self.assertIsInstance(recorder, AggregateRecorder)
 
         # Exercise code path where table is not created.
         os.environ["CREATE_TABLE"] = "f"
         recorder = self.factory.aggregate_recorder()
+        self.assertEqual(type(recorder), self.expected_aggregate_recorder_class())
 
     def test_create_application_recorder(self):
         recorder = self.factory.application_recorder()
+        self.assertEqual(type(recorder), self.expected_application_recorder_class())
         self.assertIsInstance(recorder, ApplicationRecorder)
 
         # Exercise code path where table is not created.
         os.environ["CREATE_TABLE"] = "f"
         recorder = self.factory.application_recorder()
+        self.assertEqual(type(recorder), self.expected_application_recorder_class())
 
     def test_create_process_recorder(self):
         recorder = self.factory.process_recorder()
+        self.assertEqual(type(recorder), self.expected_process_recorder_class())
         self.assertIsInstance(recorder, ProcessRecorder)
 
         # Exercise code path where table is not created.
         os.environ["CREATE_TABLE"] = "f"
         recorder = self.factory.process_recorder()
+        self.assertEqual(type(recorder), self.expected_process_recorder_class())

@@ -12,7 +12,7 @@ from eventsourcing.system import (
     System,
 )
 from eventsourcing.tests.ramdisk import tmpfile_uris
-from eventsourcing.tests.test_application import BankAccounts
+from eventsourcing.tests.test_application_with_popo import BankAccounts
 from eventsourcing.tests.test_postgres import drop_postgres_table
 from eventsourcing.tests.test_processapplication import EmailNotifications
 
