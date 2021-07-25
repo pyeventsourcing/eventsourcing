@@ -95,11 +95,15 @@ class TestMultiThreadedRunner(RunnerTestCase):
 
     class BrokenInitialisation(EmailNotifications):
         def __init__(self, *args, **kwargs):
-            raise Exception("Testing exception is raised: broken initialisation")
+            raise Exception(
+                "Just testing error handling when initialisation is broken"
+            )
 
     class BrokenProcessing(EmailNotifications):
         def pull_and_process(self, name: str) -> None:
-            raise Exception("Testing exception is raised: broken processing")
+            raise Exception(
+                "Just testing error handling when processing is broken"
+            )
 
     def test_stops_if_app_initialisation_is_broken(self):
         system = System(
