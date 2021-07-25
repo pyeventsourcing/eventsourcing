@@ -247,11 +247,6 @@ def drop_postgres_table(datastore: PostgresDatastore, table_name):
     try:
         with datastore.transaction() as c:
             statement = f"DROP TABLE {table_name};"
-            print("Executing statement:", statement)
             c.execute(statement)
-            print("Executed statement:", statement)
     except psycopg2.errors.lookup(UNDEFINED_TABLE):
-        print("Failed to execute statement:", statement)
-        pass  # print(f"Table does not exist: {table_name}")
-    except Exception:
-        print("Strange error:", statement)
+        pass
