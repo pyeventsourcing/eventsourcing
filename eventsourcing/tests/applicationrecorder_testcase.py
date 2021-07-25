@@ -122,6 +122,7 @@ class ApplicationRecorderTestCase(TestCase, ABC):
                     errors_happened.set()
                     tb = traceback.format_exc()
                     print(tb)
+            self.close_db_connection()
 
         reader_thread = Thread(target=read_continuously)
         reader_thread.start()
@@ -130,6 +131,7 @@ class ApplicationRecorderTestCase(TestCase, ABC):
             futures = []
             for _ in range(100):
                 future = executor.submit(_createevent)
+                future.add_done_callback(self.close_db_connection)
                 futures.append(future)
             for future in futures:
                 # print(future.result())
@@ -137,5 +139,8 @@ class ApplicationRecorderTestCase(TestCase, ABC):
 
         stop_reading.set()
         reader_thread.join()
-
+        self.close_db_connection()
         self.assertFalse(errors_happened.is_set())
+
+    def close_db_connection(self, *args):
+        pass
