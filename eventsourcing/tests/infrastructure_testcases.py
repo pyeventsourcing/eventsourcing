@@ -40,6 +40,7 @@ class InfrastructureFactoryTestCase(ABC, TestCase):
 
     def setUp(self) -> None:
         self.factory = InfrastructureFactory.construct("TestCase")
+        self.assertIsInstance(self.factory, self.expected_factory_class())
         self.transcoder = JSONTranscoder()
         self.transcoder.register(UUIDAsHex())
         self.transcoder.register(DecimalAsStr())
