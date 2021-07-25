@@ -1,4 +1,5 @@
 import os
+from unittest import TestCase
 from uuid import uuid4
 
 import psycopg2
@@ -29,6 +30,35 @@ from eventsourcing.tests.processrecorder_testcase import (
     ProcessRecorderTestCase,
 )
 from eventsourcing.utils import get_topic
+
+
+class TestPostgresDatastore(TestCase):
+    def setUp(self) -> None:
+        self.datastore = PostgresDatastore(
+            "eventsourcing",
+            "127.0.0.1",
+            "5432",
+            "eventsourcing",
+            "eventsourcing",
+        )
+
+    def test_get_connection(self):
+        connection = self.datastore.get_connection()
+        cursor = connection.cursor()
+        cursor.execute("SELECT 1")
+        self.assertEqual(cursor.fetchall(), [(1,)])
+
+    def test_transaction(self):
+        transaction = self.datastore.transaction()
+        self.assertEqual(transaction.c, self.datastore.get_connection())
+
+    def test_close_connection(self):
+        # Try closing without opening.
+        self.datastore.close_connection()
+
+        # Try closing after opening.
+        self.datastore.get_connection()
+        self.datastore.close_connection()
 
 
 class TestPostgresAggregateRecorder(AggregateRecorderTestCase):

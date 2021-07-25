@@ -26,6 +26,32 @@ from eventsourcing.tests.ramdisk import tmpfile_uris
 from eventsourcing.utils import get_topic
 
 
+class TestSqliteDatastore(TestCase):
+    def setUp(self) -> None:
+        self.datastore = SQLiteDatastore(":memory:")
+
+    def test_get_connection(self):
+        connection = self.datastore.get_connection()
+        cursor = connection.cursor()
+        cursor.execute("SELECT 1")
+        rows = cursor.fetchall()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(len(rows[0]), 1)
+        self.assertEqual(rows[0][0], 1)
+
+    def test_transaction(self):
+        transaction = self.datastore.transaction()
+        self.assertEqual(transaction.c, self.datastore.get_connection())
+
+    def test_close_connection(self):
+        # Try closing without opening.
+        self.datastore.close_connection()
+
+        # Try closing after opening.
+        self.datastore.get_connection()
+        self.datastore.close_connection()
+
+
 class TestSQLiteAggregateRecorder(AggregateRecorderTestCase):
     def create_recorder(self):
         recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
