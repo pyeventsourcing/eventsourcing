@@ -145,6 +145,9 @@ class TestPostgresApplicationRecorder(ApplicationRecorderTestCase):
         recorder.create_table()
         return recorder
 
+    def close_db_connection(self, *args):
+        self.datastore.close_connection()
+
     def test_raises_operational_error_when_selecting_fails(self):
         # Construct the recorder.
         recorder = PostgresApplicationRecorder(
