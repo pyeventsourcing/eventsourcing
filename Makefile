@@ -76,9 +76,18 @@ unittest:
 	@python -m unittest discover . -v
 
 .PHONY: timeit
-timeit:
+timeit: timeit_popo timeit_sqlite timeit_postgres
+
+.PHONY: timeit_popo
+timeit_popo:
 	TEST_TIMEIT_FACTOR=500 python -m unittest eventsourcing.tests.test_application_with_popo
+
+.PHONY: timeit_sqlite
+timeit_sqlite:
 	TEST_TIMEIT_FACTOR=500 python -m unittest eventsourcing.tests.test_application_with_sqlite
+
+.PHONY: timeit_postgres
+timeit_postgres:
 	TEST_TIMEIT_FACTOR=500 python -m unittest eventsourcing.tests.test_application_with_postgres
 
 .PHONY: coveragetest
