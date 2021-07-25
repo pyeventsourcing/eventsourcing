@@ -25,3 +25,6 @@ class TestApplicationWithSQLite(TestApplicationWithPOPO):
         del os.environ["CREATE_TABLE"]
         del os.environ["SQLITE_DBNAME"]
         super().tearDown()
+
+
+del TestApplicationWithPOPO

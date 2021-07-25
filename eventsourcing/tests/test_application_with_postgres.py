@@ -44,3 +44,6 @@ class TestApplicationWithPostgres(TestApplicationWithPOPO):
         del os.environ["POSTGRES_USER"]
         del os.environ["POSTGRES_PASSWORD"]
         super().tearDown()
+
+
+del TestApplicationWithPOPO
