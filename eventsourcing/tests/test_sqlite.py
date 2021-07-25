@@ -71,17 +71,21 @@ class TestSQLiteApplicationRecorder(ApplicationRecorderTestCase):
     def test_raises_operational_error_when_inserting_fails(self):
         recorder = SQLiteApplicationRecorder(SQLiteDatastore(":memory:"))
         with self.assertRaises(OperationalError):
+            # Haven't created table.
             recorder.insert_events([])
 
     def test_raises_operational_error_when_selecting_fails(self):
         recorder = SQLiteApplicationRecorder(SQLiteDatastore(":memory:"))
         with self.assertRaises(OperationalError):
+            # Haven't created table.
             recorder.select_events(uuid4())
 
         with self.assertRaises(OperationalError):
+            # Haven't created table.
             recorder.select_notifications(start=1, limit=1)
 
         with self.assertRaises(OperationalError):
+            # Haven't created table.
             recorder.max_notification_id()
 
 
