@@ -289,6 +289,14 @@ class PostgresProcessRecorder(
     ):
         self.tracking_table_name = tracking_table_name
         super().__init__(datastore, events_table_name)
+        self.insert_tracking_statement = (
+            f"INSERT INTO {self.tracking_table_name} " "VALUES (%s, %s)"
+        )
+        self.select_max_tracking_id_statement = (
+            "SELECT MAX(notification_id) "
+            f"FROM {self.tracking_table_name} "
+            "WHERE application_name=%s"
+        )
 
     def construct_create_table_statements(self) -> List[str]:
         statements = super().construct_create_table_statements()
@@ -304,14 +312,9 @@ class PostgresProcessRecorder(
 
     def max_tracking_id(self, application_name: str) -> int:
         params = [application_name]
-        statement = (
-            "SELECT MAX(notification_id) "
-            f"FROM {self.tracking_table_name} "
-            "WHERE application_name=%s"
-        )
         try:
             with self.datastore.transaction() as c:
-                c.execute(statement, params)
+                c.execute(self.select_max_tracking_id_statement, params)
                 return c.fetchone()[0] or 0
         except psycopg2.Error as e:
             self.datastore.close_connection()
@@ -326,9 +329,8 @@ class PostgresProcessRecorder(
         super()._insert_events(c, stored_events, **kwargs)
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking is not None:
-            statement = f"INSERT INTO {self.tracking_table_name} " "VALUES (%s, %s)"
             c.execute(
-                statement,
+                self.insert_tracking_statement,
                 (
                     tracking.application_name,
                     tracking.notification_id,

@@ -282,6 +282,11 @@ class SQLiteProcessRecorder(
         super().__init__(datastore, events_table_name)
         # noinspection SqlResolve
         self.insert_tracking_statement = "INSERT INTO tracking VALUES (?,?)"
+        self.select_max_tracking_id_statement = (
+            "SELECT MAX(notification_id)"
+            "FROM tracking "
+            "WHERE application_name=?"
+        )
 
     def construct_create_table_statements(self) -> List[str]:
         statements = super().construct_create_table_statements()
@@ -299,12 +304,7 @@ class SQLiteProcessRecorder(
         params = [application_name]
         try:
             with self.datastore.transaction() as c:
-                statement = (
-                    "SELECT MAX(notification_id)"
-                    "FROM tracking "
-                    "WHERE application_name=?"
-                )
-                c.execute(statement, params)
+                c.execute(self.select_max_tracking_id_statement, params)
                 return c.fetchone()[0] or 0
         except sqlite3.OperationalError as e:
             self.datastore.close_connection()
