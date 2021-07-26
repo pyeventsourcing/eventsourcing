@@ -53,6 +53,23 @@ class PostgresDatastore:
         )
         return c
 
+    def close_connection(self) -> None:
+        thread_id = threading.get_ident()
+        try:
+            c = self.connections.pop(thread_id)
+        except KeyError:
+            pass
+        else:
+            c.close()
+
+    def close_all_connections(self) -> None:
+        for c in self.connections.values():
+            c.close()
+        self.connections.clear()
+
+    def __del__(self) -> None:
+        self.close_all_connections()
+
     class Transaction:
         # noinspection PyShadowingNames
         def __init__(self, connection: connection):
