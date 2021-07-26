@@ -122,21 +122,23 @@ class PostgresAggregateRecorder(AggregateRecorder):
         return [statement]
 
     def create_table(self) -> None:
-        with self.datastore.transaction() as c:
-            try:
+        try:
+            with self.datastore.transaction() as c:
                 for statement in self.create_table_statements:
                     c.execute(statement)
-            except psycopg2.Error as e:
-                raise OperationalError(e)
+        except psycopg2.Error as e:
+            self.datastore.close_connection()
+            raise OperationalError(e)
 
     def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
-        with self.datastore.transaction() as c:
-            try:
+        try:
+            with self.datastore.transaction() as c:
                 self._insert_events(c, stored_events, **kwargs)
-            except psycopg2.IntegrityError as e:
-                raise RecordConflictError(e)
-            except psycopg2.Error as e:
-                raise OperationalError(e)
+        except psycopg2.IntegrityError as e:
+            raise RecordConflictError(e)
+        except psycopg2.Error as e:
+            self.datastore.close_connection()
+            raise OperationalError(e)
 
     def _insert_events(
         self,
@@ -195,6 +197,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
                         )
                     )
         except psycopg2.Error as e:
+            self.datastore.close_connection()
             raise OperationalError(e)
         return stored_events
 
@@ -259,6 +262,7 @@ class PostgresApplicationRecorder(
                         )
                     )
         except psycopg2.Error as e:
+            self.datastore.close_connection()
             raise OperationalError(e)
         return notifications
 
@@ -271,6 +275,7 @@ class PostgresApplicationRecorder(
                 c.execute(self.select_max_notification_id_statement)
                 return c.fetchone()[0] or 0
         except psycopg2.Error as e:
+            self.datastore.close_connection()
             raise OperationalError(e)
 
 
@@ -311,6 +316,7 @@ class PostgresProcessRecorder(
                 c.execute(statement, params)
                 return c.fetchone()[0] or 0
         except psycopg2.Error as e:
+            self.datastore.close_connection()
             raise OperationalError(e)
 
     def _insert_events(
