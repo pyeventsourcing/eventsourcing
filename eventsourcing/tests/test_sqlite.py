@@ -39,6 +39,14 @@ class TestSqliteDatastore(TestCase):
         self.assertEqual(len(rows[0]), 1)
         self.assertEqual(rows[0][0], 1)
 
+    def test_get_cursor(self):
+        cursor = self.datastore.get_cursor()
+        cursor.execute("SELECT 1")
+        rows = cursor.fetchall()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(len(rows[0]), 1)
+        self.assertEqual(rows[0][0], 1)
+
     def test_transaction(self):
         transaction = self.datastore.transaction()
         self.assertEqual(transaction.c, self.datastore.get_connection())

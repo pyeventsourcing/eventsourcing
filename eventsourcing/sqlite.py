@@ -1,7 +1,7 @@
 import sqlite3
 import threading
 from distutils.util import strtobool
-from sqlite3 import Connection
+from sqlite3 import Connection, Cursor
 from types import TracebackType
 from typing import Any, Dict, List, Mapping, Optional, Type
 from uuid import UUID
@@ -58,6 +58,9 @@ class SQLiteDatastore:
             c = self.create_connection()
             self.connections[thread_id] = c
             return c
+
+    def get_cursor(self) -> Cursor:
+        return self.get_connection().cursor()
 
     def create_connection(self) -> Connection:
         # Make a connection to an SQLite database.

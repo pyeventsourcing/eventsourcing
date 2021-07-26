@@ -42,6 +42,9 @@ class PostgresDatastore:
             self.connections[thread_id] = c
             return c
 
+    def get_cursor(self) -> cursor:
+        return self.get_connection().cursor(cursor_factory=psycopg2.extras.DictCursor)
+
     def create_connection(self) -> connection:
         # Make a connection to a Postgres database.
         c = psycopg2.connect(

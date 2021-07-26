@@ -44,9 +44,14 @@ class TestPostgresDatastore(TestCase):
 
     def test_get_connection(self):
         connection = self.datastore.get_connection()
-        cursor = connection.cursor()
+        cursor = connection.cursor(cursor_factory=psycopg2.extras.DictCursor)
         cursor.execute("SELECT 1")
-        self.assertEqual(cursor.fetchall(), [(1,)])
+        self.assertEqual(cursor.fetchall(), [[1]])
+
+    def test_get_cursor(self):
+        cursor = self.datastore.get_cursor()
+        cursor.execute("SELECT 1")
+        self.assertEqual(cursor.fetchall(), [[1]])
 
     def test_transaction(self):
         transaction = self.datastore.transaction()
