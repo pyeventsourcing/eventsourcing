@@ -213,7 +213,7 @@ class PostgresApplicationRecorder(
         events_table_name: str = "stored_events",
     ):
         super().__init__(datastore, events_table_name)
-        self.statement_notifications_statement = (
+        self.select_notifications_statement = (
             "SELECT * "
             f"FROM {self.events_table_name} "
             "WHERE notification_id>=%s "
@@ -249,7 +249,7 @@ class PostgresApplicationRecorder(
         params = [start, limit]
         try:
             with self.datastore.transaction() as c:
-                c.execute(self.statement_notifications_statement, params)
+                c.execute(self.select_notifications_statement, params)
                 notifications = []
                 for row in c.fetchall():
                     notifications.append(
