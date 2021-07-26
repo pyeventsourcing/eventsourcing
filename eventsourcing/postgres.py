@@ -1,5 +1,6 @@
 import threading
 from distutils.util import strtobool
+from threading import Event, Timer
 from types import TracebackType
 from typing import Any, Dict, List, Mapping, Optional, Type
 from uuid import UUID
@@ -24,13 +25,53 @@ from eventsourcing.persistence import (
 psycopg2.extras.register_uuid()
 
 
+class Connection:
+    def __init__(self, c: connection, max_age: Optional[float]):
+        self.c = c
+        self.max_age = max_age
+        self.is_idle = Event()
+        self.is_closing = Event()
+        self.timer: Optional[Timer]
+        if max_age is not None:
+            self.timer = Timer(interval=max_age, function=self.close_on_timer)
+            self.timer.setDaemon(True)
+            self.timer.start()
+        else:
+            self.timer = None
+
+    def cursor(self) -> cursor:
+        return self.c.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+    def rollback(self) -> None:
+        self.c.rollback()
+
+    def commit(self) -> None:
+        self.c.commit()
+
+    def close_on_timer(self) -> None:
+        self.close()
+
+    def close(self, timeout: Optional[float] = None) -> None:
+        if self.timer is not None:
+            self.timer.cancel()
+        self.is_closing.set()
+        self.is_idle.wait(timeout=timeout)
+        self.c.close()
+
+    @property
+    def is_closed(self) -> bool:
+        return self.c.closed
+
+
 class Transaction:
     # noinspection PyShadowingNames
-    def __init__(self, connection: connection):
-        self.c = connection
+    def __init__(self, c: Connection):
+        self.c = c
+        self.has_entered = False
 
     def __enter__(self) -> cursor:
-        return self.c.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        self.has_entered = True
+        return self.c.cursor()
 
     def __exit__(
         self,
@@ -38,59 +79,80 @@ class Transaction:
         exc_val: BaseException,
         exc_tb: TracebackType,
     ) -> None:
-        if exc_type:
-            # Roll back all changes
-            # if an exception occurs.
-            self.c.rollback()
-        else:
-            self.c.commit()
+        try:
+            if exc_type:
+                self.c.rollback()
+            else:
+                self.c.commit()
+        finally:
+            self.c.is_idle.set()
+
+    def __del__(self) -> None:
+        if not self.has_entered:
+            self.c.is_idle.set()
+            raise RuntimeWarning(f"Transaction {self} was not used as context manager")
 
 
 class PostgresDatastore:
-    def __init__(self, dbname: str, host: str, port: str, user: str, password: str):
+    def __init__(
+        self,
+        dbname: str,
+        host: str,
+        port: str,
+        user: str,
+        password: str,
+        conn_max_age: Optional[float] = None,
+    ):
         self.dbname = dbname
         self.host = host
         self.port = port
         self.user = user
         self.password = password
-        self.connections: Dict[int, connection] = {}
+        self.conn_max_age = conn_max_age
+        self._connections: Dict[int, Connection] = {}
 
     def transaction(self) -> Transaction:
         thread_id = threading.get_ident()
         try:
-            c = self.connections[thread_id]
+            c = self._connections[thread_id]
+            c.is_idle.clear()
+            if c.is_closing.is_set() or c.is_closed:
+                c = self._create_connection(thread_id)
         except KeyError:
-            c = self.create_connection()
-            self.connections[thread_id] = c
+            c = self._create_connection(thread_id)
         return Transaction(c)
 
-    def create_connection(self) -> connection:
+    def _create_connection(self, thread_id: int) -> Connection:
         # Make a connection to a Postgres database.
-        c = psycopg2.connect(
-            dbname=self.dbname,
-            host=self.host,
-            port=self.port,
-            user=self.user,
-            password=self.password,
+        c = Connection(
+            psycopg2.connect(
+                dbname=self.dbname,
+                host=self.host,
+                port=self.port,
+                user=self.user,
+                password=self.password,
+            ),
+            max_age=self.conn_max_age,
         )
+        self._connections[thread_id] = c
         return c
 
     def close_connection(self) -> None:
         thread_id = threading.get_ident()
         try:
-            c = self.connections.pop(thread_id)
+            c = self._connections.pop(thread_id)
         except KeyError:
             pass
         else:
             c.close()
 
-    def close_all_connections(self) -> None:
-        for c in self.connections.values():
-            c.close()
-        self.connections.clear()
+    def close_all_connections(self, timeout: Optional[float] = None) -> None:
+        for c in self._connections.values():
+            c.close(timeout=timeout)
+        self._connections.clear()
 
     def __del__(self) -> None:
-        self.close_all_connections()
+        self.close_all_connections(timeout=1)
 
 
 # noinspection SqlResolve
@@ -344,6 +406,7 @@ class Factory(InfrastructureFactory):
     POSTGRES_PORT = "POSTGRES_PORT"
     POSTGRES_USER = "POSTGRES_USER"
     POSTGRES_PASSWORD = "POSTGRES_PASSWORD"
+    POSTGRES_CONN_MAX_AGE = "POSTGRES_CONN_MAX_AGE"
     CREATE_TABLE = "CREATE_TABLE"
 
     def __init__(self, application_name: str, env: Mapping):
@@ -381,12 +444,31 @@ class Factory(InfrastructureFactory):
                 "in environment with key "
                 f"'{self.POSTGRES_PASSWORD}'"
             )
+
+        conn_max_age: Optional[float]
+        conn_max_age_str = self.getenv(self.POSTGRES_CONN_MAX_AGE)
+        if conn_max_age_str is None:
+            conn_max_age = None
+        elif conn_max_age_str == "":
+            conn_max_age = None
+        else:
+            try:
+                conn_max_age = float(conn_max_age_str)
+            except ValueError:
+                raise EnvironmentError(
+                    f"Postgres environment value for key "
+                    f"'{self.POSTGRES_CONN_MAX_AGE}' is invalid. "
+                    f"If set, a float or empty string is expected: "
+                    f"'{conn_max_age_str}'"
+                )
+
         self.datastore = PostgresDatastore(
             dbname=dbname,
             host=host,
             port=port,
             user=user,
             password=password,
+            conn_max_age=conn_max_age,
         )
 
     def aggregate_recorder(self, purpose: str = "events") -> AggregateRecorder:
