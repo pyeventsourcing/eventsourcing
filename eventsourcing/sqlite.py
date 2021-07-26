@@ -283,9 +283,7 @@ class SQLiteProcessRecorder(
         # noinspection SqlResolve
         self.insert_tracking_statement = "INSERT INTO tracking VALUES (?,?)"
         self.select_max_tracking_id_statement = (
-            "SELECT MAX(notification_id)"
-            "FROM tracking "
-            "WHERE application_name=?"
+            "SELECT MAX(notification_id) FROM tracking WHERE application_name=?"
         )
 
     def construct_create_table_statements(self) -> List[str]:
