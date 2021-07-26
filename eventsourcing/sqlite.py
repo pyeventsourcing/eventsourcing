@@ -126,17 +126,19 @@ class SQLiteAggregateRecorder(AggregateRecorder):
             with self.datastore.transaction() as c:
                 for statement in self.create_table_statements:
                     c.execute(statement)
-            except sqlite3.OperationalError as e:
-                raise OperationalError(e)
+        except sqlite3.OperationalError as e:
+            self.datastore.close_connection()
+            raise OperationalError(e)
 
     def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
         try:
             with self.datastore.transaction() as c:
                 self._insert_events(c, stored_events, **kwargs)
-            except sqlite3.OperationalError as e:
-                raise OperationalError(e)
-            except sqlite3.IntegrityError as e:
-                raise RecordConflictError(e)
+        except sqlite3.OperationalError as e:
+            self.datastore.close_connection()
+            raise OperationalError(e)
+        except sqlite3.IntegrityError as e:
+            raise RecordConflictError(e)
 
     def _insert_events(
         self,
@@ -194,6 +196,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
                         )
                     )
         except sqlite3.OperationalError as e:
+            self.datastore.close_connection()
             raise OperationalError(e)
         return stored_events
 
@@ -250,6 +253,7 @@ class SQLiteApplicationRecorder(
                         )
                     )
         except sqlite3.OperationalError as e:
+            self.datastore.close_connection()
             raise OperationalError(e)
         return notifications
 
@@ -262,6 +266,7 @@ class SQLiteApplicationRecorder(
                 c.execute(self.select_max_notification_id_statement)
                 return c.fetchone()[0] or 0
         except sqlite3.OperationalError as e:
+            self.datastore.close_connection()
             raise OperationalError(e)
 
 
@@ -276,7 +281,7 @@ class SQLiteProcessRecorder(
     ):
         super().__init__(datastore, events_table_name)
         # noinspection SqlResolve
-        self.insert_tracking_statement = "INSERT INTO tracking " "VALUES (?,?)"
+        self.insert_tracking_statement = "INSERT INTO tracking VALUES (?,?)"
 
     def construct_create_table_statements(self) -> List[str]:
         statements = super().construct_create_table_statements()
@@ -302,6 +307,7 @@ class SQLiteProcessRecorder(
                 c.execute(statement, params)
                 return c.fetchone()[0] or 0
         except sqlite3.OperationalError as e:
+            self.datastore.close_connection()
             raise OperationalError(e)
 
     def _insert_events(
