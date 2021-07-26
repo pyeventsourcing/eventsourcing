@@ -126,7 +126,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
             with self.datastore.transaction() as c:
                 for statement in self.create_table_statements:
                     c.execute(statement)
-        except sqlite3.OperationalError as e:
+        except sqlite3.Error as e:
             self.datastore.close_connection()
             raise OperationalError(e)
 
@@ -134,11 +134,11 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         try:
             with self.datastore.transaction() as c:
                 self._insert_events(c, stored_events, **kwargs)
-        except sqlite3.OperationalError as e:
-            self.datastore.close_connection()
-            raise OperationalError(e)
         except sqlite3.IntegrityError as e:
             raise RecordConflictError(e)
+        except sqlite3.Error as e:
+            self.datastore.close_connection()
+            raise OperationalError(e)
 
     def _insert_events(
         self,
@@ -195,7 +195,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
                             state=row["state"],
                         )
                     )
-        except sqlite3.OperationalError as e:
+        except sqlite3.Error as e:
             self.datastore.close_connection()
             raise OperationalError(e)
         return stored_events
@@ -252,7 +252,7 @@ class SQLiteApplicationRecorder(
                             state=row["state"],
                         )
                     )
-        except sqlite3.OperationalError as e:
+        except sqlite3.Error as e:
             self.datastore.close_connection()
             raise OperationalError(e)
         return notifications
@@ -265,7 +265,7 @@ class SQLiteApplicationRecorder(
             with self.datastore.transaction() as c:
                 c.execute(self.select_max_notification_id_statement)
                 return c.fetchone()[0] or 0
-        except sqlite3.OperationalError as e:
+        except sqlite3.Error as e:
             self.datastore.close_connection()
             raise OperationalError(e)
 
@@ -304,7 +304,7 @@ class SQLiteProcessRecorder(
             with self.datastore.transaction() as c:
                 c.execute(self.select_max_tracking_id_statement, params)
                 return c.fetchone()[0] or 0
-        except sqlite3.OperationalError as e:
+        except sqlite3.Error as e:
             self.datastore.close_connection()
             raise OperationalError(e)
 
