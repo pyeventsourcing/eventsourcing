@@ -42,27 +42,18 @@ class TestPostgresDatastore(TestCase):
             "eventsourcing",
         )
 
-    def test_get_connection(self):
-        connection = self.datastore.get_connection()
-        cursor = connection.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cursor.execute("SELECT 1")
-        self.assertEqual(cursor.fetchall(), [[1]])
-
-    def test_get_cursor(self):
-        cursor = self.datastore.get_cursor()
-        cursor.execute("SELECT 1")
-        self.assertEqual(cursor.fetchall(), [[1]])
-
     def test_transaction(self):
         transaction = self.datastore.transaction()
-        self.assertEqual(transaction.c, self.datastore.get_connection())
+        with transaction as cursor:
+            cursor.execute("SELECT 1")
+            self.assertEqual(cursor.fetchall(), [[1]])
 
     def test_close_connection(self):
-        # Try closing without opening.
+        # Try closing without creating connection.
         self.datastore.close_connection()
 
-        # Try closing after opening.
-        self.datastore.get_connection()
+        # Try closing after creating connection.
+        self.datastore.transaction()
         self.datastore.close_connection()
 
 

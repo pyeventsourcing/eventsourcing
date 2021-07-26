@@ -19,48 +19,43 @@ from eventsourcing.persistence import (
 )
 
 
+class Transaction:
+    def __init__(self, connection: Connection):
+        self.c = connection
+
+    def __enter__(self) -> Cursor:
+        # We must issue a "BEGIN" explicitly
+        # when running in auto-commit mode.
+        self.c.execute("BEGIN")
+        return self.c.cursor()
+
+    def __exit__(
+        self,
+        exc_type: Type[BaseException],
+        exc_val: BaseException,
+        exc_tb: TracebackType,
+    ) -> None:
+        if exc_type:
+            # Roll back all changes
+            # if an exception occurs.
+            self.c.rollback()
+        else:
+            self.c.commit()
+
+
 class SQLiteDatastore:
     def __init__(self, db_name: str):
         self.db_name = db_name
         self.connections: Dict[int, Connection] = {}
 
-    class Transaction:
-        def __init__(self, connection: Connection):
-            self.c = connection
-
-        def __enter__(self) -> Connection:
-            # We must issue a "BEGIN" explicitly
-            # when running in auto-commit mode.
-            self.c.execute("BEGIN")
-            return self.c
-
-        def __exit__(
-            self,
-            exc_type: Type[BaseException],
-            exc_val: BaseException,
-            exc_tb: TracebackType,
-        ) -> None:
-            if exc_type:
-                # Roll back all changes
-                # if an exception occurs.
-                self.c.rollback()
-            else:
-                self.c.commit()
-
     def transaction(self) -> Transaction:
-        return self.Transaction(self.get_connection())
-
-    def get_connection(self) -> Connection:
         thread_id = threading.get_ident()
         try:
-            return self.connections[thread_id]
+            c = self.connections[thread_id]
         except KeyError:
             c = self.create_connection()
             self.connections[thread_id] = c
-            return c
-
-    def get_cursor(self) -> Cursor:
-        return self.get_connection().cursor()
+        return Transaction(c)
 
     def create_connection(self) -> Connection:
         # Make a connection to an SQLite database.
@@ -127,16 +122,16 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         return [statement]
 
     def create_table(self) -> None:
-        with self.datastore.transaction() as c:
-            try:
+        try:
+            with self.datastore.transaction() as c:
                 for statement in self.create_table_statements:
                     c.execute(statement)
             except sqlite3.OperationalError as e:
                 raise OperationalError(e)
 
     def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
-        with self.datastore.transaction() as c:
-            try:
+        try:
+            with self.datastore.transaction() as c:
                 self._insert_events(c, stored_events, **kwargs)
             except sqlite3.OperationalError as e:
                 raise OperationalError(e)
@@ -145,7 +140,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
 
     def _insert_events(
         self,
-        c: Connection,
+        c: Cursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> None:
@@ -186,18 +181,18 @@ class SQLiteAggregateRecorder(AggregateRecorder):
             statement += "LIMIT ? "
             params.append(limit)
         try:
-            c = self.datastore.get_connection().cursor()
-            c.execute(statement, params)
-            stored_events = []
-            for row in c.fetchall():
-                stored_events.append(
-                    StoredEvent(
-                        originator_id=UUID(row["originator_id"]),
-                        originator_version=row["originator_version"],
-                        topic=row["topic"],
-                        state=row["state"],
+            with self.datastore.transaction() as c:
+                c.execute(statement, params)
+                stored_events = []
+                for row in c.fetchall():
+                    stored_events.append(
+                        StoredEvent(
+                            originator_id=UUID(row["originator_id"]),
+                            originator_version=row["originator_version"],
+                            topic=row["topic"],
+                            state=row["state"],
+                        )
                     )
-                )
         except sqlite3.OperationalError as e:
             raise OperationalError(e)
         return stored_events
@@ -241,19 +236,19 @@ class SQLiteApplicationRecorder(
         """
         params = [start, limit]
         try:
-            c = self.datastore.get_connection().cursor()
-            c.execute(self.select_notifications_statement, params)
-            notifications = []
-            for row in c.fetchall():
-                notifications.append(
-                    Notification(
-                        id=row["rowid"],
-                        originator_id=UUID(row["originator_id"]),
-                        originator_version=row["originator_version"],
-                        topic=row["topic"],
-                        state=row["state"],
+            with self.datastore.transaction() as c:
+                c.execute(self.select_notifications_statement, params)
+                notifications = []
+                for row in c.fetchall():
+                    notifications.append(
+                        Notification(
+                            id=row["rowid"],
+                            originator_id=UUID(row["originator_id"]),
+                            originator_version=row["originator_version"],
+                            topic=row["topic"],
+                            state=row["state"],
+                        )
                     )
-                )
         except sqlite3.OperationalError as e:
             raise OperationalError(e)
         return notifications
@@ -263,9 +258,9 @@ class SQLiteApplicationRecorder(
         Returns the maximum notification ID.
         """
         try:
-            c = self.datastore.get_connection().cursor()
-            c.execute(self.select_max_notification_id_statement)
-            return c.fetchone()[0] or 0
+            with self.datastore.transaction() as c:
+                c.execute(self.select_max_notification_id_statement)
+                return c.fetchone()[0] or 0
         except sqlite3.OperationalError as e:
             raise OperationalError(e)
 
@@ -298,20 +293,20 @@ class SQLiteProcessRecorder(
     def max_tracking_id(self, application_name: str) -> int:
         params = [application_name]
         try:
-            c = self.datastore.get_connection().cursor()
-            statement = (
-                "SELECT MAX(notification_id)"
-                "FROM tracking "
-                "WHERE application_name=?"
-            )
-            c.execute(statement, params)
-            return c.fetchone()[0] or 0
+            with self.datastore.transaction() as c:
+                statement = (
+                    "SELECT MAX(notification_id)"
+                    "FROM tracking "
+                    "WHERE application_name=?"
+                )
+                c.execute(statement, params)
+                return c.fetchone()[0] or 0
         except sqlite3.OperationalError as e:
             raise OperationalError(e)
 
     def _insert_events(
         self,
-        c: Connection,
+        c: Cursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> None:

@@ -24,6 +24,28 @@ from eventsourcing.persistence import (
 psycopg2.extras.register_uuid()
 
 
+class Transaction:
+    # noinspection PyShadowingNames
+    def __init__(self, connection: connection):
+        self.c = connection
+
+    def __enter__(self) -> cursor:
+        return self.c.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+    def __exit__(
+        self,
+        exc_type: Type[BaseException],
+        exc_val: BaseException,
+        exc_tb: TracebackType,
+    ) -> None:
+        if exc_type:
+            # Roll back all changes
+            # if an exception occurs.
+            self.c.rollback()
+        else:
+            self.c.commit()
+
+
 class PostgresDatastore:
     def __init__(self, dbname: str, host: str, port: str, user: str, password: str):
         self.dbname = dbname
@@ -33,17 +55,14 @@ class PostgresDatastore:
         self.password = password
         self.connections: Dict[int, connection] = {}
 
-    def get_connection(self) -> connection:
+    def transaction(self) -> Transaction:
         thread_id = threading.get_ident()
         try:
-            return self.connections[thread_id]
+            c = self.connections[thread_id]
         except KeyError:
             c = self.create_connection()
             self.connections[thread_id] = c
-            return c
-
-    def get_cursor(self) -> cursor:
-        return self.get_connection().cursor(cursor_factory=psycopg2.extras.DictCursor)
+        return Transaction(c)
 
     def create_connection(self) -> connection:
         # Make a connection to a Postgres database.
@@ -72,30 +91,6 @@ class PostgresDatastore:
 
     def __del__(self) -> None:
         self.close_all_connections()
-
-    class Transaction:
-        # noinspection PyShadowingNames
-        def __init__(self, connection: connection):
-            self.c = connection
-
-        def __enter__(self) -> cursor:
-            return self.c.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
-        def __exit__(
-            self,
-            exc_type: Type[BaseException],
-            exc_val: BaseException,
-            exc_tb: TracebackType,
-        ) -> None:
-            if exc_type:
-                # Roll back all changes
-                # if an exception occurs.
-                self.c.rollback()
-            else:
-                self.c.commit()
-
-    def transaction(self) -> Transaction:
-        return self.Transaction(self.get_connection())
 
 
 # noinspection SqlResolve

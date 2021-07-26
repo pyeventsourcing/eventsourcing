@@ -30,33 +30,21 @@ class TestSqliteDatastore(TestCase):
     def setUp(self) -> None:
         self.datastore = SQLiteDatastore(":memory:")
 
-    def test_get_connection(self):
-        connection = self.datastore.get_connection()
-        cursor = connection.cursor()
-        cursor.execute("SELECT 1")
-        rows = cursor.fetchall()
-        self.assertEqual(len(rows), 1)
-        self.assertEqual(len(rows[0]), 1)
-        self.assertEqual(rows[0][0], 1)
-
-    def test_get_cursor(self):
-        cursor = self.datastore.get_cursor()
-        cursor.execute("SELECT 1")
-        rows = cursor.fetchall()
-        self.assertEqual(len(rows), 1)
-        self.assertEqual(len(rows[0]), 1)
-        self.assertEqual(rows[0][0], 1)
-
     def test_transaction(self):
         transaction = self.datastore.transaction()
-        self.assertEqual(transaction.c, self.datastore.get_connection())
+        with transaction as cursor:
+            cursor.execute("SELECT 1")
+            rows = cursor.fetchall()
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(len(rows[0]), 1)
+            self.assertEqual(rows[0][0], 1)
 
     def test_close_connection(self):
-        # Try closing without opening.
+        # Try closing without creating connection.
         self.datastore.close_connection()
 
-        # Try closing after opening.
-        self.datastore.get_connection()
+        # Try closing after creating connection.
+        self.datastore.transaction()
         self.datastore.close_connection()
 
 
