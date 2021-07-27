@@ -84,7 +84,7 @@ class Vehicle(Aggregate):
         return uuid5(NAMESPACE_URL, f"/licence_plate_numbers/{licence_plate_number}")
 
 
-class ParkingLot(Application[Vehicle]):
+class ParkingLot(Application):
     def book(self, licence_plate: LicencePlate, product: Type[Product]) -> None:
         try:
             vehicle = self.get_vehicle(licence_plate)
@@ -103,6 +103,7 @@ class ParkingLot(Application[Vehicle]):
     def get_vehicle(self, licence_plate: LicencePlate) -> Vehicle:
         vehicle_id = Vehicle.create_id(licence_plate.number)
         vehicle = self.repository.get(vehicle_id)
+        assert isinstance(vehicle, Vehicle)
         return vehicle
 
 
