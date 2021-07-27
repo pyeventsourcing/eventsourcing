@@ -57,32 +57,22 @@ class TestDocs(TestCase):
         super().setUp()
         self.uris = tmpfile_uris()
 
-        os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.postgres:Factory"
-        os.environ["POSTGRES_DBNAME"] = "eventsourcing"
-        os.environ["POSTGRES_HOST"] = "127.0.0.1"
-        os.environ["POSTGRES_PORT"] = "5432"
-        os.environ["POSTGRES_USER"] = "eventsourcing"
-        os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
-
         db = PostgresDatastore(
-            os.getenv("POSTGRES_DBNAME"),
-            os.getenv("POSTGRES_HOST"),
-            os.getenv("POSTGRES_PORT"),
-            os.getenv("POSTGRES_USER"),
-            os.getenv("POSTGRES_PASSWORD"),
+            "eventsourcing",
+            "127.0.0.1",
+            "5432",
+            "eventsourcing",
+            "eventsourcing",
         )
         drop_postgres_table(db, "universe_events")
 
-        del os.environ["INFRASTRUCTURE_FACTORY"]
-        del os.environ["POSTGRES_DBNAME"]
-        del os.environ["POSTGRES_HOST"]
-        del os.environ["POSTGRES_PORT"]
-        del os.environ["POSTGRES_USER"]
-        del os.environ["POSTGRES_PASSWORD"]
-
     def tearDown(self) -> None:
+        self.clean_env()
+
+    def clean_env(self):
         keys = [
             "INFRASTRUCTURE_FACTORY",
+            "IS_SNAPSHOTTING_ENABLED",
             "POSTGRES_DBNAME",
             "POSTGRES_HOST",
             "POSTGRES_PORT",
@@ -173,7 +163,7 @@ class TestDocs(TestCase):
                 print("PASS")
                 print("")
             finally:
-                os.environ["SALT_FOR_DATA_INTEGRITY"] = ""
+                self.clean_env()
 
         print("{} failed, {} passed".format(len(failed), len(passed)))
 
