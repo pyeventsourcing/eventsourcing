@@ -17,10 +17,10 @@ from eventsourcing.system import NotificationLogReader
 @dataclass
 class LicencePlate:
     number: str
+    regex = re.compile("^[0-9]{3}-[0-9]{3}$")
 
     def __post_init__(self) -> None:
-        regex = re.compile("^[0-9]{3}-[0-9]{3}$")
-        if not bool(regex.match(self.number)):
+        if not bool(self.regex.match(self.number)):
             raise ValueError()
 
 
