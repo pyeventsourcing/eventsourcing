@@ -1,3 +1,7 @@
+"""
+After Ed Blackburn's https://github.com/edblackburn/parking-lot/.
+"""
+
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
