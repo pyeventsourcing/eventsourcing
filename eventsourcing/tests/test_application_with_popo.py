@@ -7,11 +7,7 @@ from unittest.case import TestCase
 from uuid import UUID, uuid4
 
 from eventsourcing.application import AggregateNotFound, Application
-from eventsourcing.persistence import (
-    InfrastructureFactory,
-    Transcoder,
-    Transcoding,
-)
+from eventsourcing.persistence import Transcoder, Transcoding
 from eventsourcing.tests.test_aggregate import BankAccount, EmailAddress
 from eventsourcing.utils import get_topic
 
@@ -49,7 +45,7 @@ class TestApplicationWithPOPO(TestCase):
             sys.stdout.flush()
 
     def test_example_application(self):
-        app = BankAccounts(env={"IS_SNAPSHOTTING_ENABLED": 'y'})
+        app = BankAccounts(env={"IS_SNAPSHOTTING_ENABLED": "y"})
 
         self.assertFactoryTopic(app, self.expected_factory_topic)
 
@@ -133,7 +129,7 @@ class TestApplicationWithPOPO(TestCase):
     def _test_get_performance(self, is_snapshotting_enabled: bool):
 
         app = BankAccounts(
-            env={"IS_SNAPSHOTTING_ENABLED": 'y' if is_snapshotting_enabled else 'n'}
+            env={"IS_SNAPSHOTTING_ENABLED": "y" if is_snapshotting_enabled else "n"}
         )
 
         # Open an account.
