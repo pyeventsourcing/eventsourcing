@@ -19,9 +19,8 @@ class LicencePlate:
     number: str
 
     def __post_init__(self) -> None:
-        regex = re.compile("^[0-9]{3}-[0-9]{3}$", re.I)
-        match = regex.match(str(self.number))
-        if not bool(match):
+        regex = re.compile("^[0-9]{3}-[0-9]{3}$")
+        if not bool(regex.match(self.number)):
             raise ValueError()
 
 
