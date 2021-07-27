@@ -101,8 +101,7 @@ class ParkingLot(Application):
         self.save(vehicle)
 
     def get_vehicle(self, licence_plate: LicencePlate) -> Vehicle:
-        vehicle_id = Vehicle.create_id(licence_plate.number)
-        vehicle = self.repository.get(vehicle_id)
+        vehicle = self.repository.get(Vehicle.create_id(licence_plate.number))
         assert isinstance(vehicle, Vehicle)
         return vehicle
 
