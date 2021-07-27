@@ -165,9 +165,11 @@ class TestApplicationSnapshottingException(TestCase):
         self.assertEqual(
             cm.exception.args[0],
             (
-                "Can't take snapshot without snapshots store. "
-                "Please set environment variable IS_SNAPSHOTTING_ENABLED "
-                "to a true value (e.g. 'y')."
+                "Can't take snapshot without snapshots store. Please "
+                "set environment variable IS_SNAPSHOTTING_ENABLED to "
+                "a true value (e.g. 'y'), or set 'is_snapshotting_enabled' "
+                "on application class, or set 'snapshotting_intervals' on "
+                "application class."
             ),
         )
 

@@ -374,7 +374,9 @@ class Application(ABC, Generic[TAggregate]):
             raise AssertionError(
                 "Can't take snapshot without snapshots store. Please "
                 "set environment variable IS_SNAPSHOTTING_ENABLED to "
-                "a true value (e.g. 'y')."
+                "a true value (e.g. 'y'), or set 'is_snapshotting_enabled' "
+                "on application class, or set 'snapshotting_intervals' on "
+                "application class."
             )
         else:
             aggregate = self.repository.get(aggregate_id, version)
