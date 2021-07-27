@@ -120,7 +120,7 @@ class TestParkingLot(TestCase):
         with self.assertRaises(ValueError):
             LicencePlate("abcdef")
 
-    def test_parking_log(self) -> None:
+    def test_parking_lot(self) -> None:
         # Construct the application object.
         app = ParkingLot()
 
