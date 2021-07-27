@@ -1,7 +1,7 @@
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Generic, List, Mapping, Optional, TypeVar
+from typing import Any, Dict, Generic, List, Mapping, Optional, Type, TypeVar
 from uuid import UUID
 
 from eventsourcing.domain import (
@@ -212,6 +212,9 @@ class Application(ABC, Generic[TAggregate]):
     Base class for event-sourced applications.
     """
 
+    is_snapshotting_enabled: bool = False
+    snapshotting_intervals: Optional[Dict[Type[Aggregate], int]] = None
+
     def __init__(self, env: Optional[Mapping] = None) -> None:
         """
         Initialises an application with an
@@ -235,12 +238,13 @@ class Application(ABC, Generic[TAggregate]):
         """
         Constructs environment from which application will be configured.
         """
+        _env = dict()
+        if type(self).is_snapshotting_enabled or type(self).snapshotting_intervals:
+            _env["IS_SNAPSHOTTING_ENABLED"] = "y"
         if env is not None:
-            env = dict(env)
-            env.update(os.environ)
-        else:
-            env = dict(os.environ)
-        return env
+            _env.update(env)
+        _env.update(os.environ)
+        return _env
 
     def construct_factory(self) -> InfrastructureFactory:
         """
@@ -330,10 +334,27 @@ class Application(ABC, Generic[TAggregate]):
         Collects pending events from given aggregates and
         puts them in the application's event store.
         """
+        # Collect and store events.
         events = []
         for aggregate in aggregates:
             events += aggregate.collect_events()
         self.events.put(events, **kwargs)
+
+        # Take snapshots.
+        if self.snapshots and self.snapshotting_intervals:
+            aggregate_types = {}
+            for aggregate in aggregates:
+                aggregate_types[aggregate.id] = type(aggregate)
+            for event in events:
+                aggregate_type = aggregate_types[event.originator_id]
+                interval = self.snapshotting_intervals.get(aggregate_type)
+                if interval is not None:
+                    if event.originator_version % interval == 0:
+                        self.take_snapshot(
+                            aggregate_id=event.originator_id,
+                            version=event.originator_version,
+                        )
+
         self.notify(events)
 
     def notify(self, new_events: List[AggregateEvent]) -> None:
