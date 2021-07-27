@@ -239,7 +239,7 @@ class Application(ABC, Generic[TAggregate]):
             env = dict(env)
             env.update(os.environ)
         else:
-            env = os.environ
+            env = dict(os.environ)
         return env
 
     def construct_factory(self) -> InfrastructureFactory:
