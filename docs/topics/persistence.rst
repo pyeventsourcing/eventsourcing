@@ -802,11 +802,23 @@ The module :mod:`eventsourcing.postgres` supports storing events in PostgresSQL.
 
 The library's PostgreSQL :class:`~eventsourcing.sqlite.Factory` uses environment variables
 ``POSTGRES_DBNAME``, ``POSTGRES_HOST``, ``POSTGRES_PORT``, ``POSTGRES_USER``,
-``POSTGRES_PASSWORD``, and ``CREATE_TABLE``.
+``POSTGRES_PASSWORD``, ``POSTGRES_CONN_MAX_AGE``, and ``CREATE_TABLE``.
 
 The values of ``POSTGRES_DBNAME``, ``POSTGRES_HOST``, ``POSTGRES_PORT``, ``POSTGRES_USER``, and
 ``POSTGRES_PASSWORD`` are used to set the name of a database, the database server's
 host name, the database user name, and the password for that user.
+
+The value of ``POSTGRES_CONN_MAX_AGE`` is used to control the length of time in seconds
+before a connection is closed. By default this value is not set, and connections will
+be reused indefinitely (or until an operational database error is encountered). If this
+value is set to a positive integer, the connection will be closed after this number of
+seconds from the time it was created, but only when the connection is idle. If this value
+if set to zero, each connection will only be used for one transaction. Setting this value
+to an empty string has the same effect as not setting this value. Setting this value to
+any other value will cause an environment error exception to be raised. If your database
+terminates idle connections after some time, you should set POSTGRES_CONN_MAX_AGE to a
+lower value, so that attempts are not made to use connections that have been terminated
+by the database server.
 
 If the tables already exist, the ``CREATE_TABLE`` may be set to a "false" value (``"n"``,
 ``"no"``, ``"f"``, ``"false"``, ``"off"``, or ``"0"``). This value is by default "true"
@@ -822,6 +834,7 @@ which is normally okay because the tables are created only if they do not exist.
     os.environ["POSTGRES_PORT"] = "5432"
     os.environ["POSTGRES_USER"] = "eventsourcing"
     os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
+    os.environ["POSTGRES_CONN_MAX_AGE"] = "10"
 
 ..
     from eventsourcing.tests.test_postgres import drop_postgres_table
