@@ -79,8 +79,8 @@ class Vehicle(Aggregate):
         else:
             self.fail_inspection(when)
 
-    @classmethod
-    def create_id(self, licence_plate_number: str) -> UUID:
+    @staticmethod
+    def create_id(licence_plate_number: str) -> UUID:
         return uuid5(NAMESPACE_URL, f"/licence_plate_numbers/{licence_plate_number}")
 
 
