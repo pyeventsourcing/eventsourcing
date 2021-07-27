@@ -241,9 +241,9 @@ class Application(ABC, Generic[TAggregate]):
         _env = dict()
         if type(self).is_snapshotting_enabled or type(self).snapshotting_intervals:
             _env["IS_SNAPSHOTTING_ENABLED"] = "y"
+        _env.update(os.environ)
         if env is not None:
             _env.update(env)
-        _env.update(os.environ)
         return _env
 
     def construct_factory(self) -> InfrastructureFactory:
