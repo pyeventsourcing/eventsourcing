@@ -776,7 +776,8 @@ class Aggregate(ABC, metaclass=MetaAggregate):
     Base class for aggregate roots.
     """
 
-    Event = AggregateEvent
+    class Event(AggregateEvent):
+        pass
 
     class Created(AggregateCreated):
         pass
