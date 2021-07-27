@@ -25,13 +25,6 @@ class TestApplicationWithPOPO(TestCase):
     counts = {}
     expected_factory_topic = "eventsourcing.popo:Factory"
 
-    def setUp(self) -> None:
-        os.environ[InfrastructureFactory.IS_SNAPSHOTTING_ENABLED] = "yes"
-
-    def tearDown(self) -> None:
-        if InfrastructureFactory.IS_SNAPSHOTTING_ENABLED in os.environ:
-            del os.environ[InfrastructureFactory.IS_SNAPSHOTTING_ENABLED]
-
     def print_time(self, test_label, duration):
         cls = type(self)
         if cls not in self.started_ats:
@@ -56,7 +49,7 @@ class TestApplicationWithPOPO(TestCase):
             sys.stdout.flush()
 
     def test_example_application(self):
-        app = BankAccounts()
+        app = BankAccounts(env={"IS_SNAPSHOTTING_ENABLED": 'y'})
 
         self.assertFactoryTopic(app, self.expected_factory_topic)
 
@@ -132,15 +125,16 @@ class TestApplicationWithPOPO(TestCase):
 
     def test__get_performance_with_snapshotting_enabled(self):
         print()
-        self._test_get_performance("get with snapshotting")
+        self._test_get_performance(is_snapshotting_enabled=True)
 
     def test__get_performance_without_snapshotting_enabled(self):
-        del os.environ[InfrastructureFactory.IS_SNAPSHOTTING_ENABLED]
-        self._test_get_performance("get no snapshotting")
+        self._test_get_performance(is_snapshotting_enabled=False)
 
-    def _test_get_performance(self, test_label):
+    def _test_get_performance(self, is_snapshotting_enabled: bool):
 
-        app = BankAccounts()
+        app = BankAccounts(
+            env={"IS_SNAPSHOTTING_ENABLED": 'y' if is_snapshotting_enabled else 'n'}
+        )
 
         # Open an account.
         account_id = app.open_account(
@@ -157,6 +151,10 @@ class TestApplicationWithPOPO(TestCase):
 
         duration = timeit(read, number=self.timeit_number)
 
+        if is_snapshotting_enabled:
+            test_label = "get with snapshotting"
+        else:
+            test_label = "get without snapshotting"
         self.print_time(test_label, duration)
 
     def assertFactoryTopic(self, app, expected_topic):

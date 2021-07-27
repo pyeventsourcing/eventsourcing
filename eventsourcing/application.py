@@ -235,7 +235,12 @@ class Application(ABC, Generic[TAggregate]):
         """
         Constructs environment from which application will be configured.
         """
-        return env if env is not None else os.environ
+        if env is not None:
+            env = dict(env)
+            env.update(os.environ)
+        else:
+            env = os.environ
+        return env
 
     def construct_factory(self) -> InfrastructureFactory:
         """
