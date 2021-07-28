@@ -102,6 +102,7 @@ class PostgresDatastore:
         user: str,
         password: str,
         conn_max_age: Optional[float] = None,
+        pre_ping: bool = False,
     ):
         self.dbname = dbname
         self.host = host
@@ -109,6 +110,7 @@ class PostgresDatastore:
         self.user = user
         self.password = password
         self.conn_max_age = conn_max_age
+        self.pre_ping = pre_ping
         self._connections: Dict[int, Connection] = {}
 
     def transaction(self) -> Transaction:
@@ -118,6 +120,11 @@ class PostgresDatastore:
             c.is_idle.clear()
             if c.is_closing.is_set() or c.is_closed:
                 c = self._create_connection(thread_id)
+            elif self.pre_ping:
+                try:
+                    c.cursor().execute("SELECT 1")
+                except psycopg2.Error:
+                    c = self._create_connection(thread_id)
         except KeyError:
             c = self._create_connection(thread_id)
         return Transaction(c)
@@ -408,6 +415,7 @@ class Factory(InfrastructureFactory):
     POSTGRES_PASSWORD = "POSTGRES_PASSWORD"
     POSTGRES_CONN_MAX_AGE = "POSTGRES_CONN_MAX_AGE"
     CREATE_TABLE = "CREATE_TABLE"
+    POSTGRES_PRE_PING = "POSTGRES_PRE_PING"
 
     def __init__(self, application_name: str, env: Mapping):
         super().__init__(application_name, env)
@@ -462,6 +470,8 @@ class Factory(InfrastructureFactory):
                     f"'{conn_max_age_str}'"
                 )
 
+        pre_ping = strtobool(self.getenv(self.POSTGRES_PRE_PING) or "no")
+
         self.datastore = PostgresDatastore(
             dbname=dbname,
             host=host,
@@ -469,6 +479,7 @@ class Factory(InfrastructureFactory):
             user=user,
             password=password,
             conn_max_age=conn_max_age,
+            pre_ping=pre_ping,
         )
 
     def aggregate_recorder(self, purpose: str = "events") -> AggregateRecorder:
@@ -507,4 +518,4 @@ class Factory(InfrastructureFactory):
 
     def env_create_table(self) -> bool:
         default = "yes"
-        return bool(strtobool(self.getenv(self.CREATE_TABLE, default) or default))
+        return bool(strtobool(self.getenv(self.CREATE_TABLE) or default))

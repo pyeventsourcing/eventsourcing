@@ -74,6 +74,7 @@ class TestPostgresDatastore(TestCase):
         self.assertFalse(conn.is_idle.is_set())
 
         # Delete the transaction context manager before entering.
+        print("Testing transaction not used as context manager, expecting exception...")
         del transaction
 
         # Check connection is idle after garbage collection.
@@ -107,6 +108,7 @@ class TestPostgresDatastore(TestCase):
             password="eventsourcing",
             conn_max_age=0,
         )
+
         # Check connection is closed after using transaction.
         transaction = datastore.transaction()
         with transaction as cursor:
@@ -126,7 +128,7 @@ class TestPostgresDatastore(TestCase):
             transaction.c.cursor()
         self.assertEqual(cm.exception.args[0], "connection already closed")
 
-        # Check closed connection can be replaced and also closed.
+        # Check closed connection can be recreated and also closed.
         transaction = datastore.transaction()
         with transaction as cursor:
             cursor.execute("SELECT 1")
@@ -140,6 +142,111 @@ class TestPostgresDatastore(TestCase):
                 sleep(0.0001)
         else:
             self.fail("Connection is not closed")
+
+    def test_pre_ping(self):
+        datastore = PostgresDatastore(
+            dbname="eventsourcing",
+            host="127.0.0.1",
+            port="5432",
+            user="eventsourcing",
+            password="eventsourcing",
+            pre_ping=True,
+        )
+
+        # Create a connection.
+        transaction = datastore.transaction()
+        pg_conn = transaction.c.c
+        self.assertEqual(pg_conn, transaction.c.c)
+
+        # Check the connection works.
+        with transaction as cursor:
+            cursor.execute("SELECT 1")
+            self.assertEqual(cursor.fetchall(), [[1]])
+
+        # Close all connections via separate connection.
+        self.pg_close_all_connections()
+
+        # Check the connection doesn't think it's closed.
+        sleep(1)
+        self.assertFalse(transaction.c.is_closed)
+
+        # Check we can get a new connection that works.
+        transaction = datastore.transaction()
+        with transaction as cursor:
+            cursor.execute("SELECT 1")
+            self.assertEqual(cursor.fetchall(), [[1]])
+
+        # Check it's actually a different connection.
+        self.assertNotEqual(pg_conn, transaction.c.c)
+
+        # Check this doesn't work if we don't use pre_ping.
+        datastore = PostgresDatastore(
+            dbname="eventsourcing",
+            host="127.0.0.1",
+            port="5432",
+            user="eventsourcing",
+            password="eventsourcing",
+            pre_ping=False,
+        )
+
+        # Create a connection.
+        transaction = datastore.transaction()
+        pg_conn = transaction.c.c
+        self.assertEqual(pg_conn, transaction.c.c)
+
+        # Check the connection works.
+        with transaction as cursor:
+            cursor.execute("SELECT 1")
+            self.assertEqual(cursor.fetchall(), [[1]])
+
+        # Close all connections via separate connection.
+        self.pg_close_all_connections()
+
+        # Check the connection doesn't think it's closed.
+        sleep(1)
+        self.assertFalse(transaction.c.is_closed)
+
+        # Get a stale connection and check it doesn't work.
+        transaction = datastore.transaction()
+
+        # Check it's the same connection.
+        self.assertEqual(pg_conn, transaction.c.c)
+        with self.assertRaises(psycopg2.InterfaceError):
+            with transaction as cursor:
+                with self.assertRaises(psycopg2.Error):
+                    cursor.execute("SELECT 1")
+
+    def pg_close_all_connections(self):
+        try:
+            # For local development... probably.
+            pg_conn = psycopg2.connect(
+                dbname="eventsourcing",
+                host="127.0.0.1",
+                port="5432",
+            )
+        except psycopg2.Error:
+            # For GitHub actions.
+            """CREATE ROLE postgres LOGIN SUPERUSER PASSWORD 'postgres';"""
+            pg_conn = psycopg2.connect(
+                dbname="eventsourcing",
+                host="127.0.0.1",
+                port="5432",
+                user="postgres",
+                password="postgres",
+            )
+        close_all_connections = """
+        SELECT
+            pg_terminate_backend(pid)
+        FROM
+            pg_stat_activity
+        WHERE
+            -- don't kill my own connection!
+            pid <> pg_backend_pid();
+
+        """
+        pg_conn_cursor = pg_conn.cursor()
+        pg_conn_cursor.execute(close_all_connections)
+        return close_all_connections, pg_conn_cursor
 
 
 class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
@@ -313,6 +420,8 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
             del os.environ[Factory.POSTGRES_PASSWORD]
         if Factory.POSTGRES_CONN_MAX_AGE in os.environ:
             del os.environ[Factory.POSTGRES_CONN_MAX_AGE]
+        if Factory.POSTGRES_PRE_PING in os.environ:
+            del os.environ[Factory.POSTGRES_PRE_PING]
         super().tearDown()
 
     def test_conn_max_age_is_set_to_empty_string(self):
@@ -324,6 +433,20 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         os.environ[Factory.POSTGRES_CONN_MAX_AGE] = "0"
         self.factory = Factory("TestCase", os.environ)
         self.assertEqual(self.factory.datastore.conn_max_age, 0)
+
+    def test_pre_ping_off_by_default(self):
+        self.factory = Factory("TestCase", os.environ)
+        self.assertEqual(self.factory.datastore.pre_ping, False)
+
+    def test_pre_ping_off(self):
+        os.environ[Factory.POSTGRES_PRE_PING] = "off"
+        self.factory = Factory("TestCase", os.environ)
+        self.assertEqual(self.factory.datastore.pre_ping, False)
+
+    def test_pre_ping_on(self):
+        os.environ[Factory.POSTGRES_PRE_PING] = "on"
+        self.factory = Factory("TestCase", os.environ)
+        self.assertEqual(self.factory.datastore.pre_ping, True)
 
     def test_environment_error_raised_when_conn_max_age_not_a_float(self):
         os.environ[Factory.POSTGRES_CONN_MAX_AGE] = "abc"
