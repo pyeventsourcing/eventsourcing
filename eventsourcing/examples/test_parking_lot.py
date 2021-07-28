@@ -121,8 +121,13 @@ class TestParkingLot(TestCase):
             LicencePlate("abcdef")
 
     def test_parking_lot(self) -> None:
-        # Construct the application object.
-        app = ParkingLot()
+        # Construct the application object to use an SQLite database.
+        app = ParkingLot(
+            env={
+                "INFRASTRUCTURE_FACTORY": "eventsourcing.sqlite:Factory",
+                "SQLITE_DBNAME": ":memory:",
+            }
+        )
 
         # Create a valid licence plate.
         licence_plate = LicencePlate("123-123")
@@ -169,15 +174,24 @@ class TestParkingLot(TestCase):
         self.assertEqual(len(domain_events), 4)
 
         self.assertIsInstance(domain_events[0], Vehicle.Registered)
+        vehicle1_id = Vehicle.create_id("123-123")
+        self.assertEqual(domain_events[0].originator_id, vehicle1_id)
+        self.assertEqual(domain_events[0].originator_version, 1)
         self.assertEqual(domain_events[0].licence_plate_number, "123-123")
 
         self.assertIsInstance(domain_events[1], Vehicle.Booked)
+        self.assertEqual(domain_events[1].originator_id, vehicle1_id)
+        self.assertEqual(domain_events[1].originator_version, 2)
         self.assertEqual(domain_events[1].start, booking1.start)
         self.assertEqual(domain_events[1].finish, booking1.finish)
 
         self.assertIsInstance(domain_events[2], Vehicle.Booked)
+        self.assertEqual(domain_events[2].originator_id, vehicle1_id)
+        self.assertEqual(domain_events[2].originator_version, 3)
         self.assertEqual(domain_events[2].start, booking2.start)
         self.assertEqual(domain_events[2].finish, booking2.finish)
 
         self.assertIsInstance(domain_events[3], Vehicle.Unbooked)
+        self.assertEqual(domain_events[3].originator_id, vehicle1_id)
+        self.assertEqual(domain_events[3].originator_version, 4)
         self.assertEqual(domain_events[3].when, inspected_on)
