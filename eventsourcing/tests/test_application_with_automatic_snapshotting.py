@@ -7,7 +7,6 @@ from eventsourcing.tests.test_application_with_popo import BankAccounts
 
 
 class BankAccountsWithAutomaticSnapshotting(BankAccounts):
-
     is_snapshotting_enabled = False
     snapshotting_intervals = {BankAccount: 5}
 
