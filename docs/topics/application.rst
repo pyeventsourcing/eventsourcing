@@ -492,13 +492,12 @@ by setting the application class attribute 'snapshotting_intervals'. The
 which represent the snapshotting interval. When aggregates are saved, snapshots
 will be taken if the version of aggregate coincides with the specified interval.
 The example below demonstrates this by extending the `Worlds` application class
-with `World` aggregates snapshotted every 4 events (in practice a suitable interval
-would be larger than 4).
+with `World` aggregates snapshotted every 2 events.
 
 .. code:: python
 
     class WorldsWithAutomaticSnapshotting(Worlds):
-        snapshotting_intervals = {World: 4}
+        snapshotting_intervals = {World: 2}
 
 
     application = WorldsWithAutomaticSnapshotting()
@@ -509,15 +508,20 @@ would be larger than 4).
     application.make_it_so(world_id, "trucks")
     application.make_it_so(world_id, "internet")
 
-    snapshots = application.snapshots.get(world_id, desc=True, limit=1)
-
+    snapshots = application.snapshots.get(world_id)
     snapshots = list(snapshots)
-    assert len(snapshots) == 1
-    snapshot = snapshots[0]
 
-    assert snapshot.originator_id == world_id
-    assert snapshot.originator_version == 4
+    assert len(snapshots) == 2
 
+    assert snapshots[0].originator_id == world_id
+    assert snapshots[0].originator_version == 2
+
+    assert snapshots[1].originator_id == world_id
+    assert snapshots[1].originator_version == 4
+
+In practice, a suitable interval would most likely be larger than 2.
+And 'snapshotting_intervals' would be defined on your application
+class and not a subclass.
 
 .. _Persistence:
 
