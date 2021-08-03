@@ -309,12 +309,80 @@ class Mapper(Generic[TDomainEvent]):
         return domain_event
 
 
-class OperationalError(Exception):
-    pass
-
-
 class RecordConflictError(Exception):
-    pass
+    """
+    Legacy exception, replaced with IntegrityError.
+    """
+
+
+class PersistenceError(Exception):
+    """
+    The base class of the other exceptions in this module.
+
+    Exception class names follow https://www.python.org/dev/peps/pep-0249/#exceptions
+    """
+
+
+class InterfaceError(PersistenceError):
+    """
+    Exception raised for errors that are related to the database
+    interface rather than the database itself.
+    """
+
+
+class DatabaseError(PersistenceError):
+    """
+    Exception raised for errors that are related to the database.
+    """
+
+
+class DataError(DatabaseError):
+    """
+    Exception raised for errors that are due to problems with the
+    processed data like division by zero, numeric value out of range, etc.
+    """
+
+
+class OperationalError(DatabaseError):
+    """
+    Exception raised for errors that are related to the database’s
+    operation and not necessarily under the control of the programmer,
+    e.g. an unexpected disconnect occurs, the data source name is not
+    found, a transaction could not be processed, a memory allocation
+    error occurred during processing, etc.
+    """
+
+
+class IntegrityError(DatabaseError, RecordConflictError):
+    """
+    Exception raised when the relational integrity of the
+    database is affected, e.g. a foreign key check fails.
+    """
+
+
+class InternalError(DatabaseError):
+    """
+    Exception raised when the database encounters an internal
+    error, e.g. the cursor is not valid anymore, the transaction
+    is out of sync, etc.
+    """
+
+
+class ProgrammingError(DatabaseError):
+    """
+    Exception raised for programming errors, e.g. table not
+    found or already exists, syntax error in the SQL statement,
+    wrong number of parameters specified, etc.
+    """
+
+
+class NotSupportedError(DatabaseError):
+    """
+    Exception raised in case a method or database API was used
+    which is not supported by the database, e.g. calling the
+    rollback() method on a connection that does not support
+    transaction or has transactions turned off.
+    """
 
 
 class Recorder(ABC):

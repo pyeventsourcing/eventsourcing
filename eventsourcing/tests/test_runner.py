@@ -179,6 +179,9 @@ class TestMultiThreadedRunnerWithSQLite(TestMultiThreadedRunner):
         del os.environ["EMAILNOTIFICATIONS_SQLITE_DBNAME"]
         del os.environ["BROKENPROCESSING_SQLITE_DBNAME"]
 
+    def test_runs_ok(self):
+        super().test_runs_ok()
+
 
 class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
     def setUp(self):

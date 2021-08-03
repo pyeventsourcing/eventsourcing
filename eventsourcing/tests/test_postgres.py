@@ -1,22 +1,34 @@
 import os
 from time import sleep
 from unittest import TestCase
+from unittest.mock import Mock
 from uuid import uuid4
 
 import psycopg2
-from psycopg2.errorcodes import UNDEFINED_TABLE
+from psycopg2.extensions import connection
 
 from eventsourcing.persistence import (
+    DatabaseError,
+    DataError,
     InfrastructureFactory,
+    IntegrityError,
+    InterfaceError,
+    InternalError,
+    NotSupportedError,
     OperationalError,
+    PersistenceError,
+    ProgrammingError,
     StoredEvent,
+    Tracking,
 )
 from eventsourcing.postgres import (
+    Connection,
     Factory,
     PostgresAggregateRecorder,
     PostgresApplicationRecorder,
     PostgresDatastore,
     PostgresProcessRecorder,
+    Transaction,
 )
 from eventsourcing.tests.aggregaterecorder_testcase import (
     AggregateRecorderTestCase,
@@ -33,7 +45,153 @@ from eventsourcing.tests.processrecorder_testcase import (
 from eventsourcing.utils import get_topic
 
 
+def pg_close_all_connections():
+    try:
+        # For local development... probably.
+        pg_conn = psycopg2.connect(
+            dbname="eventsourcing",
+            host="127.0.0.1",
+            port="5432",
+        )
+    except psycopg2.Error:
+        # For GitHub actions.
+        """CREATE ROLE postgres LOGIN SUPERUSER PASSWORD 'postgres';"""
+        pg_conn = psycopg2.connect(
+            dbname="eventsourcing",
+            host="127.0.0.1",
+            port="5432",
+            user="postgres",
+            password="postgres",
+        )
+    close_all_connections = """
+    SELECT
+        pg_terminate_backend(pid)
+    FROM
+        pg_stat_activity
+    WHERE
+        -- don't kill my own connection!
+        pid <> pg_backend_pid();
+
+    """
+    pg_conn_cursor = pg_conn.cursor()
+    pg_conn_cursor.execute(close_all_connections)
+    return close_all_connections, pg_conn_cursor
+
+
+class TestTransaction(TestCase):
+    def setUp(self) -> None:
+        self.mock = Mock(Connection(Mock(connection), max_age=None))
+        self.t = Transaction(self.mock, commit=True)
+
+    def test_calls_commit_if_error_not_raised_during_transaction(self):
+        with self.t:
+            pass
+        self.mock.commit.assert_called()
+        self.mock.rollback.assert_not_called()
+        self.mock.close.assert_not_called()
+
+    def test_calls_rollback_if_error_is_raised_during_transaction(self):
+        with self.assertRaises(TypeError):
+            with self.t:
+                raise TypeError
+        self.mock.commit.assert_not_called()
+        self.mock.rollback.assert_called()
+        self.mock.close.assert_not_called()
+
+    def test_calls_close_if_interface_error_is_raised_during_transaction(self):
+        with self.assertRaises(InterfaceError):
+            with self.t:
+                self.raise_interface_error()
+        self.mock.commit.assert_not_called()
+        self.mock.rollback.assert_called()
+        self.mock.close.assert_called()
+
+    def test_calls_close_if_interface_error_is_raised_during_commit(self):
+        self.mock.commit = Mock(
+            side_effect=self.raise_interface_error, name="mock commit method"
+        )
+        with self.assertRaises(InterfaceError):
+            with self.t:
+                pass
+        self.mock.commit.assert_called()
+        self.mock.rollback.assert_not_called()
+        self.mock.close.assert_called()
+
+    def test_does_not_call_close_if_data_error_is_raised_during_commit(self):
+        self.mock.commit = Mock(
+            side_effect=self.raise_data_error, name="mock commit method"
+        )
+        with self.assertRaises(DataError):
+            with self.t:
+                pass
+        self.mock.commit.assert_called()
+        self.mock.rollback.assert_not_called()
+        self.mock.close.assert_not_called()
+
+    def test_calls_close_if_interface_error_is_raised_during_rollback(self):
+        self.mock.rollback = Mock(
+            side_effect=self.raise_interface_error, name="mock rollback method"
+        )
+        with self.assertRaises(InterfaceError):
+            with self.t:
+                raise psycopg2.Error
+
+        self.mock.commit.assert_not_called()
+        self.mock.rollback.assert_called()
+        self.mock.close.assert_called()
+
+    def test_does_not_call_close_if_data_error_is_raised_during_rollback(self):
+        self.mock.rollback = Mock(
+            side_effect=self.raise_data_error, name="mock rollback method"
+        )
+        with self.assertRaises(DataError):
+            with self.t:
+                raise psycopg2.Error
+
+        self.mock.commit.assert_not_called()
+        self.mock.rollback.assert_called()
+        self.mock.close.assert_not_called()
+
+    def raise_interface_error(self):
+        raise psycopg2.InterfaceError()
+
+    def raise_data_error(self):
+        raise psycopg2.DataError()
+
+    def test_converts_errors_raised_in_transactions(self):
+        errors = [
+            (InterfaceError, psycopg2.InterfaceError),
+            (DataError, psycopg2.DataError),
+            (OperationalError, psycopg2.OperationalError),
+            (IntegrityError, psycopg2.IntegrityError),
+            (InternalError, psycopg2.InternalError),
+            (ProgrammingError, psycopg2.ProgrammingError),
+            (NotSupportedError, psycopg2.NotSupportedError),
+            (DatabaseError, psycopg2.DatabaseError),
+            (PersistenceError, psycopg2.Error),
+        ]
+        for es_err, psy_err in errors:
+            with self.assertRaises(es_err):
+                with self.t:
+                    raise psy_err
+
+        self.mock.commit.assert_not_called()
+        self.mock.rollback.assert_called()
+        self.mock.close.assert_called()
+
+
 class TestPostgresDatastore(TestCase):
+    def test_connect_failure_raises_interface_error(self):
+        datastore = PostgresDatastore(
+            dbname="eventsourcing",
+            host="127.0.0.1",
+            port="9876543210",  # bad port
+            user="eventsourcing",
+            password="eventsourcing",
+        )
+        with self.assertRaises(InterfaceError):
+            datastore.transaction(commit=True)
+
     def test_transaction(self):
         datastore = PostgresDatastore(
             dbname="eventsourcing",
@@ -44,7 +202,7 @@ class TestPostgresDatastore(TestCase):
         )
 
         # Get a transaction.
-        transaction = datastore.transaction()
+        transaction = datastore.transaction(commit=False)
 
         # Check connection is not idle.
         self.assertFalse(transaction.c.is_idle.is_set())
@@ -67,7 +225,7 @@ class TestPostgresDatastore(TestCase):
         )
 
         # Get a transaction.
-        transaction = datastore.transaction()
+        transaction = datastore.transaction(commit=False)
 
         # Check connection is not idle.
         conn = transaction.c
@@ -92,7 +250,7 @@ class TestPostgresDatastore(TestCase):
         datastore.close_connection()
 
         # Create a connection.
-        with datastore.transaction() as cursor:
+        with datastore.transaction(commit=False) as cursor:
             cursor.execute("SELECT 1")
             self.assertEqual(cursor.fetchall(), [[1]])
 
@@ -110,7 +268,7 @@ class TestPostgresDatastore(TestCase):
         )
 
         # Check connection is closed after using transaction.
-        transaction = datastore.transaction()
+        transaction = datastore.transaction(commit=False)
         with transaction as cursor:
             cursor.execute("SELECT 1")
             self.assertEqual(cursor.fetchall(), [[1]])
@@ -129,7 +287,7 @@ class TestPostgresDatastore(TestCase):
         self.assertEqual(cm.exception.args[0], "connection already closed")
 
         # Check closed connection can be recreated and also closed.
-        transaction = datastore.transaction()
+        transaction = datastore.transaction(commit=False)
         with transaction as cursor:
             cursor.execute("SELECT 1")
             self.assertEqual(cursor.fetchall(), [[1]])
@@ -154,7 +312,7 @@ class TestPostgresDatastore(TestCase):
         )
 
         # Create a connection.
-        transaction = datastore.transaction()
+        transaction = datastore.transaction(commit=False)
         pg_conn = transaction.c.c
         self.assertEqual(pg_conn, transaction.c.c)
 
@@ -164,14 +322,13 @@ class TestPostgresDatastore(TestCase):
             self.assertEqual(cursor.fetchall(), [[1]])
 
         # Close all connections via separate connection.
-        self.pg_close_all_connections()
+        pg_close_all_connections()
 
         # Check the connection doesn't think it's closed.
-        sleep(1)
         self.assertFalse(transaction.c.is_closed)
 
         # Check we can get a new connection that works.
-        transaction = datastore.transaction()
+        transaction = datastore.transaction(commit=False)
         with transaction as cursor:
             cursor.execute("SELECT 1")
             self.assertEqual(cursor.fetchall(), [[1]])
@@ -190,7 +347,7 @@ class TestPostgresDatastore(TestCase):
         )
 
         # Create a connection.
-        transaction = datastore.transaction()
+        transaction = datastore.transaction(commit=False)
         pg_conn = transaction.c.c
         self.assertEqual(pg_conn, transaction.c.c)
 
@@ -200,53 +357,19 @@ class TestPostgresDatastore(TestCase):
             self.assertEqual(cursor.fetchall(), [[1]])
 
         # Close all connections via separate connection.
-        self.pg_close_all_connections()
+        pg_close_all_connections()
 
         # Check the connection doesn't think it's closed.
-        sleep(1)
         self.assertFalse(transaction.c.is_closed)
 
         # Get a stale connection and check it doesn't work.
-        transaction = datastore.transaction()
+        transaction = datastore.transaction(commit=False)
 
         # Check it's the same connection.
         self.assertEqual(pg_conn, transaction.c.c)
-        with self.assertRaises(psycopg2.InterfaceError):
+        with self.assertRaises(InterfaceError):
             with transaction as cursor:
-                with self.assertRaises(psycopg2.Error):
-                    cursor.execute("SELECT 1")
-
-    def pg_close_all_connections(self):
-        try:
-            # For local development... probably.
-            pg_conn = psycopg2.connect(
-                dbname="eventsourcing",
-                host="127.0.0.1",
-                port="5432",
-            )
-        except psycopg2.Error:
-            # For GitHub actions.
-            """CREATE ROLE postgres LOGIN SUPERUSER PASSWORD 'postgres';"""
-            pg_conn = psycopg2.connect(
-                dbname="eventsourcing",
-                host="127.0.0.1",
-                port="5432",
-                user="postgres",
-                password="postgres",
-            )
-        close_all_connections = """
-        SELECT
-            pg_terminate_backend(pid)
-        FROM
-            pg_stat_activity
-        WHERE
-            -- don't kill my own connection!
-            pid <> pg_backend_pid();
-
-        """
-        pg_conn_cursor = pg_conn.cursor()
-        pg_conn_cursor.execute(close_all_connections)
-        return close_all_connections, pg_conn_cursor
+                cursor.execute("SELECT 1")
 
 
 class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
@@ -273,45 +396,125 @@ class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
     def test_insert_and_select(self):
         super().test_insert_and_select()
 
-    def test_raises_operational_error_when_creating_table_fails(self):
-        recorder = PostgresAggregateRecorder(
-            datastore=self.datastore, events_table_name="stored_events"
-        )
-        recorder.create_table()
-        recorder.create_table_statements = ["BLAH"]
-        with self.assertRaises(OperationalError):
-            recorder.create_table()
-
-    def test_raises_operational_error_when_inserting_fails(self):
+    def test_retry_insert_events_after_closing_connection(self):
         # Construct the recorder.
-        recorder = PostgresAggregateRecorder(
-            datastore=self.datastore, events_table_name="stored_events"
+        recorder = self.create_recorder()
+
+        # Check we have a connection (from create_table).
+        self.assertTrue(self.datastore._connections)
+
+        # Close connections.
+        pg_close_all_connections()
+
+        # Write a stored event.
+        stored_event1 = StoredEvent(
+            originator_id=uuid4(),
+            originator_version=0,
+            topic="topic1",
+            state=b"state1",
         )
-        recorder.create_table()
+        recorder.insert_events([stored_event1])
 
-        # Mess up the statement.
-        recorder.insert_events_statement = "BLAH"
+    def test_retry_select_events_after_closing_connection(self):
+        # Construct the recorder.
+        recorder = self.create_recorder()
 
-        # Write two stored events.
+        # Check we have a connection (from create_table).
+        self.assertTrue(self.datastore._connections)
+
+        # Write a stored event.
         originator_id = uuid4()
-
         stored_event1 = StoredEvent(
             originator_id=originator_id,
             originator_version=0,
             topic="topic1",
             state=b"state1",
         )
-        with self.assertRaises(OperationalError):
-            recorder.insert_events([stored_event1])
+        recorder.insert_events([stored_event1])
 
-    def test_raises_operational_error_when_selecting_fails(self):
-        # Construct the recorder.
-        recorder = PostgresAggregateRecorder(
+        # Close connections.
+        pg_close_all_connections()
+
+        # Select events.
+        recorder.select_events(originator_id)
+
+
+class TestPostgresAggregateRecorderErrors(TestCase):
+    def setUp(self) -> None:
+        self.datastore = PostgresDatastore(
+            "eventsourcing",
+            "127.0.0.1",
+            "5432",
+            "eventsourcing",
+            "eventsourcing",
+        )
+        drop_postgres_table(self.datastore, "stored_events")
+
+    def create_recorder(self):
+        return PostgresAggregateRecorder(
             datastore=self.datastore, events_table_name="stored_events"
         )
 
+    def test_create_table_raises_programming_error_when_sql_is_broken(self):
+        recorder = self.create_recorder()
+
+        # Mess up the statement.
+        recorder.create_table_statements = ["BLAH"]
+        with self.assertRaises(ProgrammingError):
+            recorder.create_table()
+
+    def test_insert_events_raises_programming_error_when_table_not_created(self):
+        # Construct the recorder.
+        recorder = self.create_recorder()
+
+        # Write a stored event without creating the table.
+        stored_event1 = StoredEvent(
+            originator_id=uuid4(),
+            originator_version=0,
+            topic="topic1",
+            state=b"state1",
+        )
+        with self.assertRaises(ProgrammingError):
+            recorder.insert_events([stored_event1])
+
+    def test_insert_events_raises_programming_error_when_sql_is_broken(self):
+        # Construct the recorder.
+        recorder = self.create_recorder()
+
+        # Create the table.
+        recorder.create_table()
+
+        # Write a stored event with broken statement.
+        recorder.insert_events_statement = "BLAH"
+        stored_event1 = StoredEvent(
+            originator_id=uuid4(),
+            originator_version=0,
+            topic="topic1",
+            state=b"state1",
+        )
+        with self.assertRaises(ProgrammingError):
+            recorder.insert_events([stored_event1])
+
+    def test_select_events_raises_programming_error_when_table_not_created(self):
+        # Construct the recorder.
+        recorder = self.create_recorder()
+
+        # Select events without creating the table.
         originator_id = uuid4()
-        with self.assertRaises(OperationalError):
+        with self.assertRaises(ProgrammingError):
+            recorder.select_events(originator_id=originator_id)
+
+    def test_select_events_raises_programming_error_when_sql_is_broken(self):
+        # Construct the recorder.
+        recorder = self.create_recorder()
+
+        # Create the table.
+        recorder.create_table()
+
+        # Select events with broken statement.
+        recorder.select_events_statement = "BLAH"
+        originator_id = uuid4()
+        with self.assertRaises(ProgrammingError):
             recorder.select_events(originator_id=originator_id)
 
 
@@ -336,16 +539,111 @@ class TestPostgresApplicationRecorder(ApplicationRecorderTestCase):
     def close_db_connection(self, *args):
         self.datastore.close_connection()
 
-    def test_raises_operational_error_when_selecting_fails(self):
+    def test_retry_select_notifications_after_closing_connection(self):
+        # Construct the recorder.
+        recorder = self.create_recorder()
+
+        # Check we have a connection (from create_table).
+        self.assertTrue(self.datastore._connections)
+
+        # Write a stored event.
+        originator_id = uuid4()
+        stored_event1 = StoredEvent(
+            originator_id=originator_id,
+            originator_version=0,
+            topic="topic1",
+            state=b"state1",
+        )
+        recorder.insert_events([stored_event1])
+
+        # Close connections.
+        pg_close_all_connections()
+
+        # Select events.
+        recorder.select_notifications(start=1, limit=1)
+
+    def test_retry_max_notification_id_after_closing_connection(self):
+        # Construct the recorder.
+        recorder = self.create_recorder()
+
+        # Check we have a connection (from create_table).
+        self.assertTrue(self.datastore._connections)
+
+        # Write a stored event.
+        originator_id = uuid4()
+        stored_event1 = StoredEvent(
+            originator_id=originator_id,
+            originator_version=0,
+            topic="topic1",
+            state=b"state1",
+        )
+        recorder.insert_events([stored_event1])
+
+        # Close connections.
+        pg_close_all_connections()
+
+        # Select events.
+        recorder.max_notification_id()
+
+
+class TestPostgresApplicationRecorderErrors(TestCase):
+    def setUp(self) -> None:
+        self.datastore = PostgresDatastore(
+            "eventsourcing",
+            "127.0.0.1",
+            "5432",
+            "eventsourcing",
+            "eventsourcing",
+        )
+        drop_postgres_table(self.datastore, "stored_events")
+
+    def create_recorder(self):
+        return PostgresApplicationRecorder(
+            self.datastore, events_table_name="stored_events"
+        )
+
+    def test_select_notification_raises_programming_error_when_table_not_created(self):
+        # Construct the recorder.
+        recorder = self.create_recorder()
+
+        # Select notifications without creating table.
+        with self.assertRaises(ProgrammingError):
+            recorder.select_notifications(start=1, limit=1)
+
+    def test_select_notification_raises_programming_error_when_sql_is_broken(self):
+        # Construct the recorder.
+        recorder = self.create_recorder()
+
+        # Create table.
+        recorder.create_table()
+
+        # Select notifications with broken statement.
+        recorder.select_notifications_statement = "BLAH"
+        with self.assertRaises(ProgrammingError):
+            recorder.select_notifications(start=1, limit=1)
+
+    def test_max_notification_id_raises_programming_error_when_table_not_created(self):
         # Construct the recorder.
         recorder = PostgresApplicationRecorder(
             datastore=self.datastore, events_table_name="stored_events"
         )
 
-        with self.assertRaises(OperationalError):
-            recorder.select_notifications(start=1, limit=1)
+        # Select notifications without creating table.
+        with self.assertRaises(ProgrammingError):
+            recorder.max_notification_id()
 
-        with self.assertRaises(OperationalError):
+    def test_max_notification_id_raises_programming_error_when_sql_is_broken(self):
+        # Construct the recorder.
+        recorder = PostgresApplicationRecorder(
+            datastore=self.datastore, events_table_name="stored_events"
+        )
+
+        # Create table.
+        recorder.create_table()
+
+        # Select notifications with broken statement.
+        recorder.max_notification_id_statement = "BLAH"
+        with self.assertRaises(ProgrammingError):
             recorder.max_notification_id()
 
 
@@ -373,16 +671,71 @@ class TestPostgresProcessRecorder(ProcessRecorderTestCase):
     def test_performance(self):
         super().test_performance()
 
-    def test_raises_operational_error_when_selecting_fails(self):
+    def test_retry_max_tracking_id_after_closing_connection(self):
         # Construct the recorder.
-        recorder = PostgresProcessRecorder(
+        recorder = self.create_recorder()
+
+        # Check we have a connection (from create_table).
+        self.assertTrue(self.datastore._connections)
+
+        # Write a stored event.
+        originator_id = uuid4()
+        stored_event1 = StoredEvent(
+            originator_id=originator_id,
+            originator_version=0,
+            topic="topic1",
+            state=b"state1",
+        )
+        recorder.insert_events([stored_event1], tracking=Tracking("upstream", 1))
+
+        # Close connections.
+        pg_close_all_connections()
+
+        # Select events.
+        notification_id = recorder.max_tracking_id("upstream")
+        self.assertEqual(notification_id, 1)
+
+
+class TestPostgresProcessRecorderErrors(TestCase):
+    def setUp(self) -> None:
+        self.datastore = PostgresDatastore(
+            "eventsourcing",
+            "127.0.0.1",
+            "5432",
+            "eventsourcing",
+            "eventsourcing",
+        )
+        drop_postgres_table(self.datastore, "stored_events")
+        drop_postgres_table(self.datastore, "notification_tracking")
+
+    def create_recorder(self):
+        return PostgresProcessRecorder(
             datastore=self.datastore,
             events_table_name="stored_events",
             tracking_table_name="notification_tracking",
         )
 
-        with self.assertRaises(OperationalError):
-            recorder.max_tracking_id("application name")
+    def test_max_tracking_id_raises_programming_error_when_table_not_created(self):
+        # Construct the recorder.
+        recorder = self.create_recorder()
+
+        # Get max tracking ID without creating table.
+        with self.assertRaises(ProgrammingError):
+            recorder.max_tracking_id("upstream")
+
+    def test_max_tracking_id_raises_programming_error_when_sql_is_broken(self):
+        # Construct the recorder.
+        recorder = self.create_recorder()
+
+        # Create table.
+        recorder.create_table()
+
+        # Mess up the SQL statement.
+        recorder.max_tracking_id_statement = "BLAH"
+
+        # Get max tracking ID with broken statement.
+        with self.assertRaises(ProgrammingError):
+            recorder.max_tracking_id("upstream")
 
 
 class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
@@ -504,8 +857,8 @@ del InfrastructureFactoryTestCase
 
 def drop_postgres_table(datastore: PostgresDatastore, table_name):
     try:
-        with datastore.transaction() as c:
+        with datastore.transaction(commit=True) as c:
             statement = f"DROP TABLE {table_name};"
             c.execute(statement)
-    except psycopg2.errors.lookup(UNDEFINED_TABLE):
+    except PersistenceError:
         pass

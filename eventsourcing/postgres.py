@@ -13,14 +13,22 @@ from psycopg2.extensions import connection, cursor
 from eventsourcing.persistence import (
     AggregateRecorder,
     ApplicationRecorder,
+    DatabaseError,
+    DataError,
     InfrastructureFactory,
+    IntegrityError,
+    InterfaceError,
+    InternalError,
     Notification,
+    NotSupportedError,
     OperationalError,
+    PersistenceError,
     ProcessRecorder,
-    RecordConflictError,
+    ProgrammingError,
     StoredEvent,
     Tracking,
 )
+from eventsourcing.utils import retry
 
 psycopg2.extras.register_uuid()
 
@@ -65,8 +73,9 @@ class Connection:
 
 class Transaction:
     # noinspection PyShadowingNames
-    def __init__(self, c: Connection):
+    def __init__(self, c: Connection, commit: bool):
         self.c = c
+        self.commit = commit
         self.has_entered = False
 
     def __enter__(self) -> cursor:
@@ -80,10 +89,32 @@ class Transaction:
         exc_tb: TracebackType,
     ) -> None:
         try:
-            if exc_type:
+            if exc_val:
+                self.c.rollback()
+                raise exc_val
+            elif not self.commit:
                 self.c.rollback()
             else:
                 self.c.commit()
+        except psycopg2.InterfaceError as e:
+            self.c.close(timeout=0)
+            raise InterfaceError(e)
+        except psycopg2.DataError as e:
+            raise DataError(e)
+        except psycopg2.OperationalError as e:
+            raise OperationalError(e)
+        except psycopg2.IntegrityError as e:
+            raise IntegrityError(e)
+        except psycopg2.InternalError as e:
+            raise InternalError(e)
+        except psycopg2.ProgrammingError as e:
+            raise ProgrammingError(e)
+        except psycopg2.NotSupportedError as e:
+            raise NotSupportedError(e)
+        except psycopg2.DatabaseError as e:
+            raise DatabaseError(e)
+        except psycopg2.Error as e:
+            raise PersistenceError(e)
         finally:
             self.c.is_idle.set()
 
@@ -113,10 +144,13 @@ class PostgresDatastore:
         self.pre_ping = pre_ping
         self._connections: Dict[int, Connection] = {}
 
-    def transaction(self) -> Transaction:
+    def transaction(self, commit: bool) -> Transaction:
         thread_id = threading.get_ident()
         try:
             c = self._connections[thread_id]
+        except KeyError:
+            c = self._create_connection(thread_id)
+        else:
             c.is_idle.clear()
             if c.is_closing.is_set() or c.is_closed:
                 c = self._create_connection(thread_id)
@@ -125,24 +159,27 @@ class PostgresDatastore:
                     c.cursor().execute("SELECT 1")
                 except psycopg2.Error:
                     c = self._create_connection(thread_id)
-        except KeyError:
-            c = self._create_connection(thread_id)
-        return Transaction(c)
+        return Transaction(c, commit=commit)
 
     def _create_connection(self, thread_id: int) -> Connection:
         # Make a connection to a Postgres database.
-        c = Connection(
-            psycopg2.connect(
+        try:
+            psycopg_c = psycopg2.connect(
                 dbname=self.dbname,
                 host=self.host,
                 port=self.port,
                 user=self.user,
                 password=self.password,
-            ),
-            max_age=self.conn_max_age,
-        )
-        self._connections[thread_id] = c
-        return c
+            )
+        except psycopg2.Error as e:
+            raise InterfaceError(e)
+        else:
+            c = Connection(
+                psycopg_c,
+                max_age=self.conn_max_age,
+            )
+            self._connections[thread_id] = c
+            return c
 
     def close_connection(self) -> None:
         thread_id = threading.get_ident()
@@ -189,23 +226,14 @@ class PostgresAggregateRecorder(AggregateRecorder):
         return [statement]
 
     def create_table(self) -> None:
-        try:
-            with self.datastore.transaction() as c:
-                for statement in self.create_table_statements:
-                    c.execute(statement)
-        except psycopg2.Error as e:
-            self.datastore.close_connection()
-            raise OperationalError(e)
+        with self.datastore.transaction(commit=True) as c:
+            for statement in self.create_table_statements:
+                c.execute(statement)
 
+    @retry(InterfaceError, max_attempts=10, wait=0.2)
     def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
-        try:
-            with self.datastore.transaction() as c:
-                self._insert_events(c, stored_events, **kwargs)
-        except psycopg2.IntegrityError as e:
-            raise RecordConflictError(e)
-        except psycopg2.Error as e:
-            self.datastore.close_connection()
-            raise OperationalError(e)
+        with self.datastore.transaction(commit=True) as c:
+            self._insert_events(c, stored_events, **kwargs)
 
     def _insert_events(
         self,
@@ -225,6 +253,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
             )
         c.executemany(self.insert_events_statement, params)
 
+    @retry(InterfaceError, max_attempts=10, wait=0.2)
     def select_events(
         self,
         originator_id: UUID,
@@ -251,21 +280,17 @@ class PostgresAggregateRecorder(AggregateRecorder):
             params.append(limit)
         # statement += ";"
         stored_events = []
-        try:
-            with self.datastore.transaction() as c:
-                c.execute(statement, params)
-                for row in c.fetchall():
-                    stored_events.append(
-                        StoredEvent(
-                            originator_id=row["originator_id"],
-                            originator_version=row["originator_version"],
-                            topic=row["topic"],
-                            state=bytes(row["state"]),
-                        )
+        with self.datastore.transaction(commit=False) as c:
+            c.execute(statement, params)
+            for row in c.fetchall():
+                stored_events.append(
+                    StoredEvent(
+                        originator_id=row["originator_id"],
+                        originator_version=row["originator_version"],
+                        topic=row["topic"],
+                        state=bytes(row["state"]),
                     )
-        except psycopg2.Error as e:
-            self.datastore.close_connection()
-            raise OperationalError(e)
+                )
         return stored_events
 
 
@@ -287,7 +312,7 @@ class PostgresApplicationRecorder(
             "ORDER BY notification_id "
             "LIMIT %s"
         )
-        self.select_max_notification_id_statement = (
+        self.max_notification_id_statement = (
             f"SELECT MAX(notification_id) FROM {self.events_table_name}"
         )
 
@@ -308,42 +333,36 @@ class PostgresApplicationRecorder(
         ]
         return statements
 
+    @retry(InterfaceError, max_attempts=10, wait=0.2)
     def select_notifications(self, start: int, limit: int) -> List[Notification]:
         """
         Returns a list of event notifications
         from 'start', limited by 'limit'.
         """
-        params = [start, limit]
-        try:
-            with self.datastore.transaction() as c:
-                c.execute(self.select_notifications_statement, params)
-                notifications = []
-                for row in c.fetchall():
-                    notifications.append(
-                        Notification(
-                            id=row["notification_id"],
-                            originator_id=row["originator_id"],
-                            originator_version=row["originator_version"],
-                            topic=row["topic"],
-                            state=bytes(row["state"]),
-                        )
+        notifications = []
+        with self.datastore.transaction(commit=False) as c:
+            c.execute(self.select_notifications_statement, [start, limit])
+            for row in c.fetchall():
+                notifications.append(
+                    Notification(
+                        id=row["notification_id"],
+                        originator_id=row["originator_id"],
+                        originator_version=row["originator_version"],
+                        topic=row["topic"],
+                        state=bytes(row["state"]),
                     )
-        except psycopg2.Error as e:
-            self.datastore.close_connection()
-            raise OperationalError(e)
+                )
         return notifications
 
+    @retry(InterfaceError, max_attempts=10, wait=0.2)
     def max_notification_id(self) -> int:
         """
         Returns the maximum notification ID.
         """
-        try:
-            with self.datastore.transaction() as c:
-                c.execute(self.select_max_notification_id_statement)
-                return c.fetchone()[0] or 0
-        except psycopg2.Error as e:
-            self.datastore.close_connection()
-            raise OperationalError(e)
+        with self.datastore.transaction(commit=False) as c:
+            c.execute(self.max_notification_id_statement)
+            max_id = c.fetchone()[0] or 0
+        return max_id
 
 
 class PostgresProcessRecorder(
@@ -361,7 +380,7 @@ class PostgresProcessRecorder(
         self.insert_tracking_statement = (
             f"INSERT INTO {self.tracking_table_name} " "VALUES (%s, %s)"
         )
-        self.select_max_tracking_id_statement = (
+        self.max_tracking_id_statement = (
             "SELECT MAX(notification_id) "
             f"FROM {self.tracking_table_name} "
             "WHERE application_name=%s"
@@ -379,15 +398,12 @@ class PostgresProcessRecorder(
         )
         return statements
 
+    @retry(InterfaceError, max_attempts=10, wait=0.2)
     def max_tracking_id(self, application_name: str) -> int:
-        params = [application_name]
-        try:
-            with self.datastore.transaction() as c:
-                c.execute(self.select_max_tracking_id_statement, params)
-                return c.fetchone()[0] or 0
-        except psycopg2.Error as e:
-            self.datastore.close_connection()
-            raise OperationalError(e)
+        with self.datastore.transaction(commit=False) as c:
+            c.execute(self.max_tracking_id_statement, [application_name])
+            max_id = c.fetchone()[0] or 0
+        return max_id
 
     def _insert_events(
         self,

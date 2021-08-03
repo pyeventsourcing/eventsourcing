@@ -171,7 +171,7 @@ class InfrastructureFactoryTestCase(ABC, TestCase):
         with self.assertRaises(ValueError):
             mapper2.to_domain_event(stored_event)
 
-    def test_create_event_recorder(self):
+    def test_create_aggregate_recorder(self):
         recorder = self.factory.aggregate_recorder()
         self.assertEqual(type(recorder), self.expected_aggregate_recorder_class())
 

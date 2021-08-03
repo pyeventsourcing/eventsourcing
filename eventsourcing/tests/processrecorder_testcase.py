@@ -3,11 +3,7 @@ from timeit import timeit
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.persistence import (
-    RecordConflictError,
-    StoredEvent,
-    Tracking,
-)
+from eventsourcing.persistence import IntegrityError, StoredEvent, Tracking
 
 
 class ProcessRecorderTestCase(TestCase, ABC):
@@ -78,7 +74,7 @@ class ProcessRecorderTestCase(TestCase, ABC):
         )
 
         # Check can't insert third event with same tracking info.
-        with self.assertRaises(RecordConflictError):
+        with self.assertRaises(IntegrityError):
             recorder.insert_events(
                 stored_events=[stored_event3],
                 tracking=tracking1,

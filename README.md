@@ -411,12 +411,11 @@ feature, and the compression and encryption features are also
 demonstrated.
 
 ```python
-from eventsourcing.persistence import RecordConflictError
+from eventsourcing.persistence import IntegrityError
 from eventsourcing.system import NotificationLogReader
 
 
 def test(app: Universe, expect_visible_in_db: bool):
-
     # Check app has zero event notifications.
     assert len(app.log['1,10'].items) == 0
 
@@ -462,7 +461,7 @@ def test(app: Universe, expect_visible_in_db: bool):
     # Get historical state (at version 3, before 'internet' happened).
     old = app.repository.get(world_id, version=3)
     assert len(old.history) == 2
-    assert old.history[-1] == 'trucks' # last thing to have happened was 'trucks'
+    assert old.history[-1] == 'trucks'  # last thing to have happened was 'trucks'
 
     # Check app has four event notifications.
     assert len(app.log['1,10'].items) == 4
@@ -471,7 +470,7 @@ def test(app: Universe, expect_visible_in_db: bool):
     old.make_it_so('future')
     try:
         app.save(old)
-    except RecordConflictError:
+    except IntegrityError:
         pass
     else:
         raise Exception("Shouldn't get here")

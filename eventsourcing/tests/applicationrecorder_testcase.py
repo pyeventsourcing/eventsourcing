@@ -1,7 +1,9 @@
 import traceback
 from abc import ABC, abstractmethod
 from concurrent.futures.thread import ThreadPoolExecutor
-from threading import Event, Thread
+from datetime import datetime
+from threading import Event, Thread, get_ident
+from time import sleep
 from unittest.case import TestCase
 from uuid import uuid4
 
@@ -95,22 +97,55 @@ class ApplicationRecorderTestCase(TestCase, ABC):
 
         errors_happened = Event()
 
+        counts = {}
+        threads = {}
+        durations = {}
+
         def _createevent():
-            stored_event = StoredEvent(
-                originator_id=uuid4(),
-                originator_version=0,
-                topic="topic",
-                state=b"state",
-            )
+            thread_id = get_ident()
+            if thread_id not in threads:
+                threads[thread_id] = len(threads)
+            if thread_id not in counts:
+                counts[thread_id] = 0
+            if thread_id not in durations:
+                durations[thread_id] = 0
+
+            # thread_num = threads[thread_id]
+            # count = counts[thread_id]
+
+            originator_id = uuid4()
+            stored_events = [
+                StoredEvent(
+                    originator_id=originator_id,
+                    originator_version=i,
+                    topic="topic",
+                    state=b"state",
+                )
+                for i in range(100)
+            ]
+            started = datetime.now()
+            # print(f"Thread {thread_num} write beginning #{count + 1}")
             try:
-                recorder.insert_events([stored_event])
+                recorder.insert_events(stored_events)
+
             except Exception:
+                ended = datetime.now()
+                duration = (ended - started).total_seconds()
+                print(f"Error after starting {duration}")
                 errors_happened.set()
                 tb = traceback.format_exc()
                 print(tb)
                 pass
             else:
                 return "OK"
+            finally:
+                ended = datetime.now()
+                duration = (ended - started).total_seconds()
+                # print(f"Thread {thread_num} write complete #{count + 1}")
+                counts[thread_id] += 1
+                if duration > durations[thread_id]:
+                    durations[thread_id] = duration
+                # sleep(0.01)
 
         stop_reading = Event()
 
@@ -122,12 +157,14 @@ class ApplicationRecorderTestCase(TestCase, ABC):
                     errors_happened.set()
                     tb = traceback.format_exc()
                     print(tb)
+                else:
+                    sleep(0.01)
             self.close_db_connection()
 
         reader_thread = Thread(target=read_continuously)
         reader_thread.start()
 
-        with ThreadPoolExecutor(max_workers=4) as executor:
+        with ThreadPoolExecutor(max_workers=10) as executor:
             futures = []
             for _ in range(100):
                 future = executor.submit(_createevent)
@@ -140,6 +177,11 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         stop_reading.set()
         reader_thread.join()
         self.close_db_connection()
+
+        for thread_id, thread_num in threads.items():
+            count = counts[thread_id]
+            duration = durations[thread_id]
+            print(f"Thread {thread_num} wrote {count} times (max dur {duration})")
         self.assertFalse(errors_happened.is_set())
 
     def close_db_connection(self, *args):

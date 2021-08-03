@@ -7,9 +7,9 @@ from eventsourcing.persistence import (
     AggregateRecorder,
     ApplicationRecorder,
     InfrastructureFactory,
+    IntegrityError,
     Notification,
     ProcessRecorder,
-    RecordConflictError,
     StoredEvent,
     Tracking,
 )
@@ -33,11 +33,11 @@ class POPOAggregateRecorder(AggregateRecorder):
         for s in stored_events:
             # Check events don't already exist.
             if s.originator_version in self.stored_events_index[s.originator_id]:
-                raise RecordConflictError
+                raise IntegrityError()
             new.add((s.originator_id, s.originator_version))
         # Check new events are unique.
         if len(new) < len(stored_events):
-            raise RecordConflictError
+            raise IntegrityError()
 
     def update_table(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
         for s in stored_events:
@@ -111,7 +111,7 @@ class POPOProcessRecorder(ProcessRecorder, POPOApplicationRecorder):
         if tracking:
             last = self.tracking_table.get(tracking.application_name, 0)
             if tracking.notification_id <= last:
-                raise RecordConflictError
+                raise IntegrityError()
 
     def update_table(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
         super().update_table(stored_events, **kwargs)
