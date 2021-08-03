@@ -448,6 +448,12 @@ class TestPostgresAggregateRecorderErrors(TestCase):
             "eventsourcing",
             "eventsourcing",
         )
+        self.drop_tables()
+
+    def tearDown(self) -> None:
+        self.drop_tables()
+
+    def drop_tables(self):
         drop_postgres_table(self.datastore, "stored_events")
 
     def create_recorder(self):
@@ -527,6 +533,12 @@ class TestPostgresApplicationRecorder(ApplicationRecorderTestCase):
             "eventsourcing",
             "eventsourcing",
         )
+        self.drop_tables()
+
+    def tearDown(self) -> None:
+        self.drop_tables()
+
+    def drop_tables(self):
         drop_postgres_table(self.datastore, "stored_events")
 
     def create_recorder(self):
@@ -595,6 +607,12 @@ class TestPostgresApplicationRecorderErrors(TestCase):
             "eventsourcing",
             "eventsourcing",
         )
+        self.drop_tables()
+
+    def tearDown(self) -> None:
+        self.drop_tables()
+
+    def drop_tables(self):
         drop_postgres_table(self.datastore, "stored_events")
 
     def create_recorder(self):
@@ -656,6 +674,12 @@ class TestPostgresProcessRecorder(ProcessRecorderTestCase):
             "eventsourcing",
             "eventsourcing",
         )
+        self.drop_tables()
+
+    def tearDown(self) -> None:
+        self.drop_tables()
+
+    def drop_tables(self):
         drop_postgres_table(self.datastore, "stored_events")
         drop_postgres_table(self.datastore, "notification_tracking")
 
@@ -705,6 +729,12 @@ class TestPostgresProcessRecorderErrors(TestCase):
             "eventsourcing",
             "eventsourcing",
         )
+        self.drop_tables()
+
+    def tearDown(self) -> None:
+        self.drop_tables()
+
+    def drop_tables(self):
         drop_postgres_table(self.datastore, "stored_events")
         drop_postgres_table(self.datastore, "notification_tracking")
 
@@ -739,6 +769,9 @@ class TestPostgresProcessRecorderErrors(TestCase):
 
 
 class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
+    def test_create_application_recorder(self):
+        super().test_create_application_recorder()
+
     def expected_factory_class(self):
         return Factory
 
@@ -758,9 +791,11 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         os.environ[Factory.POSTGRES_PORT] = "5432"
         os.environ[Factory.POSTGRES_USER] = "eventsourcing"
         os.environ[Factory.POSTGRES_PASSWORD] = "eventsourcing"
+        self.drop_tables()
         super().setUp()
 
     def tearDown(self) -> None:
+        self.drop_tables()
         if Factory.POSTGRES_DBNAME in os.environ:
             del os.environ[Factory.POSTGRES_DBNAME]
         if Factory.POSTGRES_HOST in os.environ:
@@ -776,6 +811,17 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         if Factory.POSTGRES_PRE_PING in os.environ:
             del os.environ[Factory.POSTGRES_PRE_PING]
         super().tearDown()
+
+    def drop_tables(self):
+        datastore = PostgresDatastore(
+            "eventsourcing",
+            "127.0.0.1",
+            "5432",
+            "eventsourcing",
+            "eventsourcing",
+        )
+        drop_postgres_table(datastore, "testcase_events")
+        drop_postgres_table(datastore, "testcase_tracking")
 
     def test_conn_max_age_is_set_to_empty_string(self):
         os.environ[Factory.POSTGRES_CONN_MAX_AGE] = ""

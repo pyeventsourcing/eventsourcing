@@ -36,6 +36,16 @@ class TestApplicationWithPostgres(TestApplicationWithPOPO):
         drop_postgres_table(db, "bankaccounts_snapshots")
 
     def tearDown(self) -> None:
+        db = PostgresDatastore(
+            os.getenv("POSTGRES_DBNAME"),
+            os.getenv("POSTGRES_HOST"),
+            os.getenv("POSTGRES_PORT"),
+            os.getenv("POSTGRES_USER"),
+            os.getenv("POSTGRES_PASSWORD"),
+        )
+        drop_postgres_table(db, "bankaccounts_events")
+        drop_postgres_table(db, "bankaccounts_snapshots")
+
         del os.environ["INFRASTRUCTURE_FACTORY"]
         del os.environ["CREATE_TABLE"]
         del os.environ["POSTGRES_DBNAME"]

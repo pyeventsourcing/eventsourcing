@@ -116,7 +116,15 @@ test: coveragetest coverage100 timeit
 coverage: coveragetest coveragehtml coverage100
 
 .PHONY: prepush
-prepush: updatetools lint docs test
+prepush: drop_postgres_db create_postgres_db updatetools lint docs test
+
+.PHONY: drop_postgres_db
+drop_postgres_db:
+	dropdb eventsourcing
+
+.PHONY: create_postgres_db
+create_postgres_db:
+	createdb eventsourcing
 
 .PHONY: updatetools
 updatetools:
