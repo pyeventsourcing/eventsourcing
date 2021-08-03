@@ -103,6 +103,35 @@ class TestSqliteDatastore(TestCase):
         self.datastore.transaction()
         self.datastore.close_connection()
 
+    def test_sets_wal_journal_mode_if_not_memory(self):
+        # Check datastore for in-memory database.
+        with self.datastore.transaction():
+            pass
+
+        self.assertFalse(self.datastore.is_journal_mode_wal)
+        self.assertFalse(self.datastore.journal_mode_was_changed_to_wal)
+
+        # Create datastore for non-existing file database.
+        self.uris = tmpfile_uris()
+        self.db_uri = next(self.uris)
+        datastore = SQLiteDatastore(self.db_uri)
+
+        with datastore.transaction():
+            pass
+
+        self.assertTrue(datastore.is_journal_mode_wal)
+        self.assertTrue(datastore.journal_mode_was_changed_to_wal)
+
+        datastore.close_all_connections()
+        del(datastore)
+
+        # Recreate datastore for existing database.
+        datastore = SQLiteDatastore(self.db_uri)
+        with datastore.transaction():
+            pass
+        self.assertTrue(datastore.is_journal_mode_wal)
+        self.assertFalse(datastore.journal_mode_was_changed_to_wal)
+
 
 class TestSQLiteAggregateRecorder(AggregateRecorderTestCase):
     def create_recorder(self):

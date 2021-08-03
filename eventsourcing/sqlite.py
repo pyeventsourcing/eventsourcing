@@ -76,6 +76,8 @@ class SQLiteDatastore:
     def __init__(self, db_name: str):
         self.db_name = db_name
         self.connections: Dict[int, Connection] = {}
+        self.is_journal_mode_wal = False
+        self.journal_mode_was_changed_to_wal = False
 
     def transaction(self) -> Transaction:
         thread_id = threading.get_ident()
@@ -100,9 +102,23 @@ class SQLiteDatastore:
         except (sqlite3.Error, TypeError) as e:
             raise InterfaceError(e)
 
+        # Use WAL (write-ahead log) mode if file-based database.
+        if ":memory:" not in self.db_name:
+            if not self.is_journal_mode_wal:
+                cursor = c.cursor()
+                cursor.execute("PRAGMA journal_mode;")
+                mode = cursor.fetchone()[0]
+                if mode.lower() == "wal":
+                    self.is_journal_mode_wal = True
+                else:
+                    cursor.execute("PRAGMA journal_mode=WAL;")
+                    self.is_journal_mode_wal = True
+                    self.journal_mode_was_changed_to_wal = True
+
+        # Set the row factory.
         c.row_factory = sqlite3.Row
-        # Use WAL (write-ahead log) mode.
-        c.execute("pragma journal_mode=wal;")
+
+        # Return the connection.
         return c
 
     def close_connection(self) -> None:
