@@ -45,23 +45,29 @@ from eventsourcing.tests.processrecorder_testcase import (
 from eventsourcing.utils import get_topic
 
 
-def pg_close_all_connections():
+def pg_close_all_connections(
+    name="eventsourcing",
+    host="127.0.0.1",
+    port="5432",
+    user="postgres",
+    password="postgres",
+):
     try:
         # For local development... probably.
         pg_conn = psycopg2.connect(
-            dbname="eventsourcing",
-            host="127.0.0.1",
-            port="5432",
+            dbname=name,
+            host=host,
+            port=port,
         )
     except psycopg2.Error:
         # For GitHub actions.
         """CREATE ROLE postgres LOGIN SUPERUSER PASSWORD 'postgres';"""
         pg_conn = psycopg2.connect(
-            dbname="eventsourcing",
-            host="127.0.0.1",
-            port="5432",
-            user="postgres",
-            password="postgres",
+            dbname=name,
+            host=host,
+            port=port,
+            user=user,
+            password=password,
         )
     close_all_connections = """
     SELECT
