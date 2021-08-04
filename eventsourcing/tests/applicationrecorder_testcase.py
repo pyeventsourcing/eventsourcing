@@ -93,6 +93,8 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         self.assertEqual(notifications[0].id, 3)
 
     def test_concurrent_no_conflicts(self):
+        print(self)
+
         recorder = self.create_recorder()
 
         errors_happened = Event()
