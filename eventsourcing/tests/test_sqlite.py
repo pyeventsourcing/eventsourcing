@@ -123,7 +123,7 @@ class TestSqliteDatastore(TestCase):
         self.assertTrue(datastore.journal_mode_was_changed_to_wal)
 
         datastore.close_all_connections()
-        del(datastore)
+        del datastore
 
         # Recreate datastore for existing database.
         datastore = SQLiteDatastore(self.db_uri)
