@@ -2,6 +2,7 @@ import sqlite3
 import threading
 from distutils.util import strtobool
 from sqlite3 import Connection, Cursor
+from threading import Lock
 from types import TracebackType
 from typing import Any, Dict, List, Mapping, Optional, Type
 from uuid import UUID
@@ -27,10 +28,16 @@ from eventsourcing.persistence import (
 
 
 class Transaction:
-    def __init__(self, connection: Connection):
+    def __init__(
+        self, connection: Connection, commit: bool = False, lock: Optional[Lock] = None
+    ):
         self.connection = connection
+        self.commit = commit
+        self.lock = lock
 
     def __enter__(self) -> Cursor:
+        if self.lock:
+            self.lock.acquire()
         # We must issue a "BEGIN" explicitly
         # when running in auto-commit mode.
         self.connection.execute("BEGIN")
@@ -50,6 +57,8 @@ class Transaction:
                 # if an exception occurs.
                 self.connection.rollback()
                 raise exc_val
+            elif not self.commit:
+                self.connection.rollback()
             else:
                 self.connection.commit()
         except sqlite3.InterfaceError as e:
@@ -70,23 +79,34 @@ class Transaction:
             raise DatabaseError(e)
         except sqlite3.Error as e:
             raise PersistenceError(e)
+        finally:
+            if self.lock:
+                self.lock.release()
 
 
 class SQLiteDatastore:
     def __init__(self, db_name: str):
         self.db_name = db_name
+        self.is_sqlite_memory_mode = self.detect_memory_mode(db_name)
+        self.lock: Optional[Lock] = None
+        if self.is_sqlite_memory_mode:
+            self.lock = Lock()
+
         self.connections: Dict[int, Connection] = {}
         self.is_journal_mode_wal = False
         self.journal_mode_was_changed_to_wal = False
 
-    def transaction(self) -> Transaction:
+    def detect_memory_mode(self, db_name: str) -> bool:
+        return bool(db_name) and (":memory:" in db_name or "mode=memory" in db_name)
+
+    def transaction(self, commit: bool = False) -> Transaction:
         thread_id = threading.get_ident()
         try:
             c = self.connections[thread_id]
         except KeyError:
             c = self.create_connection()
             self.connections[thread_id] = c
-        return Transaction(c)
+        return Transaction(c, commit, self.lock)
 
     def create_connection(self) -> Connection:
         # Make a connection to an SQLite database.
@@ -103,7 +123,7 @@ class SQLiteDatastore:
             raise InterfaceError(e)
 
         # Use WAL (write-ahead log) mode if file-based database.
-        if ":memory:" not in self.db_name and "mode=memory" not in self.db_name:
+        if not self.is_sqlite_memory_mode:
             if not self.is_journal_mode_wal:
                 cursor = c.cursor()
                 cursor.execute("PRAGMA journal_mode;")
@@ -120,15 +140,6 @@ class SQLiteDatastore:
 
         # Return the connection.
         return c
-
-    def close_connection(self) -> None:
-        thread_id = threading.get_ident()
-        try:
-            c = self.connections.pop(thread_id)
-        except KeyError:
-            pass
-        else:
-            c.close()
 
     def close_all_connections(self) -> None:
         for c in self.connections.values():
@@ -172,12 +183,12 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         return [statement]
 
     def create_table(self) -> None:
-        with self.datastore.transaction() as c:
+        with self.datastore.transaction(commit=True) as c:
             for statement in self.create_table_statements:
                 c.execute(statement)
 
     def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
-        with self.datastore.transaction() as c:
+        with self.datastore.transaction(commit=True) as c:
             self._insert_events(c, stored_events, **kwargs)
 
     def _insert_events(

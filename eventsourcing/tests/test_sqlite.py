@@ -44,7 +44,7 @@ from eventsourcing.utils import get_topic
 class TestTransaction(TestCase):
     def setUp(self) -> None:
         self.mock = Mock(Connection)
-        self.t = Transaction(self.mock)
+        self.t = Transaction(self.mock, commit=True)
 
     def test_calls_commit_if_error_not_raised_during_transaction(self):
         with self.t:
@@ -94,14 +94,6 @@ class TestSqliteDatastore(TestCase):
             self.assertEqual(len(rows), 1)
             self.assertEqual(len(rows[0]), 1)
             self.assertEqual(rows[0][0], 1)
-
-    def test_close_connection(self):
-        # Try closing without creating connection.
-        self.datastore.close_connection()
-
-        # Try closing after creating connection.
-        self.datastore.transaction()
-        self.datastore.close_connection()
 
     def test_sets_wal_journal_mode_if_not_memory(self):
         # Check datastore for in-memory database.
@@ -160,20 +152,23 @@ class TestSQLiteAggregateRecorderErrors(TestCase):
 
 
 class TestSQLiteApplicationRecorder(ApplicationRecorderTestCase):
+    def create_recorder(self):
+        recorder = SQLiteApplicationRecorder(SQLiteDatastore(self.db_uri))
+        recorder.create_table()
+        return recorder
+
     def test_insert_select(self):
         self.db_uri = ":memory:"
         super().test_insert_select()
 
     def test_concurrent_no_conflicts(self):
-        # db_uri = "file::memory:?cache=shared"
         self.uris = tmpfile_uris()
         self.db_uri = next(self.uris)
         super().test_concurrent_no_conflicts()
 
-    def create_recorder(self):
-        recorder = SQLiteApplicationRecorder(SQLiteDatastore(self.db_uri))
-        recorder.create_table()
-        return recorder
+    def test_concurrent_no_conflicts_in_memory_db(self):
+        self.db_uri = "file::memory:?cache=shared"
+        super().test_concurrent_no_conflicts()
 
 
 class TestSQLiteApplicationRecorderErrors(TestCase):
