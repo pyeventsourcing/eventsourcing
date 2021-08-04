@@ -103,7 +103,7 @@ class SQLiteDatastore:
             raise InterfaceError(e)
 
         # Use WAL (write-ahead log) mode if file-based database.
-        if ":memory:" not in self.db_name:
+        if ":memory:" not in self.db_name and "mode=memory" not in self.db_name:
             if not self.is_journal_mode_wal:
                 cursor = c.cursor()
                 cursor.execute("PRAGMA journal_mode;")
