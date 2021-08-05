@@ -547,30 +547,12 @@ SQLite infrastructure with the following environment variables.
 Using SQLite infrastructure will keep stored events in an
 SQLite database.
 
-The example below uses zlib and AES to compress and encrypt the stored
-events in an SQLite database (but this is optional). To use the library's
-encryption functionality, please install the library with the `crypto`
-option (or just install the `pycryptodome` package.)
-
-    $ pip install eventsourcing[crypto]
-
 An in-memory SQLite database is used in this example. To store your events on
 disk, use a file path as the value of the `SQLITE_DBNAME` environment variable.
 
 ```python
 import os
 
-from eventsourcing.cipher import AESCipher
-
-# Generate a cipher key (keep this safe).
-cipher_key = AESCipher.create_key(num_bytes=32)
-
-# Cipher key.
-os.environ['CIPHER_KEY'] = cipher_key
-# Cipher topic.
-os.environ['CIPHER_TOPIC'] = 'eventsourcing.cipher:AESCipher'
-# Compressor topic.
-os.environ['COMPRESSOR_TOPIC'] = 'eventsourcing.compressor:ZlibCompressor'
 
 # Use SQLite infrastructure.
 os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.sqlite:Factory'
@@ -592,6 +574,31 @@ Please note, a file-based SQLite database will have its journal mode set to use
 write-ahead logging (WAL), which allows reading to proceed concurrently reading
 and writing. Writing is serialised with a lock. The lock timeout can be adjusted
 from the SQLite default of 5s by setting the environment variable `SQLITE_LOCK_TIMEOUT`.
+
+Optionally, set the cipher key using environment variable `CIPHER_KEY` and select a
+compressor by setting environment variable `COMPRESSOR_TOPIC`.
+
+This example uses the Python `zlib` module to compress stored events, and AES
+to encrypt the compressed stored events, before writing them to the SQLite database.
+To use the library's encryption functionality, please install the library with the
+`crypto` option (or just install the `pycryptodome` package.) To use an alternative
+cipher strategy, set the environment variable `CIPHER_TOPIC`.
+
+    $ pip install eventsourcing[crypto]
+
+
+```python
+from eventsourcing.cipher import AESCipher
+
+# Generate a cipher key (keep this safe).
+cipher_key = AESCipher.create_key(num_bytes=32)
+
+# Cipher key.
+os.environ['CIPHER_KEY'] = cipher_key
+
+# Compressor topic.
+os.environ['COMPRESSOR_TOPIC'] = 'zlib'
+```
 
 Having configured the application with these environment variables, we
 can construct the application and run the test using SQLite.
