@@ -136,6 +136,7 @@ class PostgresDatastore:
         conn_max_age: Optional[float] = None,
         pre_ping: bool = False,
         lock_timeout: float = 0,
+        idle_in_transaction_session_timeout: float = 0,
     ):
         self.dbname = dbname
         self.host = host
@@ -145,6 +146,7 @@ class PostgresDatastore:
         self.conn_max_age = conn_max_age
         self.pre_ping = pre_ping
         self.lock_timeout = lock_timeout
+        self.idle_in_transaction_session_timeout = idle_in_transaction_session_timeout
         self._connections: Dict[int, Connection] = {}
 
     def transaction(self, commit: bool) -> Transaction:
@@ -173,6 +175,11 @@ class PostgresDatastore:
                 port=self.port,
                 user=self.user,
                 password=self.password,
+                connect_timeout=5,
+            )
+            psycopg_c.cursor().execute(
+                f"SET idle_in_transaction_session_timeout = "
+                f"'{self.idle_in_transaction_session_timeout}s'"
             )
         except psycopg2.Error as e:
             raise InterfaceError(e)
@@ -182,6 +189,7 @@ class PostgresDatastore:
                 max_age=self.conn_max_age,
             )
             self._connections[thread_id] = c
+
             return c
 
     def close_connection(self) -> None:
@@ -458,6 +466,9 @@ class Factory(InfrastructureFactory):
     POSTGRES_CONN_MAX_AGE = "POSTGRES_CONN_MAX_AGE"
     POSTGRES_PRE_PING = "POSTGRES_PRE_PING"
     POSTGRES_LOCK_TIMEOUT = "POSTGRES_LOCK_TIMEOUT"
+    POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT = (
+        "POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT"
+    )
     CREATE_TABLE = "CREATE_TABLE"
 
     def __init__(self, application_name: str, env: Mapping):
@@ -527,6 +538,22 @@ class Factory(InfrastructureFactory):
                 f"'{lock_timeout_str}'"
             )
 
+        idle_in_transaction_session_timeout_str = (
+            self.getenv(self.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT) or "0"
+        )
+
+        try:
+            idle_in_transaction_session_timeout = float(
+                idle_in_transaction_session_timeout_str
+            )
+        except ValueError:
+            raise EnvironmentError(
+                f"Postgres environment value for key "
+                f"'{self.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT}' is invalid. "
+                f"If set, a float or empty string is expected: "
+                f"'{idle_in_transaction_session_timeout_str}'"
+            )
+
         self.datastore = PostgresDatastore(
             dbname=dbname,
             host=host,
@@ -536,6 +563,7 @@ class Factory(InfrastructureFactory):
             conn_max_age=conn_max_age,
             pre_ping=pre_ping,
             lock_timeout=lock_timeout,
+            idle_in_transaction_session_timeout=idle_in_transaction_session_timeout,
         )
 
     def aggregate_recorder(self, purpose: str = "events") -> AggregateRecorder:

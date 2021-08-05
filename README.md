@@ -674,6 +674,8 @@ os.environ['POSTGRES_CONN_MAX_AGE'] = '60'  # seconds
 os.environ['POSTGRES_PRE_PING'] = 'y'
 # - timeout to wait for table lock when inserting (default no timeout)
 os.environ['POSTGRES_LOCK_TIMEOUT'] = '10'  # seconds
+# - timeout for sessions with idle transactions (default no timeout)
+os.environ['POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT'] = '10'  # seconds
 ```
 
 Please note, to avoid interleaving of inserts when writing events, an
