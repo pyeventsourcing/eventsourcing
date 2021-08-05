@@ -9,6 +9,7 @@ import psycopg2
 import psycopg2.errors
 import psycopg2.extras
 from psycopg2.extensions import connection, cursor
+from psycopg2.extras import execute_batch
 
 from eventsourcing.persistence import (
     AggregateRecorder,
@@ -276,7 +277,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
                     stored_event.state,
                 )
             )
-        c.executemany(self.insert_events_statement, params)
+        execute_batch(c, self.insert_events_statement, params)
 
     @retry(InterfaceError, max_attempts=10, wait=0.2)
     def select_events(

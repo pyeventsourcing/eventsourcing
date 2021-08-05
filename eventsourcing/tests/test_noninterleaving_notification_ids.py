@@ -43,7 +43,7 @@ class TestNonInterleavingSQLiteFileDB(NonInterleavingNotificationIDsBaseCase):
 
 
 class TestNonInterleavingPostgres(NonInterleavingNotificationIDsBaseCase):
-    insert_num = 10
+    insert_num = 1000
 
     def setUp(self) -> None:
         self.datastore = PostgresDatastore(
