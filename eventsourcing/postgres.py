@@ -236,7 +236,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
             self._lock_table(c)
             self._insert_events(c, stored_events, **kwargs)
 
-    def _lock_table(self, c: cursor):
+    def _lock_table(self, c: cursor) -> None:
         # Acquire "EXCLUSIVE" table lock, to serialize inserts so that
         # insertion of notification IDs is monotonic for readers. We
         # want concurrent transactions to insert SERIAL values in order,
