@@ -754,6 +754,8 @@ keep stored events in a data structure in memory (see :mod:`eventsourcing.popo`)
     stored_events = list(event_store.get(id1))
     assert stored_events == [domain_event1]
 
+The optional environment variables ``COMPRESSOR_TOPIC``, ``CIPHER_KEY``, and ``CIPHER_TOPIC`` may
+be used to enable compression and encryption of stored events when using POPO infrastructure.
 
 .. _SQLite:
 
@@ -762,21 +764,25 @@ SQLite
 
 The module :mod:`eventsourcing.sqlite` supports storing events in SQLite.
 
-The library's SQLite :class:`~eventsourcing.sqlite.Factory` uses environment variables
-``SQLITE_DBNAME``, ``SQLITE_LOCK_TIMEOUT`` and ``CREATE_TABLE``.
+The library's SQLite :class:`~eventsourcing.sqlite.Factory` uses various
+environment variables to control the construction and configuration of its
+persistence infrastructure.
 
 The environment variable ``SQLITE_DBNAME`` is required to set the name of a database,
 normally a file path, but the special name ``:memory:`` can be used to create an
 in-memory database.
 
-The environment variable ``SQLITE_LOCK_TIMEOUT`` may be used to adjust the SQLite timeout
+The optional environment variable ``SQLITE_LOCK_TIMEOUT`` may be used to adjust the SQLite timeout
 value. A file-based SQLite database will have its journal mode set to use write-ahead
 logging (WAL), which allows reading to proceed concurrently reading and writing. Writing
 is serialised with a lock. Setting this value to a positive number of seconds will cause
 attempts to lock the SQLite database for writing to timeout after that duration. By default
 this value is 5 (seconds).
 
-The environment variable ``CREATE_TABLE`` may be control whether database tables are created.
+The optional environment variables ``COMPRESSOR_TOPIC``, ``CIPHER_KEY``, and ``CIPHER_TOPIC`` may
+be used to enable compression and encryption of stored events.
+
+The optional environment variable ``CREATE_TABLE`` may be control whether database tables are created.
 If the tables already exist, the ``CREATE_TABLE`` may be set to a "false" value (``"n"``,
 ``"no"``, ``"f"``, ``"false"``, ``"off"``, or ``"0"``). This value is by default "true"
 which is normally okay because the tables are created only if they do not exist.
@@ -811,15 +817,15 @@ PostgreSQL
 
 The module :mod:`eventsourcing.postgres` supports storing events in PostgresSQL.
 
-The library's PostgreSQL :class:`~eventsourcing.postgres.Factory` uses environment variables
-``POSTGRES_DBNAME``, ``POSTGRES_HOST``, ``POSTGRES_PORT``, ``POSTGRES_USER``,
-``POSTGRES_PASSWORD``, ``POSTGRES_CONN_MAX_AGE``, ``POSTGRES_PRE_PING``, and ``CREATE_TABLE``.
+The library's PostgreSQL :class:`~eventsourcing.postgres.Factory` uses various
+environment variables to control the construction and configuration of its persistence
+infrastructure.
 
 The environment variables ``POSTGRES_DBNAME``, ``POSTGRES_HOST``, ``POSTGRES_PORT``,
 ``POSTGRES_USER``, and ``POSTGRES_PASSWORD`` are required to set the name of a database,
 the database server's host name and port number, and the database user name and password.
 
-The environment variable ``POSTGRES_CONN_MAX_AGE`` is used to control the length of time in
+The optional environment variable ``POSTGRES_CONN_MAX_AGE`` is used to control the length of time in
 seconds before a connection is closed. By default this value is not set, and connections will
 be reused indefinitely (or until an operational database error is encountered). If this
 value is set to a positive integer, the connection will be closed after this number of
@@ -831,17 +837,17 @@ terminates idle connections after some time, you should set ``POSTGRES_CONN_MAX_
 lower value, so that attempts are not made to use connections that have been terminated
 by the database server.
 
-The environment variable ``POSTGRES_PRE_PING`` may be used to enable pessimistic disconnection
-handling. Setting this to a "true" value (``"y"``, ``"yes"``, ``"t"``, ``"true"``, ``"on"``,
-or ``"1"``) means database connections will be checked that they are usable before executing
-statements, and database connections remade if the connection is not usable. This value is
-by default "false", meaning connections will not be checked before they are reused. Enabling
-this option will incur a small impact on performance.
+The optional environment variable ``POSTGRES_PRE_PING`` may be used to enable pessimistic
+disconnection handling. Setting this to a "true" value (``"y"``, ``"yes"``, ``"t"``, ``"true"``,
+``"on"``, or ``"1"``) means database connections will be checked that they are usable before
+executing statements, and database connections remade if the connection is not usable. This
+value is by default "false", meaning connections will not be checked before they are reused.
+Enabling this option will incur a small impact on performance.
 
-The environment variable ``POSTGRES_LOCK_TIMEOUT`` may be used to enable a timeout on acquiring
-an 'EXCLUSIVE' mode table lock when inserting stored events. To avoid interleaving of inserts
-when writing events, an 'EXCLUSIVE' mode table lock is acquired when inserting events. This
-effectively serialises writing events. It prevents concurrent transactions interleaving inserts,
+The optional environment variable ``POSTGRES_LOCK_TIMEOUT`` may be used to enable a timeout
+on acquiring an 'EXCLUSIVE' mode table lock when inserting stored events. To avoid interleaving
+of inserts when writing events, an 'EXCLUSIVE' mode table lock is acquired when inserting events.
+This effectively serialises writing events. It prevents concurrent transactions interleaving inserts,
 which would potentially cause notification log readers that are tailing the application notification
 log to miss event notifications. Reading from the table can proceed concurrently with other readers
 and writers, since selecting acquires an 'ACCESS SHARE' lock which does not block and is not blocked
@@ -851,8 +857,8 @@ By default, this timeout has the value of 0 seconds, which means attempts to acq
 not timeout. Setting this value to a positive number of seconds will cause attempt to obtain this
 lock to timeout after that duration has passed. The lock will be released when the transaction ends.
 
-The environment variable ``POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT`` may be used to timeout
-sessions that are idle in a transaction. If a transaction cannot be ended for some reason,
+The optional environment variable ``POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT`` may be used to
+timeout sessions that are idle in a transaction. If a transaction cannot be ended for some reason,
 perhaps because the database server cannot be reached, the transaction may remain in an idle
 state and any locks will continue to be held. By timing out the session, transactions will be ended,
 locks will be released, and the connection slot will be freed. By default, this timeout has the value
@@ -860,7 +866,10 @@ of 0 seconds, which means sessions in an idle transaction will not timeout. Sett
 positive number of seconds will cause sessions in an idle transaction to timeout after that duration
 has passed.
 
-The environment variable ``CREATE_TABLE`` may be control whether database tables are created.
+The optional environment variables ``COMPRESSOR_TOPIC``, ``CIPHER_KEY``, and ``CIPHER_TOPIC`` may
+be used to enable compression and encryption of stored events.
+
+The optional environment variable ``CREATE_TABLE`` may be control whether database tables are created.
 If the tables already exist, the ``CREATE_TABLE`` may be set to a "false" value (``"n"``,
 ``"no"``, ``"f"``, ``"false"``, ``"off"``, or ``"0"``). This value is by default "true"
 which is normally okay because the tables are created only if they do not exist.
