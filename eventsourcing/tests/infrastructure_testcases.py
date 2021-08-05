@@ -1,4 +1,5 @@
 import os
+import zlib
 from abc import ABC, abstractmethod
 from datetime import datetime
 from unittest.case import TestCase
@@ -101,12 +102,19 @@ class InfrastructureFactoryTestCase(ABC, TestCase):
 
     def test_createmapper_with_compressor(self):
 
-        # Create mapper with compressor.
+        # Create mapper with compressor class as topic.
         os.environ[self.factory.COMPRESSOR_TOPIC] = get_topic(ZlibCompressor)
         mapper = self.factory.mapper(transcoder=self.transcoder)
         self.assertIsInstance(mapper, Mapper)
+        self.assertIsInstance(mapper.compressor, ZlibCompressor)
         self.assertIsNone(mapper.cipher)
-        self.assertIsNotNone(mapper.compressor)
+
+        # Create mapper with compressor module as topic.
+        os.environ[self.factory.COMPRESSOR_TOPIC] = "zlib"
+        mapper = self.factory.mapper(transcoder=self.transcoder)
+        self.assertIsInstance(mapper, Mapper)
+        self.assertEqual(mapper.compressor, zlib)
+        self.assertIsNone(mapper.cipher)
 
     def test_createmapper_with_cipher(self):
 
@@ -115,6 +123,9 @@ class InfrastructureFactoryTestCase(ABC, TestCase):
 
         with self.assertRaises(EnvironmentError):
             self.factory.mapper(transcoder=self.transcoder)
+
+        # Check setting key but no topic defers to AES.
+        del os.environ[self.factory.CIPHER_TOPIC]
 
         cipher_key = AESCipher.create_key(16)
         os.environ[self.factory.CIPHER_KEY] = cipher_key

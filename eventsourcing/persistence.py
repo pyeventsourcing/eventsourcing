@@ -613,14 +613,18 @@ class InfrastructureFactory(ABC):
         cipher_key = self.getenv(self.CIPHER_KEY, application_name=application_name)
         cipher: Optional[Cipher] = None
         if cipher_topic:
-            if cipher_key:
-                cipher_cls: Type[Cipher] = resolve_topic(cipher_topic)
-                cipher = cipher_cls(cipher_key=cipher_key)
-            else:
+            if not cipher_key:
                 raise EnvironmentError(
-                    "Cipher key was not found in env, "
-                    "although cipher topic was found"
+                    f"'{self.CIPHER_KEY}' not set in env, "
+                    f"although '{self.CIPHER_TOPIC}' was set"
                 )
+        elif cipher_key:
+            cipher_topic = "eventsourcing.cipher:AESCipher"
+
+        if cipher_topic and cipher_key:
+            cipher_cls: Type[Cipher] = resolve_topic(cipher_topic)
+            cipher = cipher_cls(cipher_key=cipher_key)
+
         return cipher
 
     def compressor(self, application_name: str) -> Optional[Compressor]:
@@ -634,7 +638,10 @@ class InfrastructureFactory(ABC):
         )
         if compressor_topic:
             compressor_cls: Type[Compressor] = resolve_topic(compressor_topic)
-            compressor = compressor_cls()
+            if callable(compressor_cls):
+                compressor = compressor_cls()
+            else:
+                compressor = compressor_cls
         return compressor
 
     @staticmethod
