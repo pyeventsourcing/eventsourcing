@@ -251,6 +251,8 @@ class PostgresAggregateRecorder(AggregateRecorder):
         # notification IDs.
         # https://www.postgresql.org/docs/current/explicit-locking.html#LOCKING-TABLES
         # https://www.postgresql.org/docs/9.1/sql-lock.html
+        # https://stackoverflow.com/questions/45866187/guarantee-monotonicity-of
+        # -postgresql-serial-column-values-by-commit-order
         c.execute(f"LOCK TABLE {self.events_table_name} IN EXCLUSIVE MODE")
 
     def _insert_events(
