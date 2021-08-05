@@ -1,7 +1,6 @@
 import os
 
 from eventsourcing.postgres import PostgresDatastore
-from eventsourcing.tests.ramdisk import tmpfile_uris
 from eventsourcing.tests.test_application_with_popo import (
     TIMEIT_FACTOR,
     TestApplicationWithPOPO,
@@ -15,7 +14,6 @@ class TestApplicationWithPostgres(TestApplicationWithPOPO):
 
     def setUp(self) -> None:
         super().setUp()
-        self.uris = tmpfile_uris()
 
         os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.postgres:Factory"
         os.environ["CREATE_TABLE"] = "y"
