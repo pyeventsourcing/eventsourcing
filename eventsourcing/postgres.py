@@ -233,7 +233,25 @@ class PostgresAggregateRecorder(AggregateRecorder):
     @retry(InterfaceError, max_attempts=10, wait=0.2)
     def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
         with self.datastore.transaction(commit=True) as c:
+            self._lock_table(c)
             self._insert_events(c, stored_events, **kwargs)
+
+    def _lock_table(self, c: cursor):
+        # Acquire "EXCLUSIVE" table lock, to serialize inserts so that
+        # insertion of notification IDs is monotonic for readers. We
+        # want concurrent transactions to insert SERIAL values in order,
+        # and although page locking might provide this, by locking the
+        # table for writes, it can hopefully be guaranteed. The EXCLUSIVE
+        # lock mode does not block ACCESS SHARE lock which is used for SELECT,
+        # so the table can be freely read. However INSERT normally just acquires
+        # ROW EXCLUSIVE locks, which risks interleaving of many inserts in one
+        # transaction with many insert in another transaction. Since one transaction
+        # will commit before another, the possibility arises for readers that are
+        # tailing a notification log to miss items inserted later but with lower
+        # notification IDs.
+        # https://www.postgresql.org/docs/current/explicit-locking.html#LOCKING-TABLES
+        # https://www.postgresql.org/docs/9.1/sql-lock.html
+        c.execute(f"LOCK TABLE {self.events_table_name} IN EXCLUSIVE MODE")
 
     def _insert_events(
         self,
