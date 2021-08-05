@@ -456,9 +456,9 @@ class Factory(InfrastructureFactory):
     POSTGRES_USER = "POSTGRES_USER"
     POSTGRES_PASSWORD = "POSTGRES_PASSWORD"
     POSTGRES_CONN_MAX_AGE = "POSTGRES_CONN_MAX_AGE"
-    CREATE_TABLE = "CREATE_TABLE"
     POSTGRES_PRE_PING = "POSTGRES_PRE_PING"
     POSTGRES_LOCK_TIMEOUT = "POSTGRES_LOCK_TIMEOUT"
+    CREATE_TABLE = "CREATE_TABLE"
 
     def __init__(self, application_name: str, env: Mapping):
         super().__init__(application_name, env)

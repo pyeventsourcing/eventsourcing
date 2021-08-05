@@ -26,6 +26,8 @@ from eventsourcing.persistence import (
     Tracking,
 )
 
+SQLITE3_DEFAULT_LOCK_TIMEOUT = 5
+
 
 class Transaction:
     def __init__(
@@ -85,7 +87,7 @@ class Transaction:
 
 
 class SQLiteDatastore:
-    def __init__(self, db_name: str):
+    def __init__(self, db_name: str, lock_timeout: Optional[int] = None):
         self.db_name = db_name
         self.is_sqlite_memory_mode = self.detect_memory_mode(db_name)
         self.lock: Optional[Lock] = None
@@ -95,6 +97,7 @@ class SQLiteDatastore:
         self.connections: Dict[int, Connection] = {}
         self.is_journal_mode_wal = False
         self.journal_mode_was_changed_to_wal = False
+        self.lock_timeout = lock_timeout
 
     def detect_memory_mode(self, db_name: str) -> bool:
         return bool(db_name) and (":memory:" in db_name or "mode=memory" in db_name)
@@ -117,7 +120,7 @@ class SQLiteDatastore:
                 check_same_thread=False,
                 isolation_level=None,  # Auto-commit mode.
                 cached_statements=True,
-                # timeout=15,
+                timeout=self.lock_timeout or SQLITE3_DEFAULT_LOCK_TIMEOUT,
             )
         except (sqlite3.Error, TypeError) as e:
             raise InterfaceError(e)
@@ -364,6 +367,7 @@ class SQLiteProcessRecorder(
 
 class Factory(InfrastructureFactory):
     SQLITE_DBNAME = "SQLITE_DBNAME"
+    SQLITE_LOCK_TIMEOUT = "SQLITE_LOCK_TIMEOUT"
     CREATE_TABLE = "CREATE_TABLE"
 
     def __init__(self, application_name: str, env: Mapping):
@@ -375,7 +379,22 @@ class Factory(InfrastructureFactory):
                 "in environment with key "
                 f"'{self.SQLITE_DBNAME}'"
             )
-        self.datastore = SQLiteDatastore(db_name=db_name)
+
+        lock_timeout_str = (self.getenv(self.SQLITE_LOCK_TIMEOUT) or "").strip() or None
+
+        lock_timeout: Optional[int] = None
+        if lock_timeout_str is not None:
+            try:
+                lock_timeout = int(lock_timeout_str)
+            except ValueError:
+                raise EnvironmentError(
+                    f"SQLite environment value for key "
+                    f"'{self.SQLITE_LOCK_TIMEOUT}' is invalid. "
+                    f"If set, an int or empty string is expected: "
+                    f"'{lock_timeout_str}'"
+                )
+
+        self.datastore = SQLiteDatastore(db_name=db_name, lock_timeout=lock_timeout)
 
     def aggregate_recorder(self, purpose: str = "events") -> AggregateRecorder:
         events_table_name = "stored_" + purpose

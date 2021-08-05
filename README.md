@@ -574,8 +574,24 @@ os.environ['COMPRESSOR_TOPIC'] = 'eventsourcing.compressor:ZlibCompressor'
 
 # Use SQLite infrastructure.
 os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.sqlite:Factory'
-os.environ['SQLITE_DBNAME'] = ':memory:'  # Or path to a file on disk.
+
+# Configure SQLite database URI. Either use a file-based DB;
+os.environ['SQLITE_DBNAME'] = '/path/to/your/sqlite-db'
+# or use an in-memory DB with cache not shared, only works with single thread;
+os.environ['SQLITE_DBNAME'] = ':memory:'
+# or use an in-memory DB with shared cache, works with multiple threads;
+os.environ['SQLITE_DBNAME'] = ':memory:?mode=memory&cache=shared'
+# or use a named in-memory DB, allows distinct databases in same process.
+os.environ['SQLITE_DBNAME'] = 'file:application1?mode=memory&cache=shared'
+
+# Set optional lock timeout (default 5s).
+os.environ['SQLITE_LOCK_TIMEOUT'] = '10'  # seconds
 ```
+
+Please note, a file-based SQLite database will have its journal mode set to use
+write-ahead logging (WAL), which allows reading to proceed concurrently reading
+and writing. Writing is serialised with a lock. The lock timeout can be adjusted
+from the SQLite default of 5s by setting the environment variable `SQLITE_LOCK_TIMEOUT`.
 
 Having configured the application with these environment variables, we
 can construct the application and run the test using SQLite.
@@ -636,12 +652,33 @@ os.environ['COMPRESSOR_TOPIC'] = 'eventsourcing.compressor:ZlibCompressor'
 
 # Use Postgres infrastructure.
 os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.postgres:Factory'
+
+# Configure database connections.
 os.environ['POSTGRES_DBNAME'] = 'eventsourcing'
 os.environ['POSTGRES_HOST'] = '127.0.0.1'
 os.environ['POSTGRES_PORT'] = '5432'
 os.environ['POSTGRES_USER'] = 'eventsourcing'
 os.environ['POSTGRES_PASSWORD'] = 'eventsourcing'
+
+# Optional config.
+# - connection max age (connections stay open by default)
+os.environ['POSTGRES_CONN_MAX_AGE'] = '60'  # seconds
+# - check connection before reuse (enabled pessimistic disconnect handling)
+os.environ['POSTGRES_PRE_PING'] = 'y'
+# - timeout to wait for table lock when inserting (default no timeout)
+os.environ['POSTGRES_LOCK_TIMEOUT'] = '10'  # seconds
 ```
+
+Please note, to avoid interleaving of inserts when writing events, an
+'EXCLUSIVE' mode table lock is acquired when using PostgreSQL. This
+effectively serialises writing events. It prevents concurrent transactions
+interleaving inserts, which would potentially cause notification log readers
+that are tailing the application notification log to miss event notifications.
+Reading from the table can proceed concurrently with other readers and writers,
+since selecting acquires an 'ACCESS SHARE' lock which does not block and
+is not blocked by the 'EXCLUSIVE' lock. This issue of interleaving inserts
+by concurrent writers is not exhibited by SQLite, which supports concurrent
+readers when its journal mode is set to use write ahead logging.
 
 Having configured the application with these environment variables,
 we can construct the application and run the test using PostgreSQL.

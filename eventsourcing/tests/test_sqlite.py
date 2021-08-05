@@ -234,15 +234,39 @@ class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase):
         super().tearDown()
         if Factory.SQLITE_DBNAME in os.environ:
             del os.environ[Factory.SQLITE_DBNAME]
+        if Factory.SQLITE_LOCK_TIMEOUT in os.environ:
+            del os.environ[Factory.SQLITE_LOCK_TIMEOUT]
 
     def test_construct_raises_environment_error_when_dbname_missing(self):
         del os.environ[Factory.SQLITE_DBNAME]
         with self.assertRaises(EnvironmentError) as cm:
-            self.factory = InfrastructureFactory.construct("TestCase")
+            InfrastructureFactory.construct("TestCase")
         self.assertEqual(
             cm.exception.args[0],
             "SQLite database name not found in environment with key 'SQLITE_DBNAME'",
         )
+
+    def test_environment_error_raised_when_lock_timeout_not_an_int(self):
+        os.environ[Factory.SQLITE_LOCK_TIMEOUT] = "abc"
+        with self.assertRaises(EnvironmentError) as cm:
+            Factory("TestCase", os.environ)
+        self.assertEqual(
+            cm.exception.args[0],
+            "SQLite environment value for key 'SQLITE_LOCK_TIMEOUT' "
+            "is invalid. If set, an int or empty string is expected: 'abc'",
+        )
+
+    def test_lock_timeout_value(self):
+        factory = Factory("TestCase", os.environ)
+        self.assertEqual(factory.datastore.lock_timeout, None)
+
+        os.environ[Factory.SQLITE_LOCK_TIMEOUT] = ""
+        factory = Factory("TestCase", os.environ)
+        self.assertEqual(factory.datastore.lock_timeout, None)
+
+        os.environ[Factory.SQLITE_LOCK_TIMEOUT] = "10"
+        factory = Factory("TestCase", os.environ)
+        self.assertEqual(factory.datastore.lock_timeout, 10)
 
 
 del AggregateRecorderTestCase
