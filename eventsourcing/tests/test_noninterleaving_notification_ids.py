@@ -24,7 +24,7 @@ class TestNonInterleavingSQLiteInMemory(NonInterleavingNotificationIDsBaseCase):
 
     def create_recorder(self) -> ApplicationRecorder:
         recorder = SQLiteApplicationRecorder(
-            SQLiteDatastore(db_name=":memory:?cache=shared")
+            SQLiteDatastore(db_name="file::memory:?cache=shared")
         )
         recorder.create_table()
         return recorder
