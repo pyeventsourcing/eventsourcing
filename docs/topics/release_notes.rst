@@ -29,11 +29,27 @@ Version 9.1.0 (release TBD)
 Added support for setting environment when constructing application.
 Added "eq" and "repr" methods on aggregate base class.
 Reinstated explicit definition of Aggregate.Created class.
-Added Invoice example.
+Added Invoice example, and Parking Lot example.
 Fixed bug when decorating property setter (use method argument name).
 Fixed some mypy issues.
-Adjusted order of mutate() method, so apply() method is called first.
-
+Adjusted order of mutate() method, so apply() method is called first,
+in case exceptions are raised the aggregate object can emerge unscathed
+whereas previously its version number and modified time would always be
+changed. Improved robustness of recorder classes, with more attention to
+connection state, closing cursors, and especially by changing the postgres
+recorders to obtain 'EXCLUSIVE' mode table lock when inserting events.
+Obtaining the table lock in PostgreSQL avoids interleaving of inserts
+between commits, which avoids event notifications from being committed
+with lower notification IDs than event notifications that have already
+been committed, and thereby prevents readers who are tailing the notification
+log of an application from missing event notifications for this reason.
+Added various environment variable options: for sqlite a lock timeout option;
+and for postgres a max connection age option which allows connections over a
+certain age to be closed when idle, a connection pre-ping option, a lock
+timeout option, and an option to timeout sessions idle in transaction so
+that locks can be released even if the database client has somehow ceased
+to continue its interactions with the server in a way that leave the session
+open.
 
 Version 9.0.3 (released 17 May 2021)
 --------------------------------------
