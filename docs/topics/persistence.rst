@@ -763,10 +763,18 @@ SQLite
 The module :mod:`eventsourcing.sqlite` supports storing events in SQLite.
 
 The library's SQLite :class:`~eventsourcing.sqlite.Factory` uses environment variables
-``SQLITE_DBNAME`` and ``CREATE_TABLE``.
+``SQLITE_DBNAME``, ``SQLITE_LOCK_TIMEOUT`` and ``CREATE_TABLE``.
 
-The ``SQLITE_DBNAME`` value is the name of a database, normally a file path, but
-the special name ``:memory:`` can be used to create an in-memory database.
+The environment variable ``SQLITE_DBNAME`` is required to set the name of a database,
+normally a file path, but the special name ``:memory:`` can be used to create an
+in-memory database.
+
+The environment variable ``SQLITE_LOCK_TIMEOUT`` may be used to adjust the SQLite timeout
+value. A file-based SQLite database will have its journal mode set to use write-ahead
+logging (WAL), which allows reading to proceed concurrently reading and writing. Writing
+is serialised with a lock. Setting this value to a positive number of seconds will cause
+attempts to lock the SQLite database for writing to timeout after that duration. By default
+this value is 5 (seconds).
 
 The environment variable ``CREATE_TABLE`` may be control whether database tables are created.
 If the tables already exist, the ``CREATE_TABLE`` may be set to a "false" value (``"n"``,
@@ -779,6 +787,8 @@ which is normally okay because the tables are created only if they do not exist.
 
     os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.sqlite:Factory"
     os.environ["SQLITE_DBNAME"] = ":memory:"
+    os.environ["SQLITE_LOCK_TIMEOUT"] = "10"
+
 
     factory = InfrastructureFactory.construct()
 
@@ -801,13 +811,13 @@ PostgreSQL
 
 The module :mod:`eventsourcing.postgres` supports storing events in PostgresSQL.
 
-The library's PostgreSQL :class:`~eventsourcing.sqlite.Factory` uses environment variables
+The library's PostgreSQL :class:`~eventsourcing.postgres.Factory` uses environment variables
 ``POSTGRES_DBNAME``, ``POSTGRES_HOST``, ``POSTGRES_PORT``, ``POSTGRES_USER``,
 ``POSTGRES_PASSWORD``, ``POSTGRES_CONN_MAX_AGE``, ``POSTGRES_PRE_PING``, and ``CREATE_TABLE``.
 
-The environment variables ``POSTGRES_DBNAME``, ``POSTGRES_HOST``, ``POSTGRES_PORT``, ``POSTGRES_USER``, and
-``POSTGRES_PASSWORD`` are used to set the name of a database, the database server's
-host name, the database user name, and the password for that user.
+The environment variables ``POSTGRES_DBNAME``, ``POSTGRES_HOST``, ``POSTGRES_PORT``,
+``POSTGRES_USER``, and ``POSTGRES_PASSWORD`` are required to set the name of a database,
+the database server's host name and port number, and the database user name and password.
 
 The environment variable ``POSTGRES_CONN_MAX_AGE`` is used to control the length of time in
 seconds before a connection is closed. By default this value is not set, and connections will
@@ -828,6 +838,28 @@ statements, and database connections remade if the connection is not usable. Thi
 by default "false", meaning connections will not be checked before they are reused. Enabling
 this option will incur a small impact on performance.
 
+The environment variable ``POSTGRES_LOCK_TIMEOUT`` may be used to enable a timeout on acquiring
+an 'EXCLUSIVE' mode table lock when inserting stored events. To avoid interleaving of inserts
+when writing events, an 'EXCLUSIVE' mode table lock is acquired when inserting events. This
+effectively serialises writing events. It prevents concurrent transactions interleaving inserts,
+which would potentially cause notification log readers that are tailing the application notification
+log to miss event notifications. Reading from the table can proceed concurrently with other readers
+and writers, since selecting acquires an 'ACCESS SHARE' lock which does not block and is not blocked
+by the 'EXCLUSIVE' lock. This issue of interleaving inserts by concurrent writers is not exhibited
+by SQLite, which supports concurrent readers when its journal mode is set to use write ahead logging.
+By default, this timeout has the value of 0 seconds, which means attempts to acquire the lock will
+not timeout. Setting this value to a positive number of seconds will cause attempt to obtain this
+lock to timeout after that duration has passed. The lock will be released when the transaction ends.
+
+The environment variable ``POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT`` may be used to timeout
+sessions that are idle in a transaction. If a transaction cannot be ended for some reason,
+perhaps because the database server cannot be reached, the transaction may remain in an idle
+state and any locks will continue to be held. By timing out the session, transactions will be ended,
+locks will be released, and the connection slot will be freed. By default, this timeout has the value
+of 0 seconds, which means sessions in an idle transaction will not timeout. Setting this value to a
+positive number of seconds will cause sessions in an idle transaction to timeout after that duration
+has passed.
+
 The environment variable ``CREATE_TABLE`` may be control whether database tables are created.
 If the tables already exist, the ``CREATE_TABLE`` may be set to a "false" value (``"n"``,
 ``"no"``, ``"f"``, ``"false"``, ``"off"``, or ``"0"``). This value is by default "true"
@@ -844,6 +876,9 @@ which is normally okay because the tables are created only if they do not exist.
     os.environ["POSTGRES_USER"] = "eventsourcing"
     os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
     os.environ["POSTGRES_CONN_MAX_AGE"] = "10"
+    os.environ["POSTGRES_PRE_PING"] = "y"
+    os.environ["POSTGRES_LOCK_TIMEOUT"] = "5"
+    os.environ["POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT"] = "5"
 
 ..
     from eventsourcing.tests.test_postgres import drop_postgres_table
