@@ -670,7 +670,7 @@ os.environ['POSTGRES_PASSWORD'] = 'eventsourcing'
 # Optional config.
 # - connection max age (connections stay open by default)
 os.environ['POSTGRES_CONN_MAX_AGE'] = '60'  # seconds
-# - check connection before reuse (enabled pessimistic disconnect handling)
+# - check connection before use (pessimistic disconnect handling, default 'n')
 os.environ['POSTGRES_PRE_PING'] = 'y'
 # - timeout to wait for table lock when inserting (default no timeout)
 os.environ['POSTGRES_LOCK_TIMEOUT'] = '10'  # seconds
