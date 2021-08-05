@@ -134,6 +134,7 @@ class PostgresDatastore:
         password: str,
         conn_max_age: Optional[float] = None,
         pre_ping: bool = False,
+        lock_timeout: float = 0,
     ):
         self.dbname = dbname
         self.host = host
@@ -142,6 +143,7 @@ class PostgresDatastore:
         self.password = password
         self.conn_max_age = conn_max_age
         self.pre_ping = pre_ping
+        self.lock_timeout = lock_timeout
         self._connections: Dict[int, Connection] = {}
 
     def transaction(self, commit: bool) -> Transaction:
@@ -238,22 +240,25 @@ class PostgresAggregateRecorder(AggregateRecorder):
 
     def _lock_table(self, c: cursor) -> None:
         # Acquire "EXCLUSIVE" table lock, to serialize inserts so that
-        # insertion of notification IDs is monotonic for readers. We
-        # want concurrent transactions to insert SERIAL values in order,
-        # and although page locking might provide this, by locking the
-        # table for writes, it can hopefully be guaranteed. The EXCLUSIVE
-        # lock mode does not block ACCESS SHARE lock which is used for SELECT,
-        # so the table can be freely read. However INSERT normally just acquires
-        # ROW EXCLUSIVE locks, which risks interleaving of many inserts in one
-        # transaction with many insert in another transaction. Since one transaction
-        # will commit before another, the possibility arises for readers that are
-        # tailing a notification log to miss items inserted later but with lower
-        # notification IDs.
+        # insertion of notification IDs is monotonic for notification log
+        # readers. We want concurrent transactions to commit inserted
+        # SERIAL values in order, and by locking the table for writes,
+        # it can be guaranteed. The EXCLUSIVE lock mode does not block
+        # the ACCESS SHARE lock which is acquired during SELECT statements,
+        # so the table can be read concurrently. However INSERT normally
+        # just acquires ROW EXCLUSIVE locks, which risks interleaving of
+        # many inserts in one transaction with many insert in another
+        # transaction. Since one transaction will commit before another,
+        # the possibility arises for readers that are tailing a notification
+        # log to miss items inserted later but with lower notification IDs.
         # https://www.postgresql.org/docs/current/explicit-locking.html#LOCKING-TABLES
         # https://www.postgresql.org/docs/9.1/sql-lock.html
         # https://stackoverflow.com/questions/45866187/guarantee-monotonicity-of
         # -postgresql-serial-column-values-by-commit-order
-        c.execute(f"LOCK TABLE {self.events_table_name} IN EXCLUSIVE MODE")
+        c.execute(
+            f"SET LOCAL lock_timeout = '{self.datastore.lock_timeout}s'; "
+            f"LOCK TABLE {self.events_table_name} IN EXCLUSIVE MODE"
+        )
 
     def _insert_events(
         self,
@@ -452,6 +457,7 @@ class Factory(InfrastructureFactory):
     POSTGRES_CONN_MAX_AGE = "POSTGRES_CONN_MAX_AGE"
     CREATE_TABLE = "CREATE_TABLE"
     POSTGRES_PRE_PING = "POSTGRES_PRE_PING"
+    POSTGRES_LOCK_TIMEOUT = "POSTGRES_LOCK_TIMEOUT"
 
     def __init__(self, application_name: str, env: Mapping):
         super().__init__(application_name, env)
@@ -508,6 +514,18 @@ class Factory(InfrastructureFactory):
 
         pre_ping = strtobool(self.getenv(self.POSTGRES_PRE_PING) or "no")
 
+        lock_timeout_str = self.getenv(self.POSTGRES_LOCK_TIMEOUT) or "0"
+
+        try:
+            lock_timeout = float(lock_timeout_str)
+        except ValueError:
+            raise EnvironmentError(
+                f"Postgres environment value for key "
+                f"'{self.POSTGRES_LOCK_TIMEOUT}' is invalid. "
+                f"If set, a float or empty string is expected: "
+                f"'{lock_timeout_str}'"
+            )
+
         self.datastore = PostgresDatastore(
             dbname=dbname,
             host=host,
@@ -516,6 +534,7 @@ class Factory(InfrastructureFactory):
             password=password,
             conn_max_age=conn_max_age,
             pre_ping=pre_ping,
+            lock_timeout=lock_timeout,
         )
 
     def aggregate_recorder(self, purpose: str = "events") -> AggregateRecorder:

@@ -797,6 +797,12 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         os.environ[Factory.POSTGRES_PORT] = "5432"
         os.environ[Factory.POSTGRES_USER] = "eventsourcing"
         os.environ[Factory.POSTGRES_PASSWORD] = "eventsourcing"
+        if Factory.POSTGRES_CONN_MAX_AGE in os.environ:
+            del os.environ[Factory.POSTGRES_CONN_MAX_AGE]
+        if Factory.POSTGRES_PRE_PING in os.environ:
+            del os.environ[Factory.POSTGRES_PRE_PING]
+        if Factory.POSTGRES_LOCK_TIMEOUT in os.environ:
+            del os.environ[Factory.POSTGRES_LOCK_TIMEOUT]
         self.drop_tables()
         super().setUp()
 
@@ -816,6 +822,8 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
             del os.environ[Factory.POSTGRES_CONN_MAX_AGE]
         if Factory.POSTGRES_PRE_PING in os.environ:
             del os.environ[Factory.POSTGRES_PRE_PING]
+        if Factory.POSTGRES_LOCK_TIMEOUT in os.environ:
+            del os.environ[Factory.POSTGRES_LOCK_TIMEOUT]
         super().tearDown()
 
     def drop_tables(self):
@@ -839,6 +847,20 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         self.factory = Factory("TestCase", os.environ)
         self.assertEqual(self.factory.datastore.conn_max_age, 0)
 
+    def test_lock_timeout_is_zero_by_default(self):
+        self.assertTrue(Factory.POSTGRES_LOCK_TIMEOUT not in os.environ)
+        self.factory = Factory("TestCase", os.environ)
+        self.assertEqual(self.factory.datastore.lock_timeout, 0)
+
+        os.environ[Factory.POSTGRES_LOCK_TIMEOUT] = ""
+        self.factory = Factory("TestCase", os.environ)
+        self.assertEqual(self.factory.datastore.lock_timeout, 0)
+
+    def test_lock_timeout_is_nonzero(self):
+        os.environ[Factory.POSTGRES_LOCK_TIMEOUT] = "1.234"
+        self.factory = Factory("TestCase", os.environ)
+        self.assertEqual(self.factory.datastore.lock_timeout, 1.234)
+
     def test_pre_ping_off_by_default(self):
         self.factory = Factory("TestCase", os.environ)
         self.assertEqual(self.factory.datastore.pre_ping, False)
@@ -860,6 +882,16 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         self.assertEqual(
             cm.exception.args[0],
             "Postgres environment value for key 'POSTGRES_CONN_MAX_AGE' "
+            "is invalid. If set, a float or empty string is expected: 'abc'",
+        )
+
+    def test_environment_error_raised_when_lock_timeout_not_a_float(self):
+        os.environ[Factory.POSTGRES_LOCK_TIMEOUT] = "abc"
+        with self.assertRaises(EnvironmentError) as cm:
+            self.factory = Factory("TestCase", os.environ)
+        self.assertEqual(
+            cm.exception.args[0],
+            "Postgres environment value for key 'POSTGRES_LOCK_TIMEOUT' "
             "is invalid. If set, a float or empty string is expected: 'abc'",
         )
 
