@@ -212,7 +212,7 @@ class Application(ABC, Generic[TAggregate]):
     Base class for event-sourced applications.
     """
 
-    env = {}
+    env: Mapping[str, str] = {}
     is_snapshotting_enabled: bool = False
     snapshotting_intervals: Optional[Dict[Type[Aggregate], int]] = None
 
