@@ -212,6 +212,7 @@ class Application(ABC, Generic[TAggregate]):
     Base class for event-sourced applications.
     """
 
+    env = {}
     is_snapshotting_enabled: bool = False
     snapshotting_intervals: Optional[Dict[Type[Aggregate], int]] = None
 
@@ -238,7 +239,7 @@ class Application(ABC, Generic[TAggregate]):
         """
         Constructs environment from which application will be configured.
         """
-        _env = dict()
+        _env = dict(type(self).env)
         if type(self).is_snapshotting_enabled or type(self).snapshotting_intervals:
             _env["IS_SNAPSHOTTING_ENABLED"] = "y"
         _env.update(os.environ)
