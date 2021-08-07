@@ -168,10 +168,8 @@ class ApplicationRecorderTestCase(TestCase, ABC):
             futures = []
             for _ in range(100):
                 future = executor.submit(_createevent)
-                future.add_done_callback(self.close_db_connection)
                 futures.append(future)
             for future in futures:
-                # print(future.result())
                 future.result()
 
         stop_reading.set()
@@ -195,7 +193,8 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         threads = {}
         durations = {}
 
-        NUM_EVENTS = 1000
+        # Match this to the batch page size in postgres insert for max throughput.
+        NUM_EVENTS = 500
 
         def _createevent():
             thread_id = get_ident()
@@ -224,9 +223,6 @@ class ApplicationRecorderTestCase(TestCase, ABC):
                 errors_happened.set()
                 tb = traceback.format_exc()
                 print(tb)
-                pass
-            else:
-                return "OK"
             finally:
                 ended = datetime.now()
                 duration = (ended - started).total_seconds()
@@ -234,31 +230,22 @@ class ApplicationRecorderTestCase(TestCase, ABC):
                 if duration > durations[thread_id]:
                     durations[thread_id] = duration
 
-        NUM_JOBS = 100
+        NUM_JOBS = 60
 
-        self.all_done = Event()
-        self.count_done = 0
-
-        def count_done_inc(*args):
-            self.count_done += 1
-            if self.count_done == NUM_JOBS:
-                self.all_done.set()
-
-        started = datetime.now()
         with ThreadPoolExecutor(max_workers=4) as executor:
+            started = datetime.now()
             futures = []
             for _ in range(NUM_JOBS):
                 future = executor.submit(_createevent)
-                future.add_done_callback(count_done_inc)
+                # future.add_done_callback(self.close_db_connection)
                 futures.append(future)
             for future in futures:
-                # print(future.result())
                 future.result()
 
-        self.assertTrue(self.all_done.wait(timeout=10), "Test taking too long")
         self.assertFalse(errors_happened.is_set(), "There were errors (see above)")
         ended = datetime.now()
         print("Rate:", NUM_JOBS * NUM_EVENTS / (ended - started).total_seconds())
+        self.close_db_connection()
 
     def close_db_connection(self, *args):
         pass
