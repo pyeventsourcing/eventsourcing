@@ -220,11 +220,11 @@ class PostgresAggregateRecorder(AggregateRecorder):
     def __init__(self, datastore: PostgresDatastore, events_table_name: str):
         self.datastore = datastore
         self.events_table_name = events_table_name
-        self.insert_events_statement_name = f"insert_{events_table_name}"
         self.create_table_statements = self.construct_create_table_statements()
         self.insert_events_statement = (
             f"INSERT INTO {self.events_table_name} VALUES ($1, $2, $3, $4)"
         )
+        self.insert_events_statement_name = f"insert_{events_table_name}"
         self.select_events_statement = (
             f"SELECT * FROM {self.events_table_name} WHERE originator_id = $1 "
         )
@@ -404,10 +404,14 @@ class PostgresApplicationRecorder(
         self.select_notifications_statement = (
             "SELECT * "
             f"FROM {self.events_table_name} "
-            "WHERE notification_id>=%s "
+            "WHERE notification_id>=$1 "
             "ORDER BY notification_id "
-            "LIMIT %s"
+            "LIMIT $2"
         )
+        self.select_notifications_statement_name = (
+            f"select_notifications_{events_table_name}"
+        )
+
         self.max_notification_id_statement = (
             f"SELECT MAX(notification_id) FROM {self.events_table_name}"
         )
@@ -436,10 +440,27 @@ class PostgresApplicationRecorder(
         Returns a list of event notifications
         from 'start', limited by 'limit'.
         """
+        if not self.datastore.get_connection().is_prepared.get(
+            self.select_notifications_statement_name
+        ):
+            with self.datastore.transaction(commit=True) as conn:
+                with conn.cursor() as c:
+                    try:
+                        c.execute(
+                            f"PREPARE {self.select_notifications_statement_name} AS "
+                            + self.select_notifications_statement
+                        )
+                    except psycopg2.errors.lookup(DUPLICATE_PREPARED_STATEMENT):
+                        pass
+            conn.is_prepared[self.select_notifications_statement_name] = True
+
         notifications = []
         with self.datastore.transaction(commit=False) as conn:
             with conn.cursor() as c:
-                c.execute(self.select_notifications_statement, [start, limit])
+                c.execute(
+                    f"EXECUTE {self.select_notifications_statement_name}(%s, %s)",
+                    [start, limit],
+                )
                 for row in c.fetchall():
                     notifications.append(
                         Notification(
