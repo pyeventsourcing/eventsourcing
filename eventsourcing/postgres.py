@@ -255,6 +255,12 @@ class PostgresAggregateRecorder(AggregateRecorder):
 
     @retry(InterfaceError, max_attempts=10, wait=0.2)
     def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
+        self._prepare_insert_events_statement()
+        with self.datastore.transaction(commit=True) as conn:
+            with conn.cursor() as c:
+                self._insert_events(c, stored_events, **kwargs)
+
+    def _prepare_insert_events_statement(self):
         if not self.datastore.get_connection().is_prepared.get(
             self.insert_events_statement_name
         ):
@@ -268,9 +274,6 @@ class PostgresAggregateRecorder(AggregateRecorder):
                     except psycopg2.errors.lookup(DUPLICATE_PREPARED_STATEMENT):
                         pass
             conn.is_prepared[self.insert_events_statement_name] = True
-        with self.datastore.transaction(commit=True) as conn:
-            with conn.cursor() as c:
-                self._insert_events(c, stored_events, **kwargs)
 
     def _insert_events(
         self,
@@ -415,6 +418,9 @@ class PostgresApplicationRecorder(
         self.max_notification_id_statement = (
             f"SELECT MAX(notification_id) FROM {self.events_table_name}"
         )
+        self.max_notification_id_statement_name = (
+            f"max_notification_id_{events_table_name}"
+        )
 
     def construct_create_table_statements(self) -> List[str]:
         statements = [
@@ -459,7 +465,7 @@ class PostgresApplicationRecorder(
             with conn.cursor() as c:
                 c.execute(
                     f"EXECUTE {self.select_notifications_statement_name}(%s, %s)",
-                    [start, limit],
+                    (start, limit),
                 )
                 for row in c.fetchall():
                     notifications.append(
@@ -478,9 +484,25 @@ class PostgresApplicationRecorder(
         """
         Returns the maximum notification ID.
         """
+        if not self.datastore.get_connection().is_prepared.get(
+            self.max_notification_id_statement_name
+        ):
+            with self.datastore.transaction(commit=True) as conn:
+                with conn.cursor() as c:
+                    try:
+                        c.execute(
+                            f"PREPARE {self.max_notification_id_statement_name} AS "
+                            + self.max_notification_id_statement
+                        )
+                    except psycopg2.errors.lookup(DUPLICATE_PREPARED_STATEMENT):
+                        pass
+            conn.is_prepared[self.max_notification_id_statement_name] = True
+
         with self.datastore.transaction(commit=False) as conn:
             with conn.cursor() as c:
-                c.execute(self.max_notification_id_statement)
+                c.execute(
+                    f"EXECUTE {self.max_notification_id_statement_name}",
+                )
                 max_id = c.fetchone()[0] or 0
         return max_id
 
@@ -498,12 +520,18 @@ class PostgresProcessRecorder(
         self.tracking_table_name = tracking_table_name
         super().__init__(datastore, events_table_name)
         self.insert_tracking_statement = (
-            f"INSERT INTO {self.tracking_table_name} " "VALUES (%s, %s)"
+            f"INSERT INTO {self.tracking_table_name} " "VALUES ($1, $2)"
+        )
+        self.insert_tracking_statement_name = (
+            f"insert_{tracking_table_name}"
         )
         self.max_tracking_id_statement = (
             "SELECT MAX(notification_id) "
             f"FROM {self.tracking_table_name} "
-            "WHERE application_name=%s"
+            "WHERE application_name=$1"
+        )
+        self.max_tracking_id_statement_name = (
+            f"max_tracking_id_{tracking_table_name}"
         )
 
     def construct_create_table_statements(self) -> List[str]:
@@ -520,11 +548,44 @@ class PostgresProcessRecorder(
 
     @retry(InterfaceError, max_attempts=10, wait=0.2)
     def max_tracking_id(self, application_name: str) -> int:
+        if not self.datastore.get_connection().is_prepared.get(
+            self.max_tracking_id_statement_name
+        ):
+            with self.datastore.transaction(commit=True) as conn:
+                with conn.cursor() as c:
+                    try:
+                        c.execute(
+                            f"PREPARE {self.max_tracking_id_statement_name} AS "
+                            + self.max_tracking_id_statement
+                        )
+                    except psycopg2.errors.lookup(DUPLICATE_PREPARED_STATEMENT):
+                        pass
+            conn.is_prepared[self.max_tracking_id_statement_name] = True
+
         with self.datastore.transaction(commit=False) as conn:
             with conn.cursor() as c:
-                c.execute(self.max_tracking_id_statement, [application_name])
+                c.execute(
+                    f"EXECUTE {self.max_tracking_id_statement_name}(%s)",
+                    (application_name,),
+                )
                 max_id = c.fetchone()[0] or 0
         return max_id
+
+    def _prepare_insert_events_statement(self):
+        super()._prepare_insert_events_statement()
+        if not self.datastore.get_connection().is_prepared.get(
+            self.insert_tracking_statement_name
+        ):
+            with self.datastore.transaction(commit=True) as conn:
+                with conn.cursor() as c:
+                    try:
+                        c.execute(
+                            f"PREPARE {self.insert_tracking_statement_name} AS "
+                            + self.insert_tracking_statement
+                        )
+                    except psycopg2.errors.lookup(DUPLICATE_PREPARED_STATEMENT):
+                        pass
+            conn.is_prepared[self.insert_tracking_statement_name] = True
 
     def _insert_events(
         self,
@@ -536,7 +597,7 @@ class PostgresProcessRecorder(
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking is not None:
             c.execute(
-                self.insert_tracking_statement,
+                f"EXECUTE {self.insert_tracking_statement_name}(%s, %s)",
                 (
                     tracking.application_name,
                     tracking.notification_id,
