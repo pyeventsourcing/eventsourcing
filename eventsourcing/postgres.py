@@ -154,7 +154,7 @@ class PostgresDatastore:
     def transaction(self, commit: bool) -> Transaction:
         return Transaction(self.get_connection(), commit=commit)
 
-    def get_connection(self):
+    def get_connection(self) -> Connection:
         thread_id = threading.get_ident()
         try:
             conn = self._connections[thread_id]
@@ -220,7 +220,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
     def __init__(self, datastore: PostgresDatastore, events_table_name: str):
         self.datastore = datastore
         self.events_table_name = events_table_name
-        self.insert_plan_name = events_table_name + "_insert_plan"
+        self.insert_events_statement_name = f"insert_{events_table_name}"
         self.create_table_statements = self.construct_create_table_statements()
         self.insert_events_statement = (
             f"INSERT INTO {self.events_table_name} VALUES ($1, $2, $3, $4)"
@@ -256,18 +256,18 @@ class PostgresAggregateRecorder(AggregateRecorder):
     @retry(InterfaceError, max_attempts=10, wait=0.2)
     def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
         if not self.datastore.get_connection().is_prepared.get(
-            self.insert_plan_name
+            self.insert_events_statement_name
         ):
             with self.datastore.transaction(commit=True) as conn:
                 with conn.cursor() as c:
                     try:
                         c.execute(
-                            f"PREPARE {self.insert_plan_name} AS "
+                            f"PREPARE {self.insert_events_statement_name} AS "
                             + self.insert_events_statement
                         )
                     except psycopg2.errors.lookup(DUPLICATE_PREPARED_STATEMENT):
                         pass
-            conn.is_prepared[self.insert_plan_name] = True
+            conn.is_prepared[self.insert_events_statement_name] = True
         with self.datastore.transaction(commit=True) as conn:
             with conn.cursor() as c:
                 self._insert_events(c, stored_events, **kwargs)
@@ -322,7 +322,9 @@ class PostgresAggregateRecorder(AggregateRecorder):
 
         for params in batches:
             sqls = [
-                c.mogrify(f"EXECUTE {self.insert_plan_name}(%s, %s, %s, %s)", args)
+                c.mogrify(
+                    f"EXECUTE {self.insert_events_statement_name}(%s, %s, %s, %s)", args
+                )
                 for args in params
             ]
             c.execute(b";".join(chain(lock_sqls, sqls)))
@@ -339,7 +341,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
     ) -> List[StoredEvent]:
         statement = self.select_events_statement
         params: List[Any] = [originator_id]
-        statement_name = f"select_events_{self.events_table_name}"
+        statement_name = f"select_{self.events_table_name}"
         if gt is not None:
             params.append(gt)
             statement += f"AND originator_version > ${len(params)} "
@@ -362,10 +364,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
             with self.datastore.transaction(commit=True) as conn:
                 with conn.cursor() as c:
                     try:
-                        c.execute(
-                            f"PREPARE {statement_name} AS "
-                            + statement
-                        )
+                        c.execute(f"PREPARE {statement_name} AS " + statement)
                     except psycopg2.errors.lookup(DUPLICATE_PREPARED_STATEMENT):
                         pass
 
@@ -377,7 +376,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
             with conn.cursor() as c:
                 c.execute(
                     f"EXECUTE {statement_name}({', '.join(['%s' for _ in params])})",
-                    params
+                    params,
                 )
                 for row in c.fetchall():
                     stored_events.append(
