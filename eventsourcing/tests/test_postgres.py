@@ -214,9 +214,10 @@ class TestPostgresDatastore(TestCase):
         self.assertFalse(transaction.c.is_idle.is_set())
 
         # Check transaction gives database cursor when used as context manager.
-        with transaction as cursor:
-            cursor.execute("SELECT 1")
-            self.assertEqual(cursor.fetchall(), [[1]])
+        with transaction as conn:
+            with conn.cursor() as c:
+                c.execute("SELECT 1")
+                self.assertEqual(c.fetchall(), [[1]])
 
         # Check connection is idle after context manager has exited.
         self.assertTrue(transaction.c.is_idle.wait(timeout=0.1))
@@ -256,9 +257,10 @@ class TestPostgresDatastore(TestCase):
         datastore.close_connection()
 
         # Create a connection.
-        with datastore.transaction(commit=False) as cursor:
-            cursor.execute("SELECT 1")
-            self.assertEqual(cursor.fetchall(), [[1]])
+        with datastore.transaction(commit=False) as conn:
+            with conn.cursor() as c:
+                c.execute("SELECT 1")
+                self.assertEqual(c.fetchall(), [[1]])
 
         # Try closing after creating connection.
         datastore.close_connection()
@@ -275,9 +277,10 @@ class TestPostgresDatastore(TestCase):
 
         # Check connection is closed after using transaction.
         transaction = datastore.transaction(commit=False)
-        with transaction as cursor:
-            cursor.execute("SELECT 1")
-            self.assertEqual(cursor.fetchall(), [[1]])
+        with transaction as conn:
+            with conn.cursor() as c:
+                c.execute("SELECT 1")
+                self.assertEqual(c.fetchall(), [[1]])
 
         self.assertTrue(transaction.c.is_closing.wait(timeout=0.5))
         for _ in range(1000):
@@ -294,9 +297,10 @@ class TestPostgresDatastore(TestCase):
 
         # Check closed connection can be recreated and also closed.
         transaction = datastore.transaction(commit=False)
-        with transaction as cursor:
-            cursor.execute("SELECT 1")
-            self.assertEqual(cursor.fetchall(), [[1]])
+        with transaction as conn:
+            with conn.cursor() as c:
+                c.execute("SELECT 1")
+                self.assertEqual(c.fetchall(), [[1]])
 
         self.assertTrue(transaction.c.is_closing.wait(timeout=0.5))
         for _ in range(1000):
@@ -323,9 +327,10 @@ class TestPostgresDatastore(TestCase):
         self.assertEqual(pg_conn, transaction.c.c)
 
         # Check the connection works.
-        with transaction as cursor:
-            cursor.execute("SELECT 1")
-            self.assertEqual(cursor.fetchall(), [[1]])
+        with transaction as conn:
+            with conn.cursor() as c:
+                c.execute("SELECT 1")
+                self.assertEqual(c.fetchall(), [[1]])
 
         # Close all connections via separate connection.
         pg_close_all_connections()
@@ -335,9 +340,10 @@ class TestPostgresDatastore(TestCase):
 
         # Check we can get a new connection that works.
         transaction = datastore.transaction(commit=False)
-        with transaction as cursor:
-            cursor.execute("SELECT 1")
-            self.assertEqual(cursor.fetchall(), [[1]])
+        with transaction as conn:
+            with conn.cursor() as c:
+                c.execute("SELECT 1")
+                self.assertEqual(c.fetchall(), [[1]])
 
         # Check it's actually a different connection.
         self.assertNotEqual(pg_conn, transaction.c.c)
@@ -358,9 +364,10 @@ class TestPostgresDatastore(TestCase):
         self.assertEqual(pg_conn, transaction.c.c)
 
         # Check the connection works.
-        with transaction as cursor:
-            cursor.execute("SELECT 1")
-            self.assertEqual(cursor.fetchall(), [[1]])
+        with transaction as conn:
+            with conn.cursor() as c:
+                c.execute("SELECT 1")
+                self.assertEqual(c.fetchall(), [[1]])
 
         # Close all connections via separate connection.
         pg_close_all_connections()
@@ -374,8 +381,9 @@ class TestPostgresDatastore(TestCase):
         # Check it's the same connection.
         self.assertEqual(pg_conn, transaction.c.c)
         with self.assertRaises(InterfaceError):
-            with transaction as cursor:
-                cursor.execute("SELECT 1")
+            with transaction as conn:
+                with conn.cursor() as c:
+                    c.execute("SELECT 1")
 
 
 class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
@@ -556,6 +564,12 @@ class TestPostgresApplicationRecorder(ApplicationRecorderTestCase):
 
     def close_db_connection(self, *args):
         self.datastore.close_connection()
+
+    def test_concurrent_no_conflicts(self):
+        super().test_concurrent_no_conflicts()
+
+    def test_concurrent_throughput(self):
+        super().test_concurrent_throughput()
 
     def test_retry_select_notifications_after_closing_connection(self):
         # Construct the recorder.
@@ -976,8 +990,9 @@ del InfrastructureFactoryTestCase
 
 def drop_postgres_table(datastore: PostgresDatastore, table_name):
     try:
-        with datastore.transaction(commit=True) as c:
+        with datastore.transaction(commit=True) as t:
             statement = f"DROP TABLE {table_name};"
-            c.execute(statement)
+            with t.c.cursor() as c:
+                c.execute(statement)
     except PersistenceError:
         pass

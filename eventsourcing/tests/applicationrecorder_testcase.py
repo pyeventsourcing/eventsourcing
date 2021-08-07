@@ -143,11 +143,9 @@ class ApplicationRecorderTestCase(TestCase, ABC):
             finally:
                 ended = datetime.now()
                 duration = (ended - started).total_seconds()
-                # print(f"Thread {thread_num} write complete #{count + 1}")
                 counts[thread_id] += 1
                 if duration > durations[thread_id]:
                     durations[thread_id] = duration
-                # sleep(0.01)
 
         stop_reading = Event()
 
@@ -185,6 +183,82 @@ class ApplicationRecorderTestCase(TestCase, ABC):
             duration = durations[thread_id]
             print(f"Thread {thread_num} wrote {count} times (max dur {duration})")
         self.assertFalse(errors_happened.is_set())
+
+    def test_concurrent_throughput(self):
+        print(self)
+
+        recorder = self.create_recorder()
+
+        errors_happened = Event()
+
+        counts = {}
+        threads = {}
+        durations = {}
+
+        NUM_EVENTS = 1000
+
+        def _createevent():
+            thread_id = get_ident()
+            if thread_id not in threads:
+                threads[thread_id] = len(threads)
+            if thread_id not in counts:
+                counts[thread_id] = 0
+            if thread_id not in durations:
+                durations[thread_id] = 0
+
+            originator_id = uuid4()
+            stored_events = [
+                StoredEvent(
+                    originator_id=originator_id,
+                    originator_version=i,
+                    topic="topic",
+                    state=b"state",
+                )
+                for i in range(NUM_EVENTS)
+            ]
+
+            try:
+                recorder.insert_events(stored_events)
+
+            except Exception:
+                errors_happened.set()
+                tb = traceback.format_exc()
+                print(tb)
+                pass
+            else:
+                return "OK"
+            finally:
+                ended = datetime.now()
+                duration = (ended - started).total_seconds()
+                counts[thread_id] += 1
+                if duration > durations[thread_id]:
+                    durations[thread_id] = duration
+
+        NUM_JOBS = 100
+
+        self.all_done = Event()
+        self.count_done = 0
+
+        def count_done_inc(*args):
+            self.count_done += 1
+            if self.count_done == NUM_JOBS:
+                self.all_done.set()
+
+        started = datetime.now()
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = []
+            for _ in range(NUM_JOBS):
+                future = executor.submit(_createevent)
+                future.add_done_callback(count_done_inc)
+                futures.append(future)
+            for future in futures:
+                # print(future.result())
+                future.result()
+
+        self.assertTrue(self.all_done.wait(timeout=10), "Test taking too long")
+        self.assertFalse(errors_happened.is_set(), "There were errors (see above)")
+        ended = datetime.now()
+        print("Rate:", NUM_JOBS * NUM_EVENTS / (ended - started).total_seconds())
 
     def close_db_connection(self, *args):
         pass

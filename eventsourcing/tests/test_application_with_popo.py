@@ -25,14 +25,13 @@ class TestApplicationWithPOPO(TestCase):
         cls = type(self)
         if cls not in self.started_ats:
             self.started_ats[cls] = datetime.now()
-            print("\t", f"{cls.__name__: <29} timeit number: {cls.timeit_number}")
+            print(f"{cls.__name__: <29} timeit number: {cls.timeit_number}")
             self.counts[cls] = 1
         else:
             self.counts[cls] += 1
 
         rate = f"{self.timeit_number / duration:.0f} events/s"
         print(
-            "\t",
             f"{cls.__name__: <29}",
             f"{test_label: <21}",
             f"{rate: >15}",
@@ -41,7 +40,7 @@ class TestApplicationWithPOPO(TestCase):
 
         if self.counts[cls] == 3:
             duration = datetime.now() - cls.started_ats[cls]
-            print("\t", f"{cls.__name__: <29} timeit duration: {duration}")
+            print(f"{cls.__name__: <29} timeit duration: {duration}")
             sys.stdout.flush()
 
     def test_example_application(self):

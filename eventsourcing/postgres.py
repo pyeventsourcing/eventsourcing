@@ -1,5 +1,6 @@
 import threading
 from distutils.util import strtobool
+from itertools import chain
 from threading import Event, Timer
 from types import TracebackType
 from typing import Any, Dict, List, Mapping, Optional, Type
@@ -9,7 +10,6 @@ import psycopg2
 import psycopg2.errors
 import psycopg2.extras
 from psycopg2.extensions import connection, cursor
-from psycopg2.extras import execute_batch
 
 from eventsourcing.persistence import (
     AggregateRecorder,
@@ -47,6 +47,7 @@ class Connection:
             self.timer.start()
         else:
             self.timer = None
+        self.is_insert_prepared: Dict[str, bool] = {}
 
     def cursor(self) -> cursor:
         return self.c.cursor(cursor_factory=psycopg2.extras.DictCursor)
@@ -79,9 +80,9 @@ class Transaction:
         self.commit = commit
         self.has_entered = False
 
-    def __enter__(self) -> cursor:
+    def __enter__(self) -> "Connection":
         self.has_entered = True
-        return self.c.cursor()
+        return self.c
 
     def __exit__(
         self,
@@ -150,21 +151,24 @@ class PostgresDatastore:
         self._connections: Dict[int, Connection] = {}
 
     def transaction(self, commit: bool) -> Transaction:
+        return Transaction(self.get_connection(), commit=commit)
+
+    def get_connection(self):
         thread_id = threading.get_ident()
         try:
-            c = self._connections[thread_id]
+            conn = self._connections[thread_id]
         except KeyError:
-            c = self._create_connection(thread_id)
+            conn = self._create_connection(thread_id)
         else:
-            c.is_idle.clear()
-            if c.is_closing.is_set() or c.is_closed:
-                c = self._create_connection(thread_id)
+            conn.is_idle.clear()
+            if conn.is_closing.is_set() or conn.is_closed:
+                conn = self._create_connection(thread_id)
             elif self.pre_ping:
                 try:
-                    c.cursor().execute("SELECT 1")
+                    conn.cursor().execute("SELECT 1")
                 except psycopg2.Error:
-                    c = self._create_connection(thread_id)
-        return Transaction(c, commit=commit)
+                    conn = self._create_connection(thread_id)
+        return conn
 
     def _create_connection(self, thread_id: int) -> Connection:
         # Make a connection to a Postgres database.
@@ -215,13 +219,18 @@ class PostgresAggregateRecorder(AggregateRecorder):
     def __init__(self, datastore: PostgresDatastore, events_table_name: str):
         self.datastore = datastore
         self.events_table_name = events_table_name
+        self.insert_plan_name = events_table_name + "_insert_plan"
         self.create_table_statements = self.construct_create_table_statements()
         self.insert_events_statement = (
-            f"INSERT INTO {self.events_table_name} VALUES (%s, %s, %s, %s)"
+            f"INSERT INTO {self.events_table_name} VALUES ($1, $2, $3, $4)"
         )
         self.select_events_statement = (
             f"SELECT * FROM {self.events_table_name} WHERE originator_id = %s "
         )
+        self.lock_statements = [
+            f"SET LOCAL lock_timeout = '{self.datastore.lock_timeout}s'",
+            f"LOCK TABLE {self.events_table_name} IN EXCLUSIVE MODE",
+        ]
 
     def construct_create_table_statements(self) -> List[str]:
         statement = (
@@ -232,22 +241,39 @@ class PostgresAggregateRecorder(AggregateRecorder):
             "topic text, "
             "state bytea, "
             "PRIMARY KEY "
-            "(originator_id, originator_version))"
+            "(originator_id, originator_version)) "
+            "WITH (autovacuum_enabled=false)"
         )
         return [statement]
 
     def create_table(self) -> None:
-        with self.datastore.transaction(commit=True) as c:
-            for statement in self.create_table_statements:
-                c.execute(statement)
+        with self.datastore.transaction(commit=True) as conn:
+            with conn.cursor() as c:
+                for statement in self.create_table_statements:
+                    c.execute(statement)
 
     @retry(InterfaceError, max_attempts=10, wait=0.2)
     def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
-        with self.datastore.transaction(commit=True) as c:
-            self._lock_table(c)
-            self._insert_events(c, stored_events, **kwargs)
+        if not self.datastore.get_connection().is_insert_prepared.get(
+            self.insert_plan_name
+        ):
+            with self.datastore.transaction(commit=True) as conn:
+                with conn.cursor() as c:
+                    c.execute(
+                        f"PREPARE {self.insert_plan_name} AS "
+                        + self.insert_events_statement
+                    )
+                    conn.is_insert_prepared[self.insert_plan_name] = True
+        with self.datastore.transaction(commit=True) as conn:
+            with conn.cursor() as c:
+                self._insert_events(c, stored_events, **kwargs)
 
-    def _lock_table(self, c: cursor) -> None:
+    def _insert_events(
+        self,
+        c: cursor,
+        stored_events: List[StoredEvent],
+        **kwargs: Any,
+    ) -> None:
         # Acquire "EXCLUSIVE" table lock, to serialize inserts so that
         # insertion of notification IDs is monotonic for notification log
         # readers. We want concurrent transactions to commit inserted
@@ -264,19 +290,17 @@ class PostgresAggregateRecorder(AggregateRecorder):
         # https://www.postgresql.org/docs/9.1/sql-lock.html
         # https://stackoverflow.com/questions/45866187/guarantee-monotonicity-of
         # -postgresql-serial-column-values-by-commit-order
-        c.execute(
-            f"SET LOCAL lock_timeout = '{self.datastore.lock_timeout}s'; "
-            f"LOCK TABLE {self.events_table_name} IN EXCLUSIVE MODE"
-        )
+        if len(stored_events) > 1:
+            lock_sqls = [c.mogrify(s) for s in self.lock_statements]
+        else:
+            lock_sqls = []
 
-    def _insert_events(
-        self,
-        c: cursor,
-        stored_events: List[StoredEvent],
-        **kwargs: Any,
-    ) -> None:
+        page_size = 10000
+        batches = []
         params = []
+        counter = 0
         for stored_event in stored_events:
+            counter += 1
             params.append(
                 (
                     stored_event.originator_id,
@@ -285,7 +309,23 @@ class PostgresAggregateRecorder(AggregateRecorder):
                     stored_event.state,
                 )
             )
-        execute_batch(c, self.insert_events_statement, params)
+            if counter == page_size:
+                batches.append(params)
+                params = []
+                counter = 0
+        if params:
+            batches.append(params)
+
+        # started = datetime.now()
+        for params in batches:
+            sqls = [
+                c.mogrify(f"EXECUTE {self.insert_plan_name}(%s, %s, %s, %s)", args)
+                for args in params
+            ]
+            c.execute(b";".join(chain(lock_sqls, sqls)))
+            lock_sqls = []
+        # ended = datetime.now()
+        # print("Insert rate:", len(stored_events) / (ended - started).total_seconds())
 
     @retry(InterfaceError, max_attempts=10, wait=0.2)
     def select_events(
@@ -314,17 +354,18 @@ class PostgresAggregateRecorder(AggregateRecorder):
             params.append(limit)
         # statement += ";"
         stored_events = []
-        with self.datastore.transaction(commit=False) as c:
-            c.execute(statement, params)
-            for row in c.fetchall():
-                stored_events.append(
-                    StoredEvent(
-                        originator_id=row["originator_id"],
-                        originator_version=row["originator_version"],
-                        topic=row["topic"],
-                        state=bytes(row["state"]),
+        with self.datastore.transaction(commit=False) as conn:
+            with conn.cursor() as c:
+                c.execute(statement, params)
+                for row in c.fetchall():
+                    stored_events.append(
+                        StoredEvent(
+                            originator_id=row["originator_id"],
+                            originator_version=row["originator_version"],
+                            topic=row["topic"],
+                            state=bytes(row["state"]),
+                        )
                     )
-                )
         return stored_events
 
 
@@ -360,7 +401,8 @@ class PostgresApplicationRecorder(
             "state bytea, "
             "notification_id SERIAL, "
             "PRIMARY KEY "
-            "(originator_id, originator_version))",
+            "(originator_id, originator_version)) "
+            "WITH (autovacuum_enabled=false)",
             f"CREATE UNIQUE INDEX IF NOT EXISTS "
             f"{self.events_table_name}_notification_id_idx "
             f"ON {self.events_table_name} (notification_id ASC);",
@@ -374,18 +416,19 @@ class PostgresApplicationRecorder(
         from 'start', limited by 'limit'.
         """
         notifications = []
-        with self.datastore.transaction(commit=False) as c:
-            c.execute(self.select_notifications_statement, [start, limit])
-            for row in c.fetchall():
-                notifications.append(
-                    Notification(
-                        id=row["notification_id"],
-                        originator_id=row["originator_id"],
-                        originator_version=row["originator_version"],
-                        topic=row["topic"],
-                        state=bytes(row["state"]),
+        with self.datastore.transaction(commit=False) as conn:
+            with conn.cursor() as c:
+                c.execute(self.select_notifications_statement, [start, limit])
+                for row in c.fetchall():
+                    notifications.append(
+                        Notification(
+                            id=row["notification_id"],
+                            originator_id=row["originator_id"],
+                            originator_version=row["originator_version"],
+                            topic=row["topic"],
+                            state=bytes(row["state"]),
+                        )
                     )
-                )
         return notifications
 
     @retry(InterfaceError, max_attempts=10, wait=0.2)
@@ -393,9 +436,10 @@ class PostgresApplicationRecorder(
         """
         Returns the maximum notification ID.
         """
-        with self.datastore.transaction(commit=False) as c:
-            c.execute(self.max_notification_id_statement)
-            max_id = c.fetchone()[0] or 0
+        with self.datastore.transaction(commit=False) as conn:
+            with conn.cursor() as c:
+                c.execute(self.max_notification_id_statement)
+                max_id = c.fetchone()[0] or 0
         return max_id
 
 
@@ -434,9 +478,10 @@ class PostgresProcessRecorder(
 
     @retry(InterfaceError, max_attempts=10, wait=0.2)
     def max_tracking_id(self, application_name: str) -> int:
-        with self.datastore.transaction(commit=False) as c:
-            c.execute(self.max_tracking_id_statement, [application_name])
-            max_id = c.fetchone()[0] or 0
+        with self.datastore.transaction(commit=False) as conn:
+            with conn.cursor() as c:
+                c.execute(self.max_tracking_id_statement, [application_name])
+                max_id = c.fetchone()[0] or 0
         return max_id
 
     def _insert_events(

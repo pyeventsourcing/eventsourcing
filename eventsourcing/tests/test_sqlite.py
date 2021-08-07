@@ -170,6 +170,15 @@ class TestSQLiteApplicationRecorder(ApplicationRecorderTestCase):
         self.db_uri = "file::memory:?cache=shared"
         super().test_concurrent_no_conflicts()
 
+    def test_concurrent_throughput(self):
+        self.uris = tmpfile_uris()
+        self.db_uri = next(self.uris)
+        super().test_concurrent_throughput()
+
+    def test_concurrent_throughput_in_memory_db(self):
+        self.db_uri = "file::memory:?cache=shared"
+        super().test_concurrent_throughput()
+
 
 class TestSQLiteApplicationRecorderErrors(TestCase):
     def test_insert_raises_operational_error_if_table_not_created(self):

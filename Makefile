@@ -90,6 +90,22 @@ timeit_sqlite:
 timeit_postgres:
 	TEST_TIMEIT_FACTOR=500 python -m unittest eventsourcing.tests.test_application_with_postgres
 
+.PHONY: rate
+rate: rate_popo rate_sqlite rate_postgres
+
+.PHONY: rate_popo
+rate_popo:
+	python -m unittest eventsourcing.tests.test_popo.TestPOPOApplicationRecorder.test_concurrent_throughput
+
+.PHONY: rate_sqlite
+rate_sqlite:
+	python -m unittest eventsourcing.tests.test_sqlite.TestSQLiteApplicationRecorder.test_concurrent_throughput
+	python -m unittest eventsourcing.tests.test_sqlite.TestSQLiteApplicationRecorder.test_concurrent_throughput_in_memory_db
+
+.PHONY: rate_postgres
+rate_postgres:
+	python -m unittest eventsourcing.tests.test_postgres.TestPostgresApplicationRecorder.test_concurrent_throughput
+
 .PHONY: coveragetest
 coveragetest:
 	@coverage run -m unittest discover . -v
