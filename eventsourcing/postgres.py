@@ -9,6 +9,7 @@ from uuid import UUID
 import psycopg2
 import psycopg2.errors
 import psycopg2.extras
+from psycopg2.errorcodes import DUPLICATE_PREPARED_STATEMENT
 from psycopg2.extensions import connection, cursor
 
 from eventsourcing.persistence import (
@@ -47,7 +48,7 @@ class Connection:
             self.timer.start()
         else:
             self.timer = None
-        self.is_insert_prepared: Dict[str, bool] = {}
+        self.is_prepared: Dict[str, bool] = {}
 
     def cursor(self) -> cursor:
         return self.c.cursor(cursor_factory=psycopg2.extras.DictCursor)
@@ -225,7 +226,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
             f"INSERT INTO {self.events_table_name} VALUES ($1, $2, $3, $4)"
         )
         self.select_events_statement = (
-            f"SELECT * FROM {self.events_table_name} WHERE originator_id = %s "
+            f"SELECT * FROM {self.events_table_name} WHERE originator_id = $1 "
         )
         self.lock_statements = [
             f"SET LOCAL lock_timeout = '{self.datastore.lock_timeout}s'",
@@ -254,16 +255,19 @@ class PostgresAggregateRecorder(AggregateRecorder):
 
     @retry(InterfaceError, max_attempts=10, wait=0.2)
     def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
-        if not self.datastore.get_connection().is_insert_prepared.get(
+        if not self.datastore.get_connection().is_prepared.get(
             self.insert_plan_name
         ):
             with self.datastore.transaction(commit=True) as conn:
                 with conn.cursor() as c:
-                    c.execute(
-                        f"PREPARE {self.insert_plan_name} AS "
-                        + self.insert_events_statement
-                    )
-                    conn.is_insert_prepared[self.insert_plan_name] = True
+                    try:
+                        c.execute(
+                            f"PREPARE {self.insert_plan_name} AS "
+                            + self.insert_events_statement
+                        )
+                    except psycopg2.errors.lookup(DUPLICATE_PREPARED_STATEMENT):
+                        pass
+            conn.is_prepared[self.insert_plan_name] = True
         with self.datastore.transaction(commit=True) as conn:
             with conn.cursor() as c:
                 self._insert_events(c, stored_events, **kwargs)
@@ -316,7 +320,6 @@ class PostgresAggregateRecorder(AggregateRecorder):
         if params:
             batches.append(params)
 
-        # started = datetime.now()
         for params in batches:
             sqls = [
                 c.mogrify(f"EXECUTE {self.insert_plan_name}(%s, %s, %s, %s)", args)
@@ -324,8 +327,6 @@ class PostgresAggregateRecorder(AggregateRecorder):
             ]
             c.execute(b";".join(chain(lock_sqls, sqls)))
             lock_sqls = []
-        # ended = datetime.now()
-        # print("Insert rate:", len(stored_events) / (ended - started).total_seconds())
 
     @retry(InterfaceError, max_attempts=10, wait=0.2)
     def select_events(
@@ -338,25 +339,46 @@ class PostgresAggregateRecorder(AggregateRecorder):
     ) -> List[StoredEvent]:
         statement = self.select_events_statement
         params: List[Any] = [originator_id]
+        statement_name = f"select_events_{self.events_table_name}"
         if gt is not None:
-            statement += "AND originator_version > %s "
             params.append(gt)
+            statement += f"AND originator_version > ${len(params)} "
+            statement_name += "_gt"
         if lte is not None:
-            statement += "AND originator_version <= %s "
             params.append(lte)
+            statement += f"AND originator_version <= ${len(params)} "
+            statement_name += "_lte"
         statement += "ORDER BY originator_version "
         if desc is False:
             statement += "ASC "
         else:
             statement += "DESC "
+            statement_name += "_desc"
         if limit is not None:
-            statement += "LIMIT %s "
             params.append(limit)
-        # statement += ";"
+            statement += f"LIMIT ${len(params)} "
+            statement_name += "_limit"
+        if not self.datastore.get_connection().is_prepared.get(statement_name):
+            with self.datastore.transaction(commit=True) as conn:
+                with conn.cursor() as c:
+                    try:
+                        c.execute(
+                            f"PREPARE {statement_name} AS "
+                            + statement
+                        )
+                    except psycopg2.errors.lookup(DUPLICATE_PREPARED_STATEMENT):
+                        pass
+
+            print("Prepared", statement_name)
+            conn.is_prepared[statement_name] = True
+
         stored_events = []
         with self.datastore.transaction(commit=False) as conn:
             with conn.cursor() as c:
-                c.execute(statement, params)
+                c.execute(
+                    f"EXECUTE {statement_name}({', '.join(['%s' for _ in params])})",
+                    params
+                )
                 for row in c.fetchall():
                     stored_events.append(
                         StoredEvent(
