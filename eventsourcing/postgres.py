@@ -298,41 +298,43 @@ class PostgresAggregateRecorder(AggregateRecorder):
         # https://www.postgresql.org/docs/9.1/sql-lock.html
         # https://stackoverflow.com/questions/45866187/guarantee-monotonicity-of
         # -postgresql-serial-column-values-by-commit-order
-        if len(stored_events) > 1:
-            lock_sqls = [c.mogrify(s) for s in self.lock_statements]
-        else:
-            lock_sqls = []
 
+        len_stored_events = len(stored_events)
+
+        # Just don't do anything if there is nothing to do.
+        if len_stored_events == 0:
+            return
+
+        # Mogrify the table lock statements.
+        lock_sqls = (c.mogrify(s) for s in self.lock_statements)
+
+        # Prepare the commands before getting the table lock.
         page_size = 500
-        batches = []
-        params = []
-        counter = 0
-        for stored_event in stored_events:
-            counter += 1
-            params.append(
-                (
-                    stored_event.originator_id,
-                    stored_event.originator_version,
-                    stored_event.topic,
-                    stored_event.state,
-                )
-            )
-            if counter == page_size:
-                batches.append(params)
-                params = []
-                counter = 0
-        if params:
-            batches.append(params)
-
-        for params in batches:
-            sqls = [
+        pages = [
+            (
                 c.mogrify(
-                    f"EXECUTE {self.insert_events_statement_name}(%s, %s, %s, %s)", args
+                    f"EXECUTE {self.insert_events_statement_name}(%s, %s, %s, %s)",
+                    (
+                        stored_event.originator_id,
+                        stored_event.originator_version,
+                        stored_event.topic,
+                        stored_event.state,
+                    ),
                 )
-                for args in params
-            ]
-            c.execute(b";".join(chain(lock_sqls, sqls)))
-            lock_sqls = []
+                for stored_event in page
+            )
+            for page in (
+                stored_events[ndx : min(ndx + page_size, len_stored_events)]
+                for ndx in range(0, len_stored_events, page_size)
+            )
+        ]
+        commands = [
+            b";".join(page) for page in chain([chain(lock_sqls, pages[0])], pages[1:])
+        ]
+
+        # Execute the commands.
+        for command in commands:
+            c.execute(command)
 
     @retry(InterfaceError, max_attempts=10, wait=0.2)
     def select_events(
