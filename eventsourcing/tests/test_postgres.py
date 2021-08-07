@@ -537,6 +537,31 @@ class TestPostgresAggregateRecorderErrors(TestCase):
         with self.assertRaises(ProgrammingError):
             recorder.select_events(originator_id=originator_id)
 
+    def test_duplicate_prepared_statement_error_is_ignored(self):
+        # Construct the recorder.
+        recorder = self.create_recorder()
+
+        # Create the table.
+        recorder.create_table()
+
+        # Check the statement is not prepared.
+        statement_name = "select_stored_events"
+        conn = self.datastore.get_connection()
+        self.assertFalse(conn.is_prepared.get(statement_name))
+
+        # Cause the statement to be prepared.
+        recorder.select_events(originator_id=uuid4())
+
+        # Check the statement was prepared.
+        conn = self.datastore.get_connection()
+        self.assertTrue(conn.is_prepared.get(statement_name))
+
+        # Forget the statement is prepared.
+        del conn.is_prepared[statement_name]
+
+        # Should ignore "duplicate prepared statement" error.
+        recorder.select_events(originator_id=uuid4())
+
 
 class TestPostgresApplicationRecorder(ApplicationRecorderTestCase):
     def setUp(self) -> None:

@@ -226,7 +226,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         )
         self.insert_events_statement_name = f"insert_{events_table_name}"
         self.select_events_statement = (
-            f"SELECT * FROM {self.events_table_name} WHERE originator_id = $1 "
+            f"SELECT * FROM {self.events_table_name} WHERE originator_id = $1"
         )
         self.lock_statements = [
             f"SET LOCAL lock_timeout = '{self.datastore.lock_timeout}s'",
@@ -255,25 +255,26 @@ class PostgresAggregateRecorder(AggregateRecorder):
 
     @retry(InterfaceError, max_attempts=10, wait=0.2)
     def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
-        self._prepare_insert_events_statement()
+        self._prepare_insert_events()
         with self.datastore.transaction(commit=True) as conn:
             with conn.cursor() as c:
                 self._insert_events(c, stored_events, **kwargs)
 
-    def _prepare_insert_events_statement(self):
-        if not self.datastore.get_connection().is_prepared.get(
-            self.insert_events_statement_name
-        ):
+    def _prepare_insert_events(self) -> None:
+        self._prepare(
+            self.insert_events_statement_name,
+            self.insert_events_statement,
+        )
+
+    def _prepare(self, statement_name: str, statement: str) -> None:
+        if not self.datastore.get_connection().is_prepared.get(statement_name):
             with self.datastore.transaction(commit=True) as conn:
                 with conn.cursor() as c:
                     try:
-                        c.execute(
-                            f"PREPARE {self.insert_events_statement_name} AS "
-                            + self.insert_events_statement
-                        )
+                        c.execute(f"PREPARE {statement_name} AS " + statement)
                     except psycopg2.errors.lookup(DUPLICATE_PREPARED_STATEMENT):
                         pass
-            conn.is_prepared[self.insert_events_statement_name] = True
+            conn.is_prepared[statement_name] = True
 
     def _insert_events(
         self,
@@ -302,7 +303,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         else:
             lock_sqls = []
 
-        page_size = 10000
+        page_size = 500
         batches = []
         params = []
         counter = 0
@@ -342,35 +343,29 @@ class PostgresAggregateRecorder(AggregateRecorder):
         desc: bool = False,
         limit: Optional[int] = None,
     ) -> List[StoredEvent]:
-        statement = self.select_events_statement
+        parts = [self.select_events_statement]
         params: List[Any] = [originator_id]
         statement_name = f"select_{self.events_table_name}"
         if gt is not None:
             params.append(gt)
-            statement += f"AND originator_version > ${len(params)} "
+            parts.append(f"AND originator_version > ${len(params)}")
             statement_name += "_gt"
         if lte is not None:
             params.append(lte)
-            statement += f"AND originator_version <= ${len(params)} "
+            parts.append(f"AND originator_version <= ${len(params)}")
             statement_name += "_lte"
-        statement += "ORDER BY originator_version "
+        parts.append("ORDER BY originator_version")
         if desc is False:
-            statement += "ASC "
+            parts.append("ASC")
         else:
-            statement += "DESC "
+            parts.append("DESC")
             statement_name += "_desc"
         if limit is not None:
             params.append(limit)
-            statement += f"LIMIT ${len(params)} "
+            parts.append(f"LIMIT ${len(params)}")
             statement_name += "_limit"
-        if not self.datastore.get_connection().is_prepared.get(statement_name):
-            with self.datastore.transaction(commit=True) as conn:
-                with conn.cursor() as c:
-                    try:
-                        c.execute(f"PREPARE {statement_name} AS " + statement)
-                    except psycopg2.errors.lookup(DUPLICATE_PREPARED_STATEMENT):
-                        pass
-            conn.is_prepared[statement_name] = True
+        statement = " ".join(parts)
+        self._prepare(statement_name, statement)
 
         stored_events = []
         with self.datastore.transaction(commit=False) as conn:
@@ -444,25 +439,14 @@ class PostgresApplicationRecorder(
         Returns a list of event notifications
         from 'start', limited by 'limit'.
         """
-        if not self.datastore.get_connection().is_prepared.get(
-            self.select_notifications_statement_name
-        ):
-            with self.datastore.transaction(commit=True) as conn:
-                with conn.cursor() as c:
-                    try:
-                        c.execute(
-                            f"PREPARE {self.select_notifications_statement_name} AS "
-                            + self.select_notifications_statement
-                        )
-                    except psycopg2.errors.lookup(DUPLICATE_PREPARED_STATEMENT):
-                        pass
-            conn.is_prepared[self.select_notifications_statement_name] = True
+        statement_name = self.select_notifications_statement_name
+        self._prepare(statement_name, self.select_notifications_statement)
 
         notifications = []
         with self.datastore.transaction(commit=False) as conn:
             with conn.cursor() as c:
                 c.execute(
-                    f"EXECUTE {self.select_notifications_statement_name}(%s, %s)",
+                    f"EXECUTE {statement_name}(%s, %s)",
                     (start, limit),
                 )
                 for row in c.fetchall():
@@ -482,24 +466,13 @@ class PostgresApplicationRecorder(
         """
         Returns the maximum notification ID.
         """
-        if not self.datastore.get_connection().is_prepared.get(
-            self.max_notification_id_statement_name
-        ):
-            with self.datastore.transaction(commit=True) as conn:
-                with conn.cursor() as c:
-                    try:
-                        c.execute(
-                            f"PREPARE {self.max_notification_id_statement_name} AS "
-                            + self.max_notification_id_statement
-                        )
-                    except psycopg2.errors.lookup(DUPLICATE_PREPARED_STATEMENT):
-                        pass
-            conn.is_prepared[self.max_notification_id_statement_name] = True
+        statement_name = self.max_notification_id_statement_name
+        self._prepare(statement_name, self.max_notification_id_statement)
 
         with self.datastore.transaction(commit=False) as conn:
             with conn.cursor() as c:
                 c.execute(
-                    f"EXECUTE {self.max_notification_id_statement_name}",
+                    f"EXECUTE {statement_name}",
                 )
                 max_id = c.fetchone()[0] or 0
         return max_id
@@ -542,44 +515,23 @@ class PostgresProcessRecorder(
 
     @retry(InterfaceError, max_attempts=10, wait=0.2)
     def max_tracking_id(self, application_name: str) -> int:
-        if not self.datastore.get_connection().is_prepared.get(
-            self.max_tracking_id_statement_name
-        ):
-            with self.datastore.transaction(commit=True) as conn:
-                with conn.cursor() as c:
-                    try:
-                        c.execute(
-                            f"PREPARE {self.max_tracking_id_statement_name} AS "
-                            + self.max_tracking_id_statement
-                        )
-                    except psycopg2.errors.lookup(DUPLICATE_PREPARED_STATEMENT):
-                        pass
-            conn.is_prepared[self.max_tracking_id_statement_name] = True
+        statement_name = self.max_tracking_id_statement_name
+        self._prepare(statement_name, self.max_tracking_id_statement)
 
         with self.datastore.transaction(commit=False) as conn:
             with conn.cursor() as c:
                 c.execute(
-                    f"EXECUTE {self.max_tracking_id_statement_name}(%s)",
+                    f"EXECUTE {statement_name}(%s)",
                     (application_name,),
                 )
                 max_id = c.fetchone()[0] or 0
         return max_id
 
-    def _prepare_insert_events_statement(self):
-        super()._prepare_insert_events_statement()
-        if not self.datastore.get_connection().is_prepared.get(
-            self.insert_tracking_statement_name
-        ):
-            with self.datastore.transaction(commit=True) as conn:
-                with conn.cursor() as c:
-                    try:
-                        c.execute(
-                            f"PREPARE {self.insert_tracking_statement_name} AS "
-                            + self.insert_tracking_statement
-                        )
-                    except psycopg2.errors.lookup(DUPLICATE_PREPARED_STATEMENT):
-                        pass
-            conn.is_prepared[self.insert_tracking_statement_name] = True
+    def _prepare_insert_events(self) -> None:
+        super()._prepare_insert_events()
+        self._prepare(
+            self.insert_tracking_statement_name, self.insert_tracking_statement
+        )
 
     def _insert_events(
         self,
