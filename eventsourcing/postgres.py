@@ -520,19 +520,15 @@ class PostgresProcessRecorder(
         self.tracking_table_name = tracking_table_name
         super().__init__(datastore, events_table_name)
         self.insert_tracking_statement = (
-            f"INSERT INTO {self.tracking_table_name} " "VALUES ($1, $2)"
+            f"INSERT INTO {self.tracking_table_name} VALUES ($1, $2)"
         )
-        self.insert_tracking_statement_name = (
-            f"insert_{tracking_table_name}"
-        )
+        self.insert_tracking_statement_name = f"insert_{tracking_table_name}"
         self.max_tracking_id_statement = (
             "SELECT MAX(notification_id) "
             f"FROM {self.tracking_table_name} "
             "WHERE application_name=$1"
         )
-        self.max_tracking_id_statement_name = (
-            f"max_tracking_id_{tracking_table_name}"
-        )
+        self.max_tracking_id_statement_name = f"max_tracking_id_{tracking_table_name}"
 
     def construct_create_table_statements(self) -> List[str]:
         statements = super().construct_create_table_statements()
