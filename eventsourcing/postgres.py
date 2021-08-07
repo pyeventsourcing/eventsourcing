@@ -370,8 +370,6 @@ class PostgresAggregateRecorder(AggregateRecorder):
                         c.execute(f"PREPARE {statement_name} AS " + statement)
                     except psycopg2.errors.lookup(DUPLICATE_PREPARED_STATEMENT):
                         pass
-
-            print("Prepared", statement_name)
             conn.is_prepared[statement_name] = True
 
         stored_events = []
