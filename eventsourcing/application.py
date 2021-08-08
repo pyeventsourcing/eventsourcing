@@ -127,6 +127,12 @@ class NotificationLog(ABC):
         Returns a :class:`Section` from a notification log.
         """
 
+    @abstractmethod
+    def select(self, start: int, limit: int) -> List[Notification]:
+        """
+        Returns a list of class:`~eventsourcing.persistence.Notification` objects.
+        """
+
 
 class LocalNotificationLog(NotificationLog):
     """
@@ -175,7 +181,7 @@ class LocalNotificationLog(NotificationLog):
         limit = min(max(0, part2 - start + 1), self.section_size)
 
         # Select notifications.
-        notifications = self.recorder.select_notifications(start, limit)
+        notifications = self.select(start, limit)
 
         # Get next section ID.
         actual_section_id: Optional[str]
@@ -201,6 +207,13 @@ class LocalNotificationLog(NotificationLog):
             items=notifications,
             next_id=next_id,
         )
+
+    def select(self, start: int, limit: int) -> List[Notification]:
+        if limit > self.section_size:
+            raise ValueError(
+                f"Requested limit {limit} greater than section size {self.section_size}"
+            )
+        return self.recorder.select_notifications(start, limit)
 
     @staticmethod
     def format_section_id(first_id: int, last_id: int) -> str:

@@ -614,3 +614,13 @@ class NotificationLogReader:
                 break
             else:
                 section_id = section.next_id
+
+    def select(self, *, start: int) -> Iterator[Notification]:
+        while True:
+            notifications = self.notification_log.select(start, self.section_size)
+            for notification in notifications:
+                yield notification
+            if len(notifications) < self.section_size:
+                break
+            else:
+                start = notifications[-1].id + 1

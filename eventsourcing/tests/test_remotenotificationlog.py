@@ -28,6 +28,12 @@ class TestRemoteNotificationLog(TestCase):
         self.assertEqual(section.items[0].originator_id, account_id1)
         self.assertEqual(section.items[1].originator_id, account_id2)
 
+        # Get notifications start 1, limit 10.
+        notifications = client.log.select(start=1, limit=10)
+        self.assertEqual(len(notifications), 2)
+        self.assertEqual(notifications[0].originator_id, account_id1)
+        self.assertEqual(notifications[1].originator_id, account_id2)
+
     def test_with_http(self):
         server_address = ("127.0.0.1", 8080)
 
@@ -53,6 +59,12 @@ class TestRemoteNotificationLog(TestCase):
             self.assertEqual(len(section.items), 2)
             self.assertEqual(section.items[0].originator_id, account_id1)
             self.assertEqual(section.items[1].originator_id, account_id2)
+
+            # Get notifications start 1, limit 10.
+            notifications = client.log.select(1, 10)
+            self.assertEqual(len(notifications), 2)
+            self.assertEqual(notifications[0].originator_id, account_id1)
+            self.assertEqual(notifications[1].originator_id, account_id2)
         finally:
             server.stop()
 
@@ -105,6 +117,14 @@ class TestRemoteNotificationLog(TestCase):
             self.assertEqual(len(client.log["41,50"].items), 10)
             self.assertEqual(len(client.log["51,60"].items), 10)
             self.assertEqual(len(client.log["61,70"].items), 0)
+
+            self.assertEqual(len(client.log.select(start=1, limit=10)), 10)
+            self.assertEqual(len(client.log.select(start=11, limit=10)), 10)
+            self.assertEqual(len(client.log.select(start=21, limit=10)), 10)
+            self.assertEqual(len(client.log.select(start=31, limit=10)), 10)
+            self.assertEqual(len(client.log.select(start=41, limit=10)), 10)
+            self.assertEqual(len(client.log.select(start=51, limit=10)), 10)
+            self.assertEqual(len(client.log.select(start=61, limit=10)), 0)
 
         finally:
             server.stop()
@@ -185,6 +205,15 @@ class BankAccountsHTTPHandler(BaseHTTPRequestHandler):
             section_id = self.path.split("/")[-1]
             body = bank_accounts_service.get_log_section(section_id)
             status = 200
+        elif self.path.startswith("/notifications"):
+            args = self.path.split("?")[-1].split("&")
+            args = [p.split("=") for p in args]
+            args = {p[0]: p[1] for p in args}
+            start = int(args["start"])
+            limit = int(args["limit"])
+
+            body = bank_accounts_service.get_notifications(start=start, limit=limit)
+            status = 200
         else:
             body = "Not found: " + self.path
             status = 404
@@ -203,6 +232,9 @@ class BankAccountsHTTPClient(BankAccountsInterface):
 
     def get_log_section(self, section_id: str) -> str:
         return self._request("GET", "/notifications/{}".format(section_id))
+
+    def get_notifications(self, start: int, limit: int) -> str:
+        return self._request("GET", f"/notifications?start={start}&limit={limit}")
 
     def open_account(self, body: str) -> str:
         return self._request("PUT", "/accounts/", body.encode("utf8"))

@@ -7,7 +7,7 @@ from eventsourcing.sqlite import SQLiteApplicationRecorder, SQLiteDatastore
 
 
 class TestNotificationLog(TestCase):
-    def test(self):
+    def test_get_section(self):
         recorder = SQLiteApplicationRecorder(SQLiteDatastore(":memory:"))
         recorder.create_table()
 
@@ -150,3 +150,83 @@ class TestNotificationLog(TestCase):
         # self.assertEqual(section.items[3].id, 8)
         # self.assertEqual(section.section_id, "5,8")
         # self.assertEqual(section.next_id, "9,12")
+
+    def test_select(self):
+        recorder = SQLiteApplicationRecorder(SQLiteDatastore(":memory:"))
+        recorder.create_table()
+
+        # Construct notification log.
+        notification_log = LocalNotificationLog(recorder, section_size=10)
+
+        # Select start 1, limit 10
+        notifications = notification_log.select(1, 10)
+        self.assertEqual(len(notifications), 0)
+
+        # Write 5 events.
+        originator_id = uuid4()
+        for i in range(5):
+            stored_event = StoredEvent(
+                originator_id=originator_id,
+                originator_version=i,
+                topic="topic",
+                state=b"state",
+            )
+            recorder.insert_events([stored_event])
+
+        # Select start 1, limit 10
+        notifications = notification_log.select(1, 5)
+        self.assertEqual(len(notifications), 5)
+        self.assertEqual(notifications[0].id, 1)
+        self.assertEqual(notifications[1].id, 2)
+        self.assertEqual(notifications[2].id, 3)
+        self.assertEqual(notifications[3].id, 4)
+        self.assertEqual(notifications[4].id, 5)
+
+        # Select start 1, limit 10
+        notifications = notification_log.select(1, 5)
+        self.assertEqual(len(notifications), 5)
+        self.assertEqual(notifications[0].id, 1)
+        self.assertEqual(notifications[1].id, 2)
+        self.assertEqual(notifications[2].id, 3)
+        self.assertEqual(notifications[3].id, 4)
+        self.assertEqual(notifications[4].id, 5)
+
+        # Select start 6, limit 5
+        notifications = notification_log.select(6, 5)
+        self.assertEqual(len(notifications), 0)
+
+        # Write 4 events.
+        originator_id = uuid4()
+        for i in range(4):
+            stored_event = StoredEvent(
+                originator_id=originator_id,
+                originator_version=i,
+                topic="topic",
+                state=b"state",
+            )
+            recorder.insert_events([stored_event])
+
+        # Select start 6, limit 5
+        notifications = notification_log.select(6, 5)
+        self.assertEqual(len(notifications), 4)  # event notifications
+        self.assertEqual(notifications[0].id, 6)
+        self.assertEqual(notifications[1].id, 7)
+        self.assertEqual(notifications[2].id, 8)
+        self.assertEqual(notifications[3].id, 9)
+
+        # Select start 3, limit 5
+        notifications = notification_log.select(3, 5)
+        self.assertEqual(len(notifications), 5)  # event notifications
+        self.assertEqual(notifications[0].id, 3)
+        self.assertEqual(notifications[1].id, 4)
+        self.assertEqual(notifications[2].id, 5)
+        self.assertEqual(notifications[3].id, 6)
+        self.assertEqual(notifications[4].id, 7)
+
+        # Notification log limits limit.
+        # Select start 1, limit 20
+        with self.assertRaises(ValueError) as cm:
+            notification_log.select(1, 20)
+        self.assertEqual(
+            cm.exception.args[0], "Requested limit 20 greater than section size 10"
+        )

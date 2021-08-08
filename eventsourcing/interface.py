@@ -1,7 +1,7 @@
 import json
 from abc import ABC, abstractmethod
 from base64 import b64decode, b64encode
-from typing import Generic
+from typing import Generic, List
 from uuid import UUID
 
 from eventsourcing.application import NotificationLog, Section, TApplication
@@ -19,6 +19,13 @@ class NotificationLogInterface(ABC):
         """
         Returns a serialised :class:`~eventsourcing.application.Section`
         from a notification log.
+        """
+
+    @abstractmethod
+    def get_notifications(self, start: int, limit: int) -> str:
+        """
+        Returns a serialised list of :class:`~eventsourcing.persistence.Notification`
+        objects from a notification log.
         """
 
 
@@ -56,6 +63,21 @@ class NotificationLogJSONService(NotificationLogInterface, Generic[TApplication]
             }
         )
 
+    def get_notifications(self, start: int, limit: int) -> str:
+        notifications = self.app.log.select(start, limit)
+        return json.dumps(
+            [
+                {
+                    "id": notification.id,
+                    "originator_id": notification.originator_id.hex,
+                    "originator_version": notification.originator_version,
+                    "topic": notification.topic,
+                    "state": b64encode(notification.state).decode("utf8"),
+                }
+                for notification in notifications
+            ]
+        )
+
 
 class NotificationLogJSONClient(NotificationLog):
     """
@@ -85,3 +107,15 @@ class NotificationLogJSONClient(NotificationLog):
                 for item in section["items"]
             ],
         )
+
+    def select(self, start: int, limit: int) -> List[Notification]:
+        return [
+            Notification(
+                id=item["id"],
+                originator_id=UUID(item["originator_id"]),
+                originator_version=item["originator_version"],
+                topic=item["topic"],
+                state=b64decode(item["state"].encode("utf8")),
+            )
+            for item in json.loads(self.interface.get_notifications(start, limit))
+        ]
