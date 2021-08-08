@@ -95,7 +95,7 @@ class Follower(Application):
         """
         reader, mapper = self.readers[name]
         start = self.recorder.max_tracking_id(name) + 1
-        for notification in reader.read(start=start):
+        for notification in reader.select(start=start):
             domain_event = mapper.to_domain_event(notification)
             process_event = ProcessEvent(
                 Tracking(
