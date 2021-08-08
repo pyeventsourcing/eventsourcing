@@ -20,6 +20,9 @@ class AggregateRecorderTestCase(TestCase, ABC):
         # Construct the recorder.
         recorder = self.create_recorder()
 
+        # Check we can call insert_events() with an empty list.
+        recorder.insert_events([])
+
         # Select stored events, expect empty list.
         originator_id1 = uuid4()
         self.assertEqual(
