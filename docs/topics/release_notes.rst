@@ -37,7 +37,7 @@ so apply() method is called first, in case exceptions are raised by
 apply() method so that the aggregate object can emerge unscathed
 whereas previously its version number and modified time would always
 be changed. Improved robustness of recorder classes, with more attention
-to connection state, closing conncetions on certain errors, retrying
+to connection state, closing connections on certain errors, retrying
 operations under certain conditions, and especially by changing the
 postgres recorders to obtain 'EXCLUSIVE' mode table lock when inserting
 events. Obtaining the table lock in PostgreSQL avoids interleaving of
@@ -54,7 +54,10 @@ that locks can be released even if the database client has somehow
 ceased to continue its interactions with the server in a way that
 leave the session open. Improved the exception classes, to follow
 the standard Python DBAPI class names, and to encapsulate errors
-from drivers with library errors following this standard.
+from drivers with library errors following this standard. Added
+methods to notification log and reader classes to allow notifications
+to be selected directly.
+
 
 Version 9.0.3 (released 17 May 2021)
 --------------------------------------
