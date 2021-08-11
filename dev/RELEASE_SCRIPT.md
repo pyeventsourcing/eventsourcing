@@ -2,25 +2,20 @@
 
 Steps to make a new release.
 
-1. Decide new version number.
-1. Start release, named after new release version.
-1. Increase version number to new release version plus 'rc0'.
-1. Commit, and push branch to GitHub and start a PR to master.
 1. Review versions of all dependencies.
-1. Update release notes to describe what's new in this release.
-1. Update copyright year in LICENSE file.
-1. Run 'make prepare-distribution'.
-1. Increase version number to 'rc1', 'rc2' in case of failure.
-1. Try to fix and push changes to GitHub.
-1. Make changes until built distribution is working.
-1. When all tests passing, increase version number to release version (edit and commit).
-1. Finish release (merge into master and develop). Tag master 'vX.Y.Z'.
-1. Push all changes to GitHub.
-1. Checkout master branch (at the tag).
-1. Run 'make release-distribution'.
-1. Run './dev/test-released-distribution' script (from project root directory).
-1. Manually check documentation has been built and installed.
-1. Manually check PyPI.
-1. Manually check GitHub.
-1. Checkout develop branch.
-1. Increase version number to the next 'dev0'.
+2. Go to the minor version branch, or create a minor version branch.
+3. Check release notes describe what's new in this release.
+4. Increase version number to new release version number.
+5. Check copyright year in LICENSE file.
+6. Run 'make prepush'.
+7. Run 'make prepare-distribution'.
+8. Fix any errors, until built distribution is working.
+9. Create a Git tag with the number of the version, prefixed with 'v' and set the message to the same thing.
+10. Push changes to GitHub and wait for CI to pass.
+11. Run 'twine upload ./dist/eventsourcing-VERSION.tar.gz'.
+12. Run './dev/test-released-distribution' script (from project root directory).
+13. Check documentation has been built and installed.
+14. Check PyPI shows new release.
+15. Checkout main branch.
+16. Merge changes into main branch
+17. Check version number on main branch is next minor version + '.0dev0'.
