@@ -56,7 +56,9 @@ leave the session open. Improved the exception classes, to follow
 the standard Python DBAPI class names, and to encapsulate errors
 from drivers with library errors following this standard. Added
 methods to notification log and reader classes to allow notifications
-to be selected directly.
+to be selected directly. Changed Follower class to select()
+rather than read() notifications. Supported defining initial version
+number of aggregates on aggregate class (with INITIAL_VERSION attribute).
 
 
 Version 9.0.3 (released 17 May 2021)
