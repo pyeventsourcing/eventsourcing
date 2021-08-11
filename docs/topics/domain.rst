@@ -681,6 +681,28 @@ treated in the same way as a list of all the domain event objects of an aggregat
 This similarity is needed by the application :ref:`repository <Repository>`, since
 some specialist event stores (e.g. AxonDB) return a snapshot as the first domain event.
 
+Initial Version Number
+======================
+
+By default, the aggregates have an initial version number of ``1``. Sometimes it may be
+desired, or indeed necessary, to use a different initial version number.
+
+In the example below, the initial version number of the class ``MyAggregate`` is defined to be ``0``.
+
+.. code:: python
+
+    class MyAggregate(Aggregate):
+        INITIAL_VERSION = 0
+
+    aggregate = MyAggregate()
+    assert aggregate.version == 0
+
+
+If all aggregates in a domain model need to use the same non-default version number,
+then a base class can be defined and used by the aggregates of the domain model on
+which ``INITIAL_VERSION`` is set to the preferred value. Some people may wish to set
+the preferred value on the library :class:`~eventsourcing.domain.Aggregate` class.
+
 
 .. _Versioning:
 
