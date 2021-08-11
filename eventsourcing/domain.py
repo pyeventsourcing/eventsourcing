@@ -545,6 +545,7 @@ def raise_missing_names_type_error(missing_names: List[str], msg: str) -> None:
 class MetaAggregate(ABCMeta):
     _annotations_mention_id = False
     _init_mentions_id = False
+    INITIAL_VERSION = 1
 
     def __new__(mcs, *args: Any, **kwargs: Any) -> "MetaAggregate":
         try:
@@ -752,7 +753,7 @@ class MetaAggregate(ABCMeta):
             created_event: TAggregateCreated = event_class(  # type: ignore
                 originator_topic=get_topic(cls),
                 originator_id=id or cls.create_id(**create_id_kwargs),
-                originator_version=1,
+                originator_version=cls.INITIAL_VERSION,
                 timestamp=datetime.now(tz=TZINFO),
                 **kwargs,
             )

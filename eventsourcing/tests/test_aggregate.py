@@ -71,6 +71,26 @@ class TestMetaAggregate(TestCase):
         self.assertTrue(issubclass(created_event_cls, AggregateCreated))
         self.assertEqual(created_event_cls, MyAggregate.Started)
 
+    def test_can_define_initial_version_number(self):
+        class MyAggregate(Aggregate):
+            INITIAL_VERSION = 0
+
+        a = MyAggregate()
+        self.assertEqual(a.version, 0)
+
+
+        class MyAggregate(Aggregate):
+            pass
+
+        a = MyAggregate()
+        self.assertEqual(a.version, 1)
+
+        class MyAggregate(Aggregate):
+            INITIAL_VERSION = 2
+
+        a = MyAggregate()
+        self.assertEqual(a.version, 2)
+
 
 class TestAggregateCreation(TestCase):
     def test_call_class_method_create(self):
