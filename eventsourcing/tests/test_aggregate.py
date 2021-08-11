@@ -78,7 +78,6 @@ class TestMetaAggregate(TestCase):
         a = MyAggregate()
         self.assertEqual(a.version, 0)
 
-
         class MyAggregate(Aggregate):
             pass
 
