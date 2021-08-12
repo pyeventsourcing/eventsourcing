@@ -5,7 +5,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from distutils.util import strtobool
 from typing import (
     Any,
     Dict,
@@ -20,7 +19,7 @@ from typing import (
 from uuid import UUID
 
 from eventsourcing.domain import DomainEvent, TDomainEvent
-from eventsourcing.utils import get_topic, resolve_topic
+from eventsourcing.utils import get_topic, resolve_topic, strtobool
 
 
 class Transcoding(ABC):

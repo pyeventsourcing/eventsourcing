@@ -1,6 +1,7 @@
+from typing import cast
 from unittest import TestCase
 
-from eventsourcing.utils import retry
+from eventsourcing.utils import retry, strtobool
 
 
 class TestRetryDecorator(TestCase):
@@ -119,3 +120,23 @@ class TestRetryDecorator(TestCase):
             @retry(ValueError, max_attempts=1, stall="a")
             def f():
                 pass
+
+
+class TestStrtobool(TestCase):
+    def test_true_values(self):
+        for s in ("y", "yes", "t", "true", "on", "1"):
+            self.assertTrue(strtobool(s), s)
+
+    def test_false_values(self):
+        for s in ("n", "no", "f", "false", "off", "0"):
+            self.assertFalse(strtobool(s), s)
+
+    def test_raises_value_error(self):
+        for s in ("", "a", "b", "c"):
+            with self.assertRaises(ValueError):
+                strtobool(s)
+
+    def test_raises_type_error(self):
+        for x in (None, True, False, 1, 2, 3):
+            with self.assertRaises(TypeError):
+                strtobool(cast(str, x))

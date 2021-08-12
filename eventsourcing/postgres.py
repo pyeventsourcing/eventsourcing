@@ -1,5 +1,4 @@
 import threading
-from distutils.util import strtobool
 from itertools import chain
 from threading import Event, Timer
 from types import TracebackType
@@ -30,7 +29,7 @@ from eventsourcing.persistence import (
     StoredEvent,
     Tracking,
 )
-from eventsourcing.utils import retry
+from eventsourcing.utils import retry, strtobool
 
 psycopg2.extras.register_uuid()
 

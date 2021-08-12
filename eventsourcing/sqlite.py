@@ -1,6 +1,5 @@
 import sqlite3
 import threading
-from distutils.util import strtobool
 from sqlite3 import Connection, Cursor
 from threading import Lock
 from types import TracebackType
@@ -25,6 +24,7 @@ from eventsourcing.persistence import (
     StoredEvent,
     Tracking,
 )
+from eventsourcing.utils import strtobool
 
 SQLITE3_DEFAULT_LOCK_TIMEOUT = 5
 
