@@ -251,6 +251,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
             with conn.cursor() as c:
                 for statement in self.create_table_statements:
                     c.execute(statement)
+                pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
 
     @retry(InterfaceError, max_attempts=10, wait=0.2)
     def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
@@ -384,6 +385,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
                             state=bytes(row["state"]),
                         )
                     )
+                pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
         return stored_events
 
 
@@ -460,6 +462,7 @@ class PostgresApplicationRecorder(
                             state=bytes(row["state"]),
                         )
                     )
+                pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
         return notifications
 
     @retry(InterfaceError, max_attempts=10, wait=0.2)

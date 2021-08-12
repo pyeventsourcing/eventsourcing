@@ -1,9 +1,10 @@
 import importlib
+import sys
 from functools import wraps
 from inspect import isfunction
 from random import random
 from time import sleep
-from types import ModuleType
+from types import FunctionType, ModuleType, WrapperDescriptorType
 from typing import Any, Callable, Dict, Sequence, Type, Union, no_type_check
 
 
@@ -137,3 +138,11 @@ def strtobool(val: str) -> bool:
         return False
     else:
         raise ValueError("invalid truth value %r" % (val,))
+
+
+def is_py310() -> bool:
+    return sys.version_info[0:2] == (3, 10)
+
+
+def get_method_name(method: Union[FunctionType, WrapperDescriptorType]) -> str:
+    return is_py310() and method.__qualname__ or method.__name__

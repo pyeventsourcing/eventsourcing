@@ -7,10 +7,10 @@ jobs:
 
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 3
+      max-parallel: 4
       fail-fast: false
       matrix:
-        python-version: [3.7, 3.8, 3.9]
+        python-version: [3.7, 3.8, 3.9, 3.10.0rc1]
 
     # Service containers to run with `runner-job`
     services:

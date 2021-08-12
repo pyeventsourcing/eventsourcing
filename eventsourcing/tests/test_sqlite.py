@@ -135,18 +135,20 @@ class TestSQLiteAggregateRecorder(AggregateRecorderTestCase):
 class TestSQLiteAggregateRecorderErrors(TestCase):
     def test_raises_operational_error_when_creating_table_fails(self):
         recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
-        recorder.create_table()
+        # Broken create table statements.
         recorder.create_table_statements = ["BLAH"]
         with self.assertRaises(OperationalError):
             recorder.create_table()
 
     def test_raises_operational_error_when_inserting_fails(self):
         recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
+        # Don't create table.
         with self.assertRaises(OperationalError):
             recorder.insert_events([])
 
     def test_raises_operational_error_when_selecting_fails(self):
         recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
+        # Don't create table.
         with self.assertRaises(OperationalError):
             recorder.select_events(uuid4())
 
