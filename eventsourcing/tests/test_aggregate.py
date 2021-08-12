@@ -503,7 +503,6 @@ class TestAggregateCreation(TestCase):
             self.assertEqual(obj.c, 3)
             self.assertEqual(obj.d, 4)
 
-
             with self.assertRaises(TypeError) as cm:
                 obj = cls(1, 2, 3, c=4)
                 self.assertEqual(obj.a, 1)
