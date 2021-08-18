@@ -130,7 +130,7 @@ class NotificationLog(ABC):
     @abstractmethod
     def select(self, start: int, limit: int) -> List[Notification]:
         """
-        Returns a list of class:`~eventsourcing.persistence.Notification` objects.
+        Returns a list of :class:`~eventsourcing.persistence.Notification` objects.
         """
 
 
