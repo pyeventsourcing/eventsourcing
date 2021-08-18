@@ -19,7 +19,7 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-from eventsourcing.utils import get_topic, resolve_topic
+from eventsourcing.utils import get_method_name, get_topic, resolve_topic
 
 # noinspection SpellCheckingInspection
 TZINFO: tzinfo = resolve_topic(os.getenv("TZINFO_TOPIC", "datetime:timezone.utc"))
@@ -149,7 +149,7 @@ class AggregateCreated(AggregateEvent["Aggregate"]):
         return agg
 
 
-class EventDecorator:
+class CommandMethodDecorator:
     def __init__(self, arg: Union[Callable, str, Type[AggregateEvent]]):
         self.is_name_inferred_from_method = False
         self.given_event_cls: Optional[Type[AggregateEvent]] = None
@@ -209,7 +209,9 @@ class EventDecorator:
         # Calling an instance.
         # noinspection SpellCheckingInspection
         if self.original_method is None:
-            # Decorator used with name, still decorating...
+            # Decorator doesn't yet know what method is being decorated,
+            # so decorator must have been specified with an explicit
+            # event name or class, so we're still initialising...
             assert len(kwargs) == 0, "Unsupported usage"
             assert len(args) == 1, "Unsupported usage"
             arg = args[0]
@@ -258,30 +260,36 @@ class EventDecorator:
                 original_methods[self.given_event_cls] = self.original_method
             return self
         else:
+            # Initialised decorator was called directly, presumably by
+            # a decorating property that has this decorator as its fset.
+            # So trigger an event.
             assert self.is_property_setter
-            # Called by a decorating property (as its fset) so trigger an event.
             assert self.property_setter_arg_name
             assert len(args) == 2
             assert len(kwargs) == 0
             assert isinstance(args[0], Aggregate)
-            kwargs = {self.property_setter_arg_name: args[1]}
-            bound = BoundEvent(self, args[0])
+            aggregate_instance = args[0]
+            bound = BoundCommandMethodDecorator(self, aggregate_instance)
+            property_setter_arg_value = args[1]
+            kwargs = {self.property_setter_arg_name: property_setter_arg_value}
             bound.trigger(**kwargs)
 
-    def __get__(self, instance: TAggregate, owner: "MetaAggregate") -> "BoundEvent":
+    def __get__(
+        self, instance: Optional[TAggregate], owner: "MetaAggregate"
+    ) -> Union["BoundCommandMethodDecorator", "UnboundCommandMethodDecorator"]:
         if self.is_decorating_a_property:
             assert self.decorated_property
             return self.decorated_property.__get__(instance, owner)
         else:
             if instance is None:
-                raise TypeError("Unsupported usage: event object used without instance")
+                return UnboundCommandMethodDecorator(self)
             else:
-                return BoundEvent(self, instance)
+                return BoundCommandMethodDecorator(self, instance)
 
     def __set__(self, instance: TAggregate, value: Any) -> None:
         assert self.is_decorating_a_property
         # Set decorated property.
-        b = BoundEvent(self, instance)
+        b = BoundCommandMethodDecorator(self, instance)
         assert self.property_setter_arg_name
         kwargs = {self.property_setter_arg_name: value}
         b.trigger(**kwargs)
@@ -289,7 +297,7 @@ class EventDecorator:
 
 def event(
     arg: Optional[Union[FunctionType, str, Type[AggregateEvent]]] = None
-) -> EventDecorator:
+) -> CommandMethodDecorator:
     """
     Can be used to decorate an aggregate method so that when the
     method is called an event is triggered. The body of the method
@@ -341,32 +349,51 @@ def event(
     if arg is None:
         return event  # type: ignore
     else:
-        return EventDecorator(arg)
+        return CommandMethodDecorator(arg)
 
 
 triggers = event
 
 
-class BoundEvent:
+class UnboundCommandMethodDecorator:
+    """
+    Wraps an EventDecorator instance when attribute is accessed
+    on an aggregate class.
+    """
+
+    # noinspection PyShadowingNames
+    def __init__(self, event_decorator: CommandMethodDecorator):
+        """
+
+        :param CommandMethodDecorator event_decorator:
+        """
+        self.event_decorator = event_decorator
+        assert event_decorator.original_method
+        self.__qualname__ = event_decorator.original_method.__qualname__
+        self.__name__ = event_decorator.original_method.__name__
+
+
+class BoundCommandMethodDecorator:
     """
     Wraps an EventDecorator instance when attribute is accessed
     on an aggregate so that the aggregate methods can be accessed.
     """
 
     # noinspection PyShadowingNames
-    def __init__(self, event_decorator: EventDecorator, aggregate: TAggregate):
+    def __init__(self, event_decorator: CommandMethodDecorator, aggregate: TAggregate):
         """
 
-        :param EventDecorator event_decorator:
+        :param CommandMethodDecorator event_decorator:
         :param Aggregate aggregate:
         """
+        assert event_decorator.original_method
         self.event_decorator = event_decorator
+        self.__qualname__ = event_decorator.original_method.__qualname__
+        self.__name__ = event_decorator.original_method.__name__
         self.aggregate = aggregate
 
     def trigger(self, *args: Any, **kwargs: Any) -> None:
-        # This assert isinstance avoids PyCharm thinking that
-        # self.event_decorator is a BoundEvent. No idea why!
-        assert isinstance(self.event_decorator, EventDecorator)
+        assert isinstance(self.event_decorator, CommandMethodDecorator)  # for PyCharm
         assert self.event_decorator.original_method
         kwargs = _coerce_args_to_kwargs(
             self.event_decorator.original_method, args, kwargs
@@ -474,15 +501,16 @@ def _coerce_args_to_kwargs(
     for name in kwargs:
         if name not in required_keyword_only and name not in positional_names:
             raise TypeError(
-                f"{method.__name__}() got an unexpected keyword argument '{name}'"
+                f"{get_method_name(method)}() got an unexpected "
+                f"keyword argument '{name}'"
             )
 
     counter = 0
     len_args = len(args)
     if len_args > len(positional_names):
         msg = (
-            f"{method.__name__}() takes {len(positional_names) + 1} positional "
-            f"argument{'' if len(positional_names) + 1 == 1 else 's'} "
+            f"{get_method_name(method)}() takes {len(positional_names) + 1} "
+            f"positional argument{'' if len(positional_names) + 1 == 1 else 's'} "
             f"but {len_args + 1} were given"
         )
         raise TypeError(msg)
@@ -496,7 +524,7 @@ def _coerce_args_to_kwargs(
             f"'{name}'" for name in required_positional_not_in_kwargs[len_args:]
         ]
         msg = (
-            f"{method.__name__}() missing {num_missing} required positional "
+            f"{get_method_name(method)}() missing {num_missing} required positional "
             f"argument{'' if num_missing == 1 else 's'}: "
         )
         raise_missing_names_type_error(missing_names, msg)
@@ -509,7 +537,7 @@ def _coerce_args_to_kwargs(
             counter += 1
         else:
             raise TypeError(
-                f"{method.__name__}() got multiple values for argument '{name}'"
+                f"{get_method_name(method)}() got multiple values for argument '{name}'"
             )
 
     missing_keyword_only_arguments = []
@@ -520,7 +548,7 @@ def _coerce_args_to_kwargs(
     if missing_keyword_only_arguments:
         missing_names = [f"'{name}'" for name in missing_keyword_only_arguments]
         msg = (
-            f"{method.__name__}() missing {len(missing_names)} "
+            f"{get_method_name(method)}() missing {len(missing_names)} "
             f"required keyword-only argument"
             f"{'' if len(missing_names) == 1 else 's'}: "
         )
@@ -577,8 +605,8 @@ class MetaAggregate(ABCMeta):
         except KeyError:
             created_event_class = None
 
-        if isinstance(cls.__dict__["__init__"], EventDecorator):
-            init_decorator: EventDecorator = cls.__dict__["__init__"]
+        if isinstance(cls.__dict__["__init__"], CommandMethodDecorator):
+            init_decorator: CommandMethodDecorator = cls.__dict__["__init__"]
             init_method = init_decorator.original_method
             if created_event_name:
                 raise TypeError(
@@ -650,7 +678,7 @@ class MetaAggregate(ABCMeta):
 
             # Watch out for @property that sits over an @event.
             if isinstance(attribute, property) and isinstance(
-                attribute.fset, EventDecorator
+                attribute.fset, CommandMethodDecorator
             ):
                 attribute = attribute.fset
                 if attribute.is_name_inferred_from_method:
@@ -664,7 +692,7 @@ class MetaAggregate(ABCMeta):
                 attribute.is_property_setter = True
 
             # Attribute is an event decorator.
-            if isinstance(attribute, EventDecorator):
+            if isinstance(attribute, CommandMethodDecorator):
                 # Prepare the subsequent aggregate events.
                 original_method = attribute.original_method
                 assert isinstance(original_method, FunctionType)

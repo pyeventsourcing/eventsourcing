@@ -11,6 +11,7 @@ from eventsourcing.domain import (
     event,
     triggers,
 )
+from eventsourcing.utils import get_method_name
 
 
 class TestAggregateDecorator(TestCase):
@@ -208,6 +209,58 @@ class TestEventDecorator(TestCase):
         self.assertEqual(len(a.pending_events), 2)
         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
 
+    def test_method_name_same_on_class_and_instance(self):
+        # Check this works with Python object class.
+        class MyClass:
+            def value_changed(self):
+                pass
+
+        a = MyClass()
+
+        self.assertEqual(
+            get_method_name(a.value_changed), get_method_name(MyClass.value_changed)
+        )
+
+        # Check this works with Aggregate class and @event decorator.
+        class MyClass(Aggregate):
+            @event
+            def value_changed(self):
+                pass
+
+        a = MyClass()
+
+        self.assertEqual(
+            get_method_name(a.value_changed), get_method_name(MyClass.value_changed)
+        )
+
+        self.assertTrue(
+            get_method_name(a.value_changed).endswith("value_changed"),
+        )
+
+        self.assertTrue(
+            get_method_name(MyClass.value_changed).endswith("value_changed"),
+        )
+
+        # Check this works with Aggregate class and @event decorator.
+        class MyClass(Aggregate):
+            @event()
+            def value_changed(self):
+                pass
+
+        a = MyClass()
+
+        self.assertEqual(
+            get_method_name(a.value_changed), get_method_name(MyClass.value_changed)
+        )
+
+        self.assertTrue(
+            get_method_name(a.value_changed).endswith("value_changed"),
+        )
+
+        self.assertTrue(
+            get_method_name(MyClass.value_changed).endswith("value_changed"),
+        )
+
     def test_raises_when_method_takes_1_positional_argument_but_2_were_given(self):
         class MyAgg(Aggregate):
             @event
@@ -218,23 +271,21 @@ class TestEventDecorator(TestCase):
             def value_changed(self):
                 pass
 
-        d = Data()
-        with self.assertRaises(TypeError) as cm:
-            # noinspection PyArgumentList
-            d.value_changed(1)
-        self.assertEqual(
-            cm.exception.args[0],
-            "value_changed() takes 1 positional argument but 2 were given",
-        )
+        def assert_raises(cls):
+            obj = cls()
+            with self.assertRaises(TypeError) as cm:
+                # noinspection PyArgumentList
+                obj.value_changed(1)
 
-        a = MyAgg()
+            name = get_method_name(cls.value_changed)
 
-        with self.assertRaises(TypeError) as cm:
-            a.value_changed(1)
-        self.assertEqual(
-            cm.exception.args[0],
-            "value_changed() takes 1 positional argument but 2 were given",
-        )
+            self.assertEqual(
+                f"{name}() takes 1 positional argument but 2 were given",
+                cm.exception.args[0],
+            )
+
+        assert_raises(MyAgg)
+        assert_raises(Data)
 
     def test_raises_when_method_takes_2_positional_argument_but_3_were_given(self):
         class MyAgg(Aggregate):
@@ -246,23 +297,19 @@ class TestEventDecorator(TestCase):
             def value_changed(self, value):
                 pass
 
-        d = Data()
-        with self.assertRaises(TypeError) as cm:
-            # noinspection PyArgumentList
-            d.value_changed(1, 2)
-        self.assertEqual(
-            cm.exception.args[0],
-            "value_changed() takes 2 positional arguments but 3 were given",
-        )
+        def assert_raises(cls):
+            obj = cls()
+            with self.assertRaises(TypeError) as cm:
+                # noinspection PyArgumentList
+                obj.value_changed(1, 2)
+            name = get_method_name(cls.value_changed)
+            self.assertEqual(
+                f"{name}() takes 2 positional arguments but 3 were given",
+                cm.exception.args[0],
+            )
 
-        a = MyAgg()
-
-        with self.assertRaises(TypeError) as cm:
-            a.value_changed(1, 2)
-        self.assertEqual(
-            cm.exception.args[0],
-            "value_changed() takes 2 positional arguments but 3 were given",
-        )
+        assert_raises(MyAgg)
+        assert_raises(Data)
 
     def test_raises_when_method_missing_1_required_positional_argument(self):
         class MyAgg(Aggregate):
@@ -274,22 +321,18 @@ class TestEventDecorator(TestCase):
             def value_changed(self, a):
                 pass
 
-        d = Data()
-        with self.assertRaises(TypeError) as cm:
-            d.value_changed()
-        self.assertEqual(
-            cm.exception.args[0],
-            "value_changed() missing 1 required positional argument: 'a'",
-        )
+        def assert_raises(cls):
+            obj = cls()
+            with self.assertRaises(TypeError) as cm:
+                obj.value_changed()
+            name = get_method_name(cls.value_changed)
+            self.assertEqual(
+                f"{name}() missing 1 required positional argument: 'a'",
+                cm.exception.args[0],
+            )
 
-        a = MyAgg()
-
-        with self.assertRaises(TypeError) as cm:
-            a.value_changed()
-        self.assertEqual(
-            cm.exception.args[0],
-            "value_changed() missing 1 required positional argument: 'a'",
-        )
+        assert_raises(MyAgg)
+        assert_raises(Data)
 
     def test_raises_when_method_missing_2_required_positional_arguments(self):
         class MyAgg(Aggregate):
@@ -301,22 +344,18 @@ class TestEventDecorator(TestCase):
             def value_changed(self, a, b):
                 pass
 
-        d = Data()
-        with self.assertRaises(TypeError) as cm:
-            d.value_changed()
-        self.assertEqual(
-            cm.exception.args[0],
-            "value_changed() missing 2 required positional arguments: 'a' and 'b'",
-        )
+        def assert_raises(cls):
+            obj = cls()
+            with self.assertRaises(TypeError) as cm:
+                obj.value_changed()
+            name = get_method_name(obj.value_changed)
+            self.assertEqual(
+                f"{name}() missing 2 required positional arguments: 'a' and 'b'",
+                cm.exception.args[0],
+            )
 
-        a = MyAgg()
-
-        with self.assertRaises(TypeError) as cm:
-            a.value_changed()
-        self.assertEqual(
-            cm.exception.args[0],
-            "value_changed() missing 2 required positional arguments: 'a' and 'b'",
-        )
+        assert_raises(MyAgg)
+        assert_raises(Data)
 
     def test_raises_when_method_missing_3_required_positional_arguments(self):
         class MyAgg(Aggregate):
@@ -328,22 +367,20 @@ class TestEventDecorator(TestCase):
             def value_changed(self, a, b, c):
                 pass
 
-        d = Data()
-        with self.assertRaises(TypeError) as cm:
-            d.value_changed()
-        self.assertEqual(
-            cm.exception.args[0],
-            "value_changed() missing 3 required positional arguments: 'a', 'b', and 'c'",
-        )
+        def assert_raises(cls):
+            obj = cls()
+            with self.assertRaises(TypeError) as cm:
+                obj.value_changed()
 
-        a = MyAgg()
+            name = get_method_name(cls.value_changed)
 
-        with self.assertRaises(TypeError) as cm:
-            a.value_changed()
-        self.assertEqual(
-            cm.exception.args[0],
-            "value_changed() missing 3 required positional arguments: 'a', 'b', and 'c'",
-        )
+            self.assertEqual(
+                f"{name}() missing 3 required positional arguments: 'a', 'b', and 'c'",
+                cm.exception.args[0],
+            )
+
+        assert_raises(MyAgg)
+        assert_raises(Data)
 
     def test_raises_when_method_missing_1_required_keyword_only_argument(self):
         class MyAgg(Aggregate):
@@ -355,22 +392,20 @@ class TestEventDecorator(TestCase):
             def value_changed(self, a, *, b):
                 pass
 
-        d = Data()
-        with self.assertRaises(TypeError) as cm:
-            d.value_changed(1)
-        self.assertEqual(
-            cm.exception.args[0],
-            "value_changed() missing 1 required keyword-only argument: 'b'",
-        )
+        def assert_raises(cls):
+            obj = cls()
 
-        a = MyAgg()
+            with self.assertRaises(TypeError) as cm:
+                obj.value_changed(1)
 
-        with self.assertRaises(TypeError) as cm:
-            a.value_changed(1)
-        self.assertEqual(
-            cm.exception.args[0],
-            "value_changed() missing 1 required keyword-only argument: 'b'",
-        )
+            name = get_method_name(cls.value_changed)
+            self.assertEqual(
+                f"{name}() missing 1 required keyword-only argument: 'b'",
+                cm.exception.args[0],
+            )
+
+        assert_raises(MyAgg)
+        assert_raises(Data)
 
     def test_raises_when_method_missing_2_required_keyword_only_arguments(self):
         class MyAgg(Aggregate):
@@ -382,22 +417,20 @@ class TestEventDecorator(TestCase):
             def value_changed(self, a, *, b, c):
                 pass
 
-        d = Data()
-        with self.assertRaises(TypeError) as cm:
-            d.value_changed(1)
-        self.assertEqual(
-            cm.exception.args[0],
-            "value_changed() missing 2 required keyword-only arguments: 'b' and 'c'",
-        )
+        def assert_raises(cls):
+            obj = cls()
 
-        a = MyAgg()
+            with self.assertRaises(TypeError) as cm:
+                obj.value_changed(1)
 
-        with self.assertRaises(TypeError) as cm:
-            a.value_changed(1)
-        self.assertEqual(
-            cm.exception.args[0],
-            "value_changed() missing 2 required keyword-only arguments: 'b' and 'c'",
-        )
+            name = get_method_name(cls.value_changed)
+            self.assertEqual(
+                f"{name}() missing 2 required keyword-only arguments: 'b' and 'c'",
+                cm.exception.args[0],
+            )
+
+        assert_raises(MyAgg)
+        assert_raises(Data)
 
     def test_raises_when_method_missing_3_required_keyword_only_arguments(self):
         class MyAgg(Aggregate):
@@ -409,24 +442,21 @@ class TestEventDecorator(TestCase):
             def value_changed(self, a, *, b, c, d):
                 pass
 
-        d = Data()
-        with self.assertRaises(TypeError) as cm:
-            d.value_changed(1)
-        self.assertEqual(
-            cm.exception.args[0],
-            "value_changed() missing 3 required keyword-only arguments: "
-            "'b', 'c', and 'd'",
-        )
+        def assert_raises(cls):
+            obj = cls()
 
-        a = MyAgg()
+            with self.assertRaises(TypeError) as cm:
+                obj.value_changed(1)
 
-        with self.assertRaises(TypeError) as cm:
-            a.value_changed(1)
-        self.assertEqual(
-            cm.exception.args[0],
-            "value_changed() missing 3 required keyword-only arguments: "
-            "'b', 'c', and 'd'",
-        )
+            name = get_method_name(cls.value_changed)
+            self.assertEqual(
+                f"{name}() missing 3 required keyword-only arguments: "
+                "'b', 'c', and 'd'",
+                cm.exception.args[0],
+            )
+
+        assert_raises(MyAgg)
+        assert_raises(Data)
 
     def test_raises_when_missing_positional_and_required_keyword_only_arguments(self):
         class MyAgg(Aggregate):
@@ -438,47 +468,45 @@ class TestEventDecorator(TestCase):
             def value_changed(self, a, *, b, c, d):
                 pass
 
-        d = Data()
-        with self.assertRaises(TypeError) as cm:
-            d.value_changed()
-        self.assertEqual(
-            cm.exception.args[0],
-            "value_changed() missing 1 required positional argument: 'a'",
-        )
+        def assert_raises(cls):
+            obj = cls()
 
-        a = MyAgg()
+            with self.assertRaises(TypeError) as cm:
+                obj.value_changed()
 
-        with self.assertRaises(TypeError) as cm:
-            a.value_changed()
-        self.assertEqual(
-            cm.exception.args[0],
-            "value_changed() missing 1 required positional argument: 'a'",
-        )
+            name = get_method_name(cls.value_changed)
+            self.assertEqual(
+                f"{name}() missing 1 required positional argument: 'a'",
+                cm.exception.args[0],
+            )
+
+        assert_raises(MyAgg)
+        assert_raises(Data)
 
     def test_raises_when_method_gets_unexpected_keyword_argument(self):
+        class Data:
+            def value_changed(self, a):
+                pass
+
         class MyAgg(Aggregate):
             @event
             def value_changed(self, a):
                 pass
 
-        class Data:
-            def value_changed(self, a):
-                pass
+        def assert_raises(cls):
+            obj = cls()
 
-        d = Data()
-        with self.assertRaises(TypeError) as cm:
-            d.value_changed(b=1)
-        self.assertEqual(
-            cm.exception.args[0],
-            "value_changed() got an unexpected keyword argument 'b'",
-        )
+            with self.assertRaises(TypeError) as cm:
+                obj.value_changed(b=1)
 
-        with self.assertRaises(TypeError) as cm:
-            d.value_changed(b=1)
-        self.assertEqual(
-            cm.exception.args[0],
-            "value_changed() got an unexpected keyword argument 'b'",
-        )
+            name = get_method_name(cls.value_changed)
+            self.assertEqual(
+                f"{name}() got an unexpected keyword argument 'b'",
+                cm.exception.args[0],
+            )
+
+        assert_raises(MyAgg)
+        assert_raises(Data)
 
     def test_raises_when_method_is_staticmethod(self):
         with self.assertRaises(TypeError) as cm:
@@ -571,7 +599,7 @@ class TestEventDecorator(TestCase):
             MyAgg.method()
         self.assertEqual(
             cm.exception.args[0],
-            "Unsupported usage: event object used without instance",
+            "'UnboundCommandMethodDecorator' object is not callable",
         )
 
     def test_event_name_set_in_decorator(self):
@@ -712,27 +740,15 @@ class TestEventDecorator(TestCase):
         with self.assertRaises(TypeError) as cm:
             event(1)
         self.assertEqual(
-            cm.exception.args[0],
             "Unsupported usage: <class 'int'> is not a str or function",
+            cm.exception.args[0],
         )
 
         with self.assertRaises(ValueError) as cm:
             event("EventName")(1)
         self.assertEqual(
-            cm.exception.args[0],
             "Unsupported usage: <class 'int'> is not a str or a FunctionType",
-        )
-
-        class MyAgg(Aggregate):
-            @event("EventName")
-            def method(self):
-                pass
-
-        with self.assertRaises(TypeError) as cm:
-            MyAgg.method()  # called on class (not a bound event)...
-        self.assertEqual(
             cm.exception.args[0],
-            "Unsupported usage: event object used without instance",
         )
 
     def test_raises_when_decorated_method_has_variable_args(self):
@@ -1018,6 +1034,8 @@ class TestEventDecorator(TestCase):
             def __init__(self):
                 pass
 
+        method_name = get_method_name(MyAggregate.__init__)
+
         with self.assertRaises(TypeError) as cm:
             MyAggregate()
         self.assertTrue(
@@ -1029,7 +1047,8 @@ class TestEventDecorator(TestCase):
         with self.assertRaises(TypeError) as cm:
             MyAggregate(a=1)
         self.assertEqual(
-            cm.exception.args[0], "__init__() got an unexpected keyword argument 'a'"
+            f"{method_name}() got an unexpected keyword argument 'a'",
+            cm.exception.args[0],
         )
 
         class MyAggregate(Aggregate):
@@ -1043,8 +1062,8 @@ class TestEventDecorator(TestCase):
         with self.assertRaises(TypeError) as cm:
             MyAggregate()
         self.assertEqual(
+            f"{method_name}() missing 1 required positional argument: 'a'",
             cm.exception.args[0],
-            "__init__() missing 1 required positional argument: 'a'",
         )
 
         with self.assertRaises(TypeError) as cm:

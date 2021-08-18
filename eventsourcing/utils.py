@@ -1,9 +1,10 @@
 import importlib
+import sys
 from functools import wraps
 from inspect import isfunction
 from random import random
 from time import sleep
-from types import ModuleType
+from types import FunctionType, ModuleType, WrapperDescriptorType
 from typing import Any, Callable, Dict, Sequence, Type, Union, no_type_check
 
 
@@ -119,3 +120,29 @@ def retry(
         if not isinstance(stall, (float, int)):
             raise TypeError("'stall' must be a float: {}".format(max_attempts))
         return _retry
+
+
+def strtobool(val: str) -> bool:
+    """Convert a string representation of truth to True or False.
+
+    True values are 'y', 'yes', 't', 'true', 'on', and '1'; false values
+    are 'n', 'no', 'f', 'false', 'off', and '0'.  Raises ValueError if
+    'val' is anything else.
+    """
+    if not isinstance(val, str):
+        raise TypeError(f"{val} is not a str")
+    val = val.lower()
+    if val in ("y", "yes", "t", "true", "on", "1"):
+        return True
+    elif val in ("n", "no", "f", "false", "off", "0"):
+        return False
+    else:
+        raise ValueError("invalid truth value %r" % (val,))
+
+
+def is_py310() -> bool:
+    return sys.version_info[0:2] == (3, 10)
+
+
+def get_method_name(method: Union[FunctionType, WrapperDescriptorType]) -> str:
+    return is_py310() and method.__qualname__ or method.__name__

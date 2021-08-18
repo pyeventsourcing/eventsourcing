@@ -1,6 +1,5 @@
 import sqlite3
 import threading
-from distutils.util import strtobool
 from sqlite3 import Connection, Cursor
 from threading import Lock
 from types import TracebackType
@@ -25,6 +24,7 @@ from eventsourcing.persistence import (
     StoredEvent,
     Tracking,
 )
+from eventsourcing.utils import strtobool
 
 SQLITE3_DEFAULT_LOCK_TIMEOUT = 5
 
@@ -103,13 +103,17 @@ class SQLiteDatastore:
         return bool(db_name) and (":memory:" in db_name or "mode=memory" in db_name)
 
     def transaction(self, commit: bool = False) -> Transaction:
+        c = self.get_connection()
+        return Transaction(c, commit, self.lock)
+
+    def get_connection(self) -> Connection:
         thread_id = threading.get_ident()
         try:
             c = self.connections[thread_id]
         except KeyError:
             c = self.create_connection()
             self.connections[thread_id] = c
-        return Transaction(c, commit, self.lock)
+        return c
 
     def create_connection(self) -> Connection:
         # Make a connection to an SQLite database.
@@ -189,6 +193,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         with self.datastore.transaction(commit=True) as c:
             for statement in self.create_table_statements:
                 c.execute(statement)
+            pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
 
     def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
         with self.datastore.transaction(commit=True) as c:
@@ -248,6 +253,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
                         state=row["state"],
                     )
                 )
+            pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
         return stored_events
 
 
@@ -300,6 +306,7 @@ class SQLiteApplicationRecorder(
                         state=row["state"],
                     )
                 )
+            pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
         return notifications
 
     def max_notification_id(self) -> int:

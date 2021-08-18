@@ -1,7 +1,17 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from threading import Event, Lock, Thread
-from typing import Dict, Iterable, Iterator, List, Set, Tuple, Type, TypeVar
+from typing import (
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    TypeVar,
+)
 
 from eventsourcing.application import Application, NotificationLog, Section
 from eventsourcing.domain import Aggregate, AggregateEvent
@@ -22,7 +32,7 @@ class ProcessEvent:
     new domain events that result from processing that notification.
     """
 
-    def __init__(self, tracking: Tracking):
+    def __init__(self, tracking: Optional[Tracking] = None):
         """
         Initalises the process event with the given tracking object.
         """

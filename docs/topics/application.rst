@@ -367,8 +367,8 @@ Enabling snapshotting
 
 To enable snapshotting in application objects, the environment variable
 ``IS_SNAPSHOTTING_ENABLED`` may be set to a valid "true"  value. The
-function :func:`~distutils.utils.strtobool` from the Python :mod:`distutils.utils`
-module is used to interpret the value of this environment variable, so that strings
+function :func:`~eventsourcing.utils.strtobool` module is used to interpret
+the value of this environment variable, so that strings
 ``"y"``, ``"yes"``, ``"t"``, ``"true"``, ``"on"`` and ``"1"`` are considered to
 be "true" values, and ``"n"``, ``"no"``, ``"f"``, ``"false"``, ``"off"`` and ``"0"``
 are considered to be "false" values, and other values are considered to be invalid.
@@ -547,8 +547,8 @@ The example below shows how to configure the application to use the library's
 the environment variable ``SQLITE_DBNAME`` must be set to a file path. And if the
 tables already exist, the ``CREATE_TABLE`` may be set to a "false" value (``"n"``,
 ``"no"``, ``"f"``, ``"false"``, ``"off"``, or ``"0"``). The function
-:func:`~distutils.utils.strtobool` from the Python :mod:`distutils.utils`
-module is used to interpret the value of this environment variable.
+:func:`~eventsourcing.utils.strtobool` is used to interpret the value of
+this environment variable.
 
 .. code:: python
 
