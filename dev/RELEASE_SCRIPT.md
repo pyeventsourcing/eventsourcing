@@ -11,13 +11,15 @@ Steps to make a new release.
 7. Run 'make prepare-distribution'.
 8. Fix any errors, until built distribution is working.
 9. Push changes to GitHub and wait for CI to pass.
-10. Create a Git tag with the number of the version, prefixed with 'v' and set the message to the same thing.
-11. Push tag to GitHub, and wait for docs to build.
-12. Fix the links at the top of the README file (branch should point to branch, main to most recent release branch).
-13. Run 'twine upload ./dist/eventsourcing-VERSION.tar.gz'.
-14. Run './dev/test-released-distribution' script (from project root directory).
-15. Check documentation has been built and installed.
-16. Check PyPI shows new release.
-17. Checkout main branch.
-18. Merge changes into main branch.
-19. Check version number on main branch is next minor version + '.0dev0'.
+10. Set date of release in release notes, commit.
+10. Adjust links in README file.
+11. Create a Git tag with the number of the version, prefixed with 'v' and set the message to the same thing.
+12. Push tag to GitHub, and wait for docs to build.
+13. Fix the links at the top of the README file (branch should point to branch, main to most recent release branch).
+14. Run 'twine upload ./dist/eventsourcing-VERSION.tar.gz'.
+15. Run './dev/test-released-distribution' script (from project root directory).
+16. Check documentation has been built and installed.
+17. Check PyPI shows new release.
+18. Checkout main branch.
+19. Merge changes into main branch.
+20. Check version number on main branch is next minor version + '.0dev0'.

@@ -23,8 +23,8 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
-Version 9.1.0 (release TBD)
---------------------------------------
+Version 9.1.0 (18 August 2021)
+------------------------------
 
 Added support for setting environment when constructing application.
 Added "eq" and "repr" methods on aggregate base class.
