@@ -285,7 +285,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         # Acquire "EXCLUSIVE" table lock, to serialize inserts so that
         # insertion of notification IDs is monotonic for notification log
         # readers. We want concurrent transactions to commit inserted
-        # SERIAL values in order, and by locking the table for writes,
+        # notification_id values in order, and by locking the table for writes,
         # it can be guaranteed. The EXCLUSIVE lock mode does not block
         # the ACCESS SHARE lock which is acquired during SELECT statements,
         # so the table can be read concurrently. However INSERT normally
