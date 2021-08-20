@@ -23,6 +23,12 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.1.1 (released 20 August 2021)
+---------------------------------------
+
+Changed PostgreSQL schema to use BIGSERIAL (was SERIAL) for notification IDs.
+
+
 Version 9.1.0 (released 18 August 2021)
 ---------------------------------------
 
