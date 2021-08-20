@@ -35,7 +35,7 @@ def main():
         # Install from PyPI.
         os.environ["CASS_DRIVER_NO_CYTHON"] = "1"
         subprocess.check_call(
-            ["bin/pip", "install", "--no-cache-dir", "eventsourcing[testing]"],
+            ["bin/pip", "install", "--no-cache-dir", "eventsourcing[dev]"],
             cwd=venv_path,
         )
 
