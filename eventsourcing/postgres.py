@@ -426,7 +426,7 @@ class PostgresApplicationRecorder(
             "originator_version integer NOT NULL, "
             "topic text, "
             "state bytea, "
-            "notification_id SERIAL, "
+            "notification_id BIGSERIAL, "
             "PRIMARY KEY "
             "(originator_id, originator_version)) "
             "WITH (autovacuum_enabled=false)",
