@@ -920,11 +920,9 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         self.assertEqual(self.factory.datastore.idle_in_transaction_session_timeout, 0)
 
     def test_idle_in_transaction_session_timeout_is_nonzero(self):
-        os.environ[Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT] = "1.234"
+        os.environ[Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT] = "1"
         self.factory = Factory("TestCase", os.environ)
-        self.assertEqual(
-            self.factory.datastore.idle_in_transaction_session_timeout, 1.234
-        )
+        self.assertEqual(self.factory.datastore.idle_in_transaction_session_timeout, 1)
 
     def test_pre_ping_off_by_default(self):
         self.factory = Factory("TestCase", os.environ)
@@ -960,7 +958,7 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
             "is invalid. If set, a float or empty string is expected: 'abc'",
         )
 
-    def test_environment_error_raised_when_idle_in_transaction_session_timeout_not_a_float(
+    def test_environment_error_raised_when_idle_in_transaction_session_timeout_not_an_integer(
         self,
     ):
         os.environ[Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT] = "abc"
@@ -970,7 +968,7 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
             cm.exception.args[0],
             "Postgres environment value for key "
             "'POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT' "
-            "is invalid. If set, a float or empty string is expected: 'abc'",
+            "is invalid. If set, an integer or empty string is expected: 'abc'",
         )
 
     def test_environment_error_raised_when_dbname_missing(self):

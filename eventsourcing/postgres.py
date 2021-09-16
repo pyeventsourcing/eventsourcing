@@ -137,7 +137,7 @@ class PostgresDatastore:
         conn_max_age: Optional[float] = None,
         pre_ping: bool = False,
         lock_timeout: float = 0,
-        idle_in_transaction_session_timeout: float = 0,
+        idle_in_transaction_session_timeout: int = 0,
     ):
         self.dbname = dbname
         self.host = host
@@ -641,14 +641,14 @@ class Factory(InfrastructureFactory):
         )
 
         try:
-            idle_in_transaction_session_timeout = float(
+            idle_in_transaction_session_timeout = int(
                 idle_in_transaction_session_timeout_str
             )
         except ValueError:
             raise EnvironmentError(
                 f"Postgres environment value for key "
                 f"'{self.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT}' is invalid. "
-                f"If set, a float or empty string is expected: "
+                f"If set, an integer or empty string is expected: "
                 f"'{idle_in_transaction_session_timeout_str}'"
             )
 
