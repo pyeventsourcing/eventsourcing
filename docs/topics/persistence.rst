@@ -863,7 +863,7 @@ perhaps because the database server cannot be reached, the transaction may remai
 state and any locks will continue to be held. By timing out the session, transactions will be ended,
 locks will be released, and the connection slot will be freed. By default, this timeout has the value
 of 0 seconds, which means sessions in an idle transaction will not timeout. Setting this value to a
-positive number of seconds will cause sessions in an idle transaction to timeout after that duration
+positive integer number of seconds will cause sessions in an idle transaction to timeout after that duration
 has passed.
 
 The optional environment variables ``COMPRESSOR_TOPIC``, ``CIPHER_KEY``, and ``CIPHER_TOPIC`` may
