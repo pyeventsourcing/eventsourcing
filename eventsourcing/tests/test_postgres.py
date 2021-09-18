@@ -955,7 +955,7 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         self.assertEqual(
             cm.exception.args[0],
             "Postgres environment value for key 'POSTGRES_LOCK_TIMEOUT' "
-            "is invalid. If set, a float or empty string is expected: 'abc'",
+            "is invalid. If set, an integer or empty string is expected: 'abc'",
         )
 
     def test_environment_error_raised_when_idle_in_transaction_session_timeout_not_an_integer(
