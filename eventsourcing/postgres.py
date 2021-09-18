@@ -136,7 +136,7 @@ class PostgresDatastore:
         password: str,
         conn_max_age: Optional[float] = None,
         pre_ping: bool = False,
-        lock_timeout: float = 0,
+        lock_timeout: int = 0,
         idle_in_transaction_session_timeout: int = 0,
     ):
         self.dbname = dbname
@@ -627,12 +627,12 @@ class Factory(InfrastructureFactory):
         lock_timeout_str = self.getenv(self.POSTGRES_LOCK_TIMEOUT) or "0"
 
         try:
-            lock_timeout = float(lock_timeout_str)
+            lock_timeout = int(lock_timeout_str)
         except ValueError:
             raise EnvironmentError(
                 f"Postgres environment value for key "
                 f"'{self.POSTGRES_LOCK_TIMEOUT}' is invalid. "
-                f"If set, a float or empty string is expected: "
+                f"If set, an integer or empty string is expected: "
                 f"'{lock_timeout_str}'"
             )
 
