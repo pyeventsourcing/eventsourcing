@@ -904,9 +904,9 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         self.assertEqual(self.factory.datastore.lock_timeout, 0)
 
     def test_lock_timeout_is_nonzero(self):
-        os.environ[Factory.POSTGRES_LOCK_TIMEOUT] = "1.234"
+        os.environ[Factory.POSTGRES_LOCK_TIMEOUT] = "1"
         self.factory = Factory("TestCase", os.environ)
-        self.assertEqual(self.factory.datastore.lock_timeout, 1.234)
+        self.assertEqual(self.factory.datastore.lock_timeout, 1)
 
     def test_idle_in_transaction_session_timeout_is_zero_by_default(self):
         self.assertTrue(
@@ -948,14 +948,14 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
             "is invalid. If set, a float or empty string is expected: 'abc'",
         )
 
-    def test_environment_error_raised_when_lock_timeout_not_a_float(self):
+    def test_environment_error_raised_when_lock_timeout_not_an_integer(self):
         os.environ[Factory.POSTGRES_LOCK_TIMEOUT] = "abc"
         with self.assertRaises(EnvironmentError) as cm:
             self.factory = Factory("TestCase", os.environ)
         self.assertEqual(
             cm.exception.args[0],
             "Postgres environment value for key 'POSTGRES_LOCK_TIMEOUT' "
-            "is invalid. If set, a float or empty string is expected: 'abc'",
+            "is invalid. If set, an integer or empty string is expected: 'abc'",
         )
 
     def test_environment_error_raised_when_idle_in_transaction_session_timeout_not_an_integer(
