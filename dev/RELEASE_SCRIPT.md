@@ -19,9 +19,8 @@ Steps to make a new release.
 15. In readthedocs, adjust default version to point to new release version of the docs (tagged version).
 16. Run 'make prepare-distribution' again.
 17. Run 'twine upload ./dist/eventsourcing-VERSION.tar.gz'.
-18. Run './dev/test-released-distribution' script (from project root directory).
-19. Check documentation has been built and installed.
-20. Check PyPI shows new release.
-21. Checkout main branch.
-22. Merge changes into main branch.
-23. Check version number on main branch is next minor version + '.0dev0'.
+18. Check PyPI shows new release.
+19. Run 'make test-released-distribution' script (from project root directory).
+20. Checkout main branch.
+21. Merge changes into main branch.
+22. Check version number on main branch is next minor version + '.0dev0'.
