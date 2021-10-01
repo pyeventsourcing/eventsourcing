@@ -854,7 +854,7 @@ and writers, since selecting acquires an 'ACCESS SHARE' lock which does not bloc
 by the 'EXCLUSIVE' lock. This issue of interleaving inserts by concurrent writers is not exhibited
 by SQLite, which supports concurrent readers when its journal mode is set to use write ahead logging.
 By default, this timeout has the value of 0 seconds, which means attempts to acquire the lock will
-not timeout. Setting this value to a positive number of seconds will cause attempt to obtain this
+not timeout. Setting this value to a positive integer number of seconds will cause attempt to obtain this
 lock to timeout after that duration has passed. The lock will be released when the transaction ends.
 
 The optional environment variable ``POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT`` may be used to
