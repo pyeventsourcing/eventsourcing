@@ -23,6 +23,14 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.1.2 (released 1 October 2021)
+---------------------------------------
+
+Clarified Postgres configuration options (POSTGRES_LOCK_TIMEOUT and
+POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT) require integer seconds.
+Added py.typed file (was missing since v9).
+
+
 Version 9.1.1 (released 20 August 2021)
 ---------------------------------------
 
