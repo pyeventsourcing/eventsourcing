@@ -23,6 +23,12 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.1.3 (released 8 October 2021)
+---------------------------------------
+
+Added "trove classifier" for Python 3.10.
+
+
 Version 9.1.2 (released 1 October 2021)
 ---------------------------------------
 
