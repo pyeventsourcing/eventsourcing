@@ -8,7 +8,7 @@ Steps to make a new release.
 4. Increase version number to new release version number.
 5. Check copyright year in LICENSE file.
 6. Run 'make prepush'.
-7. Run 'make prepare-distribution'.
+7. Run 'make prepare-dist'.
 8. Fix any errors, until built distribution is working.
 9. Push changes to GitHub and wait for CI to pass.
 10. Set date of release in release notes.
