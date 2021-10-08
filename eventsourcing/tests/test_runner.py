@@ -54,7 +54,7 @@ class RunnerTestCase(TestCase):
         section = notifications2.log["1,5"]
         self.assertEqual(len(section.items), 0, section.items)
 
-        for i in range(10):
+        for _ in range(10):
             accounts.open_account(
                 full_name="Alice",
                 email_address="alice@example.com",
