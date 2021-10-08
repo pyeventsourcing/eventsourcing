@@ -17,6 +17,10 @@ from eventsourcing.tests.test_postgres import drop_postgres_table
 from eventsourcing.tests.test_processapplication import EmailNotifications
 
 
+class EmailNotifications2(EmailNotifications):
+    pass
+
+
 class RunnerTestCase(TestCase):
     runner_class: Type[Runner] = Runner
 
@@ -26,6 +30,10 @@ class RunnerTestCase(TestCase):
                 [
                     BankAccounts,
                     EmailNotifications,
+                ],
+                [
+                    BankAccounts,
+                    EmailNotifications2,
                 ],
             ]
         )
@@ -37,20 +45,28 @@ class RunnerTestCase(TestCase):
             runner.start()
 
         accounts = runner.get(BankAccounts)
-        notifications = runner.get(EmailNotifications)
+        notifications1 = runner.get(EmailNotifications)
+        notifications2 = runner.get(EmailNotifications2)
 
-        section = notifications.log["1,5"]
+        section = notifications1.log["1,5"]
         self.assertEqual(len(section.items), 0, section.items)
 
-        accounts.open_account(
-            full_name="Alice",
-            email_address="alice@example.com",
-        )
+        section = notifications2.log["1,5"]
+        self.assertEqual(len(section.items), 0, section.items)
+
+        for i in range(10):
+            accounts.open_account(
+                full_name="Alice",
+                email_address="alice@example.com",
+            )
 
         self.wait_for_runner()
 
-        section = notifications.log["1,5"]
-        self.assertEqual(len(section.items), 1)
+        section = notifications1.log["1,10"]
+        self.assertEqual(len(section.items), 10)
+
+        section = notifications2.log["1,10"]
+        self.assertEqual(len(section.items), 10)
 
         runner.stop()
 
@@ -165,18 +181,47 @@ class TestMultiThreadedRunner(RunnerTestCase):
             self.assertEqual(thread.prompted_names, ["LeaderName"])
 
 
-class TestMultiThreadedRunnerWithSQLite(TestMultiThreadedRunner):
+class TestMultiThreadedRunnerWithSQLiteFileBased(TestMultiThreadedRunner):
     def setUp(self):
         os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.sqlite:Factory"
         uris = tmpfile_uris()
         os.environ["BANKACCOUNTS_SQLITE_DBNAME"] = next(uris)
         os.environ["EMAILNOTIFICATIONS_SQLITE_DBNAME"] = next(uris)
+        os.environ["EMAILNOTIFICATIONS2_SQLITE_DBNAME"] = next(uris)
         os.environ["BROKENPROCESSING_SQLITE_DBNAME"] = next(uris)
 
     def tearDown(self):
         del os.environ["INFRASTRUCTURE_FACTORY"]
         del os.environ["BANKACCOUNTS_SQLITE_DBNAME"]
         del os.environ["EMAILNOTIFICATIONS_SQLITE_DBNAME"]
+        del os.environ["EMAILNOTIFICATIONS2_SQLITE_DBNAME"]
+        del os.environ["BROKENPROCESSING_SQLITE_DBNAME"]
+
+    def test_runs_ok(self):
+        super().test_runs_ok()
+
+
+class TestMultiThreadedRunnerWithSQLiteInMemory(TestMultiThreadedRunner):
+    def setUp(self):
+        os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.sqlite:Factory"
+        os.environ[
+            "BANKACCOUNTS_SQLITE_DBNAME"
+        ] = "file:bankaccounts?mode=memory&cache=shared"
+        os.environ[
+            "EMAILNOTIFICATIONS_SQLITE_DBNAME"
+        ] = "file:emailnotifications1?mode=memory&cache=shared"
+        os.environ[
+            "EMAILNOTIFICATIONS2_SQLITE_DBNAME"
+        ] = "file:emailnotifications2?mode=memory&cache=shared"
+        os.environ[
+            "BROKENPROCESSING_SQLITE_DBNAME"
+        ] = "file:brokenprocessing?mode=memory&cache=shared"
+
+    def tearDown(self):
+        del os.environ["INFRASTRUCTURE_FACTORY"]
+        del os.environ["BANKACCOUNTS_SQLITE_DBNAME"]
+        del os.environ["EMAILNOTIFICATIONS_SQLITE_DBNAME"]
+        del os.environ["EMAILNOTIFICATIONS2_SQLITE_DBNAME"]
         del os.environ["BROKENPROCESSING_SQLITE_DBNAME"]
 
     def test_runs_ok(self):
@@ -201,6 +246,8 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
         drop_postgres_table(db, "bankaccounts_events")
         drop_postgres_table(db, "emailnotifications_events")
         drop_postgres_table(db, "emailnotifications_tracking")
+        drop_postgres_table(db, "emailnotifications2_events")
+        drop_postgres_table(db, "emailnotifications2_tracking")
         drop_postgres_table(db, "brokenprocessing_events")
         drop_postgres_table(db, "brokenprocessing_tracking")
 
