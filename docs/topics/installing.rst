@@ -3,8 +3,8 @@ Installation guide
 ==================
 
 This version of the library is compatible with Python versions 3.7, 3.8,
-and 3.9. The library's suite of tests is run against these versions and
-has 100% line and branch coverage.
+3.9, and 3.10. The library's suite of tests is run against these versions
+and has 100% line and branch coverage.
 
 You can use pip to install the library from the
 `Python Package Index <https://pypi.org/project/eventsourcing/>`__.
