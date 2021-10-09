@@ -116,10 +116,6 @@ Now let's define an analytics application...
 
 
     class Counters(ProcessApplication):
-
-        def policy(self, domain_event, process_event):
-            pass
-
         @singledispatchmethod
         def policy(self, domain_event, process_event):
             """Default policy"""
@@ -155,6 +151,7 @@ Single-threaded runner
 .. code:: python
 
     from eventsourcing.system import SingleThreadedRunner
+
 
     runner= SingleThreadedRunner(system)
     runner.start()
@@ -197,6 +194,7 @@ Multi-threaded runner
 .. code:: python
 
     from eventsourcing.system import MultiThreadedRunner
+
 
     runner= MultiThreadedRunner(system)
     runner.start()
