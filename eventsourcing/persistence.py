@@ -417,6 +417,36 @@ class AggregateRecorder(Recorder):
         """
 
 
+class AsyncAggregateRecorder(Recorder):
+    """
+    Abstract base class for recorders that record and
+    retrieve stored events for domain model aggregates
+    using asyncio.
+    """
+
+    @abstractmethod
+    async def async_insert_events(
+        self, stored_events: List[StoredEvent], **kwargs: Any
+    ) -> None:
+        """
+        Writes stored events into database.
+        """
+
+    # Todo: Change the implementations to get in batches, in case lots of events.
+    @abstractmethod
+    async def async_select_events(
+        self,
+        originator_id: UUID,
+        gt: Optional[int] = None,
+        lte: Optional[int] = None,
+        desc: bool = False,
+        limit: Optional[int] = None,
+    ) -> List[StoredEvent]:
+        """
+        Reads stored events from database.
+        """
+
+
 @dataclass(frozen=True)
 class Notification(StoredEvent):
     """
@@ -451,12 +481,40 @@ class ApplicationRecorder(AggregateRecorder):
         """
 
 
+class AsyncApplicationRecorder(AsyncAggregateRecorder):
+    """
+    Abstract base class for recorders that record and
+    retrieve stored events for domain model aggregates
+    using asyncio.
+
+    Extends the behaviour of aggregate recorders by
+    recording aggregate events in a total order that
+    allows the stored events also to be retrieved
+    as event notifications.
+    """
+
+    @abstractmethod
+    async def async_select_notifications(
+        self, start: int, limit: int
+    ) -> List[Notification]:
+        """
+        Returns a list of event notifications
+        from 'start', limited by 'limit'.
+        """
+
+    @abstractmethod
+    async def async_max_notification_id(self) -> int:
+        """
+        Returns the maximum notification ID.
+        """
+
+
 class ProcessRecorder(ApplicationRecorder):
     """
     Abstract base class for recorders that record and
     retrieve stored events for domain model aggregates.
 
-    Extends the behaviour of applications recorders by
+    Extends the behaviour of application recorders by
     recording aggregate events with tracking information
     that records the position of a processed event
     notification in a notification log.
@@ -464,6 +522,25 @@ class ProcessRecorder(ApplicationRecorder):
 
     @abstractmethod
     def max_tracking_id(self, application_name: str) -> int:
+        """
+        Returns the last recorded notification ID from given application.
+        """
+
+
+class AsyncProcessRecorder(AsyncApplicationRecorder):
+    """
+    Abstract base class for recorders that record and
+    retrieve stored events for domain model aggregates
+    using asyncio.
+
+    Extends the behaviour of application recorders by
+    recording aggregate events with tracking information
+    that records the position of a processed event
+    notification in a notification log.
+    """
+
+    @abstractmethod
+    async def async_max_tracking_id(self, application_name: str) -> int:
         """
         Returns the last recorded notification ID from given application.
         """

@@ -1,28 +1,30 @@
 from abc import ABC, abstractmethod
+from asyncio import get_event_loop, get_running_loop
 from timeit import timeit
+from unittest import IsolatedAsyncioTestCase
 from unittest.case import TestCase
 from uuid import uuid4
 
 from eventsourcing.persistence import (
+    AsyncProcessRecorder,
     IntegrityError,
-    ProcessRecorder,
     StoredEvent,
     Tracking,
 )
 
 
-class ProcessRecorderTestCase(TestCase, ABC):
+class AsyncProcessRecorderTestCase(IsolatedAsyncioTestCase, ABC):
     @abstractmethod
-    def create_recorder(self) -> ProcessRecorder:
+    def create_recorder(self) -> AsyncProcessRecorder:
         pass
 
-    def test_insert_select(self):
+    async def test_insert_select(self):
         # Construct the recorder.
         recorder = self.create_recorder()
 
         # Get current position.
         self.assertEqual(
-            recorder.max_tracking_id("upstream_app"),
+            await recorder.async_max_tracking_id("upstream_app"),
             0,
         )
 
@@ -64,7 +66,7 @@ class ProcessRecorderTestCase(TestCase, ABC):
         )
 
         # Insert two events with tracking info.
-        recorder.insert_events(
+        await recorder.async_insert_events(
             stored_events=[
                 stored_event1,
                 stored_event2,
@@ -74,43 +76,43 @@ class ProcessRecorderTestCase(TestCase, ABC):
 
         # Get current position.
         self.assertEqual(
-            recorder.max_tracking_id("upstream_app"),
+            await recorder.async_max_tracking_id("upstream_app"),
             1,
         )
 
         # Check can't insert third event with same tracking info.
         with self.assertRaises(IntegrityError):
-            recorder.insert_events(
+            await recorder.async_insert_events(
                 stored_events=[stored_event3],
                 tracking=tracking1,
             )
 
         # Get current position.
         self.assertEqual(
-            recorder.max_tracking_id("upstream_app"),
+            await recorder.async_max_tracking_id("upstream_app"),
             1,
         )
 
         # Insert third event with different tracking info.
-        recorder.insert_events(
+        await recorder.async_insert_events(
             stored_events=[stored_event3],
             tracking=tracking2,
         )
 
         # Get current position.
         self.assertEqual(
-            recorder.max_tracking_id("upstream_app"),
+            await recorder.async_max_tracking_id("upstream_app"),
             2,
         )
 
         # Insert fourth event without tracking info.
-        recorder.insert_events(
+        await recorder.async_insert_events(
             stored_events=[stored_event4],
         )
 
         # Get current position.
         self.assertEqual(
-            recorder.max_tracking_id("upstream_app"),
+            await recorder.async_max_tracking_id("upstream_app"),
             2,
         )
 
@@ -136,12 +138,14 @@ class ProcessRecorderTestCase(TestCase, ABC):
                 application_name="upstream_app",
                 notification_id=next(notification_ids),
             )
-
-            recorder.insert_events(
-                stored_events=[
-                    stored_event,
-                ],
-                tracking=tracking1,
+            loop = get_event_loop()
+            loop.run_until_complete(
+                recorder.async_insert_events(
+                    stored_events=[
+                        stored_event,
+                    ],
+                    tracking=tracking1,
+                )
             )
 
         duration = timeit(insert, number=number)

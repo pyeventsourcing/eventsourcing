@@ -6,6 +6,9 @@ from uuid import UUID
 from eventsourcing.persistence import (
     AggregateRecorder,
     ApplicationRecorder,
+    AsyncAggregateRecorder,
+    AsyncApplicationRecorder,
+    AsyncProcessRecorder,
     InfrastructureFactory,
     IntegrityError,
     Notification,
@@ -76,6 +79,26 @@ class POPOAggregateRecorder(AggregateRecorder):
             return results
 
 
+class POPOAsyncAggregateRecorder(AsyncAggregateRecorder):
+    def __init__(self):
+        self.recorder = POPOAggregateRecorder()
+
+    async def async_insert_events(
+        self, stored_events: List[StoredEvent], **kwargs: Any
+    ) -> None:
+        self.recorder.insert_events(stored_events, **kwargs)
+
+    async def async_select_events(
+        self,
+        originator_id: UUID,
+        gt: Optional[int] = None,
+        lte: Optional[int] = None,
+        desc: bool = False,
+        limit: Optional[int] = None,
+    ) -> List[StoredEvent]:
+        return self.recorder.select_events(originator_id, gt, lte, desc, limit)
+
+
 class POPOApplicationRecorder(ApplicationRecorder, POPOAggregateRecorder):
     def select_notifications(self, start: int, limit: int) -> List[Notification]:
         with self.database_lock:
@@ -96,6 +119,21 @@ class POPOApplicationRecorder(ApplicationRecorder, POPOAggregateRecorder):
     def max_notification_id(self) -> int:
         with self.database_lock:
             return len(self.stored_events)
+
+
+class POPOAsyncApplicationRecorder(
+    AsyncApplicationRecorder, POPOAsyncAggregateRecorder
+):
+    def __init__(self):
+        self.recorder = POPOApplicationRecorder()
+
+    async def async_select_notifications(
+        self, start: int, limit: int
+    ) -> List[Notification]:
+        return self.recorder.select_notifications(start, limit)
+
+    async def async_max_notification_id(self) -> int:
+        return self.recorder.max_notification_id()
 
 
 class POPOProcessRecorder(ProcessRecorder, POPOApplicationRecorder):
@@ -125,6 +163,14 @@ class POPOProcessRecorder(ProcessRecorder, POPOApplicationRecorder):
                 return self.tracking_table[application_name]
             except KeyError:
                 return 0
+
+
+class POPOAsyncProcessRecorder(AsyncProcessRecorder, POPOAsyncApplicationRecorder):
+    def __init__(self):
+        self.recorder = POPOProcessRecorder()
+
+    async def async_max_tracking_id(self, application_name: str) -> int:
+        return self.recorder.max_tracking_id(application_name)
 
 
 class Factory(InfrastructureFactory):

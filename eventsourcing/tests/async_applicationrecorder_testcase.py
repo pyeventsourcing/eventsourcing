@@ -1,26 +1,34 @@
 import traceback
 from abc import ABC, abstractmethod
+from asyncio import (
+    AbstractEventLoop,
+    get_event_loop,
+    new_event_loop,
+    set_event_loop,
+)
 from concurrent.futures.thread import ThreadPoolExecutor
 from datetime import datetime
 from threading import Event, Thread, get_ident
 from time import sleep
+from typing import List
+from unittest import IsolatedAsyncioTestCase
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.persistence import ApplicationRecorder, StoredEvent
+from eventsourcing.persistence import AsyncApplicationRecorder, StoredEvent
 
 
-class ApplicationRecorderTestCase(TestCase, ABC):
+class AsyncApplicationRecorderTestCase(IsolatedAsyncioTestCase, ABC):
     @abstractmethod
-    def create_recorder(self) -> ApplicationRecorder:
+    def create_recorder(self) -> AsyncApplicationRecorder:
         pass
 
-    def test_insert_select(self):
+    async def test_insert_select(self):
         # Construct the recorder.
         recorder = self.create_recorder()
 
         self.assertEqual(
-            recorder.max_notification_id(),
+            await recorder.async_max_notification_id(),
             0,
         )
 
@@ -47,17 +55,17 @@ class ApplicationRecorderTestCase(TestCase, ABC):
             state=b"state3",
         )
 
-        recorder.insert_events([stored_event1, stored_event2])
-        recorder.insert_events([stored_event3])
+        await recorder.async_insert_events([stored_event1, stored_event2])
+        await recorder.async_insert_events([stored_event3])
 
-        stored_events1 = recorder.select_events(originator_id1)
-        stored_events2 = recorder.select_events(originator_id2)
+        stored_events1 = await recorder.async_select_events(originator_id1)
+        stored_events2 = await recorder.async_select_events(originator_id2)
 
         # Check we got what was written.
         self.assertEqual(len(stored_events1), 2)
         self.assertEqual(len(stored_events2), 1)
 
-        notifications = recorder.select_notifications(1, 3)
+        notifications = await recorder.async_select_notifications(1, 3)
         self.assertEqual(len(notifications), 3)
         self.assertEqual(notifications[0].id, 1)
         self.assertEqual(notifications[0].originator_id, originator_id1)
@@ -71,24 +79,24 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         self.assertEqual(notifications[2].state, b"state3")
 
         self.assertEqual(
-            recorder.max_notification_id(),
+            await recorder.async_max_notification_id(),
             3,
         )
 
-        notifications = recorder.select_notifications(1, 1)
+        notifications = await recorder.async_select_notifications(1, 1)
         self.assertEqual(len(notifications), 1)
         self.assertEqual(notifications[0].id, 1)
 
-        notifications = recorder.select_notifications(2, 1)
+        notifications = await recorder.async_select_notifications(2, 1)
         self.assertEqual(len(notifications), 1)
         self.assertEqual(notifications[0].id, 2)
 
-        notifications = recorder.select_notifications(2, 2)
+        notifications = await recorder.async_select_notifications(2, 2)
         self.assertEqual(len(notifications), 2)
         self.assertEqual(notifications[0].id, 2)
         self.assertEqual(notifications[1].id, 3)
 
-        notifications = recorder.select_notifications(3, 1)
+        notifications = await recorder.async_select_notifications(3, 1)
         self.assertEqual(len(notifications), 1, len(notifications))
         self.assertEqual(notifications[0].id, 3)
 
@@ -102,6 +110,8 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         counts = {}
         threads = {}
         durations = {}
+
+        event_loops: List[AbstractEventLoop] = []
 
         def _createevent():
             thread_id = get_ident()
@@ -128,7 +138,14 @@ class ApplicationRecorderTestCase(TestCase, ABC):
             started = datetime.now()
             # print(f"Thread {thread_num} write beginning #{count + 1}")
             try:
-                recorder.insert_events(stored_events)
+                loop = get_event_loop()
+            except RuntimeError:
+                loop = new_event_loop()
+                event_loops.append(loop)
+                set_event_loop(loop)
+
+            try:
+                loop.run_until_complete(recorder.async_insert_events(stored_events))
 
             except Exception:
                 ended = datetime.now()
@@ -150,9 +167,11 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         stop_reading = Event()
 
         def read_continuously():
+            loop = new_event_loop()
+            event_loops.append(loop)
             while not stop_reading.is_set():
                 try:
-                    recorder.select_notifications(0, 10)
+                    loop.run_until_complete(recorder.async_select_notifications(0, 10))
                 except Exception:
                     errors_happened.set()
                     tb = traceback.format_exc()
@@ -182,6 +201,10 @@ class ApplicationRecorderTestCase(TestCase, ABC):
             print(f"Thread {thread_num} wrote {count} times (max dur {duration})")
         self.assertFalse(errors_happened.is_set())
 
+        for loop in event_loops:
+            loop.stop()
+            loop.close()
+
     def test_concurrent_throughput(self):
         print(self)
 
@@ -195,6 +218,8 @@ class ApplicationRecorderTestCase(TestCase, ABC):
 
         # Match this to the batch page size in postgres insert for max throughput.
         NUM_EVENTS = 500
+
+        event_loops: List[AbstractEventLoop] = []
 
         def _createevent():
             thread_id = get_ident()
@@ -217,7 +242,13 @@ class ApplicationRecorderTestCase(TestCase, ABC):
             ]
 
             try:
-                recorder.insert_events(stored_events)
+                loop = get_event_loop()
+            except RuntimeError:
+                loop = new_event_loop()
+                event_loops.append(loop)
+                set_event_loop(loop)
+            try:
+                loop.run_until_complete(recorder.async_insert_events(stored_events))
 
             except Exception:
                 errors_happened.set()
@@ -245,6 +276,9 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         self.assertFalse(errors_happened.is_set(), "There were errors (see above)")
         ended = datetime.now()
         print("Rate:", NUM_JOBS * NUM_EVENTS / (ended - started).total_seconds())
+        for loop in event_loops:
+            loop.stop()
+            loop.close()
         self.close_db_connection()
 
     def close_db_connection(self, *args):
