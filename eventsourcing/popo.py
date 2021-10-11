@@ -18,7 +18,7 @@ from eventsourcing.persistence import (
 )
 
 
-class POPOAggregateRecorder(AggregateRecorder):
+class POPOAggregateRecorder(AggregateRecorder, AsyncAggregateRecorder):
     def __init__(self) -> None:
         self.stored_events: List[StoredEvent] = []
         self.stored_events_index: Dict[UUID, Dict[int, int]] = defaultdict(dict)
@@ -78,15 +78,10 @@ class POPOAggregateRecorder(AggregateRecorder):
                     break
             return results
 
-
-class POPOAsyncAggregateRecorder(AsyncAggregateRecorder):
-    def __init__(self):
-        self.recorder = POPOAggregateRecorder()
-
     async def async_insert_events(
         self, stored_events: List[StoredEvent], **kwargs: Any
     ) -> None:
-        self.recorder.insert_events(stored_events, **kwargs)
+        self.insert_events(stored_events, **kwargs)
 
     async def async_select_events(
         self,
@@ -96,10 +91,10 @@ class POPOAsyncAggregateRecorder(AsyncAggregateRecorder):
         desc: bool = False,
         limit: Optional[int] = None,
     ) -> List[StoredEvent]:
-        return self.recorder.select_events(originator_id, gt, lte, desc, limit)
+        return self.select_events(originator_id, gt, lte, desc, limit)
 
 
-class POPOApplicationRecorder(ApplicationRecorder, POPOAggregateRecorder):
+class POPOApplicationRecorder(ApplicationRecorder, AsyncApplicationRecorder, POPOAggregateRecorder):
     def select_notifications(self, start: int, limit: int) -> List[Notification]:
         with self.database_lock:
             results = []
@@ -120,23 +115,16 @@ class POPOApplicationRecorder(ApplicationRecorder, POPOAggregateRecorder):
         with self.database_lock:
             return len(self.stored_events)
 
-
-class POPOAsyncApplicationRecorder(
-    AsyncApplicationRecorder, POPOAsyncAggregateRecorder
-):
-    def __init__(self):
-        self.recorder = POPOApplicationRecorder()
-
     async def async_select_notifications(
         self, start: int, limit: int
     ) -> List[Notification]:
-        return self.recorder.select_notifications(start, limit)
+        return self.select_notifications(start, limit)
 
     async def async_max_notification_id(self) -> int:
-        return self.recorder.max_notification_id()
+        return self.max_notification_id()
 
 
-class POPOProcessRecorder(ProcessRecorder, POPOApplicationRecorder):
+class POPOProcessRecorder(ProcessRecorder, AsyncProcessRecorder, POPOApplicationRecorder):
     def __init__(self) -> None:
         super().__init__()
         self.tracking_table: Dict[str, int] = defaultdict(None)
@@ -164,13 +152,8 @@ class POPOProcessRecorder(ProcessRecorder, POPOApplicationRecorder):
             except KeyError:
                 return 0
 
-
-class POPOAsyncProcessRecorder(AsyncProcessRecorder, POPOAsyncApplicationRecorder):
-    def __init__(self):
-        self.recorder = POPOProcessRecorder()
-
     async def async_max_tracking_id(self, application_name: str) -> int:
-        return self.recorder.max_tracking_id(application_name)
+        return self.max_tracking_id(application_name)
 
 
 class Factory(InfrastructureFactory):
