@@ -128,13 +128,13 @@ coveragehtml:
 	@coverage html
 
 .PHONY: test
-test: coveragetest coverage100 timeit
+test: coveragetest timeit
 
 .PHONY: coverage
 coverage: coveragetest coveragehtml coverage100
 
 .PHONY: prepush
-prepush: drop_postgres_db create_postgres_db updatetools lint docs test
+prepush: drop_postgres_db create_postgres_db updatetools lint docs test coverage100
 
 .PHONY: drop_postgres_db
 drop_postgres_db:

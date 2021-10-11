@@ -13,6 +13,7 @@ from eventsourcing.interface import (
     NotificationLogJSONClient,
     NotificationLogJSONService,
 )
+from eventsourcing.tests.asyncio_testcase import IsolatedAsyncioTestCase
 from eventsourcing.tests.test_application_with_popo import BankAccounts
 
 
@@ -130,6 +131,19 @@ class TestRemoteNotificationLog(TestCase):
             server.stop()
 
 
+class TestAsyncRemoteNotificationLog(IsolatedAsyncioTestCase):
+    async def test_directly(self):
+        client = BankAccountsJSONClient(BankAccountsJSONService(BankAccounts()))
+        account_id1 = client.open_account("Alice", "alice@example.com")
+        account_id2 = client.open_account("Bob", "bob@example.com")
+
+        # Get the "first" section of log.
+        items = await client.log.async_select(start=1, limit=10)
+        self.assertEqual(len(items), 2)
+        self.assertEqual(items[0].originator_id, account_id1)
+        self.assertEqual(items[1].originator_id, account_id2)
+
+
 class BankAccountsInterface(NotificationLogInterface):
     @abstractmethod
     def open_account(self, body: str) -> str:
@@ -137,8 +151,8 @@ class BankAccountsInterface(NotificationLogInterface):
 
 
 class BankAccountsJSONService(
-    BankAccountsInterface,
     NotificationLogJSONService[BankAccounts],
+    BankAccountsInterface,
 ):
     def open_account(self, request: str) -> str:
         kwargs = json.loads(request)
@@ -234,6 +248,10 @@ class BankAccountsHTTPClient(BankAccountsInterface):
         return self._request("GET", "/notifications/{}".format(section_id))
 
     def get_notifications(self, start: int, limit: int) -> str:
+        return self._request("GET", f"/notifications?start={start}&limit={limit}")
+
+    async def async_get_notifications(self, start: int, limit: int) -> str:
+        # We aren't using asyncio requests or service here, so just make a sync call.
         return self._request("GET", f"/notifications?start={start}&limit={limit}")
 
     def open_account(self, body: str) -> str:

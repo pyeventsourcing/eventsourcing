@@ -22,6 +22,9 @@ from eventsourcing.persistence import (
     ProcessRecorder,
     ProgrammingError,
     StoredEvent,
+    SyncAggregateRecorder,
+    SyncApplicationRecorder,
+    SyncProcessRecorder,
     Tracking,
 )
 from eventsourcing.utils import strtobool
@@ -157,7 +160,7 @@ class SQLiteDatastore:
         self.close_all_connections()
 
 
-class SQLiteAggregateRecorder(AggregateRecorder):
+class SQLiteAggregateRecorder(SyncAggregateRecorder):
     def __init__(
         self,
         datastore: SQLiteDatastore,
@@ -259,7 +262,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
 
 class SQLiteApplicationRecorder(
     SQLiteAggregateRecorder,
-    ApplicationRecorder,
+    SyncApplicationRecorder,
 ):
     def __init__(
         self,
@@ -321,7 +324,7 @@ class SQLiteApplicationRecorder(
 
 class SQLiteProcessRecorder(
     SQLiteApplicationRecorder,
-    ProcessRecorder,
+    SyncProcessRecorder,
 ):
     def __init__(
         self,

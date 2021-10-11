@@ -6,9 +6,6 @@ from uuid import UUID
 from eventsourcing.persistence import (
     AggregateRecorder,
     ApplicationRecorder,
-    AsyncAggregateRecorder,
-    AsyncApplicationRecorder,
-    AsyncProcessRecorder,
     InfrastructureFactory,
     IntegrityError,
     Notification,
@@ -18,7 +15,7 @@ from eventsourcing.persistence import (
 )
 
 
-class POPOAggregateRecorder(AggregateRecorder, AsyncAggregateRecorder):
+class POPOAggregateRecorder(AggregateRecorder):
     def __init__(self) -> None:
         self.stored_events: List[StoredEvent] = []
         self.stored_events_index: Dict[UUID, Dict[int, int]] = defaultdict(dict)
@@ -94,7 +91,7 @@ class POPOAggregateRecorder(AggregateRecorder, AsyncAggregateRecorder):
         return self.select_events(originator_id, gt, lte, desc, limit)
 
 
-class POPOApplicationRecorder(ApplicationRecorder, AsyncApplicationRecorder, POPOAggregateRecorder):
+class POPOApplicationRecorder(ApplicationRecorder, POPOAggregateRecorder):
     def select_notifications(self, start: int, limit: int) -> List[Notification]:
         with self.database_lock:
             results = []
@@ -124,7 +121,7 @@ class POPOApplicationRecorder(ApplicationRecorder, AsyncApplicationRecorder, POP
         return self.max_notification_id()
 
 
-class POPOProcessRecorder(ProcessRecorder, AsyncProcessRecorder, POPOApplicationRecorder):
+class POPOProcessRecorder(ProcessRecorder, POPOApplicationRecorder):
     def __init__(self) -> None:
         super().__init__()
         self.tracking_table: Dict[str, int] = defaultdict(None)

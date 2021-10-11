@@ -28,6 +28,13 @@ class NotificationLogInterface(ABC):
         objects from a notification log.
         """
 
+    @abstractmethod
+    async def async_get_notifications(self, start: int, limit: int) -> str:
+        """
+        Returns a serialised list of :class:`~eventsourcing.persistence.Notification`
+        objects from a notification log using asyncio.
+        """
+
 
 class NotificationLogJSONService(NotificationLogInterface, Generic[TApplication]):
     """
@@ -65,6 +72,13 @@ class NotificationLogJSONService(NotificationLogInterface, Generic[TApplication]
 
     def get_notifications(self, start: int, limit: int) -> str:
         notifications = self.app.log.select(start, limit)
+        return self._serialize_notifications(notifications)
+
+    async def async_get_notifications(self, start: int, limit: int) -> str:
+        notifications = await self.app.log.async_select(start, limit)
+        return self._serialize_notifications(notifications)
+
+    def _serialize_notifications(self, notifications: List[Notification]) -> str:
         return json.dumps(
             [
                 {
@@ -109,6 +123,14 @@ class NotificationLogJSONClient(NotificationLog):
         )
 
     def select(self, start: int, limit: int) -> List[Notification]:
+        items = self.interface.get_notifications(start, limit)
+        return self._deserialize_notifications(items)
+
+    async def async_select(self, start: int, limit: int) -> List[Notification]:
+        items = await self.interface.async_get_notifications(start, limit)
+        return self._deserialize_notifications(items)
+
+    def _deserialize_notifications(self, items: str) -> List[Notification]:
         return [
             Notification(
                 id=item["id"],
@@ -117,5 +139,5 @@ class NotificationLogJSONClient(NotificationLog):
                 topic=item["topic"],
                 state=b64decode(item["state"].encode("utf8")),
             )
-            for item in json.loads(self.interface.get_notifications(start, limit))
+            for item in json.loads(items)
         ]

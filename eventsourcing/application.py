@@ -89,6 +89,52 @@ class Repository(Generic[TAggregate]):
             # Return the aggregate.
             return aggregate
 
+    async def async_get(
+        self, aggregate_id: UUID, version: Optional[int] = None
+    ) -> TAggregate:
+        """
+        Returns an :class:`~eventsourcing.domain.Aggregate`
+        for given ID, optionally at the given version
+        using asyncio.
+        """
+
+        aggregate: Optional[TAggregate] = None
+        gt: Optional[int] = None
+
+        if self.snapshot_store is not None:
+            # Try to get a snapshot.
+            snapshots = await self.snapshot_store.async_get(
+                originator_id=aggregate_id,
+                desc=True,
+                limit=1,
+                lte=version,
+            )
+            try:
+                snapshot = next(snapshots)
+            except StopIteration:
+                pass
+            else:
+                gt = snapshot.originator_version
+                aggregate = snapshot.mutate()
+
+        # Get aggregate events.
+        domain_events = await self.event_store.async_get(
+            originator_id=aggregate_id,
+            gt=gt,
+            lte=version,
+        )
+
+        # Reconstruct the aggregate from its events.
+        for domain_event in domain_events:
+            aggregate = domain_event.mutate(aggregate)
+
+        # Raise exception if "not found".
+        if aggregate is None:
+            raise AggregateNotFound((aggregate_id, version))
+        else:
+            # Return the aggregate.
+            return aggregate
+
 
 @dataclass(frozen=True)
 class Section:
@@ -131,6 +177,13 @@ class NotificationLog(ABC):
     def select(self, start: int, limit: int) -> List[Notification]:
         """
         Returns a list of :class:`~eventsourcing.persistence.Notification` objects.
+        """
+
+    @abstractmethod
+    async def async_select(self, start: int, limit: int) -> List[Notification]:
+        """
+        Returns a list of :class:`~eventsourcing.persistence.Notification` objects
+        using asyncio.
         """
 
 
@@ -209,11 +262,24 @@ class LocalNotificationLog(NotificationLog):
         )
 
     def select(self, start: int, limit: int) -> List[Notification]:
+        """
+        Selects a list of notifications.
+        """
+        self._assert_limit_lte_section_size(limit)
+        return self.recorder.select_notifications(start, limit)
+
+    def _assert_limit_lte_section_size(self, limit: int) -> None:
         if limit > self.section_size:
             raise ValueError(
                 f"Requested limit {limit} greater than section size {self.section_size}"
             )
-        return self.recorder.select_notifications(start, limit)
+
+    async def async_select(self, start: int, limit: int) -> List[Notification]:
+        """
+        Selects a list of notifications using asyncio.
+        """
+        self._assert_limit_lte_section_size(limit)
+        return await self.recorder.async_select_notifications(start, limit)
 
     @staticmethod
     def format_section_id(first_id: int, last_id: int) -> str:
@@ -371,9 +437,46 @@ class Application(ABC, Generic[TAggregate]):
 
         self.notify(events)
 
+    async def async_save(self, *aggregates: Aggregate, **kwargs: Any) -> None:
+        """
+        Collects pending events from given aggregates and
+        puts them in the application's event store
+        using asyncio.
+        """
+        # Collect and store events.
+        events = []
+        for aggregate in aggregates:
+            events += aggregate.collect_events()
+        await self.events.async_put(events, **kwargs)
+
+        # Take snapshots.
+        if self.snapshots and self.snapshotting_intervals:
+            aggregate_types = {}
+            for aggregate in aggregates:
+                aggregate_types[aggregate.id] = type(aggregate)
+            for event in events:
+                aggregate_type = aggregate_types[event.originator_id]
+                interval = self.snapshotting_intervals.get(aggregate_type)
+                if interval is not None:
+                    if event.originator_version % interval == 0:
+                        await self.async_take_snapshot(
+                            aggregate_id=event.originator_id,
+                            version=event.originator_version,
+                        )
+
+        await self.async_notify(events)
+
     def notify(self, new_events: List[AggregateEvent]) -> None:
         """
         Called after new domain events have been saved. This
+        method on this class class doesn't actually do anything,
+        but this method may be implemented by subclasses that
+        need to take action when new domain events have been saved.
+        """
+
+    async def async_notify(self, new_events: List[AggregateEvent]) -> None:
+        """
+        Called after new domain events have been saved using asyncio. This
         method on this class class doesn't actually do anything,
         but this method may be implemented by subclasses that
         need to take action when new domain events have been saved.
@@ -384,6 +487,24 @@ class Application(ABC, Generic[TAggregate]):
         Takes a snapshot of the recorded state of the aggregate,
         and puts the snapshot in the snapshot store.
         """
+        self._assert_snapshotting_is_enabled()
+        aggregate = self.repository.get(aggregate_id, version)
+        assert self.snapshots  # For mypy.
+        self.snapshots.put([(Snapshot.take(aggregate))])
+
+    async def async_take_snapshot(
+        self, aggregate_id: UUID, version: Optional[int] = None
+    ) -> None:
+        """
+        Takes a snapshot of the recorded state of the aggregate,
+        and puts the snapshot in the snapshot store using asyncio.
+        """
+        self._assert_snapshotting_is_enabled()
+        aggregate = await self.repository.async_get(aggregate_id, version)
+        assert self.snapshots  # For mypy.
+        await self.snapshots.async_put([(Snapshot.take(aggregate))])
+
+    def _assert_snapshotting_is_enabled(self) -> None:
         if self.snapshots is None:
             raise AssertionError(
                 "Can't take snapshot without snapshots store. Please "
@@ -392,10 +513,6 @@ class Application(ABC, Generic[TAggregate]):
                 "on application class, or set 'snapshotting_intervals' on "
                 "application class."
             )
-        else:
-            aggregate = self.repository.get(aggregate_id, version)
-            snapshot = Snapshot.take(aggregate)
-            self.snapshots.put([snapshot])
 
 
 TApplication = TypeVar("TApplication", bound=Application)

@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from asyncio import get_event_loop
 from timeit import timeit
-from unittest import IsolatedAsyncioTestCase
 from uuid import uuid4
 
 from eventsourcing.persistence import (
@@ -9,6 +8,7 @@ from eventsourcing.persistence import (
     IntegrityError,
     StoredEvent,
 )
+from eventsourcing.tests.asyncio_testcase import IsolatedAsyncioTestCase
 
 
 class AsyncAggregateRecorderTestCase(IsolatedAsyncioTestCase, ABC):

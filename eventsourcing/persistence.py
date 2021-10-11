@@ -402,7 +402,14 @@ class AggregateRecorder(Recorder):
         Writes stored events into database.
         """
 
-    # Todo: Change the implementations to get in batches, in case lots of events.
+    @abstractmethod
+    async def async_insert_events(
+        self, stored_events: List[StoredEvent], **kwargs: Any
+    ) -> None:
+        """
+        Writes stored events into database using asyncio.
+        """
+
     @abstractmethod
     def select_events(
         self,
@@ -416,23 +423,6 @@ class AggregateRecorder(Recorder):
         Reads stored events from database.
         """
 
-
-class AsyncAggregateRecorder(Recorder):
-    """
-    Abstract base class for recorders that record and
-    retrieve stored events for domain model aggregates
-    using asyncio.
-    """
-
-    @abstractmethod
-    async def async_insert_events(
-        self, stored_events: List[StoredEvent], **kwargs: Any
-    ) -> None:
-        """
-        Writes stored events into database.
-        """
-
-    # Todo: Change the implementations to get in batches, in case lots of events.
     @abstractmethod
     async def async_select_events(
         self,
@@ -443,8 +433,40 @@ class AsyncAggregateRecorder(Recorder):
         limit: Optional[int] = None,
     ) -> List[StoredEvent]:
         """
-        Reads stored events from database.
+        Reads stored events from database using asyncio.
         """
+
+
+class SyncAggregateRecorder(AggregateRecorder):
+    async def async_insert_events(
+        self, stored_events: List[StoredEvent], **kwargs: Any
+    ) -> None:
+        raise NotImplementedError
+
+    async def async_select_events(
+        self,
+        originator_id: UUID,
+        gt: Optional[int] = None,
+        lte: Optional[int] = None,
+        desc: bool = False,
+        limit: Optional[int] = None,
+    ) -> List[StoredEvent]:
+        raise NotImplementedError
+
+
+class AsyncAggregateRecorder(AggregateRecorder):
+    def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
+        raise NotImplementedError
+
+    def select_events(
+        self,
+        originator_id: UUID,
+        gt: Optional[int] = None,
+        lte: Optional[int] = None,
+        desc: bool = False,
+        limit: Optional[int] = None,
+    ) -> List[StoredEvent]:
+        raise NotImplementedError
 
 
 @dataclass(frozen=True)
@@ -475,38 +497,44 @@ class ApplicationRecorder(AggregateRecorder):
         """
 
     @abstractmethod
-    def max_notification_id(self) -> int:
-        """
-        Returns the maximum notification ID.
-        """
-
-
-class AsyncApplicationRecorder(AsyncAggregateRecorder):
-    """
-    Abstract base class for recorders that record and
-    retrieve stored events for domain model aggregates
-    using asyncio.
-
-    Extends the behaviour of aggregate recorders by
-    recording aggregate events in a total order that
-    allows the stored events also to be retrieved
-    as event notifications.
-    """
-
-    @abstractmethod
     async def async_select_notifications(
         self, start: int, limit: int
     ) -> List[Notification]:
         """
         Returns a list of event notifications
-        from 'start', limited by 'limit'.
+        from 'start', limited by 'limit' using
+        asyncio.
+        """
+
+    @abstractmethod
+    def max_notification_id(self) -> int:
+        """
+        Returns the maximum notification ID.
         """
 
     @abstractmethod
     async def async_max_notification_id(self) -> int:
         """
-        Returns the maximum notification ID.
+        Returns the maximum notification ID using asyncio.
         """
+
+
+class SyncApplicationRecorder(ApplicationRecorder):
+    async def async_select_notifications(
+        self, start: int, limit: int
+    ) -> List[Notification]:
+        raise NotImplementedError
+
+    async def async_max_notification_id(self) -> int:
+        raise NotImplementedError
+
+
+class AsyncApplicationRecorder(ApplicationRecorder):
+    def select_notifications(self, start: int, limit: int) -> List[Notification]:
+        raise NotImplementedError
+
+    def max_notification_id(self) -> int:
+        raise NotImplementedError
 
 
 class ProcessRecorder(ApplicationRecorder):
@@ -526,24 +554,22 @@ class ProcessRecorder(ApplicationRecorder):
         Returns the last recorded notification ID from given application.
         """
 
-
-class AsyncProcessRecorder(AsyncApplicationRecorder):
-    """
-    Abstract base class for recorders that record and
-    retrieve stored events for domain model aggregates
-    using asyncio.
-
-    Extends the behaviour of application recorders by
-    recording aggregate events with tracking information
-    that records the position of a processed event
-    notification in a notification log.
-    """
-
     @abstractmethod
     async def async_max_tracking_id(self, application_name: str) -> int:
         """
-        Returns the last recorded notification ID from given application.
+        Returns the last recorded notification ID from given application
+        using asyncio.
         """
+
+
+class SyncProcessRecorder(ProcessRecorder):
+    async def async_max_tracking_id(self, application_name: str) -> int:
+        raise NotImplementedError
+
+
+class AsyncProcessRecorder(ProcessRecorder):
+    def max_tracking_id(self, application_name: str) -> int:
+        raise NotImplementedError
 
 
 class EventStore(Generic[TDomainEvent]):
@@ -573,6 +599,20 @@ class EventStore(Generic[TDomainEvent]):
             **kwargs,
         )
 
+    async def async_put(self, events: List[TDomainEvent], **kwargs: Any) -> None:
+        """
+        Stores domain events in aggregate sequence using asyncio.
+        """
+        await self.recorder.async_insert_events(
+            list(
+                map(
+                    self.mapper.from_domain_event,
+                    events,
+                )
+            ),
+            **kwargs,
+        )
+
     def get(
         self,
         originator_id: UUID,
@@ -587,6 +627,28 @@ class EventStore(Generic[TDomainEvent]):
         return map(
             self.mapper.to_domain_event,
             self.recorder.select_events(
+                originator_id=originator_id,
+                gt=gt,
+                lte=lte,
+                desc=desc,
+                limit=limit,
+            ),
+        )
+
+    async def async_get(
+        self,
+        originator_id: UUID,
+        gt: Optional[int] = None,
+        lte: Optional[int] = None,
+        desc: bool = False,
+        limit: Optional[int] = None,
+    ) -> Iterator[TDomainEvent]:
+        """
+        Retrieves domain events from aggregate sequence.
+        """
+        return map(
+            self.mapper.to_domain_event,
+            await self.recorder.async_select_events(
                 originator_id=originator_id,
                 gt=gt,
                 lte=lte,

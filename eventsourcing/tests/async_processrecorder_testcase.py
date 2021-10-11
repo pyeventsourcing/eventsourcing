@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
-from asyncio import get_event_loop, get_running_loop
+from asyncio import get_event_loop
 from timeit import timeit
-from unittest import IsolatedAsyncioTestCase
-from unittest.case import TestCase
 from uuid import uuid4
 
 from eventsourcing.persistence import (
@@ -11,6 +9,7 @@ from eventsourcing.persistence import (
     StoredEvent,
     Tracking,
 )
+from eventsourcing.tests.asyncio_testcase import IsolatedAsyncioTestCase
 
 
 class AsyncProcessRecorderTestCase(IsolatedAsyncioTestCase, ABC):
@@ -117,7 +116,6 @@ class AsyncProcessRecorderTestCase(IsolatedAsyncioTestCase, ABC):
         )
 
     def test_performance(self):
-
         # Construct the recorder.
         recorder = self.create_recorder()
 

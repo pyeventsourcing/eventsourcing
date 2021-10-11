@@ -11,11 +11,10 @@ from datetime import datetime
 from threading import Event, Thread, get_ident
 from time import sleep
 from typing import List
-from unittest import IsolatedAsyncioTestCase
-from unittest.case import TestCase
 from uuid import uuid4
 
 from eventsourcing.persistence import AsyncApplicationRecorder, StoredEvent
+from eventsourcing.tests.asyncio_testcase import IsolatedAsyncioTestCase
 
 
 class AsyncApplicationRecorderTestCase(IsolatedAsyncioTestCase, ABC):

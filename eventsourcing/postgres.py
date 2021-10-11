@@ -27,6 +27,9 @@ from eventsourcing.persistence import (
     ProcessRecorder,
     ProgrammingError,
     StoredEvent,
+    SyncAggregateRecorder,
+    SyncApplicationRecorder,
+    SyncProcessRecorder,
     Tracking,
 )
 from eventsourcing.utils import retry, strtobool
@@ -215,7 +218,7 @@ class PostgresDatastore:
 
 
 # noinspection SqlResolve
-class PostgresAggregateRecorder(AggregateRecorder):
+class PostgresAggregateRecorder(SyncAggregateRecorder):
     def __init__(self, datastore: PostgresDatastore, events_table_name: str):
         self.datastore = datastore
         self.events_table_name = events_table_name
@@ -392,7 +395,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
 # noinspection SqlResolve
 class PostgresApplicationRecorder(
     PostgresAggregateRecorder,
-    ApplicationRecorder,
+    SyncApplicationRecorder,
 ):
     def __init__(
         self,
@@ -484,7 +487,7 @@ class PostgresApplicationRecorder(
 
 class PostgresProcessRecorder(
     PostgresApplicationRecorder,
-    ProcessRecorder,
+    SyncProcessRecorder,
 ):
     def __init__(
         self,
