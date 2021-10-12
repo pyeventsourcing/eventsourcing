@@ -29,6 +29,7 @@ class POPOAggregateRecorder(AggregateRecorder):
     async def async_insert_events(
         self, stored_events: List[StoredEvent], **kwargs: Any
     ) -> None:
+        # await async_to_thread(self.insert_events, stored_events)
         self.insert_events(stored_events, **kwargs)
 
     def assert_uniqueness(
@@ -89,6 +90,8 @@ class POPOAggregateRecorder(AggregateRecorder):
         limit: Optional[int] = None,
     ) -> List[StoredEvent]:
         return self.select_events(originator_id, gt, lte, desc, limit)
+        # return await async_to_thread(self.select_events, originator_id, gt, lte, desc,
+        #                              limit)
 
 
 class POPOApplicationRecorder(ApplicationRecorder, POPOAggregateRecorder):

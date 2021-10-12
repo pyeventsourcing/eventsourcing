@@ -14,7 +14,7 @@ from eventsourcing.utils import get_topic
 TIMEIT_FACTOR = int(os.environ.get("TEST_TIMEIT_FACTOR", default=10))
 
 
-class TestApplicationWithPOPO(TestCase):
+class ApplicationTestCase(TestCase):
     timeit_number = 100 * TIMEIT_FACTOR
 
     started_ats = {}
@@ -42,7 +42,11 @@ class TestApplicationWithPOPO(TestCase):
             duration = datetime.now() - cls.started_ats[cls]
             print(f"{cls.__name__: <29} timeit duration: {duration}")
             sys.stdout.flush()
+            self.counts.clear()
+            del cls.started_ats[cls]
 
+
+class TestApplicationWithPOPO(ApplicationTestCase):
     def test_example_application(self):
         app = BankAccounts(env={"IS_SNAPSHOTTING_ENABLED": "y"})
 
