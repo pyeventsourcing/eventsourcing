@@ -34,14 +34,16 @@ class TestSnapshotting(TestCase):
         transcoder.register(DatetimeAsISO())
         transcoder.register(EmailAddressAsStr())
 
-        snapshot_store = EventStore(
-            mapper=Mapper(transcoder=transcoder),
-            recorder=SQLiteAggregateRecorder(
-                SQLiteDatastore(":memory:"),
-                events_table_name="snapshots",
-            ),
+        recorder = SQLiteAggregateRecorder(
+            SQLiteDatastore(":memory:"),
+            events_table_name="snapshots",
         )
-        snapshot_store.recorder.create_table()
+        recorder.create_table()
+
+        snapshot_store: EventStore[Snapshot] = EventStore(
+            mapper=Mapper(transcoder=transcoder),
+            recorder=recorder,
+        )
 
         # Clear pending events.
         account.collect_events()
@@ -55,14 +57,12 @@ class TestSnapshotting(TestCase):
         snapshot_store.put([snapshot])
 
         # Get snapshot.
-        snapshots = snapshot_store.get(account.id, desc=True, limit=1)
-        snapshot = snapshots[0]
-        assert isinstance(snapshot, Snapshot)
+        snapshot_copy = snapshot_store.get(account.id, desc=True, limit=1)[0]
 
         # Reconstruct the bank account.
-        copy = snapshot.mutate()
-        assert isinstance(copy, BankAccount)
+        account_copy: BankAccount = snapshot_copy.mutate()
+        assert isinstance(account_copy, BankAccount)
 
         # Check copy has correct attribute values.
-        assert copy.id == account.id
-        assert copy.balance == Decimal("65.00")
+        assert account_copy.id == account.id
+        assert account_copy.balance == Decimal("65.00")

@@ -2,26 +2,19 @@ import json
 import os
 import uuid
 from abc import ABC, abstractmethod
-from asyncio import get_running_loop
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Generic,
-    List,
-    Mapping,
-    Optional,
-    Type,
-    TypeVar,
-    cast,
-)
+from typing import Any, Dict, Generic, List, Mapping, Optional, Type, cast
 from uuid import UUID
 
 from eventsourcing.domain import DomainEvent, TDomainEvent
-from eventsourcing.utils import get_topic, resolve_topic, strtobool
+from eventsourcing.utils import (
+    async_to_thread,
+    get_topic,
+    resolve_topic,
+    strtobool,
+)
 
 
 class Transcoding(ABC):
@@ -601,7 +594,7 @@ class EventStore(Generic[TDomainEvent]):
         Stores domain events in aggregate sequence using asyncio.
         """
         await self.recorder.async_insert_events(
-            await _to_thread(self._from_domain_events, events),
+            await async_to_thread(self._from_domain_events, events),
             **kwargs,
         )
 
@@ -633,7 +626,7 @@ class EventStore(Generic[TDomainEvent]):
         """
         Retrieves domain events from aggregate sequence.
         """
-        return await _to_thread(
+        return await async_to_thread(
             self._to_domain_events,
             await self.recorder.async_select_events(
                 originator_id=originator_id,
@@ -654,13 +647,6 @@ class EventStore(Generic[TDomainEvent]):
                 stored_events,
             )
         )
-
-
-_T = TypeVar("_T")
-
-
-async def _to_thread(func: Callable[..., _T], *args: Any) -> _T:
-    return await get_running_loop().run_in_executor(None, func, *args)
 
 
 class InfrastructureFactory(ABC):

@@ -26,6 +26,11 @@ class POPOAggregateRecorder(AggregateRecorder):
             self.assert_uniqueness(stored_events, **kwargs)
             self.update_table(stored_events, **kwargs)
 
+    async def async_insert_events(
+        self, stored_events: List[StoredEvent], **kwargs: Any
+    ) -> None:
+        self.insert_events(stored_events, **kwargs)
+
     def assert_uniqueness(
         self, stored_events: List[StoredEvent], **kwargs: Any
     ) -> None:
@@ -75,11 +80,6 @@ class POPOAggregateRecorder(AggregateRecorder):
                     break
             return results
 
-    async def async_insert_events(
-        self, stored_events: List[StoredEvent], **kwargs: Any
-    ) -> None:
-        self.insert_events(stored_events, **kwargs)
-
     async def async_select_events(
         self,
         originator_id: UUID,
@@ -108,14 +108,14 @@ class POPOApplicationRecorder(ApplicationRecorder, POPOAggregateRecorder):
                 results.append(n)
             return results
 
-    def max_notification_id(self) -> int:
-        with self.database_lock:
-            return len(self.stored_events)
-
     async def async_select_notifications(
         self, start: int, limit: int
     ) -> List[Notification]:
         return self.select_notifications(start, limit)
+
+    def max_notification_id(self) -> int:
+        with self.database_lock:
+            return len(self.stored_events)
 
     async def async_max_notification_id(self) -> int:
         return self.max_notification_id()
