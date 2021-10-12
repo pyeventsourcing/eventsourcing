@@ -96,33 +96,49 @@ class TestSqliteDatastore(TestCase):
             self.assertEqual(rows[0][0], 1)
 
     def test_sets_wal_journal_mode_if_not_memory(self):
-        # Check datastore for in-memory database.
-        with self.datastore.transaction():
-            pass
+        def is_journal_mode_wal(datastore):
+            with datastore.get_connection() as c:
+                cursor = c.execute("PRAGMA journal_mode;")
+                mode = cursor.fetchone()[0]
+                return mode.lower() == "wal"
 
-        self.assertFalse(self.datastore.is_journal_mode_wal)
-        self.assertFalse(self.datastore.journal_mode_was_changed_to_wal)
+        # Check datastore for an in-memory database.
+        self.assertFalse(is_journal_mode_wal(self.datastore))
 
-        # Create datastore for non-existing file database.
+        # Create datastore for a file database.
         self.uris = tmpfile_uris()
         self.db_uri = next(self.uris)
         datastore = SQLiteDatastore(self.db_uri)
-
-        with datastore.transaction():
-            pass
-
-        self.assertTrue(datastore.is_journal_mode_wal)
-        self.assertTrue(datastore.journal_mode_was_changed_to_wal)
+        self.assertTrue(is_journal_mode_wal(datastore))
 
         datastore.close_all_connections()
-        del datastore
+        self.assertTrue(is_journal_mode_wal(datastore))
 
-        # Recreate datastore for existing database.
-        datastore = SQLiteDatastore(self.db_uri)
-        with datastore.transaction():
-            pass
-        self.assertTrue(datastore.is_journal_mode_wal)
-        self.assertFalse(datastore.journal_mode_was_changed_to_wal)
+    def test_pragma_synchronous(self):
+
+        # See https://www.sqlite.org/pragma.html#pragma_synchronous
+        NORMAL = 1
+        FULL = 2
+
+        def get_pragma_synchronous(datastore):
+            with datastore.get_connection() as c:
+                cursor = c.execute("PRAGMA synchronous;")
+                return cursor.fetchone()[0]
+
+        # Check datastore for an in-memory database.
+        self.assertEqual(get_pragma_synchronous(self.datastore), FULL)
+
+        # Create datastore for a file database - use synchronous NORMAL.
+        self.uris = tmpfile_uris()
+        self.db_uri = next(self.uris)
+        datastore = SQLiteDatastore(self.db_uri, pragma_synchronous="NORMAL")
+        self.assertEqual(get_pragma_synchronous(datastore), NORMAL)
+
+        # Create datastore for a file database - use synchronous FULL.
+        self.uris = tmpfile_uris()
+        self.db_uri = next(self.uris)
+        datastore = SQLiteDatastore(self.db_uri, pragma_synchronous="FULL")
+        self.assertEqual(get_pragma_synchronous(datastore), FULL)
 
 
 class TestSQLiteAggregateRecorder(AggregateRecorderTestCase):
@@ -247,6 +263,8 @@ class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase):
             del os.environ[Factory.SQLITE_DBNAME]
         if Factory.SQLITE_LOCK_TIMEOUT in os.environ:
             del os.environ[Factory.SQLITE_LOCK_TIMEOUT]
+        if Factory.SQLITE_PRAGMA_SYNCHRONOUS in os.environ:
+            del os.environ[Factory.SQLITE_PRAGMA_SYNCHRONOUS]
 
     def test_construct_raises_environment_error_when_dbname_missing(self):
         del os.environ[Factory.SQLITE_DBNAME]
@@ -278,6 +296,25 @@ class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase):
         os.environ[Factory.SQLITE_LOCK_TIMEOUT] = "10"
         factory = Factory("TestCase", os.environ)
         self.assertEqual(factory.datastore.lock_timeout, 10)
+
+    def test_environment_error_raised_when_pragma_synchronous_not_valid(self):
+        os.environ[Factory.SQLITE_PRAGMA_SYNCHRONOUS] = "abc"
+        with self.assertRaises(EnvironmentError) as cm:
+            Factory("TestCase", os.environ)
+        self.assertEqual(
+            cm.exception.args[0],
+            "SQLite environment value for key 'SQLITE_PRAGMA_SYNCHRONOUS' "
+            "is invalid. If set, value must be FULL or NORMAL.",
+        )
+
+    def test_pragma_synchronous_values(self):
+        os.environ[Factory.SQLITE_PRAGMA_SYNCHRONOUS] = "NORMAL"
+        factory = Factory("TestCase", os.environ)
+        self.assertEqual(factory.datastore.pragma_synchronous, "NORMAL")
+
+        os.environ[Factory.SQLITE_PRAGMA_SYNCHRONOUS] = "FULL"
+        factory = Factory("TestCase", os.environ)
+        self.assertEqual(factory.datastore.pragma_synchronous, "FULL")
 
 
 del AggregateRecorderTestCase

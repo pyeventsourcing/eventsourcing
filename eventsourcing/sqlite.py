@@ -89,8 +89,16 @@ class Transaction:
                 self.lock.release()
 
 
+PRAGMA_SYNCHRONOUS_OPTIONS = ["FULL", "NORMAL"]
+
+
 class SQLiteDatastore:
-    def __init__(self, db_name: str, lock_timeout: Optional[int] = None):
+    def __init__(
+        self,
+        db_name: str,
+        lock_timeout: Optional[int] = None,
+        pragma_synchronous: str = "NORMAL",
+    ):
         self.db_name = db_name
         self.is_sqlite_memory_mode = self.detect_memory_mode(db_name)
         self.lock: Optional[Lock] = None
@@ -98,9 +106,9 @@ class SQLiteDatastore:
             self.lock = Lock()
 
         self.connections: Dict[int, Connection] = {}
-        self.is_journal_mode_wal = False
-        self.journal_mode_was_changed_to_wal = False
         self.lock_timeout = lock_timeout
+        self.pragma_synchronous = pragma_synchronous
+        self.have_persistent_pragmas_been_set = False
 
     def detect_memory_mode(self, db_name: str) -> bool:
         return bool(db_name) and (":memory:" in db_name or "mode=memory" in db_name)
@@ -118,6 +126,17 @@ class SQLiteDatastore:
             self.connections[thread_id] = c
         return c
 
+    def set_pragmas(self, c: Connection) -> None:
+        # Use WAL (write-ahead log) mode if file-based database.
+        if not self.is_sqlite_memory_mode:
+            cursor = c.cursor()
+            if not self.have_persistent_pragmas_been_set:
+                # Set journal_mode pragma.
+                cursor.execute("PRAGMA journal_mode=WAL;")
+                self.have_persistent_pragmas_been_set = True
+            # Set synchronous pragma (to FULL or NORMAL).
+            cursor.execute(f"PRAGMA synchronous={self.pragma_synchronous};")
+
     def create_connection(self) -> Connection:
         # Make a connection to an SQLite database.
         try:
@@ -132,18 +151,8 @@ class SQLiteDatastore:
         except (sqlite3.Error, TypeError) as e:
             raise InterfaceError(e)
 
-        # Use WAL (write-ahead log) mode if file-based database.
-        if not self.is_sqlite_memory_mode:
-            if not self.is_journal_mode_wal:
-                cursor = c.cursor()
-                cursor.execute("PRAGMA journal_mode;")
-                mode = cursor.fetchone()[0]
-                if mode.lower() == "wal":
-                    self.is_journal_mode_wal = True
-                else:
-                    cursor.execute("PRAGMA journal_mode=WAL;")
-                    self.is_journal_mode_wal = True
-                    self.journal_mode_was_changed_to_wal = True
+        # Set the pragmas.
+        self.set_pragmas(c)
 
         # Set the row factory.
         c.row_factory = sqlite3.Row
@@ -378,6 +387,7 @@ class SQLiteProcessRecorder(
 class Factory(InfrastructureFactory):
     SQLITE_DBNAME = "SQLITE_DBNAME"
     SQLITE_LOCK_TIMEOUT = "SQLITE_LOCK_TIMEOUT"
+    SQLITE_PRAGMA_SYNCHRONOUS = "SQLITE_PRAGMA_SYNCHRONOUS"
     CREATE_TABLE = "CREATE_TABLE"
 
     def __init__(self, application_name: str, env: Mapping):
@@ -404,7 +414,19 @@ class Factory(InfrastructureFactory):
                     f"'{lock_timeout_str}'"
                 )
 
-        self.datastore = SQLiteDatastore(db_name=db_name, lock_timeout=lock_timeout)
+        pragma_synchronous = self.getenv(self.SQLITE_PRAGMA_SYNCHRONOUS, "NORMAL")
+        if pragma_synchronous not in PRAGMA_SYNCHRONOUS_OPTIONS:
+            raise EnvironmentError(
+                f"SQLite environment value for key "
+                f"'{self.SQLITE_PRAGMA_SYNCHRONOUS}' is invalid. "
+                f"If set, value must be FULL or NORMAL."
+            )
+
+        self.datastore = SQLiteDatastore(
+            db_name=db_name,
+            lock_timeout=lock_timeout,
+            pragma_synchronous=pragma_synchronous,
+        )
 
     def aggregate_recorder(self, purpose: str = "events") -> AggregateRecorder:
         events_table_name = "stored_" + purpose
