@@ -64,8 +64,8 @@ class Repository(Generic[TAggregate]):
                 lte=version,
             )
             try:
-                snapshot = next(snapshots)
-            except StopIteration:
+                snapshot = snapshots[0]
+            except IndexError:
                 pass
             else:
                 gt = snapshot.originator_version
@@ -110,8 +110,8 @@ class Repository(Generic[TAggregate]):
                 lte=version,
             )
             try:
-                snapshot = next(snapshots)
-            except StopIteration:
+                snapshot = snapshots[0]
+            except IndexError:
                 pass
             else:
                 gt = snapshot.originator_version

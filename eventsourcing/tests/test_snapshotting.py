@@ -56,7 +56,7 @@ class TestSnapshotting(TestCase):
 
         # Get snapshot.
         snapshots = snapshot_store.get(account.id, desc=True, limit=1)
-        snapshot = next(snapshots)
+        snapshot = snapshots[0]
         assert isinstance(snapshot, Snapshot)
 
         # Reconstruct the bank account.

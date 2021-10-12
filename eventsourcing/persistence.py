@@ -2,18 +2,20 @@ import json
 import os
 import uuid
 from abc import ABC, abstractmethod
+from asyncio import get_running_loop
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from typing import (
     Any,
+    Callable,
     Dict,
     Generic,
-    Iterator,
     List,
     Mapping,
     Optional,
     Type,
+    TypeVar,
     cast,
 )
 from uuid import UUID
@@ -590,12 +592,7 @@ class EventStore(Generic[TDomainEvent]):
         Stores domain events in aggregate sequence.
         """
         self.recorder.insert_events(
-            list(
-                map(
-                    self.mapper.from_domain_event,
-                    events,
-                )
-            ),
+            self._from_domain_events(events),
             **kwargs,
         )
 
@@ -604,12 +601,7 @@ class EventStore(Generic[TDomainEvent]):
         Stores domain events in aggregate sequence using asyncio.
         """
         await self.recorder.async_insert_events(
-            list(
-                map(
-                    self.mapper.from_domain_event,
-                    events,
-                )
-            ),
+            await _to_thread(self._from_domain_events, events),
             **kwargs,
         )
 
@@ -620,19 +612,14 @@ class EventStore(Generic[TDomainEvent]):
         lte: Optional[int] = None,
         desc: bool = False,
         limit: Optional[int] = None,
-    ) -> Iterator[TDomainEvent]:
+    ) -> List[TDomainEvent]:
         """
         Retrieves domain events from aggregate sequence.
         """
-        return map(
-            self.mapper.to_domain_event,
+        return self._to_domain_events(
             self.recorder.select_events(
-                originator_id=originator_id,
-                gt=gt,
-                lte=lte,
-                desc=desc,
-                limit=limit,
-            ),
+                originator_id=originator_id, gt=gt, lte=lte, desc=desc, limit=limit
+            )
         )
 
     async def async_get(
@@ -642,12 +629,12 @@ class EventStore(Generic[TDomainEvent]):
         lte: Optional[int] = None,
         desc: bool = False,
         limit: Optional[int] = None,
-    ) -> Iterator[TDomainEvent]:
+    ) -> List[TDomainEvent]:
         """
         Retrieves domain events from aggregate sequence.
         """
-        return map(
-            self.mapper.to_domain_event,
+        return await _to_thread(
+            self._to_domain_events,
             await self.recorder.async_select_events(
                 originator_id=originator_id,
                 gt=gt,
@@ -656,6 +643,24 @@ class EventStore(Generic[TDomainEvent]):
                 limit=limit,
             ),
         )
+
+    def _from_domain_events(self, events: List[TDomainEvent]) -> List[StoredEvent]:
+        return list(map(self.mapper.from_domain_event, events))
+
+    def _to_domain_events(self, stored_events: List[StoredEvent]) -> List[TDomainEvent]:
+        return list(
+            map(
+                self.mapper.to_domain_event,
+                stored_events,
+            )
+        )
+
+
+_T = TypeVar("_T")
+
+
+async def _to_thread(func: Callable[..., _T], *args: Any) -> _T:
+    return await get_running_loop().run_in_executor(None, func, *args)
 
 
 class InfrastructureFactory(ABC):
