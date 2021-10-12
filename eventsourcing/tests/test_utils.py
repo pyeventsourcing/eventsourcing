@@ -1,7 +1,8 @@
 from typing import cast
 from unittest import TestCase
 
-from eventsourcing.utils import retry, strtobool
+from eventsourcing.tests.asyncio_testcase import IsolatedAsyncioTestCase
+from eventsourcing.utils import async_to_thread, retry, strtobool
 
 
 class TestRetryDecorator(TestCase):
@@ -140,3 +141,12 @@ class TestStrtobool(TestCase):
         for x in (None, True, False, 1, 2, 3):
             with self.assertRaises(TypeError):
                 strtobool(cast(str, x))
+
+
+class TestAsyncToThread(IsolatedAsyncioTestCase):
+    async def test(self):
+        def add(a, b):
+            return a + b
+
+        result = await async_to_thread(add, 1, 2)
+        self.assertEqual(3, result)

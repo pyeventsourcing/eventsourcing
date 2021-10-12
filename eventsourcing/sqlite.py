@@ -3,7 +3,7 @@ import threading
 from sqlite3 import Connection, Cursor
 from threading import Lock
 from types import TracebackType
-from typing import Any, Dict, List, Mapping, Optional, Type
+from typing import Any, Callable, Dict, List, Mapping, Optional, Type, TypeVar
 from uuid import UUID
 
 from eventsourcing.persistence import (
@@ -24,11 +24,14 @@ from eventsourcing.persistence import (
     StoredEvent,
     Tracking,
 )
-from eventsourcing.utils import async_to_thread, strtobool
+from eventsourcing.utils import strtobool
 
 SQLITE3_DEFAULT_LOCK_TIMEOUT = 5
 
-ASYNC_TO_THREAD_FILE_DB_CALLS = True
+ASYNC_TO_THREAD_FILE_DB_CALLS = False
+
+
+_T = TypeVar("_T")
 
 
 class Transaction:
@@ -231,10 +234,16 @@ class SQLiteAggregateRecorder(AggregateRecorder):
     async def async_insert_events(
         self, stored_events: List[StoredEvent], **kwargs: Any
     ) -> None:
-        if self.datastore.is_sqlite_memory_mode or not ASYNC_TO_THREAD_FILE_DB_CALLS:
-            self.insert_events(stored_events, **kwargs)
-        else:
-            await async_to_thread(self.insert_events, stored_events, **kwargs)
+        await self.async_to_thread(self.insert_events, stored_events, **kwargs)
+
+    async def async_to_thread(
+        self, func: Callable[..., _T], *args: Any, **kwargs: Any
+    ) -> _T:
+        # if self.datastore.is_sqlite_memory_mode or not ASYNC_TO_THREAD_FILE_DB_CALLS:
+        #     return func(*args, **kwargs)
+        # else:
+        #     return await async_to_thread(func, *args, **kwargs)
+        return func(*args, **kwargs)
 
     def select_events(
         self,
@@ -283,12 +292,9 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         desc: bool = False,
         limit: Optional[int] = None,
     ) -> List[StoredEvent]:
-        if self.datastore.is_sqlite_memory_mode or not ASYNC_TO_THREAD_FILE_DB_CALLS:
-            return self.select_events(originator_id, gt, lte, desc, limit)
-        else:
-            return await async_to_thread(
-                self.select_events, originator_id, gt, lte, desc, limit
-            )
+        return await self.async_to_thread(
+            self.select_events, originator_id, gt, lte, desc, limit
+        )
 
 
 class SQLiteApplicationRecorder(
@@ -346,10 +352,7 @@ class SQLiteApplicationRecorder(
     async def async_select_notifications(
         self, start: int, limit: int
     ) -> List[Notification]:
-        if self.datastore.is_sqlite_memory_mode or not ASYNC_TO_THREAD_FILE_DB_CALLS:
-            return self.select_notifications(start, limit)
-        else:
-            return await async_to_thread(self.select_notifications, start, limit)
+        return await self.async_to_thread(self.select_notifications, start, limit)
 
     def max_notification_id(self) -> int:
         """
@@ -361,10 +364,7 @@ class SQLiteApplicationRecorder(
         return max_id
 
     async def async_max_notification_id(self) -> int:
-        if self.datastore.is_sqlite_memory_mode or not ASYNC_TO_THREAD_FILE_DB_CALLS:
-            return self.max_notification_id()
-        else:
-            return await async_to_thread(self.max_notification_id)
+        return await self.async_to_thread(self.max_notification_id)
 
 
 class SQLiteProcessRecorder(
@@ -403,10 +403,7 @@ class SQLiteProcessRecorder(
         return max_id
 
     async def async_max_tracking_id(self, application_name: str) -> int:
-        if self.datastore.is_sqlite_memory_mode or not ASYNC_TO_THREAD_FILE_DB_CALLS:
-            return self.max_tracking_id(application_name)
-        else:
-            return await async_to_thread(self.max_tracking_id, application_name)
+        return await self.async_to_thread(self.max_tracking_id, application_name)
 
     def _insert_events(
         self,

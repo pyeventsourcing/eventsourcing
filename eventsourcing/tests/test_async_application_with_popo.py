@@ -14,7 +14,7 @@ from eventsourcing.tests.test_application_with_popo import (
 from eventsourcing.utils import get_topic
 
 
-class TestAsyncApplicationWithPOPO(ApplicationTestCase, IsolatedAsyncioTestCase):
+class TestAsyncApplicationWithPOPO(IsolatedAsyncioTestCase, ApplicationTestCase):
     expected_factory_topic = "eventsourcing.popo:Factory"
 
     async def asyncSetUp(self) -> None:

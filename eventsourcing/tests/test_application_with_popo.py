@@ -25,22 +25,22 @@ class ApplicationTestCase(TestCase):
         cls = type(self)
         if cls not in self.started_ats:
             self.started_ats[cls] = datetime.now()
-            print(f"{cls.__name__: <29} timeit number: {cls.timeit_number}")
+            print(f"{cls.__name__: <30} timeit number: {cls.timeit_number}")
             self.counts[cls] = 1
         else:
             self.counts[cls] += 1
 
         rate = f"{self.timeit_number / duration:.0f} events/s"
         print(
-            f"{cls.__name__: <29}",
-            f"{test_label: <21}",
+            f"\r{cls.__name__: <30}",
+            f"{test_label: <35}",
             f"{rate: >15}",
             f"  {1000 * duration / self.timeit_number:.3f} ms/event",
         )
 
         if self.counts[cls] == 3:
             duration = datetime.now() - cls.started_ats[cls]
-            print(f"{cls.__name__: <29} timeit duration: {duration}")
+            print(f"{cls.__name__: <30} timeit duration: {duration}")
             sys.stdout.flush()
             self.counts.clear()
             del cls.started_ats[cls]
