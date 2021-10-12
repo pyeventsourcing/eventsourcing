@@ -1,5 +1,5 @@
+import time
 from abc import ABC, abstractmethod
-from timeit import timeit
 from unittest.case import TestCase
 from uuid import uuid4
 
@@ -160,10 +160,12 @@ class AggregateRecorderTestCase(TestCase, ABC):
             )
             recorder.insert_events([stored_event])
 
-        # Warm up.
-        number = 10
-        timeit(insert, number=number)
-
         number = 100
-        duration = timeit(insert, number=number)
+
+        started = time.time()
+
+        for _ in range(number):
+            insert()
+
+        duration = time.time() - started
         print(self, f"{duration / number:.9f}")

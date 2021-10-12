@@ -22,14 +22,13 @@ from eventsourcing.persistence import (
     ProcessRecorder,
     ProgrammingError,
     StoredEvent,
-    SyncAggregateRecorder,
-    SyncApplicationRecorder,
-    SyncProcessRecorder,
     Tracking,
 )
-from eventsourcing.utils import strtobool
+from eventsourcing.utils import async_to_thread, strtobool
 
 SQLITE3_DEFAULT_LOCK_TIMEOUT = 5
+
+ASYNC_TO_THREAD_FILE_DB_CALLS = True
 
 
 class Transaction:
@@ -169,7 +168,7 @@ class SQLiteDatastore:
         self.close_all_connections()
 
 
-class SQLiteAggregateRecorder(SyncAggregateRecorder):
+class SQLiteAggregateRecorder(AggregateRecorder):
     def __init__(
         self,
         datastore: SQLiteDatastore,
@@ -229,6 +228,14 @@ class SQLiteAggregateRecorder(SyncAggregateRecorder):
             )
         c.executemany(self.insert_events_statement, params)
 
+    async def async_insert_events(
+        self, stored_events: List[StoredEvent], **kwargs: Any
+    ) -> None:
+        if self.datastore.is_sqlite_memory_mode or not ASYNC_TO_THREAD_FILE_DB_CALLS:
+            self.insert_events(stored_events, **kwargs)
+        else:
+            await async_to_thread(self.insert_events, stored_events, **kwargs)
+
     def select_events(
         self,
         originator_id: UUID,
@@ -268,10 +275,25 @@ class SQLiteAggregateRecorder(SyncAggregateRecorder):
             pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
         return stored_events
 
+    async def async_select_events(
+        self,
+        originator_id: UUID,
+        gt: Optional[int] = None,
+        lte: Optional[int] = None,
+        desc: bool = False,
+        limit: Optional[int] = None,
+    ) -> List[StoredEvent]:
+        if self.datastore.is_sqlite_memory_mode or not ASYNC_TO_THREAD_FILE_DB_CALLS:
+            return self.select_events(originator_id, gt, lte, desc, limit)
+        else:
+            return await async_to_thread(
+                self.select_events, originator_id, gt, lte, desc, limit
+            )
+
 
 class SQLiteApplicationRecorder(
     SQLiteAggregateRecorder,
-    SyncApplicationRecorder,
+    ApplicationRecorder,
 ):
     def __init__(
         self,
@@ -321,6 +343,14 @@ class SQLiteApplicationRecorder(
             pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
         return notifications
 
+    async def async_select_notifications(
+        self, start: int, limit: int
+    ) -> List[Notification]:
+        if self.datastore.is_sqlite_memory_mode or not ASYNC_TO_THREAD_FILE_DB_CALLS:
+            return self.select_notifications(start, limit)
+        else:
+            return await async_to_thread(self.select_notifications, start, limit)
+
     def max_notification_id(self) -> int:
         """
         Returns the maximum notification ID.
@@ -330,10 +360,16 @@ class SQLiteApplicationRecorder(
             max_id = c.fetchone()[0] or 0
         return max_id
 
+    async def async_max_notification_id(self) -> int:
+        if self.datastore.is_sqlite_memory_mode or not ASYNC_TO_THREAD_FILE_DB_CALLS:
+            return self.max_notification_id()
+        else:
+            return await async_to_thread(self.max_notification_id)
+
 
 class SQLiteProcessRecorder(
     SQLiteApplicationRecorder,
-    SyncProcessRecorder,
+    ProcessRecorder,
 ):
     def __init__(
         self,
@@ -365,6 +401,12 @@ class SQLiteProcessRecorder(
             c.execute(self.select_max_tracking_id_statement, params)
             max_id = c.fetchone()[0] or 0
         return max_id
+
+    async def async_max_tracking_id(self, application_name: str) -> int:
+        if self.datastore.is_sqlite_memory_mode or not ASYNC_TO_THREAD_FILE_DB_CALLS:
+            return self.max_tracking_id(application_name)
+        else:
+            return await async_to_thread(self.max_tracking_id, application_name)
 
     def _insert_events(
         self,

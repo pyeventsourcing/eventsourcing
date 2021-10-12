@@ -1,11 +1,22 @@
+import functools
 import importlib
 import sys
+from asyncio import get_running_loop
 from functools import wraps
 from inspect import isfunction
 from random import random
 from time import sleep
 from types import FunctionType, ModuleType, WrapperDescriptorType
-from typing import Any, Callable, Dict, Sequence, Type, Union, no_type_check
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+    no_type_check,
+)
 
 
 def get_topic(cls: type) -> str:
@@ -148,8 +159,9 @@ def get_method_name(method: Union[FunctionType, WrapperDescriptorType]) -> str:
     return is_py310() and method.__qualname__ or method.__name__
 
 
-# _T = TypeVar("_T")
-#
-#
-# async def async_to_thread(func: Callable[..., _T], *args: Any) -> _T:
-#     return await get_running_loop().run_in_executor(None, func, *args)
+_T = TypeVar("_T")
+
+
+async def async_to_thread(func: Callable[..., _T], *args: Any, **kwargs: Any) -> _T:
+    func_call = functools.partial(func, *args, **kwargs)
+    return await get_running_loop().run_in_executor(None, func_call)

@@ -1,6 +1,5 @@
+import time
 from abc import ABC, abstractmethod
-from asyncio import get_event_loop
-from timeit import timeit
 from uuid import uuid4
 
 from eventsourcing.persistence import (
@@ -147,12 +146,12 @@ class AsyncAggregateRecorderTestCase(IsolatedAsyncioTestCase, ABC):
             [stored_event4],
         )
 
-    def test_performance(self):
+    async def test_performance(self):
 
         # Construct the recorder.
         recorder = self.create_recorder()
 
-        def insert():
+        async def insert():
             originator_id = uuid4()
 
             stored_event = StoredEvent(
@@ -161,13 +160,14 @@ class AsyncAggregateRecorderTestCase(IsolatedAsyncioTestCase, ABC):
                 topic="topic1",
                 state=b"state1",
             )
-            loop = get_event_loop()
-            loop.run_until_complete(recorder.async_insert_events([stored_event]))
-
-        # Warm up.
-        number = 10
-        timeit(insert, number=number)
+            await recorder.async_insert_events([stored_event])
 
         number = 100
-        duration = timeit(insert, number=number)
+
+        started = time.time()
+
+        for _ in range(number):
+            await insert()
+
+        duration = time.time() - started
         print(self, f"{duration / number:.9f}")
