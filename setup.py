@@ -5,9 +5,11 @@ from eventsourcing import __version__
 crypto_requires = ["pycryptodome<=3.10.99999"]
 postgresql_requires = ["psycopg2<=2.9.99999"]
 postgresql_dev_requires = ["psycopg2-binary<=2.9.99999"]
+async_postgresql_requires = ["asyncpg<=0.24.99999"]
 
 docs_requires = (
     postgresql_dev_requires
+    + async_postgresql_requires
     + crypto_requires
     + [
         "Sphinx==1.8.5",
@@ -57,6 +59,7 @@ setup(
     extras_require={
         "postgres": postgresql_requires,
         "postgres_dev": postgresql_dev_requires,
+        "async_postgres": async_postgresql_requires,
         "crypto": crypto_requires,
         "docs": docs_requires,
         "dev": dev_requires,

@@ -12,13 +12,13 @@ from eventsourcing.tests.asyncio_testcase import IsolatedAsyncioTestCase
 
 class AsyncAggregateRecorderTestCase(IsolatedAsyncioTestCase, ABC):
     @abstractmethod
-    def create_recorder(self) -> AsyncAggregateRecorder:
+    async def create_recorder(self) -> AsyncAggregateRecorder:
         pass
 
     async def test_insert_and_select(self):
 
         # Construct the recorder.
-        recorder = self.create_recorder()
+        recorder = await self.create_recorder()
 
         # Check we can call insert_events() with an empty list.
         await recorder.async_insert_events([])
@@ -149,7 +149,7 @@ class AsyncAggregateRecorderTestCase(IsolatedAsyncioTestCase, ABC):
     async def test_performance(self):
 
         # Construct the recorder.
-        recorder = self.create_recorder()
+        recorder = await self.create_recorder()
 
         async def insert():
             originator_id = uuid4()

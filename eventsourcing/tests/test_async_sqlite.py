@@ -17,7 +17,7 @@ from eventsourcing.tests.ramdisk import tmpfile_uris
 
 
 class TestSQLiteAggregateRecorder(AsyncAggregateRecorderTestCase):
-    def create_recorder(self):
+    async def create_recorder(self):
         recorder = SQLiteAggregateRecorder(SQLiteDatastore(self.db_uri))
         recorder.create_table()
         return recorder
@@ -42,7 +42,7 @@ class TestSQLiteAggregateRecorder(AsyncAggregateRecorderTestCase):
 
 
 class TestSQLiteApplicationRecorder(AsyncApplicationRecorderTestCase):
-    def create_recorder(self):
+    async def create_recorder(self):
         recorder = SQLiteApplicationRecorder(SQLiteDatastore(self.db_uri))
         recorder.create_table()
         return recorder
@@ -76,7 +76,7 @@ class TestSQLiteApplicationRecorder(AsyncApplicationRecorderTestCase):
 
 
 class TestSQLiteProcessRecorder(AsyncProcessRecorderTestCase):
-    def create_recorder(self):
+    async def create_recorder(self):
         recorder = SQLiteProcessRecorder(SQLiteDatastore(self.db_uri))
         recorder.create_table()
         return recorder

@@ -15,17 +15,17 @@ from eventsourcing.tests.async_processrecorder_testcase import (
 
 
 class TestPOPOAggregateRecorder(AsyncAggregateRecorderTestCase):
-    def create_recorder(self):
+    async def create_recorder(self):
         return POPOAggregateRecorder()
 
 
 class TestPOPOApplicationRecorder(AsyncApplicationRecorderTestCase):
-    def create_recorder(self):
+    async def create_recorder(self):
         return POPOApplicationRecorder()
 
 
 class TestPOPOProcessRecorder(AsyncProcessRecorderTestCase):
-    def create_recorder(self):
+    async def create_recorder(self):
         return POPOProcessRecorder()
 
 

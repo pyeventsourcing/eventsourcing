@@ -19,12 +19,12 @@ from eventsourcing.tests.asyncio_testcase import IsolatedAsyncioTestCase
 
 class AsyncApplicationRecorderTestCase(IsolatedAsyncioTestCase, ABC):
     @abstractmethod
-    def create_recorder(self) -> AsyncApplicationRecorder:
+    async def create_recorder(self) -> AsyncApplicationRecorder:
         pass
 
     async def test_insert_select(self):
         # Construct the recorder.
-        recorder = self.create_recorder()
+        recorder = await self.create_recorder()
 
         self.assertEqual(
             await recorder.async_max_notification_id(),
@@ -102,7 +102,8 @@ class AsyncApplicationRecorderTestCase(IsolatedAsyncioTestCase, ABC):
     def test_concurrent_no_conflicts(self):
         print(self)
 
-        recorder = self.create_recorder()
+        loop = get_event_loop()
+        recorder = loop.run_until_complete(self.create_recorder())
 
         errors_happened = Event()
 
@@ -207,7 +208,8 @@ class AsyncApplicationRecorderTestCase(IsolatedAsyncioTestCase, ABC):
     def test_concurrent_throughput(self):
         print(self)
 
-        recorder = self.create_recorder()
+        loop = get_event_loop()
+        recorder = loop.run_until_complete(self.create_recorder())
 
         errors_happened = Event()
 

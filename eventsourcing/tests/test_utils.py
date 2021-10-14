@@ -2,7 +2,7 @@ from typing import cast
 from unittest import TestCase
 
 from eventsourcing.tests.asyncio_testcase import IsolatedAsyncioTestCase
-from eventsourcing.utils import async_to_thread, retry, strtobool
+from eventsourcing.utils import async_retry, async_to_thread, retry, strtobool
 
 
 class TestRetryDecorator(TestCase):
@@ -120,6 +120,117 @@ class TestRetryDecorator(TestCase):
 
             @retry(ValueError, max_attempts=1, stall="a")
             def f():
+                pass
+
+
+class TestAsyncRetryDecorator(IsolatedAsyncioTestCase):
+    async def test_no_args(self):
+        @async_retry()
+        async def f():
+            pass
+
+        await f()
+
+    async def test_exception_single_value(self):
+        @async_retry(ValueError)
+        async def f():
+            pass
+
+        await f()
+
+    async def test_exception_sequence(self):
+        @async_retry((ValueError, TypeError))
+        async def f():
+            pass
+
+        await f()
+
+    async def test_exception_type_error(self):
+
+        with self.assertRaises(TypeError):
+
+            @async_retry(1)
+            async def _():
+                pass
+
+        with self.assertRaises(TypeError):
+
+            @async_retry((ValueError, 1))
+            async def _():
+                pass
+
+    async def test_exception_raised_no_retry(self):
+        self.call_count = 0
+
+        @async_retry(ValueError)
+        async def f():
+            self.call_count += 1
+            raise ValueError
+
+        with self.assertRaises(ValueError):
+            await f()
+
+        self.assertEqual(self.call_count, 1)
+
+    async def test_max_attempts(self):
+        self.call_count = 0
+
+        @async_retry(ValueError, max_attempts=2)
+        async def f():
+            self.call_count += 1
+            raise ValueError
+
+        with self.assertRaises(ValueError):
+            await f()
+
+        self.assertEqual(self.call_count, 2)
+
+    async def test_max_attempts_not_int(self):
+
+        with self.assertRaises(TypeError):
+
+            @async_retry(ValueError, max_attempts="a")
+            async def f():
+                pass
+
+    async def test_wait(self):
+        self.call_count = 0
+
+        @async_retry(ValueError, max_attempts=2, wait=0.001)
+        async def f():
+            self.call_count += 1
+            raise ValueError
+
+        with self.assertRaises(ValueError):
+            await f()
+
+        self.assertEqual(self.call_count, 2)
+
+    async def test_wait_not_float(self):
+        with self.assertRaises(TypeError):
+
+            @async_retry(ValueError, max_attempts=1, wait="a")
+            async def f():
+                pass
+
+    async def test_stall(self):
+        self.call_count = 0
+
+        @async_retry(ValueError, max_attempts=2, stall=0.001)
+        async def f():
+            self.call_count += 1
+            raise ValueError
+
+        with self.assertRaises(ValueError):
+            await f()
+
+        self.assertEqual(self.call_count, 2)
+
+    async def test_stall_not_float(self):
+        with self.assertRaises(TypeError):
+
+            @async_retry(ValueError, max_attempts=1, stall="a")
+            async def f():
                 pass
 
 

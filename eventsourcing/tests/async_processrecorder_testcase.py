@@ -13,12 +13,12 @@ from eventsourcing.tests.asyncio_testcase import IsolatedAsyncioTestCase
 
 class AsyncProcessRecorderTestCase(IsolatedAsyncioTestCase, ABC):
     @abstractmethod
-    def create_recorder(self) -> AsyncProcessRecorder:
+    async def create_recorder(self) -> AsyncProcessRecorder:
         pass
 
     async def test_insert_select(self):
         # Construct the recorder.
-        recorder = self.create_recorder()
+        recorder = await self.create_recorder()
 
         # Get current position.
         self.assertEqual(
@@ -116,7 +116,7 @@ class AsyncProcessRecorderTestCase(IsolatedAsyncioTestCase, ABC):
 
     async def test_performance(self):
         # Construct the recorder.
-        recorder = self.create_recorder()
+        recorder = await self.create_recorder()
 
         number = 100
 
