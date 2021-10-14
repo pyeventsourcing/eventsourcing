@@ -59,6 +59,9 @@ class AsyncPostgresDatastore:
             raise InterfaceError(e)
         return self
 
+    async def close(self) -> None:
+        await self.pool.close()
+
 
 class AsyncPostgresAggregateRecorder(AsyncAggregateRecorder):
     def __init__(self, datastore: AsyncPostgresDatastore, events_table_name: str):
@@ -90,6 +93,10 @@ class AsyncPostgresAggregateRecorder(AsyncAggregateRecorder):
             "WITH (autovacuum_enabled=false)"
         )
         return [statement]
+
+    def __await__(self) -> Generator[Any, None, "AsyncPostgresAggregateRecorder"]:
+        yield from self.create_table().__await__()
+        return self
 
     async def create_table(self) -> None:
         async with self.datastore.pool.acquire() as connection:
@@ -388,6 +395,7 @@ class Factory(InfrastructureFactory):
             lock_timeout=lock_timeout,
             idle_in_transaction_session_timeout=idle_in_transaction_session_timeout,
         )
+        self._requires_await.append(self.datastore)
 
     def aggregate_recorder(self, purpose: str = "events") -> AggregateRecorder:
         prefix = self.application_name.lower() or "stored"
@@ -395,6 +403,7 @@ class Factory(InfrastructureFactory):
         recorder = AsyncPostgresAggregateRecorder(
             datastore=self.datastore, events_table_name=events_table_name
         )
+        self._requires_await.append(recorder)
         return recorder
 
     def application_recorder(self) -> ApplicationRecorder:
@@ -403,6 +412,7 @@ class Factory(InfrastructureFactory):
         recorder = AsyncPostgresApplicationRecorder(
             datastore=self.datastore, events_table_name=events_table_name
         )
+        self._requires_await.append(recorder)
         return recorder
 
     def process_recorder(self) -> ProcessRecorder:
@@ -415,8 +425,12 @@ class Factory(InfrastructureFactory):
             events_table_name=events_table_name,
             tracking_table_name=tracking_table_name,
         )
+        self._requires_await.append(recorder)
         return recorder
 
     def env_create_table(self) -> bool:
         default = "yes"
         return bool(strtobool(self.getenv(self.CREATE_TABLE) or default))
+
+    async def async_close(self) -> None:
+        await self.datastore.close()

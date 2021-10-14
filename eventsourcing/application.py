@@ -1,7 +1,18 @@
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, Generic, List, Mapping, Optional, Type, TypeVar
+from typing import (
+    Any,
+    Awaitable,
+    Dict,
+    Generator,
+    Generic,
+    List,
+    Mapping,
+    Optional,
+    Type,
+    TypeVar,
+)
 from uuid import UUID
 
 from eventsourcing.domain import (
@@ -286,6 +297,9 @@ class LocalNotificationLog(NotificationLog):
         return "{},{}".format(first_id, last_id)
 
 
+TApplication = TypeVar("TApplication", bound="Application")
+
+
 class Application(ABC, Generic[TAggregate]):
     """
     Base class for event-sourced applications.
@@ -313,6 +327,10 @@ class Application(ABC, Generic[TAggregate]):
         self.snapshots = self.construct_snapshot_store()
         self.repository = self.construct_repository()
         self.log = self.construct_notification_log()
+
+    def __await__(self: TApplication) -> Generator[Awaitable, None, TApplication]:
+        yield from self.factory.__await__()
+        return self
 
     def construct_env(self, env: Optional[Mapping] = None) -> Mapping:
         """
@@ -514,8 +532,11 @@ class Application(ABC, Generic[TAggregate]):
                 "application class."
             )
 
+    def close(self) -> None:
+        self.factory.close()
 
-TApplication = TypeVar("TApplication", bound=Application)
+    async def async_close(self) -> None:
+        await self.factory.async_close()
 
 
 class AggregateNotFound(Exception):

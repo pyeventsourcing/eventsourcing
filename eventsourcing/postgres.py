@@ -704,3 +704,6 @@ class Factory(InfrastructureFactory):
     def env_create_table(self) -> bool:
         default = "yes"
         return bool(strtobool(self.getenv(self.CREATE_TABLE) or default))
+
+    def close(self) -> None:
+        self.datastore.close_all_connections()

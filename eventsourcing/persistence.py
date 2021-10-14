@@ -5,7 +5,18 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Dict, Generic, List, Mapping, Optional, Type, cast
+from typing import (
+    Any,
+    Awaitable,
+    Dict,
+    Generator,
+    Generic,
+    List,
+    Mapping,
+    Optional,
+    Type,
+    cast,
+)
 from uuid import UUID
 
 from eventsourcing.domain import DomainEvent, TDomainEvent
@@ -706,6 +717,12 @@ class InfrastructureFactory(ABC):
         """
         self.application_name = application_name
         self.env = env
+        self._requires_await: List[Awaitable] = []
+
+    def __await__(self) -> Generator[Awaitable, None, "InfrastructureFactory"]:
+        for requires_await in self._requires_await:
+            yield from requires_await.__await__()
+        return self
 
     # noinspection SpellCheckingInspection
     def getenv(
@@ -816,6 +833,12 @@ class InfrastructureFactory(ABC):
         return bool(
             strtobool(self.getenv(self.IS_SNAPSHOTTING_ENABLED, default) or default)
         )
+
+    def close(self) -> None:
+        """Closes e.g. database connections."""
+
+    async def async_close(self) -> None:
+        """Closes e.g. database connections."""
 
 
 @dataclass(frozen=True)

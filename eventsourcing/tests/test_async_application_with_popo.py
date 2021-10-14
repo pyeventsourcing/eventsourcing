@@ -20,100 +20,107 @@ class TestAsyncApplicationWithPOPO(IsolatedAsyncioTestCase, ApplicationTestCase)
     async def asyncSetUp(self) -> None:
         get_event_loop().slow_callback_duration = 10
 
+    async def asyncTearDown(self) -> None:
+        await self.app.async_close()
+
     async def test_async_example_application_snapshotting_not_enabled(self):
-        app = BankAccounts()
-        self.assertEqual(get_topic(type(app.factory)), self.expected_factory_topic)
+        self.app = await BankAccounts()
+        self.assertEqual(get_topic(type(self.app.factory)), self.expected_factory_topic)
 
         # Check AccountNotFound exception.
         with self.assertRaises(BankAccounts.AccountNotFoundError):
-            await app.get_account(uuid4())
+            await self.app.get_account(uuid4())
 
         # Open an account.
-        account_id = await app.open_account(
+        account_id = await self.app.open_account(
             full_name="Alice",
             email_address="alice@example.com",
         )
 
         # Credit the account.
-        await app.credit_account(account_id, Decimal("10.00"))
-        await app.credit_account(account_id, Decimal("25.00"))
-        await app.credit_account(account_id, Decimal("30.00"))
+        await self.app.credit_account(account_id, Decimal("10.00"))
+        await self.app.credit_account(account_id, Decimal("25.00"))
+        await self.app.credit_account(account_id, Decimal("30.00"))
 
         # Check balance.
         self.assertEqual(
-            await app.get_balance(account_id),
+            await self.app.get_balance(account_id),
             Decimal("65.00"),
         )
 
-        items = await app.log.async_select(1, 10)
+        items = await self.app.log.async_select(1, 10)
         self.assertEqual(len(items), 4)
 
     async def test_async_example_application_snapshotting_enabled(self):
-        app = BankAccounts(env={"IS_SNAPSHOTTING_ENABLED": "y"})
+        self.app = await BankAccounts(env={"IS_SNAPSHOTTING_ENABLED": "y"})
 
-        self.assertEqual(get_topic(type(app.factory)), self.expected_factory_topic)
+        self.assertEqual(get_topic(type(self.app.factory)), self.expected_factory_topic)
 
         # Check AccountNotFound exception.
         with self.assertRaises(BankAccounts.AccountNotFoundError):
-            await app.get_account(uuid4())
+            await self.app.get_account(uuid4())
 
         # Open an account.
-        account_id = await app.open_account(
+        account_id = await self.app.open_account(
             full_name="Alice",
             email_address="alice@example.com",
         )
 
         # Credit the account.
-        await app.credit_account(account_id, Decimal("10.00"))
-        await app.credit_account(account_id, Decimal("25.00"))
-        await app.credit_account(account_id, Decimal("30.00"))
+        await self.app.credit_account(account_id, Decimal("10.00"))
+        await self.app.credit_account(account_id, Decimal("25.00"))
+        await self.app.credit_account(account_id, Decimal("30.00"))
 
         # Check balance.
         self.assertEqual(
-            await app.get_balance(account_id),
+            await self.app.get_balance(account_id),
             Decimal("65.00"),
         )
 
-        items = await app.log.async_select(1, 10)
+        items = await self.app.log.async_select(1, 10)
         self.assertEqual(len(items), 4)
 
         # Take snapshot (specify version).
-        await app.async_take_snapshot(account_id, version=2)
+        await self.app.async_take_snapshot(account_id, version=2)
 
-        snapshots = list(await app.snapshots.async_get(account_id, desc=True, limit=1))
+        snapshots = list(
+            await self.app.snapshots.async_get(account_id, desc=True, limit=1)
+        )
         self.assertEqual(len(snapshots), 1)
         self.assertEqual(snapshots[0].originator_version, 2)
 
-        from_snapshot = await app.repository.async_get(account_id, version=3)
+        from_snapshot = await self.app.repository.async_get(account_id, version=3)
         self.assertIsInstance(from_snapshot, BankAccount)
         self.assertEqual(from_snapshot.version, 3)
         self.assertEqual(from_snapshot.balance, Decimal("35.00"))
 
         # Take snapshot (don't specify version).
-        await app.async_take_snapshot(account_id)
-        snapshots = list(await app.snapshots.async_get(account_id, desc=True, limit=1))
+        await self.app.async_take_snapshot(account_id)
+        snapshots = list(
+            await self.app.snapshots.async_get(account_id, desc=True, limit=1)
+        )
         self.assertEqual(len(snapshots), 1)
         self.assertEqual(snapshots[0].originator_version, 4)
 
-        from_snapshot = await app.repository.async_get(account_id)
+        from_snapshot = await self.app.repository.async_get(account_id)
         self.assertIsInstance(from_snapshot, BankAccount)
         self.assertEqual(from_snapshot.version, 4)
         self.assertEqual(from_snapshot.balance, Decimal("65.00"))
 
     async def test_serial_put_performance(self):
-        app = BankAccounts()
+        self.app = await BankAccounts()
 
         # Open an account.
-        account_id = await app.open_account(
+        account_id = await self.app.open_account(
             full_name="Alice",
             email_address="alice@example.com",
         )
-        account = await app.get_account(account_id)
+        account = await self.app.get_account(account_id)
 
         async def put():
             # Credit the account.
             account.append_transaction(Decimal("10.00"))
-            await app.async_save(account)
+            await self.app.async_save(account)
 
         started = time.time()
 
@@ -132,19 +139,19 @@ class TestAsyncApplicationWithPOPO(IsolatedAsyncioTestCase, ApplicationTestCase)
 
     async def _test_serial_get_performance(self, is_snapshotting_enabled: bool):
 
-        app = BankAccounts(
+        self.app = await BankAccounts(
             env={"IS_SNAPSHOTTING_ENABLED": "y" if is_snapshotting_enabled else "n"}
         )
 
         # Open an account.
-        account_id = await app.open_account(
+        account_id = await self.app.open_account(
             full_name="Alice",
             email_address="alice@example.com",
         )
 
         async def read():
             # Get the account.
-            await app.get_account(account_id)
+            await self.app.get_account(account_id)
 
         started = time.time()
 
@@ -159,20 +166,20 @@ class TestAsyncApplicationWithPOPO(IsolatedAsyncioTestCase, ApplicationTestCase)
         self.print_time(test_label, duration)
 
     async def test_concurrent_put_performance(self):
-        app = BankAccounts()
+        self.app = await BankAccounts()
 
         # Open an account.
-        account_id = await app.open_account(
+        account_id = await self.app.open_account(
             full_name="Alice",
             email_address="alice@example.com",
         )
 
-        account = await app.get_account(account_id)
+        account = await self.app.get_account(account_id)
 
         async def put():
             # Credit the account.
             account.append_transaction(Decimal("10.00"))
-            await app.async_save(account)
+            await self.app.async_save(account)
 
         started = time.time()
 
@@ -193,19 +200,19 @@ class TestAsyncApplicationWithPOPO(IsolatedAsyncioTestCase, ApplicationTestCase)
 
     async def async_test_get_performance(self, is_snapshotting_enabled: bool):
 
-        app = BankAccounts(
+        self.app = await BankAccounts(
             env={"IS_SNAPSHOTTING_ENABLED": "y" if is_snapshotting_enabled else "n"}
         )
 
         # Open an account.
-        account_id = await app.open_account(
+        account_id = await self.app.open_account(
             full_name="Alice",
             email_address="alice@example.com",
         )
 
         async def read():
             # Get the account.
-            await app.get_account(account_id)
+            await self.app.get_account(account_id)
 
         started = time.time()
 

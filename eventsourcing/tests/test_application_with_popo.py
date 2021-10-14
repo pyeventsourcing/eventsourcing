@@ -47,73 +47,76 @@ class ApplicationTestCase(TestCase):
 
 
 class TestApplicationWithPOPO(ApplicationTestCase):
-    def test_example_application(self):
-        app = BankAccounts(env={"IS_SNAPSHOTTING_ENABLED": "y"})
+    def tearDown(self) -> None:
+        self.app.close()
 
-        self.assertFactoryTopic(app, self.expected_factory_topic)
+    def test_example_application(self):
+        self.app = BankAccounts(env={"IS_SNAPSHOTTING_ENABLED": "y"})
+
+        self.assertFactoryTopic()
 
         # Check AccountNotFound exception.
         with self.assertRaises(BankAccounts.AccountNotFoundError):
-            app.get_account(uuid4())
+            self.app.get_account(uuid4())
 
         # Open an account.
-        account_id = app.open_account(
+        account_id = self.app.open_account(
             full_name="Alice",
             email_address="alice@example.com",
         )
 
         # Credit the account.
-        app.credit_account(account_id, Decimal("10.00"))
-        app.credit_account(account_id, Decimal("25.00"))
-        app.credit_account(account_id, Decimal("30.00"))
+        self.app.credit_account(account_id, Decimal("10.00"))
+        self.app.credit_account(account_id, Decimal("25.00"))
+        self.app.credit_account(account_id, Decimal("30.00"))
 
         # Check balance.
         self.assertEqual(
-            app.get_balance(account_id),
+            self.app.get_balance(account_id),
             Decimal("65.00"),
         )
 
-        section = app.log["1,10"]
+        section = self.app.log["1,10"]
         self.assertEqual(len(section.items), 4)
 
         # Take snapshot (specify version).
-        app.take_snapshot(account_id, version=2)
+        self.app.take_snapshot(account_id, version=2)
 
-        snapshots = list(app.snapshots.get(account_id, desc=True, limit=1))
+        snapshots = list(self.app.snapshots.get(account_id, desc=True, limit=1))
         self.assertEqual(len(snapshots), 1)
         self.assertEqual(snapshots[0].originator_version, 2)
 
-        from_snapshot = app.repository.get(account_id, version=3)
+        from_snapshot = self.app.repository.get(account_id, version=3)
         self.assertIsInstance(from_snapshot, BankAccount)
         self.assertEqual(from_snapshot.version, 3)
         self.assertEqual(from_snapshot.balance, Decimal("35.00"))
 
         # Take snapshot (don't specify version).
-        app.take_snapshot(account_id)
-        snapshots = list(app.snapshots.get(account_id, desc=True, limit=1))
+        self.app.take_snapshot(account_id)
+        snapshots = list(self.app.snapshots.get(account_id, desc=True, limit=1))
         self.assertEqual(len(snapshots), 1)
         self.assertEqual(snapshots[0].originator_version, 4)
 
-        from_snapshot = app.repository.get(account_id)
+        from_snapshot = self.app.repository.get(account_id)
         self.assertIsInstance(from_snapshot, BankAccount)
         self.assertEqual(from_snapshot.version, 4)
         self.assertEqual(from_snapshot.balance, Decimal("65.00"))
 
     def test__put_performance(self):
 
-        app = BankAccounts()
+        self.app = BankAccounts()
 
         # Open an account.
-        account_id = app.open_account(
+        account_id = self.app.open_account(
             full_name="Alice",
             email_address="alice@example.com",
         )
-        account = app.get_account(account_id)
+        account = self.app.get_account(account_id)
 
         def put():
             # Credit the account.
             account.append_transaction(Decimal("10.00"))
-            app.save(account)
+            self.app.save(account)
 
         # Warm up.
         number = 10
@@ -131,19 +134,19 @@ class TestApplicationWithPOPO(ApplicationTestCase):
 
     def _test_get_performance(self, is_snapshotting_enabled: bool):
 
-        app = BankAccounts(
+        self.app = BankAccounts(
             env={"IS_SNAPSHOTTING_ENABLED": "y" if is_snapshotting_enabled else "n"}
         )
 
         # Open an account.
-        account_id = app.open_account(
+        account_id = self.app.open_account(
             full_name="Alice",
             email_address="alice@example.com",
         )
 
         def read():
             # Get the account.
-            app.get_account(account_id)
+            self.app.get_account(account_id)
 
         # Warm up.
         timeit(read, number=10)
@@ -156,15 +159,15 @@ class TestApplicationWithPOPO(ApplicationTestCase):
             test_label = "get without snapshotting"
         self.print_time(test_label, duration)
 
-    def assertFactoryTopic(self, app, expected_topic):
-        self.assertEqual(get_topic(type(app.factory)), expected_topic)
+    def assertFactoryTopic(self):
+        self.assertEqual(get_topic(type(self.app.factory)), self.expected_factory_topic)
 
 
 class TestApplicationSnapshottingException(TestCase):
     def test_take_snapshot_raises_assertion_error_if_snapshotting_not_enabled(self):
-        app = Application()
+        self.app = Application()
         with self.assertRaises(AssertionError) as cm:
-            app.take_snapshot(uuid4())
+            self.app.take_snapshot(uuid4())
         self.assertEqual(
             cm.exception.args[0],
             (
