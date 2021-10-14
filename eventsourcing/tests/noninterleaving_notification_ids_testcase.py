@@ -28,12 +28,8 @@ class NonInterleavingNotificationIDsBaseCase(ABC, TestCase):
             race_started.wait()
             recorder.insert_events(stack2)
 
-        thread1 = Thread(target=insert_stack1)
-        thread1.setDaemon(True)
-
-        thread2 = Thread(target=insert_stack2)
-        thread2.setDaemon(True)
-
+        thread1 = Thread(target=insert_stack1, daemon=True)
+        thread2 = Thread(target=insert_stack2, daemon=True)
         thread1.start()
         thread2.start()
         race_started.set()

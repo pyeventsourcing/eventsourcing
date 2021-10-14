@@ -46,7 +46,7 @@ class Connection:
         self.timer: Optional[Timer]
         if max_age is not None:
             self.timer = Timer(interval=max_age, function=self.close_on_timer)
-            self.timer.setDaemon(True)
+            self.timer.daemon = True
             self.timer.start()
         else:
             self.timer = None

@@ -517,7 +517,7 @@ class MultiThreadedRunnerThread(Promptable, Thread):
         app_class: Type[Follower],
         is_stopping: Event,
     ):
-        super().__init__()
+        super().__init__(daemon=True)
         self.app_class = app_class
         self.is_stopping = is_stopping
         self.has_stopped = Event()
@@ -525,7 +525,6 @@ class MultiThreadedRunnerThread(Promptable, Thread):
         self.is_prompted = Event()
         self.prompted_names: List[str] = []
         self.prompted_names_lock = Lock()
-        self.setDaemon(True)
         self.is_running = Event()
 
     def run(self) -> None:

@@ -254,6 +254,20 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
         os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.postgres:Factory"
 
     def tearDown(self):
+        db = PostgresDatastore(
+            os.getenv("POSTGRES_DBNAME"),
+            os.getenv("POSTGRES_HOST"),
+            os.getenv("POSTGRES_PORT"),
+            os.getenv("POSTGRES_USER"),
+            os.getenv("POSTGRES_PASSWORD"),
+        )
+        drop_postgres_table(db, "bankaccounts_events")
+        drop_postgres_table(db, "emailnotifications_events")
+        drop_postgres_table(db, "emailnotifications_tracking")
+        drop_postgres_table(db, "emailnotifications2_events")
+        drop_postgres_table(db, "emailnotifications2_tracking")
+        drop_postgres_table(db, "brokenprocessing_events")
+        drop_postgres_table(db, "brokenprocessing_tracking")
         del os.environ["INFRASTRUCTURE_FACTORY"]
         del os.environ["POSTGRES_DBNAME"]
         del os.environ["POSTGRES_HOST"]

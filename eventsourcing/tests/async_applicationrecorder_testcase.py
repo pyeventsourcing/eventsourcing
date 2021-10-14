@@ -2,7 +2,7 @@ import traceback
 from abc import ABC, abstractmethod
 from asyncio import (
     AbstractEventLoop,
-    get_event_loop,
+    get_running_loop,
     new_event_loop,
     set_event_loop,
 )
@@ -102,7 +102,11 @@ class AsyncApplicationRecorderTestCase(IsolatedAsyncioTestCase, ABC):
     def test_concurrent_no_conflicts(self):
         print(self)
 
-        loop = get_event_loop()
+        try:
+            loop = get_running_loop()
+        except RuntimeError:
+            loop = new_event_loop()
+
         recorder = loop.run_until_complete(self.create_recorder())
 
         errors_happened = Event()
@@ -138,7 +142,7 @@ class AsyncApplicationRecorderTestCase(IsolatedAsyncioTestCase, ABC):
             started = datetime.now()
             # print(f"Thread {thread_num} write beginning #{count + 1}")
             try:
-                loop = get_event_loop()
+                loop = get_running_loop()
             except RuntimeError:
                 loop = new_event_loop()
                 event_loops.append(loop)
@@ -208,7 +212,10 @@ class AsyncApplicationRecorderTestCase(IsolatedAsyncioTestCase, ABC):
     def test_concurrent_throughput(self):
         print(self)
 
-        loop = get_event_loop()
+        try:
+            loop = get_running_loop()
+        except RuntimeError:
+            loop = new_event_loop()
         recorder = loop.run_until_complete(self.create_recorder())
 
         errors_happened = Event()
@@ -243,7 +250,7 @@ class AsyncApplicationRecorderTestCase(IsolatedAsyncioTestCase, ABC):
             ]
 
             try:
-                loop = get_event_loop()
+                loop = get_running_loop()
             except RuntimeError:
                 loop = new_event_loop()
                 event_loops.append(loop)
