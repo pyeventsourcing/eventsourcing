@@ -130,15 +130,18 @@ class AsyncPostgresAggregateRecorder(AsyncAggregateRecorder):
     ) -> None:
         for lock_statement in self.lock_statements:
             await connection.fetch(lock_statement)
-
-        for stored_event in stored_events:
-            await connection.fetch(
-                self.insert_events_statement,
-                stored_event.originator_id,
-                stored_event.originator_version,
-                stored_event.topic,
-                stored_event.state,
-            )
+        await connection.executemany(
+            self.insert_events_statement,
+            [
+                (
+                    stored_event.originator_id,
+                    stored_event.originator_version,
+                    stored_event.topic,
+                    stored_event.state,
+                )
+                for stored_event in stored_events
+            ],
+        )
 
     @async_retry(ConnectionDoesNotExistError, max_attempts=2)
     async def async_select_events(
