@@ -34,7 +34,7 @@ from eventsourcing.tests.test_postgres import pg_close_all_connections
 from eventsourcing.utils import get_topic
 
 
-class TestPostgresDatastore(IsolatedAsyncioTestCase):
+class TestAsyncPostgresDatastore(IsolatedAsyncioTestCase):
     async def asyncTearDown(self) -> None:
         await self.datastore.pool.close()
 
@@ -255,7 +255,7 @@ class TestAsyncPostgresAggregateRecorder(AsyncAggregateRecorderTestCase):
 #
 
 
-class TestPostgresApplicationRecorder(AsyncApplicationRecorderTestCase):
+class TestAsyncPostgresApplicationRecorder(AsyncApplicationRecorderTestCase):
     async def asyncSetUp(self) -> None:
         self.datastore = await AsyncPostgresDatastore(
             "eventsourcing",
@@ -403,7 +403,7 @@ class TestPostgresApplicationRecorder(AsyncApplicationRecorderTestCase):
 #             recorder.max_notification_id()
 #
 #
-class TestPostgresProcessRecorder(AsyncProcessRecorderTestCase):
+class TestAsyncPostgresProcessRecorder(AsyncProcessRecorderTestCase):
     async def asyncSetUp(self) -> None:
         self.datastore = await AsyncPostgresDatastore(
             "eventsourcing",
@@ -701,7 +701,7 @@ class TestPostgresProcessRecorder(AsyncProcessRecorderTestCase):
 #         )
 
 
-class TestPostgresInfrastructureFactory(
+class TestAsyncPostgresInfrastructureFactory(
     IsolatedAsyncioTestCase, InfrastructureFactoryTestCase
 ):
     def test_create_application_recorder(self):

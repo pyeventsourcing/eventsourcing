@@ -5,7 +5,7 @@ from eventsourcing.tests.test_application_with_popo import TIMEIT_FACTOR
 from eventsourcing.tests.test_async_application_with_popo import (
     TestAsyncApplicationWithPOPO,
 )
-from eventsourcing.tests.test_async_postgres import drop_postgres_table
+from eventsourcing.tests.test_async_async_postgres import drop_postgres_table
 from eventsourcing.tests.test_postgres import pg_close_all_connections
 
 
