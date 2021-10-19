@@ -1,5 +1,7 @@
 import os
 import sys
+import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from decimal import Decimal
 from timeit import timeit
@@ -102,7 +104,7 @@ class TestApplicationWithPOPO(ApplicationTestCase):
         self.assertEqual(from_snapshot.version, 4)
         self.assertEqual(from_snapshot.balance, Decimal("65.00"))
 
-    def test__put_performance(self):
+    def test_serial_put_performance(self):
 
         self.app = BankAccounts()
 
@@ -123,16 +125,47 @@ class TestApplicationWithPOPO(ApplicationTestCase):
         timeit(put, number=number)
 
         duration = timeit(put, number=self.timeit_number)
-        self.print_time("store events", duration)
+        self.print_time("serial store events", duration)
 
-    def test__get_performance_with_snapshotting_enabled(self):
+    def test_concurrent_put_performance(self):
+
+        self.app = BankAccounts()
+
+        # Open an account.
+        account_id = self.app.open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+        account = self.app.get_account(account_id)
+
+        def put():
+            # Credit the account.
+            account.append_transaction(Decimal("10.00"))
+            self.app.save(account)
+
+        executor = ThreadPoolExecutor()
+
+        # Warm up.
+        futures = [executor.submit(put) for _ in range(10)]
+        [f.result() for f in futures]
+
+        started = time.time()
+
+        futures = [executor.submit(put) for _ in range(self.timeit_number)]
+        [f.result() for f in futures]
+
+        duration = time.time() - started
+
+        self.print_time("concurrent store events", duration)
+
+    def test_serial_get_performance_with_snapshotting_enabled(self):
         print()
-        self._test_get_performance(is_snapshotting_enabled=True)
+        self._test_serial_get_performance(is_snapshotting_enabled=True)
 
-    def test__get_performance_without_snapshotting_enabled(self):
-        self._test_get_performance(is_snapshotting_enabled=False)
+    def test_serial_get_performance_without_snapshotting_enabled(self):
+        self._test_serial_get_performance(is_snapshotting_enabled=False)
 
-    def _test_get_performance(self, is_snapshotting_enabled: bool):
+    def _test_serial_get_performance(self, is_snapshotting_enabled: bool):
 
         self.app = BankAccounts(
             env={"IS_SNAPSHOTTING_ENABLED": "y" if is_snapshotting_enabled else "n"}
@@ -149,14 +182,61 @@ class TestApplicationWithPOPO(ApplicationTestCase):
             self.app.get_account(account_id)
 
         # Warm up.
-        timeit(read, number=10)
+        [read() for _ in range(10)]
 
-        duration = timeit(read, number=self.timeit_number)
+        started = time.time()
+
+        [read() for _ in range(self.timeit_number)]
+
+        duration = time.time() - started
 
         if is_snapshotting_enabled:
-            test_label = "get with snapshotting"
+            test_label = "serial get with snapshotting"
         else:
-            test_label = "get without snapshotting"
+            test_label = "serial get without snapshotting"
+        self.print_time(test_label, duration)
+
+    def test_concurrent_get_performance_with_snapshotting_enabled(self):
+        print()
+        self._test_concurrent_get_performance(is_snapshotting_enabled=True)
+
+    def test_concurrent_get_performance_without_snapshotting_enabled(self):
+        self._test_concurrent_get_performance(is_snapshotting_enabled=False)
+
+    def _test_concurrent_get_performance(self, is_snapshotting_enabled: bool):
+
+        self.app = BankAccounts(
+            env={"IS_SNAPSHOTTING_ENABLED": "y" if is_snapshotting_enabled else "n"}
+        )
+
+        # Open an account.
+        account_id = self.app.open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+
+        def read():
+            # Get the account.
+            self.app.get_account(account_id)
+
+        executor = ThreadPoolExecutor()
+
+        # Warm up.
+        futures = [executor.submit(read) for _ in range(10)]
+        [f.result() for f in futures]
+
+        started = time.time()
+
+        futures = [executor.submit(read) for _ in range(self.timeit_number)]
+        [f.result() for f in futures]
+
+        duration = time.time() - started
+
+        if is_snapshotting_enabled:
+            test_label = "concurrent get with snapshotting"
+        else:
+            test_label = "concurrent get without snapshotting"
+
         self.print_time(test_label, duration)
 
     def assertFactoryTopic(self):

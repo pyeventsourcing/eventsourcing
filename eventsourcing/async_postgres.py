@@ -112,20 +112,22 @@ LANGUAGE plpgsql AS
 $$
 DECLARE
     number_ids integer := array_length(originator_ids, 1);
-begin
-    SET LOCAL lock_timeout = '{self.datastore.lock_timeout}s';
-    LOCK TABLE {self.events_table_name} IN EXCLUSIVE MODE;
+BEGIN
+    IF number_ids > 0 THEN
+        SET LOCAL lock_timeout = '{self.datastore.lock_timeout}s';
+        LOCK TABLE {self.events_table_name} IN EXCLUSIVE MODE;
 
-    FOR index IN 1..number_ids
-    LOOP
-        INSERT INTO {self.events_table_name} VALUES (
-            originator_ids[index],
-            originator_versions[index],
-            topics[index],
-            states[index]
-        );
-    END LOOP;
-end;
+        FOR index IN 1..number_ids
+        LOOP
+            INSERT INTO {self.events_table_name} VALUES (
+                originator_ids[index],
+                originator_versions[index],
+                topics[index],
+                states[index]
+            );
+        END LOOP;
+    END IF;
+END;
 $$;
 """
         return [create_insert_events_function]
@@ -136,7 +138,6 @@ $$;
 
     async def create_table(self) -> None:
         async with self.datastore.pool.acquire() as connection:
-            await self._set_idle_in_transaction_session_timeout(connection)
             async with connection.transaction():
                 for statement in self.create_table_statements:
                     await connection.fetch(statement)
@@ -158,32 +159,26 @@ $$;
         try:
             async with self.datastore.pool.acquire() as connection:
                 await self._set_idle_in_transaction_session_timeout(connection)
-                async with connection.transaction():
-                    await self._async_insert_events(connection, stored_events, **kwargs)
+                if len(stored_events):
+                    originator_ids = []
+                    originator_versions = []
+                    topics = []
+                    states = []
+                    for stored_event in stored_events:
+                        originator_ids.append(stored_event.originator_id)
+                        originator_versions.append(stored_event.originator_version)
+                        topics.append(stored_event.topic)
+                        states.append(stored_event.state)
+
+                    await connection.execute(
+                        self.insert_events_statement,
+                        originator_ids,
+                        originator_versions,
+                        topics,
+                        states,
+                    )
         except UniqueViolationError as e:
             raise IntegrityError(e)
-
-    async def _async_insert_events(
-        self, connection: Connection, stored_events: List[StoredEvent], **kwargs: Any
-    ) -> None:
-        if len(stored_events):
-            originator_ids = []
-            originator_versions = []
-            topics = []
-            states = []
-            for stored_event in stored_events:
-                originator_ids.append(stored_event.originator_id)
-                originator_versions.append(stored_event.originator_version)
-                topics.append(stored_event.topic)
-                states.append(stored_event.state)
-
-            await connection.execute(
-                self.insert_events_statement,
-                originator_ids,
-                originator_versions,
-                topics,
-                states,
-            )
 
     @async_retry(ConnectionDoesNotExistError, max_attempts=2)
     async def async_select_events(
@@ -305,6 +300,11 @@ class AsyncPostgresProcessRecorder(
         self.insert_tracking_statement = (
             f"INSERT INTO {self.tracking_table_name} VALUES ($1, $2)"
         )
+        self.insert_events_statement_with_tracking = (
+            f"SELECT insert_{self.events_table_name}_with_tracking($1::uuid[], "
+            f"$2::integer[], $3::text[], $4::bytea[], $5::text, $6::bigint)"
+        )
+
         self.max_tracking_id_statement = (
             "SELECT MAX(notification_id) "
             f"FROM {self.tracking_table_name} "
@@ -317,34 +317,84 @@ class AsyncPostgresProcessRecorder(
             "CREATE TABLE IF NOT EXISTS "
             f"{self.tracking_table_name} ("
             "application_name text, "
-            "notification_id int, "
+            "notification_id bigint, "
             "PRIMARY KEY "
             "(application_name, notification_id))"
         )
         return statements
 
-    async def _async_insert_events(
-        self, connection: Connection, stored_events: List[StoredEvent], **kwargs: Any
+    def construct_create_function_statements(self) -> List[str]:
+        statements = super().construct_create_table_statements()
+        create_insert_events_with_tracking_function = f"""
+CREATE OR REPLACE FUNCTION insert_{self.events_table_name}_with_tracking(
+    originator_ids uuid[],
+    originator_versions integer[],
+    topics text[],
+    states bytea[],
+    application_name text,
+    notification_id bigint
+    )
+RETURNS VOID
+LANGUAGE plpgsql AS
+$$
+BEGIN
+    PERFORM insert_{self.events_table_name}(
+        originator_ids,
+        originator_versions,
+        topics,
+        states
+    );
+    INSERT INTO {self.tracking_table_name} VALUES (
+        application_name,
+        notification_id
+    );
+END;
+$$;
+"""
+        return statements + [create_insert_events_with_tracking_function]
+
+    @async_retry(ConnectionDoesNotExistError, max_attempts=2)
+    async def async_insert_events(
+        self, stored_events: List[StoredEvent], **kwargs: Any
     ) -> None:
-        await super()._async_insert_events(connection, stored_events, **kwargs)
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking is not None:
-            await connection.execute(
-                self.insert_tracking_statement,
-                tracking.application_name,
-                tracking.notification_id,
-            )
+            try:
+                async with self.datastore.pool.acquire() as connection:
+                    await self._set_idle_in_transaction_session_timeout(connection)
+                    originator_ids = []
+                    originator_versions = []
+                    topics = []
+                    states = []
+                    for stored_event in stored_events:
+                        originator_ids.append(stored_event.originator_id)
+                        originator_versions.append(stored_event.originator_version)
+                        topics.append(stored_event.topic)
+                        states.append(stored_event.state)
+
+                    await connection.execute(
+                        self.insert_events_statement_with_tracking,
+                        originator_ids,
+                        originator_versions,
+                        topics,
+                        states,
+                        tracking.application_name,
+                        tracking.notification_id,
+                    )
+            except UniqueViolationError as e:
+                raise IntegrityError(e)
+        else:
+            await super().async_insert_events(stored_events, **kwargs)
 
     async def async_max_tracking_id(self, application_name: str) -> int:
         async with self.datastore.pool.acquire() as connection:
             await self._set_idle_in_transaction_session_timeout(connection)
-            async with connection.transaction():
-                return (
-                    await connection.fetchval(
-                        self.max_tracking_id_statement, application_name
-                    )
-                    or 0
+            return (
+                await connection.fetchval(
+                    self.max_tracking_id_statement, application_name
                 )
+                or 0
+            )
 
 
 class Factory(InfrastructureFactory):

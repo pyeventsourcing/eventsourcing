@@ -538,7 +538,7 @@ class PostgresProcessRecorder(
             "CREATE TABLE IF NOT EXISTS "
             f"{self.tracking_table_name} ("
             "application_name text, "
-            "notification_id int, "
+            "notification_id bigint, "
             "PRIMARY KEY "
             "(application_name, notification_id))"
         )

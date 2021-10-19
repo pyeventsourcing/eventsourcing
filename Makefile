@@ -102,11 +102,11 @@ timeit_postgres:
 
 .PHONY: timeit_async_async_postgres
 timeit_async_async_postgres:
-	TEST_TIMEIT_FACTOR=100 python -m unittest eventsourcing.tests.test_async_application_with_async_postgres
+	TEST_TIMEIT_FACTOR=200 python -m unittest eventsourcing.tests.test_async_application_with_async_postgres
 
 .PHONY: timeit_async_postgres
 timeit_async_postgres:
-	TEST_TIMEIT_FACTOR=100 python -m unittest eventsourcing.tests.test_async_application_with_postgres
+	TEST_TIMEIT_FACTOR=200 python -m unittest eventsourcing.tests.test_async_application_with_postgres
 
 .PHONY: rate
 rate: rate_popo rate_sqlite rate_postgres
