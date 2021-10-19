@@ -78,6 +78,10 @@ class AsyncProcessRecorderTestCase(IsolatedAsyncioTestCase, ABC):
             1,
         )
 
+        # Check there are two stored events.
+        stored_events = await recorder.async_select_events(originator_id1)
+        self.assertEqual(len(stored_events), 2)
+
         # Check can't insert third event with same tracking info.
         with self.assertRaises(IntegrityError):
             await recorder.async_insert_events(
@@ -91,6 +95,10 @@ class AsyncProcessRecorderTestCase(IsolatedAsyncioTestCase, ABC):
             1,
         )
 
+        # Check there are still two stored events.
+        stored_events = await recorder.async_select_events(originator_id1)
+        self.assertEqual(len(stored_events), 2)
+
         # Insert third event with different tracking info.
         await recorder.async_insert_events(
             stored_events=[stored_event3],
@@ -103,6 +111,10 @@ class AsyncProcessRecorderTestCase(IsolatedAsyncioTestCase, ABC):
             2,
         )
 
+        # Check there is one stored event for originator_id2.
+        stored_events = await recorder.async_select_events(originator_id2)
+        self.assertEqual(len(stored_events), 1)
+
         # Insert fourth event without tracking info.
         await recorder.async_insert_events(
             stored_events=[stored_event4],
@@ -113,6 +125,10 @@ class AsyncProcessRecorderTestCase(IsolatedAsyncioTestCase, ABC):
             await recorder.async_max_tracking_id("upstream_app"),
             2,
         )
+
+        # Check there are two stored events for originator_id2.
+        stored_events = await recorder.async_select_events(originator_id2)
+        self.assertEqual(len(stored_events), 2)
 
     async def test_performance(self):
         # Construct the recorder.
