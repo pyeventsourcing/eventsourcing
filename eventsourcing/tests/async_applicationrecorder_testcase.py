@@ -13,13 +13,13 @@ from time import sleep
 from typing import List
 from uuid import uuid4
 
-from eventsourcing.persistence import AsyncApplicationRecorder, StoredEvent
+from eventsourcing.persistence import ApplicationRecorder, StoredEvent
 from eventsourcing.tests.asyncio_testcase import IsolatedAsyncioTestCase
 
 
 class AsyncApplicationRecorderTestCase(IsolatedAsyncioTestCase, ABC):
     @abstractmethod
-    async def create_recorder(self) -> AsyncApplicationRecorder:
+    async def create_recorder(self) -> ApplicationRecorder:
         pass
 
     async def test_insert_select(self):

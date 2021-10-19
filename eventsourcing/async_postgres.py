@@ -50,6 +50,7 @@ class AsyncPostgresDatastore:
             port=self.port,
             user=self.user,
             password=self.password,
+            min_size=1,
         )
 
     def __await__(self) -> Generator[Any, None, "AsyncPostgresDatastore"]:
@@ -68,10 +69,14 @@ class AsyncPostgresAggregateRecorder(AsyncAggregateRecorder):
         self.datastore = datastore
         self.events_table_name = events_table_name
         self.create_table_statements = self.construct_create_table_statements()
+        self.create_function_statements = self.construct_create_function_statements()
+        # self.insert_events_statement = (
+        #     f"INSERT INTO {self.events_table_name} VALUES ($1, $2, $3, $4)"
+        # )
         self.insert_events_statement = (
-            f"INSERT INTO {self.events_table_name} VALUES ($1, $2, $3, $4)"
+            f"SELECT insert_{self.events_table_name}($1::uuid[], $2::integer[], "
+            f"$3::text[], $4::bytea[])"
         )
-        self.insert_events_statement_name = f"insert_{events_table_name}"
         self.select_events_statement = (
             f"SELECT * FROM {self.events_table_name} WHERE originator_id = $1"
         )
@@ -81,7 +86,7 @@ class AsyncPostgresAggregateRecorder(AsyncAggregateRecorder):
         ]
 
     def construct_create_table_statements(self) -> List[str]:
-        statement = (
+        create_events_table = (
             "CREATE TABLE IF NOT EXISTS "
             f"{self.events_table_name} ("
             "originator_id uuid NOT NULL, "
@@ -92,7 +97,38 @@ class AsyncPostgresAggregateRecorder(AsyncAggregateRecorder):
             "(originator_id, originator_version)) "
             "WITH (autovacuum_enabled=false)"
         )
-        return [statement]
+        return [create_events_table]
+
+    def construct_create_function_statements(self) -> List[str]:
+        create_insert_events_function = f"""
+CREATE OR REPLACE FUNCTION insert_{self.events_table_name}(
+    originator_ids uuid[],
+    originator_versions integer[],
+    topics text[],
+    states bytea[]
+    )
+RETURNS VOID
+LANGUAGE plpgsql AS
+$$
+DECLARE
+    number_ids integer := array_length(originator_ids, 1);
+begin
+    SET LOCAL lock_timeout = '{self.datastore.lock_timeout}s';
+    LOCK TABLE {self.events_table_name} IN EXCLUSIVE MODE;
+
+    FOR index IN 1..number_ids
+    LOOP
+        INSERT INTO {self.events_table_name} VALUES (
+            originator_ids[index],
+            originator_versions[index],
+            topics[index],
+            states[index]
+        );
+    END LOOP;
+end;
+$$;
+"""
+        return [create_insert_events_function]
 
     def __await__(self) -> Generator[Any, None, "AsyncPostgresAggregateRecorder"]:
         yield from self.create_table().__await__()
@@ -104,11 +140,13 @@ class AsyncPostgresAggregateRecorder(AsyncAggregateRecorder):
             async with connection.transaction():
                 for statement in self.create_table_statements:
                     await connection.fetch(statement)
+                for statement in self.create_function_statements:
+                    await connection.fetch(statement)
 
     async def _set_idle_in_transaction_session_timeout(
         self, connection: Connection
     ) -> None:
-        await connection.fetch(
+        await connection.execute(
             f"SET idle_in_transaction_session_timeout = "
             f"'{self.datastore.idle_in_transaction_session_timeout}s'"
         )
@@ -128,20 +166,24 @@ class AsyncPostgresAggregateRecorder(AsyncAggregateRecorder):
     async def _async_insert_events(
         self, connection: Connection, stored_events: List[StoredEvent], **kwargs: Any
     ) -> None:
-        for lock_statement in self.lock_statements:
-            await connection.fetch(lock_statement)
-        await connection.executemany(
-            self.insert_events_statement,
-            [
-                (
-                    stored_event.originator_id,
-                    stored_event.originator_version,
-                    stored_event.topic,
-                    stored_event.state,
-                )
-                for stored_event in stored_events
-            ],
-        )
+        if len(stored_events):
+            originator_ids = []
+            originator_versions = []
+            topics = []
+            states = []
+            for stored_event in stored_events:
+                originator_ids.append(stored_event.originator_id)
+                originator_versions.append(stored_event.originator_version)
+                topics.append(stored_event.topic)
+                states.append(stored_event.state)
+
+            await connection.execute(
+                self.insert_events_statement,
+                originator_ids,
+                originator_versions,
+                topics,
+                states,
+            )
 
     @async_retry(ConnectionDoesNotExistError, max_attempts=2)
     async def async_select_events(
@@ -173,17 +215,15 @@ class AsyncPostgresAggregateRecorder(AsyncAggregateRecorder):
         statement = " ".join(parts)
 
         async with self.datastore.pool.acquire() as connection:
-            await self._set_idle_in_transaction_session_timeout(connection)
-            async with connection.transaction():
-                async for record in connection.cursor(statement, *params):
-                    stored_events.append(
-                        StoredEvent(
-                            originator_id=record["originator_id"],
-                            originator_version=record["originator_version"],
-                            state=record["state"],
-                            topic=record["topic"],
-                        )
+            for record in await connection.fetch(statement, *params):
+                stored_events.append(
+                    StoredEvent(
+                        originator_id=record["originator_id"],
+                        originator_version=record["originator_version"],
+                        state=record["state"],
+                        topic=record["topic"],
                     )
+                )
         return stored_events
 
 
@@ -231,29 +271,23 @@ class AsyncPostgresApplicationRecorder(
     ) -> List[Notification]:
         notifications = []
         async with self.datastore.pool.acquire() as connection:
-            await self._set_idle_in_transaction_session_timeout(connection)
-            async with connection.transaction():
-                async for record in connection.cursor(
-                    self.select_notifications_statement, start, limit
-                ):
-                    notifications.append(
-                        Notification(
-                            id=record["notification_id"],
-                            originator_id=record["originator_id"],
-                            originator_version=record["originator_version"],
-                            topic=record["topic"],
-                            state=bytes(record["state"]),
-                        )
+            for record in await connection.fetch(
+                self.select_notifications_statement, start, limit
+            ):
+                notifications.append(
+                    Notification(
+                        id=record["notification_id"],
+                        originator_id=record["originator_id"],
+                        originator_version=record["originator_version"],
+                        topic=record["topic"],
+                        state=bytes(record["state"]),
                     )
+                )
         return notifications
 
     async def async_max_notification_id(self) -> int:
         async with self.datastore.pool.acquire() as connection:
-            await self._set_idle_in_transaction_session_timeout(connection)
-            async with connection.transaction():
-                return (
-                    await connection.fetchval(self.max_notification_id_statement) or 0
-                )
+            return await connection.fetchval(self.max_notification_id_statement) or 0
 
 
 class AsyncPostgresProcessRecorder(
@@ -295,7 +329,7 @@ class AsyncPostgresProcessRecorder(
         await super()._async_insert_events(connection, stored_events, **kwargs)
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking is not None:
-            await connection.fetch(
+            await connection.execute(
                 self.insert_tracking_statement,
                 tracking.application_name,
                 tracking.notification_id,

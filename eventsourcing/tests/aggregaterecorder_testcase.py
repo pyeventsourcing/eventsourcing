@@ -1,5 +1,6 @@
 import time
 from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor
 from unittest.case import TestCase
 from uuid import uuid4
 
@@ -160,12 +161,48 @@ class AggregateRecorderTestCase(TestCase, ABC):
             )
             recorder.insert_events([stored_event])
 
+        # Warm up.
+        for _ in range(20):
+            insert()
+
         number = 100
 
         started = time.time()
 
         for _ in range(number):
             insert()
+
+        duration = time.time() - started
+        print(self, f"{duration / number:.9f}")
+
+    def test_performance_concurrent(self):
+
+        # Construct the recorder.
+        recorder = self.create_recorder()
+
+        def insert():
+            originator_id = uuid4()
+
+            stored_event = StoredEvent(
+                originator_id=originator_id,
+                originator_version=0,
+                topic="topic1",
+                state=b"state1",
+            )
+            recorder.insert_events([stored_event])
+
+        executor = ThreadPoolExecutor(max_workers=10)
+
+        # Warm up.
+        futures = [executor.submit(insert) for _ in range(20)]
+        [f.result() for f in futures]
+
+        number = 100
+
+        started = time.time()
+
+        futures = [executor.submit(insert) for _ in range(number)]
+        [f.result() for f in futures]
 
         duration = time.time() - started
         print(self, f"{duration / number:.9f}")

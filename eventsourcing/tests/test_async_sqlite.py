@@ -35,6 +35,10 @@ class TestSQLiteAggregateRecorder(AsyncAggregateRecorderTestCase):
         self.db_uri = ":memory:"
         await super().test_performance()
 
+    async def test_performance_concurrent(self):
+        self.db_uri = ":memory:"
+        await super().test_performance_concurrent()
+
     async def test_performance_file_db(self):
         self.uris = tmpfile_uris()
         self.db_uri = next(self.uris)

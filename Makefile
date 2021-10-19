@@ -78,7 +78,7 @@ unittest:
 	@python -m unittest discover . -v
 
 .PHONY: timeit
-timeit: timeit_popo timeit_async_popo timeit_sqlite timeit_async_sqlite timeit_postgres timeit_async_postgres
+timeit: timeit_popo timeit_async_popo timeit_sqlite timeit_async_sqlite timeit_postgres timeit_async_postgres timeit_async_async_postgres
 
 .PHONY: timeit_popo
 timeit_popo:
@@ -100,9 +100,13 @@ timeit_async_sqlite:
 timeit_postgres:
 	TEST_TIMEIT_FACTOR=500 python -m unittest eventsourcing.tests.test_application_with_postgres
 
+.PHONY: timeit_async_async_postgres
+timeit_async_async_postgres:
+	TEST_TIMEIT_FACTOR=100 python -m unittest eventsourcing.tests.test_async_application_with_async_postgres
+
 .PHONY: timeit_async_postgres
 timeit_async_postgres:
-	TEST_TIMEIT_FACTOR=50 python -m unittest eventsourcing.tests.test_async_application_with_async_postgres
+	TEST_TIMEIT_FACTOR=100 python -m unittest eventsourcing.tests.test_async_application_with_postgres
 
 .PHONY: rate
 rate: rate_popo rate_sqlite rate_postgres

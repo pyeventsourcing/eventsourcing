@@ -1,5 +1,5 @@
 import time
-from asyncio import get_event_loop
+from asyncio import gather, get_event_loop
 from decimal import Decimal
 from uuid import UUID, uuid4
 
@@ -184,8 +184,7 @@ class TestAsyncApplicationWithPOPO(IsolatedAsyncioTestCase, ApplicationTestCase)
         started = time.time()
 
         futures = [put() for _ in range(self.timeit_number)]
-        for f in futures:
-            await f
+        await gather(*futures)
 
         duration = time.time() - started
 
@@ -193,12 +192,12 @@ class TestAsyncApplicationWithPOPO(IsolatedAsyncioTestCase, ApplicationTestCase)
 
     async def test_concurrent_get_performance_with_snapshotting_enabled(self):
         print()
-        await self.async_test_get_performance(is_snapshotting_enabled=True)
+        await self._test_concurrent_get_performance(is_snapshotting_enabled=True)
 
     async def test_concurrent_get_performance_without_snapshotting_enabled(self):
-        await self.async_test_get_performance(is_snapshotting_enabled=False)
+        await self._test_concurrent_get_performance(is_snapshotting_enabled=False)
 
-    async def async_test_get_performance(self, is_snapshotting_enabled: bool):
+    async def _test_concurrent_get_performance(self, is_snapshotting_enabled: bool):
 
         self.app = await BankAccounts(
             env={"IS_SNAPSHOTTING_ENABLED": "y" if is_snapshotting_enabled else "n"}
@@ -217,8 +216,7 @@ class TestAsyncApplicationWithPOPO(IsolatedAsyncioTestCase, ApplicationTestCase)
         started = time.time()
 
         futures = [read() for _ in range(self.timeit_number)]
-        for f in futures:
-            await f
+        await gather(*futures)
 
         duration = time.time() - started
 

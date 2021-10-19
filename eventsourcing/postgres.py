@@ -29,10 +29,9 @@ from eventsourcing.persistence import (
     StoredEvent,
     SyncAggregateRecorder,
     SyncApplicationRecorder,
-    SyncProcessRecorder,
     Tracking,
 )
-from eventsourcing.utils import retry, strtobool
+from eventsourcing.utils import async_to_thread, retry, strtobool
 
 psycopg2.extras.register_uuid()
 
@@ -263,6 +262,11 @@ class PostgresAggregateRecorder(SyncAggregateRecorder):
             with conn.cursor() as c:
                 self._insert_events(c, stored_events, **kwargs)
 
+    async def async_insert_events(
+        self, stored_events: List[StoredEvent], **kwargs: Any
+    ) -> None:
+        return self.insert_events(stored_events, **kwargs)
+
     def _prepare_insert_events(self) -> None:
         self._prepare(
             self.insert_events_statement_name,
@@ -391,6 +395,18 @@ class PostgresAggregateRecorder(SyncAggregateRecorder):
                 pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
         return stored_events
 
+    async def async_select_events(
+        self,
+        originator_id: UUID,
+        gt: Optional[int] = None,
+        lte: Optional[int] = None,
+        desc: bool = False,
+        limit: Optional[int] = None,
+    ) -> List[StoredEvent]:
+        return await async_to_thread(
+            self.select_events, originator_id, gt, lte, desc, limit
+        )
+
 
 # noinspection SqlResolve
 class PostgresApplicationRecorder(
@@ -468,6 +484,11 @@ class PostgresApplicationRecorder(
                 pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
         return notifications
 
+    async def async_select_notifications(
+        self, start: int, limit: int
+    ) -> List[Notification]:
+        return self.select_notifications(start, limit)
+
     @retry(InterfaceError, max_attempts=10, wait=0.2)
     def max_notification_id(self) -> int:
         """
@@ -484,10 +505,13 @@ class PostgresApplicationRecorder(
                 max_id = c.fetchone()[0] or 0
         return max_id
 
+    async def async_max_notification_id(self) -> int:
+        return self.max_notification_id()
+
 
 class PostgresProcessRecorder(
     PostgresApplicationRecorder,
-    SyncProcessRecorder,
+    ProcessRecorder,
 ):
     def __init__(
         self,
@@ -533,6 +557,9 @@ class PostgresProcessRecorder(
                 )
                 max_id = c.fetchone()[0] or 0
         return max_id
+
+    async def async_max_tracking_id(self, application_name: str) -> int:
+        return self.max_tracking_id(application_name)
 
     def _prepare_insert_events(self) -> None:
         super()._prepare_insert_events()

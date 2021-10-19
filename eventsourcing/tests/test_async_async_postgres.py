@@ -2,7 +2,7 @@ import os
 from unittest import skip
 from uuid import uuid4
 
-from asyncpg import UndefinedTableError
+from asyncpg import UndefinedFunctionError, UndefinedTableError
 
 from eventsourcing.async_postgres import (
     AsyncPostgresAggregateRecorder,
@@ -37,6 +37,7 @@ from eventsourcing.utils import get_topic
 class TestAsyncPostgresDatastore(IsolatedAsyncioTestCase):
     async def asyncTearDown(self) -> None:
         await self.datastore.pool.close()
+        pg_close_all_connections()
 
     async def test_connection_and_transaction(self):
         self.datastore = await AsyncPostgresDatastore(
@@ -74,11 +75,14 @@ class TestAsyncPostgresAggregateRecorder(AsyncAggregateRecorderTestCase):
             "eventsourcing",
             "eventsourcing",
         )
+        await drop_postgres_function(self.datastore, "insert_events")
         await drop_postgres_table(self.datastore, "stored_events")
 
     async def asyncTearDown(self) -> None:
+        await drop_postgres_function(self.datastore, "insert_events")
         await drop_postgres_table(self.datastore, "stored_events")
         await self.datastore.pool.close()
+        pg_close_all_connections()
 
     async def create_recorder(self) -> AsyncPostgresAggregateRecorder:
         recorder = AsyncPostgresAggregateRecorder(
@@ -89,6 +93,9 @@ class TestAsyncPostgresAggregateRecorder(AsyncAggregateRecorderTestCase):
 
     async def test_performance(self):
         await super().test_performance()
+
+    async def test_performance_concurrent(self):
+        await super().test_performance_concurrent()
 
     async def test_insert_and_select(self):
         await super().test_insert_and_select()
@@ -269,6 +276,7 @@ class TestAsyncPostgresApplicationRecorder(AsyncApplicationRecorderTestCase):
     async def asyncTearDown(self) -> None:
         await drop_postgres_table(self.datastore, "stored_events")
         await self.datastore.pool.close()
+        pg_close_all_connections()
 
     async def create_recorder(self):
         recorder = AsyncPostgresApplicationRecorder(
@@ -419,6 +427,7 @@ class TestAsyncPostgresProcessRecorder(AsyncProcessRecorderTestCase):
         await drop_postgres_table(self.datastore, "stored_events")
         await drop_postgres_table(self.datastore, "notification_tracking")
         await self.datastore.pool.close()
+        pg_close_all_connections()
 
     async def create_recorder(self) -> AsyncProcessRecorder:
         recorder = AsyncPostgresProcessRecorder(
@@ -748,6 +757,7 @@ class TestAsyncPostgresInfrastructureFactory(
         if Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT in os.environ:
             del os.environ[Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT]
         super().tearDown()
+        pg_close_all_connections()
 
     def test_lock_timeout_is_zero_by_default(self):
         self.assertTrue(Factory.POSTGRES_LOCK_TIMEOUT not in os.environ)
@@ -856,9 +866,22 @@ async def drop_postgres_table(datastore: AsyncPostgresDatastore, table_name):
             # Open a transaction.
             async with connection.transaction():
                 # Run the query passing the request argument.
-                statement = f"DROP TABLE {table_name};"
+                statement = f"DROP TABLE {table_name} CASCADE;"
                 await connection.fetch(statement)
     except UndefinedTableError:
+        pass
+
+
+async def drop_postgres_function(datastore: AsyncPostgresDatastore, function_name):
+    await datastore  # For when connection pool hasn't already been initialised.
+    try:
+        async with datastore.pool.acquire() as connection:
+            # Open a transaction.
+            async with connection.transaction():
+                # Run the query passing the request argument.
+                statement = f"DROP FUNCTION {function_name};"
+                await connection.fetch(statement)
+    except UndefinedFunctionError:
         pass
 
 

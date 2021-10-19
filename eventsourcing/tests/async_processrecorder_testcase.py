@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 from uuid import uuid4
 
 from eventsourcing.persistence import (
-    AsyncProcessRecorder,
     IntegrityError,
+    ProcessRecorder,
     StoredEvent,
     Tracking,
 )
@@ -13,7 +13,7 @@ from eventsourcing.tests.asyncio_testcase import IsolatedAsyncioTestCase
 
 class AsyncProcessRecorderTestCase(IsolatedAsyncioTestCase, ABC):
     @abstractmethod
-    async def create_recorder(self) -> AsyncProcessRecorder:
+    async def create_recorder(self) -> ProcessRecorder:
         pass
 
     async def test_insert_select(self):

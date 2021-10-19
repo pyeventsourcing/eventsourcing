@@ -407,6 +407,9 @@ class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
     def test_performance(self):
         super().test_performance()
 
+    def test_performance_concurrent(self):
+        super().test_performance_concurrent()
+
     def test_insert_and_select(self):
         super().test_insert_and_select()
 

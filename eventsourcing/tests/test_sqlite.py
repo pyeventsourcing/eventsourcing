@@ -143,7 +143,9 @@ class TestSqliteDatastore(TestCase):
 
 class TestSQLiteAggregateRecorder(AggregateRecorderTestCase):
     def create_recorder(self):
-        recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
+        recorder = SQLiteAggregateRecorder(
+            SQLiteDatastore("file::memory:?cache=shared")
+        )
         recorder.create_table()
         return recorder
 

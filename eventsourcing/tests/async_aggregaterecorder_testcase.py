@@ -1,9 +1,10 @@
+import asyncio
 import time
 from abc import ABC, abstractmethod
 from uuid import uuid4
 
 from eventsourcing.persistence import (
-    AsyncAggregateRecorder,
+    AggregateRecorder,
     IntegrityError,
     StoredEvent,
 )
@@ -12,7 +13,7 @@ from eventsourcing.tests.asyncio_testcase import IsolatedAsyncioTestCase
 
 class AsyncAggregateRecorderTestCase(IsolatedAsyncioTestCase, ABC):
     @abstractmethod
-    async def create_recorder(self) -> AsyncAggregateRecorder:
+    async def create_recorder(self) -> AggregateRecorder:
         pass
 
     async def test_insert_and_select(self):
@@ -162,12 +163,44 @@ class AsyncAggregateRecorderTestCase(IsolatedAsyncioTestCase, ABC):
             )
             await recorder.async_insert_events([stored_event])
 
-        number = 100
+        # Warm up.
+        for _ in range(20):
+            await insert()
 
+        number = 100
         started = time.time()
 
         for _ in range(number):
             await insert()
+
+        duration = time.time() - started
+        print(self, f"{duration / number:.9f}")
+
+    async def test_performance_concurrent(self):
+
+        # Construct the recorder.
+        recorder = await self.create_recorder()
+
+        async def insert():
+            originator_id = uuid4()
+
+            stored_event = StoredEvent(
+                originator_id=originator_id,
+                originator_version=0,
+                topic="topic1",
+                state=b"state1",
+            )
+            await recorder.async_insert_events([stored_event])
+
+        # Warm up.
+        coroutines = [insert() for _ in range(20)]
+        await asyncio.gather(*coroutines)
+
+        number = 100
+        started = time.time()
+
+        coroutines = [insert() for _ in range(number)]
+        await asyncio.gather(*coroutines)
 
         duration = time.time() - started
         print(self, f"{duration / number:.9f}")
