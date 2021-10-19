@@ -108,17 +108,12 @@ class TestApplicationWithPOPO(ApplicationTestCase):
 
         self.app = BankAccounts()
 
-        # Open an account.
-        account_id = self.app.open_account(
-            full_name="Alice",
-            email_address="alice@example.com",
-        )
-        account = self.app.get_account(account_id)
-
         def put():
-            # Credit the account.
-            account.append_transaction(Decimal("10.00"))
-            self.app.save(account)
+            # Open an account.
+            self.app.open_account(
+                full_name="Alice",
+                email_address="alice@example.com",
+            )
 
         # Warm up.
         number = 10
@@ -131,17 +126,12 @@ class TestApplicationWithPOPO(ApplicationTestCase):
 
         self.app = BankAccounts()
 
-        # Open an account.
-        account_id = self.app.open_account(
-            full_name="Alice",
-            email_address="alice@example.com",
-        )
-        account = self.app.get_account(account_id)
-
         def put():
-            # Credit the account.
-            account.append_transaction(Decimal("10.00"))
-            self.app.save(account)
+            # Open an account.
+            self.app.open_account(
+                full_name="Alice",
+                email_address="alice@example.com",
+            )
 
         executor = ThreadPoolExecutor()
 

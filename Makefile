@@ -86,7 +86,7 @@ timeit_popo:
 
 .PHONY: timeit_async_popo
 timeit_async_popo:
-	TEST_TIMEIT_FACTOR=500 python -m unittest eventsourcing.tests.test_async_application_with_popo
+	TEST_TIMEIT_FACTOR=200 python -m unittest eventsourcing.tests.test_async_application_with_popo
 
 .PHONY: timeit_sqlite
 timeit_sqlite:
@@ -94,11 +94,11 @@ timeit_sqlite:
 
 .PHONY: timeit_async_sqlite
 timeit_async_sqlite:
-	TEST_TIMEIT_FACTOR=500 python -m unittest eventsourcing.tests.test_async_application_with_sqlite
+	TEST_TIMEIT_FACTOR=200 python -m unittest eventsourcing.tests.test_async_application_with_sqlite
 
 .PHONY: timeit_postgres
 timeit_postgres:
-	TEST_TIMEIT_FACTOR=500 python -m unittest eventsourcing.tests.test_application_with_postgres
+	TEST_TIMEIT_FACTOR=400 python -m unittest eventsourcing.tests.test_application_with_postgres
 
 .PHONY: timeit_async_async_postgres
 timeit_async_async_postgres:

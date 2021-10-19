@@ -110,17 +110,12 @@ class TestAsyncApplicationWithPOPO(IsolatedAsyncioTestCase, ApplicationTestCase)
     async def test_serial_put_performance(self):
         self.app = await BankAccounts()
 
-        # Open an account.
-        account_id = await self.app.open_account(
-            full_name="Alice",
-            email_address="alice@example.com",
-        )
-        account = await self.app.get_account(account_id)
-
         async def put():
-            # Credit the account.
-            account.append_transaction(Decimal("10.00"))
-            await self.app.async_save(account)
+            # Open an account.
+            await self.app.open_account(
+                full_name="Alice",
+                email_address="alice@example.com",
+            )
 
         started = time.time()
 
@@ -169,17 +164,11 @@ class TestAsyncApplicationWithPOPO(IsolatedAsyncioTestCase, ApplicationTestCase)
         self.app = await BankAccounts()
 
         # Open an account.
-        account_id = await self.app.open_account(
-            full_name="Alice",
-            email_address="alice@example.com",
-        )
-
-        account = await self.app.get_account(account_id)
-
         async def put():
-            # Credit the account.
-            account.append_transaction(Decimal("10.00"))
-            await self.app.async_save(account)
+            await self.app.open_account(
+                full_name="Alice",
+                email_address="alice@example.com",
+            )
 
         started = time.time()
 
