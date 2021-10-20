@@ -23,6 +23,15 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.1.4 (released 20 October 2021)
+----------------------------------------
+
+Fixed discrepancy between Application save() and Follower record()
+methods, so that Follower applications will do automatic snapshotting
+based on their 'snapshotting_intervals' after their policy() has been
+called, as expected.
+
+
 Version 9.1.3 (released 8 October 2021)
 ---------------------------------------
 
