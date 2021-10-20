@@ -31,7 +31,8 @@ from eventsourcing.tests.test_postgres import (
 
 
 class TestPostgresAggregateRecorder(AsyncAggregateRecorderTestCase):
-    async def asyncSetUp(self) -> None:
+    def setUp(self) -> None:
+        super().setUp()
         self.datastore = PostgresDatastore(
             "eventsourcing",
             "127.0.0.1",
@@ -41,9 +42,10 @@ class TestPostgresAggregateRecorder(AsyncAggregateRecorderTestCase):
         )
         self.drop_tables()
 
-    async def asyncTearDown(self) -> None:
+    def tearDown(self) -> None:
         self.drop_tables()
         pg_close_all_connections()
+        super().tearDown()
 
     def drop_tables(self):
         drop_postgres_table(self.datastore, "stored_events")
@@ -229,7 +231,8 @@ class TestPostgresAggregateRecorder(AsyncAggregateRecorderTestCase):
 
 
 class TestPostgresApplicationRecorder(AsyncApplicationRecorderTestCase):
-    async def asyncSetUp(self) -> None:
+    def setUp(self) -> None:
+        super().setUp()
         self.datastore = PostgresDatastore(
             "eventsourcing",
             "127.0.0.1",
@@ -239,9 +242,10 @@ class TestPostgresApplicationRecorder(AsyncApplicationRecorderTestCase):
         )
         self.drop_tables()
 
-    async def asyncTearDown(self) -> None:
+    def tearDown(self) -> None:
         self.drop_tables()
         pg_close_all_connections()
+        super().tearDown()
 
     def drop_tables(self):
         drop_postgres_table(self.datastore, "stored_events")
@@ -380,7 +384,8 @@ class TestPostgresApplicationRecorder(AsyncApplicationRecorderTestCase):
 #
 #
 class TestPostgresProcessRecorder(AsyncProcessRecorderTestCase):
-    async def asyncSetUp(self) -> None:
+    def setUp(self) -> None:
+        super().setUp()
         self.datastore = PostgresDatastore(
             "eventsourcing",
             "127.0.0.1",
@@ -390,9 +395,10 @@ class TestPostgresProcessRecorder(AsyncProcessRecorderTestCase):
         )
         self.drop_tables()
 
-    async def asyncTearDown(self) -> None:
+    def tearDown(self) -> None:
         self.drop_tables()
         pg_close_all_connections()
+        super().tearDown()
 
     def drop_tables(self):
         drop_postgres_table(self.datastore, "stored_events")
