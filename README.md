@@ -12,6 +12,9 @@ A library for event sourcing in Python.
 
 [Read the docs](https://eventsourcing.readthedocs.io/). See also [extension projects](https://github.com/pyeventsourcing).
 
+![](https://upload.wikimedia.org/wikipedia/commons/8/89/Foot_detail_from_Venus%2C_Cupid%2C_Folly_and_Time_by_Agnolo_Bronzino.jpg)
+
+
 
 ## Installation
 
