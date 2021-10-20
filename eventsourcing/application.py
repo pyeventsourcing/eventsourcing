@@ -19,6 +19,7 @@ from eventsourcing.persistence import (
     JSONTranscoder,
     Mapper,
     Notification,
+    Tracking,
     Transcoder,
     UUIDAsHex,
 )
@@ -220,6 +221,33 @@ class LocalNotificationLog(NotificationLog):
         return "{},{}".format(first_id, last_id)
 
 
+class ProcessEvent:
+    """
+    Keeps together a :class:`~eventsourcing.persistence.Tracking`
+    object, which represents the position of a domain event notification
+    in the notification log of a particular application, and the
+    new domain events that result from processing that notification.
+    """
+
+    def __init__(self, tracking: Optional[Tracking] = None):
+        """
+        Initalises the process event with the given tracking object.
+        """
+        self.tracking = tracking
+        self.events: List[AggregateEvent] = []
+        self.ids_and_types: Dict[UUID, Type[Aggregate]] = {}
+        self.saved_kwargs: Dict[Any, Any] = {}
+
+    def save(self, *aggregates: Aggregate, **kwargs: Any) -> None:
+        """
+        Collects pending domain events from the given aggregate.
+        """
+        for aggregate in aggregates:
+            self.ids_and_types[aggregate.id] = type(aggregate)
+            self.events += aggregate.collect_events()
+        self.saved_kwargs.update(kwargs)
+
+
 class Application(ABC, Generic[TAggregate]):
     """
     Base class for event-sourced applications.
@@ -349,18 +377,25 @@ class Application(ABC, Generic[TAggregate]):
         puts them in the application's event store.
         """
         # Collect and store events.
-        events = []
-        for aggregate in aggregates:
-            events += aggregate.collect_events()
-        self.events.put(events, **kwargs)
+        process_event = ProcessEvent()
+        process_event.save(*aggregates, **kwargs)
+        self.record(process_event)
 
-        # Take snapshots.
+    def record(self, process_event: ProcessEvent) -> None:
+        """
+        Records given process event in the application's recorder.
+        """
+        # Send process event data down the stack.
+        self.events.put(
+            process_event.events,
+            tracking=process_event.tracking,
+            **process_event.saved_kwargs,
+        )
+
+        # Take snapshots using IDs and types.
         if self.snapshots and self.snapshotting_intervals:
-            aggregate_types = {}
-            for aggregate in aggregates:
-                aggregate_types[aggregate.id] = type(aggregate)
-            for event in events:
-                aggregate_type = aggregate_types[event.originator_id]
+            for event in process_event.events:
+                aggregate_type = process_event.ids_and_types[event.originator_id]
                 interval = self.snapshotting_intervals.get(aggregate_type)
                 if interval is not None:
                     if event.originator_version % interval == 0:
@@ -369,7 +404,8 @@ class Application(ABC, Generic[TAggregate]):
                             version=event.originator_version,
                         )
 
-        self.notify(events)
+        # Notify others of the events.
+        self.notify(process_event.events)
 
     def notify(self, new_events: List[AggregateEvent]) -> None:
         """

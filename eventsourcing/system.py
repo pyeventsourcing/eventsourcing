@@ -1,20 +1,15 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from threading import Event, Lock, Thread
-from typing import (
-    Dict,
-    Iterable,
-    Iterator,
-    List,
-    Optional,
-    Set,
-    Tuple,
-    Type,
-    TypeVar,
-)
+from typing import Dict, Iterable, Iterator, List, Set, Tuple, Type, TypeVar
 
-from eventsourcing.application import Application, NotificationLog, Section
-from eventsourcing.domain import Aggregate, AggregateEvent
+from eventsourcing.application import (
+    Application,
+    NotificationLog,
+    ProcessEvent,
+    Section,
+)
+from eventsourcing.domain import AggregateEvent
 from eventsourcing.persistence import (
     Mapper,
     Notification,
@@ -22,29 +17,6 @@ from eventsourcing.persistence import (
     Tracking,
 )
 from eventsourcing.utils import get_topic, resolve_topic
-
-
-class ProcessEvent:
-    """
-    Keeps together a :class:`~eventsourcing.persistence.Tracking`
-    object, which represents the position of a domain event notification
-    in the notification log of a particular application, and the
-    new domain events that result from processing that notification.
-    """
-
-    def __init__(self, tracking: Optional[Tracking] = None):
-        """
-        Initalises the process event with the given tracking object.
-        """
-        self.tracking = tracking
-        self.events: List[AggregateEvent] = []
-
-    def save(self, *aggregates: Aggregate) -> None:
-        """
-        Collects pending domain events from the given aggregate.
-        """
-        for aggregate in aggregates:
-            self.events += aggregate.collect_events()
 
 
 class Follower(Application):
@@ -137,15 +109,6 @@ class Follower(Application):
         with tracking information about the position of the given
         domain event's notification.
         """
-
-    def record(self, process_event: ProcessEvent) -> None:
-        """
-        Records given process event in the application's process recorder.
-        """
-        self.events.put(
-            **process_event.__dict__,
-        )
-        self.notify(process_event.events)
 
 
 class Promptable(ABC):
