@@ -58,7 +58,7 @@ This basic notion of a cluster of software objects is understandable as
 straightforward `object-oriented programming
 <https://en.wikipedia.org/wiki/Object-oriented_programming>`_.
 
-An aggregate has a 'root'. The 'root' of an aggregate is an entity.
+An aggregate has a 'root'. The root of an aggregate is an entity.
 This entity is known as the 'root entity' or the 'aggregate root'. Entities
 have IDs and the ID of the root entity is used to uniquely identify the
 cluster of objects in a domain model. Access to the cluster of objects
