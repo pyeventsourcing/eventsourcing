@@ -3,7 +3,7 @@ Event Sourcing in Python
 ========================
 
 A library for event sourcing in Python.
-This project is `hosted on GitHub <https://github.com/johnbywater/eventsourcing>`__.
+This project is `hosted on GitHub <https://github.com/pyeventsourcing/eventsourcing>`__.
 
 Contents
 ========

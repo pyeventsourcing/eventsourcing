@@ -31,7 +31,7 @@ A library for event sourcing in Python.
 
 `Package documentation is now available <http://eventsourcing.readthedocs.io/>`_.
 
-`Please raise issues on GitHub <https://github.com/johnbywater/eventsourcing/issues>`_.
+`Please raise issues on GitHub <https://github.com/pyeventsourcing/eventsourcing/issues>`_.
 """
 
 packages = [
@@ -49,7 +49,7 @@ setup(
     description="Event sourcing in Python",
     author="John Bywater",
     author_email="john.bywater@appropriatesoftware.net",
-    url="https://github.com/johnbywater/eventsourcing",
+    url="https://github.com/pyeventsourcing/eventsourcing",
     license="BSD-3-Clause",
     packages=packages,
     package_data={"eventsourcing": ["py.typed"]},

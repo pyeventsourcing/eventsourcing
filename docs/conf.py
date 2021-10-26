@@ -113,7 +113,7 @@ todo_include_todos = False
 
 # html_context = {
 #     'theme_root_name': "Python",
-#     'theme_root_url': "https://github.com/johnbywater/eventsourcing",
+#     'theme_root_url': "https://github.com/pyeventsourcing/eventsourcing",
 #     'theme_root_icon': "py.png",
 #     'theme_root_include_title': True,
 # }
@@ -132,7 +132,7 @@ html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 # html_theme_path = [sphinx_py3doc_enhanced_theme.get_html_theme_path()]
 #
 # html_theme_options = {
-#     'githuburl': 'https://github.com/johnbywater/eventsourcing/',
+#     'githuburl': 'https://github.com/pyeventsourcing/eventsourcing/',
 #     'bodyfont': '"Lucida Grande",Arial,sans-serif',
 #     'headfont': '"Lucida Grande",Arial,sans-serif',
 #     'codefont': 'monospace,sans-serif',
@@ -146,10 +146,10 @@ html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 # html_theme = 'python_docs_theme'
 # html_theme_path = ['tools']
 # html_theme_options = {
-#     'root_url': 'https://github.com/johnbywater/eventsourcing',
+#     'root_url': 'https://github.com/pyeventsourcing/eventsourcing',
 #     'root_name': 'Event sourcing in Python',
 #     'collapsiblesidebar': True,
-#     'issues_url': 'https://github.com/johnbywater/eventsourcing/issues',
+#     'issues_url': 'https://github.com/pyeventsourcing/eventsourcing/issues',
 #     'root_include_title': False,   # We use the version switcher instead.
 # }
 # html_last_updated_fmt = '%b %d, %Y'

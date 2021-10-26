@@ -11,10 +11,10 @@ and development services are available. Friendly community support is also
 available on the Slack_ channel.
 
 Please support the continuing development and maintenance of this library
-by `starring the project on GitHub <https://github.com/johnbywater/eventsourcing>`_
+by `starring the project on GitHub <https://github.com/pyeventsourcing/eventsourcing>`_
 and if possible by making a regular donation. If you have any issues using
 the library or reading the documentation, please `raise an issue on GitHub
-<https://github.com/johnbywater/eventsourcing/issues>`_,
+<https://github.com/pyeventsourcing/eventsourcing/issues>`_,
 feel free to start a discussion in the Slack_ channel, or create a pull request.
 
 
@@ -55,7 +55,7 @@ The library has a growing community that may be able to help.
 - You can ask questions on the Slack_ channel.
 
 - You can also register issues and requests on our
-  `issue tracker <https://github.com/johnbywater/eventsourcing/issues>`__.
+  `issue tracker <https://github.com/pyeventsourcing/eventsourcing/issues>`__.
 
 .. _Slack: https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTJjMmJjYTc3ODQ3M2YwOTMwMDJlODJkMjk3ZmE1MGYyZDM4MjIxODZmYmVkZmJkODRhZDg5N2MwZjk1YzU3NmY>`__.
 
@@ -63,5 +63,5 @@ The library has a growing community that may be able to help.
 Support the project
 ===================
 
-Please follow the `Sponsor button <https://github.com/johnbywater/eventsourcing>`__
+Please follow the `Sponsor button <https://github.com/pyeventsourcing/eventsourcing>`__
 on the GitHub project for options.

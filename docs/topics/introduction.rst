@@ -124,6 +124,6 @@ layer depends only on the application layer.
 Register issues
 ===============
 
-This project is `hosted on GitHub <https://github.com/johnbywater/eventsourcing>`__.
+This project is `hosted on GitHub <https://github.com/pyeventsourcing/eventsourcing>`__.
 Please `register any issues, questions, and requests
-<https://github.com/johnbywater/eventsourcing/issues>`__ you may have.
+<https://github.com/pyeventsourcing/eventsourcing/issues>`__ you may have.
