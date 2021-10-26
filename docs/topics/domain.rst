@@ -213,8 +213,8 @@ describes an important concern in your domain. Nevertheless, we need a name to r
 to this sort of thing in general, and the word "created" is used for this purpose.
 
 Except for the aggregate ID, which is passed as the ``id`` argument to the
-:func:`~eventsourcing.domain.MetaAggregate._create` method,
-the values of the other three attributes are determined by the
+:func:`~eventsourcing.domain.MetaAggregate._create` method, the values of the
+other three attributes are determined by the
 :func:`~eventsourcing.domain.MetaAggregate._create` method (that is its purpose).
 The :class:`~eventsourcing.domain.Aggregate.Created` class can
 be used directly, but is normally subclassed to define a particular "created"
@@ -235,8 +235,8 @@ will return to this aspect in the sections below on aggregate classes.
 
 Having been created, an aggregate object will have an aggregate ID. The ID is presented
 by its :py:obj:`~eventsourcing.domain.Aggregate.id` property. The ID will be identical to
-the value passed with the ``id`` argument to the :func:`~eventsourcing.domain.MetaAggregate._create`
-method.
+the value passed to the :func:`~eventsourcing.domain.MetaAggregate._create` method
+with the ``id`` argument.
 
 .. code:: python
 
