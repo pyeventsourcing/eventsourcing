@@ -5,7 +5,7 @@
 
 This module supports the development of event-sourced domain models.
 
-Following the terminology of Domain-Driven Design, an event-sourced domain
+Following the terminology of *Domain-Driven Design*, an event-sourced domain
 model has many event-sourced **aggregates**. The state of an event-sourced
 aggregate is determined by a sequence of immutable **domain events**. The
 time needed to reconstruct an aggregate from its domain events can be reduced
@@ -35,7 +35,7 @@ Aggregates in DDD
 =================
 
 Aggregates are enduring objects which enjoy adventures of change. The
-book *Domain-Driven Design* by Eric Evans' describes a design pattern
+book *Domain-Driven Design* by Eric Evans describes a design pattern
 called "aggregate" in the following way.
 
 .. pull-quote::
