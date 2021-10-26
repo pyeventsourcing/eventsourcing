@@ -175,16 +175,17 @@ a new aggregate object.
 
 
     aggregate_id = uuid4()
-
     aggregate = Aggregate._create(Aggregate.Created, id=aggregate_id)
 
 
 It works by creating the first of a new sequence of domain
 event objects, and uses this domain event object to construct and initialise
-an instance of the aggregate class. Usually, this "private" method will be called
-by a "public" class method defined on a subclass of the :class:`~eventsourcing.domain.Aggregate`
-base class. For example, see the class method ``create()`` of the :class:`World`
-aggregate class in the :ref:`basic example <Aggregate basic example>` below.
+an instance of the aggregate class. Usually, this generically named "private" method
+will be called by a "public" class method defined on a subclass of the
+:class:`~eventsourcing.domain.Aggregate` base class. For example, see the class method
+``create()`` of ``World`` aggregate class in the :ref:`basic example <Aggregate basic example>`
+below. The public class method should be named after a particularly appropriate concern in your
+domain.
 
 The :func:`~eventsourcing.domain.MetaAggregate._create` method has a required positional
 argument ``event_class`` which is used by the caller to pass a domain event class that
@@ -198,31 +199,39 @@ model.
 
 The library's :class:`~eventsourcing.domain.Aggregate` base class is defined with
 a nested class :class:`~eventsourcing.domain.Aggregate.Created` which
-can be used to represent the fact that an aggregate was "created". The
-:class:`~eventsourcing.domain.Aggregate.Created` class is defined as a
-`frozen Python data class <https://docs.python.org/3/library/dataclasses.html>`_
-with four attributes: the ID of an aggregate, a version number, a timestamp,
-and the :ref:`topic <Topics>` of an aggregate class --- see
-the :ref:`Domain events <Events>`
-section below for more information. Except
-for the ID which is passed as the ``id`` argument to the
+can be used (and is used in the exampe above) to represent the fact that an aggregate
+was "created". The :class:`~eventsourcing.domain.Aggregate.Created` base class is defined
+as a `frozen Python data class <https://docs.python.org/3/library/dataclasses.html>`_
+with four attributes: ``id`` which is the unique ID of the aggregate in the domain model,
+``version`` which is used to position the aggregate events in a sequence, ``timestamp``
+which is a timestamp that indicates when the aggregate was created, and ``topic`` which is
+the :ref:`topic <Topics>` of an aggregate class and which will be used by the event to
+identify the aggregate class so that it can reconstruct the aggregate object --- see the
+:ref:`Domain events <Events>` section below for more information. Usually, this
+base event class will be used to define a particularly well-named event class that
+describes an important concern in your domain. Nevertheless, we need a name to refer
+to this sort of thing in general, and the word "created" is used for this purpose.
+
+Except for the aggregate ID, which is passed as the ``id`` argument to the
 :func:`~eventsourcing.domain.MetaAggregate._create` method,
-the values of these other attributes are worked out by the
-:func:`~eventsourcing.domain.MetaAggregate._create` method. The
-:class:`~eventsourcing.domain.Aggregate.Created` class can
+the values of the other three attributes are determined by the
+:func:`~eventsourcing.domain.MetaAggregate._create` method (that is its purpose).
+The :class:`~eventsourcing.domain.Aggregate.Created` class can
 be used directly, but is normally subclassed to define a particular "created"
 event class for a particular aggregate class, with a suitable name and
 with suitable extra attributes that represent the particular beginning
-of a particular type of aggregate. A "created" event class should be named using a past
-participle that describes the beginning of something, such as "Started",
-"Opened", or indeed "Created".
+of a particular type of aggregate. Aggregate event classes should be named using
+past participles. And a "created" event class should be named using a past
+participle that describes the initiation or the beginning of something, such as
+"Started", "Opened", or indeed "Created".
 
 The :func:`~eventsourcing.domain.MetaAggregate._create` method also accepts arbitrary
 keyword-only arguments, which if given will also be used to construct the event object
-in addition to those mentioned above. The "created" event object will be constructed with these
-additional arguments, and so the extra method arguments must be matched by the attributes of the
-"created" event class. (The concrete aggregate class's initializer method :func:`__init__`
-should also be coded to accept these extra arguments.)
+in addition to those mentioned above. Since the "created" event object will be constructed
+with these additional arguments, so these other method arguments must be matched by the
+attributes of your "created" event class. The concrete aggregate class's initializer
+method :func:`__init__` should also be coded to accept these extra arguments, but we
+will return to this aspect in the sections below on aggregate classes.
 
 Having been created, an aggregate object will have an aggregate ID. The ID is presented
 by its :py:obj:`~eventsourcing.domain.Aggregate.id` property. The ID will be identical to
