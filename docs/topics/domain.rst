@@ -167,7 +167,19 @@ Creating new aggregates
 
 Firstly, the :class:`~eventsourcing.domain.Aggregate` class has a "private" class
 method :func:`~eventsourcing.domain.MetaAggregate._create` which can be used to create
-a new aggregate. It works by creating the first of a new sequence of domain
+a new aggregate object.
+
+.. code:: python
+
+    from uuid import uuid4
+
+
+    aggregate_id = uuid4()
+
+    aggregate = Aggregate._create(Aggregate.Created, id=aggregate_id)
+
+
+It works by creating the first of a new sequence of domain
 event objects, and uses this domain event object to construct and initialise
 an instance of the aggregate class. Usually, this "private" method will be called
 by a "public" class method defined on a subclass of the :class:`~eventsourcing.domain.Aggregate`
@@ -183,14 +195,6 @@ object. The :func:`~eventsourcing.domain.MetaAggregate._create` method also has
 a required ``id`` argument which should be a Python :class:`~uuid.UUID`
 object that will be used to uniquely identify the aggregate in the domain
 model.
-
-.. code:: python
-
-    from uuid import uuid4
-
-    aggregate_id = uuid4()
-
-    aggregate = Aggregate._create(Aggregate.Created, id=aggregate_id)
 
 The library's :class:`~eventsourcing.domain.Aggregate` base class is defined with
 a nested class :class:`~eventsourcing.domain.Aggregate.Created` which
