@@ -712,7 +712,7 @@ The timestamp values are "timezone aware" datetime objects. The default timezone
 UTC, as defined by Python's :data:`datetime.timezone.utc`. It is recommended to store
 date-times as UTC values, and convert to a local timezone in the interface layer according
 to the particular timezone of a particular user. However, if necessary, this default can
-be changed either by assigning a :class:`datetime.tzinfo` object to the :data:`TZINFO`
+be changed by assigning a :class:`datetime.tzinfo` object to the :data:`TZINFO`
 attribute of the :mod:`eventsourcing.domain` module. The :data:`eventsourcing.domain.TZINFO`
 value can also be configured using environment variables, by setting the environment variable
 ``TZINFO_TOPIC`` to a string that describes the :ref:`topic <Topics>` of a Python
@@ -778,28 +778,6 @@ that starts with a snapshot and continues with the subsequent domain event objec
 treated in the same way as a list of all the domain event objects of an aggregate.
 This similarity is needed by the application :ref:`repository <Repository>`, since
 some specialist event stores (e.g. AxonDB) return a snapshot as the first domain event.
-
-Initial Version Number
-======================
-
-By default, the aggregates have an initial version number of ``1``. Sometimes it may be
-desired, or indeed necessary, to use a different initial version number.
-
-In the example below, the initial version number of the class ``MyAggregate`` is defined to be ``0``.
-
-.. code:: python
-
-    class MyAggregate(Aggregate):
-        INITIAL_VERSION = 0
-
-    aggregate = MyAggregate()
-    assert aggregate.version == 0
-
-
-If all aggregates in a domain model need to use the same non-default version number,
-then a base class can be defined and used by the aggregates of the domain model on
-which ``INITIAL_VERSION`` is set to the preferred value. Some people may wish to set
-the preferred value on the library :class:`~eventsourcing.domain.Aggregate` class.
 
 
 .. _Versioning:
@@ -1956,6 +1934,29 @@ class rather than using the ``@aggregate`` decorator so that full the
     assert isinstance(pending_events[0], Order.Started)
 
 
+Initial Version Number
+======================
+
+By default, the aggregates have an initial version number of ``1``. Sometimes it may be
+desired, or indeed necessary, to use a different initial version number.
+
+In the example below, the initial version number of the class ``MyAggregate`` is defined to be ``0``.
+
+.. code:: python
+
+    class MyAggregate(Aggregate):
+        INITIAL_VERSION = 0
+
+    aggregate = MyAggregate()
+    assert aggregate.version == 0
+
+
+If all aggregates in a domain model need to use the same non-default version number,
+then a base class can be defined and used by the aggregates of the domain model on
+which ``INITIAL_VERSION`` is set to the preferred value. Some people may wish to set
+the preferred value on the library :class:`~eventsourcing.domain.Aggregate` class.
+
+
 .. _Topics:
 
 Topics
@@ -1964,7 +1965,7 @@ Topics
 A "topic" in this library is a string formed from joining with a colon character
 (``':'``) the path to a Python module (e.g. ``'eventsourcing.domain'``) with the qualified
 name of an object in that module (e.g. ``'Aggregate.Created'``). For example
-``'eventsourcing.domain:Aggregate.Created'`` describes the path to the library's
+``'eventsourcing.domain:Aggregate.Created'`` is the topic of the library's
 :class:`~eventsourcing.domain.Aggregate.Created` class. The library's
 :mod:`~eventsourcing.utils` module contains the functions :func:`~eventsourcing.utils.resolve_topic`
 and :func:`~eventsourcing.utils.get_topic` which are used in the library to resolve
