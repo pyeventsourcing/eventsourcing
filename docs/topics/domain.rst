@@ -3,13 +3,32 @@
 ==============================================
 
 
-This module helps with developing event-sourced domain models.
+This module supports the development of event-sourced domain models.
 
-An event-sourced domain model has many event-sourced **aggregates**.
-The state of an event-sourced aggregate is determined by a sequence of
-**domain events**.
-The time needed to reconstruct an aggregate from its domain events can
-be reduced by using **snapshots**.
+Following the terminology of Domain-Driven Design, an event-sourced domain
+model has many event-sourced **aggregates**. The state of an event-sourced
+aggregate is determined by a sequence of immutable **domain events**. The
+time needed to reconstruct an aggregate from its domain events can be reduced
+by using **snapshots**.
+
+The classes in this module were first introduced merely as a way of showing
+how the persistence module can be used. The persistence module is the original
+core of this library, and is the cohesive mechanism for storing and retrieving
+sequences ("streams") of immutable events. But without showing how this mechanism
+can be used to develop a domain model, there is a gap where application developers
+would instead expect some solid ground on which to build a "domain object" model
+for their applications. Through a process of refinement over several years, the
+domain model classes in this module have become useful as base classes for a
+stand-alone event-sourced domain model. It's certainly possible to do without
+these classes, and alternative ways of coding domain models are encouraged. However,
+if you want to make progress efficiently, you may find that using the ``Aggregate``
+base class and the ``@event`` decorator will speed your creativity in developing a
+most compact and effective event-sourced domain model.
+
+This module appears first in the documentation, not because it is the most
+important section, but rather because this was overwhelmingly the order
+preferred by the community of users of the library, as expressed in a vote
+on the matter in 2021.
 
 
 Aggregates in DDD
