@@ -13,7 +13,6 @@ Contents
 
    topics/introduction
    topics/installing
-   topics/support
    topics/domain
    topics/application
    topics/persistence
@@ -21,6 +20,7 @@ Contents
    topics/interface
    topics/examples
    topics/release_notes
+   topics/support
 
 
 Modules Reference
