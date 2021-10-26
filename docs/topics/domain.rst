@@ -36,7 +36,7 @@ Aggregates in DDD
 
 Aggregates are enduring objects which enjoy adventures of change. The
 book *Domain-Driven Design* by Eric Evans describes a design pattern
-called "aggregate" in the following way.
+called 'aggregate' in the following way.
 
 .. pull-quote::
 
