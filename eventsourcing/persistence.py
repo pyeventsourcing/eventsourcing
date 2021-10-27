@@ -13,7 +13,7 @@ from typing import (
     List,
     Mapping,
     Optional,
-    Type,
+    Sequence, Type,
     cast,
 )
 from uuid import UUID
@@ -243,7 +243,7 @@ class Cipher(ABC):
         """
 
 
-class Mapper(Generic[TDomainEvent]):
+class Mapper:
     """
     Converts between domain event objects and :class:`StoredEvent` objects.
 
@@ -260,7 +260,7 @@ class Mapper(Generic[TDomainEvent]):
         self.compressor = compressor
         self.cipher = cipher
 
-    def from_domain_event(self, domain_event: TDomainEvent) -> StoredEvent:
+    def from_domain_event(self, domain_event: DomainEvent[Any]) -> StoredEvent:
         """
         Converts the given domain event to a :class:`StoredEvent` object.
         """
@@ -283,7 +283,7 @@ class Mapper(Generic[TDomainEvent]):
             state=stored_state,
         )
 
-    def to_domain_event(self, stored: StoredEvent) -> TDomainEvent:
+    def to_domain_event(self, stored: StoredEvent) -> DomainEvent[Any]:
         """
         Converts the given :class:`StoredEvent` to a domain event object.
         """
@@ -292,7 +292,7 @@ class Mapper(Generic[TDomainEvent]):
             stored_state = self.cipher.decrypt(stored_state)
         if self.compressor:
             stored_state = self.compressor.decompress(stored_state)
-        event_state: dict = self.transcoder.decode(stored_state)
+        event_state: Dict[str, Any] = self.transcoder.decode(stored_state)
         event_state["originator_id"] = stored.originator_id
         event_state["originator_version"] = stored.originator_version
         cls = resolve_topic(stored.topic)
@@ -469,20 +469,20 @@ class ProcessRecorder(ApplicationRecorder):
         """
 
 
-class EventStore(Generic[TDomainEvent]):
+class EventStore:
     """
     Stores and retrieves domain events.
     """
 
     def __init__(
         self,
-        mapper: Mapper[TDomainEvent],
+        mapper: Mapper,
         recorder: AggregateRecorder,
     ):
         self.mapper = mapper
         self.recorder = recorder
 
-    def put(self, events: List[TDomainEvent], **kwargs: Any) -> None:
+    def put(self, events: Sequence[DomainEvent[Any]], **kwargs: Any) -> None:
         """
         Stores domain events in aggregate sequence.
         """
@@ -503,7 +503,7 @@ class EventStore(Generic[TDomainEvent]):
         lte: Optional[int] = None,
         desc: bool = False,
         limit: Optional[int] = None,
-    ) -> Iterator[TDomainEvent]:
+    ) -> Iterator[DomainEvent[Any]]:
         """
         Retrieves domain events from aggregate sequence.
         """
@@ -535,7 +535,7 @@ class InfrastructureFactory(ABC):
     def construct(
         cls,
         application_name: str = "",
-        env: Optional[Mapping] = None,
+        env: Optional[Mapping[str, str]] = None,
     ) -> "InfrastructureFactory":
         """
         Constructs concrete infrastructure factory for given
@@ -562,7 +562,7 @@ class InfrastructureFactory(ABC):
             raise AssertionError(f"Not an infrastructure factory: {topic}")
         return factory_cls(application_name=application_name, env=env)
 
-    def __init__(self, application_name: str, env: Mapping):
+    def __init__(self, application_name: str, env: Mapping[str, str]):
         """
         Initialises infrastructure factory object with given application name.
         """

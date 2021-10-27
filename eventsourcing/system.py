@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from threading import Event, Lock, Thread
-from typing import Dict, Iterable, Iterator, List, Set, Tuple, Type, TypeVar
+from typing import Any, Dict, Generic, Iterable, Iterator, List, Set, Tuple, Type, \
+    TypeVar
 
 from eventsourcing.application import (
     Application,
@@ -9,7 +10,7 @@ from eventsourcing.application import (
     ProcessEvent,
     Section,
 )
-from eventsourcing.domain import AggregateEvent
+from eventsourcing.domain import Aggregate, AggregateEvent, DomainEvent, TAggregate
 from eventsourcing.persistence import (
     Mapper,
     Notification,
@@ -19,7 +20,7 @@ from eventsourcing.persistence import (
 from eventsourcing.utils import get_topic, resolve_topic
 
 
-class Follower(Application):
+class Follower(Application[TAggregate]):
     """
     Extends the :class:`~eventsourcing.application.Application` class
     by using a process recorder as its application recorder, by keeping
@@ -33,7 +34,7 @@ class Follower(Application):
             str,
             Tuple[
                 NotificationLogReader,
-                Mapper[AggregateEvent],
+                Mapper,
             ],
         ] = {}
         self.recorder: ProcessRecorder
@@ -79,6 +80,7 @@ class Follower(Application):
         start = self.recorder.max_tracking_id(name) + 1
         for notification in reader.select(start=start):
             domain_event = mapper.to_domain_event(notification)
+            assert isinstance(domain_event, AggregateEvent)
             process_event = ProcessEvent(
                 Tracking(
                     application_name=name,
@@ -94,7 +96,7 @@ class Follower(Application):
     @abstractmethod
     def policy(
         self,
-        domain_event: AggregateEvent,
+        domain_event: AggregateEvent[Aggregate],
         process_event: ProcessEvent,
     ) -> None:
         """
@@ -124,7 +126,7 @@ class Promptable(ABC):
         """
 
 
-class Leader(Application):
+class Leader(Application[TAggregate]):
     """
     Extends the :class:`~eventsourcing.application.Application`
     class by also being responsible for keeping track of
@@ -142,7 +144,7 @@ class Leader(Application):
         """
         self.followers.append(follower)
 
-    def notify(self, new_events: List[AggregateEvent]) -> None:
+    def notify(self, new_events: List[AggregateEvent[Aggregate]]) -> None:
         """
         Extends the application :func:`~eventsourcing.application.Application.notify`
         method by calling :func:`prompt_followers` whenever new events have just
@@ -162,7 +164,7 @@ class Leader(Application):
             follower.receive_prompt(name)
 
 
-class ProcessApplication(Leader, Follower, ABC):
+class ProcessApplication(Leader[TAggregate], Follower[TAggregate], ABC):
     """
     Base class for event processing applications
     that are both "leaders" and followers".
@@ -176,9 +178,9 @@ class System:
 
     def __init__(
         self,
-        pipes: Iterable[Iterable[Type[Application]]],
+        pipes: Iterable[Iterable[Type[Application[Aggregate]]]],
     ):
-        nodes: Dict[str, Type[Application]] = {}
+        nodes: Dict[str, Type[Application[Aggregate]]] = {}
         edges: Set[Tuple[str, str]] = set()
         # Build nodes and edges.
         for pipe in pipes:
@@ -237,12 +239,12 @@ class System:
     def processors(self) -> Iterable[str]:
         return set(self.leaders).intersection(self.followers)
 
-    def get_app_cls(self, name: str) -> Type[Application]:
+    def get_app_cls(self, name: str) -> Type[Application[Aggregate]]:
         cls = resolve_topic(self.nodes[name])
         assert issubclass(cls, Application)
         return cls
 
-    def leader_cls(self, name: str) -> Type[Leader]:
+    def leader_cls(self, name: str) -> Type[Leader[Aggregate]]:
         cls = self.get_app_cls(name)
         if issubclass(cls, Leader):
             return cls
@@ -255,7 +257,7 @@ class System:
             assert issubclass(cls, Leader)
             return cls
 
-    def follower_cls(self, name: str) -> Type[Follower]:
+    def follower_cls(self, name: str) -> Type[Follower[Aggregate]]:
         cls = self.get_app_cls(name)
         assert issubclass(cls, Follower)
         return cls
@@ -316,7 +318,7 @@ class SingleThreadedRunner(Runner, Promptable):
         Initialises runner with the given :class:`System`.
         """
         super().__init__(system)
-        self.apps: Dict[str, Application] = {}
+        self.apps: Dict[str, Application[Aggregate]] = {}
         self.prompts_received: List[str] = []
         self.is_prompting = False
 
@@ -393,7 +395,7 @@ class MultiThreadedRunner(Runner):
         Initialises runner with the given :class:`System`.
         """
         super().__init__(system)
-        self.apps: Dict[str, Application] = {}
+        self.apps: Dict[str, Application[Aggregate]] = {}
         self.threads: Dict[str, MultiThreadedRunnerThread] = {}
         self.is_stopping = Event()
 
@@ -477,7 +479,7 @@ class MultiThreadedRunnerThread(Promptable, Thread):
 
     def __init__(
         self,
-        app_class: Type[Follower],
+        app_class: Type[Follower[Aggregate]],
         is_stopping: Event,
     ):
         super().__init__()
@@ -501,7 +503,7 @@ class MultiThreadedRunnerThread(Promptable, Thread):
         :func:`~Follower.pull_and_process` method for each prompted name.
         """
         try:
-            self.app: Follower = self.app_class()
+            self.app: Follower[Aggregate] = self.app_class()
         except Exception:
             self.has_errored.set()
             self.has_stopped.set()

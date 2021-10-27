@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, cast
 from uuid import UUID
 
 from eventsourcing.application import Application
@@ -45,10 +45,10 @@ class ItineraryAsDict(Transcoding):
     type = Itinerary
     name = "itinerary"
 
-    def encode(self, obj: Itinerary) -> dict:
+    def encode(self, obj: Itinerary) -> Dict[str, Any]:
         return obj.__dict__
 
-    def decode(self, data: dict) -> Itinerary:
+    def decode(self, data: Dict[str, Any]) -> Itinerary:
         assert isinstance(data, dict)
         return Itinerary(**data)
 
@@ -57,10 +57,10 @@ class LegAsDict(Transcoding):
     type = Leg
     name = "leg"
 
-    def encode(self, obj: Leg) -> dict:
+    def encode(self, obj: Leg) -> Dict[str, Any]:
         return obj.__dict__
 
-    def decode(self, data: dict) -> Leg:
+    def decode(self, data: Dict[str, Any]) -> Leg:
         assert isinstance(data, dict)
         return Leg(**data)
 
@@ -123,6 +123,4 @@ class BookingApplication(Application):
         self.save(cargo)
 
     def get_cargo(self, tracking_id: UUID) -> Cargo:
-        cargo = self.repository.get(tracking_id)
-        assert isinstance(cargo, Cargo)
-        return cargo
+        return self.repository.get(tracking_id)

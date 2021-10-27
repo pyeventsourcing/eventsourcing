@@ -1,4 +1,5 @@
 from decimal import Decimal
+from typing import cast
 from uuid import UUID
 
 from eventsourcing.application import AggregateNotFound, Application
@@ -9,7 +10,7 @@ class AccountNotFoundError(Exception):
     pass
 
 
-class BankAccounts(Application):
+class BankAccounts(Application[BankAccount]):
     def open_account(self, full_name: str, email_address: str) -> UUID:
         account = BankAccount.open(
             full_name=full_name,
@@ -20,12 +21,9 @@ class BankAccounts(Application):
 
     def get_account(self, account_id: UUID) -> BankAccount:
         try:
-            aggregate = self.repository.get(account_id)
+            return self.repository.get(account_id)
         except AggregateNotFound:
             raise AccountNotFoundError(account_id)
-        else:
-            assert isinstance(aggregate, BankAccount)
-            return aggregate
 
     def get_balance(self, account_id: UUID) -> Decimal:
         account = self.get_account(account_id)

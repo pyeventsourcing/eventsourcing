@@ -1,16 +1,20 @@
 from datetime import datetime
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID
 
 from eventsourcing.examples.cargoshipping.application import BookingApplication
 from eventsourcing.examples.cargoshipping.domainmodel import (
-    CargoDetails,
     HandlingActivity,
     Itinerary,
     ItineraryDetails,
     LegDetails,
     Location,
 )
+
+NextExpectedActivityDetails = Optional[Tuple[str, ...]]
+CargoDetails = Dict[
+    str, Optional[Union[str, bool, datetime, NextExpectedActivityDetails]]
+]
 
 
 class BookingService(object):
@@ -39,7 +43,7 @@ class BookingService(object):
         cargo = self.app.get_cargo(UUID(tracking_id))
 
         # Present 'next_expected_activity'.
-        next_expected_activity: Optional[Union[Tuple[Any, Any], Tuple[Any, Any, Any]]]
+        next_expected_activity: NextExpectedActivityDetails
         if cargo.next_expected_activity is None:
             next_expected_activity = None
         elif len(cargo.next_expected_activity) == 2:
@@ -84,7 +88,9 @@ class BookingService(object):
     def change_destination(self, tracking_id: str, destination: str) -> None:
         self.app.change_destination(UUID(tracking_id), Location[destination])
 
-    def request_possible_routes_for_cargo(self, tracking_id: str) -> List[dict]:
+    def request_possible_routes_for_cargo(
+        self, tracking_id: str
+    ) -> List[ItineraryDetails]:
         routes = self.app.request_possible_routes_for_cargo(UUID(tracking_id))
         return [self.dict_from_itinerary(route) for route in routes]
 

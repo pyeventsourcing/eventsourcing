@@ -1,14 +1,14 @@
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, Generic, List, Mapping, Optional, Type, TypeVar
+from typing import Any, Dict, Generic, List, Mapping, Optional, Sequence, Type, TypeVar
 from uuid import UUID
 
 from eventsourcing.domain import (
     Aggregate,
     AggregateEvent,
-    Snapshot,
-    TAggregate,
+    DomainEvent, Snapshot,
+    TAggregate, TDomainEvent,
 )
 from eventsourcing.persistence import (
     ApplicationRecorder,
@@ -33,8 +33,8 @@ class Repository(Generic[TAggregate]):
 
     def __init__(
         self,
-        event_store: EventStore[AggregateEvent],
-        snapshot_store: Optional[EventStore[Snapshot]] = None,
+        event_store: EventStore,
+        snapshot_store: Optional[EventStore] = None,
     ):
         """
         Initialises repository with given event store (an
@@ -70,7 +70,7 @@ class Repository(Generic[TAggregate]):
                 pass
             else:
                 gt = snapshot.originator_version
-                aggregate = snapshot.mutate()
+                aggregate = snapshot.mutate(None)
 
         # Get aggregate events.
         domain_events = self.event_store.get(
@@ -234,7 +234,7 @@ class ProcessEvent:
         Initalises the process event with the given tracking object.
         """
         self.tracking = tracking
-        self.events: List[AggregateEvent] = []
+        self.events: List[AggregateEvent[Any]] = []
         self.ids_and_types: Dict[UUID, Type[Aggregate]] = {}
         self.saved_kwargs: Dict[Any, Any] = {}
 
@@ -244,7 +244,7 @@ class ProcessEvent:
         """
         for aggregate in aggregates:
             self.ids_and_types[aggregate.id] = type(aggregate)
-            self.events += aggregate.collect_events()
+            self.events = self.events + aggregate.collect_events()
         self.saved_kwargs.update(kwargs)
 
 
@@ -257,7 +257,7 @@ class Application(ABC, Generic[TAggregate]):
     is_snapshotting_enabled: bool = False
     snapshotting_intervals: Optional[Dict[Type[Aggregate], int]] = None
 
-    def __init__(self, env: Optional[Mapping] = None) -> None:
+    def __init__(self, env: Optional[Mapping[str, str]] = None) -> None:
         """
         Initialises an application with an
         :class:`~eventsourcing.persistence.InfrastructureFactory`,
@@ -276,7 +276,7 @@ class Application(ABC, Generic[TAggregate]):
         self.repository = self.construct_repository()
         self.log = self.construct_notification_log()
 
-    def construct_env(self, env: Optional[Mapping] = None) -> Mapping:
+    def construct_env(self, env: Optional[Mapping[str, str]] = None) -> Mapping[str, str]:
         """
         Constructs environment from which application will be configured.
         """
@@ -331,7 +331,7 @@ class Application(ABC, Generic[TAggregate]):
         """
         return self.factory.application_recorder()
 
-    def construct_event_store(self) -> EventStore[AggregateEvent]:
+    def construct_event_store(self) -> EventStore:
         """
         Constructs an :class:`~eventsourcing.persistence.EventStore`
         for use by the application to store and retrieve aggregate
@@ -342,7 +342,7 @@ class Application(ABC, Generic[TAggregate]):
             recorder=self.recorder,
         )
 
-    def construct_snapshot_store(self) -> Optional[EventStore[Snapshot]]:
+    def construct_snapshot_store(self) -> Optional[EventStore]:
         """
         Constructs an :class:`~eventsourcing.persistence.EventStore`
         for use by the application to store and retrieve aggregate
@@ -371,7 +371,7 @@ class Application(ABC, Generic[TAggregate]):
         """
         return LocalNotificationLog(self.recorder, section_size=10)
 
-    def save(self, *aggregates: Aggregate, **kwargs: Any) -> None:
+    def save(self, *aggregates: TAggregate, **kwargs: Any) -> None:
         """
         Collects pending events from given aggregates and
         puts them in the application's event store.
@@ -407,7 +407,7 @@ class Application(ABC, Generic[TAggregate]):
         # Notify others of the events.
         self.notify(process_event.events)
 
-    def notify(self, new_events: List[AggregateEvent]) -> None:
+    def notify(self, new_events: List[AggregateEvent[Aggregate]]) -> None:
         """
         Called after new domain events have been saved. This
         method on this class class doesn't actually do anything,
@@ -434,7 +434,7 @@ class Application(ABC, Generic[TAggregate]):
             self.snapshots.put([snapshot])
 
 
-TApplication = TypeVar("TApplication", bound=Application)
+TApplication = TypeVar("TApplication", bound=Application[Aggregate])
 
 
 class AggregateNotFound(Exception):

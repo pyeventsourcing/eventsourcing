@@ -1,14 +1,13 @@
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union, cast
 from uuid import UUID, uuid4
 
 from eventsourcing.dispatch import singledispatchmethod
 from eventsourcing.domain import (
-    TZINFO,
+    AggregateEvent, TAggregate,
+    TAggregateEvent, TZINFO,
     Aggregate,
-    AggregateCreated,
-    AggregateEvent,
 )
 
 
@@ -68,18 +67,12 @@ class HandlingActivity(Enum):
 
 
 # Custom static types.
-CargoDetails = Dict[str, Optional[Union[str, bool, datetime, Tuple]]]
-
 LegDetails = Dict[str, str]
 
 ItineraryDetails = Dict[str, Union[str, List[LegDetails]]]
 
-NextExpectedActivity = Optional[
-    Union[
-        Tuple[HandlingActivity, Location],
-        Tuple[HandlingActivity, Location, str],
-    ]
-]
+NextExpectedActivity = Optional[Tuple[HandlingActivity, Location, str]]
+
 
 
 # Some routes from one location to another.
@@ -179,7 +172,7 @@ class Cargo(Aggregate):
         return self._estimated_time_of_arrival
 
     @property
-    def next_expected_activity(self) -> Optional[Tuple]:
+    def next_expected_activity(self) -> NextExpectedActivity:
         return self._next_expected_activity
 
     @property
@@ -202,24 +195,24 @@ class Cargo(Aggregate):
         arrival_deadline: datetime,
     ) -> "Cargo":
         return cls._create(
-            event_class=Cargo.BookingStarted,
+            event_class=cls.BookingStarted,
             id=uuid4(),
             origin=origin,
             destination=destination,
             arrival_deadline=arrival_deadline,
         )
 
-    class BookingStarted(AggregateCreated):
+    class Event(Aggregate.Event["Cargo"]):
+        def apply(self, aggregate: "Cargo") -> None:
+            aggregate.apply(self)
+
+    class BookingStarted(Aggregate.Created["Cargo"], Event):
         origin: Location
         destination: Location
         arrival_deadline: datetime
 
-    class Event(AggregateEvent["Cargo"]):
-        def apply(self, aggregate: "Cargo") -> None:
-            aggregate.apply(self)
-
     @singledispatchmethod
-    def apply(self, event: "Cargo.Event") -> None:
+    def apply(self, event: Event) -> None:
         """
         Default aggregate projection.
         """
@@ -251,6 +244,7 @@ class Cargo(Aggregate):
         self._next_expected_activity = (
             HandlingActivity.RECEIVE,
             self.origin,
+            ""
         )
         self._is_misdirected = False
 
@@ -315,6 +309,7 @@ class Cargo(Aggregate):
                 self._next_expected_activity = (
                     HandlingActivity.CLAIM,
                     event.location,
+                    ""
                 )
             elif event.location.value in [leg.destination for leg in self.route.legs]:
                 for i, leg in enumerate(self.route.legs):
@@ -339,3 +334,6 @@ class Cargo(Aggregate):
             raise Exception(
                 "Unsupported handling event: {}".format(event.handling_activity)
             )
+
+
+TCargo = TypeVar("TCargo", bound=Cargo)

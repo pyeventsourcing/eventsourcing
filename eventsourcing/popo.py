@@ -59,7 +59,7 @@ class POPOAggregateRecorder(AggregateRecorder):
             results = []
 
             index = self.stored_events_index[originator_id]
-            positions: Iterable = index.keys()
+            positions: Iterable[int] = index.keys()
             if desc:
                 positions = reversed(list(positions))
             for p in positions:

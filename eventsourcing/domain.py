@@ -1,6 +1,6 @@
 import inspect
 import os
-from abc import ABC, ABCMeta
+from abc import ABC, ABCMeta, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
 from types import FunctionType, WrapperDescriptorType
@@ -12,10 +12,12 @@ from typing import (
     Iterable,
     List,
     Optional,
+    Tuple,
     Type,
     TypeVar,
     Union,
     cast,
+    overload,
 )
 from uuid import UUID, uuid4
 
@@ -24,12 +26,14 @@ from eventsourcing.utils import get_method_name, get_topic, resolve_topic
 # noinspection SpellCheckingInspection
 TZINFO: tzinfo = resolve_topic(os.getenv("TZINFO_TOPIC", "datetime:timezone.utc"))
 
-# noinspection PyTypeChecker
+
 TAggregate = TypeVar("TAggregate", bound="Aggregate")
 
 
 class MetaDomainEvent(ABCMeta):
-    def __new__(mcs, name: str, bases: tuple, cls_dict: dict) -> "MetaDomainEvent":
+    def __new__(
+        mcs, name: str, bases: Tuple[type], cls_dict: Dict[str, Any]
+    ) -> "MetaDomainEvent":
         event_cls = ABCMeta.__new__(mcs, name, bases, cls_dict)
         event_cls = dataclass(frozen=True)(event_cls)  # type: ignore
         return event_cls
@@ -38,7 +42,11 @@ class MetaDomainEvent(ABCMeta):
         super().__init__(*args, **kwargs)
 
 
-class DomainEvent(ABC, metaclass=MetaDomainEvent):
+T = TypeVar("T")
+
+
+@dataclass(frozen=True)
+class DomainEvent(ABC, Generic[T]):
     # noinspection PyUnresolvedReferences
     """
     Base class for domain events, such as aggregate :class:`AggregateEvent`
@@ -55,21 +63,48 @@ class DomainEvent(ABC, metaclass=MetaDomainEvent):
     originator_version: int
     timestamp: datetime
 
+    def mutate(self, aggregate: Optional[T]) -> Optional[T]:
+        """Abstract mutator method."""
 
-class AggregateEvent(DomainEvent, Generic[TAggregate]):
-    # noinspection PyUnresolvedReferences
+
+TDomainEvent = TypeVar("TDomainEvent", bound=DomainEvent[Any])
+
+
+# class Aggregate:
+#     @property
+#     def id(self) -> UUID:
+#         ...
+#
+#     @property
+#     def modified_on(self) -> datetime:
+#         ...
+#
+#     @property
+#     def version(self) -> int:
+#         ...
+#
+#     @property
+#     def pending_events(self) -> List["AggregateEvent"]:
+#         ...
+#
+#     def trigger_event(
+#         self,
+#         event_class: Type["AggregateEvent"],
+#         **kwargs: Any,
+#     ) -> None:
+#         ...
+#
+#     def collect_events(self) -> List["AggregateEvent[TAggregate]"]:
+#         ...
+
+
+class AggregateEvent(DomainEvent[TAggregate], metaclass=MetaDomainEvent):
     """
     Base class for aggregate events. Subclasses will model
     decisions made by the domain model aggregates.
-
-    Constructor arguments:
-
-    :param UUID originator_id: ID of originating aggregate.
-    :param int originator_version: version of originating aggregate.
-    :param datetime timestamp: date-time of the event
     """
 
-    def mutate(self, obj: Optional[TAggregate]) -> Optional[TAggregate]:
+    def mutate(self, aggregate: Optional[TAggregate]) -> Optional[TAggregate]:
         """
         Changes the state of the aggregate
         according to domain event attributes.
@@ -77,21 +112,21 @@ class AggregateEvent(DomainEvent, Generic[TAggregate]):
         # Check event is next in its sequence.
         # Use counting to follow the sequence.
         # assert isinstance(obj, Aggregate), (type(obj), self)
-        assert obj is not None
-        next_version = obj.version + 1
+        assert aggregate is not None
+        next_version = aggregate.version + 1
         if self.originator_version != next_version:
             raise VersionError(self.originator_version, next_version)
-        if self.apply(obj) is not None:  # type: ignore
+        if self.apply(aggregate) is not None:  # type: ignore
             raise TypeError(
                 f"Unexpected value returned from "
                 f"{type(self).apply.__qualname__}(). Values "
                 f"returned from 'apply' methods are discarded."
             )
         # Update the aggregate version.
-        obj.version = self.originator_version
+        aggregate.version = self.originator_version
         # Update the modified time.
-        obj.modified_on = self.timestamp
-        return obj
+        aggregate.modified_on = self.timestamp
+        return aggregate
 
     # noinspection PyShadowingNames
     def apply(self, aggregate: TAggregate) -> None:
@@ -100,7 +135,10 @@ class AggregateEvent(DomainEvent, Generic[TAggregate]):
         """
 
 
-class AggregateCreated(AggregateEvent["Aggregate"]):
+TAggregateEvent = TypeVar("TAggregateEvent", bound=AggregateEvent[Any])
+
+
+class AggregateCreated(AggregateEvent[TAggregate]):
     # noinspection PyUnresolvedReferences
     """
     Domain event for when aggregate is created.
@@ -115,21 +153,20 @@ class AggregateCreated(AggregateEvent["Aggregate"]):
 
     originator_topic: str
 
-    def mutate(self, obj: Optional[TAggregate]) -> TAggregate:
+    def mutate(self, aggregate: Optional[TAggregate]) -> Optional[TAggregate]:
         """
         Constructs aggregate instance defined
         by domain event object attributes.
         """
-        assert obj is None
+        assert aggregate is None
         # Copy the event attributes.
         kwargs = self.__dict__.copy()
         # Resolve originator topic.
-        aggregate_class: Type[TAggregate] = resolve_topic(
-            kwargs.pop("originator_topic")
-        )
+        aggregate_class: Type[TAggregate] = resolve_topic(kwargs.pop(
+            "originator_topic"))
 
         # Construct and return aggregate object.
-        agg: TAggregate = aggregate_class.__new__(aggregate_class)
+        agg = aggregate_class.__new__(aggregate_class)
         # Separate the base class keywords arguments.
         base_kwargs = {
             "id": kwargs.pop("originator_id"),
@@ -137,10 +174,10 @@ class AggregateCreated(AggregateEvent["Aggregate"]):
             "timestamp": kwargs.pop("timestamp"),
         }
         # Call the base class init method.
-        Aggregate.__base_init__(agg, **base_kwargs)
+        agg.__base_init__(**base_kwargs)
         # Call the aggregate class init method.
         # noinspection PyTypeChecker
-        init_method = agg.__init__  # type: ignore
+        init_method = agg.__init__
         # Provide the id, if the init method expects it.
         if aggregate_class._init_mentions_id:
             kwargs["id"] = base_kwargs["id"]
@@ -149,10 +186,15 @@ class AggregateCreated(AggregateEvent["Aggregate"]):
         return agg
 
 
+TAggregateCreated = TypeVar("TAggregateCreated", bound=AggregateCreated[Any])
+
+
 class CommandMethodDecorator:
-    def __init__(self, arg: Union[Callable, str, Type[AggregateEvent]]):
+    def __init__(
+        self, arg: Union[Callable[[Any], Any], str, Type[AggregateEvent[Any]]]
+    ):
         self.is_name_inferred_from_method = False
-        self.given_event_cls: Optional[Type[AggregateEvent]] = None
+        self.given_event_cls: Optional[Type[AggregateEvent[Any]]] = None
         self.event_cls_name: Optional[str] = None
         self.is_property_setter = False
         self.property_setter_arg_name: Optional[str] = None
@@ -197,7 +239,7 @@ class CommandMethodDecorator:
             )
         _check_no_variable_params(self.original_method)
 
-    def initialise_from_event_cls(self, event_cls: Type[AggregateEvent]) -> None:
+    def initialise_from_event_cls(self, event_cls: Type[AggregateEvent[Any]]) -> None:
         self.given_event_cls = event_cls
 
     def initialise_from_explicit_name(self, event_cls_name: str) -> None:
@@ -275,7 +317,7 @@ class CommandMethodDecorator:
             bound.trigger(**kwargs)
 
     def __get__(
-        self, instance: Optional[TAggregate], owner: "MetaAggregate"
+        self, instance: Optional["Aggregate"], owner: "MetaAggregate"
     ) -> Union["BoundCommandMethodDecorator", "UnboundCommandMethodDecorator"]:
         if self.is_decorating_a_property:
             assert self.decorated_property
@@ -286,7 +328,7 @@ class CommandMethodDecorator:
             else:
                 return BoundCommandMethodDecorator(self, instance)
 
-    def __set__(self, instance: TAggregate, value: Any) -> None:
+    def __set__(self, instance: "Aggregate", value: Any) -> None:
         assert self.is_decorating_a_property
         # Set decorated property.
         b = BoundCommandMethodDecorator(self, instance)
@@ -296,7 +338,7 @@ class CommandMethodDecorator:
 
 
 def event(
-    arg: Optional[Union[FunctionType, str, Type[AggregateEvent]]] = None
+    arg: Optional[Union[FunctionType, str, Type[AggregateEvent[Any]]]] = None
 ) -> CommandMethodDecorator:
     """
     Can be used to decorate an aggregate method so that when the
@@ -380,7 +422,9 @@ class BoundCommandMethodDecorator:
     """
 
     # noinspection PyShadowingNames
-    def __init__(self, event_decorator: CommandMethodDecorator, aggregate: TAggregate):
+    def __init__(
+        self, event_decorator: CommandMethodDecorator, aggregate: "TAggregate"
+    ):
         """
 
         :param CommandMethodDecorator event_decorator:
@@ -412,9 +456,9 @@ class BoundCommandMethodDecorator:
 original_methods: Dict[MetaDomainEvent, FunctionType] = {}
 
 
-class DecoratedEvent(AggregateEvent):
+class DecoratedEvent(AggregateEvent[Any]):
     # noinspection PyShadowingNames
-    def apply(self, aggregate: TAggregate) -> None:
+    def apply(self, aggregate: "TAggregate") -> None:
         """
         Applies event to aggregate by calling
         method decorated by @event.
@@ -440,11 +484,6 @@ class DecoratedEvent(AggregateEvent):
                 f"{original_method.__qualname__}(). Values "
                 f"returned from 'apply' methods are discarded."
             )
-
-
-TDomainEvent = TypeVar("TDomainEvent", bound=DomainEvent)
-TAggregateEvent = TypeVar("TAggregateEvent", bound=AggregateEvent)
-TAggregateCreated = TypeVar("TAggregateCreated", bound=AggregateCreated)
 
 
 def _check_no_variable_params(
@@ -570,12 +609,15 @@ def raise_missing_names_type_error(missing_names: List[str], msg: str) -> None:
     raise TypeError(msg)
 
 
+TT = TypeVar("TT", bound="type")
+
+
 class MetaAggregate(ABCMeta):
     _annotations_mention_id = False
     _init_mentions_id = False
     INITIAL_VERSION = 1
 
-    def __new__(mcs, *args: Any, **kwargs: Any) -> "MetaAggregate":
+    def __new__(mcs: Type[TT], *args: Any, **kwargs: Any) -> TT:
         try:
             args[2]["__annotations__"].pop("id")
         except KeyError:
@@ -584,7 +626,7 @@ class MetaAggregate(ABCMeta):
             args[2]["_annotations_mention_id"] = True
         cls = ABCMeta.__new__(mcs, *args)
         cls = dataclass(eq=False, repr=False)(cls)
-        return cast(MetaAggregate, cls)
+        return cls
 
     def __init__(
         cls,
@@ -734,7 +776,7 @@ class MetaAggregate(ABCMeta):
             if param.kind in [param.KEYWORD_ONLY, param.POSITIONAL_OR_KEYWORD]:
                 cls._create_id_param_names.append(name)
 
-    def __call__(cls: "MetaAggregate", *args: Any, **kwargs: Any) -> TAggregate:
+    def __call__(cls: "MetaAggregate", *args: Any, **kwargs: Any) -> Any:
         # noinspection PyTypeChecker
         self_init: WrapperDescriptorType = cls.__init__  # type: ignore
         kwargs = _coerce_args_to_kwargs(
@@ -743,25 +785,15 @@ class MetaAggregate(ABCMeta):
         if cls._created_event_class is None:
             raise TypeError("attribute '_created_event_class' not set on class")
         else:
-            new_aggregate: TAggregate = cls._create(
+            return cls._create(
                 event_class=cls._created_event_class,
-                # id=id,
                 **kwargs,
             )
-            return new_aggregate
-
-    # noinspection PyUnusedLocal
-    @staticmethod
-    def create_id(**kwargs: Any) -> UUID:
-        """
-        Returns a new aggregate ID.
-        """
-        return uuid4()
 
     # noinspection PyShadowingBuiltins
     def _create(
         cls,
-        event_class: Type[TAggregateCreated],
+        event_class: Type[AggregateCreated[TAggregate]],
         *,
         id: Optional[UUID] = None,
         **kwargs: Any,
@@ -778,7 +810,7 @@ class MetaAggregate(ABCMeta):
         }
 
         try:
-            created_event: TAggregateCreated = event_class(  # type: ignore
+            created_event = event_class(  # type: ignore
                 originator_topic=get_topic(cls),
                 originator_id=id or cls.create_id(**create_id_kwargs),
                 originator_version=cls.INITIAL_VERSION,
@@ -793,11 +825,21 @@ class MetaAggregate(ABCMeta):
             )
             raise TypeError(msg)
         # Construct the aggregate object.
-        agg: TAggregate = created_event.mutate(None)
+        agg = created_event.mutate(None)
+
+        assert agg is not None
         # Append the domain event to pending list.
         agg.pending_events.append(created_event)
         # Return the aggregate.
         return agg
+
+    # noinspection PyUnusedLocal
+    @staticmethod
+    def create_id(**kwargs: Any) -> UUID:
+        """
+        Returns a new aggregate ID.
+        """
+        return uuid4()
 
 
 class Aggregate(ABC, metaclass=MetaAggregate):
@@ -805,38 +847,17 @@ class Aggregate(ABC, metaclass=MetaAggregate):
     Base class for aggregate roots.
     """
 
-    class Event(AggregateEvent):
-        pass
-
-    class Created(AggregateCreated):
-        pass
-
-    def __new__(cls, *args: Any, **kwargs: Any) -> Any:
-        return object.__new__(cls)
-
-    def __eq__(self, other: Any) -> bool:
-        return type(self) == type(other) and self.__dict__ == other.__dict__
-
-    def __repr__(self) -> str:
-        attrs = [
-            f"{k.lstrip('_')}={v!r}"
-            for k, v in self.__dict__.items()
-            if k != "_pending_events"
-        ]
-        return f"{type(self).__name__}({', '.join(attrs)})"
-
     # noinspection PyShadowingBuiltins
     def __base_init__(self, id: UUID, version: int, timestamp: datetime) -> None:
         """
         Initialises an aggregate object with an :data:`id`, a :data:`version`
-        number, and a :data:`timestamp`. The internal :data:`pending_events` list
-        is also initialised.
+        number, and a :data:`timestamp`.
         """
         self._id = id
         self._version = version
         self._created_on = timestamp
         self._modified_on = timestamp
-        self._pending_events: List[AggregateEvent] = []
+        self._pending_events: List[AggregateEvent[Any]] = []
 
     @property
     def id(self) -> UUID:
@@ -854,6 +875,7 @@ class Aggregate(ABC, metaclass=MetaAggregate):
 
     @version.setter
     def version(self, version: int) -> None:
+        # noinspection PyAttributeOutsideInit
         self._version = version
 
     @property
@@ -872,14 +894,35 @@ class Aggregate(ABC, metaclass=MetaAggregate):
 
     @modified_on.setter
     def modified_on(self, modified_on: datetime) -> None:
+        # noinspection PyAttributeOutsideInit
         self._modified_on = modified_on
 
     @property
-    def pending_events(self) -> List[AggregateEvent]:
+    def pending_events(self) -> List[AggregateEvent[Any]]:
         """
         A list of pending events.
         """
         return self._pending_events
+
+    class Event(AggregateEvent[TAggregate]):
+        pass
+
+    class Created(Event[TAggregate], AggregateCreated[TAggregate]):
+        pass
+
+    def __new__(cls, *args: Any, **kwargs: Any) -> Any:
+        return object.__new__(cls)
+
+    def __eq__(self, other: Any) -> bool:
+        return type(self) == type(other) and self.__dict__ == other.__dict__
+
+    def __repr__(self) -> str:
+        attrs = [
+            f"{k.lstrip('_')}={v!r}"
+            for k, v in self.__dict__.items()
+            if k != "_pending_events"
+        ]
+        return f"{type(self).__name__}({', '.join(attrs)})"
 
     def trigger_event(
         self,
@@ -909,7 +952,7 @@ class Aggregate(ABC, metaclass=MetaAggregate):
         # Append the domain event to pending list.
         self.pending_events.append(new_event)
 
-    def collect_events(self) -> List[AggregateEvent]:
+    def collect_events(self) -> List[AggregateEvent[Any]]:
         """
         Collects and returns a list of pending aggregate
         :class:`AggregateEvent` objects.
@@ -920,9 +963,21 @@ class Aggregate(ABC, metaclass=MetaAggregate):
         return collected
 
 
+@overload
+def aggregate(*, created_event_name: str) -> Callable[[Any], Type[Aggregate]]:
+    ...
+
+
+@overload
+def aggregate(cls: Any) -> Type[Aggregate]:
+    ...
+
+
 def aggregate(
-    cls: Optional[MetaAggregate] = None, *, created_event_name: Optional[str] = None
-) -> Union[MetaAggregate, Callable]:
+    cls: Optional[Any] = None,
+    *,
+    created_event_name: Optional[str] = None,
+) -> Union[Type[Aggregate], Callable[[Any], Type[Aggregate]]]:
     """
     Converts the class that was passed in to inherit from Aggregate.
 
@@ -940,7 +995,7 @@ def aggregate(
             pass
     """
 
-    def decorator(cls: Any) -> MetaAggregate:
+    def decorator(cls: Any) -> Type[Aggregate]:
         if issubclass(cls, Aggregate):
             raise TypeError(f"{cls.__name__} is already an Aggregate")
         bases = cls.__bases__
@@ -948,12 +1003,16 @@ def aggregate(
             bases = (Aggregate,)
         else:
             bases += (Aggregate,)
-        return MetaAggregate(
+        cls_dict = dict()
+        cls_dict.update(cls.__dict__)
+        cls = MetaAggregate(
             cls.__name__,
             bases,
-            dict(cls.__dict__),
+            cls_dict,
             created_event_name=created_event_name,
         )
+        assert issubclass(cls, Aggregate)
+        return cls
 
     if cls:
         return decorator(cls)
@@ -970,7 +1029,7 @@ class VersionError(Exception):
     """
 
 
-class Snapshot(DomainEvent):
+class Snapshot(DomainEvent["Aggregate"], metaclass=MetaDomainEvent):
     # noinspection PyUnresolvedReferences
     """
     Snapshots represent the state of an aggregate at a particular
@@ -986,11 +1045,11 @@ class Snapshot(DomainEvent):
     """
 
     topic: str
-    state: dict
+    state: Dict[str, Any]
 
     # noinspection PyShadowingNames
     @classmethod
-    def take(cls, aggregate: TAggregate) -> "Snapshot":
+    def take(cls, aggregate: Aggregate) -> "Snapshot":
         """
         Creates a snapshot of the given :class:`Aggregate` object.
         """
@@ -1010,7 +1069,7 @@ class Snapshot(DomainEvent):
             state=aggregate_state,
         )
 
-    def mutate(self, _: None = None) -> TAggregate:
+    def mutate(self, aggregate: Optional[Aggregate]) -> Optional[Aggregate]:
         """
         Reconstructs the snapshotted :class:`Aggregate` object.
         """

@@ -1,4 +1,4 @@
-from dataclasses import _DataclassParams
+from dataclasses import _DataclassParams, dataclass
 from datetime import datetime
 from unittest.case import TestCase
 from uuid import UUID, uuid4
@@ -18,8 +18,8 @@ class TestMetaDomainEvent(TestCase):
 
 
 class TestDomainEvent(TestCase):
-    def test_domain_event_class_is_a_meta_domain_event(self):
-        self.assertIsInstance(DomainEvent, MetaDomainEvent)
+    # def test_domain_event_class_is_a_meta_domain_event(self):
+    #     self.assertIsInstance(DomainEvent, MetaDomainEvent)
 
     def test_domain_event_instance(self):
         originator_id = uuid4()
@@ -37,6 +37,7 @@ class TestDomainEvent(TestCase):
     def test_examples(self):
 
         # Define an 'account opened' domain event.
+        @dataclass(frozen=True)
         class AccountOpened(DomainEvent):
             full_name: str
 
@@ -53,6 +54,8 @@ class TestDomainEvent(TestCase):
         assert event3.originator_version == 0
 
         # Define a 'full name updated' domain event.
+
+        @dataclass(frozen=True)
         class FullNameUpdated(DomainEvent):
             full_name: str
             timestamp: datetime

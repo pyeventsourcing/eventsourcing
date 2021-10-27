@@ -377,7 +377,7 @@ class Factory(InfrastructureFactory):
     SQLITE_LOCK_TIMEOUT = "SQLITE_LOCK_TIMEOUT"
     CREATE_TABLE = "CREATE_TABLE"
 
-    def __init__(self, application_name: str, env: Mapping):
+    def __init__(self, application_name: str, env: Mapping[str, str]):
         super().__init__(application_name, env)
         db_name = self.getenv(self.SQLITE_DBNAME)
         if not db_name:

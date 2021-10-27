@@ -569,7 +569,7 @@ class Factory(InfrastructureFactory):
     )
     CREATE_TABLE = "CREATE_TABLE"
 
-    def __init__(self, application_name: str, env: Mapping):
+    def __init__(self, application_name: str, env: Mapping[str, str]):
         super().__init__(application_name, env)
         dbname = self.getenv(self.POSTGRES_DBNAME)
         if dbname is None:

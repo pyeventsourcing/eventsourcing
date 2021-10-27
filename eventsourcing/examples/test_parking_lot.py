@@ -5,7 +5,7 @@ After Ed Blackburn's https://github.com/edblackburn/parking-lot/.
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import List, Type
+from typing import List, Type, cast
 from unittest import TestCase
 from uuid import NAMESPACE_URL, UUID, uuid5
 
@@ -47,14 +47,17 @@ class EndOfWeek(Product):
 
 
 class Vehicle(Aggregate):
-    class Registered(Aggregate.Created):
+    class Event(Aggregate.Event["Vehicle"]):
+        pass
+
+    class Registered(Event, Aggregate.Created["Vehicle"]):
         licence_plate_number: str
 
-    class Booked(Aggregate.Event):
+    class Booked(Event):
         start: datetime
         finish: datetime
 
-    class Unbooked(Aggregate.Event):
+    class Unbooked(Event):
         when: datetime
 
     @triggers(Registered)
@@ -87,7 +90,7 @@ class Vehicle(Aggregate):
         return uuid5(NAMESPACE_URL, f"/licence_plate_numbers/{licence_plate_number}")
 
 
-class ParkingLot(Application):
+class ParkingLot(Application[Vehicle]):
     def book(self, licence_plate: LicencePlate, product: Type[Product]) -> None:
         try:
             vehicle = self.get_vehicle(licence_plate)
@@ -104,9 +107,7 @@ class ParkingLot(Application):
         self.save(vehicle)
 
     def get_vehicle(self, licence_plate: LicencePlate) -> Vehicle:
-        vehicle = self.repository.get(Vehicle.create_id(licence_plate.number))
-        assert isinstance(vehicle, Vehicle)
-        return vehicle
+        return self.repository.get(Vehicle.create_id(licence_plate.number))
 
 
 class TestParkingLot(TestCase):
@@ -173,25 +174,29 @@ class TestParkingLot(TestCase):
         domain_events = [app.mapper.to_domain_event(n) for n in notifications]
         self.assertEqual(len(domain_events), 4)
 
-        self.assertIsInstance(domain_events[0], Vehicle.Registered)
         vehicle1_id = Vehicle.create_id("123-123")
-        self.assertEqual(domain_events[0].originator_id, vehicle1_id)
-        self.assertEqual(domain_events[0].originator_version, 1)
-        self.assertEqual(domain_events[0].licence_plate_number, "123-123")
+        event0 = domain_events[0]
+        assert isinstance(event0, Vehicle.Registered)
+        self.assertEqual(event0.originator_id, vehicle1_id)
+        self.assertEqual(event0.originator_version, 1)
+        self.assertEqual(event0.licence_plate_number, "123-123")
 
-        self.assertIsInstance(domain_events[1], Vehicle.Booked)
-        self.assertEqual(domain_events[1].originator_id, vehicle1_id)
-        self.assertEqual(domain_events[1].originator_version, 2)
-        self.assertEqual(domain_events[1].start, booking1.start)
-        self.assertEqual(domain_events[1].finish, booking1.finish)
+        event1 = domain_events[1]
+        assert isinstance(event1, Vehicle.Booked)
+        self.assertEqual(event1.originator_id, vehicle1_id)
+        self.assertEqual(event1.originator_version, 2)
+        self.assertEqual(event1.start, booking1.start)
+        self.assertEqual(event1.finish, booking1.finish)
 
-        self.assertIsInstance(domain_events[2], Vehicle.Booked)
-        self.assertEqual(domain_events[2].originator_id, vehicle1_id)
-        self.assertEqual(domain_events[2].originator_version, 3)
-        self.assertEqual(domain_events[2].start, booking2.start)
-        self.assertEqual(domain_events[2].finish, booking2.finish)
+        event2 = domain_events[2]
+        assert isinstance(event2, Vehicle.Booked)
+        self.assertEqual(event2.originator_id, vehicle1_id)
+        self.assertEqual(event2.originator_version, 3)
+        self.assertEqual(event2.start, booking2.start)
+        self.assertEqual(event2.finish, booking2.finish)
 
-        self.assertIsInstance(domain_events[3], Vehicle.Unbooked)
-        self.assertEqual(domain_events[3].originator_id, vehicle1_id)
-        self.assertEqual(domain_events[3].originator_version, 4)
-        self.assertEqual(domain_events[3].when, inspected_on)
+        event3 = domain_events[3]
+        assert isinstance(event3, Vehicle.Unbooked)
+        self.assertEqual(event3.originator_id, vehicle1_id)
+        self.assertEqual(event3.originator_version, 4)
+        self.assertEqual(event3.when, inspected_on)

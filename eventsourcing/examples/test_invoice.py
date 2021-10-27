@@ -1,10 +1,11 @@
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
+from typing import Any, Dict, cast
 from unittest import TestCase
 
 from eventsourcing.application import Application
-from eventsourcing.domain import Aggregate, event
+from eventsourcing.domain import Aggregate, AggregateEvent, event
 from eventsourcing.persistence import Transcoding
 
 
@@ -71,10 +72,10 @@ class PersonAsDict(Transcoding):
     name = "person_as_dict"
     type = Person
 
-    def encode(self, obj: Person) -> dict:
+    def encode(self, obj: Person) -> Dict[str, Any]:
         return obj.__dict__
 
-    def decode(self, data: dict) -> Person:
+    def decode(self, data: Dict[str, Any]) -> Person:
         return Person(**data)
 
 
@@ -160,5 +161,5 @@ class TestInvoice(TestCase):
         self.assertEqual(len(snapshots), 1)
 
         snapshot = snapshots[0]
-        copy = snapshot.mutate()
+        copy = cast(Invoice, snapshot.mutate(None))
         self.assertEqual(invoice, copy)

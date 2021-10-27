@@ -1,8 +1,8 @@
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, Type, cast
 from uuid import UUID, uuid4
 
-from eventsourcing.domain import Aggregate, AggregateCreated, AggregateEvent
+from eventsourcing.domain import Aggregate, AggregateCreated, AggregateEvent, TAggregate
 
 
 class TransactionError(Exception):
@@ -25,6 +25,9 @@ class BankAccount(Aggregate):
         self.overdraft_limit = Decimal("0.00")
         self.is_closed = False
 
+    class Event(Aggregate.Event["BankAccount"]):
+        pass
+
     @classmethod
     def open(cls, full_name: str, email_address: str) -> "BankAccount":
         return cls._create(
@@ -34,7 +37,7 @@ class BankAccount(Aggregate):
             email_address=email_address,
         )
 
-    class Opened(AggregateCreated):
+    class Opened(Aggregate.Created["BankAccount"], Event):
         full_name: str
         email_address: str
 
@@ -57,7 +60,7 @@ class BankAccount(Aggregate):
         if self.balance + amount < -self.overdraft_limit:
             raise InsufficientFundsError({"account_id": self.id})
 
-    class TransactionAppended(AggregateEvent):
+    class TransactionAppended(Event):
         amount: Decimal
         transaction_id: UUID
 
@@ -72,7 +75,7 @@ class BankAccount(Aggregate):
             overdraft_limit=overdraft_limit,
         )
 
-    class OverdraftLimitSet(AggregateEvent):
+    class OverdraftLimitSet(Event):
         overdraft_limit: Decimal
 
         def apply(self, aggregate: "BankAccount") -> None:
@@ -81,7 +84,7 @@ class BankAccount(Aggregate):
     def close(self) -> None:
         self.trigger_event(self.Closed)
 
-    class Closed(AggregateEvent):
+    class Closed(Event):
         def apply(self, aggregate: "BankAccount") -> None:
             aggregate.is_closed = True
 

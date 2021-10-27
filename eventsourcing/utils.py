@@ -61,8 +61,7 @@ def retry(
     max_attempts: int = 1,
     wait: float = 0,
     stall: float = 0,
-    verbose: bool = False,
-) -> Callable:
+) -> Callable[[Any], Any]:
     """
     Retry decorator.
 

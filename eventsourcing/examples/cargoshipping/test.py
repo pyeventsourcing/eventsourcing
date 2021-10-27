@@ -98,7 +98,7 @@ class TestBookingService(unittest.TestCase):
         self.assertTrue(cargo_details["estimated_time_of_arrival"])
         self.assertEqual(
             cargo_details["next_expected_activity"],
-            ("RECEIVE", "HONGKONG"),
+            ("RECEIVE", "HONGKONG", ""),
         )
 
         # Use case 3: handling
@@ -213,7 +213,7 @@ class TestBookingService(unittest.TestCase):
         self.assertEqual(cargo_details["is_misdirected"], False)
         self.assertEqual(
             cargo_details["next_expected_activity"],
-            ("CLAIM", "STOCKHOLM"),
+            ("CLAIM", "STOCKHOLM", ""),
         )
 
         # Finally, cargo is claimed in Stockholm.
