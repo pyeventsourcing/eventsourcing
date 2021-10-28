@@ -1,6 +1,6 @@
 import inspect
 import os
-from abc import ABC, ABCMeta, abstractmethod
+from abc import ABC, ABCMeta
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
 from types import FunctionType, WrapperDescriptorType
@@ -16,8 +16,6 @@ from typing import (
     Type,
     TypeVar,
     Union,
-    cast,
-    overload,
 )
 from uuid import UUID, uuid4
 
@@ -162,8 +160,9 @@ class AggregateCreated(AggregateEvent[TAggregate]):
         # Copy the event attributes.
         kwargs = self.__dict__.copy()
         # Resolve originator topic.
-        aggregate_class: Type[TAggregate] = resolve_topic(kwargs.pop(
-            "originator_topic"))
+        aggregate_class: Type[TAggregate] = resolve_topic(
+            kwargs.pop("originator_topic")
+        )
 
         # Construct and return aggregate object.
         agg = aggregate_class.__new__(aggregate_class)
@@ -963,14 +962,14 @@ class Aggregate(ABC, metaclass=MetaAggregate):
         return collected
 
 
-@overload
-def aggregate(*, created_event_name: str) -> Callable[[Any], Type[Aggregate]]:
-    ...
-
-
-@overload
-def aggregate(cls: Any) -> Type[Aggregate]:
-    ...
+# @overload
+# def aggregate(*, created_event_name: str) -> Callable[[Any], Type[Aggregate]]:
+#     ...
+#
+#
+# @overload
+# def aggregate(cls: Any) -> Type[Aggregate]:
+#     ...
 
 
 def aggregate(

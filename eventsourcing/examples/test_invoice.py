@@ -5,7 +5,7 @@ from typing import Any, Dict, cast
 from unittest import TestCase
 
 from eventsourcing.application import Application
-from eventsourcing.domain import Aggregate, AggregateEvent, event
+from eventsourcing.domain import Aggregate, event
 from eventsourcing.persistence import Transcoding
 
 

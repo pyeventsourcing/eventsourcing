@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from threading import Event, Lock, Thread
-from typing import Any, Dict, Generic, Iterable, Iterator, List, Set, Tuple, Type, \
-    TypeVar
+from typing import Dict, Iterable, Iterator, List, Set, Tuple, Type, TypeVar
 
 from eventsourcing.application import (
     Application,
@@ -10,7 +9,7 @@ from eventsourcing.application import (
     ProcessEvent,
     Section,
 )
-from eventsourcing.domain import Aggregate, AggregateEvent, DomainEvent, TAggregate
+from eventsourcing.domain import Aggregate, AggregateEvent, TAggregate
 from eventsourcing.persistence import (
     Mapper,
     Notification,

@@ -1,14 +1,14 @@
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, Generic, List, Mapping, Optional, Sequence, Type, TypeVar
+from typing import Any, Dict, Generic, List, Mapping, Optional, Type, TypeVar
 from uuid import UUID
 
 from eventsourcing.domain import (
     Aggregate,
     AggregateEvent,
-    DomainEvent, Snapshot,
-    TAggregate, TDomainEvent,
+    Snapshot,
+    TAggregate,
 )
 from eventsourcing.persistence import (
     ApplicationRecorder,
@@ -276,7 +276,9 @@ class Application(ABC, Generic[TAggregate]):
         self.repository = self.construct_repository()
         self.log = self.construct_notification_log()
 
-    def construct_env(self, env: Optional[Mapping[str, str]] = None) -> Mapping[str, str]:
+    def construct_env(
+        self, env: Optional[Mapping[str, str]] = None
+    ) -> Mapping[str, str]:
         """
         Constructs environment from which application will be configured.
         """

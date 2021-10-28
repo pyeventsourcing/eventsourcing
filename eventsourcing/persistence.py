@@ -8,17 +8,17 @@ from decimal import Decimal
 from typing import (
     Any,
     Dict,
-    Generic,
     Iterator,
     List,
     Mapping,
     Optional,
-    Sequence, Type,
+    Sequence,
+    Type,
     cast,
 )
 from uuid import UUID
 
-from eventsourcing.domain import DomainEvent, TDomainEvent
+from eventsourcing.domain import DomainEvent
 from eventsourcing.utils import get_topic, resolve_topic, strtobool
 
 

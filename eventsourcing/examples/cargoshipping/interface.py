@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 from uuid import UUID
 
 from eventsourcing.examples.cargoshipping.application import BookingApplication

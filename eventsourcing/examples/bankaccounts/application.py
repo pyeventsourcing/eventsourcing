@@ -1,5 +1,4 @@
 from decimal import Decimal
-from typing import cast
 from uuid import UUID
 
 from eventsourcing.application import AggregateNotFound, Application

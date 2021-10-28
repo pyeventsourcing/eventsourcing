@@ -1,8 +1,8 @@
 from decimal import Decimal
-from typing import Optional, Type, cast
+from typing import Optional
 from uuid import UUID, uuid4
 
-from eventsourcing.domain import Aggregate, AggregateCreated, AggregateEvent, TAggregate
+from eventsourcing.domain import Aggregate
 
 
 class TransactionError(Exception):

@@ -1,14 +1,10 @@
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union, cast
+from typing import Dict, List, Optional, Tuple, TypeVar, Union
 from uuid import UUID, uuid4
 
 from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain import (
-    AggregateEvent, TAggregate,
-    TAggregateEvent, TZINFO,
-    Aggregate,
-)
+from eventsourcing.domain import TZINFO, Aggregate
 
 
 class Location(Enum):
@@ -72,7 +68,6 @@ LegDetails = Dict[str, str]
 ItineraryDetails = Dict[str, Union[str, List[LegDetails]]]
 
 NextExpectedActivity = Optional[Tuple[HandlingActivity, Location, str]]
-
 
 
 # Some routes from one location to another.
@@ -241,11 +236,7 @@ class Cargo(Aggregate):
         self._route = event.route
         self._routing_status = "ROUTED"
         self._estimated_time_of_arrival = datetime.now(tz=TZINFO) + timedelta(weeks=1)
-        self._next_expected_activity = (
-            HandlingActivity.RECEIVE,
-            self.origin,
-            ""
-        )
+        self._next_expected_activity = (HandlingActivity.RECEIVE, self.origin, "")
         self._is_misdirected = False
 
     def register_handling_event(
@@ -309,7 +300,7 @@ class Cargo(Aggregate):
                 self._next_expected_activity = (
                     HandlingActivity.CLAIM,
                     event.location,
-                    ""
+                    "",
                 )
             elif event.location.value in [leg.destination for leg in self.route.legs]:
                 for i, leg in enumerate(self.route.legs):
