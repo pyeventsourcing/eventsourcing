@@ -10,9 +10,8 @@ docs_requires = (
     postgresql_dev_requires
     + crypto_requires
     + [
-        "Sphinx==1.8.5",
-        "python_docs_theme",
-        "sphinx_rtd_theme==0.4.3",
+        "Sphinx==4.2.0",
+        "sphinx_rtd_theme==1.0.0",
     ]
 )
 
