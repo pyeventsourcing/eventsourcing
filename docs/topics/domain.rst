@@ -1242,7 +1242,9 @@ Declarative syntax
 You may have noticed a certain amount of repetition in the definitions of the
 aggregates above. In several places, the same argument was defined in a command
 method, on an event class, and in an apply method. The library offers a more concise
-way to express aggregates by using a declarative syntax.
+way to express aggregates by using a declarative syntax. This is probably the most
+concise way of expressing an event-sourced domain model across all programming
+languages.
 
 
 Create new aggregate by calling the aggregate class directly
@@ -1684,12 +1686,15 @@ it might be desirable to skip on having an event triggered.
 Using an explicitly defined event class
 ---------------------------------------
 
-Of course, you may wish to define event classes explicitly. In this case,
-you can refer to the event class in the decorator, rather than using a string.
+Of course, you may wish to define event classes explicitly. You
+can refer to the event class in the decorator, rather than using
+a string. The synonymous decorator :data:`@triggers` can be used
+instead of the :data:`@event` decorator (it does the same thing).
+
 
 .. code:: python
 
-    from eventsourcing.domain import event
+    from eventsourcing.domain import triggers
 
     class MyAggregate(Aggregate):
         name: str
@@ -1697,7 +1702,7 @@ you can refer to the event class in the decorator, rather than using a string.
         class NameUpdated(Aggregate.Event):
             name: str
 
-        @event(NameUpdated)
+        @triggers(NameUpdated)
         def update_name(self, name):
             self.name = name
 
