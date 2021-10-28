@@ -10,8 +10,9 @@ from eventsourcing.domain import (
     Aggregate,
     AggregateCreated,
     AggregateEvent,
+    OriginatorIDError,
+    OriginatorVersionError,
     TAggregate,
-    VersionError,
 )
 from eventsourcing.utils import get_method_name
 
@@ -805,7 +806,7 @@ class TestSubsequentEvents(TestCase):
         self.assertIsInstance(pending[1], AggregateEvent)
         self.assertEqual(pending[1].originator_version, 2)
 
-    def test_event_mutate_raises_version_error(self):
+    def test_event_mutate_raises_originator_version_error(self):
         a = Aggregate()
 
         # Try to mutate aggregate with an invalid domain event.
@@ -815,7 +816,20 @@ class TestSubsequentEvents(TestCase):
             timestamp=datetime.now(tz=TZINFO),
         )
         # Check raises "VersionError".
-        with self.assertRaises(VersionError):
+        with self.assertRaises(OriginatorVersionError):
+            event.mutate(a)
+
+    def test_event_mutate_raises_originator_id_error(self):
+        a = Aggregate()
+
+        # Try to mutate aggregate with an invalid domain event.
+        event = AggregateEvent(
+            originator_id=uuid4(),
+            originator_version=a.version + 1,
+            timestamp=datetime.now(tz=TZINFO),
+        )
+        # Check raises "VersionError".
+        with self.assertRaises(OriginatorIDError):
             event.mutate(a)
 
     def test_raises_when_triggering_event_with_mismatched_args(self):

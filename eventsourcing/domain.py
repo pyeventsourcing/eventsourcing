@@ -112,8 +112,10 @@ class AggregateEvent(DomainEvent[TAggregate], metaclass=MetaDomainEvent):
         # assert isinstance(obj, Aggregate), (type(obj), self)
         assert aggregate is not None
         next_version = aggregate.version + 1
+        if self.originator_id != aggregate.id:
+            raise OriginatorIDError(self.originator_id, aggregate.id)
         if self.originator_version != next_version:
-            raise VersionError(self.originator_version, next_version)
+            raise OriginatorVersionError(self.originator_version, next_version)
         if self.apply(aggregate) is not None:  # type: ignore
             raise TypeError(
                 f"Unexpected value returned from "
@@ -1019,12 +1021,31 @@ def aggregate(
         return decorator
 
 
-class VersionError(Exception):
+class OriginatorIDError(Exception):
+    """
+    Raised when a domain event can't be applied to
+    an aggregate due to an ID mismatch indicating
+    the domain event is not in the aggregate's
+    sequence of events.
+    """
+
+
+class OriginatorVersionError(Exception):
     """
     Raised when a domain event can't be applied to
     an aggregate due to version mismatch indicating
     the domain event is not the next in the aggregate's
     sequence of events.
+    """
+
+
+class VersionError(OriginatorVersionError):
+    """
+    Old name for 'OriginatorVersionError'.
+
+    This class exists to maintain backwards-compatibility
+    but will be removed in a future version Please use
+    'OriginatorVersionError' instead.
     """
 
 
