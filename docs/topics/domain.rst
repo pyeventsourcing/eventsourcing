@@ -555,16 +555,16 @@ Triggering subsequent events
 
 Secondly, the :class:`~eventsourcing.domain.Aggregate` class has a
 method :func:`~eventsourcing.domain.Aggregate.trigger_event` which can be called
-both to create a subsequent aggregate event object and to apply it to the aggregate.
+to trigger a subsequent aggregate event object.
 
 .. code:: python
 
     aggregate.trigger_event(Aggregate.Event)
 
 
-This method is usually called by the command methods of an aggregate to
-capture the decisions that it makes. For example, see the ``make_it_so()``
-method of the ``World`` class in the :ref:`Simple example <Aggregate simple example>`
+This method can be called by the command methods of an aggregate to
+capture the decisions that are made. For example, see the
+``make_it_so()`` method of the ``World`` class in the :ref:`Simple example <Aggregate simple example>`
 below. The creation of the aggregate event object is the final stage in the
 coming-to-be of a private individual occasion of experience within the aggregate,
 that begins before the event object is created. The event object is the beginning
@@ -575,9 +575,7 @@ event-sourced application.
 Like the :func:`~eventsourcing.domain.MetaAggregate._create` method, the
 :func:`~eventsourcing.domain.Aggregate.trigger_event` method has a required
 positional argument ``event_class``, which is the type of aggregate
-event object to be triggered. The purpose of this method is to create the next version number,
-by adding ``1`` to the current version number of the aggregate, to create a new
-timestamp, and to construct a new event object.
+event object to be triggered.
 
 It uses the ``id`` attribute of the aggregate as the ``originator_id`` of the new
 domain event. It uses the current aggregate ``version`` to create the next version
