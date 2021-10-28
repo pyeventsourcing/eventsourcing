@@ -48,6 +48,26 @@ in that sequence, and a ``timestamp`` attribute which is Python
 :class:`~datetime.datetime` that represents when the event object
 was created.
 
+.. code:: python
+
+    from datetime import datetime
+    from uuid import uuid4
+
+    from eventsourcing.domain import DomainEvent
+
+
+    originator_id = uuid4()
+
+    domain_event = DomainEvent(
+        originator_id=originator_id,
+        originator_version=2,
+        timestamp=datetime(2022, 2, 2),
+    )
+    assert domain_event.originator_id == originator_id
+    assert domain_event.originator_version == 2
+    assert domain_event.timestamp == datetime(2022, 2, 2)
+
+
 Domain event objects are ordered in their sequence by their version numbers,
 and not by their timestamps. The timestamps have no consequences for the operation
 of this library, and are included to give an approximate indication of when the
@@ -62,28 +82,50 @@ Aggregate event objects represent original decisions by a domain model that adva
 the state of an application. Aggregate events are uniquely identifiable in a domain
 model by the combination of their ``originator_id`` and ``originator version``.
 
+.. code:: python
+
+    from eventsourcing.domain import AggregateEvent
+
+
+    aggregate_event = AggregateEvent(
+        originator_id=originator_id,
+        originator_version=2,
+        timestamp=datetime(2022, 2, 2),
+    )
+    assert aggregate_event.originator_id == originator_id
+    assert aggregate_event.originator_version == 2
+    assert aggregate_event.timestamp == datetime(2022, 2, 2)
+
+
 The :class:`~eventsourcing.domain.AggregateEvent` class has a
 :func:`~eventsourcing.domain.AggregateEvent.mutate` method which adjusts the state
-of an passed in using the ``aggregate`` argument. This method checks the
-event's ``originator_version`` number equals `1` plus the current aggregate
+of an object passed in using the ``aggregate`` argument. This method checks the
+event's ``originator_version`` number equals ``1`` plus the current aggregate
 version number. It assigns this value to the aggregate's
-:py:obj:`~eventsourcing.domain.Aggregate.version` attribute. It assigns
-the event's ``timestamp`` to the aggregate's :py:obj:`~eventsourcing.domain.Aggregate.modified_on` attribute.
+:py:obj:`~eventsourcing.domain.Aggregate.version` attribute.
+It assigns the event's ``timestamp`` to the aggregate's
+:py:obj:`~eventsourcing.domain.Aggregate.modified_on` attribute.
 It returns the modified object. The returned object can
 be given when calling this method on another event object.
-Hence, the :func:`~eventsourcing.domain.AggregateEvent.mutate`
-methods of a sequence of aggregate events can be used to reconstruct the
-current state of the originator. By making the ``aggregate`` argument optional,
-"created" events can be defined which start from ``None`` and "discarded" events
-can be defined which return ``None``. For example, an initial "created" event can
-construct an aggregate object, a subsequent event can receive an aggregate and
-return a modified aggregate, and a final "discarded" event can receive an aggregate
-and return ``None``.
+
+.. code:: python
+
+    class A:
+        def __init__(self, id, version):
+            self.id = id
+            self.version = version
+
+
+    a = A(id=originator_id, version=1)
+    a = aggregate_event.mutate(a)
+    assert a.version == 2
+    assert a.modified_on == datetime(2022, 2, 2)
+
 
 The :class:`~eventsourcing.domain.AggregateEvent` class also has an
 :func:`~eventsourcing.domain.AggregateEvent.apply` method, which is called
-by the :func:`~eventsourcing.domain.AggregateEvent.mutate` method before it
-returns. The :func:`~eventsourcing.domain.AggregateEvent.apply` method has
+by the :func:`~eventsourcing.domain.AggregateEvent.mutate` method. The
+:func:`~eventsourcing.domain.AggregateEvent.apply` method has
 a non-optional argument ``aggregate`` which is used to provide the aggregate
 object to which the domain event object pertains. The base class's
 :func:`~eventsourcing.domain.AggregateEvent.apply` method body is empty, and
@@ -91,7 +133,32 @@ so this method can be simply overridden (implemented without a call to the
 superclass method). It is also not expected to return a value (any value that
 it does return will be ignored). Hence this method can be simply and conveniently
 implemented in aggregate event classes to apply an event's attribute values to an
-aggregate.
+aggregate. The :func:`~eventsourcing.domain.AggregateEvent.apply` method is called
+after the validation checks and before modifying the aggregate's state, so that if
+it raises an exception, then the aggregate will remain unmodified by the mutate method.
+
+.. code:: python
+
+    class MyEvent(AggregateEvent):
+        full_name: str
+
+        def apply(self, aggregate):
+            aggregate.full_name = self.full_name
+
+
+    my_event = MyEvent(
+        originator_id=originator_id,
+        originator_version=3,
+        timestamp=datetime(2033, 3, 3),
+        full_name="Eric Idle"
+    )
+
+
+    a = my_event.mutate(a)
+    assert a.version == 3
+    assert a.modified_on == datetime(2033, 3, 3)
+    assert a.full_name == "Eric Idle"
+
 
 The library also has an
 :class:`~eventsourcing.domain.AggregateCreated` class which represents
@@ -100,111 +167,143 @@ its attribute ``originator_topic`` which is Python :class:`str`. The value of th
 attribute will be a :ref:`topic <Topics>` that describes the path to the aggregate
 instance's class. It has a :func:`~eventsourcing.domain.AggregateCreated.mutate`
 method which constructs an aggregate object after resolving the ``originator_topic``
-value to an aggregate class. It does not call :func:`~eventsourcing.domain.AggregateEvent.apply`
+value to an aggregate class. Although this method has the same signature as the base class's
+method, the argument is ignored. It does not call :func:`~eventsourcing.domain.AggregateEvent.apply`
 since the aggregate class's ``__init__()`` method receives the "created" event attribute
 values and can fully initialise the aggregate object in the usual way.
 
-This library's :class:`~eventsourcing.domain.Snapshot` class is also defined as a
-subclass of the :class:`~eventsourcing.domain.DomainEvent` class, and works in a
-similar way to the aggregate event classes mentioned above. See the :ref:`Snapshots
-<Snapshots>` section for more information about snapshots.
+.. code:: python
 
-The :func:`~eventsourcing.domain.AggregateEvent.mutate` and
+    from eventsourcing.domain import AggregateCreated
+
+
+    aggregate_created = AggregateCreated(
+        originator_topic="eventsourcing.domain:Aggregate",
+        originator_id=originator_id,
+        originator_version=1,
+        timestamp=datetime(2011, 1, 1),
+    )
+
+    a = aggregate_created.mutate(None)
+    assert a.__class__.__name__ == "Aggregate"
+    assert a.__class__.__module__ == "eventsourcing.domain"
+    assert a.id == originator_id
+    assert a.version == 1
+    assert a.modified_on == datetime(2011, 1, 1)
+
+
+The :func:`~eventsourcing.domain.AggregateEvent.mutate`
+methods of a sequence of aggregate events can be used successively to reconstruct
+the current state of the originator.
+
+.. code:: python
+
+    a = aggregate_created.mutate(None)
+    assert a.id == originator_id
+    assert a.version == 1
+    assert a.modified_on == datetime(2011, 1, 1)
+
+    a = aggregate_event.mutate(a)
+    assert a.id == originator_id
+    assert a.version == 2
+    assert a.modified_on == datetime(2022, 2, 2)
+
+    a = my_event.mutate(a)
+    assert a.id == originator_id
+    assert a.version == 3
+    assert a.modified_on == datetime(2033, 3, 3)
+    assert a.full_name == "Eric Idle"
+
+
+Hence, the :func:`~eventsourcing.domain.AggregateEvent.mutate` and
 :func:`~eventsourcing.domain.AggregateEvent.apply` methods of aggregate events
-can be used effectively to implement an "aggregate projection", which is a function
-by which a sequence of aggregate events is processed to reconstruct the state of
-an aggregate.
+can be used effectively to implement an "aggregate projection": a "mutator function"
+by which the state of an aggregate is reconstructed from its history of events.
+This is essentially how the :func:`~eventsourcing.application.Repository.get`
+method of an :ref:`application repository <Repository>` reconstructs an aggregate
+from stored events when the aggregate is requested by ID.
+
+.. code:: python
+
+    def reconstruct_aggregate_from_events(events):
+        a = None
+        for event in events:
+            a = event.mutate(a)
+        return a
+
+
+    events = [
+        aggregate_created,
+        aggregate_event,
+        my_event,
+    ]
+
+    a = reconstruct_aggregate_from_events(events)
+    assert a.id == originator_id
+    assert a.version == 3
+    assert a.modified_on == datetime(2033, 3, 3)
+    assert a.full_name == "Eric Idle"
+
+
+By making the ``aggregate`` argument and return value optional,
+"created" events can be defined which start from ``None`` and "discarded" events
+can be defined which return ``None``. For example, an initial "created" event can
+construct an aggregate object, subsequent events can receive an aggregate and
+return a modified aggregate, and a final "discarded" event can receive an aggregate
+and return ``None``.
+
+.. code:: python
+
+    class AggregateDiscarded(AggregateEvent):
+        def mutate(self, aggregate):
+            super().mutate(aggregate)
+            aggregate._is_discarded = True
+            return None
+
+
+    aggregate_discarded = AggregateDiscarded(
+        originator_id=originator_id,
+        originator_version=4,
+        timestamp=datetime(2044, 4, 4),
+    )
+
+
+    events.append(aggregate_discarded)
+    a = reconstruct_aggregate_from_events(events)
+    assert a is None
+
+
 An alternative to using :func:`~eventsourcing.domain.AggregateEvent.apply` methods
 on the event classes is to define apply methods on the aggregate class. A base ``Event``
-class can be defined on the aggregate class which simply calls an ``apply()`` method
-on the aggregate class, or a function at the module level. This aggregate ``apply()``
-method, or module-level function, can be decorated with the ``@singledispatchmethod``
-decorator, or implemented as a big if-else block, and then event-specific parts of
-the projection can be defined that will apply particular types events to the aggregate
-in a particular way. See the ``Cargo`` aggregate in the domain model section of the
-:ref:`Cargo Shipping example <Cargo shipping>` for an example of this alternative.
-It's also possible to do this with the mutate methods, but then the common behaviours
-will need to repeated for each part of the projection that handles a particular type
-of event, and for all the types of event, which is repetitive and so isn't recommended.
+class can be defined on the aggregate class with an ``apply()`` method which simply
+calls an ``apply()`` method on the aggregate class that has the event as an argument.
+The aggregate's ``apply()`` method can be decorated with the
+``@singledispatchmethod`` decorator, or implemented as a big if-else block, and then
+event-specific parts of the projection can be defined that will apply particular types
+events to the aggregate in a particular way. See the ``Cargo`` aggregate in the domain
+model section of the :ref:`Cargo Shipping example <Cargo shipping>` for an example of
+this alternative. This has the advantage of setting values on ``self``, which avoids
+the reverse of intuition that occurs when writing ``apply()`` methods on the events,
+and makes it legitimate to set values on "private" attributes. However, there is
+quite a lot of "boiler plate" that results from coding this on every aggregate class.
+
+A further alternative is to use a function at the module level which has both the event
+and the aggregate as arguments, but then the projection becomes even more distant from
+definition of the event. It's also possible to rework the mutate methods in these ways,
+but then the common behaviours will need to repeated for each part of the projection
+that handles a particular type of event, and for all the types of event, which is
+repetitive and so isn't recommended. And also the issue of setting "private" attributes
+on the aggregate returns.
+
 A further alternative, which is highly recommended, is to use the new
 :ref:`declarative syntax <Declarative syntax>`, especially the ``@event``
 decorator, which is used on the project's README page, and which is explained
 in detail below.
 
-Why is it designed in this way? There has been much discussion about the best way
-to define the aggregate projections. There isn't a "correct" way of doing it, and
-alternatives are possible. The reason for settling on the style presented most
-prominently in this documentation, where each aggregate event has a method that
-defines how it will apply to the aggregate, is the practical reason that it keeps
-the projection closest to the event class, and experience has shown that this makes
-the domain model core more readable. In the first version of this library,
-the classical approach to writing domain models described in Martin Fowler's book
-*Patterns of Enterprise Application Architecture* was followed, so that there was a
-repository object for each class of domain object (or aggregate). If the type of
-aggregate is known when the domain object is requested, that is because each
-repository was constructed for that type, and so we can understand that these
-repositories can be constructed with a particular mutator function that will
-function as the aggregate projection for that type. When stored domain events are
-retried, this particular mutator function can be called. As the mutator function
-will be coded for a particular aggregate, the aggregate class can be coded into
-the function to handle the intitial event. However, it became cumbersome to
-define a new repository each time we define a new aggregate class. And anyway this
-classical design for many repositories was, more or less, an encapsulation of the
-database tables which were required to support the different types of domain object.
-But in an event-sourced application, all the aggregate events are stored in the same
-stored events table, and so it suffices to have one repository to encapsulate this
-table in an event-sourced application. But the issue which arises is that a single
-repository for all aggregates can't know which type of aggregate is being requested
-when an aggregate is requested by ID. Of course, it would be possible to pass in the
-mutator function when requesting an aggregate, or for the repository more simply to
-return a list of aggregate events rather than an aggregate. But if we want a single
-repository, and we want it to provide the "dictionary-like interface" that is described
-in Patterns of Enterprise Application Architecture, so that we give an ID and get an
-aggregate, then the issue of identifying the aggregate type remains. To resolve this
-issue, we can return to the "headline" definition of event sourcing, which is that
-the state is determined by a sequence of events. The events can function to determine
-the state of the aggregate by having a aggregate "topic" on the initial event, and by
-defining methods on the event classes methods that project the state of the events into
-the state of the aggregate. These methods are as close as possible to the definition of the
-event data, and when developing the code we avoid having to look around the code
-to find how the event is applied to the aggregate. Indeed, Martin Fowler's 2005
-event sourcing article has a UML diagram which shows exactly this design. A further
-consideration, and perhaps criticism of this style, is that this style of writing
-projections is special, and other projections will have to be written in a different way.
-This is true, but in practice, aggregate events are used overwhelmingly often to reconstruct
-the state of aggregates, and in many applications that is the only way they will
-be projected. And so, since there is an advantage to coding the aggregate projection
-on the aggregate events, that is the way we settled on coding these things. The initial
-impetus for coding things this way came from users of the library, when the library
-documentation was written to suggest using a separate mutator function. However,
-that isn't the end of the story. There are two outstanding unsettled feelings.
-Firstly, by coding the aggregate project on methods of the aggregate, and passing
-in the aggregate to this method, there is a sort-of inversion of responsibility,
-where `self` is the thing that has the data and doesn't change, and changes are
-made to a method argument. A tension arises between either rudely accessing the
-private members of the aggregate, or expanding its public interface that would
-be much better restricted to being only an expression of support for the application.
-Secondly, in the process of defining an event class, passing in the arguments to
-trigger an event, and then using the event attributes to mutate the aggregate, we
-have to say everything three times. At first, we can enjoy being explicit about
-everything. But after some time, the desire grows to find a way to say this once.
-These two feelings, of an intuitive reversal of setting values from self onto a
-method argument, and of saying everything three times, were resolved by the introduction
-of the ``@event`` decorator as a more :ref:`declarative syntax <Declarative syntax>`,
-which was mentioned above. One criticism of the declarative syntax design is that it
-is "command sourcing" and not "event sourcing", because it is the command method
-arguments that are being used as the attributes of the event. If may sometimes be
-"command sourcing" but then it is certainly also event sourcing. Applications exist
-to support a domain, and in many cases applications support the domain by recording
-decisions that are made in the domain and received by the domain model. The ``@event``
-decorator can also be used on "private" methods, methods that not part of the aggregate's
-"public" command and query interface that will be used by the application, called by
-"public" commands which are not so decorated, so do not trigger events that are simply
-comprised of the method arguments, so then there is event sourcing" but not command
-sourcing. The important thing here is to separate out the work of the command if
-indeed there is any work (work that should happen only once) from the definition of
-and construction of an aggregate event object, and from the projection
-of the aggregate event into the aggregate state (which will happen many times).
+This library's :class:`~eventsourcing.domain.Snapshot` class is also defined as a
+subclass of the :class:`~eventsourcing.domain.DomainEvent` class, and works in a
+similar way to the aggregate event classes mentioned above. See the :ref:`Snapshots
+<Snapshots>` section for more information about snapshots.
 
 
 Aggregates in DDD
@@ -345,9 +444,6 @@ a new aggregate object.
 
 .. code:: python
 
-    from uuid import uuid4
-
-
     aggregate_id = uuid4()
     aggregate = Aggregate._create(Aggregate.Created, id=aggregate_id)
 
@@ -435,8 +531,6 @@ by the timestamp attribute of the first event in the aggregate's sequence, which
 event. The timestamps are timezone-aware Python :class:`~datetime.datetime` objects.
 
 .. code:: python
-
-    from datetime import datetime
 
     assert isinstance(aggregate.created_on, datetime)
 
@@ -718,8 +812,8 @@ the current state of the aggregate, by calling their
 
 
 The :func:`~eventsourcing.application.Repository.get`
-method of the :ref:`application repository <Repository>` class has
-a which works by calling these methods in this way for this purpose.
+method of the :ref:`application repository <Repository>` class
+works by calling these methods in this way for this purpose.
 
 
 .. _Snapshots:
@@ -1686,7 +1780,7 @@ concisely in the following way.
     # the index ID. The index ID can be used
     # to retrieve the index aggregate, which
     # gives the page ID, and then the page ID
-    # can be used to retrive the page aggregate.
+    # can be used to retrieve the page aggregate.
     index_id = Index.create_id(name="Erth")
     assert index_id == index1.id
     assert index1.ref == page.id
@@ -1989,6 +2083,111 @@ name of an object in that module (e.g. ``'Aggregate.Created'``). For example
 and :func:`~eventsourcing.utils.get_topic` which are used in the library to resolve
 a given topic to a Python object, and to construct a topic for a given Python object.
 
+
+Notes
+=====
+
+Why put methods on event objects? There has been much discussion about the best way
+to define the aggregate projections. Of course, there isn't a "correct" way of doing it,
+and alternatives are possible. The reason for settling on the style presented most
+prominently in this documentation, where each aggregate event has a method that
+defines how it will apply to the aggregate (neatly wrapped up with the declarative
+syntax introduced below, is the practical reason that it keeps the parts of projection
+closest to the event class to which they pertain, and experience has shown that this
+makes the domain model core easier to develop and understand. In the first version of
+this library, the classical approach to writing domain models described in Martin
+Fowler's book *Patterns of Enterprise Application Architecture* was followed, so that
+there was a repository object for each class of domain object (or aggregate). If the
+type of aggregate is known when the domain object is requested, that is because each
+repository was constructed for that type, and so we can understand that these
+repositories can be constructed with a particular mutator function that will
+function as the aggregate projection for that type. When stored domain events are
+retried, this particular mutator function can be called. As the mutator function
+will be coded for a particular aggregate, the aggregate class can be coded into
+the function to handle the initial event. However, it became cumbersome to
+define a new repository each time we define a new aggregate class. And anyway this
+classical design for many repositories was, more or less, an encapsulation of the
+database tables which were required to support the different types of domain object.
+But in an event-sourced application, all the aggregate events are stored in the same
+stored events table, and so it suffices to have one repository to encapsulate this
+table in an event-sourced application. But the issue which arises is that a single
+repository for all aggregates can't know which type of aggregate is being requested
+when an aggregate is requested by ID. Of course, it would be possible to pass in the
+mutator function when requesting an aggregate, or for the repository more simply to
+return a list of aggregate events rather than an aggregate. But if we want a single
+repository, and we want it to provide the "dictionary-like interface" that is described
+in *Patterns of Enterprise Application Architecture*, so that we give an ID and get an
+aggregate, then the issue of identifying the aggregate type remains. To resolve this
+issue, we can return to the "headline" definition of event sourcing, which is that
+the state is determined by a sequence of events. The events can function to determine
+the state of the aggregate by having a aggregate "topic" on the initial event, and by
+defining methods on the event classes, methods that project the state of the events into
+the state of the aggregate. These methods are as close as possible to the definition of the
+event data, and when developing the code we avoid having to scroll around the
+to see how an event is applied to an aggregate. Indeed, Martin Fowler's 2005
+`event sourcing article <https://martinfowler.com/eaaDev/EventSourcing.html>`_
+has a UML diagram which shows exactly this design, with a method called 'process'
+on the ShippingEvent class in the section How It Works. A further consideration,
+and perhaps criticism of this style, is that this style of writing
+projections is special, and other projections will have to be written in a different way.
+This is true, but in practice, aggregate events are used overwhelmingly often to reconstruct
+the state of aggregates, and in many applications that is the only way they will
+be projected. And so, since there is an advantage to coding the aggregate projection
+on the aggregate events, that is the way we settled on coding these things. The initial
+impetus for coding things this way came from users of the library. The library
+documentation was initially written to suggest using a separate mutator function.
+However, that isn't the end of the story. There are three outstanding unsettled feelings.
+Firstly, by coding the aggregate project on methods of the aggregate, and passing
+in the aggregate to this method, there is a reversal of intuition in these methods,
+where `self` is the thing that has the data and doesn't change, and changes are
+made to a method argument. Secondly, a tension arises between either rudely accessing the
+private members of the aggregate, or expanding its public interface that would
+be much better restricted to being only an expression of support for the application.
+Thirdly, in the process of defining an event class, passing in the arguments to
+trigger an event, and then using the event attributes to mutate the aggregate, we
+have to say everything three times. At first, we can enjoy being explicit about
+everything. But after some time, the desire grows to find a way to say things once.
+These three feelings, of an intuitive reversal of setting values from self onto a
+method argument, of accessing private members or expanding the public interface, and
+of saying everything three times, were resolved by the introduction of the ``@event``
+decorator as a more :ref:`declarative syntax <Declarative syntax>`,
+which was mentioned above. One criticism of the declarative syntax design is that it
+is "command sourcing" and not "event sourcing", because it is the command method
+arguments that are being used as the attributes of the event. If may sometimes be
+"command sourcing" but then it is certainly also event sourcing. Applications exist
+to support a domain, and in many cases applications support the domain by recording
+decisions that are made in the domain and received by the domain model. The ``@event``
+decorator can also be used on "private" methods, methods that not part of the aggregate's
+"public" command and query interface that will be used by the application, called by
+"public" commands which are not so decorated, so do not trigger events that are simply
+comprised of the method arguments, so then there is event sourcing" but not command
+sourcing. The important thing here is to separate out the work of the command if
+indeed there is any work (work that should happen only once) from the definition of
+and construction of an aggregate event object, and from the projection
+of the aggregate event into the aggregate state (which will happen many times).
+
+Why mutate the aggregate state? Another question that may arise is about mutating the
+aggregate object, rather than reconstructing a copy of the aggregate that combines
+the old unchanged parts and the new. It is certainly possible to adjust the event classes
+so that the original is unchanged. There are a few good reasons for doing this. The issue
+is about concurrent access to aggregates that are cached in memory. This library follows
+the traditional patterns of having commands which do not return values and of mutating
+aggregate objects in-place. The issue of concurrent access doesn't arise unless the aggregates
+are cached and used concurrently without any concurrency controls, such as serialisation of
+access. Aggregates aren't cached, by default, and so the issue doesn't arise unless they are.
+And because it is in the nature of aggregates that they create a sequence of events,
+there is no value to allowing concurrent write access. So if aggregates are to be cached
+then it would make sense either to implement locking, so that readers don't access a
+half-updated state and so that writers don't interact, or for writers to make a deep
+copy of a cached aggregate before calling aggregate commands, and then updating the
+cache with their mutated version after the aggregate has been successfully saved. And
+care would need to be taken to fast-forward an aggregate that is stale because another
+process has advanced the state of the aggregate. But none of these issues arise in the
+library because aggregates are not cached.
+
+Another issue arises about the use of "absolute" topics to identify classes. The issue
+of moving and renaming classes can be resolved by setting the old paths to point to
+current classes, using the library's methods for doing this.
 
 Classes
 =======
