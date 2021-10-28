@@ -1681,6 +1681,47 @@ it might be desirable to skip on having an event triggered.
     assert len(pending_events) == 2, len(pending_events)
 
 
+Using an explicitly defined event class
+---------------------------------------
+
+Of course, you may wish to define event classes explicitly. In this case,
+you can refer to the event class in the decorator, rather than using a string.
+
+.. code:: python
+
+    from eventsourcing.domain import event
+
+    class MyAggregate(Aggregate):
+        name: str
+
+        class NameUpdated(Aggregate.Event):
+            name: str
+
+        @event(NameUpdated)
+        def update_name(self, name):
+            self.name = name
+
+
+    # Create an aggregate.
+    agg = MyAggregate(name="foo")
+    assert agg.name == "foo"
+
+    # Update the name.
+    agg.update_name("bar")
+    assert agg.name == "bar"
+
+    # There are two pending events.
+    pending_events = agg.collect_events()
+    assert len(pending_events) == 2
+    assert pending_events[0].name == "foo"
+
+    # The second pending event is a 'NameUpdated' event.
+    assert isinstance(pending_events[1], MyAggregate.NameUpdated)
+
+    # The second pending event has a 'name' attribute.
+    assert pending_events[1].name == "bar"
+
+
 
 The World aggregate class revisited
 -----------------------------------
