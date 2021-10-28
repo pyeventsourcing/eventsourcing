@@ -219,9 +219,7 @@ called 'aggregate' in the following way.
     *"An aggregate is a cluster of associated objects that we treat as a unit
     for the purpose of data changes. Each aggregate has a root and a boundary...*
 
-    *Therefore...*
-
-    *Cluster the entities and value objects into aggregates and
+    *Therefore... Cluster the entities and value objects into aggregates and
     define boundaries around each. Choose one entity to be the root of each
     aggregate, and control all access to the objects inside the boundary
     through the root. Allow external objects to hold references to the
