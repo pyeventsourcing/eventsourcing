@@ -2090,10 +2090,10 @@ Why put methods on event objects? There has been much discussion about the best 
 to define the aggregate projections. Of course, there isn't a "correct" way of doing it,
 and alternatives are possible. The reason for settling on the style presented most
 prominently in this documentation, where each aggregate event has a method that
-defines how it will apply to the aggregate (neatly wrapped up with the declarative
-syntax introduced below, is the practical reason that it keeps the parts of projection
-closest to the event class to which they pertain, and experience has shown that this
-makes the domain model core easier to develop and understand. In the first version of
+defines how it will apply to the aggregate (neatly wrapped up with the
+:ref:`declarative syntax <Declarative syntax>`, is the practical reason that it keeps the
+parts of projection closest to the event class to which they pertain, and experience has shown
+that this makes the domain model core easier to develop and understand. In the first version of
 this library, the classical approach to writing domain models described in Martin
 Fowler's book *Patterns of Enterprise Application Architecture* was followed, so that
 there was a repository object for each class of domain object (or aggregate). If the
