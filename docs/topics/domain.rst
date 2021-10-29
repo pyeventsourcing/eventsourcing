@@ -939,8 +939,7 @@ event class, so that snapshots can be upcast.
 
         @staticmethod
         def upcast_v1_v2(state):
-            if "b" not in state:
-                state["b"] = 0
+            state["b"] = 0
 
 
 After an application that uses the above version 2 aggregate class has been deployed, its ``Created``
@@ -984,13 +983,11 @@ class, so that any snapshots will be upcast.
 
         @staticmethod
         def upcast_v1_v2(state):
-            if "b" not in state:
-                state["b"] = 0
+            state["b"] = 0
 
         @staticmethod
         def upcast_v2_v3(state):
-            if "c" not in state:
-                state["c"] = 0.0
+            state["c"] = 0.0
 
 
 If subsequently a new event is added that manipulates a new attribute that is expected to be initialised
@@ -1041,18 +1038,15 @@ updates ``d`` is defined. Since the ``Created`` event class has not changed, it 
 
         @staticmethod
         def upcast_v1_v2(state):
-            if "b" not in state:
-                state["b"] = 0
+            state["b"] = 0
 
         @staticmethod
         def upcast_v2_v3(state):
-            if "c" not in state:
-                state["c"] = 0.0
+            state["c"] = 0.0
 
         @staticmethod
         def upcast_v3_v4(state):
-            if "d" not in state:
-                state["d"] = False
+            state["d"] = False
 
 
 If the value objects used by your events also change, you may also need to define new transcodings
