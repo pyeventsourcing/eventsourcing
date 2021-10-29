@@ -13,14 +13,32 @@ def get_topic(cls: type) -> str:
     Returns a string that locates the given class.
     """
     topic = f"{cls.__module__}:{cls.__qualname__}"
-    _objs_cache[topic] = cls
+    register_topic(topic, cls)
     return topic
 
 
-# Todo: Implement substitutions, so classes can be moved to another module.
+def register_topic(topic: str, cls: type) -> None:
+    """
+    Registers a topic with a class, so that the class will be
+    returned whenever the topic is resolved.
+
+    The function can be used to cache the topic of a class, so
+    that it can be resolved faster. It can also be used to
+    register old topics for classes that have been renamed
+    or moved.
+    """
+    _objs_cache[topic] = cls
+
+
 def resolve_topic(topic: str) -> Any:
     """
-    Returns an object located by the given string.
+    Returns an object located by the given topic.
+
+    This function can be (is) used to locate domain
+    event classes and aggregate classes from the
+    topics in stored events and snapshots. It can
+    also be used to locate compression modules,
+    timezone objects, etc.
     """
     try:
         obj = _objs_cache[topic]
@@ -28,7 +46,7 @@ def resolve_topic(topic: str) -> Any:
         module_name, _, class_name = topic.partition(":")
         module = get_module(module_name)
         obj = resolve_attr(module, class_name)
-        _objs_cache[topic] = obj
+        register_topic(topic, obj)
     return obj
 
 
