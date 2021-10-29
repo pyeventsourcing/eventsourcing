@@ -44,7 +44,7 @@ to model the immutable character of a domain event. It has an ``originator_id``
 attribute which is a Python :class:`~uuid.UUID` that identifies a sequence
 (or "stream") to which an event belongs, an ``originator_version``
 attribute which is a Python :class:`int` that determines its position
-in that sequence, and a ``timestamp`` attribute which is Python
+in that sequence, and a ``timestamp`` attribute which is a Python
 :class:`~datetime.datetime` that represents when the event occurred.
 
 .. code:: python
@@ -67,10 +67,10 @@ in that sequence, and a ``timestamp`` attribute which is Python
     assert domain_event.timestamp == datetime(2022, 2, 2)
 
 
-Domain event objects are ordered in their sequence by their version numbers,
+Domain event objects are ordered in their sequence by their originator version numbers,
 and not by their timestamps. The timestamps have no consequences for the operation
 of this library, and are included to give an approximate indication of when a
-domain event object created. The reason for ordering a sequence of events with
+domain event object was created. The reason for ordering a sequence of events with
 integers and not timestamps is that integers can form a gapless sequence that
 excludes the possibility for inserting new items before old ones, and timestamps
 can suffer from clock skews.
@@ -98,9 +98,13 @@ the state of an application.
 Aggregate events are uniquely identifiable in a domain
 model by the combination of their ``originator_id`` and ``originator version``.
 
+
+COMMENT: the next section is discussing aggregates before they've been introduced - maybe needs a forward reference?
+
+
 The :class:`~eventsourcing.domain.AggregateEvent` class has a
 :func:`~eventsourcing.domain.AggregateEvent.mutate` method which adjusts the state
-of an object passed in using the ``aggregate`` argument. This method checks the
+of an object passed in using the ``aggregate`` argument.  This method checks the
 event's ``originator_version`` number equals ``1`` plus the current aggregate
 version number. It assigns this value to the aggregate's
 :py:obj:`~eventsourcing.domain.Aggregate.version` attribute.
@@ -164,7 +168,7 @@ it raises an exception, then the aggregate will remain unmodified by the
 The library also has an
 :class:`~eventsourcing.domain.AggregateCreated` class which represents
 the creation of an aggregate. It extends :class:`~eventsourcing.domain.AggregateEvent` with
-its attribute ``originator_topic`` which is Python :class:`str`. The value of this
+its attribute ``originator_topic`` which is a Python :class:`str`. The value of this
 attribute will be a :ref:`topic <Topics>` that describes the path to the aggregate
 instance's class. It has a :func:`~eventsourcing.domain.AggregateCreated.mutate`
 method which constructs an aggregate object after resolving the ``originator_topic``
@@ -349,7 +353,7 @@ query methods (methods that return values but do not change state) is known as
 described in his book *Object Oriented Software Construction*.
 
 The 'boundary' of the aggregate is defined by the extent of the cluster of objects.
-The 'consistency' of the cluster of objects is maintaining by making sure all
+The 'consistency' of the cluster of objects is maintained by making sure all
 the changes that result from a single command are `recorded atomically
 <https://en.wikipedia.org/wiki/Atomicity_(database_systems)>`_. There is
 only ever one cluster of objects for any given aggregate, so there is
@@ -369,9 +373,27 @@ Event-sourced aggregates
 It is in the `Zen of Python <https://www.python.org/dev/peps/pep-0020/>`_ that
 explicit is better than implicit. The changes to an aggregate's
 cluster of objects will always follow from decisions made by the aggregate.
-It will always be true that a decision itself, having happened, does not change.
-But the results of such a decision are not always expressed explicitly as an
-immutable event object. Event-sourced aggregates make these things explicit.
+It will always be true that a decision itself, having happened, does not change.  Conventional applications
+and databases update objects as a result of those decisions.  For example, consider a bank account with a
+starting balance of £100.  A debit transaction for £20 then occurs, resulting in a new balance of £80.
+That might be coded as follows:
+
+.. code:: python
+
+    class BankAccount:
+        def __init__(self, starting_balance: int):
+            self.balance = starting_balance
+
+        def debit(self, amount):
+            self.balance = self.balance - amount
+
+    account = BankAccount(100)
+    account.debit(20)
+    assert account.balance == 80
+
+Note that the *event* - the reason that the balance changed from 100 to 80 - is transient.  It has a brief
+existence in the time it takes the ``debit()`` method to execute, but then is lost.  The debit decision itself is
+implicit; it has no durable existence.  Event-sourced aggregates make these things explicit.
 
 .. pull-quote::
 
@@ -414,7 +436,7 @@ below.
     from eventsourcing.domain import Aggregate
 
 
-It had three methods which can be used by and on subclasses:
+It has three methods which can be used by and on subclasses:
 
 * the "private" class method :func:`~eventsourcing.domain.MetaAggregate._create`
   will create new aggregate objects;
@@ -430,6 +452,29 @@ These methods are explained below.
 
 Creating new aggregates
 -----------------------
+
+COMMENT: Is the preference/recommendation that library users should use the ``@event`` decorator as a starting point?
+         If so, it might be preferable to start with that.  It's pretty intuitive (I think?) to see an example along
+         the following lines:
+
+.. code:: python
+
+    from eventsourcing.domain import Aggregate, event
+
+    class BankAccount(Aggregate):
+        @event("BankAccountOpened")
+        def __init__(self, starting_balance: int):
+            self.balance = starting_balance
+
+        @event("BankAccountDebited")
+        def debit(self, amount):
+            self.balance = self.balance - amount
+
+This code is syntactically similar to the previous version.  However, the combination of ``Aggregate`` parent and
+``@event`` decorators changes the class into an event sourced aggregate.
+
+COMMENT: Something like above orients the reader, provides the basis to expand on how the events work,
+         and a route into options/customising behaviour.
 
 Firstly, the :class:`~eventsourcing.domain.Aggregate` class has a "private" class
 method :func:`~eventsourcing.domain.MetaAggregate._create` which can be used to create
