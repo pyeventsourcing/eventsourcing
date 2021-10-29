@@ -2158,11 +2158,14 @@ or aggregate from its stored domain events.
         pass
 
 
-    assert get_topic(Aggregate) == "__main__:Aggregate"
-    assert resolve_topic("__main__:Aggregate") == Aggregate
+    assert get_topic(MyAggregate) == "__main__:MyAggregate"
+    assert resolve_topic("__main__:MyAggregate") == MyAggregate
 
-    register_topic("oldmodule:PreviousName", MyAggregate)
-    assert resolve_topic("oldmodule:MyAggregate") == MyAggregate
+    register_topic("old.module:MyAggregate", MyAggregate)
+    assert resolve_topic("old.module:MyAggregate") == MyAggregate
+
+    register_topic("old.module:PreviousName", MyAggregate)
+    assert resolve_topic("old.module:PreviousName") == MyAggregate
 
 
 Notes
