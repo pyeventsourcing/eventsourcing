@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from eventsourcing.application import Application
 from eventsourcing.domain import Aggregate, AggregateEvent
-from eventsourcing.utils import _objs_cache, get_topic
+from eventsourcing.utils import _topic_cache, get_topic
 
 
 class TestUpcasting(TestCase):
@@ -22,26 +22,26 @@ class TestUpcasting(TestCase):
         topic_v1 = get_topic(self.UpcastFixtureV1)
         topic_v1_created = get_topic(self.UpcastFixtureV1.Created)
 
-        if topic_v1 in _objs_cache:
-            del _objs_cache[topic_v1]
-        if topic_v1_created in _objs_cache:
-            del _objs_cache[topic_v1_created]
+        if topic_v1 in _topic_cache:
+            del _topic_cache[topic_v1]
+        if topic_v1_created in _topic_cache:
+            del _topic_cache[topic_v1_created]
 
         topic_v2 = get_topic(self.UpcastFixtureV2)
         topic_v2_created = get_topic(self.UpcastFixtureV2.Created)
 
-        if topic_v2 in _objs_cache:
-            del _objs_cache[topic_v2]
-        if topic_v2_created in _objs_cache:
-            del _objs_cache[topic_v2_created]
+        if topic_v2 in _topic_cache:
+            del _topic_cache[topic_v2]
+        if topic_v2_created in _topic_cache:
+            del _topic_cache[topic_v2_created]
 
         topic_v3 = get_topic(self.UpcastFixtureV3)
         topic_v3_created = get_topic(self.UpcastFixtureV3.Created)
 
-        if topic_v3 in _objs_cache:
-            del _objs_cache[topic_v3]
-        if topic_v3_created in _objs_cache:
-            del _objs_cache[topic_v3_created]
+        if topic_v3 in _topic_cache:
+            del _topic_cache[topic_v3]
+        if topic_v3_created in _topic_cache:
+            del _topic_cache[topic_v3_created]
 
     def test_upcast_created_event_from_v1(self):
         app = Application()
@@ -58,8 +58,8 @@ class TestUpcasting(TestCase):
         self.assertFalse(hasattr(copy, "d"))
 
         # "Deploy" v2.
-        del _objs_cache[topic_v1]
-        del _objs_cache[topic_v1_created]
+        del _topic_cache[topic_v1]
+        del _topic_cache[topic_v1_created]
         type(self).UpcastFixtureV1 = self.UpcastFixtureV2
 
         copy = app.repository.get(aggregate.id)
@@ -70,8 +70,8 @@ class TestUpcasting(TestCase):
         self.assertFalse(hasattr(copy, "d"))
 
         # "Deploy" v3.
-        del _objs_cache[topic_v1]
-        del _objs_cache[topic_v1_created]
+        del _topic_cache[topic_v1]
+        del _topic_cache[topic_v1_created]
         type(self).UpcastFixtureV1 = self.UpcastFixtureV3
 
         copy = app.repository.get(aggregate.id)
@@ -81,7 +81,7 @@ class TestUpcasting(TestCase):
         self.assertEqual(copy.c, [])
 
         # "Deploy" v4.
-        del _objs_cache[topic_v1]
+        del _topic_cache[topic_v1]
         type(self).UpcastFixtureV1 = self.UpcastFixtureV4
 
         copy = app.repository.get(aggregate.id)
@@ -107,7 +107,7 @@ class TestUpcasting(TestCase):
         app.take_snapshot(aggregate.id)
 
         # "Deploy" v2.
-        del _objs_cache[topic_v1]
+        del _topic_cache[topic_v1]
         type(self).UpcastFixtureV1 = self.UpcastFixtureV2
 
         copy = app.repository.get(aggregate.id)
@@ -117,7 +117,7 @@ class TestUpcasting(TestCase):
         self.assertFalse(hasattr(copy, "d"))
 
         # "Deploy" v3.
-        del _objs_cache[topic_v1]
+        del _topic_cache[topic_v1]
         type(self).UpcastFixtureV1 = self.UpcastFixtureV3
 
         copy = app.repository.get(aggregate.id)
@@ -128,7 +128,7 @@ class TestUpcasting(TestCase):
         self.assertFalse(hasattr(copy, "d"))
 
         # "Deploy" v4.
-        del _objs_cache[topic_v1]
+        del _topic_cache[topic_v1]
         type(self).UpcastFixtureV1 = self.UpcastFixtureV4
 
         copy = app.repository.get(aggregate.id)
@@ -154,8 +154,8 @@ class TestUpcasting(TestCase):
         self.assertFalse(hasattr(copy, "d"))
 
         # "Deploy" v3.
-        del _objs_cache[topic_v2]
-        del _objs_cache[topic_v2_created]
+        del _topic_cache[topic_v2]
+        del _topic_cache[topic_v2_created]
         type(self).UpcastFixtureV2 = self.UpcastFixtureV3
 
         copy = app.repository.get(aggregate.id)
@@ -166,8 +166,8 @@ class TestUpcasting(TestCase):
         self.assertFalse(hasattr(copy, "d"))
 
         # "Deploy" v4.
-        del _objs_cache[topic_v2]
-        del _objs_cache[topic_v2_created]
+        del _topic_cache[topic_v2]
+        del _topic_cache[topic_v2_created]
         type(self).UpcastFixtureV2 = self.UpcastFixtureV4
 
         copy = app.repository.get(aggregate.id)
@@ -194,7 +194,7 @@ class TestUpcasting(TestCase):
         app.take_snapshot(aggregate.id)
 
         # "Deploy" v3.
-        del _objs_cache[topic_v2]
+        del _topic_cache[topic_v2]
         type(self).UpcastFixtureV2 = self.UpcastFixtureV3
 
         copy = app.repository.get(aggregate.id)
@@ -205,7 +205,7 @@ class TestUpcasting(TestCase):
         self.assertFalse(hasattr(copy, "d"))
 
         # "Deploy" v4.
-        del _objs_cache[topic_v2]
+        del _topic_cache[topic_v2]
         type(self).UpcastFixtureV2 = self.UpcastFixtureV4
 
         copy = app.repository.get(aggregate.id)
@@ -231,8 +231,8 @@ class TestUpcasting(TestCase):
         self.assertFalse(hasattr(copy, "d"))
 
         # "Deploy" v3.
-        del _objs_cache[topic_v3]
-        del _objs_cache[topic_v3_created]
+        del _topic_cache[topic_v3]
+        del _topic_cache[topic_v3_created]
         type(self).UpcastFixtureV3 = self.UpcastFixtureV4
 
         copy = app.repository.get(aggregate.id)
@@ -269,7 +269,7 @@ class TestUpcasting(TestCase):
         app.take_snapshot(aggregate.id)
 
         # "Deploy" v3.
-        del _objs_cache[topic_v3]
+        del _topic_cache[topic_v3]
         type(self).UpcastFixtureV3 = self.UpcastFixtureV4
 
         copy = app.repository.get(aggregate.id)

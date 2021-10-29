@@ -2123,6 +2123,48 @@ and :func:`~eventsourcing.utils.get_topic` which are used in the library to reso
 a given topic to a Python object, and to construct a topic for a given Python object.
 
 
+.. code:: python
+
+    from eventsourcing.utils import get_topic, resolve_topic
+
+
+    assert get_topic(Aggregate) == "eventsourcing.domain:Aggregate"
+    assert resolve_topic("eventsourcing.domain:Aggregate") == Aggregate
+
+    assert get_topic(Aggregate.Created) == "eventsourcing.domain:Aggregate.Created"
+    assert resolve_topic("eventsourcing.domain:Aggregate.Created") == Aggregate.Created
+
+
+Topic strings are used in stored events, to identify its domain event object type,
+and in in "created" events to identify the aggregate object type.
+
+
+Renaming and moving classes
+===========================
+
+The :func:`~eventsourcing.utils.register_topic` function
+can be used to register an old topic for a class that has
+been moved or renamed. When a class is moved or renamed,
+unless the old topic can be resolved to the class in its
+new location, it won't be possible to reconstruct an event
+or aggregate from its stored domain events.
+
+.. code:: python
+
+    from eventsourcing.utils import register_topic
+
+
+    class MyAggregate(Aggregate):
+        pass
+
+
+    assert get_topic(Aggregate) == "__main__:Aggregate"
+    assert resolve_topic("__main__:Aggregate") == Aggregate
+
+    register_topic("oldmodule:PreviousName", MyAggregate)
+    assert resolve_topic("oldmodule:MyAggregate") == MyAggregate
+
+
 Notes
 =====
 

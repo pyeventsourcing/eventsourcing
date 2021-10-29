@@ -12,9 +12,16 @@ def get_topic(cls: type) -> str:
     """
     Returns a string that locates the given class.
     """
-    topic = f"{cls.__module__}:{cls.__qualname__}"
-    register_topic(topic, cls)
-    return topic
+    try:
+        return _type_cache[cls]
+    except KeyError:
+        topic = f"{cls.__module__}:{cls.__qualname__}"
+        register_topic(topic, cls)
+        _type_cache[cls] = topic
+        return topic
+
+
+_type_cache: Dict[type, str] = {}
 
 
 def register_topic(topic: str, cls: type) -> None:
@@ -27,7 +34,7 @@ def register_topic(topic: str, cls: type) -> None:
     register old topics for classes that have been renamed
     or moved.
     """
-    _objs_cache[topic] = cls
+    _topic_cache[topic] = cls
 
 
 def resolve_topic(topic: str) -> Any:
@@ -41,7 +48,7 @@ def resolve_topic(topic: str) -> Any:
     timezone objects, etc.
     """
     try:
-        obj = _objs_cache[topic]
+        obj = _topic_cache[topic]
     except KeyError:
         module_name, _, class_name = topic.partition(":")
         module = get_module(module_name)
@@ -50,7 +57,7 @@ def resolve_topic(topic: str) -> Any:
     return obj
 
 
-_objs_cache: Dict[str, Any] = {}
+_topic_cache: Dict[str, Any] = {}
 
 
 def get_module(module_name: str) -> ModuleType:
