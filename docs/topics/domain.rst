@@ -67,10 +67,10 @@ in that sequence, and a ``timestamp`` attribute which is a Python
     assert domain_event.timestamp == datetime(2022, 2, 2)
 
 
-Domain event objects are ordered in their sequence by their version numbers,
+Domain event objects are ordered in their sequence by their originator version numbers,
 and not by their timestamps. The timestamps have no consequences for the operation
 of this library, and are included to give an approximate indication of when a
-domain event object created. The reason for ordering a sequence of events with
+domain event object was created. The reason for ordering a sequence of events with
 integers and not timestamps is that integers can form a gapless sequence that
 excludes the possibility for inserting new items before old ones, and timestamps
 can suffer from clock skews.
@@ -99,24 +99,35 @@ Aggregate events are uniquely identifiable in a domain
 model by the combination of their ``originator_id`` and ``originator version``.
 
 The :class:`~eventsourcing.domain.AggregateEvent` class has a
-:func:`~eventsourcing.domain.AggregateEvent.mutate` method which adjusts the state
-of an object passed in using the ``aggregate`` argument. This method checks the
-event's ``originator_version`` equals the current aggregate
-version number plus ``1``. It then increments the aggregate's
-:py:obj:`~eventsourcing.domain.Aggregate.version` attribute.
-It assigns the event's ``timestamp`` to the aggregate's
-:py:obj:`~eventsourcing.domain.Aggregate.modified_on` attribute.
-It returns the modified object.
+:func:`~eventsourcing.domain.AggregateEvent.mutate` method. It has
+a non-optional argument ``aggregate`` which is used to provide the aggregate
+object to which the domain event object pertains. We will discuss aggregates
+in more detail below, but for the purpose of understanding the
+:func:`~eventsourcing.domain.AggregateEvent.mutate` method, all we need to
+know is that they have an immutable settable :py:obj:`~eventsourcing.domain.Aggregate.id`,
+a settable :py:obj:`~eventsourcing.domain.Aggregate.version`
+property, and a settable :py:obj:`~eventsourcing.domain.Aggregate.modified_on` property.
+
+The :func:`~eventsourcing.domain.AggregateEvent.mutate` method validates the
+event can be applied to the aggregate, by checking the event's  ``originator_id``
+equals the aggregate's :py:obj:`~eventsourcing.domain.Aggregate.id`, and by checking
+the event's ``originator_version`` equals the aggregate's
+:py:obj:`~eventsourcing.domain.Aggregate.version` number plus ``1``.
+It increments the aggregate's :py:obj:`~eventsourcing.domain.Aggregate.version`,
+and assigns the event's ``timestamp`` to the aggregate's :py:obj:`~eventsourcing.domain.Aggregate.modified_on`
+property. It then returns the modified object to the caller.
 
 .. code:: python
 
     class A:
-        def __init__(self, id, version):
+        def __init__(self, id, version, created_on=datetime(2022, 2, 2)):
             self.id = id
             self.version = version
+            self.created_on = created_on
+            self.modified_on = created_on
 
 
-    a = A(id=originator_id, version=1)
+    a = A(id=originator_id, version=1, created_on=datetime(2011, 1, 1))
     a = aggregate_event.mutate(a)
     assert a.version == 2
     assert a.modified_on == datetime(2022, 2, 2)
@@ -171,8 +182,14 @@ method which constructs an aggregate object after resolving the ``originator_top
 value to an aggregate class. Although this method has the same signature as the base class's
 method, the argument is expected to be ``None`` and is anyway ignored. It does not call
 :func:`~eventsourcing.domain.AggregateEvent.apply` since the aggregate class's ``__init__()``
-method receives the "created" event attribute values and can fully initialise the aggregate
-object in the usual way.
+method receives the "created" event attribute values and can initialise the aggregate
+object in the usual way. The event's attributes ``originator_id``, ``originator_version``,
+and ``timestamp`` are passed to a method ``__base_init__`` so that subclasses can define
+an ``__init__`` method that does not need to have the common attributes in its signature
+and doesn't need to call ``super()``. The ``__base_init__`` method initialises the aggregate's
+``id``, ``version``, and ``created_on`` properties. After calling ``__base_init__`` this
+:func:`~eventsourcing.domain.AggregateCreated.mutate` method then calls the ``__init__``
+method, and then returns the newly constructed aggregate object to the caller.
 
 .. code:: python
 
@@ -191,6 +208,7 @@ object in the usual way.
     assert a.__class__.__module__ == "eventsourcing.domain"
     assert a.id == originator_id
     assert a.version == 1
+    assert a.created_on == datetime(2011, 1, 1)
     assert a.modified_on == datetime(2011, 1, 1)
 
 
@@ -350,7 +368,7 @@ query methods (methods that return values but do not change state) is known as
 described in his book *Object Oriented Software Construction*.
 
 The 'boundary' of the aggregate is defined by the extent of the cluster of objects.
-The 'consistency' of the cluster of objects is maintaining by making sure all
+The 'consistency' of the cluster of objects is maintained by making sure all
 the changes that result from a single command are `recorded atomically
 <https://en.wikipedia.org/wiki/Atomicity_(database_systems)>`_. There is
 only ever one cluster of objects for any given aggregate, so there is
@@ -372,7 +390,25 @@ explicit is better than implicit. The changes to an aggregate's
 cluster of objects will always follow from decisions made by the aggregate.
 It will always be true that a decision itself, having happened, does not change.
 But the results of such a decision are not always expressed explicitly as an
-immutable event object. Event-sourced aggregates make these things explicit.
+immutable event object. Conventional applications update records of this objects
+in-place as a result of those decisions.  For example, consider a bank account with a
+starting balance of £100.  A debit transaction for £20 then occurs, resulting in a
+new balance of £80. That might be coded as follows:
+
+.. code:: python
+    class BankAccount:
+        def __init__(self, starting_balance: int):
+            self.balance = starting_balance
+        def debit(self, amount):
+            self.balance = self.balance - amount
+    account = BankAccount(100)
+    account.debit(20)
+    assert account.balance == 80
+
+Note that the *event* - the reason that the balance changed from 100 to 80 - is
+transient.  It has a brief existence in the time it takes the ``debit()`` method
+to execute, but then is lost.  The debit decision itself is implicit; it has no
+durable existence. Event-sourced aggregates make these things explicit.
 
 .. pull-quote::
 
@@ -382,12 +418,13 @@ immutable event object. Event-sourced aggregates make these things explicit.
 To make things explicit, a decision made in the command method of an
 aggregate can be coded and recorded as an immutable 'domain event'
 object, and this object can be used to evolve the aggregate's cluster of
-entities and value objects.
-For each event-sourced aggregate, there will a sequence of domain event objects,
-and the state of an event-sourced aggregate will be determined by its sequence of
-domain event objects. The state of an aggregate can change, and its sequence
-of domain events can be augmented. But once created the individual domain
-event objects do not change. They are what they are.
+entities and value objects. For example, bank account statements are
+comprised of a sequence of transactions. In general, for each event-sourced
+aggregate, there will a sequence of domain event objects, and the state of
+an event-sourced aggregate will be determined by this sequence. The state
+of an aggregate can change, and its sequence of domain events can be augmented.
+But once created the individual domain event objects do not change. They are
+what they are.
 
 The state of an aggregate, event-sourced or not, is changed by calling its
 command methods. In an event-sourced aggregate, the command methods create
@@ -415,7 +452,7 @@ below.
     from eventsourcing.domain import Aggregate
 
 
-It had three methods which can be used by and on subclasses:
+It has three methods which can be used by and on subclasses:
 
 * the "private" class method :func:`~eventsourcing.domain.MetaAggregate._create`
   will create new aggregate objects;
