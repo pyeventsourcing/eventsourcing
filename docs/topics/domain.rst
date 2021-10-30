@@ -2173,7 +2173,7 @@ a given topic to a Python object, and to construct a topic for a given Python ob
 
 
 Topic strings are used in stored events, to identify its domain event object type,
-and in in "created" events to identify the aggregate object type.
+and in "created" events to identify the aggregate object type.
 
 
 Renaming and moving classes
