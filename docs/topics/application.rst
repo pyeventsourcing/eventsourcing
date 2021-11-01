@@ -623,7 +623,7 @@ method once for each of your custom transcodings.
     class MyApplication(Application):
         def register_transcodings(self, transcoder: Transcoder):
             super().register_transcodings(transcoder)
-            transcoder.register(DateAsISO)
+            transcoder.register(DateAsISO())
 
 
     class DateAsISO(Transcoding):
