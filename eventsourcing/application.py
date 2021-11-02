@@ -1,12 +1,23 @@
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, Generic, List, Mapping, Optional, Type, TypeVar
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    List,
+    Mapping,
+    Optional,
+    Type,
+    TypeVar,
+)
 from uuid import UUID
 
 from eventsourcing.domain import (
     Aggregate,
     AggregateEvent,
+    DomainEvent,
     Snapshot,
     TAggregate,
 )
@@ -23,6 +34,14 @@ from eventsourcing.persistence import (
     Transcoder,
     UUIDAsHex,
 )
+
+
+def mutate(
+    aggregate: Optional[TAggregate], domain_events: List[DomainEvent[TAggregate]]
+) -> Optional[TAggregate]:
+    for domain_event in domain_events:
+        aggregate = domain_event.mutate(aggregate)
+    return aggregate
 
 
 class Repository(Generic[TAggregate]):
@@ -47,7 +66,14 @@ class Repository(Generic[TAggregate]):
         self.event_store = event_store
         self.snapshot_store = snapshot_store
 
-    def get(self, aggregate_id: UUID, version: Optional[int] = None) -> TAggregate:
+    def get(
+        self,
+        aggregate_id: UUID,
+        version: Optional[int] = None,
+        mutator: Callable[
+            [Optional[TAggregate], List[DomainEvent[TAggregate]]], Optional[TAggregate]
+        ] = mutate,
+    ) -> TAggregate:
         """
         Returns an :class:`~eventsourcing.domain.Aggregate`
         for given ID, optionally at the given version.
@@ -58,30 +84,30 @@ class Repository(Generic[TAggregate]):
 
         if self.snapshot_store is not None:
             # Try to get a snapshot.
-            snapshots = self.snapshot_store.get(
-                originator_id=aggregate_id,
-                desc=True,
-                limit=1,
-                lte=version,
+            snapshots = list(
+                self.snapshot_store.get(
+                    originator_id=aggregate_id,
+                    desc=True,
+                    limit=1,
+                    lte=version,
+                )
             )
-            try:
-                snapshot = next(snapshots)
-            except StopIteration:
-                pass
-            else:
-                gt = snapshot.originator_version
-                aggregate = snapshot.mutate(None)
+            if snapshots:
+                gt = snapshots[0].originator_version
+        else:
+            snapshots = []
 
         # Get aggregate events.
-        domain_events = self.event_store.get(
-            originator_id=aggregate_id,
-            gt=gt,
-            lte=version,
+        aggregate_events = list(
+            self.event_store.get(
+                originator_id=aggregate_id,
+                gt=gt,
+                lte=version,
+            )
         )
 
         # Reconstruct the aggregate from its events.
-        for domain_event in domain_events:
-            aggregate = domain_event.mutate(aggregate)
+        aggregate = mutator(aggregate, snapshots + aggregate_events)
 
         # Raise exception if "not found".
         if aggregate is None:
