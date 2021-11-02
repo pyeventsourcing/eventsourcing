@@ -396,6 +396,7 @@ starting balance of £100.  A debit transaction for £20 then occurs, resulting 
 new balance of £80. That might be coded as follows:
 
 .. code:: python
+
     class BankAccount:
         def __init__(self, starting_balance: int):
             self.balance = starting_balance
@@ -2180,11 +2181,27 @@ Renaming and moving classes
 ===========================
 
 The :func:`~eventsourcing.utils.register_topic` function
-can be used to register an old topic for a class that has
-been moved or renamed. When a class is moved or renamed,
-unless the old topic can be resolved to the class in its
-new location, it won't be possible to reconstruct an event
-or aggregate from its stored domain events.
+can be used to register an old topic for an object that has
+been moved or renamed. When a class object is moved or renamed,
+unless the old topic is registered, it will not be possible to
+resolved an old topic. If an aggregate or event class is renamed,
+it won't be possible to reconstruct instances from previously stored
+events, unless the old topic is registered for the renamed class.
+
+This also supports nested classes. For example, by registering an old
+topic for a renamed aggregate, topics for nested classes that were created
+using the old enclosing name will resolve to the same nested class on the
+renamed enclosing class.
+
+This will also work for renaming modules and packages. If a topic for
+an old module name is registered for a renamed module, topics for
+classes created under the old module name will resolve to the same
+classes in the renamed module. And if a topic for an old package
+name is registered for the renamed package, topics for classes created
+under the old package name will resolve to same classes in the same
+modules in the renamed package.
+
+See the examples below.
 
 .. code:: python
 
@@ -2192,17 +2209,48 @@ or aggregate from its stored domain events.
 
 
     class MyAggregate(Aggregate):
-        pass
+        class Started(Aggregate.Created):
+            pass
 
 
+    # Current topics resolve.
     assert get_topic(MyAggregate) == "__main__:MyAggregate"
     assert resolve_topic("__main__:MyAggregate") == MyAggregate
+    assert resolve_topic("__main__:MyAggregate.Started") == MyAggregate.Started
 
-    register_topic("old.module:MyAggregate", MyAggregate)
-    assert resolve_topic("old.module:MyAggregate") == MyAggregate
+    # Aggregate class was renamed.
+    register_topic("__main__:OldName", MyAggregate)
+    assert resolve_topic("__main__:OldName") == MyAggregate
+    assert resolve_topic("__main__:OldName.Started") == MyAggregate.Started
 
-    register_topic("old.module:PreviousName", MyAggregate)
-    assert resolve_topic("old.module:PreviousName") == MyAggregate
+    # Nested event class was renamed.
+    register_topic("__main__:MyAggregate.Created", MyAggregate.Started)
+    assert resolve_topic("__main__:MyAggregate.Created") == MyAggregate.Started
+
+    # Aggregate class was moved from another module.
+    register_topic("eventsourcing.domain:MyAggregate", MyAggregate)
+    assert resolve_topic("eventsourcing.domain:MyAggregate") == MyAggregate
+    assert resolve_topic("eventsourcing.domain:MyAggregate.Created") == MyAggregate.Created
+    assert resolve_topic("eventsourcing.domain:Aggregate") == Aggregate
+
+    # Module was renamed.
+    import eventsourcing.domain
+    register_topic("eventsourcing.old", eventsourcing.domain)
+    assert resolve_topic("eventsourcing.old:Aggregate") == Aggregate
+    assert resolve_topic("eventsourcing.old:Aggregate.Created") == Aggregate.Created
+
+    # Package was renamed.
+    import eventsourcing
+    register_topic("old", eventsourcing)
+    assert resolve_topic("old.domain:Aggregate") == Aggregate
+    assert resolve_topic("old.domain:Aggregate.Created") == Aggregate.Created
+
+    # Current topics still resolve okay.
+    assert get_topic(MyAggregate) == "__main__:MyAggregate"
+    assert resolve_topic("__main__:MyAggregate") == MyAggregate
+    assert resolve_topic("__main__:MyAggregate.Started") == MyAggregate.Started
+    assert resolve_topic("eventsourcing.domain:Aggregate") == Aggregate
+
 
 
 Notes
