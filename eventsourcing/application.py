@@ -1,11 +1,13 @@
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from itertools import chain
 from typing import (
     Any,
     Callable,
     Dict,
     Generic,
+    Iterable,
     List,
     Mapping,
     Optional,
@@ -36,9 +38,8 @@ from eventsourcing.persistence import (
 )
 
 
-def mutate(
-    aggregate: Optional[TAggregate], domain_events: List[DomainEvent[TAggregate]]
-) -> Optional[TAggregate]:
+def mutate(domain_events: Iterable[DomainEvent[TAggregate]]) -> Optional[TAggregate]:
+    aggregate = None
     for domain_event in domain_events:
         aggregate = domain_event.mutate(aggregate)
     return aggregate
@@ -71,15 +72,13 @@ class Repository(Generic[TAggregate]):
         aggregate_id: UUID,
         version: Optional[int] = None,
         mutator: Callable[
-            [Optional[TAggregate], List[DomainEvent[TAggregate]]], Optional[TAggregate]
+            [Iterable[DomainEvent[TAggregate]]], Optional[TAggregate]
         ] = mutate,
     ) -> TAggregate:
         """
         Returns an :class:`~eventsourcing.domain.Aggregate`
         for given ID, optionally at the given version.
         """
-
-        aggregate: Optional[TAggregate] = None
         gt: Optional[int] = None
 
         if self.snapshot_store is not None:
@@ -98,16 +97,14 @@ class Repository(Generic[TAggregate]):
             snapshots = []
 
         # Get aggregate events.
-        aggregate_events = list(
-            self.event_store.get(
-                originator_id=aggregate_id,
-                gt=gt,
-                lte=version,
-            )
+        aggregate_events = self.event_store.get(
+            originator_id=aggregate_id,
+            gt=gt,
+            lte=version,
         )
 
         # Reconstruct the aggregate from its events.
-        aggregate = mutator(aggregate, snapshots + aggregate_events)
+        aggregate = mutator(chain(snapshots, aggregate_events))
 
         # Raise exception if "not found".
         if aggregate is None:

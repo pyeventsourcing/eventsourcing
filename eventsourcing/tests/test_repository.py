@@ -201,8 +201,8 @@ class TestRepository(TestCase):
         assert copy7.balance == Decimal("65.00"), copy7.balance
 
     def test_with_alternative_mutator_function(self):
-        def mutate(aggregate, domain_events):
-            return reduce(lambda a, e: e.mutate(a), domain_events, aggregate)
+        def mutate(domain_events):
+            return reduce(lambda a, e: e.mutate(a), domain_events, None)
 
         transcoder = JSONTranscoder()
         transcoder.register(UUIDAsHex())

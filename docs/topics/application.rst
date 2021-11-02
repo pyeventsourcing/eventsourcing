@@ -82,7 +82,7 @@ Basic example
 
 In the example below, the ``Worlds`` application extends the library's
 application object base class. The ``World`` aggregate is defined and discussed
-as the :ref:`basic example <Aggregate basic example>` in the domain module documentation.
+as the :ref:`Simple example <Aggregate simple example>` in the domain module documentation.
 
 The ``Worlds`` application's ``create_world()`` method is a command method that creates
 and saves new ``World`` aggregates, returning a new ``world_id`` that can be
@@ -190,7 +190,7 @@ The repository's :func:`~eventsourcing.application.Repository.get` method is use
 obtain already existing aggregates. It uses the event store's
 :func:`~eventsourcing.persistence.EventStore.get` method to retrieve
 the already existing :ref:`domain event objects <Events>` of the requested
-aggregate, and the :func:`~eventsourcing.domain.AggregateEvent.mutate`
+aggregate. By default, it uses the :func:`~eventsourcing.domain.AggregateEvent.mutate`
 methods of the :ref:`domain event objects <Events>` to reconstruct the state
 of the requested aggregate. The repository's
 :func:`~eventsourcing.application.Repository.get` method accepts two
@@ -241,6 +241,13 @@ highest available version of the aggregate will be returned.
     assert world_v5.version == 4  # There is no version 5.
     assert len(world_v5.history) == 3
     assert world_v5.history[-1] == "internet"
+
+
+The :func:`~eventsourcing.application.Repository.get` method has an
+argument `mutator` which can be used to pass in an alternative mutator
+function that will be used as the aggregate projection to reconstruct
+the current state of the aggregate from stored snapshots and domain
+events.
 
 
 .. _Notification Log:
