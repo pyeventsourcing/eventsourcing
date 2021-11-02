@@ -193,8 +193,8 @@ the already existing :ref:`domain event objects <Events>` of the requested
 aggregate. By default, it uses the :func:`~eventsourcing.domain.AggregateEvent.mutate`
 methods of the :ref:`domain event objects <Events>` to reconstruct the state
 of the requested aggregate. The repository's
-:func:`~eventsourcing.application.Repository.get` method accepts two
-arguments: ``aggregate_id`` and ``version``:
+:func:`~eventsourcing.application.Repository.get` method accepts three
+arguments: ``aggregate_id``, ``version``, and ``mutator``:
 
 The ``aggregate_id`` argument is required, and should be the ID of an already existing
 aggregate. If the aggregate is not found, the exception
@@ -203,6 +203,10 @@ aggregate. If the aggregate is not found, the exception
 The ``version`` argument is optional, and represents the required version of the aggregate.
 If the requested version is greater than the highest available version of the aggregate, the
 highest available version of the aggregate will be returned.
+
+The ``mutator`` argument is also optional, and can be used to pass in an alternative
+"mutator function" that will be used as the "aggregate projection" to reconstruct
+the current state of the aggregate from stored snapshots and domain events.
 
 
 .. code:: python
@@ -241,13 +245,6 @@ highest available version of the aggregate will be returned.
     assert world_v5.version == 4  # There is no version 5.
     assert len(world_v5.history) == 3
     assert world_v5.history[-1] == "internet"
-
-
-The :func:`~eventsourcing.application.Repository.get` method has an
-argument `mutator` which can be used to pass in an alternative mutator
-function that will be used as the aggregate projection to reconstruct
-the current state of the aggregate from stored snapshots and domain
-events.
 
 
 .. _Notification Log:
