@@ -19,7 +19,7 @@ from typing import (
 from uuid import UUID
 
 from eventsourcing.domain import DomainEvent
-from eventsourcing.utils import get_topic, resolve_topic, strtobool
+from eventsourcing.utils import TopicError, get_topic, resolve_topic, strtobool
 
 
 class Transcoding(ABC):
@@ -550,7 +550,7 @@ class InfrastructureFactory(ABC):
         )
         try:
             factory_cls = resolve_topic(topic)
-        except (ModuleNotFoundError, AttributeError):
+        except TopicError:
             raise EnvironmentError(
                 "Failed to resolve "
                 "infrastructure factory topic: "

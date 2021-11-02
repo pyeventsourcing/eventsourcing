@@ -1,7 +1,17 @@
 from typing import cast
 from unittest import TestCase
 
-from eventsourcing.utils import retry, strtobool
+import eventsourcing
+from eventsourcing import utils
+from eventsourcing.domain import Aggregate
+from eventsourcing.utils import (
+    TopicError,
+    get_topic,
+    register_topic,
+    resolve_topic,
+    retry,
+    strtobool,
+)
 
 
 class TestRetryDecorator(TestCase):
@@ -140,3 +150,56 @@ class TestStrtobool(TestCase):
         for x in (None, True, False, 1, 2, 3):
             with self.assertRaises(TypeError):
                 strtobool(cast(str, x))
+
+
+class TestTopics(TestCase):
+    def test_get_topic(self):
+        self.assertEqual("eventsourcing.domain:Aggregate", get_topic(Aggregate))
+
+    def test_resolve_topic(self):
+        self.assertEqual(Aggregate, resolve_topic("eventsourcing.domain:Aggregate"))
+
+    def test_register_topic_rename_class(self):
+        register_topic("eventsourcing.domain:OldClass", Aggregate)
+        self.assertEqual(Aggregate, resolve_topic("eventsourcing.domain:OldClass"))
+        self.assertEqual(
+            Aggregate.Created, resolve_topic("eventsourcing.domain:OldClass.Created")
+        )
+
+    def test_register_topic_move_module_into_package(self):
+        register_topic("oldmodule", eventsourcing.domain)
+        self.assertEqual(Aggregate, resolve_topic("oldmodule:Aggregate"))
+        self.assertEqual(
+            Aggregate.Created, resolve_topic("oldmodule:Aggregate.Created")
+        )
+
+    def test_register_topic_rename_package(self):
+        register_topic("oldpackage", eventsourcing)
+        self.assertEqual(Aggregate, resolve_topic("oldpackage.domain:Aggregate"))
+        self.assertEqual(
+            Aggregate.Created, resolve_topic("oldpackage.domain:Aggregate.Created")
+        )
+
+    def test_register_topic_move_package(self):
+        register_topic("old.eventsourcing.domain", eventsourcing.domain)
+        self.assertEqual(Aggregate, resolve_topic("old.eventsourcing.domain:Aggregate"))
+
+    def test_register_topic_rename_package_and_module(self):
+        register_topic("old.old", eventsourcing.domain)
+        self.assertEqual(Aggregate, resolve_topic("old.old:Aggregate"))
+
+    def test_topic_errors(self):
+        # Wrong module name.
+        with self.assertRaises(TopicError):
+            resolve_topic("oldmodule:Aggregate")
+
+        # Wrong class name.
+        with self.assertRaises(TopicError):
+            resolve_topic("eventsourcing.domain:OldClass")
+
+        register_topic("old", eventsourcing)
+        with self.assertRaises(TopicError):
+            register_topic("old", eventsourcing)
+
+    def tearDown(self) -> None:
+        utils._topic_cache.clear()

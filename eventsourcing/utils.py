@@ -4,37 +4,33 @@ from functools import wraps
 from inspect import isfunction
 from random import random
 from time import sleep
-from types import FunctionType, ModuleType, WrapperDescriptorType
+from types import FunctionType, WrapperDescriptorType
 from typing import Any, Callable, Dict, Sequence, Type, Union, no_type_check
+
+
+class TopicError(Exception):
+    """
+    Raised when topic doesn't resolve.
+    """
+
+
+_type_cache: Dict[type, str] = {}
+_topic_cache: Dict[str, Any] = {}
 
 
 def get_topic(cls: type) -> str:
     """
-    Returns a string that locates the given class.
+    Returns a "topic string" that locates the given class
+    in its module. The string is formed by joining the
+    module name and the class qualname separated by the
+    colon character.
     """
     try:
         return _type_cache[cls]
     except KeyError:
         topic = f"{cls.__module__}:{cls.__qualname__}"
-        register_topic(topic, cls)
-        _type_cache[cls] = topic
+        _topic_cache[topic] = cls
         return topic
-
-
-_type_cache: Dict[type, str] = {}
-
-
-def register_topic(topic: str, cls: type) -> None:
-    """
-    Registers a topic with a class, so that the class will be
-    returned whenever the topic is resolved.
-
-    The function can be used to cache the topic of a class, so
-    that it can be resolved faster. It can also be used to
-    register old topics for classes that have been renamed
-    or moved.
-    """
-    _topic_cache[topic] = cls
 
 
 def resolve_topic(topic: str) -> Any:
@@ -50,35 +46,60 @@ def resolve_topic(topic: str) -> Any:
     try:
         obj = _topic_cache[topic]
     except KeyError:
-        module_name, _, class_name = topic.partition(":")
-        module = get_module(module_name)
-        obj = resolve_attr(module, class_name)
+        module_name, _, attr_name = topic.partition(":")
+
+        attr_name_parts = attr_name.split(".")
+        for i in range(len(attr_name_parts) - 1, 0, -1):
+            part_name = ".".join(attr_name_parts[:i])
+            try:
+                obj = _topic_cache[f"{module_name}:{part_name}"]
+            except KeyError:
+                continue
+            else:
+                attr_name = ".".join(attr_name_parts[i:])
+                break
+
+        else:
+            try:
+                obj = _topic_cache[module_name]
+            except KeyError:
+                module_name_parts = module_name.split(".")
+                for i in range(len(module_name_parts) - 1, 0, -1):
+                    part_name = ".".join(module_name_parts[:i])
+                    try:
+                        obj = _topic_cache[f"{part_name}"]
+                    except KeyError:
+                        continue
+                    else:
+                        module_name = ".".join([obj.__name__] + module_name_parts[i:])
+                        break
+                try:
+                    obj = importlib.import_module(module_name)
+                except ImportError as e:
+                    raise TopicError from e
+        if attr_name:
+            for attr_name_part in attr_name.split("."):
+                try:
+                    obj = getattr(obj, attr_name_part)
+                except AttributeError as e:
+                    raise TopicError from e
         register_topic(topic, obj)
     return obj
 
 
-_topic_cache: Dict[str, Any] = {}
+def register_topic(topic: str, obj: Any) -> None:
+    """
+    Registers a topic with an object, so the object will be
+    returned whenever the topic is resolved.
 
-
-def get_module(module_name: str) -> ModuleType:
-    try:
-        module = _modules_cache[module_name]
-    except KeyError:
-        module = importlib.import_module(module_name)
-        _modules_cache[module_name] = module
-    return module
-
-
-_modules_cache: Dict[str, Any] = {}
-
-
-def resolve_attr(obj: Any, path: str) -> Any:
-    if not path:
-        return obj
-    else:
-        head, _, tail = path.partition(".")
-        obj = getattr(obj, head)
-        return resolve_attr(obj, tail)
+    This function can be used to cache the topic of a class, so
+    that the topic can be resolved faster. It can also be used to
+    register old topics for objects that have been renamed or moved,
+    so that old topics will resolve to the renamed or moved object.
+    """
+    if topic in _topic_cache:
+        raise TopicError("Topic is already registered")
+    _topic_cache[topic] = obj
 
 
 def retry(
