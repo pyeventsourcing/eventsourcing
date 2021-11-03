@@ -104,9 +104,9 @@ a non-optional argument ``aggregate`` which is used to provide the aggregate
 object to which the domain event object pertains. We will discuss aggregates
 in more detail below, but for the purpose of understanding the
 :func:`~eventsourcing.domain.AggregateEvent.mutate` method, all we need to
-know is that they have an immutable settable :py:obj:`~eventsourcing.domain.Aggregate.id`,
-a settable :py:obj:`~eventsourcing.domain.Aggregate.version`
-property, and a settable :py:obj:`~eventsourcing.domain.Aggregate.modified_on` property.
+know is that they have an immutable :py:obj:`~eventsourcing.domain.Aggregate.id`,
+a settable :py:obj:`~eventsourcing.domain.Aggregate.version`, and a settable
+:py:obj:`~eventsourcing.domain.Aggregate.modified_on`.
 
 The :func:`~eventsourcing.domain.AggregateEvent.mutate` method validates the
 event can be applied to the aggregate, by checking the event's  ``originator_id``
@@ -184,12 +184,13 @@ method, the argument is expected to be ``None`` and is anyway ignored. It does n
 :func:`~eventsourcing.domain.AggregateEvent.apply` since the aggregate class's ``__init__()``
 method receives the "created" event attribute values and can initialise the aggregate
 object in the usual way. The event's attributes ``originator_id``, ``originator_version``,
-and ``timestamp`` are passed to a method ``__base_init__`` so that subclasses can define
+and ``timestamp`` are actually passed to a method ``__base_init__`` so that subclasses can define
 an ``__init__`` method that does not need to have the common attributes in its signature
-and doesn't need to call ``super()``. The ``__base_init__`` method initialises the aggregate's
-``id``, ``version``, and ``created_on`` properties. After calling ``__base_init__`` this
-:func:`~eventsourcing.domain.AggregateCreated.mutate` method then calls the ``__init__``
-method, and then returns the newly constructed aggregate object to the caller.
+and so does not need to call ``super()``. The ``__base_init__`` method initialises the
+aggregate's ``id``, ``version``, and ``created_on`` properties. After calling ``__base_init__``
+this :func:`~eventsourcing.domain.AggregateCreated.mutate` method then calls the ``__init__``
+method with the remaining event object attributes, and then returns the newly constructed
+aggregate object to the caller.
 
 .. code:: python
 
@@ -215,8 +216,8 @@ method, and then returns the newly constructed aggregate object to the caller.
 The object returned by the :func:`~eventsourcing.domain.AggregateEvent.mutate` method can
 be passed in when calling the method on another event object. Hence, the
 :func:`~eventsourcing.domain.AggregateEvent.mutate` methods of a sequence of
-aggregate events can be used successively to reconstruct the current state of
-an aggregate.
+aggregate event objects can be used successively to reconstruct the current
+state of an aggregate.
 
 .. code:: python
 
@@ -1432,7 +1433,7 @@ are defined using this style.
 Declaring the created event class name
 --------------------------------------
 
-To give the created event class a particular name, use the class argument 'created_event_name'.
+To give the created event class a particular name, use the class argument ``created_event_name``.
 
 .. code:: python
 
@@ -1447,8 +1448,8 @@ To give the created event class a particular name, use the class argument 'creat
     assert isinstance(pending_events[0], MyAggregate.Started)
 
 
-This is equivalent to declaring the created event class explicitly
-on the aggregate class using a particular name.
+This is equivalent to declaring the named of the "created" event class
+on the aggregate class.
 
 .. code:: python
 
@@ -1467,7 +1468,7 @@ on the aggregate class using a particular name.
 If more than one created event class is defined on the aggregate class, perhaps
 because the name of the created event class was changed and there are stored events
 that were created using the old created event class that still need to be supported,
-the ``created_event_name`` class argument can be used to identify which created event
+then ``created_event_name`` can be used to identify which created event
 class is the one to use when creating new aggregate instances. This can be combined
 with upcasting old events, discussed above.
 
@@ -1489,7 +1490,7 @@ with upcasting old events, discussed above.
     assert isinstance(pending_events[0], MyAggregate.Started)
 
 
-If the ``created_event_name`` argument is used but the value does not match
+If ``created_event_name`` used but the value does not match
 the name of one the created event classes that are explicitly defined on the
 aggregate class, then an event class will be automatically defined, and it
 will be used when creating new aggregate instances.
@@ -1537,14 +1538,15 @@ aggregate. You can do this by defining a ``create_id()`` method.
     # The aggregate ID is a version 5 UUID.
     assert agg.id == MyAggregate.create_id("foo")
 
+
 If a ``create_id()`` method is defined on the aggregate class, the base class
 method :func:`~eventsourcing.domain.MetaAggregate.create_id`
 will be overridden. The arguments used in this method must be a subset of the
 arguments used to create the aggregate. The base class method simply returns a
 version 4 UUID, which is the default behaviour for generating aggregate IDs.
 
-Alternatively, an 'id' attribute can be declared on the aggregate
-class, and an ID supplied directly when creating new aggregates.
+Alternatively, an ``id`` attribute can be declared on the aggregate
+class, and an ``id`` argument supplied when creating new aggregates.
 
 .. code:: python
 
