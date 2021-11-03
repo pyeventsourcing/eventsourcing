@@ -1342,18 +1342,18 @@ languages.
 Create new aggregate by calling the aggregate class directly
 ------------------------------------------------------------
 
-A new event sourced aggregate can be created by calling the aggregate class
+An aggregate can be "created" by calling the aggregate class
 directly. You don't actually need to define a class method to do this, although
 you may wish to express your project's ubiquitous language by doing so.
 
-Calling the aggregate class directly will firstly create a created event (an instance
-of the aggregate's created event class) and use that event object to construct an
+Calling the aggregate class directly will firstly create a "created" event (an instance
+of the aggregate's "created" event class) and use that event object to construct an
 instance of the aggregate class.
 
 .. code:: python
 
     class MyAggregate(Aggregate):
-        class Created(Aggregate.Created):
+        class Started(Aggregate.Created):
             pass
 
 
@@ -1363,7 +1363,7 @@ instance of the aggregate class.
     # There is one pending event.
     pending_events = agg.collect_events()
     assert len(pending_events) == 1
-    assert isinstance(pending_events[0], MyAggregate.Created)
+    assert isinstance(pending_events[0], MyAggregate.Started)
 
     # The pending event can be used to reconstruct the aggregate.
     copy = pending_events[0].mutate(None)
@@ -1374,14 +1374,14 @@ instance of the aggregate class.
 Using the init method to define the created event class
 -------------------------------------------------------
 
-If a created event class is not defined on an aggregate class,
+If a "created" event class is not defined on an aggregate class,
 one will be automatically defined. The attributes of this event
 class will be derived by inspecting the signature of the ``__init__()`` method.
 The example below has an init method that has a ``name`` argument.
-Because this example doesn't have a created event class defined
-explicitly on the aggregate class, a created event class will be
+Because this example doesn't have a "created" event class defined
+explicitly on the aggregate class, a "created" event class will be
 defined automatically to match the signature of the init method.
-That is, a created event class will be defined that has an attribute
+That is, a "created" event class will be defined that has an attribute
 ``name``.
 
 .. code:: python
@@ -1399,23 +1399,31 @@ That is, a created event class will be defined that has an attribute
     pending_events = agg.collect_events()
     assert len(pending_events) == 1
 
-    # The pending event is a created event.
+    # The pending event is a "created" event.
     assert isinstance(pending_events[0], MyAggregate.Created)
 
-    # The created event has a 'name' attribute.
+    # The "created" event is defined on the aggregate class.
+    assert type(pending_events[0]).__qualname__ == "MyAggregate.Created"
+
+    # The "created" event has a 'name' attribute.
     pending_events[0].name == "foo"
 
-    # The created event can be used to reconstruct the aggregate.
+    # The "created" event can be used to reconstruct the aggregate.
     copy = pending_events[0].mutate(None)
     assert copy.name == agg.name
+
+
+Please note, by default the name "Created" will be used for an automatically
+defined "created" event class. However, the name of the class can be specified
+using the aggregate class argument ``created_event_name`` (see example below).
 
 
 Dataclass-style init methods
 ----------------------------
 
 Python's dataclass annotations can be used to define an aggregate's
-``__init__()`` method. A created event class can be automatically
-defined from this method.
+``__init__()`` method. A "created" event class will then be
+automatically defined from the automatically defined method.
 
 .. code:: python
 
@@ -1437,12 +1445,11 @@ defined from this method.
     pending_events[0].name == "foo"
 
 
-Optional arguments can be defined by providing default
-values on the dataclass attribute definitions.
+Anything that works on a dataclass should work here too.
+For example, optional arguments can be defined by providing
+default values on the attribute definitions.
 
 .. code:: python
-
-    from dataclasses import dataclass
 
     @dataclass
     class MyAggregate(Aggregate):
@@ -1457,8 +1464,10 @@ values on the dataclass attribute definitions.
     agg = MyAggregate("foo")
     assert agg.name == "foo"
 
-Anything that works on a dataclass should work here too. For example,
-you can define non-init argument attributes by using the ``field``
+
+And you can define "non-init argument" attributes, attributes
+that will be initialised in the ``__init__()`` method but not
+appear as arguments of that method, by using the ``field``
 feature of the dataclasses module.
 
 .. code:: python
@@ -1479,20 +1488,20 @@ feature of the dataclasses module.
 
 
 Please note, when using the dataclass-style for defining ``__init__()``
-methods, using the :data:`@dataclass` decorator will inform your IDE of
-the method signature. The annotations will in any case be used to create
-an ``__init__()`` method when the class does not already have an ``__init__()``.
-Using the dataclass decorator merely enables code completion and syntax
-checking, but the code will run just the same with or without the
+methods, using the :data:`@dataclass` decorator on your aggregate class
+will inform your IDE of the method signature, and then command completion
+should work when calling the class. The annotations will in any case be used
+to create an ``__init__()`` method when the class does not already have an
+``__init__()``. Using the dataclass decorator merely enables code completion
+and syntax checking, but the code will run just the same with or without the
 :data:`@dataclass` decorator being applied to aggregate classes that
 are defined using this style.
-
 
 
 Declaring the created event class name
 --------------------------------------
 
-To give the created event class a particular name, use the class argument ``created_event_name``.
+To give the "created" event class a particular name, use the class argument ``created_event_name``.
 
 .. code:: python
 
@@ -1507,7 +1516,7 @@ To give the created event class a particular name, use the class argument ``crea
     assert isinstance(pending_events[0], MyAggregate.Started)
 
 
-This is equivalent to declaring the named of the "created" event class
+This is equivalent to declaring a "created" event class
 on the aggregate class.
 
 .. code:: python
@@ -1524,12 +1533,11 @@ on the aggregate class.
     assert isinstance(pending_events[0], MyAggregate.Started)
 
 
-If more than one created event class is defined on the aggregate class, perhaps
-because the name of the created event class was changed and there are stored events
-that were created using the old created event class that still need to be supported,
-then ``created_event_name`` can be used to identify which created event
-class is the one to use when creating new aggregate instances. This can be combined
-with upcasting old events, discussed above.
+If more than one "created" event class is defined on the aggregate class, perhaps
+because the name of the "created" event class was changed and there are stored events
+that were created using the old "created" event class that need to be supported,
+then ``created_event_name`` can be used to identify which "created" event
+class is the one to use when creating new aggregate instances.
 
 .. code:: python
 
@@ -1549,8 +1557,8 @@ with upcasting old events, discussed above.
     assert isinstance(pending_events[0], MyAggregate.Started)
 
 
-If ``created_event_name`` used but the value does not match
-the name of one the created event classes that are explicitly defined on the
+If ``created_event_name`` is used but the value does not match
+the name of any of the "created" event classes that are explicitly defined on the
 aggregate class, then an event class will be automatically defined, and it
 will be used when creating new aggregate instances.
 
@@ -1653,9 +1661,9 @@ will be used to automatically define an aggregate event class. And when the
 method is called, the event will firstly be triggered with the values given
 when calling the method, so that an event is created and used to mutate the
 state of the aggregate. The body of the decorated method will be used as the
-``apply()`` method of the event both after the event has been triggered and
+``apply()`` method of the event, both after the event has been triggered and
 when the aggregate is reconstructed from stored events. The name of the event
-class can be passed to the decorator.
+class can be passed to the decorator as a Python ``str``.
 
 .. code:: python
 
@@ -1825,22 +1833,10 @@ The World aggregate class revisited
 -----------------------------------
 
 Using the declarative syntax described above, the ``World`` aggregate in
-the :ref:`example <Aggregate simple example>` above can be
+the :ref:`Simple example <Aggregate simple example>` above can be
 expressed more concisely in the following way.
 
-In the example below, the ``World`` aggregate's created event is automatically
-defined by inspecting the aggregate's ``__init__()`` method. The created event
-is named ``Created``. The ``World.SomethingHappened`` event is automatically
-defined by inspecting the decorated ``make_it_so()`` method. The event class
-name "SomethingHappened" is given to the event decorator. The body of the decorated
-``make_it_so()`` method will be used as the ``apply()`` method of the
-``World.SomethingHappened`` event, both when the event is triggered and
-when the aggregate is reconstructed from stored events.
-
 .. code:: python
-
-    from eventsourcing.domain import event
-
 
     class World(Aggregate):
         def __init__(self):
@@ -1851,14 +1847,17 @@ when the aggregate is reconstructed from stored events.
             self.history.append(what)
 
 
+In this example, the ``World.SomethingHappened`` event is automatically
+defined by inspecting the ``make_it_so()`` method. The event class
+name "SomethingHappened" is given to the method's decorator. The
+body of the ``make_it_so()`` method will be used as the ``apply()``
+method of the ``World.SomethingHappened`` event.
+
 The ``World`` aggregate class can be called directly. Calling the
-class directly will call the :class:`~eventsourcing.domain.Aggregate`
-:func:`~eventsourcing.domain.MetaAggregate._create` method with the
-automatically defined ``World.Created`` event. Calling the ``make_it_so()``
-method will trigger a ``World.SomethingHappened`` event, and this event
-will be used to mutate the state of the aggregate, such that the
-``make_it_so()`` method argument ``what`` will eventually be appended
-to the aggregate's ``history`` attribute.
+``make_it_so()`` method will trigger a ``World.SomethingHappened``
+event, and this event will be used to mutate the state of the aggregate,
+such that the ``make_it_so()`` method argument ``what`` will be
+appended to the aggregate's ``history`` attribute.
 
 .. code:: python
 
@@ -1870,7 +1869,27 @@ to the aggregate's ``history`` attribute.
     assert world.history[0] == "dinosaurs"
     assert world.history[1] == "trucks"
     assert world.history[2] == "internet"
-    assert len(world.collect_events()) == 4
+
+
+As before, the pending events can be collected
+and used to reconstruct the aggregate object.
+
+.. code:: python
+
+    pending_events = world.collect_events()
+
+    assert len(pending_events) == 4
+
+    copy = reconstruct_aggregate_from_events(pending_events)
+
+    assert copy.id == world.id
+    assert copy.version == world.version
+    assert copy.created_on == world.created_on
+    assert copy.modified_on == world.modified_on
+
+    assert copy.history[0] == "dinosaurs"
+    assert copy.history[1] == "trucks"
+    assert copy.history[2] == "internet"
 
 
 
@@ -1882,9 +1901,6 @@ The ``Page`` and ``Index`` aggregates defined in the above
 concisely in the following way.
 
 .. code:: python
-
-    from dataclasses import dataclass
-
 
     @dataclass
     class Page(Aggregate):
