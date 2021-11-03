@@ -537,13 +537,22 @@ The :func:`~eventsourcing.domain.MetaAggregate._create` method also accepts vari
 keyword arguments, ``**kwargs``, which if given will also be used to construct the event
 object in addition to those mentioned above. Since the "created" event object will be
 constructed with these additional arguments, so these other method arguments must be
-matched by the attributes of your "created" event class. The concrete aggregate class's
-initializer method :func:`__init__` should also be coded to accept these extra arguments.
+matched by the particular attributes of your "created" event class.
 
-After creating the event object, the :func:`~eventsourcing.domain.Aggregate._create` method
-will construct the aggregate object by calling the event object's
-:func:`~eventsourcing.domain.AggregateEvent.mutate` method. It will then return the aggregate
-object to the caller.
+After creating the event object, the :func:`~eventsourcing.domain.MetaAggregate._create`
+method will construct the aggregate object by calling the "created" event's
+:func:`~eventsourcing.domain.AggregateCreated.mutate` method.
+If the "created" event extends the base class by defining any additional event attributes
+that are particular to itself, those attributes required to match the extra arguments passed
+to the :func:`~eventsourcing.domain.MetaAggregate._create` method as the variable keyword
+arguments, then an initializer method ``__init__()`` must be coded on the concrete aggregate
+class which accepts these additional attributes, since (as discussed above) they will all be
+passed to the ``__init__()`` method when it is called by the "created" event's
+:func:`~eventsourcing.domain.AggregateCreated.mutate` method. Having constructed the
+aggregate object from the "created" event object, the
+:func:`~eventsourcing.domain.MetaAggregate._create` method will append the "created" event
+object to the aggregate object's list of "pending events", and then return the aggregate object
+to the caller.
 
 Having been created, an aggregate object will have an aggregate ID. The ID is presented
 by its :py:obj:`~eventsourcing.domain.Aggregate.id` property. The ID will be identical to
@@ -655,6 +664,8 @@ will apply the event to the aggregate by calling the event object's
 call the event's :func:`~eventsourcing.domain.AggregateEvent.apply` method,
 and then update the ``version`` and ``modified_on`` attributes.
 
+Finally, it will append the aggregate event to the aggregate object's list of pending events.
+
 Hence, after calling :func:`~eventsourcing.domain.Aggregate.trigger_event`, the aggregate's
 :py:obj:`~eventsourcing.domain.Aggregate.version` will have been incremented by ``1``, and the
 ``modified_on`` time should be greater than the ``created_on`` time.
@@ -694,6 +705,15 @@ constructed if the method hasn't been called.
 The :func:`~eventsourcing.domain.Aggregate.collect_events` method is called without
 any arguments. In the example above, we can see two aggregate event objects have been
 collected, because we created an aggregate and then triggered a subsequent event.
+
+This method will drain the aggregate object's list of pending events, so that if this
+method is called again before any further aggregate events have been appended, it will
+return an empty list.
+
+.. code:: python
+
+    pending_events = aggregate.collect_events()
+    assert len(pending_events) == 0
 
 
 Alternative mutator function
@@ -761,7 +781,7 @@ The ``__init__()`` method
 initialises a ``history`` attribute with an empty Python ``list`` object.
 
 The ``World.create()`` class method creates and returns
-a new ``World`` aggregate object. It calls the base class's
+a new ``World`` aggregate object. It calls the inherited
 :func:`~eventsourcing.domain.MetaAggregate._create` method that
 we discussed above. It uses its own ``Created`` event class as
 the value of the ``event_class`` argument. As above, it uses a
@@ -770,7 +790,7 @@ object as the value of the ``id`` argument. See the :ref:`Namespaced IDs <Namesp
 section below for a discussion about using version 5 UUIDs.
 
 The ``make_it_so()`` method is a command method that triggers
-a ``World.SomethingHappened`` domain event. It calls the base class
+a ``World.SomethingHappened`` domain event. It calls the inherited
 :func:`~eventsourcing.domain.Aggregate.trigger_event` method.
 The event is triggered with the method argument ``what``.
 
