@@ -519,7 +519,7 @@ class TestEventDecorator(TestCase):
 
         self.assertEqual(
             cm.exception.args[0],
-            "value_changed() staticmethod can't be used to update aggregate state",
+            "value_changed() static method can't be used to update aggregate state",
         )
 
     def test_raises_when_method_is_classmethod(self):
@@ -533,7 +533,7 @@ class TestEventDecorator(TestCase):
 
         self.assertEqual(
             cm.exception.args[0],
-            "value_changed() classmethod can't be used to update aggregate state",
+            "value_changed() class method can't be used to update aggregate state",
         )
 
     def test_method_called_with_positional_defined_with_keyword_params(self):

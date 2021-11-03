@@ -201,8 +201,8 @@ class TestRepository(TestCase):
         assert copy7.balance == Decimal("65.00"), copy7.balance
 
     def test_with_alternative_mutator_function(self):
-        def mutate(domain_events):
-            return reduce(lambda a, e: e.mutate(a), domain_events, None)
+        def mutator(initial, domain_events):
+            return reduce(lambda a, e: e.mutate(a), domain_events, initial)
 
         transcoder = JSONTranscoder()
         transcoder.register(UUIDAsHex())
@@ -245,7 +245,7 @@ class TestRepository(TestCase):
         # Store pending events.
         event_store.put(pending)
 
-        copy = repository.get(account.id, mutator=mutate)
+        copy = repository.get(account.id, projector_func=mutator)
         assert isinstance(copy, BankAccount)
         # Check copy has correct attribute values.
         assert copy.id == account.id

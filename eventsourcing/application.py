@@ -37,9 +37,18 @@ from eventsourcing.persistence import (
     UUIDAsHex,
 )
 
+T = TypeVar("T")
+ProjectorFunctionType = Callable[[Optional[T], Iterable[DomainEvent[T]]], Optional[T]]
 
-def mutate(domain_events: Iterable[DomainEvent[TAggregate]]) -> Optional[TAggregate]:
-    aggregate = None
+
+def mutate_aggregate(
+    aggregate: Optional[T], domain_events: Iterable[DomainEvent[T]]
+) -> Optional[T]:
+    """
+    Mutator function for aggregate projections, which works
+    by successively calling the mutate() method of the given
+    list of domain events.
+    """
     for domain_event in domain_events:
         aggregate = domain_event.mutate(aggregate)
     return aggregate
@@ -71,9 +80,7 @@ class Repository(Generic[TAggregate]):
         self,
         aggregate_id: UUID,
         version: Optional[int] = None,
-        mutator: Callable[
-            [Iterable[DomainEvent[TAggregate]]], Optional[TAggregate]
-        ] = mutate,
+        projector_func: ProjectorFunctionType[TAggregate] = mutate_aggregate,
     ) -> TAggregate:
         """
         Returns an :class:`~eventsourcing.domain.Aggregate`
@@ -104,7 +111,7 @@ class Repository(Generic[TAggregate]):
         )
 
         # Reconstruct the aggregate from its events.
-        aggregate = mutator(chain(snapshots, aggregate_events))
+        aggregate = projector_func(None, chain(snapshots, aggregate_events))
 
         # Raise exception if "not found".
         if aggregate is None:

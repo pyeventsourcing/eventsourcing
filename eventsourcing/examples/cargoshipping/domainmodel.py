@@ -201,16 +201,16 @@ class Cargo(Aggregate):
         def apply(self, aggregate: "Cargo") -> None:
             aggregate.apply(self)
 
+    @singledispatchmethod
+    def apply(self, event: Event) -> None:
+        """
+        Default method to apply an aggregate event to the aggregate object.
+        """
+
     class BookingStarted(Aggregate.Created["Cargo"], Event):
         origin: Location
         destination: Location
         arrival_deadline: datetime
-
-    @singledispatchmethod
-    def apply(self, event: Event) -> None:
-        """
-        Default aggregate projection.
-        """
 
     def change_destination(self, destination: Location) -> None:
         self.trigger_event(

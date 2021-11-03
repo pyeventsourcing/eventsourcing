@@ -189,12 +189,12 @@ library's :class:`~eventsourcing.application.Repository` class.
 The repository's :func:`~eventsourcing.application.Repository.get` method is used to
 obtain already existing aggregates. It uses the event store's
 :func:`~eventsourcing.persistence.EventStore.get` method to retrieve
-the already existing :ref:`domain event objects <Events>` of the requested
-aggregate. By default, it uses the :func:`~eventsourcing.domain.AggregateEvent.mutate`
-methods of the :ref:`domain event objects <Events>` to reconstruct the state
-of the requested aggregate. The repository's
+the already existing :ref:`domain event objects <Domain events>` of the requested
+aggregate. By default, it uses the event objects'
+:func:`~eventsourcing.domain.AggregateEvent.mutate` methods to reconstruct the
+state of the requested aggregate. The repository's
 :func:`~eventsourcing.application.Repository.get` method accepts three
-arguments: ``aggregate_id``, ``version``, and ``mutator``:
+arguments: ``aggregate_id``, ``version``, and ``projector_func``.
 
 The ``aggregate_id`` argument is required, and should be the ID of an already existing
 aggregate. If the aggregate is not found, the exception
@@ -204,8 +204,8 @@ The ``version`` argument is optional, and represents the required version of the
 If the requested version is greater than the highest available version of the aggregate, the
 highest available version of the aggregate will be returned.
 
-The ``mutator`` argument is also optional, and can be used to pass in an alternative
-"mutator function" that will be used as the "aggregate projection" to reconstruct
+The ``projector_func`` argument is also optional, and can be used to pass in an alternative
+"mutator function" that will be used as the "aggregate projector" to reconstruct
 the current state of the aggregate from stored snapshots and domain events.
 
 

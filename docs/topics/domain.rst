@@ -31,304 +31,6 @@ preferred by the community of users of the library, as expressed in a vote
 on the matter in 2021.
 
 
-.. _Events:
-
-Domain events
-=============
-
-Domain event objects are created but do not change.
-The library's :class:`~eventsourcing.domain.DomainEvent` class is a base
-class for domain events. It is defined as a `frozen Python data class
-<https://docs.python.org/3/library/dataclasses.html#frozen-instances>`_
-to model the immutable character of a domain event. It has an ``originator_id``
-attribute which is a Python :class:`~uuid.UUID` that identifies a sequence
-(or "stream") to which an event belongs, an ``originator_version``
-attribute which is a Python :class:`int` that determines its position
-in that sequence, and a ``timestamp`` attribute which is a Python
-:class:`~datetime.datetime` that represents when the event occurred.
-
-.. code:: python
-
-    from datetime import datetime
-    from uuid import uuid4
-
-    from eventsourcing.domain import DomainEvent
-
-
-    originator_id = uuid4()
-
-    domain_event = DomainEvent(
-        originator_id=originator_id,
-        originator_version=2,
-        timestamp=datetime(2022, 2, 2),
-    )
-    assert domain_event.originator_id == originator_id
-    assert domain_event.originator_version == 2
-    assert domain_event.timestamp == datetime(2022, 2, 2)
-
-
-Domain event objects are ordered in their sequence by their originator version numbers,
-and not by their timestamps. The timestamps have no consequences for the operation
-of this library, and are included to give an approximate indication of when a
-domain event object was created. The reason for ordering a sequence of events with
-integers and not timestamps is that integers can form a gapless sequence that
-excludes the possibility for inserting new items before old ones, and timestamps
-can suffer from clock skews.
-
-The library's :class:`~eventsourcing.domain.AggregateEvent` base class is defined as
-a subclass of :class:`~eventsourcing.domain.DomainEvent`. It can be used to
-define concrete aggregate event objects in your domain model.
-Aggregate event objects represent original decisions by a domain model that advance
-the state of an application.
-
-.. code:: python
-
-    from eventsourcing.domain import AggregateEvent
-
-
-    aggregate_event = AggregateEvent(
-        originator_id=originator_id,
-        originator_version=2,
-        timestamp=datetime(2022, 2, 2),
-    )
-    assert aggregate_event.originator_id == originator_id
-    assert aggregate_event.originator_version == 2
-    assert aggregate_event.timestamp == datetime(2022, 2, 2)
-
-Aggregate events are uniquely identifiable in a domain
-model by the combination of their ``originator_id`` and ``originator version``.
-
-The :class:`~eventsourcing.domain.AggregateEvent` class has a
-:func:`~eventsourcing.domain.AggregateEvent.mutate` method. It has
-a non-optional argument ``aggregate`` which is used to provide the aggregate
-object to which the domain event object pertains. We will discuss aggregates
-in more detail below, but for the purpose of understanding the
-:func:`~eventsourcing.domain.AggregateEvent.mutate` method, all we need to
-know is that they have an immutable :py:obj:`~eventsourcing.domain.Aggregate.id`,
-a settable :py:obj:`~eventsourcing.domain.Aggregate.version`, and a settable
-:py:obj:`~eventsourcing.domain.Aggregate.modified_on`.
-
-The :func:`~eventsourcing.domain.AggregateEvent.mutate` method validates the
-event can be applied to the aggregate, by checking the event's  ``originator_id``
-equals the aggregate's :py:obj:`~eventsourcing.domain.Aggregate.id`, and by checking
-the event's ``originator_version`` equals the aggregate's
-:py:obj:`~eventsourcing.domain.Aggregate.version` number plus ``1``.
-It increments the aggregate's :py:obj:`~eventsourcing.domain.Aggregate.version`,
-and assigns the event's ``timestamp`` to the aggregate's :py:obj:`~eventsourcing.domain.Aggregate.modified_on`
-property. It then returns the modified object to the caller.
-
-.. code:: python
-
-    class A:
-        def __init__(self, id, version, created_on=datetime(2022, 2, 2)):
-            self.id = id
-            self.version = version
-            self.created_on = created_on
-            self.modified_on = created_on
-
-
-    a = A(id=originator_id, version=1, created_on=datetime(2011, 1, 1))
-    a = aggregate_event.mutate(a)
-    assert a.version == 2
-    assert a.modified_on == datetime(2022, 2, 2)
-
-
-The :class:`~eventsourcing.domain.AggregateEvent` class also has an
-:func:`~eventsourcing.domain.AggregateEvent.apply` method, which is called
-by the :func:`~eventsourcing.domain.AggregateEvent.mutate` method. The
-:func:`~eventsourcing.domain.AggregateEvent.apply` method has
-a non-optional argument ``aggregate`` which is used to provide the aggregate
-object to which the domain event object pertains. The base class's
-:func:`~eventsourcing.domain.AggregateEvent.apply` method body is empty, and
-so this method can be simply overridden (implemented without a call to the
-superclass method). It is also not expected to return a value (any value that
-it does return will be ignored). Hence this method can be simply and conveniently
-implemented in aggregate event classes to apply an event's attribute values to an
-aggregate. The :func:`~eventsourcing.domain.AggregateEvent.apply` method is called
-after the validation checks and before modifying the aggregate's state, so that if
-it raises an exception, then the aggregate will remain unmodified by the
-:func:`~eventsourcing.domain.AggregateEvent.mutate` method.
-
-.. code:: python
-
-    class MyEvent(AggregateEvent):
-        full_name: str
-
-        def apply(self, aggregate):
-            aggregate.full_name = self.full_name
-
-
-    my_event = MyEvent(
-        originator_id=originator_id,
-        originator_version=3,
-        timestamp=datetime(2033, 3, 3),
-        full_name="Eric Idle"
-    )
-
-
-    a = my_event.mutate(a)
-    assert a.version == 3
-    assert a.modified_on == datetime(2033, 3, 3)
-    assert a.full_name == "Eric Idle"
-
-
-The library also has an
-:class:`~eventsourcing.domain.AggregateCreated` class which represents
-the creation of an aggregate. It extends :class:`~eventsourcing.domain.AggregateEvent` with
-its attribute ``originator_topic`` which is a Python :class:`str`. The value of this
-attribute will be a :ref:`topic <Topics>` that describes the path to the aggregate
-instance's class. It has a :func:`~eventsourcing.domain.AggregateCreated.mutate`
-method which constructs an aggregate object after resolving the ``originator_topic``
-value to an aggregate class. Although this method has the same signature as the base class's
-method, the argument is expected to be ``None`` and is anyway ignored. It does not call
-:func:`~eventsourcing.domain.AggregateEvent.apply` since the aggregate class's ``__init__()``
-method receives the "created" event attribute values and can initialise the aggregate
-object in the usual way. The event's attributes ``originator_id``, ``originator_version``,
-and ``timestamp`` are actually passed to a method ``__base_init__`` so that subclasses can define
-an ``__init__`` method that does not need to have the common attributes in its signature
-and so does not need to call ``super()``. The ``__base_init__`` method initialises the
-aggregate's ``id``, ``version``, and ``created_on`` properties. After calling ``__base_init__``
-this :func:`~eventsourcing.domain.AggregateCreated.mutate` method then calls the ``__init__``
-method with the remaining event object attributes, and then returns the newly constructed
-aggregate object to the caller.
-
-.. code:: python
-
-    from eventsourcing.domain import AggregateCreated
-
-
-    aggregate_created = AggregateCreated(
-        originator_topic="eventsourcing.domain:Aggregate",
-        originator_id=originator_id,
-        originator_version=1,
-        timestamp=datetime(2011, 1, 1),
-    )
-
-    a = aggregate_created.mutate(None)
-    assert a.__class__.__name__ == "Aggregate"
-    assert a.__class__.__module__ == "eventsourcing.domain"
-    assert a.id == originator_id
-    assert a.version == 1
-    assert a.created_on == datetime(2011, 1, 1)
-    assert a.modified_on == datetime(2011, 1, 1)
-
-
-The object returned by the :func:`~eventsourcing.domain.AggregateEvent.mutate` method can
-be passed in when calling the method on another event object. Hence, the
-:func:`~eventsourcing.domain.AggregateEvent.mutate` methods of a sequence of
-aggregate event objects can be used successively to reconstruct the current
-state of an aggregate.
-
-.. code:: python
-
-    a = aggregate_created.mutate(None)
-    assert a.id == originator_id
-    assert a.version == 1
-    assert a.modified_on == datetime(2011, 1, 1)
-
-    a = aggregate_event.mutate(a)
-    assert a.id == originator_id
-    assert a.version == 2
-    assert a.modified_on == datetime(2022, 2, 2)
-
-    a = my_event.mutate(a)
-    assert a.id == originator_id
-    assert a.version == 3
-    assert a.modified_on == datetime(2033, 3, 3)
-    assert a.full_name == "Eric Idle"
-
-
-The :func:`~eventsourcing.domain.AggregateEvent.mutate` and
-:func:`~eventsourcing.domain.AggregateEvent.apply` methods of aggregate events
-can be used effectively to implement a "mutator function", or "aggregate projection",
-by which the state of an aggregate is reconstructed from its history of events.
-This is essentially how the :func:`~eventsourcing.application.Repository.get`
-method of an :ref:`application repository <Repository>` reconstructs an aggregate
-from stored events when the aggregate is requested by ID.
-
-.. code:: python
-
-    def reconstruct_aggregate_from_events(events):
-        a = None
-        for event in events:
-            a = event.mutate(a)
-        return a
-
-
-    events = [
-        aggregate_created,
-        aggregate_event,
-        my_event,
-    ]
-
-    a = reconstruct_aggregate_from_events(events)
-    assert a.id == originator_id
-    assert a.version == 3
-    assert a.modified_on == datetime(2033, 3, 3)
-    assert a.full_name == "Eric Idle"
-
-
-By making the ``aggregate`` argument and return value optional,
-"created" events can be defined which start from ``None`` and "discarded" events
-can be defined which return ``None``. For example, an initial "created" event can
-construct an aggregate object, subsequent events can receive an aggregate and
-return a modified aggregate, and a final "discarded" event can receive an aggregate
-and return ``None``.
-
-.. code:: python
-
-    class AggregateDiscarded(AggregateEvent):
-        def mutate(self, aggregate):
-            super().mutate(aggregate)
-            aggregate._is_discarded = True
-            return None
-
-
-    aggregate_discarded = AggregateDiscarded(
-        originator_id=originator_id,
-        originator_version=4,
-        timestamp=datetime(2044, 4, 4),
-    )
-
-
-    events.append(aggregate_discarded)
-    a = reconstruct_aggregate_from_events(events)
-    assert a is None
-
-
-An alternative to using :func:`~eventsourcing.domain.AggregateEvent.apply` methods
-on the event classes is to define apply methods on the aggregate class. A base ``Event``
-class can be defined on the aggregate class with an ``apply()`` method which simply
-calls an ``apply()`` method on the aggregate class that has the event as an argument.
-The aggregate's ``apply()`` method can be decorated with the
-``@singledispatchmethod`` decorator, or implemented as a big if-else block, and then
-event-specific parts of the projection can be defined that will apply particular types
-events to the aggregate in a particular way. See the ``Cargo`` aggregate in the domain
-model section of the :ref:`Cargo Shipping example <Cargo shipping>` for an example of
-this alternative. This has the advantage of setting values on ``self``, which avoids
-the reverse of intuition that occurs when writing ``apply()`` methods on the events,
-and makes it legitimate to set values on "private" attributes. However, there is
-quite a lot of "boiler plate" that results from coding this on every aggregate class.
-
-A further alternative is to use a function at the module level which has both the event
-and the aggregate as arguments, but then the projection becomes even more distant from
-definition of the event. It's also possible to rework the mutate methods in these ways,
-but then the common behaviours will need to repeated for each part of the projection
-that handles a particular type of event, and for all the types of event, which is
-repetitive and so isn't recommended. And also the issue of setting "private" attributes
-on the aggregate returns.
-
-A further alternative, which is highly recommended, is to use the new
-:ref:`declarative syntax <Declarative syntax>`, especially the ``@event``
-decorator, which is used on the project's README page, and which is explained
-in detail below.
-
-This library's :class:`~eventsourcing.domain.Snapshot` class is also defined as a
-subclass of the :class:`~eventsourcing.domain.DomainEvent` class, and works in a
-similar way to the aggregate event classes mentioned above. See the :ref:`Snapshots
-<Snapshots>` section for more information about snapshots.
-
-
 Aggregates in DDD
 =================
 
@@ -346,18 +48,19 @@ called 'aggregate' in the following way.
     through the root. Allow external objects to hold references to the
     root only."*
 
-An aggregate is a cluster of 'entities' and 'value objects'. An entity is an
-object with a fixed unique identity and other attributes that may vary. A
-value object does not vary, and does not necessarily have a unique identity.
+That is to say, an 'aggregate' is a cluster of 'entities' and 'value objects'. An
+'entity' is an object with a fixed unique identity and other attributes that may vary.
+A 'value object' does not vary, nor does it necessarily have a unique identity.
 This basic notion of a cluster of software objects is understandable as
 straightforward `object-oriented programming
 <https://en.wikipedia.org/wiki/Object-oriented_programming>`_.
 
-An aggregate has a 'root'. The root of an aggregate is an entity.
+An aggregate has a 'root'. The 'root' of an aggregate is an entity.
 This entity is known as the 'root entity' or the 'aggregate root'. Entities
 have IDs and the ID of the root entity is used to uniquely identify the
 cluster of objects in a domain model. Access to the cluster of objects
-is made through the root entity.
+is made through the root entity, which means that the root entity will
+have those methods that are required to interact with the aggregate.
 
 Changes to the cluster of objects are made using 'command methods' defined on
 the root entity, and the state of the cluster of objects is obtained by using
@@ -440,6 +143,305 @@ all the domain events triggered by responding to a single client request must be
 atomically in the order they were created, otherwise the recorded state of the aggregate
 may become inconsistent with respect to that which was desired or expected.
 
+
+.. _Domain events:
+
+Domain events
+-------------
+
+Domain event objects are created but do not change.
+The library's :class:`~eventsourcing.domain.DomainEvent` class is a base
+class for domain events. It is defined as a `frozen Python data class
+<https://docs.python.org/3/library/dataclasses.html#frozen-instances>`_
+to model the immutable character of a domain event. It has an ``originator_id``
+attribute which is a Python :class:`~uuid.UUID` that identifies a sequence
+(or "stream") to which an event belongs, an ``originator_version``
+attribute which is a Python :class:`int` that determines its position
+in that sequence, and a ``timestamp`` attribute which is a Python
+:class:`~datetime.datetime` that represents when the event occurred.
+
+.. code:: python
+
+    from datetime import datetime
+    from uuid import uuid4
+
+    from eventsourcing.domain import DomainEvent
+
+
+    originator_id = uuid4()
+
+    domain_event = DomainEvent(
+        originator_id=originator_id,
+        originator_version=2,
+        timestamp=datetime(2022, 2, 2),
+    )
+    assert domain_event.originator_id == originator_id
+    assert domain_event.originator_version == 2
+    assert domain_event.timestamp == datetime(2022, 2, 2)
+
+
+Domain event objects are ordered in their sequence by their ``originator_version``,
+and not by their ``timestamp``. The timestamps have no consequences for the operation
+of this library, and are included to give an approximate indication of when a
+domain event object was created. The reason for ordering a sequence of events by
+``originator_version`` and not ``timestamp`` is that the version numbers can form
+a gapless sequence that excludes the possibility for inserting new items before old ones,
+and timestamps are more likely to have such gaps and anyway can suffer from clock skews.
+
+In this library, domain event objects are specialised into two different kinds: 'aggregate event'
+and 'snapshot'.
+
+The domain events that are triggered by an aggregate will be referred to as
+'aggregate events'. The library's :class:`~eventsourcing.domain.AggregateEvent`
+class is defined as a subclass of the :class:`~eventsourcing.domain.DomainEvent`
+class. See the :ref:`Aggregate events <Aggregate events>` section below for more
+information about aggregate events.
+
+The state of an aggregate at a particular point in its evolution
+can be recorded as a 'snapshot'. This library's :class:`~eventsourcing.domain.Snapshot`
+class is also defined as a subclass of the :class:`~eventsourcing.domain.DomainEvent`
+class. See the :ref:`Snapshots <Snapshots>` section for more information about snapshots.
+
+
+
+
+.. _Aggregate events:
+
+Aggregate events
+----------------
+
+Aggregate event objects represent original decisions by a domain model that advance
+the state of an application. The library's :class:`~eventsourcing.domain.AggregateEvent`
+class is defined as a subclass of :class:`~eventsourcing.domain.DomainEvent`. It can be
+used to define domain-specific aggregate event objects in your domain model. Aggregate
+events are uniquely identifiable in a domain model by the combination of their
+``originator_id`` and ``originator version``.
+
+.. code:: python
+
+    from eventsourcing.domain import AggregateEvent
+
+
+    aggregate_event = AggregateEvent(
+        originator_id=originator_id,
+        originator_version=2,
+        timestamp=datetime(2022, 2, 2),
+    )
+    assert aggregate_event.originator_id == originator_id
+    assert aggregate_event.originator_version == 2
+    assert aggregate_event.timestamp == datetime(2022, 2, 2)
+
+The :class:`~eventsourcing.domain.AggregateEvent` class extends
+:class:`~eventsourcing.domain.DomainEvent` by defining two methods,
+:func:`~eventsourcing.domain.AggregateEvent.mutate` and
+:func:`~eventsourcing.domain.AggregateEvent.apply`.
+
+Firstly, the :class:`~eventsourcing.domain.AggregateEvent` class has a
+:func:`~eventsourcing.domain.AggregateEvent.mutate` method. This method has
+a non-optional argument ``aggregate`` which is used to pass into the method
+the aggregate object to which the aggregate event object pertains . We will
+discuss aggregate objects in more detail below, but for the purpose of the
+discussion in this section, all we need to know is that the ``aggregate``
+argument is expected to have four attributes: :py:obj:`~eventsourcing.domain.Aggregate.id`,
+:py:obj:`~eventsourcing.domain.Aggregate.version`,
+:py:obj:`~eventsourcing.domain.Aggregate.created_on`, and
+:py:obj:`~eventsourcing.domain.Aggregate.modified_on`. The class ``A`` defined below
+will suffice for our current purpose of explaining the aggregate event classes.
+
+.. code:: python
+
+    class A:
+        def __init__(self, id, version, created_on):
+            self.id = id
+            self.version = version
+            self.created_on = created_on
+            self.modified_on = created_on
+
+
+When :func:`~eventsourcing.domain.AggregateEvent.mutate` is called on an aggregate event
+object, several operations are performed. It checks
+the event's ``originator_id`` equals the ``aggregate`` object's
+:py:obj:`~eventsourcing.domain.Aggregate.id`, if not an
+:class:`~eventsourcing.domain.OriginatorIDError` exception is raised.
+It checks the event's ``originator_version`` equals the aggregate's
+:py:obj:`~eventsourcing.domain.Aggregate.version` number plus ``1``, if not an
+:class:`~eventsourcing.domain.OriginatorVersionError` exception is raised.
+It then calls the :func:`~eventsourcing.domain.AggregateEvent.apply` method, which is discussed below.
+Then, it increments the aggregate's :py:obj:`~eventsourcing.domain.Aggregate.version`. It
+assigns the event's ``timestamp`` to the aggregate's :py:obj:`~eventsourcing.domain.Aggregate.modified_on`
+property. And then it returns the modified object to the caller.
+
+.. code:: python
+
+    a = A(id=originator_id, version=1, created_on=datetime(2011, 1, 1))
+    a = aggregate_event.mutate(a)
+    assert a.version == 2
+    assert a.modified_on == datetime(2022, 2, 2)
+
+
+Secondly, the :class:`~eventsourcing.domain.AggregateEvent` class has an
+:func:`~eventsourcing.domain.AggregateEvent.apply` method, which is called
+by the :func:`~eventsourcing.domain.AggregateEvent.mutate` method. The
+:func:`~eventsourcing.domain.AggregateEvent.apply` method has
+a non-optional argument ``aggregate`` which is used to provide the aggregate
+object to which the domain event object pertains. The base class's
+:func:`~eventsourcing.domain.AggregateEvent.apply` method body is empty, and
+so this method can be simply overridden (implemented without a call to the
+superclass method). It is also not expected to return a value (any value that
+it does return will be ignored). Hence this method can be simply and conveniently
+implemented in aggregate event classes to apply an event's attribute values to an
+aggregate. The :func:`~eventsourcing.domain.AggregateEvent.apply` method is called
+after the validation checks and before modifying the aggregate's state, so that if
+it raises an exception, then the aggregate will remain unmodified by the
+:func:`~eventsourcing.domain.AggregateEvent.mutate` method.
+
+.. code:: python
+
+    class MyEvent(AggregateEvent):
+        full_name: str
+
+        def apply(self, aggregate):
+            aggregate.full_name = self.full_name
+
+
+    my_event = MyEvent(
+        originator_id=originator_id,
+        originator_version=3,
+        timestamp=datetime(2033, 3, 3),
+        full_name="Eric Idle"
+    )
+
+
+    a = my_event.mutate(a)
+    assert a.version == 3
+    assert a.modified_on == datetime(2033, 3, 3)
+    assert a.full_name == "Eric Idle"
+
+
+The library also has an
+:class:`~eventsourcing.domain.AggregateCreated` class which represents
+the creation of an aggregate. It extends :class:`~eventsourcing.domain.AggregateEvent` with
+its attribute ``originator_topic`` which is a Python :class:`str`. The value of this
+attribute will be a :ref:`topic <Topics>` that describes the path to the aggregate
+object's class. It has a :func:`~eventsourcing.domain.AggregateCreated.mutate`
+method which constructs an aggregate object after resolving the ``originator_topic``
+value to an aggregate class. Although this method has the same signature as the base class's
+method, the argument is expected to be ``None`` and is anyway ignored. It does not call
+:func:`~eventsourcing.domain.AggregateEvent.apply` since the aggregate class's ``__init__()``
+method receives the "created" event attribute values and can initialise the aggregate
+object in the usual way. The event's attributes ``originator_id``, ``originator_version``,
+and ``timestamp`` are actually passed to a method ``__base_init__`` so that subclasses can define
+an ``__init__`` method that does not need to have the common attributes in its signature
+and so does not need to call ``super()``. The ``__base_init__`` method initialises the
+aggregate's ``id``, ``version``, ``created_on``, and ``modified_on`` properties. After
+calling ``__base_init__`` this :func:`~eventsourcing.domain.AggregateCreated.mutate`
+method then calls the ``__init__`` method with the remaining event object attributes,
+and then returns the newly constructed aggregate object to the caller.
+
+.. code:: python
+
+    from eventsourcing.domain import AggregateCreated
+
+
+    aggregate_created = AggregateCreated(
+        originator_topic="eventsourcing.domain:Aggregate",
+        originator_id=originator_id,
+        originator_version=1,
+        timestamp=datetime(2011, 1, 1),
+    )
+
+    a = aggregate_created.mutate(None)
+    assert a.__class__.__name__ == "Aggregate"
+    assert a.__class__.__module__ == "eventsourcing.domain"
+    assert a.id == originator_id
+    assert a.version == 1
+    assert a.created_on == datetime(2011, 1, 1)
+    assert a.modified_on == datetime(2011, 1, 1)
+
+
+The object returned by calling the :func:`~eventsourcing.domain.AggregateEvent.mutate`
+method on one aggregate event object can be passed in when calling the same method on
+another aggregate event object. In this way, the :func:`~eventsourcing.domain.AggregateEvent.mutate`
+methods of a sequence of aggregate event objects can be used successively to reconstruct
+the current state of an aggregate.
+
+.. code:: python
+
+    a = aggregate_created.mutate(None)
+    assert a.id == originator_id
+    assert a.version == 1
+    assert a.modified_on == datetime(2011, 1, 1)
+
+    a = aggregate_event.mutate(a)
+    assert a.id == originator_id
+    assert a.version == 2
+    assert a.modified_on == datetime(2022, 2, 2)
+
+    a = my_event.mutate(a)
+    assert a.id == originator_id
+    assert a.version == 3
+    assert a.modified_on == datetime(2033, 3, 3)
+    assert a.full_name == "Eric Idle"
+
+
+Hence, the :func:`~eventsourcing.domain.AggregateEvent.mutate` and
+:func:`~eventsourcing.domain.AggregateEvent.apply` methods of aggregate events
+can be used effectively to implement an "aggregate projection", or "mutator function"
+by which the state of an aggregate will be reconstructed from its history of events.
+This is essentially how the :func:`~eventsourcing.application.Repository.get`
+method of an :ref:`application repository <Repository>` reconstructs an aggregate
+from stored events when the aggregate is requested by ID.
+
+.. code:: python
+
+    def reconstruct_aggregate_from_events(events):
+        a = None
+        for event in events:
+            a = event.mutate(a)
+        return a
+
+
+    events = [
+        aggregate_created,
+        aggregate_event,
+        my_event,
+    ]
+
+    a = reconstruct_aggregate_from_events(events)
+    assert a.id == originator_id
+    assert a.version == 3
+    assert a.modified_on == datetime(2033, 3, 3)
+    assert a.full_name == "Eric Idle"
+
+
+By making the ``aggregate`` argument and return value optional,
+"created" events can be defined which start from ``None`` and "discarded" events
+can be defined which return ``None``. For example, an initial "created" event can
+construct an aggregate object, subsequent events can receive an aggregate and
+return a modified aggregate, and a final "discarded" event can receive an aggregate
+and return ``None``.
+
+.. code:: python
+
+    class AggregateDiscarded(AggregateEvent):
+        def mutate(self, aggregate):
+            super().mutate(aggregate)
+            aggregate._is_discarded = True
+            return None
+
+
+    aggregate_discarded = AggregateDiscarded(
+        originator_id=originator_id,
+        originator_version=4,
+        timestamp=datetime(2044, 4, 4),
+    )
+
+
+    events.append(aggregate_discarded)
+    a = reconstruct_aggregate_from_events(events)
+    assert a is None
+
+
 Aggregate base class
 --------------------
 
@@ -502,7 +504,7 @@ construct and initialise an aggregate object.
 The :class:`~eventsourcing.domain.Aggregate` class is defined with
 a nested class :class:`~eventsourcing.domain.Aggregate.Created`, which is
 is a subclass of the :class:`~eventsourcing.domain.AggregateCreated` base class
-discussed in the :ref:`Domain events <Events>` section above. It can be used
+discussed in the :ref:`Aggregate events <Aggregate events>` section above. It can be used
 or extended (and is used in the example above) to represent the fact that an aggregate
 was "created".  It is defined for convenience, and adds no further attributes or methods.
 
@@ -625,7 +627,7 @@ value of the new domain event, a timezone-aware Python :class:`~datetime.datetim
 The :class:`~eventsourcing.domain.Aggregate` class has a nested
 :class:`~eventsourcing.domain.Aggregate.Event` class. It is defined
 as a subclass of the :class:`~eventsourcing.domain.AggregateEvent`
-discussed above in the section on :ref:`Domain events <Events>`.
+discussed above in the section on :ref:`Aggregate events <Aggregate events>`.
 The :class:`~eventsourcing.domain.Aggregate.Event` class can be
 used as a base class to define the particular aggregate event classes
 needed by in your domain model. For example, see the ``SomethingHappened``
@@ -691,6 +693,40 @@ any arguments. In the example above, we can see two aggregate event objects have
 collected, because we created an aggregate and then triggered a subsequent event.
 
 
+Alternative mutator function
+----------------------------
+
+An alternative to defining :func:`~eventsourcing.domain.AggregateEvent.apply` methods
+on all the aggregate event classes is to define apply methods on the aggregate class.
+A base ``Event`` class can be defined to have an ``apply()`` method which simply
+calls an ``apply()`` method on the aggregate object, passing the aggregate event object
+as an argument. The aggregate's ``apply()`` method can be decorated with the
+``@singledispatchmethod`` decorator, allowing event-specific parts to be registered,
+or implemented as a big if-else block. Event-specific parts of the projection can be
+defined that will apply particular types events to the aggregate in a particular way.
+Defining the aggregate projection with methods on the aggregate class has the advantage
+of setting values on ``self``, which avoids the reverse of intuition that occurs when
+writing ``apply()`` methods on the events, and makes it legitimate to set values on
+"private" attributes.
+See the ``Cargo`` aggregate in the domain model section of the :ref:`Cargo Shipping
+example <Cargo shipping>` for an example of this alternative.
+
+Another alternative is to use a mutator function defined at the module level. But then
+the event-specific parts of the aggregate projection will become more distant from
+definition of the event. The issue of setting "private" attributes on the aggregate
+returns. And the common aspects may need to repeated on each part of the projection
+that handles a particular type of event, which can be repetitive. However, such a
+function can be passed into the :func:`~eventsourcing.application.Repository.get`
+method of an :ref:`application repository <Repository>` using the
+``projector_func`` argument of that method.
+
+A further alternative, which is highly recommended, is to use the new
+:ref:`declarative syntax <Declarative syntax>`, especially the ``@event``
+decorator, which is used on the project's README page, and which is explained
+in detail below.
+
+See also the :ref:`Notes <Notes>` section for a more detailed discussion of these choices.
+
 .. _Aggregate simple example:
 
 Simple example
@@ -739,7 +775,7 @@ The nested ``SomethingHappened`` class is a frozen data class that extends the
 base aggregate event class ``Aggregate.Event`` (also a frozen data class) with a
 field ``what`` which is defined as a Python :class:`str`. An ``apply()`` method
 is defined which appends the ``what`` value to the aggregate's ``history``. This
-method is called when the event is triggered (see :ref:`Domain events <Events>`).
+method is called when the event is triggered (see :ref:`Aggregate events <Aggregate events>`).
 
 By defining the event class under the command method which triggers it, and then
 defining an ``apply()`` method as part of the event class definition, the story of
@@ -2253,6 +2289,8 @@ See the examples below.
     assert resolve_topic("__main__:MyAggregate.Started") == MyAggregate.Started
     assert resolve_topic("eventsourcing.domain:Aggregate") == Aggregate
 
+
+.. _Notes:
 
 
 Notes
