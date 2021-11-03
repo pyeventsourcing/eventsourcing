@@ -330,13 +330,16 @@ method, the argument is expected to be ``None`` and is anyway ignored. It does n
 :func:`~eventsourcing.domain.AggregateEvent.apply` since the aggregate class's ``__init__()``
 method receives the "created" event attribute values and can initialise the aggregate
 object in the usual way. The event's attributes ``originator_id``, ``originator_version``,
-and ``timestamp`` are actually passed to a method ``__base_init__`` so that subclasses can define
-an ``__init__`` method that does not need to have the common attributes in its signature
-and so does not need to call ``super()``. The ``__base_init__`` method initialises the
-aggregate's ``id``, ``version``, ``created_on``, and ``modified_on`` properties. After
-calling ``__base_init__`` this :func:`~eventsourcing.domain.AggregateCreated.mutate`
-method then calls the ``__init__`` method with the remaining event object attributes,
-and then returns the newly constructed aggregate object to the caller.
+and ``timestamp`` are actually passed to a method :func:`~eventsourcing.domain.Aggregate.__base_init__`
+so that subclasses can define an ``__init__`` method that, for the purpose of simplicity and concision,
+neither needs to have the common attributes in its signature nor needs to call ``super()``.
+The :func:`~eventsourcing.domain.Aggregate.__base_init__` method initialises the aggregate's
+``id``, ``version``, ``created_on``, and ``modified_on`` properties. After
+calling :func:`~eventsourcing.domain.Aggregate.__base_init__`, this
+:func:`~eventsourcing.domain.AggregateCreated.mutate` method then calls the aggregate's ``__init__``
+method with the other event object attributes, the attributes which are particular to the particular
+"created" event and aggregate class, and then returns the newly constructed aggregate
+object to the caller.
 
 .. code:: python
 
@@ -386,7 +389,7 @@ the current state of an aggregate.
 
 Hence, the :func:`~eventsourcing.domain.AggregateEvent.mutate` and
 :func:`~eventsourcing.domain.AggregateEvent.apply` methods of aggregate events
-can be used effectively to implement an "aggregate projection", or "mutator function"
+can be used effectively to implement an "aggregate projector", or "mutator function"
 by which the state of an aggregate will be reconstructed from its history of events.
 This is essentially how the :func:`~eventsourcing.application.Repository.get`
 method of an :ref:`application repository <Repository>` reconstructs an aggregate
@@ -704,7 +707,7 @@ as an argument. The aggregate's ``apply()`` method can be decorated with the
 ``@singledispatchmethod`` decorator, allowing event-specific parts to be registered,
 or implemented as a big if-else block. Event-specific parts of the projection can be
 defined that will apply particular types events to the aggregate in a particular way.
-Defining the aggregate projection with methods on the aggregate class has the advantage
+Defining the aggregate projector with methods on the aggregate class has the advantage
 of setting values on ``self``, which avoids the reverse of intuition that occurs when
 writing ``apply()`` methods on the events, and makes it legitimate to set values on
 "private" attributes.
@@ -712,7 +715,7 @@ See the ``Cargo`` aggregate in the domain model section of the :ref:`Cargo Shipp
 example <Cargo shipping>` for an example of this alternative.
 
 Another alternative is to use a mutator function defined at the module level. But then
-the event-specific parts of the aggregate projection will become more distant from
+the event-specific parts of the aggregate projector will become more distant from
 definition of the event. The issue of setting "private" attributes on the aggregate
 returns. And the common aspects may need to repeated on each part of the projection
 that handles a particular type of event, which can be repetitive. However, such a
@@ -2297,7 +2300,7 @@ Notes
 =====
 
 Why put methods on event objects? There has been much discussion about the best way
-to define the aggregate projections. Of course, there isn't a "correct" way of doing it,
+to define the aggregate projectors. Of course, there isn't a "correct" way of doing it,
 and alternatives are possible. The reason for settling on the style presented most
 prominently in this documentation, where each aggregate event has a method that
 defines how it will apply to the aggregate (neatly wrapped up with the
@@ -2310,7 +2313,7 @@ there was a repository object for each class of domain object (or aggregate). If
 type of aggregate is known when the domain object is requested, that is because each
 repository was constructed for that type, and so we can understand that these
 repositories can be constructed with a particular mutator function that will
-function as the aggregate projection for that type. When stored domain events are
+function as the aggregate projector for that type. When stored domain events are
 retried, this particular mutator function can be called. As the mutator function
 will be coded for a particular aggregate, the aggregate class can be coded into
 the function to handle the initial event. However, it became cumbersome to
@@ -2341,7 +2344,7 @@ and perhaps criticism of this style, is that this style of writing
 projections is special, and other projections will have to be written in a different way.
 This is true, but in practice, aggregate events are used overwhelmingly often to reconstruct
 the state of aggregates, and in many applications that is the only way they will
-be projected. And so, since there is an advantage to coding the aggregate projection
+be projected. And so, since there is an advantage to coding the aggregate projector
 on the aggregate events, that is the way we settled on coding these things. The initial
 impetus for coding things this way came from users of the library. The library
 documentation was initially written to suggest using a separate mutator function.
