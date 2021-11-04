@@ -102,15 +102,21 @@ for the custom value objects that are used in aggregate events.
 Domain model
 ------------
 
-The domain model is defined in the more verbose style, using explicit definitions
-of aggregate events, with command methods that trigger events. The aggregate
-projector function is implemented on the aggregate object using the single
-dispatch decorator with an event-specific method registered to handle each type
-of aggregate event.
-
 Custom value objects are defined in as part of the domain model, and used in
-the aggregate event objects.
+the ``Cargo`` aggregate events and methods.
 
+
+.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/domainmodel.py
+    :pyobject: HandlingActivity
+
+.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/domainmodel.py
+    :pyobject: Itinerary
+
+.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/domainmodel.py
+    :pyobject: Leg
+
+.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/domainmodel.py
+    :pyobject: Location
 
 .. code:: python
 
@@ -153,20 +159,18 @@ the aggregate event objects.
         ],
     }
 
+
+The domain model is defined in the more verbose style, using explicit definitions
+of aggregate events, with command methods that trigger events. The aggregate
+projector function is implemented on the aggregate object using the single
+dispatch decorator with an event-specific method registered to handle each type
+of aggregate event.
+
+
 .. literalinclude:: ../../../eventsourcing/examples/cargoshipping/domainmodel.py
     :pyobject: Cargo
 
-.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/domainmodel.py
-    :pyobject: HandlingActivity
 
-.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/domainmodel.py
-    :pyobject: Itinerary
-
-.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/domainmodel.py
-    :pyobject: Leg
-
-.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/domainmodel.py
-    :pyobject: Location
 
 Run tests
 ---------
