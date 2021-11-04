@@ -716,45 +716,10 @@ return an empty list.
     assert len(pending_events) == 0
 
 
-Alternative mutator function
-----------------------------
-
-An alternative to defining :func:`~eventsourcing.domain.AggregateEvent.apply` methods
-on all the aggregate event classes is to define apply methods on the aggregate class.
-A base ``Event`` class can be defined to have an ``apply()`` method which simply
-calls an ``apply()`` method on the aggregate object, passing the aggregate event object
-as an argument. The aggregate's ``apply()`` method can be decorated with the
-``@singledispatchmethod`` decorator, allowing event-specific parts to be registered,
-or implemented as a big if-else block. Event-specific parts of the projection can be
-defined that will apply particular types events to the aggregate in a particular way.
-Defining the aggregate projector with methods on the aggregate class has the advantage
-of setting values on ``self``, which avoids the reverse of intuition that occurs when
-writing ``apply()`` methods on the events, and makes it legitimate to set values on
-"private" attributes.
-See the ``Cargo`` aggregate in the domain model section of the :ref:`Cargo shipping
-example <Cargo shipping example>` for an example of this alternative.
-
-Another alternative is to use a mutator function defined at the module level. But then
-the event-specific parts of the aggregate projector will become more distant from
-definition of the event. The issue of setting "private" attributes on the aggregate
-returns. And the common aspects may need to repeated on each part of the projection
-that handles a particular type of event, which can be repetitive. However, such a
-function can be passed into the :func:`~eventsourcing.application.Repository.get`
-method of an :ref:`application repository <Repository>` using the
-``projector_func`` argument of that method.
-
-A further alternative, which is highly recommended, is to use the new
-:ref:`declarative syntax <Declarative syntax>`, especially the ``@event``
-decorator, which is used on the project's README page, and which is explained
-in detail below.
-
-See also the :ref:`Notes <Notes>` section for a more detailed discussion of these choices.
-
-
 .. _Aggregate simple example:
 
 Simple example
-==============
+--------------
 
 In the example below, the ``World`` aggregate is defined as a subclass of the :class:`~eventsourcing.domain.Aggregate` class.
 
@@ -911,7 +876,7 @@ works by calling these methods in this way for this purpose.
 .. _Namespaced IDs:
 
 Namespaced IDs
-==============
+--------------
 
 Aggregates can be created with `version 5 UUIDs <https://en.wikipedia
 .org/wiki/Universally_unique_identifier#Versions_3_and_5_(namespace_name-based)>`_
@@ -1067,6 +1032,41 @@ and imagine using the second index aggregate to get the ID of the page.
 Saving and retrieving aggregates by ID is demonstrated in the discussion
 about :ref:`saving multiple aggregates <Saving multiple aggregates>` in
 the :ref:`applications <Application objects>` documentation.
+
+Alternative mutator function
+----------------------------
+
+An alternative to defining :func:`~eventsourcing.domain.AggregateEvent.apply` methods
+on all the aggregate event classes is to define apply methods on the aggregate class.
+A base ``Event`` class can be defined to have an ``apply()`` method which simply
+calls an ``apply()`` method on the aggregate object, passing the aggregate event object
+as an argument. The aggregate's ``apply()`` method can be decorated with the
+``@singledispatchmethod`` decorator, allowing event-specific parts to be registered,
+or implemented as a big if-else block. Event-specific parts of the projection can be
+defined that will apply particular types events to the aggregate in a particular way.
+Defining the aggregate projector with methods on the aggregate class has the advantage
+of setting values on ``self``, which avoids the reverse of intuition that occurs when
+writing ``apply()`` methods on the events, and makes it legitimate to set values on
+"private" attributes.
+See the ``Cargo`` aggregate in the domain model section of the :ref:`Cargo shipping
+example <Cargo shipping example>` for an example of this alternative.
+
+Another alternative is to use a mutator function defined at the module level. But then
+the event-specific parts of the aggregate projector will become more distant from
+definition of the event. The issue of setting "private" attributes on the aggregate
+returns. And the common aspects may need to repeated on each part of the projection
+that handles a particular type of event, which can be repetitive. However, such a
+function can be passed into the :func:`~eventsourcing.application.Repository.get`
+method of an :ref:`application repository <Repository>` using the
+``projector_func`` argument of that method.
+
+A further alternative, which is highly recommended, is to use the new
+:ref:`declarative syntax <Declarative syntax>`, especially the ``@event``
+decorator, which is used on the project's README page, and which is explained
+in detail below.
+
+See also the :ref:`Notes <Notes>` section for a more detailed discussion of these choices.
+
 
 .. _Declarative syntax:
 
@@ -2013,6 +2013,116 @@ This similarity is needed by the application :ref:`repository <Repository>`, sin
 some specialist event stores (e.g. AxonDB) return a snapshot as the first domain event.
 
 
+.. _Topics:
+
+Topic strings
+=============
+
+A 'topic' in this library is the path to a Python module (e.g. ``'eventsourcing.domain'``)
+optionally followed by the qualified name of an object in that module (e.g. ``'Aggregate.Created'``),
+with these two parts joined with a colon character (``':'``).
+For example, ``'eventsourcing.domain'`` is the topic of the library's domain module, and
+``'eventsourcing.domain:Aggregate.Created'`` is the topic of the library's
+:class:`~eventsourcing.domain.Aggregate.Created` class.
+
+The library's :mod:`~eventsourcing.utils` module contains the functions
+:func:`~eventsourcing.utils.resolve_topic` and :func:`~eventsourcing.utils.get_topic`
+which are used in the library to resolve a given topic to a Python object, and to
+construct a topic for a given Python object.
+
+Topics are used when serialising domain events, to create references to domain event class
+objects. Topic strings are also used in "created" events, to identify an aggregate class object.
+Topics are also used to identify infrastructure factory class objects, and in other places too,
+such as identifying the cipher and compressor classes to be used by an application, and to identify
+the timezone object to be used when creating timestamps.
+
+.. code:: python
+
+    from eventsourcing.utils import get_topic, resolve_topic
+
+
+    assert get_topic(Aggregate) == "eventsourcing.domain:Aggregate"
+    assert resolve_topic("eventsourcing.domain:Aggregate") == Aggregate
+
+    assert get_topic(Aggregate.Created) == "eventsourcing.domain:Aggregate.Created"
+    assert resolve_topic("eventsourcing.domain:Aggregate.Created") == Aggregate.Created
+
+
+Registering old topics
+----------------------
+
+The :func:`~eventsourcing.utils.register_topic` function
+can be used to register an old topic for an object that has
+been moved or renamed. When a class object is moved or renamed,
+unless the old topic is registered, it will not be possible to
+resolved an old topic. If an aggregate or event class is renamed,
+it won't be possible to reconstruct instances from previously stored
+events, unless the old topic is registered for the renamed class.
+
+This also supports nested classes. For example, by registering an old
+topic for a renamed aggregate, topics for nested classes that were created
+using the old enclosing name will resolve to the same nested class on the
+renamed enclosing class.
+
+This will also work for renaming modules and packages. If a topic for
+an old module name is registered for a renamed module, topics for
+classes created under the old module name will resolve to the same
+classes in the renamed module. And if a topic for an old package
+name is registered for the renamed package, topics for classes created
+under the old package name will resolve to same classes in the same
+modules in the renamed package.
+
+See the examples below.
+
+.. code:: python
+
+    from eventsourcing.utils import register_topic
+
+
+    class MyAggregate(Aggregate):
+        class Started(Aggregate.Created):
+            pass
+
+
+    # Current topics resolve.
+    assert get_topic(MyAggregate) == "__main__:MyAggregate"
+    assert resolve_topic("__main__:MyAggregate") == MyAggregate
+    assert resolve_topic("__main__:MyAggregate.Started") == MyAggregate.Started
+
+    # Aggregate class was renamed.
+    register_topic("__main__:OldName", MyAggregate)
+    assert resolve_topic("__main__:OldName") == MyAggregate
+    assert resolve_topic("__main__:OldName.Started") == MyAggregate.Started
+
+    # Nested event class was renamed.
+    register_topic("__main__:MyAggregate.Created", MyAggregate.Started)
+    assert resolve_topic("__main__:MyAggregate.Created") == MyAggregate.Started
+
+    # Aggregate class was moved from another module.
+    register_topic("eventsourcing.domain:MyAggregate", MyAggregate)
+    assert resolve_topic("eventsourcing.domain:MyAggregate") == MyAggregate
+    assert resolve_topic("eventsourcing.domain:MyAggregate.Created") == MyAggregate.Created
+    assert resolve_topic("eventsourcing.domain:Aggregate") == Aggregate
+
+    # Module was renamed.
+    import eventsourcing.domain
+    register_topic("eventsourcing.old", eventsourcing.domain)
+    assert resolve_topic("eventsourcing.old:Aggregate") == Aggregate
+    assert resolve_topic("eventsourcing.old:Aggregate.Created") == Aggregate.Created
+
+    # Package was renamed.
+    import eventsourcing
+    register_topic("old", eventsourcing)
+    assert resolve_topic("old.domain:Aggregate") == Aggregate
+    assert resolve_topic("old.domain:Aggregate.Created") == Aggregate.Created
+
+    # Current topics still resolve okay.
+    assert get_topic(MyAggregate) == "__main__:MyAggregate"
+    assert resolve_topic("__main__:MyAggregate") == MyAggregate
+    assert resolve_topic("__main__:MyAggregate.Started") == MyAggregate.Started
+    assert resolve_topic("eventsourcing.domain:Aggregate") == Aggregate
+
+
 .. _Versioning:
 
 Versioning
@@ -2211,114 +2321,19 @@ code changes as a sequence of immutable events brings the state of the domain mo
 form of event-oriented consideration as the consideration of the state an application as a sequence of events.
 
 
-.. _Topics:
+Timestamp timezones
+===================
 
-Topic strings
-=============
-
-A 'topic' in this library is the path to a Python module (e.g. ``'eventsourcing.domain'``)
-optionally followed by the qualified name of an object in that module (e.g. ``'Aggregate.Created'``),
-with these two parts joined with a colon character (``':'``).
-For example, ``'eventsourcing.domain'`` is the topic of the library's domain module, and
-``'eventsourcing.domain:Aggregate.Created'`` is the topic of the library's
-:class:`~eventsourcing.domain.Aggregate.Created` class.
-
-The library's :mod:`~eventsourcing.utils` module contains the functions
-:func:`~eventsourcing.utils.resolve_topic` and :func:`~eventsourcing.utils.get_topic`
-which are used in the library to resolve a given topic to a Python object, and to
-construct a topic for a given Python object.
-
-Topics are used when serialising domain events, to create references to domain event class
-objects. Topic strings are also used in "created" events, to identify an aggregate class object.
-Topics are also used to identify infrastructure factory class objects, and in other places too,
-such as identifying the cipher and compressor classes to be used by an application, and to identify
-the timezone object to be used when creating timestamps.
-
-.. code:: python
-
-    from eventsourcing.utils import get_topic, resolve_topic
-
-
-    assert get_topic(Aggregate) == "eventsourcing.domain:Aggregate"
-    assert resolve_topic("eventsourcing.domain:Aggregate") == Aggregate
-
-    assert get_topic(Aggregate.Created) == "eventsourcing.domain:Aggregate.Created"
-    assert resolve_topic("eventsourcing.domain:Aggregate.Created") == Aggregate.Created
-
-
-Registering old topics
-======================
-
-The :func:`~eventsourcing.utils.register_topic` function
-can be used to register an old topic for an object that has
-been moved or renamed. When a class object is moved or renamed,
-unless the old topic is registered, it will not be possible to
-resolved an old topic. If an aggregate or event class is renamed,
-it won't be possible to reconstruct instances from previously stored
-events, unless the old topic is registered for the renamed class.
-
-This also supports nested classes. For example, by registering an old
-topic for a renamed aggregate, topics for nested classes that were created
-using the old enclosing name will resolve to the same nested class on the
-renamed enclosing class.
-
-This will also work for renaming modules and packages. If a topic for
-an old module name is registered for a renamed module, topics for
-classes created under the old module name will resolve to the same
-classes in the renamed module. And if a topic for an old package
-name is registered for the renamed package, topics for classes created
-under the old package name will resolve to same classes in the same
-modules in the renamed package.
-
-See the examples below.
-
-.. code:: python
-
-    from eventsourcing.utils import register_topic
-
-
-    class MyAggregate(Aggregate):
-        class Started(Aggregate.Created):
-            pass
-
-
-    # Current topics resolve.
-    assert get_topic(MyAggregate) == "__main__:MyAggregate"
-    assert resolve_topic("__main__:MyAggregate") == MyAggregate
-    assert resolve_topic("__main__:MyAggregate.Started") == MyAggregate.Started
-
-    # Aggregate class was renamed.
-    register_topic("__main__:OldName", MyAggregate)
-    assert resolve_topic("__main__:OldName") == MyAggregate
-    assert resolve_topic("__main__:OldName.Started") == MyAggregate.Started
-
-    # Nested event class was renamed.
-    register_topic("__main__:MyAggregate.Created", MyAggregate.Started)
-    assert resolve_topic("__main__:MyAggregate.Created") == MyAggregate.Started
-
-    # Aggregate class was moved from another module.
-    register_topic("eventsourcing.domain:MyAggregate", MyAggregate)
-    assert resolve_topic("eventsourcing.domain:MyAggregate") == MyAggregate
-    assert resolve_topic("eventsourcing.domain:MyAggregate.Created") == MyAggregate.Created
-    assert resolve_topic("eventsourcing.domain:Aggregate") == Aggregate
-
-    # Module was renamed.
-    import eventsourcing.domain
-    register_topic("eventsourcing.old", eventsourcing.domain)
-    assert resolve_topic("eventsourcing.old:Aggregate") == Aggregate
-    assert resolve_topic("eventsourcing.old:Aggregate.Created") == Aggregate.Created
-
-    # Package was renamed.
-    import eventsourcing
-    register_topic("old", eventsourcing)
-    assert resolve_topic("old.domain:Aggregate") == Aggregate
-    assert resolve_topic("old.domain:Aggregate.Created") == Aggregate.Created
-
-    # Current topics still resolve okay.
-    assert get_topic(MyAggregate) == "__main__:MyAggregate"
-    assert resolve_topic("__main__:MyAggregate") == MyAggregate
-    assert resolve_topic("__main__:MyAggregate.Started") == MyAggregate.Started
-    assert resolve_topic("eventsourcing.domain:Aggregate") == Aggregate
+The timestamp values mentioned above are "timezone aware" Python :class:`datetime` objects,
+created by calling :func:`datetime.now`. The default timezone is UTC, as defined by Python's
+:data:`datetime.timezone.utc`. It is generally recommended to store date-times as UTC values,
+and convert to a local timezone in an interface layer, according to the particular timezone
+of a particular user. However, if necessary, this default can be changed by assigning a
+:class:`datetime.tzinfo` object to the :data:`TZINFO` attribute of the
+:mod:`eventsourcing.domain` module. The :data:`eventsourcing.domain.TZINFO`
+value can also be configured using environment variables, by setting the environment variable
+``TZINFO_TOPIC`` to a string that describes the :ref:`topic <Topics>` of a Python
+:data:`datetime.tzinfo` object (for example ``'datetime:timezone.utc'``).
 
 
 Initial version number
@@ -2342,21 +2357,6 @@ If all aggregates in a domain model need to use the same non-default version num
 then a base class can be defined and used by the aggregates of the domain model on
 which ``INITIAL_VERSION`` is set to the preferred value. Some people may wish to set
 the preferred value on the library's :class:`~eventsourcing.domain.Aggregate` class.
-
-
-Timestamp timezones
-===================
-
-The timestamp values mentioned above are "timezone aware" Python :class:`datetime` objects,
-created by calling :func:`datetime.now`. The default timezone is UTC, as defined by Python's
-:data:`datetime.timezone.utc`. It is generally recommended to store date-times as UTC values,
-and convert to a local timezone in an interface layer, according to the particular timezone
-of a particular user. However, if necessary, this default can be changed by assigning a
-:class:`datetime.tzinfo` object to the :data:`TZINFO` attribute of the
-:mod:`eventsourcing.domain` module. The :data:`eventsourcing.domain.TZINFO`
-value can also be configured using environment variables, by setting the environment variable
-``TZINFO_TOPIC`` to a string that describes the :ref:`topic <Topics>` of a Python
-:data:`datetime.tzinfo` object (for example ``'datetime:timezone.utc'``).
 
 
 .. _Notes:
