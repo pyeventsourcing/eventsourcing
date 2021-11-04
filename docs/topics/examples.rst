@@ -10,3 +10,4 @@ This library contains a few example applications of event sourcing in Python.
 
    examples/bank-accounts
    examples/cargo-shipping
+   examples/wiki
