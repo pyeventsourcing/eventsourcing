@@ -1076,7 +1076,7 @@ Declarative syntax
 You may have noticed a certain amount of repetition in the definitions of the
 aggregates above. In several places, the same argument was defined in a command
 method, on an event class, and in an apply method. The library offers a more concise
-way to express aggregates by using a declarative syntax. This is probably the most
+way to express aggregates by using a declarative syntax. This is possibly the most
 concise way of expressing an event-sourced domain model across all programming
 languages.
 
