@@ -751,8 +751,8 @@ keep stored events in a data structure in memory (see :mod:`eventsourcing.popo`)
     )
 
     event_store.put([domain_event1])
-    stored_events = list(event_store.get(id1))
-    assert stored_events == [domain_event1]
+    domain_events = list(event_store.get(id1))
+    assert domain_events == [domain_event1]
 
 The optional environment variables ``COMPRESSOR_TOPIC``, ``CIPHER_KEY``, and ``CIPHER_TOPIC`` may
 be used to enable compression and encryption of stored events when using POPO infrastructure.
@@ -806,8 +806,8 @@ which is normally okay because the tables are created only if they do not exist.
     )
 
     event_store.put([domain_event1])
-    stored_events = list(event_store.get(id1))
-    assert stored_events == [domain_event1]
+    domain_events = list(event_store.get(id1))
+    assert domain_events == [domain_event1]
 
 
 .. _PostgresSQL:
@@ -907,8 +907,8 @@ which is normally okay because the tables are created only if they do not exist.
     )
 
     event_store.put([domain_event1])
-    stored_events = list(event_store.get(id1))
-    assert stored_events == [domain_event1]
+    domain_events = list(event_store.get(id1))
+    assert domain_events == [domain_event1]
 
 
 Classes
