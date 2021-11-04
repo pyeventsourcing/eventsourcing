@@ -1,6 +1,4 @@
 from decimal import Decimal
-from typing import Optional
-from uuid import UUID
 
 from eventsourcing.domain import Aggregate, event
 

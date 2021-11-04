@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Tuple, TypeVar, Union
+from typing import Dict, List, Optional, Tuple, Union
 from uuid import UUID, uuid4
 
 from eventsourcing.dispatch import singledispatchmethod
