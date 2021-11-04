@@ -13,9 +13,6 @@ from eventsourcing.examples.cargoshipping.domainmodel import (
 )
 from eventsourcing.persistence import Transcoder, Transcoding
 
-# Cargo aggregates exist within an application, which
-# provides "application service" methods for clients.
-
 
 class LocationAsName(Transcoding):
     type = Location

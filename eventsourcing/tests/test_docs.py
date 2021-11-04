@@ -231,9 +231,10 @@ class TestDocs(TestCase):
                     num_code_lines_in_block = 0
                 elif line.startswith(".. literalinclude::"):
                     is_literalinclude = True
-                    module = line.strip().split(" ")[-1][:-3]
-                    module = module.lstrip("./")
-                    module = module.replace("/", ".")
+                    module = line.strip().split(" ")[-1]  # get the file path
+                    module = module[:-3]  # remove the '.py' from the end
+                    module = module.lstrip("./")  # remove all the ../../..
+                    module = module.replace("/", ".")  # swap dots for slashes
                     line = ""
 
                 elif is_literalinclude:

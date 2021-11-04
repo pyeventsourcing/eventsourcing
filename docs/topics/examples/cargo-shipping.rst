@@ -5,8 +5,8 @@ Cargo shipping example
 ======================
 
 This example follows the original Cargo Shipping example that
-figures in the DDD book, as coded in the
-`DDD Sample <http://dddsample.sourceforge.net/>`__  project:
+figures in the DDD book, as worked up into a running application
+by the `DDD Sample <http://dddsample.sourceforge.net/>`__  project:
 
     *"One of the most requested aids to coming up to speed on DDD has been a running example
     application. Starting from a simple set of functions and a model based on the cargo example
@@ -14,179 +14,71 @@ figures in the DDD book, as coded in the
     practical implementation of the building block patterns as well as illustrate the impact
     of aggregates and bounded contexts."*
 
-This example demonstrates the use of an interface object to convert
-application-specific object types to simple object types that can
-be easily serialised, an event-sourced application that deals in
-terms of custom value objects, a domain model that uses custom
-value objects that and has an aggregate projector defined on the
-aggregate class without using the declarative syntax.
-
-
-Test case
----------
-
-To keep things simple, we can define a test case using Python's
-``unittest`` module.
-
-.. code:: python
-
-    import unittest
-
-Following the sample project, the test case has two test methods.
-One shows an administrator booking a new cargo. The other tracks
-a cargo as it is shipped around the world.
-
-.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/test.py
-    :pyobject: TestBookingService
+The original example was not event-sourced and was coded in Java. The example below
+is an event-sourced version of the original coded in Python.
 
 
 Domain model
 ------------
 
-Custom value objects are defined in as part of the domain model, and used in
-the ``Cargo`` aggregate events and methods.
+The aggregate ``Cargo`` allows new cargo bookings to be made, the destination
+of the cargo to be changed, a route to be assigned, and for handling events
+to be registered. It is defined in the more verbose style, using explicit
+definitions of aggregate events, an explicit "created" method, and command
+methods that explicitly trigger events by calling ``trigger_event()``.
+An aggregate projector function is implemented on the aggregate object using
+``@simpledispatchmethod``, with an event-specific method registered to handle
+each type of aggregate event.
 
-
-.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/domainmodel.py
-    :pyobject: HandlingActivity
-
-.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/domainmodel.py
-    :pyobject: Itinerary
-
-.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/domainmodel.py
-    :pyobject: Leg
-
-.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/domainmodel.py
-    :pyobject: Location
-
-.. code:: python
-
-    REGISTERED_ROUTES = {
-        ("HONGKONG", "STOCKHOLM"): [
-            Itinerary(
-                origin="HONGKONG",
-                destination="STOCKHOLM",
-                legs=(
-                    Leg(
-                        origin="HONGKONG",
-                        destination="NEWYORK",
-                        voyage_number="V1",
-                    ),
-                    Leg(
-                        origin="NEWYORK",
-                        destination="STOCKHOLM",
-                        voyage_number="V2",
-                    ),
-                ),
-            )
-        ],
-        ("TOKYO", "STOCKHOLM"): [
-            Itinerary(
-                origin="TOKYO",
-                destination="STOCKHOLM",
-                legs=(
-                    Leg(
-                        origin="TOKYO",
-                        destination="HAMBURG",
-                        voyage_number="V3",
-                    ),
-                    Leg(
-                        origin="HAMBURG",
-                        destination="STOCKHOLM",
-                        voyage_number="V4",
-                    ),
-                ),
-            )
-        ],
-    }
-
-
-A domain model aggregate is defined in the more verbose style, using explicit definitions
-of aggregate events, with command methods that trigger events. The aggregate
-projector function is implemented on the aggregate object using the single
-dispatch decorator with an event-specific method registered to handle each type
-of aggregate event.
-
+Custom value objects such as ``Location`` and ``Itinerary``,  are defined as
+part of the domain model, and used in the ``Cargo`` aggregate events and methods.
+For the purpose of simplicity in this example, a fixed collection of routes between
+locations are also defined, but in practice these would be editable and could be
+also modelled as event-sourced aggregates.
 
 .. literalinclude:: ../../../eventsourcing/examples/cargoshipping/domainmodel.py
-    :pyobject: Cargo
-
 
 Application
 -----------
 
-The application deals with the domain model aggregates, and registers transcodings
-for the custom value objects that are used in aggregate events.
+The application object ``BookingService`` allows new cargo to be booked, cargo details
+to be presented, the destination of cargo to be changed, choices of possible routes
+for cargo to be presented, a route to be assigned, and for cargo handling events
+to be registered.
+
+The ``Booking`` application defines and registers custom transcodings for the
+custom value objects that are defined and used in the domain model.
 
 .. literalinclude:: ../../../eventsourcing/examples/cargoshipping/application.py
-    :pyobject: BookingApplication
-
-.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/application.py
-    :pyobject: HandlingActivityAsName
-
-.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/application.py
-    :pyobject: ItineraryAsDict
-
-.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/application.py
-    :pyobject: LegAsDict
-
-.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/application.py
-    :pyobject: LocationAsName
 
 
 Interface
 ---------
 
-The interface allows clients (e.g. the test case) to deal with simple object types
-that can be easily serialised and deserialised.
+The interface object ``BookingService`` repeats the application methods, allowing
+new cargo to be booked, cargo details to be presented, the destination of cargo to
+be changed, choices of possible routes for cargo to be presented, a route to be
+assigned, and for cargo handling events to be registered.
 
-.. code:: python
-
-    from datetime import datetime
-    from typing import Dict, List, Optional, Tuple, Union
-
-
-    NextExpectedActivityDetails = Optional[Tuple[str, ...]]
-
-    CargoDetails = Dict[
-        str, Optional[Union[str, bool, datetime, NextExpectedActivityDetails]]
-    ]
-
-    LegDetails = Dict[str, str]
-
-    ItineraryDetails = Dict[str, Union[str, List[LegDetails]]]
-
-
-The interface interacts with the application using custom types
-of value object defined in the domain model.
-
+It allows clients (e.g. a test case, or Web interface) to deal with simple object
+types that can be easily serialised and deserialised. It interacts with the
+application using the custom value objects defined in the domain model. For
+the purposes of testing, we need to simulate the user selecting a preferred
+itinerary from a list, which we do by picking the first in the list of presented
+options using the ``select_preferred_itinerary()`` function.
 
 .. literalinclude:: ../../../eventsourcing/examples/cargoshipping/interface.py
-    :pyobject: BookingService
 
 
-For the purposes of testing, we need to simulate the user selecting a preferred
-itinerary from a list, which we will do by picking the first in the list of
-presented options.
-
-.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/interface.py
-    :pyobject: select_preferred_itinerary
-
-
-Run tests
+Test case
 ---------
 
-We can now run the tests.
+Following the sample project, the test case has two test methods.
+One test shows an administrator booking a new cargo, viewing the current
+state of the cargo, and changing the destination. The other test goes
+further by assigning a route to a cargo booking, tracking the cargo
+handling events as it is shipped around the world, recovering by
+assigning a new route after the cargo was unloaded in the wrong place,
+until finally the cargo is claimed at its correct destination.
 
-.. code:: python
-
-    if __name__ == '__main__':
-        unittest.main()
-
-::
-
-    .
-    ----------------------------------------------------------------------
-    Ran 2 tests in 0.009s
-
-    OK
+.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/test.py

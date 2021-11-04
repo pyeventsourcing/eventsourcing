@@ -197,6 +197,11 @@ class Cargo(Aggregate):
             arrival_deadline=arrival_deadline,
         )
 
+    class BookingStarted(Aggregate.Created["Cargo"]):
+        origin: Location
+        destination: Location
+        arrival_deadline: datetime
+
     class Event(Aggregate.Event["Cargo"]):
         def apply(self, aggregate: "Cargo") -> None:
             aggregate.apply(self)
@@ -206,11 +211,6 @@ class Cargo(Aggregate):
         """
         Default method to apply an aggregate event to the aggregate object.
         """
-
-    class BookingStarted(Aggregate.Created["Cargo"], Event):
-        origin: Location
-        destination: Location
-        arrival_deadline: datetime
 
     def change_destination(self, destination: Location) -> None:
         self.trigger_event(

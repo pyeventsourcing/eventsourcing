@@ -2,7 +2,7 @@
 Examples
 ========
 
-This library contains a few example applications and systems.
+This library contains a few example applications of event sourcing in Python.
 
 
 .. toctree::
@@ -10,4 +10,3 @@ This library contains a few example applications and systems.
 
    examples/bank-accounts
    examples/cargo-shipping
-

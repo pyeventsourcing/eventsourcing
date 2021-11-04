@@ -3,18 +3,6 @@ from decimal import Decimal
 from eventsourcing.domain import Aggregate, event
 
 
-class TransactionError(Exception):
-    pass
-
-
-class AccountClosedError(TransactionError):
-    pass
-
-
-class InsufficientFundsError(TransactionError):
-    pass
-
-
 class BankAccount(Aggregate):
     @event("Opened")
     def __init__(self, full_name: str, email_address: str):
@@ -52,3 +40,15 @@ class BankAccount(Aggregate):
     def check_has_sufficient_funds(self, amount: Decimal) -> None:
         if self.balance - amount < -self.overdraft_limit:
             raise InsufficientFundsError({"account_id": self.id})
+
+
+class TransactionError(Exception):
+    pass
+
+
+class AccountClosedError(TransactionError):
+    pass
+
+
+class InsufficientFundsError(TransactionError):
+    pass
