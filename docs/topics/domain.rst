@@ -1152,8 +1152,9 @@ that has an attribute ``name``.
 
 
 Please note, by default the name "Created" will be used for an automatically
-defined "created" event class. However, the name of the class can be specified
-using the aggregate class argument ``created_event_name`` (see example below).
+defined "created" event class. However, the name of the "create" class can be specified
+using the aggregate class argument ``created_event_name``, and it can be defined by using
+an ``@event`` decorator on the aggregate's ``__init__()`` method.
 
 
 Dataclass-style init methods
@@ -1952,65 +1953,90 @@ class rather than using the ``@aggregate`` decorator so that full the
     assert isinstance(pending_events[0], Order.Started)
 
 
-.. _Snapshots:
+Timestamp timezones
+===================
 
-Snapshots
-=========
-
-Snapshots speed up aggregate access time, by avoiding the need to retrieve
-and apply all the domain events when reconstructing an aggregate object instance.
-The library's :class:`~eventsourcing.domain.Snapshot` class can be used to create
-and restore snapshots of aggregate object instances. See :ref:`Snapshotting <Snapshotting>`
-in the application module documentation for more information about taking snapshots
-in an event-sourced application.
-
-The :class:`~eventsourcing.domain.Snapshot` class is defined as
-a subclass of the domain event base class :class:`~eventsourcing.domain.DomainEvent`.
-It is defined as a frozen data class and extends the base class with attributes
-``topic`` and ``state``, which hold the topic of an aggregate object class and
-the current state of an aggregate object.
+The timestamp values mentioned above are "timezone aware" Python :class:`datetime` objects,
+created by calling :func:`datetime.now`. The default timezone is UTC, as defined by Python's
+:data:`timezone.utc` in the :data:`datetime` module. It is generally recommended to store
+date-times as UTC values, and localize the timestamp in an interface layer, according
+to the local timezone of a particular user. Please see the Python
+`docs <https://docs.python.org/3/library/zoneinfo.html>`__ for more
+information about timezones, in particular the need to install :data:`tzdata`
+on some systems.
 
 .. code:: python
 
-    from eventsourcing.domain import Snapshot
+    from datetime import timezone
+    from zoneinfo import ZoneInfo
 
-The class method :func:`~eventsourcing.domain.Snapshot.take` can be used to
-create a snapshot of an aggregate object.
+
+    # Function to localize datetimes. See also the pytz module.
+    def localize(dt: datetime, tz: str):
+        return dt.astimezone(ZoneInfo(tz))
+
+
+    usa_user_timezone_setting = 'America/Los_Angeles'
+
+    # Summer time in LA.
+    domain_model_timestamp = datetime(2020, 6, 6, hour=12, tzinfo=timezone.utc)
+    local_timestamp = localize(domain_model_timestamp, usa_user_timezone_setting)
+    assert local_timestamp.hour == 5  # Seven hours behind.
+
+    # Winter time in LA.
+    domain_model_timestamp = datetime(2020, 1, 1, hour=12, tzinfo=timezone.utc)
+    local_timestamp = localize(domain_model_timestamp, usa_user_timezone_setting)
+    assert local_timestamp.hour == 4  # Daylight saving time.
+
+
+    china_user_timezone_setting = 'Asia/Shanghai'
+
+    # Summer time in Shanghai.
+    domain_model_timestamp = datetime(2020, 6, 6, hour=12, tzinfo=timezone.utc)
+    local_timestamp = localize(domain_model_timestamp, china_user_timezone_setting)
+    assert local_timestamp.hour == 20  # Eight hours ahead.
+
+    # Winter time in Shanghai.
+    domain_model_timestamp = datetime(2020, 1, 1, hour=12, tzinfo=timezone.utc)
+    local_timestamp = localize(domain_model_timestamp, china_user_timezone_setting)
+    assert local_timestamp.hour == 20  # No daylight saving time in China.
+
+
+However, if necessary, this default can be changed by assigning a :class:`datetime.tzinfo`
+object to the :data:`TZINFO` attribute of the :mod:`eventsourcing.domain` module. The
+:data:`TZINFO` value can be configured using environment variables, by setting the
+environment variable ``TZINFO_TOPIC`` to a :ref:`topic string <Topics>` that locates
+a Python :data:`datetime.tzinfo` object in your code, for example a :data:``timezone``
+with an ``offset`` value, or a :data:``ZoneInfo`` from Python Standard Library with a
+suitable ``key``. You need to set this environment variable before the
+:mod:`eventsourcing.domain` is imported, or otherwise assign to the :data:`TZINFO`
+attribute after that module has been imported. However, it is probably best to use
+a timezone with a fixed offset from UTC, in which case you will probably still need
+to convert to local time in the user interface. So it is strongly recommended to use
+the default :data:`TZINFO`.
+
+
+Initial version number
+======================
+
+By default, the aggregates have an initial version number of ``1``. Sometimes it may be
+desired, or indeed necessary, to use a different initial version number.
+
+In the example below, the initial version number of the class ``MyAggregate`` is defined to be ``0``.
 
 .. code:: python
 
-    snapshot = Snapshot.take(world)
+    class MyAggregate(Aggregate):
+        INITIAL_VERSION = 0
 
-    assert isinstance(snapshot, Snapshot)
-    assert snapshot.originator_id == world.id
-    assert snapshot.originator_version == world.version
-    assert snapshot.topic == "__main__:World", snapshot.topic
-    assert snapshot.state["history"] == world.history
-    assert snapshot.state["_created_on"] == world.created_on
-    assert snapshot.state["_modified_on"] == world.modified_on
-    assert len(snapshot.state) == 3
+    aggregate = MyAggregate()
+    assert aggregate.version == 0
 
 
-A snapshot's :func:`~eventsourcing.domain.Snapshot.mutate` method can be used to reconstruct its
-aggregate object instance.
-
-.. code:: python
-
-    copy = snapshot.mutate(None)
-
-    assert isinstance(copy, World)
-    assert copy.id == world.id
-    assert copy.version == world.version
-    assert copy.created_on == world.created_on
-    assert copy.modified_on == world.modified_on
-    assert copy.history == world.history
-
-The signature of the :func:`~eventsourcing.domain.Snapshot.mutate` method is the same as the
-domain event object method of the same name, so that when reconstructing an aggregate, a list
-that starts with a snapshot and continues with the subsequent domain event objects can be
-treated in the same way as a list of all the domain event objects of an aggregate.
-This similarity is needed by the application :ref:`repository <Repository>`, since
-some specialist event stores (e.g. AxonDB) return a snapshot as the first domain event.
+If all aggregates in a domain model need to use the same non-default version number,
+then a base class can be defined and used by the aggregates of the domain model on
+which ``INITIAL_VERSION`` is set to the preferred value. Some people may wish to set
+the preferred value on the library's :class:`~eventsourcing.domain.Aggregate` class.
 
 
 .. _Topics:
@@ -2019,11 +2045,11 @@ Topic strings
 =============
 
 A 'topic' in this library is the path to a Python module (e.g. ``'eventsourcing.domain'``)
-optionally followed by the qualified name of an object in that module (e.g. ``'Aggregate.Created'``),
-with these two parts joined with a colon character (``':'``).
+optionally followed by the qualified name of an object in that module (e.g. ``'Aggregate'``
+or ``'Aggregate.Created'``), with these two parts joined with a colon character (``':'``).
 For example, ``'eventsourcing.domain'`` is the topic of the library's domain module, and
-``'eventsourcing.domain:Aggregate.Created'`` is the topic of the library's
-:class:`~eventsourcing.domain.Aggregate.Created` class.
+``'eventsourcing.domain:Aggregate'`` is the topic of the :class:`~eventsourcing.domain.Aggregate`
+class.
 
 The library's :mod:`~eventsourcing.utils` module contains the functions
 :func:`~eventsourcing.utils.resolve_topic` and :func:`~eventsourcing.utils.get_topic`
@@ -2321,42 +2347,65 @@ code changes as a sequence of immutable events brings the state of the domain mo
 form of event-oriented consideration as the consideration of the state an application as a sequence of events.
 
 
-Timestamp timezones
-===================
+.. _Snapshots:
 
-The timestamp values mentioned above are "timezone aware" Python :class:`datetime` objects,
-created by calling :func:`datetime.now`. The default timezone is UTC, as defined by Python's
-:data:`datetime.timezone.utc`. It is generally recommended to store date-times as UTC values,
-and convert to a local timezone in an interface layer, according to the particular timezone
-of a particular user. However, if necessary, this default can be changed by assigning a
-:class:`datetime.tzinfo` object to the :data:`TZINFO` attribute of the
-:mod:`eventsourcing.domain` module. The :data:`eventsourcing.domain.TZINFO`
-value can also be configured using environment variables, by setting the environment variable
-``TZINFO_TOPIC`` to a string that describes the :ref:`topic <Topics>` of a Python
-:data:`datetime.tzinfo` object (for example ``'datetime:timezone.utc'``).
+Snapshots
+=========
 
+Snapshots speed up aggregate access time, by avoiding the need to retrieve
+and apply all the domain events when reconstructing an aggregate object instance.
+The library's :class:`~eventsourcing.domain.Snapshot` class can be used to create
+and restore snapshots of aggregate object instances. See :ref:`Snapshotting <Snapshotting>`
+in the application module documentation for more information about taking snapshots
+in an event-sourced application.
 
-Initial version number
-======================
-
-By default, the aggregates have an initial version number of ``1``. Sometimes it may be
-desired, or indeed necessary, to use a different initial version number.
-
-In the example below, the initial version number of the class ``MyAggregate`` is defined to be ``0``.
+The :class:`~eventsourcing.domain.Snapshot` class is defined as
+a subclass of the domain event base class :class:`~eventsourcing.domain.DomainEvent`.
+It is defined as a frozen data class and extends the base class with attributes
+``topic`` and ``state``, which hold the topic of an aggregate object class and
+the current state of an aggregate object.
 
 .. code:: python
 
-    class MyAggregate(Aggregate):
-        INITIAL_VERSION = 0
+    from eventsourcing.domain import Snapshot
 
-    aggregate = MyAggregate()
-    assert aggregate.version == 0
+The class method :func:`~eventsourcing.domain.Snapshot.take` can be used to
+create a snapshot of an aggregate object.
+
+.. code:: python
+
+    snapshot = Snapshot.take(world)
+
+    assert isinstance(snapshot, Snapshot)
+    assert snapshot.originator_id == world.id
+    assert snapshot.originator_version == world.version
+    assert snapshot.topic == "__main__:World", snapshot.topic
+    assert snapshot.state["history"] == world.history
+    assert snapshot.state["_created_on"] == world.created_on
+    assert snapshot.state["_modified_on"] == world.modified_on
+    assert len(snapshot.state) == 3
 
 
-If all aggregates in a domain model need to use the same non-default version number,
-then a base class can be defined and used by the aggregates of the domain model on
-which ``INITIAL_VERSION`` is set to the preferred value. Some people may wish to set
-the preferred value on the library's :class:`~eventsourcing.domain.Aggregate` class.
+A snapshot's :func:`~eventsourcing.domain.Snapshot.mutate` method can be used to reconstruct its
+aggregate object instance.
+
+.. code:: python
+
+    copy = snapshot.mutate(None)
+
+    assert isinstance(copy, World)
+    assert copy.id == world.id
+    assert copy.version == world.version
+    assert copy.created_on == world.created_on
+    assert copy.modified_on == world.modified_on
+    assert copy.history == world.history
+
+The signature of the :func:`~eventsourcing.domain.Snapshot.mutate` method is the same as the
+domain event object method of the same name, so that when reconstructing an aggregate, a list
+that starts with a snapshot and continues with the subsequent domain event objects can be
+treated in the same way as a list of all the domain event objects of an aggregate.
+This similarity is needed by the application :ref:`repository <Repository>`, since
+some specialist event stores (e.g. AxonDB) return a snapshot as the first domain event.
 
 
 .. _Notes:
