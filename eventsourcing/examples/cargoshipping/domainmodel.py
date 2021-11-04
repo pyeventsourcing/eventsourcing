@@ -325,6 +325,3 @@ class Cargo(Aggregate):
             raise Exception(
                 "Unsupported handling event: {}".format(event.handling_activity)
             )
-
-
-TCargo = TypeVar("TCargo", bound=Cargo)

@@ -81,8 +81,8 @@ class TestBookingService(unittest.TestCase):
         # Selection could be affected by things like price
         # and time of delivery, but this test simply uses
         # an arbitrary selection to mimic that process.
-        routes_details = self.service.request_possible_routes_for_cargo(tracking_id)
-        route_details = select_preferred_itinerary(routes_details)
+        itineraries = self.service.request_possible_routes_for_cargo(tracking_id)
+        route_details = select_preferred_itinerary(itineraries)
 
         # The cargo is then assigned to the selected
         # route, described by an itinerary.
@@ -155,8 +155,8 @@ class TestBookingService(unittest.TestCase):
         self.assertEqual(cargo_details["next_expected_activity"], None)
 
         # Reroute.
-        routes_details = self.service.request_possible_routes_for_cargo(tracking_id)
-        route_details = select_preferred_itinerary(routes_details)
+        itineraries = self.service.request_possible_routes_for_cargo(tracking_id)
+        route_details = select_preferred_itinerary(itineraries)
         self.service.assign_route(tracking_id, route_details)
 
         # Load in Tokyo.

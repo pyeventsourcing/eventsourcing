@@ -32,6 +32,9 @@ To keep things simple, we can define a test case using Python's
 
     import unittest
 
+Following the sample project, the test case has two test methods.
+One shows an administrator booking a new cargo. The other tracks
+a cargo as it is shipped around the world.
 
 .. literalinclude:: ../../../eventsourcing/examples/cargoshipping/test.py
     :pyobject: TestBookingService
@@ -65,6 +68,11 @@ of value object defined in the domain model.
 
 .. literalinclude:: ../../../eventsourcing/examples/cargoshipping/interface.py
     :pyobject: BookingService
+
+
+For the purposes of testing, we need to simulate the user selecting a preferred
+itinerary from a list, which we will do by picking the first in the list of
+presented options.
 
 .. literalinclude:: ../../../eventsourcing/examples/cargoshipping/interface.py
     :pyobject: select_preferred_itinerary
