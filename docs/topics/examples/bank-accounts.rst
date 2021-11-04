@@ -3,15 +3,15 @@
 Bank accounts example
 =====================
 
-This example demonstrates an event-sourced application
-object, and an event-sourced aggregate that uses the
-declarative syntax.
+This example demonstrates a straightforward event-sourced
+application, which has an event-sourced aggregate that uses
+the :ref:`declarative syntax <Declarative syntax>`.
 
 Test case
 ---------
 
-To keep things simple, we can define a test case using Python's
-``unittest`` module.
+A test case is defined using the ``unittest`` module
+in the Python Standard Library.
 
 .. code:: python
 
@@ -29,7 +29,14 @@ test method.
 Domain model
 ------------
 
-The ``BankAccount`` aggregate class is defined using the declarative syntax.
+The ``BankAccount`` aggregate class is defined using the
+:ref:`declarative syntax <Declarative syntax>`.
+
+The ``BankAccount`` aggregate has a balance and an overdraft limit. Accounts
+can be opened and closed. Accounts can be credited and debited, which affects
+the balance. Neither credits nor debits are not allowed if the account has been
+closed. Debits are not allowed if the balance would go below the overdraft limit.
+The overdraft limit can be adjusted.
 
 .. literalinclude:: ../../../eventsourcing/examples/bankaccounts/domainmodel.py
     :pyobject: BankAccount
@@ -47,8 +54,13 @@ The ``BankAccount`` aggregate class is defined using the declarative syntax.
 Application
 -----------
 
-The ``BankAccounts`` application class has command and query methods for interacting
+The ``BankAccounts`` application has command and query methods for interacting
 with the domain model.
+
+The ``BankAccounts`` application allows new accounts to be opened. Existing accounts
+can be closed. Deposits and withdraws can be made on open accounts. Transfers can
+be made between open accounts, if there are sufficient funds on the debited account.
+All actions are atomic, including transfers between accounts.
 
 .. literalinclude:: ../../../eventsourcing/examples/bankaccounts/application.py
     :pyobject: BankAccounts
