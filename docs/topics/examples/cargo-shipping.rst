@@ -39,65 +39,6 @@ a cargo as it is shipped around the world.
 .. literalinclude:: ../../../eventsourcing/examples/cargoshipping/test.py
     :pyobject: TestBookingService
 
-Interface
----------
-
-The interface allows clients to deal with simple object types that can be easily
-serialised and deserialised.
-
-.. code:: python
-
-    from datetime import datetime
-    from typing import Dict, List, Optional, Tuple, Union
-
-
-    NextExpectedActivityDetails = Optional[Tuple[str, ...]]
-
-    CargoDetails = Dict[
-        str, Optional[Union[str, bool, datetime, NextExpectedActivityDetails]]
-    ]
-
-    LegDetails = Dict[str, str]
-
-    ItineraryDetails = Dict[str, Union[str, List[LegDetails]]]
-
-
-The interface interacts with the application using custom types
-of value object defined in the domain model.
-
-
-.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/interface.py
-    :pyobject: BookingService
-
-
-For the purposes of testing, we need to simulate the user selecting a preferred
-itinerary from a list, which we will do by picking the first in the list of
-presented options.
-
-.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/interface.py
-    :pyobject: select_preferred_itinerary
-
-
-Application
------------
-
-The application deals with the domain model aggregates, and registers transcodings
-for the custom value objects that are used in aggregate events.
-
-.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/application.py
-    :pyobject: BookingApplication
-
-.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/application.py
-    :pyobject: HandlingActivityAsName
-
-.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/application.py
-    :pyobject: ItineraryAsDict
-
-.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/application.py
-    :pyobject: LegAsDict
-
-.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/application.py
-    :pyobject: LocationAsName
 
 Domain model
 ------------
@@ -160,7 +101,7 @@ the ``Cargo`` aggregate events and methods.
     }
 
 
-The domain model is defined in the more verbose style, using explicit definitions
+A domain model aggregate is defined in the more verbose style, using explicit definitions
 of aggregate events, with command methods that trigger events. The aggregate
 projector function is implemented on the aggregate object using the single
 dispatch decorator with an event-specific method registered to handle each type
@@ -170,6 +111,66 @@ of aggregate event.
 .. literalinclude:: ../../../eventsourcing/examples/cargoshipping/domainmodel.py
     :pyobject: Cargo
 
+
+Application
+-----------
+
+The application deals with the domain model aggregates, and registers transcodings
+for the custom value objects that are used in aggregate events.
+
+.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/application.py
+    :pyobject: BookingApplication
+
+.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/application.py
+    :pyobject: HandlingActivityAsName
+
+.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/application.py
+    :pyobject: ItineraryAsDict
+
+.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/application.py
+    :pyobject: LegAsDict
+
+.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/application.py
+    :pyobject: LocationAsName
+
+
+Interface
+---------
+
+The interface allows clients (e.g. the test case) to deal with simple object types
+that can be easily serialised and deserialised.
+
+.. code:: python
+
+    from datetime import datetime
+    from typing import Dict, List, Optional, Tuple, Union
+
+
+    NextExpectedActivityDetails = Optional[Tuple[str, ...]]
+
+    CargoDetails = Dict[
+        str, Optional[Union[str, bool, datetime, NextExpectedActivityDetails]]
+    ]
+
+    LegDetails = Dict[str, str]
+
+    ItineraryDetails = Dict[str, Union[str, List[LegDetails]]]
+
+
+The interface interacts with the application using custom types
+of value object defined in the domain model.
+
+
+.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/interface.py
+    :pyobject: BookingService
+
+
+For the purposes of testing, we need to simulate the user selecting a preferred
+itinerary from a list, which we will do by picking the first in the list of
+presented options.
+
+.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/interface.py
+    :pyobject: select_preferred_itinerary
 
 
 Run tests

@@ -26,18 +26,6 @@ test method.
     :pyobject: TestBankAccounts
 
 
-Application
------------
-
-The ``BankAccounts`` application class has command and query methods for interacting
-with the domain model.
-
-.. literalinclude:: ../../../eventsourcing/examples/bankaccounts/application.py
-    :pyobject: BankAccounts
-
-.. literalinclude:: ../../../eventsourcing/examples/bankaccounts/application.py
-    :pyobject: AccountNotFoundError
-
 Domain model
 ------------
 
@@ -54,6 +42,19 @@ The ``BankAccount`` aggregate class is defined using the declarative syntax.
 
 .. literalinclude:: ../../../eventsourcing/examples/bankaccounts/domainmodel.py
     :pyobject: InsufficientFundsError
+
+
+Application
+-----------
+
+The ``BankAccounts`` application class has command and query methods for interacting
+with the domain model.
+
+.. literalinclude:: ../../../eventsourcing/examples/bankaccounts/application.py
+    :pyobject: BankAccounts
+
+.. literalinclude:: ../../../eventsourcing/examples/bankaccounts/application.py
+    :pyobject: AccountNotFoundError
 
 
 Run tests
