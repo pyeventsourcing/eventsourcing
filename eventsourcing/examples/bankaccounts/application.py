@@ -11,7 +11,7 @@ class AccountNotFoundError(Exception):
 
 class BankAccounts(Application[BankAccount]):
     def open_account(self, full_name: str, email_address: str) -> UUID:
-        account = BankAccount.open(
+        account = BankAccount(
             full_name=full_name,
             email_address=email_address,
         )
@@ -30,12 +30,12 @@ class BankAccounts(Application[BankAccount]):
 
     def deposit_funds(self, credit_account_id: UUID, amount: Decimal) -> None:
         account = self.get_account(credit_account_id)
-        account.append_transaction(amount)
+        account.credit(amount)
         self.save(account)
 
     def withdraw_funds(self, debit_account_id: UUID, amount: Decimal) -> None:
         account = self.get_account(debit_account_id)
-        account.append_transaction(-amount)
+        account.debit(amount)
         self.save(account)
 
     def transfer_funds(
@@ -46,8 +46,8 @@ class BankAccounts(Application[BankAccount]):
     ) -> None:
         debit_account = self.get_account(debit_account_id)
         credit_account = self.get_account(credit_account_id)
-        debit_account.append_transaction(-amount)
-        credit_account.append_transaction(amount)
+        debit_account.debit(amount)
+        credit_account.credit(amount)
         self.save(debit_account, credit_account)
 
     def set_overdraft_limit(self, account_id: UUID, overdraft_limit: Decimal) -> None:

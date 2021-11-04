@@ -97,30 +97,8 @@ application's ``save()`` method.
 The ``Worlds`` application's ``get_world_history()`` method is a query method that
 presents the current history of an existing aggregate.
 
-.. code:: python
-
-    from typing import List
-    from uuid import UUID
-
-    from eventsourcing.application import Application
-
-
-    class Worlds(Application):
-        def create_world(self) -> UUID:
-            world = World.create()
-            self.save(world)
-            return world.id
-
-        def make_it_so(self, world_id: UUID, what: str):
-            world = self.repository.get(world_id)
-            world.make_it_so(what)
-            self.save(world)
-
-        def get_world_history(self, world_id: UUID) -> List[str]:
-            world = self.repository.get(world_id)
-            return list(world.history)
-
-
+..
+    #include-when-testing
 ..
     from dataclasses import dataclass
     from uuid import uuid4
@@ -147,6 +125,30 @@ presents the current history of an existing aggregate.
 
             def apply(self, world):
                 world.history.append(self.what)
+
+
+.. code:: python
+
+    from typing import List
+    from uuid import UUID
+
+    from eventsourcing.application import Application
+
+
+    class Worlds(Application):
+        def create_world(self) -> UUID:
+            world = World.create()
+            self.save(world)
+            return world.id
+
+        def make_it_so(self, world_id: UUID, what: str):
+            world = self.repository.get(world_id)
+            world.make_it_so(what)
+            self.save(world)
+
+        def get_world_history(self, world_id: UUID) -> List[str]:
+            world = self.repository.get(world_id)
+            return list(world.history)
 
 
 In the example below, an instance of the ``Worlds`` application is constructed.
@@ -698,6 +700,8 @@ the example from the discussion of :ref:`namespaced IDs <Namespaced IDs>`
 in the previous section. The aggregate classes ``Page`` and ``Index`` are
 defined in that section.
 
+..
+    # include-when-testing
 ..
     from dataclasses import dataclass
     from uuid import uuid5, NAMESPACE_URL

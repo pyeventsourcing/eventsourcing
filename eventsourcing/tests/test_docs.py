@@ -124,14 +124,14 @@ class TestDocs(TestCase):
             for name in filenames:
                 if name in skipped:
                     continue
-                # if name.endswith(".rst"):
-                if (
-                    name.endswith("persistence.rst")
-                    or name.endswith("domain.rst")
-                    or name.endswith("application.rst")
-                    or name.endswith("system.rst")
-                    or name.endswith("examples.rst")
-                ):
+                if name.endswith(".rst"):
+                    # if (
+                    #     name.endswith("persistence.rst")
+                    #     or name.endswith("domain.rst")
+                    #       or name.endswith("application.rst")
+                    #     or name.endswith("system.rst")
+                    #     or name.endswith("examples.rst")
+                    # ):
                     # if name.endswith('quick_start.rst'):
                     # if name.endswith('aggregates_in_ddd.rst'):
                     # if name.endswith('example_application.rst'):
@@ -186,8 +186,13 @@ class TestDocs(TestCase):
         is_rst = False
         last_line = ""
         is_literalinclude = False
+        module = ""
         with open(doc_path) as doc_file:
             for line_index, orig_line in enumerate(doc_file):
+                # print("Line index:", line_index)
+                # print("Orig line:", orig_line)
+                # print("Last line:", last_line)
+
                 line = orig_line.strip("\n")
                 if line.startswith("```python"):
                     # Start markdown code block.
@@ -211,10 +216,8 @@ class TestDocs(TestCase):
                     self.fail(
                         "Restructured text block terminated with markdown format '```'"
                     )
-                elif (
-                    line.startswith(".. code:: python")
-                    or line.strip() == ".."
-                    # and "exclude-when-testing" not in last_line
+                elif line.startswith(".. code:: python") or (
+                    line.strip() == ".." and "include-when-testing" in last_line
                 ):
                     # Start restructured text code block.
                     if is_md:
@@ -228,20 +231,22 @@ class TestDocs(TestCase):
                     num_code_lines_in_block = 0
                 elif line.startswith(".. literalinclude::"):
                     is_literalinclude = True
+                    module = line.strip().split(" ")[-1][:-3]
+                    module = module.lstrip("./")
+                    module = module.replace("/", ".")
                     line = ""
 
                 elif is_literalinclude:
                     if "pyobject" in line:
                         # Assume ".. literalinclude:: ../../xxx/xx.py"
                         # Or ".. literalinclude:: ../xxx/xx.py"
-                        module = last_line.strip().split(" ")[-1][:-3]
-                        module = module.lstrip("./")
-                        module = module.replace("/", ".")
                         # Assume "    :pyobject: xxxxxx"
                         pyobject = line.strip().split(" ")[-1]
                         statement = f"from {module} import {pyobject}"
                         line = statement
+                    elif not line.strip():
                         is_literalinclude = False
+                        module = ""
 
                 elif is_code and is_rst and line and not line.startswith(" "):
                     # Finish restructured text code block.
@@ -269,6 +274,7 @@ class TestDocs(TestCase):
                 else:
                     line = ""
                 lines.append(line)
+                # if orig_line.strip():
                 last_line = orig_line
 
         print("{} lines of code in {}".format(num_code_lines, doc_path))

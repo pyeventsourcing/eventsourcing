@@ -731,8 +731,8 @@ Defining the aggregate projector with methods on the aggregate class has the adv
 of setting values on ``self``, which avoids the reverse of intuition that occurs when
 writing ``apply()`` methods on the events, and makes it legitimate to set values on
 "private" attributes.
-See the ``Cargo`` aggregate in the domain model section of the :ref:`Cargo Shipping
-example <Cargo shipping>` for an example of this alternative.
+See the ``Cargo`` aggregate in the domain model section of the :ref:`Cargo shipping
+example <Cargo shipping example>` for an example of this alternative.
 
 Another alternative is to use a mutator function defined at the module level. But then
 the event-specific parts of the aggregate projector will become more distant from
@@ -1433,6 +1433,38 @@ class can be passed to the decorator as a Python ``str``.
 
     # The second pending event has a 'name' attribute.
     assert pending_events[1].name == "bar"
+
+
+This decorator also works with the ``__init__()`` methods.
+
+.. code:: python
+
+    class MyAggregate(Aggregate):
+        @event("Started")
+        def __init__(self, name):
+            self.name = name
+
+
+    # Call the class with a 'name' argument.
+    agg = MyAggregate(name="foo")
+    assert agg.name == "foo"
+
+    # There is one pending event.
+    pending_events = agg.collect_events()
+    assert len(pending_events) == 1
+
+    # The pending event is a "created" event.
+    assert isinstance(pending_events[0], MyAggregate.Started)
+
+    # The "created" event is defined on the aggregate class.
+    assert type(pending_events[0]).__qualname__ == "MyAggregate.Started"
+
+    # The "created" event has a 'name' attribute.
+    pending_events[0].name == "foo"
+
+    # The "created" event can be used to reconstruct the aggregate.
+    copy = pending_events[0].mutate(None)
+    assert copy.name == agg.name
 
 
 Inferring the event class name from the method name
