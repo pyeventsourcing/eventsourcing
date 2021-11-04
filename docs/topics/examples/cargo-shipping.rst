@@ -111,6 +111,48 @@ of aggregate event.
 Custom value objects are defined in as part of the domain model, and used in
 the aggregate event objects.
 
+
+.. code:: python
+
+    REGISTERED_ROUTES = {
+        ("HONGKONG", "STOCKHOLM"): [
+            Itinerary(
+                origin="HONGKONG",
+                destination="STOCKHOLM",
+                legs=(
+                    Leg(
+                        origin="HONGKONG",
+                        destination="NEWYORK",
+                        voyage_number="V1",
+                    ),
+                    Leg(
+                        origin="NEWYORK",
+                        destination="STOCKHOLM",
+                        voyage_number="V2",
+                    ),
+                ),
+            )
+        ],
+        ("TOKYO", "STOCKHOLM"): [
+            Itinerary(
+                origin="TOKYO",
+                destination="STOCKHOLM",
+                legs=(
+                    Leg(
+                        origin="TOKYO",
+                        destination="HAMBURG",
+                        voyage_number="V3",
+                    ),
+                    Leg(
+                        origin="HAMBURG",
+                        destination="STOCKHOLM",
+                        voyage_number="V4",
+                    ),
+                ),
+            )
+        ],
+    }
+
 .. literalinclude:: ../../../eventsourcing/examples/cargoshipping/domainmodel.py
     :pyobject: Cargo
 
