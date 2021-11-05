@@ -141,10 +141,30 @@ class AggregateCreated(AggregateEvent[TAggregate]):
         if aggregate_class in _init_mentions_id:
             kwargs["id"] = base_kwargs["id"]
 
+        # noinspection PyTypeChecker
+        _del_kwargs_not_mentioned_in_sig(kwargs, agg.__init__)
+
         # Call the aggregate class init method.
         # noinspection PyArgumentList
         agg.__init__(**kwargs)
         return agg
+
+
+def _del_kwargs_not_mentioned_in_sig(
+    kwargs: Dict[str, Any], method: Union[FunctionType, WrapperDescriptorType]
+) -> None:
+    mentioned_names = []
+    method_signature = inspect.signature(method)
+
+    for name, param in method_signature.parameters.items():
+        if name == "self":
+            continue
+        else:
+            mentioned_names.append(name)
+
+    for name in list(kwargs.keys()):
+        if name not in mentioned_names:
+            del kwargs[name]
 
 
 class CommandMethodDecorator:
@@ -422,7 +442,7 @@ class DecoratedEvent(AggregateEvent[Any]):
         event_obj_dict.pop("originator_version")
         event_obj_dict.pop("timestamp")
         original_method = original_methods[type(self)]
-        # method_signature = inspect.signature(original_method)
+        method_signature = inspect.signature(original_method)
         # # args = []
         # # for name, param in method_signature.parameters.items():
         # for name in method_signature.parameters:
@@ -431,7 +451,7 @@ class DecoratedEvent(AggregateEvent[Any]):
         # #     if param.kind == param.POSITIONAL_ONLY:
         # #         args.append(event_obj_dict.pop(name))
         # # original_method(aggregate, *args, **event_obj_dict)
-        # _del_kwargs_not_mentioned_in_sig(event_obj_dict, original_method)
+        _del_kwargs_not_mentioned_in_sig(event_obj_dict, original_method)
 
         returned_value = original_method(aggregate, **event_obj_dict)
         if returned_value is not None:
