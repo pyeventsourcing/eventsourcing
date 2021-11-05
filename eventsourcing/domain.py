@@ -156,7 +156,7 @@ def _del_kwargs_not_mentioned_in_sig(
     mentioned_names = []
     method_signature = inspect.signature(method)
 
-    for name, param in method_signature.parameters.items():
+    for name in method_signature.parameters:
         if name == "self":
             continue
         else:
@@ -442,7 +442,7 @@ class DecoratedEvent(AggregateEvent[Any]):
         event_obj_dict.pop("originator_version")
         event_obj_dict.pop("timestamp")
         original_method = original_methods[type(self)]
-        method_signature = inspect.signature(original_method)
+        # method_signature = inspect.signature(original_method)
         # # args = []
         # # for name, param in method_signature.parameters.items():
         # for name in method_signature.parameters:
