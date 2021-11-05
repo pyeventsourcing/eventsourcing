@@ -408,7 +408,7 @@ class BoundCommandMethodDecorator:
         self.trigger(*args, **kwargs)
 
 
-original_methods: Dict[MetaDomainEvent, FunctionType] = {}
+original_methods: Dict[Type[AggregateEvent[Any]], FunctionType] = {}
 
 
 class DecoratedEvent(AggregateEvent[Any]):
@@ -574,6 +574,12 @@ _init_mentions_id: Set["MetaAggregate"] = set()
 class MetaAggregate(ABCMeta):
     INITIAL_VERSION = 1
 
+    class Event(AggregateEvent[TAggregate]):
+        pass
+
+    class Created(Event[TAggregate], AggregateCreated[TAggregate]):
+        pass
+
     def __new__(mcs: Type[TT], *args: Any, **kwargs: Any) -> TT:
         try:
             args[2]["__annotations__"].pop("id")
@@ -658,7 +664,7 @@ class MetaAggregate(ABCMeta):
 
                 created_event_class = type(
                     created_event_name,
-                    (AggregateCreated,),
+                    (cls.Created, cls.Event),
                     {
                         "__annotations__": created_cls_annotations,
                         "__module__": cls.__module__,
@@ -724,8 +730,8 @@ class MetaAggregate(ABCMeta):
                         "__module__": cls.__module__,
                         "__qualname__": event_cls_qualname,
                     }
-                    event_cls = MetaDomainEvent(
-                        event_cls_name, (DecoratedEvent,), event_cls_dict
+                    event_cls = type(
+                        event_cls_name, (DecoratedEvent, cls.Event), event_cls_dict
                     )
                     original_methods[event_cls] = original_method
                     setattr(cls, event_cls_name, event_cls)
