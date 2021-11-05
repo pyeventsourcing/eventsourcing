@@ -5,7 +5,7 @@ from eventsourcing.examples.wiki.application import (
     PageNotFound,
     WikiApplication,
 )
-from eventsourcing.examples.wiki.domainmodel import user_id_cvar, Page
+from eventsourcing.examples.wiki.domainmodel import Page, user_id_cvar
 from eventsourcing.system import NotificationLogReader
 
 
