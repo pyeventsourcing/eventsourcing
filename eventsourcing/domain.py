@@ -423,14 +423,16 @@ class DecoratedEvent(AggregateEvent[Any]):
         event_obj_dict.pop("timestamp")
         original_method = original_methods[type(self)]
         method_signature = inspect.signature(original_method)
-        # args = []
-        # for name, param in method_signature.parameters.items():
-        for name in method_signature.parameters:
-            if name == "self":
-                continue
-        #     if param.kind == param.POSITIONAL_ONLY:
-        #         args.append(event_obj_dict.pop(name))
-        # original_method(aggregate, *args, **event_obj_dict)
+        # # args = []
+        # # for name, param in method_signature.parameters.items():
+        # for name in method_signature.parameters:
+        #     if name == "self":
+        #         continue
+        # #     if param.kind == param.POSITIONAL_ONLY:
+        # #         args.append(event_obj_dict.pop(name))
+        # # original_method(aggregate, *args, **event_obj_dict)
+        _del_kwargs_not_mentioned_in_sig(event_obj_dict, original_method)
+
         returned_value = original_method(aggregate, **event_obj_dict)
         if returned_value is not None:
             raise TypeError(
