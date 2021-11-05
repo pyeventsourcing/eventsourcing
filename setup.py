@@ -23,6 +23,7 @@ dev_requires = docs_requires + [
     "flake8",
     "flake8-bugbear",
     "isort",
+    'backports.zoneinfo;python_version<"3.9"',
 ]
 
 long_description = """

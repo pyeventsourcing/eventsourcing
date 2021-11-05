@@ -1960,15 +1960,15 @@ The timestamp values mentioned above are "timezone aware" Python :class:`datetim
 created by calling :func:`datetime.now`. The default timezone is UTC, as defined by Python's
 :data:`timezone.utc` in the :data:`datetime` module. It is generally recommended to store
 date-times as UTC values, and localize the timestamp in an interface layer, according
-to the local timezone of a particular user. Please see the Python
-`docs <https://docs.python.org/3/library/zoneinfo.html>`__ for more
-information about timezones, in particular the need to install :data:`tzdata`
-on some systems.
+to the local timezone of a particular user.
 
 .. code:: python
 
     from datetime import timezone
-    from zoneinfo import ZoneInfo
+    try:
+        from zoneinfo import ZoneInfo
+    except ImportError:
+        from backports.zoneinfo import ZoneInfo
 
 
     # Function to localize datetimes. See also the pytz module.
@@ -2014,6 +2014,14 @@ attribute after that module has been imported. However, it is probably best to u
 a timezone with a fixed offset from UTC, in which case you will probably still need
 to convert to local time in the user interface. So it is strongly recommended to use
 the default :data:`TZINFO`.
+
+Please see the Python `docs <https://docs.python.org/3/library/zoneinfo.html>`__ for
+more information about timezones, in particular the need to install :data:`tzdata`
+on some systems. Please note, the ``zoneinfo`` package is new in Python 3.9, so users
+of earlier versions of Python may wish to install the ``backports.zoneinfo`` package.
+
+::
+    $ pip install 'backports.zoneinfo;python_version<"3.9"'
 
 
 Initial version number
