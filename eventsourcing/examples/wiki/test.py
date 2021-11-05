@@ -1,13 +1,21 @@
 from unittest import TestCase
+from uuid import uuid4
 
 from eventsourcing.examples.wiki.application import (
     PageNotFound,
     WikiApplication,
 )
+from eventsourcing.examples.wiki.domainmodel import Page, USER_ID
+from eventsourcing.system import NotificationLogReader
 
 
 class TestWiki(TestCase):
     def test(self) -> None:
+        user_id = uuid4()
+
+        # Set user_id context variable.
+        USER_ID.set(user_id)
+
         # Construct application.
         app = WikiApplication()
 
@@ -76,3 +84,8 @@ Welcome to this wiki!
 This is a wiki about...
 """,
         )
+
+        for notification in NotificationLogReader(app.log).read(start=1):
+            domain_event = app.mapper.to_domain_event(notification)
+            if isinstance(domain_event, Page.Event):
+                print(domain_event.__class__.__qualname__, domain_event.user_id)

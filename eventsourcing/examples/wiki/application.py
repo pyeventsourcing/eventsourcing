@@ -1,4 +1,5 @@
 from typing import Dict, cast
+from uuid import UUID
 
 from eventsourcing.application import AggregateNotFound, Application
 from eventsourcing.domain import Aggregate
@@ -14,7 +15,7 @@ class WikiApplication(Application[Aggregate]):
     snapshotting_intervals = {Page: 10}
 
     def create_page(self, title: str, slug: str) -> None:
-        page = Page(title)
+        page = Page(title=title)
         index_entry = Index(slug, ref=page.id)
         self.save(page, index_entry)
 
@@ -24,7 +25,7 @@ class WikiApplication(Application[Aggregate]):
 
     def update_title(self, slug: str, title: str) -> None:
         page = self._get_page(slug)
-        page.update_title(title)
+        page.update_title(title=title)
         self.save(page)
 
     def update_slug(self, old_slug: str, new_slug: str) -> None:

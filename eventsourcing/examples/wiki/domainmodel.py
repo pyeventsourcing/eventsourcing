@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+from contextvars import ContextVar
+from dataclasses import dataclass, field
 from typing import Optional
 from uuid import NAMESPACE_URL, UUID, uuid5
 
@@ -6,10 +7,16 @@ from eventsourcing.domain import Aggregate, event
 from eventsourcing.examples.wiki.utils import diff, patch
 
 
+USER_ID: ContextVar[Optional[UUID]] = ContextVar('user_id', default=None)
+
+
 @dataclass
 class Page(Aggregate):
     title: str
     body: str = ""
+
+    class Event(Aggregate.Event["Page"]):
+        user_id: Optional[UUID] = field(default_factory=USER_ID.get, init=False)
 
     @event("TitleUpdated")
     def update_title(self, title: str) -> None:
