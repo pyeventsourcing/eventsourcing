@@ -6,8 +6,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 from eventsourcing.domain import Aggregate, event
 from eventsourcing.examples.wiki.utils import diff, patch
 
-
-USER_ID: ContextVar[Optional[UUID]] = ContextVar('user_id', default=None)
+USER_ID: ContextVar[Optional[UUID]] = ContextVar("user_id", default=None)
 
 
 @dataclass
