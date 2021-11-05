@@ -1,5 +1,4 @@
 from typing import Dict, cast
-from uuid import UUID
 
 from eventsourcing.application import AggregateNotFound, Application
 from eventsourcing.domain import Aggregate
