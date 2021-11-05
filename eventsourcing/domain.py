@@ -28,7 +28,7 @@ TZINFO: tzinfo = resolve_topic(os.getenv("TZINFO_TOPIC", "datetime:timezone.utc"
 
 class MetaDomainEvent(ABCMeta):
     def __new__(
-        mcs, name: str, bases: Tuple[type], cls_dict: Dict[str, Any]
+        mcs, name: str, bases: Tuple[type, ...], cls_dict: Dict[str, Any]
     ) -> "MetaDomainEvent":
         event_cls = super().__new__(mcs, name, bases, cls_dict)
         event_cls = dataclass(frozen=True)(event_cls)  # type: ignore
