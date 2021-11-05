@@ -1956,11 +1956,14 @@ class rather than using the ``@aggregate`` decorator so that full the
 Timestamp timezones
 ===================
 
-The timestamp values mentioned above are "timezone aware" Python :class:`datetime` objects,
-created by calling :func:`datetime.now`. The default timezone is UTC, as defined by Python's
-:data:`timezone.utc` in the :data:`datetime` module. It is generally recommended to store
-date-times as UTC values, and localize the timestamp in an interface layer, according
-to the local timezone of a particular user.
+The timestamp values mentioned above are timezone-aware Python :class:`datetime`
+objects, created by calling :func:`datetime.now`. By default, the timezone is set
+to UTC, as defined by:data:`timezone.utc` in Python's :data:`datetime` module. It
+is generally recommended to store date-times as timezone-aware values with UTC as
+the timezone, and then localize the values in the interface to the application,
+according to the local timezone of a particular user. You can localize date-time
+values by calling :data:`astimezone()` on a :class:`datetime` object, passing in
+a :class:`tzinfo` object.
 
 .. code:: python
 
@@ -2002,11 +2005,11 @@ to the local timezone of a particular user.
     assert local_timestamp.hour == 20  # No daylight saving time in China.
 
 
-However, if necessary, this default can be changed by assigning a :class:`datetime.tzinfo`
+However, if necessary, this default can be changed by assigning a :class:`tzinfo`
 object to the :data:`TZINFO` attribute of the :mod:`eventsourcing.domain` module. The
 :data:`TZINFO` value can be configured using environment variables, by setting the
 environment variable ``TZINFO_TOPIC`` to a :ref:`topic string <Topics>` that locates
-a Python :data:`datetime.tzinfo` object in your code, for example a :data:``timezone``
+a Python :data:`tzinfo` object in your code, for example a :data:``timezone``
 with an ``offset`` value, or a :data:``ZoneInfo`` from Python Standard Library with a
 suitable ``key``. You need to set this environment variable before the
 :mod:`eventsourcing.domain` is imported, or otherwise assign to the :data:`TZINFO`
