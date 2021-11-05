@@ -5,7 +5,7 @@ from eventsourcing.examples.wiki.application import (
     PageNotFound,
     WikiApplication,
 )
-from eventsourcing.examples.wiki.domainmodel import USER_ID, Page
+from eventsourcing.examples.wiki.domainmodel import user_id_cvar, Page
 from eventsourcing.system import NotificationLogReader
 
 
@@ -14,7 +14,7 @@ class TestWiki(TestCase):
         user_id = uuid4()
 
         # Set user_id context variable.
-        USER_ID.set(user_id)
+        user_id_cvar.set(user_id)
 
         # Construct application.
         app = WikiApplication()
