@@ -735,7 +735,7 @@ class MetaAggregate(ABCMeta):
             if param.kind in [param.KEYWORD_ONLY, param.POSITIONAL_OR_KEYWORD]:
                 cls._create_id_param_names.append(name)
 
-    def __call__(cls: "MetaAggregate", *args: Any, **kwargs: Any) -> Any:
+    def __call__(cls, *args: Any, **kwargs: Any) -> Any:
         self_init: WrapperDescriptorType = cls.__init__  # type: ignore
         kwargs = _coerce_args_to_kwargs(
             self_init,
