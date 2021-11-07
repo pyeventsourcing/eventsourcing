@@ -417,7 +417,7 @@ def event(
         return create_command_method_decorator
 
     else:
-        if hasattr(arg, "__name__"):
+        if isinstance(arg, (staticmethod, classmethod)) or hasattr(arg, "__name__"):
             item = f"'{arg.__name__}'"
         else:
             item = f"{arg}"
