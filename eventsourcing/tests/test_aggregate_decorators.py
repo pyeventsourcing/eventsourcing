@@ -521,7 +521,7 @@ class TestEventDecorator(TestCase):
             cm.exception.args[0].endswith(
                 " is not a str, event class, function, or property",
             ),
-            cm.exception.args[0]
+            cm.exception.args[0],
         )
 
         with self.assertRaises(TypeError) as cm:
@@ -536,7 +536,7 @@ class TestEventDecorator(TestCase):
             cm.exception.args[0].endswith(
                 " is not a function or property",
             ),
-            cm.exception.args[0]
+            cm.exception.args[0],
         )
 
     def test_raises_when_method_is_classmethod(self):
@@ -552,7 +552,7 @@ class TestEventDecorator(TestCase):
             cm.exception.args[0].endswith(
                 " is not a str, event class, function, or property",
             ),
-            cm.exception.args[0]
+            cm.exception.args[0],
         )
 
         with self.assertRaises(TypeError) as cm:
@@ -567,7 +567,7 @@ class TestEventDecorator(TestCase):
             cm.exception.args[0].endswith(
                 " is not a function or property",
             ),
-            cm.exception.args[0]
+            cm.exception.args[0],
         )
 
     def test_method_called_with_positional_defined_with_keyword_params(self):
