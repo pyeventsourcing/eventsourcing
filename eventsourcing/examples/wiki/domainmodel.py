@@ -1,32 +1,42 @@
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Optional, Union
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from eventsourcing.domain import Aggregate, event
-from eventsourcing.examples.wiki.utils import diff, patch
+from eventsourcing.examples.wiki.utils import apply_patch, create_diff
 
 user_id_cvar: ContextVar[Optional[UUID]] = ContextVar("user_id", default=None)
+
+
+__event__: Union["Page.Event", Any] = None
 
 
 @dataclass
 class Page(Aggregate):
     title: str
     body: str = ""
+    modified_by: Optional[UUID] = field(default=None, init=False)
 
     class Event(Aggregate.Event["Page"]):
         user_id: Optional[UUID] = field(default_factory=user_id_cvar.get, init=False)
 
-    @event("TitleUpdated")
+    @event("TitleUpdated", inject_event=True)
     def update_title(self, title: str) -> None:
         self.title = title
+        self.modified_by = __event__.user_id
 
     def update_body(self, body: str) -> None:
-        self._update_body(diff(self.body, body))
+        self._update_body(create_diff(old=self.body, new=body))
+
+        # self._update_body(create_diff(old=self.body, new=body), user_id=uuid4()) # <-
+        # maybe this should raise an error, because the user_id value isn't used?
+        # or maybe this should use the given value of user_id ???
 
     @event("BodyUpdated")
-    def _update_body(self, diff: str) -> None:
-        self.body = patch(self.body, diff)
+    def _update_body(self, diff: str, user_id: Optional[UUID] = None) -> None:
+        self.body = apply_patch(old=self.body, diff=diff)
+        self.modified_by = user_id
 
 
 @dataclass

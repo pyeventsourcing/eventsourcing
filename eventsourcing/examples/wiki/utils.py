@@ -2,31 +2,23 @@ import os
 from tempfile import TemporaryDirectory
 
 
-def diff(old: str, new: str) -> str:
-    with TemporaryDirectory() as td:
-        old_file_path = os.path.join(td, "old")
-        new_file_path = os.path.join(td, "new")
-        out_file_path = os.path.join(td, "out")
-        with open(old_file_path, "w") as old_file:
-            old_file.write(old)
-        with open(new_file_path, "w") as new_file:
-            new_file.write(new)
-        os.system(f"diff {old_file.name} {new_file.name} > {out_file_path}")
-        with open(out_file_path, "r") as out_file:
-            diff = out_file.read()
-            return diff
+def create_diff(old: str, new: str) -> str:
+    return run("diff %s %s > %s", old, new)
 
 
-def patch(orig: str, patch: str) -> str:
+def apply_patch(old: str, diff: str) -> str:
+    return run("patch -s %s %s -o %s", old, diff)
+
+
+def run(cmd: str, a: str, b: str) -> str:
     with TemporaryDirectory() as td:
-        orig_file_path = os.path.join(td, "orig")
-        patch_file_path = os.path.join(td, "patch")
-        out_file_path = os.path.join(td, "out")
-        with open(orig_file_path, "w") as orig_file:
-            orig_file.write(orig)
-        with open(patch_file_path, "w") as patch_file:
-            patch_file.write(patch)
-        os.system(f"patch -s {orig_file_path} {patch_file_path} -o {out_file_path}")
-        with open(out_file_path, "r") as out_file:
-            body = out_file.read()
-            return body
+        a_path = os.path.join(td, "a")
+        b_path = os.path.join(td, "b")
+        c_path = os.path.join(td, "c")
+        with open(a_path, "w") as a_file:
+            a_file.write(a)
+        with open(b_path, "w") as b_file:
+            b_file.write(b)
+        os.system(cmd % (a_path, b_path, c_path))
+        with open(c_path, "r") as c_file:
+            return c_file.read()

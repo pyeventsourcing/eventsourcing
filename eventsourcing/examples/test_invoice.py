@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
-from typing import Any, Dict, cast
+from typing import Any, Dict
 from unittest import TestCase
 
 from eventsourcing.application import Application
@@ -115,10 +115,10 @@ class TestInvoice(TestCase):
         )
         self.assertEqual(invoice.status, Status.INITIATED)
 
-        invoice.number = "INV/2021/11/02"
+        invoice.number = "INV/2021/11/02"  # type: ignore
         self.assertEqual(invoice.number, "INV/2021/11/02")
 
-        invoice.amount = Decimal("43.20")
+        invoice.amount = Decimal("43.20")  # type: ignore
         self.assertEqual(invoice.number, "INV/2021/11/02")
 
         invoice.issue(issued_by="Cookie Monster")
@@ -126,10 +126,10 @@ class TestInvoice(TestCase):
         self.assertEqual(invoice.status, Status.ISSUED)
 
         with self.assertRaises(AssertionError):
-            invoice.number = "INV/2021/11/03"
+            invoice.number = "INV/2021/11/03"  # type: ignore
 
         with self.assertRaises(AssertionError):
-            invoice.amount = Decimal("54.20")
+            invoice.amount = Decimal("54.20")  # type: ignore
 
         invoice.send(sent_via=SendMethod.EMAIL)
         self.assertEqual(invoice.sent_via, SendMethod.EMAIL)
@@ -161,5 +161,5 @@ class TestInvoice(TestCase):
         self.assertEqual(len(snapshots), 1)
 
         snapshot = snapshots[0]
-        copy = cast(Invoice, snapshot.mutate(None))
-        self.assertEqual(invoice, copy)
+        copy2 = snapshot.mutate(None)
+        self.assertEqual(invoice, copy2)

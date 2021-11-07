@@ -5,15 +5,15 @@ from eventsourcing.examples.wiki.application import (
     PageNotFound,
     WikiApplication,
 )
-from eventsourcing.examples.wiki.domainmodel import Page, user_id_cvar
+from eventsourcing.examples.wiki.domainmodel import Index, Page, user_id_cvar
 from eventsourcing.system import NotificationLogReader
 
 
 class TestWiki(TestCase):
     def test(self) -> None:
-        user_id = uuid4()
 
         # Set user_id context variable.
+        user_id = uuid4()
         user_id_cvar.set(user_id)
 
         # Construct application.
@@ -32,6 +32,7 @@ class TestWiki(TestCase):
         # Check we got a dict that has the given title.
         self.assertEqual(page["title"], "Welcome")
         self.assertEqual(page["body"], "")
+        # self.assertEqual(page["modified_by"], user_id)
 
         # Update the title.
         app.update_title(slug="welcome", title="Welcome Visitors")
@@ -39,6 +40,7 @@ class TestWiki(TestCase):
         # Check the title was updated.
         page = app.get_page(slug="welcome")
         self.assertEqual(page["title"], "Welcome Visitors")
+        self.assertEqual(page["modified_by"], user_id)
 
         # Update the slug.
         app.update_slug(old_slug="welcome", new_slug="welcome-visitors")
@@ -90,3 +92,33 @@ This is a wiki about...
             domain_event = app.mapper.to_domain_event(notification)
             if isinstance(domain_event, Page.Event):
                 self.assertEqual(domain_event.user_id, user_id)
+
+        # Change user_id context variable.
+        user_id = uuid4()
+        user_id_cvar.set(user_id)
+
+        # Update the body.
+        app.update_body(
+            slug="welcome-visitors",
+            body="""
+Welcome to this wiki!
+
+This is a wiki about us!
+""",
+        )
+
+        # Check 'modified_by' changed.
+        page = app.get_page(slug="welcome-visitors")
+        self.assertEqual(page["title"], "Welcome Visitors")
+        self.assertEqual(page["modified_by"], user_id)
+
+        # Check a snapshot was created by now.
+        self.assertTrue(
+            len(
+                list(
+                    app.snapshots.get(
+                        app.repository.get(Index.create_id("welcome-visitors")).ref
+                    )
+                )
+            )
+        )

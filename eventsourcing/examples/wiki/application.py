@@ -1,4 +1,4 @@
-from typing import Dict, cast
+from typing import Any, Dict, Union, cast
 
 from eventsourcing.application import AggregateNotFound, Application
 from eventsourcing.domain import Aggregate
@@ -11,16 +11,20 @@ class PageNotFound(Exception):
 
 class WikiApplication(Application[Aggregate]):
     env = {"COMPRESSOR_TOPIC": "gzip"}
-    snapshotting_intervals = {Page: 10}
+    snapshotting_intervals = {Page: 5}
 
     def create_page(self, title: str, slug: str) -> None:
         page = Page(title=title)
         index_entry = Index(slug, ref=page.id)
         self.save(page, index_entry)
 
-    def get_page(self, slug: str) -> Dict[str, str]:
+    def get_page(self, slug: str) -> Dict[str, Union[str, Any]]:
         page = self._get_page(slug)
-        return {"title": page.title, "body": page.body}
+        return {
+            "title": page.title,
+            "body": page.body,
+            "modified_by": page.modified_by,
+        }
 
     def update_title(self, slug: str, title: str) -> None:
         page = self._get_page(slug)
