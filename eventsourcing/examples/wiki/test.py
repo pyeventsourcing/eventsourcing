@@ -1,3 +1,4 @@
+from typing import cast
 from unittest import TestCase
 from uuid import uuid4
 
@@ -113,12 +114,7 @@ This is a wiki about us!
         self.assertEqual(page["modified_by"], user_id)
 
         # Check a snapshot was created by now.
-        self.assertTrue(
-            len(
-                list(
-                    app.snapshots.get(
-                        app.repository.get(Index.create_id("welcome-visitors")).ref
-                    )
-                )
-            )
-        )
+        assert app.snapshots
+        index = cast(Index, app.repository.get(Index.create_id("welcome-visitors")))
+        assert index.ref
+        self.assertTrue(len(list(app.snapshots.get(index.ref))))
