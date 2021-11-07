@@ -517,9 +517,11 @@ class TestEventDecorator(TestCase):
                 def value_changed():
                     pass
 
-        self.assertEqual(
-            "'value_changed' is not a str, event class, function, or property",
-            cm.exception.args[0],
+        self.assertTrue(
+            cm.exception.args[0].endswith(
+                " is not a str, event class, function, or property",
+            ),
+            cm.exception.args[0]
         )
 
         with self.assertRaises(TypeError) as cm:
@@ -530,9 +532,11 @@ class TestEventDecorator(TestCase):
                 def value_changed():
                     pass
 
-        self.assertEqual(
-            "'value_changed' is not a function or property",
-            cm.exception.args[0],
+        self.assertTrue(
+            cm.exception.args[0].endswith(
+                " is not a function or property",
+            ),
+            cm.exception.args[0]
         )
 
     def test_raises_when_method_is_classmethod(self):
@@ -544,9 +548,11 @@ class TestEventDecorator(TestCase):
                 def value_changed(cls):
                     pass
 
-        self.assertEqual(
-            "'value_changed' is not a str, event class, function, or property",
-            cm.exception.args[0],
+        self.assertTrue(
+            cm.exception.args[0].endswith(
+                " is not a str, event class, function, or property",
+            ),
+            cm.exception.args[0]
         )
 
         with self.assertRaises(TypeError) as cm:
@@ -557,9 +563,11 @@ class TestEventDecorator(TestCase):
                 def value_changed(cls):
                     pass
 
-        self.assertEqual(
-            "'value_changed' is not a function or property",
-            cm.exception.args[0],
+        self.assertTrue(
+            cm.exception.args[0].endswith(
+                " is not a function or property",
+            ),
+            cm.exception.args[0]
         )
 
     def test_method_called_with_positional_defined_with_keyword_params(self):

@@ -260,11 +260,7 @@ class CommandMethodDecorator:
                     )
 
         else:
-            if hasattr(decorated_obj, "__name__"):
-                item = f"'{decorated_obj.__name__}'"
-            else:
-                item = f"{decorated_obj}"
-            raise TypeError(f"{item} is not a function or property")
+            raise TypeError(f"{decorated_obj} is not a function or property")
 
         # Check there are no variable params to cause confusion
         # when attributes aren't defined on event objects.
@@ -417,11 +413,7 @@ def event(
         return create_command_method_decorator
 
     else:
-        if isinstance(arg, (staticmethod, classmethod)) or hasattr(arg, "__name__"):
-            item = f"'{arg.__name__}'"
-        else:
-            item = f"{arg}"
-        raise TypeError(f"{item} is not a str, event class, function, or property")
+        raise TypeError(f"{arg} is not a str, event class, function, or property")
 
 
 triggers = event
