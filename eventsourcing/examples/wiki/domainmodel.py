@@ -30,14 +30,10 @@ class Page(Aggregate):
     @event("TitleUpdated", inject_event=True)
     def update_title(self, title: str) -> None:
         self.title = title
-        self.modified_by = __event__.user_id
+        self.modified_by = globals()["__event__"].user_id
 
     def update_body(self, body: str) -> None:
         self._update_body(create_diff(old=self.body, new=body))
-
-        # self._update_body(create_diff(old=self.body, new=body), user_id=uuid4()) # <-
-        # maybe this should raise an error, because the user_id value isn't used?
-        # or maybe this should use the given value of user_id ???
 
     @event("BodyUpdated")
     def _update_body(self, diff: str, user_id: Optional[UUID] = None) -> None:
