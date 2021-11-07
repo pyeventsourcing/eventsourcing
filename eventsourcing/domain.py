@@ -402,7 +402,7 @@ def event(
         or isinstance(arg, type)
         and issubclass(arg, AggregateEvent)
     ):
-        event_spec = cast(EventSpecType, arg)
+        event_spec = arg
 
         def create_command_method_decorator(
             decorated_obj: DecoratedObjType,
@@ -418,7 +418,7 @@ def event(
 
     else:
         if hasattr(arg, "__name__"):
-            item = f"'{arg.__name__}'"  # type: ignore
+            item = f"'{arg.__name__}'"
         else:
             item = f"{arg}"
         raise TypeError(f"{item} is not a str, event class, function, or property")
