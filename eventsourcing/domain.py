@@ -3,7 +3,7 @@ import os
 from abc import ABC, ABCMeta
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
-from types import FunctionType, NoneType, WrapperDescriptorType
+from types import FunctionType, WrapperDescriptorType
 from typing import (
     Any,
     Callable,
@@ -397,7 +397,8 @@ def event(
         )
 
     elif (
-        isinstance(arg, (str, NoneType))
+        arg is None
+        or isinstance(arg, str)
         or isinstance(arg, type)
         and issubclass(arg, AggregateEvent)
     ):
