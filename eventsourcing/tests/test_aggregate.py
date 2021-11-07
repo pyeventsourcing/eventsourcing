@@ -541,7 +541,7 @@ class TestAggregateCreation(TestCase):
                     pass
 
         self.assertEqual(
-            cm.exception.args[0], "variable positional parameters not supported"
+            cm.exception.args[0], "*values not supported by decorator on __init__()"
         )
 
     def test_raises_when_init_has_variable_keyword_params(self):
@@ -552,7 +552,7 @@ class TestAggregateCreation(TestCase):
                     pass
 
         self.assertEqual(
-            cm.exception.args[0], "variable keyword parameters not supported"
+            cm.exception.args[0], "**values not supported by decorator on __init__()"
         )
 
     def test_define_custom_create_id_as_uuid5(self):
@@ -585,27 +585,23 @@ class TestAggregateCreation(TestCase):
         # In case aggregates were created with old Created event,
         # there may need to be several defined. Then, when calling
         # aggregate class, require explicit statement of which to use.
-        class MyAggregate(Aggregate):
-            class Started(AggregateCreated):
-                pass
-
-            class Opened(AggregateCreated):
-                pass
 
         with self.assertRaises(TypeError) as cm:
-            MyAggregate()
-        self.assertEqual(
-            cm.exception.args[0], "attribute '_created_event_class' not set on class"
+
+            class _(Aggregate):
+                class Started(AggregateCreated):
+                    pass
+
+                class Opened(AggregateCreated):
+                    pass
+
+        self.assertTrue(
+            cm.exception.args[0].startswith(
+                "Can't decide which of many "
+                '"created" event classes to '
+                "use: 'Started', 'Opened'"
+            )
         )
-
-        # Can still create an aggregate, by calling the _create() method.
-        a = MyAggregate._create(MyAggregate.Opened)
-        events = a.collect_events()
-        self.assertIsInstance(events[0], MyAggregate.Opened)
-
-        a = MyAggregate._create(MyAggregate.Started)
-        events = a.collect_events()
-        self.assertIsInstance(events[0], MyAggregate.Started)
 
         # Say which created event class to use on aggregate class.
         class MyAggregate(Aggregate):
@@ -635,27 +631,22 @@ class TestAggregateCreation(TestCase):
 
             _create_event_class = Opened
 
-        class MyAggregate(MyBaseAggregate):
-            class Started(AggregateCreated):
-                pass
-
-            class Opened(AggregateCreated):
-                pass
-
         with self.assertRaises(TypeError) as cm:
-            MyAggregate()
-        self.assertEqual(
-            cm.exception.args[0], "attribute '_created_event_class' not set on class"
+
+            class _(MyBaseAggregate):
+                class Started(AggregateCreated):
+                    pass
+
+                class Opened(AggregateCreated):
+                    pass
+
+        self.assertTrue(
+            cm.exception.args[0].startswith(
+                "Can't decide which of many "
+                '"created" event classes to '
+                "use: 'Started', 'Opened'"
+            )
         )
-
-        # Can still create an aggregate, by calling the _create() method.
-        a = MyAggregate._create(MyAggregate.Opened)
-        events = a.collect_events()
-        self.assertIsInstance(events[0], MyAggregate.Opened)
-
-        a = MyAggregate._create(MyAggregate.Started)
-        events = a.collect_events()
-        self.assertIsInstance(events[0], MyAggregate.Started)
 
         # Say which created event class to use on aggregate class.
         class MyAggregate(Aggregate):

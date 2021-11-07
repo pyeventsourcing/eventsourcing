@@ -8,17 +8,20 @@ from decimal import Decimal
 from typing import (
     Any,
     Dict,
+    Generic,
     Iterator,
     List,
     Mapping,
     Optional,
     Sequence,
     Type,
+    TypeVar,
+    Union,
     cast,
 )
 from uuid import UUID
 
-from eventsourcing.domain import DomainEvent
+from eventsourcing.domain import DomainEvent, TDomainEvent
 from eventsourcing.utils import TopicError, get_topic, resolve_topic, strtobool
 
 
@@ -469,7 +472,7 @@ class ProcessRecorder(ApplicationRecorder):
         """
 
 
-class EventStore:
+class EventStore(Generic[TDomainEvent]):
     """
     Stores and retrieves domain events.
     """
@@ -503,20 +506,26 @@ class EventStore:
         lte: Optional[int] = None,
         desc: bool = False,
         limit: Optional[int] = None,
-    ) -> Iterator[DomainEvent[Any]]:
+    ) -> Iterator[TDomainEvent]:
         """
         Retrieves domain events from aggregate sequence.
         """
-        return map(
-            self.mapper.to_domain_event,
-            self.recorder.select_events(
-                originator_id=originator_id,
-                gt=gt,
-                lte=lte,
-                desc=desc,
-                limit=limit,
+        return cast(
+            Iterator[TDomainEvent],
+            map(
+                self.mapper.to_domain_event,
+                self.recorder.select_events(
+                    originator_id=originator_id,
+                    gt=gt,
+                    lte=lte,
+                    desc=desc,
+                    limit=limit,
+                ),
             ),
         )
+
+
+TF = TypeVar("TF", bound="InfrastructureFactory")
 
 
 class InfrastructureFactory(ABC):
@@ -533,10 +542,10 @@ class InfrastructureFactory(ABC):
 
     @classmethod
     def construct(
-        cls,
+        cls: Type[TF],
         application_name: str = "",
         env: Optional[Mapping[str, str]] = None,
-    ) -> "InfrastructureFactory":
+    ) -> TF:
         """
         Constructs concrete infrastructure factory for given
         named application. Reads and resolves infrastructure
@@ -549,7 +558,7 @@ class InfrastructureFactory(ABC):
             "eventsourcing.popo:Factory",
         )
         try:
-            factory_cls = resolve_topic(topic)
+            factory_cls: Type[TF] = resolve_topic(topic)
         except TopicError:
             raise EnvironmentError(
                 "Failed to resolve "
@@ -636,15 +645,17 @@ class InfrastructureFactory(ABC):
             self.COMPRESSOR_TOPIC, application_name=application_name
         )
         if compressor_topic:
-            compressor_cls: Type[Compressor] = resolve_topic(compressor_topic)
-            if callable(compressor_cls):
+            compressor_cls: Union[Type[Compressor], Compressor] = resolve_topic(
+                compressor_topic
+            )
+            if isinstance(compressor_cls, type):
                 compressor = compressor_cls()
             else:
                 compressor = compressor_cls
         return compressor
 
     @staticmethod
-    def event_store(**kwargs: Any) -> EventStore:
+    def event_store(**kwargs: Any) -> EventStore[TDomainEvent]:
         """
         Constructs an event store.
         """

@@ -1,7 +1,17 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from threading import Event, Lock, Thread
-from typing import Dict, Iterable, Iterator, List, Set, Tuple, Type, TypeVar
+from typing import (
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Set,
+    Tuple,
+    Type,
+    TypeVar,
+    cast,
+)
 
 from eventsourcing.application import (
     Application,
@@ -78,8 +88,9 @@ class Follower(Application[TAggregate]):
         reader, mapper = self.readers[name]
         start = self.recorder.max_tracking_id(name) + 1
         for notification in reader.select(start=start):
-            domain_event = mapper.to_domain_event(notification)
-            assert isinstance(domain_event, AggregateEvent)
+            domain_event = cast(
+                AggregateEvent[TAggregate], mapper.to_domain_event(notification)
+            )
             process_event = ProcessEvent(
                 Tracking(
                     application_name=name,
@@ -95,7 +106,7 @@ class Follower(Application[TAggregate]):
     @abstractmethod
     def policy(
         self,
-        domain_event: AggregateEvent[Aggregate],
+        domain_event: AggregateEvent[TAggregate],
         process_event: ProcessEvent,
     ) -> None:
         """

@@ -62,8 +62,8 @@ class Repository(Generic[TAggregate]):
 
     def __init__(
         self,
-        event_store: EventStore,
-        snapshot_store: Optional[EventStore] = None,
+        event_store: EventStore[AggregateEvent[TAggregate]],
+        snapshot_store: Optional[EventStore[Snapshot[TAggregate]]] = None,
     ):
         """
         Initialises repository with given event store (an
@@ -111,7 +111,8 @@ class Repository(Generic[TAggregate]):
         )
 
         # Reconstruct the aggregate from its events.
-        aggregate = projector_func(None, chain(snapshots, aggregate_events))
+        initial: Optional[TAggregate] = None
+        aggregate = projector_func(initial, chain(snapshots, aggregate_events))
 
         # Raise exception if "not found".
         if aggregate is None:
@@ -363,7 +364,7 @@ class Application(ABC, Generic[TAggregate]):
         """
         return self.factory.application_recorder()
 
-    def construct_event_store(self) -> EventStore:
+    def construct_event_store(self) -> EventStore[AggregateEvent[TAggregate]]:
         """
         Constructs an :class:`~eventsourcing.persistence.EventStore`
         for use by the application to store and retrieve aggregate
@@ -374,7 +375,7 @@ class Application(ABC, Generic[TAggregate]):
             recorder=self.recorder,
         )
 
-    def construct_snapshot_store(self) -> Optional[EventStore]:
+    def construct_snapshot_store(self) -> Optional[EventStore[Snapshot[TAggregate]]]:
         """
         Constructs an :class:`~eventsourcing.persistence.EventStore`
         for use by the application to store and retrieve aggregate

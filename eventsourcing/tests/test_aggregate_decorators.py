@@ -511,29 +511,55 @@ class TestEventDecorator(TestCase):
     def test_raises_when_method_is_staticmethod(self):
         with self.assertRaises(TypeError) as cm:
 
-            class MyAgg(Aggregate):
+            class _(Aggregate):
                 @event
                 @staticmethod
                 def value_changed():
                     pass
 
         self.assertEqual(
+            "'value_changed' is not a str, event class, function, or property",
             cm.exception.args[0],
-            "value_changed() static method can't be used to update aggregate state",
+        )
+
+        with self.assertRaises(TypeError) as cm:
+
+            class MyAgg(Aggregate):
+                @event("ValueChanged")
+                @staticmethod
+                def value_changed():
+                    pass
+
+        self.assertEqual(
+            "'value_changed' is not a function or property",
+            cm.exception.args[0],
         )
 
     def test_raises_when_method_is_classmethod(self):
         with self.assertRaises(TypeError) as cm:
 
-            class MyAgg(Aggregate):
+            class _(Aggregate):
                 @event
                 @classmethod
                 def value_changed(cls):
                     pass
 
         self.assertEqual(
+            "'value_changed' is not a str, event class, function, or property",
             cm.exception.args[0],
-            "value_changed() class method can't be used to update aggregate state",
+        )
+
+        with self.assertRaises(TypeError) as cm:
+
+            class MyAgg(Aggregate):
+                @event("ValueChanged")
+                @classmethod
+                def value_changed(cls):
+                    pass
+
+        self.assertEqual(
+            "'value_changed' is not a function or property",
+            cm.exception.args[0],
         )
 
     def test_method_called_with_positional_defined_with_keyword_params(self):
@@ -712,7 +738,7 @@ class TestEventDecorator(TestCase):
 
         self.assertEqual(
             cm.exception.args[0],
-            "@event on value() property setter requires event class name",
+            "@event on value() setter requires event name or class",
         )
 
     def test_raises_when_property_decorates_event_without_name(self):
@@ -740,14 +766,14 @@ class TestEventDecorator(TestCase):
         with self.assertRaises(TypeError) as cm:
             event(1)
         self.assertEqual(
-            "Unsupported usage: <class 'int'> is not a str or function",
+            "1 is not a str, event class, function, or property",
             cm.exception.args[0],
         )
 
-        with self.assertRaises(ValueError) as cm:
+        with self.assertRaises(TypeError) as cm:
             event("EventName")(1)
         self.assertEqual(
-            "Unsupported usage: <class 'int'> is not a str or a FunctionType",
+            "1 is not a function or property",
             cm.exception.args[0],
         )
 
@@ -761,7 +787,7 @@ class TestEventDecorator(TestCase):
                     pass
 
         self.assertEqual(
-            cm.exception.args[0], "variable positional parameters not supported"
+            cm.exception.args[0], "*args not supported by decorator on method()"
         )
 
         with self.assertRaises(TypeError) as cm:
@@ -773,7 +799,7 @@ class TestEventDecorator(TestCase):
                     pass
 
         self.assertEqual(
-            cm.exception.args[0], "variable positional parameters not supported"
+            cm.exception.args[0], "*args not supported by decorator on method()"
         )
 
     # noinspection PyPep8Naming
@@ -787,7 +813,7 @@ class TestEventDecorator(TestCase):
                     pass
 
         self.assertEqual(
-            cm.exception.args[0], "variable keyword parameters not supported"
+            cm.exception.args[0], "**kwargs not supported by decorator on method()"
         )
 
         with self.assertRaises(TypeError) as cm:
@@ -798,7 +824,7 @@ class TestEventDecorator(TestCase):
                     pass
 
         self.assertEqual(
-            cm.exception.args[0], "variable keyword parameters not supported"
+            cm.exception.args[0], "**kwargs not supported by decorator on method()"
         )
 
         # With property.
@@ -815,7 +841,7 @@ class TestEventDecorator(TestCase):
                     pass
 
         self.assertEqual(
-            cm.exception.args[0], "variable keyword parameters not supported"
+            cm.exception.args[0], "**kwargs not supported by decorator on name()"
         )
 
         with self.assertRaises(TypeError) as cm:
@@ -831,7 +857,7 @@ class TestEventDecorator(TestCase):
                     pass
 
         self.assertEqual(
-            cm.exception.args[0], "variable keyword parameters not supported"
+            cm.exception.args[0], "**kwargs not supported by decorator on name()"
         )
 
     # Todo: Somehow deal with custom decorators?
@@ -1094,7 +1120,7 @@ class TestEventDecorator(TestCase):
 
         self.assertEqual(
             cm.exception.args[0],
-            "Can't use both '_created_event_class' and __init__ @event decorator",
+            "Can't use both '_created_event_class' and decorator on __init__",
         )
 
         # Same name.
@@ -1115,7 +1141,7 @@ class TestEventDecorator(TestCase):
 
         self.assertEqual(
             cm.exception.args[0],
-            "Can't use both '_created_event_class' and __init__ @event decorator",
+            "Can't use both '_created_event_class' and decorator on __init__",
         )
 
         # Different class.
@@ -1136,7 +1162,7 @@ class TestEventDecorator(TestCase):
 
         self.assertEqual(
             cm.exception.args[0],
-            "Can't use both '_created_event_class' and __init__ @event decorator",
+            "Can't use both '_created_event_class' and decorator on __init__",
         )
 
         # Same class.
@@ -1157,7 +1183,7 @@ class TestEventDecorator(TestCase):
 
         self.assertEqual(
             cm.exception.args[0],
-            "Can't use both '_created_event_class' and __init__ @event decorator",
+            "Can't use both '_created_event_class' and decorator on __init__",
         )
 
     def test_raises_when_using_created_event_name_and_init_event_decorator(self):
@@ -1176,8 +1202,8 @@ class TestEventDecorator(TestCase):
                     pass
 
         self.assertEqual(
+            "Can't use both 'created_event_name' and decorator on __init__",
             cm.exception.args[0],
-            "Can't use both 'created_event_name' and __init__ @event decorator",
         )
 
         # Same name.
@@ -1196,7 +1222,7 @@ class TestEventDecorator(TestCase):
 
         self.assertEqual(
             cm.exception.args[0],
-            "Can't use both 'created_event_name' and __init__ @event decorator",
+            "Can't use both 'created_event_name' and decorator on __init__",
         )
 
         # Different class.
@@ -1215,7 +1241,7 @@ class TestEventDecorator(TestCase):
 
         self.assertEqual(
             cm.exception.args[0],
-            "Can't use both 'created_event_name' and __init__ @event decorator",
+            "Can't use both 'created_event_name' and decorator on __init__",
         )
 
         # Same class.
@@ -1234,7 +1260,7 @@ class TestEventDecorator(TestCase):
 
         self.assertEqual(
             cm.exception.args[0],
-            "Can't use both 'created_event_name' and __init__ @event decorator",
+            "Can't use both 'created_event_name' and decorator on __init__",
         )
 
     def test_raises_when_using_init_event_decorator_without_args(self):
@@ -1247,8 +1273,8 @@ class TestEventDecorator(TestCase):
                     pass
 
         self.assertEqual(
+            "Decorator on __init__ has neither event name nor class",
             cm.exception.args[0],
-            "Neither name nor class given to __init__ @event decorator",
         )
 
     def test_raises_when_apply_method_returns_value(self):
