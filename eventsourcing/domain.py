@@ -54,6 +54,10 @@ class DomainEvent(ABC, Generic[T]):
     def mutate(self, aggregate: Optional[T]) -> Optional[T]:
         """Abstract mutator method."""
 
+    @staticmethod
+    def create_timestamp() -> datetime:
+        return datetime.now(tz=TZINFO)
+
 
 TDomainEvent = TypeVar("TDomainEvent", bound=DomainEvent[Any])
 TAggregate = TypeVar("TAggregate", bound="Aggregate")
@@ -906,7 +910,7 @@ class MetaAggregate(ABCMeta):
                 originator_topic=get_topic(cls),
                 originator_id=id or cls.create_id(**create_id_kwargs),
                 originator_version=cls.INITIAL_VERSION,
-                timestamp=datetime.now(tz=TZINFO),
+                timestamp=event_class.create_timestamp(),
                 **kwargs,
             )
         except TypeError as e:
@@ -1034,7 +1038,7 @@ class Aggregate(ABC, metaclass=MetaAggregate):
         kwargs.update(
             originator_id=self.id,
             originator_version=next_version,
-            timestamp=datetime.now(tz=TZINFO),
+            timestamp=event_class.create_timestamp(),
         )
         try:
             new_event = event_class(**kwargs)
@@ -1176,7 +1180,7 @@ class Snapshot(DomainEvent[TAggregate], metaclass=MetaDomainEvent):
         return cls(  # type: ignore
             originator_id=originator_id,
             originator_version=originator_version,
-            timestamp=datetime.now(tz=TZINFO),
+            timestamp=cls.create_timestamp(),
             topic=get_topic(type(aggregate)),
             state=aggregate_state,
         )

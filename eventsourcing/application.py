@@ -13,6 +13,7 @@ from typing import (
     Optional,
     Type,
     TypeVar,
+    Union,
 )
 from uuid import UUID
 
@@ -269,13 +270,19 @@ class ProcessEvent:
         self.ids_and_types: Dict[UUID, Type[Aggregate]] = {}
         self.saved_kwargs: Dict[Any, Any] = {}
 
-    def save(self, *aggregates: Aggregate, **kwargs: Any) -> None:
+    def save(
+        self, *aggregates: Union[Aggregate, AggregateEvent[Aggregate]], **kwargs: Any
+    ) -> None:
         """
         Collects pending domain events from the given aggregate.
         """
         for aggregate in aggregates:
-            self.ids_and_types[aggregate.id] = type(aggregate)
-            self.events = self.events + aggregate.collect_events()
+            if isinstance(aggregate, AggregateEvent):
+                self.events.append(aggregate)
+            else:
+                self.ids_and_types[aggregate.id] = type(aggregate)
+                for event in aggregate.collect_events():
+                    self.events.append(event)
         self.saved_kwargs.update(kwargs)
 
 
@@ -404,7 +411,9 @@ class Application(ABC, Generic[TAggregate]):
         """
         return LocalNotificationLog(self.recorder, section_size=10)
 
-    def save(self, *aggregates: TAggregate, **kwargs: Any) -> None:
+    def save(
+        self, *aggregates: Union[TAggregate, AggregateEvent[Aggregate]], **kwargs: Any
+    ) -> None:
         """
         Collects pending events from given aggregates and
         puts them in the application's event store.
@@ -428,7 +437,10 @@ class Application(ABC, Generic[TAggregate]):
         # Take snapshots using IDs and types.
         if self.snapshots and self.snapshotting_intervals:
             for event in process_event.events:
-                aggregate_type = process_event.ids_and_types[event.originator_id]
+                try:
+                    aggregate_type = process_event.ids_and_types[event.originator_id]
+                except KeyError:
+                    continue
                 interval = self.snapshotting_intervals.get(aggregate_type)
                 if interval is not None:
                     if event.originator_version % interval == 0:
