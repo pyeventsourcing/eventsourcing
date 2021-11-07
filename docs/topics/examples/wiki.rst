@@ -23,7 +23,7 @@ argument and using the ``__event__`` value injected into function globals,
 and more simply by mentioning the ``user_id`` as an optional argument in the
 method signature.
 
-The ``update_body()`` command method is does a "non-trival" amount of work
+The ``update_body()`` command method does a "non-trival" amount of work
 before the ``BodyUpdated`` event is triggered, by creating a "diff" of the
 current version of the ``body`` and the new version. It then triggers an event,
 which contains the diff. The event is applied to the ``body`` by "patching" the
@@ -51,15 +51,16 @@ Application
 -----------
 
 The application provides methods to create a new page, get the details for a page by its
-slug, to update the title of a page referenced by its slug, to update the body of a page,
-and to change the slug indexes. None of these methods mention a ``user_id`` argument.
-To get to a page, the slug is used to identify an index, and the index is used
+slug, update the title of a page referenced by its slug, update the body of a page,
+and change the slug indexes. Please note that none of these methods mention a ``user_id``
+argument. To get to a page, the slug is used to identify an index, and the index is used
 to get the page ID, and then the page ID is used to get the body and title of
 the page.
 
-The application also demonstrates how the IDs of a type of aggregate can be listed, by
-logging the IDs when the aggregate is created using a sequence of stored events, and
-then selecting from this sequence when presenting a list of the the aggregates.
+The application also demonstrates the "event-sourced log" recipe, by showing how all the
+IDs of the ``Page`` aggregates can be listed, by logging the IDs when a new page is
+created, in a sequence of stored events, and then selecting from this sequence when
+presenting a list of pages.
 
 .. literalinclude:: ../../../eventsourcing/examples/wiki/application.py
 
