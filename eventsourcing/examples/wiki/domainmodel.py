@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional, Union
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from eventsourcing.domain import Aggregate, event
+from eventsourcing.domain import Aggregate, AggregateEvent, event
 from eventsourcing.examples.wiki.utils import apply_patch, create_diff
 
 user_id_cvar: ContextVar[Optional[UUID]] = ContextVar("user_id", default=None)
@@ -15,11 +15,17 @@ __event__: Union["Page.Event", Any] = None
 @dataclass
 class Page(Aggregate):
     title: str
+    slug: str
     body: str = ""
     modified_by: Optional[UUID] = field(default=None, init=False)
 
     class Event(Aggregate.Event["Page"]):
         user_id: Optional[UUID] = field(default_factory=user_id_cvar.get, init=False)
+
+    @event("SlugUpdated", inject_event=True)
+    def update_slug(self, slug: str) -> None:
+        self.slug = slug
+        self.modified_by = __event__.user_id
 
     @event("TitleUpdated", inject_event=True)
     def update_title(self, title: str) -> None:
@@ -51,3 +57,7 @@ class Index(Aggregate):
     @event("RefChanged")
     def update_ref(self, ref: Optional[UUID]) -> None:
         self.ref = ref
+
+
+class PageLogged(AggregateEvent[Aggregate]):
+    page_id: UUID

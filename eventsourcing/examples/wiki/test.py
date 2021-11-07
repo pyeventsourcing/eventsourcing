@@ -22,16 +22,23 @@ class TestWiki(TestCase):
 
         # Check the page doesn't exist.
         with self.assertRaises(PageNotFound):
-            app.get_page(slug="welcome")
+            app.get_page_details(slug="welcome")
+
+        # Check the list of pages is empty.
+        pages = list(app.get_pages())
+        self.assertEqual(len(pages), 0)
+        pages = list(app.get_pages(offset=1))
+        self.assertEqual(len(pages), 0)
 
         # Create a page.
         app.create_page(title="Welcome", slug="welcome")
 
         # Present page identified by the given slug.
-        page = app.get_page(slug="welcome")
+        page = app.get_page_details(slug="welcome")
 
-        # Check we got a dict that has the given title.
+        # Check we got a dict that has the given title and slug.
         self.assertEqual(page["title"], "Welcome")
+        self.assertEqual(page["slug"], "welcome")
         self.assertEqual(page["body"], "")
         # self.assertEqual(page["modified_by"], user_id)
 
@@ -39,7 +46,7 @@ class TestWiki(TestCase):
         app.update_title(slug="welcome", title="Welcome Visitors")
 
         # Check the title was updated.
-        page = app.get_page(slug="welcome")
+        page = app.get_page_details(slug="welcome")
         self.assertEqual(page["title"], "Welcome Visitors")
         self.assertEqual(page["modified_by"], user_id)
 
@@ -48,23 +55,25 @@ class TestWiki(TestCase):
 
         # Check the index was updated.
         with self.assertRaises(PageNotFound):
-            app.get_page(slug="welcome")
+            app.get_page_details(slug="welcome")
 
-        page = app.get_page(slug="welcome-visitors")
+        # Check we can get the page by the new slug.
+        page = app.get_page_details(slug="welcome-visitors")
         self.assertEqual(page["title"], "Welcome Visitors")
+        self.assertEqual(page["slug"], "welcome-visitors")
 
         # Update the body.
         app.update_body(slug="welcome-visitors", body="Welcome to my wiki")
 
         # Check the body was updated.
-        page = app.get_page(slug="welcome-visitors")
+        page = app.get_page_details(slug="welcome-visitors")
         self.assertEqual(page["body"], "Welcome to my wiki")
 
         # Update the body.
         app.update_body(slug="welcome-visitors", body="Welcome to this wiki")
 
         # Check the body was updated.
-        page = app.get_page(slug="welcome-visitors")
+        page = app.get_page_details(slug="welcome-visitors")
         self.assertEqual(page["body"], "Welcome to this wiki")
 
         # Update the body.
@@ -78,7 +87,7 @@ This is a wiki about...
         )
 
         # Check the body was updated.
-        page = app.get_page(slug="welcome-visitors")
+        page = app.get_page_details(slug="welcome-visitors")
         self.assertEqual(
             page["body"],
             """
@@ -109,7 +118,7 @@ This is a wiki about us!
         )
 
         # Check 'modified_by' changed.
-        page = app.get_page(slug="welcome-visitors")
+        page = app.get_page_details(slug="welcome-visitors")
         self.assertEqual(page["title"], "Welcome Visitors")
         self.assertEqual(page["modified_by"], user_id)
 
@@ -118,3 +127,37 @@ This is a wiki about us!
         index = cast(Index, app.repository.get(Index.create_id("welcome-visitors")))
         assert index.ref
         self.assertTrue(len(list(app.snapshots.get(index.ref))))
+
+        # Create some more pages and list all the pages.
+        app.create_page("Page 2", "page-2")
+        app.create_page("Page 3", "page-3")
+        app.create_page("Page 4", "page-4")
+        app.create_page("Page 5", "page-5")
+
+        pages = list(app.get_pages())
+        self.assertEqual(pages[0]["title"], "Page 5")
+        self.assertEqual(pages[0]["slug"], "page-5")
+        self.assertEqual(pages[1]["title"], "Page 4")
+        self.assertEqual(pages[1]["slug"], "page-4")
+        self.assertEqual(pages[2]["title"], "Page 3")
+        self.assertEqual(pages[2]["slug"], "page-3")
+        self.assertEqual(pages[3]["title"], "Page 2")
+        self.assertEqual(pages[3]["slug"], "page-2")
+        self.assertEqual(pages[4]["title"], "Welcome Visitors")
+        self.assertEqual(pages[4]["slug"], "welcome-visitors")
+
+        pages = list(app.get_pages(limit=3))
+        self.assertEqual(len(pages), 3)
+        self.assertEqual(pages[0]["slug"], "page-5")
+        self.assertEqual(pages[1]["slug"], "page-4")
+        self.assertEqual(pages[2]["slug"], "page-3")
+
+        pages = list(app.get_pages(limit=3, offset=3))
+        self.assertEqual(len(pages), 2)
+        self.assertEqual(pages[0]["slug"], "page-2")
+        self.assertEqual(pages[1]["slug"], "welcome-visitors")
+
+        pages = list(app.get_pages(offset=3))
+        self.assertEqual(len(pages), 2)
+        self.assertEqual(pages[0]["slug"], "page-2")
+        self.assertEqual(pages[1]["slug"], "welcome-visitors")
