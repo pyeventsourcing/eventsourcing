@@ -1,7 +1,8 @@
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Any, Dict
+from typing import Any, Dict, Union
 from unittest import TestCase
 
 from eventsourcing.application import Application
@@ -28,11 +29,17 @@ class Person:
 
 class Invoice(Aggregate):
     @event("Initiated")
-    def __init__(self, number: str, amount: Decimal, issued_to: Person):
+    def __init__(
+        self,
+        number: str,
+        amount: Decimal,
+        issued_to: Person,
+        timestamp: Union[datetime, Any] = None,
+    ):
         self._number = number
         self._amount = amount
         self.issued_to = issued_to
-        self.initiated_at = self.modified_on
+        self.initiated_at = timestamp
         self.status = Status.INITIATED
 
     @property
@@ -56,15 +63,15 @@ class Invoice(Aggregate):
         self._amount = value
 
     @event("Issued")
-    def issue(self, issued_by: str) -> None:
+    def issue(self, issued_by: str, timestamp: Union[datetime, Any] = None) -> None:
         self.issued_by = issued_by
-        self.issued_at = self.modified_on
+        self.issued_on = timestamp
         self.status = Status.ISSUED
 
     @event("Sent")
-    def send(self, sent_via: SendMethod) -> None:
+    def send(self, sent_via: SendMethod, timestamp: Union[datetime, Any] = None) -> None:
         self.sent_via = sent_via
-        self.sent_at = self.modified_on
+        self.sent_at = timestamp
         self.status = Status.SENT
 
 

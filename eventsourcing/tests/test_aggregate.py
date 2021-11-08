@@ -129,8 +129,7 @@ class TestAggregateCreation(TestCase):
 
         self.assertEqual(
             (
-                f"Unable to construct 'aggregate created' event with class {p}"
-                "BrokenAggregate.Created and keyword args {'name': 'name'}: "
+                f"Unable to construct 'Created' event: "
                 f"{method_name}() got an unexpected keyword argument 'name'"
             ),
             cm.exception.args[0],

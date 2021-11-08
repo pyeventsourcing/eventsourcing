@@ -887,21 +887,25 @@ class MetaAggregate(ABCMeta):
         create_id_kwargs = {
             k: v for k, v in kwargs.items() if k in cls._create_id_param_names
         }
+        originator_id = id or cls.create_id(**create_id_kwargs)
+
+        # Impose the required common "created" event attribute values.
+        kwargs = kwargs.copy()
+        kwargs.update(
+            originator_topic=get_topic(cls),
+            originator_id=originator_id,
+            originator_version=cls.INITIAL_VERSION,
+            timestamp=event_class.create_timestamp(),
+        )
 
         try:
             # noinspection PyArgumentList
             created_event = event_class(  # type: ignore
-                originator_topic=get_topic(cls),
-                originator_id=id or cls.create_id(**create_id_kwargs),
-                originator_version=cls.INITIAL_VERSION,
-                timestamp=event_class.create_timestamp(),
                 **kwargs,
             )
         except TypeError as e:
             msg = (
-                f"Unable to construct 'aggregate created' "
-                f"event with class {event_class.__qualname__} "
-                f"and keyword args {kwargs}: {e}"
+                f"Unable to construct '{event_class.__name__}' event: {e}"
             )
             raise TypeError(msg)
         # Construct the aggregate object.

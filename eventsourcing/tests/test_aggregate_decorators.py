@@ -1073,7 +1073,7 @@ class TestEventDecorator(TestCase):
             MyAggregate()
         self.assertTrue(
             cm.exception.args[0].startswith(
-                "Unable to construct 'aggregate created' event with class"
+                "Unable to construct 'Started' event"
             )
         )
 
@@ -1103,7 +1103,7 @@ class TestEventDecorator(TestCase):
             MyAggregate(a=1)
         self.assertTrue(
             cm.exception.args[0].startswith(
-                "Unable to construct 'aggregate created' event with class"
+                "Unable to construct 'Started' event:"
             ),
             cm.exception.args[0],
         )
