@@ -122,55 +122,38 @@ class AggregateCreated(AggregateEvent[TAggregate]):
         by domain event object attributes.
         """
         assert aggregate is None
-        # Copy the event attributes.
-        kwargs = self.__dict__.copy()
 
         # Resolve originator topic.
         aggregate_class: Type[TAggregate] = resolve_topic(
-            kwargs.pop("originator_topic")
+            self.__dict__["originator_topic"]
         )
 
         # Construct and return aggregate object.
         agg = aggregate_class.__new__(aggregate_class)
 
         # Separate the base class keywords arguments.
-        base_kwargs = {
-            "id": kwargs.pop("originator_id"),
-            "version": kwargs.pop("originator_version"),
-            "timestamp": kwargs.pop("timestamp"),
-        }
+        base_kwargs = _filter_kwargs_mentioned_in_sig(self.__dict__, agg.__base_init__)
 
         # Call the base class init method.
         agg.__base_init__(**base_kwargs)
 
+        init_kwargs = _filter_kwargs_mentioned_in_sig(self.__dict__, agg.__init__)
         # Provide the id, if the init method expects it.
         if aggregate_class in _init_mentions_id:
-            kwargs["id"] = base_kwargs["id"]
-
-        # noinspection PyTypeChecker
-        _del_kwargs_not_mentioned_in_sig(kwargs, agg.__init__)
+            init_kwargs["id"] = self.__dict__["originator_id"]
 
         # Call the aggregate class init method.
         # noinspection PyArgumentList
-        agg.__init__(**kwargs)
+        agg.__init__(**init_kwargs)
         return agg
 
 
-def _del_kwargs_not_mentioned_in_sig(
+def _filter_kwargs_mentioned_in_sig(
     kwargs: Dict[str, Any], method: Callable[..., Any]
-) -> None:
-    mentioned_names = []
+) -> Dict[str, Any]:
     method_signature = inspect.signature(method)
-
-    for name in method_signature.parameters:
-        if name == "self":
-            continue
-        else:
-            mentioned_names.append(name)
-
-    for name in list(kwargs.keys()):
-        if name not in mentioned_names:
-            del kwargs[name]
+    names = set(method_signature.parameters)
+    return {k: v for k, v in kwargs.items() if k in names}
 
 
 EventSpecType = Optional[Union[str, Type[AggregateEvent[Any]]]]
@@ -242,6 +225,8 @@ class CommandMethodDecorator:
                     raise TypeError(
                         f"@event on {method_name}() setter requires event name or class"
                     )
+
+                # Get the name of the second arg (and make sure there are just two).
                 setter_arg_names = list(
                     inspect.signature(self.original_method).parameters
                 )
@@ -262,13 +247,13 @@ class CommandMethodDecorator:
         else:
             raise TypeError(f"{decorated_obj} is not a function or property")
 
-        # Check there are no variable params to cause confusion
-        # when attributes aren't defined on event objects.
-        _check_no_variable_params(self.original_method)
-
         # Register the decorated method under the given event class.
         if self.given_event_cls:
             original_methods[self.given_event_cls] = self.original_method
+        else:
+            # Disallow decorated method to have variable params
+            # if we will be using it to define an event class.
+            _check_no_variable_params(self.original_method)
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:
         # Initialised decorator was called directly, presumably by
@@ -473,7 +458,7 @@ class BoundCommandMethodDecorator:
         # In which case, the defaults would be needed? Also we are doing
         # the inspections over and over, when perhaps a model could be created
         # of the signatures, and what is needed to be done each time?
-        _del_kwargs_not_mentioned_in_sig(kwargs, event_cls.__init__)
+        kwargs = _filter_kwargs_mentioned_in_sig(kwargs, event_cls.__init__)
         self.aggregate.trigger_event(event_cls, **kwargs)
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:
@@ -482,6 +467,7 @@ class BoundCommandMethodDecorator:
 
 original_methods: Dict[type, AnyCallable] = {}
 inject_events: Dict[type, bool] = {}
+aggregate_has_many_created_event_classes: Dict[type, List[str]] = {}
 
 
 class DecoratedEvent(AggregateEvent[Any]):
@@ -510,8 +496,7 @@ class DecoratedEvent(AggregateEvent[Any]):
             method = original_method
 
         # Remove values that are not mentioned in the method signature.
-        kwargs = dict(self.__dict__)
-        _del_kwargs_not_mentioned_in_sig(kwargs, original_method)
+        kwargs = _filter_kwargs_mentioned_in_sig(self.__dict__, original_method)
 
         # Call the original method with event attribute values.
         returned_value = method(aggregate, **kwargs)
@@ -547,7 +532,9 @@ def _coerce_args_to_kwargs(
     expects_id: bool = False,
 ) -> Dict[str, Any]:
     assert isinstance(method, (FunctionType, WrapperDescriptorType))
+
     method_signature = inspect.signature(method)
+
     copy_kwargs = dict(kwargs)
     args = tuple(args)
     positional_names = []
@@ -756,46 +743,28 @@ class MetaAggregate(ABCMeta):
                 if not created_event_name:
                     created_event_name = "Created"
 
+                # Disallow init method to have variable params if
+                # we are using it to define a "created" event class.
+                _check_no_variable_params(cls.__init__)  # type: ignore
+
                 # Define a "created" event for this class.
-                created_event_base_classes = (cls.Created, cls.Event)
                 init_method = cls.__dict__["__init__"]
                 assert isinstance(init_method, FunctionType)
 
-                created_cls_annotations = {}
-                _check_no_variable_params(init_method)
-                method_signature = inspect.signature(init_method)
-                for param_name in method_signature.parameters:
-                    if param_name == "self":
-                        continue
-                    if param_name == "id":
-                        _init_mentions_id.add(cls)
-                        continue
-
-                    created_cls_annotations[param_name] = "typing.Any"
-
-                created_event_class = cast(
-                    Type[AggregateCreated[Any]],
-                    type(
-                        created_event_name,
-                        created_event_base_classes,
-                        {
-                            "__annotations__": created_cls_annotations,
-                            "__module__": cls.__module__,
-                            "__qualname__": ".".join(
-                                [cls.__qualname__, created_event_name]
-                            ),
-                        },
-                    ),
+                # Define event class.
+                cls._define_event_class(
+                    created_event_name,
+                    (cls.Created, cls.Event),
+                    init_method,
+                    False,
                 )
-                setattr(cls, created_event_name, created_event_class)
-                cls._created_event_class = created_event_class
 
-            # Otherwise, refuse to choose between many definitions.
+                cls._created_event_class = getattr(cls, created_event_name)
+
+            # Prepare to disallow ambiguity of choice between created event classes.
             else:
-                raise TypeError(
-                    """Can't decide which of many "created" event classes to use: """
-                    f"""'{"', '".join(created_event_classes)}'. Please use class """
-                    "arg 'created_event_name' or @event decorator on __init__ method."
+                aggregate_has_many_created_event_classes[cls] = list(
+                    created_event_classes
                 )
 
         # Prepare the subsequent event classes.
@@ -815,11 +784,16 @@ class MetaAggregate(ABCMeta):
                     )
                 # Attribute is a property decorating an event decorator.
                 attribute.is_property_setter = True
+                method_signature = inspect.signature(attribute.original_method)
+                assert len(method_signature.parameters) == 2
+                attribute.property_setter_arg_name = list(method_signature.parameters)[
+                    1
+                ]
 
             # Attribute is an event decorator.
             if isinstance(attribute, CommandMethodDecorator):
 
-                if not attribute.given_event_cls:
+                if attribute.given_event_cls is None:
                     assert attribute.event_cls_name
                     event_cls_name = attribute.event_cls_name
 
@@ -829,36 +803,13 @@ class MetaAggregate(ABCMeta):
                             f"{event_cls_name} event already defined on {cls.__name__}"
                         )
 
-                    event_base_classes = (DecoratedEvent, cls.Event)
-                    original_method = attribute.original_method
-                    method_signature = inspect.signature(original_method)
-                    annotations = {}
-                    for param_name in method_signature.parameters:
-                        if param_name == "self":
-                            continue
-                        param_mentioned_in_bases = False
-                        for base_class in event_base_classes:
-                            if param_name in base_class.__annotations__:
-                                param_mentioned_in_bases = True
-                                break
-                        if param_mentioned_in_bases:
-                            continue
-
-                        if attribute.is_property_setter:
-                            assert len(method_signature.parameters) == 2
-                            attribute.property_setter_arg_name = param_name
-                        annotations[param_name] = "typing.Any"  # Todo: Improve this?
-
-                    event_cls_qualname = ".".join([cls.__qualname__, event_cls_name])
-                    event_cls_dict = {
-                        "__annotations__": annotations,
-                        "__module__": cls.__module__,
-                        "__qualname__": event_cls_qualname,
-                    }
-                    event_cls = type(event_cls_name, event_base_classes, event_cls_dict)
-                    original_methods[event_cls] = original_method
-                    inject_events[event_cls] = attribute.inject_event
-                    setattr(cls, event_cls_name, event_cls)
+                    # Define event class.
+                    cls._define_event_class(
+                        event_cls_name,
+                        (DecoratedEvent, cls.Event),
+                        attribute.original_method,
+                        attribute.inject_event,
+                    )
 
         # Get the names of the parameters of the 'create_id' method.
         cls._create_id_param_names: List[str] = []
@@ -866,7 +817,52 @@ class MetaAggregate(ABCMeta):
             if param.kind in [param.KEYWORD_ONLY, param.POSITIONAL_OR_KEYWORD]:
                 cls._create_id_param_names.append(name)
 
+    def _define_event_class(
+        cls,
+        name: str,
+        bases: Tuple[type, ...],
+        apply_method: AnyCallable,
+        inject_event: bool,
+    ) -> None:
+        # Define annotations for the event class (specs the init method).
+        annotations = {}
+        supers = {s for b in bases for s in b.__mro__ if hasattr(s, "__annotations__")}
+        super_annotations = {a for s in supers for a in s.__annotations__}
+        method_signature = inspect.signature(apply_method)
+        for param_name in list(method_signature.parameters)[1:]:
+            # Don't define 'id' on a "created" class.
+            if param_name == "id" and apply_method.__name__ == "__init__":
+                _init_mentions_id.add(cls)
+                continue
+            # Don't duplicate super class annotations.
+            if param_name not in super_annotations:
+                annotations[param_name] = "typing.Any"  # Todo: Improve this?
+        event_cls_qualname = ".".join([cls.__qualname__, name])
+        event_cls_dict = {
+            "__annotations__": annotations,
+            "__module__": cls.__module__,
+            "__qualname__": event_cls_qualname,
+        }
+        # Create the class object.
+        event_cls = type(name, bases, event_cls_dict)
+        # Cache the original method for the event class.
+        original_methods[event_cls] = apply_method
+        # Cache the 'inject_events' setting for the event class.
+        inject_events[event_cls] = inject_event
+        # Set the event class as an attribute of the aggregate class.
+        setattr(cls, name, event_cls)
+
     def __call__(cls, *args: Any, **kwargs: Any) -> Any:
+        try:
+            created_event_classes = aggregate_has_many_created_event_classes[cls]
+            raise TypeError(
+                """Can't decide which of many "created" event classes to use: """
+                f"""'{"', '".join(created_event_classes)}'. Please use class """
+                "arg 'created_event_name' or @event decorator on __init__ method."
+            )
+        except KeyError:
+            pass
+
         self_init: WrapperDescriptorType = cls.__init__  # type: ignore
         kwargs = _coerce_args_to_kwargs(
             self_init,
@@ -936,13 +932,15 @@ class Aggregate(ABC, metaclass=MetaAggregate):
     Base class for aggregate roots.
     """
 
-    def __base_init__(self, id: UUID, version: int, timestamp: datetime) -> None:
+    def __base_init__(
+        self, originator_id: UUID, originator_version: int, timestamp: datetime
+    ) -> None:
         """
         Initialises an aggregate object with an :data:`id`, a :data:`version`
         number, and a :data:`timestamp`.
         """
-        self._id = id
-        self._version = version
+        self._id = originator_id
+        self._version = originator_version
         self._created_on = timestamp
         self._modified_on = timestamp
         self._pending_events: List[AggregateEvent[Any]] = []

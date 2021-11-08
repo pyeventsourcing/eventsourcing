@@ -789,7 +789,7 @@ class TestEventDecorator(TestCase):
 
         with self.assertRaises(TypeError) as cm:
 
-            class MyAgg(Aggregate):
+            class _(Aggregate):
                 @event  # no event name
                 def method(self, *args):
                     pass
@@ -800,8 +800,7 @@ class TestEventDecorator(TestCase):
 
         with self.assertRaises(TypeError) as cm:
 
-            @aggregate
-            class _:
+            class _(Aggregate):
                 @event("EventName")  # has event name
                 def method(self, *args):
                     pass
@@ -827,7 +826,7 @@ class TestEventDecorator(TestCase):
         with self.assertRaises(TypeError) as cm:
 
             class _(Aggregate):
-                @event("EventName")  # no event name
+                @event("EventName")  # has event name
                 def method(self, **kwargs):
                     pass
 

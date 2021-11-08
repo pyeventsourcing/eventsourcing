@@ -586,14 +586,20 @@ class TestAggregateCreation(TestCase):
         # there may need to be several defined. Then, when calling
         # aggregate class, require explicit statement of which to use.
 
+        class MyAggregate(Aggregate):
+            class Started(AggregateCreated):
+                pass
+
+            class Opened(AggregateCreated):
+                pass
+
+        # This is okay.
+        MyAggregate._create(event_class=MyAggregate.Started)
+        MyAggregate._create(event_class=MyAggregate.Opened)
+
         with self.assertRaises(TypeError) as cm:
-
-            class _(Aggregate):
-                class Started(AggregateCreated):
-                    pass
-
-                class Opened(AggregateCreated):
-                    pass
+            # This is not okay.
+            MyAggregate()
 
         self.assertTrue(
             cm.exception.args[0].startswith(
@@ -618,6 +624,19 @@ class TestAggregateCreation(TestCase):
         events = a.collect_events()
         self.assertIsInstance(events[0], MyAggregate.Started)
 
+        # Say which created event class to use on aggregate class.
+        class MyAggregate(Aggregate, created_event_name="Started"):
+            class Started(AggregateCreated):
+                pass
+
+            class Opened(AggregateCreated):
+                pass
+
+        # Call class, and expect Started event will be used.
+        a = MyAggregate()
+        events = a.collect_events()
+        self.assertIsInstance(events[0], MyAggregate.Started)
+
     def test_refuse_implicit_choice_of_alternative_created_events_on_subclass(self):
         # In case aggregates were created with old Created event,
         # there may need to be several defined. Then, when calling
@@ -631,14 +650,19 @@ class TestAggregateCreation(TestCase):
 
             _create_event_class = Opened
 
+        class MyAggregate(MyBaseAggregate):
+            class Started(AggregateCreated):
+                pass
+
+            class Opened(AggregateCreated):
+                pass
+
+        # This is okay.
+        MyAggregate._create(event_class=MyAggregate.Started)
+        MyAggregate._create(event_class=MyAggregate.Opened)
+
         with self.assertRaises(TypeError) as cm:
-
-            class _(MyBaseAggregate):
-                class Started(AggregateCreated):
-                    pass
-
-                class Opened(AggregateCreated):
-                    pass
+            MyAggregate()  # This is not okay.
 
         self.assertTrue(
             cm.exception.args[0].startswith(
@@ -1079,8 +1103,7 @@ class BankAccount(Aggregate):
     Aggregate root for bank accounts.
     """
 
-    def __init__(self, full_name: str, email_address: EmailAddress, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, full_name: str, email_address: EmailAddress):
         self.full_name = full_name
         self.email_address = email_address
         self.balance = Decimal("0.00")

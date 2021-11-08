@@ -326,8 +326,7 @@ class TestUpcasting(TestCase):
         self.assertEqual(copy.d, None)
 
     class UpcastFixtureV1(Aggregate):
-        def __init__(self, a, **kwargs):
-            super().__init__(**kwargs)
+        def __init__(self, a):
             self.a = a
 
         @classmethod
@@ -340,8 +339,7 @@ class TestUpcasting(TestCase):
     original_cls_v1 = UpcastFixtureV1
 
     class UpcastFixtureV2(Aggregate):
-        def __init__(self, A, b, **kwargs):
-            super().__init__(**kwargs)
+        def __init__(self, A, b):
             self.A = A
             self.b = b
 
@@ -370,8 +368,7 @@ class TestUpcasting(TestCase):
     original_cls_v2 = UpcastFixtureV2
 
     class UpcastFixtureV3(Aggregate):
-        def __init__(self, A, b, c, **kwargs):
-            super().__init__(**kwargs)
+        def __init__(self, A, b, c):
             self.A = A
             self.b = b
             self.c = c
@@ -410,8 +407,7 @@ class TestUpcasting(TestCase):
     original_cls_v3 = UpcastFixtureV3
 
     class UpcastFixtureV4(Aggregate):
-        def __init__(self, A, b, c, **kwargs):
-            super().__init__(**kwargs)
+        def __init__(self, A, b, c):
             self.A = A
             self.b = b
             self.c = c

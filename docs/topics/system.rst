@@ -25,8 +25,7 @@ The library's system class...
 
 
     class World(Aggregate):
-        def __init__(self, **kwargs):
-            super(World, self).__init__(**kwargs)
+        def __init__(self):
             self.history = []
 
         @classmethod
@@ -81,8 +80,7 @@ Now let's define an analytics application...
     from uuid import uuid5, NAMESPACE_URL
 
     class Counter(Aggregate):
-        def __init__(self, **kwargs):
-            super(Counter, self).__init__(**kwargs)
+        def __init__(self):
             self.count = 0
 
         @classmethod

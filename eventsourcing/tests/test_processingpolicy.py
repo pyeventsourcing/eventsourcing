@@ -46,8 +46,7 @@ class TestProcessingPolicy(TestCase):
 
 
 class EmailNotification(Aggregate):
-    def __init__(self, to, subject, message, **kwargs):
-        super(EmailNotification, self).__init__(**kwargs)
+    def __init__(self, to, subject, message):
         self.to = to
         self.subject = subject
         self.message = message

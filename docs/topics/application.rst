@@ -710,8 +710,7 @@ defined in that section.
 
 
     class Page(Aggregate):
-        def __init__(self, name: str, body: str, **kwargs):
-            super(Page, self).__init__(**kwargs)
+        def __init__(self, name: str, body: str):
             self.name = name
             self.body = body
 
@@ -739,8 +738,7 @@ defined in that section.
 
 
     class Index(Aggregate):
-        def __init__(self, ref, **kwargs):
-            super().__init__(**kwargs)
+        def __init__(self, ref):
             self.ref = ref
 
         @classmethod
