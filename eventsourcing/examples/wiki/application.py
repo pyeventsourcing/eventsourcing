@@ -61,11 +61,14 @@ class WikiApplication(Application[Aggregate]):
         page = self._get_page_by_slug(old_slug)
         page.update_slug(new_slug)
         old_index = self._get_index(old_slug)
+        old_index.update_ref(None)
         try:
             new_index = self._get_index(new_slug)
         except AggregateNotFound:
             new_index = Index(new_slug, old_index.ref)
-        old_index.update_ref(None)
+        else:
+            if new_index.ref:
+                raise SlugConflictError()
         self.save(page, old_index, new_index)
 
     def update_body(self, slug: str, body: str) -> None:
@@ -146,3 +149,9 @@ class Log(Generic[TDomainEvent]):
             return cast(TDomainEvent, next(events))
         except StopIteration:
             return None
+
+
+class SlugConflictError(Exception):
+    """
+    Raised when updating a slug to one already being used.
+    """

@@ -3,10 +3,11 @@
 Wiki application
 =========================
 
-This example demonstrates the use of version 5 UUIDs, the use of the declarative
-syntax for domain models with a "non-trivial" command method, automatic snapshotting,
-automatic setting of a common attribute on all events without needing to mention this
-attribute in the command methods, and a recipe for an event-sourced log.
+This example demonstrates the use of version 5 UUIDs for both discovery of aggregate
+IDs and also to implement an application-wide rule (or "invariant"), the use of the
+declarative syntax for domain models with a "non-trivial" command method, automatic
+snapshotting, automatic setting of a common attribute on all events without needing
+to mention this attribute in the command methods, and a recipe for an event-sourced log.
 
 Domain model
 ------------
@@ -38,9 +39,6 @@ A ``PageLogged`` event is also defined, and used to define a "page log" in the a
 .. literalinclude:: ../../../eventsourcing/examples/wiki/domainmodel.py
 
 
-Utils
------
-
 The ``create_diff()`` and ``apply_patch()`` functions use the Unix command line
 tools ``patch`` and ``diff``.
 
@@ -52,10 +50,15 @@ Application
 
 The application provides methods to create a new page, get the details for a page by its
 slug, update the title of a page referenced by its slug, update the body of a page,
-and change the slug indexes. Please note that none of these methods mention a ``user_id``
+and change the page slug. Please note that none of these methods mention a ``user_id``
 argument. To get to a page, the slug is used to identify an index, and the index is used
 to get the page ID, and then the page ID is used to get the body and title of
-the page.
+the page. To change a slug, the index objects for the old and the new are identified,
+the page ID is removed as the reference from the old index and set as the reference
+on the new index. The indexes are also used to implement a application-wide rule (or
+"invariant") that a slug can be used by only one page, such that if an attempt is made
+to change the slug of one page to a slug that is already being used by another page,
+then a ``SlugConflictError`` will be raised, and no changes made.
 
 The application also demonstrates the "event-sourced log" recipe, by showing how all the
 IDs of the ``Page`` aggregates can be listed, by logging the IDs when a new page is
