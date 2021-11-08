@@ -4,7 +4,8 @@ from uuid import uuid4
 
 from eventsourcing.examples.wiki.application import (
     PageNotFound,
-    SlugConflictError, WikiApplication,
+    SlugConflictError,
+    WikiApplication,
 )
 from eventsourcing.examples.wiki.domainmodel import Index, Page, user_id_cvar
 from eventsourcing.system import NotificationLogReader
@@ -166,3 +167,11 @@ This is a wiki about us!
         # that is being used by another page.
         with self.assertRaises(SlugConflictError):
             app.update_slug("page-2", "page-3")
+
+        # Check we can change the slug of a page to one
+        # that was previously being used.
+        app.update_slug("welcome-visitors", "welcome")
+
+        page = app.get_page_details(slug="welcome")
+        self.assertEqual(page["title"], "Welcome Visitors")
+        self.assertEqual(page["modified_by"], user_id)

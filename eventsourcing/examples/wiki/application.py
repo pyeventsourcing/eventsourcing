@@ -65,9 +65,11 @@ class WikiApplication(Application[Aggregate]):
         try:
             new_index = self._get_index(new_slug)
         except AggregateNotFound:
-            new_index = Index(new_slug, old_index.ref)
+            new_index = Index(new_slug, page.id)
         else:
-            if new_index.ref:
+            if new_index.ref is None:
+                new_index.update_ref(page.id)
+            else:
                 raise SlugConflictError()
         self.save(page, old_index, new_index)
 
