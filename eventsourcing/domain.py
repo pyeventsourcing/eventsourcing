@@ -453,11 +453,6 @@ class BoundCommandMethodDecorator:
             assert self.event_decorator.event_cls_name
             event_cls = getattr(self.aggregate, self.event_decorator.event_cls_name)
 
-        # Todo: Need to think about this more, perhaps we need to build
-        # the kwargs from the __init__ rather than the decorated method.
-        # In which case, the defaults would be needed? Also we are doing
-        # the inspections over and over, when perhaps a model could be created
-        # of the signatures, and what is needed to be done each time?
         kwargs = _filter_kwargs_mentioned_in_sig(kwargs, event_cls.__init__)
         self.aggregate.trigger_event(event_cls, **kwargs)
 
