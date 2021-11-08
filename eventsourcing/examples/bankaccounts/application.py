@@ -5,10 +5,6 @@ from eventsourcing.application import AggregateNotFound, Application
 from eventsourcing.examples.bankaccounts.domainmodel import BankAccount
 
 
-class AccountNotFoundError(Exception):
-    pass
-
-
 class BankAccounts(Application[BankAccount]):
     def open_account(self, full_name: str, email_address: str) -> UUID:
         account = BankAccount(
@@ -63,3 +59,7 @@ class BankAccounts(Application[BankAccount]):
         account = self.get_account(account_id)
         account.close()
         self.save(account)
+
+
+class AccountNotFoundError(Exception):
+    pass

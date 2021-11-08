@@ -17,10 +17,6 @@ from eventsourcing.examples.wiki.domainmodel import Index, Page, PageLogged
 from eventsourcing.persistence import EventStore
 
 
-class PageNotFound(Exception):
-    pass
-
-
 PageDetailsType = Dict[str, Union[str, Any]]
 
 
@@ -153,7 +149,13 @@ class Log(Generic[TDomainEvent]):
             return None
 
 
+class PageNotFound(Exception):
+    """
+    Raised when a page is not found.
+    """
+
+
 class SlugConflictError(Exception):
     """
-    Raised when updating a slug to one already being used.
+    Raised when updating a page to a slug used by another page.
     """
