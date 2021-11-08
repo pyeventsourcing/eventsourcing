@@ -339,8 +339,8 @@ class SQLiteProcessRecorder(
         statements = super().construct_create_table_statements()
         statements.append(
             "CREATE TABLE IF NOT EXISTS tracking ("
-            "application_name text, "
-            "notification_id int, "
+            "application_name TEXT, "
+            "notification_id INTEGER, "
             "PRIMARY KEY "
             "(application_name, notification_id)) "
             "WITHOUT ROWID"
