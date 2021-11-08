@@ -16,7 +16,6 @@ from eventsourcing.domain import Aggregate, AggregateEvent, TDomainEvent
 from eventsourcing.examples.wiki.domainmodel import Index, Page, PageLogged
 from eventsourcing.persistence import EventStore
 
-
 PageDetailsType = Dict[str, Union[str, Any]]
 
 
