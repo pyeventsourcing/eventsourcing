@@ -41,7 +41,7 @@ class TestWiki(TestCase):
         self.assertEqual(page["title"], "Welcome")
         self.assertEqual(page["slug"], "welcome")
         self.assertEqual(page["body"], "")
-        # self.assertEqual(page["modified_by"], user_id)
+        self.assertEqual(page["modified_by"], user_id)
 
         # Update the title.
         app.update_title(slug="welcome", title="Welcome Visitors")

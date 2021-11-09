@@ -74,25 +74,27 @@ class AggregateEvent(DomainEvent[TAggregate], metaclass=MetaDomainEvent):
         Changes the state of the aggregate
         according to domain event attributes.
         """
-        # Check event is next in its sequence.
-        # Use counting to follow the sequence.
-        # assert isinstance(obj, Aggregate), (type(obj), self)
         assert aggregate is not None
-        next_version = aggregate.version + 1
+
+        # Check this event belongs to this aggregate.
         if self.originator_id != aggregate.id:
             raise OriginatorIDError(self.originator_id, aggregate.id)
+
+        # Check this event is the next in its sequence.
+        next_version = aggregate.version + 1
         if self.originator_version != next_version:
             raise OriginatorVersionError(self.originator_version, next_version)
-        if self.apply(aggregate) is not None:  # type: ignore
-            raise TypeError(
-                f"Unexpected value returned from "
-                f"{type(self).apply.__qualname__}(). Values "
-                f"returned from 'apply' methods are discarded."
-            )
+
+        # Call apply() before mutating values, in case exception is raised.
+        self.apply(aggregate)
+
         # Update the aggregate version.
         aggregate.version = self.originator_version
+
         # Update the modified time.
         aggregate.modified_on = self.timestamp
+
+        # Return the mutated aggregate.
         return aggregate
 
     def apply(self, aggregate: TAggregate) -> None:
@@ -146,6 +148,8 @@ class AggregateCreated(AggregateEvent[TAggregate]):
 
         # Call the aggregate class init method.
         agg.__init__(**init_kwargs)  # noinspection PyArgumentList
+
+        self.apply(agg)
 
         return agg
 
