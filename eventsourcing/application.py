@@ -157,13 +157,17 @@ class NotificationLog(ABC):
     @abstractmethod
     def __getitem__(self, section_id: str) -> Section:
         """
-        Returns a :class:`Section` from a notification log.
+        Returns a :class:`Section` of
+        :class:`~eventsourcing.persistence.Notification` objects
+        from the notification log.
         """
 
     @abstractmethod
     def select(self, start: int, limit: int) -> List[Notification]:
         """
-        Returns a list of :class:`~eventsourcing.persistence.Notification` objects.
+        Returns a selection
+        :class:`~eventsourcing.persistence.Notification` objects
+        from the notification log.
         """
 
 
@@ -242,6 +246,11 @@ class LocalNotificationLog(NotificationLog):
         )
 
     def select(self, start: int, limit: int) -> List[Notification]:
+        """
+        Returns a selection
+        :class:`~eventsourcing.persistence.Notification` objects
+        from the notification log.
+        """
         if limit > self.section_size:
             raise ValueError(
                 f"Requested limit {limit} greater than section size {self.section_size}"

@@ -91,6 +91,11 @@ class NotificationLogJSONClient(NotificationLog):
         self.interface = interface
 
     def __getitem__(self, section_id: str) -> Section:
+        """
+        Returns a :class:`Section` of
+        :class:`~eventsourcing.persistence.Notification` objects
+        from the notification log.
+        """
         body = self.interface.get_log_section(section_id)
         section = json.loads(body)
         return Section(
@@ -109,6 +114,11 @@ class NotificationLogJSONClient(NotificationLog):
         )
 
     def select(self, start: int, limit: int) -> List[Notification]:
+        """
+        Returns a selection
+        :class:`~eventsourcing.persistence.Notification` objects
+        from the notification log.
+        """
         return [
             Notification(
                 id=item["id"],

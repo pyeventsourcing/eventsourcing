@@ -255,11 +255,137 @@ Notification log
 ================
 
 A notification log can be used to propagate the state of an application as a
-sequence of domain event notifications.
+sequence of domain event notifications. The library's
+:class:`~eventsourcing.application.LocalNotificationLog` class presents
+the event notification for an application.
 
-The application object's ``log`` attribute has an instance of the library's
-:class:`~eventsourcing.application.LocalNotificationLog` class. The notification
-log presents linked sections of
+This class implements an abstract base class :class:`~eventsourcing.application.NotificationLog`
+which defines method signatures needed by the :class:`~eventsourcing.system.NotificationLogReader`
+class, so that a reader can work with both "local" and "remote" notification logs.
+
+The application object's ``log`` attribute has an instance of
+:class:`~eventsourcing.application.LocalNotificationLog`.
+
+.. code:: python
+
+    from eventsourcing.application import LocalNotificationLog
+
+
+    assert isinstance(application.log, LocalNotificationLog)
+
+
+The event notifications themselves are instances of the library's
+:class:`~eventsourcing.persistence.Notification` class, which is
+defined in the persistence module and discussed in the
+:ref:`Notification objects <Notification objects>` section.
+
+.. code:: python
+
+    from eventsourcing.persistence import Notification
+
+
+The general idea is that, whilst the aggregate events are recorded in a sequence for
+the aggregate, all of the aggregate events are also given a "total order" by being
+placed in a sequence of event notifications. When recording aggregate events using an
+:ref:`"application recorder"<Recorder>`, which is the default for the
+:class:`~eventsourcing.application.Application` class, notifications are
+atomically and automatically recorded.
+
+Outbox pattern
+--------------
+
+The "notification log pattern" is also referred to as the "outbox pattern".
+The general idea is to avoid "dual writing" when recording updates to application
+state and then messaging those updates to others. The important thing is that either
+both the stored events and the notifications are recorded together, or neither are
+recorded. Unless these two things are recorded atomically, in the same database
+transaction, it is impossible to exclude the possibility that one will happen but
+not the other, causing a permanent and potentially catastrophic inconsistency in
+the state of downstream applications. But it is equally important to avoid
+"dual writing" in the consumption of event notifications, which is why "tracking"
+records need to be written atomically when recording the result of processing event
+notifications. This is a topic we shall return to when discussing the
+:doc:`system </topics/system>` module.
+
+
+Selecting notifications from the log
+------------------------------------
+
+The :func:`~eventsourcing.application.LocalNotificationLog.select` method of a
+notification log can be used to directly select a subsequence of event notifications
+from a notification log.
+
+The ``start`` and ``limit`` arguments are used to specify the selection. The
+selection of event notifications will have notification IDs which are greater
+or equal to the given value of ``start``. Please note, by default, the first
+recorded event notification will have ID equal to ``1``. The selection will
+contain no more than the specified ``limit``.
+
+In the example below, the first three event notifications are selected from the
+notification log of the ``application`` object. We can see these notifications
+represent the facts that a ``World`` aggregate was created, and then two ``SomethingHappened``
+events occurred.
+
+.. code:: python
+
+
+    notifications = application.log.select(start=1, limit=3)
+
+    assert len(notifications) == 3
+
+    assert isinstance(notifications[0], Notification)
+    assert notifications[0].id == 1
+    assert notifications[1].id == 2
+    assert notifications[2].id == 3
+
+    assert notifications[0].originator_id == world_id
+    assert notifications[1].originator_id == world_id
+    assert notifications[2].originator_id == world_id
+
+    assert notifications[0].originator_version == 1
+    assert notifications[1].originator_version == 2
+    assert notifications[2].originator_version == 3
+
+    assert "World.Created" in notifications[0].topic
+    assert "World.SomethingHappened" in notifications[1].topic
+    assert "World.SomethingHappened" in notifications[2].topic
+
+    assert b"dinosaurs" in notifications[1].state
+    assert b"trucks" in notifications[2].state
+
+
+We can continue to select event notifications, by using the ID
+of the last event notification received to calculate the next
+``start`` value.
+
+.. code:: python
+
+    next_start = notifications[-1].id + 1
+
+    notifications = application.log.select(start=next_start, limit=3)
+
+    assert len(notifications) == 1
+
+    assert notifications[0].originator_id == world_id
+    assert notifications[0].originator_version == 4
+    assert "World.SomethingHappened" in notifications[0].topic
+    assert b"internet" in notifications[0].state
+
+
+This method is used by the :class:`~eventsourcing.system.NotificationLogReader` class,
+which is used by the :class:`~eventsourcing.system.ProcessApplication` class to
+pull event notifications from upstream applications in an event-driven system,
+using the :func:`~eventsourcing.persistence.ProcessRecorder.max_tracking_id` method
+of a :class:`~eventsourcing.persistence.ProcessRecorder` object to calculate the
+next start value from which to pull unprocessed event notifications.
+See the :doc:`system </topics/system>` and :doc:`persistence </topics/persistence>`
+module documentation for more information.
+
+
+Linked list of sections
+-----------------------
+
+The notification log also presents linked sections of
 :ref:`notification objects <Notification objects>`.
 The sections are instances of the library's :class:`~eventsourcing.application.Section` class.
 
@@ -299,8 +425,6 @@ In the example above, there are four domain events in the domain model, and so t
 are four notifications in the notification log.
 
 .. code:: python
-
-    from eventsourcing.persistence import Notification
 
     section = application.log["1,10"]
 
