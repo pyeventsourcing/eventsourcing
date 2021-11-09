@@ -519,7 +519,7 @@ class TestEventDecorator(TestCase):
 
         self.assertTrue(
             cm.exception.args[0].endswith(
-                " is not a str, event class, function, or property",
+                " is not a str, aggregate event class, function, or property",
             ),
             cm.exception.args[0],
         )
@@ -550,7 +550,7 @@ class TestEventDecorator(TestCase):
 
         self.assertTrue(
             cm.exception.args[0].endswith(
-                " is not a str, event class, function, or property",
+                " is not a str, aggregate event class, function, or property",
             ),
             cm.exception.args[0],
         )
@@ -774,7 +774,7 @@ class TestEventDecorator(TestCase):
         with self.assertRaises(TypeError) as cm:
             event(1)
         self.assertEqual(
-            "1 is not a str, event class, function, or property",
+            "1 is not a str, aggregate event class, function, or property",
             cm.exception.args[0],
         )
 
@@ -915,24 +915,24 @@ class TestEventDecorator(TestCase):
         self.assertIsInstance(copy, Aggregate)
         self.assertIsInstance(copy, Order)
 
-    def test_raises_when_event_class_has_apply_method(self) -> None:
-        # Check raises when defining an apply method on an
-        # event used in a decorator when aggregate inherits
-        # from Aggregate class.
-        with self.assertRaises(TypeError) as cm:
-
-            class _(Aggregate):
-                class Confirmed(AggregateEvent):
-                    def apply(self, aggregate):
-                        pass
-
-                @triggers(Confirmed)
-                def confirm(self):
-                    pass
-
-        self.assertEqual(
-            cm.exception.args[0], "Confirmed event class has unexpected apply() method"
-        )
+    # def test_raises_when_event_class_has_apply_method(self) -> None:
+    #     # Check raises when defining an apply method on an
+    #     # event used in a decorator when aggregate inherits
+    #     # from Aggregate class.
+    #     with self.assertRaises(TypeError) as cm:
+    #
+    #         class _(Aggregate):
+    #             class Confirmed(AggregateEvent):
+    #                 def apply(self, aggregate):
+    #                     pass
+    #
+    #             @triggers(Confirmed)
+    #             def confirm(self):
+    #                 pass
+    #
+    #     self.assertEqual(
+    #         cm.exception.args[0], "Confirmed event class has unexpected apply() method"
+    #     )
 
     def test_raises_when_event_class_already_defined(self) -> None:
         # Here we just use the @event decorator to trigger events
@@ -1072,9 +1072,7 @@ class TestEventDecorator(TestCase):
         with self.assertRaises(TypeError) as cm:
             MyAggregate()
         self.assertTrue(
-            cm.exception.args[0].startswith(
-                "Unable to construct 'Started' event"
-            )
+            cm.exception.args[0].startswith("Unable to construct 'Started' event")
         )
 
         with self.assertRaises(TypeError) as cm:
@@ -1102,9 +1100,7 @@ class TestEventDecorator(TestCase):
         with self.assertRaises(TypeError) as cm:
             MyAggregate(a=1)
         self.assertTrue(
-            cm.exception.args[0].startswith(
-                "Unable to construct 'Started' event:"
-            ),
+            cm.exception.args[0].startswith("Unable to construct 'Started' event:"),
             cm.exception.args[0],
         )
 
@@ -1284,25 +1280,52 @@ class TestEventDecorator(TestCase):
             cm.exception.args[0],
         )
 
-    def test_raises_when_apply_method_returns_value(self):
-        # Different name.
-        class MyAgg(Aggregate):
-            @event("EventName")
-            def name(self):
-                return 1
+    def test_raises_type_error_if_given_event_class_not_aggregate_created_on_init(self):
+        with self.assertRaises(TypeError):
 
-        a = MyAgg()
+            class MyAggregate(Aggregate):
+                @event(Aggregate.Event)
+                def __init__(self):
+                    pass
 
-        with self.assertRaises(TypeError) as cm:
-            a.name()
-        msg = str(cm.exception.args[0])
-        self.assertTrue(msg.startswith("Unexpected value returned from "), msg)
-        self.assertTrue(
-            msg.endswith(
-                "MyAgg.name(). Values returned from 'apply' methods are discarded."
-            ),
-            msg,
-        )
+    def test_raises_if_given_event_class_on_command_method_is_aggregate_created(self):
+        with self.assertRaises(TypeError):
+
+            class MyAggregate(Aggregate):
+                @event(Aggregate.Created)
+                def do_something(self):
+                    pass
+
+    def test_raises_if_given_event_class_on_command_method_is_not_aggregate_event(self):
+        with self.assertRaises(TypeError):
+
+            class X:
+                pass
+
+            class MyAggregate(Aggregate):
+                @event(X)
+                def do_something(self):
+                    pass
+
+    # def test_raises_when_apply_method_returns_value(self):
+    #     # Different name.
+    #     class MyAgg(Aggregate):
+    #         @event("EventName")
+    #         def name(self):
+    #             return 1
+    #
+    #     a = MyAgg()
+    #
+    #     with self.assertRaises(TypeError) as cm:
+    #         a.name()
+    #     msg = str(cm.exception.args[0])
+    #     self.assertTrue(msg.startswith("Unexpected value returned from "), msg)
+    #     self.assertTrue(
+    #         msg.endswith(
+    #             "MyAgg.name(). Values returned from 'apply' methods are discarded."
+    #         ),
+    #         msg,
+    #     )
 
 
 class TestOrder(TestCase):

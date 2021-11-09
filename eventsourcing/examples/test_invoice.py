@@ -69,7 +69,9 @@ class Invoice(Aggregate):
         self.status = Status.ISSUED
 
     @event("Sent")
-    def send(self, sent_via: SendMethod, timestamp: Union[datetime, Any] = None) -> None:
+    def send(
+        self, sent_via: SendMethod, timestamp: Union[datetime, Any] = None
+    ) -> None:
         self.sent_via = sent_via
         self.sent_at = timestamp
         self.status = Status.SENT

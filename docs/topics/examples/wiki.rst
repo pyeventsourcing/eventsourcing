@@ -7,7 +7,8 @@ This example demonstrates the use of version 5 UUIDs for both discovery of aggre
 IDs and also to implement an application-wide rule (or "invariant"), the use of the
 declarative syntax for domain models with a "non-trivial" command method, automatic
 snapshotting, automatic setting of a common attribute on all events without needing
-to mention this attribute in the command methods, and a recipe for an event-sourced log.
+to mention this attribute in the command methods, and a recipe for an event-sourced
+log.
 
 Domain model
 ------------
@@ -17,12 +18,7 @@ which is defined with a ``user_id`` dataclass ``field`` that is defined not
 to be included in its ``__init__`` method, and so does not need to be matched
 by parameters in the command method signatures. It has a default factory which
 gets the event attribute value from a Python context variable. This base aggregate
-event class is inherited by all its concrete aggregate event classes. The
-event attribute value can be accessed inside the decorated methods in two
-different ways: by configuring the ``@event`` decorator with the ``inject_event``
-argument and using the ``__event__`` value injected into function globals,
-and more simply by mentioning the ``user_id`` as an optional argument in the
-method signature.
+event class is inherited by all its concrete aggregate event classes.
 
 The ``update_body()`` command method does a "non-trival" amount of work
 before the ``BodyUpdated`` event is triggered, by creating a "diff" of the

@@ -132,23 +132,25 @@ class AggregateCreated(AggregateEvent[TAggregate]):
         agg = aggregate_class.__new__(aggregate_class)
 
         # Separate the base class keywords arguments.
-        base_kwargs = _filter_kwargs_mentioned_in_sig(self.__dict__, agg.__base_init__)
+        base_kwargs = _select_kwargs_mentioned_in_sig(self.__dict__, agg.__base_init__)
 
         # Call the base class init method.
         agg.__base_init__(**base_kwargs)
 
-        init_kwargs = _filter_kwargs_mentioned_in_sig(self.__dict__, agg.__init__)
+        # Select values that aren't mentioned in the method signature.
+        init_kwargs = _select_kwargs_mentioned_in_sig(self.__dict__, agg.__init__)
+
         # Provide the id, if the init method expects it.
         if aggregate_class in _init_mentions_id:
             init_kwargs["id"] = self.__dict__["originator_id"]
 
         # Call the aggregate class init method.
-        # noinspection PyArgumentList
-        agg.__init__(**init_kwargs)
+        agg.__init__(**init_kwargs)  # noinspection PyArgumentList
+
         return agg
 
 
-def _filter_kwargs_mentioned_in_sig(
+def _select_kwargs_mentioned_in_sig(
     kwargs: Dict[str, Any], method: Callable[..., Any]
 ) -> Dict[str, Any]:
     method_signature = inspect.signature(method)
@@ -167,93 +169,84 @@ class CommandMethodDecorator:
         self,
         event_spec: EventSpecType,
         decorated_obj: DecoratedObjType,
-        inject_event: InjectEventType,
     ):
-        self.inject_event = inject_event
         self.is_name_inferred_from_method = False
         self.given_event_cls: Optional[Type[AggregateEvent[Any]]] = None
         self.event_cls_name: Optional[str] = None
         self.decorated_property: Optional[property] = None
         self.is_property_setter = False
         self.property_setter_arg_name: Optional[str] = None
-        self.original_method: AnyCallable
+        self.decorated_method: AnyCallable
 
-        # Process the event spec.
+        # Event name has been specified.
         if isinstance(event_spec, str):
-            # Event has been named.
             if event_spec == "":
                 raise ValueError("Can't use empty string as name of event class")
             self.event_cls_name = event_spec
 
+        # Event class has been specified.
         elif isinstance(event_spec, type) and issubclass(event_spec, AggregateEvent):
-            # Event class has been given.
             self.given_event_cls = event_spec
 
-            if self.given_event_cls in original_methods:
+            if self.given_event_cls in given_event_classes:
                 name = self.given_event_cls.__name__
                 raise TypeError(f"{name} event class used in more than one decorator")
+            else:
+                given_event_classes.add(self.given_event_cls)
 
-            # Set decorated event apply() method on given event class.
-            if "apply" in self.given_event_cls.__dict__:
-                name = self.given_event_cls.__name__
-                raise TypeError(f"{name} event class has unexpected apply() method")
-
-            # Todo: Revisit this... maybe subclass with given class and DecoratedEvent?
-            setattr(self.given_event_cls, "apply", DecoratedEvent.apply)  # noqa: B010
-
-        # Process the decorated object.
+        # Process a decorated property.
         if isinstance(decorated_obj, property):
 
-            # Process the decorated property.
+            # Disallow putting event decorator on property getter.
             if decorated_obj.fset is None:
-
-                # Disallow putting event decorator on property getter.
-                assert decorated_obj.fget
+                assert decorated_obj.fget, "Property has no getter"
                 method_name = decorated_obj.fget.__name__
                 raise TypeError(
                     f"@event can't decorate {method_name}() property getter"
                 )
-            else:
-                self.original_method = decorated_obj.fset
-                self.decorated_property = decorated_obj
-                assert self.original_method
-                assert isinstance(self.original_method, FunctionType)
 
-                # Disallow deriving event class names from property names.
-                if not self.given_event_cls and not self.event_cls_name:
-                    method_name = self.original_method.__name__
-                    raise TypeError(
-                        f"@event on {method_name}() setter requires event name or class"
-                    )
+            # Remember we are decorating a property.
+            self.decorated_property = decorated_obj
 
-                # Get the name of the second arg (and make sure there are just two).
-                setter_arg_names = list(
-                    inspect.signature(self.original_method).parameters
-                )
-                assert len(setter_arg_names) == 2
-                self.property_setter_arg_name = setter_arg_names[1]
+            # Remember the decorated method as the "setter" of the property.
+            self.decorated_method = decorated_obj.fset
 
-        elif isinstance(decorated_obj, FunctionType):
-            # Process a decorated method.
-            self.original_method = decorated_obj
+            assert isinstance(self.decorated_method, FunctionType)
+
+            # Disallow deriving event class names from property names.
             if not self.given_event_cls and not self.event_cls_name:
-                original_method_name = self.original_method.__name__
+                method_name = self.decorated_method.__name__
+                raise TypeError(
+                    f"@event on {method_name}() setter requires event name or class"
+                )
+
+            # Remember the name of the second setter arg.
+            setter_arg_names = list(inspect.signature(self.decorated_method).parameters)
+            assert len(setter_arg_names) == 2
+            self.property_setter_arg_name = setter_arg_names[1]
+
+        # Process a decorated method.
+        elif isinstance(decorated_obj, FunctionType):
+
+            # Remember the decorated method as the decorated object.
+            self.decorated_method = decorated_obj
+
+            # If necessary, derive an event class name from the method.
+            if not self.given_event_cls and not self.event_cls_name:
+                original_method_name = self.decorated_method.__name__
                 if original_method_name != "__init__":
                     self.is_name_inferred_from_method = True
                     self.event_cls_name = "".join(
                         [s.capitalize() for s in original_method_name.split("_")]
                     )
 
+        # Disallow decorating other types of object.
         else:
             raise TypeError(f"{decorated_obj} is not a function or property")
 
-        # Register the decorated method under the given event class.
-        if self.given_event_cls:
-            original_methods[self.given_event_cls] = self.original_method
-        else:
-            # Disallow decorated method to have variable params
-            # if we will be using it to define an event class.
-            _check_no_variable_params(self.original_method)
+        # Disallow using methods with variable params to define event class.
+        if self.event_cls_name:
+            _check_no_variable_params(self.decorated_method)
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:
         # Initialised decorator was called directly, presumably by
@@ -273,27 +266,34 @@ class CommandMethodDecorator:
     @overload
     def __get__(
         self, instance: None, owner: "MetaAggregate"
-    ) -> "UnboundCommandMethodDecorator":
+    ) -> Union["UnboundCommandMethodDecorator", property]:
         ...  # pragma: no cover
 
     @overload
     def __get__(
         self, instance: "Aggregate", owner: "MetaAggregate"
-    ) -> "BoundCommandMethodDecorator":
+    ) -> Union["BoundCommandMethodDecorator", Any]:
         ...  # pragma: no cover
 
     def __get__(
         self, instance: Optional["Aggregate"], owner: "MetaAggregate"
-    ) -> Union["BoundCommandMethodDecorator", "UnboundCommandMethodDecorator"]:
+    ) -> Union[
+        "BoundCommandMethodDecorator", "UnboundCommandMethodDecorator", property, Any
+    ]:
+        # If we are decorating a property, then delegate to the property's __get__.
         if self.decorated_property:
             return self.decorated_property.__get__(instance, owner)
+
+        # Return a "bound" command method decorator if we have an instance.
         elif instance:
             return BoundCommandMethodDecorator(self, instance)
+
+        # Return an "unbound" command method decorator if we have no instance.
         else:
             return UnboundCommandMethodDecorator(self)
 
     def __set__(self, instance: "Aggregate", value: Any) -> None:
-        # Set decorated property.
+        # Set decorated property indirectly by triggering an event.
         assert self.property_setter_arg_name
         b = BoundCommandMethodDecorator(self, instance)
         kwargs = {self.property_setter_arg_name: value}
@@ -302,9 +302,7 @@ class CommandMethodDecorator:
 
 # Called because specifying decorator params.
 @overload
-def event(
-    arg: EventSpecType = None, *, inject_event: Optional[InjectEventType] = None
-) -> Callable[[DecoratedObjType], DecoratedObjType]:
+def event(arg: EventSpecType = None) -> Callable[[DecoratedObjType], DecoratedObjType]:
     ...  # pragma: no cover
 
 
@@ -316,8 +314,6 @@ def event(arg: DecoratedObjType) -> DecoratedObjType:
 
 def event(
     arg: Union[EventSpecType, DecoratedObjType] = None,
-    *,
-    inject_event: Optional[InjectEventType] = None,
 ) -> Union[Callable[[DecoratedObjType], DecoratedObjType], DecoratedObjType]:
     """
     Can be used to decorate an aggregate method so that when the
@@ -371,7 +367,6 @@ def event(
         command_method_decorator = CommandMethodDecorator(
             event_spec=None,
             decorated_obj=arg,
-            inject_event=bool(inject_event),
         )
         return cast(
             Callable[[DecoratedObjType], DecoratedObjType], command_method_decorator
@@ -391,14 +386,15 @@ def event(
             command_method_decorator = CommandMethodDecorator(
                 event_spec=event_spec,
                 decorated_obj=decorated_obj,
-                inject_event=bool(inject_event),
             )
             return cast(DecoratedObjType, command_method_decorator)
 
         return create_command_method_decorator
 
     else:
-        raise TypeError(f"{arg} is not a str, event class, function, or property")
+        raise TypeError(
+            f"{arg} is not a str, aggregate event class, function, or property"
+        )
 
 
 triggers = event
@@ -416,9 +412,9 @@ class UnboundCommandMethodDecorator:
         :param CommandMethodDecorator event_decorator:
         """
         self.event_decorator = event_decorator
-        assert event_decorator.original_method
-        self.__qualname__ = event_decorator.original_method.__qualname__
-        self.__name__ = event_decorator.original_method.__name__
+        assert event_decorator.decorated_method
+        self.__qualname__ = event_decorator.decorated_method.__qualname__
+        self.__name__ = event_decorator.decorated_method.__name__
 
 
 class BoundCommandMethodDecorator:
@@ -435,72 +431,50 @@ class BoundCommandMethodDecorator:
         :param CommandMethodDecorator event_decorator:
         :param Aggregate aggregate:
         """
-        assert event_decorator.original_method
+        assert event_decorator.decorated_method
         self.event_decorator = event_decorator
-        self.__qualname__ = event_decorator.original_method.__qualname__
-        self.__name__ = event_decorator.original_method.__name__
+        self.__qualname__ = event_decorator.decorated_method.__qualname__
+        self.__name__ = event_decorator.decorated_method.__name__
         self.aggregate = aggregate
 
     def trigger(self, *args: Any, **kwargs: Any) -> None:
         assert isinstance(self.event_decorator, CommandMethodDecorator)  # for PyCharm
-        assert self.event_decorator.original_method
+        assert self.event_decorator.decorated_method
         kwargs = _coerce_args_to_kwargs(
-            self.event_decorator.original_method, args, kwargs
+            self.event_decorator.decorated_method, args, kwargs
         )
-        if self.event_decorator.given_event_cls:
-            event_cls = self.event_decorator.given_event_cls
-        else:
-            assert self.event_decorator.event_cls_name
-            event_cls = getattr(self.aggregate, self.event_decorator.event_cls_name)
-
-        kwargs = _filter_kwargs_mentioned_in_sig(kwargs, event_cls.__init__)
+        event_cls = decorated_event_classes[self.event_decorator]
+        kwargs = _select_kwargs_mentioned_in_sig(kwargs, event_cls.__dict__["__init__"])
         self.aggregate.trigger_event(event_cls, **kwargs)
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:
         self.trigger(*args, **kwargs)
 
 
-original_methods: Dict[type, AnyCallable] = {}
-inject_events: Dict[type, bool] = {}
+given_event_classes: Set[type] = set()
+decorated_methods: Dict[type, AnyCallable] = {}
 aggregate_has_many_created_event_classes: Dict[type, List[str]] = {}
 
 
 class DecoratedEvent(AggregateEvent[Any]):
     def apply(self, aggregate: "TAggregate") -> None:
         """
-        Applies event to aggregate by calling
-        method decorated by @event.
+        Applies event to aggregate by calling method decorated by @event.
         """
-        # Identify the original method that was decorated.
-        original_method = original_methods[type(self)]
+        # Call super method, just in case any base classes need it.
+        super().apply(aggregate)
 
-        # Optionally inject '__event__' into function globals.
-        if inject_events.get(type(self), False):
-            assert isinstance(original_method, FunctionType)
-            cust_globals = original_method.__globals__.copy()
-            cust_globals["__event__"] = self
-            method_copy = FunctionType(
-                original_method.__code__,
-                cust_globals,
-                original_method.__name__,
-                original_method.__defaults__,
-                original_method.__closure__,
-            )
-            method = method_copy
-        else:
-            method = original_method
+        # Identify the method that was decorated.
+        decorated_method = decorated_methods[type(self)]
 
-        # Remove values that are not mentioned in the method signature.
-        kwargs = _filter_kwargs_mentioned_in_sig(self.__dict__, original_method)
+        # Select event attributes mentioned in method signature.
+        kwargs = _select_kwargs_mentioned_in_sig(self.__dict__, decorated_method)
 
         # Call the original method with event attribute values.
-        returned_value = method(aggregate, **kwargs)
-        if returned_value is not None:
-            raise TypeError(
-                f"Unexpected value returned from "
-                f"{original_method.__qualname__}(). Values "
-                f"returned from 'apply' methods are discarded."
-            )
+        decorated_method(aggregate, **kwargs)
+
+
+decorated_event_classes: Dict[CommandMethodDecorator, Type[DecoratedEvent]] = {}
 
 
 def _check_no_variable_params(method: FunctionType) -> None:
@@ -666,12 +640,48 @@ class MetaAggregate(ABCMeta):
     ) -> None:
         super().__init__(*args)
 
-        # Identify or create the "created" event class...
+        # Identify or define a base event class for this aggregate.
+        base_event_name = "Event"
+        try:
+            base_event_cls = cls.__dict__[base_event_name]
+        except KeyError:
+            base_event_cls = cls._define_event_class(
+                base_event_name, (cls.Event,), None
+            )
+            setattr(cls, base_event_name, base_event_cls)
+
+        # Make sure all aggregate event classes are subclasses of base event class.
+        for name, value in tuple(cls.__dict__.items()):
+            if name == base_event_name:
+                # Don't subclass the base event class again.
+                continue
+            if name.lower() == name:
+                # Don't subclass lowercase named attributes that have classes.
+                continue
+            if isinstance(value, type) and issubclass(value, AggregateEvent):
+                if not issubclass(value, base_event_cls):
+                    sub_class = cls._define_event_class(
+                        name, (value, base_event_cls), None
+                    )
+                    setattr(cls, name, sub_class)
+
+        # Identify or define the aggregate's "created" event class.
         created_event_class: Optional[Type[AggregateCreated[Any]]] = None
 
         # Has the "created" event class been indicated with '_created_event_class'.
         if "_created_event_class" in cls.__dict__:
             created_event_class = cls.__dict__["_created_event_class"]
+            if isinstance(created_event_class, type) and issubclass(
+                created_event_class, AggregateCreated
+            ):
+                # We just subclassed the event classes, so reassign this.
+                created_event_class = getattr(cls, created_event_class.__name__)
+                assert created_event_class
+                cls._created_event_class = created_event_class
+            else:
+                raise TypeError(
+                    f"{created_event_class} not subclass of {AggregateCreated.__name__}"
+                )
 
         # Disallow using both '_created_event_class' and 'created_event_name'.
         if created_event_class and created_event_name:
@@ -684,7 +694,7 @@ class MetaAggregate(ABCMeta):
             init_decorator: CommandMethodDecorator = cls.__dict__["__init__"]
 
             # Set the original method on the class (un-decorate __init__).
-            cls.__init__ = init_decorator.original_method  # type: ignore
+            cls.__init__ = init_decorator.decorated_method  # type: ignore
 
             # Disallow using both 'created_event_name' and '_created_event_class'.
             if created_event_name:
@@ -698,10 +708,19 @@ class MetaAggregate(ABCMeta):
 
             # Does the decorator specify a "create" event class?
             if init_decorator.given_event_cls:
-                created_event_class = cast(
-                    Type[AggregateCreated[Any]], init_decorator.given_event_cls
+                created_event_class = getattr(
+                    cls, init_decorator.given_event_cls.__name__
                 )
-                cls._created_event_class = created_event_class
+                if isinstance(created_event_class, type) and issubclass(
+                    created_event_class, AggregateCreated
+                ):
+                    assert created_event_class
+                    cls._created_event_class = created_event_class
+                else:
+                    raise TypeError(
+                        f"{created_event_class} not subclass of "
+                        f"{AggregateCreated.__name__}"
+                    )
 
             # Does the decorator specify a "create" event name?
             elif init_decorator.event_cls_name:
@@ -736,25 +755,31 @@ class MetaAggregate(ABCMeta):
 
                 # If no "created" event name has been specified, use default name.
                 if not created_event_name:
+                    # This is safe because len(created_event_classes) == 0.
                     created_event_name = "Created"
 
                 # Disallow init method to have variable params if
                 # we are using it to define a "created" event class.
-                _check_no_variable_params(cls.__init__)  # type: ignore
-
-                # Define a "created" event for this class.
                 init_method = cls.__dict__["__init__"]
-                assert isinstance(init_method, FunctionType)
+                _check_no_variable_params(init_method)
 
-                # Define event class.
-                cls._define_event_class(
+                # Define a "created" event class for this aggregate.
+                if issubclass(cls.Created, base_event_cls):
+                    # Don't subclass from base event class twice.
+                    bases: Tuple[type, ...] = (cls.Created,)
+                else:
+                    bases = (cls.Created, base_event_cls)
+                event_cls = cls._define_event_class(
                     created_event_name,
-                    (cls.Created, cls.Event),
+                    bases,
                     init_method,
-                    False,
                 )
 
-                cls._created_event_class = getattr(cls, created_event_name)
+                # Set the event class as an attribute of the aggregate class.
+                setattr(cls, created_event_name, event_cls)
+
+                # Remember which is the "created" event class.
+                cls._created_event_class = cast(Type[AggregateCreated[Any]], event_cls)
 
             # Prepare to disallow ambiguity of choice between created event classes.
             else:
@@ -772,39 +797,65 @@ class MetaAggregate(ABCMeta):
                 attribute = attribute.fset
                 if attribute.is_name_inferred_from_method:
                     # We don't want name inferred from property (not past participle).
-                    method_name = attribute.original_method.__name__
+                    method_name = attribute.decorated_method.__name__
                     raise TypeError(
                         f"@event under {method_name}() property setter requires event "
                         f"class name"
                     )
                 # Attribute is a property decorating an event decorator.
                 attribute.is_property_setter = True
-                method_signature = inspect.signature(attribute.original_method)
+                method_signature = inspect.signature(attribute.decorated_method)
                 assert len(method_signature.parameters) == 2
                 attribute.property_setter_arg_name = list(method_signature.parameters)[
                     1
                 ]
 
-            # Attribute is an event decorator.
+            # Attribute is an event decorator, so define a "decorated" event.
             if isinstance(attribute, CommandMethodDecorator):
 
-                if attribute.given_event_cls is None:
-                    assert attribute.event_cls_name
-                    event_cls_name = attribute.event_cls_name
-
-                    # Check event class isn't already defined.
-                    if event_cls_name in cls.__dict__:
+                if attribute.given_event_cls:
+                    # Check this is not a "created" event class.
+                    if issubclass(attribute.given_event_cls, AggregateCreated):
                         raise TypeError(
-                            f"{event_cls_name} event already defined on {cls.__name__}"
+                            f"{attribute.given_event_cls} "
+                            f"is subclass of AggregateCreated"
                         )
 
-                    # Define event class.
-                    cls._define_event_class(
-                        event_cls_name,
-                        (DecoratedEvent, cls.Event),
-                        attribute.original_method,
-                        attribute.inject_event,
+                    # Define event class as subclass of given class.
+                    given_subclass = getattr(cls, attribute.given_event_cls.__name__)
+                    event_cls = cls._define_event_class(
+                        attribute.given_event_cls.__name__,
+                        (DecoratedEvent, given_subclass),
+                        None,
                     )
+
+                else:
+                    assert attribute.event_cls_name
+
+                    # Check event class isn't already defined.
+                    if attribute.event_cls_name in cls.__dict__:
+                        raise TypeError(
+                            f"{attribute.event_cls_name} "
+                            f"event already defined on {cls.__name__}"
+                        )
+
+                    # Define event class from signature of original method.
+                    event_cls = cls._define_event_class(
+                        attribute.event_cls_name,
+                        (DecoratedEvent, base_event_cls),
+                        attribute.decorated_method,
+                    )
+
+                # Cache the decorated method for the event class to use.
+                decorated_methods[event_cls] = attribute.decorated_method
+
+                # Set the event class as an attribute of the aggregate class.
+                setattr(cls, event_cls.__name__, event_cls)
+
+                # Remember which event class to trigger.
+                decorated_event_classes[attribute] = cast(
+                    Type[DecoratedEvent], event_cls
+                )
 
         # Get the names of the parameters of the 'create_id' method.
         cls._create_id_param_names: List[str] = []
@@ -816,36 +867,33 @@ class MetaAggregate(ABCMeta):
         cls,
         name: str,
         bases: Tuple[type, ...],
-        apply_method: AnyCallable,
-        inject_event: bool,
-    ) -> None:
+        apply_method: Optional[AnyCallable],
+    ) -> type:
         # Define annotations for the event class (specs the init method).
         annotations = {}
-        supers = {s for b in bases for s in b.__mro__ if hasattr(s, "__annotations__")}
-        super_annotations = {a for s in supers for a in s.__annotations__}
-        method_signature = inspect.signature(apply_method)
-        for param_name in list(method_signature.parameters)[1:]:
-            # Don't define 'id' on a "created" class.
-            if param_name == "id" and apply_method.__name__ == "__init__":
-                _init_mentions_id.add(cls)
-                continue
-            # Don't duplicate super class annotations.
-            if param_name not in super_annotations:
-                annotations[param_name] = "typing.Any"  # Todo: Improve this?
+        if apply_method is not None:
+            method_signature = inspect.signature(apply_method)
+            supers = {
+                s for b in bases for s in b.__mro__ if hasattr(s, "__annotations__")
+            }
+            super_annotations = {a for s in supers for a in s.__annotations__}
+            for param_name, param in list(method_signature.parameters.items())[1:]:
+                # Don't define 'id' on a "created" class.
+                if param_name == "id" and apply_method.__name__ == "__init__":
+                    _init_mentions_id.add(cls)
+                    continue
+                # Don't override super class annotations, unless no default on param.
+                if param_name not in super_annotations or param.default == param.empty:
+                    annotations[param_name] = "typing.Any"  # Todo: Improve this?
         event_cls_qualname = ".".join([cls.__qualname__, name])
         event_cls_dict = {
             "__annotations__": annotations,
             "__module__": cls.__module__,
             "__qualname__": event_cls_qualname,
         }
-        # Create the class object.
-        event_cls = type(name, bases, event_cls_dict)
-        # Cache the original method for the event class.
-        original_methods[event_cls] = apply_method
-        # Cache the 'inject_events' setting for the event class.
-        inject_events[event_cls] = inject_event
-        # Set the event class as an attribute of the aggregate class.
-        setattr(cls, name, event_cls)
+
+        # Create the event class object.
+        return type(name, bases, event_cls_dict)
 
     def __call__(cls, *args: Any, **kwargs: Any) -> Any:
         try:
@@ -900,13 +948,11 @@ class MetaAggregate(ABCMeta):
 
         try:
             # noinspection PyArgumentList
-            created_event = event_class(  # type: ignore
+            created_event = event_class(
                 **kwargs,
             )
         except TypeError as e:
-            msg = (
-                f"Unable to construct '{event_class.__name__}' event: {e}"
-            )
+            msg = f"Unable to construct '{event_class.__name__}' event: {e}"
             raise TypeError(msg)
         # Construct the aggregate object.
         agg = created_event.mutate(None)

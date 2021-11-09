@@ -1,15 +1,12 @@
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import Any, Optional, Union
+from typing import Optional
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from eventsourcing.domain import Aggregate, AggregateEvent, event
 from eventsourcing.examples.wiki.utils import apply_patch, create_diff
 
 user_id_cvar: ContextVar[Optional[UUID]] = ContextVar("user_id", default=None)
-
-
-__event__: Union["Page.Event", Any] = None
 
 
 @dataclass
@@ -22,23 +19,23 @@ class Page(Aggregate):
     class Event(Aggregate.Event["Page"]):
         user_id: Optional[UUID] = field(default_factory=user_id_cvar.get, init=False)
 
-    @event("SlugUpdated", inject_event=True)
+        def apply(self, aggregate: "Page") -> None:
+            aggregate.modified_by = self.user_id
+
+    @event("SlugUpdated")
     def update_slug(self, slug: str) -> None:
         self.slug = slug
-        self.modified_by = __event__.user_id
 
-    @event("TitleUpdated", inject_event=True)
+    @event("TitleUpdated")
     def update_title(self, title: str) -> None:
         self.title = title
-        self.modified_by = globals()["__event__"].user_id
 
     def update_body(self, body: str) -> None:
         self._update_body(create_diff(old=self.body, new=body))
 
     @event("BodyUpdated")
-    def _update_body(self, diff: str, user_id: Optional[UUID] = None) -> None:
+    def _update_body(self, diff: str) -> None:
         self.body = apply_patch(old=self.body, diff=diff)
-        self.modified_by = user_id
 
 
 @dataclass

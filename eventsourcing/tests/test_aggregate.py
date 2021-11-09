@@ -111,12 +111,6 @@ class TestAggregateCreation(TestCase):
         self.assertGreater(after_created, a.created_on)
 
     def test_raises_when_create_args_mismatch_created_event(self):
-        p = (
-            "TestAggregateCreation"
-            ".test_raises_when_create_args_mismatch_created_event"
-            ".<locals>."
-        )
-
         class BrokenAggregate(Aggregate):
             @classmethod
             def create(cls, name):
@@ -580,6 +574,12 @@ class TestAggregateCreation(TestCase):
         self.assertEqual(a.name, "name")
         self.assertEqual(a.id, MyAgg.create_id("name"))
 
+    def test_raises_type_error_if_created_event_class_not_aggregate_created(self):
+        with self.assertRaises(TypeError):
+
+            class MyAggregate(Aggregate):
+                _created_event_class = Aggregate.Event
+
     def test_refuse_implicit_choice_of_alternative_created_events(self):
         # In case aggregates were created with old Created event,
         # there may need to be several defined. Then, when calling
@@ -621,7 +621,7 @@ class TestAggregateCreation(TestCase):
         # Call class, and expect Started event will be used.
         a = MyAggregate()
         events = a.collect_events()
-        self.assertIsInstance(events[0], MyAggregate.Started)
+        self.assertIsInstance(events[0], MyAggregate.Started, type(events[0]))
 
         # Say which created event class to use on aggregate class.
         class MyAggregate(Aggregate, created_event_name="Started"):
@@ -646,8 +646,6 @@ class TestAggregateCreation(TestCase):
 
             class Opened(AggregateCreated):
                 pass
-
-            _create_event_class = Opened
 
         class MyAggregate(MyBaseAggregate):
             class Started(AggregateCreated):
@@ -686,7 +684,7 @@ class TestAggregateCreation(TestCase):
         events = a.collect_events()
         self.assertIsInstance(events[0], MyAggregate.Started)
 
-    def test_uses_predefined_created_event_when_given_name_is_predefined(self):
+    def test_uses_defined_created_event_when_given_name_matches(self):
         class Order(Aggregate, created_event_name="Started"):
             def __init__(self, name):
                 self.name = name
@@ -703,7 +701,7 @@ class TestAggregateCreation(TestCase):
         pending = order.collect_events()
         self.assertEqual(type(pending[0]).__name__, "Started")
 
-    def test_defines_created_event_when_given_name_not_predefined(self):
+    def test_defines_created_event_when_given_name_does_not_match(self):
         class Order(Aggregate, created_event_name="Started"):
             def __init__(self, name):
                 self.name = name
@@ -1030,6 +1028,45 @@ class TestSubsequentEvents(TestCase):
             ")"
         )
         self.assertEqual(expect, repr(a))
+
+
+class TestAggregateEventsAreSubclassed(TestCase):
+    def test_base_event_class_is_defined_if_missing(self):
+        class MyAggregate(Aggregate):
+            pass
+
+        self.assertTrue(MyAggregate.Event.__qualname__.endswith("MyAggregate.Event"))
+        self.assertTrue(issubclass(MyAggregate.Event, Aggregate.Event))
+        self.assertNotEqual(MyAggregate.Event, Aggregate.Event)
+
+    def test_base_event_class_is_not_redefined_if_exists(self):
+        class MyAggregate(Aggregate):
+            class Event(Aggregate.Event):
+                pass
+
+            my_event_cls = Event
+
+        self.assertTrue(MyAggregate.Event.__qualname__.endswith("MyAggregate.Event"))
+        self.assertEqual(MyAggregate.my_event_cls, MyAggregate.Event)
+
+    def test_aggregate_events_are_subclassed(self):
+        class MyAggregate(Aggregate):
+            class Created(Aggregate.Created):
+                pass
+
+            class Started(Aggregate.Created):
+                pass
+
+            class Ended(Aggregate.Event):
+                pass
+
+            _created_event_class = Started
+
+        self.assertTrue(MyAggregate.Event.__qualname__.endswith("MyAggregate.Event"))
+        self.assertTrue(issubclass(MyAggregate.Created, MyAggregate.Event))
+        self.assertTrue(issubclass(MyAggregate.Started, MyAggregate.Event))
+        self.assertTrue(issubclass(MyAggregate.Ended, MyAggregate.Event))
+        self.assertEqual(MyAggregate._created_event_class, MyAggregate.Started)
 
 
 class TestBankAccount(TestCase):
