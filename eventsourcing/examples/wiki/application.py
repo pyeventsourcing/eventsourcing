@@ -106,7 +106,7 @@ class Log(Generic[TDomainEvent]):
         self.originator_id = originator_id
         self.logged_cls = logged_cls
 
-    def trigger_event(self, **kwargs: Any) -> AggregateEvent[Aggregate]:
+    def trigger_event(self, **kwargs: Any) -> TDomainEvent:
         last_logged = self._get_last_logged()
         if last_logged:
             next_originator_version = last_logged.originator_version + 1
