@@ -89,6 +89,11 @@ be used for :ref:`snapshotting <Snapshotting>` existing aggregates. Snapshotting
 isn't necessary, but can help to reduce the time it takes to access aggregates with
 lots of domain events.
 
+The :class:`~eventsourcing.application.Application` class has an ``env`` attribute
+which can be redefined on your application classes. Application objects also have
+an ``env`` attribute which is determined by a combination of the application class
+attribute, the operating system environment, and by an optional constructor argument.
+
 
 Basic example
 =============
@@ -202,7 +207,7 @@ Application environment
 You can set
 the application's environment either on the ``env`` attribute of the application class, in the
 `operating system environment <https://docs.python.org/3/library/os.html#os.environ>`__,
-or or by passing them into the application using the constructor argument ``env``. You
+or by passing them into the application using the constructor argument ``env``. You
 can use all three ways for configuring an application in combination.
 
 ..
