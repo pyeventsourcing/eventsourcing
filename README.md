@@ -529,7 +529,7 @@ by moving things to separate Python modules.
 ## Development environment
 
 We can run the code in default "development" environment using
-the default "Plain Old Python Object" infrastructure (which keeps
+the default "plain old Python objects" infrastructure (which keeps
 stored events in memory). The example below runs with no compression or
 encryption of the stored events.
 

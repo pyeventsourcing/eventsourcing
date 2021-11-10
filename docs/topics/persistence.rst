@@ -810,7 +810,7 @@ which is normally okay because the tables are created only if they do not exist.
     assert domain_events == [domain_event1]
 
 
-.. _PostgresSQL:
+.. _PostgreSQL:
 
 PostgreSQL
 ==========
