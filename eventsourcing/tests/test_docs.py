@@ -216,7 +216,7 @@ class TestDocs(TestCase):
                     self.fail(
                         "Restructured text block terminated with markdown format '```'"
                     )
-                elif line.startswith(".. code:: python") or (
+                elif line.startswith(".. code-block:: python") or (
                     line.strip() == ".." and "include-when-testing" in last_line
                 ):
                     # Start restructured text code block.
@@ -254,6 +254,8 @@ class TestDocs(TestCase):
                     if not num_code_lines_in_block:
                         self.fail(f"No lines of code in block: {line_index + 1}")
                     is_code = False
+                    line = ""
+                elif ":emphasize-lines:" in line:
                     line = ""
                 elif is_code:
                     # Process line in code block.

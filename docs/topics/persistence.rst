@@ -43,7 +43,7 @@ the state of domain model event objects.
 The library's :class:`~eventsourcing.persistence.JSONTranscoder` class
 can be constructed without any arguments.
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.persistence import JSONTranscoder
 
@@ -53,7 +53,7 @@ The :data:`transcoder` object has methods :func:`~eventsourcing.persistence.JSON
 and :func:`~eventsourcing.persistence.JSONTranscoder.decode`  which are used to perform the
 serialisation and deserialisation. The serialised state is a Python :class:`bytes` object.
 
-.. code:: python
+.. code-block:: python
 
     data = transcoder.encode({"a": 1})
     copy = transcoder.decode(data)
@@ -89,7 +89,7 @@ The library includes a limited collection of custom transcoding objects. For
 example, the library's :class:`~eventsourcing.persistence.UUIDAsHex` class
 transcodes a Python :class:`~uuid.UUID` objects as a hexadecimal string.
 
-.. code:: python
+.. code-block:: python
 
     from uuid import uuid4
 
@@ -106,7 +106,7 @@ transcodes a Python :class:`~uuid.UUID` objects as a hexadecimal string.
 The library's :class:`~eventsourcing.persistence.DatetimeAsISO` class
 transcodes Python :class:`~datetime.datetime` objects as ISO strings.
 
-.. code:: python
+.. code-block:: python
 
     from datetime import datetime
 
@@ -125,7 +125,7 @@ transcodes Python :class:`~datetime.datetime` objects as ISO strings.
 The library's :class:`~eventsourcing.persistence.DecimalAsStr` class
 transcodes Python :class:`~decimal.Decimal` objects as decimal strings.
 
-.. code:: python
+.. code-block:: python
 
     from decimal import Decimal
 
@@ -144,7 +144,7 @@ transcodes Python :class:`~decimal.Decimal` objects as decimal strings.
 Transcodings are registered with the transcoder using the transcoder object's
 :func:`~eventsourcing.persistence.Transcoder.register` method.
 
-.. code:: python
+.. code-block:: python
 
     transcoder.register(UUIDAsHex())
     transcoder.register(DatetimeAsISO())
@@ -165,7 +165,7 @@ Transcodings are registered with the transcoder using the transcoder object's
 
 Attempting to serialize an unsupported type will result in a Python :class:`TypeError`.
 
-.. code:: python
+.. code-block:: python
 
     from datetime import date
 
@@ -183,7 +183,7 @@ Attempting to serialize an unsupported type will result in a Python :class:`Type
 
 Attempting to deserialize an unsupported type will also result in a Python :class:`TypeError`.
 
-.. code:: python
+.. code-block:: python
 
     try:
         JSONTranscoder().decode(data)
@@ -205,7 +205,7 @@ method that converts an instance of that type to a representation that uses a ba
 type, and a :func:`~eventsourcing.persistence.Transcoding.decode` method that will
 convert that representation back to an instance of that type.
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.persistence import Transcoding
     from typing import Union
@@ -238,7 +238,7 @@ This behaviour is coded in Python as C code, and can't be suspended without
 avoiding the use of this C code and thereby incurring a performance penalty
 in the transcoding of domain event objects.
 
-.. code:: python
+.. code-block:: python
 
     data = transcoder.encode((1, 2, 3))
     copy = transcoder.decode(data)
@@ -258,7 +258,7 @@ the non-basic :class:`UUID` and :class:`date` objects. The class :class:`Complex
 simply has a :class:`ComplexCustomValue` object as its :class:`value` attribute, and its
 transcoding simply returns that object.
 
-.. code:: python
+.. code-block:: python
 
     from uuid import UUID
 
@@ -311,14 +311,14 @@ transcoding simply returns that object.
 
 The custom value object transcodings can be registered with the transcoder.
 
-.. code:: python
+.. code-block:: python
 
     transcoder.register(SimpleCustomValueAsDict())
     transcoder.register(ComplexCustomValueAsDict())
 
 We can now transcode an instance of :class:`ComplexCustomValueAsDict`.
 
-.. code:: python
+.. code-block:: python
 
     obj1 = ComplexCustomValue(
         SimpleCustomValue(
@@ -340,7 +340,7 @@ transcoding. For this reason, it is necessary to avoid defining model objects to
 Python :class:`dict` that has only two attributes :data:`_data_` and :data:`_type_`, and
 avoid defining transcodings that return such a thing.
 
-.. code:: python
+.. code-block:: python
 
     expected_data = (
         b'{"_type_": "complex_custom_value", "_data_": {"_type_": '
@@ -369,7 +369,7 @@ about a domain event object between it being serialised and being
 recorded in a datastore, and between it be retrieved from a datastore
 from an aggregate sequence and being deserialised as a domain event object.
 
-.. code:: python
+.. code-block:: python
 
     from uuid import uuid4
 
@@ -395,7 +395,7 @@ and a :ref:`compressor<Compression>`. It is used by an :ref:`event store<Store>`
 The library's :class:`~eventsourcing.persistence.Mapper` class
 must be constructed with a :ref:`transcoder<Transcoder>` object.
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.persistence import Mapper
 
@@ -405,7 +405,7 @@ The :func:`~eventsourcing.persistence.Mapper.from_domain_event` method of the
 ``mapper`` object converts :class:`~eventsourcing.domain.DomainEvent` objects to
 :class:`~eventsourcing.persistence.StoredEvent` objects.
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.domain import DomainEvent, TZINFO
 
@@ -423,7 +423,7 @@ The :func:`~eventsourcing.persistence.Mapper.to_domain_event` method of the
 ``mapper`` object converts :class:`~eventsourcing.persistence.StoredEvent` objects to
 :class:`~eventsourcing.domain.DomainEvent` objects.
 
-.. code:: python
+.. code-block:: python
 
     assert mapper.to_domain_event(stored_event1) == domain_event1
 
@@ -441,7 +441,7 @@ recorded stored events in your database. For example, the ``timestamp``
 of the domain event in the example above (``domain_event1``) is visible
 in the stored event (``stored_event1``).
 
-.. code:: python
+.. code-block:: python
 
     assert domain_event1.timestamp.isoformat() in str(stored_event1.state)
 
@@ -454,7 +454,7 @@ generate a cipher key. The AES cipher key must be either 16, 24, or
 32 bytes long. Please note, the same cipher key must be used to
 decrypt stored events as that which was used to encrypt stored events.
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.cipher import AESCipher
 
@@ -474,7 +474,7 @@ With encryption, the state of the domain event will not be visible in the
 stored event. This feature can be used to implement "application-level
 encryption" in an event-sourced application.
 
-.. code:: python
+.. code-block:: python
 
     assert domain_event1.timestamp.isoformat() not in str(stored_event1.state)
 
@@ -505,7 +505,7 @@ size of the state of a compressed and encrypted stored event will be
 less than or equal to the size of the state of a stored event that is
 encrypted but not compressed.
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.compressor import ZlibCompressor
 
@@ -557,7 +557,7 @@ It will be returned when selecting event notifications from a
 :ref:`recorder<Recorder>`, and presented in an application by a
 :ref:`notification log<Notification log>`.
 
-.. code:: python
+.. code-block:: python
 
     from uuid import uuid4
 
@@ -595,7 +595,7 @@ The library's :class:`~eventsourcing.persistence.Tracking` class
 is a Python frozen dataclass that can be used to hold the notification
 ID of a notification that has been processed.
 
-.. code:: python
+.. code-block:: python
 
     from uuid import uuid4
 
@@ -638,7 +638,7 @@ Recorder classes are conveniently constructed by using an
 use of the library's SQLite recorders is shown below. The other persistence
 modules follow a similar naming scheme and pattern of use.
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.sqlite import SQLiteAggregateRecorder
     from eventsourcing.sqlite import SQLiteApplicationRecorder
@@ -702,7 +702,7 @@ stored domain event objects for a particular aggregate will be returned
 in the order in which they were created.
 
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.persistence import EventStore
 
@@ -737,7 +737,7 @@ will, by default, construct the library's "plain old Python objects"
 infrastructure :class:`~eventsourcing.popo.Factory`, which uses recorders that simply
 keep stored events in a data structure in memory (see :mod:`eventsourcing.popo`).
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.persistence import InfrastructureFactory
 
@@ -787,7 +787,7 @@ If the tables already exist, the ``CREATE_TABLE`` may be set to a "false" value 
 ``"no"``, ``"f"``, ``"false"``, ``"off"``, or ``"0"``). This value is by default "true"
 which is normally okay because the tables are created only if they do not exist.
 
-.. code:: python
+.. code-block:: python
 
     import os
 
@@ -874,7 +874,7 @@ If the tables already exist, the ``CREATE_TABLE`` may be set to a "false" value 
 ``"no"``, ``"f"``, ``"false"``, ``"off"``, or ``"0"``). This value is by default "true"
 which is normally okay because the tables are created only if they do not exist.
 
-.. code:: python
+.. code-block:: python
 
     import os
 
@@ -895,7 +895,7 @@ which is normally okay because the tables are created only if they do not exist.
     drop_postgres_table(factory.datastore, "stored_events")
 
 
-.. code:: python
+.. code-block:: python
 
     factory = InfrastructureFactory.construct()
 

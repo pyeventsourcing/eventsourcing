@@ -13,11 +13,11 @@ System of applications
 
 The library's system class...
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.system import System
 
-.. code:: python
+.. code-block:: python
 
     from uuid import uuid4
 
@@ -51,7 +51,7 @@ The library's system class...
 Now let's define an application...
 
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.application import Application
 
@@ -75,7 +75,7 @@ Now let's define an application...
 
 Now let's define an analytics application...
 
-.. code:: python
+.. code-block:: python
 
     from uuid import uuid5, NAMESPACE_URL
 
@@ -105,7 +105,7 @@ Now let's define an analytics application...
                 counter.count += 1
 
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.application import AggregateNotFound
     from eventsourcing.system import ProcessApplication
@@ -137,7 +137,7 @@ Now let's define an analytics application...
             return counter.count
 
 
-.. code:: python
+.. code-block:: python
 
     system = System(pipes=[[WorldsApplication, Counters]])
 
@@ -145,7 +145,7 @@ Now let's define an analytics application...
 Single-threaded runner
 ======================
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.system import SingleThreadedRunner
 
@@ -188,7 +188,7 @@ Single-threaded runner
 Multi-threaded runner
 =====================
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.system import MultiThreadedRunner
 

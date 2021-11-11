@@ -13,6 +13,7 @@ Contents
 
    topics/introduction
    topics/installing
+   topics/tutorial
    topics/examples
    topics/domain
    topics/application

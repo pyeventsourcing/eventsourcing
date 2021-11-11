@@ -132,7 +132,7 @@ as the :ref:`Simple example <Aggregate simple example>` in the domain module doc
                 world.history.append(self.what)
 
 
-.. code:: python
+.. code-block:: python
 
     from typing import List
     from uuid import UUID
@@ -178,7 +178,7 @@ by calling ``create_world()``. Three items are added to its ``history`` by
 calling ``make_it_so()`` three times. The recorded ``history`` of the aggregate
 is then obtained by calling ``get_world_history()`` method.
 
-.. code:: python
+.. code-block:: python
 
     application = Worlds()
 
@@ -216,7 +216,7 @@ can use all three ways for configuring an application in combination.
     import os
 
 
-.. code:: python
+.. code-block:: python
 
     # Configure by setting class attribute.
     class MyApplication(Application):
@@ -236,7 +236,7 @@ is: constructor argument, operating system, class attribute. This means a constr
 argument setting will override both a operating system, and a class attribute setting. And
 an operating system setting will override a class attribute setting.
 
-.. code:: python
+.. code-block:: python
 
     assert app.env["SETTING_A"] == "1"
     assert app.env["SETTING_B"] == "2"
@@ -263,7 +263,7 @@ obtain already existing aggregates. It works by calling the
 aggregate, and then using these to reconstruct an aggregate object.
 
 
-.. code:: python
+.. code-block:: python
 
     world_latest = application.repository.get(world_id)
 
@@ -280,7 +280,7 @@ The ``version`` argument is optional, and represents the required version of the
 If the requested version is greater than the highest available version of the aggregate, the
 highest available version of the aggregate will be returned.
 
-.. code:: python
+.. code-block:: python
 
 
     world_v1 = application.repository.get(world_id, version=1)
@@ -331,7 +331,7 @@ the event notifications of an application.
 The application object attribute ``log`` is an instance of
 :class:`~eventsourcing.application.LocalNotificationLog`.
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.application import LocalNotificationLog
 
@@ -347,7 +347,7 @@ logs. The event notifications themselves are instances of the library's
 defined in the persistence module and discussed in the
 :ref:`Notification objects <Notification objects>` section.
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.persistence import Notification
 
@@ -395,7 +395,7 @@ notification log of the ``application`` object. We can see these notifications
 represent the facts that a ``World`` aggregate was created, and then two ``SomethingHappened``
 events occurred.
 
-.. code:: python
+.. code-block:: python
 
 
     notifications = application.log.select(start=1, limit=3)
@@ -427,7 +427,7 @@ We can continue to select event notifications, by using the ID
 of the last event notification received to calculate the next
 ``start`` value.
 
-.. code:: python
+.. code-block:: python
 
     next_start = notifications[-1].id + 1
 
@@ -493,7 +493,7 @@ less event notifications that were requested, the ``next_id`` value will be ``No
 In the example above, there are four domain events in the domain model, and so there
 are four notifications in the notification log.
 
-.. code:: python
+.. code-block:: python
 
     section = application.log["1,10"]
 
@@ -531,7 +531,7 @@ application's mapper method :func:`~eventsourcing.persistence.Mapper.to_domain_e
 If the application is configured to encrypt stored events, the event notification
 will also be encrypted, but the mapper will decrypt the event notification.
 
-.. code:: python
+.. code-block:: python
 
     domain_event = application.mapper.to_domain_event(section.items[0])
     assert isinstance(domain_event, World.Created)
@@ -557,7 +557,7 @@ is enabled, the application object will have a snapshot store assigned to the
 attribute ``snapshots``. By default, snapshotting is not enabled, and the application
 object's ``snapshots`` attribute will have the value ``None``.
 
-.. code:: python
+.. code-block:: python
 
     assert application.snapshots is None
 
@@ -577,7 +577,7 @@ Application environment variables can be passed into the application using the
 ``env`` argument when constructing an application object. Snapshotting can be
 enabled (or disabled) for an individual application object in this way.
 
-.. code:: python
+.. code-block:: python
 
     application = Worlds(env={"IS_SNAPSHOTTING_ENABLED": "y"})
     assert application.snapshots is not None
@@ -587,7 +587,7 @@ Application environment variables can be also be set in the operating system env
 Setting operating system environment variables will affect all applications created in
 that environment.
 
-.. code:: python
+.. code-block:: python
 
     os.environ["IS_SNAPSHOTTING_ENABLED"] = "y"
 
@@ -600,7 +600,7 @@ that environment.
 
 Values passed into the application object will override operating system environment variables.
 
-.. code:: python
+.. code-block:: python
 
     os.environ["IS_SNAPSHOTTING_ENABLED"] = "y"
     application = Worlds(env={"IS_SNAPSHOTTING_ENABLED": "n"})
@@ -612,7 +612,7 @@ Values passed into the application object will override operating system environ
 Snapshotting can also be enabled for all instances of an application class by
 setting the boolean attribute 'is_snapshotting_enabled' on the application class.
 
-.. code:: python
+.. code-block:: python
 
     class WorldsWithSnapshottingEnabled(Worlds):
         is_snapshotting_enabled = True
@@ -624,7 +624,7 @@ However, this setting will also be overridden by both the construct arg ``env``
 and by the operating system environment. The example below demonstrates this
 by extending the ``Worlds`` application class defined above.
 
-.. code:: python
+.. code-block:: python
 
     application = WorldsWithSnapshottingEnabled(env={"IS_SNAPSHOTTING_ENABLED": "n"})
     assert application.snapshots is None
@@ -645,7 +645,7 @@ to be snapshotted must be passed when calling this method. By passing in the ID
 snapshotting a somehow "corrupted" aggregate object that does not represent the
 actually recorded state of the aggregate is avoided.
 
-.. code:: python
+.. code-block:: python
 
     application = Worlds(env={"IS_SNAPSHOTTING_ENABLED": "y"})
     world_id = application.create_world()
@@ -664,7 +664,7 @@ snapshots. The snapshots can be retrieved from the snapshot store using the
 :func:`~eventsourcing.persistence.EventStore.get` method. We can get the latest snapshot
 by selecting in descending order with a limit of 1.
 
-.. code:: python
+.. code-block:: python
 
     snapshots = application.snapshots.get(world_id, desc=True, limit=1)
 
@@ -691,7 +691,7 @@ will be taken if the version of aggregate coincides with the specified interval.
 The example below demonstrates this by extending the ``Worlds`` application class
 with ``World`` aggregates snapshotted every 2 events.
 
-.. code:: python
+.. code-block:: python
 
     class WorldsWithAutomaticSnapshotting(Worlds):
         snapshotting_intervals = {World: 2}
@@ -745,7 +745,7 @@ When using the library's SQLite infrastructure, the environment variable
 ``SQLITE_DBNAME`` must also be set. This value will be passed to Python's
 :func:`sqlite3.connect`.
 
-.. code:: python
+.. code-block:: python
 
     from tempfile import NamedTemporaryFile
 
@@ -767,7 +767,7 @@ By using a file on disk, as we did in the example above, the state of
 the application will endure after the application object has been deleted
 and reconstructed.
 
-.. code:: python
+.. code-block:: python
 
     del(application)
 
@@ -806,7 +806,7 @@ method by calling the ``super()`` method with the given ``transcoder``
 argument, and then the transcoder's :func:`~eventsourcing.persistence.Transcoder.register`
 method once for each of your custom transcodings.
 
-.. code:: python
+.. code-block:: python
 
     from datetime import date
     from typing import Union
@@ -855,7 +855,7 @@ you can use its static method :func:`~eventsourcing.cipher.AESCipher.create_key`
 to generate a valid encryption key.
 
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.cipher import AESCipher
 
@@ -957,7 +957,7 @@ We can define a simple wiki application, which creates named
 pages. Pages can be retrieved by name. Names can be changed
 and the pages can be retrieved by the new name.
 
-.. code:: python
+.. code-block:: python
 
     class Wiki(Application):
         def create_page(self, name: str, body: str) -> None:
@@ -981,7 +981,7 @@ and the pages can be retrieved by the new name.
 
 Now let's construct the application object and create a new page (with a deliberate spelling mistake).
 
-.. code:: python
+.. code-block:: python
 
 
     wiki = Wiki()
@@ -991,14 +991,14 @@ Now let's construct the application object and create a new page (with a deliber
 
 We can use the page name to retrieve the body of the page.
 
-.. code:: python
+.. code-block:: python
 
     assert wiki.get_page(name="Erth").body == "Lorem ipsum..."
 
 
 We can also update the name of the page, and then retrieve the page using the new name.
 
-.. code:: python
+.. code-block:: python
 
     wiki.rename_page(name="Erth", new_name="Earth")
 
@@ -1009,7 +1009,7 @@ The uniqueness constraint on the recording of stored domain event objects combin
 with the atomicity of recording domain events means that name collisions in the
 index will result in the wiki not being updated.
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.persistence import RecordConflictError
 

@@ -99,7 +99,7 @@ in-place as a result of those decisions.  For example, consider a bank account w
 starting balance of £100.  A debit transaction for £20 then occurs, resulting in a
 new balance of £80. That might be coded as follows:
 
-.. code:: python
+.. code-block:: python
 
     class BankAccount:
         def __init__(self, starting_balance: int):
@@ -160,7 +160,7 @@ attribute which is a Python :class:`int` that determines its position
 in that sequence, and a ``timestamp`` attribute which is a Python
 :class:`~datetime.datetime` that represents when the event occurred.
 
-.. code:: python
+.. code-block:: python
 
     from datetime import datetime
     from uuid import uuid4
@@ -217,7 +217,7 @@ used to define domain-specific aggregate event objects in your domain model. Agg
 events are uniquely identifiable in a domain model by the combination of their
 ``originator_id`` and ``originator version``.
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.domain import AggregateEvent
 
@@ -248,7 +248,7 @@ argument is expected to have four attributes: :py:obj:`~eventsourcing.domain.Agg
 :py:obj:`~eventsourcing.domain.Aggregate.modified_on`. The class ``A`` defined below
 will suffice for our current purpose of explaining the aggregate event classes.
 
-.. code:: python
+.. code-block:: python
 
     class A:
         def __init__(self, id, version, created_on):
@@ -271,7 +271,7 @@ Then, it increments the aggregate's :py:obj:`~eventsourcing.domain.Aggregate.ver
 assigns the event's ``timestamp`` to the aggregate's :py:obj:`~eventsourcing.domain.Aggregate.modified_on`
 property. And then it returns the modified object to the caller.
 
-.. code:: python
+.. code-block:: python
 
     a = A(id=originator_id, version=1, created_on=datetime(2011, 1, 1))
     a = aggregate_event.mutate(a)
@@ -295,7 +295,7 @@ after the validation checks and before modifying the aggregate's state, so that 
 it raises an exception, then the aggregate will remain unmodified by the
 :func:`~eventsourcing.domain.AggregateEvent.mutate` method.
 
-.. code:: python
+.. code-block:: python
 
     class MyEvent(AggregateEvent):
         full_name: str
@@ -341,7 +341,7 @@ method with the other event object attributes, the attributes which are particul
 "created" event and aggregate class, and then returns the newly constructed aggregate
 object to the caller.
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.domain import AggregateCreated
 
@@ -368,7 +368,7 @@ another aggregate event object. In this way, the :func:`~eventsourcing.domain.Ag
 methods of a sequence of aggregate event objects can be used successively to reconstruct
 the current state of an aggregate.
 
-.. code:: python
+.. code-block:: python
 
     a = aggregate_created.mutate(None)
     assert a.id == originator_id
@@ -395,7 +395,7 @@ This is essentially how the :func:`~eventsourcing.application.Repository.get`
 method of an :ref:`application repository <Repository>` reconstructs an aggregate
 from stored events when the aggregate is requested by ID.
 
-.. code:: python
+.. code-block:: python
 
     def reconstruct_aggregate_from_events(events):
         a = None
@@ -424,7 +424,7 @@ construct an aggregate object, subsequent events can receive an aggregate and
 return a modified aggregate, and a final "discarded" event can receive an aggregate
 and return ``None``.
 
-.. code:: python
+.. code-block:: python
 
     class AggregateDiscarded(AggregateEvent):
         def mutate(self, aggregate):
@@ -454,7 +454,7 @@ for example the ``World`` aggregate in the :ref:`Simple example <Aggregate simpl
 below.
 
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.domain import Aggregate
 
@@ -480,7 +480,7 @@ Firstly, the :class:`~eventsourcing.domain.Aggregate` class has a "private" clas
 method :func:`~eventsourcing.domain.MetaAggregate._create` which can be used to create
 a new aggregate object.
 
-.. code:: python
+.. code-block:: python
 
     aggregate_id = uuid4()
     aggregate = Aggregate._create(Aggregate.Created, id=aggregate_id)
@@ -559,7 +559,7 @@ by its :py:obj:`~eventsourcing.domain.Aggregate.id` property. The ID will be ide
 the value passed to the :func:`~eventsourcing.domain.MetaAggregate._create` method
 with the ``id`` argument.
 
-.. code:: python
+.. code-block:: python
 
     assert aggregate.id == aggregate_id
 
@@ -569,7 +569,7 @@ A new aggregate instance has a version number. The version number is presented b
 The initial version of a newly created aggregate is, by default, always ``1``. If you want
 to start at a different number, set ``INITIAL_VERSION`` on the aggregate class.
 
-.. code:: python
+.. code-block:: python
 
     assert aggregate.version == 1
 
@@ -579,7 +579,7 @@ property which gives the date and time when an aggregate object was created, and
 by the timestamp attribute of the first event in the aggregate's sequence, which is the "created"
 event. The timestamps are timezone-aware Python :class:`~datetime.datetime` objects.
 
-.. code:: python
+.. code-block:: python
 
     assert isinstance(aggregate.created_on, datetime)
 
@@ -588,7 +588,7 @@ A new aggregate instance also has a :py:obj:`~eventsourcing.domain.Aggregate.mod
 property which gives the date and time when an aggregate object was last modified, and is determined
 by the timestamp attribute of the last event in the aggregate's sequence.
 
-.. code:: python
+.. code-block:: python
 
     assert isinstance(aggregate.modified_on, datetime)
 
@@ -598,7 +598,7 @@ the :py:obj:`~eventsourcing.domain.Aggregate.created_on` and
 :py:obj:`~eventsourcing.domain.Aggregate.modified_on` values are
 identical, and equal to the timestamp of the "created" event.
 
-.. code:: python
+.. code-block:: python
 
     assert aggregate.created_on == aggregate.modified_on
 
@@ -610,7 +610,7 @@ Secondly, the :class:`~eventsourcing.domain.Aggregate` class has a
 method :func:`~eventsourcing.domain.Aggregate.trigger_event` which can be called
 to trigger a subsequent aggregate event object.
 
-.. code:: python
+.. code-block:: python
 
     aggregate.trigger_event(Aggregate.Event)
 
@@ -670,7 +670,7 @@ Hence, after calling :func:`~eventsourcing.domain.Aggregate.trigger_event`, the 
 :py:obj:`~eventsourcing.domain.Aggregate.version` will have been incremented by ``1``, and the
 ``modified_on`` time should be greater than the ``created_on`` time.
 
-.. code:: python
+.. code-block:: python
 
     assert aggregate.version == 2
     assert aggregate.modified_on > aggregate.created_on
@@ -685,7 +685,7 @@ which can be called to collect the aggregate events that have been created
 either after the last call to this method, or after the aggregate object was
 constructed if the method hasn't been called.
 
-.. code:: python
+.. code-block:: python
 
     pending_events = aggregate.collect_events()
 
@@ -710,7 +710,7 @@ This method will drain the aggregate object's list of pending events, so that if
 method is called again before any further aggregate events have been appended, it will
 return an empty list.
 
-.. code:: python
+.. code-block:: python
 
     pending_events = aggregate.collect_events()
     assert len(pending_events) == 0
@@ -723,7 +723,7 @@ Simple example
 
 In the example below, the ``World`` aggregate is defined as a subclass of the :class:`~eventsourcing.domain.Aggregate` class.
 
-.. code:: python
+.. code-block:: python
 
     class World(Aggregate):
         def __init__(self):
@@ -774,7 +774,7 @@ is expressed in three cohesive parts that are neatly co-located.
 Having defined the ``World`` aggregate class, we can create a new ``World``
 aggregate object by calling the ``World.create()`` class method.
 
-.. code:: python
+.. code-block:: python
 
     world = World.create()
     assert isinstance(world, World)
@@ -786,7 +786,7 @@ These values follow from the ``timestamp`` values of the domain event
 objects, and represent when the aggregate's first and last domain events
 were created.
 
-.. code:: python
+.. code-block:: python
 
     assert world.created_on == world.modified_on
 
@@ -797,7 +797,7 @@ method ``make_it_so()`` which triggers the ``SomethingHappened`` event. The
 of the event to the ``history`` of the ``world``. So when we call the ``make_it_so()``
 command, the argument ``what`` will be appended to the ``history``.
 
-.. code:: python
+.. code-block:: python
 
     # Commands methods trigger events.
     world.make_it_so("dinosaurs")
@@ -813,7 +813,7 @@ command, the argument ``what`` will be appended to the ``history``.
 Now that more than one domain event has been created, the aggregate's
 ``modified_on`` value is greater than its ``created_on`` value.
 
-.. code:: python
+.. code-block:: python
 
     assert world.modified_on > world.created_on
 
@@ -828,7 +828,7 @@ works by calling this method. So far, we have created four domain events and
 we have not yet collected them, and so there will be four pending events: one
 ``Created`` event, and three ``SomethingHappened`` events.
 
-.. code:: python
+.. code-block:: python
 
     # Has four pending events.
     assert len(world.pending_events) == 4
@@ -854,7 +854,7 @@ As discussed above, the event objects can be used to reconstruct
 the current state of the aggregate, by calling their
 :func:`~eventsourcing.domain.AggregateEvent.mutate` methods.
 
-.. code:: python
+.. code-block:: python
 
     copy = None
     for domain_event in pending_events:
@@ -908,7 +908,7 @@ later the page aggregate can be retrieved using the new name. See the discussion
 :ref:`saving multiple aggregates <Saving multiple aggregates>` to see an example of
 how this can work.
 
-.. code:: python
+.. code-block:: python
 
     from uuid import NAMESPACE_URL, uuid5, UUID
     from typing import Optional
@@ -980,7 +980,7 @@ We can use the classes above to create a "page" aggregate with a name that
 we will then change. We can at the same time create an index object for the
 page.
 
-.. code:: python
+.. code-block:: python
 
     page = Page.create(name="Erth")
     index1 = Index.create(page.name, page.id)
@@ -995,7 +995,7 @@ We can use the page name to recreate the index ID, and use the index
 ID to retrieve the index aggregate. We can then obtain the page ID from
 the index aggregate, and then use the page ID to get the page aggregate.
 
-.. code:: python
+.. code-block:: python
 
     index_id = Index.create_id("Erth")
     assert index_id == index1.id
@@ -1007,7 +1007,7 @@ can update the name of the page, and create another index aggregate
 for the new name, so that later we can retrieve the page using
 its new name.
 
-.. code:: python
+.. code-block:: python
 
     page.update_name("Earth")
     index2 = Index.create(page.name, page.id)
@@ -1022,7 +1022,7 @@ be used to refer to a different page.
 We can now use the new name to get the ID of the second index aggregate,
 and imagine using the second index aggregate to get the ID of the page.
 
-.. code:: python
+.. code-block:: python
 
     index_id = Index.create_id("Earth")
     assert index_id == index2.id
@@ -1088,7 +1088,7 @@ An aggregate can be "created" by calling the aggregate class
 directly. You don't actually need to define a class method to do this, although
 you may wish to express your project's ubiquitous language by doing so.
 
-.. code:: python
+.. code-block:: python
 
     class MyAggregate(Aggregate):
         class Started(Aggregate.Created):
@@ -1122,7 +1122,7 @@ event class will be defined automatically to match the signature
 of the init method. That is, a "created" event class will be defined
 that has an attribute ``name``.
 
-.. code:: python
+.. code-block:: python
 
     class MyAggregate(Aggregate):
         def __init__(self, name):
@@ -1164,7 +1164,7 @@ Python's dataclass annotations can be used to define an aggregate's
 ``__init__()`` method. A "created" event class will then be
 automatically defined from the automatically defined method.
 
-.. code:: python
+.. code-block:: python
 
     from dataclasses import dataclass
 
@@ -1188,7 +1188,7 @@ Anything that works on a dataclass should work here too.
 For example, optional arguments can be defined by providing
 default values on the attribute definitions.
 
-.. code:: python
+.. code-block:: python
 
     @dataclass
     class MyAggregate(Aggregate):
@@ -1209,7 +1209,7 @@ that will be initialised in the ``__init__()`` method but not
 appear as arguments of that method, by using the ``field``
 feature of the dataclasses module.
 
-.. code:: python
+.. code-block:: python
 
     from dataclasses import field
     from typing import List
@@ -1242,7 +1242,7 @@ Declaring the created event class name
 
 To give the "created" event class a particular name, use the class argument ``created_event_name``.
 
-.. code:: python
+.. code-block:: python
 
     class MyAggregate(Aggregate, created_event_name="Started"):
         name: str
@@ -1258,7 +1258,7 @@ To give the "created" event class a particular name, use the class argument ``cr
 This is equivalent to declaring a "created" event class
 on the aggregate class.
 
-.. code:: python
+.. code-block:: python
 
     class MyAggregate(Aggregate):
         class Started(Aggregate.Created):
@@ -1278,7 +1278,7 @@ that were created using the old "created" event class that need to be supported,
 then ``created_event_name`` can be used to identify which "created" event
 class is the one to use when creating new aggregate instances.
 
-.. code:: python
+.. code-block:: python
 
     class MyAggregate(Aggregate, created_event_name="Started"):
         class Created(Aggregate.Created):
@@ -1301,7 +1301,7 @@ the name of any of the "created" event classes that are explicitly defined on th
 aggregate class, then an event class will be automatically defined, and it
 will be used when creating new aggregate instances.
 
-.. code:: python
+.. code-block:: python
 
     class MyAggregate(Aggregate, created_event_name="Opened"):
         class Created(Aggregate.Created):
@@ -1327,7 +1327,7 @@ generated when a new aggregate is created. However, the aggregate ID
 can also be defined as a function of the arguments used to create the
 aggregate. You can do this by defining a ``create_id()`` method.
 
-.. code:: python
+.. code-block:: python
 
     class MyAggregate(Aggregate):
         name: str
@@ -1354,7 +1354,7 @@ version 4 UUID, which is the default behaviour for generating aggregate IDs.
 Alternatively, an ``id`` attribute can be declared on the aggregate
 class, and an ``id`` argument supplied when creating new aggregates.
 
-.. code:: python
+.. code-block:: python
 
     def create_id(name: str):
         return uuid5(NAMESPACE_URL, f"/my_aggregates/{name}")
@@ -1375,7 +1375,7 @@ When defining an explicit ``__init__()`` method, the ``id`` argument can
 be set on the object as ``self._id``. Assigning to ``self.id`` won't work
 because ``id`` is defined as a read-only property on the base aggregate class.
 
-.. code:: python
+.. code-block:: python
 
     class MyAggregate(Aggregate):
         def __init__(self, id: UUID):
@@ -1404,7 +1404,7 @@ state of the aggregate. The body of the decorated method will be used as the
 when the aggregate is reconstructed from stored events. The name of the event
 class can be passed to the decorator as a Python ``str``.
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.domain import event
 
@@ -1435,10 +1435,19 @@ class can be passed to the decorator as a Python ``str``.
     # The second pending event has a 'name' attribute.
     assert pending_events[1].name == "bar"
 
+Please also note, if an exception happens to be raised in the decorated method
+body, then the triggered event will not be appended to the internal list of
+pending events as described above. If you are careful, this behaviour (of not
+appending the event to the list of pending events) can be used to validate
+the state of the event against the current state of the aggregate. But if
+you wish to continue using the same aggregate instance after catching a
+validation exception in the caller of the decorated method, please just be
+careful to complete all validation before adjusting the state of the aggregate,
+otherwise you will need to retrieve a fresh instance from the repository.
 
 This decorator also works with the ``__init__()`` methods.
 
-.. code:: python
+.. code-block:: python
 
     class MyAggregate(Aggregate):
         @event("Started")
@@ -1483,7 +1492,7 @@ and then by concatenating the capitalised parts to give an
 ``name_updated`` would give an event class name ``NameUpdated``.
 
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.domain import event
 
@@ -1524,7 +1533,7 @@ For example, if an attempt is made to update the value of an attribute,
 but the given value happens to be identical to the existing value, then
 it might be desirable to skip on having an event triggered.
 
-.. code:: python
+.. code-block:: python
 
     class MyAggregate(Aggregate):
         name: str
@@ -1564,7 +1573,7 @@ a string. The synonymous decorator :data:`@triggers` can be used
 instead of the :data:`@event` decorator (it does the same thing).
 
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.domain import triggers
 
@@ -1606,7 +1615,7 @@ Using the declarative syntax described above, the ``World`` aggregate in
 the :ref:`Simple example <Aggregate simple example>` above can be
 expressed more concisely in the following way.
 
-.. code:: python
+.. code-block:: python
 
     class World(Aggregate):
         def __init__(self):
@@ -1629,7 +1638,7 @@ event, and this event will be used to mutate the state of the aggregate,
 such that the ``make_it_so()`` method argument ``what`` will be
 appended to the aggregate's ``history`` attribute.
 
-.. code:: python
+.. code-block:: python
 
     world = World()
     world.make_it_so("dinosaurs")
@@ -1644,7 +1653,7 @@ appended to the aggregate's ``history`` attribute.
 As before, the pending events can be collected
 and used to reconstruct the aggregate object.
 
-.. code:: python
+.. code-block:: python
 
     pending_events = world.collect_events()
 
@@ -1669,7 +1678,7 @@ The ``Page`` and ``Index`` aggregates defined in the above
 :ref:`discussion about namespaced IDs <Namespaced IDs>` can be expressed more
 concisely in the following way.
 
-.. code:: python
+.. code-block:: python
 
     @dataclass
     class Page(Aggregate):
@@ -1732,11 +1741,20 @@ Non-trivial command methods
 Tn the examples above, the work of the command methods is "trivial", in
 that the command method arguments are always used directly as the aggregate event
 attribute values. But often a command method needs to do some work before
-triggering an event. The event attributes may not be the same as the command
-method arguments. The logic of the command may be such that under some conditions
-an event should not be triggered.
+triggering an event. As a result of this processing, the event attributes
+may not be the same as the command method arguments. And the logic of the
+command may be such that under some conditions an event should not be triggered.
 
-As a final example, consider the following ``Order`` class. It is an ordinary
+Any processing of method arguments that should be done only once, and not
+repeated when reconstructing aggregates from stored events, should be done
+in a undecorated command method. For example, if the triggered event will
+have a new UUID, you will either want to use a separate command method, or
+create this value in the expression used when calling the method, and not
+generate the UUID in the decorated method body. Otherwise, rather than being
+fixed in the stored state of the aggregate, a new UUID will be created each
+time the aggregate is reconstructed.
+
+To illustrate this, consider the following ``Order`` class. It is an ordinary
 Python object class. Its ``__init__()`` method takes a ``name`` argument. The
 method ``confirm()`` sets the attribute ``confirmed_at``. The method
 ``pickup()`` checks that the order has been confirmed before calling
@@ -1748,7 +1766,7 @@ in that it will only trigger an event if the order has been confirmed. That
 means we can't decorate the ``pickup()`` method with the :data:`@event` decorator
 without triggering an unwanted event.
 
-.. code:: python
+.. code-block:: python
 
     class Order:
         def __init__(self, name):
@@ -1772,7 +1790,7 @@ without triggering an unwanted event.
 This ordinary Python class can used in the usual way. We can construct
 a new instance of the class, and call its command methods.
 
-.. code:: python
+.. code-block:: python
 
     # Start a new order, confirm, and pick up.
     order = Order("my order")
@@ -1801,7 +1819,7 @@ is triggered. The body of the ``pickup()`` method is only executed when the
 command method is called, whereas the body of the ``_pickup()`` method is
 executed each time the event is applied to evolve the state of the aggregate.
 
-.. code:: python
+.. code-block:: python
 
     class Order(Aggregate):
         def __init__(self, name):
@@ -1829,7 +1847,7 @@ ordinary Python ``Order`` class. The event sourced version has the advantage
 that using it will trigger a sequence of aggregate events that can be persisted in
 a database and used in future to determine the state of the order.
 
-.. code:: python
+.. code-block:: python
 
     order = Order("my order")
     order.confirm(datetime.now())
@@ -1874,12 +1892,11 @@ If you wish to use this style, just make sure to raise an exception rather
 than returning early, and make sure not to change the state of the aggregate
 if an exception may be raised later. Returning early will mean the event
 will be appended to the list of pending events. Changing the state before
-raising an exception will the state will be different when the aggregate
-is reconstructed from stored events. So if your method does change state
-and then raise an exception, make sure to obtain a fresh version of the
-aggregate before continuing to trigger events.
+raising an exception will mean the state will differ from the recorded state.
+So if your method does change state and then raise an exception, make sure to
+obtain a fresh version of the aggregate before continuing to trigger events.
 
-.. code:: python
+.. code-block:: python
 
     class Order(Aggregate):
         def __init__(self, name):
@@ -1937,7 +1954,7 @@ However, it is recommended to inherit from the :class:`~eventsourcing.domain.Agg
 class rather than using the ``@aggregate`` decorator so that full the
 :class:`~eventsourcing.domain.Aggregate` class definition will be visible to your IDE.
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.domain import aggregate
 
@@ -1965,7 +1982,7 @@ according to the local timezone of a particular user. You can localize date-time
 values by calling :data:`astimezone()` on a :class:`datetime` object, passing in
 a :class:`tzinfo` object.
 
-.. code:: python
+.. code-block:: python
 
     from datetime import timezone
     try:
@@ -2024,6 +2041,7 @@ on some systems. Please note, the ``zoneinfo`` package is new in Python 3.9, so 
 of earlier versions of Python may wish to install the ``backports.zoneinfo`` package.
 
 ::
+
     $ pip install 'backports.zoneinfo;python_version<"3.9"'
 
 
@@ -2035,7 +2053,7 @@ desired, or indeed necessary, to use a different initial version number.
 
 In the example below, the initial version number of the class ``MyAggregate`` is defined to be ``0``.
 
-.. code:: python
+.. code-block:: python
 
     class MyAggregate(Aggregate):
         INITIAL_VERSION = 0
@@ -2073,7 +2091,7 @@ Topics are also used to identify infrastructure factory class objects, and in ot
 such as identifying the cipher and compressor classes to be used by an application, and to identify
 the timezone object to be used when creating timestamps.
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.utils import get_topic, resolve_topic
 
@@ -2111,7 +2129,7 @@ modules in the renamed package.
 
 See the examples below.
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.utils import register_topic
 
@@ -2181,7 +2199,7 @@ need to define upcast methods or version numbers on the aggregate class.
 
 In the example below, version ``1`` of the class ``MyAggregate`` is defined with an attribute ``a``.
 
-.. code:: python
+.. code-block:: python
 
     class MyAggregate(Aggregate):
         def __init__(self, a:str):
@@ -2204,7 +2222,7 @@ on the ``Created`` event sets a default value for ``b`` in the given ``state``. 
 ``class_version`` is set to ``2``. The same treatment is given to the aggregate class as the domain
 event class, so that snapshots can be upcast.
 
-.. code:: python
+.. code-block:: python
 
     class MyAggregate(Aggregate):
         def __init__(self, a:str, b:int):
@@ -2242,7 +2260,7 @@ defined on the ``Created`` event sets a default value for ``c`` in the given ``s
 ``class_version`` is set to ``3``. The same treatment is given to the aggregate class as the domain event
 class, so that any snapshots will be upcast.
 
-.. code:: python
+.. code-block:: python
 
     class MyAggregate(Aggregate):
         def __init__(self, a:str, b:int, c:float):
@@ -2287,7 +2305,7 @@ defined on the aggregate class which upcasts the state of a previously created s
 below, the new attribute ``d`` is initialised in the ``__init__()`` method, and a domain event which
 updates ``d`` is defined. Since the ``Created`` event class has not changed, it remains at version ``3``.
 
-.. code:: python
+.. code-block:: python
 
     class MyAggregate(Aggregate):
         def __init__(self, a:str, b:int, c:float):
@@ -2376,14 +2394,14 @@ It is defined as a frozen data class and extends the base class with attributes
 ``topic`` and ``state``, which hold the topic of an aggregate object class and
 the current state of an aggregate object.
 
-.. code:: python
+.. code-block:: python
 
     from eventsourcing.domain import Snapshot
 
 The class method :func:`~eventsourcing.domain.Snapshot.take` can be used to
 create a snapshot of an aggregate object.
 
-.. code:: python
+.. code-block:: python
 
     snapshot = Snapshot.take(world)
 
@@ -2400,7 +2418,7 @@ create a snapshot of an aggregate object.
 A snapshot's :func:`~eventsourcing.domain.Snapshot.mutate` method can be used to reconstruct its
 aggregate object instance.
 
-.. code:: python
+.. code-block:: python
 
     copy = snapshot.mutate(None)
 
