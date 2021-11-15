@@ -9,3 +9,4 @@ A tutorial for event sourcing in Python.
 
    tutorial/part1
    tutorial/part2
+   tutorial/part3

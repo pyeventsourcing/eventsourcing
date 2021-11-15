@@ -120,7 +120,7 @@ The changes are highlighted below.
             self.history = []
 
         @event('SomethingHappened')
-        def make_it_so(self, what) -> None:
+        def make_it_so(self, what):
             self.history.append(what)
 
 
@@ -212,9 +212,6 @@ and query methods (to view current state).
 
 .. code-block:: python
 
-    from typing import Tuple
-
-
     class Universe(Application):
         def create_world(self, name):
             world = World(name)
@@ -230,9 +227,7 @@ and query methods (to view current state).
             return self._get_world(world_id).history
 
         def _get_world(self, world_id):
-            world = self.repository.get(world_id)
-            assert isinstance(world, World)
-            return world
+            return self.repository.get(world_id)
 
 We can collect and record aggregate events within application command methods by
 using the application ``save()`` method. And we can use the repository ``get()``
