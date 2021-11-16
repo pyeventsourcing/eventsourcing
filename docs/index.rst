@@ -15,11 +15,7 @@ Contents
    topics/installing
    topics/tutorial
    topics/examples
-   topics/domain
-   topics/application
-   topics/persistence
-   topics/system
-   topics/interface
+   topics/modules
    topics/release_notes
    topics/support
 
