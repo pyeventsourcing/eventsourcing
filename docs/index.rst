@@ -14,10 +14,10 @@ Contents
    topics/introduction
    topics/installing
    topics/tutorial
-   topics/examples
    topics/modules
-   topics/release_notes
+   topics/examples
    topics/support
+   topics/release_notes
 
 
 Modules Reference
