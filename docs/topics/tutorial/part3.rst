@@ -261,7 +261,6 @@ The application object can be configured using
 work with different databases, and optionally to encrypt and compress
 stored events. By default, the application serialises aggregate events
 using JSON, and stores them in memory as "plain old Python objects".
-This is how the application objects have been working in this tutorial.
 
 The library also supports storing events in SQLite and PostgreSQL databases.
 Other databases are available. See the library's extension
@@ -379,7 +378,9 @@ Development environment
 We can run the test in a "development" environment using the application's
 default "plain old Python objects" infrastructure which keeps stored events
 in memory. The example below runs without compression or encryption of the
-stored events.
+stored events. This is how the application objects have been working in this
+tutorial so far.
+
 
 .. code-block:: python
 
