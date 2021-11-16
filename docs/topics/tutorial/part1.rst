@@ -1,6 +1,6 @@
-=================
-Tutorial - Part 1
-=================
+===================================
+Tutorial - Part 1 - Getting Started
+===================================
 
 Python classes
 ==============
@@ -305,7 +305,6 @@ modules.
             'trucks'
         ]
 
-
 Exercise
 ========
 
@@ -315,3 +314,10 @@ Try it for yourself by copying the code snippets above and running the test.
 .. code-block:: python
 
     test()
+
+
+Next steps
+==========
+
+For more information about event-sourced aggregates, please read through
+:doc:`Part 2 </topics/tutorial/part2>` of this tutorial.

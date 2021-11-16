@@ -1,19 +1,19 @@
-=================
-Tutorial - Part 3
-=================
+================================
+Tutorial - Part 3 - Applications
+================================
 
 
 As we saw in :doc:`Part 1 </topics/tutorial/part1>`, we can
-use the application base class ``Application`` from the
-:doc:`application module </topics/application>`, combined with
-event-sourced aggregates, to define event-sourced applications.
+use the application base class ``Application`` combined with
+event-sourced aggregates (see :doc:`Part 2 </topics/tutorial/part2>`)
+to define event-sourced applications.
 
-The ``Universe`` application class, defined below, has a command method
-``create_world()`` that creates and saves a new aggregate. It has a
-command method ``make_it_so()`` that retrieves a previously saved aggregate,
-calls ``make_it_so()`` on the aggregate, and then saves the modified aggregate.
-And it has a query method ``get_history()`` that retrieves and returns
-the ``history`` of an aggregate object.
+For example, the ``Universe`` application class, defined below, has a
+command method ``create_world()`` that creates and saves a new aggregate.
+It has a command method ``make_it_so()`` that retrieves a previously saved
+aggregate, calls ``make_it_so()`` on the aggregate, and then saves the
+modified aggregate. And it has a query method ``get_history()`` that
+retrieves and returns the ``history`` of an aggregate object.
 
 .. code-block:: python
 
@@ -581,3 +581,15 @@ an SQLite database. Secondly, create a PostgreSQL database, and configure
 and run your application with a PostgreSQL database. Connect to the databases
 with the command line clients for SQLite and PostgreSQL, and examine the
 database tables to verify that stored events have been recorded.
+
+
+Next steps
+==========
+
+For more information about event-sourced aggregates, please read through
+the :doc:`domain module documentation </topics/domain>`.
+For more information about event-sourced applications, please read through
+the :doc:`application module documentation </topics/application>`.
+For more information about the persistence mechanism for event-sourced
+applications, please read through the the
+:doc:`persistence module documentation </topics/persistence>`.

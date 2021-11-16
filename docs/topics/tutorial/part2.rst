@@ -1,6 +1,6 @@
-=================
-Tutorial - Part 2
-=================
+==============================
+Tutorial - Part 2 - Aggregates
+==============================
 
 As we saw in :doc:`Part 1 </topics/tutorial/part1>`, we can
 use the aggregate base class ``Aggregate``, combined with the
@@ -287,6 +287,7 @@ aggregates from saved events when its ``get()`` is called.
 
 You can try all of this for yourself by copying the code snippets above.
 
+
 Exercise
 ========
 
@@ -357,3 +358,10 @@ Define a method ``add_trick()`` that adds new tricks. Copy the test below and ma
     #include-when-testing
 ..
     test()
+
+
+Next steps
+==========
+
+For more information about event-sourced applications, please read through
+:doc:`Part 3 </topics/tutorial/part3>` of this tutorial.
