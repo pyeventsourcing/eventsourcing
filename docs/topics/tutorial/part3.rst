@@ -2,9 +2,18 @@
 Tutorial - Part 3
 =================
 
+
 As we saw in :doc:`Part 1 </topics/tutorial/part1>`, we can
-use the application base class ``Application`` to define
-event-sourced applications in Python.
+use the application base class ``Application`` from the
+:doc:`application module </topics/application>`, combined with
+event-sourced aggregates, to define event-sourced applications.
+
+The ``Universe`` application class, defined below, has a command method
+``create_world()`` that creates and saves a new aggregate. It has a
+command method ``make_it_so()`` that retrieves a previously saved aggregate,
+calls ``make_it_so()`` on the aggregate, and then saves the modified aggregate.
+And it has a query method ``get_history()`` that retrieves and returns
+the ``history`` of an aggregate object.
 
 .. code-block:: python
 
@@ -41,79 +50,134 @@ event-sourced applications in Python.
             self.history.append(what)
 
 
-We can create an application object, and call its methods.
+As we have seen, we can construct an application object and call its methods.
 
 .. code-block:: python
 
     application = Universe()
-
     world_id = application.create_world('Earth')
     application.make_it_so(world_id, 'dinosaurs')
     application.make_it_so(world_id, 'trucks')
     application.make_it_so(world_id, 'internet')
-
     history = application.get_history(world_id)
     assert history == ['dinosaurs', 'trucks', 'internet']
 
 
+
+We have seen what we can do with event-sourced applications.
 Let's explore how this works in more detail.
 
 
 Applications in more detail
 ===========================
 
-An application object in this library roughly corresponds to a "bounded context"
-in Domain-Driven Design. An application can have aggregates of different types in
-its domain model. They are accessed and manipulated with commands and queries.
-An application also has a persistence mechanism for storing and retrieving aggregate
-events.
+An event-sourced application comprises many event-sourced aggregates,
+and a persistence mechanism to store and retrieve aggregate events.
+Constructing an application object constructs the a default persistence
+mechanism the application will use to store and retrieve events. The
+construction of the persistence mechanism can be easily configured, with
+alternative objects substituted for the standard defaults.
 
-As we saw in the example above, we can construct an application object by calling
-an application class. The example above defines an event-sourced application named
-``Universe``. The application class uses the application base class
-``Application``. When the application class is called, an application
-object is constructed.
+To be specific, an application object has a repository object. The repository
+object has an event store. The event store object has a mapper. The mapper
+object has a transcoder, an optional compressor, and an optional cipher. The
+application also has a notification log. The notification log object
+has a recorder.
+
+The event store converts aggregate events to a common type of object called
+"stored events", using the mapper. The mapper uses the transcoder to serialize
+aggregate events, and optionally to compress and encrypt the serialised state.
+The recorder adapts a particular database, supporting the recording of stored events
+in that database.
+
+The repository reconstructs aggregate objects from aggregate event objects that
+it retrieves from the event store. The event store gets stored events from the
+recorder, and uses the mapper to convert them to aggregate events. The mapper
+uses the transcoder to optionally decrypt and deserialize recorded data
+and deserialize stored events to aggregate events.
+
+The recorder also puts the stored events in a total order, and allows this order
+to be selected from. The notification log selects events from this order as
+the event notifications of the application.
+
+For example, when we call the ``Universe`` class, the application object that
+is constructed that has all of these objects as its attributes.
 
 .. code-block:: python
 
     application = Universe()
+    assert application.repository
+    assert application.repository.event_store
+    assert application.repository.event_store.mapper
+    assert application.repository.event_store.mapper.transcoder
+    assert application.repository.event_store.recorder
+    assert application.log
+    assert application.log.recorder
 
-The ``Universe`` application class has a command method ``create_world()``
-that creates and saves new instances of the aggregate class ``World``. It has a
-command method ``make_it_so()`` that calls the aggregate command method
-``make_it_so()`` of an already existing aggregate object. And it
-has a query method ``get_history()`` that returns the ``history`` of
-an aggregate object.
+In addition to these attributes, an application object has a method ``save()``
+which collects new aggregate events and puts them in the event store.
+The repository also has a method ``get()`` which reconstructs aggregates
+that have been previously saved.
+
+The application ``save()`` method saves aggregates by
+collecting and storing pending aggregate events. The ``save()``
+method calls the given aggregates' ``collect_events()`` method and
+puts the pending aggregate events in the event store, with a
+guarantee that either all of the events will be stored or none of
+them will be.
+
+The application ``repository`` has a ``get()``
+method that can be used to obtain previously saved aggregates.
+The ``get()`` method is called with an aggregate ID. It retrieves
+stored events for an aggregate from an event store, selecting them
+using the given ID, then reconstructs the aggregate object from its
+previously stored events calling the ``mutate()`` method of aggregate
+event objects, and then returns the reconstructed aggregate object to
+the caller.
+
+In addition to these attributes and these methods, a subclass of
+``Application`` will usually define command and query methods, which
+make use of the application's ``save()`` method and the repository's
+``get()`` method.
+
+For example, the ``Universe`` class has a ``create_world()`` method
+and a ``make_it_so()`` method, which can be considered a command methods.
+It also has a ``get_history()`` method, which can be considered a query
+method.
+
 
 Command methods
 ===============
 
-When the application command method ``create_world()`` is called,
-a new ``World`` aggregate object is created, the new aggregate
-object is saved by calling the application's ``save()`` method,
-and then the ID of the aggregate is returned to the caller.
+Let's consider the ``create_world()`` and ``make_it_so()`` methods
+of the ``Universe`` application.
 
-Let's create a new aggregate by calling the application method ``create_world()``.
+Firstly, let's create a new aggregate by calling the application method ``create_world()``.
 
 .. code-block:: python
 
     world_id = application.create_world('Earth')
 
+When the application command method ``create_world()``
+is called, a new ``World`` aggregate object is created, by calling
+the aggregate class. The new aggregate object is saved by calling
+the application's ``save()`` method, and then the ID of the aggregate
+is returned to the caller.
 
-We can evolve the state of the application's aggregate by calling the
+We can then evolve the state of the aggregate by calling the
 application command method ``make_it_so()``.
-
-When the application command method ``make_it_so()`` is called with
-the ID of an aggregate, the repository is used to get the
-aggregate, the aggregate's ``make_it_so()`` method is called with
-the given value of ``what``, and the aggregate is saved by calling
-the application's ``save()`` method.
 
 .. code-block:: python
 
     application.make_it_so(world_id, 'dinosaurs')
     application.make_it_so(world_id, 'trucks')
     application.make_it_so(world_id, 'internet')
+
+When the application command method ``make_it_so()`` is called with
+the ID of an aggregate, the ``get()`` method of the ``repository`` is
+used to get the aggregate, the aggregate's ``make_it_so()`` method is
+called with the given value of ``what``, and the aggregate is then
+saved by calling the application's ``save()`` method.
 
 
 Query methods
@@ -129,16 +193,20 @@ application query method ``get_history()``.
 
 
 When the application query method ``get_history()`` is called with
-the ID of an aggregate, the repository is used to get the
-aggregate, and the value of the aggregate's ``history`` attribute
-is returned to the caller.
+the ID of an aggregate, the ``get()`` method of the ``repository``
+is used to reconstruct the aggregate from saved events, and the value
+of the aggregate's ``history`` attribute is returned to the caller.
 
 
 Event notifications
 ===================
 
-The ``Application`` class also has a ``log`` attribute,
+The ``Application`` class has a ``log`` attribute,
 which is a 'notification log' (aka the 'outbox pattern').
+This pattern avoids the "dual writing" problem of recording
+application state and separately sending messages about
+the changes. Please note, it is equally important to avoid
+"dual writing" in the consumption of event notifications.
 
 The notification log can be used to propagate the state of
 the application in a manner that supports deterministic
@@ -149,8 +217,18 @@ event notifications.
 
 The log presents the aggregate events in the order in which
 they were stored. Each of the event notifications has an integer
-ID which increases along the sequence.
+ID which increases along the sequence. An event notification is
+simply a stored event (see above) that also has an ``id`` attribute.
+Therefore, depending on the configuration of the application, it
+may be already compressed and encrypted.
 
+The ``select()`` method of the notification log can be used
+to obtain a selection of the application's event notifications.
+The argument ``start`` can be used to progressively read all
+of a potentially very large number of event notifications.
+The ``limit`` argument can be used to restrict the number
+of event notifications that will be returned when the method
+is called.
 
 .. code-block:: python
 
@@ -174,52 +252,31 @@ ID which increases along the sequence.
     assert world_id == notifications[3].originator_id
 
 
-How does it work?
-=================
+Application configuration
+=========================
 
 The ``Application`` class provides persistence infrastructure that can
 collect, serialise, and store aggregate events. It can also reconstruct
-aggregates from stored events.
-
-The application ``save()`` method saves aggregates by
-collecting and storing pending aggregate events. The ``save()``
-method calls the given aggregate's ``collect_events()`` method and
-puts the pending aggregate events in an event store, with a
-guarantee that either all the events will be stored or none of
-them will be.
-
-The application ``repository`` has a ``get()``
-method that can be used to obtain previously saved aggregates.
-The ``get()`` method is called with an aggregate ID. It retrieves
-stored events for an aggregate from an event store, then
-reconstructs the aggregate object from its previously stored
-events (see above), and then returns the reconstructed aggregate object to
-the caller.
-
-The application class can be configured using
-environment variables to work with different databases, and
-optionally to encrypt and compress stored events. By default,
-the application serialises aggregate events using JSON, and
-stores them in memory as "plain old Python objects". The library
-includes support for storing events in SQLite and PostgreSQL (see
-below). Other databases are available.
-
-
-Persistence mechanisms
-======================
-
-An event-sourced application has a mechanism for storing
-and retrieving events. Events can be stored in different
+aggregates from stored events. Events can be stored in different
 ways. An application object can be configured to use one
 of many different ways of storing and retrieving events.
 
-The ``test()`` function below demonstrates the example in more detail,
-by creating many aggregates in one application, reading event
-notifications from the application log, retrieving historical
-versions of an aggregate. The optimistic concurrency control
-feature, and the compression and encryption features are also
-demonstrated. We will use this test several times with different
-configurations of persistence for our application object.
+The application object can be configured using environment variables to
+work with different databases, and optionally to encrypt and compress
+stored events. By default, the application serialises aggregate events
+using JSON, and stores them in memory as "plain old Python objects".
+The library includes support for storing events in SQLite and PostgreSQL
+(see below). Other databases are available. See the library's extension
+projects for more information about what is currently supported.
+
+The ``test()`` function below demonstrates the example ``Universe``
+application in more detail, by creating many aggregates in one
+application, reading event notifications from the application log,
+retrieving historical versions of an aggregate. The optimistic
+concurrency control feature, and the compression and encryption
+features are also demonstrated. We will use this test several
+times with different configurations of persistence for our
+application object.
 
 .. code-block:: python
 
@@ -490,8 +547,9 @@ already been created, and the database server is running locally.
 
 
 Please note, to avoid interleaving of inserts when writing events, an
-'EXCLUSIVE' mode table lock is acquired when using PostgreSQL. This
-effectively serialises writing events. It prevents concurrent transactions
+'EXCLUSIVE' mode table lock is acquired when using PostgreSQL.
+The issue is that insert order and commit order are not necessarily the same.
+This effectively serialises writing events. It prevents concurrent transactions
 interleaving inserts, which would potentially cause notification log readers
 that are tailing the application notification log to miss event notifications.
 Reading from the table can proceed concurrently with other readers and writers,
@@ -512,3 +570,14 @@ we can construct the application and run the test using PostgreSQL.
     # Run the test.
     test(app, expect_visible_in_db=False)
 
+
+Exercise
+========
+
+Follow the steps in this tutorial in your development environment.
+
+Firstly, configure and run the application code you have written with
+an SQLite database. Secondly, create a PostgreSQL database, and configure
+and run your application with a PostgreSQL database. Connect to the databases
+with the command line clients for SQLite and PostgreSQL, and examine the
+database tables to verify that stored events have been recorded.

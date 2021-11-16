@@ -3,8 +3,8 @@ Tutorial - Part 2
 =================
 
 As we saw in :doc:`Part 1 </topics/tutorial/part1>`, we can
-use the aggregate base class ``Aggregate`` and the ``@event``
-decorator to define event-sourced aggregates in Python.
+use the aggregate base class ``Aggregate``, combined with the
+``@event`` decorator, to define event-sourced aggregates in Python.
 
 .. code-block:: python
 

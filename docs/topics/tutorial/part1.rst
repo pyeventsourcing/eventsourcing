@@ -191,10 +191,8 @@ with aggregates usually happen inside an application.
 Event-sourced application
 =========================
 
-An event-sourced application is a software application that interacts with
-a collection of event-sourced aggregates. An event-sourced application comprises
-many event-sourced aggregates, and a mechanism to store and retrieve aggregate
-events.
+An event-sourced application comprises many event-sourced aggregates,
+and a persistence mechanism to store and retrieve aggregate events.
 
 We can use the application base class ``Application`` from the
 :doc:`application module </topics/application>` to define event-sourced applications
