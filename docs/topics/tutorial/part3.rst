@@ -271,11 +271,12 @@ The ``test()`` function below demonstrates the example ``Universe``
 application in more detail, by creating many aggregates in one
 application, by reading event notifications from the application log,
 by retrieving historical versions of an aggregate, and so on. The
-steps are commented for greater readability. The optimistic concurrency
-control, and the compression and encryption features are also demonstrated.
-Below, the ``test()`` function is used several times with different
-configurations of persistence for our application object: with "plain old
-Python objects", with SQLite, and then with PostgreSQL.
+optimistic concurrency control, and the compression and encryption
+features are also demonstrated. The steps are commented for greater
+readability. Below, the ``test()`` function is used several times
+with different configurations of persistence for our application
+object: with "plain old Python objects", with SQLite, and then
+with PostgreSQL.
 
 .. code-block:: python
 
