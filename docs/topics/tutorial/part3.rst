@@ -4,8 +4,9 @@ Tutorial - Part 3 - Applications
 
 
 As we saw in :doc:`Part 1 </topics/tutorial/part1>`, we can
-use the library's ``Application`` class combined with
-event-sourced aggregates to define event-sourced applications.
+use the library's ``Application`` class to define event-sourced
+applications.
+
 For example, the ``Universe`` application class, defined below, has a
 command method ``create_world()`` that creates and saves a new aggregate.
 It has a command method ``make_it_so()`` that retrieves a previously saved
@@ -43,7 +44,7 @@ retrieves and returns the ``history`` of an aggregate object. The
             self.history = []
 
         @event('SomethingHappened')
-        def make_it_so(self, what) -> None:
+        def make_it_so(self, what):
             self.history.append(what)
 
 

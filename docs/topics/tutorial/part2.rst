@@ -10,9 +10,7 @@ use the aggregate base class ``Aggregate``, combined with the
 
     from eventsourcing.domain import Aggregate, event
 
-We have seen what we can do with event-sourced aggregates and
-applications. Let's look at how event-sourced aggregates work
-in more detail.
+Let's look at how event-sourced aggregates work in more detail.
 
 Aggregates in more detail
 =========================
@@ -277,7 +275,7 @@ The attributes of the event objects follow from the signatures of the
 decorated methods. The ``__init__()`` method has a ``name`` argument
 and so the "started" event has a ``name`` attribute. The ``make_it_so()``
 method has a ``what`` attribute, and so the "something happened" event
-has a ``what`` attribut. The arguments of a method decorated with ``@event``
+has a ``what`` attribute. The arguments of a method decorated with ``@event``
 are used to define the attributes of an event class. When the method is called,
 the values of the method arguments are used to construct an event object. The
 method body is then executed with the attributes of the event. The resulting
