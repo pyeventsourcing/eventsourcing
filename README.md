@@ -26,13 +26,8 @@ install Python packages into a Python virtual environment.
 
 ## Synopsis
 
-Use the library's `Aggregate` base class and `@event` decorator to define
-event-sourced aggregates.
-
-Derive your aggregate classes from the `Aggregate`
-base class. Create new aggregate instances by calling the derived
-aggregate class. Use the `@event` decorator to define aggregate event
-classes. Events will be triggered when decorated methods are called.
+Use the library's `Aggregate` base class to define event-sourced aggregates.
+Use the `@event` decorator on command methods to define aggregate events.
 
 ```python
 from eventsourcing.domain import Aggregate, event
@@ -40,79 +35,71 @@ from eventsourcing.domain import Aggregate, event
 
 class World(Aggregate):
     @event('Created')
-    def __init__(self, name: str) -> None:
+    def __init__(self, name):
         self.name = name
-        self.history = ()
+        self.history = []
 
     @event('SomethingHappened')
-    def make_it_so(self, what: str) -> None:
-        self.history += (what,)
+    def make_it_so(self, what):
+        self.history.append(what)
 ```
 
 Use the library's `Application` class to define an event-sourced application.
-Applications store and retrieve aggregates, using a persistence mechanism for
-aggregate events.
-
-Derive your application classes from the `Application` base class. Add command
-and query methods to manipulate and access the state of the application.
+Add command and query methods that use event-sourced aggregates.
 
 ```python
-from typing import Tuple
-from uuid import UUID
-
 from eventsourcing.application import Application
 
 
 class Universe(Application):
-    def create_world(self, name: str) -> UUID:
+    def create_world(self, name):
         world = World(name)
         self.save(world)
         return world.id
 
-    def make_it_so(self, world_id: UUID, what: str) -> None:
-        world = self._get_world(world_id)
+    def make_it_so(self, world_id, what):
+        world = self.repository.get(world_id)
         world.make_it_so(what)
         self.save(world)
 
-    def get_history(self, world_id) -> Tuple:
-        return self._get_world(world_id).history
-
-    def _get_world(self, world_id) -> World:
+    def get_history(self, world_id):
         world = self.repository.get(world_id)
-        assert isinstance(world, World)
-        return world
-
+        return world.history
 ```
 
-Construct an instance of the application by calling the application class.
+Construct an application object by calling the application class.
 
 ```python
 application = Universe()
-
 ```
 
-Create a new aggregate by calling the application method `create_world()`.
+Evolve the state of the application by calling the
+application command methods.
 
 ```python
 world_id = application.create_world('Earth')
-```
-
-Evolve the state of the application's aggregate by calling the
-application command method `make_it_so()`.
-
-```python
 application.make_it_so(world_id, 'dinosaurs')
 application.make_it_so(world_id, 'trucks')
 application.make_it_so(world_id, 'internet')
-
 ```
 
-Access the state of the application's aggregate by calling the
-application query method `get_history()`.
+Access the state of the application by calling the
+application query methods.
 
 ```python
 history = application.get_history(world_id)
-assert history == ('dinosaurs', 'trucks', 'internet')
+assert history == ['dinosaurs', 'trucks', 'internet']
+```
+
+Configure an application by setting environment variables.
+
+```python
+application = Universe(
+    env={
+        'FACTORY_TOPIC': 'eventsourcing.sqlite.Factory',
+        'SQLITE_DBNAME': ':memory:',
+    }
+)
 ```
 
 See the library's [documentation](https://eventsourcing.readthedocs.io/)
@@ -158,6 +145,7 @@ running.
 
 **Detailed documentation** — documentation provides general overview, introduction
 of concepts, explanation of usage, and detailed descriptions of library classes.
+All code is annotated with type hints.
 
 **Worked examples** — includes examples showing how to develop aggregates, applications
 and systems.

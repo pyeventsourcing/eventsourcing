@@ -39,7 +39,6 @@ calling the class object.
 Normally when a class instance is constructed by calling the class object, Python directly
 instantiates and initialises the class instance. However, when a subclass of ``Aggregate``
 is called, the class instance is constructed in a slightly indirect way.
-
 Firstly, an event object is constructed. This event object represents the fact the aggregate
 was "created". Then, this event object is used to construct and initialise the aggregate
 object. The point being, that same event object can be used again to reconstruct the aggregate
@@ -73,22 +72,30 @@ the aggregate object was constructed when the aggregate class was called.
 
 Next, let's talk about aggregate events in more detail.
 
-Events in more detail
-=====================
+"Created" events
+================
 
 When the aggregate class code was interpreted by Python, a "created" event
 class was automatically defined on the aggregate class object. The name of the
 "created" event class was given the default name "Created".
 
+The general occurrence of creating aggregate objects requires a general
+name. The term "created" is used here for this purpose. Naturally, we will
+need to think of suitable names for the particular aggregate events we will
+define in our domain models, but sadly the library can't us help with
+that.
+
 .. code-block:: python
 
     assert isinstance(World.Created, type)
 
-The event we collected from the aggregate is an instance of this class.
+
+The event we collected from the aggregate is an instance of ``World.Created``.
 
 .. code-block:: python
 
     assert isinstance(events[0], World.Created)
+
 
 We can specify an aggregate event class by decorating an aggregate method
 with the ``@event`` decorator. The event specified by the decorator will
@@ -129,11 +136,6 @@ construct and initialise aggregate objects.
 
     assert issubclass(World.Started, Aggregate.Created)
 
-This general occurrence, of creating aggregate objects, needs a general
-name. The name "created" is used for this purpose. We will need to
-think of suitable names for the particular aggregate events we will
-define in our domain models, but sadly the library can't us help with
-that.
 
 Again, as above, we can create a new aggregate instance by calling
 the aggregate class. But this time, we need to provide a value for
@@ -173,6 +175,17 @@ aggregate's ``__init__()`` method.
 
     assert events[0].name == 'Earth'
 
+
+The "created" event object can be used to reconstruct the initial state of
+the aggregate.
+
+.. code-block:: python
+
+    assert events[0].mutate(None) == world
+
+
+Subsequent events
+=================
 
 We can take this further by defining a second method that will be used
 to change the aggregate object after it has been created.
@@ -225,7 +238,7 @@ and the ``history`` attribute is an empty list.
     assert world.name == 'Earth'
     assert world.history == []
 
-Now let's call ``make_it_so()`` method, with the value ``'Python'``.
+Now let's call ``make_it_so()`` with the value ``'Python'`` as the argument.
 
 .. code-block:: python
 
@@ -260,16 +273,18 @@ Just like the "started" event has a ``name`` attribute, so the
     assert isinstance(events[1], World.SomethingHappened)
     assert events[1].what == 'Python'
 
-This follows from the signatures of the ``__init__()`` and
-the ``make_it_so()`` methods.
-
-The arguments of a method decorated with ``@event`` are used to define
-the attributes of an event class. When the method is called, the values
-of the method arguments are used to construct an event object. The method
-body is then executed with the attributes of the event. The result is the
-same as if the method was not decorated. The difference is that a sequence
-of events is generated. The point being, this sequence of events can be
-used in future to reconstruct the current state of the aggregate.
+The attributes of the event objects follow from the signatures of the
+decorated methods. The ``__init__()`` method has a ``name`` argument
+and so the "started" event has a ``name`` attribute. The ``make_it_so()``
+method has a ``what`` attribute, and so the "something happened" event
+has a ``what`` attribut. The arguments of a method decorated with ``@event``
+are used to define the attributes of an event class. When the method is called,
+the values of the method arguments are used to construct an event object. The
+method body is then executed with the attributes of the event. The resulting
+state of the aggregate is the same as if the method were not decorated. The
+difference is that a sequence of events is generated. The point being, this
+sequence of events can be used in future to reconstruct the current state
+of the aggregate.
 
 .. code-block:: python
 
@@ -292,7 +307,9 @@ Exercise
 ========
 
 Define a ``Dog`` aggregate, that has a given ``name`` and a list of ``tricks``.
-Define a method ``add_trick()`` that adds new tricks. Copy the test below and make it pass.
+Define a method ``add_trick()`` that adds a new trick. Specify the name of
+the "created" event to be ``'Named'`` and the name of the subsequent event
+to be ``'TrickAdded'``. Copy the test below and make it pass.
 
 ..
     #include-when-testing

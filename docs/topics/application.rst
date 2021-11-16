@@ -200,12 +200,14 @@ objects. To store the domain events in a real database, simply
 :ref:`configure persistence<Persistence>` by setting environment
 variables for the application.
 
+.. _Application environment:
 
 Application environment
 =======================
 
-You can set
-the application's environment either on the ``env`` attribute of the application class, in the
+An application can be configured using environment variables. You
+can set the application's environment either on the ``env``
+attribute of the application class, in the
 `operating system environment <https://docs.python.org/3/library/os.html#os.environ>`__,
 or by passing them into the application using the constructor argument ``env``. You
 can use all three ways for configuring an application in combination.

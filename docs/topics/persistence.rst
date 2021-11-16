@@ -762,7 +762,7 @@ be used to enable compression and encryption of stored events when using POPO in
 SQLite
 ======
 
-The module :mod:`eventsourcing.sqlite` supports storing events in SQLite.
+The library supports storing events in `SQLite <https://www.sqlite.org/>`__.
 
 The library's SQLite :class:`~eventsourcing.sqlite.Factory` uses various
 environment variables to control the construction and configuration of its
@@ -772,12 +772,12 @@ The environment variable ``SQLITE_DBNAME`` is required to set the name of a data
 normally a file path, but the special name ``:memory:`` can be used to create an
 in-memory database.
 
-The optional environment variable ``SQLITE_LOCK_TIMEOUT`` may be used to adjust the SQLite timeout
-value. A file-based SQLite database will have its journal mode set to use write-ahead
-logging (WAL), which allows reading to proceed concurrently reading and writing. Writing
-is serialised with a lock. Setting this value to a positive number of seconds will cause
-attempts to lock the SQLite database for writing to timeout after that duration. By default
-this value is 5 (seconds).
+Please note, a file-based SQLite database will have its journal mode set to use
+write-ahead logging (WAL), which allows reading to proceed concurrently reading
+and writing. Writing is serialised with a lock. The lock timeout can be adjusted
+by setting the environment variable ``SQLITE_LOCK_TIMEOUT``. Setting this value to
+a positive number of seconds will cause attempts to lock the SQLite database for
+writing to timeout after that duration. By default this value is 5 (seconds).
 
 The optional environment variables ``COMPRESSOR_TOPIC``, ``CIPHER_KEY``, and ``CIPHER_TOPIC`` may
 be used to enable compression and encryption of stored events.
@@ -809,13 +809,15 @@ which is normally okay because the tables are created only if they do not exist.
     domain_events = list(event_store.get(id1))
     assert domain_events == [domain_event1]
 
+The SQLite infrastructure is provided by the :mod:`eventsourcing.sqlite` module.
+
 
 .. _PostgreSQL:
 
 PostgreSQL
 ==========
 
-The module :mod:`eventsourcing.postgres` supports storing events in PostgresSQL.
+The library also supports storing events in `PostgresSQL <https://www.postgresql.org/>`__.
 
 The library's PostgreSQL :class:`~eventsourcing.postgres.Factory` uses various
 environment variables to control the construction and configuration of its persistence
@@ -847,15 +849,18 @@ Enabling this option will incur a small impact on performance.
 The optional environment variable ``POSTGRES_LOCK_TIMEOUT`` may be used to enable a timeout
 on acquiring an 'EXCLUSIVE' mode table lock when inserting stored events. To avoid interleaving
 of inserts when writing events, an 'EXCLUSIVE' mode table lock is acquired when inserting events.
-This effectively serialises writing events. It prevents concurrent transactions interleaving inserts,
-which would potentially cause notification log readers that are tailing the application notification
-log to miss event notifications. Reading from the table can proceed concurrently with other readers
-and writers, since selecting acquires an 'ACCESS SHARE' lock which does not block and is not blocked
-by the 'EXCLUSIVE' lock. This issue of interleaving inserts by concurrent writers is not exhibited
-by SQLite, which supports concurrent readers when its journal mode is set to use write ahead logging.
-By default, this timeout has the value of 0 seconds, which means attempts to acquire the lock will
-not timeout. Setting this value to a positive integer number of seconds will cause attempt to obtain this
-lock to timeout after that duration has passed. The lock will be released when the transaction ends.
+This avoids a potential issue where insert order and commit order are not the same.
+Locking the table effectively serialises writing events. It prevents concurrent transactions
+interleaving inserts, which would potentially cause notification log readers that are tailing
+the application notification log to miss event notifications. Reading from the table can proceed
+concurrently with other readers and writers, since selecting acquires an 'ACCESS SHARE' lock which
+does not block and is not blocked by the 'EXCLUSIVE' lock. This issue of interleaving inserts
+by concurrent writers is not exhibited by SQLite, which locks the entire database for writing,
+effectively serializing the operations of concurrent readers. When its journal mode is set to
+use write ahead logging, reading can proceed concurrently with writing. By default, this timeout
+has the value of 0 seconds, which means attempts to acquire the lock will not timeout. Setting
+this value to a positive integer number of seconds will cause attempt to obtain this lock to
+timeout after that duration has passed. The lock will be released when the transaction ends.
 
 The optional environment variable ``POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT`` may be used to
 timeout sessions that are idle in a transaction. If a transaction cannot be ended for some reason,
@@ -910,6 +915,7 @@ which is normally okay because the tables are created only if they do not exist.
     domain_events = list(event_store.get(id1))
     assert domain_events == [domain_event1]
 
+The PostgreSQL infrastructure is provided by the :mod:`eventsourcing.postgres` module.
 
 Classes
 =======

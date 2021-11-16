@@ -2,6 +2,7 @@
 Introduction
 ============
 
+
 What is event sourcing?
 =======================
 
@@ -50,6 +51,93 @@ then the system can be run asynchronously on a cluster with durable databases,
 with the system effecting exactly the same behaviour.
 
 
+Synopsis
+========
+
+Use the library's ``Aggregate`` base class to define event-sourced aggregates.
+Use the ``@event`` decorator on command methods to define aggregate events.
+
+.. code-block:: python
+
+    from eventsourcing.domain import Aggregate, event
+
+
+    class World(Aggregate):
+        @event('Created')
+        def __init__(self, name):
+            self.name = name
+            self.history = []
+
+        @event('SomethingHappened')
+        def make_it_so(self, what):
+            self.history.append(what)
+
+
+Use the library's ``Application`` class to define an event-sourced application.
+Add command and query methods that use event-sourced aggregates.
+
+.. code-block:: python
+
+    from eventsourcing.application import Application
+
+
+    class Universe(Application):
+        def create_world(self, name):
+            world = World(name)
+            self.save(world)
+            return world.id
+
+        def make_it_so(self, world_id, what):
+            world = self.repository.get(world_id)
+            world.make_it_so(what)
+            self.save(world)
+
+        def get_history(self, world_id):
+            world = self.repository.get(world_id)
+            return world.history
+
+
+
+Construct an application object by calling the application class.
+
+.. code-block:: python
+
+    application = Universe()
+
+
+Evolve the state of the application by calling the
+application command methods.
+
+.. code-block:: python
+
+    world_id = application.create_world('Earth')
+    application.make_it_so(world_id, 'dinosaurs')
+    application.make_it_so(world_id, 'trucks')
+    application.make_it_so(world_id, 'internet')
+
+
+Access the state of the application by calling the
+application query methods.
+
+.. code-block:: python
+
+    history = application.get_history(world_id)
+    assert history == ['dinosaurs', 'trucks', 'internet']
+
+
+Configure an application by setting environment variables.
+
+.. code-block:: python
+
+    application = Universe(
+        env={
+            'FACTORY_TOPIC': 'eventsourcing.sqlite.Factory',
+            'SQLITE_DBNAME': ':memory:',
+        }
+    )
+
+Please follow the :doc:`Tutorial </topics/tutorial>` for more information.
+
 Features
 ========
 
@@ -93,6 +181,7 @@ running.
 
 **Detailed documentation** — documentation provides general overview, introduction
 of concepts, explanation of usage, and detailed descriptions of library classes.
+All code is annotated with type hints.
 
 **Worked examples** — includes examples showing how to develop aggregates, applications
 and systems.

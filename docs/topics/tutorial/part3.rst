@@ -4,16 +4,15 @@ Tutorial - Part 3 - Applications
 
 
 As we saw in :doc:`Part 1 </topics/tutorial/part1>`, we can
-use the application base class ``Application`` combined with
-event-sourced aggregates (see :doc:`Part 2 </topics/tutorial/part2>`)
-to define event-sourced applications.
-
+use the library's ``Application`` class combined with
+event-sourced aggregates to define event-sourced applications.
 For example, the ``Universe`` application class, defined below, has a
 command method ``create_world()`` that creates and saves a new aggregate.
 It has a command method ``make_it_so()`` that retrieves a previously saved
 aggregate, calls ``make_it_so()`` on the aggregate, and then saves the
 modified aggregate. And it has a query method ``get_history()`` that
-retrieves and returns the ``history`` of an aggregate object.
+retrieves and returns the ``history`` of an aggregate object. The
+``World`` aggregate is used by the application.
 
 .. code-block:: python
 
@@ -28,15 +27,13 @@ retrieves and returns the ``history`` of an aggregate object.
             return world.id
 
         def make_it_so(self, world_id, what):
-            world = self._get_world(world_id)
+            world = self.repository.get(world_id)
             world.make_it_so(what)
             self.save(world)
 
         def get_history(self, world_id):
-            return self._get_world(world_id).history
-
-        def _get_world(self, world_id):
-            return self.repository.get(world_id)
+            world = self.repository.get(world_id)
+            return world.history
 
 
     class World(Aggregate):
@@ -50,21 +47,22 @@ retrieves and returns the ``history`` of an aggregate object.
             self.history.append(what)
 
 
-As we have seen, we can construct an application object and call its methods.
+We can construct an application object and call its methods.
 
 .. code-block:: python
 
     application = Universe()
+
     world_id = application.create_world('Earth')
     application.make_it_so(world_id, 'dinosaurs')
     application.make_it_so(world_id, 'trucks')
     application.make_it_so(world_id, 'internet')
+
     history = application.get_history(world_id)
+
     assert history == ['dinosaurs', 'trucks', 'internet']
 
 
-
-We have seen what we can do with event-sourced applications.
 Let's explore how this works in more detail.
 
 
@@ -73,10 +71,25 @@ Applications in more detail
 
 An event-sourced application comprises many event-sourced aggregates,
 and a persistence mechanism to store and retrieve aggregate events.
-Constructing an application object constructs the a default persistence
-mechanism the application will use to store and retrieve events. The
-construction of the persistence mechanism can be easily configured, with
-alternative objects substituted for the standard defaults.
+Constructing an application object constructs a persistence mechanism
+the application will use to store and retrieve events. The construction
+of the persistence mechanism can be easily configured, with
+alternatives constructed instead of the standard defaults.
+
+.. code-block:: python
+
+    application = Universe()
+
+    assert application.repository
+    assert application.repository.event_store
+    assert application.repository.event_store.mapper
+    assert application.repository.event_store.mapper.transcoder
+    assert application.repository.event_store.mapper.compressor is None
+    assert application.repository.event_store.mapper.cipher is None
+    assert application.repository.event_store.recorder
+    assert application.log
+    assert application.log.recorder
+
 
 To be specific, an application object has a repository object. The repository
 object has an event store. The event store object has a mapper. The mapper
@@ -85,40 +98,25 @@ application also has a notification log. The notification log object
 has a recorder.
 
 The event store converts aggregate events to a common type of object called
-"stored events", using the mapper. The mapper uses the transcoder to serialize
+"stored events", using the mapper, and then records the stored event objects
+in the database using the recorder. The mapper uses the transcoder to serialize
 aggregate events, and optionally to compress and encrypt the serialised state.
 The recorder adapts a particular database, supporting the recording of stored events
 in that database.
 
 The repository reconstructs aggregate objects from aggregate event objects that
 it retrieves from the event store. The event store gets stored events from the
-recorder, and uses the mapper to convert them to aggregate events. The mapper
-uses the transcoder to optionally decrypt and deserialize recorded data
-and deserialize stored events to aggregate events.
+recorder, and uses the mapper to reconstruct aggregate event objects. The mapper
+uses the transcoder to optionally decrypt and decompress the serialised state,
+and to deserialize stored events to aggregate events.
 
-The recorder also puts the stored events in a total order, and allows this order
-to be selected from. The notification log selects events from this order as
-the event notifications of the application.
-
-For example, when we call the ``Universe`` class, the application object that
-is constructed that has all of these objects as its attributes.
-
-.. code-block:: python
-
-    application = Universe()
-    assert application.repository
-    assert application.repository.event_store
-    assert application.repository.event_store.mapper
-    assert application.repository.event_store.mapper.transcoder
-    assert application.repository.event_store.recorder
-    assert application.log
-    assert application.log.recorder
+An application's recorder also puts the stored events in a total order, and allows
+this order to be selected from. The notification log selects events from this order
+as the event notifications of the application.
 
 In addition to these attributes, an application object has a method ``save()``
-which collects new aggregate events and puts them in the event store.
-The repository also has a method ``get()`` which reconstructs aggregates
-that have been previously saved.
-
+which is responsible for collecting new aggregate events and putting them in
+the event store.
 The application ``save()`` method saves aggregates by
 collecting and storing pending aggregate events. The ``save()``
 method calls the given aggregates' ``collect_events()`` method and
@@ -126,13 +124,13 @@ puts the pending aggregate events in the event store, with a
 guarantee that either all of the events will be stored or none of
 them will be.
 
-The application ``repository`` has a ``get()``
-method that can be used to obtain previously saved aggregates.
+The repository has a ``get()`` method which is responsible
+for reconstructing aggregates that have been previously saved.
 The ``get()`` method is called with an aggregate ID. It retrieves
 stored events for an aggregate from an event store, selecting them
-using the given ID, then reconstructs the aggregate object from its
+using the given ID. It then reconstructs the aggregate object from its
 previously stored events calling the ``mutate()`` method of aggregate
-event objects, and then returns the reconstructed aggregate object to
+event objects, and returns the reconstructed aggregate object to
 the caller.
 
 In addition to these attributes and these methods, a subclass of
@@ -255,28 +253,29 @@ is called.
 Application configuration
 =========================
 
-The ``Application`` class provides persistence infrastructure that can
-collect, serialise, and store aggregate events. It can also reconstruct
-aggregates from stored events. Events can be stored in different
-ways. An application object can be configured to use one
+An application object can be configured to use one
 of many different ways of storing and retrieving events.
 
-The application object can be configured using environment variables to
+The application object can be configured using
+:ref:`environment variables <Application environment>` to
 work with different databases, and optionally to encrypt and compress
 stored events. By default, the application serialises aggregate events
 using JSON, and stores them in memory as "plain old Python objects".
-The library includes support for storing events in SQLite and PostgreSQL
-(see below). Other databases are available. See the library's extension
+This is how the application objects have been working in this tutorial.
+
+The library also supports storing events in SQLite and PostgreSQL databases.
+Other databases are available. See the library's extension
 projects for more information about what is currently supported.
 
 The ``test()`` function below demonstrates the example ``Universe``
 application in more detail, by creating many aggregates in one
-application, reading event notifications from the application log,
-retrieving historical versions of an aggregate. The optimistic
-concurrency control feature, and the compression and encryption
-features are also demonstrated. We will use this test several
-times with different configurations of persistence for our
-application object.
+application, by reading event notifications from the application log,
+by retrieving historical versions of an aggregate, and so on. The
+steps are commented for greater readability. The optimistic concurrency
+control, and the compression and encryption features are also demonstrated.
+Below, the ``test()`` function is used several times with different
+configurations of persistence for our application object: with "plain old
+Python objects", with SQLite, and then with PostgreSQL.
 
 .. code-block:: python
 
@@ -376,10 +375,10 @@ application object.
 Development environment
 =======================
 
-We can run the test in default "development" environment using
-the default "plain old Python objects" infrastructure (which keeps
-stored events in memory). The example below runs with no compression or
-encryption of the stored events.
+We can run the test in a "development" environment using the application's
+default "plain old Python objects" infrastructure which keeps stored events
+in memory. The example below runs without compression or encryption of the
+stored events.
 
 .. code-block:: python
 
@@ -393,15 +392,9 @@ encryption of the stored events.
 SQLite environment
 ==================
 
-You can configure a "production" environment to use an
-`SQLite database <https://www.sqlite.org/>`__ for
-storing event with the following environment variables.
-
-Using the library's SQLite infrastructure will keep stored events in an.
-The library's SQLite infrastructure is provided by the .
-
+We can also configure an application to use SQLite for storing events.
 To use the library's :ref:`SQLite infrastructure <SQLite>`,
-set ``INFRASTRUCTURE_FACTORY`` to the value ``"eventsourcing.sqlite:Factory"``.
+set ``INFRASTRUCTURE_FACTORY`` to the value ``'eventsourcing.sqlite:Factory'``.
 When using the library's SQLite infrastructure, the environment variable
 ``SQLITE_DBNAME`` must also be set. This value will be passed to Python's
 :func:`sqlite3.connect`.
@@ -427,39 +420,6 @@ When using the library's SQLite infrastructure, the environment variable
     os.environ['SQLITE_LOCK_TIMEOUT'] = '10'  # seconds
 
 
-Please note, a file-based SQLite database will have its journal mode set to use
-write-ahead logging (WAL), which allows reading to proceed concurrently reading
-and writing. Writing is serialised with a lock. The lock timeout can be adjusted
-from the SQLite default of 5s by setting the environment variable `SQLITE_LOCK_TIMEOUT`.
-
-Optionally, set the cipher key using environment variable `CIPHER_KEY` and select a
-compressor by setting environment variable `COMPRESSOR_TOPIC`.
-
-This example uses the Python `zlib` module to compress stored events, and AES
-to encrypt the compressed stored events, before writing them to the SQLite database.
-To use the library's encryption functionality, please install the library with the
-`crypto` option (or just install the `pycryptodome` package.) To use an alternative
-cipher strategy, set the environment variable `CIPHER_TOPIC`.
-
-::
-
-    $ pip install eventsourcing[crypto]
-
-
-.. code-block:: python
-
-    from eventsourcing.cipher import AESCipher
-
-    # Generate a cipher key (keep this safe).
-    cipher_key = AESCipher.create_key(num_bytes=32)
-
-    # Cipher key.
-    os.environ['CIPHER_KEY'] = cipher_key
-
-    # Compressor topic.
-    os.environ['COMPRESSOR_TOPIC'] = 'zlib'
-
-
 Having configured the application with these environment variables, we
 can construct the application and run the test using SQLite.
 
@@ -469,17 +429,19 @@ can construct the application and run the test using SQLite.
     app = Universe()
 
     # Run the test.
-    test(app, expect_visible_in_db=False)
+    test(app, expect_visible_in_db=True)
+
+
+In this example, stored events are neither compressed nor encrypted. In consequence,
+we can expect the recorded values to be visible in the database records.
 
 
 PostgreSQL environment
 ======================
 
-You can configure "production" environment to use the library's
-PostgresSQL infrastructure with the following environment variables.
-Using PostgresSQL infrastructure will keep stored events in a
-PostgresSQL database. The PostgreSQL infrastructure is provided by
-the :mod:`eventsourcing.postgres` module.
+We can also configure a "production" environment to use PostgreSQL.
+Using the library's :ref:`PostgresSQL infrastructure <PostgreSQL>`
+will keep stored events in a PostgresSQL database.
 
 Please note, to use the library's PostgreSQL functionality,
 please install the library with the `postgres` option (or just
@@ -490,10 +452,10 @@ install the `psycopg2` package.)
     $ pip install eventsourcing[postgres]
 
 Please note, the library option `postgres_dev` will install the
-`psycopg2-binary` which is much faster, but this is not recommended
-for production use. The binary package is a practical choice for
-development and testing but in production it is advised to use
-the package built from sources.
+`psycopg2-binary` which is much faster to install, but this option
+is not recommended for production use. The binary package is a
+practical choice for development and testing but in production
+it is advised to use the package built from sources.
 
 The example below also uses zlib and AES to compress and encrypt the
 stored events (but this is optional). To use the library's
@@ -535,29 +497,6 @@ already been created, and the database server is running locally.
     os.environ['POSTGRES_USER'] = 'eventsourcing'
     os.environ['POSTGRES_PASSWORD'] = 'eventsourcing'
 
-    # Optional config.
-    # - connection max age (connections stay open by default)
-    os.environ['POSTGRES_CONN_MAX_AGE'] = '60'  # seconds
-    # - check connection before use (pessimistic disconnect handling, default 'n')
-    os.environ['POSTGRES_PRE_PING'] = 'y'
-    # - timeout to wait for table lock when inserting (default no timeout)
-    os.environ['POSTGRES_LOCK_TIMEOUT'] = '10'  # seconds
-    # - timeout for sessions with idle transactions (default no timeout)
-    os.environ['POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT'] = '10'  # seconds
-
-
-Please note, to avoid interleaving of inserts when writing events, an
-'EXCLUSIVE' mode table lock is acquired when using PostgreSQL.
-The issue is that insert order and commit order are not necessarily the same.
-This effectively serialises writing events. It prevents concurrent transactions
-interleaving inserts, which would potentially cause notification log readers
-that are tailing the application notification log to miss event notifications.
-Reading from the table can proceed concurrently with other readers and writers,
-since selecting acquires an 'ACCESS SHARE' lock which does not block and
-is not blocked by the 'EXCLUSIVE' lock. This issue of interleaving inserts
-by concurrent writers is not exhibited by SQLite, which supports concurrent
-readers when its journal mode is set to use write ahead logging.
-
 Having configured the application with these environment variables,
 we can construct the application and run the test using PostgreSQL.
 
@@ -569,6 +508,9 @@ we can construct the application and run the test using PostgreSQL.
 
     # Run the test.
     test(app, expect_visible_in_db=False)
+
+In this example, stored events are both compressed and encrypted. In consequence,
+we can expect the recorded values not to be visible in the database records.
 
 
 Exercise
