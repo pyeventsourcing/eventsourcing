@@ -261,7 +261,6 @@ The application object can be configured using
 work with different databases, and optionally to encrypt and compress
 stored events. By default, the application serialises aggregate events
 using JSON, and stores them in memory as "plain old Python objects".
-
 The library also supports storing events in SQLite and PostgreSQL databases.
 Other databases are available. See the library's extension
 projects for more information about what is currently supported.
