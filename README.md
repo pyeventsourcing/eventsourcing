@@ -10,7 +10,7 @@ A library for event sourcing in Python.
 
 *"totally amazing and a pleasure to use"*
 
-[Read the docs](https://eventsourcing.readthedocs.io/). See also [extension projects](https://github.com/pyeventsourcing).
+Please [read the docs](https://eventsourcing.readthedocs.io/). See also [extension projects](https://github.com/pyeventsourcing).
 
 [![Event sourcing in Python](images/Cupid-foot-686x343.jpeg)](https://eventsourcing.readthedocs.io/)
 
