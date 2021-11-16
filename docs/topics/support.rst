@@ -3,8 +3,8 @@ Support options
 ===============
 
 Thank you for your interest in this library. It has taken a lot of time
-to create this library. Similarly, it will take some time to understand
-the library and develop well-designed event-sourced applications.
+to create this library. Similarly, it may take some time to understand
+the library, and to develop well-designed event-sourced applications.
 
 If you have any issues using
 the library or reading the documentation, please `raise an issue on GitHub
@@ -17,7 +17,7 @@ available on the Slack_ channel.
 
 Please support the continuing development and maintenance of this library
 by `starring the project on GitHub <https://github.com/pyeventsourcing/eventsourcing>`_
-and, if possible, sponsoring the project by making a donation.
+by sponsoring the project, or by making a donation.
 
 
 Professional support
