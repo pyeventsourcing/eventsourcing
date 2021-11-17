@@ -13,10 +13,10 @@ Contents
 
    topics/introduction
    topics/installing
+   topics/support
    topics/tutorial
    topics/modules
    topics/examples
-   topics/support
    topics/release_notes
 
 
