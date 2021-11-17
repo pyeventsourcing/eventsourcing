@@ -1876,8 +1876,8 @@ Raising exceptions in the body of decorated methods
 It is actually possible to decorate the ``pickup()`` command method
 with the :data:`@event` decorator, but if a decorated command method
 has conditional logic that would mean the state of the aggregate
-should not be evolved, you must take care to raise an exception
-rather than returning early, and raise an exception before changing
+should not be evolved, you must take care both to raise an exception
+rather than returning early, and to raise an exception before changing
 the state of the aggregate at all. By raising an exception in the body
 of a decorated method, the triggered event will not in fact be appended
 to the aggregate's list of pending events, and it will be as if it never
