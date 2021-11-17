@@ -2526,22 +2526,27 @@ the old unchanged parts and the new. It is certainly possible to adjust the even
 so that the original is unchanged. There are a few good reasons for doing this. The issue
 is about concurrent access to aggregates that are cached in memory. This library follows
 the traditional patterns of having commands which do not return values and of mutating
-aggregate objects in-place. The issue of concurrent access doesn't arise unless the aggregates
-are cached and used concurrently without any concurrency controls, such as serialisation of
-access. Aggregates aren't cached, by default, and so the issue doesn't arise unless they are.
-And because it is in the nature of aggregates that they create a sequence of events,
-there is no value to allowing concurrent write access. So if aggregates are to be cached
-then it would make sense either to implement locking, so that readers don't access a
-half-updated state and so that writers don't interact, or for writers to make a deep
-copy of a cached aggregate before calling aggregate commands, and then updating the
-cache with their mutated version after the aggregate has been successfully saved. And
-care would need to be taken to fast-forward an aggregate that is stale because another
-process has advanced the state of the aggregate. But none of these issues arise in the
-library because aggregates are not cached.
+aggregate objects in-place. This is a pattern we like, and returning an aggregate, or an
+aggregate event, from an aggregate command method disrupts this pattern. The issue of
+concurrent access doesn't arise unless the aggregates are cached and used concurrently
+`without any concurrency controls`. Aggregates aren't cached by default in this library,
+and so the issue doesn't arise, unless they are. And because it is in the nature of
+aggregates that they create a sequence of events, there is no value to allowing concurrent
+write access. But if aggregates are to be cached then it would make sense either to implement
+suitable protection, such as locking, so that readers don't access a half-updated state and
+so that writers don't interact, or for writers to make a deep copy of a cached aggregate before
+calling aggregate commands, and then updating the cache with their mutated version after the
+aggregate has been successfully saved, or for access to be otherwise serialized for example
+by using the 'actor model' pattern. Care would also need to be taken to fast-forward an aggregate
+that is stale because another process has advanced the state of the aggregate. But none of these
+issues arise in the library because aggregates are not cached, they are local to the execution
+of an application method.
 
 Another issue arises about the use of "absolute" topics to identify classes. The issue
 of moving and renaming classes can be resolved by setting the old paths to point to
-current classes, using the library's methods for doing this.
+current classes, using the library's methods for doing this. However, it maybe useful
+to introduce support for "relative" topics, with the "base" topic left as application
+configurable.
 
 Classes
 =======
