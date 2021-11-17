@@ -1809,16 +1809,6 @@ This ordinary Python class can be easily converted into an event sourced aggrega
 by applying the library's :data:`@event` decorator to the
 ``confirm()`` and ``_pickup()`` methods.
 
-Because the command methods are decorated in this way, when the ``confirm()``
-method is called, an ``Order.Confirmed`` event will be triggered. When the
-``_pickup()`` method is called, an ``Order.PickedUp`` event will be triggered.
-Those event classes are defined automatically from the method signatures. The
-decorating of the ``_pickup()`` method and not of the ``pickup()`` method is
-a good example of a command method that needs to do some work before an event
-is triggered. The body of the ``pickup()`` method is only executed when the
-command method is called, whereas the body of the ``_pickup()`` method is
-executed each time the event is applied to evolve the state of the aggregate.
-
 .. code-block:: python
 
     class Order(Aggregate):
@@ -1841,6 +1831,15 @@ executed each time the event is applied to evolve the state of the aggregate.
         def _pickup(self, at):
             self.pickedup_at = at
 
+Because the command methods are decorated in this way, when the ``confirm()``
+method is called, an ``Order.Confirmed`` event will be triggered. When the
+``_pickup()`` method is called, an ``Order.PickedUp`` event will be triggered.
+Those event classes are defined automatically from the method signatures. The
+``pickup()`` method is a good example of a command method that needs to do
+some work before an event is triggered. The body of the ``pickup()`` method
+is executed when the command method is called and before an event is triggered,
+whereas the body of the ``_pickup()`` method is executed after the event is
+triggered and each time the event is applied to evolve the state of the aggregate.
 
 We can use the event sourced ``Order`` aggregate in the same way as the undecorated
 ordinary Python ``Order`` class. The event sourced version has the advantage
