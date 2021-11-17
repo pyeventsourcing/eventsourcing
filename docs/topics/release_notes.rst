@@ -23,6 +23,22 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.1.5 (released 17 November 2021)
+----------------------------------------
+
+Improved the documentation, examples, and tests.
+Fixed PostgreSQL recorder to use bigint for notification_id
+in tracking table, and to lock table only when inserting
+stored events into a total order (ie not when inserting
+snapshots). Refactored several things: extracted register_topic()
+function; changed handling of event attributes to pass
+in what is expected by a decorated method; extracted
+aggregate mutator function allowing non-default mutator
+function to be used with repository get() method; stopped
+using deprecated Thread.setDaemon() method. Improved static
+type hinting.
+
+
 Version 9.1.4 (released 20 October 2021)
 ----------------------------------------
 
