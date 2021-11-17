@@ -1738,7 +1738,7 @@ concisely in the following way.
 Non-trivial command methods
 ---------------------------
 
-Tn the examples above, the work of the command methods is "trivial", in
+In the examples above, the work of the command methods is "trivial", in
 that the command method arguments are always used directly as the aggregate event
 attribute values. But often a command method needs to do some work before
 triggering an event. As a result of this processing, the event attributes
