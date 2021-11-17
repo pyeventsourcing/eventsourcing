@@ -2514,7 +2514,7 @@ the domain by recording decisions that are made in the domain and received by th
 The ``@event`` decorator can also be used on "private" methods, methods that not part of the
 aggregate's "public" command and query interface that will be used by the application, called
 by "public" commands which are not so decorated, so do not trigger events that are simply
-comprised of the method arguments, so then there is event sourcing" but not command
+comprised of the method arguments, so then there is event sourcing but no command
 sourcing. The important thing here is to separate out the work of the command if
 indeed there is any work (work that should happen only once) from the definition of
 and construction of an aggregate event object, and from the projection
