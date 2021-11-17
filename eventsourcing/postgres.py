@@ -227,10 +227,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         self.select_events_statement = (
             f"SELECT * FROM {self.events_table_name} WHERE originator_id = $1"
         )
-        self.lock_statements = [
-            f"SET LOCAL lock_timeout = '{self.datastore.lock_timeout}s'",
-            f"LOCK TABLE {self.events_table_name} IN EXCLUSIVE MODE",
-        ]
+        self.lock_statements: List[str] = []
 
     def construct_create_table_statements(self) -> List[str]:
         statement = (
@@ -301,7 +298,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
 
         len_stored_events = len(stored_events)
 
-        # Just don't do anything if there is nothing to do.
+        # Just do nothing here if there is nothing to do.
         if len_stored_events == 0:
             return
 
@@ -417,6 +414,10 @@ class PostgresApplicationRecorder(
         self.max_notification_id_statement_name = (
             f"max_notification_id_{events_table_name}"
         )
+        self.lock_statements = [
+            f"SET LOCAL lock_timeout = '{self.datastore.lock_timeout}s'",
+            f"LOCK TABLE {self.events_table_name} IN EXCLUSIVE MODE",
+        ]
 
     def construct_create_table_statements(self) -> List[str]:
         statements = [
