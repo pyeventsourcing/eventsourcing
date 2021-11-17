@@ -1974,7 +1974,7 @@ Timestamp timezones
 
 The timestamp values mentioned above are timezone-aware Python :class:`datetime`
 objects, created by calling :func:`datetime.now`. By default, the timezone is set
-to UTC, as defined by:data:`timezone.utc` in Python's :data:`datetime` module. It
+to UTC, as defined by :data:`timezone.utc` in Python's :data:`datetime` module. It
 is generally recommended to store date-times as timezone-aware values with UTC as
 the timezone, and then localize the values in the interface to the application,
 according to the local timezone of a particular user. You can localize date-time
