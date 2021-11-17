@@ -24,7 +24,7 @@ code and stored events is very possible.
 
 
 Version 9.1.5 (released 17 November 2021)
-----------------------------------------
+-----------------------------------------
 
 Improved the documentation, examples, and tests.
 Fixed PostgreSQL recorder to use bigint for notification_id
