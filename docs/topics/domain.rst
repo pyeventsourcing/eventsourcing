@@ -2025,7 +2025,7 @@ However, if necessary, this default can be changed by assigning a :class:`tzinfo
 object to the :data:`TZINFO` attribute of the :mod:`eventsourcing.domain` module. The
 :data:`TZINFO` value can be configured using environment variables, by setting the
 environment variable ``TZINFO_TOPIC`` to a :ref:`topic string <Topics>` that locates
-a Python :data:`tzinfo` object in your code, for example a :data:``timezone``
+a Python :data:`tzinfo` object in your code, for example a :data:`timezone`
 with an ``offset`` value, or a :data:``ZoneInfo`` from Python Standard Library with a
 suitable ``key``. You need to set this environment variable before the
 :mod:`eventsourcing.domain` is imported, or otherwise assign to the :data:`TZINFO`
