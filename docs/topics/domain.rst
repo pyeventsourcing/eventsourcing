@@ -25,11 +25,6 @@ to make progress efficiently, you may find that using the ``Aggregate`` base cla
 and the ``@event`` decorator will speed your creativity in developing a most
 :ref:`compact and effective <Declarative syntax>` event-sourced domain model.
 
-This module appears first in the documentation, not because it is the most
-important section, but rather because this was overwhelmingly the order
-preferred by the community of users of the library, as expressed in a vote
-on the matter in 2021.
-
 
 Aggregates in DDD
 =================
