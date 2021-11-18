@@ -105,7 +105,7 @@ new balance of £80. That might be coded as follows:
     account.debit(20)
     assert account.balance == 80
 
-Note that the *event* - the reason that the balance changed from 100 to 80 - is
+Note that the *event* --- the reason that the balance changed from 100 to 80 --- is
 transient.  It has a brief existence in the time it takes the ``debit()`` method
 to execute, but then is lost.  The debit decision itself is implicit; it has no
 durable existence. Event-sourced aggregates make these things explicit.
@@ -117,14 +117,14 @@ durable existence. Event-sourced aggregates make these things explicit.
 
 To make things explicit, a decision made in the command method of an
 aggregate can be coded and recorded as an immutable 'domain event'
-object, and this object can be used to evolve the aggregate's cluster of
-entities and value objects. For example, bank account statements are
-comprised of a sequence of transactions. In general, for each event-sourced
-aggregate, there will a sequence of domain event objects, and the state of
-an event-sourced aggregate will be determined by this sequence. The state
-of an aggregate can change, and its sequence of domain events can be augmented.
-But once created the individual domain event objects do not change. They are
-what they are.
+object, and this object can be used to evolve the state of the aggregate.
+For example, bank account balances are derived from a sequence of
+transactions. In general, for each event-sourced aggregate, there will
+a sequence of domain event objects, and the state of an event-sourced
+aggregate will be determined by this sequence. The state of an aggregate
+can change, and its sequence of domain events can be augmented. But once
+they have been created, the individual domain event objects do not change.
+They are what they are.
 
 The state of an aggregate, event-sourced or not, is changed by calling its
 command methods. In an event-sourced aggregate, the command methods create
@@ -1147,7 +1147,7 @@ that has an attribute ``name``.
 
 
 Please note, by default the name "Created" will be used for an automatically
-defined "created" event class. However, the name of the "create" class can be specified
+defined "created" event class. However, the name of the "created" class can be specified
 using the aggregate class argument ``created_event_name``, and it can be defined by using
 an ``@event`` decorator on the aggregate's ``__init__()`` method.
 
