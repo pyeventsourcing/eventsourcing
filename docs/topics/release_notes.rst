@@ -32,6 +32,12 @@ application environment ('PERSISTENCE_MODULE') rather than specifying the
 topic of a factory class. Improved documentation.
 
 
+Version 9.1.7 (released 19 November 2021)
+-----------------------------------------
+
+Fixed errors in the documentation.
+
+
 Version 9.1.6 (released 18 November 2021)
 -----------------------------------------
 
