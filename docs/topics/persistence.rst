@@ -92,7 +92,6 @@ transcodes a Python :class:`~uuid.UUID` objects as a hexadecimal string.
 .. code-block:: python
 
     from uuid import uuid4
-
     from eventsourcing.persistence import UUIDAsHex
 
     transcoding = UUIDAsHex()
@@ -109,10 +108,7 @@ transcodes Python :class:`~datetime.datetime` objects as ISO strings.
 .. code-block:: python
 
     from datetime import datetime
-
-    from eventsourcing.persistence import (
-        DatetimeAsISO,
-    )
+    from eventsourcing.persistence import DatetimeAsISO
 
     transcoding = DatetimeAsISO()
 
@@ -128,10 +124,7 @@ transcodes Python :class:`~decimal.Decimal` objects as decimal strings.
 .. code-block:: python
 
     from decimal import Decimal
-
-    from eventsourcing.persistence import (
-        DecimalAsStr,
-    )
+    from eventsourcing.persistence import DecimalAsStr
 
     transcoding = DecimalAsStr()
 
@@ -169,7 +162,9 @@ Attempting to serialize an unsupported type will result in a Python :class:`Type
 
     from datetime import date
 
+
     date1 = date(2021, 12, 31)
+
     try:
         data = transcoder.encode(date1)
     except TypeError as e:
@@ -208,7 +203,6 @@ convert that representation back to an instance of that type.
 .. code-block:: python
 
     from eventsourcing.persistence import Transcoding
-    from typing import Union
 
 
     class DateAsISO(Transcoding):
@@ -372,7 +366,6 @@ from an aggregate sequence and being deserialised as a domain event object.
 .. code-block:: python
 
     from uuid import uuid4
-
     from eventsourcing.persistence import StoredEvent
 
     stored_event = StoredEvent(
@@ -560,7 +553,6 @@ It will be returned when selecting event notifications from a
 .. code-block:: python
 
     from uuid import uuid4
-
     from eventsourcing.persistence import Notification
 
     stored_event = Notification(
@@ -598,7 +590,6 @@ ID of a notification that has been processed.
 .. code-block:: python
 
     from uuid import uuid4
-
     from eventsourcing.persistence import Tracking
 
     tracking = Tracking(
@@ -633,10 +624,8 @@ recorder classes for SQLite that use the Python :mod:`sqlite3`
 module. And the module :mod:`eventsourcing.postgres` has recorders
 for PostgreSQL that use the third party :mod:`psycopg2` module.
 
-Recorder classes are conveniently constructed by using an
-:ref:`infrastructure factory <Factory>`. For illustrative purposes, the direct
-use of the library's SQLite recorders is shown below. The other persistence
-modules follow a similar naming scheme and pattern of use.
+The direct use of the library's SQLite recorders is shown below. The
+other persistence modules follow a similar naming scheme and pattern of use.
 
 .. code-block:: python
 
@@ -669,6 +658,8 @@ as SQLAlchemy and Django, specialist event stores such as EventStoreDB and
 AxonDB, and NoSQL databases such as DynamoDB and MongoDB are either available
 or forthcoming.
 
+Recorder classes are conveniently constructed by using an
+:ref:`infrastructure factory <Factory>`.
 
 .. _Store:
 
@@ -703,7 +694,6 @@ ascending, unlimited, and otherwise unrestricted such that all the previously
 stored domain event objects for a particular aggregate will be returned
 in the order in which they were created.
 
-
 .. code-block:: python
 
     from eventsourcing.persistence import EventStore
@@ -724,28 +714,33 @@ in the order in which they were created.
 Infrastructure factory
 ======================
 
-An infrastructure factory helps with the construction of the persistence
-infrastructure objects mentioned above. By reading and responding to
-particular environment variables, the persistence infrastructure of an
-event-sourced application can be easily
-:ref:`configured in different ways<Persistence>` at different times.
+An infrastructure factory helps with the construction of all the
+persistence infrastructure objects mentioned above.
 
 The library's :class:`~eventsourcing.persistence.InfrastructureFactory` class
-is a base class for concrete infrastructure factories that help with the construction
-of persistence objects that use a particular database in a particular way.
+is a base class for concrete infrastructure factories. It provides a
+standard way for applications to construct and use different
+persistence infrastructure.
 
 The class method :func:`~eventsourcing.persistence.InfrastructureFactory.construct`
 will, by default, construct the library's "plain old Python objects"
-infrastructure :class:`~eventsourcing.popo.Factory`, which uses recorders that simply
-keep stored events in a data structure in memory (see :mod:`eventsourcing.popo`).
+infrastructure factory from the persistence module :mod:`eventsourcing.popo`,
+which simply keeps stored events in a data structure in memory.
+
+The method :func:`~eventsourcing.persistence.InfrastructureFactory.application_recorder`
+will construct an "application recorder".
 
 .. code-block:: python
 
     from eventsourcing.persistence import InfrastructureFactory
 
     factory = InfrastructureFactory.construct()
-
     recorder = factory.application_recorder()
+
+    assert factory.__class__.__module__ == "eventsourcing.popo"
+    assert recorder.__class__.__module__ == "eventsourcing.popo"
+
+
     mapper = factory.mapper(transcoder=transcoder)
     event_store = factory.event_store(
         mapper=mapper,
@@ -754,10 +749,27 @@ keep stored events in a data structure in memory (see :mod:`eventsourcing.popo`)
 
     event_store.put([domain_event1])
     domain_events = list(event_store.get(id1))
+
     assert domain_events == [domain_event1]
 
-The optional environment variables ``COMPRESSOR_TOPIC``, ``CIPHER_KEY``, and ``CIPHER_TOPIC`` may
-be used to enable compression and encryption of stored events when using POPO infrastructure.
+The method :func:`~eventsourcing.persistence.InfrastructureFactory.aggregate_recorder`
+will construct an "aggregate recorder", which is useful for storing snapshots.
+
+The method :func:`~eventsourcing.persistence.InfrastructureFactory.process_recorder`
+will construct a "process recorder", which is useful for tracking the processing
+of event notifications.
+
+By reading and responding to particular environment variables, the persistence
+infrastructure of an event-sourced :ref:`application can be easily configured <Persistence>`
+in different ways at different times.
+
+The optional environment variables ``COMPRESSOR_TOPIC``, ``CIPHER_KEY``, and
+``CIPHER_TOPIC`` may be used to enable compression and encryption of stored events.
+
+To use an alternative persistence module for recording stored events,
+set the environment variable ``PERSISTENCE_MODULE`` to the :ref:`topic <Topics>`
+of an alternative persistence module. See below for examples.
+
 
 .. _SQLite:
 
@@ -767,9 +779,21 @@ SQLite
 The persistence module :mod:`eventsourcing.sqlite` supports storing events in
 `SQLite <https://www.sqlite.org/>`__.
 
-The library's SQLite :class:`~eventsourcing.sqlite.Factory` uses various
-environment variables to control the construction and configuration of its
-persistence infrastructure.
+.. code-block:: python
+
+    import os
+
+    os.environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
+
+
+The library's SQLite :class:`~eventsourcing.sqlite.Factory` can be configured
+with environment variables.
+
+.. code-block:: python
+
+    os.environ["SQLITE_DBNAME"] = ":memory:"
+    os.environ["SQLITE_LOCK_TIMEOUT"] = "10"
+
 
 The environment variable ``SQLITE_DBNAME`` is required to set the name of a database,
 normally a file path, but the special name ``:memory:`` can be used to create an
@@ -782,27 +806,23 @@ by setting the environment variable ``SQLITE_LOCK_TIMEOUT``. Setting this value 
 a positive number of seconds will cause attempts to lock the SQLite database for
 writing to timeout after that duration. By default this value is 5 (seconds).
 
-The optional environment variables ``COMPRESSOR_TOPIC``, ``CIPHER_KEY``, and ``CIPHER_TOPIC`` may
-be used to enable compression and encryption of stored events.
-
 The optional environment variable ``CREATE_TABLE`` controls whether or not database tables are
 created when a recorder is constructed by a factory. If the tables already exist, the ``CREATE_TABLE``
 may be set to a "false" value (``"n"``, ``"no"``, ``"f"``, ``"false"``, ``"off"``, or ``"0"``).
 This value is by default "true" which is normally okay because the tables are created only if they
 do not exist.
 
+Having configured the environment to use SQLite, the infrastructure can be
+constructed and used in a standard way.
+
 .. code-block:: python
 
-    import os
-
-    os.environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
-    os.environ["SQLITE_DBNAME"] = ":memory:"
-    os.environ["SQLITE_LOCK_TIMEOUT"] = "10"
-
-
     factory = InfrastructureFactory.construct()
-
     recorder = factory.application_recorder()
+
+    assert factory.__class__.__module__ == "eventsourcing.sqlite"
+    assert recorder.__class__.__module__ == "eventsourcing.sqlite"
+
     mapper = factory.mapper(transcoder=transcoder)
     event_store = factory.event_store(
         mapper=mapper,
@@ -811,9 +831,13 @@ do not exist.
 
     event_store.put([domain_event1])
     domain_events = list(event_store.get(id1))
+
     assert domain_events == [domain_event1]
 
-The SQLite infrastructure is provided by the :mod:`eventsourcing.sqlite` module.
+
+As above, the optional environment variables ``COMPRESSOR_TOPIC``, ``CIPHER_KEY``,
+and ``CIPHER_TOPIC`` may be used to enable compression and encryption of stored
+events recorded in SQLite.
 
 
 .. _PostgreSQL:
@@ -824,9 +848,40 @@ PostgreSQL
 The persistence module :mod:`eventsourcing.postgres` supports storing events in
 `PostgresSQL <https://www.postgresql.org/>`__.
 
-The library's PostgreSQL :class:`~eventsourcing.postgres.Factory` uses various
+.. code-block:: python
+
+    os.environ["PERSISTENCE_MODULE"] = "eventsourcing.postgres"
+
+The library's PostgreSQL :class:`~eventsourcing.postgres.Factory` also uses various
 environment variables to control the construction and configuration of its persistence
 infrastructure.
+
+..
+    #include-when-testing
+..
+    os.environ["POSTGRES_DBNAME"] = "eventsourcing"
+    os.environ["POSTGRES_HOST"] = "127.0.0.1"
+    os.environ["POSTGRES_PORT"] = "5432"
+    os.environ["POSTGRES_USER"] = "eventsourcing"
+    os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
+    from eventsourcing.tests.test_postgres import drop_postgres_table
+    factory = InfrastructureFactory.construct()
+    drop_postgres_table(factory.datastore, "stored_events")
+
+
+.. code-block:: python
+
+    os.environ["POSTGRES_DBNAME"] = "eventsourcing"
+    os.environ["POSTGRES_HOST"] = "127.0.0.1"
+    os.environ["POSTGRES_PORT"] = "5432"
+    os.environ["POSTGRES_USER"] = "eventsourcing"
+    os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
+    os.environ["POSTGRES_CONN_MAX_AGE"] = "10"
+    os.environ["POSTGRES_PRE_PING"] = "y"
+    os.environ["POSTGRES_LOCK_TIMEOUT"] = "5"
+    os.environ["POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT"] = "5"
+    os.environ["POSTGRES_SCHEMA"] = "public"
+
 
 The environment variables ``POSTGRES_DBNAME``, ``POSTGRES_HOST``, ``POSTGRES_PORT``,
 ``POSTGRES_USER``, and ``POSTGRES_PASSWORD`` are required to set the name of a database,
@@ -891,33 +946,17 @@ may be set to a "false" value (``"n"``, ``"no"``, ``"f"``, ``"false"``, ``"off"`
 This value is by default "true" which is normally okay because the tables are created only if they
 do not exist.
 
-.. code-block:: python
-
-    import os
-
-    os.environ["PERSISTENCE_MODULE"] = "eventsourcing.postgres"
-    os.environ["POSTGRES_DBNAME"] = "eventsourcing"
-    os.environ["POSTGRES_HOST"] = "127.0.0.1"
-    os.environ["POSTGRES_PORT"] = "5432"
-    os.environ["POSTGRES_USER"] = "eventsourcing"
-    os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
-    os.environ["POSTGRES_CONN_MAX_AGE"] = "10"
-    os.environ["POSTGRES_PRE_PING"] = "y"
-    os.environ["POSTGRES_LOCK_TIMEOUT"] = "5"
-    os.environ["POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT"] = "5"
-    os.environ["POSTGRES_SCHEMA"] = "public"
-
-..
-    from eventsourcing.tests.test_postgres import drop_postgres_table
-    factory = InfrastructureFactory.construct()
-    drop_postgres_table(factory.datastore, "stored_events")
-
+Having configured the environment to use PostgreSQL, the infrastructure can be
+constructed and used in a standard way.
 
 .. code-block:: python
 
     factory = InfrastructureFactory.construct()
-
     recorder = factory.application_recorder()
+
+    assert factory.__class__.__module__ == "eventsourcing.postgres"
+    assert recorder.__class__.__module__ == "eventsourcing.postgres"
+
     mapper = factory.mapper(transcoder=transcoder)
     event_store = factory.event_store(
         mapper=mapper,
@@ -926,9 +965,13 @@ do not exist.
 
     event_store.put([domain_event1])
     domain_events = list(event_store.get(id1))
+
     assert domain_events == [domain_event1]
 
-The PostgreSQL infrastructure is provided by the :mod:`eventsourcing.postgres` module.
+As above, the optional environment variables ``COMPRESSOR_TOPIC``, ``CIPHER_KEY``,
+and ``CIPHER_TOPIC`` may be used to enable compression and encryption of stored
+events recorded in PostgreSQL.
+
 
 Classes
 =======

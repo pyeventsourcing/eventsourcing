@@ -2333,7 +2333,7 @@ updates ``d`` is defined. Since the ``Created`` event class has not changed, it 
         class DUpdated(Aggregate.Event):
             d: bool
 
-            def apply(self, aggregate: "Aggregate") -> None:
+            def apply(self, aggregate: Aggregate):
                 aggregate.d = self.d
 
         class_version = 4

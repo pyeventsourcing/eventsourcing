@@ -236,7 +236,6 @@ highest available version of the aggregate will be returned.
 
 .. code-block:: python
 
-
     world_v1 = application.repository.get(world_id, version=1)
 
     assert world_v1.version == 1
@@ -289,7 +288,6 @@ The application object attribute ``log`` is an instance of
 
     from eventsourcing.application import LocalNotificationLog
 
-
     assert isinstance(application.log, LocalNotificationLog)
 
 
@@ -301,17 +299,11 @@ logs. The event notifications themselves are instances of the library's
 defined in the persistence module and discussed in the
 :ref:`Notification objects <Notification objects>` section.
 
-.. code-block:: python
-
-    from eventsourcing.persistence import Notification
-
-
 The general idea is that, whilst the aggregate events are recorded in a sequence for
 the aggregate, all of the aggregate events are also given a "total order" by being
 placed in a sequence of event notifications. When recording aggregate events using an
-:ref:`"application recorder"<Recorder>`, which is the default for the
-:class:`~eventsourcing.application.Application` class, event notifications are
-atomically and automatically recorded along with the stored events.
+:ref:`application recorder<Recorder>`, event notifications are
+automatically and atomically recorded along with the stored events.
 
 
 Outbox pattern
@@ -335,71 +327,89 @@ Selecting notifications from the log
 ------------------------------------
 
 The :func:`~eventsourcing.application.LocalNotificationLog.select` method of a
-notification log can be used to directly select a subsequence of event notifications
-from a notification log.
-
-The ``start`` and ``limit`` arguments are used to specify the selection. The
-selection of event notifications will have notification IDs which are greater
-or equal to the given value of ``start``. Please note, by default, the first
-recorded event notification will have ID equal to ``1``. The selection will
-contain no more than the specified ``limit``.
-
+notification log can be used to directly select a sub-sequence of
+:ref:`event notification objects <Notification objects>` from a notification log.
 In the example below, the first three event notifications are selected from the
-notification log of the ``application`` object. We can see these notifications
-represent the facts that a ``World`` aggregate was created, and then two ``SomethingHappened``
-events occurred.
+notification log of the ``application`` object.
 
 .. code-block:: python
 
-
     notifications = application.log.select(start=1, limit=3)
+
+
+The ``start`` and ``limit`` arguments are used to specify the selection. The
+selection will contain no more than the specified ``limit``.
+
+.. code-block:: python
 
     assert len(notifications) == 3
 
+
+We can see they are all instances of the :class:`~eventsourcing.persistence.Notification` class.
+
+.. code-block:: python
+
+    from eventsourcing.persistence import Notification
+
     assert isinstance(notifications[0], Notification)
+    assert isinstance(notifications[1], Notification)
+    assert isinstance(notifications[2], Notification)
+
+
+Each event notification has an ``id`` that is the unique integer ID of
+the event notification. The event notifications are ordered by their IDs,
+with later event notifications having higher values than earlier ones.
+
+The selection of event notifications will have notification IDs which are
+greater or equal to the given value of ``start``. Please note, by default,
+the first recorded event notification will have ID equal to ``1``.
+
+.. code-block:: python
+
     assert notifications[0].id == 1
     assert notifications[1].id == 2
     assert notifications[2].id == 3
 
-    assert notifications[0].originator_id == world_id
-    assert notifications[1].originator_id == world_id
-    assert notifications[2].originator_id == world_id
 
-    assert notifications[0].originator_version == 1
-    assert notifications[1].originator_version == 2
-    assert notifications[2].originator_version == 3
-
-    assert "World.Created" in notifications[0].topic
-    assert "World.SomethingHappened" in notifications[1].topic
-    assert "World.SomethingHappened" in notifications[2].topic
-
-    assert b"dinosaurs" in notifications[1].state
-    assert b"trucks" in notifications[2].state
-
-
-We can continue to select event notifications, by using the ID
-of the last event notification received to calculate the next
-``start`` value.
+We can see these notifications represent the facts that a ``World`` aggregate was
+created, and then two ``SomethingHappened`` events occurred ("dinosaurs", "trucks").
 
 .. code-block:: python
 
-    next_start = notifications[-1].id + 1
+    notification = notifications[0]
+    assert "World.Created" in notification.topic
+    assert notification.originator_id == world_id
 
-    notifications = application.log.select(start=next_start, limit=3)
+    notification = notifications[1]
+    assert "World.SomethingHappened" in notification.topic
+    assert b"dinosaurs" in notification.state
+    assert notification.originator_id == world_id
 
-    assert len(notifications) == 1
-
-    assert notifications[0].originator_id == world_id
-    assert notifications[0].originator_version == 4
-    assert "World.SomethingHappened" in notifications[0].topic
-    assert b"internet" in notifications[0].state
+    notification = notifications[2]
+    assert "World.SomethingHappened" in notification.topic
+    assert b"trucks" in notification.state
+    assert notification.originator_id == world_id
 
 
-This method is used by the :class:`~eventsourcing.system.NotificationLogReader` class,
-which is used by the :class:`~eventsourcing.system.ProcessApplication` class to
+We can continue to select event notifications, by using the
+last event notification ID to calculate the next ``start`` value.
+
+.. code-block:: python
+
+    notifications = application.log.select(
+        start=notification.id + 1, limit=3
+    )
+
+    notification = notifications[0]
+    assert "World.SomethingHappened" in notification.topic
+    assert b"internet" in notification.state
+
+
+This method is used in a :class:`~eventsourcing.system.NotificationLogReader`
+in a :class:`~eventsourcing.system.ProcessApplication` to
 pull event notifications from upstream applications in an event-driven system,
 using the :func:`~eventsourcing.persistence.ProcessRecorder.max_tracking_id` method
-of a :class:`~eventsourcing.persistence.ProcessRecorder` object to calculate the
+of a :class:`~eventsourcing.persistence.ProcessRecorder` to calculate the
 next start value from which to pull unprocessed event notifications.
 See the :doc:`system </topics/system>` and :doc:`persistence </topics/persistence>`
 module documentation for more information.
@@ -411,10 +421,6 @@ Linked list of sections
 The notification log also presents linked sections of
 :ref:`notification objects <Notification objects>`.
 The sections are instances of the library's :class:`~eventsourcing.application.Section` class.
-
-Each event notification has an ``id`` that has the unique integer ID of
-the event notification. The event notifications are ordered by their IDs,
-with later event notifications having higher values than earlier ones.
 
 A notification log section is identified by a section ID string that comprises
 two integers separated by a comma, for example ``"1,10"``. The first integer
@@ -500,7 +506,7 @@ will also be encrypted, but the mapper will decrypt the event notification.
 Registering custom transcodings
 ===============================
 
-The application serialises and deserialise domain events using a
+The application serialises and deserialises domain events using a
 :ref:`transcoder <Transcoder>` object. By default, the application
 will use the library's default JSON transcoder. The library's application
 base class registers transcodings for :class:`~uuid.UUID`, :class:`~decimal.Decimal`,
@@ -560,13 +566,10 @@ attribute of the application class, in the
 or by passing them into the application using the constructor argument ``env``. You
 can use all three ways for configuring an application in combination.
 
-..
-    # include-when-testing
-..
+.. code-block:: python
+
     import os
 
-
-.. code-block:: python
 
     # Configure by setting class attribute.
     class MyApplication(Application):
@@ -636,6 +639,7 @@ enabled (or disabled) for an individual application object in this way.
 .. code-block:: python
 
     application = Worlds(env={"IS_SNAPSHOTTING_ENABLED": "y"})
+
     assert application.snapshots is not None
 
 
@@ -673,6 +677,7 @@ setting the boolean attribute 'is_snapshotting_enabled' on the application class
     class WorldsWithSnapshottingEnabled(Worlds):
         is_snapshotting_enabled = True
 
+
     application = WorldsWithSnapshottingEnabled()
     assert application.snapshots is not None
 
@@ -683,11 +688,14 @@ by extending the ``Worlds`` application class defined above.
 .. code-block:: python
 
     application = WorldsWithSnapshottingEnabled(env={"IS_SNAPSHOTTING_ENABLED": "n"})
+
     assert application.snapshots is None
 
     os.environ["IS_SNAPSHOTTING_ENABLED"] = "n"
     application = WorldsWithSnapshottingEnabled()
+
     assert application.snapshots is None
+
     del os.environ["IS_SNAPSHOTTING_ENABLED"]
 
 
@@ -711,6 +719,7 @@ actually recorded state of the aggregate is avoided.
     application.make_it_so(world_id, "internet")
 
     application.take_snapshot(world_id)
+
 
 Snapshots are stored separately from the aggregate events, but snapshot objects are
 implemented as a kind of domain event, and snapshotting uses the same mechanism
