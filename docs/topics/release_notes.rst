@@ -23,6 +23,14 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.2.0 (forthcoming)
+---------------------------
+
+Added support for selecting a persistence module in application
+environment ('PERSISTENCE_MODULE') rather than specifying the
+topic of a factory class. Improved documentation.
+
+
 Version 9.1.6 (released 18 November 2021)
 -----------------------------------------
 
