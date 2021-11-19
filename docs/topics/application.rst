@@ -727,21 +727,21 @@ class and not a subclass.
 Configuring persistence
 =======================
 
-The example above uses the application's default persistence infrastructure.
 By default, application objects will be configured to use the library's
-"plain old Python objects" infrastructure, and will store events in memory.
+"plain old Python objects" persistence module, and will store events in memory.
+The example above uses the application's default persistence module.
 This is good for development, because it is the fastest option. But the
-state of the application will be lost when the application object is deleted.
+state of the application will be lost when the application object is
+deleted. So it is not very good for production.
 
 If you want the state of the application object to endure, you will need to
-use alternative persistence infrastructure. To use alternative persistence
-infrastructure, you will need to set the environment variable
-``PERSISTENCE_MODULE`` to an alternative persistence module.
-Using alternative persistence infrastructure may involve
-setting further environment variables, perhaps to configure access to
-a real database, such as a database name, a user name, and a password.
+use an alternative persistence module. To use alternative persistence
+infrastructure, set the variable ``PERSISTENCE_MODULE`` in the application
+environment. Using an alternative persistence module may involve setting
+further environment variables, perhaps to configure access to a real database,
+such as a database name, a user name, and a password.
 
-For example, to use the library's :ref:`SQLite infrastructure <SQLite>`,
+For example, to use the library's SQLite persistence module,
 set ``PERSISTENCE_MODULE`` to the value ``"eventsourcing.sqlite"``.
 The environment variable ``SQLITE_DBNAME`` must also be set. This value
 will be passed to Python's :func:`sqlite3.connect` function.
@@ -751,7 +751,6 @@ will be passed to Python's :func:`sqlite3.connect` function.
     from tempfile import NamedTemporaryFile
 
     tmpfile = NamedTemporaryFile(suffix="_eventsourcing_test.db")
-    tmpfile.name
 
     os.environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
     os.environ["SQLITE_DBNAME"] = tmpfile.name
@@ -779,7 +778,13 @@ and reconstructed.
     assert history[1] == "trucks"
     assert history[2] == "internet"
 
-See also :ref:`PostgreSQL infrastructure <PostgreSQL>`.
+See :ref:`SQLite infrastructure <SQLite>` for more information
+about using SQLite.
+
+To use the library's PostgreSQL persistence module,
+set ``PERSISTENCE_MODULE`` to the value ``"eventsourcing.postgres"``.
+See :ref:`PostgreSQL infrastructure <PostgreSQL>` documentation
+for more information about using PostgreSQL.
 
 
 Registering custom transcodings

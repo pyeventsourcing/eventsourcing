@@ -628,7 +628,7 @@ the position in a total ordering of domain events that is
 being processed. The "aggregate recorder" can be used for
 storing snapshots.
 
-The library module :mod:`eventsourcing.sqlite` includes
+The persistence module :mod:`eventsourcing.sqlite` includes
 recorder classes for SQLite that use the Python :mod:`sqlite3`
 module. And the module :mod:`eventsourcing.postgres` has recorders
 for PostgreSQL that use the third party :mod:`psycopg2` module.
@@ -657,7 +657,7 @@ modules follow a similar naming scheme and pattern of use.
     process_recorder.create_table()
 
 
-The library module :mod:`eventsourcing.popo` has recorders
+The persistence module :mod:`eventsourcing.popo` has recorders
 that use "plain old Python objects", which simply keep stored events in a
 data structure in memory, and provides the fastest alternative for rapid
 development of event sourced applications. It ~4x faster than using SQLite,
@@ -764,7 +764,7 @@ be used to enable compression and encryption of stored events when using POPO in
 SQLite
 ======
 
-The library module :mod:`eventsourcing.sqlite` supports storing events in
+The persistence module :mod:`eventsourcing.sqlite` supports storing events in
 `SQLite <https://www.sqlite.org/>`__.
 
 The library's SQLite :class:`~eventsourcing.sqlite.Factory` uses various
@@ -821,7 +821,7 @@ The SQLite infrastructure is provided by the :mod:`eventsourcing.sqlite` module.
 PostgreSQL
 ==========
 
-The library module :mod:`eventsourcing.postgres` supports storing events in
+The persistence module :mod:`eventsourcing.postgres` supports storing events in
 `PostgresSQL <https://www.postgresql.org/>`__.
 
 The library's PostgreSQL :class:`~eventsourcing.postgres.Factory` uses various
