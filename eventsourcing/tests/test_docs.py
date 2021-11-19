@@ -71,7 +71,7 @@ class TestDocs(TestCase):
 
     def clean_env(self):
         keys = [
-            "INFRASTRUCTURE_FACTORY",
+            "PERSISTENCE_MODULE",
             "IS_SNAPSHOTTING_ENABLED",
             "POSTGRES_DBNAME",
             "POSTGRES_HOST",

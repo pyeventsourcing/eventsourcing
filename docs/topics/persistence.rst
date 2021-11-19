@@ -792,7 +792,7 @@ do not exist.
 
     import os
 
-    os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.sqlite:Factory"
+    os.environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
     os.environ["SQLITE_DBNAME"] = ":memory:"
     os.environ["SQLITE_LOCK_TIMEOUT"] = "10"
 
@@ -891,7 +891,7 @@ do not exist.
 
     import os
 
-    os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.postgres:Factory"
+    os.environ["PERSISTENCE_MODULE"] = "eventsourcing.postgres"
     os.environ["POSTGRES_DBNAME"] = "eventsourcing"
     os.environ["POSTGRES_HOST"] = "127.0.0.1"
     os.environ["POSTGRES_PORT"] = "5432"

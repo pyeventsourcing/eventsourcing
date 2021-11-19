@@ -131,7 +131,7 @@ Configure an application by setting environment variables.
 
     application = Universe(
         env={
-            'FACTORY_TOPIC': 'eventsourcing.sqlite:Factory',
+            'PERSISTENCE_MODULE': 'eventsourcing.sqlite',
             'SQLITE_DBNAME': ':memory:',
         }
     )

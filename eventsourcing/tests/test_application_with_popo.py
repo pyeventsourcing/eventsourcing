@@ -7,11 +7,57 @@ from unittest.case import TestCase
 from uuid import UUID, uuid4
 
 from eventsourcing.application import AggregateNotFound, Application
-from eventsourcing.persistence import Transcoder, Transcoding
+from eventsourcing.persistence import (
+    InfrastructureFactory,
+    Transcoder,
+    Transcoding,
+)
 from eventsourcing.tests.test_aggregate import BankAccount, EmailAddress
 from eventsourcing.utils import get_topic
 
 TIMEIT_FACTOR = int(os.environ.get("TEST_TIMEIT_FACTOR", default=10))
+
+
+class TestApplication(TestCase):
+    def test_resolve_persistence_topics(self):
+        # None specified.
+        app = Application()
+        self.assertIsInstance(app.factory, InfrastructureFactory)
+
+        # Legacy 'INFRASTRUCTURE_FACTORY'.
+        app = Application(env={"INFRASTRUCTURE_FACTORY": "eventsourcing.popo:Factory"})
+        self.assertIsInstance(app.factory, InfrastructureFactory)
+
+        # Legacy 'FACTORY_TOPIC'.
+        app = Application(env={"FACTORY_TOPIC": "eventsourcing.popo:Factory"})
+        self.assertIsInstance(app.factory, InfrastructureFactory)
+
+        # Check 'PERSISTENCE_MODULE' resolves to a class.
+        app = Application(env={"PERSISTENCE_MODULE": "eventsourcing.popo"})
+        self.assertIsInstance(app.factory, InfrastructureFactory)
+
+        # Check exceptions.
+        with self.assertRaises(AssertionError) as cm:
+            Application(env={"PERSISTENCE_MODULE": "eventsourcing.application"})
+        self.assertEqual(
+            cm.exception.args[0],
+            (
+                "Found 0 infrastructure factory classes in "
+                "'eventsourcing.application', expected 1."
+            ),
+        )
+
+        with self.assertRaises(AssertionError) as cm:
+            Application(
+                env={"PERSISTENCE_MODULE": "eventsourcing.application:Application"}
+            )
+        self.assertEqual(
+            cm.exception.args[0],
+            (
+                "Not an infrastructure factory class or module: "
+                "eventsourcing.application:Application"
+            ),
+        )
 
 
 class TestApplicationWithPOPO(TestCase):

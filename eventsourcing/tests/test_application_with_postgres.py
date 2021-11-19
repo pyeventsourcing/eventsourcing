@@ -15,7 +15,7 @@ class TestApplicationWithPostgres(TestApplicationWithPOPO):
     def setUp(self) -> None:
         super().setUp()
 
-        os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.postgres:Factory"
+        os.environ["PERSISTENCE_MODULE"] = "eventsourcing.postgres"
         os.environ["CREATE_TABLE"] = "y"
         os.environ["POSTGRES_DBNAME"] = "eventsourcing"
         os.environ["POSTGRES_HOST"] = "127.0.0.1"
@@ -45,7 +45,7 @@ class TestApplicationWithPostgres(TestApplicationWithPOPO):
         drop_postgres_table(db, "public.bankaccounts_events")
         drop_postgres_table(db, "public.bankaccounts_snapshots")
 
-        del os.environ["INFRASTRUCTURE_FACTORY"]
+        del os.environ["PERSISTENCE_MODULE"]
         del os.environ["CREATE_TABLE"]
         del os.environ["POSTGRES_DBNAME"]
         del os.environ["POSTGRES_HOST"]

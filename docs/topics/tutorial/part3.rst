@@ -396,7 +396,7 @@ SQLite environment
 
 We can also configure an application to use SQLite for storing events.
 To use the library's :ref:`SQLite infrastructure <SQLite>`,
-set ``INFRASTRUCTURE_FACTORY`` to the value ``'eventsourcing.sqlite:Factory'``.
+set ``PERSISTENCE_MODULE`` to the value ``'eventsourcing.sqlite'``.
 When using the library's SQLite infrastructure, the environment variable
 ``SQLITE_DBNAME`` must also be set. This value will be passed to Python's
 :func:`sqlite3.connect`.
@@ -407,7 +407,7 @@ When using the library's SQLite infrastructure, the environment variable
 
 
     # Use SQLite infrastructure.
-    os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.sqlite:Factory'
+    os.environ['PERSISTENCE_MODULE'] = 'eventsourcing.sqlite'
 
     # Configure SQLite database URI. Either use a file-based DB;
     os.environ['SQLITE_DBNAME'] = '/path/to/your/sqlite-db'
@@ -490,7 +490,7 @@ already been created, and the database server is running locally.
     os.environ['COMPRESSOR_TOPIC'] = 'eventsourcing.compressor:ZlibCompressor'
 
     # Use Postgres infrastructure.
-    os.environ['INFRASTRUCTURE_FACTORY'] = 'eventsourcing.postgres:Factory'
+    os.environ['PERSISTENCE_MODULE'] = 'eventsourcing.postgres'
 
     # Configure database connections.
     os.environ['POSTGRES_DBNAME'] = 'eventsourcing'

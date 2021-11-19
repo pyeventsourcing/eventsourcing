@@ -125,7 +125,7 @@ class TestParkingLot(TestCase):
         # Construct the application object to use an SQLite database.
         app = ParkingLot(
             env={
-                "INFRASTRUCTURE_FACTORY": "eventsourcing.sqlite:Factory",
+                "PERSISTENCE_MODULE": "eventsourcing.sqlite",
                 "SQLITE_DBNAME": ":memory:",
             }
         )

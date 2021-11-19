@@ -16,12 +16,12 @@ class TestApplicationWithSQLite(TestApplicationWithPOPO):
         self.uris = tmpfile_uris()
         # self.db_uri = next(self.uris)
 
-        os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.sqlite:Factory"
+        os.environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
         os.environ["CREATE_TABLE"] = "y"
         os.environ["SQLITE_DBNAME"] = next(self.uris)
 
     def tearDown(self) -> None:
-        del os.environ["INFRASTRUCTURE_FACTORY"]
+        del os.environ["PERSISTENCE_MODULE"]
         del os.environ["CREATE_TABLE"]
         del os.environ["SQLITE_DBNAME"]
         super().tearDown()

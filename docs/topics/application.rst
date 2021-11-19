@@ -735,14 +735,14 @@ state of the application will be lost when the application object is deleted.
 
 If you want the state of the application object to endure, you will need to
 use alternative persistence infrastructure. To use alternative persistence
-infrastructure, you will need to set the environment variable ``INFRASTRUCTURE_FACTORY``
-to the :ref:`topic <Topics>` of an alternative :ref:`infrastructure factory <Factory>`
-class. Using alternative persistence infrastructure will may involve
+infrastructure, you will need to set the environment variable
+``PERSISTENCE_MODULE`` to an alternative persistence module.
+Using alternative persistence infrastructure will may involve
 setting further environment variables, perhaps to configure access to
 a real database, such as a database name, a user name, and a password.
 
 For example, to use the library's :ref:`SQLite infrastructure <SQLite>`,
-set ``INFRASTRUCTURE_FACTORY`` to the value ``"eventsourcing.sqlite:Factory"``.
+set ``PERSISTENCE_MODULE`` to the value ``"eventsourcing.sqlite"``.
 When using the library's SQLite infrastructure, the environment variable
 ``SQLITE_DBNAME`` must also be set. This value will be passed to Python's
 :func:`sqlite3.connect`.
@@ -754,7 +754,7 @@ When using the library's SQLite infrastructure, the environment variable
     tmpfile = NamedTemporaryFile(suffix="_eventsourcing_test.db")
     tmpfile.name
 
-    os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.sqlite:Factory"
+    os.environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
     os.environ["SQLITE_DBNAME"] = tmpfile.name
     application = Worlds()
 

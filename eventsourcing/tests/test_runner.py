@@ -183,7 +183,7 @@ class TestMultiThreadedRunner(RunnerTestCase):
 
 class TestMultiThreadedRunnerWithSQLiteFileBased(TestMultiThreadedRunner):
     def setUp(self):
-        os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.sqlite:Factory"
+        os.environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
         uris = tmpfile_uris()
         os.environ["BANKACCOUNTS_SQLITE_DBNAME"] = next(uris)
         os.environ["EMAILNOTIFICATIONS_SQLITE_DBNAME"] = next(uris)
@@ -191,7 +191,7 @@ class TestMultiThreadedRunnerWithSQLiteFileBased(TestMultiThreadedRunner):
         os.environ["BROKENPROCESSING_SQLITE_DBNAME"] = next(uris)
 
     def tearDown(self):
-        del os.environ["INFRASTRUCTURE_FACTORY"]
+        del os.environ["PERSISTENCE_MODULE"]
         del os.environ["BANKACCOUNTS_SQLITE_DBNAME"]
         del os.environ["EMAILNOTIFICATIONS_SQLITE_DBNAME"]
         del os.environ["EMAILNOTIFICATIONS2_SQLITE_DBNAME"]
@@ -203,7 +203,7 @@ class TestMultiThreadedRunnerWithSQLiteFileBased(TestMultiThreadedRunner):
 
 class TestMultiThreadedRunnerWithSQLiteInMemory(TestMultiThreadedRunner):
     def setUp(self):
-        os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.sqlite:Factory"
+        os.environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
         os.environ[
             "BANKACCOUNTS_SQLITE_DBNAME"
         ] = "file:bankaccounts?mode=memory&cache=shared"
@@ -218,7 +218,7 @@ class TestMultiThreadedRunnerWithSQLiteInMemory(TestMultiThreadedRunner):
         ] = "file:brokenprocessing?mode=memory&cache=shared"
 
     def tearDown(self):
-        del os.environ["INFRASTRUCTURE_FACTORY"]
+        del os.environ["PERSISTENCE_MODULE"]
         del os.environ["BANKACCOUNTS_SQLITE_DBNAME"]
         del os.environ["EMAILNOTIFICATIONS_SQLITE_DBNAME"]
         del os.environ["EMAILNOTIFICATIONS2_SQLITE_DBNAME"]
@@ -251,10 +251,10 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
         drop_postgres_table(db, "brokenprocessing_events")
         drop_postgres_table(db, "brokenprocessing_tracking")
 
-        os.environ["INFRASTRUCTURE_FACTORY"] = "eventsourcing.postgres:Factory"
+        os.environ["PERSISTENCE_MODULE"] = "eventsourcing.postgres"
 
     def tearDown(self):
-        del os.environ["INFRASTRUCTURE_FACTORY"]
+        del os.environ["PERSISTENCE_MODULE"]
         del os.environ["POSTGRES_DBNAME"]
         del os.environ["POSTGRES_HOST"]
         del os.environ["POSTGRES_PORT"]

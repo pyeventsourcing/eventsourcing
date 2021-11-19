@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
+from types import ModuleType
 from typing import (
     Any,
     Dict,
@@ -533,7 +534,7 @@ class InfrastructureFactory(ABC):
     Abstract base class for infrastructure factories.
     """
 
-    TOPIC = "INFRASTRUCTURE_FACTORY"
+    TOPIC = "PERSISTENCE_MODULE"
     MAPPER_TOPIC = "MAPPER_TOPIC"
     CIPHER_TOPIC = "CIPHER_TOPIC"
     CIPHER_KEY = "CIPHER_KEY"
@@ -548,17 +549,28 @@ class InfrastructureFactory(ABC):
     ) -> TF:
         """
         Constructs concrete infrastructure factory for given
-        named application. Reads and resolves infrastructure
-        factory class topic from environment variable 'INFRASTRUCTURE_FACTORY'.
+        named application. Reads and resolves persistence
+        topic from environment variable 'PERSISTENCE_MODULE'.
         """
+        factory_cls: Type[TF]
         # noinspection SpellCheckingInspection
         env = env if env is not None else os.environ
-        topic = env.get(
-            cls.TOPIC,
-            "eventsourcing.popo:Factory",
+        topic = (
+            env.get(
+                "INFRASTRUCTURE_FACTORY",  # Legacy.
+                "",
+            )
+            or env.get(
+                "FACTORY_TOPIC",  # Legacy.
+                "",
+            )
+            or env.get(
+                cls.TOPIC,
+                "eventsourcing.popo:Factory",
+            )
         )
         try:
-            factory_cls: Type[TF] = resolve_topic(topic)
+            obj: Union[Type[TF], ModuleType] = resolve_topic(topic)
         except TopicError:
             raise EnvironmentError(
                 "Failed to resolve "
@@ -567,8 +579,29 @@ class InfrastructureFactory(ABC):
                 f"variable '{cls.TOPIC}'"
             )
 
-        if not issubclass(factory_cls, InfrastructureFactory):
-            raise AssertionError(f"Not an infrastructure factory: {topic}")
+        if isinstance(obj, ModuleType):
+            # Find the factory in the module.
+            factory_classes: List[Type[TF]] = []
+            for member in obj.__dict__.values():
+                if (
+                    isinstance(member, type)
+                    and issubclass(member, InfrastructureFactory)
+                    and member != InfrastructureFactory
+                ):
+                    factory_classes.append(cast(Type[TF], member))
+            if len(factory_classes) == 1:
+                factory_cls = factory_classes[0]
+            else:
+                raise AssertionError(
+                    f"Found {len(factory_classes)} infrastructure factory classes in"
+                    f" '{topic}', expected 1."
+                )
+        elif isinstance(obj, type) and issubclass(obj, InfrastructureFactory):
+            factory_cls = obj
+        else:
+            raise AssertionError(
+                f"Not an infrastructure factory class or module: {topic}"
+            )
         return factory_cls(application_name=application_name, env=env)
 
     def __init__(self, application_name: str, env: Mapping[str, str]):
