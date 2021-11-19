@@ -26,8 +26,9 @@ code and stored events is very possible.
 Version 9.2.0 (forthcoming)
 ---------------------------
 
-Added support for selecting a persistence module in application
-environment ('PERSISTENCE_MODULE') rather than specifying the
+Added support for specifying in which PostgreSQL schema tables
+should be created. Added support for selecting a persistence module in
+application environment ('PERSISTENCE_MODULE') rather than specifying the
 topic of a factory class. Improved documentation.
 
 
