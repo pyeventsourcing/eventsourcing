@@ -200,54 +200,6 @@ objects. To store the domain events in a real database, simply
 :ref:`configure persistence<Persistence>` by setting environment
 variables for the application.
 
-.. _Application environment:
-
-Application environment
-=======================
-
-An application can be configured using environment variables. You
-can set the application's environment either on the ``env``
-attribute of the application class, in the
-`operating system environment <https://docs.python.org/3/library/os.html#os.environ>`__,
-or by passing them into the application using the constructor argument ``env``. You
-can use all three ways for configuring an application in combination.
-
-..
-    # include-when-testing
-..
-    import os
-
-
-.. code-block:: python
-
-    # Configure by setting class attribute.
-    class MyApplication(Application):
-        env = {"SETTING_A": "1", "SETTING_B": "1", "SETTING_C": "1"}
-
-
-    # Configure by setting operating system environment.
-    os.environ["SETTING_B"] = "2"
-    os.environ["SETTING_C"] = "2"
-
-
-    # Configure by setting constructor argument.
-    app = MyApplication(env={"SETTING_C": "3"})
-
-The order of precedence
-is: constructor argument, operating system, class attribute. This means a constructor
-argument setting will override both a operating system, and a class attribute setting. And
-an operating system setting will override a class attribute setting.
-
-.. code-block:: python
-
-    assert app.env["SETTING_A"] == "1"
-    assert app.env["SETTING_B"] == "2"
-    assert app.env["SETTING_C"] == "3"
-
-The resulting settings can be seen on the ``env`` attribute of the application object.
-In the example above, we can see that the settings from the construct argument have
-overridden the settings from the operating system environment, and the settings from
-the operating system environment have overridden the settings from the class attribute.
 
 .. _Repository:
 
@@ -544,6 +496,108 @@ will also be encrypted, but the mapper will decrypt the event notification.
     assert domain_event.originator_id == world_id
     assert domain_event.what == "internet"
 
+
+Registering custom transcodings
+===============================
+
+The application serialises and deserialise domain events using a
+:ref:`transcoder <Transcoder>` object. By default, the application
+will use the library's default JSON transcoder. The library's application
+base class registers transcodings for :class:`~uuid.UUID`, :class:`~decimal.Decimal`,
+and :class:`~datetime.datetime` objects.
+
+If your domain model uses types of object that are not already supported by
+the transcoder, then custom :ref:`transcodings <Transcodings>` for these
+objects will need to be implemented and registered with the application's
+transcoder.
+
+The application method :func:`~eventsourcing.application.Application.register_transcodings`
+can be overridden or extended to register the transcodings required by your application.
+
+For example, to define and register a :class:`~eventsourcing.persistence.Transcoding`
+for the Python :class:`~datetime.date` class, define a class such as the
+``DateAsISO`` class below, and extend the application
+:func:`~eventsourcing.application.Application.register_transcodings`
+method by calling the ``super()`` method with the given ``transcoder``
+argument, and then the transcoder's :func:`~eventsourcing.persistence.Transcoder.register`
+method once for each of your custom transcodings.
+
+.. code-block:: python
+
+    from datetime import date
+    from typing import Union
+
+    from eventsourcing.persistence import Transcoder, Transcoding
+
+
+    class MyApplication(Application):
+        def register_transcodings(self, transcoder: Transcoder):
+            super().register_transcodings(transcoder)
+            transcoder.register(DateAsISO())
+
+
+    class DateAsISO(Transcoding):
+        type = date
+        name = "date_iso"
+
+        def encode(self, o: date) -> str:
+            return o.isoformat()
+
+        def decode(self, d: Union[str, dict]) -> date:
+            assert isinstance(d, str)
+            return date.fromisoformat(d)
+
+
+.. _Application environment:
+
+Application environment
+=======================
+
+An application can be configured using environment variables. You
+can set the application's environment either on the ``env``
+attribute of the application class, in the
+`operating system environment <https://docs.python.org/3/library/os.html#os.environ>`__,
+or by passing them into the application using the constructor argument ``env``. You
+can use all three ways for configuring an application in combination.
+
+..
+    # include-when-testing
+..
+    import os
+
+
+.. code-block:: python
+
+    # Configure by setting class attribute.
+    class MyApplication(Application):
+        env = {"SETTING_A": "1", "SETTING_B": "1", "SETTING_C": "1"}
+
+
+    # Configure by setting operating system environment.
+    os.environ["SETTING_B"] = "2"
+    os.environ["SETTING_C"] = "2"
+
+
+    # Configure by setting constructor argument.
+    app = MyApplication(env={"SETTING_C": "3"})
+
+The order of precedence
+is: constructor argument, operating system, class attribute. This means a constructor
+argument setting will override both a operating system, and a class attribute setting. And
+an operating system setting will override a class attribute setting.
+
+.. code-block:: python
+
+    assert app.env["SETTING_A"] == "1"
+    assert app.env["SETTING_B"] == "2"
+    assert app.env["SETTING_C"] == "3"
+
+The resulting settings can be seen on the ``env`` attribute of the application object.
+In the example above, we can see that the settings from the construct argument have
+overridden the settings from the operating system environment, and the settings from
+the operating system environment have overridden the settings from the class attribute.
+
+
 .. _Snapshotting:
 
 Snapshotting
@@ -785,57 +839,6 @@ To use the library's PostgreSQL persistence module,
 set ``PERSISTENCE_MODULE`` to the value ``"eventsourcing.postgres"``.
 See :ref:`PostgreSQL infrastructure <PostgreSQL>` documentation
 for more information about using PostgreSQL.
-
-
-Registering custom transcodings
-===============================
-
-The application serialises and deserialise domain events using a
-:ref:`transcoder <Transcoder>` object. By default, the application
-will use the library's default JSON transcoder. The library's application
-base class registers transcodings for :class:`~uuid.UUID`, :class:`~decimal.Decimal`,
-and :class:`~datetime.datetime` objects.
-
-If your domain model uses types of object that are not already supported by
-the transcoder, then custom :ref:`transcodings <Transcodings>` for these
-objects will need to be implemented and registered with the application's
-transcoder.
-
-The application method :func:`~eventsourcing.application.Application.register_transcodings`
-can be overridden or extended to register the transcodings required by your application.
-
-For example, to define and register a :class:`~eventsourcing.persistence.Transcoding`
-for the Python :class:`~datetime.date` class, define a class such as the
-``DateAsISO`` class below, and extend the application
-:func:`~eventsourcing.application.Application.register_transcodings`
-method by calling the ``super()`` method with the given ``transcoder``
-argument, and then the transcoder's :func:`~eventsourcing.persistence.Transcoder.register`
-method once for each of your custom transcodings.
-
-.. code-block:: python
-
-    from datetime import date
-    from typing import Union
-
-    from eventsourcing.persistence import Transcoder, Transcoding
-
-
-    class MyApplication(Application):
-        def register_transcodings(self, transcoder: Transcoder):
-            super().register_transcodings(transcoder)
-            transcoder.register(DateAsISO())
-
-
-    class DateAsISO(Transcoding):
-        type = date
-        name = "date_iso"
-
-        def encode(self, o: date) -> str:
-            return o.isoformat()
-
-        def decode(self, d: Union[str, dict]) -> date:
-            assert isinstance(d, str)
-            return date.fromisoformat(d)
 
 
 Encryption and compression
