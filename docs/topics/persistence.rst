@@ -834,6 +834,23 @@ constructed and used in a standard way.
 
     assert domain_events == [domain_event1]
 
+Example alternatives to in-memory databases specified with ``':memory:'``
+are listed below.
+
+.. code-block:: python
+
+    # Configure SQLite database URI. Either use a file-based DB;
+    os.environ['SQLITE_DBNAME'] = '/path/to/your/sqlite-db'
+
+    # or use an in-memory DB with cache not shared, only works with single thread;
+    os.environ['SQLITE_DBNAME'] = ':memory:'
+
+    # or use an in-memory DB with shared cache, works with multiple threads;
+    os.environ['SQLITE_DBNAME'] = ':memory:?mode=memory&cache=shared'
+
+    # or use a named in-memory DB, allows distinct databases in same process.
+    os.environ['SQLITE_DBNAME'] = 'file:application1?mode=memory&cache=shared'
+
 
 As above, the optional environment variables ``COMPRESSOR_TOPIC``, ``CIPHER_KEY``,
 and ``CIPHER_TOPIC`` may be used to enable compression and encryption of stored
