@@ -937,9 +937,6 @@ a specific PostgreSQL schema. See the
 `PostgreSQL Schemas <https://www.postgresql.org/docs/current/ddl-schemas.html>`__
 documentation for more information about creating and using PostgreSQL schemas safely.
 
-The optional environment variables ``COMPRESSOR_TOPIC``, ``CIPHER_KEY``, and ``CIPHER_TOPIC`` may
-be used to enable compression and encryption of stored events.
-
 The optional environment variable ``CREATE_TABLE`` controls whether or not database tables are
 created when a recorder is constructed by a factory. If the tables already exist, the ``CREATE_TABLE``
 may be set to a "false" value (``"n"``, ``"no"``, ``"f"``, ``"false"``, ``"off"``, or ``"0"``).
