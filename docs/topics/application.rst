@@ -586,7 +586,7 @@ can use all three ways for configuring an application in combination.
 
 The order of precedence
 is: constructor argument, operating system, class attribute. This means a constructor
-argument setting will override both a operating system, and a class attribute setting. And
+argument setting will override both an operating system and a class attribute setting. And
 an operating system setting will override a class attribute setting.
 
 .. code-block:: python
