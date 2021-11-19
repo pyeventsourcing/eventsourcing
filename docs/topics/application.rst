@@ -737,15 +737,14 @@ If you want the state of the application object to endure, you will need to
 use alternative persistence infrastructure. To use alternative persistence
 infrastructure, you will need to set the environment variable
 ``PERSISTENCE_MODULE`` to an alternative persistence module.
-Using alternative persistence infrastructure will may involve
+Using alternative persistence infrastructure may involve
 setting further environment variables, perhaps to configure access to
 a real database, such as a database name, a user name, and a password.
 
 For example, to use the library's :ref:`SQLite infrastructure <SQLite>`,
 set ``PERSISTENCE_MODULE`` to the value ``"eventsourcing.sqlite"``.
-When using the library's SQLite infrastructure, the environment variable
-``SQLITE_DBNAME`` must also be set. This value will be passed to Python's
-:func:`sqlite3.connect`.
+The environment variable ``SQLITE_DBNAME`` must also be set. This value
+will be passed to Python's :func:`sqlite3.connect` function.
 
 .. code-block:: python
 
