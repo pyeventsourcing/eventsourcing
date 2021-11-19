@@ -848,6 +848,8 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
             del os.environ[Factory.POSTGRES_LOCK_TIMEOUT]
         if Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT in os.environ:
             del os.environ[Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT]
+        if Factory.POSTGRES_SCHEMA in os.environ:
+            del os.environ[Factory.POSTGRES_SCHEMA]
         self.drop_tables()
         super().setUp()
 
@@ -871,6 +873,8 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
             del os.environ[Factory.POSTGRES_LOCK_TIMEOUT]
         if Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT in os.environ:
             del os.environ[Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT]
+        if Factory.POSTGRES_SCHEMA in os.environ:
+            del os.environ[Factory.POSTGRES_SCHEMA]
         super().tearDown()
 
     def drop_tables(self):
@@ -1007,6 +1011,83 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
             cm.exception.args[0],
             "Postgres password not found in environment with key 'POSTGRES_PASSWORD'",
         )
+
+    def test_schema_set_to_empty_string(self):
+        os.environ[Factory.POSTGRES_SCHEMA] = ""
+        self.factory = Factory("TestCase", os.environ)
+        self.assertEqual(self.factory.datastore.schema, "")
+
+    def test_schema_set_to_whitespace(self):
+        os.environ[Factory.POSTGRES_SCHEMA] = " "
+        self.factory = Factory("TestCase", os.environ)
+        self.assertEqual(self.factory.datastore.schema, "")
+
+    def test_scheme_adjusts_table_names_on_aggregate_recorder(self):
+        self.factory = Factory("TestCase", os.environ)
+
+        # Check by default the table name is not qualified.
+        recorder = self.factory.aggregate_recorder("events")
+        assert isinstance(recorder, PostgresAggregateRecorder)
+        self.assertEqual(recorder.events_table_name, "testcase_events")
+
+        # Check by default the table name is not qualified.
+        recorder = self.factory.aggregate_recorder("snapshots")
+        assert isinstance(recorder, PostgresAggregateRecorder)
+        self.assertEqual(recorder.events_table_name, "testcase_snapshots")
+
+        # Set schema in environment.
+        os.environ[Factory.POSTGRES_SCHEMA] = "public"
+        self.factory = Factory("TestCase", os.environ)
+        self.assertEqual(self.factory.datastore.schema, "public")
+
+        # Check by default the table name is qualified.
+        recorder = self.factory.aggregate_recorder("events")
+        assert isinstance(recorder, PostgresAggregateRecorder)
+        self.assertEqual(recorder.events_table_name, "public.testcase_events")
+
+        # Check by default the table name is qualified.
+        recorder = self.factory.aggregate_recorder("snapshots")
+        assert isinstance(recorder, PostgresAggregateRecorder)
+        self.assertEqual(recorder.events_table_name, "public.testcase_snapshots")
+
+    def test_scheme_adjusts_table_name_on_application_recorder(self):
+        self.factory = Factory("TestCase", os.environ)
+
+        # Check by default the table name is not qualified.
+        recorder = self.factory.application_recorder()
+        assert isinstance(recorder, PostgresApplicationRecorder)
+        self.assertEqual(recorder.events_table_name, "testcase_events")
+
+        # Set schema in environment.
+        os.environ[Factory.POSTGRES_SCHEMA] = "public"
+        self.factory = Factory("TestCase", os.environ)
+        self.assertEqual(self.factory.datastore.schema, "public")
+
+        # Check by default the table name is qualified.
+        recorder = self.factory.application_recorder()
+        assert isinstance(recorder, PostgresApplicationRecorder)
+        self.assertEqual(recorder.events_table_name, "public.testcase_events")
+
+    def test_scheme_adjusts_table_names_on_process_recorder(self):
+
+        self.factory = Factory("TestCase", os.environ)
+
+        # Check by default the table name is not qualified.
+        recorder = self.factory.process_recorder()
+        assert isinstance(recorder, PostgresProcessRecorder)
+        self.assertEqual(recorder.events_table_name, "testcase_events")
+        self.assertEqual(recorder.tracking_table_name, "testcase_tracking")
+
+        # Set schema in environment.
+        os.environ[Factory.POSTGRES_SCHEMA] = "public"
+        self.factory = Factory("TestCase", os.environ)
+        self.assertEqual(self.factory.datastore.schema, "public")
+
+        # Check by default the table name is qualified.
+        recorder = self.factory.process_recorder()
+        assert isinstance(recorder, PostgresProcessRecorder)
+        self.assertEqual(recorder.events_table_name, "public.testcase_events")
+        self.assertEqual(recorder.tracking_table_name, "public.testcase_tracking")
 
 
 del AggregateRecorderTestCase

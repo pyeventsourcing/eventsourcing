@@ -871,6 +871,12 @@ of 0 seconds, which means sessions in an idle transaction will not timeout. Sett
 positive integer number of seconds will cause sessions in an idle transaction to timeout after that duration
 has passed.
 
+The optional environment variable ``POSTGRES_SCHEMA`` may be used to configure the table names
+used by the recorders to be qualified with a schema name. Setting this will create tables in
+a specific PostgreSQL schema. See the
+`PostgreSQL Schemas <https://www.postgresql.org/docs/current/ddl-schemas.html>`__
+documentation for more information about creating and using PostgreSQL schemas safely.
+
 The optional environment variables ``COMPRESSOR_TOPIC``, ``CIPHER_KEY``, and ``CIPHER_TOPIC`` may
 be used to enable compression and encryption of stored events.
 
@@ -893,6 +899,7 @@ which is normally okay because the tables are created only if they do not exist.
     os.environ["POSTGRES_PRE_PING"] = "y"
     os.environ["POSTGRES_LOCK_TIMEOUT"] = "5"
     os.environ["POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT"] = "5"
+    os.environ["POSTGRES_SCHEMA"] = "public"
 
 ..
     from eventsourcing.tests.test_postgres import drop_postgres_table

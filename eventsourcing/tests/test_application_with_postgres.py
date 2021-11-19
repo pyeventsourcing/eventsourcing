@@ -22,6 +22,7 @@ class TestApplicationWithPostgres(TestApplicationWithPOPO):
         os.environ["POSTGRES_PORT"] = "5432"
         os.environ["POSTGRES_USER"] = "eventsourcing"
         os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
+        os.environ["POSTGRES_SCHEMA"] = "public"
 
         db = PostgresDatastore(
             os.getenv("POSTGRES_DBNAME"),
@@ -30,8 +31,8 @@ class TestApplicationWithPostgres(TestApplicationWithPOPO):
             os.getenv("POSTGRES_USER"),
             os.getenv("POSTGRES_PASSWORD"),
         )
-        drop_postgres_table(db, "bankaccounts_events")
-        drop_postgres_table(db, "bankaccounts_snapshots")
+        drop_postgres_table(db, "public.bankaccounts_events")
+        drop_postgres_table(db, "public.bankaccounts_snapshots")
 
     def tearDown(self) -> None:
         db = PostgresDatastore(
@@ -41,8 +42,8 @@ class TestApplicationWithPostgres(TestApplicationWithPOPO):
             os.getenv("POSTGRES_USER"),
             os.getenv("POSTGRES_PASSWORD"),
         )
-        drop_postgres_table(db, "bankaccounts_events")
-        drop_postgres_table(db, "bankaccounts_snapshots")
+        drop_postgres_table(db, "public.bankaccounts_events")
+        drop_postgres_table(db, "public.bankaccounts_snapshots")
 
         del os.environ["INFRASTRUCTURE_FACTORY"]
         del os.environ["CREATE_TABLE"]
@@ -51,6 +52,8 @@ class TestApplicationWithPostgres(TestApplicationWithPOPO):
         del os.environ["POSTGRES_PORT"]
         del os.environ["POSTGRES_USER"]
         del os.environ["POSTGRES_PASSWORD"]
+        del os.environ["POSTGRES_SCHEMA"]
+
         super().tearDown()
 
 

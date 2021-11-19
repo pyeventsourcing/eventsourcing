@@ -138,6 +138,7 @@ class PostgresDatastore:
         pre_ping: bool = False,
         lock_timeout: int = 0,
         idle_in_transaction_session_timeout: int = 0,
+        schema: str = "",
     ):
         self.dbname = dbname
         self.host = host
@@ -148,6 +149,7 @@ class PostgresDatastore:
         self.pre_ping = pre_ping
         self.lock_timeout = lock_timeout
         self.idle_in_transaction_session_timeout = idle_in_transaction_session_timeout
+        self.schema = schema.strip()
         self._connections: Dict[int, Connection] = {}
 
     def transaction(self, commit: bool) -> Transaction:
@@ -216,14 +218,30 @@ class PostgresDatastore:
 
 # noinspection SqlResolve
 class PostgresAggregateRecorder(AggregateRecorder):
-    def __init__(self, datastore: PostgresDatastore, events_table_name: str):
+    def __init__(
+        self,
+        datastore: PostgresDatastore,
+        events_table_name: str,
+    ):
         self.datastore = datastore
         self.events_table_name = events_table_name
+        # Index names can't be qualified names, but
+        # are created in the same schema as the table.
+        if "." in self.events_table_name:
+            unqualified_table_name = self.events_table_name.split(".")[-1]
+        else:
+            unqualified_table_name = self.events_table_name
+        self.notification_id_index_name = (
+            f"{unqualified_table_name}_notification_id_idx "
+        )
+
         self.create_table_statements = self.construct_create_table_statements()
         self.insert_events_statement = (
             f"INSERT INTO {self.events_table_name} VALUES ($1, $2, $3, $4)"
         )
-        self.insert_events_statement_name = f"insert_{events_table_name}"
+        self.insert_events_statement_name = f"insert_{events_table_name}".replace(
+            ".", "_"
+        )
         self.select_events_statement = (
             f"SELECT * FROM {self.events_table_name} WHERE originator_id = $1"
         )
@@ -344,7 +362,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
     ) -> List[StoredEvent]:
         parts = [self.select_events_statement]
         params: List[Any] = [originator_id]
-        statement_name = f"select_{self.events_table_name}"
+        statement_name = f"select_{self.events_table_name}".replace(".", "_")
         if gt is not None:
             params.append(gt)
             parts.append(f"AND originator_version > ${len(params)}")
@@ -405,14 +423,14 @@ class PostgresApplicationRecorder(
             "LIMIT $2"
         )
         self.select_notifications_statement_name = (
-            f"select_notifications_{events_table_name}"
+            f"select_notifications_{events_table_name}".replace(".", "_")
         )
 
         self.max_notification_id_statement = (
             f"SELECT MAX(notification_id) FROM {self.events_table_name}"
         )
         self.max_notification_id_statement_name = (
-            f"max_notification_id_{events_table_name}"
+            f"max_notification_id_{events_table_name}".replace(".", "_")
         )
         self.lock_statements = [
             f"SET LOCAL lock_timeout = '{self.datastore.lock_timeout}s'",
@@ -432,7 +450,7 @@ class PostgresApplicationRecorder(
             "(originator_id, originator_version)) "
             "WITH (autovacuum_enabled=false)",
             f"CREATE UNIQUE INDEX IF NOT EXISTS "
-            f"{self.events_table_name}_notification_id_idx "
+            f"{self.notification_id_index_name}"
             f"ON {self.events_table_name} (notification_id ASC);",
         ]
         return statements
@@ -568,6 +586,7 @@ class Factory(InfrastructureFactory):
     POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT = (
         "POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT"
     )
+    POSTGRES_SCHEMA = "POSTGRES_SCHEMA"
     CREATE_TABLE = "CREATE_TABLE"
 
     def __init__(self, application_name: str, env: Mapping[str, str]):
@@ -653,6 +672,8 @@ class Factory(InfrastructureFactory):
                 f"'{idle_in_transaction_session_timeout_str}'"
             )
 
+        schema = self.getenv(self.POSTGRES_SCHEMA) or ""
+
         self.datastore = PostgresDatastore(
             dbname=dbname,
             host=host,
@@ -663,13 +684,17 @@ class Factory(InfrastructureFactory):
             pre_ping=pre_ping,
             lock_timeout=lock_timeout,
             idle_in_transaction_session_timeout=idle_in_transaction_session_timeout,
+            schema=schema,
         )
 
     def aggregate_recorder(self, purpose: str = "events") -> AggregateRecorder:
         prefix = self.application_name.lower() or "stored"
         events_table_name = prefix + "_" + purpose
+        if self.datastore.schema:
+            events_table_name = f"{self.datastore.schema}.{events_table_name}"
         recorder = PostgresAggregateRecorder(
-            datastore=self.datastore, events_table_name=events_table_name
+            datastore=self.datastore,
+            events_table_name=events_table_name,
         )
         if self.env_create_table():
             recorder.create_table()
@@ -678,8 +703,11 @@ class Factory(InfrastructureFactory):
     def application_recorder(self) -> ApplicationRecorder:
         prefix = self.application_name.lower() or "stored"
         events_table_name = prefix + "_events"
+        if self.datastore.schema:
+            events_table_name = f"{self.datastore.schema}.{events_table_name}"
         recorder = PostgresApplicationRecorder(
-            datastore=self.datastore, events_table_name=events_table_name
+            datastore=self.datastore,
+            events_table_name=events_table_name,
         )
         if self.env_create_table():
             recorder.create_table()
@@ -690,6 +718,9 @@ class Factory(InfrastructureFactory):
         events_table_name = prefix + "_events"
         prefix = self.application_name.lower() or "notification"
         tracking_table_name = prefix + "_tracking"
+        if self.datastore.schema:
+            events_table_name = f"{self.datastore.schema}.{events_table_name}"
+            tracking_table_name = f"{self.datastore.schema}.{tracking_table_name}"
         recorder = PostgresProcessRecorder(
             datastore=self.datastore,
             events_table_name=events_table_name,
