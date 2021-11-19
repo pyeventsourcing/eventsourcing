@@ -782,10 +782,11 @@ writing to timeout after that duration. By default this value is 5 (seconds).
 The optional environment variables ``COMPRESSOR_TOPIC``, ``CIPHER_KEY``, and ``CIPHER_TOPIC`` may
 be used to enable compression and encryption of stored events.
 
-The optional environment variable ``CREATE_TABLE`` may be control whether database tables are created.
-If the tables already exist, the ``CREATE_TABLE`` may be set to a "false" value (``"n"``,
-``"no"``, ``"f"``, ``"false"``, ``"off"``, or ``"0"``). This value is by default "true"
-which is normally okay because the tables are created only if they do not exist.
+The optional environment variable ``CREATE_TABLE`` controls whether or not database tables are
+created when a recorder is constructed by a factory. If the tables already exist, the ``CREATE_TABLE``
+may be set to a "false" value (``"n"``, ``"no"``, ``"f"``, ``"false"``, ``"off"``, or ``"0"``).
+This value is by default "true" which is normally okay because the tables are created only if they
+do not exist.
 
 .. code-block:: python
 
@@ -874,10 +875,11 @@ has passed.
 The optional environment variables ``COMPRESSOR_TOPIC``, ``CIPHER_KEY``, and ``CIPHER_TOPIC`` may
 be used to enable compression and encryption of stored events.
 
-The optional environment variable ``CREATE_TABLE`` may be control whether database tables are created.
-If the tables already exist, the ``CREATE_TABLE`` may be set to a "false" value (``"n"``,
-``"no"``, ``"f"``, ``"false"``, ``"off"``, or ``"0"``). This value is by default "true"
-which is normally okay because the tables are created only if they do not exist.
+The optional environment variable ``CREATE_TABLE`` controls whether or not database tables are
+created when a recorder is constructed by a factory. If the tables already exist, the ``CREATE_TABLE``
+may be set to a "false" value (``"n"``, ``"no"``, ``"f"``, ``"false"``, ``"off"``, or ``"0"``).
+This value is by default "true" which is normally okay because the tables are created only if they
+do not exist.
 
 .. code-block:: python
 
