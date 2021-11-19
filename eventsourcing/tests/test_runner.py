@@ -264,5 +264,8 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
     def test_prompts_received_doesnt_accumulate_names(self):
         super().test_prompts_received_doesnt_accumulate_names()
 
+    def wait_for_runner(self):
+        sleep(0.5)
+
 
 del RunnerTestCase
