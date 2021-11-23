@@ -3,7 +3,7 @@ import threading
 from sqlite3 import Connection, Cursor
 from threading import Lock
 from types import TracebackType
-from typing import Any, Dict, List, Mapping, Optional, Type
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Type
 from uuid import UUID
 
 from eventsourcing.persistence import (
@@ -275,6 +275,11 @@ class SQLiteApplicationRecorder(
             "WHERE rowid>=? ORDER BY rowid LIMIT ?"
         )
 
+        self.select_notifications_filter_topics_statement = (
+            f"SELECT rowid, * FROM {self.events_table_name} "
+            "WHERE (rowid>=?) AND (topic=?) ORDER BY rowid LIMIT ?"
+        )
+
     def construct_create_table_statements(self) -> List[str]:
         statement = (
             "CREATE TABLE IF NOT EXISTS "
@@ -288,14 +293,22 @@ class SQLiteApplicationRecorder(
         )
         return [statement]
 
-    def select_notifications(self, start: int, limit: int) -> List[Notification]:
+    def select_notifications(self, start: int, limit: int, topics: Sequence[str] = ()) \
+        -> List[
+        Notification]:
         """
         Returns a list of event notifications
         from 'start', limited by 'limit'.
         """
         notifications = []
         with self.datastore.transaction() as c:
-            c.execute(self.select_notifications_statement, [start, limit])
+            if not topics:
+                c.execute(self.select_notifications_statement, [start, limit])
+            else:
+                c.execute(self.select_notifications_filter_topics_statement, [start,
+
+                                                                                  topics[0], limit])
+
             for row in c.fetchall():
                 notifications.append(
                     Notification(

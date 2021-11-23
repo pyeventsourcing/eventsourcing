@@ -1,7 +1,7 @@
 import json
 from abc import ABC, abstractmethod
 from base64 import b64decode, b64encode
-from typing import Generic, List
+from typing import Generic, List, Sequence
 from uuid import UUID
 
 from eventsourcing.application import NotificationLog, Section, TApplication
@@ -22,7 +22,7 @@ class NotificationLogInterface(ABC):
         """
 
     @abstractmethod
-    def get_notifications(self, start: int, limit: int) -> str:
+    def get_notifications(self, start: int, limit: int, topics: Sequence[str] = ()) -> str:
         """
         Returns a serialised list of :class:`~eventsourcing.persistence.Notification`
         objects from a notification log.
@@ -113,7 +113,7 @@ class NotificationLogJSONClient(NotificationLog):
             ],
         )
 
-    def select(self, start: int, limit: int) -> List[Notification]:
+    def select(self, start: int, limit: int, topics: Sequence[str] = ()) -> List[Notification]:
         """
         Returns a selection
         :class:`~eventsourcing.persistence.Notification` objects
@@ -127,5 +127,6 @@ class NotificationLogJSONClient(NotificationLog):
                 topic=item["topic"],
                 state=b64decode(item["state"].encode("utf8")),
             )
-            for item in json.loads(self.interface.get_notifications(start, limit))
+            for item in json.loads(self.interface.get_notifications(start, limit,
+                                                                    topics=topics))
         ]

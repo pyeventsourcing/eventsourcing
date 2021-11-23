@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from queue import Queue
 from threading import Event, Lock, Thread
 from typing import (
     Dict,
     Iterable,
     Iterator,
     List,
-    Set,
+    Optional, Sequence, Set,
     Tuple,
     Type,
     TypeVar,
@@ -36,6 +37,7 @@ class Follower(Application[TAggregate]):
     track of the applications it is following, and pulling and processing
     new domain event notifications through its :func:`policy` method.
     """
+    follow_topics = []
 
     def __init__(self) -> None:
         super().__init__()
@@ -87,7 +89,7 @@ class Follower(Application[TAggregate]):
         """
         reader, mapper = self.readers[name]
         start = self.recorder.max_tracking_id(name) + 1
-        for notification in reader.select(start=start):
+        for notification in reader.select(start=start, topics=self.follow_topics):
             domain_event = cast(
                 AggregateEvent[TAggregate], mapper.to_domain_event(notification)
             )
@@ -599,7 +601,8 @@ class NotificationLogReader:
             else:
                 section_id = section.next_id
 
-    def select(self, *, start: int) -> Iterator[Notification]:
+    def select(self, *, start: int, topics: Sequence[str] = ()) -> Iterator[
+        Notification]:
         """
         Returns a generator that yields event notifications
         from the reader's notification log, starting from
@@ -614,7 +617,8 @@ class NotificationLogReader:
         yielded.
         """
         while True:
-            notifications = self.notification_log.select(start, self.section_size)
+            notifications = self.notification_log.select(start, self.section_size,
+                                                         topics=topics)
             for notification in notifications:
                 yield notification
             if len(notifications) < self.section_size:

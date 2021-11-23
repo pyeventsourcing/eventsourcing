@@ -2,7 +2,7 @@ import threading
 from itertools import chain
 from threading import Event, Timer
 from types import TracebackType
-from typing import Any, Dict, List, Mapping, Optional, Type
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Type
 from uuid import UUID
 
 import psycopg2
@@ -425,6 +425,17 @@ class PostgresApplicationRecorder(
         self.select_notifications_statement_name = (
             f"select_notifications_{events_table_name}".replace(".", "_")
         )
+        self.select_notifications_filter_topics_statement = (
+            "SELECT * "
+            f"FROM {self.events_table_name} "
+            "WHERE notification_id>=$1 AND topic = ANY($2) "
+            "ORDER BY notification_id "
+            "LIMIT $3"
+        )
+        self.select_notifications_filter_topics_statement_name = (
+            f"select_notifications_filter_topics_{events_table_name}"
+        )
+
 
         self.max_notification_id_statement = (
             f"SELECT MAX(notification_id) FROM {self.events_table_name}"
@@ -456,21 +467,32 @@ class PostgresApplicationRecorder(
         return statements
 
     @retry(InterfaceError, max_attempts=10, wait=0.2)
-    def select_notifications(self, start: int, limit: int) -> List[Notification]:
+    def select_notifications(self, start: int, limit: int, topics: Sequence[str] = ()
+                             ) -> List[Notification]:
         """
         Returns a list of event notifications
         from 'start', limited by 'limit'.
         """
-        statement_name = self.select_notifications_statement_name
-        self._prepare(statement_name, self.select_notifications_statement)
+        if topics:
+            statement_name = self.select_notifications_filter_topics_statement_name
+            self._prepare(statement_name, self.select_notifications_filter_topics_statement)
+        else:
+            statement_name = self.select_notifications_statement_name
+            self._prepare(statement_name, self.select_notifications_statement)
 
         notifications = []
         with self.datastore.transaction(commit=False) as conn:
             with conn.cursor() as c:
-                c.execute(
-                    f"EXECUTE {statement_name}(%s, %s)",
-                    (start, limit),
-                )
+                if topics:
+                    c.execute(
+                        f"EXECUTE {statement_name}(%s, %s, %s)",
+                        (start, topics, limit),
+                    )
+                else:
+                    c.execute(
+                        f"EXECUTE {statement_name}(%s, %s)",
+                        (start, limit),
+                    )
                 for row in c.fetchall():
                     notifications.append(
                         Notification(

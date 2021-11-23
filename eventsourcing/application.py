@@ -11,7 +11,7 @@ from typing import (
     List,
     Mapping,
     Optional,
-    Type,
+    Sequence, Type,
     TypeVar,
     Union,
 )
@@ -163,7 +163,8 @@ class NotificationLog(ABC):
         """
 
     @abstractmethod
-    def select(self, start: int, limit: int) -> List[Notification]:
+    def select(self, start: int, limit: int, topics: Sequence[str] = ()) -> List[
+        Notification]:
         """
         Returns a selection
         :class:`~eventsourcing.persistence.Notification` objects
@@ -245,7 +246,7 @@ class LocalNotificationLog(NotificationLog):
             next_id=next_id,
         )
 
-    def select(self, start: int, limit: int) -> List[Notification]:
+    def select(self, start: int, limit: int, topics: Sequence[str] = ()) -> List[Notification]:
         """
         Returns a selection
         :class:`~eventsourcing.persistence.Notification` objects
@@ -255,7 +256,7 @@ class LocalNotificationLog(NotificationLog):
             raise ValueError(
                 f"Requested limit {limit} greater than section size {self.section_size}"
             )
-        return self.recorder.select_notifications(start, limit)
+        return self.recorder.select_notifications(start, limit, topics=topics)
 
     @staticmethod
     def format_section_id(first_id: int, last_id: int) -> str:
