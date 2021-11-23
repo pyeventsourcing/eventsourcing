@@ -1,4 +1,5 @@
 from collections import defaultdict
+from itertools import count
 from threading import Lock
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 from uuid import UUID
@@ -80,18 +81,22 @@ class POPOApplicationRecorder(ApplicationRecorder, POPOAggregateRecorder):
     def select_notifications(self, start: int, limit: int, topics: Sequence[str] = ()) -> List[Notification]:
         with self.database_lock:
             results = []
-            i = start - 1
-            j = i + limit
-            for notification_id, s in enumerate(self.stored_events[i:j], start):
+            for i in count(start - 1):
+                try:
+                    s = self.stored_events[i]
+                except IndexError:
+                    break
                 if not topics or s.topic in topics:
                     n = Notification(
-                        id=notification_id,
+                        id=i + 1,
                         originator_id=s.originator_id,
                         originator_version=s.originator_version,
                         topic=s.topic,
                         state=s.state,
                     )
                     results.append(n)
+                    if len(results) == limit:
+                        break
             return results
 
     def max_notification_id(self) -> int:
