@@ -277,7 +277,7 @@ class SQLiteApplicationRecorder(
 
         self.select_notifications_filter_topics_statement = (
             f"SELECT rowid, * FROM {self.events_table_name} "
-            "WHERE (rowid>=?) AND (topic=?) ORDER BY rowid LIMIT ?"
+            "WHERE rowid>=? AND topic IN (%s) ORDER BY rowid LIMIT ?"
         )
 
     def construct_create_table_statements(self) -> List[str]:
@@ -305,9 +305,10 @@ class SQLiteApplicationRecorder(
             if not topics:
                 c.execute(self.select_notifications_statement, [start, limit])
             else:
-                c.execute(self.select_notifications_filter_topics_statement, [start,
-
-                                                                                  topics[0], limit])
+                qst_marks = ",".join('?' * len(topics))
+                stmt = self.select_notifications_filter_topics_statement % qst_marks
+                params = [str(start)] + list(topics) + [str(limit)]
+                c.execute(stmt, params)
 
             for row in c.fetchall():
                 notifications.append(
