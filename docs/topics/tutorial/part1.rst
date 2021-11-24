@@ -58,7 +58,7 @@ Event-sourced aggregate
 =======================
 
 A persistent object that changes through a sequence of decisions
-corresponds to the notion of an 'aggregate' in Domain-Driven Design.
+corresponds to the notion of an 'aggregate' in `Domain-Driven Design <https://en.wikipedia.org/wiki/Domain-driven_design>`__.
 An 'event-sourced' aggregate is persisted by persisting the decisions
 as a sequence of 'events'.
 We can use the aggregate base class ``Aggregate`` and the ``@event``
@@ -155,7 +155,7 @@ Event-sourced application
 
 An event-sourced application comprises many event-sourced aggregates,
 and a persistence mechanism to store and retrieve aggregate events.
-We can use the library's ``Application`` base class to define
+We can use the library's ``Application`` base class to define an 
 event-sourced applications.
 
 .. code-block:: python

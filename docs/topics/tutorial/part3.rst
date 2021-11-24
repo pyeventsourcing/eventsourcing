@@ -8,7 +8,7 @@ use the library's ``Application`` class to define event-sourced
 applications.
 
 For example, the ``Universe`` application class, defined below, has a
-command method ``create_world()`` that creates and saves a new aggregate.
+command method ``create_world()`` that creates and saves a new ``World`` aggregate.
 It has a command method ``make_it_so()`` that retrieves a previously saved
 aggregate, calls ``make_it_so()`` on the aggregate, and then saves the
 modified aggregate. And it has a query method ``get_history()`` that
@@ -115,15 +115,34 @@ An application's recorder also puts the stored events in a total order, and allo
 this order to be selected from. The notification log selects events from this order
 as the event notifications of the application.
 
+**COMMENT**
+This is the first time that the concept of notifications has been covered.  Speaking
+from personal experience only, I found this a bit confusing reading the main docs:
+how is a "notification" different from an "event"?  I'd be tempted to leave this until 
+later.  The focus at the moment is how events are persisted, read, and aggregates re-created
+from them.  
+**END COMMENT**
+
 In addition to these attributes, an application object has a method ``save()``
 which is responsible for collecting new aggregate events and putting them in
-the event store.
-The application ``save()`` method saves aggregates by
-collecting and storing pending aggregate events. The ``save()``
-method calls the given aggregates' ``collect_events()`` method and
-puts the pending aggregate events in the event store, with a
+the event store.  :doc:`Part 2 </topics/tutorial/part2>` of the tutorial explained
+that events are generated each time a method is called on an aggregate object that is 
+decorated with the ``@event`` decorator.  Those events are stored with the aggregate, and
+can be retrieved using the ``collect_events()`` method.  The aggregates "event store" can be
+thought of as a local cache of "pending events" .  The application ``save()`` method persists 
+an aggregate's state by collecting and storing those pending aggregate events. The ``save()``
+method calls the given aggregate's ``collect_events()`` method and
+saves the pending aggregate events in the event store, with a
 guarantee that either all of the events will be stored or none of
 them will be.
+
+**COMMENT**
+1. What happens if none of the events are stored?  Do they remain in the aggregate's pending events
+cache and get persisted next time ``save()`` is called?
+1. What happens if ``save()`` is successful?  Are the events removed from the pending event cache?
+
+Think the answers to both are "yes", probably worth clarifying.
+**END COMMENT**
 
 The repository has a ``get()`` method which is responsible
 for reconstructing aggregates that have been previously saved.
@@ -134,15 +153,17 @@ previously stored events calling the ``mutate()`` method of aggregate
 event objects, and returns the reconstructed aggregate object to
 the caller.
 
-In addition to these attributes and these methods, a subclass of
-``Application`` will usually define command and query methods, which
+A subclass of ``Application`` will usually define command and query methods which
 make use of the application's ``save()`` method and the repository's
 ``get()`` method.
 
-For example, the ``Universe`` class has a ``create_world()`` method
-and a ``make_it_so()`` method, which can be considered a command methods.
-It also has a ``get_history()`` method, which can be considered a query
-method.
+For example, the ``Universe`` class has ``create_world()`` and
+``make_it_so()`` methods, both of which change the aggregate's state.
+It also has a ``get_history()`` method, which is used to retrieve an aspect of
+the aggregate's state.
+
+`Domain-Driven Design <https://en.wikipedia.org/wiki/Domain-driven_design>`__ refers to these
+as "command" and "query" methods respectively.  Let's explore those concepts. 
 
 
 Command methods
@@ -178,6 +199,10 @@ used to get the aggregate, the aggregate's ``make_it_so()`` method is
 called with the given value of ``what``, and the aggregate is then
 saved by calling the application's ``save()`` method.
 
+These are "commands" because they change the application state - either 
+creating new aggregates (as in the case of ``create_world()``) or by modifying existing 
+(as in the case of ``make_it_so()``).
+
 
 Query methods
 =============
@@ -200,8 +225,34 @@ of the aggregate's ``history`` attribute is returned to the caller.
 Event notifications
 ===================
 
+**COMMENT**
+This section (up to "Application configuration") feels out of place here.  
+So far, there's been no discussion of multi-application systems - and why multiple applications
+might be useful/necessary.  Without that, I suspect the reader is lacking context and motivation:
+why would I want to look at notifications? Total ordering sounds very nice, but why is it useful to
+me?
+
+Without that motivation, it's not clear why notifications are even relevant, never mind the finer 
+details of dual writing, electing, etc.  I've had a go at introducing the concept though it's far 
+from complete.  
+**END COMMENT**
+
+So far, we've discussed *events* as the means to record the evolution of each aggregate
+over time. Simply by decorating the aggregate's command methods with ``@event`` and committing the 
+changes to storage via the application's ``save()`` method, we get a fine-grained, ordered and complete record of 
+all changes made to each aggregate.  That record can be seen as internal to the aggregate: a private, detailed account of 
+its past.
+
+An application will typically have more than one aggregate object.  
+Each has its own life story, and evolves independently of its peers.  
+Some systems have more than one application, where one needs to be aware of changes to another.  
+Notifications provide that in an elegant, loosely coupled manner.  Whereas 
+events are each aggregate's private record of its detailed evolution, notifications 
+advertise those changes to the wider system.
+
 The ``Application`` class has a ``log`` attribute,
 which is a 'notification log' (aka the 'outbox pattern').
+
 This pattern avoids the "dual writing" problem of recording
 application state and separately sending messages about
 the changes. Please note, it is equally important to avoid
@@ -209,7 +260,7 @@ the changes. Please note, it is equally important to avoid
 
 The notification log can be used to propagate the state of
 the application in a manner that supports deterministic
-processing of the application state in event-driven systems.
+processing of it in event-driven systems.
 It presents all the aggregate events that have been stored
 across all the aggregates of an application as a sequence of
 event notifications.
@@ -254,6 +305,13 @@ is called.
 Application configuration
 =========================
 
+**COMMENT**
+I think this section would be better termed "Persistence configuration" - 
+because that's what it covers.  There's probably also a case for it coming before 
+"Command methods" - it's more of a natural flow on from the mechanics of how 
+events are persisted to storage from the aggregate's pending events.
+**END COMMENT**
+
 An application object can be configured to use one
 of many different ways of storing and retrieving events.
 
@@ -263,8 +321,9 @@ work with different databases, and optionally to encrypt and compress
 stored events. By default, the application serialises aggregate events
 using JSON, and stores them in memory as "plain old Python objects".
 The library also supports storing events in SQLite and PostgreSQL databases.
-Other databases are available. See the library's extension
-projects for more information about what is currently supported.
+Other databases are available. See the library's 
+`extension projects <https://github.com/pyeventsourcing>`__ 
+for more information about what is currently supported.
 
 The ``test()`` function below demonstrates the example ``Universe``
 application in more detail, by creating many aggregates in one

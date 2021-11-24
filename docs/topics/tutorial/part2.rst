@@ -37,14 +37,36 @@ calling the class object.
 Normally when a class instance is constructed by calling the class object, Python directly
 instantiates and initialises the class instance. However, when a subclass of ``Aggregate``
 is called, the class instance is constructed in a slightly indirect way.
-Firstly, an event object is constructed. This event object represents the fact the aggregate
+Firstly, an event object is constructed. This event object represents the fact that the aggregate
 was "created". Then, this event object is used to construct and initialise the aggregate
-object. The point being, that same event object can be used again to reconstruct the aggregate
+object. Why the indirection?  Because that same event object can be used again to reconstruct the aggregate
 object in future.
 
 To reconstruct the aggregate object from the event object, we firstly need to get hold
 of the new event object. Fortunately, the new event object is not lost. It is held by
-the aggregate in an internal list. We can collect the event object from our aggregate by
+the aggregate in an internal list. 
+
+**COMMENT** 
+
+The above para is circular: paraphrasing, "in order to reconstruct the aggregate, 
+we need to get hold of the event, which is held in the aggregate".  It could be re-phrased, but "copy" 
+would be more semantically correct than "re-construct".  However, there's 
+actually a more fundamental point at play here (I think?):
+
+* Why would I want to re-construct the aggregate?  Presumably - or at least possibly - because I've "lost" access to it.  
+    For example, because the local variable holding a ref has gone out of scope.
+* I can re-construct it provided I have access to the event that created it.
+* That event is saved (which is good).
+* How do I get hold of that event?  Via the aggregate...
+* ...But I don't have the aggregate - that's why I'm trying to re-create it.
+
+The code below is fine for the "copy" scenario but doesn't cover the "re-construct" one.  I think the latter would
+be more useful.
+
+**END COMMENT**
+
+
+We can collect the event object from our aggregate by
 calling the aggregate's ``collect_events()`` method. This method is kindly provided by the
 aggregate base class.
 
@@ -54,8 +76,8 @@ aggregate base class.
 
     assert len(events) == 1
 
-The "created" event object can be used to reconstruct the aggregate
-object. To reconstruct the aggregate object, we can simply call the
+The "created" event object can be used to create a copy of the aggregate
+object. To do that, we can simply call the
 event object's ``mutate()`` method.
 
 .. code-block:: python
@@ -126,7 +148,7 @@ class with this name is defined on the aggregate class.
 
 
 We can call such events "created" events. They are the initial
-event in the aggregate's sequence of aggregate events. The inherit the base
+event in the aggregate's sequence of aggregate events. They inherit from the base
 class "created" event, which has a method ``mutate()`` that knows how to
 construct and initialise aggregate objects.
 
@@ -174,12 +196,24 @@ aggregate's ``__init__()`` method.
     assert events[0].name == 'Earth'
 
 
-The "created" event object can be used to reconstruct the initial state of
-the aggregate.
+The "created" event object can be used to create another object with the same initial state as
+the original aggregate.
 
 .. code-block:: python
 
-    assert events[0].mutate(None) == world
+    copy = events[0].mutate(None)
+    assert copy == world
+
+
+Note what's happening there.  We start with nothing - ``None`` - and end up with an instance of ``World`` that 
+has the same state as the original ``world`` object.  Note also that ``world`` and ``copy`` are different objects 
+with the same state values, not two references to the same object:
+
+.. code-block:: python
+
+    copy.name = "Venus"
+    assert world.name == "Earth"
+    assert copy.name = "Venus"
 
 
 Subsequent events
@@ -274,15 +308,18 @@ Just like the "started" event has a ``name`` attribute, so the
 The attributes of the event objects follow from the signatures of the
 decorated methods. The ``__init__()`` method has a ``name`` argument
 and so the "started" event has a ``name`` attribute. The ``make_it_so()``
-method has a ``what`` attribute, and so the "something happened" event
+method has a ``what`` argument, and so the "something happened" event
 has a ``what`` attribute. The arguments of a method decorated with ``@event``
 are used to define the attributes of an event class. When the method is called,
 the values of the method arguments are used to construct an event object. The
 method body is then executed with the attributes of the event. The resulting
 state of the aggregate is the same as if the method were not decorated. The
-difference is that a sequence of events is generated. The point being, this
-sequence of events can be used in future to reconstruct the current state
-of the aggregate.
+difference is that a sequence of events is generated. That sequence of events has two 
+useful properties:
+
+1. It can be used to create a copy of the aggregate, as described above
+2. It records the "change history" of the aggregate.  Each event in the sequence stores one change
+in the aggregate's evolution.  So we can "relive" its life by walking through the event sequence.
 
 .. code-block:: python
 
@@ -297,6 +334,12 @@ an application's ``save()`` method is called. Calling the ``mutate()``
 methods of saved events' is how an application repository reconstructs
 aggregates from saved events when its ``get()`` is called.
 
+**COMMENT**
+Thus far, this page hasn't talked about applications - only aggregates and events.  They were covered 
+on page 1 of the tutorial and in more detail in part 3 - perhaps reference there?  
+Either way, the fact is important - that ``application.save()`` re-runs the aggregate's
+event history.
+**END COMMENT**
 
 You can try all of this for yourself by copying the code snippets above.
 
