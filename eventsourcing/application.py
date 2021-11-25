@@ -304,6 +304,7 @@ class Application(ABC, Generic[TAggregate]):
     env: Mapping[str, str] = {}
     is_snapshotting_enabled: bool = False
     snapshotting_intervals: Optional[Dict[Type[Aggregate], int]] = None
+    log_section_size = 10
 
     def __init__(self, env: Optional[Mapping[str, str]] = None) -> None:
         """
@@ -419,7 +420,7 @@ class Application(ABC, Generic[TAggregate]):
         """
         Constructs a :class:`LocalNotificationLog` for use by the application.
         """
-        return LocalNotificationLog(self.recorder, section_size=10)
+        return LocalNotificationLog(self.recorder, section_size=self.log_section_size)
 
     def save(
         self, *aggregates: Union[TAggregate, AggregateEvent[Aggregate]], **kwargs: Any

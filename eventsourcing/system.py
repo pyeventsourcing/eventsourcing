@@ -39,6 +39,7 @@ class Follower(Application[TAggregate]):
     new domain event notifications through its :func:`policy` method.
     """
     follow_topics = []
+    pull_section_size = 10
 
     def __init__(self) -> None:
         super().__init__()
@@ -65,7 +66,7 @@ class Follower(Application[TAggregate]):
         of readers.
         """
         assert isinstance(self.recorder, ProcessRecorder)
-        reader = NotificationLogReader(log)
+        reader = NotificationLogReader(log, section_size=self.pull_section_size)
         mapper = self.construct_mapper(name)
         self.readers[name] = (reader, mapper)
 
