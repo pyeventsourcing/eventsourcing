@@ -4,7 +4,7 @@ from abc import abstractmethod
 from http.client import HTTPConnection
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Event, Thread
-from typing import Callable, List
+from typing import Callable, List, Sequence
 from unittest.case import TestCase
 from uuid import UUID
 
@@ -233,7 +233,7 @@ class BankAccountsHTTPClient(BankAccountsInterface):
     def get_log_section(self, section_id: str) -> str:
         return self._request("GET", "/notifications/{}".format(section_id))
 
-    def get_notifications(self, start: int, limit: int) -> str:
+    def get_notifications(self, start: int, limit: int, topics: Sequence[str] = ()) -> str:
         return self._request("GET", f"/notifications?start={start}&limit={limit}")
 
     def open_account(self, body: str) -> str:
