@@ -51,6 +51,16 @@ class Follower(Application[TAggregate]):
             ],
         ] = {}
         self.recorder: ProcessRecorder
+        self.is_threading_enabled = False
+
+    def enable_threading(self):
+        self.is_threading_enabled = True
+        self.max_notification_ids = {}
+        self.pull_threads = {}
+        self.pull_events = {}
+        self.processing_queue = Queue(maxsize=self.pull_section_size * 3)
+        self.processing_thread = Thread(target=self._process_events, daemon=True)
+        self.processing_thread.start()
 
     def construct_recorder(self) -> ProcessRecorder:
         """
@@ -69,6 +79,22 @@ class Follower(Application[TAggregate]):
         reader = NotificationLogReader(log, section_size=self.pull_section_size)
         mapper = self.construct_mapper(name)
         self.readers[name] = (reader, mapper)
+
+        if self.is_threading_enabled:
+            if not hasattr(self, 'pull_threads'):
+                self.pull_threads = {}
+            if not hasattr(self, 'pull_events'):
+                self.pull_events = {}
+
+            event = Event()
+            self.pull_events[name] = event
+            thread = Thread(
+                target=self._pull_and_queue,
+                daemon=True,
+                kwargs={"name": name}
+            )
+            thread.start()
+            self.pull_threads[name] = thread
 
     def pull_and_process(self, name: str) -> None:
         """
@@ -89,22 +115,56 @@ class Follower(Application[TAggregate]):
         method, and the process event object will then be recorded
         by calling the :func:`record` method.
         """
-        reader, mapper = self.readers[name]
-        start = self.recorder.max_tracking_id(name) + 1
-        for notification in reader.select(start=start, topics=self.follow_topics):
-            domain_event = cast(
-                AggregateEvent[TAggregate], mapper.to_domain_event(notification)
-            )
-            process_event = ProcessEvent(
-                Tracking(
-                    application_name=name,
-                    notification_id=notification.id,
+        if self.is_threading_enabled:
+            self.pull_events[name].set()
+        else:
+            reader, mapper = self.readers[name]
+            start = self.recorder.max_tracking_id(name) + 1
+            for notification in reader.select(start=start, topics=self.follow_topics):
+                domain_event = cast(
+                    AggregateEvent[TAggregate], mapper.to_domain_event(notification)
                 )
-            )
-            self.policy(
-                domain_event,
-                process_event,
-            )
+                process_event = ProcessEvent(
+                    Tracking(
+                        application_name=name,
+                        notification_id=notification.id,
+                    )
+                )
+                self.policy(
+                    domain_event,
+                    process_event,
+                )
+                self.record(process_event)
+
+    def _pull_and_queue(self, name) -> None:
+        event = self.pull_events[name]
+        while True:
+            event.wait()
+            event.clear()
+
+            reader, mapper = self.readers[name]
+            try:
+                last_notification_id = self.max_notification_ids[name]
+            except KeyError:
+                last_notification_id = self.recorder.max_tracking_id(name)
+            start = last_notification_id + 1
+            for notification in reader.select(start=start, topics=self.follow_topics):
+                domain_event = cast(
+                    AggregateEvent[TAggregate], mapper.to_domain_event(notification)
+                )
+                process_event = ProcessEvent(
+                    Tracking(
+                        application_name=name,
+                        notification_id=notification.id,
+                    )
+                )
+                self.processing_queue.put((domain_event, process_event))
+                self.max_notification_ids[name] = notification.id
+
+    def _process_events(self):
+        while True:
+            domain_event, process_event = self.processing_queue.get()
+            self.policy(domain_event, process_event)
             self.record(process_event)
 
     @abstractmethod
@@ -521,6 +581,8 @@ class MultiThreadedRunnerThread(Promptable, Thread):
             self.has_errored.set()
             self.has_stopped.set()
             raise
+        else:
+            self.app.enable_threading()
         finally:
             self.is_running.set()  # pragma: no cover
             # -----------------------^ weird branch coverage thing with Python 3.9
@@ -545,13 +607,9 @@ class MultiThreadedRunnerThread(Promptable, Thread):
 
     def receive_prompt(self, leader_name: str) -> None:
         """
-        Receives prompt by appending name of
-        leader to list of prompted names.
+        Receives prompt by setting event in follower.
         """
-        with self.prompted_names_lock:
-            if leader_name not in self.prompted_names:
-                self.prompted_names.append(leader_name)
-            self.is_prompted.set()
+        self.app.pull_and_process(leader_name)
 
 
 class NotificationLogReader:
