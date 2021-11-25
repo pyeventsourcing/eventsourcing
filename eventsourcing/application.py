@@ -423,7 +423,7 @@ class Application(ABC, Generic[TAggregate]):
 
     def save(
         self, *aggregates: Union[TAggregate, AggregateEvent[Aggregate]], **kwargs: Any
-    ) -> None:
+    ) -> Optional[int]:
         """
         Collects pending events from given aggregates and
         puts them in the application's event store.
@@ -431,14 +431,14 @@ class Application(ABC, Generic[TAggregate]):
         # Collect and store events.
         process_event = ProcessEvent()
         process_event.save(*aggregates, **kwargs)
-        self.record(process_event)
+        return self.record(process_event)
 
-    def record(self, process_event: ProcessEvent) -> None:
+    def record(self, process_event: ProcessEvent) -> Optional[int]:
         """
         Records given process event in the application's recorder.
         """
         # Send process event data down the stack.
-        self.events.put(
+        returning = self.events.put(
             process_event.events,
             tracking=process_event.tracking,
             **process_event.saved_kwargs,
@@ -461,6 +461,8 @@ class Application(ABC, Generic[TAggregate]):
 
         # Notify others of the events.
         self.notify(process_event.events)
+
+        return returning
 
     def notify(self, new_events: List[AggregateEvent[Aggregate]]) -> None:
         """

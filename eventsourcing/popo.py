@@ -18,34 +18,39 @@ from eventsourcing.persistence import (
 
 class POPOAggregateRecorder(AggregateRecorder):
     def __init__(self) -> None:
-        self.stored_events: List[StoredEvent] = []
-        self.stored_events_index: Dict[UUID, Dict[int, int]] = defaultdict(dict)
-        self.database_lock = Lock()
+        self._stored_events: List[StoredEvent] = []
+        self._stored_events_index: Dict[UUID, Dict[int, int]] = defaultdict(dict)
+        self._database_lock = Lock()
 
-    def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
-        with self.database_lock:
-            self.assert_uniqueness(stored_events, **kwargs)
-            self.update_table(stored_events, **kwargs)
+    def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> Optional[int]:
+        self._insert_events(stored_events, **kwargs)
+        return None
 
-    def assert_uniqueness(
+    def _insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> Optional[int]:
+        with self._database_lock:
+            self._assert_uniqueness(stored_events, **kwargs)
+            return self._update_table(stored_events, **kwargs)
+
+    def _assert_uniqueness(
         self, stored_events: List[StoredEvent], **kwargs: Any
     ) -> None:
         new = set()
         for s in stored_events:
             # Check events don't already exist.
-            if s.originator_version in self.stored_events_index[s.originator_id]:
+            if s.originator_version in self._stored_events_index[s.originator_id]:
                 raise IntegrityError()
             new.add((s.originator_id, s.originator_version))
         # Check new events are unique.
         if len(new) < len(stored_events):
             raise IntegrityError()
 
-    def update_table(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
+    def _update_table(self, stored_events: List[StoredEvent], **kwargs: Any) -> Optional[int]:
         for s in stored_events:
-            self.stored_events.append(s)
-            self.stored_events_index[s.originator_id][s.originator_version] = (
-                len(self.stored_events) - 1
+            self._stored_events.append(s)
+            self._stored_events_index[s.originator_id][s.originator_version] = (
+                len(self._stored_events) - 1
             )
+        return len(self._stored_events) or None
 
     def select_events(
         self,
@@ -56,10 +61,10 @@ class POPOAggregateRecorder(AggregateRecorder):
         limit: Optional[int] = None,
     ) -> List[StoredEvent]:
 
-        with self.database_lock:
+        with self._database_lock:
             results = []
 
-            index = self.stored_events_index[originator_id]
+            index = self._stored_events_index[originator_id]
             positions: Iterable[int] = index.keys()
             if desc:
                 positions = reversed(list(positions))
@@ -70,7 +75,7 @@ class POPOAggregateRecorder(AggregateRecorder):
                 if lte is not None:
                     if not p <= lte:
                         continue
-                s = self.stored_events[index[p]]
+                s = self._stored_events[index[p]]
                 results.append(s)
                 if len(results) == limit:
                     break
@@ -78,12 +83,15 @@ class POPOAggregateRecorder(AggregateRecorder):
 
 
 class POPOApplicationRecorder(ApplicationRecorder, POPOAggregateRecorder):
+    def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> Optional[int]:
+        return self._insert_events(stored_events, **kwargs)
+
     def select_notifications(self, start: int, limit: int, topics: Sequence[str] = ()) -> List[Notification]:
-        with self.database_lock:
+        with self._database_lock:
             results = []
             for i in count(start - 1):
                 try:
-                    s = self.stored_events[i]
+                    s = self._stored_events[i]
                 except IndexError:
                     break
                 if not topics or s.topic in topics:
@@ -100,8 +108,8 @@ class POPOApplicationRecorder(ApplicationRecorder, POPOAggregateRecorder):
             return results
 
     def max_notification_id(self) -> int:
-        with self.database_lock:
-            return len(self.stored_events)
+        with self._database_lock:
+            return len(self._stored_events)
 
 
 class POPOProcessRecorder(ProcessRecorder, POPOApplicationRecorder):
@@ -109,24 +117,25 @@ class POPOProcessRecorder(ProcessRecorder, POPOApplicationRecorder):
         super().__init__()
         self.tracking_table: Dict[str, int] = defaultdict(None)
 
-    def assert_uniqueness(
+    def _assert_uniqueness(
         self, stored_events: List[StoredEvent], **kwargs: Any
     ) -> None:
-        super().assert_uniqueness(stored_events, **kwargs)
+        super()._assert_uniqueness(stored_events, **kwargs)
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking:
             last = self.tracking_table.get(tracking.application_name, 0)
             if tracking.notification_id <= last:
                 raise IntegrityError()
 
-    def update_table(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
-        super().update_table(stored_events, **kwargs)
+    def _update_table(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
+        returning = super()._update_table(stored_events, **kwargs)
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking:
             self.tracking_table[tracking.application_name] = tracking.notification_id
+        return returning
 
     def max_tracking_id(self, application_name: str) -> int:
-        with self.database_lock:
+        with self._database_lock:
             try:
                 return self.tracking_table[application_name]
             except KeyError:

@@ -47,8 +47,14 @@ class ApplicationRecorderTestCase(TestCase, ABC):
             state=b"state3",
         )
 
-        recorder.insert_events([stored_event1, stored_event2])
-        recorder.insert_events([stored_event3])
+        new_id = recorder.insert_events([])
+        self.assertEqual(new_id, None)
+
+        new_id = recorder.insert_events([stored_event1, stored_event2])
+        self.assertEqual(new_id, 2)
+
+        new_id = recorder.insert_events([stored_event3])
+        self.assertEqual(new_id, 3)
 
         stored_events1 = recorder.select_events(originator_id1)
         stored_events2 = recorder.select_events(originator_id2)

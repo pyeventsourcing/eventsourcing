@@ -7,6 +7,7 @@ from unittest.case import TestCase
 from uuid import UUID, uuid4
 
 from eventsourcing.application import AggregateNotFound, Application
+from eventsourcing.domain import Aggregate
 from eventsourcing.persistence import (
     InfrastructureFactory,
     Transcoder,
@@ -58,6 +59,21 @@ class TestApplication(TestCase):
                 "eventsourcing.application:Application"
             ),
         )
+
+    def test_save_returns_new_notification_id(self):
+        app = Application()
+
+        new_id = app.save()
+        self.assertEqual(new_id, None)
+
+        new_id = app.save(Aggregate())
+        self.assertEqual(new_id, 1)
+
+        new_id = app.save(Aggregate())
+        self.assertEqual(new_id, 2)
+
+        new_id = app.save(Aggregate(), Aggregate())
+        self.assertEqual(new_id, 4)
 
 
 class TestApplicationWithPOPO(TestCase):

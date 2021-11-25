@@ -195,16 +195,16 @@ class SQLiteAggregateRecorder(AggregateRecorder):
                 c.execute(statement)
             pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
 
-    def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
+    def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> Optional[int]:
         with self.datastore.transaction(commit=True) as c:
-            self._insert_events(c, stored_events, **kwargs)
+            return self._insert_events(c, stored_events, **kwargs)
 
     def _insert_events(
         self,
         c: Cursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
-    ) -> None:
+    ) -> Optional[int]:
         params = []
         for stored_event in stored_events:
             params.append(
@@ -293,6 +293,17 @@ class SQLiteApplicationRecorder(
         )
         return [statement]
 
+    def _insert_events(
+        self,
+        c: Cursor,
+        stored_events: List[StoredEvent],
+        **kwargs: Any,
+    ) -> Optional[int]:
+        super()._insert_events(c, stored_events, **kwargs)
+        if stored_events:
+            max_notification_id = self._max_notification_id(c) or None
+            return max_notification_id
+
     def select_notifications(self, start: int, limit: int, topics: Sequence[str] = ()) \
         -> List[
         Notification]:
@@ -328,9 +339,11 @@ class SQLiteApplicationRecorder(
         Returns the maximum notification ID.
         """
         with self.datastore.transaction() as c:
-            c.execute(self.select_max_notification_id_statement)
-            max_id = c.fetchone()[0] or 0
-        return max_id
+            return self._max_notification_id(c)
+
+    def _max_notification_id(self, c):
+        c.execute(self.select_max_notification_id_statement)
+        return c.fetchone()[0] or 0
 
 
 class SQLiteProcessRecorder(
@@ -373,8 +386,8 @@ class SQLiteProcessRecorder(
         c: Cursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
-    ) -> None:
-        super()._insert_events(c, stored_events, **kwargs)
+    ) -> Optional[int]:
+        returning = super()._insert_events(c, stored_events, **kwargs)
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking is not None:
             c.execute(
@@ -384,6 +397,7 @@ class SQLiteProcessRecorder(
                     tracking.notification_id,
                 ),
             )
+        return returning
 
 
 class Factory(InfrastructureFactory):

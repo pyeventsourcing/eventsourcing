@@ -401,7 +401,7 @@ class AggregateRecorder(Recorder):
     """
 
     @abstractmethod
-    def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
+    def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> Optional[int]:
         """
         Writes stored events into database.
         """
@@ -486,11 +486,11 @@ class EventStore(Generic[TDomainEvent]):
         self.mapper = mapper
         self.recorder = recorder
 
-    def put(self, events: Sequence[DomainEvent[Any]], **kwargs: Any) -> None:
+    def put(self, events: Sequence[DomainEvent[Any]], **kwargs: Any) -> Optional[int]:
         """
         Stores domain events in aggregate sequence.
         """
-        self.recorder.insert_events(
+        return self.recorder.insert_events(
             list(
                 map(
                     self.mapper.from_domain_event,

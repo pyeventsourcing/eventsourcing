@@ -269,11 +269,11 @@ class PostgresAggregateRecorder(AggregateRecorder):
                 pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
 
     @retry(InterfaceError, max_attempts=10, wait=0.2)
-    def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
+    def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> Optional[int]:
         self._prepare_insert_events()
         with self.datastore.transaction(commit=True) as conn:
             with conn.cursor() as c:
-                self._insert_events(c, stored_events, **kwargs)
+                return self._insert_events(c, stored_events, **kwargs)
 
     def _prepare_insert_events(self) -> None:
         self._prepare(
@@ -296,7 +296,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         c: cursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
-    ) -> None:
+    ) -> Optional[int]:
         # Acquire "EXCLUSIVE" table lock, to serialize inserts so that
         # insertion of notification IDs is monotonic for notification log
         # readers. We want concurrent transactions to commit inserted
@@ -415,6 +415,11 @@ class PostgresApplicationRecorder(
         events_table_name: str = "stored_events",
     ):
         super().__init__(datastore, events_table_name)
+        self.insert_events_statement = (
+            f"INSERT INTO {self.events_table_name} VALUES ($1, $2, $3, $4) "
+            f"RETURNING notification_id"
+        )
+
         self.select_notifications_statement = (
             "SELECT * "
             f"FROM {self.events_table_name} "
@@ -522,6 +527,17 @@ class PostgresApplicationRecorder(
                 max_id = c.fetchone()[0] or 0
         return max_id
 
+    def _insert_events(
+        self,
+        c: cursor,
+        stored_events: List[StoredEvent],
+        **kwargs: Any,
+    ) -> Optional[int]:
+        super()._insert_events(c, stored_events, **kwargs)
+        if stored_events:
+            returning = c.fetchall()
+            return returning[-1][0] if returning else None
+
 
 class PostgresProcessRecorder(
     PostgresApplicationRecorder,
@@ -583,8 +599,8 @@ class PostgresProcessRecorder(
         c: cursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
-    ) -> None:
-        super()._insert_events(c, stored_events, **kwargs)
+    ) -> Optional[int]:
+        returning = super()._insert_events(c, stored_events, **kwargs)
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking is not None:
             c.execute(
@@ -594,6 +610,7 @@ class PostgresProcessRecorder(
                     tracking.notification_id,
                 ),
             )
+        return returning
 
 
 class Factory(InfrastructureFactory):
