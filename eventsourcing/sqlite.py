@@ -195,7 +195,9 @@ class SQLiteAggregateRecorder(AggregateRecorder):
                 c.execute(statement)
             pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
 
-    def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> Optional[int]:
+    def insert_events(
+        self, stored_events: List[StoredEvent], **kwargs: Any
+    ) -> Optional[int]:
         with self.datastore.transaction(commit=True) as c:
             return self._insert_events(c, stored_events, **kwargs)
 
@@ -216,6 +218,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
                 )
             )
         c.executemany(self.insert_events_statement, params)
+        return None
 
     def select_events(
         self,
@@ -303,10 +306,12 @@ class SQLiteApplicationRecorder(
         if stored_events:
             max_notification_id = self._max_notification_id(c) or None
             return max_notification_id
+        else:
+            return None
 
-    def select_notifications(self, start: int, limit: int, topics: Sequence[str] = ()) \
-        -> List[
-        Notification]:
+    def select_notifications(
+        self, start: int, limit: int, topics: Sequence[str] = ()
+    ) -> List[Notification]:
         """
         Returns a list of event notifications
         from 'start', limited by 'limit'.
@@ -316,7 +321,7 @@ class SQLiteApplicationRecorder(
             if not topics:
                 c.execute(self.select_notifications_statement, [start, limit])
             else:
-                qst_marks = ",".join('?' * len(topics))
+                qst_marks = ",".join("?" * len(topics))
                 stmt = self.select_notifications_filter_topics_statement % qst_marks
                 params = [str(start)] + list(topics) + [str(limit)]
                 c.execute(stmt, params)
@@ -341,7 +346,7 @@ class SQLiteApplicationRecorder(
         with self.datastore.transaction() as c:
             return self._max_notification_id(c)
 
-    def _max_notification_id(self, c):
+    def _max_notification_id(self, c: Cursor) -> int:
         c.execute(self.select_max_notification_id_statement)
         return c.fetchone()[0] or 0
 

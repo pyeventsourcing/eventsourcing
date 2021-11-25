@@ -11,7 +11,8 @@ from typing import (
     List,
     Mapping,
     Optional,
-    Sequence, Type,
+    Sequence,
+    Type,
     TypeVar,
     Union,
 )
@@ -163,8 +164,9 @@ class NotificationLog(ABC):
         """
 
     @abstractmethod
-    def select(self, start: int, limit: int, topics: Sequence[str] = ()) -> List[
-        Notification]:
+    def select(
+        self, start: int, limit: int, topics: Sequence[str] = ()
+    ) -> List[Notification]:
         """
         Returns a selection
         :class:`~eventsourcing.persistence.Notification` objects
@@ -246,7 +248,9 @@ class LocalNotificationLog(NotificationLog):
             next_id=next_id,
         )
 
-    def select(self, start: int, limit: int, topics: Sequence[str] = ()) -> List[Notification]:
+    def select(
+        self, start: int, limit: int, topics: Sequence[str] = ()
+    ) -> List[Notification]:
         """
         Returns a selection
         :class:`~eventsourcing.persistence.Notification` objects

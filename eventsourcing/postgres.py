@@ -269,7 +269,9 @@ class PostgresAggregateRecorder(AggregateRecorder):
                 pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
 
     @retry(InterfaceError, max_attempts=10, wait=0.2)
-    def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> Optional[int]:
+    def insert_events(
+        self, stored_events: List[StoredEvent], **kwargs: Any
+    ) -> Optional[int]:
         self._prepare_insert_events()
         with self.datastore.transaction(commit=True) as conn:
             with conn.cursor() as c:
@@ -318,7 +320,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
 
         # Just do nothing here if there is nothing to do.
         if len_stored_events == 0:
-            return
+            return None
 
         # Mogrify the table lock statements.
         lock_sqls = (c.mogrify(s) for s in self.lock_statements)
@@ -350,6 +352,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         # Execute the commands.
         for command in commands:
             c.execute(command)
+        return None
 
     @retry(InterfaceError, max_attempts=10, wait=0.2)
     def select_events(
@@ -441,7 +444,6 @@ class PostgresApplicationRecorder(
             f"select_notifications_filter_topics_{events_table_name}"
         )
 
-
         self.max_notification_id_statement = (
             f"SELECT MAX(notification_id) FROM {self.events_table_name}"
         )
@@ -472,15 +474,18 @@ class PostgresApplicationRecorder(
         return statements
 
     @retry(InterfaceError, max_attempts=10, wait=0.2)
-    def select_notifications(self, start: int, limit: int, topics: Sequence[str] = ()
-                             ) -> List[Notification]:
+    def select_notifications(
+        self, start: int, limit: int, topics: Sequence[str] = ()
+    ) -> List[Notification]:
         """
         Returns a list of event notifications
         from 'start', limited by 'limit'.
         """
         if topics:
             statement_name = self.select_notifications_filter_topics_statement_name
-            self._prepare(statement_name, self.select_notifications_filter_topics_statement)
+            self._prepare(
+                statement_name, self.select_notifications_filter_topics_statement
+            )
         else:
             statement_name = self.select_notifications_statement_name
             self._prepare(statement_name, self.select_notifications_statement)
@@ -537,6 +542,7 @@ class PostgresApplicationRecorder(
         if stored_events:
             returning = c.fetchall()
             return returning[-1][0] if returning else None
+        return None
 
 
 class PostgresProcessRecorder(

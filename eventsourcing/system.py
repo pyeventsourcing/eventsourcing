@@ -3,6 +3,7 @@ from collections import defaultdict
 from queue import Queue
 from threading import Event, Lock, Thread
 from typing import (
+    TYPE_CHECKING,
     Dict,
     Iterable,
     Iterator,
@@ -38,7 +39,8 @@ class Follower(Application[TAggregate]):
     track of the applications it is following, and pulling and processing
     new domain event notifications through its :func:`policy` method.
     """
-    follow_topics = []
+
+    follow_topics: Sequence[str] = []
     pull_section_size = 10
 
     def __init__(self) -> None:
@@ -53,11 +55,15 @@ class Follower(Application[TAggregate]):
         self.recorder: ProcessRecorder
         self.is_threading_enabled = False
 
-    def enable_threading(self):
+    def enable_threading(self) -> None:
         self.is_threading_enabled = True
-        self.max_notification_ids = {}
-        self.pull_threads = {}
-        self.pull_events = {}
+        self.max_notification_ids: Dict[str, int] = {}
+        self.pull_threads: Dict[str, Thread] = {}
+        self.pull_events: Dict[str, Event] = {}
+        if TYPE_CHECKING:
+            self.processing_queue: Queue[
+                Tuple[AggregateEvent[TAggregate], ProcessEvent]
+            ]
         self.processing_queue = Queue(maxsize=self.pull_section_size * 3)
         self.processing_thread = Thread(target=self._process_events, daemon=True)
         self.processing_thread.start()
@@ -81,17 +87,15 @@ class Follower(Application[TAggregate]):
         self.readers[name] = (reader, mapper)
 
         if self.is_threading_enabled:
-            if not hasattr(self, 'pull_threads'):
+            if not hasattr(self, "pull_threads"):
                 self.pull_threads = {}
-            if not hasattr(self, 'pull_events'):
+            if not hasattr(self, "pull_events"):
                 self.pull_events = {}
 
             event = Event()
             self.pull_events[name] = event
             thread = Thread(
-                target=self._pull_and_queue,
-                daemon=True,
-                kwargs={"name": name}
+                target=self._pull_and_queue, daemon=True, kwargs={"name": name}
             )
             thread.start()
             self.pull_threads[name] = thread
@@ -136,7 +140,7 @@ class Follower(Application[TAggregate]):
                 )
                 self.record(process_event)
 
-    def _pull_and_queue(self, name) -> None:
+    def _pull_and_queue(self, name: str) -> None:
         event = self.pull_events[name]
         while True:
             event.wait()
@@ -161,7 +165,7 @@ class Follower(Application[TAggregate]):
                 self.processing_queue.put((domain_event, process_event))
                 self.max_notification_ids[name] = notification.id
 
-    def _process_events(self):
+    def _process_events(self) -> None:
         while True:
             domain_event, process_event = self.processing_queue.get()
             self.policy(domain_event, process_event)
@@ -661,8 +665,9 @@ class NotificationLogReader:
             else:
                 section_id = section.next_id
 
-    def select(self, *, start: int, topics: Sequence[str] = ()) -> Iterator[
-        Notification]:
+    def select(
+        self, *, start: int, topics: Sequence[str] = ()
+    ) -> Iterator[Notification]:
         """
         Returns a generator that yields event notifications
         from the reader's notification log, starting from
@@ -677,8 +682,9 @@ class NotificationLogReader:
         yielded.
         """
         while True:
-            notifications = self.notification_log.select(start, self.section_size,
-                                                         topics=topics)
+            notifications = self.notification_log.select(
+                start, self.section_size, topics=topics
+            )
             for notification in notifications:
                 yield notification
             if len(notifications) < self.section_size:

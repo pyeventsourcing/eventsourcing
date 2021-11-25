@@ -401,7 +401,9 @@ class AggregateRecorder(Recorder):
     """
 
     @abstractmethod
-    def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> Optional[int]:
+    def insert_events(
+        self, stored_events: List[StoredEvent], **kwargs: Any
+    ) -> Optional[int]:
         """
         Writes stored events into database.
         """
@@ -442,7 +444,9 @@ class ApplicationRecorder(AggregateRecorder):
     """
 
     @abstractmethod
-    def select_notifications(self, start: int, limit: int) -> List[Notification]:
+    def select_notifications(
+        self, start: int, limit: int, topics: Sequence[str] = ()
+    ) -> List[Notification]:
         """
         Returns a list of event notifications
         from 'start', limited by 'limit'.

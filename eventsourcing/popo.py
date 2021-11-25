@@ -22,11 +22,15 @@ class POPOAggregateRecorder(AggregateRecorder):
         self._stored_events_index: Dict[UUID, Dict[int, int]] = defaultdict(dict)
         self._database_lock = Lock()
 
-    def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> Optional[int]:
+    def insert_events(
+        self, stored_events: List[StoredEvent], **kwargs: Any
+    ) -> Optional[int]:
         self._insert_events(stored_events, **kwargs)
         return None
 
-    def _insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> Optional[int]:
+    def _insert_events(
+        self, stored_events: List[StoredEvent], **kwargs: Any
+    ) -> Optional[int]:
         with self._database_lock:
             self._assert_uniqueness(stored_events, **kwargs)
             return self._update_table(stored_events, **kwargs)
@@ -44,7 +48,9 @@ class POPOAggregateRecorder(AggregateRecorder):
         if len(new) < len(stored_events):
             raise IntegrityError()
 
-    def _update_table(self, stored_events: List[StoredEvent], **kwargs: Any) -> Optional[int]:
+    def _update_table(
+        self, stored_events: List[StoredEvent], **kwargs: Any
+    ) -> Optional[int]:
         for s in stored_events:
             self._stored_events.append(s)
             self._stored_events_index[s.originator_id][s.originator_version] = (
@@ -83,10 +89,14 @@ class POPOAggregateRecorder(AggregateRecorder):
 
 
 class POPOApplicationRecorder(ApplicationRecorder, POPOAggregateRecorder):
-    def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> Optional[int]:
+    def insert_events(
+        self, stored_events: List[StoredEvent], **kwargs: Any
+    ) -> Optional[int]:
         return self._insert_events(stored_events, **kwargs)
 
-    def select_notifications(self, start: int, limit: int, topics: Sequence[str] = ()) -> List[Notification]:
+    def select_notifications(
+        self, start: int, limit: int, topics: Sequence[str] = ()
+    ) -> List[Notification]:
         with self._database_lock:
             results = []
             for i in count(start - 1):
@@ -127,7 +137,9 @@ class POPOProcessRecorder(ProcessRecorder, POPOApplicationRecorder):
             if tracking.notification_id <= last:
                 raise IntegrityError()
 
-    def _update_table(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
+    def _update_table(
+        self, stored_events: List[StoredEvent], **kwargs: Any
+    ) -> Optional[int]:
         returning = super()._update_table(stored_events, **kwargs)
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking:
