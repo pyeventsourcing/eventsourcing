@@ -254,7 +254,8 @@ class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase):
             InfrastructureFactory.construct("TestCase")
         self.assertEqual(
             cm.exception.args[0],
-            "SQLite database name not found in environment with key 'SQLITE_DBNAME'",
+            "SQLite database name not found in environment with keys: "
+            "TESTCASE_SQLITE_DBNAME, SQLITE_DBNAME",
         )
 
     def test_environment_error_raised_when_lock_timeout_not_an_int(self):

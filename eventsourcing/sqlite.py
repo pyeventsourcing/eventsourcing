@@ -416,8 +416,8 @@ class Factory(InfrastructureFactory):
         if not db_name:
             raise EnvironmentError(
                 "SQLite database name not found "
-                "in environment with key "
-                f"'{self.SQLITE_DBNAME}'"
+                "in environment with keys: "
+                f"{', '.join(self.create_keys(self.SQLITE_DBNAME))}"
             )
 
         lock_timeout_str = (self.getenv(self.SQLITE_LOCK_TIMEOUT) or "").strip() or None

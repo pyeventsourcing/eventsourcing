@@ -622,17 +622,20 @@ class InfrastructureFactory(ABC):
         """
         Returns value of environment variable defined by given key.
         """
+        for key in self.create_keys(key, application_name):
+            value = self.env.get(key)
+            if value is not None:
+                return value
+        return default
+
+    def create_keys(self, key, application_name: str = ""):
         if not application_name:
             application_name = self.application_name
         keys = [
             application_name.upper() + "_" + key,
             key,
         ]
-        for key in keys:
-            value = self.env.get(key)
-            if value is not None:
-                return value
-        return default
+        return keys
 
     def mapper(
         self,
