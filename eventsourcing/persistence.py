@@ -628,7 +628,7 @@ class InfrastructureFactory(ABC):
                 return value
         return default
 
-    def create_keys(self, key, application_name: str = ""):
+    def create_keys(self, key: str, application_name: str = "") -> List[str]:
         if not application_name:
             application_name = self.application_name
         keys = [
