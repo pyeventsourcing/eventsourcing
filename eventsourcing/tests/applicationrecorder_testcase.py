@@ -87,7 +87,9 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         self.assertEqual(notifications[2].topic, "topic3")
         self.assertEqual(notifications[2].state, b"state3")
 
-        notifications = recorder.select_notifications(1, 3, topics=["topic1", "topic2", "topic3"])
+        notifications = recorder.select_notifications(
+            1, 3, topics=["topic1", "topic2", "topic3"]
+        )
         self.assertEqual(len(notifications), 3)
         self.assertEqual(notifications[0].id, 1)
         self.assertEqual(notifications[0].originator_id, originator_id1)

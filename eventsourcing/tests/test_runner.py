@@ -6,6 +6,8 @@ from unittest.case import TestCase
 from eventsourcing.postgres import PostgresDatastore
 from eventsourcing.system import (
     MultiThreadedRunner,
+    ProcessingThreadError,
+    PullingThreadError,
     Runner,
     RunnerAlreadyStarted,
     SingleThreadedRunner,
@@ -113,8 +115,12 @@ class TestMultiThreadedRunner(RunnerTestCase):
         def __init__(self, *args, **kwargs):
             raise Exception("Just testing error handling when initialisation is broken")
 
+    class BrokenPulling(EmailNotifications):
+        def pull_events(self, name, start):
+            raise Exception("Just testing error handling when pulling is broken")
+
     class BrokenProcessing(EmailNotifications):
-        def pull_and_process(self, name: str) -> None:
+        def process_event(self, domain_event, process_event):
             raise Exception("Just testing error handling when processing is broken")
 
     def test_stops_if_app_initialisation_is_broken(self):
@@ -131,9 +137,95 @@ class TestMultiThreadedRunner(RunnerTestCase):
         with self.assertRaises(Exception) as cm:
             runner.start()
         self.assertEqual(
-            cm.exception.args[0], "Thread for 'BrokenInitialisation' failed to start"
+            cm.exception.args[0],
+            "Just testing error handling when initialisation is broken",
         )
         self.assertTrue(runner.has_stopped)
+
+    def test_stop_raises_if_app_pulling_is_broken(self):
+        system = System(
+            pipes=[
+                [
+                    BankAccounts,
+                    TestMultiThreadedRunner.BrokenPulling,
+                ],
+            ]
+        )
+
+        runner = self.runner_class(system)
+        runner.start()
+
+        accounts = runner.get(BankAccounts)
+        accounts.open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+
+        # Wait for runner to stop.
+        runner.has_stopped.wait()
+
+        # Check stop() raises exception.
+        with self.assertRaises(PullingThreadError) as cm:
+            runner.stop()
+        self.assertEqual(
+            cm.exception.args[0], "Just testing error handling when pulling is broken"
+        )
+
+    def test_stop_raises_if_app_processing_is_broken(self):
+        system = System(
+            pipes=[
+                [
+                    BankAccounts,
+                    TestMultiThreadedRunner.BrokenProcessing,
+                ],
+            ]
+        )
+
+        runner = self.runner_class(system)
+        runner.start()
+
+        accounts = runner.get(BankAccounts)
+        accounts.open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+
+        # Wait for runner to stop.
+        runner.has_stopped.wait()
+
+        # Check stop() raises exception.
+        with self.assertRaises(ProcessingThreadError) as cm:
+            runner.stop()
+        self.assertEqual(
+            cm.exception.args[0],
+            "Just testing error handling when processing is broken",
+        )
+
+    def test_watch_for_errors_raises_if_app_pulling_is_broken(self):
+        system = System(
+            pipes=[
+                [
+                    BankAccounts,
+                    TestMultiThreadedRunner.BrokenPulling,
+                ],
+            ]
+        )
+
+        runner = self.runner_class(system)
+        runner.start()
+
+        accounts = runner.get(BankAccounts)
+        accounts.open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+
+        # Check watch_for_errors() raises exception.
+        with self.assertRaises(PullingThreadError) as cm:
+            runner.watch_for_errors()
+        self.assertEqual(
+            cm.exception.args[0], "Just testing error handling when pulling is broken"
+        )
 
     def test_stops_if_app_processing_is_broken(self):
         system = System(
@@ -154,31 +246,13 @@ class TestMultiThreadedRunner(RunnerTestCase):
             email_address="alice@example.com",
         )
 
-        self.wait_for_runner()
-
-        self.assertTrue(runner.has_stopped)
-
-    def test_prompts_received_doesnt_accumulate_names(self):
-        system = System(
-            pipes=[
-                [
-                    BankAccounts,
-                    TestMultiThreadedRunner.BrokenProcessing,
-                ],
-            ]
+        # Check watch_for_errors() raises exception.
+        with self.assertRaises(ProcessingThreadError) as cm:
+            runner.watch_for_errors()
+        self.assertEqual(
+            cm.exception.args[0],
+            "Just testing error handling when processing is broken",
         )
-
-        runner = self.runner_class(system)
-        runner.start()
-        runner.stop()
-
-        for thread in runner.threads.values():
-            # Check the prompted names don't accumulate.
-            self.assertEqual(thread.prompted_names, [])
-            thread.receive_prompt("LeaderName")
-            self.assertEqual(thread.prompted_names, ["LeaderName"])
-            thread.receive_prompt("LeaderName")
-            self.assertEqual(thread.prompted_names, ["LeaderName"])
 
 
 class TestMultiThreadedRunnerWithSQLiteFileBased(TestMultiThreadedRunner):
@@ -189,6 +263,7 @@ class TestMultiThreadedRunnerWithSQLiteFileBased(TestMultiThreadedRunner):
         os.environ["EMAILNOTIFICATIONS_SQLITE_DBNAME"] = next(uris)
         os.environ["EMAILNOTIFICATIONS2_SQLITE_DBNAME"] = next(uris)
         os.environ["BROKENPROCESSING_SQLITE_DBNAME"] = next(uris)
+        os.environ["BROKENPULLING_SQLITE_DBNAME"] = next(uris)
 
     def tearDown(self):
         del os.environ["PERSISTENCE_MODULE"]
@@ -196,6 +271,7 @@ class TestMultiThreadedRunnerWithSQLiteFileBased(TestMultiThreadedRunner):
         del os.environ["EMAILNOTIFICATIONS_SQLITE_DBNAME"]
         del os.environ["EMAILNOTIFICATIONS2_SQLITE_DBNAME"]
         del os.environ["BROKENPROCESSING_SQLITE_DBNAME"]
+        del os.environ["BROKENPULLING_SQLITE_DBNAME"]
 
     def test_runs_ok(self):
         super().test_runs_ok()
@@ -216,6 +292,9 @@ class TestMultiThreadedRunnerWithSQLiteInMemory(TestMultiThreadedRunner):
         os.environ[
             "BROKENPROCESSING_SQLITE_DBNAME"
         ] = "file:brokenprocessing?mode=memory&cache=shared"
+        os.environ[
+            "BROKENPULLING_SQLITE_DBNAME"
+        ] = "file:brokenprocessing?mode=memory&cache=shared"
 
     def tearDown(self):
         del os.environ["PERSISTENCE_MODULE"]
@@ -223,6 +302,7 @@ class TestMultiThreadedRunnerWithSQLiteInMemory(TestMultiThreadedRunner):
         del os.environ["EMAILNOTIFICATIONS_SQLITE_DBNAME"]
         del os.environ["EMAILNOTIFICATIONS2_SQLITE_DBNAME"]
         del os.environ["BROKENPROCESSING_SQLITE_DBNAME"]
+        del os.environ["BROKENPULLING_SQLITE_DBNAME"]
 
     def test_runs_ok(self):
         super().test_runs_ok()
@@ -260,9 +340,6 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
         del os.environ["POSTGRES_PORT"]
         del os.environ["POSTGRES_USER"]
         del os.environ["POSTGRES_PASSWORD"]
-
-    def test_prompts_received_doesnt_accumulate_names(self):
-        super().test_prompts_received_doesnt_accumulate_names()
 
     def wait_for_runner(self):
         sleep(0.5)

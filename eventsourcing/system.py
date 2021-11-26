@@ -1,13 +1,15 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from queue import Queue
-from threading import Event, Lock, Thread
+from threading import Event, Thread
 from typing import (
-    TYPE_CHECKING,
     Dict,
     Iterable,
     Iterator,
     List,
+    Optional,
     Sequence,
     Set,
     Tuple,
@@ -55,19 +57,6 @@ class Follower(Application[TAggregate]):
         self.recorder: ProcessRecorder
         self.is_threading_enabled = False
 
-    def enable_threading(self) -> None:
-        self.is_threading_enabled = True
-        self.max_notification_ids: Dict[str, int] = {}
-        self.pull_threads: Dict[str, Thread] = {}
-        self.pull_events: Dict[str, Event] = {}
-        if TYPE_CHECKING:
-            self.processing_queue: Queue[
-                Tuple[AggregateEvent[TAggregate], ProcessEvent]
-            ]
-        self.processing_queue = Queue(maxsize=self.pull_section_size * 3)
-        self.processing_thread = Thread(target=self._process_events, daemon=True)
-        self.processing_thread.start()
-
     def construct_recorder(self) -> ProcessRecorder:
         """
         Constructs and returns a :class:`~eventsourcing.persistence.ProcessRecorder`
@@ -85,20 +74,6 @@ class Follower(Application[TAggregate]):
         reader = NotificationLogReader(log, section_size=self.pull_section_size)
         mapper = self.construct_mapper(name)
         self.readers[name] = (reader, mapper)
-
-        if self.is_threading_enabled:
-            if not hasattr(self, "pull_threads"):
-                self.pull_threads = {}
-            if not hasattr(self, "pull_events"):
-                self.pull_events = {}
-
-            event = Event()
-            self.pull_events[name] = event
-            thread = Thread(
-                target=self._pull_and_queue, daemon=True, kwargs={"name": name}
-            )
-            thread.start()
-            self.pull_threads[name] = thread
 
     def pull_and_process(self, name: str) -> None:
         """
@@ -119,57 +94,31 @@ class Follower(Application[TAggregate]):
         method, and the process event object will then be recorded
         by calling the :func:`record` method.
         """
-        if self.is_threading_enabled:
-            self.pull_events[name].set()
-        else:
-            reader, mapper = self.readers[name]
-            start = self.recorder.max_tracking_id(name) + 1
-            for notification in reader.select(start=start, topics=self.follow_topics):
-                domain_event = cast(
-                    AggregateEvent[TAggregate], mapper.to_domain_event(notification)
-                )
-                process_event = ProcessEvent(
-                    Tracking(
-                        application_name=name,
-                        notification_id=notification.id,
-                    )
-                )
-                self.policy(
-                    domain_event,
-                    process_event,
-                )
-                self.record(process_event)
+        start = self.recorder.max_tracking_id(name) + 1
+        for domain_event, process_event in self.pull_events(name, start):
+            self.process_event(domain_event, process_event)
 
-    def _pull_and_queue(self, name: str) -> None:
-        event = self.pull_events[name]
-        while True:
-            event.wait()
-            event.clear()
-
-            reader, mapper = self.readers[name]
-            try:
-                last_notification_id = self.max_notification_ids[name]
-            except KeyError:
-                last_notification_id = self.recorder.max_tracking_id(name)
-            start = last_notification_id + 1
-            for notification in reader.select(start=start, topics=self.follow_topics):
-                domain_event = cast(
-                    AggregateEvent[TAggregate], mapper.to_domain_event(notification)
+    def pull_events(
+        self, name: str, start: int
+    ) -> Iterable[Tuple[AggregateEvent[TAggregate], ProcessEvent]]:
+        reader, mapper = self.readers[name]
+        for notification in reader.select(start=start, topics=self.follow_topics):
+            domain_event = cast(
+                AggregateEvent[TAggregate], mapper.to_domain_event(notification)
+            )
+            process_event = ProcessEvent(
+                Tracking(
+                    application_name=name,
+                    notification_id=notification.id,
                 )
-                process_event = ProcessEvent(
-                    Tracking(
-                        application_name=name,
-                        notification_id=notification.id,
-                    )
-                )
-                self.processing_queue.put((domain_event, process_event))
-                self.max_notification_ids[name] = notification.id
+            )
+            yield domain_event, process_event
 
-    def _process_events(self) -> None:
-        while True:
-            domain_event, process_event = self.processing_queue.get()
-            self.policy(domain_event, process_event)
-            self.record(process_event)
+    def process_event(
+        self, domain_event: AggregateEvent[TAggregate], process_event: ProcessEvent
+    ) -> None:
+        self.policy(domain_event, process_event)
+        self.record(process_event)
 
     @abstractmethod
     def policy(
@@ -381,6 +330,18 @@ class RunnerAlreadyStarted(Exception):
     """
 
 
+class PullingThreadError(Exception):
+    """
+    Raised when notification pulling thread fails.
+    """
+
+
+class ProcessingThreadError(Exception):
+    """
+    Raised when event processing thread fails.
+    """
+
+
 class SingleThreadedRunner(Runner, Promptable):
     """
     Runs a :class:`System` in a single thread.
@@ -460,6 +421,9 @@ class SingleThreadedRunner(Runner, Promptable):
         return app
 
 
+ProcessingQueueType = Queue[Tuple[AggregateEvent[Aggregate], ProcessEvent]]
+
+
 class MultiThreadedRunner(Runner):
     """
     Runs a :class:`System` with a :class:`MultiThreadedRunnerThread` for each
@@ -474,8 +438,11 @@ class MultiThreadedRunner(Runner):
         """
         super().__init__(system)
         self.apps: Dict[str, Application[Aggregate]] = {}
-        self.threads: Dict[str, MultiThreadedRunnerThread] = {}
-        self.is_stopping = Event()
+        self.pulling_threads: Dict[str, Dict[str, PullingThread]] = {}
+        self.processing_threads: Dict[str, ProcessingThread] = {}
+        self.processing_queues: Dict[str, ProcessingQueueType] = {}
+        self.stop_called = Event()
+        self.has_stopped = Event()
 
     def start(self) -> None:
         """
@@ -494,41 +461,67 @@ class MultiThreadedRunner(Runner):
         # Construct followers.
         for name in self.system.followers:
             app_class = self.system.follower_cls(name)
-            thread = MultiThreadedRunnerThread(
-                app_class=app_class,
-                is_stopping=self.is_stopping,
+            try:
+                app = app_class()
+            except Exception:
+                self.has_stopped.set()
+                raise
+            self.apps[name] = app
+            processing_queue: ProcessingQueueType = Queue(maxsize=100)
+            self.processing_queues[name] = processing_queue
+            processing_thread = ProcessingThread(
+                processing_queue, app, self.has_stopped
             )
-            self.threads[name] = thread
-            thread.start()
-            if (not thread.is_running.wait(timeout=5)) or thread.has_stopped.is_set():
-                self.stop()
-                raise Exception(f"Thread for '{app_class.__name__}' failed to start")
-            self.apps[name] = thread.app
+            processing_thread.start()
+            self.processing_threads[name] = processing_thread
+            self.pulling_threads[name] = {}
 
         # Construct non-follower leaders.
         for name in self.system.leaders_only:
-            app = self.system.leader_cls(name)()
-            self.apps[name] = app
+            self.apps[name] = self.system.leader_cls(name)()
 
         # Lead and follow.
         for edge in self.system.edges:
-            leader = self.apps[edge[0]]
-            follower = self.apps[edge[1]]
+            leader_name = edge[0]
+            leader = self.apps[leader_name]
+            follower_name = edge[1]
+            follower = self.apps[follower_name]
             assert isinstance(leader, Leader)
             assert isinstance(follower, Follower)
             follower.follow(leader.__class__.__name__, leader.log)
-            thread = self.threads[edge[1]]
-            leader.lead(thread)
+            prompted_event = Event()
+            pulling_thread = PullingThread(
+                processing_queue=self.processing_queues[follower_name],
+                prompted_event=prompted_event,
+                app=follower,
+                leader_name=leader_name,
+                has_stopped=self.has_stopped,
+            )
+            pulling_thread.start()
+            leader.lead(pulling_thread)
+            self.pulling_threads[follower_name][leader_name] = pulling_thread
+
+    def watch_for_errors(self) -> None:
+        self.has_stopped.wait()
+        self.stop()
 
     def stop(self) -> None:
-        self.is_stopping.set()
-        for thread in self.threads.values():
-            thread.is_prompted.set()
-            thread.join()
+        self.stop_called.set()
+        self.reraise_thread_errors()
+        self.has_stopped.set()
 
-    @property
-    def has_stopped(self) -> bool:
-        return all([t.has_stopped.is_set() for t in self.threads.values()])
+    def reraise_thread_errors(self) -> None:
+        for d in self.pulling_threads.values():
+            for pulling in d.values():
+                if pulling.has_errored:
+                    raise PullingThreadError(
+                        *pulling.has_errored.args
+                    ) from pulling.has_errored
+        for processing in self.processing_threads.values():
+            if processing.has_errored:
+                raise ProcessingThreadError(
+                    *processing.has_errored.args
+                ) from processing.has_errored
 
     def get(self, cls: Type[A]) -> A:
         app = self.apps[cls.__name__]
@@ -536,84 +529,80 @@ class MultiThreadedRunner(Runner):
         return app
 
 
-class MultiThreadedRunnerThread(Promptable, Thread):
+class PullingThread(Promptable, Thread):
     """
-    Runs one process application for a
-    :class:`~eventsourcing.system.MultiThreadedRunner`.
-
-    A multi-threaded runner thread is a :class:`~eventsourcing.system.Promptable`
-    object, and implements the :func:`receive_prompt` method by collecting
-    prompted names and setting its threading event 'is_prompted'.
-
-    A multi-threaded runner thread is a Python :class:`threading.Thread` object,
-    and implements the thread's :func:`run` method by waiting until the
-    'is_prompted' event has been set and then calling its process application's
-    :func:`~eventsourcing.system.Follower.pull_and_process`
-    method once for each prompted name. It is expected that
-    the process application will have been set up by the runner
-    with a notification log reader from which event notifications
-    will be pulled.
+    A pulling thread is a :class:`~eventsourcing.system.Promptable`
+    object, and implements the :func:`receive_prompt` method by setting
+    its 'prompted_event'. When the event is set event notifications
+    are pulled from the leader, using the appropriate notification log
+    reader in the follower application. Events are placed on a processing
+    queue.
     """
 
     def __init__(
         self,
-        app_class: Type[Follower[Aggregate]],
-        is_stopping: Event,
+        processing_queue: ProcessingQueueType,
+        prompted_event: Event,
+        app: Follower[Aggregate],
+        leader_name: str,
+        has_stopped: Event,
     ):
         super().__init__(daemon=True)
-        self.app_class = app_class
-        self.is_stopping = is_stopping
-        self.has_stopped = Event()
-        self.has_errored = Event()
-        self.is_prompted = Event()
-        self.prompted_names: List[str] = []
-        self.prompted_names_lock = Lock()
-        self.is_running = Event()
+        self.prompted_event = prompted_event
+        self.processing_queue = processing_queue
+        self.app = app
+        self.leader_name = leader_name
+        self.has_errored: Optional[Exception] = None
+        self.runner_has_stopped = has_stopped
 
     def run(self) -> None:
-        """
-        Begins by constructing an application instance from
-        given application class and then loops forever until
-        stopped. The loop blocks on waiting for the 'is_prompted'
-        event to be set, then forwards the prompts already received
-        to its application by calling the application's
-        :func:`~Follower.pull_and_process` method for each prompted name.
-        """
-        try:
-            self.app: Follower[Aggregate] = self.app_class()
-        except Exception:
-            self.has_errored.set()
-            self.has_stopped.set()
-            raise
-        else:
-            self.app.enable_threading()
-        finally:
-            self.is_running.set()  # pragma: no cover
-            # -----------------------^ weird branch coverage thing with Python 3.9
-
+        last_notification_id = self.app.recorder.max_tracking_id(self.leader_name)
         try:
             while True:
-                self.is_prompted.wait()
-                if self.is_stopping.is_set():
-                    self.has_stopped.set()
-                    break
-                with self.prompted_names_lock:
-                    prompted_names = self.prompted_names
-                    self.prompted_names = []
-                    self.is_prompted.clear()
-                for name in prompted_names:
-                    self.app.pull_and_process(name)
-        except Exception:
-            self.has_errored.set()
-            self.has_stopped.set()
-            self.is_stopping.is_set()
-            raise
+                self.prompted_event.wait()
+                self.prompted_event.clear()
+                start = last_notification_id + 1
+
+                for domain_event, process_event in self.app.pull_events(
+                    self.leader_name, start
+                ):
+                    self.processing_queue.put((domain_event, process_event))
+                    assert process_event.tracking is not None
+                    last_notification_id = process_event.tracking.notification_id
+        except Exception as e:
+            self.has_errored = e
+            self.runner_has_stopped.set()
 
     def receive_prompt(self, leader_name: str) -> None:
-        """
-        Receives prompt by setting event in follower.
-        """
-        self.app.pull_and_process(leader_name)
+        self.prompted_event.set()
+
+
+class ProcessingThread(Thread):
+    """
+    A processing thread gets events from a processing queue, and
+    calls the application's process_event() method.
+    """
+
+    def __init__(
+        self,
+        processing_queue: ProcessingQueueType,
+        app: Follower[Aggregate],
+        has_stopped: Event,
+    ):
+        super().__init__(daemon=True)
+        self.processing_queue = processing_queue
+        self.app = app
+        self.has_errored: Optional[Exception] = None
+        self.runner_has_stopped = has_stopped
+
+    def run(self) -> None:
+        try:
+            while True:
+                domain_event, process_event = self.processing_queue.get()
+                self.app.process_event(domain_event, process_event)
+        except Exception as e:
+            self.runner_has_stopped.set()
+            self.has_errored = e
 
 
 class NotificationLogReader:
