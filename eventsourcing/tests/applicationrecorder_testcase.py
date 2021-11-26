@@ -19,8 +19,17 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         # Construct the recorder.
         recorder = self.create_recorder()
 
+        # Check notifications methods work when there aren't any.
         self.assertEqual(
             recorder.max_notification_id(),
+            0,
+        )
+        self.assertEqual(
+            len(recorder.select_notifications(1, 3)),
+            0,
+        )
+        self.assertEqual(
+            len(recorder.select_notifications(1, 3, topics=["topic1"])),
             0,
         )
 
@@ -70,11 +79,59 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         self.assertEqual(notifications[0].topic, "topic1")
         self.assertEqual(notifications[0].state, b"state1")
         self.assertEqual(notifications[1].id, 2)
+        self.assertEqual(notifications[1].originator_id, originator_id1)
         self.assertEqual(notifications[1].topic, "topic2")
         self.assertEqual(notifications[1].state, b"state2")
         self.assertEqual(notifications[2].id, 3)
+        self.assertEqual(notifications[2].originator_id, originator_id2)
         self.assertEqual(notifications[2].topic, "topic3")
         self.assertEqual(notifications[2].state, b"state3")
+
+        notifications = recorder.select_notifications(1, 3, topics=["topic1", "topic2", "topic3"])
+        self.assertEqual(len(notifications), 3)
+        self.assertEqual(notifications[0].id, 1)
+        self.assertEqual(notifications[0].originator_id, originator_id1)
+        self.assertEqual(notifications[0].topic, "topic1")
+        self.assertEqual(notifications[0].state, b"state1")
+        self.assertEqual(notifications[1].id, 2)
+        self.assertEqual(notifications[1].originator_id, originator_id1)
+        self.assertEqual(notifications[1].topic, "topic2")
+        self.assertEqual(notifications[1].state, b"state2")
+        self.assertEqual(notifications[2].id, 3)
+        self.assertEqual(notifications[2].originator_id, originator_id2)
+        self.assertEqual(notifications[2].topic, "topic3")
+        self.assertEqual(notifications[2].state, b"state3")
+
+        notifications = recorder.select_notifications(1, 3, topics=["topic1"])
+        self.assertEqual(len(notifications), 1)
+        self.assertEqual(notifications[0].id, 1)
+        self.assertEqual(notifications[0].originator_id, originator_id1)
+        self.assertEqual(notifications[0].topic, "topic1")
+        self.assertEqual(notifications[0].state, b"state1")
+
+        notifications = recorder.select_notifications(1, 3, topics=["topic2"])
+        self.assertEqual(len(notifications), 1)
+        self.assertEqual(notifications[0].id, 2)
+        self.assertEqual(notifications[0].originator_id, originator_id1)
+        self.assertEqual(notifications[0].topic, "topic2")
+        self.assertEqual(notifications[0].state, b"state2")
+
+        notifications = recorder.select_notifications(1, 3, topics=["topic3"])
+        self.assertEqual(len(notifications), 1)
+        self.assertEqual(notifications[0].id, 3)
+        self.assertEqual(notifications[0].originator_id, originator_id2)
+        self.assertEqual(notifications[0].topic, "topic3")
+        self.assertEqual(notifications[0].state, b"state3")
+
+        notifications = recorder.select_notifications(1, 3, topics=["topic1", "topic3"])
+        self.assertEqual(len(notifications), 2)
+        self.assertEqual(notifications[0].id, 1)
+        self.assertEqual(notifications[0].originator_id, originator_id1)
+        self.assertEqual(notifications[0].topic, "topic1")
+        self.assertEqual(notifications[0].state, b"state1")
+        self.assertEqual(notifications[1].id, 3)
+        self.assertEqual(notifications[1].topic, "topic3")
+        self.assertEqual(notifications[1].state, b"state3")
 
         self.assertEqual(
             recorder.max_notification_id(),
