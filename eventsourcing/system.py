@@ -421,9 +421,6 @@ class SingleThreadedRunner(Runner, Promptable):
         return app
 
 
-ProcessingQueueType = Queue[Tuple[AggregateEvent[Aggregate], ProcessEvent]]
-
-
 class MultiThreadedRunner(Runner):
     """
     Runs a :class:`System` with a :class:`MultiThreadedRunnerThread` for each
@@ -440,7 +437,9 @@ class MultiThreadedRunner(Runner):
         self.apps: Dict[str, Application[Aggregate]] = {}
         self.pulling_threads: Dict[str, Dict[str, PullingThread]] = {}
         self.processing_threads: Dict[str, ProcessingThread] = {}
-        self.processing_queues: Dict[str, ProcessingQueueType] = {}
+        self.processing_queues: Dict[
+            str, "Queue[Tuple[AggregateEvent[Aggregate], ProcessEvent]]"
+        ] = {}
         self.stop_called = Event()
         self.has_stopped = Event()
 
@@ -467,7 +466,9 @@ class MultiThreadedRunner(Runner):
                 self.has_stopped.set()
                 raise
             self.apps[name] = app
-            processing_queue: ProcessingQueueType = Queue(maxsize=100)
+            processing_queue: "Queue[Tuple[AggregateEvent[Aggregate], ProcessEvent]]" = Queue(
+                maxsize=100
+            )
             self.processing_queues[name] = processing_queue
             processing_thread = ProcessingThread(
                 processing_queue, app, self.has_stopped
@@ -541,7 +542,7 @@ class PullingThread(Promptable, Thread):
 
     def __init__(
         self,
-        processing_queue: ProcessingQueueType,
+        processing_queue: "Queue[Tuple[AggregateEvent[Aggregate], ProcessEvent]]",
         prompted_event: Event,
         app: Follower[Aggregate],
         leader_name: str,
@@ -585,7 +586,7 @@ class ProcessingThread(Thread):
 
     def __init__(
         self,
-        processing_queue: ProcessingQueueType,
+        processing_queue: "Queue[Tuple[AggregateEvent[Aggregate], ProcessEvent]]",
         app: Follower[Aggregate],
         has_stopped: Event,
     ):
