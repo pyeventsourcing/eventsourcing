@@ -1,5 +1,4 @@
 from collections import defaultdict
-from itertools import count
 from threading import Lock
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 from uuid import UUID
@@ -99,14 +98,16 @@ class POPOApplicationRecorder(ApplicationRecorder, POPOAggregateRecorder):
     ) -> List[Notification]:
         with self._database_lock:
             results = []
-            for i in count(start - 1):
+            i = start - 1
+            while True:
                 try:
                     s = self._stored_events[i]
                 except IndexError:
                     break
+                i += 1
                 if not topics or s.topic in topics:
                     n = Notification(
-                        id=i + 1,
+                        id=i,
                         originator_id=s.originator_id,
                         originator_version=s.originator_version,
                         topic=s.topic,
