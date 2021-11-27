@@ -140,7 +140,7 @@ class TestMultiThreadedRunner(RunnerTestCase):
             cm.exception.args[0],
             "Just testing error handling when initialisation is broken",
         )
-        self.assertTrue(runner.has_stopped)
+        self.assertTrue(runner.has_errored)
 
     def test_stop_raises_if_app_pulling_is_broken(self):
         system = System(
@@ -162,7 +162,7 @@ class TestMultiThreadedRunner(RunnerTestCase):
         )
 
         # Wait for runner to stop.
-        runner.has_stopped.wait()
+        runner.has_errored.wait()
 
         # Check stop() raises exception.
         with self.assertRaises(PullingThreadError) as cm:
@@ -191,7 +191,7 @@ class TestMultiThreadedRunner(RunnerTestCase):
         )
 
         # Wait for runner to stop.
-        runner.has_stopped.wait()
+        runner.has_errored.wait()
 
         # Check stop() raises exception.
         with self.assertRaises(ProcessingThreadError) as cm:

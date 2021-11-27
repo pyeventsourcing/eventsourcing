@@ -360,6 +360,7 @@ class SingleThreadedRunner(Runner, Promptable):
         self.apps: Dict[str, Application[Aggregate]] = {}
         self.prompts_received: List[str] = []
         self.is_prompting = False
+        self.has_stopped = Event()
 
     def start(self) -> None:
         """
@@ -440,8 +441,7 @@ class MultiThreadedRunner(Runner):
         self.processing_queues: Dict[
             str, "Queue[Tuple[AggregateEvent[Aggregate], ProcessEvent]]"
         ] = {}
-        self.stop_called = Event()
-        self.has_stopped = Event()
+        self.has_errored = Event()
 
     def start(self) -> None:
         """
@@ -463,7 +463,7 @@ class MultiThreadedRunner(Runner):
             try:
                 app = app_class()
             except Exception:
-                self.has_stopped.set()
+                self.has_errored.set()
                 raise
             self.apps[name] = app
             processing_queue: "Queue[Tuple[AggregateEvent[Aggregate], ProcessEvent]]" = Queue(
@@ -471,7 +471,9 @@ class MultiThreadedRunner(Runner):
             )
             self.processing_queues[name] = processing_queue
             processing_thread = ProcessingThread(
-                processing_queue, app, self.has_stopped
+                processing_queue=processing_queue,
+                follower=app,
+                has_errored=self.has_errored,
             )
             processing_thread.start()
             self.processing_threads[name] = processing_thread
@@ -494,35 +496,32 @@ class MultiThreadedRunner(Runner):
             pulling_thread = PullingThread(
                 processing_queue=self.processing_queues[follower_name],
                 prompted_event=prompted_event,
-                app=follower,
+                follower=follower,
                 leader_name=leader_name,
-                has_stopped=self.has_stopped,
+                has_errored=self.has_errored,
             )
             pulling_thread.start()
-            leader.lead(pulling_thread)
             self.pulling_threads[follower_name][leader_name] = pulling_thread
+            leader.lead(pulling_thread)
 
     def watch_for_errors(self) -> None:
-        self.has_stopped.wait()
+        self.has_errored.wait()
         self.stop()
 
     def stop(self) -> None:
         self.stop_called.set()
         self.reraise_thread_errors()
-        self.has_stopped.set()
 
     def reraise_thread_errors(self) -> None:
         for d in self.pulling_threads.values():
             for pulling in d.values():
-                if pulling.has_errored:
-                    raise PullingThreadError(
-                        *pulling.has_errored.args
-                    ) from pulling.has_errored
+                if pulling.error:
+                    raise PullingThreadError(*pulling.error.args) from pulling.error
         for processing in self.processing_threads.values():
-            if processing.has_errored:
+            if processing.error:
                 raise ProcessingThreadError(
-                    *processing.has_errored.args
-                ) from processing.has_errored
+                    *processing.error.args
+                ) from processing.error
 
     def get(self, cls: Type[A]) -> A:
         app = self.apps[cls.__name__]
@@ -544,35 +543,35 @@ class PullingThread(Promptable, Thread):
         self,
         processing_queue: "Queue[Tuple[AggregateEvent[Aggregate], ProcessEvent]]",
         prompted_event: Event,
-        app: Follower[Aggregate],
+        follower: Follower[Aggregate],
         leader_name: str,
-        has_stopped: Event,
+        has_errored: Event,
     ):
         super().__init__(daemon=True)
         self.prompted_event = prompted_event
         self.processing_queue = processing_queue
-        self.app = app
+        self.follower = follower
         self.leader_name = leader_name
-        self.has_errored: Optional[Exception] = None
-        self.runner_has_stopped = has_stopped
+        self.error: Optional[Exception] = None
+        self.has_errored = has_errored
 
     def run(self) -> None:
-        last_notification_id = self.app.recorder.max_tracking_id(self.leader_name)
+        last_notification_id = self.follower.recorder.max_tracking_id(self.leader_name)
         try:
             while True:
                 self.prompted_event.wait()
                 self.prompted_event.clear()
                 start = last_notification_id + 1
 
-                for domain_event, process_event in self.app.pull_events(
+                for domain_event, process_event in self.follower.pull_events(
                     self.leader_name, start
                 ):
                     self.processing_queue.put((domain_event, process_event))
                     assert process_event.tracking is not None
                     last_notification_id = process_event.tracking.notification_id
         except Exception as e:
-            self.has_errored = e
-            self.runner_has_stopped.set()
+            self.error = e
+            self.has_errored.set()
 
     def receive_prompt(self, leader_name: str) -> None:
         self.prompted_event.set()
@@ -587,23 +586,23 @@ class ProcessingThread(Thread):
     def __init__(
         self,
         processing_queue: "Queue[Tuple[AggregateEvent[Aggregate], ProcessEvent]]",
-        app: Follower[Aggregate],
-        has_stopped: Event,
+        follower: Follower[Aggregate],
+        has_errored: Event,
     ):
         super().__init__(daemon=True)
         self.processing_queue = processing_queue
-        self.app = app
-        self.has_errored: Optional[Exception] = None
-        self.runner_has_stopped = has_stopped
+        self.follower = follower
+        self.error: Optional[Exception] = None
+        self.has_errored = has_errored
 
     def run(self) -> None:
         try:
             while True:
                 domain_event, process_event = self.processing_queue.get()
-                self.app.process_event(domain_event, process_event)
+                self.follower.process_event(domain_event, process_event)
         except Exception as e:
-            self.runner_has_stopped.set()
-            self.has_errored = e
+            self.error = e
+            self.has_errored.set()
 
 
 class NotificationLogReader:
