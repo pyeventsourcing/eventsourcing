@@ -509,7 +509,7 @@ class MultiThreadedRunner(Runner):
         self.stop()
 
     def stop(self) -> None:
-        self.stop_called.set()
+        self.apps.clear()
         self.reraise_thread_errors()
 
     def reraise_thread_errors(self) -> None:
