@@ -430,11 +430,12 @@ class MultiThreadedRunner(Runner):
     and :func:`get` methods.
     """
 
-    def __init__(self, system: System):
+    def __init__(self, system: System, processing_queue_size: int = 100):
         """
         Initialises runner with the given :class:`System`.
         """
         super().__init__(system)
+        self.processing_queue_size = processing_queue_size
         self.apps: Dict[str, Application[Aggregate]] = {}
         self.pulling_threads: Dict[str, Dict[str, PullingThread]] = {}
         self.processing_threads: Dict[str, ProcessingThread] = {}
@@ -467,7 +468,7 @@ class MultiThreadedRunner(Runner):
                 raise
             self.apps[name] = app
             processing_queue: "Queue[Tuple[AggregateEvent[Aggregate], ProcessEvent]]" = Queue(
-                maxsize=100
+                maxsize=self.processing_queue_size
             )
             self.processing_queues[name] = processing_queue
             processing_thread = ProcessingThread(
