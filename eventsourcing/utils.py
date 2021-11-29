@@ -122,7 +122,7 @@ def retry(
     @no_type_check
     def _retry(func):
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def retry_decorator(*args, **kwargs):
             if stall:
                 sleep(stall)
             attempts = 0
@@ -137,7 +137,7 @@ def retry(
                         # Max retries exceeded.
                         raise e
 
-        return wrapper
+        return retry_decorator
 
     # If using decorator in bare form, the decorated
     # function is the first arg, so check 'exc'.
