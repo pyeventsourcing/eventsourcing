@@ -738,7 +738,7 @@ class MetaAggregate(ABCMeta):
 
         # Todo: Write a test to cover this when "Created" class is explicitly defined.
         # Check if init mentions ID.
-        for param_name in inspect.signature(cls.__init__).parameters:
+        for param_name in inspect.signature(cls.__dict__["__init__"]).parameters:
             if param_name == "id":
                 _init_mentions_id.add(cls)
                 break
