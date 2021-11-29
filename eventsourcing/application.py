@@ -277,7 +277,7 @@ class ProcessEvent:
 
     def __init__(self, tracking: Optional[Tracking] = None):
         """
-        Initalises the process event with the given tracking object.
+        Initialises the process event with the given tracking object.
         """
         self.tracking = tracking
         self.events: List[AggregateEvent[Any]] = []
