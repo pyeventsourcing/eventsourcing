@@ -736,6 +736,13 @@ class MetaAggregate(ABCMeta):
                     "Decorator on __init__ has neither event name nor class"
                 )
 
+        # Todo: Write a test to cover this when "Created" class is explicitly defined.
+        # Check if init mentions ID.
+        for param_name in inspect.signature(cls.__init__).parameters:
+            if param_name == "id":
+                _init_mentions_id.add(cls)
+                break
+
         # If no "created" event class has been specified, find or create one.
         if created_event_class is None:
 
@@ -884,7 +891,6 @@ class MetaAggregate(ABCMeta):
             for param_name, param in list(method_signature.parameters.items())[1:]:
                 # Don't define 'id' on a "created" class.
                 if param_name == "id" and apply_method.__name__ == "__init__":
-                    _init_mentions_id.add(cls)
                     continue
                 # Don't override super class annotations, unless no default on param.
                 if param_name not in super_annotations or param.default == param.empty:
