@@ -2,6 +2,7 @@ import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from itertools import chain
+from types import NoneType
 from typing import (
     Any,
     Callable,
@@ -285,7 +286,9 @@ class ProcessEvent:
         self.saved_kwargs: Dict[Any, Any] = {}
 
     def save(
-        self, *aggregates: Union[Aggregate, AggregateEvent[Aggregate]], **kwargs: Any
+        self,
+        *aggregates: Union[NoneType, Aggregate, AggregateEvent[Aggregate]],
+        **kwargs: Any,
     ) -> None:
         """
         Collects pending domain events from the given aggregate.
@@ -293,7 +296,7 @@ class ProcessEvent:
         for aggregate in aggregates:
             if isinstance(aggregate, AggregateEvent):
                 self.events.append(aggregate)
-            else:
+            elif isinstance(aggregate, Aggregate):
                 self.ids_and_types[aggregate.id] = type(aggregate)
                 for event in aggregate.collect_events():
                     self.events.append(event)
@@ -427,7 +430,9 @@ class Application(ABC, Generic[TAggregate]):
         return LocalNotificationLog(self.recorder, section_size=self.log_section_size)
 
     def save(
-        self, *aggregates: Union[TAggregate, AggregateEvent[Aggregate]], **kwargs: Any
+        self,
+        *aggregates: Union[NoneType, TAggregate, AggregateEvent[Aggregate]],
+        **kwargs: Any,
     ) -> Optional[int]:
         """
         Collects pending events from given aggregates and

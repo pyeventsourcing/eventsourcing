@@ -66,6 +66,9 @@ class TestApplication(TestCase):
         new_id = app.save()
         self.assertEqual(new_id, None)
 
+        new_id = app.save(None)
+        self.assertEqual(new_id, None)
+
         new_id = app.save(Aggregate())
         self.assertEqual(new_id, 1)
 
