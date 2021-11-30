@@ -2,10 +2,6 @@ import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from itertools import chain
-try:
-    from types import NoneType
-except ImportError:
-    NoneType = type(None)
 from typing import (
     Any,
     Callable,
@@ -290,7 +286,7 @@ class ProcessEvent:
 
     def save(
         self,
-        *aggregates: Union[NoneType, Aggregate, AggregateEvent[Aggregate]],
+        *aggregates: Optional[Union[Aggregate, AggregateEvent[Aggregate]]],
         **kwargs: Any,
     ) -> None:
         """
@@ -434,7 +430,7 @@ class Application(ABC, Generic[TAggregate]):
 
     def save(
         self,
-        *aggregates: Union[NoneType, TAggregate, AggregateEvent[Aggregate]],
+        *aggregates: Optional[Union[TAggregate, AggregateEvent[Aggregate]]],
         **kwargs: Any,
     ) -> Optional[int]:
         """
