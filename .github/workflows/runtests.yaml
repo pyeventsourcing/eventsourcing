@@ -3,7 +3,7 @@ name: Python package
 on: [push, pull_request]
 
 jobs:
-  build:
+  lint-and-test-code:
 
     runs-on: ubuntu-latest
     strategy:
@@ -57,8 +57,36 @@ jobs:
         parallel: true
         flag-name: Unit Test
 
+  build-and-test-distribution:
+
+    needs: lint-and-test-code
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      fail-fast: false
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Buid and Test Distribution
+      run: |
+        pip install -U pip
+        pip install wheel
+        python setup.py sdist
+        rm eventsourcing/*.py
+        pip install dist/*
+        python -m unittest eventsourcing/tests/test_aggregate.py
+        python -m unittest eventsourcing/tests/test_application_with_popo.py
+        python -m unittest eventsourcing/tests/test_processapplication.py
+
   coveralls_finish:
-    needs: build
+    needs: lint-and-test-code
     runs-on: ubuntu-latest
     steps:
     - name: Coveralls Finished
