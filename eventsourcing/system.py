@@ -441,7 +441,7 @@ class MultiThreadedRunner(Runner):
         self.pulling_threads: Dict[str, Dict[str, PullingThread]] = {}
         self.processing_threads: Dict[str, ProcessingThread] = {}
         self.processing_queues: Dict[
-            str, "Queue[Tuple[AggregateEvent[Aggregate], ProcessEvent]]"
+            str, "Queue[List[Tuple[AggregateEvent[Aggregate], ProcessEvent]]]"
         ] = {}
         self.has_errored = Event()
 
@@ -468,9 +468,9 @@ class MultiThreadedRunner(Runner):
                 self.has_errored.set()
                 raise
             self.apps[name] = app
-            processing_queue: "Queue[Tuple[AggregateEvent[Aggregate], ProcessEvent]]" = Queue(
-                maxsize=self.processing_queue_size
-            )
+            processing_queue: (
+                "Queue[List[Tuple[AggregateEvent[Aggregate], ProcessEvent]]]"
+            ) = Queue(maxsize=self.processing_queue_size)
             self.processing_queues[name] = processing_queue
             processing_thread = ProcessingThread(
                 processing_queue=processing_queue,
@@ -543,7 +543,7 @@ class PullingThread(Promptable, Thread):
 
     def __init__(
         self,
-        processing_queue: "Queue[Tuple[AggregateEvent[Aggregate], ProcessEvent]]",
+        processing_queue: "Queue[List[Tuple[AggregateEvent[Aggregate], ProcessEvent]]]",
         prompted_event: Event,
         follower: Follower[Aggregate],
         leader_name: str,
@@ -587,7 +587,7 @@ class ProcessingThread(Thread):
 
     def __init__(
         self,
-        processing_queue: "Queue[Tuple[AggregateEvent[Aggregate], ProcessEvent]]",
+        processing_queue: "Queue[List[Tuple[AggregateEvent[Aggregate], ProcessEvent]]]",
         follower: Follower[Aggregate],
         has_errored: Event,
     ):
@@ -600,8 +600,8 @@ class ProcessingThread(Thread):
     def run(self) -> None:
         try:
             while True:
-                domain_event, process_event = self.processing_queue.get()
-                self.follower.process_event(domain_event, process_event)
+                for domain_event, process_event in self.processing_queue.get():
+                    self.follower.process_event(domain_event, process_event)
         except Exception as e:
             self.error = e
             self.has_errored.set()
