@@ -3,63 +3,63 @@ name: Python package
 on: [push, pull_request]
 
 jobs:
-#  lint-and-test-code:
-#
-#    runs-on: ubuntu-latest
-#    strategy:
-#      max-parallel: 4
-#      fail-fast: false
-#      matrix:
-#        python-version: ["3.7", "3.8", "3.9", "3.10"]
-#
-#    # Service containers to run with `runner-job`
-#    services:
-#      # Label used to access the service container
-#      postgres:
-#        # Docker Hub image
-#        image: postgres
-#        # Provide the password for postgres
-#        env:
-#          POSTGRES_PASSWORD: postgres
-#        # Set health checks to wait until postgres has started
-#        options: >-
-#          --health-cmd pg_isready
-#          --health-interval 10s
-#          --health-timeout 5s
-#          --health-retries 5
-#        ports:
-#          # Maps tcp port 5432 on service container to the host
-#          - 5432:5432
-#
-#    steps:
-#    - uses: actions/checkout@v2
-#    - name: Set up Python ${{ matrix.python-version }}
-#      uses: actions/setup-python@v2
-#      with:
-#        python-version: ${{ matrix.python-version }}
-#    - name: Setup database
-#      run: |
-#        PGPASSWORD=postgres psql -c 'CREATE DATABASE eventsourcing;' -U postgres -h localhost
-#        PGPASSWORD=postgres psql -c "CREATE USER eventsourcing WITH PASSWORD 'eventsourcing';" -U postgres -h localhost
-#
-#    - name: Install
-#      run: make install
-#
-#    - name: Lint
-#      run: make lint
-#
-#    - name: Test
-#      run: make test
-#
-#    - name: Coveralls
-#      uses: AndreMiras/coveralls-python-action@develop
-#      with:
-#        parallel: true
-#        flag-name: Unit Test
+  lint-and-test-code:
+
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      fail-fast: false
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
+
+    # Service containers to run with `runner-job`
+    services:
+      # Label used to access the service container
+      postgres:
+        # Docker Hub image
+        image: postgres
+        # Provide the password for postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          # Maps tcp port 5432 on service container to the host
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Setup database
+      run: |
+        PGPASSWORD=postgres psql -c 'CREATE DATABASE eventsourcing;' -U postgres -h localhost
+        PGPASSWORD=postgres psql -c "CREATE USER eventsourcing WITH PASSWORD 'eventsourcing';" -U postgres -h localhost
+
+    - name: Install
+      run: make install
+
+    - name: Lint
+      run: make lint
+
+    - name: Test
+      run: make test
+
+    - name: Coveralls
+      uses: AndreMiras/coveralls-python-action@develop
+      with:
+        parallel: true
+        flag-name: Unit Test
 
   build-and-test-distribution:
 
-#    needs: lint-and-test-code
+    needs: lint-and-test-code
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 4
@@ -84,15 +84,15 @@ jobs:
         mv eventsourcing/tests eventsourcing_tests
         rm -r eventsourcing
         find eventsourcing_tests -type f -exec sed -i -e 's/eventsourcing.tests/eventsourcing_tests/g' {} \;
-        python -m unittest eventsourcing_tests/test_aggregate.py
-        python -m unittest eventsourcing_tests/test_application_with_popo.py
-        python -m unittest eventsourcing_tests/test_processapplication.py
+        python -m unittest -v eventsourcing_tests/test_aggregate.py
+        python -m unittest -v eventsourcing_tests/test_application_with_popo.py
+        python -m unittest -v eventsourcing_tests/test_processapplication.py
 
-#  coveralls_finish:
-#    needs: lint-and-test-code
-#    runs-on: ubuntu-latest
-#    steps:
-#    - name: Coveralls Finished
-#      uses: AndreMiras/coveralls-python-action@develop
-#      with:
-#        parallel-finished: true
+  coveralls_finish:
+    needs: lint-and-test-code
+    runs-on: ubuntu-latest
+    steps:
+    - name: Coveralls Finished
+      uses: AndreMiras/coveralls-python-action@develop
+      with:
+        parallel-finished: true
