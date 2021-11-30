@@ -385,6 +385,19 @@ class TestPostgresDatastore(TestCase):
                 with conn.cursor() as c:
                     c.execute("SELECT 1")
 
+    def test_report_on_prepared_statements(self):
+        datastore = PostgresDatastore(
+            dbname="eventsourcing",
+            host="127.0.0.1",
+            port="5432",
+            user="eventsourcing",
+            password="eventsourcing",
+            pre_ping=True,
+        )
+        pg, py = datastore.report_on_prepared_statements()
+        self.assertEqual(pg, [])
+        self.assertEqual(py, {})
+
 
 class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
     def setUp(self) -> None:
@@ -397,9 +410,9 @@ class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
         )
         drop_postgres_table(self.datastore, "stored_events")
 
-    def create_recorder(self):
+    def create_recorder(self, table_name="stored_events") -> PostgresAggregateRecorder:
         recorder = PostgresAggregateRecorder(
-            datastore=self.datastore, events_table_name="stored_events"
+            datastore=self.datastore, events_table_name=table_name
         )
         recorder.create_table()
         return recorder
@@ -407,10 +420,62 @@ class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
     def test_performance(self):
         super().test_performance()
 
-    def test_insert_and_select(self):
-        super().test_insert_and_select()
+    def test_report_on_prepared_statements(self):
+        # Shouldn't be any prepared statements, because haven't done anything.
+        recorder = self.create_recorder()
+        pg, py = recorder.datastore.report_on_prepared_statements()
+        self.assertEqual(pg, [])
+        self.assertEqual(py, {})
+
+        # After selecting by ID, should have prepared 'select_stored_events'.
+        recorder.select_events(uuid4())
+        pg, py = recorder.datastore.report_on_prepared_statements()
+        self.assertEqual(len(pg), 1)
+        self.assertEqual(len(py), 1)
+        self.assertEqual(pg[0][0], "select_stored_events")
+        self.assertEqual(
+            pg[0][1],
+            (
+                "PREPARE select_stored_events AS SELECT * FROM "
+                "stored_events WHERE originator_id = $1 ORDER "
+                "BY originator_version ASC"
+            ),
+        )
+        self.assertEqual(pg[0][3], "{uuid}")
+        self.assertEqual(pg[0][4], True)
+        self.assertEqual(py, {"select_stored_events": True})
+
+        # Check prepared 'select_stored_events_desc_limit'.
+        recorder.select_events(uuid4(), desc=True, limit=1)
+        pg, py = recorder.datastore.report_on_prepared_statements()
+        self.assertEqual(len(pg), 2)
+        self.assertEqual(len(py), 2)
+        self.assertEqual(pg[0][0], "select_stored_events")
+        self.assertEqual(pg[1][0], "select_stored_events_desc_limit")
+
+    def test_prepared_statements_with_very_long_table_name_actually_works(self):
+        # Shouldn't be any prepared statements, because haven't done anything.
+        table_name = "a" * 1000 + "_events"
+        recorder = self.create_recorder(table_name)
+        pg, py = recorder.datastore.report_on_prepared_statements()
+        self.assertEqual(pg, [])
+        self.assertEqual(py, {})
+
+        # After selecting by ID, should have prepared 'select_stored_events'.
+        recorder.select_events(uuid4())
+        pg, py = recorder.datastore.report_on_prepared_statements()
+        self.assertEqual(len(pg), 1)
+        self.assertEqual(len(py), 1)
+        statement_name = f"select_{table_name}_events"
+        # The statement name appears truncated.
+        self.assertNotEqual(pg[0][0], statement_name)
+        self.assertTrue(statement_name.startswith(pg[0][0]))
+        # But, as above, the prepared statement can be executed okay.
+        recorder.select_events(uuid4())
 
     def test_retry_insert_events_after_closing_connection(self):
+        # This checks connection is recreated after InterfaceError.
+
         # Construct the recorder.
         recorder = self.create_recorder()
 
@@ -429,7 +494,42 @@ class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
         )
         recorder.insert_events([stored_event1])
 
+    def test_retry_insert_events_after_deallocating_prepared_statement(self):
+        # This checks connection is recreated after OperationalError.
+
+        # Construct the recorder.
+        recorder = self.create_recorder()
+
+        # Check we have a connection (from create_table).
+        self.assertTrue(self.datastore._connections)
+
+        # Write a stored event.
+        stored_event1 = StoredEvent(
+            originator_id=uuid4(),
+            originator_version=0,
+            topic="topic1",
+            state=b"state1",
+        )
+        recorder.insert_events([stored_event1])
+
+        # Deallocate the prepared insert statement.
+        conn = self.datastore.get_connection()
+        statement_name = "insert_stored_events"
+        self.assertTrue(conn.is_prepared.get(statement_name))
+        conn.cursor().execute(f"DEALLOCATE {statement_name}")
+
+        # Write a stored event.
+        stored_event2 = StoredEvent(
+            originator_id=uuid4(),
+            originator_version=1,
+            topic="topic2",
+            state=b"state2",
+        )
+        recorder.insert_events([stored_event2])
+
     def test_retry_select_events_after_closing_connection(self):
+        # This checks connection is recreated after InterfaceError.
+
         # Construct the recorder.
         recorder = self.create_recorder()
 
@@ -448,6 +548,37 @@ class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
 
         # Close connections.
         pg_close_all_connections()
+
+        # Select events.
+        recorder.select_events(originator_id)
+
+    def test_retry_select_events_after_deallocating_prepared_statement(self):
+        # This checks connection is recreated after OperationalError.
+
+        # Construct the recorder.
+        recorder = self.create_recorder()
+
+        # Check we have a connection (from create_table).
+        self.assertTrue(self.datastore._connections)
+
+        # Write a stored event.
+        originator_id = uuid4()
+        stored_event1 = StoredEvent(
+            originator_id=originator_id,
+            originator_version=0,
+            topic="topic1",
+            state=b"state1",
+        )
+        recorder.insert_events([stored_event1])
+
+        # Select events.
+        recorder.select_events(originator_id)
+
+        # Deallocate the prepared select statement.
+        conn = self.datastore.get_connection()
+        statement_name = "select_stored_events"
+        self.assertTrue(conn.is_prepared.get(statement_name))
+        conn.cursor().execute(f"DEALLOCATE {statement_name}")
 
         # Select events.
         recorder.select_events(originator_id)
@@ -601,6 +732,8 @@ class TestPostgresApplicationRecorder(ApplicationRecorderTestCase):
         super().test_concurrent_throughput()
 
     def test_retry_select_notifications_after_closing_connection(self):
+        # This checks connection is recreated after InterfaceError.
+
         # Construct the recorder.
         recorder = self.create_recorder()
 
@@ -623,7 +756,40 @@ class TestPostgresApplicationRecorder(ApplicationRecorderTestCase):
         # Select events.
         recorder.select_notifications(start=1, limit=1)
 
+    def test_retry_select_notifications_after_deallocating_prepared_statement(self):
+        # This checks connection is recreated after OperationalError.
+
+        # Construct the recorder.
+        recorder = self.create_recorder()
+
+        # Check we have a connection (from create_table).
+        self.assertTrue(self.datastore._connections)
+
+        # Write a stored event.
+        originator_id = uuid4()
+        stored_event1 = StoredEvent(
+            originator_id=originator_id,
+            originator_version=0,
+            topic="topic1",
+            state=b"state1",
+        )
+        recorder.insert_events([stored_event1])
+
+        # Select notifications.
+        recorder.select_notifications(start=1, limit=1)
+
+        # Deallocate prepared statement.
+        conn = self.datastore.get_connection()
+        statement_name = "select_notifications_stored_events"
+        self.assertTrue(conn.is_prepared.get(statement_name))
+        conn.cursor().execute(f"DEALLOCATE {statement_name}")
+
+        # Select notifications.
+        recorder.select_notifications(start=1, limit=1)
+
     def test_retry_max_notification_id_after_closing_connection(self):
+        # This checks connection is recreated after InterfaceError.
+
         # Construct the recorder.
         recorder = self.create_recorder()
 
@@ -642,6 +808,37 @@ class TestPostgresApplicationRecorder(ApplicationRecorderTestCase):
 
         # Close connections.
         pg_close_all_connections()
+
+        # Select events.
+        recorder.max_notification_id()
+
+    def test_retry_max_notification_id_after_deallocating_prepared_statement(self):
+        # This checks connection is recreated after OperationalError.
+
+        # Construct the recorder.
+        recorder = self.create_recorder()
+
+        # Check we have a connection (from create_table).
+        self.assertTrue(self.datastore._connections)
+
+        # Write a stored event.
+        originator_id = uuid4()
+        stored_event1 = StoredEvent(
+            originator_id=originator_id,
+            originator_version=0,
+            topic="topic1",
+            state=b"state1",
+        )
+        recorder.insert_events([stored_event1])
+
+        # Select events.
+        recorder.max_notification_id()
+
+        # Deallocate prepared statement.
+        conn = self.datastore.get_connection()
+        statement_name = "max_notification_id_stored_events"
+        self.assertTrue(conn.is_prepared.get(statement_name), conn.is_prepared.keys())
+        conn.cursor().execute(f"DEALLOCATE {statement_name}")
 
         # Select events.
         recorder.max_notification_id()
@@ -745,13 +942,15 @@ class TestPostgresProcessRecorder(ProcessRecorderTestCase):
         super().test_performance()
 
     def test_retry_max_tracking_id_after_closing_connection(self):
+        # This checks connection is recreated after InterfaceError.
+
         # Construct the recorder.
         recorder = self.create_recorder()
 
         # Check we have a connection (from create_table).
         self.assertTrue(self.datastore._connections)
 
-        # Write a stored event.
+        # Write a tracking record.
         originator_id = uuid4()
         stored_event1 = StoredEvent(
             originator_id=originator_id,
@@ -764,7 +963,40 @@ class TestPostgresProcessRecorder(ProcessRecorderTestCase):
         # Close connections.
         pg_close_all_connections()
 
-        # Select events.
+        # Get max tracking ID.
+        notification_id = recorder.max_tracking_id("upstream")
+        self.assertEqual(notification_id, 1)
+
+    def test_retry_max_tracking_id_after_deallocating_prepared_statement(self):
+        # This checks connection is recreated after OperationalError.
+
+        # Construct the recorder.
+        recorder = self.create_recorder()
+
+        # Check we have a connection (from create_table).
+        self.assertTrue(self.datastore._connections)
+
+        # Write a tracking record.
+        originator_id = uuid4()
+        stored_event1 = StoredEvent(
+            originator_id=originator_id,
+            originator_version=0,
+            topic="topic1",
+            state=b"state1",
+        )
+        recorder.insert_events([stored_event1], tracking=Tracking("upstream", 1))
+
+        # Get max tracking ID.
+        notification_id = recorder.max_tracking_id("upstream")
+        self.assertEqual(notification_id, 1)
+
+        # Deallocate prepared statement.
+        conn = self.datastore.get_connection()
+        statement_name = "max_tracking_id_notification_tracking"
+        self.assertTrue(conn.is_prepared.get(statement_name), conn.is_prepared.keys())
+        conn.cursor().execute(f"DEALLOCATE {statement_name}")
+
+        # Get max tracking ID.
         notification_id = recorder.max_tracking_id("upstream")
         self.assertEqual(notification_id, 1)
 

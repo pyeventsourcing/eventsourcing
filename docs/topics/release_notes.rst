@@ -32,6 +32,12 @@ application environment ('PERSISTENCE_MODULE') rather than specifying the
 topic of a factory class. Improved documentation.
 
 
+Version 9.1.8 (released 30 November 2021)
+-----------------------------------------
+
+Fixed postgres.py to recreate connection and retry after OperationalError.
+
+
 Version 9.1.7 (released 19 November 2021)
 -----------------------------------------
 
