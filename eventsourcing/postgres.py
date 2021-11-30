@@ -2,7 +2,7 @@ import threading
 from itertools import chain
 from threading import Event, Timer
 from types import TracebackType
-from typing import Any, Dict, List, Mapping, Optional, Type
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Type, Union
 from uuid import UUID
 
 import psycopg2
@@ -80,7 +80,7 @@ class Transaction:
         self.commit = commit
         self.has_entered = False
 
-    def __enter__(self) -> "Connection":
+    def __enter__(self) -> Connection:
         self.has_entered = True
         return self.c
 
@@ -104,6 +104,7 @@ class Transaction:
         except psycopg2.DataError as e:
             raise DataError(e)
         except psycopg2.OperationalError as e:
+            self.c.close(timeout=0)
             raise OperationalError(e)
         except psycopg2.IntegrityError as e:
             raise IntegrityError(e)
@@ -210,6 +211,14 @@ class PostgresDatastore:
             c.close(timeout=timeout)
         self._connections.clear()
 
+    def report_on_prepared_statements(
+        self,
+    ) -> Tuple[List[List[Union[bool, str]]], Dict[str, bool]]:
+        with self.transaction(commit=True) as conn:
+            with conn.cursor() as c:
+                c.execute("SELECT * from pg_prepared_statements")
+                return c.fetchall(), conn.is_prepared
+
     def __del__(self) -> None:
         self.close_all_connections(timeout=1)
 
@@ -250,7 +259,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
                     c.execute(statement)
                 pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
 
-    @retry(InterfaceError, max_attempts=10, wait=0.2)
+    @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
     def insert_events(self, stored_events: List[StoredEvent], **kwargs: Any) -> None:
         self._prepare_insert_events()
         with self.datastore.transaction(commit=True) as conn:
@@ -333,7 +342,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         for command in commands:
             c.execute(command)
 
-    @retry(InterfaceError, max_attempts=10, wait=0.2)
+    @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
     def select_events(
         self,
         originator_id: UUID,
@@ -437,7 +446,7 @@ class PostgresApplicationRecorder(
         ]
         return statements
 
-    @retry(InterfaceError, max_attempts=10, wait=0.2)
+    @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
     def select_notifications(self, start: int, limit: int) -> List[Notification]:
         """
         Returns a list of event notifications
@@ -466,7 +475,7 @@ class PostgresApplicationRecorder(
                 pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
         return notifications
 
-    @retry(InterfaceError, max_attempts=10, wait=0.2)
+    @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
     def max_notification_id(self) -> int:
         """
         Returns the maximum notification ID.
@@ -518,7 +527,7 @@ class PostgresProcessRecorder(
         )
         return statements
 
-    @retry(InterfaceError, max_attempts=10, wait=0.2)
+    @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
     def max_tracking_id(self, application_name: str) -> int:
         statement_name = self.max_tracking_id_statement_name
         self._prepare(statement_name, self.max_tracking_id_statement)
