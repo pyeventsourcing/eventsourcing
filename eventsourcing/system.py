@@ -9,6 +9,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Mapping,
     Optional,
     Sequence,
     Set,
@@ -45,8 +46,8 @@ class Follower(Application[TAggregate]):
     follow_topics: Sequence[str] = []
     pull_section_size = 10
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, env: Optional[Mapping[str, str]] = None) -> None:
+        super().__init__(env)
         self.readers: Dict[
             str,
             Tuple[
@@ -161,8 +162,8 @@ class Leader(Application[TAggregate]):
     domain event notifications to be pulled and processed.
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, env: Optional[Mapping[str, str]] = None) -> None:
+        super().__init__(env)
         self.followers: List[Promptable] = []
 
     def lead(self, follower: Promptable) -> None:
