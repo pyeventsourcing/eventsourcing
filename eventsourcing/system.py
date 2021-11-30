@@ -117,9 +117,12 @@ class Follower(Application[TAggregate]):
 
     def process_event(
         self, domain_event: AggregateEvent[TAggregate], process_event: ProcessEvent
-    ) -> None:
+    ) -> Optional[int]:
         self.policy(domain_event, process_event)
-        self.record(process_event)
+        returning = self.record(process_event)
+        self.take_snapshots(process_event)
+        self.notify(process_event.events)
+        return returning
 
     @abstractmethod
     def policy(

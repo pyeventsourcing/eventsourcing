@@ -435,10 +435,12 @@ class Application(ABC, Generic[TAggregate]):
         Collects pending events from given aggregates and
         puts them in the application's event store.
         """
-        # Collect and store events.
         process_event = ProcessEvent()
         process_event.save(*aggregates, **kwargs)
-        return self.record(process_event)
+        returning = self.record(process_event)
+        self.take_snapshots(process_event)
+        self.notify(process_event.events)
+        return returning
 
     def record(self, process_event: ProcessEvent) -> Optional[int]:
         """
@@ -450,7 +452,9 @@ class Application(ABC, Generic[TAggregate]):
             tracking=process_event.tracking,
             **process_event.saved_kwargs,
         )
+        return returning
 
+    def take_snapshots(self, process_event: ProcessEvent) -> None:
         # Take snapshots using IDs and types.
         if self.snapshots and self.snapshotting_intervals:
             for event in process_event.events:
@@ -465,19 +469,6 @@ class Application(ABC, Generic[TAggregate]):
                             aggregate_id=event.originator_id,
                             version=event.originator_version,
                         )
-
-        # Notify others of the events.
-        self.notify(process_event.events)
-
-        return returning
-
-    def notify(self, new_events: List[AggregateEvent[Aggregate]]) -> None:
-        """
-        Called after new domain events have been saved. This
-        method on this class class doesn't actually do anything,
-        but this method may be implemented by subclasses that
-        need to take action when new domain events have been saved.
-        """
 
     def take_snapshot(self, aggregate_id: UUID, version: Optional[int] = None) -> None:
         """
@@ -496,6 +487,14 @@ class Application(ABC, Generic[TAggregate]):
             aggregate = self.repository.get(aggregate_id, version)
             snapshot = Snapshot.take(aggregate)
             self.snapshots.put([snapshot])
+
+    def notify(self, new_events: List[AggregateEvent[Aggregate]]) -> None:
+        """
+        Called after new domain events have been saved. This
+        method on this class class doesn't actually do anything,
+        but this method may be implemented by subclasses that
+        need to take action when new domain events have been saved.
+        """
 
 
 TApplication = TypeVar("TApplication", bound=Application[Aggregate])
