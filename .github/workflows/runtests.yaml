@@ -80,6 +80,7 @@ jobs:
         pip install wheel
         python setup.py sdist
         rm eventsourcing/*.py
+        touch eventsourcing/__init__.py
         pip install dist/*
         python -m unittest eventsourcing/tests/test_aggregate.py
         python -m unittest eventsourcing/tests/test_application_with_popo.py
