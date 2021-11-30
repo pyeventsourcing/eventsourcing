@@ -37,7 +37,8 @@ support for selecting event notifications that match a list of topics
 (previously it wasn't possible to filter event notifications by topic).
 Added support for mentioning 'id' in aggregate init method when using
 explicitly defined event classes (previously this only worked with
-implicitly defined event classes).
+implicitly defined event classes). Stopped including tests and example packages
+in the distribution.
 
 
 Version 9.1.8 (released 30 November 2021)
