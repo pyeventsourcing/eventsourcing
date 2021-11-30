@@ -2,7 +2,10 @@ import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from itertools import chain
-from types import NoneType
+try:
+    from types import NoneType
+except ImportError:
+    NoneType = type(None)
 from typing import (
     Any,
     Callable,
