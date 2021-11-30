@@ -285,7 +285,7 @@ class ProcessEvent:
         """
         self.tracking = tracking
         self.events: List[AggregateEvent[Any]] = []
-        self.ids_and_types: Dict[UUID, Type[Aggregate]] = {}
+        self.aggregates: Dict[UUID, Aggregate] = {}
         self.saved_kwargs: Dict[Any, Any] = {}
 
     def save(
@@ -300,7 +300,7 @@ class ProcessEvent:
             if isinstance(aggregate, AggregateEvent):
                 self.events.append(aggregate)
             elif isinstance(aggregate, Aggregate):
-                self.ids_and_types[aggregate.id] = type(aggregate)
+                self.aggregates[aggregate.id] = aggregate
                 for event in aggregate.collect_events():
                     self.events.append(event)
         self.saved_kwargs.update(kwargs)
@@ -461,10 +461,10 @@ class Application(ABC, Generic[TAggregate]):
         if self.snapshots and self.snapshotting_intervals:
             for event in process_event.events:
                 try:
-                    aggregate_type = process_event.ids_and_types[event.originator_id]
+                    aggregate = process_event.aggregates[event.originator_id]
                 except KeyError:
                     continue
-                interval = self.snapshotting_intervals.get(aggregate_type)
+                interval = self.snapshotting_intervals.get(type(aggregate))
                 if interval is not None:
                     if event.originator_version % interval == 0:
                         self.take_snapshot(
