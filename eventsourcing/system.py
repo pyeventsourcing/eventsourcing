@@ -562,15 +562,18 @@ class PullingThread(Promptable, Thread):
         try:
             while True:
                 self.prompted_event.wait()
-                self.prompted_event.clear()
-                start = last_notification_id + 1
-
-                for domain_event, process_event in self.follower.pull_events(
-                    self.leader_name, start
-                ):
-                    self.processing_queue.put((domain_event, process_event))
-                    assert process_event.tracking is not None
-                    last_notification_id = process_event.tracking.notification_id
+                seen_nothing = False
+                while not seen_nothing:
+                    self.prompted_event.clear()
+                    start = last_notification_id + 1
+                    job = list(self.follower.pull_events(self.leader_name, start))
+                    if len(job):
+                        self.processing_queue.put(job)
+                        process_event = job[-1][1]
+                        assert process_event.tracking is not None
+                        last_notification_id = process_event.tracking.notification_id
+                    else:
+                        seen_nothing = True
         except Exception as e:
             self.error = e
             self.has_errored.set()
