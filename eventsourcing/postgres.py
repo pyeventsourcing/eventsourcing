@@ -2,17 +2,7 @@ import threading
 from itertools import chain
 from threading import Event, Timer
 from types import TracebackType
-from typing import (
-    Any,
-    Dict,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union
 from uuid import UUID
 
 import psycopg2
@@ -26,6 +16,7 @@ from eventsourcing.persistence import (
     ApplicationRecorder,
     DatabaseError,
     DataError,
+    EnvType,
     InfrastructureFactory,
     IntegrityError,
     InterfaceError,
@@ -653,7 +644,7 @@ class Factory(InfrastructureFactory):
     POSTGRES_SCHEMA = "POSTGRES_SCHEMA"
     CREATE_TABLE = "CREATE_TABLE"
 
-    def __init__(self, application_name: str, env: Mapping[str, str]):
+    def __init__(self, application_name: str, env: EnvType):
         super().__init__(application_name, env)
         dbname = self.getenv(self.POSTGRES_DBNAME)
         if dbname is None:

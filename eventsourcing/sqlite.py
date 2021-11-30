@@ -3,7 +3,7 @@ import threading
 from sqlite3 import Connection, Cursor
 from threading import Lock
 from types import TracebackType
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Type
+from typing import Any, Dict, List, Optional, Sequence, Type
 from uuid import UUID
 
 from eventsourcing.persistence import (
@@ -11,6 +11,7 @@ from eventsourcing.persistence import (
     ApplicationRecorder,
     DatabaseError,
     DataError,
+    EnvType,
     InfrastructureFactory,
     IntegrityError,
     InterfaceError,
@@ -410,7 +411,7 @@ class Factory(InfrastructureFactory):
     SQLITE_LOCK_TIMEOUT = "SQLITE_LOCK_TIMEOUT"
     CREATE_TABLE = "CREATE_TABLE"
 
-    def __init__(self, application_name: str, env: Mapping[str, str]):
+    def __init__(self, application_name: str, env: EnvType):
         super().__init__(application_name, env)
         db_name = self.getenv(self.SQLITE_DBNAME)
         if not db_name:

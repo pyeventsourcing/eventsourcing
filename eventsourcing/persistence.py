@@ -609,7 +609,7 @@ class InfrastructureFactory(ABC):
             )
         return factory_cls(application_name=application_name, env=env)
 
-    def __init__(self, application_name: str, env: Mapping[str, str]):
+    def __init__(self, application_name: str, env: EnvType):
         """
         Initialises infrastructure factory object with given application name.
         """

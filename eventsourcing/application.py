@@ -9,7 +9,6 @@ from typing import (
     Generic,
     Iterable,
     List,
-    Mapping,
     Optional,
     Sequence,
     Type,
@@ -308,7 +307,7 @@ class Application(ABC, Generic[TAggregate]):
     Base class for event-sourced applications.
     """
 
-    env: Mapping[str, str] = {}
+    env: EnvType = {}
     is_snapshotting_enabled: bool = False
     snapshotting_intervals: Optional[Dict[Type[Aggregate], int]] = None
     log_section_size = 10
