@@ -2,7 +2,17 @@ import threading
 from itertools import chain
 from threading import Event, Timer
 from types import TracebackType
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Type, Union
+from typing import (
+    Any,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
+)
 from uuid import UUID
 
 import psycopg2
