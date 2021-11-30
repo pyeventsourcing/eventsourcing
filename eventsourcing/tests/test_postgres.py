@@ -809,7 +809,7 @@ class TestPostgresApplicationRecorder(ApplicationRecorderTestCase):
         # Close connections.
         pg_close_all_connections()
 
-        # Select events.
+        # Get max notification ID.
         recorder.max_notification_id()
 
     def test_retry_max_notification_id_after_deallocating_prepared_statement(self):
@@ -831,7 +831,7 @@ class TestPostgresApplicationRecorder(ApplicationRecorderTestCase):
         )
         recorder.insert_events([stored_event1])
 
-        # Select events.
+        # Get max notification ID.
         recorder.max_notification_id()
 
         # Deallocate prepared statement.
@@ -840,7 +840,7 @@ class TestPostgresApplicationRecorder(ApplicationRecorderTestCase):
         self.assertTrue(conn.is_prepared.get(statement_name), conn.is_prepared.keys())
         conn.cursor().execute(f"DEALLOCATE {statement_name}")
 
-        # Select events.
+        # Get max notification ID.
         recorder.max_notification_id()
 
 
