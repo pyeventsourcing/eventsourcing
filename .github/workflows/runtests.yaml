@@ -81,9 +81,9 @@ jobs:
         python setup.py sdist
         pip install dist/*
         rm -r dist
-        find eventsourcing -type f -exec sed -i -e 's/eventsourcing.tests/eventsourcing_tests/g' {} \;
-        mv eventsourcing.tests eventsourcing_tests
-        rm eventsourcing/*.py
+        mv eventsourcing/tests eventsourcing_tests
+        rm -r eventsourcing
+        find eventsourcing_tests -type f -exec sed -i -e 's/eventsourcing.tests/eventsourcing_tests/g' {} \;
         python -m unittest eventsourcing_tests/test_aggregate.py
         python -m unittest eventsourcing_tests/test_application_with_popo.py
         python -m unittest eventsourcing_tests/test_processapplication.py
