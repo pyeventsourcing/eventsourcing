@@ -9,7 +9,6 @@ from typing import (
     Iterable,
     Iterator,
     List,
-    Mapping,
     Optional,
     Sequence,
     Set,
@@ -27,6 +26,7 @@ from eventsourcing.application import (
 )
 from eventsourcing.domain import Aggregate, AggregateEvent, TAggregate
 from eventsourcing.persistence import (
+    EnvType,
     Mapper,
     Notification,
     ProcessRecorder,
@@ -46,7 +46,7 @@ class Follower(Application[TAggregate]):
     follow_topics: Sequence[str] = []
     pull_section_size = 10
 
-    def __init__(self, env: Optional[Mapping[str, str]] = None) -> None:
+    def __init__(self, env: Optional[EnvType] = None) -> None:
         super().__init__(env)
         self.readers: Dict[
             str,
@@ -162,7 +162,7 @@ class Leader(Application[TAggregate]):
     domain event notifications to be pulled and processed.
     """
 
-    def __init__(self, env: Optional[Mapping[str, str]] = None) -> None:
+    def __init__(self, env: Optional[EnvType] = None) -> None:
         super().__init__(env)
         self.followers: List[Promptable] = []
 
@@ -299,8 +299,9 @@ class Runner(ABC):
     Abstract base class for system runners.
     """
 
-    def __init__(self, system: System):
+    def __init__(self, system: System, env: Optional[EnvType] = None):
         self.system = system
+        self.env = env
         self.is_started = False
 
     @abstractmethod
@@ -353,11 +354,11 @@ class SingleThreadedRunner(Runner, Promptable):
     names.
     """
 
-    def __init__(self, system: System):
+    def __init__(self, system: System, env: Optional[EnvType] = None):
         """
         Initialises runner with the given :class:`System`.
         """
-        super().__init__(system)
+        super().__init__(system, env)
         self.apps: Dict[str, Application[Aggregate]] = {}
         self.prompts_received: List[str] = []
         self.is_prompting = False
@@ -378,11 +379,11 @@ class SingleThreadedRunner(Runner, Promptable):
 
         # Construct followers.
         for name in self.system.followers:
-            self.apps[name] = self.system.follower_cls(name)()
+            self.apps[name] = self.system.follower_cls(name)(env=self.env)
 
         # Construct leaders.
         for name in self.system.leaders_only:
-            self.apps[name] = self.system.leader_cls(name)()
+            self.apps[name] = self.system.leader_cls(name)(env=self.env)
 
         # Lead and follow.
         for edge in self.system.edges:
@@ -431,11 +432,16 @@ class MultiThreadedRunner(Runner):
     and :func:`get` methods.
     """
 
-    def __init__(self, system: System, processing_queue_size: int = 100):
+    def __init__(
+        self,
+        system: System,
+        env: Optional[EnvType] = None,
+        processing_queue_size: int = 100,
+    ):
         """
         Initialises runner with the given :class:`System`.
         """
-        super().__init__(system)
+        super().__init__(system, env)
         self.processing_queue_size = processing_queue_size
         self.apps: Dict[str, Application[Aggregate]] = {}
         self.pulling_threads: Dict[str, Dict[str, PullingThread]] = {}
@@ -463,7 +469,7 @@ class MultiThreadedRunner(Runner):
         for name in self.system.followers:
             app_class = self.system.follower_cls(name)
             try:
-                app = app_class()
+                app = app_class(env=self.env)
             except Exception:
                 self.has_errored.set()
                 raise
@@ -483,7 +489,7 @@ class MultiThreadedRunner(Runner):
 
         # Construct non-follower leaders.
         for name in self.system.leaders_only:
-            self.apps[name] = self.system.leader_cls(name)()
+            self.apps[name] = self.system.leader_cls(name)(env=self.env)
 
         # Lead and follow.
         for edge in self.system.edges:

@@ -531,6 +531,7 @@ class EventStore(Generic[TDomainEvent]):
 
 
 TF = TypeVar("TF", bound="InfrastructureFactory")
+EnvType = Mapping[str, str]
 
 
 class InfrastructureFactory(ABC):
@@ -549,7 +550,7 @@ class InfrastructureFactory(ABC):
     def construct(
         cls: Type[TF],
         application_name: str = "",
-        env: Optional[Mapping[str, str]] = None,
+        env: Optional[EnvType] = None,
     ) -> TF:
         """
         Constructs concrete infrastructure factory for given

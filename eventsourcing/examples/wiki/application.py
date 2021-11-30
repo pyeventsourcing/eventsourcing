@@ -1,17 +1,7 @@
-from typing import (
-    Any,
-    Dict,
-    Generic,
-    Iterator,
-    Mapping,
-    Optional,
-    Type,
-    Union,
-    cast,
-)
+from typing import Any, Dict, Generic, Iterator, Optional, Type, Union, cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from eventsourcing.application import AggregateNotFound, Application
+from eventsourcing.application import AggregateNotFound, Application, EnvType
 from eventsourcing.domain import Aggregate, AggregateEvent, TDomainEvent
 from eventsourcing.examples.wiki.domainmodel import Index, Page, PageLogged
 from eventsourcing.persistence import EventStore
@@ -23,7 +13,7 @@ class WikiApplication(Application[Aggregate]):
     env = {"COMPRESSOR_TOPIC": "gzip"}
     snapshotting_intervals = {Page: 5}
 
-    def __init__(self, env: Optional[Mapping[str, str]] = None) -> None:
+    def __init__(self, env: Optional[EnvType] = None) -> None:
         super().__init__(env)
         self.page_log: Log[PageLogged] = Log(
             self.events, uuid5(NAMESPACE_URL, "/page_log"), PageLogged

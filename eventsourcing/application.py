@@ -29,6 +29,7 @@ from eventsourcing.persistence import (
     ApplicationRecorder,
     DatetimeAsISO,
     DecimalAsStr,
+    EnvType,
     EventStore,
     InfrastructureFactory,
     JSONTranscoder,
@@ -312,7 +313,7 @@ class Application(ABC, Generic[TAggregate]):
     snapshotting_intervals: Optional[Dict[Type[Aggregate], int]] = None
     log_section_size = 10
 
-    def __init__(self, env: Optional[Mapping[str, str]] = None) -> None:
+    def __init__(self, env: Optional[EnvType] = None) -> None:
         """
         Initialises an application with an
         :class:`~eventsourcing.persistence.InfrastructureFactory`,
@@ -331,9 +332,7 @@ class Application(ABC, Generic[TAggregate]):
         self.repository = self.construct_repository()
         self.log = self.construct_notification_log()
 
-    def construct_env(
-        self, env: Optional[Mapping[str, str]] = None
-    ) -> Mapping[str, str]:
+    def construct_env(self, env: Optional[EnvType] = None) -> EnvType:
         """
         Constructs environment from which application will be configured.
         """
