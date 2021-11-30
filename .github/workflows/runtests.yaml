@@ -84,9 +84,9 @@ jobs:
         find eventsourcing -type f -exec sed -i -e 's/eventsourcing.tests/eventsourcing_tests/g' {} \;
         mv eventsourcing.tests eventsourcing_tests
         rm eventsourcing/*.py
-        python -m unittest eventsourcing/tests/test_aggregate.py
-        python -m unittest eventsourcing/tests/test_application_with_popo.py
-        python -m unittest eventsourcing/tests/test_processapplication.py
+        python -m unittest eventsourcing_tests/test_aggregate.py
+        python -m unittest eventsourcing_tests/test_application_with_popo.py
+        python -m unittest eventsourcing_tests/test_processapplication.py
 
 #  coveralls_finish:
 #    needs: lint-and-test-code
