@@ -29,7 +29,15 @@ Version 9.2.0 (forthcoming)
 Added support for specifying in which PostgreSQL schema tables
 should be created. Added support for selecting a persistence module in
 application environment ('PERSISTENCE_MODULE') rather than specifying the
-topic of a factory class. Improved documentation.
+topic of a factory class. Improved documentation. Added support for
+returning new notification IDs after inserting events in application
+recorders. Reworked MultiThreadedRunner to pull concurrently when
+an application is following more than one other application. Added
+support for selecting event notifications that match a list of topics
+(previously it wasn't possible to filter event notifications by topic).
+Added support for mentioning 'id' in aggregate init method when using
+explicitly defined event classes (previously this only worked with
+implicitly defined event classes).
 
 
 Version 9.1.8 (released 30 November 2021)
@@ -64,7 +72,6 @@ aggregate mutator function allowing non-default mutator
 function to be used with repository get() method; stopped
 using deprecated Thread.setDaemon() method. Improved static
 type hinting.
-
 
 Version 9.1.4 (released 20 October 2021)
 ----------------------------------------
