@@ -1051,9 +1051,6 @@ class Aggregate(ABC, metaclass=MetaAggregate):
     class Created(Event[TAggregate], AggregateCreated[TAggregate]):
         pass
 
-    def __new__(cls, *args: Any, **kwargs: Any) -> Any:
-        return object.__new__(cls)
-
     def __eq__(self, other: Any) -> bool:
         return type(self) == type(other) and self.__dict__ == other.__dict__
 
