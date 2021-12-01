@@ -28,7 +28,6 @@ from eventsourcing.persistence import (
     ApplicationRecorder,
     DatetimeAsISO,
     DecimalAsStr,
-    EnvType,
     EventStore,
     InfrastructureFactory,
     JSONTranscoder,
@@ -38,6 +37,7 @@ from eventsourcing.persistence import (
     Transcoder,
     UUIDAsHex,
 )
+from eventsourcing.utils import Environment, EnvType
 
 T = TypeVar("T")
 ProjectorFunctionType = Callable[[Optional[T], Iterable[DomainEvent[T]]], Optional[T]]
@@ -322,8 +322,8 @@ class Application(ABC, Generic[TAggregate]):
         a :class:`~eventsourcing.application.Repository`, and
         a :class:`~eventsourcing.application.LocalNotificationLog`.
         """
-        self.env = self.construct_env(env)
-        self.factory = self.construct_factory()
+        self.env = self.construct_env(self.name, env)
+        self.factory = self.construct_factory(self.env)
         self.mapper = self.construct_mapper()
         self.recorder = self.construct_recorder()
         self.events = self.construct_event_store()
@@ -331,7 +331,11 @@ class Application(ABC, Generic[TAggregate]):
         self.repository = self.construct_repository()
         self.log = self.construct_notification_log()
 
-    def construct_env(self, env: Optional[EnvType] = None) -> EnvType:
+    @property
+    def name(self) -> str:
+        return self.__class__.__name__
+
+    def construct_env(self, name: str, env: Optional[EnvType] = None) -> Environment:
         """
         Constructs environment from which application will be configured.
         """
@@ -341,23 +345,22 @@ class Application(ABC, Generic[TAggregate]):
         _env.update(os.environ)
         if env is not None:
             _env.update(env)
-        return _env
+        return Environment(name, _env)
 
-    def construct_factory(self) -> InfrastructureFactory:
+    def construct_factory(self, env: Environment) -> InfrastructureFactory:
         """
         Constructs an :class:`~eventsourcing.persistence.InfrastructureFactory`
         for use by the application.
         """
-        return InfrastructureFactory.construct(self.__class__.__name__, env=self.env)
+        return InfrastructureFactory.construct(env)
 
-    def construct_mapper(self, application_name: str = "") -> Mapper:
+    def construct_mapper(self) -> Mapper:
         """
         Constructs a :class:`~eventsourcing.persistence.Mapper`
         for use by the application.
         """
         return self.factory.mapper(
             transcoder=self.construct_transcoder(),
-            application_name=application_name,
         )
 
     def construct_transcoder(self) -> Transcoder:

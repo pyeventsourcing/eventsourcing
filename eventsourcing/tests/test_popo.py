@@ -16,6 +16,7 @@ from eventsourcing.tests.infrastructure_testcases import (
 from eventsourcing.tests.processrecorder_testcase import (
     ProcessRecorderTestCase,
 )
+from eventsourcing.utils import Environment
 
 
 class TestPOPOAggregateRecorder(AggregateRecorderTestCase):
@@ -37,6 +38,10 @@ class TestPOPOProcessRecorder(ProcessRecorderTestCase):
 
 
 class TestPOPOInfrastructureFactory(InfrastructureFactoryTestCase):
+    def setUp(self) -> None:
+        self.env = Environment("TestCase")
+        super().setUp()
+
     def expected_factory_class(self):
         return Factory
 

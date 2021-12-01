@@ -26,13 +26,12 @@ from eventsourcing.application import (
 )
 from eventsourcing.domain import Aggregate, AggregateEvent, TAggregate
 from eventsourcing.persistence import (
-    EnvType,
     Mapper,
     Notification,
     ProcessRecorder,
     Tracking,
 )
-from eventsourcing.utils import get_topic, resolve_topic
+from eventsourcing.utils import EnvType, get_topic, resolve_topic
 
 
 class Follower(Application[TAggregate]):
@@ -73,7 +72,10 @@ class Follower(Application[TAggregate]):
         """
         assert isinstance(self.recorder, ProcessRecorder)
         reader = NotificationLogReader(log, section_size=self.pull_section_size)
-        mapper = self.construct_mapper(name)
+
+        env = self.construct_env(name, self.env)
+        factory = self.construct_factory(env)
+        mapper = factory.mapper(self.construct_transcoder())
         self.readers[name] = (reader, mapper)
 
     def pull_and_process(self, name: str) -> None:

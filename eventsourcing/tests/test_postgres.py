@@ -1,4 +1,3 @@
-import os
 from time import sleep
 from unittest import TestCase
 from unittest.mock import Mock
@@ -42,7 +41,7 @@ from eventsourcing.tests.infrastructure_testcases import (
 from eventsourcing.tests.processrecorder_testcase import (
     ProcessRecorderTestCase,
 )
-from eventsourcing.utils import get_topic
+from eventsourcing.utils import Environment, get_topic
 
 
 def pg_close_all_connections(
@@ -1066,47 +1065,18 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         return PostgresProcessRecorder
 
     def setUp(self) -> None:
-        os.environ[InfrastructureFactory.TOPIC] = get_topic(Factory)
-        os.environ[Factory.POSTGRES_DBNAME] = "eventsourcing"
-        os.environ[Factory.POSTGRES_HOST] = "127.0.0.1"
-        os.environ[Factory.POSTGRES_PORT] = "5432"
-        os.environ[Factory.POSTGRES_USER] = "eventsourcing"
-        os.environ[Factory.POSTGRES_PASSWORD] = "eventsourcing"
-        if Factory.POSTGRES_CONN_MAX_AGE in os.environ:
-            del os.environ[Factory.POSTGRES_CONN_MAX_AGE]
-        if Factory.POSTGRES_PRE_PING in os.environ:
-            del os.environ[Factory.POSTGRES_PRE_PING]
-        if Factory.POSTGRES_LOCK_TIMEOUT in os.environ:
-            del os.environ[Factory.POSTGRES_LOCK_TIMEOUT]
-        if Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT in os.environ:
-            del os.environ[Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT]
-        if Factory.POSTGRES_SCHEMA in os.environ:
-            del os.environ[Factory.POSTGRES_SCHEMA]
+        self.env = Environment("TestCase")
+        self.env[InfrastructureFactory.PERSISTENCE_MODULE] = get_topic(Factory)
+        self.env[Factory.POSTGRES_DBNAME] = "eventsourcing"
+        self.env[Factory.POSTGRES_HOST] = "127.0.0.1"
+        self.env[Factory.POSTGRES_PORT] = "5432"
+        self.env[Factory.POSTGRES_USER] = "eventsourcing"
+        self.env[Factory.POSTGRES_PASSWORD] = "eventsourcing"
         self.drop_tables()
         super().setUp()
 
     def tearDown(self) -> None:
         self.drop_tables()
-        if Factory.POSTGRES_DBNAME in os.environ:
-            del os.environ[Factory.POSTGRES_DBNAME]
-        if Factory.POSTGRES_HOST in os.environ:
-            del os.environ[Factory.POSTGRES_HOST]
-        if Factory.POSTGRES_PORT in os.environ:
-            del os.environ[Factory.POSTGRES_PORT]
-        if Factory.POSTGRES_USER in os.environ:
-            del os.environ[Factory.POSTGRES_USER]
-        if Factory.POSTGRES_PASSWORD in os.environ:
-            del os.environ[Factory.POSTGRES_PASSWORD]
-        if Factory.POSTGRES_CONN_MAX_AGE in os.environ:
-            del os.environ[Factory.POSTGRES_CONN_MAX_AGE]
-        if Factory.POSTGRES_PRE_PING in os.environ:
-            del os.environ[Factory.POSTGRES_PRE_PING]
-        if Factory.POSTGRES_LOCK_TIMEOUT in os.environ:
-            del os.environ[Factory.POSTGRES_LOCK_TIMEOUT]
-        if Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT in os.environ:
-            del os.environ[Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT]
-        if Factory.POSTGRES_SCHEMA in os.environ:
-            del os.environ[Factory.POSTGRES_SCHEMA]
         super().tearDown()
 
     def drop_tables(self):
@@ -1121,63 +1091,63 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         drop_postgres_table(datastore, "testcase_tracking")
 
     def test_conn_max_age_is_set_to_empty_string(self):
-        os.environ[Factory.POSTGRES_CONN_MAX_AGE] = ""
-        self.factory = Factory("TestCase", os.environ)
+        self.env[Factory.POSTGRES_CONN_MAX_AGE] = ""
+        self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.conn_max_age, None)
 
     def test_conn_max_age_is_set_to_number(self):
-        os.environ[Factory.POSTGRES_CONN_MAX_AGE] = "0"
-        self.factory = Factory("TestCase", os.environ)
+        self.env[Factory.POSTGRES_CONN_MAX_AGE] = "0"
+        self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.conn_max_age, 0)
 
     def test_lock_timeout_is_zero_by_default(self):
-        self.assertTrue(Factory.POSTGRES_LOCK_TIMEOUT not in os.environ)
-        self.factory = Factory("TestCase", os.environ)
+        self.assertTrue(Factory.POSTGRES_LOCK_TIMEOUT not in self.env)
+        self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.lock_timeout, 0)
 
-        os.environ[Factory.POSTGRES_LOCK_TIMEOUT] = ""
-        self.factory = Factory("TestCase", os.environ)
+        self.env[Factory.POSTGRES_LOCK_TIMEOUT] = ""
+        self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.lock_timeout, 0)
 
     def test_lock_timeout_is_nonzero(self):
-        os.environ[Factory.POSTGRES_LOCK_TIMEOUT] = "1"
-        self.factory = Factory("TestCase", os.environ)
+        self.env[Factory.POSTGRES_LOCK_TIMEOUT] = "1"
+        self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.lock_timeout, 1)
 
     def test_idle_in_transaction_session_timeout_is_zero_by_default(self):
         self.assertTrue(
-            Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT not in os.environ
+            Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT not in self.env
         )
-        self.factory = Factory("TestCase", os.environ)
+        self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.idle_in_transaction_session_timeout, 0)
 
-        os.environ[Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT] = ""
-        self.factory = Factory("TestCase", os.environ)
+        self.env[Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT] = ""
+        self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.idle_in_transaction_session_timeout, 0)
 
     def test_idle_in_transaction_session_timeout_is_nonzero(self):
-        os.environ[Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT] = "1"
-        self.factory = Factory("TestCase", os.environ)
+        self.env[Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT] = "1"
+        self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.idle_in_transaction_session_timeout, 1)
 
     def test_pre_ping_off_by_default(self):
-        self.factory = Factory("TestCase", os.environ)
+        self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.pre_ping, False)
 
     def test_pre_ping_off(self):
-        os.environ[Factory.POSTGRES_PRE_PING] = "off"
-        self.factory = Factory("TestCase", os.environ)
+        self.env[Factory.POSTGRES_PRE_PING] = "off"
+        self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.pre_ping, False)
 
     def test_pre_ping_on(self):
-        os.environ[Factory.POSTGRES_PRE_PING] = "on"
-        self.factory = Factory("TestCase", os.environ)
+        self.env[Factory.POSTGRES_PRE_PING] = "on"
+        self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.pre_ping, True)
 
     def test_environment_error_raised_when_conn_max_age_not_a_float(self):
-        os.environ[Factory.POSTGRES_CONN_MAX_AGE] = "abc"
+        self.env[Factory.POSTGRES_CONN_MAX_AGE] = "abc"
         with self.assertRaises(EnvironmentError) as cm:
-            self.factory = Factory("TestCase", os.environ)
+            self.factory = Factory(self.env)
         self.assertEqual(
             cm.exception.args[0],
             "Postgres environment value for key 'POSTGRES_CONN_MAX_AGE' "
@@ -1185,9 +1155,9 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         )
 
     def test_environment_error_raised_when_lock_timeout_not_an_integer(self):
-        os.environ[Factory.POSTGRES_LOCK_TIMEOUT] = "abc"
+        self.env[Factory.POSTGRES_LOCK_TIMEOUT] = "abc"
         with self.assertRaises(EnvironmentError) as cm:
-            self.factory = Factory("TestCase", os.environ)
+            self.factory = Factory(self.env)
         self.assertEqual(
             cm.exception.args[0],
             "Postgres environment value for key 'POSTGRES_LOCK_TIMEOUT' "
@@ -1197,9 +1167,9 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
     def test_environment_error_raised_when_idle_in_transaction_session_timeout_not_an_integer(
         self,
     ):
-        os.environ[Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT] = "abc"
+        self.env[Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT] = "abc"
         with self.assertRaises(EnvironmentError) as cm:
-            self.factory = Factory("TestCase", os.environ)
+            self.factory = Factory(self.env)
         self.assertEqual(
             cm.exception.args[0],
             "Postgres environment value for key "
@@ -1208,9 +1178,9 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         )
 
     def test_environment_error_raised_when_dbname_missing(self):
-        del os.environ[Factory.POSTGRES_DBNAME]
+        del self.env[Factory.POSTGRES_DBNAME]
         with self.assertRaises(EnvironmentError) as cm:
-            self.factory = InfrastructureFactory.construct("TestCase")
+            self.factory = InfrastructureFactory.construct(self.env)
         self.assertEqual(
             cm.exception.args[0],
             "Postgres database name not found in environment "
@@ -1218,44 +1188,44 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         )
 
     def test_environment_error_raised_when_dbhost_missing(self):
-        del os.environ[Factory.POSTGRES_HOST]
+        del self.env[Factory.POSTGRES_HOST]
         with self.assertRaises(EnvironmentError) as cm:
-            self.factory = InfrastructureFactory.construct("TestCase")
+            self.factory = InfrastructureFactory.construct(self.env)
         self.assertEqual(
             cm.exception.args[0],
             "Postgres host not found in environment with key 'POSTGRES_HOST'",
         )
 
     def test_environment_error_raised_when_user_missing(self):
-        del os.environ[Factory.POSTGRES_USER]
+        del self.env[Factory.POSTGRES_USER]
         with self.assertRaises(EnvironmentError) as cm:
-            self.factory = InfrastructureFactory.construct("TestCase")
+            self.factory = InfrastructureFactory.construct(self.env)
         self.assertEqual(
             cm.exception.args[0],
             "Postgres user not found in environment with key 'POSTGRES_USER'",
         )
 
     def test_environment_error_raised_when_password_missing(self):
-        del os.environ[Factory.POSTGRES_PASSWORD]
+        del self.env[Factory.POSTGRES_PASSWORD]
         with self.assertRaises(EnvironmentError) as cm:
-            self.factory = InfrastructureFactory.construct("TestCase")
+            self.factory = InfrastructureFactory.construct(self.env)
         self.assertEqual(
             cm.exception.args[0],
             "Postgres password not found in environment with key 'POSTGRES_PASSWORD'",
         )
 
     def test_schema_set_to_empty_string(self):
-        os.environ[Factory.POSTGRES_SCHEMA] = ""
-        self.factory = Factory("TestCase", os.environ)
+        self.env[Factory.POSTGRES_SCHEMA] = ""
+        self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.schema, "")
 
     def test_schema_set_to_whitespace(self):
-        os.environ[Factory.POSTGRES_SCHEMA] = " "
-        self.factory = Factory("TestCase", os.environ)
+        self.env[Factory.POSTGRES_SCHEMA] = " "
+        self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.schema, "")
 
     def test_scheme_adjusts_table_names_on_aggregate_recorder(self):
-        self.factory = Factory("TestCase", os.environ)
+        self.factory = Factory(self.env)
 
         # Check by default the table name is not qualified.
         recorder = self.factory.aggregate_recorder("events")
@@ -1268,8 +1238,8 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         self.assertEqual(recorder.events_table_name, "testcase_snapshots")
 
         # Set schema in environment.
-        os.environ[Factory.POSTGRES_SCHEMA] = "public"
-        self.factory = Factory("TestCase", os.environ)
+        self.env[Factory.POSTGRES_SCHEMA] = "public"
+        self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.schema, "public")
 
         # Check by default the table name is qualified.
@@ -1283,7 +1253,7 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         self.assertEqual(recorder.events_table_name, "public.testcase_snapshots")
 
     def test_scheme_adjusts_table_name_on_application_recorder(self):
-        self.factory = Factory("TestCase", os.environ)
+        self.factory = Factory(self.env)
 
         # Check by default the table name is not qualified.
         recorder = self.factory.application_recorder()
@@ -1291,8 +1261,8 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         self.assertEqual(recorder.events_table_name, "testcase_events")
 
         # Set schema in environment.
-        os.environ[Factory.POSTGRES_SCHEMA] = "public"
-        self.factory = Factory("TestCase", os.environ)
+        self.env[Factory.POSTGRES_SCHEMA] = "public"
+        self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.schema, "public")
 
         # Check by default the table name is qualified.
@@ -1302,7 +1272,7 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
 
     def test_scheme_adjusts_table_names_on_process_recorder(self):
 
-        self.factory = Factory("TestCase", os.environ)
+        self.factory = Factory(self.env)
 
         # Check by default the table name is not qualified.
         recorder = self.factory.process_recorder()
@@ -1311,8 +1281,8 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         self.assertEqual(recorder.tracking_table_name, "testcase_tracking")
 
         # Set schema in environment.
-        os.environ[Factory.POSTGRES_SCHEMA] = "public"
-        self.factory = Factory("TestCase", os.environ)
+        self.env[Factory.POSTGRES_SCHEMA] = "public"
+        self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.schema, "public")
 
         # Check by default the table name is qualified.

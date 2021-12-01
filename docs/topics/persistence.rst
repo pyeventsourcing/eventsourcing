@@ -733,8 +733,10 @@ will construct an "application recorder".
 .. code-block:: python
 
     from eventsourcing.persistence import InfrastructureFactory
+    from eventsourcing.utils import Environment
 
-    factory = InfrastructureFactory.construct()
+    environ = Environment()
+    factory = InfrastructureFactory.construct(environ)
     recorder = factory.application_recorder()
 
     assert factory.__class__.__module__ == "eventsourcing.popo"
@@ -781,9 +783,8 @@ The persistence module :mod:`eventsourcing.sqlite` supports storing events in
 
 .. code-block:: python
 
-    import os
-
-    os.environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
+    environ = Environment()
+    environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
 
 
 The library's SQLite :class:`~eventsourcing.sqlite.Factory` can be configured
@@ -791,8 +792,8 @@ with environment variables.
 
 .. code-block:: python
 
-    os.environ["SQLITE_DBNAME"] = ":memory:"
-    os.environ["SQLITE_LOCK_TIMEOUT"] = "10"
+    environ["SQLITE_DBNAME"] = ":memory:"
+    environ["SQLITE_LOCK_TIMEOUT"] = "10"
 
 
 The environment variable ``SQLITE_DBNAME`` is required to set the name of a database,
@@ -817,7 +818,7 @@ constructed and used in a standard way.
 
 .. code-block:: python
 
-    factory = InfrastructureFactory.construct()
+    factory = InfrastructureFactory.construct(environ)
     recorder = factory.application_recorder()
 
     assert factory.__class__.__module__ == "eventsourcing.sqlite"
@@ -840,16 +841,16 @@ are listed below.
 .. code-block:: python
 
     # Configure SQLite database URI. Either use a file-based DB;
-    os.environ['SQLITE_DBNAME'] = '/path/to/your/sqlite-db'
+    environ['SQLITE_DBNAME'] = '/path/to/your/sqlite-db'
 
     # or use an in-memory DB with cache not shared, only works with single thread;
-    os.environ['SQLITE_DBNAME'] = ':memory:'
+    environ['SQLITE_DBNAME'] = ':memory:'
 
     # or use an unnamed in-memory DB with shared cache, works with multiple threads;
-    os.environ['SQLITE_DBNAME'] = 'file::memory:?mode=memory&cache=shared'
+    environ['SQLITE_DBNAME'] = 'file::memory:?mode=memory&cache=shared'
 
     # or use a named in-memory DB with shared cache, to create distinct databases.
-    os.environ['SQLITE_DBNAME'] = 'file:application1?mode=memory&cache=shared'
+    environ['SQLITE_DBNAME'] = 'file:application1?mode=memory&cache=shared'
 
 
 As above, the optional environment variables ``COMPRESSOR_TOPIC``, ``CIPHER_KEY``,
@@ -867,37 +868,25 @@ The persistence module :mod:`eventsourcing.postgres` supports storing events in
 
 .. code-block:: python
 
-    os.environ["PERSISTENCE_MODULE"] = "eventsourcing.postgres"
+    environ = Environment()
+    environ["PERSISTENCE_MODULE"] = "eventsourcing.postgres"
 
 The library's PostgreSQL :class:`~eventsourcing.postgres.Factory` also uses various
 environment variables to control the construction and configuration of its persistence
 infrastructure.
 
-..
-    #include-when-testing
-..
-    os.environ["POSTGRES_DBNAME"] = "eventsourcing"
-    os.environ["POSTGRES_HOST"] = "127.0.0.1"
-    os.environ["POSTGRES_PORT"] = "5432"
-    os.environ["POSTGRES_USER"] = "eventsourcing"
-    os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
-    from eventsourcing.tests.test_postgres import drop_postgres_table
-    factory = InfrastructureFactory.construct()
-    drop_postgres_table(factory.datastore, "stored_events")
-
-
 .. code-block:: python
 
-    os.environ["POSTGRES_DBNAME"] = "eventsourcing"
-    os.environ["POSTGRES_HOST"] = "127.0.0.1"
-    os.environ["POSTGRES_PORT"] = "5432"
-    os.environ["POSTGRES_USER"] = "eventsourcing"
-    os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
-    os.environ["POSTGRES_CONN_MAX_AGE"] = "10"
-    os.environ["POSTGRES_PRE_PING"] = "y"
-    os.environ["POSTGRES_LOCK_TIMEOUT"] = "5"
-    os.environ["POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT"] = "5"
-    os.environ["POSTGRES_SCHEMA"] = "public"
+    environ["POSTGRES_DBNAME"] = "eventsourcing"
+    environ["POSTGRES_HOST"] = "127.0.0.1"
+    environ["POSTGRES_PORT"] = "5432"
+    environ["POSTGRES_USER"] = "eventsourcing"
+    environ["POSTGRES_PASSWORD"] = "eventsourcing"
+    environ["POSTGRES_CONN_MAX_AGE"] = "10"
+    environ["POSTGRES_PRE_PING"] = "y"
+    environ["POSTGRES_LOCK_TIMEOUT"] = "5"
+    environ["POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT"] = "5"
+    environ["POSTGRES_SCHEMA"] = "public"
 
 
 The environment variables ``POSTGRES_DBNAME``, ``POSTGRES_HOST``, ``POSTGRES_PORT``,
@@ -963,9 +952,18 @@ do not exist.
 Having configured the environment to use PostgreSQL, the infrastructure can be
 constructed and used in a standard way.
 
+..
+    #include-when-testing
+..
+    from eventsourcing.tests.test_postgres import drop_postgres_table
+    factory = InfrastructureFactory.construct(environ)
+    drop_postgres_table(factory.datastore, "stored_events")
+    del factory
+
+
 .. code-block:: python
 
-    factory = InfrastructureFactory.construct()
+    factory = InfrastructureFactory.construct(environ)
     recorder = factory.application_recorder()
 
     assert factory.__class__.__module__ == "eventsourcing.postgres"

@@ -16,7 +16,6 @@ from eventsourcing.persistence import (
     ApplicationRecorder,
     DatabaseError,
     DataError,
-    EnvType,
     InfrastructureFactory,
     IntegrityError,
     InterfaceError,
@@ -30,7 +29,7 @@ from eventsourcing.persistence import (
     StoredEvent,
     Tracking,
 )
-from eventsourcing.utils import retry, strtobool
+from eventsourcing.utils import Environment, retry, strtobool
 
 psycopg2.extras.register_uuid()
 
@@ -644,9 +643,9 @@ class Factory(InfrastructureFactory):
     POSTGRES_SCHEMA = "POSTGRES_SCHEMA"
     CREATE_TABLE = "CREATE_TABLE"
 
-    def __init__(self, application_name: str, env: EnvType):
-        super().__init__(application_name, env)
-        dbname = self.getenv(self.POSTGRES_DBNAME)
+    def __init__(self, env: Environment):
+        super().__init__(env)
+        dbname = self.env.get(self.POSTGRES_DBNAME)
         if dbname is None:
             raise EnvironmentError(
                 "Postgres database name not found "
@@ -654,7 +653,7 @@ class Factory(InfrastructureFactory):
                 f"'{self.POSTGRES_DBNAME}'"
             )
 
-        host = self.getenv(self.POSTGRES_HOST)
+        host = self.env.get(self.POSTGRES_HOST)
         if host is None:
             raise EnvironmentError(
                 "Postgres host not found "
@@ -662,9 +661,9 @@ class Factory(InfrastructureFactory):
                 f"'{self.POSTGRES_HOST}'"
             )
 
-        port = self.getenv(self.POSTGRES_PORT) or "5432"
+        port = self.env.get(self.POSTGRES_PORT) or "5432"
 
-        user = self.getenv(self.POSTGRES_USER)
+        user = self.env.get(self.POSTGRES_USER)
         if user is None:
             raise EnvironmentError(
                 "Postgres user not found "
@@ -672,7 +671,7 @@ class Factory(InfrastructureFactory):
                 f"'{self.POSTGRES_USER}'"
             )
 
-        password = self.getenv(self.POSTGRES_PASSWORD)
+        password = self.env.get(self.POSTGRES_PASSWORD)
         if password is None:
             raise EnvironmentError(
                 "Postgres password not found "
@@ -681,7 +680,7 @@ class Factory(InfrastructureFactory):
             )
 
         conn_max_age: Optional[float]
-        conn_max_age_str = self.getenv(self.POSTGRES_CONN_MAX_AGE)
+        conn_max_age_str = self.env.get(self.POSTGRES_CONN_MAX_AGE)
         if conn_max_age_str is None:
             conn_max_age = None
         elif conn_max_age_str == "":
@@ -697,9 +696,9 @@ class Factory(InfrastructureFactory):
                     f"'{conn_max_age_str}'"
                 )
 
-        pre_ping = strtobool(self.getenv(self.POSTGRES_PRE_PING) or "no")
+        pre_ping = strtobool(self.env.get(self.POSTGRES_PRE_PING) or "no")
 
-        lock_timeout_str = self.getenv(self.POSTGRES_LOCK_TIMEOUT) or "0"
+        lock_timeout_str = self.env.get(self.POSTGRES_LOCK_TIMEOUT) or "0"
 
         try:
             lock_timeout = int(lock_timeout_str)
@@ -712,7 +711,7 @@ class Factory(InfrastructureFactory):
             )
 
         idle_in_transaction_session_timeout_str = (
-            self.getenv(self.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT) or "0"
+            self.env.get(self.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT) or "0"
         )
 
         try:
@@ -727,7 +726,7 @@ class Factory(InfrastructureFactory):
                 f"'{idle_in_transaction_session_timeout_str}'"
             )
 
-        schema = self.getenv(self.POSTGRES_SCHEMA) or ""
+        schema = self.env.get(self.POSTGRES_SCHEMA) or ""
 
         self.datastore = PostgresDatastore(
             dbname=dbname,
@@ -743,7 +742,7 @@ class Factory(InfrastructureFactory):
         )
 
     def aggregate_recorder(self, purpose: str = "events") -> AggregateRecorder:
-        prefix = self.application_name.lower() or "stored"
+        prefix = self.env.name.lower() or "stored"
         events_table_name = prefix + "_" + purpose
         if self.datastore.schema:
             events_table_name = f"{self.datastore.schema}.{events_table_name}"
@@ -756,7 +755,7 @@ class Factory(InfrastructureFactory):
         return recorder
 
     def application_recorder(self) -> ApplicationRecorder:
-        prefix = self.application_name.lower() or "stored"
+        prefix = self.env.name.lower() or "stored"
         events_table_name = prefix + "_events"
         if self.datastore.schema:
             events_table_name = f"{self.datastore.schema}.{events_table_name}"
@@ -769,9 +768,9 @@ class Factory(InfrastructureFactory):
         return recorder
 
     def process_recorder(self) -> ProcessRecorder:
-        prefix = self.application_name.lower() or "stored"
+        prefix = self.env.name.lower() or "stored"
         events_table_name = prefix + "_events"
-        prefix = self.application_name.lower() or "notification"
+        prefix = self.env.name.lower() or "notification"
         tracking_table_name = prefix + "_tracking"
         if self.datastore.schema:
             events_table_name = f"{self.datastore.schema}.{events_table_name}"
@@ -786,5 +785,4 @@ class Factory(InfrastructureFactory):
         return recorder
 
     def env_create_table(self) -> bool:
-        default = "yes"
-        return bool(strtobool(self.getenv(self.CREATE_TABLE) or default))
+        return strtobool(self.env.get(self.CREATE_TABLE) or "yes")

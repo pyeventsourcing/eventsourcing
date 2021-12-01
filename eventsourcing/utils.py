@@ -5,7 +5,20 @@ from inspect import isfunction
 from random import random
 from time import sleep
 from types import FunctionType, WrapperDescriptorType
-from typing import Any, Callable, Dict, Sequence, Type, Union, no_type_check
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+    no_type_check,
+    overload,
+)
 
 
 class TopicError(Exception):
@@ -191,3 +204,37 @@ def is_py310() -> bool:
 
 def get_method_name(method: Union[FunctionType, WrapperDescriptorType]) -> str:
     return is_py310() and method.__qualname__ or method.__name__
+
+
+EnvType = Mapping[str, str]
+T = TypeVar("T")
+
+
+class Environment(Dict[str, str]):
+    def __init__(self, name: str = "", env: Optional[EnvType] = None):
+        super().__init__(env or {})
+        self.name = name
+
+    @overload
+    def get(self, key: str) -> Optional[str]:
+        ...  # pragma: no cover
+
+    @overload
+    def get(self, key: str, default: Union[str, T]) -> Union[str, T]:
+        ...  # pragma: no cover
+
+    def get(
+        self, key: str, default: Optional[Union[str, T]] = None
+    ) -> Optional[Union[str, T]]:
+        for _key in self.create_keys(key):
+            value = super().get(_key, None)
+            if value is not None:
+                return value
+        return default
+
+    def create_keys(self, key: str) -> List[str]:
+        keys = []
+        if self.name:
+            keys.append(self.name.upper() + "_" + key)
+        keys.append(key)
+        return keys

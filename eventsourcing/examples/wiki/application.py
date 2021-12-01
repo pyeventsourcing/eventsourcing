@@ -1,10 +1,11 @@
 from typing import Any, Dict, Generic, Iterator, Optional, Type, Union, cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from eventsourcing.application import AggregateNotFound, Application, EnvType
+from eventsourcing.application import AggregateNotFound, Application
 from eventsourcing.domain import Aggregate, AggregateEvent, TDomainEvent
 from eventsourcing.examples.wiki.domainmodel import Index, Page, PageLogged
 from eventsourcing.persistence import EventStore
+from eventsourcing.utils import EnvType
 
 PageDetailsType = Dict[str, Union[str, Any]]
 

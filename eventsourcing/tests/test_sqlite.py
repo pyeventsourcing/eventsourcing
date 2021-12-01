@@ -1,4 +1,3 @@
-import os
 import sqlite3
 from sqlite3 import Connection
 from unittest import TestCase
@@ -38,7 +37,7 @@ from eventsourcing.tests.processrecorder_testcase import (
     ProcessRecorderTestCase,
 )
 from eventsourcing.tests.ramdisk import tmpfile_uris
-from eventsourcing.utils import get_topic
+from eventsourcing.utils import Environment, get_topic
 
 
 class TestTransaction(TestCase):
@@ -237,21 +236,22 @@ class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase):
         return SQLiteProcessRecorder
 
     def setUp(self) -> None:
-        os.environ[InfrastructureFactory.TOPIC] = get_topic(Factory)
-        os.environ[Factory.SQLITE_DBNAME] = ":memory:"
+        self.env = Environment("TestCase")
+        self.env[InfrastructureFactory.PERSISTENCE_MODULE] = get_topic(Factory)
+        self.env[Factory.SQLITE_DBNAME] = ":memory:"
         super().setUp()
 
     def tearDown(self) -> None:
         super().tearDown()
-        if Factory.SQLITE_DBNAME in os.environ:
-            del os.environ[Factory.SQLITE_DBNAME]
-        if Factory.SQLITE_LOCK_TIMEOUT in os.environ:
-            del os.environ[Factory.SQLITE_LOCK_TIMEOUT]
+        if Factory.SQLITE_DBNAME in self.env:
+            del self.env[Factory.SQLITE_DBNAME]
+        if Factory.SQLITE_LOCK_TIMEOUT in self.env:
+            del self.env[Factory.SQLITE_LOCK_TIMEOUT]
 
     def test_construct_raises_environment_error_when_dbname_missing(self):
-        del os.environ[Factory.SQLITE_DBNAME]
+        del self.env[Factory.SQLITE_DBNAME]
         with self.assertRaises(EnvironmentError) as cm:
-            InfrastructureFactory.construct("TestCase")
+            InfrastructureFactory.construct(self.env)
         self.assertEqual(
             cm.exception.args[0],
             "SQLite database name not found in environment with keys: "
@@ -259,9 +259,9 @@ class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase):
         )
 
     def test_environment_error_raised_when_lock_timeout_not_an_int(self):
-        os.environ[Factory.SQLITE_LOCK_TIMEOUT] = "abc"
+        self.env[Factory.SQLITE_LOCK_TIMEOUT] = "abc"
         with self.assertRaises(EnvironmentError) as cm:
-            Factory("TestCase", os.environ)
+            Factory(self.env)
         self.assertEqual(
             cm.exception.args[0],
             "SQLite environment value for key 'SQLITE_LOCK_TIMEOUT' "
@@ -269,15 +269,15 @@ class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase):
         )
 
     def test_lock_timeout_value(self):
-        factory = Factory("TestCase", os.environ)
+        factory = Factory(self.env)
         self.assertEqual(factory.datastore.lock_timeout, None)
 
-        os.environ[Factory.SQLITE_LOCK_TIMEOUT] = ""
-        factory = Factory("TestCase", os.environ)
+        self.env[Factory.SQLITE_LOCK_TIMEOUT] = ""
+        factory = Factory(self.env)
         self.assertEqual(factory.datastore.lock_timeout, None)
 
-        os.environ[Factory.SQLITE_LOCK_TIMEOUT] = "10"
-        factory = Factory("TestCase", os.environ)
+        self.env[Factory.SQLITE_LOCK_TIMEOUT] = "10"
+        factory = Factory(self.env)
         self.assertEqual(factory.datastore.lock_timeout, 10)
 
 

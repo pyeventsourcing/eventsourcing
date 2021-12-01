@@ -1,4 +1,3 @@
-import os
 import zlib
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -23,6 +22,8 @@ from eventsourcing.utils import get_topic
 
 
 class InfrastructureFactoryTestCase(ABC, TestCase):
+    env = None
+
     @abstractmethod
     def expected_factory_class(self):
         pass
@@ -40,28 +41,12 @@ class InfrastructureFactoryTestCase(ABC, TestCase):
         pass
 
     def setUp(self) -> None:
-        self.factory = InfrastructureFactory.construct("TestCase")
+        self.factory = InfrastructureFactory.construct(self.env)
         self.assertIsInstance(self.factory, self.expected_factory_class())
         self.transcoder = JSONTranscoder()
         self.transcoder.register(UUIDAsHex())
         self.transcoder.register(DecimalAsStr())
         self.transcoder.register(DatetimeAsISO())
-
-    def tearDown(self) -> None:
-
-        for key in [
-            InfrastructureFactory.TOPIC,
-            InfrastructureFactory.COMPRESSOR_TOPIC,
-            InfrastructureFactory.CIPHER_TOPIC,
-            InfrastructureFactory.CIPHER_KEY,
-            "CREATE_TABLE",
-        ]:
-            try:
-                del os.environ[key]
-            except KeyError:
-                pass
-
-        self.factory = None
 
     def test_createmapper(self):
 
@@ -103,14 +88,14 @@ class InfrastructureFactoryTestCase(ABC, TestCase):
     def test_createmapper_with_compressor(self):
 
         # Create mapper with compressor class as topic.
-        os.environ[self.factory.COMPRESSOR_TOPIC] = get_topic(ZlibCompressor)
+        self.env[self.factory.COMPRESSOR_TOPIC] = get_topic(ZlibCompressor)
         mapper = self.factory.mapper(transcoder=self.transcoder)
         self.assertIsInstance(mapper, Mapper)
         self.assertIsInstance(mapper.compressor, ZlibCompressor)
         self.assertIsNone(mapper.cipher)
 
         # Create mapper with compressor module as topic.
-        os.environ[self.factory.COMPRESSOR_TOPIC] = "zlib"
+        self.env[self.factory.COMPRESSOR_TOPIC] = "zlib"
         mapper = self.factory.mapper(transcoder=self.transcoder)
         self.assertIsInstance(mapper, Mapper)
         self.assertEqual(mapper.compressor, zlib)
@@ -119,16 +104,16 @@ class InfrastructureFactoryTestCase(ABC, TestCase):
     def test_createmapper_with_cipher(self):
 
         # Check cipher needs a key.
-        os.environ[self.factory.CIPHER_TOPIC] = get_topic(AESCipher)
+        self.env[self.factory.CIPHER_TOPIC] = get_topic(AESCipher)
 
         with self.assertRaises(EnvironmentError):
             self.factory.mapper(transcoder=self.transcoder)
 
         # Check setting key but no topic defers to AES.
-        del os.environ[self.factory.CIPHER_TOPIC]
+        del self.env[self.factory.CIPHER_TOPIC]
 
         cipher_key = AESCipher.create_key(16)
-        os.environ[self.factory.CIPHER_KEY] = cipher_key
+        self.env[self.factory.CIPHER_KEY] = cipher_key
 
         # Create mapper with cipher.
         mapper = self.factory.mapper(transcoder=self.transcoder)
@@ -141,11 +126,11 @@ class InfrastructureFactoryTestCase(ABC, TestCase):
     ):
 
         # Create mapper with cipher and compressor.
-        os.environ[self.factory.COMPRESSOR_TOPIC] = get_topic(ZlibCompressor)
+        self.env[self.factory.COMPRESSOR_TOPIC] = get_topic(ZlibCompressor)
 
-        os.environ[self.factory.CIPHER_TOPIC] = get_topic(AESCipher)
+        self.env[self.factory.CIPHER_TOPIC] = get_topic(AESCipher)
         cipher_key = AESCipher.create_key(16)
-        os.environ[self.factory.CIPHER_KEY] = cipher_key
+        self.env[self.factory.CIPHER_KEY] = cipher_key
 
         mapper = self.factory.mapper(transcoder=self.transcoder)
         self.assertIsInstance(mapper, Mapper)
@@ -153,21 +138,17 @@ class InfrastructureFactoryTestCase(ABC, TestCase):
         self.assertIsNotNone(mapper.compressor)
 
     def test_mapper_with_wrong_cipher_key(self):
-        os.environ[self.factory.CIPHER_TOPIC] = get_topic(AESCipher)
+        self.env.name = "App1"
+        self.env[self.factory.CIPHER_TOPIC] = get_topic(AESCipher)
         cipher_key1 = AESCipher.create_key(16)
         cipher_key2 = AESCipher.create_key(16)
-        os.environ["APP1_" + self.factory.CIPHER_KEY] = cipher_key1
-        os.environ["APP2_" + self.factory.CIPHER_KEY] = cipher_key2
+        self.env["APP1_" + self.factory.CIPHER_KEY] = cipher_key1
+        self.env["APP2_" + self.factory.CIPHER_KEY] = cipher_key2
 
-        mapper1: Mapper[DomainEvent] = self.factory.mapper(
+        mapper1: Mapper = self.factory.mapper(
             transcoder=self.transcoder,
-            application_name="app1",
         )
 
-        mapper2: Mapper = self.factory.mapper(
-            transcoder=self.transcoder,
-            application_name="app2",
-        )
         domain_event = DomainEvent(
             originator_id=uuid4(),
             originator_version=1,
@@ -177,6 +158,10 @@ class InfrastructureFactoryTestCase(ABC, TestCase):
         copy = mapper1.to_domain_event(stored_event)
         self.assertEqual(domain_event.originator_id, copy.originator_id)
 
+        self.env.name = "App2"
+        mapper2: Mapper = self.factory.mapper(
+            transcoder=self.transcoder,
+        )
         # This should fail because the infrastructure factory
         # should read different cipher keys from the environment.
         with self.assertRaises(ValueError):
@@ -189,7 +174,7 @@ class InfrastructureFactoryTestCase(ABC, TestCase):
         self.assertIsInstance(recorder, AggregateRecorder)
 
         # Exercise code path where table is not created.
-        os.environ["CREATE_TABLE"] = "f"
+        self.env["CREATE_TABLE"] = "f"
         recorder = self.factory.aggregate_recorder()
         self.assertEqual(type(recorder), self.expected_aggregate_recorder_class())
 
@@ -199,7 +184,7 @@ class InfrastructureFactoryTestCase(ABC, TestCase):
         self.assertIsInstance(recorder, ApplicationRecorder)
 
         # Exercise code path where table is not created.
-        os.environ["CREATE_TABLE"] = "f"
+        self.env["CREATE_TABLE"] = "f"
         recorder = self.factory.application_recorder()
         self.assertEqual(type(recorder), self.expected_application_recorder_class())
 
@@ -209,6 +194,6 @@ class InfrastructureFactoryTestCase(ABC, TestCase):
         self.assertIsInstance(recorder, ProcessRecorder)
 
         # Exercise code path where table is not created.
-        os.environ["CREATE_TABLE"] = "f"
+        self.env["CREATE_TABLE"] = "f"
         recorder = self.factory.process_recorder()
         self.assertEqual(type(recorder), self.expected_process_recorder_class())

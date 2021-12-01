@@ -11,7 +11,6 @@ from eventsourcing.persistence import (
     ApplicationRecorder,
     DatabaseError,
     DataError,
-    EnvType,
     InfrastructureFactory,
     IntegrityError,
     InterfaceError,
@@ -25,7 +24,7 @@ from eventsourcing.persistence import (
     StoredEvent,
     Tracking,
 )
-from eventsourcing.utils import strtobool
+from eventsourcing.utils import Environment, strtobool
 
 SQLITE3_DEFAULT_LOCK_TIMEOUT = 5
 
@@ -411,17 +410,19 @@ class Factory(InfrastructureFactory):
     SQLITE_LOCK_TIMEOUT = "SQLITE_LOCK_TIMEOUT"
     CREATE_TABLE = "CREATE_TABLE"
 
-    def __init__(self, application_name: str, env: EnvType):
-        super().__init__(application_name, env)
-        db_name = self.getenv(self.SQLITE_DBNAME)
+    def __init__(self, env: Environment):
+        super().__init__(env)
+        db_name = self.env.get(self.SQLITE_DBNAME)
         if not db_name:
             raise EnvironmentError(
                 "SQLite database name not found "
                 "in environment with keys: "
-                f"{', '.join(self.create_keys(self.SQLITE_DBNAME))}"
+                f"{', '.join(self.env.create_keys(self.SQLITE_DBNAME))}"
             )
 
-        lock_timeout_str = (self.getenv(self.SQLITE_LOCK_TIMEOUT) or "").strip() or None
+        lock_timeout_str = (
+            self.env.get(self.SQLITE_LOCK_TIMEOUT) or ""
+        ).strip() or None
 
         lock_timeout: Optional[int] = None
         if lock_timeout_str is not None:
@@ -461,4 +462,4 @@ class Factory(InfrastructureFactory):
 
     def env_create_table(self) -> bool:
         default = "yes"
-        return bool(strtobool(self.getenv(self.CREATE_TABLE, default) or default))
+        return bool(strtobool(self.env.get(self.CREATE_TABLE, default) or default))

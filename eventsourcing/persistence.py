@@ -1,5 +1,4 @@
 import json
-import os
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -12,7 +11,6 @@ from typing import (
     Generic,
     Iterator,
     List,
-    Mapping,
     Optional,
     Sequence,
     Type,
@@ -23,7 +21,13 @@ from typing import (
 from uuid import UUID
 
 from eventsourcing.domain import DomainEvent, TDomainEvent
-from eventsourcing.utils import TopicError, get_topic, resolve_topic, strtobool
+from eventsourcing.utils import (
+    Environment,
+    TopicError,
+    get_topic,
+    resolve_topic,
+    strtobool,
+)
 
 
 class Transcoding(ABC):
@@ -531,7 +535,6 @@ class EventStore(Generic[TDomainEvent]):
 
 
 TF = TypeVar("TF", bound="InfrastructureFactory")
-EnvType = Mapping[str, str]
 
 
 class InfrastructureFactory(ABC):
@@ -539,7 +542,7 @@ class InfrastructureFactory(ABC):
     Abstract base class for infrastructure factories.
     """
 
-    TOPIC = "PERSISTENCE_MODULE"
+    PERSISTENCE_MODULE = "PERSISTENCE_MODULE"
     MAPPER_TOPIC = "MAPPER_TOPIC"
     CIPHER_TOPIC = "CIPHER_TOPIC"
     CIPHER_KEY = "CIPHER_KEY"
@@ -547,11 +550,7 @@ class InfrastructureFactory(ABC):
     IS_SNAPSHOTTING_ENABLED = "IS_SNAPSHOTTING_ENABLED"
 
     @classmethod
-    def construct(
-        cls: Type[TF],
-        application_name: str = "",
-        env: Optional[EnvType] = None,
-    ) -> TF:
+    def construct(cls: Type[TF], env: Environment) -> TF:
         """
         Constructs concrete infrastructure factory for given
         named application. Reads and resolves persistence
@@ -559,7 +558,6 @@ class InfrastructureFactory(ABC):
         """
         factory_cls: Type[TF]
         # noinspection SpellCheckingInspection
-        env = env if env is not None else os.environ
         topic = (
             env.get(
                 "INFRASTRUCTURE_FACTORY",  # Legacy.
@@ -570,7 +568,7 @@ class InfrastructureFactory(ABC):
                 "",
             )
             or env.get(
-                cls.TOPIC,
+                cls.PERSISTENCE_MODULE,
                 "eventsourcing.popo:Factory",
             )
         )
@@ -581,7 +579,7 @@ class InfrastructureFactory(ABC):
                 "Failed to resolve "
                 "infrastructure factory topic: "
                 f"'{topic}' from environment "
-                f"variable '{cls.TOPIC}'"
+                f"variable '{cls.PERSISTENCE_MODULE}'"
             )
 
         if isinstance(obj, ModuleType):
@@ -607,59 +605,35 @@ class InfrastructureFactory(ABC):
             raise AssertionError(
                 f"Not an infrastructure factory class or module: {topic}"
             )
-        return factory_cls(application_name=application_name, env=env)
+        return factory_cls(env=env)
 
-    def __init__(self, application_name: str, env: EnvType):
+    def __init__(self, env: Environment):
         """
         Initialises infrastructure factory object with given application name.
         """
-        self.application_name = application_name
         self.env = env
-
-    # noinspection SpellCheckingInspection
-    def getenv(
-        self, key: str, default: Optional[str] = None, application_name: str = ""
-    ) -> Optional[str]:
-        """
-        Returns value of environment variable defined by given key.
-        """
-        for key in self.create_keys(key, application_name):
-            value = self.env.get(key)
-            if value is not None:
-                return value
-        return default
-
-    def create_keys(self, key: str, application_name: str = "") -> List[str]:
-        if not application_name:
-            application_name = self.application_name
-        keys = [
-            application_name.upper() + "_" + key,
-            key,
-        ]
-        return keys
 
     def mapper(
         self,
         transcoder: Transcoder,
-        application_name: str = "",
     ) -> Mapper:
         """
         Constructs a mapper.
         """
         return Mapper(
             transcoder=transcoder,
-            cipher=self.cipher(application_name),
-            compressor=self.compressor(application_name),
+            cipher=self.cipher(),
+            compressor=self.compressor(),
         )
 
-    def cipher(self, application_name: str) -> Optional[Cipher]:
+    def cipher(self) -> Optional[Cipher]:
         """
         Reads environment variables 'CIPHER_TOPIC'
         and 'CIPHER_KEY' to decide whether or not
         to construct a cipher.
         """
-        cipher_topic = self.getenv(self.CIPHER_TOPIC, application_name=application_name)
-        cipher_key = self.getenv(self.CIPHER_KEY, application_name=application_name)
+        cipher_topic = self.env.get(self.CIPHER_TOPIC)
+        cipher_key = self.env.get(self.CIPHER_KEY)
         cipher: Optional[Cipher] = None
         if cipher_topic:
             if not cipher_key:
@@ -676,15 +650,13 @@ class InfrastructureFactory(ABC):
 
         return cipher
 
-    def compressor(self, application_name: str) -> Optional[Compressor]:
+    def compressor(self) -> Optional[Compressor]:
         """
         Reads environment variable 'COMPRESSOR_TOPIC' to
         decide whether or not to construct a compressor.
         """
         compressor: Optional[Compressor] = None
-        compressor_topic = self.getenv(
-            self.COMPRESSOR_TOPIC, application_name=application_name
-        )
+        compressor_topic = self.env.get(self.COMPRESSOR_TOPIC)
         if compressor_topic:
             compressor_cls: Union[Type[Compressor], Compressor] = resolve_topic(
                 compressor_topic
@@ -726,10 +698,7 @@ class InfrastructureFactory(ABC):
         reading environment variable 'IS_SNAPSHOTTING_ENABLED'.
         Snapshotting is not enabled by default.
         """
-        default = "no"
-        return bool(
-            strtobool(self.getenv(self.IS_SNAPSHOTTING_ENABLED, default) or default)
-        )
+        return strtobool(self.env.get(self.IS_SNAPSHOTTING_ENABLED, "no"))
 
 
 @dataclass(frozen=True)
