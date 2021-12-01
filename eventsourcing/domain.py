@@ -367,7 +367,7 @@ def event(
 
 
     """
-    if isinstance(arg, FunctionType) or isinstance(arg, property):
+    if isinstance(arg, (FunctionType, property)):
         command_method_decorator = CommandMethodDecorator(
             event_spec=None,
             decorated_obj=arg,
