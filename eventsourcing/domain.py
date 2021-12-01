@@ -490,7 +490,7 @@ def _check_no_variable_params(method: FunctionType) -> None:
             # Todo: Support VAR_POSITIONAL?
             # annotations["__star_args__"] = "typing.Any"
 
-        elif param.kind is param.VAR_KEYWORD:
+        if param.kind is param.VAR_KEYWORD:
             # Todo: Support VAR_KEYWORD?
             # annotations["__star_kwargs__"] = "typing.Any"
             raise TypeError(
