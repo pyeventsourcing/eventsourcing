@@ -190,13 +190,11 @@ class CommandMethodDecorator:
 
         # Event class has been specified.
         elif isinstance(event_spec, type) and issubclass(event_spec, AggregateEvent):
-            self.given_event_cls = event_spec
-
-            if self.given_event_cls in given_event_classes:
-                name = self.given_event_cls.__name__
+            if event_spec in given_event_classes:
+                name = event_spec.__name__
                 raise TypeError(f"{name} event class used in more than one decorator")
-            else:
-                given_event_classes.add(self.given_event_cls)
+            self.given_event_cls = event_spec
+            given_event_classes.add(event_spec)
 
         # Process a decorated property.
         if isinstance(decorated_obj, property):
