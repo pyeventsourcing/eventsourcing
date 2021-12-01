@@ -574,6 +574,13 @@ class TestAggregateCreation(TestCase):
         self.assertEqual(a.name, "name")
         self.assertEqual(a.id, MyAgg.create_id("name"))
 
+    def test_raises_type_error_if_create_id_not_staticmethod_or_classmethod(self):
+        with self.assertRaises(TypeError):
+            class MyAggregate(Aggregate):
+                def create_id(self, myarg):
+                    pass
+
+
     def test_raises_type_error_if_created_event_class_not_aggregate_created(self):
         with self.assertRaises(TypeError):
 

@@ -868,7 +868,15 @@ class MetaAggregate(ABCMeta):
                     Type[DecoratedEvent], event_cls
                 )
 
-        # Get the names of the parameters of the 'create_id' method.
+        # Check any create_id method defined on this class is static or class method.
+        if "create_id" in cls.__dict__:
+            if not isinstance(cls.__dict__["create_id"], (staticmethod, classmethod)):
+                raise TypeError(
+                    f"{cls.create_id} is not a static or class method: "
+                    f"{type(cls.create_id)}"
+                )
+
+        # Get the parameters of the create_id method that will be used by this class.
         cls._create_id_param_names: List[str] = []
         for name, param in inspect.signature(cls.create_id).parameters.items():
             if param.kind in [param.KEYWORD_ONLY, param.POSITIONAL_OR_KEYWORD]:
