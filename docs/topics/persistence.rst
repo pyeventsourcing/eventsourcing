@@ -2,43 +2,492 @@
 :mod:`~eventsourcing.persistence` --- Infrastructure
 ====================================================
 
-This module provides a cohesive mechanism for storing domain events.
+This module provides a cohesive mechanism for storing
+and retrieving :ref:`domain events <Domain events>`.
 
-The entire mechanism is encapsulated by the library's
-**event store** object class. An event store stores and retrieves
-domain events. The event store uses a mapper to convert
-domain events to stored events, and it uses a recorder
-to insert stored events in a datastore.
+This module is the most important part of this library,
+along with the concrete persistence modules that adapt
+particular database management systems. The other modules
+function primarily as examples of how to use the persistence
+modules to build event-sourced applications and event-driven
+systems that are comprised of event-sourced applications.
 
-A **mapper** converts domain event objects of various types to
-stored event objects when domain events are stored in the event
-store. It also converts stored events objects back to domain
-event objects when domain events are retrieved from the event
-store. A mapper uses an extensible **transcoder** that can be set up
-with additional transcoding objects that serialise and deserialise
-particular types of object, such as Python's :class:`~uuid.UUID`,
-:class:`~datetime.datetime` and :class:`~decimal.Decimal` objects.
-A mapper may use a compressor to compress and decompress the state
-of stored event objects, and may use a cipher to encode and decode
-the state of stored event objects. If both a compressor and a cipher
-are being used by a mapper, the state of any stored event objects will
-be compressed and then encoded when storing domain events, and will be
-decoded and then decompressed when retrieving domain events.
+Requirements
+============
 
-A **recorder** inserts stored event objects in a datastore when domain
+The requirements were written after the development of the persistence
+module, and after industry-wide online discussion about what is and isn't
+event sourcing. They effectively summarise the technical character of an
+adequate persistence mechanism for event sourcing. In summary: there needs to be
+one sequence for each aggregate and one for the application as a whole;
+the positions in these sequences must be occupied uniquely with new additions
+inserted at the end of the sequence; each event must recorded in both kinds
+of sequence atomically; and when these events results from processing other
+events this atomicity must be extended to include unique records that track
+which event notification have been processed.
+
+1. We need a **common format** for recording domain events,
+because an application will have many different types of
+domain event. *An object that has this common format will
+be referred to as a 'stored event'.*
+
+2. We need to record each domain event in **a sequence for its
+aggregate**, because we need to select the events for an aggregate
+when reconstructing an aggregate from its events. *This sequence
+will be referred to as an 'aggregate sequence'.*
+
+3. We need aggregate events to be to **recorded in sequential order**
+in their aggregate sequence, because aggregate events will be generated
+by an aggregate in sequential order, and used in sequential order
+to reconstruct the state of the aggregate.
+
+4. We need domain events to be **recorded uniquely** in their
+aggregate sequence, so that only one domain event can be recorded
+at any given position in its aggregate sequence. Aggregate events
+and snapshots will therefore need to be stored separately. This
+requirement is sometimes termed "optimistic concurrency control"
+but it also *protects against any subsequent over-writing of recorded
+domain events*.
+
+5. We sometimes need aggregate events to be positioned in
+a **global sequence of event notifications** for the application
+as a whole. *This global sequence for the application as a whole
+will be referred to as the 'application sequence'.*
+
+6. We need event notifications to be to **recorded in sequential order**
+in their application sequence, because we need to propagate event notifications
+in the order that they were recorded.
+
+7. We need event notifications to be **recorded uniquely** in their
+application sequence, so that only one aggregate event
+can be recorded at any given position in its application
+sequence. This requirement *protects against any subsequent
+over-writing of recorded event notifications*.
+
+8. When recording an aggregate event in both an aggregate sequence and an
+application sequence, we need **atomic recording of aggregate events with
+event notifications**, because we need to exclude the possibility that an
+aggregate event will appear in one sequence but not in the other. That is,
+we need to *avoid dual-writing in the recording of aggregate events and
+event notifications*.
+
+9. We sometimes need to record a **notification tracking object**
+that indicates both the position in an application sequence of an event
+notification that has been processed, and the application to which that
+sequence belongs. We need tracking records to be **recorded uniquely**.
+This requirement supports knowing what has been processed and protects
+against *subsequent over-writing of recorded notification tracking records*.
+
+10. When tracking event notifications, we need **atomic recording of tracking
+objects with new aggregate events** (or any other new application state) generated
+from processing the event notification represented by that tracking object, because
+we need to exclude the possibility that a tracking object will be recorded without
+the consequences of processing the event notification it represents, and vice versa.
+That is, we need to *avoid dual writing in the consumption of event notifications*.
+
+11. When recording aggregate events in an application sequence, we need the
+"insert order" and the "commit order" to be the same, so that those following
+an application sequence don't experience overlooking things committed later in
+time that were inserted earlier in the sequence. This is a constraint on concurrent
+recording of the application sequence, which effectively serialises the recording
+of aggregate events in an application sequence.
+
+12. When recording aggregate events in an application sequence, we want to
+know the positions of the aggregate events in the application sequence, so that
+we can detect when those aggregate events have been processed by another application
+in an event-driven system.
+
+The subsequent sections describe how these requirements are accomplished by this library.
+
+
+Overview
+========
+
+A **stored event** is the universal type of object used
+in the library to represent domain events of different types.
+By using a common type for the representation of domain events,
+all domain events can be stored and retrieved in a common way.
+
+An **aggregate sequence** is a sequence of stored events for
+an aggregate.
+
+An **event notification** is a stored event that also has a 'notification ID'.
+The notification ID identifies the position of an aggregate event in an
+application sequence.
+
+An **application sequence is a sequence of event notifications
+for an application.
+
+A **tracking** object indicates the position of an event notification in
+an application sequence.
+
+A **recorder** inserts stored event objects in a database when domain
 events are stored in an event store, and selects stored events from
-a datastore when domain events are retrieved from an event store.
-Depending on the type of the recorder it may be possible to select
-the stored events as event notifications, and it may be possible
-atomically to record tracking records along with the stored events,
+a database when domain events are retrieved from an event store. Some
+recorders atomically record stored events in an aggregate sequence. Some
+recorders atomically record stored events in both an aggregate sequence
+and an application sequence. Some recorders atomically record stored
+events in both an aggregate sequence and an application sequence along
+with a tracking record that indicates the position of an event notification
+that was processed when those stored events were generated.
+
+A **transcoder** serializes and deserializes the state of a domain event.
+
+A **compressor** compresses and decompresses the serialized state of of domain event.
+Compressed state may or may not also be encrypted after being compressed, or
+decrypted before being decompressed.
+
+A **cipher** encrypts and decrypts the serialized state of of domain event. The
+serialized state may or may not be have been compressed before being encrypted,
+or be compressed after being decrypted.
+
+A **mapper** converts domain events to stored events, and converts
+stored events back to a domain events.
+
+An **event store** stores and retrieves domain events. The event
+store uses a mapper to convert domain events to stored events, and
+it uses a recorder to insert stored events in a datastore.
+
+An **infrastructure factory** helps with the construction of persistence
+infrastructure classes, providing a common interface for applications to
+construct and configure a particular persistence mechanism from a particular
+persistence module.
+
+
+.. _Stored event objects:
+
+Stored event
+============
+
+A stored event object represents a domain event in way that allows
+the domain event object to be reconstructed.
+
+The library's :class:`~eventsourcing.persistence.StoredEvent` class
+is a Python frozen dataclass.
+
+.. code-block:: python
+
+    from eventsourcing.persistence import StoredEvent
+
+A :class:`~eventsourcing.persistence.StoredEvent` has an ``originator_id``
+attribute which is a :data:`UUID` that identifies the aggregate sequence to
+which the domain event belongs. It has an ``originator_version`` attribute which
+is a Python :data:`int` that identifies the position of the domain event in that
+sequence. A stored event object also has a ``state`` attribute which is a Python
+:data:`bytes` object that is the serialized state of the :ref:`domain event
+<Domain events>` object. And it has a `topic` attribute which is a Python
+:data:`str` that identifies the class of the domain event (see `:ref:`Topics <Topics>`).
+
+.. code-block:: python
+
+    from uuid import uuid4
+
+    stored_event = StoredEvent(
+        originator_id=uuid4(),
+        originator_version=1,
+        state="{}",
+        topic="eventsourcing.model:DomainEvent",
+    )
+
+
+.. _Notification objects:
+
+Notification
+============
+
+Event notifications are used to propagate the state of an event
+sourced application in a reliable way. A stored event can be
+positioned in a "total order" in an application sequence, by
+attributing to each stored event a notification ID that is higher
+than any that has been previously recorded. An event notification
+object joins together the attributes of the stored event and the
+notification ID.
+
+The library's :class:`~eventsourcing.persistence.Notification` class
+is a Python frozen dataclass. It is a subclass of :class:`~eventsourcing.persistence.StoredEvent`.
+
+.. code-block:: python
+
+    from eventsourcing.persistence import Notification
+
+    assert issubclass(Notification, StoredEvent)
+
+
+The :class:`~eventsourcing.persistence.Notification` class
+extends :class:`~eventsourcing.persistence.StoredEvent` with
+an ``id`` attribute which is a Python :data:`int` that represents
+the position of a stored event in an application sequence.
+
+.. code-block:: python
+
+    notification = Notification(
+        id=123,
+        originator_id=uuid4(),
+        originator_version=1,
+        state="{}",
+        topic="eventsourcing.model:DomainEvent",
+    )
+
+This class is used when returning the results of selecting event
+notifications from a :ref:`recorder<Recorder>`. Event notifications
+are presented in an application by a :ref:`notification log<Notification log>`.
+
+By recording aggregate events atomically with notification IDs,
+there will never be an aggregate event that is not available to be
+passed as an event notification message across a network, and there
+will never be an event notification message passed across a network
+that doesn't correspond to a recorded aggregate event. This solves
+the "dual writing" problem that occurs when separately a domain model
+is updated and then a message is put on a message queue, a problem
+that can cause catastrophic inconsistencies in the state of a system.
+
+.. _Tracking objects:
+
+Tracking
+========
+
+A tracking object identifies the position of an event notification
+in an application sequence.
+
+The library's :class:`~eventsourcing.persistence.Tracking` class
+is a Python frozen dataclass.
+
+.. code-block:: python
+
+    from eventsourcing.persistence import Tracking
+
+The :class:`~eventsourcing.persistence.Tracking` class has a ``notification_id``
+attribute which in a Python :data:`int` that indicates the position in an application
+sequence of an event notification that has been processed. And it an
+``application_name`` attribute which in a Python :data:`str` that identifies
+the name of that application.
+
+.. code-block:: python
+
+    tracking = Tracking(
+        notification_id=123,
+        application_name="bounded_context1",
+    )
+
+By recording atomically a tracking object along with new stored event objects
+that result from processing the event notification represented by the tracking
+object, and by ensuring the uniqueness of tracking records, we can ensure that
+a domain event notification is never processed twice. And by using the tracked
+position of the last event notification that has been processed, we can resume
+processing event notifications from an application at the correct next position.
+This constructs "exactly once" semantics when processing event notifications, by
+solving the "dual writing" problem that occurs when separately an event notification
+is consumed from a message queue with updates made to materialized view, and then
+an acknowledgement is sent back to the message queue.
+
+.. _Recorder:
+
+Recorders
+=========
+
+A recorder adapts a database management system for the purpose of
+recording stored events. This library defines three kinds of recorder.
+
+An **aggregate recorder** simply stores domain events in aggregate sequences,
+without also positioning the stored events in a total order. An aggregate
+recorder can be used for storing snapshots of aggregates in an application,
+and also for storing aggregate events in an application that will not provide
+event notifications.
+
+An **application recorder** extends an aggregate recorder
+by also positioning stored events in an application sequence.
+Application recorders can be used for storing aggregate events,
+in applications that will provide event notifications.
+
+A **process recorder** extends an application recorder by
+supporting the atomic recording of stored events with a tracking
+object that has the position in an application sequence of
+an event notification. Any stored events that are recorded
+with a tracking object will have been generated from processing
+that event notification.
+
+
+The library's :class:`~eventsourcing.persistence.Recorder`
+class is the abstract base class for all stored event recorders.
+
+.. literalinclude:: ../../eventsourcing/persistence.py
+   :pyobject: Recorder
+
+
+The library's :class:`~eventsourcing.persistence.AggregateRecorder` class
+is an abstract base class for all aggregate recorders.
+The methods :func:`~eventsourcing.persistence.AggregateRecorder.insert_events`
+and :func:`~eventsourcing.persistence.AggregateRecorder.select_events` are
+used to insert and select aggregate events.
+
+.. literalinclude:: ../../eventsourcing/persistence.py
+   :pyobject: AggregateRecorder
+
+
+The library's :class:`~eventsourcing.persistence.ApplicationRecorder` class
+is an abstract base class for all application recorders. The method
+:func:`~eventsourcing.persistence.AggregateRecorder.select_notifications`
+is used to select event notifications from an application sequence.
+The method :func:`~eventsourcing.persistence.AggregateRecorder.max_notification_id`
+can be used to discover where is the end of the application sequence, for example
+for estimating progress or time to completion when processing the
+event notifications of an application.
+
+.. literalinclude:: ../../eventsourcing/persistence.py
+   :pyobject: ApplicationRecorder
+
+
+The library's :class:`~eventsourcing.persistence.ProcessRecorder` class
+is an abstract base class for all process recorders. Concrete classes
+will extend the :func:`~eventsourcing.persistence.AggregateRecorder.insert_events`
+method by also recording any given notification tracking objects.
+The method :func:`~eventsourcing.persistence.ProcessRecorder.max_tracking_id`
+can be used to discover the position of the last event notification that
+was successfully processed, for example when resuming to process the
+event notifications of an application.
+
+.. literalinclude:: ../../eventsourcing/persistence.py
+   :pyobject: ProcessRecorder
+
+
+The persistence module :mod:`eventsourcing.popo` has recorders
+that use "plain old Python objects", which simply keep stored events in a
+data structure in memory, and provides the fastest alternative for rapid
+development of event sourced applications. Stored events can be recorded
+and retrieved in microseconds, allowing a test suite to run in milliseconds.
+It ~4x faster than using SQLite with an in-memory database, and ~20x faster
+than using PostgreSQL. This is the default persistence module used by
+application classes.
+
+The :class:`~eventsourcing.popo.POPOAggregateRecorder` class implements
+:class:`~eventsourcing.persistence.AggregateRecorder`.
+
+.. code-block:: python
+
+    from eventsourcing.popo import POPOAggregateRecorder
+
+    recorder = POPOAggregateRecorder()
+
+    recorder.insert_events([stored_event])
+
+    recorded_events = recorder.select_events(stored_event.originator_id)
+    assert recorded_events[0] == stored_event
+
+
+The :class:`~eventsourcing.popo.POPOApplicationRecorder` class
+extends :class:`~eventsourcing.popo.POPOAggregateRecorder`
+and implements :class:`~eventsourcing.persistence.ApplicationRecorder`.
+
+.. code-block:: python
+
+    from eventsourcing.popo import POPOApplicationRecorder
+
+    recorder = POPOApplicationRecorder()
+
+    notification_id = recorder.insert_events([stored_event])
+    assert notification_id == 1
+
+    recorded_events = recorder.select_events(stored_event.originator_id)
+    assert recorded_events[0] == stored_event
+
+    notifications = recorder.select_notifications(start=1, limit=10)
+    assert notifications[0].id == 1
+    assert notifications[0].originator_id == stored_event.originator_id
+    assert notifications[0].originator_version == stored_event.originator_version
+    assert notifications[0].state == stored_event.state
+    assert notifications[0].topic == stored_event.topic
+
+
+The :class:`~eventsourcing.popo.POPOProcessRecorder` class
+extends :class:`~eventsourcing.popo.POPOApplicationRecorder`
+and implements :class:`~eventsourcing.persistence.ProcessRecorder`.
+
+.. code-block:: python
+
+    from eventsourcing.popo import POPOProcessRecorder
+
+    recorder = POPOProcessRecorder()
+
+    tracking = Tracking(notification_id=21, application_name="upstream")
+    notification_id = recorder.insert_events([stored_event], tracking=tracking)
+    assert notification_id == 1
+
+    recorded_events = recorder.select_events(stored_event.originator_id)
+    assert recorded_events[0] == stored_event
+
+    notifications = recorder.select_notifications(start=1, limit=10)
+    assert notifications[0].id == 1
+    assert notifications[0].originator_id == stored_event.originator_id
+    assert notifications[0].originator_version == stored_event.originator_version
+    assert notifications[0].state == stored_event.state
+    assert notifications[0].topic == stored_event.topic
+
+    assert recorder.max_tracking_id("upstream") == 21
+
+The persistence module :mod:`eventsourcing.sqlite` includes
+recorder classes for SQLite that use the Python :mod:`sqlite3`
+module. The direct use of the library's SQLite recorders is shown below.
+
+.. code-block:: python
+
+    from eventsourcing.sqlite import SQLiteAggregateRecorder
+    from eventsourcing.sqlite import SQLiteApplicationRecorder
+    from eventsourcing.sqlite import SQLiteProcessRecorder
+    from eventsourcing.sqlite import SQLiteDatastore
+
+    datastore = SQLiteDatastore(db_name=":memory:")
+    aggregate_recorder = SQLiteAggregateRecorder(datastore, "stored_events")
+    aggregate_recorder.create_table()
+
+    aggregate_recorder.insert_events([stored_event])
+    recorded_events = aggregate_recorder.select_events(stored_event.originator_id)
+    assert recorded_events[0] == stored_event, (recorded_events[0], stored_event)
+
+
+    datastore = SQLiteDatastore(db_name=":memory:")
+    application_recorder = SQLiteApplicationRecorder(datastore)
+    application_recorder.create_table()
+
+    application_recorder.insert_events([stored_event])
+    recorded_events = application_recorder.select_events(stored_event.originator_id)
+    assert recorded_events[0] == stored_event
+    notifications = application_recorder.select_notifications(start=1, limit=10)
+    assert notifications[0].id == 1
+    assert notifications[0].originator_id == stored_event.originator_id
+    assert notifications[0].originator_version == stored_event.originator_version
+
+
+    datastore = SQLiteDatastore(db_name=":memory:")
+    process_recorder = SQLiteProcessRecorder(datastore)
+    process_recorder.create_table()
+
+    process_recorder.insert_events([stored_event], tracking=tracking)
+    recorded_events = process_recorder.select_events(stored_event.originator_id)
+    assert recorded_events[0] == stored_event
+    notifications = process_recorder.select_notifications(start=1, limit=10)
+    assert notifications[0].id == 1
+    assert notifications[0].originator_id == stored_event.originator_id
+    assert notifications[0].originator_version == stored_event.originator_version
+    assert process_recorder.max_tracking_id("upstream") == 21
+
+
+Recorders for other databases follow a similar naming scheme and pattern of use.
+For example, the module :mod:`eventsourcing.postgres` has recorders
+for PostgreSQL that use the third party :mod:`psycopg2` module.
+Recorders for popular ORMs such as SQLAlchemy and Django, specialist event stores
+such as EventStoreDB and AxonDB, and NoSQL databases such as DynamoDB and MongoDB
+are either available or are forthcoming.
+
+Recorder classes are conveniently constructed by using an
+:ref:`infrastructure factory <Factory>`.
+
 
 .. _Transcoder:
 
 Transcoder
 ==========
 
-A transcoder is used by a :ref:`mapper<Mapper>` to serialise and deserialise
-the state of domain model event objects.
+A transcoder to serializes and deserializes the state of domain events.
 
 The library's :class:`~eventsourcing.persistence.JSONTranscoder` class
 can be constructed without any arguments.
@@ -61,7 +510,9 @@ serialisation and deserialisation. The serialised state is a Python :class:`byte
 
 The library's :class:`~eventsourcing.persistence.JSONTranscoder` uses the Python
 :mod:`json` module. And so, by default, only the basic object types supported by that
-module can be encoded and decoded. The transcoder can be extended by registering
+module can be encoded and decoded.
+
+The transcoder can be extended by registering
 transcodings for the other types of object used in your domain model's event objects.
 A transcoding will convert other types of object to a representation of the non-basic
 type of object that uses the basic types that are supported. The transcoder method
@@ -346,36 +797,6 @@ avoid defining transcodings that return such a thing.
     assert data == expected_data
 
 
-.. _Stored event objects:
-
-Stored event objects
-====================
-
-A stored event object is a common object type that can be used to
-represent domain event objects of different types. By using a
-common object for the representation of different types of
-domain events objects, the domain event objects can be stored
-and retrieved in a standard way.
-
-The library's :class:`~eventsourcing.persistence.StoredEvent` class
-is a Python frozen dataclass that can be used to hold information
-about a domain event object between it being serialised and being
-recorded in a datastore, and between it be retrieved from a datastore
-from an aggregate sequence and being deserialised as a domain event object.
-
-.. code-block:: python
-
-    from uuid import uuid4
-    from eventsourcing.persistence import StoredEvent
-
-    stored_event = StoredEvent(
-        originator_id=uuid4(),
-        originator_version=1,
-        state="{}",
-        topic="eventsourcing.model:DomainEvent",
-    )
-
-
 .. _Mapper:
 
 Mapper
@@ -526,141 +947,6 @@ abstract base class, so if you want to use another compression
 strategy simply implement the base class.
 
 
-.. _Notification objects:
-
-Notification objects
-====================
-
-Event notifications are used to propagate the state of an event
-sourced application in a reliable way. The stored events can be
-positioned in a "total order" by giving each a new domain event
-a notification ID that is higher that any previously recorded event.
-By recording the domain events atomically with their notification IDs,
-there will never be a domain event that is not available to be passed
-as a message across a network, and there will never be a message
-passed across a network that doesn't correspond to a recorded event.
-This solves the "dual writing" problem that occurs when separately
-a domain model is updated and then a message is put on a message queue.
-
-The library's :class:`~eventsourcing.persistence.Notification` class
-is a Python frozen dataclass that can be used to hold information
-about a domain event object when being transmitted as an item in a
-section of a :ref:`notification log<Notification Log>`.
-It will be returned when selecting event notifications from a
-:ref:`recorder<Recorder>`, and presented in an application by a
-:ref:`notification log<Notification log>`.
-
-.. code-block:: python
-
-    from uuid import uuid4
-    from eventsourcing.persistence import Notification
-
-    stored_event = Notification(
-        id=123,
-        originator_id=uuid4(),
-        originator_version=1,
-        state="{}",
-        topic="eventsourcing.model:DomainEvent",
-    )
-
-
-.. _Tracking objects:
-
-Tracking objects
-================
-
-A tracking object can be used to encapsulate the position of
-an event notification in an upstream application's notification
-log. A tracking object can be passed into a process recorder along
-with new stored event objects, and recorded atomically with those
-objects. By ensuring the uniqueness of recorded tracking objects,
-we can ensure that a domain event notification is never processed
-twice. By recording the position of the last event notification that
-has been processed, we can ensure to resume processing event notifications
-at the correct position. This constructs "exactly once" semantics
-when processing event notifications, by solving the "dual writing"
-problem that occurs when separately an event notification is consumed
-from a message queue with updates made to materialized view, and then
-an acknowledgement is sent back to the message queue.
-
-The library's :class:`~eventsourcing.persistence.Tracking` class
-is a Python frozen dataclass that can be used to hold the notification
-ID of a notification that has been processed.
-
-.. code-block:: python
-
-    from uuid import uuid4
-    from eventsourcing.persistence import Tracking
-
-    tracking = Tracking(
-        notification_id=123,
-        application_name="bounded_context1",
-    )
-
-.. _Recorder:
-
-Recorder
-========
-
-A recorder adapts a database management system for the purpose of
-recording stored events. It is used by an :ref:`event store <Store>`.
-
-The library's :class:`~eventsourcing.persistence.Recorder` class
-is an abstract base for concrete recorder classes that will insert
-stored event objects in a particular datastore.
-
-There are three flavours of recorder: "aggregate recorders"
-are the simplest and simply store domain events in aggregate
-sequences; "application recorders" extend aggregate recorders
-by storing domain events with a total order; "process recorders"
-extend application recorders by supporting the recording of
-domain events atomically with "tracking" objects that record
-the position in a total ordering of domain events that is
-being processed. The "aggregate recorder" can be used for
-storing snapshots.
-
-The persistence module :mod:`eventsourcing.sqlite` includes
-recorder classes for SQLite that use the Python :mod:`sqlite3`
-module. And the module :mod:`eventsourcing.postgres` has recorders
-for PostgreSQL that use the third party :mod:`psycopg2` module.
-
-The direct use of the library's SQLite recorders is shown below. The
-other persistence modules follow a similar naming scheme and pattern of use.
-
-.. code-block:: python
-
-    from eventsourcing.sqlite import SQLiteAggregateRecorder
-    from eventsourcing.sqlite import SQLiteApplicationRecorder
-    from eventsourcing.sqlite import SQLiteProcessRecorder
-    from eventsourcing.sqlite import SQLiteDatastore
-
-    datastore = SQLiteDatastore(db_name=":memory:")
-    aggregate_recorder = SQLiteAggregateRecorder(datastore, "snapshots")
-    aggregate_recorder.create_table()
-
-    application_recorder = SQLiteApplicationRecorder(datastore)
-    application_recorder.create_table()
-
-    datastore = SQLiteDatastore(db_name=":memory:")
-    process_recorder = SQLiteProcessRecorder(datastore)
-    process_recorder.create_table()
-
-
-The persistence module :mod:`eventsourcing.popo` has recorders
-that use "plain old Python objects", which simply keep stored events in a
-data structure in memory, and provides the fastest alternative for rapid
-development of event sourced applications. It ~4x faster than using SQLite,
-and ~20x faster than using PostgreSQL. This is the default module used
-by application classes.
-
-Recorders compatible with this version of the library for popular ORMs such
-as SQLAlchemy and Django, specialist event stores such as EventStoreDB and
-AxonDB, and NoSQL databases such as DynamoDB and MongoDB are either available
-or forthcoming.
-
-Recorder classes are conveniently constructed by using an
-:ref:`infrastructure factory <Factory>`.
-
 .. _Store:
 
 Event store
@@ -775,8 +1061,8 @@ of an alternative persistence module. See below for examples.
 
 .. _SQLite:
 
-SQLite
-======
+SQLite module
+=============
 
 The persistence module :mod:`eventsourcing.sqlite` supports storing events in
 `SQLite <https://www.sqlite.org/>`__.
@@ -860,8 +1146,8 @@ events recorded in SQLite.
 
 .. _PostgreSQL:
 
-PostgreSQL
-==========
+PostgreSQL module
+=================
 
 The persistence module :mod:`eventsourcing.postgres` supports storing events in
 `PostgresSQL <https://www.postgresql.org/>`__.

@@ -148,20 +148,27 @@ Domain event objects are created but do not change.
 The library's :class:`~eventsourcing.domain.DomainEvent` class is a base
 class for domain events. It is defined as a `frozen Python data class
 <https://docs.python.org/3/library/dataclasses.html#frozen-instances>`_
-to model the immutable character of a domain event. It has an ``originator_id``
+to model the immutable character of a domain event.
+
+.. code-block:: python
+
+    from eventsourcing.domain import DomainEvent
+
+
+A :class:`~eventsourcing.domain.DomainEvent` instance has an ``originator_id``
 attribute which is a Python :class:`~uuid.UUID` that identifies a sequence
-(or "stream") to which an event belongs, an ``originator_version``
+(or "stream") to which an event belongs. It has an ``originator_version``
 attribute which is a Python :class:`int` that determines its position
-in that sequence, and a ``timestamp`` attribute which is a Python
-:class:`~datetime.datetime` that represents when the event occurred.
+in that sequence. And it has a ``timestamp`` attribute which is a Python
+:class:`~datetime.datetime` that represents when the event occurred. Subclasses
+may define additional attributes.
+
+The :class:`~eventsourcing.domain.DomainEvent` can be instantiated directly.
 
 .. code-block:: python
 
     from datetime import datetime
     from uuid import uuid4
-
-    from eventsourcing.domain import DomainEvent
-
 
     originator_id = uuid4()
 
@@ -185,27 +192,22 @@ and timestamps are more likely to have such gaps and anyway can suffer from cloc
 
 In this library, domain event objects are specialised into two different kinds: 'aggregate event'
 and 'snapshot'.
-
-The domain events that are triggered by an aggregate will be referred to as
-'aggregate events'. The library's :class:`~eventsourcing.domain.AggregateEvent`
+The various types of domain events that are triggered by an aggregate are referred to
+as 'aggregate events'. The library's :class:`~eventsourcing.domain.AggregateEvent`
 class is defined as a subclass of the :class:`~eventsourcing.domain.DomainEvent`
 class. See the :ref:`Aggregate events <Aggregate events>` section below for more
 information about aggregate events.
-
 The state of an aggregate at a particular point in its evolution
 can be recorded as a 'snapshot'. This library's :class:`~eventsourcing.domain.Snapshot`
 class is also defined as a subclass of the :class:`~eventsourcing.domain.DomainEvent`
 class. See the :ref:`Snapshots <Snapshots>` section for more information about snapshots.
-
-
-
 
 .. _Aggregate events:
 
 Aggregate events
 ----------------
 
-Aggregate event objects represent original decisions by a domain model that advance
+Aggregate events represent original decisions by a domain model that advance
 the state of an application. The library's :class:`~eventsourcing.domain.AggregateEvent`
 class is defined as a subclass of :class:`~eventsourcing.domain.DomainEvent`. It can be
 used to define domain-specific aggregate event objects in your domain model. Aggregate
@@ -215,7 +217,6 @@ events are uniquely identifiable in a domain model by the combination of their
 .. code-block:: python
 
     from eventsourcing.domain import AggregateEvent
-
 
     aggregate_event = AggregateEvent(
         originator_id=originator_id,

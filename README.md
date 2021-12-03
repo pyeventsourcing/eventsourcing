@@ -34,7 +34,6 @@ Use the `@event` decorator on command methods to define aggregate events.
 ```python
 from eventsourcing.domain import Aggregate, event
 
-
 class World(Aggregate):
     @event('Created')
     def __init__(self, name):
@@ -51,7 +50,6 @@ Add command and query methods that use event-sourced aggregates.
 
 ```python
 from eventsourcing.application import Application
-
 
 class Universe(Application):
     def create_world(self, name):

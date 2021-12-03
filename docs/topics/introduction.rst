@@ -2,6 +2,46 @@
 Introduction
 ============
 
+What is an event?
+=================
+
+The term 'event' is often used in discussions about event sourcing
+as an abbreviation which refers to a specific kind of event. That is to say,
+it refers to an individual atomic immutable decision originated by the domain
+model of a software application, an occasion of experience that results in a
+"stubborn fact".
+
+Of course, as everybody knows, the commonsensical notion "event"
+has a broader meaning.
+Firstly, the commonsensical meaning includes all other such atomic "actual occasions"
+of experience that result in all the other stubborn facts that
+together make up the past. Such things importantly do not change. They are what they are.
+But the commonsensical meaning includes also inter-related sets of such things,
+"societies" of actual occasions, things that do indeed experience adventures of change.
+For example, the ordinary physical and social objects that we encounter in daily life that are
+each built up from an on-going history of inter-related decisions. A software system
+is also an event, in this broader sense, and a developer is also an event. And so is
+her cat and her cup of tea.
+
+As Gilles Deleuze wrote in his book on Leibniz when discussing Alfred North Whitehead's
+modern process philosophy:
+
+.. pull-quote::
+
+    *"A concert is being performed tonight. It is the event.
+    Vibrations of sound disperse, periodic movements go
+    through space with their harmonics or submultiples.
+    The sounds have inner qualities of height, intensity,
+    and timbre. The sources of the sounds, instrumental
+    or vocal are not content only to send the sounds out:
+    each one perceives its own, and perceives the others
+    whilst perceiving its own. These are active perceptions
+    that are expressed among each other, or else prehensions
+    that are prehending one another: 'First the solitary piano
+    grieved, like a bird abandoned by its mate; the violin
+    heard its wail and responded to it like a neighbouring
+    tree. It was like the beginning of the world. ...'"*
+
 
 What is event sourcing?
 =======================
@@ -61,7 +101,6 @@ Use the ``@event`` decorator on command methods to define aggregate events.
 
     from eventsourcing.domain import Aggregate, event
 
-
     class World(Aggregate):
         @event('Created')
         def __init__(self, name):
@@ -79,7 +118,6 @@ Add command and query methods that use event-sourced aggregates.
 .. code-block:: python
 
     from eventsourcing.application import Application
-
 
     class Universe(Application):
         def create_world(self, name):
