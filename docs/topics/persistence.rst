@@ -115,7 +115,7 @@ An **event notification** is a stored event that also has a 'notification ID'.
 The notification ID identifies the position of an aggregate event in an
 application sequence.
 
-An **application sequence is a sequence of event notifications
+An **application sequence** is a sequence of event notifications
 for an application.
 
 A **tracking** object indicates the position of an event notification in
