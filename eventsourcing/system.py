@@ -388,16 +388,21 @@ class SingleThreadedRunner(Runner, Promptable):
 
         # Construct leaders.
         for name in self.system.leaders_only:
-            self.apps[name] = self.system.leader_cls(name)(env=self.env)
+            leader = self.system.leader_cls(name)(env=self.env)
+            self.apps[name] = leader
 
-        # Lead and follow.
+        # Subscribe to leaders.
+        for name in self.system.leaders:
+            leader = self.apps[name]
+            leader.lead(self)
+
+        # Setup followers to follow leaders.
         for edge in self.system.edges:
             leader = self.apps[edge[0]]
             follower = self.apps[edge[1]]
             assert isinstance(leader, Leader)
             assert isinstance(follower, Follower)
-            leader.lead(self)
-            follower.follow(leader.__class__.__name__, leader.log)
+            follower.follow(edge[0], leader.log)
 
     def receive_prompt(self, leader_name: str) -> None:
         """
@@ -408,6 +413,7 @@ class SingleThreadedRunner(Runner, Promptable):
         received to its application by calling the application's
         :func:`~Follower.pull_and_process` method for each prompted name.
         """
+        # print(leader_name, "prompted followers..")
         if leader_name not in self.prompts_received:
             self.prompts_received.append(leader_name)
         if not self.is_prompting:
