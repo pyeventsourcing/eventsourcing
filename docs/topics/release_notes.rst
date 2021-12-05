@@ -41,6 +41,12 @@ implicitly defined event classes). Stopped including tests and example
 packages in the distribution.
 
 
+Version 9.1.9 (released 5 December 2021)
+-----------------------------------------
+
+Fixed register_topic() for race condition when setting topic cache with identical value.
+
+
 Version 9.1.8 (released 30 November 2021)
 -----------------------------------------
 

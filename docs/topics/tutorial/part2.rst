@@ -139,6 +139,12 @@ Again, as above, we can create a new aggregate instance by calling
 the aggregate class. But this time, we need to provide a value for
 the ``name`` argument.
 
+..
+    #include-when-testing
+..
+    import eventsourcing.utils
+    eventsourcing.utils._topic_cache.clear()
+
 .. code-block:: python
 
     world = World('Earth')
@@ -223,6 +229,12 @@ body of the method will be used by the event to mutate the
 state of the aggregate object.
 
 Let's create an aggregate instance.
+
+..
+    #include-when-testing
+..
+    import eventsourcing.utils
+    eventsourcing.utils._topic_cache.clear()
 
 .. code-block:: python
 

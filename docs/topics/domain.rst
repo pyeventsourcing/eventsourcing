@@ -1118,6 +1118,12 @@ event class will be defined automatically to match the signature
 of the init method. That is, a "created" event class will be defined
 that has an attribute ``name``.
 
+..
+    #include-when-testing
+..
+    import eventsourcing.utils
+    eventsourcing.utils._topic_cache.clear()
+
 .. code-block:: python
 
     class MyAggregate(Aggregate):
@@ -1160,6 +1166,11 @@ Python's dataclass annotations can be used to define an aggregate's
 ``__init__()`` method. A "created" event class will then be
 automatically defined from the automatically defined method.
 
+..
+    #include-when-testing
+..
+    eventsourcing.utils._topic_cache.clear()
+
 .. code-block:: python
 
     from dataclasses import dataclass
@@ -1184,6 +1195,11 @@ Anything that works on a dataclass should work here too.
 For example, optional arguments can be defined by providing
 default values on the attribute definitions.
 
+..
+    #include-when-testing
+..
+    eventsourcing.utils._topic_cache.clear()
+
 .. code-block:: python
 
     @dataclass
@@ -1204,6 +1220,11 @@ And you can define "non-init argument" attributes, attributes
 that will be initialised in the ``__init__()`` method but not
 appear as arguments of that method, by using the ``field``
 feature of the dataclasses module.
+
+..
+    #include-when-testing
+..
+    eventsourcing.utils._topic_cache.clear()
 
 .. code-block:: python
 
@@ -1238,6 +1259,11 @@ Declaring the created event class name
 
 To give the "created" event class a particular name, use the class argument ``created_event_name``.
 
+..
+    #include-when-testing
+..
+    eventsourcing.utils._topic_cache.clear()
+
 .. code-block:: python
 
     class MyAggregate(Aggregate, created_event_name="Started"):
@@ -1253,6 +1279,11 @@ To give the "created" event class a particular name, use the class argument ``cr
 
 This is equivalent to declaring a "created" event class
 on the aggregate class.
+
+..
+    #include-when-testing
+..
+    eventsourcing.utils._topic_cache.clear()
 
 .. code-block:: python
 
@@ -1273,6 +1304,11 @@ because the name of the "created" event class was changed and there are stored e
 that were created using the old "created" event class that need to be supported,
 then ``created_event_name`` can be used to identify which "created" event
 class is the one to use when creating new aggregate instances.
+
+..
+    #include-when-testing
+..
+    eventsourcing.utils._topic_cache.clear()
 
 .. code-block:: python
 
@@ -1296,6 +1332,11 @@ If ``created_event_name`` is used but the value does not match
 the name of any of the "created" event classes that are explicitly defined on the
 aggregate class, then an event class will be automatically defined, and it
 will be used when creating new aggregate instances.
+
+..
+    #include-when-testing
+..
+    eventsourcing.utils._topic_cache.clear()
 
 .. code-block:: python
 
@@ -1322,6 +1363,11 @@ By default, the aggregate ID will be a version 4 UUID, automatically
 generated when a new aggregate is created. However, the aggregate ID
 can also be defined as a function of the arguments used to create the
 aggregate. You can do this by defining a ``create_id()`` method.
+
+..
+    #include-when-testing
+..
+    eventsourcing.utils._topic_cache.clear()
 
 .. code-block:: python
 
@@ -1350,6 +1396,11 @@ version 4 UUID, which is the default behaviour for generating aggregate IDs.
 Alternatively, an ``id`` attribute can be declared on the aggregate
 class, and an ``id`` argument supplied when creating new aggregates.
 
+..
+    #include-when-testing
+..
+    eventsourcing.utils._topic_cache.clear()
+
 .. code-block:: python
 
     def create_id(name: str):
@@ -1370,6 +1421,11 @@ class, and an ``id`` argument supplied when creating new aggregates.
 When defining an explicit ``__init__()`` method, the ``id`` argument can
 be set on the object as ``self._id``. Assigning to ``self.id`` won't work
 because ``id`` is defined as a read-only property on the base aggregate class.
+
+..
+    #include-when-testing
+..
+    eventsourcing.utils._topic_cache.clear()
 
 .. code-block:: python
 
@@ -1399,6 +1455,11 @@ state of the aggregate. The body of the decorated method will be used as the
 ``apply()`` method of the event, both after the event has been triggered and
 when the aggregate is reconstructed from stored events. The name of the event
 class can be passed to the decorator as a Python ``str``.
+
+..
+    #include-when-testing
+..
+    eventsourcing.utils._topic_cache.clear()
 
 .. code-block:: python
 
@@ -1442,6 +1503,11 @@ careful to complete all validation before adjusting the state of the aggregate,
 otherwise you will need to retrieve a fresh instance from the repository.
 
 This decorator also works with the ``__init__()`` methods.
+
+..
+    #include-when-testing
+..
+    eventsourcing.utils._topic_cache.clear()
 
 .. code-block:: python
 
@@ -1487,6 +1553,10 @@ and then by concatenating the capitalised parts to give an
 "upper camel case" class name. For example, a method name
 ``name_updated`` would give an event class name ``NameUpdated``.
 
+..
+    #include-when-testing
+..
+    eventsourcing.utils._topic_cache.clear()
 
 .. code-block:: python
 
@@ -1529,6 +1599,11 @@ For example, if an attempt is made to update the value of an attribute,
 but the given value happens to be identical to the existing value, then
 it might be desirable to skip on having an event triggered.
 
+..
+    #include-when-testing
+..
+    eventsourcing.utils._topic_cache.clear()
+
 .. code-block:: python
 
     class MyAggregate(Aggregate):
@@ -1568,6 +1643,10 @@ can refer to the event class in the decorator, rather than using
 a string. The synonymous decorator :data:`@triggers` can be used
 instead of the :data:`@event` decorator (it does the same thing).
 
+..
+    #include-when-testing
+..
+    eventsourcing.utils._topic_cache.clear()
 
 .. code-block:: python
 
@@ -1949,6 +2028,11 @@ However, it is recommended to inherit from the :class:`~eventsourcing.domain.Agg
 class rather than using the ``@aggregate`` decorator so that full the
 :class:`~eventsourcing.domain.Aggregate` class definition will be visible to your IDE.
 
+..
+    #include-when-testing
+..
+    eventsourcing.utils._topic_cache.clear()
+
 .. code-block:: python
 
     from eventsourcing.domain import aggregate
@@ -2123,6 +2207,11 @@ under the old package name will resolve to same classes in the same
 modules in the renamed package.
 
 See the examples below.
+
+..
+    #include-when-testing
+..
+    eventsourcing.utils._topic_cache.clear()
 
 .. code-block:: python
 

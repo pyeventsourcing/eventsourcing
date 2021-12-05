@@ -97,7 +97,7 @@ class TestAggregateDecorator(TestCase):
             class MyAgg(Aggregate):
                 pass
 
-        self.assertEqual(cm.exception.args[0], "MyAgg is already an Aggregate")
+        self.assertIn("MyAgg is already an Aggregate", cm.exception.args[0])
 
     def test_aggregate_on_dataclass(self):
         @aggregate
@@ -222,15 +222,15 @@ class TestEventDecorator(TestCase):
         )
 
         # Check this works with Aggregate class and @event decorator.
-        class MyClass(Aggregate):
+        class MyAggregate(Aggregate):
             @event
             def value_changed(self):
                 pass
 
-        a = MyClass()
+        a = MyAggregate()
 
         self.assertEqual(
-            get_method_name(a.value_changed), get_method_name(MyClass.value_changed)
+            get_method_name(a.value_changed), get_method_name(MyAggregate.value_changed)
         )
 
         self.assertTrue(
@@ -238,19 +238,19 @@ class TestEventDecorator(TestCase):
         )
 
         self.assertTrue(
-            get_method_name(MyClass.value_changed).endswith("value_changed"),
+            get_method_name(MyAggregate.value_changed).endswith("value_changed"),
         )
 
         # Check this works with Aggregate class and @event decorator.
-        class MyClass(Aggregate):
+        class MyAggregate2(Aggregate):
             @event()
             def value_changed(self):
                 pass
 
-        a = MyClass()
+        a = MyAggregate2()
 
         self.assertEqual(
-            get_method_name(a.value_changed), get_method_name(MyClass.value_changed)
+            get_method_name(a.value_changed), get_method_name(MyAggregate2.value_changed)
         )
 
         self.assertTrue(
@@ -258,7 +258,7 @@ class TestEventDecorator(TestCase):
         )
 
         self.assertTrue(
-            get_method_name(MyClass.value_changed).endswith("value_changed"),
+            get_method_name(MyAggregate2.value_changed).endswith("value_changed"),
         )
 
     def test_raises_when_method_takes_1_positional_argument_but_2_were_given(self):
@@ -1059,7 +1059,7 @@ class TestEventDecorator(TestCase):
         self.assertEqual(created_event_cls, MyAggregate.Started)
 
     def test_aggregate_has_incompatible_created_event_class_in_event_decorator(self):
-        class MyAggregate(Aggregate):
+        class MyAggregate1(Aggregate):
             class Started(AggregateCreated):
                 a: int
 
@@ -1067,22 +1067,22 @@ class TestEventDecorator(TestCase):
             def __init__(self):
                 pass
 
-        method_name = get_method_name(MyAggregate.__init__)
-
         with self.assertRaises(TypeError) as cm:
-            MyAggregate()
+            MyAggregate1()
         self.assertTrue(
             cm.exception.args[0].startswith("Unable to construct 'Started' event")
         )
 
         with self.assertRaises(TypeError) as cm:
-            MyAggregate(a=1)
+            MyAggregate1(a=1)
+
+        method_name = get_method_name(MyAggregate1.__init__)
         self.assertEqual(
             f"{method_name}() got an unexpected keyword argument 'a'",
             cm.exception.args[0],
         )
 
-        class MyAggregate(Aggregate):
+        class MyAggregate2(Aggregate):
             class Started(AggregateCreated):
                 pass
 
@@ -1091,14 +1091,16 @@ class TestEventDecorator(TestCase):
                 self.a = a
 
         with self.assertRaises(TypeError) as cm:
-            MyAggregate()
+            MyAggregate2()
+
+        method_name = get_method_name(MyAggregate2.__init__)
         self.assertEqual(
             f"{method_name}() missing 1 required positional argument: 'a'",
             cm.exception.args[0],
         )
 
         with self.assertRaises(TypeError) as cm:
-            MyAggregate(a=1)
+            MyAggregate2(a=1)
         self.assertTrue(
             cm.exception.args[0].startswith("Unable to construct 'Started' event:"),
             cm.exception.args[0],

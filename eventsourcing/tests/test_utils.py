@@ -190,16 +190,40 @@ class TestTopics(TestCase):
 
     def test_topic_errors(self):
         # Wrong module name.
-        with self.assertRaises(TopicError):
+        with self.assertRaises(TopicError) as cm:
             resolve_topic("oldmodule:Aggregate")
+        expected_msg = (
+            "Failed to resolve topic 'oldmodule:Aggregate': "
+            "No module named 'oldmodule'"
+        )
+        self.assertEqual(expected_msg, cm.exception.args[0])
 
         # Wrong class name.
-        with self.assertRaises(TopicError):
+        with self.assertRaises(TopicError) as cm:
             resolve_topic("eventsourcing.domain:OldClass")
+        expected_msg = (
+            "Failed to resolve topic 'eventsourcing.domain:OldClass': "
+            "module 'eventsourcing.domain' has no attribute 'OldClass'"
+        )
+        self.assertEqual(expected_msg, cm.exception.args[0])
 
+        # Wrong class attribute.
+        with self.assertRaises(TopicError) as cm:
+            resolve_topic("eventsourcing.domain:Aggregate.OldClass")
+        expected_msg = (
+            "Failed to resolve topic 'eventsourcing.domain:Aggregate.OldClass': "
+            "type object 'Aggregate' has no attribute 'OldClass'"
+        )
+        self.assertEqual(expected_msg, cm.exception.args[0])
+
+        # Can register same thing twice.
         register_topic("old", eventsourcing)
-        with self.assertRaises(TopicError):
-            register_topic("old", eventsourcing)
+        register_topic("old", eventsourcing)
+
+        # Can't overwrite with another thing.
+        with self.assertRaises(TopicError) as cm:
+            register_topic("old", TestCase)
+        self.assertIn("is already registered for topic 'old'", cm.exception.args[0])
 
     def tearDown(self) -> None:
         utils._topic_cache.clear()
