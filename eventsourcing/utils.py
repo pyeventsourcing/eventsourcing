@@ -3,6 +3,7 @@ import sys
 from functools import wraps
 from inspect import isfunction
 from random import random
+from threading import Lock
 from time import sleep
 from types import FunctionType, WrapperDescriptorType
 from typing import Any, Callable, Dict, Sequence, Type, Union, no_type_check
@@ -16,6 +17,7 @@ class TopicError(Exception):
 
 _type_cache: Dict[type, str] = {}
 _topic_cache: Dict[str, Any] = {}
+_topic_cache_lock = Lock()
 
 
 def get_topic(cls: type) -> str:
@@ -29,7 +31,8 @@ def get_topic(cls: type) -> str:
         return _type_cache[cls]
     except KeyError:
         topic = f"{cls.__module__}:{cls.__qualname__}"
-        _topic_cache[topic] = cls
+        register_topic(topic, cls)
+        _type_cache[cls] = topic
         return topic
 
 
@@ -76,13 +79,15 @@ def resolve_topic(topic: str) -> Any:
                 try:
                     obj = importlib.import_module(module_name)
                 except ImportError as e:
-                    raise TopicError from e
+                    msg = f"Failed to resolve topic '{topic}': {e}"
+                    raise TopicError(msg) from e
         if attr_name:
             for attr_name_part in attr_name.split("."):
                 try:
                     obj = getattr(obj, attr_name_part)
                 except AttributeError as e:
-                    raise TopicError from e
+                    msg = f"Failed to resolve topic '{topic}': {e}"
+                    raise TopicError(msg) from e
         register_topic(topic, obj)
     return obj
 
@@ -97,9 +102,17 @@ def register_topic(topic: str, obj: Any) -> None:
     register old topics for objects that have been renamed or moved,
     so that old topics will resolve to the renamed or moved object.
     """
-    if topic in _topic_cache:
-        raise TopicError("Topic is already registered")
-    _topic_cache[topic] = obj
+    with _topic_cache_lock:
+        try:
+            cached_obj = _topic_cache[topic]
+        except KeyError:
+            _topic_cache[topic] = obj
+        else:
+            if cached_obj != obj:
+                raise TopicError(
+                    f"Object {cached_obj} is already registered "
+                    f"for topic '{topic}', so refusing to cache obj {obj}"
+                )
 
 
 def retry(

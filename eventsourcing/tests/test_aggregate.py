@@ -74,22 +74,22 @@ class TestMetaAggregate(TestCase):
         self.assertEqual(created_event_cls, MyAggregate.Started)
 
     def test_can_define_initial_version_number(self):
-        class MyAggregate(Aggregate):
+        class MyAggregate1(Aggregate):
             INITIAL_VERSION = 0
 
-        a = MyAggregate()
+        a = MyAggregate1()
         self.assertEqual(a.version, 0)
 
-        class MyAggregate(Aggregate):
+        class MyAggregate2(Aggregate):
             pass
 
-        a = MyAggregate()
+        a = MyAggregate2()
         self.assertEqual(a.version, 1)
 
-        class MyAggregate(Aggregate):
+        class MyAggregate3(Aggregate):
             INITIAL_VERSION = 2
 
-        a = MyAggregate()
+        a = MyAggregate3()
         self.assertEqual(a.version, 2)
 
 
@@ -151,10 +151,10 @@ class TestAggregateCreation(TestCase):
         qualname = type(self).__qualname__
         prefix = f"{qualname}.test_call_subclass_with_no_init.<locals>."
 
-        class MyAggregate(Aggregate):
+        class MyAggregate1(Aggregate):
             pass
 
-        a = MyAggregate()
+        a = MyAggregate1()
         self.assertIsInstance(a.id, UUID)
         self.assertIsInstance(a.version, int)
         self.assertEqual(a.version, 1)
@@ -164,26 +164,26 @@ class TestAggregateCreation(TestCase):
         events = a.collect_events()
         self.assertEqual(len(events), 1)
         self.assertIsInstance(events[0], AggregateCreated)
-        self.assertEqual(f"{prefix}MyAggregate.Created", type(events[0]).__qualname__)
+        self.assertEqual(f"{prefix}MyAggregate1.Created", type(events[0]).__qualname__)
 
         # Do it again using @dataclass
         @dataclass  # ...this just makes the code completion work in the IDE.
-        class MyAggregate(Aggregate):
+        class MyAggregate2(Aggregate):
             pass
 
         # Check the init method takes no args (except "self").
-        init_params = inspect.signature(MyAggregate.__init__).parameters
+        init_params = inspect.signature(MyAggregate2.__init__).parameters
         self.assertEqual(len(init_params), 1)
         self.assertEqual(list(init_params)[0], "self")
 
         #
         # Do it again with custom "created" event.
         @dataclass
-        class MyAggregate(Aggregate):
+        class MyAggregate3(Aggregate):
             class Started(AggregateCreated):
                 pass
 
-        a = MyAggregate()
+        a = MyAggregate3()
         self.assertIsInstance(a.id, UUID)
         self.assertIsInstance(a.version, int)
         self.assertIsInstance(a.created_on, datetime)
@@ -192,17 +192,17 @@ class TestAggregateCreation(TestCase):
         events = a.collect_events()
         self.assertEqual(len(events), 1)
         self.assertIsInstance(events[0], AggregateCreated)
-        self.assertEqual(f"{prefix}MyAggregate.Started", type(events[0]).__qualname__)
+        self.assertEqual(f"{prefix}MyAggregate3.Started", type(events[0]).__qualname__)
 
     def test_init_no_args(self):
         qualname = type(self).__qualname__
         prefix = f"{qualname}.test_init_no_args.<locals>."
 
-        class MyAggregate(Aggregate):
+        class MyAggregate1(Aggregate):
             def __init__(self):
                 pass
 
-        a = MyAggregate()
+        a = MyAggregate1()
         self.assertIsInstance(a.id, UUID)
         self.assertIsInstance(a.version, int)
         self.assertIsInstance(a.created_on, datetime)
@@ -211,28 +211,28 @@ class TestAggregateCreation(TestCase):
         events = a.collect_events()
         self.assertEqual(len(events), 1)
         self.assertIsInstance(events[0], AggregateCreated)
-        self.assertEqual(f"{prefix}MyAggregate.Created", type(events[0]).__qualname__)
+        self.assertEqual(f"{prefix}MyAggregate1.Created", type(events[0]).__qualname__)
 
         #
         # Do it again using @dataclass (makes no difference)...
         @dataclass  # ...this just makes the code completion work in the IDE.
-        class MyAggregate(Aggregate):
+        class MyAggregate2(Aggregate):
             def __init__(self):
                 pass
 
         # Check the init method takes no args (except "self").
-        init_params = inspect.signature(MyAggregate.__init__).parameters
+        init_params = inspect.signature(MyAggregate2.__init__).parameters
         self.assertEqual(len(init_params), 1)
         self.assertEqual(list(init_params)[0], "self")
 
         #
         # Do it again with custom "created" event.
         @dataclass
-        class MyAggregate(Aggregate):
+        class MyAggregate3(Aggregate):
             class Started(AggregateCreated):
                 pass
 
-        a = MyAggregate()
+        a = MyAggregate3()
         self.assertIsInstance(a.id, UUID)
         self.assertIsInstance(a.version, int)
         self.assertIsInstance(a.created_on, datetime)
@@ -241,7 +241,7 @@ class TestAggregateCreation(TestCase):
         events = a.collect_events()
         self.assertEqual(len(events), 1)
         self.assertIsInstance(events[0], AggregateCreated)
-        self.assertEqual(f"{prefix}MyAggregate.Started", type(events[0]).__qualname__)
+        self.assertEqual(f"{prefix}MyAggregate3.Started", type(events[0]).__qualname__)
 
     def test_raises_when_init_with_no_args_called_with_args(self):
         # First, with a normal dataclass, to document the errors.
@@ -549,7 +549,7 @@ class TestAggregateCreation(TestCase):
         )
 
     def test_define_custom_create_id_as_uuid5(self):
-        class MyAgg(Aggregate):
+        class MyAggregate1(Aggregate):
             def __init__(self, name):
                 self.name = name
 
@@ -557,22 +557,22 @@ class TestAggregateCreation(TestCase):
             def create_id(cls, name):
                 return uuid5(NAMESPACE_URL, f"/names/{name}")
 
-        a = MyAgg("name")
+        a = MyAggregate1("name")
         self.assertEqual(a.name, "name")
-        self.assertEqual(a.id, MyAgg.create_id("name"))
+        self.assertEqual(a.id, MyAggregate1.create_id("name"))
 
         # Do it again with method defined as staticmethod.
         @dataclass
-        class MyAgg(Aggregate):
+        class MyAggregate2(Aggregate):
             name: str
 
             @staticmethod
             def create_id(name):
                 return uuid5(NAMESPACE_URL, f"/names/{name}")
 
-        a = MyAgg("name")
+        a = MyAggregate2("name")
         self.assertEqual(a.name, "name")
-        self.assertEqual(a.id, MyAgg.create_id("name"))
+        self.assertEqual(a.id, MyAggregate2.create_id("name"))
 
     def test_raises_type_error_if_created_event_class_not_aggregate_created(self):
         with self.assertRaises(TypeError):
@@ -585,7 +585,8 @@ class TestAggregateCreation(TestCase):
         # there may need to be several defined. Then, when calling
         # aggregate class, require explicit statement of which to use.
 
-        class MyAggregate(Aggregate):
+        # Don't specify created event class.
+        class MyAggregate1(Aggregate):
             class Started(AggregateCreated):
                 pass
 
@@ -593,12 +594,12 @@ class TestAggregateCreation(TestCase):
                 pass
 
         # This is okay.
-        MyAggregate._create(event_class=MyAggregate.Started)
-        MyAggregate._create(event_class=MyAggregate.Opened)
+        MyAggregate1._create(event_class=MyAggregate1.Started)
+        MyAggregate1._create(event_class=MyAggregate1.Opened)
 
         with self.assertRaises(TypeError) as cm:
             # This is not okay.
-            MyAggregate()
+            MyAggregate1()
 
         self.assertTrue(
             cm.exception.args[0].startswith(
@@ -608,8 +609,8 @@ class TestAggregateCreation(TestCase):
             )
         )
 
-        # Say which created event class to use on aggregate class.
-        class MyAggregate(Aggregate):
+        # Specify created event class using _created_event_class.
+        class MyAggregate2(Aggregate):
             class Started(AggregateCreated):
                 pass
 
@@ -619,12 +620,12 @@ class TestAggregateCreation(TestCase):
             _created_event_class = Started
 
         # Call class, and expect Started event will be used.
-        a = MyAggregate()
+        a = MyAggregate2()
         events = a.collect_events()
-        self.assertIsInstance(events[0], MyAggregate.Started, type(events[0]))
+        self.assertIsInstance(events[0], MyAggregate2.Started, type(events[0]))
 
-        # Say which created event class to use on aggregate class.
-        class MyAggregate(Aggregate, created_event_name="Started"):
+        # Specify created event class using created_event_name.
+        class MyAggregate3(Aggregate, created_event_name="Started"):
             class Started(AggregateCreated):
                 pass
 
@@ -632,9 +633,9 @@ class TestAggregateCreation(TestCase):
                 pass
 
         # Call class, and expect Started event will be used.
-        a = MyAggregate()
+        a = MyAggregate3()
         events = a.collect_events()
-        self.assertIsInstance(events[0], MyAggregate.Started)
+        self.assertIsInstance(events[0], MyAggregate3.Started)
 
     def test_refuse_implicit_choice_of_alternative_created_events_on_subclass(self):
         # In case aggregates were created with old Created event,
@@ -647,7 +648,7 @@ class TestAggregateCreation(TestCase):
             class Opened(AggregateCreated):
                 pass
 
-        class MyAggregate(MyBaseAggregate):
+        class MyAggregate1(MyBaseAggregate):
             class Started(AggregateCreated):
                 pass
 
@@ -655,11 +656,11 @@ class TestAggregateCreation(TestCase):
                 pass
 
         # This is okay.
-        MyAggregate._create(event_class=MyAggregate.Started)
-        MyAggregate._create(event_class=MyAggregate.Opened)
+        MyAggregate1._create(event_class=MyAggregate1.Started)
+        MyAggregate1._create(event_class=MyAggregate1.Opened)
 
         with self.assertRaises(TypeError) as cm:
-            MyAggregate()  # This is not okay.
+            MyAggregate1()  # This is not okay.
 
         self.assertTrue(
             cm.exception.args[0].startswith(
@@ -669,8 +670,8 @@ class TestAggregateCreation(TestCase):
             )
         )
 
-        # Say which created event class to use on aggregate class.
-        class MyAggregate(Aggregate):
+        # Specify created event class using _created_event_class.
+        class MyAggregate2(MyBaseAggregate):
             class Started(AggregateCreated):
                 pass
 
@@ -680,9 +681,9 @@ class TestAggregateCreation(TestCase):
             _created_event_class = Started
 
         # Call class, and expect Started event will be used.
-        a = MyAggregate()
+        a = MyAggregate2()
         events = a.collect_events()
-        self.assertIsInstance(events[0], MyAggregate.Started)
+        self.assertIsInstance(events[0], MyAggregate2.Started)
 
     def test_uses_defined_created_event_when_given_name_matches(self):
         class Order(Aggregate, created_event_name="Started"):
@@ -891,18 +892,18 @@ class TestSubsequentEvents(TestCase):
     #     )
 
     def test_eq(self):
-        class MyAggregate(Aggregate):
+        class MyAggregate1(Aggregate):
             id: UUID
 
         id_a = uuid4()
         id_b = uuid4()
-        a = MyAggregate(id=id_a)
+        a = MyAggregate1(id=id_a)
         self.assertEqual(a, a)
 
-        b = MyAggregate(id=id_b)
+        b = MyAggregate1(id=id_b)
         self.assertNotEqual(a, b)
 
-        c = MyAggregate(id=id_a)
+        c = MyAggregate1(id=id_a)
         self.assertNotEqual(a, c)
 
         a_copy = a.collect_events()[0].mutate(None)
@@ -915,18 +916,18 @@ class TestSubsequentEvents(TestCase):
         self.assertNotEqual(a, a_copy)
 
         @dataclass(eq=False)
-        class MyAggregate(Aggregate):
+        class MyAggregate2(Aggregate):
             id: UUID
 
         id_a = uuid4()
         id_b = uuid4()
-        a = MyAggregate(id=id_a)
+        a = MyAggregate2(id=id_a)
         self.assertEqual(a, a)
 
-        b = MyAggregate(id=id_b)
+        b = MyAggregate2(id=id_b)
         self.assertNotEqual(a, b)
 
-        c = MyAggregate(id=id_a)
+        c = MyAggregate2(id=id_a)
         self.assertNotEqual(a, c)
 
         a_copy = a.collect_events()[0].mutate(None)
@@ -962,7 +963,7 @@ class TestSubsequentEvents(TestCase):
         self.assertEqual(expect, repr(a))
 
     def test_repr_subclass(self):
-        class MyAggregate(Aggregate):
+        class MyAggregate1(Aggregate):
             a: int
 
             class ValueAssigned(AggregateEvent):
@@ -971,9 +972,9 @@ class TestSubsequentEvents(TestCase):
                 def apply(self, aggregate: TAggregate) -> None:
                     aggregate.b = self.b
 
-        a = MyAggregate(a=1)
+        a = MyAggregate1(a=1)
         expect = (
-            f"MyAggregate(id={a.id!r}, "
+            f"MyAggregate1(id={a.id!r}, "
             "version=1, "
             f"created_on={a.created_on!r}, "
             f"modified_on={a.modified_on!r}, "
@@ -982,10 +983,10 @@ class TestSubsequentEvents(TestCase):
         )
         self.assertEqual(expect, repr(a))
 
-        a.trigger_event(MyAggregate.ValueAssigned, b=2)
+        a.trigger_event(MyAggregate1.ValueAssigned, b=2)
 
         expect = (
-            f"MyAggregate(id={a.id!r}, "
+            f"MyAggregate1(id={a.id!r}, "
             "version=2, "
             f"created_on={a.created_on!r}, "
             f"modified_on={a.modified_on!r}, "
@@ -996,7 +997,7 @@ class TestSubsequentEvents(TestCase):
         self.assertEqual(expect, repr(a))
 
         @dataclass(repr=False)
-        class MyAggregate(Aggregate):
+        class MyAggregate2(Aggregate):
             a: int
 
             class ValueAssigned(AggregateEvent):
@@ -1005,9 +1006,9 @@ class TestSubsequentEvents(TestCase):
                 def apply(self, aggregate: TAggregate) -> None:
                     aggregate.b = self.b
 
-        a = MyAggregate(a=1)
+        a = MyAggregate2(a=1)
         expect = (
-            f"MyAggregate(id={a.id!r}, "
+            f"MyAggregate2(id={a.id!r}, "
             "version=1, "
             f"created_on={a.created_on!r}, "
             f"modified_on={a.modified_on!r}, "
@@ -1016,10 +1017,10 @@ class TestSubsequentEvents(TestCase):
         )
         self.assertEqual(expect, repr(a))
 
-        a.trigger_event(MyAggregate.ValueAssigned, b=2)
+        a.trigger_event(MyAggregate2.ValueAssigned, b=2)
 
         expect = (
-            f"MyAggregate(id={a.id!r}, "
+            f"MyAggregate2(id={a.id!r}, "
             "version=2, "
             f"created_on={a.created_on!r}, "
             f"modified_on={a.modified_on!r}, "

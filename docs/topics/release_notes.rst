@@ -23,6 +23,12 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.1.9 (released 5 December 2021)
+-----------------------------------------
+
+Fixed register_topic() for race condition when setting topic cache with identical value.
+
+
 Version 9.1.8 (released 30 November 2021)
 -----------------------------------------
 

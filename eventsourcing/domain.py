@@ -1135,7 +1135,7 @@ def aggregate(
 
     def decorator(cls_: Any) -> Type[Aggregate]:
         if issubclass(cls_, Aggregate):
-            raise TypeError(f"{cls_.__name__} is already an Aggregate")
+            raise TypeError(f"{cls_.__qualname__} is already an Aggregate")
         bases = cls_.__bases__
         if bases == (object,):
             bases = (Aggregate,)
@@ -1144,7 +1144,7 @@ def aggregate(
         cls_dict = dict()
         cls_dict.update(cls_.__dict__)
         cls_ = MetaAggregate(
-            cls_.__name__,
+            cls_.__qualname__,
             bases,
             cls_dict,
             created_event_name=created_event_name,
