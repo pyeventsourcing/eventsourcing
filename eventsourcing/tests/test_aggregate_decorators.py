@@ -250,7 +250,8 @@ class TestEventDecorator(TestCase):
         a = MyAggregate2()
 
         self.assertEqual(
-            get_method_name(a.value_changed), get_method_name(MyAggregate2.value_changed)
+            get_method_name(a.value_changed),
+            get_method_name(MyAggregate2.value_changed),
         )
 
         self.assertTrue(
