@@ -26,12 +26,13 @@ from eventsourcing.application import (
 )
 from eventsourcing.domain import Aggregate, AggregateEvent, TAggregate
 from eventsourcing.persistence import (
+    IntegrityError,
     Mapper,
     Notification,
     ProcessRecorder,
     Tracking,
 )
-from eventsourcing.utils import EnvType, get_topic, resolve_topic
+from eventsourcing.utils import EnvType, get_topic, resolve_topic, retry
 
 
 class Follower(Application[TAggregate]):
@@ -78,6 +79,7 @@ class Follower(Application[TAggregate]):
         mapper = factory.mapper(self.construct_transcoder())
         self.readers[name] = (reader, mapper)
 
+    @retry(IntegrityError, max_attempts=5, wait=0.1)
     def pull_and_process(self, name: str) -> None:
         """
         Pulls and processes unseen domain event notifications
@@ -98,28 +100,28 @@ class Follower(Application[TAggregate]):
         by calling the :func:`record` method.
         """
         start = self.recorder.max_tracking_id(name) + 1
-        for domain_event, process_event in self.pull_events(name, start):
-            self.process_event(domain_event, process_event)
+        for domain_event, tracking in self.pull_events(name, start):
+            self.process_event(domain_event, tracking)
 
     def pull_events(
         self, name: str, start: int
-    ) -> Iterable[Tuple[AggregateEvent[TAggregate], ProcessEvent]]:
+    ) -> Iterable[Tuple[AggregateEvent[TAggregate], Tracking]]:
         reader, mapper = self.readers[name]
         for notification in reader.select(start=start, topics=self.follow_topics):
             domain_event = cast(
                 AggregateEvent[TAggregate], mapper.to_domain_event(notification)
             )
-            process_event = ProcessEvent(
-                Tracking(
-                    application_name=name,
-                    notification_id=notification.id,
-                )
+            tracking = Tracking(
+                application_name=name,
+                notification_id=notification.id,
             )
-            yield domain_event, process_event
+            yield domain_event, tracking
 
+    @retry(IntegrityError, max_attempts=5, wait=0.01)
     def process_event(
-        self, domain_event: AggregateEvent[TAggregate], process_event: ProcessEvent
+        self, domain_event: AggregateEvent[TAggregate], tracking: Tracking
     ) -> Optional[int]:
+        process_event = ProcessEvent(tracking=tracking)
         self.policy(domain_event, process_event)
         returning = self.record(process_event)
         self.take_snapshots(process_event)
@@ -393,13 +395,14 @@ class SingleThreadedRunner(Runner, Promptable):
 
         # Subscribe to leaders.
         for name in self.system.leaders:
-            leader = self.apps[name]
+            leader = cast(Leader[Aggregate], self.apps[name])
+            assert isinstance(leader, Leader)
             leader.lead(self)
 
         # Setup followers to follow leaders.
         for edge in self.system.edges:
-            leader = self.apps[edge[0]]
-            follower = self.apps[edge[1]]
+            leader = cast(Leader[Aggregate], self.apps[edge[0]])
+            follower = cast(Follower[Aggregate], self.apps[edge[1]])
             assert isinstance(leader, Leader)
             assert isinstance(follower, Follower)
             follower.follow(edge[0], leader.log)
@@ -435,6 +438,9 @@ class SingleThreadedRunner(Runner, Promptable):
         return app
 
 
+ProcessingJob = List[Tuple[AggregateEvent[Aggregate], Tracking]]
+
+
 class MultiThreadedRunner(Runner):
     """
     Runs a :class:`System` with a :class:`MultiThreadedRunnerThread` for each
@@ -457,9 +463,7 @@ class MultiThreadedRunner(Runner):
         self.apps: Dict[str, Application[Aggregate]] = {}
         self.pulling_threads: Dict[str, Dict[str, PullingThread]] = {}
         self.processing_threads: Dict[str, ProcessingThread] = {}
-        self.processing_queues: Dict[
-            str, "Queue[List[Tuple[AggregateEvent[Aggregate], ProcessEvent]]]"
-        ] = {}
+        self.processing_queues: Dict[str, "Queue[ProcessingJob]"] = {}
         self.has_errored = Event()
 
     def start(self) -> None:
@@ -485,9 +489,9 @@ class MultiThreadedRunner(Runner):
                 self.has_errored.set()
                 raise
             self.apps[name] = app
-            processing_queue: (
-                "Queue[List[Tuple[AggregateEvent[Aggregate], ProcessEvent]]]"
-            ) = Queue(maxsize=self.processing_queue_size)
+            processing_queue: "Queue[ProcessingJob]" = Queue(
+                maxsize=self.processing_queue_size
+            )
             self.processing_queues[name] = processing_queue
             processing_thread = ProcessingThread(
                 processing_queue=processing_queue,
@@ -560,7 +564,7 @@ class PullingThread(Promptable, Thread):
 
     def __init__(
         self,
-        processing_queue: "Queue[List[Tuple[AggregateEvent[Aggregate], ProcessEvent]]]",
+        processing_queue: "Queue[ProcessingJob]",
         prompted_event: Event,
         follower: Follower[Aggregate],
         leader_name: str,
@@ -586,9 +590,7 @@ class PullingThread(Promptable, Thread):
                     job = list(self.follower.pull_events(self.leader_name, start))
                     if len(job):
                         self.processing_queue.put(job)
-                        process_event = job[-1][1]
-                        assert process_event.tracking is not None
-                        last_notification_id = process_event.tracking.notification_id
+                        last_notification_id = job[-1][1].notification_id
                     else:
                         seen_nothing = True
         except Exception as e:
@@ -607,7 +609,7 @@ class ProcessingThread(Thread):
 
     def __init__(
         self,
-        processing_queue: "Queue[List[Tuple[AggregateEvent[Aggregate], ProcessEvent]]]",
+        processing_queue: "Queue[ProcessingJob]",
         follower: Follower[Aggregate],
         has_errored: Event,
     ):
@@ -620,8 +622,8 @@ class ProcessingThread(Thread):
     def run(self) -> None:
         try:
             while True:
-                for domain_event, process_event in self.processing_queue.get():
-                    self.follower.process_event(domain_event, process_event)
+                for domain_event, tracking in self.processing_queue.get():
+                    self.follower.process_event(domain_event, tracking)
         except Exception as e:
             self.error = e
             self.has_errored.set()
