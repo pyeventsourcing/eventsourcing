@@ -20,6 +20,19 @@ TIMEIT_FACTOR = int(os.environ.get("TEST_TIMEIT_FACTOR", default=10))
 
 
 class TestApplication(TestCase):
+    def test_name(self):
+        self.assertEqual(Application.name, "Application")
+
+        class MyApplication1(Application):
+            pass
+
+        self.assertEqual(MyApplication1.name, "MyApplication1")
+
+        class MyApplication2(Application):
+            name = "MyBoundedContext"
+
+        self.assertEqual(MyApplication2.name, "MyBoundedContext")
+
     def test_resolve_persistence_topics(self):
         # None specified.
         app = Application()

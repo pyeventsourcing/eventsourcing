@@ -194,9 +194,8 @@ class Leader(Application[TAggregate]):
         Prompts followers by calling their :func:`~Promptable.receive_prompt`
         methods with the name of the application.
         """
-        name = self.__class__.__name__
         for follower in self.followers:
-            follower.receive_prompt(name)
+            follower.receive_prompt(self.name)
 
 
 class ProcessApplication(Leader[TAggregate], Follower[TAggregate], ABC):
@@ -221,7 +220,7 @@ class System:
         for pipe in pipes:
             follower_cls = None
             for cls in pipe:
-                nodes[cls.__name__] = cls
+                nodes[cls.name] = cls
                 if follower_cls is None:
                     follower_cls = cls
                 else:
@@ -229,8 +228,8 @@ class System:
                     follower_cls = cls
                     edges.add(
                         (
-                            leader_cls.__name__,
-                            follower_cls.__name__,
+                            leader_cls.name,
+                            follower_cls.name,
                         )
                     )
 
@@ -285,7 +284,7 @@ class System:
             return cls
         else:
             cls = type(
-                cls.__name__,
+                cls.name,
                 (Leader, cls),
                 {},
             )
@@ -327,7 +326,7 @@ class Runner(ABC):
         """
 
     @abstractmethod
-    def get(self, cls: Type[A]) -> A:
+    def get(self, cls: Type[Application[Aggregate]]) -> Application[Aggregate]:
         """
         Returns an application instance for given application class.
         """
@@ -348,6 +347,12 @@ class PullingThreadError(Exception):
 class ProcessingThreadError(Exception):
     """
     Raised when event processing thread fails.
+    """
+
+
+class ProcessingError(Exception):
+    """
+    Raised when event processing fails.
     """
 
 
@@ -432,8 +437,8 @@ class SingleThreadedRunner(Runner, Promptable):
     def stop(self) -> None:
         self.apps.clear()
 
-    def get(self, cls: Type[A]) -> A:
-        app = self.apps[cls.__name__]
+    def get(self, cls: Type[Application[Aggregate]]) -> Application[Aggregate]:
+        app = self.apps[cls.name]
         assert isinstance(app, cls)
         return app
 
@@ -514,7 +519,7 @@ class MultiThreadedRunner(Runner):
             follower = self.apps[follower_name]
             assert isinstance(leader, Leader)
             assert isinstance(follower, Follower)
-            follower.follow(leader.__class__.__name__, leader.log)
+            follower.follow(leader.name, leader.log)
             prompted_event = Event()
             pulling_thread = PullingThread(
                 processing_queue=self.processing_queues[follower_name],
@@ -546,8 +551,8 @@ class MultiThreadedRunner(Runner):
                     *processing.error.args
                 ) from processing.error
 
-    def get(self, cls: Type[A]) -> A:
-        app = self.apps[cls.__name__]
+    def get(self, cls: Type[Application[Aggregate]]) -> Application[Aggregate]:
+        app = self.apps[cls.name]
         assert isinstance(app, cls)
         return app
 
@@ -623,7 +628,13 @@ class ProcessingThread(Thread):
         try:
             while True:
                 for domain_event, tracking in self.processing_queue.get():
-                    self.follower.process_event(domain_event, tracking)
+                    try:
+                        self.follower.process_event(domain_event, tracking)
+                    except Exception as e:
+                        raise ProcessingError(
+                            f"Error processing event: {domain_event} "
+                            f"tracking {tracking}: {e}"
+                        ) from e
         except Exception as e:
             self.error = e
             self.has_errored.set()

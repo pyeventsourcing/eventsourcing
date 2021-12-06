@@ -196,9 +196,9 @@ class TestMultiThreadedRunner(RunnerTestCase):
         # Check stop() raises exception.
         with self.assertRaises(ProcessingThreadError) as cm:
             runner.stop()
-        self.assertEqual(
-            cm.exception.args[0],
+        self.assertIn(
             "Just testing error handling when processing is broken",
+            cm.exception.args[0],
         )
 
     def test_watch_for_errors_raises_if_app_pulling_is_broken(self):
@@ -249,9 +249,9 @@ class TestMultiThreadedRunner(RunnerTestCase):
         # Check watch_for_errors() raises exception.
         with self.assertRaises(ProcessingThreadError) as cm:
             runner.watch_for_errors()
-        self.assertEqual(
-            cm.exception.args[0],
+        self.assertIn(
             "Just testing error handling when processing is broken",
+            cm.exception.args[0],
         )
 
 

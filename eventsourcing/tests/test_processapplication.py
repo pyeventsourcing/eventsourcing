@@ -29,7 +29,7 @@ class TestProcessApplication(TestCase):
         accounts = leader_cls()
         notifications = EmailNotifications()
         notifications.follow(
-            accounts.__class__.__name__,
+            accounts.name,
             accounts.log,
         )
 

@@ -311,6 +311,11 @@ class Application(ABC, Generic[TAggregate]):
     is_snapshotting_enabled: bool = False
     snapshotting_intervals: Optional[Dict[Type[Aggregate], int]] = None
     log_section_size = 10
+    name = "Application"
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        if "name" not in cls.__dict__:
+            cls.name = cls.__name__
 
     def __init__(self, env: Optional[EnvType] = None) -> None:
         """
@@ -330,10 +335,6 @@ class Application(ABC, Generic[TAggregate]):
         self.snapshots = self.construct_snapshot_store()
         self.repository = self.construct_repository()
         self.log = self.construct_notification_log()
-
-    @property
-    def name(self) -> str:
-        return self.__class__.__name__
 
     def construct_env(self, name: str, env: Optional[EnvType] = None) -> Environment:
         """
