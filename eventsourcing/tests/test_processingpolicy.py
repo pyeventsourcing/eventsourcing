@@ -27,7 +27,7 @@ def policy_legacy_save(domain_event, process_event: ProcessEvent):
             subject="Your New Account",
             message="Dear {}".format(domain_event.full_name),
         )
-        process_event.collect_events(notification)
+        process_event.save(notification)
 
 
 class TestProcessingPolicy(TestCase):

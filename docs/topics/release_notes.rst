@@ -38,7 +38,9 @@ support for selecting event notifications that match a list of topics
 Added support for mentioning 'id' in aggregate init method when using
 explicitly defined event classes (previously this only worked with
 implicitly defined event classes). Stopped including tests and example
-packages in the distribution.
+packages in the distribution. Renamed ProcessEvent.collect_events()
+method (previously was called save() which is still supported but
+deprecated).
 
 
 Version 9.1.9 (released 5 December 2021)

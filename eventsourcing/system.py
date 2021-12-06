@@ -93,8 +93,8 @@ class Follower(Application[TAggregate]):
         and the position in its notification log from which the
         domain event notification was pulled. The policy will
         save aggregates to the process event object, using its
-        :func:`~ProcessEvent.save` method, which collects pending
-        domain events using the aggregates'
+        :func:`~ProcessEvent.collect_events` method, which collects
+        pending domain events using the aggregates'
         :func:`~eventsourcing.domain.Aggregate.collect_events`
         method, and the process event object will then be recorded
         by calling the :func:`record` method.
@@ -138,7 +138,7 @@ class Follower(Application[TAggregate]):
         Abstract domain event processing policy method. Must be
         implemented by event processing applications. When
         processing the given domain event, event processing
-        applications must use the :func:`~ProcessEvent.save`
+        applications must use the :func:`~ProcessEvent.collect_events`
         method of the given process event object (instead of
         the application's :func:`~eventsourcing.application.Application.save`
         method) to collect pending events from changed aggregates,
