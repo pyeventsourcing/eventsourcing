@@ -16,11 +16,22 @@ def policy(domain_event, process_event: ProcessEvent):
             subject="Your New Account",
             message="Dear {}".format(domain_event.full_name),
         )
-        process_event.save(notification)
+        process_event.collect_events(notification)
+
+
+@singledispatch
+def policy_legacy_save(domain_event, process_event: ProcessEvent):
+    if isinstance(domain_event, BankAccount.Opened):
+        notification = EmailNotification.create(
+            to=domain_event.email_address,
+            subject="Your New Account",
+            message="Dear {}".format(domain_event.full_name),
+        )
+        process_event.collect_events(notification)
 
 
 class TestProcessingPolicy(TestCase):
-    def test(self):
+    def test_policy(self):
         # Open an account.
         account = BankAccount.open(
             full_name="Alice",
@@ -37,6 +48,30 @@ class TestProcessingPolicy(TestCase):
         )
 
         policy(created_event, process_event)
+
+        self.assertEqual(len(process_event.events), 1)
+        self.assertIsInstance(
+            process_event.events[0],
+            EmailNotification.Created,
+        )
+
+    def test_legacy_save(self):
+        # Open an account.
+        account = BankAccount.open(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+        events = account.collect_events()
+        created_event = events[0]
+
+        process_event = ProcessEvent(
+            tracking=Tracking(
+                application_name="upstream_app",
+                notification_id=5,
+            )
+        )
+
+        policy_legacy_save(created_event, process_event)
 
         self.assertEqual(len(process_event.events), 1)
         self.assertIsInstance(

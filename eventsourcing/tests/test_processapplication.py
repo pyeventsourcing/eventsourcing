@@ -81,7 +81,7 @@ class EmailNotifications(ProcessApplication):
             subject="Your New Account",
             message="Dear {}, ...".format(domain_event.full_name),
         )
-        process_event.save(notification)
+        process_event.collect_events(notification)
 
 
 class PromptForwarder(Promptable):

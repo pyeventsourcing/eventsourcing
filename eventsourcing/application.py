@@ -284,22 +284,34 @@ class ProcessEvent:
         self.aggregates: Dict[UUID, Aggregate] = {}
         self.saved_kwargs: Dict[Any, Any] = {}
 
+    def collect_events(
+        self,
+        *objs: Optional[Union[Aggregate, AggregateEvent[Aggregate]]],
+        **kwargs: Any,
+    ) -> None:
+        """
+        Collects pending domain events from the given aggregate.
+        """
+        for obj in objs:
+            if isinstance(obj, AggregateEvent):
+                self.events.append(obj)
+            elif isinstance(obj, Aggregate):
+                self.aggregates[obj.id] = obj
+                for event in obj.collect_events():
+                    self.events.append(event)
+        self.saved_kwargs.update(kwargs)
+
     def save(
         self,
         *aggregates: Optional[Union[Aggregate, AggregateEvent[Aggregate]]],
         **kwargs: Any,
     ) -> None:
         """
+        DEPRECATED, in favour of collect(). Will be removed in future version.
+
         Collects pending domain events from the given aggregate.
         """
-        for aggregate in aggregates:
-            if isinstance(aggregate, AggregateEvent):
-                self.events.append(aggregate)
-            elif isinstance(aggregate, Aggregate):
-                self.aggregates[aggregate.id] = aggregate
-                for event in aggregate.collect_events():
-                    self.events.append(event)
-        self.saved_kwargs.update(kwargs)
+        self.collect_events(*aggregates, **kwargs)
 
 
 class Application(ABC, Generic[TAggregate]):
@@ -432,7 +444,7 @@ class Application(ABC, Generic[TAggregate]):
 
     def save(
         self,
-        *aggregates: Optional[Union[TAggregate, AggregateEvent[Aggregate]]],
+        *objs: Optional[Union[TAggregate, AggregateEvent[Aggregate]]],
         **kwargs: Any,
     ) -> Optional[int]:
         """
@@ -440,7 +452,7 @@ class Application(ABC, Generic[TAggregate]):
         puts them in the application's event store.
         """
         process_event = ProcessEvent()
-        process_event.save(*aggregates, **kwargs)
+        process_event.collect_events(*objs, **kwargs)
         returning = self.record(process_event)
         self.take_snapshots(process_event)
         self.notify(process_event.events)
