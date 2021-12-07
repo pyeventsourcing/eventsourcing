@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from queue import Queue
-from threading import Event, Thread
+from threading import Event, RLock, Thread
 from typing import (
     Dict,
     Iterable,
@@ -57,6 +57,7 @@ class Follower(Application[TAggregate]):
         ] = {}
         self.recorder: ProcessRecorder
         self.is_threading_enabled = False
+        self.processing_lock = RLock()
 
     def construct_recorder(self) -> ProcessRecorder:
         """
@@ -122,8 +123,9 @@ class Follower(Application[TAggregate]):
         self, domain_event: AggregateEvent[TAggregate], tracking: Tracking
     ) -> Optional[int]:
         process_event = ProcessEvent(tracking=tracking)
-        self.policy(domain_event, process_event)
-        returning = self.record(process_event)
+        with self.processing_lock:
+            self.policy(domain_event, process_event)
+            returning = self.record(process_event)
         self.take_snapshots(process_event)
         self.notify(process_event.events)
         return returning
