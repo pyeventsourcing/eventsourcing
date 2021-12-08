@@ -23,8 +23,15 @@ class TestMetaAggregate(TestCase):
         self.assertTrue(issubclass(Aggregate._created_event_class, AggregateCreated))
         self.assertEqual(Aggregate._created_event_class, Aggregate.Created)
 
-    def test_aggregate_subclass_is_a_dataclass(self):
-        # No dataclass decorator.
+    def test_aggregate_subclass_is_a_dataclass_iff_decorated_or_has_annotations(self):
+        # No dataclass decorator, no annotations.
+        class MyAggregate(Aggregate):
+            pass
+
+        self.assertFalse("__dataclass_params__" in MyAggregate.__dict__)
+
+        # Has a dataclass decorator (helps IDE know what's going on with annotations).
+        @dataclass
         class MyAggregate(Aggregate):
             pass
 
@@ -32,10 +39,10 @@ class TestMetaAggregate(TestCase):
         self.assertIsInstance(MyAggregate.__dataclass_params__, _DataclassParams)
         self.assertFalse(MyAggregate.__dataclass_params__.frozen)
 
-        # Has a dataclass decorator (helps IDE know what's going on).
+        # Has annotations but no decorator.
         @dataclass
         class MyAggregate(Aggregate):
-            pass
+            a: int
 
         self.assertTrue("__dataclass_params__" in MyAggregate.__dict__)
         self.assertIsInstance(MyAggregate.__dataclass_params__, _DataclassParams)
@@ -1075,6 +1082,21 @@ class TestAggregateEventsAreSubclassed(TestCase):
         self.assertTrue(issubclass(MyAggregate.Started, MyAggregate.Event))
         self.assertTrue(issubclass(MyAggregate.Ended, MyAggregate.Event))
         self.assertEqual(MyAggregate._created_event_class, MyAggregate.Started)
+
+        class MySubclass(MyAggregate):
+            class Opened(MyAggregate.Started):
+                pass
+
+        self.assertTrue(MySubclass.Event.__qualname__.endswith("MySubclass.Event"))
+        self.assertTrue(MySubclass.Created.__qualname__.endswith("MySubclass.Created"))
+        self.assertTrue(
+            MySubclass.Started.__qualname__.endswith("MySubclass.Started"),
+            MySubclass.Started.__qualname__,
+        )
+        self.assertTrue(
+            MySubclass.Ended.__qualname__.endswith("MySubclass.Ended"),
+            MySubclass.Ended.__qualname__,
+        )
 
 
 class TestBankAccount(TestCase):

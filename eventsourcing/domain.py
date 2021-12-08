@@ -624,13 +624,20 @@ class MetaAggregate(ABCMeta):
 
     def __new__(mcs: Type[TT], *args: Any, **kwargs: Any) -> TT:
         try:
-            args[2]["__annotations__"].pop("id")
+            class_annotations = args[2]["__annotations__"]
         except KeyError:
+            class_annotations = None
             annotations_mention_id = False
         else:
-            annotations_mention_id = True
+            try:
+                class_annotations.pop("id")
+            except KeyError:
+                annotations_mention_id = False
+            else:
+                annotations_mention_id = True
         cls = ABCMeta.__new__(mcs, *args)
-        cls = dataclass(eq=False, repr=False)(cls)
+        if class_annotations:
+            cls = dataclass(eq=False, repr=False)(cls)
         if annotations_mention_id:
             _annotations_mention_id.add(cls)
         return cls
@@ -652,7 +659,7 @@ class MetaAggregate(ABCMeta):
             )
             setattr(cls, base_event_name, base_event_cls)
 
-        # Make sure all aggregate event classes are subclasses of base event class.
+        # Make sure all events defined on aggregate subclass the base event class.
         for name, value in tuple(cls.__dict__.items()):
             if name == base_event_name:
                 # Don't subclass the base event class again.
@@ -692,7 +699,7 @@ class MetaAggregate(ABCMeta):
             )
 
         # Is the init method method decorated with a CommandMethodDecorator?
-        if isinstance(cls.__dict__["__init__"], CommandMethodDecorator):
+        if isinstance(cls.__dict__.get("__init__"), CommandMethodDecorator):
             init_decorator: CommandMethodDecorator = cls.__dict__["__init__"]
 
             # Set the original method on the class (un-decorate __init__).
@@ -736,7 +743,7 @@ class MetaAggregate(ABCMeta):
 
         # Todo: Write a test to cover this when "Created" class is explicitly defined.
         # Check if init mentions ID.
-        for param_name in inspect.signature(cls.__dict__["__init__"]).parameters:
+        for param_name in inspect.signature(cls.__init__).parameters:  # type: ignore
             if param_name == "id":
                 _init_mentions_id.add(cls)
                 break
@@ -767,10 +774,17 @@ class MetaAggregate(ABCMeta):
                     # This is safe because len(created_event_classes) == 0.
                     created_event_name = "Created"
 
-                # Disallow init method to have variable params if
+                # Disallow init method from having variable params if
                 # we are using it to define a "created" event class.
-                init_method = cls.__dict__["__init__"]
-                _check_no_variable_params(init_method)
+                try:
+                    init_method = cls.__dict__["__init__"]
+                except KeyError:
+                    init_method = None
+                else:
+                    try:
+                        _check_no_variable_params(init_method)
+                    except TypeError:
+                        raise
 
                 # Define a "created" event class for this aggregate.
                 if issubclass(cls.Created, base_event_cls):
@@ -879,6 +893,20 @@ class MetaAggregate(ABCMeta):
         for name, param in inspect.signature(cls.create_id).parameters.items():
             if param.kind in [param.KEYWORD_ONLY, param.POSITIONAL_OR_KEYWORD]:
                 cls._create_id_param_names.append(name)
+
+        # Define event classes for all events on bases.
+        for aggregate_base_class in args[1]:
+            for name, value in aggregate_base_class.__dict__.items():
+                if (
+                    isinstance(value, type)
+                    and issubclass(value, AggregateEvent)
+                    and name not in cls.__dict__
+                    and name.lower() != name
+                ):
+                    sub_class = cls._define_event_class(
+                        name, (base_event_cls, value), None
+                    )
+                    setattr(cls, name, sub_class)
 
     def _define_event_class(
         cls,
