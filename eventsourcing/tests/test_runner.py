@@ -191,7 +191,7 @@ class TestMultiThreadedRunner(RunnerTestCase):
         )
 
         # Wait for runner to stop.
-        runner.has_errored.wait()
+        self.assertTrue(runner.has_errored.wait(timeout=1))
 
         # Check stop() raises exception.
         with self.assertRaises(ProcessingThreadError) as cm:

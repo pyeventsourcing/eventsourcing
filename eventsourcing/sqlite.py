@@ -153,7 +153,7 @@ class SQLiteDatastore:
             c.close()
         self.connections.clear()
 
-    def close(self):
+    def close(self) -> None:
         self.close_all_connections()
 
     def __del__(self) -> None:
@@ -467,5 +467,5 @@ class Factory(InfrastructureFactory):
         default = "yes"
         return bool(strtobool(self.env.get(self.CREATE_TABLE, default) or default))
 
-    def close(self):
+    def close(self) -> None:
         self.datastore.close()

@@ -221,7 +221,7 @@ class PostgresDatastore:
                 c.execute("SELECT * from pg_prepared_statements")
                 return c.fetchall(), conn.is_prepared
 
-    def close(self):
+    def close(self) -> None:
         self.close_all_connections()
 
     def __del__(self) -> None:
@@ -790,5 +790,5 @@ class Factory(InfrastructureFactory):
     def env_create_table(self) -> bool:
         return strtobool(self.env.get(self.CREATE_TABLE) or "yes")
 
-    def close(self):
+    def close(self) -> None:
         self.datastore.close()

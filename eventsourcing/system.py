@@ -15,6 +15,7 @@ from typing import (
     Tuple,
     Type,
     TypeVar,
+    Union,
     cast,
 )
 
@@ -23,6 +24,7 @@ from eventsourcing.application import (
     NotificationLog,
     ProcessEvent,
     Section,
+    TApplication,
 )
 from eventsourcing.domain import Aggregate, AggregateEvent, TAggregate
 from eventsourcing.persistence import (
@@ -328,7 +330,7 @@ class Runner(ABC):
         """
 
     @abstractmethod
-    def get(self, cls: Type[Application[Aggregate]]) -> Application[Aggregate]:
+    def get(self, cls: Type[TApplication]) -> TApplication:
         """
         Returns an application instance for given application class.
         """
@@ -441,13 +443,13 @@ class SingleThreadedRunner(Runner, Promptable):
             app.close()
         self.apps.clear()
 
-    def get(self, cls: Type[Application[Aggregate]]) -> Application[Aggregate]:
+    def get(self, cls: Type[TApplication]) -> TApplication:
         app = self.apps[cls.name]
         assert isinstance(app, cls)
         return app
 
 
-ProcessingJob = List[Tuple[AggregateEvent[Aggregate], Tracking]]
+ProcessingJob = Iterable[Optional[Tuple[AggregateEvent[Aggregate], Tracking]]]
 
 
 class MultiThreadedRunner(Runner):
@@ -473,6 +475,7 @@ class MultiThreadedRunner(Runner):
         self.pulling_threads: Dict[str, Dict[str, PullingThread]] = {}
         self.processing_threads: Dict[str, ProcessingThread] = {}
         self.processing_queues: Dict[str, "Queue[ProcessingJob]"] = {}
+        self.all_threads: List[Union[PullingThread, ProcessingThread]] = []
         self.has_errored = Event()
 
     def start(self) -> None:
@@ -507,6 +510,7 @@ class MultiThreadedRunner(Runner):
                 follower=app,
                 has_errored=self.has_errored,
             )
+            self.all_threads.append(processing_thread)
             processing_thread.start()
             self.processing_threads[name] = processing_thread
             self.pulling_threads[name] = {}
@@ -532,6 +536,7 @@ class MultiThreadedRunner(Runner):
                 leader_name=leader_name,
                 has_errored=self.has_errored,
             )
+            self.all_threads.append(pulling_thread)
             pulling_thread.start()
             self.pulling_threads[follower_name][leader_name] = pulling_thread
             leader.lead(pulling_thread)
@@ -541,6 +546,10 @@ class MultiThreadedRunner(Runner):
         self.stop()
 
     def stop(self) -> None:
+        for thread in self.all_threads:
+            thread.stop()
+        for thread in self.all_threads:
+            thread.join(timeout=2)
         for app in self.apps.values():
             app.close()
         self.apps.clear()
@@ -557,7 +566,7 @@ class MultiThreadedRunner(Runner):
                     *processing.error.args
                 ) from processing.error
 
-    def get(self, cls: Type[Application[Aggregate]]) -> Application[Aggregate]:
+    def get(self, cls: Type[TApplication]) -> TApplication:
         app = self.apps[cls.name]
         assert isinstance(app, cls)
         return app
@@ -588,14 +597,14 @@ class PullingThread(Promptable, Thread):
         self.leader_name = leader_name
         self.error: Optional[Exception] = None
         self.has_errored = has_errored
+        self.is_stopping = Event()
 
     def run(self) -> None:
         last_notification_id = self.follower.recorder.max_tracking_id(self.leader_name)
         try:
-            while True:
-                self.prompted_event.wait()
-                seen_nothing = False
-                while not seen_nothing:
+            while self.prompted_event.wait(timeout=1) and not self.is_stopping.is_set():
+                pulled_nothing = False
+                while not pulled_nothing and not self.is_stopping.is_set():
                     self.prompted_event.clear()
                     start = last_notification_id + 1
                     job = list(self.follower.pull_events(self.leader_name, start))
@@ -603,12 +612,16 @@ class PullingThread(Promptable, Thread):
                         self.processing_queue.put(job)
                         last_notification_id = job[-1][1].notification_id
                     else:
-                        seen_nothing = True
+                        pulled_nothing = True
         except Exception as e:
             self.error = e
             self.has_errored.set()
 
     def receive_prompt(self, leader_name: str) -> None:
+        self.prompted_event.set()
+
+    def stop(self) -> None:
+        self.is_stopping.set()
         self.prompted_event.set()
 
 
@@ -629,11 +642,16 @@ class ProcessingThread(Thread):
         self.follower = follower
         self.error: Optional[Exception] = None
         self.has_errored = has_errored
+        self.is_stopping = Event()
 
     def run(self) -> None:
         try:
-            while True:
-                for domain_event, tracking in self.processing_queue.get():
+            while not self.is_stopping.is_set():
+                for job in self.processing_queue.get():
+                    if job is None:
+                        break
+                    else:
+                        domain_event, tracking = job
                     try:
                         self.follower.process_event(domain_event, tracking)
                     except Exception as e:
@@ -644,6 +662,10 @@ class ProcessingThread(Thread):
         except Exception as e:
             self.error = e
             self.has_errored.set()
+
+    def stop(self) -> None:
+        self.is_stopping.set()
+        self.processing_queue.put([None])
 
 
 class NotificationLogReader:
