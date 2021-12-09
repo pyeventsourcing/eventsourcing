@@ -33,6 +33,7 @@ class TestApplicationWithPostgres(TestApplicationWithPOPO):
         )
         drop_postgres_table(db, "public.bankaccounts_events")
         drop_postgres_table(db, "public.bankaccounts_snapshots")
+        db.close()
 
     def tearDown(self) -> None:
         db = PostgresDatastore(
@@ -53,6 +54,7 @@ class TestApplicationWithPostgres(TestApplicationWithPOPO):
         del os.environ["POSTGRES_USER"]
         del os.environ["POSTGRES_PASSWORD"]
         del os.environ["POSTGRES_SCHEMA"]
+        db.close()
 
         super().tearDown()
 

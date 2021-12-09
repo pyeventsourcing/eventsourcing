@@ -702,6 +702,11 @@ class InfrastructureFactory(ABC):
         """
         return strtobool(self.env.get(self.IS_SNAPSHOTTING_ENABLED, "no"))
 
+    def close(self) -> None:
+        """
+        Closes any database connections, or anything else that needs closing.
+        """
+
 
 @dataclass(frozen=True)
 class Tracking:

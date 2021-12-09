@@ -437,6 +437,8 @@ class SingleThreadedRunner(Runner, Promptable):
             self.is_prompting = False
 
     def stop(self) -> None:
+        for app in self.apps.values():
+            app.close()
         self.apps.clear()
 
     def get(self, cls: Type[Application[Aggregate]]) -> Application[Aggregate]:
@@ -539,6 +541,8 @@ class MultiThreadedRunner(Runner):
         self.stop()
 
     def stop(self) -> None:
+        for app in self.apps.values():
+            app.close()
         self.apps.clear()
         self.reraise_thread_errors()
 

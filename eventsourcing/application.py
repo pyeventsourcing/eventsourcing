@@ -512,6 +512,9 @@ class Application(ABC, Generic[TAggregate]):
         need to take action when new domain events have been saved.
         """
 
+    def close(self) -> None:
+        self.factory.close()
+
 
 TApplication = TypeVar("TApplication", bound=Application[Aggregate])
 
