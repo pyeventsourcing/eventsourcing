@@ -954,8 +954,10 @@ class NotificationLogReader:
             notifications = self.notification_log.select(
                 start, self.section_size, topics=topics
             )
-            if notifications:
-                yield notifications
-                start = notifications[-1].id + 1
-            else:
+            # Stop if zero notifications.
+            if len(notifications) == 0:
                 break
+
+            # Otherwise yield and continue.
+            yield notifications
+            start = notifications[-1].id + 1
