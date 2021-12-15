@@ -1,8 +1,18 @@
-import threading
+from contextlib import contextmanager
 from itertools import chain
-from threading import Event, Timer
+from threading import Event, Lock, Timer
 from types import TracebackType
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union
+from typing import (
+    Any,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
+)
 from uuid import UUID
 
 import psycopg2
@@ -10,6 +20,7 @@ import psycopg2.errors
 import psycopg2.extras
 from psycopg2.errorcodes import DUPLICATE_PREPARED_STATEMENT
 from psycopg2.extensions import connection, cursor
+from psycopg2.pool import PoolError, ThreadedConnectionPool
 
 from eventsourcing.persistence import (
     AggregateRecorder,
@@ -35,42 +46,214 @@ psycopg2.extras.register_uuid()
 
 
 class Connection:
-    def __init__(self, c: connection, max_age: Optional[float]):
-        self.c = c
-        self.max_age = max_age
-        self.is_idle = Event()
-        self.is_closing = Event()
-        self.timer: Optional[Timer]
+    def __init__(self, pg_conn: connection, max_age: Optional[float]):
+        self._pg_conn = pg_conn
+        self._max_age = max_age
+        self._is_idle = Event()
+        self._is_closing = Event()
+        self._close_lock = Lock()
+        self._timer: Optional[Timer]
+        self._was_closed_by_timer = False
         if max_age is not None:
-            self.timer = Timer(interval=max_age, function=self.close_on_timer)
-            self.timer.daemon = True
-            self.timer.start()
+            self._timer = Timer(interval=max_age, function=self.close_on_timer)
+            self._timer.daemon = True
+            self._timer.start()
         else:
-            self.timer = None
+            self._timer = None
         self.is_prepared: Dict[str, bool] = {}
 
-    def cursor(self) -> cursor:
-        return self.c.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
-    def rollback(self) -> None:
-        self.c.rollback()
-
-    def commit(self) -> None:
-        self.c.commit()
-
-    def close_on_timer(self) -> None:
-        self.close()
-
-    def close(self, timeout: Optional[float] = None) -> None:
-        if self.timer is not None:
-            self.timer.cancel()
-        self.is_closing.set()
-        self.is_idle.wait(timeout=timeout)
-        self.c.close()
+    @contextmanager
+    def transaction(self, commit: bool) -> Iterator[cursor]:
+        # Context managed transaction.
+        with Transaction(self, commit) as curs:
+            # Context managed cursor.
+            with curs:
+                yield curs
 
     @property
-    def is_closed(self) -> bool:
-        return self.c.closed
+    def info(self) -> Any:
+        return self._pg_conn.info
+
+    @property
+    def is_idle(self) -> bool:
+        return self._is_idle.is_set()
+
+    def set_is_idle(self) -> None:
+        self._is_idle.set()
+
+    def set_not_idle(self) -> None:
+        self._is_idle.clear()
+
+    def wait_until_idle(self, timeout: Optional[float]) -> None:
+        self._is_idle.wait(timeout)
+
+    @property
+    def is_closing(self) -> bool:
+        return self._is_closing.is_set()
+
+    def cursor(self) -> cursor:
+        return self._pg_conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+    def rollback(self) -> None:
+        self._pg_conn.rollback()
+
+    def commit(self) -> None:
+        self._pg_conn.commit()
+
+    def close_on_timer(self) -> None:
+        self._is_closing.set()
+        self.wait_until_idle(timeout=None)
+        self._was_closed_by_timer = True
+        self.close()
+
+    def set_is_closing(self) -> None:
+        self._is_closing.set()
+
+    def close(self) -> None:
+        with self._close_lock:
+            if self._timer is not None:
+                self._timer.cancel()
+            self._is_closing.set()
+            self._pg_conn.close()
+
+    @property
+    def closed(self) -> bool:
+        return self._pg_conn.closed
+
+    @property
+    def was_closed_by_timer(self) -> bool:
+        return self._was_closed_by_timer
+
+
+class ConnectionPoolClosed(Exception):
+    pass
+
+
+class ConnectionPoolExhaustedError(OperationalError):
+    pass
+
+
+class ConnectionPoolUnkeyedConnectionError(Exception):
+    pass
+
+
+class ConnectionPool(ThreadedConnectionPool):
+    def __init__(
+        self,
+        dbname: str,
+        host: str,
+        port: str,
+        user: str,
+        password: str,
+        max_age: Optional[float] = None,
+        pre_ping: bool = False,
+        idle_in_transaction_session_timeout: int = 0,
+        min_conn: int = 0,
+        max_conn: int = 20,
+    ):
+        self.dbname = dbname
+        self.host = host
+        self.port = port
+        self.user = user
+        self.password = password
+        self.max_age = max_age
+        self.pre_ping = pre_ping
+        self.idle_in_transaction_session_timeout = idle_in_transaction_session_timeout
+        super().__init__(minconn=min_conn, maxconn=max_conn)
+
+    @property
+    def max_conn(self) -> int:
+        return self.maxconn
+
+    @max_conn.setter
+    def max_conn(self, value: int) -> None:
+        self.maxconn = value
+
+    @property
+    def min_conn(self) -> int:
+        return self.minconn
+
+    @min_conn.setter
+    def min_conn(self, value: int) -> None:
+        self.minconn = value
+
+    def close(self) -> None:
+        try:
+            self.closeall()
+        except PoolError:
+            pass
+
+    def get(self) -> Connection:
+        return self.getconn()
+
+    def _getconn(self, key: Any = None) -> Connection:
+        while True:
+
+            try:
+                conn: Connection = super()._getconn(key)
+            except PoolError as e:
+                # Catch and inspect any 'PoolError' from psycopg2.
+                err_str = str(e)
+
+                # If the pool is closed, quit and don't retry.
+                if "closed" in err_str:
+                    raise ConnectionPoolClosed(err_str) from e
+
+                # If pool exhausted, quit to release lock before retrying.
+                assert "exhausted" in err_str
+                raise ConnectionPoolExhaustedError(err_str) from e
+
+            # Check for closed or dysfunctional connections.
+            if conn.closed or conn.is_closing:
+                super()._putconn(conn, close=True)
+                continue
+            elif self.pre_ping:
+                try:
+                    conn.cursor().execute("SELECT 1")
+                except psycopg2.Error:
+                    super()._putconn(conn, close=True)
+                    continue
+
+            conn.set_not_idle()
+            return conn
+
+    def put(self, conn: Connection, close: bool = False) -> None:
+        conn.set_is_idle()
+        try:
+            return self.putconn(conn, close=close or conn.is_closing)
+        except PoolError as e:
+            raise ConnectionPoolUnkeyedConnectionError() from e
+
+    def _connect(self, key: Any = None) -> Connection:
+        """
+        Create a new connection and assign it to 'key' if not None.
+        """
+        conn = self._create_connection()
+        if key is not None:
+            self._used[key] = conn
+            self._rused[id(conn)] = key
+        else:
+            self._pool.append(conn)
+        return conn
+
+    def _create_connection(self) -> Connection:
+        # Make a connection to a database.
+        try:
+            pg_conn = psycopg2.connect(
+                dbname=self.dbname,
+                host=self.host,
+                port=self.port,
+                user=self.user,
+                password=self.password,
+                connect_timeout=5,
+            )
+        except psycopg2.OperationalError as e:
+            raise OperationalError(e) from e
+        pg_conn.cursor().execute(
+            f"SET idle_in_transaction_session_timeout = "
+            f"'{self.idle_in_transaction_session_timeout}s'"
+        )
+        return Connection(pg_conn, max_age=self.max_age)
 
 
 class Transaction:
@@ -80,9 +263,9 @@ class Transaction:
         self.commit = commit
         self.has_entered = False
 
-    def __enter__(self) -> Connection:
+    def __enter__(self) -> cursor:
         self.has_entered = True
-        return self.c
+        return self.c.cursor()
 
     def __exit__(
         self,
@@ -99,31 +282,28 @@ class Transaction:
             else:
                 self.c.commit()
         except psycopg2.InterfaceError as e:
-            self.c.close(timeout=0)
-            raise InterfaceError(e)
+            self.c.close()
+            raise InterfaceError(str(e)) from e
         except psycopg2.DataError as e:
-            raise DataError(e)
+            raise DataError(str(e)) from e
         except psycopg2.OperationalError as e:
-            self.c.close(timeout=0)
-            raise OperationalError(e)
+            self.c.close()
+            raise OperationalError(str(e)) from e
         except psycopg2.IntegrityError as e:
-            raise IntegrityError(e)
+            raise IntegrityError(str(e)) from e
         except psycopg2.InternalError as e:
-            raise InternalError(e)
+            raise InternalError(str(e)) from e
         except psycopg2.ProgrammingError as e:
-            raise ProgrammingError(e)
+            raise ProgrammingError(str(e)) from e
         except psycopg2.NotSupportedError as e:
-            raise NotSupportedError(e)
+            raise NotSupportedError(str(e)) from e
         except psycopg2.DatabaseError as e:
-            raise DatabaseError(e)
+            raise DatabaseError(str(e)) from e
         except psycopg2.Error as e:
-            raise PersistenceError(e)
-        finally:
-            self.c.is_idle.set()
+            raise PersistenceError(str(e)) from e
 
     def __del__(self) -> None:
         if not self.has_entered:
-            self.c.is_idle.set()
             raise RuntimeWarning(f"Transaction {self} was not used as context manager")
 
 
@@ -139,93 +319,52 @@ class PostgresDatastore:
         pre_ping: bool = False,
         lock_timeout: int = 0,
         idle_in_transaction_session_timeout: int = 0,
+        min_conn: int = 0,
+        max_conn: int = 20,
         schema: str = "",
     ):
-        self.dbname = dbname
-        self.host = host
-        self.port = port
-        self.user = user
-        self.password = password
-        self.conn_max_age = conn_max_age
-        self.pre_ping = pre_ping
+        self.pool = ConnectionPool(
+            dbname=dbname,
+            host=host,
+            port=port,
+            user=user,
+            password=password,
+            max_age=conn_max_age,
+            pre_ping=pre_ping,
+            idle_in_transaction_session_timeout=idle_in_transaction_session_timeout,
+            min_conn=min_conn,
+            max_conn=max_conn,
+        )
         self.lock_timeout = lock_timeout
-        self.idle_in_transaction_session_timeout = idle_in_transaction_session_timeout
         self.schema = schema.strip()
-        self._connections: Dict[int, Connection] = {}
 
-    def transaction(self, commit: bool) -> Transaction:
-        return Transaction(self.get_connection(), commit=commit)
+    @contextmanager
+    def transaction(self, commit: bool) -> Iterator[cursor]:
+        with self.get_connection() as conn:
+            with conn.transaction(commit) as curs:
+                yield curs
 
-    def get_connection(self) -> Connection:
-        thread_id = threading.get_ident()
+    @contextmanager
+    def get_connection(self) -> Iterator[Connection]:
+        conn: Connection = self.pool.get()
         try:
-            conn = self._connections[thread_id]
-        except KeyError:
-            conn = self._create_connection(thread_id)
-        else:
-            conn.is_idle.clear()
-            if conn.is_closing.is_set() or conn.is_closed:
-                conn = self._create_connection(thread_id)
-            elif self.pre_ping:
-                try:
-                    conn.cursor().execute("SELECT 1")
-                except psycopg2.Error:
-                    conn = self._create_connection(thread_id)
-        return conn
-
-    def _create_connection(self, thread_id: int) -> Connection:
-        # Make a connection to a Postgres database.
-        try:
-            psycopg_c = psycopg2.connect(
-                dbname=self.dbname,
-                host=self.host,
-                port=self.port,
-                user=self.user,
-                password=self.password,
-                connect_timeout=5,
-            )
-            psycopg_c.cursor().execute(
-                f"SET idle_in_transaction_session_timeout = "
-                f"'{self.idle_in_transaction_session_timeout}s'"
-            )
-        except psycopg2.Error as e:
-            raise InterfaceError(e)
-        else:
-            c = Connection(
-                psycopg_c,
-                max_age=self.conn_max_age,
-            )
-            self._connections[thread_id] = c
-
-            return c
-
-    def close_connection(self) -> None:
-        thread_id = threading.get_ident()
-        try:
-            c = self._connections.pop(thread_id)
-        except KeyError:
-            pass
-        else:
-            c.close()
-
-    def close_all_connections(self, timeout: Optional[float] = None) -> None:
-        for c in self._connections.values():
-            c.close(timeout=timeout)
-        self._connections.clear()
+            yield conn
+        finally:
+            self.pool.putconn(conn)
 
     def report_on_prepared_statements(
         self,
     ) -> Tuple[List[List[Union[bool, str]]], Dict[str, bool]]:
-        with self.transaction(commit=True) as conn:
-            with conn.cursor() as c:
-                c.execute("SELECT * from pg_prepared_statements")
-                return c.fetchall(), conn.is_prepared
+        with self.get_connection() as conn:
+            with conn.cursor() as curs:
+                curs.execute("SELECT * from pg_prepared_statements")
+                return curs.fetchall(), conn.is_prepared
 
     def close(self) -> None:
-        self.close_all_connections()
+        self.pool.close()
 
     def __del__(self) -> None:
-        self.close_all_connections(timeout=1)
+        self.close()
 
 
 # noinspection SqlResolve
@@ -274,43 +413,45 @@ class PostgresAggregateRecorder(AggregateRecorder):
         return [statement]
 
     def create_table(self) -> None:
-        with self.datastore.transaction(commit=True) as conn:
-            with conn.cursor() as c:
-                for statement in self.create_table_statements:
-                    c.execute(statement)
-                pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
+        with self.datastore.transaction(commit=True) as curs:
+            for statement in self.create_table_statements:
+                curs.execute(statement)
+            pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
     def insert_events(
         self, stored_events: List[StoredEvent], **kwargs: Any
-    ) -> Optional[int]:
-        self._prepare_insert_events()
-        with self.datastore.transaction(commit=True) as conn:
-            with conn.cursor() as c:
-                return self._insert_events(c, stored_events, **kwargs)
+    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
+        with self.datastore.get_connection() as conn:
+            self._prepare_insert_events(conn)
+            with conn.transaction(commit=True) as curs:
+                return self._insert_events(curs, stored_events, **kwargs)
 
-    def _prepare_insert_events(self) -> None:
+    def _prepare_insert_events(self, conn: Connection) -> None:
         self._prepare(
+            conn,
             self.insert_events_statement_name,
             self.insert_events_statement,
         )
 
-    def _prepare(self, statement_name: str, statement: str) -> None:
-        if not self.datastore.get_connection().is_prepared.get(statement_name):
-            with self.datastore.transaction(commit=True) as conn:
-                with conn.cursor() as c:
-                    try:
-                        c.execute(f"PREPARE {statement_name} AS " + statement)
-                    except psycopg2.errors.lookup(DUPLICATE_PREPARED_STATEMENT):
-                        pass
-            conn.is_prepared[statement_name] = True
+    def _prepare(self, conn: Connection, statement_name: str, statement: str) -> None:
+        if not conn.is_prepared.get(statement_name):
+            curs: cursor
+            with conn.transaction(commit=True) as curs:
+                try:
+                    lock_timeout = self.datastore.lock_timeout
+                    curs.execute(f"SET LOCAL lock_timeout = '{lock_timeout}s'")
+                    curs.execute(f"PREPARE {statement_name} AS " + statement)
+                except psycopg2.errors.lookup(DUPLICATE_PREPARED_STATEMENT):
+                    pass
+                conn.is_prepared[statement_name] = True
 
     def _insert_events(
         self,
         c: cursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
-    ) -> Optional[int]:
+    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
         # Acquire "EXCLUSIVE" table lock, to serialize inserts so that
         # insertion of notification IDs is monotonic for notification log
         # readers. We want concurrent transactions to commit inserted
@@ -332,7 +473,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
 
         # Just do nothing here if there is nothing to do.
         if len_stored_events == 0:
-            return None
+            return []
 
         # Mogrify the table lock statements.
         lock_sqls = (c.mogrify(s) for s in self.lock_statements)
@@ -358,13 +499,13 @@ class PostgresAggregateRecorder(AggregateRecorder):
             )
         ]
         commands = [
-            b";".join(page) for page in chain([chain(lock_sqls, pages[0])], pages[1:])
+            b"; ".join(page) for page in chain([chain(lock_sqls, pages[0])], pages[1:])
         ]
 
         # Execute the commands.
         for command in commands:
             c.execute(command)
-        return None
+        return [(s, None) for s in stored_events]
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
     def select_events(
@@ -397,16 +538,18 @@ class PostgresAggregateRecorder(AggregateRecorder):
             parts.append(f"LIMIT ${len(params)}")
             statement_name += "_limit"
         statement = " ".join(parts)
-        self._prepare(statement_name, statement)
 
         stored_events = []
-        with self.datastore.transaction(commit=False) as conn:
-            with conn.cursor() as c:
-                c.execute(
+
+        with self.datastore.get_connection() as conn:
+            self._prepare(conn, statement_name, statement)
+
+            with conn.transaction(commit=False) as curs:
+                curs.execute(
                     f"EXECUTE {statement_name}({', '.join(['%s' for _ in params])})",
                     params,
                 )
-                for row in c.fetchall():
+                for row in curs.fetchall():
                     stored_events.append(
                         StoredEvent(
                             originator_id=row["originator_id"],
@@ -416,7 +559,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
                         )
                     )
                 pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
-        return stored_events
+            return stored_events
 
 
 # noinspection SqlResolve
@@ -493,29 +636,31 @@ class PostgresApplicationRecorder(
         Returns a list of event notifications
         from 'start', limited by 'limit'.
         """
-        if topics:
-            statement_name = self.select_notifications_filter_topics_statement_name
-            self._prepare(
-                statement_name, self.select_notifications_filter_topics_statement
-            )
-        else:
-            statement_name = self.select_notifications_statement_name
-            self._prepare(statement_name, self.select_notifications_statement)
-
         notifications = []
-        with self.datastore.transaction(commit=False) as conn:
-            with conn.cursor() as c:
+        with self.datastore.get_connection() as conn:
+            if topics:
+                statement_name = self.select_notifications_filter_topics_statement_name
+                self._prepare(
+                    conn,
+                    statement_name,
+                    self.select_notifications_filter_topics_statement,
+                )
+            else:
+                statement_name = self.select_notifications_statement_name
+                self._prepare(conn, statement_name, self.select_notifications_statement)
+
+            with conn.transaction(commit=False) as curs:
                 if topics:
-                    c.execute(
+                    curs.execute(
                         f"EXECUTE {statement_name}(%s, %s, %s)",
                         (start, topics, limit),
                     )
                 else:
-                    c.execute(
+                    curs.execute(
                         f"EXECUTE {statement_name}(%s, %s)",
                         (start, limit),
                     )
-                for row in c.fetchall():
+                for row in curs.fetchall():
                     notifications.append(
                         Notification(
                             id=row["notification_id"],
@@ -534,14 +679,13 @@ class PostgresApplicationRecorder(
         Returns the maximum notification ID.
         """
         statement_name = self.max_notification_id_statement_name
-        self._prepare(statement_name, self.max_notification_id_statement)
-
-        with self.datastore.transaction(commit=False) as conn:
-            with conn.cursor() as c:
-                c.execute(
+        with self.datastore.get_connection() as conn:
+            self._prepare(conn, statement_name, self.max_notification_id_statement)
+            with conn.transaction(commit=False) as curs:
+                curs.execute(
                     f"EXECUTE {statement_name}",
                 )
-                max_id = c.fetchone()[0] or 0
+                max_id = curs.fetchone()[0] or 0
         return max_id
 
     def _insert_events(
@@ -549,12 +693,20 @@ class PostgresApplicationRecorder(
         c: cursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
-    ) -> Optional[int]:
+    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
         super()._insert_events(c, stored_events, **kwargs)
         if stored_events:
-            returning = c.fetchall()
-            return returning[-1][0] if returning else None
-        return None
+            last_notification_id = c.fetchone()[0]
+            notification_ids = list(
+                range(
+                    last_notification_id - len(stored_events) + 1,
+                    last_notification_id + 1,
+                )
+            )
+            returning = [(s, notification_ids[i]) for i, s in enumerate(stored_events)]
+        else:
+            returning = []
+        return returning
 
 
 class PostgresProcessRecorder(
@@ -595,21 +747,21 @@ class PostgresProcessRecorder(
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
     def max_tracking_id(self, application_name: str) -> int:
         statement_name = self.max_tracking_id_statement_name
-        self._prepare(statement_name, self.max_tracking_id_statement)
+        with self.datastore.get_connection() as conn:
+            self._prepare(conn, statement_name, self.max_tracking_id_statement)
 
-        with self.datastore.transaction(commit=False) as conn:
-            with conn.cursor() as c:
-                c.execute(
+            with conn.transaction(commit=False) as curs:
+                curs.execute(
                     f"EXECUTE {statement_name}(%s)",
                     (application_name,),
                 )
-                max_id = c.fetchone()[0] or 0
+                max_id = curs.fetchone()[0] or 0
         return max_id
 
-    def _prepare_insert_events(self) -> None:
-        super()._prepare_insert_events()
+    def _prepare_insert_events(self, conn: Connection) -> None:
+        super()._prepare_insert_events(conn)
         self._prepare(
-            self.insert_tracking_statement_name, self.insert_tracking_statement
+            conn, self.insert_tracking_statement_name, self.insert_tracking_statement
         )
 
     def _insert_events(
@@ -617,7 +769,7 @@ class PostgresProcessRecorder(
         c: cursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
-    ) -> Optional[int]:
+    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
         returning = super()._insert_events(c, stored_events, **kwargs)
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking is not None:
@@ -640,6 +792,8 @@ class Factory(InfrastructureFactory):
     POSTGRES_CONN_MAX_AGE = "POSTGRES_CONN_MAX_AGE"
     POSTGRES_PRE_PING = "POSTGRES_PRE_PING"
     POSTGRES_LOCK_TIMEOUT = "POSTGRES_LOCK_TIMEOUT"
+    POSTGRES_POOL_MAX_CONN = "POSTGRES_POOL_MAX_CONN"
+    POSTGRES_POOL_MIN_CONN = "POSTGRES_POOL_MIN_CONN"
     POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT = (
         "POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT"
     )
@@ -699,6 +853,40 @@ class Factory(InfrastructureFactory):
                     f"'{conn_max_age_str}'"
                 )
 
+        pool_max_conn: Optional[int]
+        pool_max_conn_str = self.env.get(self.POSTGRES_POOL_MAX_CONN)
+        if pool_max_conn_str is None:
+            pool_max_conn = 10
+        elif pool_max_conn_str == "":
+            pool_max_conn = 10
+        else:
+            try:
+                pool_max_conn = int(pool_max_conn_str)
+            except ValueError:
+                raise EnvironmentError(
+                    f"Postgres environment value for key "
+                    f"'{self.POSTGRES_POOL_MAX_CONN}' is invalid. "
+                    f"If set, an integer or empty string is expected: "
+                    f"'{pool_max_conn_str}'"
+                )
+
+        pool_min_conn: Optional[int]
+        pool_min_conn_str = self.env.get(self.POSTGRES_POOL_MIN_CONN)
+        if pool_min_conn_str is None:
+            pool_min_conn = 10
+        elif pool_min_conn_str == "":
+            pool_min_conn = 10
+        else:
+            try:
+                pool_min_conn = int(pool_min_conn_str)
+            except ValueError:
+                raise EnvironmentError(
+                    f"Postgres environment value for key "
+                    f"'{self.POSTGRES_POOL_MIN_CONN}' is invalid. "
+                    f"If set, an integer or empty string is expected: "
+                    f"'{pool_min_conn_str}'"
+                )
+
         pre_ping = strtobool(self.env.get(self.POSTGRES_PRE_PING) or "no")
 
         lock_timeout_str = self.env.get(self.POSTGRES_LOCK_TIMEOUT) or "0"
@@ -741,6 +929,8 @@ class Factory(InfrastructureFactory):
             pre_ping=pre_ping,
             lock_timeout=lock_timeout,
             idle_in_transaction_session_timeout=idle_in_transaction_session_timeout,
+            max_conn=pool_max_conn,
+            min_conn=pool_min_conn,
             schema=schema,
         )
 
