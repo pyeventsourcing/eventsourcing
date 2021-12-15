@@ -6,8 +6,6 @@ from uuid import uuid4
 
 import psycopg2
 from psycopg2._psycopg import cursor
-from psycopg2.errorcodes import ADMIN_SHUTDOWN
-from psycopg2.errors import lookup
 from psycopg2.extensions import connection
 
 from eventsourcing.persistence import (
@@ -632,7 +630,7 @@ class TestTransaction(TestCase):
         self.assertFalse(pool.min_conn)
 
         conn = pool.get()
-        with self.assertRaises(InternalError) as cm:
+        with self.assertRaises(PersistenceError) as cm:
             with conn.transaction(commit=False) as curs:
                 curs.execute("SELECT 1")
                 self.assertFalse(curs.closed)
@@ -765,7 +763,7 @@ class TestPostgresDatastore(TestCase):
                     curs.execute("SELECT 1")
 
         # Check using the closed connection gives an error.
-        with self.assertRaises(lookup(ADMIN_SHUTDOWN)) as cm:
+        with self.assertRaises(psycopg2.Error) as cm:
             open_close_execute(pre_ping=False)
         self.assertIn(
             "terminating connection due to administrator command", cm.exception.args[0]
