@@ -783,7 +783,12 @@ class TestPostgresDatastore(TestCase):
         )
         pg, py = datastore.report_on_prepared_statements()
         self.assertEqual(pg, [])
-        self.assertEqual(py, {})
+        self.assertEqual(py, [])
+
+
+# Use maximally long identifier for table name.
+EVENTS_TABLE_NAME = "s" * 50 + "stored_events"
+assert len(EVENTS_TABLE_NAME) == 63
 
 
 class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
@@ -795,14 +800,27 @@ class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
             "eventsourcing",
             "eventsourcing",
         )
-        drop_postgres_table(self.datastore, "stored_events")
+        drop_postgres_table(self.datastore, EVENTS_TABLE_NAME)
 
-    def create_recorder(self, table_name="stored_events") -> PostgresAggregateRecorder:
+    def create_recorder(
+        self, table_name=EVENTS_TABLE_NAME
+    ) -> PostgresAggregateRecorder:
         recorder = PostgresAggregateRecorder(
             datastore=self.datastore, events_table_name=table_name
         )
         recorder.create_table()
         return recorder
+
+    def test_get_statement_name_alias(self):
+        # A short statement name is aliased to the same.
+        # recorder = self.create_recorder(table_name="zzzzz")
+        # alias = recorder.get_statement_alias("insert_stored_events")
+        # self.assertEqual(alias, "insert_stored_events")
+
+        # A very long statement name is aliased to the something else.
+        recorder = self.create_recorder(table_name="xxxxx")
+        alias = recorder.get_statement_alias(f"insert_{EVENTS_TABLE_NAME}")
+        self.assertNotEqual(alias, "insert_stored_events")
 
     def test_insert_and_select(self):
         super().test_insert_and_select()
@@ -816,54 +834,40 @@ class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
         self.datastore.pool.min_conn = 1
         pg, py = recorder.datastore.report_on_prepared_statements()
         self.assertEqual(pg, [])
-        self.assertEqual(py, {})
+        self.assertEqual(py, [])
 
         # After selecting by ID, should have prepared 'select_stored_events'.
         recorder.select_events(uuid4())
         pg, py = recorder.datastore.report_on_prepared_statements()
+        statement_name = f"select_{EVENTS_TABLE_NAME}"
+        select_alias = recorder.statement_name_aliases[statement_name]
         self.assertEqual(len(pg), 1)
         self.assertEqual(len(py), 1)
-        self.assertEqual(pg[0][0], "select_stored_events")
+        self.assertEqual(pg[0][0], select_alias)
         self.assertEqual(
             pg[0][1],
             (
-                "PREPARE select_stored_events AS SELECT * FROM "
-                "stored_events WHERE originator_id = $1 ORDER "
+                f"PREPARE {select_alias} AS SELECT * FROM "
+                f"{EVENTS_TABLE_NAME} WHERE originator_id = $1 ORDER "
                 "BY originator_version ASC"
             ),
         )
         self.assertEqual(pg[0][3], "{uuid}")
         self.assertEqual(pg[0][4], True)
-        self.assertEqual(py, {"select_stored_events": True})
+        self.assertEqual(py, [statement_name])
 
         # Check prepared 'select_stored_events_desc_limit'.
         recorder.select_events(uuid4(), desc=True, limit=1)
         pg, py = recorder.datastore.report_on_prepared_statements()
         self.assertEqual(len(pg), 2)
         self.assertEqual(len(py), 2)
-        self.assertEqual(pg[0][0], "select_stored_events")
-        self.assertEqual(pg[1][0], "select_stored_events_desc_limit")
-
-    def test_prepared_statements_with_very_long_table_name_actually_works(self):
-        # Shouldn't be any prepared statements, because haven't done anything.
-        table_name = "a" * 1000 + "_events"
-        recorder = self.create_recorder(table_name)
-        self.datastore.pool.min_conn = 1
-        pg, py = recorder.datastore.report_on_prepared_statements()
-        self.assertEqual(pg, [])
-        self.assertEqual(py, {})
-
-        # After selecting by ID, should have prepared 'select_stored_events'.
-        recorder.select_events(uuid4())
-        pg, py = recorder.datastore.report_on_prepared_statements()
-        self.assertEqual(len(pg), 1)
-        self.assertEqual(len(py), 1)
-        statement_name = f"select_{table_name}_events"
-        # The statement name appears truncated.
-        self.assertNotEqual(pg[0][0], statement_name)
-        self.assertTrue(statement_name.startswith(pg[0][0]))
-        # But, as above, the prepared statement can be executed okay.
-        recorder.select_events(uuid4())
+        self.assertEqual(
+            pg[0][0],
+            recorder.statement_name_aliases[f"select_{EVENTS_TABLE_NAME}_desc_limit"],
+        )
+        self.assertEqual(
+            pg[1][0], recorder.statement_name_aliases[f"select_{EVENTS_TABLE_NAME}"]
+        )
 
     def test_retry_insert_events_after_closing_connection(self):
         # This checks connection is recreated after connections are closed.
@@ -907,9 +911,11 @@ class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
         # Deallocate the prepared insert statement.
         self.assertTrue(self.datastore.pool._pool)
         with self.datastore.get_connection() as conn:
-            statement_name = "insert_stored_events"
-            self.assertTrue(conn.is_prepared.get(statement_name))
-            conn.cursor().execute(f"DEALLOCATE {statement_name}")
+            statement_name = f"insert_{EVENTS_TABLE_NAME}"
+            self.assertIn(statement_name, conn.is_prepared)
+            conn.cursor().execute(
+                f"DEALLOCATE " f"{recorder.statement_name_aliases[statement_name]}"
+            )
 
         # Write a stored event.
         stored_event2 = StoredEvent(
@@ -966,9 +972,11 @@ class TestPostgresAggregateRecorder(AggregateRecorderTestCase):
 
         # Deallocate the prepared select statement.
         with self.datastore.get_connection() as conn:
-            statement_name = "select_stored_events"
-            self.assertTrue(conn.is_prepared.get(statement_name))
-            conn.cursor().execute(f"DEALLOCATE {statement_name}")
+            statement_name = f"select_{EVENTS_TABLE_NAME}"
+            self.assertIn(statement_name, conn.is_prepared)
+            conn.cursor().execute(
+                f"DEALLOCATE {recorder.statement_name_aliases[statement_name]}"
+            )
 
         # Select events.
         recorder.select_events(originator_id)
@@ -989,12 +997,19 @@ class TestPostgresAggregateRecorderErrors(TestCase):
         self.drop_tables()
 
     def drop_tables(self):
-        drop_postgres_table(self.datastore, "stored_events")
+        drop_postgres_table(self.datastore, EVENTS_TABLE_NAME)
 
-    def create_recorder(self):
+    def create_recorder(self, table_name=EVENTS_TABLE_NAME):
         return PostgresAggregateRecorder(
-            datastore=self.datastore, events_table_name="stored_events"
+            datastore=self.datastore, events_table_name=table_name
         )
+
+    def test_excesively_long_table_name_raises_error(self):
+        # Add one more character to the table name.
+        long_table_name = "s" + EVENTS_TABLE_NAME
+        self.assertEqual(len(long_table_name), 64)
+        with self.assertRaises(ProgrammingError):
+            self.create_recorder(long_table_name)
 
     def test_create_table_raises_programming_error_when_sql_is_broken(self):
         recorder = self.create_recorder()
@@ -1067,26 +1082,26 @@ class TestPostgresAggregateRecorderErrors(TestCase):
         recorder.create_table()
 
         # Check the statement is not prepared.
-        statement_name = "select_stored_events"
+        statement_name = f"select_{EVENTS_TABLE_NAME}"
         with self.datastore.get_connection() as conn:
-            self.assertFalse(conn.is_prepared.get(statement_name))
+            self.assertNotIn(statement_name, conn.is_prepared)
 
         # Cause the statement to be prepared.
         recorder.select_events(originator_id=uuid4())
 
         # Check the statement was prepared.
         with self.datastore.get_connection() as conn:
-            self.assertTrue(conn.is_prepared.get(statement_name))
+            self.assertIn(statement_name, conn.is_prepared)
 
             # Forget the statement is prepared.
-            del conn.is_prepared[statement_name]
+            conn.is_prepared.remove(statement_name)
 
         # Should ignore "duplicate prepared statement" error.
         recorder.select_events(originator_id=uuid4())
 
         # Check the statement was prepared.
         with self.datastore.get_connection() as conn:
-            self.assertTrue(conn.is_prepared.get(statement_name))
+            self.assertIn(statement_name, conn.is_prepared)
 
 
 class TestPostgresApplicationRecorder(ApplicationRecorderTestCase):
@@ -1104,11 +1119,11 @@ class TestPostgresApplicationRecorder(ApplicationRecorderTestCase):
         self.drop_tables()
 
     def drop_tables(self):
-        drop_postgres_table(self.datastore, "stored_events")
+        drop_postgres_table(self.datastore, EVENTS_TABLE_NAME)
 
     def create_recorder(self):
         recorder = PostgresApplicationRecorder(
-            self.datastore, events_table_name="stored_events"
+            self.datastore, events_table_name=EVENTS_TABLE_NAME
         )
         recorder.create_table()
         return recorder
@@ -1166,9 +1181,11 @@ class TestPostgresApplicationRecorder(ApplicationRecorderTestCase):
         # Deallocate prepared statement.
         self.assertTrue(self.datastore.pool._pool)
         with self.datastore.get_connection() as conn:
-            statement_name = "select_notifications_stored_events"
-            self.assertTrue(conn.is_prepared.get(statement_name))
-            conn.cursor().execute(f"DEALLOCATE {statement_name}")
+            statement_name = f"select_notifications_{EVENTS_TABLE_NAME}"
+            self.assertIn(statement_name, conn.is_prepared)
+            conn.cursor().execute(
+                f"DEALLOCATE {recorder.statement_name_aliases[statement_name]}"
+            )
 
         # Select notifications.
         recorder.select_notifications(start=1, limit=1)
@@ -1220,11 +1237,11 @@ class TestPostgresApplicationRecorder(ApplicationRecorderTestCase):
         # Deallocate prepared statement.
         self.assertTrue(self.datastore.pool._pool)
         for conn in self.datastore.pool._pool:
-            statement_name = "max_notification_id_stored_events"
-            self.assertTrue(
-                conn.is_prepared.get(statement_name), conn.is_prepared.keys()
+            statement_name = f"max_notification_id_{EVENTS_TABLE_NAME}"
+            self.assertIn(statement_name, conn.is_prepared)
+            conn.cursor().execute(
+                f"DEALLOCATE {recorder.statement_name_aliases[statement_name]}"
             )
-            conn.cursor().execute(f"DEALLOCATE {statement_name}")
 
         # Get max notification ID.
         recorder.max_notification_id()
@@ -1348,12 +1365,17 @@ class TestPostgresApplicationRecorderErrors(TestCase):
         self.drop_tables()
 
     def drop_tables(self):
-        drop_postgres_table(self.datastore, "stored_events")
+        drop_postgres_table(self.datastore, EVENTS_TABLE_NAME)
 
-    def create_recorder(self):
-        return PostgresApplicationRecorder(
-            self.datastore, events_table_name="stored_events"
-        )
+    def create_recorder(self, table_name=EVENTS_TABLE_NAME):
+        return PostgresApplicationRecorder(self.datastore, events_table_name=table_name)
+
+    def test_excesively_long_table_name_raises_error(self):
+        # Add one more character to the table name.
+        long_table_name = "s" + EVENTS_TABLE_NAME
+        self.assertEqual(len(long_table_name), 64)
+        with self.assertRaises(ProgrammingError):
+            self.create_recorder(long_table_name)
 
     def test_select_notification_raises_programming_error_when_table_not_created(self):
         # Construct the recorder.
@@ -1378,7 +1400,7 @@ class TestPostgresApplicationRecorderErrors(TestCase):
     def test_max_notification_id_raises_programming_error_when_table_not_created(self):
         # Construct the recorder.
         recorder = PostgresApplicationRecorder(
-            datastore=self.datastore, events_table_name="stored_events"
+            datastore=self.datastore, events_table_name=EVENTS_TABLE_NAME
         )
 
         # Select notifications without creating table.
@@ -1388,7 +1410,7 @@ class TestPostgresApplicationRecorderErrors(TestCase):
     def test_max_notification_id_raises_programming_error_when_sql_is_broken(self):
         # Construct the recorder.
         recorder = PostgresApplicationRecorder(
-            datastore=self.datastore, events_table_name="stored_events"
+            datastore=self.datastore, events_table_name=EVENTS_TABLE_NAME
         )
 
         # Create table.
@@ -1398,6 +1420,10 @@ class TestPostgresApplicationRecorderErrors(TestCase):
         recorder.max_notification_id_statement = "BLAH"
         with self.assertRaises(ProgrammingError):
             recorder.max_notification_id()
+
+
+TRACKING_TABLE_NAME = "n" * 42 + "notification_tracking"
+assert len(TRACKING_TABLE_NAME) == 63
 
 
 class TestPostgresProcessRecorder(ProcessRecorderTestCase):
@@ -1415,20 +1441,36 @@ class TestPostgresProcessRecorder(ProcessRecorderTestCase):
         self.drop_tables()
 
     def drop_tables(self):
-        drop_postgres_table(self.datastore, "stored_events")
-        drop_postgres_table(self.datastore, "notification_tracking")
+        drop_postgres_table(self.datastore, EVENTS_TABLE_NAME)
+        drop_postgres_table(self.datastore, TRACKING_TABLE_NAME)
 
     def create_recorder(self):
         recorder = PostgresProcessRecorder(
             datastore=self.datastore,
-            events_table_name="stored_events",
-            tracking_table_name="notification_tracking",
+            events_table_name=EVENTS_TABLE_NAME,
+            tracking_table_name=TRACKING_TABLE_NAME,
         )
         recorder.create_table()
         return recorder
 
     def test_performance(self):
         super().test_performance()
+
+    def test_excessively_long_table_names_raise_error(self):
+
+        with self.assertRaises(ProgrammingError):
+            PostgresProcessRecorder(
+                datastore=self.datastore,
+                events_table_name="e" + EVENTS_TABLE_NAME,
+                tracking_table_name=TRACKING_TABLE_NAME,
+            )
+
+        with self.assertRaises(ProgrammingError):
+            PostgresProcessRecorder(
+                datastore=self.datastore,
+                events_table_name=EVENTS_TABLE_NAME,
+                tracking_table_name="n" + TRACKING_TABLE_NAME,
+            )
 
     def test_retry_max_tracking_id_after_closing_connection(self):
         # This checks connection is recreated after InterfaceError.
@@ -1479,11 +1521,11 @@ class TestPostgresProcessRecorder(ProcessRecorderTestCase):
         # Deallocate prepared statement.
         self.assertTrue(self.datastore.pool._pool)
         with self.datastore.get_connection() as conn:
-            statement_name = "max_tracking_id_notification_tracking"
-            self.assertTrue(
-                conn.is_prepared.get(statement_name), conn.is_prepared.keys()
+            statement_name = f"max_tracking_id_{TRACKING_TABLE_NAME}"
+            self.assertIn(statement_name, conn.is_prepared)
+            conn.cursor().execute(
+                f"DEALLOCATE {recorder.statement_name_aliases[statement_name]}"
             )
-            conn.cursor().execute(f"DEALLOCATE {statement_name}")
 
         # Get max tracking ID.
         notification_id = recorder.max_tracking_id("upstream")
@@ -1505,14 +1547,14 @@ class TestPostgresProcessRecorderErrors(TestCase):
         self.drop_tables()
 
     def drop_tables(self):
-        drop_postgres_table(self.datastore, "stored_events")
-        drop_postgres_table(self.datastore, "notification_tracking")
+        drop_postgres_table(self.datastore, EVENTS_TABLE_NAME)
+        drop_postgres_table(self.datastore, TRACKING_TABLE_NAME)
 
     def create_recorder(self):
         return PostgresProcessRecorder(
             datastore=self.datastore,
-            events_table_name="stored_events",
-            tracking_table_name="notification_tracking",
+            events_table_name=EVENTS_TABLE_NAME,
+            tracking_table_name=TRACKING_TABLE_NAME,
         )
 
     def test_max_tracking_id_raises_programming_error_when_table_not_created(self):

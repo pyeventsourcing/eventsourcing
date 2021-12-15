@@ -9,11 +9,12 @@ from typing import (
     List,
     Optional,
     Sequence,
+    Set,
     Tuple,
     Type,
     Union,
 )
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 import psycopg2
 import psycopg2.errors
@@ -60,7 +61,7 @@ class Connection:
             self._timer.start()
         else:
             self._timer = None
-        self.is_prepared: Dict[str, bool] = {}
+        self.is_prepared: Set[str] = set()
 
     @contextmanager
     def transaction(self, commit: bool) -> Iterator[cursor]:
@@ -354,17 +355,20 @@ class PostgresDatastore:
 
     def report_on_prepared_statements(
         self,
-    ) -> Tuple[List[List[Union[bool, str]]], Dict[str, bool]]:
+    ) -> Tuple[List[List[Union[bool, str]]], List[str]]:
         with self.get_connection() as conn:
             with conn.cursor() as curs:
                 curs.execute("SELECT * from pg_prepared_statements")
-                return curs.fetchall(), conn.is_prepared
+                return sorted(curs.fetchall()), sorted(conn.is_prepared)
 
     def close(self) -> None:
         self.pool.close()
 
     def __del__(self) -> None:
         self.close()
+
+
+PG_IDENTIFIER_MAX_LEN = 63
 
 
 # noinspection SqlResolve
@@ -374,6 +378,9 @@ class PostgresAggregateRecorder(AggregateRecorder):
         datastore: PostgresDatastore,
         events_table_name: str,
     ):
+        self.statement_name_aliases: Dict[str, str] = {}
+        if len(events_table_name) > PG_IDENTIFIER_MAX_LEN:
+            raise ProgrammingError(f"Table name too long: {events_table_name}")
         self.datastore = datastore
         self.events_table_name = events_table_name
         # Index names can't be qualified names, but
@@ -397,6 +404,38 @@ class PostgresAggregateRecorder(AggregateRecorder):
             f"SELECT * FROM {self.events_table_name} WHERE originator_id = $1"
         )
         self.lock_statements: List[str] = []
+
+    def get_statement_alias(self, statement_name: str) -> str:
+        try:
+            alias = self.statement_name_aliases[statement_name]
+        except KeyError:
+            existing_aliases = self.statement_name_aliases.values()
+            if (
+                len(statement_name) <= PG_IDENTIFIER_MAX_LEN
+                and statement_name not in existing_aliases
+            ):
+                alias = statement_name
+                self.statement_name_aliases[statement_name] = alias
+            else:
+                uid = uuid5(NAMESPACE_URL, f"/statement_names/{statement_name}").hex
+                alias = uid
+                for i in range(len(uid)):  # pragma: no cover
+                    preserve_end = 21
+                    preserve_start = PG_IDENTIFIER_MAX_LEN - preserve_end - i - 2
+                    uuid5_tail = i
+                    candidate = (
+                        statement_name[:preserve_start]
+                        + "_"
+                        + (uid[-uuid5_tail:] if i else "")
+                        + "_"
+                        + statement_name[-preserve_end:]
+                    )
+                    assert len(alias) <= PG_IDENTIFIER_MAX_LEN
+                    if candidate not in existing_aliases:
+                        alias = candidate
+                        break
+                self.statement_name_aliases[statement_name] = alias
+        return alias
 
     def construct_create_table_statements(self) -> List[str]:
         statement = (
@@ -434,17 +473,19 @@ class PostgresAggregateRecorder(AggregateRecorder):
             self.insert_events_statement,
         )
 
-    def _prepare(self, conn: Connection, statement_name: str, statement: str) -> None:
-        if not conn.is_prepared.get(statement_name):
+    def _prepare(self, conn: Connection, statement_name: str, statement: str) -> str:
+        statement_name_alias = self.get_statement_alias(statement_name)
+        if statement_name not in conn.is_prepared:
             curs: cursor
             with conn.transaction(commit=True) as curs:
                 try:
                     lock_timeout = self.datastore.lock_timeout
                     curs.execute(f"SET LOCAL lock_timeout = '{lock_timeout}s'")
-                    curs.execute(f"PREPARE {statement_name} AS " + statement)
+                    curs.execute(f"PREPARE {statement_name_alias} AS " + statement)
                 except psycopg2.errors.lookup(DUPLICATE_PREPARED_STATEMENT):
                     pass
-                conn.is_prepared[statement_name] = True
+                conn.is_prepared.add(statement_name)
+        return statement_name_alias
 
     def _insert_events(
         self,
@@ -479,11 +520,12 @@ class PostgresAggregateRecorder(AggregateRecorder):
         lock_sqls = (c.mogrify(s) for s in self.lock_statements)
 
         # Prepare the commands before getting the table lock.
+        alias = self.statement_name_aliases[self.insert_events_statement_name]
         page_size = 500
         pages = [
             (
                 c.mogrify(
-                    f"EXECUTE {self.insert_events_statement_name}(%s, %s, %s, %s)",
+                    f"EXECUTE {alias}(%s, %s, %s, %s)",
                     (
                         stored_event.originator_id,
                         stored_event.originator_version,
@@ -542,11 +584,11 @@ class PostgresAggregateRecorder(AggregateRecorder):
         stored_events = []
 
         with self.datastore.get_connection() as conn:
-            self._prepare(conn, statement_name, statement)
+            alias = self._prepare(conn, statement_name, statement)
 
             with conn.transaction(commit=False) as curs:
                 curs.execute(
-                    f"EXECUTE {statement_name}({', '.join(['%s' for _ in params])})",
+                    f"EXECUTE {alias}({', '.join(['%s' for _ in params])})",
                     params,
                 )
                 for row in curs.fetchall():
@@ -640,24 +682,26 @@ class PostgresApplicationRecorder(
         with self.datastore.get_connection() as conn:
             if topics:
                 statement_name = self.select_notifications_filter_topics_statement_name
-                self._prepare(
+                statement_alias = self._prepare(
                     conn,
                     statement_name,
                     self.select_notifications_filter_topics_statement,
                 )
             else:
                 statement_name = self.select_notifications_statement_name
-                self._prepare(conn, statement_name, self.select_notifications_statement)
+                statement_alias = self._prepare(
+                    conn, statement_name, self.select_notifications_statement
+                )
 
             with conn.transaction(commit=False) as curs:
                 if topics:
                     curs.execute(
-                        f"EXECUTE {statement_name}(%s, %s, %s)",
+                        f"EXECUTE {statement_alias}(%s, %s, %s)",
                         (start, topics, limit),
                     )
                 else:
                     curs.execute(
-                        f"EXECUTE {statement_name}(%s, %s)",
+                        f"EXECUTE {statement_alias}(%s, %s)",
                         (start, limit),
                     )
                 for row in curs.fetchall():
@@ -680,10 +724,12 @@ class PostgresApplicationRecorder(
         """
         statement_name = self.max_notification_id_statement_name
         with self.datastore.get_connection() as conn:
-            self._prepare(conn, statement_name, self.max_notification_id_statement)
+            statement_alias = self._prepare(
+                conn, statement_name, self.max_notification_id_statement
+            )
             with conn.transaction(commit=False) as curs:
                 curs.execute(
-                    f"EXECUTE {statement_name}",
+                    f"EXECUTE {statement_alias}",
                 )
                 max_id = curs.fetchone()[0] or 0
         return max_id
@@ -719,6 +765,9 @@ class PostgresProcessRecorder(
         events_table_name: str,
         tracking_table_name: str,
     ):
+        if len(tracking_table_name) > 63:
+            raise ProgrammingError(f"Table name too long: {tracking_table_name}")
+
         self.tracking_table_name = tracking_table_name
         super().__init__(datastore, events_table_name)
         self.insert_tracking_statement = (
@@ -730,7 +779,9 @@ class PostgresProcessRecorder(
             f"FROM {self.tracking_table_name} "
             "WHERE application_name=$1"
         )
-        self.max_tracking_id_statement_name = f"max_tracking_id_{tracking_table_name}"
+        self.max_tracking_id_statement_name = (
+            f"max_tracking_id_{tracking_table_name}".replace(".", "_")
+        )
 
     def construct_create_table_statements(self) -> List[str]:
         statements = super().construct_create_table_statements()
@@ -748,11 +799,13 @@ class PostgresProcessRecorder(
     def max_tracking_id(self, application_name: str) -> int:
         statement_name = self.max_tracking_id_statement_name
         with self.datastore.get_connection() as conn:
-            self._prepare(conn, statement_name, self.max_tracking_id_statement)
+            statement_alias = self._prepare(
+                conn, statement_name, self.max_tracking_id_statement
+            )
 
             with conn.transaction(commit=False) as curs:
                 curs.execute(
-                    f"EXECUTE {statement_name}(%s)",
+                    f"EXECUTE {statement_alias}(%s)",
                     (application_name,),
                 )
                 max_id = curs.fetchone()[0] or 0
@@ -773,8 +826,11 @@ class PostgresProcessRecorder(
         returning = super()._insert_events(c, stored_events, **kwargs)
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking is not None:
+            statement_alias = self.statement_name_aliases[
+                self.insert_tracking_statement_name
+            ]
             c.execute(
-                f"EXECUTE {self.insert_tracking_statement_name}(%s, %s)",
+                f"EXECUTE {statement_alias}(%s, %s)",
                 (
                     tracking.application_name,
                     tracking.notification_id,
