@@ -384,8 +384,7 @@ and implements :class:`~eventsourcing.persistence.ApplicationRecorder`.
 
     recorder = POPOApplicationRecorder()
 
-    notification_id = recorder.insert_events([stored_event])
-    assert notification_id == 1
+    recorder.insert_events([stored_event])
 
     recorded_events = recorder.select_events(stored_event.originator_id)
     assert recorded_events[0] == stored_event
@@ -409,8 +408,8 @@ and implements :class:`~eventsourcing.persistence.ProcessRecorder`.
     recorder = POPOProcessRecorder()
 
     tracking = Tracking(notification_id=21, application_name="upstream")
-    notification_id = recorder.insert_events([stored_event], tracking=tracking)
-    assert notification_id == 1
+
+    recorder.insert_events([stored_event], tracking=tracking)
 
     recorded_events = recorder.select_events(stored_event.originator_id)
     assert recorded_events[0] == stored_event
@@ -430,40 +429,43 @@ module. The direct use of the library's SQLite recorders is shown below.
 
 .. code-block:: python
 
+    # SQLiteAggregateRecorder
     from eventsourcing.sqlite import SQLiteAggregateRecorder
-    from eventsourcing.sqlite import SQLiteApplicationRecorder
-    from eventsourcing.sqlite import SQLiteProcessRecorder
     from eventsourcing.sqlite import SQLiteDatastore
 
     datastore = SQLiteDatastore(db_name=":memory:")
     aggregate_recorder = SQLiteAggregateRecorder(datastore, "stored_events")
     aggregate_recorder.create_table()
-
     aggregate_recorder.insert_events([stored_event])
+
     recorded_events = aggregate_recorder.select_events(stored_event.originator_id)
     assert recorded_events[0] == stored_event, (recorded_events[0], stored_event)
 
-
+    # SQLiteApplicationRecorder
+    from eventsourcing.sqlite import SQLiteApplicationRecorder
     datastore = SQLiteDatastore(db_name=":memory:")
     application_recorder = SQLiteApplicationRecorder(datastore)
     application_recorder.create_table()
-
     application_recorder.insert_events([stored_event])
+
     recorded_events = application_recorder.select_events(stored_event.originator_id)
     assert recorded_events[0] == stored_event
+
     notifications = application_recorder.select_notifications(start=1, limit=10)
     assert notifications[0].id == 1
     assert notifications[0].originator_id == stored_event.originator_id
     assert notifications[0].originator_version == stored_event.originator_version
 
-
+    # SQLiteProcessRecorder
+    from eventsourcing.sqlite import SQLiteProcessRecorder
     datastore = SQLiteDatastore(db_name=":memory:")
     process_recorder = SQLiteProcessRecorder(datastore)
     process_recorder.create_table()
-
     process_recorder.insert_events([stored_event], tracking=tracking)
+
     recorded_events = process_recorder.select_events(stored_event.originator_id)
     assert recorded_events[0] == stored_event
+
     notifications = process_recorder.select_notifications(start=1, limit=10)
     assert notifications[0].id == 1
     assert notifications[0].originator_id == stored_event.originator_id
