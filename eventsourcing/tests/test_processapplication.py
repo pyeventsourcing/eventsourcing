@@ -1,8 +1,9 @@
+from typing import List
 from unittest.case import TestCase
 
 from eventsourcing.dispatch import singledispatchmethod
 from eventsourcing.domain import AggregateEvent
-from eventsourcing.persistence import Transcoder
+from eventsourcing.persistence import IntegrityError, Notification, Transcoder
 from eventsourcing.system import (
     Follower,
     Leader,
@@ -19,7 +20,7 @@ from eventsourcing.tests.test_processingpolicy import EmailNotification
 
 
 class TestProcessApplication(TestCase):
-    def test(self):
+    def test_pull_and_process(self):
         leader_cls = type(
             BankAccounts.__name__,
             (BankAccounts, Leader),
@@ -27,38 +28,54 @@ class TestProcessApplication(TestCase):
         )
 
         accounts = leader_cls()
-        notifications = EmailNotifications()
-        notifications.follow(
+        email_process = EmailProcess()
+        email_process.follow(
             accounts.name,
             accounts.log,
         )
 
-        section = notifications.log["1,5"]
+        section = email_process.log["1,5"]
         self.assertEqual(len(section.items), 0)
 
         accounts.open_account("Alice", "alice@example.com")
 
-        notifications.pull_and_process("BankAccounts")
+        email_process.pull_and_process(BankAccounts.name)
 
-        section = notifications.log["1,5"]
+        section = email_process.log["1,5"]
         self.assertEqual(len(section.items), 1)
 
-        notifications.pull_and_process("BankAccounts")
+        # Check we have processed the first event.
+        self.assertEqual(email_process.recorder.max_tracking_id(BankAccounts.name), 1)
 
-        section = notifications.log["1,5"]
+        # Check trying to reprocess the first event causes an IntegrityError.
+        with self.assertRaises(IntegrityError):
+            email_process.pull_and_process(BankAccounts.name, start=1)
+
+        # Check we can continue from the next position.
+        email_process.pull_and_process(BankAccounts.name, start=2)
+
+        # Check we haven't actually processed anything further.
+        self.assertEqual(email_process.recorder.max_tracking_id(BankAccounts.name), 1)
+        section = email_process.log["1,5"]
         self.assertEqual(len(section.items), 1)
 
-        accounts.lead(PromptForwarder(notifications))
+        # Subscribe for notifications.
+        accounts.lead(PromptForwarder(email_process))
 
+        # Create another notification.
         accounts.open_account("Bob", "bob@example.com")
 
-        section = notifications.log["1,5"]
+        # Check we have processed the next notification.
+        section = email_process.log["1,5"]
         self.assertEqual(len(section.items), 2)
 
+        # Check we have actually processed the second event.
+        self.assertEqual(email_process.recorder.max_tracking_id(BankAccounts.name), 2)
 
-class EmailNotifications(ProcessApplication):
+
+class EmailProcess(ProcessApplication):
     def register_transcodings(self, transcoder: Transcoder) -> None:
-        super(EmailNotifications, self).register_transcodings(transcoder)
+        super(EmailProcess, self).register_transcodings(transcoder)
         transcoder.register(EmailAddressAsStr())
 
     @singledispatchmethod
@@ -88,5 +105,7 @@ class PromptForwarder(Promptable):
     def __init__(self, application: Follower):
         self.application = application
 
-    def receive_prompt(self, leader_name: str) -> None:
-        self.application.pull_and_process(leader_name)
+    def receive_notifications(
+        self, leader_name: str, notifications: List[Notification]
+    ) -> None:
+        self.application.pull_and_process(leader_name, start=notifications[0].id)

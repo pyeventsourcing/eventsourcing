@@ -2,6 +2,7 @@ import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from itertools import chain
+from threading import Event
 from typing import (
     Any,
     Callable,
@@ -319,11 +320,12 @@ class Application(ABC, Generic[TAggregate]):
     Base class for event-sourced applications.
     """
 
+    name = "Application"
     env: EnvType = {}
     is_snapshotting_enabled: bool = False
     snapshotting_intervals: Optional[Dict[Type[Aggregate], int]] = None
     log_section_size = 10
-    name = "Application"
+    notify_topics: Sequence[str] = []
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         if "name" not in cls.__dict__:
@@ -347,6 +349,7 @@ class Application(ABC, Generic[TAggregate]):
         self.snapshots = self.construct_snapshot_store()
         self.repository = self.construct_repository()
         self.log = self.construct_notification_log()
+        self.closing = Event()
 
     def construct_env(self, name: str, env: Optional[EnvType] = None) -> Environment:
         """
@@ -446,19 +449,19 @@ class Application(ABC, Generic[TAggregate]):
         self,
         *objs: Optional[Union[TAggregate, AggregateEvent[Aggregate]]],
         **kwargs: Any,
-    ) -> Optional[int]:
+    ) -> List[Notification]:
         """
         Collects pending events from given aggregates and
         puts them in the application's event store.
         """
         process_event = ProcessEvent()
         process_event.collect_events(*objs, **kwargs)
-        returning = self.record(process_event)
+        notifications = self.record(process_event)
         self.take_snapshots(process_event)
-        self.notify(process_event.events)
-        return returning
+        self.notify(notifications)
+        return notifications
 
-    def record(self, process_event: ProcessEvent) -> Optional[int]:
+    def record(self, process_event: ProcessEvent) -> List[Notification]:
         """
         Records given process event in the application's recorder.
         """
@@ -468,7 +471,19 @@ class Application(ABC, Generic[TAggregate]):
             tracking=process_event.tracking,
             **process_event.saved_kwargs,
         )
-        return returning
+        notifications = [
+            Notification(
+                id=notification_id,
+                originator_id=stored_event.originator_id,
+                originator_version=stored_event.originator_version,
+                topic=stored_event.topic,
+                state=stored_event.state,
+            )
+            for stored_event, notification_id in returning
+            if notification_id
+            and (not self.notify_topics or stored_event.topic in self.notify_topics)
+        ]
+        return notifications
 
     def take_snapshots(self, process_event: ProcessEvent) -> None:
         # Take snapshots using IDs and types.
@@ -504,7 +519,7 @@ class Application(ABC, Generic[TAggregate]):
             snapshot = Snapshot.take(aggregate)
             self.snapshots.put([snapshot])
 
-    def notify(self, new_events: List[AggregateEvent[Aggregate]]) -> None:
+    def notify(self, notifications: List[Notification]) -> None:
         """
         Called after new domain events have been saved. This
         method on this class class doesn't actually do anything,
@@ -513,6 +528,7 @@ class Application(ABC, Generic[TAggregate]):
         """
 
     def close(self) -> None:
+        self.closing.set()
         self.factory.close()
 
 
