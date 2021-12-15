@@ -76,20 +76,24 @@ class TestApplication(TestCase):
     def test_save_returns_new_notification_id(self):
         app = Application()
 
-        new_id = app.save()
-        self.assertEqual(new_id, None)
+        notifications = app.save()
+        self.assertEqual(notifications, [])
 
-        new_id = app.save(None)
-        self.assertEqual(new_id, None)
+        notifications = app.save(None)
+        self.assertEqual(notifications, [])
 
-        new_id = app.save(Aggregate())
-        self.assertEqual(new_id, 1)
+        notifications = app.save(Aggregate())
+        self.assertEqual(len(notifications), 1)
+        self.assertEqual(notifications[0].id, 1)
 
-        new_id = app.save(Aggregate())
-        self.assertEqual(new_id, 2)
+        notifications = app.save(Aggregate())
+        self.assertEqual(len(notifications), 1)
+        self.assertEqual(notifications[0].id, 2)
 
-        new_id = app.save(Aggregate(), Aggregate())
-        self.assertEqual(new_id, 4)
+        notifications = app.save(Aggregate(), Aggregate())
+        self.assertEqual(len(notifications), 2)
+        self.assertEqual(notifications[0].id, 3)
+        self.assertEqual(notifications[1].id, 4)
 
 
 class TestApplicationWithPOPO(TestCase):

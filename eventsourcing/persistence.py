@@ -13,6 +13,7 @@ from typing import (
     List,
     Optional,
     Sequence,
+    Tuple,
     Type,
     TypeVar,
     Union,
@@ -407,7 +408,7 @@ class AggregateRecorder(Recorder):
     @abstractmethod
     def insert_events(
         self, stored_events: List[StoredEvent], **kwargs: Any
-    ) -> Optional[int]:
+    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
         """
         Writes stored events into database.
         """
@@ -496,18 +497,14 @@ class EventStore(Generic[TDomainEvent]):
         self.mapper = mapper
         self.recorder = recorder
 
-    def put(self, events: Sequence[DomainEvent[Any]], **kwargs: Any) -> Optional[int]:
+    def put(
+        self, events: Sequence[DomainEvent[Any]], **kwargs: Any
+    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
         """
         Stores domain events in aggregate sequence.
         """
         return self.recorder.insert_events(
-            list(
-                map(
-                    self.mapper.from_domain_event,
-                    events,
-                )
-            ),
-            **kwargs,
+            list(map(self.mapper.from_domain_event, events)), **kwargs
         )
 
     def get(

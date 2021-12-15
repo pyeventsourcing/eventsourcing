@@ -1,6 +1,6 @@
 from collections import defaultdict
 from threading import Lock
-from typing import Any, Dict, Iterable, List, Optional, Sequence
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 from uuid import UUID
 
 from eventsourcing.persistence import (
@@ -23,13 +23,13 @@ class POPOAggregateRecorder(AggregateRecorder):
 
     def insert_events(
         self, stored_events: List[StoredEvent], **kwargs: Any
-    ) -> Optional[int]:
+    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
         self._insert_events(stored_events, **kwargs)
-        return None
+        return [(s, None) for s in stored_events]
 
     def _insert_events(
         self, stored_events: List[StoredEvent], **kwargs: Any
-    ) -> Optional[int]:
+    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
         with self._database_lock:
             self._assert_uniqueness(stored_events, **kwargs)
             return self._update_table(stored_events, **kwargs)
@@ -41,21 +41,23 @@ class POPOAggregateRecorder(AggregateRecorder):
         for s in stored_events:
             # Check events don't already exist.
             if s.originator_version in self._stored_events_index[s.originator_id]:
-                raise IntegrityError()
+                raise IntegrityError(f"Stored event already recorded: {s}")
             new.add((s.originator_id, s.originator_version))
         # Check new events are unique.
         if len(new) < len(stored_events):
-            raise IntegrityError()
+            raise IntegrityError(f"Stored events are not unique: {stored_events}")
 
     def _update_table(
         self, stored_events: List[StoredEvent], **kwargs: Any
-    ) -> Optional[int]:
+    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
+        returning = []
         for s in stored_events:
             self._stored_events.append(s)
             self._stored_events_index[s.originator_id][s.originator_version] = (
                 len(self._stored_events) - 1
             )
-        return len(self._stored_events) or None
+            returning.append((s, len(self._stored_events)))
+        return returning
 
     def select_events(
         self,
@@ -90,7 +92,7 @@ class POPOAggregateRecorder(AggregateRecorder):
 class POPOApplicationRecorder(ApplicationRecorder, POPOAggregateRecorder):
     def insert_events(
         self, stored_events: List[StoredEvent], **kwargs: Any
-    ) -> Optional[int]:
+    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
         return self._insert_events(stored_events, **kwargs)
 
     def select_notifications(
@@ -136,11 +138,13 @@ class POPOProcessRecorder(ProcessRecorder, POPOApplicationRecorder):
         if tracking:
             last = self.tracking_table.get(tracking.application_name, 0)
             if tracking.notification_id <= last:
-                raise IntegrityError()
+                raise IntegrityError(
+                    f"Tracking info {tracking} less than last recorded: {last}"
+                )
 
     def _update_table(
         self, stored_events: List[StoredEvent], **kwargs: Any
-    ) -> Optional[int]:
+    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
         returning = super()._update_table(stored_events, **kwargs)
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking:

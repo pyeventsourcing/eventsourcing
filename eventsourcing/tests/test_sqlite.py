@@ -15,6 +15,7 @@ from eventsourcing.persistence import (
     OperationalError,
     PersistenceError,
     ProgrammingError,
+    StoredEvent,
 )
 from eventsourcing.sqlite import (
     Factory,
@@ -184,9 +185,15 @@ class TestSQLiteApplicationRecorder(ApplicationRecorderTestCase):
 class TestSQLiteApplicationRecorderErrors(TestCase):
     def test_insert_raises_operational_error_if_table_not_created(self):
         recorder = SQLiteApplicationRecorder(SQLiteDatastore(":memory:"))
+        stored_event1 = StoredEvent(
+            originator_id=uuid4(),
+            originator_version=1,
+            topic="topic1",
+            state=b"",
+        )
         with self.assertRaises(OperationalError):
             # Haven't created table.
-            recorder.insert_events([])
+            recorder.insert_events([stored_event1])
 
     def test_select_raises_operational_error_if_table_not_created(self):
         recorder = SQLiteApplicationRecorder(SQLiteDatastore(":memory:"))
@@ -210,8 +217,14 @@ class TestSQLiteProcessRecorder(ProcessRecorderTestCase):
 class TestSQLiteProcessRecorderErrors(TestCase):
     def test_insert_raises_operational_error_if_table_not_created(self):
         recorder = SQLiteProcessRecorder(SQLiteDatastore(":memory:"))
+        stored_event1 = StoredEvent(
+            originator_id=uuid4(),
+            originator_version=1,
+            topic="topic1",
+            state=b"",
+        )
         with self.assertRaises(OperationalError):
-            recorder.insert_events([])
+            recorder.insert_events([stored_event1])
 
     def test_select_raises_operational_error_if_table_not_created(self):
         recorder = SQLiteProcessRecorder(SQLiteDatastore(":memory:"))

@@ -3,7 +3,7 @@ import threading
 from sqlite3 import Connection, Cursor
 from threading import Lock
 from types import TracebackType
-from typing import Any, Dict, List, Optional, Sequence, Type
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Type
 from uuid import UUID
 
 from eventsourcing.persistence import (
@@ -200,7 +200,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
 
     def insert_events(
         self, stored_events: List[StoredEvent], **kwargs: Any
-    ) -> Optional[int]:
+    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
         with self.datastore.transaction(commit=True) as c:
             return self._insert_events(c, stored_events, **kwargs)
 
@@ -209,7 +209,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         c: Cursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
-    ) -> Optional[int]:
+    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
         params = []
         for stored_event in stored_events:
             params.append(
@@ -221,7 +221,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
                 )
             )
         c.executemany(self.insert_events_statement, params)
-        return None
+        return [(s, None) for s in stored_events]
 
     def select_events(
         self,
@@ -304,13 +304,20 @@ class SQLiteApplicationRecorder(
         c: Cursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
-    ) -> Optional[int]:
-        super()._insert_events(c, stored_events, **kwargs)
-        if stored_events:
-            max_notification_id = self._max_notification_id(c) or None
-            return max_notification_id
-        else:
-            return None
+    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
+        returning = []
+        for stored_event in stored_events:
+            c.execute(
+                self.insert_events_statement,
+                (
+                    stored_event.originator_id.hex,
+                    stored_event.originator_version,
+                    stored_event.topic,
+                    stored_event.state,
+                ),
+            )
+            returning.append((stored_event, c.lastrowid))
+        return returning
 
     def select_notifications(
         self, start: int, limit: int, topics: Sequence[str] = ()
@@ -394,7 +401,7 @@ class SQLiteProcessRecorder(
         c: Cursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
-    ) -> Optional[int]:
+    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
         returning = super()._insert_events(c, stored_events, **kwargs)
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking is not None:

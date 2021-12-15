@@ -56,14 +56,14 @@ class ApplicationRecorderTestCase(TestCase, ABC):
             state=b"state3",
         )
 
-        new_id = recorder.insert_events([])
-        self.assertEqual(new_id, None)
+        returning = recorder.insert_events([])
+        self.assertEqual(returning, [])
 
-        new_id = recorder.insert_events([stored_event1, stored_event2])
-        self.assertEqual(new_id, 2)
+        returning = recorder.insert_events([stored_event1, stored_event2])
+        self.assertEqual(returning, [(stored_event1, 1), (stored_event2, 2)])
 
-        new_id = recorder.insert_events([stored_event3])
-        self.assertEqual(new_id, 3)
+        returning = recorder.insert_events([stored_event3])
+        self.assertEqual(returning, [(stored_event3, 3)])
 
         stored_events1 = recorder.select_events(originator_id1)
         stored_events2 = recorder.select_events(originator_id2)
@@ -224,7 +224,6 @@ class ApplicationRecorderTestCase(TestCase, ABC):
                     print(tb)
                 else:
                     sleep(0.01)
-            self.close_db_connection()
 
         reader_thread = Thread(target=read_continuously)
         reader_thread.start()
@@ -239,7 +238,6 @@ class ApplicationRecorderTestCase(TestCase, ABC):
 
         stop_reading.set()
         reader_thread.join()
-        self.close_db_connection()
 
         for thread_id, thread_num in threads.items():
             count = counts[thread_id]
@@ -310,7 +308,6 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         self.assertFalse(errors_happened.is_set(), "There were errors (see above)")
         ended = datetime.now()
         print("Rate:", NUM_JOBS * NUM_EVENTS / (ended - started).total_seconds())
-        self.close_db_connection()
 
     def close_db_connection(self, *args):
         pass
