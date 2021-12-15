@@ -719,27 +719,25 @@ class NotificationLogReader:
 
     def select(
         self, *, start: int, topics: Sequence[str] = ()
-    ) -> Iterator[Notification]:
+    ) -> Iterator[List[Notification]]:
         """
-        Returns a generator that yields event notifications
-        from the reader's notification log, starting from
-        given start position (a notification ID).
+        Returns a generator that yields lists of event notifications
+        from the reader's notification log, starting from given start
+        position (a notification ID).
 
         This method selects a limited list of notifications from a
-        notification log and yields event notifications individually.
-        When all the event notifications in the list are yielded,
-        the reader will retrieve another list, and continue yielding
-        event notification until all subsequent event notifications
-        in the notification log from the start position have been
-        yielded.
+        notification log and yields event notifications in batches.
+        When one list of event notifications has been yielded,
+        the reader will retrieve another list, and continue until
+        all subsequent event notifications in the notification log
+        from the start position have been yielded.
         """
         while True:
             notifications = self.notification_log.select(
                 start, self.section_size, topics=topics
             )
-            for notification in notifications:
-                yield notification
-            if len(notifications) < self.section_size:
-                break
-            else:
+            if notifications:
+                yield notifications
                 start = notifications[-1].id + 1
+            else:
+                break

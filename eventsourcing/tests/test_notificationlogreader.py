@@ -1,3 +1,4 @@
+from itertools import chain
 from unittest.case import TestCase
 from uuid import uuid4
 
@@ -73,7 +74,7 @@ class TestNotificationLogReader(TestCase):
         # Construct notification log.
         notification_log = LocalNotificationLog(recorder, section_size=5)
         reader = NotificationLogReader(notification_log, section_size=5)
-        notifications = list(reader.select(start=1))
+        notifications = list(chain(*reader.select(start=1)))
         self.assertEqual(len(notifications), 0)
 
         # Write 5 events.
@@ -89,7 +90,7 @@ class TestNotificationLogReader(TestCase):
                 [stored_event],
             )
 
-        notifications = list(reader.select(start=1))
+        notifications = list(chain(*reader.select(start=1)))
         self.assertEqual(len(notifications), 5)
 
         # Write 4 events.
@@ -103,23 +104,23 @@ class TestNotificationLogReader(TestCase):
             )
             recorder.insert_events([stored_event])
 
-        notifications = list(reader.select(start=1))
+        notifications = list(chain(*reader.select(start=1)))
         self.assertEqual(len(notifications), 9)
 
-        notifications = list(reader.select(start=2))
+        notifications = list(chain(*reader.select(start=2)))
         self.assertEqual(len(notifications), 8)
 
-        notifications = list(reader.select(start=3))
+        notifications = list(chain(*reader.select(start=3)))
         self.assertEqual(len(notifications), 7)
 
-        notifications = list(reader.select(start=4))
+        notifications = list(chain(*reader.select(start=4)))
         self.assertEqual(len(notifications), 6)
 
-        notifications = list(reader.select(start=8))
+        notifications = list(chain(*reader.select(start=8)))
         self.assertEqual(len(notifications), 2)
 
-        notifications = list(reader.select(start=9))
+        notifications = list(chain(*reader.select(start=9)))
         self.assertEqual(len(notifications), 1)
 
-        notifications = list(reader.select(start=10))
+        notifications = list(chain(*reader.select(start=10)))
         self.assertEqual(len(notifications), 0)
