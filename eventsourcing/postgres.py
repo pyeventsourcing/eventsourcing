@@ -773,7 +773,9 @@ class PostgresProcessRecorder(
         self.insert_tracking_statement = (
             f"INSERT INTO {self.tracking_table_name} VALUES ($1, $2)"
         )
-        self.insert_tracking_statement_name = f"insert_{tracking_table_name}"
+        self.insert_tracking_statement_name = f"insert_{tracking_table_name}".replace(
+            ".", "_"
+        )
         self.max_tracking_id_statement = (
             "SELECT MAX(notification_id) "
             f"FROM {self.tracking_table_name} "
