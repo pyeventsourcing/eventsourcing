@@ -140,14 +140,16 @@ class AggregateCreated(AggregateEvent[TAggregate]):
         agg.__base_init__(**base_kwargs)
 
         # Select values that aren't mentioned in the method signature.
-        init_kwargs = _select_kwargs_mentioned_in_sig(self.__dict__, agg.__init__)
+        init_kwargs = _select_kwargs_mentioned_in_sig(
+            self.__dict__, agg.__init__  # type: ignore
+        )
 
         # Provide the id, if the init method expects it.
         if aggregate_class in _init_mentions_id:
             init_kwargs["id"] = self.__dict__["originator_id"]
 
         # Call the aggregate class init method.
-        agg.__init__(**init_kwargs)  # noinspection PyArgumentList
+        agg.__init__(**init_kwargs)  # type: ignore
 
         self.apply(agg)
 

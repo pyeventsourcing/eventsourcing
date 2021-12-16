@@ -103,7 +103,7 @@ class Log(Generic[TDomainEvent]):
             next_originator_version = last_logged.originator_version + 1
         else:
             next_originator_version = Aggregate.INITIAL_VERSION
-        return self.logged_cls(  # type: ignore
+        return self.logged_cls(
             originator_id=self.originator_id,
             originator_version=next_originator_version,
             timestamp=self.logged_cls.create_timestamp(),
