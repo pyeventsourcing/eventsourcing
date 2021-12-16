@@ -379,6 +379,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         events_table_name: str,
     ):
         self.statement_name_aliases: Dict[str, str] = {}
+        self.statement_name_aliases_lock = Lock()
         self.check_table_name_length(events_table_name, datastore.schema)
         self.datastore = datastore
         self.events_table_name = events_table_name
@@ -418,32 +419,40 @@ class PostgresAggregateRecorder(AggregateRecorder):
         try:
             alias = self.statement_name_aliases[statement_name]
         except KeyError:
-            existing_aliases = self.statement_name_aliases.values()
-            if (
-                len(statement_name) <= PG_IDENTIFIER_MAX_LEN
-                and statement_name not in existing_aliases
-            ):
-                alias = statement_name
-                self.statement_name_aliases[statement_name] = alias
-            else:
-                uid = uuid5(NAMESPACE_URL, f"/statement_names/{statement_name}").hex
-                alias = uid
-                for i in range(len(uid)):  # pragma: no cover
-                    preserve_end = 21
-                    preserve_start = PG_IDENTIFIER_MAX_LEN - preserve_end - i - 2
-                    uuid5_tail = i
-                    candidate = (
-                        statement_name[:preserve_start]
-                        + "_"
-                        + (uid[-uuid5_tail:] if i else "")
-                        + "_"
-                        + statement_name[-preserve_end:]
-                    )
-                    assert len(alias) <= PG_IDENTIFIER_MAX_LEN
-                    if candidate not in existing_aliases:
-                        alias = candidate
-                        break
-                self.statement_name_aliases[statement_name] = alias
+            with self.statement_name_aliases_lock:
+                try:
+                    alias = self.statement_name_aliases[statement_name]
+                except KeyError:
+                    existing_aliases = self.statement_name_aliases.values()
+                    if (
+                        len(statement_name) <= PG_IDENTIFIER_MAX_LEN
+                        and statement_name not in existing_aliases
+                    ):
+                        alias = statement_name
+                        self.statement_name_aliases[statement_name] = alias
+                    else:
+                        uid = uuid5(
+                            NAMESPACE_URL, f"/statement_names/{statement_name}"
+                        ).hex
+                        alias = uid
+                        for i in range(len(uid)):  # pragma: no cover
+                            preserve_end = 21
+                            preserve_start = (
+                                PG_IDENTIFIER_MAX_LEN - preserve_end - i - 2
+                            )
+                            uuid5_tail = i
+                            candidate = (
+                                statement_name[:preserve_start]
+                                + "_"
+                                + (uid[-uuid5_tail:] if i else "")
+                                + "_"
+                                + statement_name[-preserve_end:]
+                            )
+                            assert len(alias) <= PG_IDENTIFIER_MAX_LEN
+                            if candidate not in existing_aliases:
+                                alias = candidate
+                                break
+                        self.statement_name_aliases[statement_name] = alias
         return alias
 
     def construct_create_table_statements(self) -> List[str]:
