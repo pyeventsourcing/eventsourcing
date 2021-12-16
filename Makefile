@@ -143,6 +143,7 @@ drop_postgres_db:
 .PHONY: create_postgres_db
 create_postgres_db:
 	createdb eventsourcing
+	psql eventsourcing -c "CREATE SCHEMA myschema AUTHORIZATION eventsourcing"
 
 .PHONY: updatetools
 updatetools:

@@ -379,8 +379,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         events_table_name: str,
     ):
         self.statement_name_aliases: Dict[str, str] = {}
-        if len(events_table_name) > PG_IDENTIFIER_MAX_LEN:
-            raise ProgrammingError(f"Table name too long: {events_table_name}")
+        self.check_table_name_length(events_table_name, datastore.schema)
         self.datastore = datastore
         self.events_table_name = events_table_name
         # Index names can't be qualified names, but
@@ -404,6 +403,16 @@ class PostgresAggregateRecorder(AggregateRecorder):
             f"SELECT * FROM {self.events_table_name} WHERE originator_id = $1"
         )
         self.lock_statements: List[str] = []
+
+    @staticmethod
+    def check_table_name_length(table_name: str, schema_name: str) -> None:
+        schema_prefix = schema_name + "."
+        if table_name.startswith(schema_prefix):
+            unqualified_table_name = table_name[len(schema_prefix) :]
+        else:
+            unqualified_table_name = table_name
+        if len(unqualified_table_name) > 63:
+            raise ProgrammingError(f"Table name too long: {unqualified_table_name}")
 
     def get_statement_alias(self, statement_name: str) -> str:
         try:
@@ -765,9 +774,7 @@ class PostgresProcessRecorder(
         events_table_name: str,
         tracking_table_name: str,
     ):
-        if len(tracking_table_name) > 63:
-            raise ProgrammingError(f"Table name too long: {tracking_table_name}")
-
+        self.check_table_name_length(tracking_table_name, datastore.schema)
         self.tracking_table_name = tracking_table_name
         super().__init__(datastore, events_table_name)
         self.insert_tracking_statement = (
