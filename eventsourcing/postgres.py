@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 from itertools import chain
-from threading import Event, Lock, Timer
+from threading import Lock
 from types import TracebackType
 from typing import (
     Any,
@@ -21,12 +21,13 @@ import psycopg2.errors
 import psycopg2.extras
 from psycopg2.errorcodes import DUPLICATE_PREPARED_STATEMENT
 from psycopg2.extensions import connection, cursor
-from psycopg2.pool import PoolError, ThreadedConnectionPool
 
 from eventsourcing.persistence import (
     AggregateRecorder,
     ApplicationRecorder,
-    ConnectionPoolClosed,
+    Connection,
+    ConnectionPool,
+    Cursor,
     DatabaseError,
     DataError,
     InfrastructureFactory,
@@ -47,54 +48,52 @@ from eventsourcing.utils import Environment, retry, strtobool
 psycopg2.extras.register_uuid()
 
 
-class Connection:
+class PostgresCursor(Cursor):
+    def __init__(self, pg_cursor: cursor):
+        self.pg_cursor = pg_cursor
+
+    def __enter__(self, *args: Any, **kwargs: Any) -> "PostgresCursor":
+        self.pg_cursor.__enter__(*args, **kwargs)
+        return self
+
+    def __exit__(self, *args: Any, **kwargs: Any) -> None:
+        return self.pg_cursor.__exit__(*args, **kwargs)
+
+    def mogrify(self, statement: str, params: Any = None) -> bytes:
+        return self.pg_cursor.mogrify(statement, vars=params)
+
+    def execute(self, statement: Union[str, bytes], params: Any = None) -> None:
+        self.pg_cursor.execute(query=statement, vars=params)
+
+    def fetchall(self) -> Any:
+        return self.pg_cursor.fetchall()
+
+    def fetchone(self) -> Any:
+        return self.pg_cursor.fetchone()
+
+    @property
+    def closed(self) -> bool:
+        return self.pg_cursor.closed
+
+
+class PostgresConnection(Connection[PostgresCursor]):
     def __init__(self, pg_conn: connection, max_age: Optional[float]):
+        super().__init__(max_age=max_age)
         self._pg_conn = pg_conn
-        self._max_age = max_age
-        self._is_idle = Event()
-        self._is_closing = Event()
-        self._close_lock = Lock()
-        self._timer: Optional[Timer]
-        self._was_closed_by_timer = False
-        if max_age is not None:
-            self._timer = Timer(interval=max_age, function=self.close_on_timer)
-            self._timer.daemon = True
-            self._timer.start()
-        else:
-            self._timer = None
         self.is_prepared: Set[str] = set()
 
     @contextmanager
-    def transaction(self, commit: bool) -> Iterator[cursor]:
+    def transaction(self, commit: bool) -> Iterator[PostgresCursor]:
         # Context managed transaction.
-        with Transaction(self, commit) as curs:
+        with PostgresTransaction(self, commit) as curs:
             # Context managed cursor.
             with curs:
                 yield curs
 
-    @property
-    def info(self) -> Any:
-        return self._pg_conn.info
-
-    @property
-    def is_idle(self) -> bool:
-        return self._is_idle.is_set()
-
-    def set_is_idle(self) -> None:
-        self._is_idle.set()
-
-    def set_not_idle(self) -> None:
-        self._is_idle.clear()
-
-    def wait_until_idle(self, timeout: Optional[float]) -> None:
-        self._is_idle.wait(timeout)
-
-    @property
-    def is_closing(self) -> bool:
-        return self._is_closing.is_set()
-
-    def cursor(self) -> cursor:
-        return self._pg_conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    def cursor(self) -> PostgresCursor:
+        return PostgresCursor(
+            self._pg_conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        )
 
     def rollback(self) -> None:
         self._pg_conn.rollback()
@@ -102,40 +101,16 @@ class Connection:
     def commit(self) -> None:
         self._pg_conn.commit()
 
-    def close_on_timer(self) -> None:
-        self._is_closing.set()
-        self.wait_until_idle(timeout=None)
-        self._was_closed_by_timer = True
-        self.close()
-
-    def set_is_closing(self) -> None:
-        self._is_closing.set()
-
-    def close(self) -> None:
-        with self._close_lock:
-            if self._timer is not None:
-                self._timer.cancel()
-            self._is_closing.set()
-            self._pg_conn.close()
+    def _close(self) -> None:
+        self._pg_conn.close()
+        super()._close()
 
     @property
     def closed(self) -> bool:
         return self._pg_conn.closed
 
-    @property
-    def was_closed_by_timer(self) -> bool:
-        return self._was_closed_by_timer
 
-
-class ConnectionPoolExhaustedError(OperationalError):
-    pass
-
-
-class ConnectionPoolUnkeyedConnectionError(Exception):
-    pass
-
-
-class ConnectionPool(ThreadedConnectionPool):
+class PostgresConnectionPool(ConnectionPool[PostgresConnection]):
     def __init__(
         self,
         dbname: str,
@@ -143,98 +118,30 @@ class ConnectionPool(ThreadedConnectionPool):
         port: str,
         user: str,
         password: str,
+        connect_timeout: int = 5,
+        idle_in_transaction_session_timeout: int = 0,
+        pool_size: int = 1,
+        max_overflow: int = 0,
         max_age: Optional[float] = None,
         pre_ping: bool = False,
-        idle_in_transaction_session_timeout: int = 0,
-        min_conn: int = 0,
-        max_conn: int = 20,
+        pool_timeout: float = 5.0,
     ):
         self.dbname = dbname
         self.host = host
         self.port = port
         self.user = user
         self.password = password
-        self.max_age = max_age
-        self.pre_ping = pre_ping
+        self.connect_timeout = connect_timeout
         self.idle_in_transaction_session_timeout = idle_in_transaction_session_timeout
-        super().__init__(minconn=min_conn, maxconn=max_conn)
+        super().__init__(
+            pool_size=pool_size,
+            max_overflow=max_overflow,
+            max_age=max_age,
+            pre_ping=pre_ping,
+            pool_timeout=pool_timeout,
+        )
 
-    @property
-    def max_conn(self) -> int:
-        return self.maxconn
-
-    @max_conn.setter
-    def max_conn(self, value: int) -> None:
-        self.maxconn = value
-
-    @property
-    def min_conn(self) -> int:
-        return self.minconn
-
-    @min_conn.setter
-    def min_conn(self, value: int) -> None:
-        self.minconn = value
-
-    def close(self) -> None:
-        try:
-            self.closeall()
-        except PoolError:
-            pass
-
-    def get(self) -> Connection:
-        return self.getconn()
-
-    def _getconn(self, key: Any = None) -> Connection:
-        while True:
-
-            try:
-                conn: Connection = super()._getconn(key)
-            except PoolError as e:
-                # Catch and inspect any 'PoolError' from psycopg2.
-                err_str = str(e)
-
-                # If the pool is closed, quit and don't retry.
-                if "closed" in err_str:
-                    raise ConnectionPoolClosed(err_str) from e
-
-                # If pool exhausted, quit to release lock before retrying.
-                assert "exhausted" in err_str
-                raise ConnectionPoolExhaustedError(err_str) from e
-
-            # Check for closed or dysfunctional connections.
-            if conn.closed or conn.is_closing:
-                super()._putconn(conn, close=True)
-                continue
-            elif self.pre_ping:
-                try:
-                    conn.cursor().execute("SELECT 1")
-                except psycopg2.Error:
-                    super()._putconn(conn, close=True)
-                    continue
-
-            conn.set_not_idle()
-            return conn
-
-    def put(self, conn: Connection, close: bool = False) -> None:
-        conn.set_is_idle()
-        try:
-            return self.putconn(conn, close=close or conn.is_closing)
-        except PoolError as e:
-            raise ConnectionPoolUnkeyedConnectionError() from e
-
-    def _connect(self, key: Any = None) -> Connection:
-        """
-        Create a new connection and assign it to 'key' if not None.
-        """
-        conn = self._create_connection()
-        if key is not None:
-            self._used[key] = conn
-            self._rused[id(conn)] = key
-        else:
-            self._pool.append(conn)
-        return conn
-
-    def _create_connection(self) -> Connection:
+    def _create_connection(self) -> PostgresConnection:
         # Make a connection to a database.
         try:
             pg_conn = psycopg2.connect(
@@ -243,7 +150,7 @@ class ConnectionPool(ThreadedConnectionPool):
                 port=self.port,
                 user=self.user,
                 password=self.password,
-                connect_timeout=5,
+                connect_timeout=self.connect_timeout,
             )
         except psycopg2.OperationalError as e:
             raise OperationalError(e) from e
@@ -251,19 +158,19 @@ class ConnectionPool(ThreadedConnectionPool):
             f"SET idle_in_transaction_session_timeout = "
             f"'{self.idle_in_transaction_session_timeout}s'"
         )
-        return Connection(pg_conn, max_age=self.max_age)
+        return PostgresConnection(pg_conn, max_age=self.max_age)
 
 
-class Transaction:
+class PostgresTransaction:
     # noinspection PyShadowingNames
-    def __init__(self, c: Connection, commit: bool):
-        self.c = c
+    def __init__(self, conn: PostgresConnection, commit: bool):
+        self.conn = conn
         self.commit = commit
         self.has_entered = False
 
-    def __enter__(self) -> cursor:
+    def __enter__(self) -> PostgresCursor:
         self.has_entered = True
-        return self.c.cursor()
+        return self.conn.cursor()
 
     def __exit__(
         self,
@@ -273,19 +180,19 @@ class Transaction:
     ) -> None:
         try:
             if exc_val:
-                self.c.rollback()
+                self.conn.rollback()
                 raise exc_val
             elif not self.commit:
-                self.c.rollback()
+                self.conn.rollback()
             else:
-                self.c.commit()
+                self.conn.commit()
         except psycopg2.InterfaceError as e:
-            self.c.close()
+            self.conn.close()
             raise InterfaceError(str(e)) from e
         except psycopg2.DataError as e:
             raise DataError(str(e)) from e
         except psycopg2.OperationalError as e:
-            self.c.close()
+            self.conn.close()
             raise OperationalError(str(e)) from e
         except psycopg2.IntegrityError as e:
             raise IntegrityError(str(e)) from e
@@ -313,42 +220,46 @@ class PostgresDatastore:
         port: str,
         user: str,
         password: str,
+        connect_timeout: int = 5,
         conn_max_age: Optional[float] = None,
-        pre_ping: bool = False,
-        lock_timeout: int = 0,
+        get_lock_timeout: int = 0,
         idle_in_transaction_session_timeout: int = 0,
-        min_conn: int = 0,
-        max_conn: int = 20,
+        pool_size: int = 2,
+        max_overflow: int = 2,
+        pool_timeout: float = 5.0,
+        pre_ping: bool = False,
         schema: str = "",
     ):
-        self.pool = ConnectionPool(
+        self.pool = PostgresConnectionPool(
             dbname=dbname,
             host=host,
             port=port,
             user=user,
             password=password,
+            connect_timeout=connect_timeout,
+            idle_in_transaction_session_timeout=idle_in_transaction_session_timeout,
+            pool_size=pool_size,
+            max_overflow=max_overflow,
             max_age=conn_max_age,
             pre_ping=pre_ping,
-            idle_in_transaction_session_timeout=idle_in_transaction_session_timeout,
-            min_conn=min_conn,
-            max_conn=max_conn,
+            pool_timeout=pool_timeout,
         )
-        self.lock_timeout = lock_timeout
+        self.lock_timeout = get_lock_timeout
         self.schema = schema.strip()
 
     @contextmanager
-    def transaction(self, commit: bool) -> Iterator[cursor]:
+    def transaction(self, commit: bool) -> Iterator[PostgresCursor]:
         with self.get_connection() as conn:
             with conn.transaction(commit) as curs:
                 yield curs
 
     @contextmanager
-    def get_connection(self) -> Iterator[Connection]:
-        conn: Connection = self.pool.get()
+    def get_connection(self) -> Iterator[PostgresConnection]:
+        conn = self.pool.get_connection()
         try:
             yield conn
         finally:
-            self.pool.putconn(conn)
+            self.pool.put_connection(conn)
 
     def report_on_prepared_statements(
         self,
@@ -481,17 +392,19 @@ class PostgresAggregateRecorder(AggregateRecorder):
             with conn.transaction(commit=True) as curs:
                 return self._insert_events(curs, stored_events, **kwargs)
 
-    def _prepare_insert_events(self, conn: Connection) -> None:
+    def _prepare_insert_events(self, conn: PostgresConnection) -> None:
         self._prepare(
             conn,
             self.insert_events_statement_name,
             self.insert_events_statement,
         )
 
-    def _prepare(self, conn: Connection, statement_name: str, statement: str) -> str:
+    def _prepare(
+        self, conn: PostgresConnection, statement_name: str, statement: str
+    ) -> str:
         statement_name_alias = self.get_statement_alias(statement_name)
         if statement_name not in conn.is_prepared:
-            curs: cursor
+            curs: PostgresCursor
             with conn.transaction(commit=True) as curs:
                 try:
                     lock_timeout = self.datastore.lock_timeout
@@ -504,7 +417,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
 
     def _insert_events(
         self,
-        c: cursor,
+        c: PostgresCursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
@@ -751,7 +664,7 @@ class PostgresApplicationRecorder(
 
     def _insert_events(
         self,
-        c: cursor,
+        c: PostgresCursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
@@ -826,7 +739,7 @@ class PostgresProcessRecorder(
                 max_id = curs.fetchone()[0] or 0
         return max_id
 
-    def _prepare_insert_events(self, conn: Connection) -> None:
+    def _prepare_insert_events(self, conn: PostgresConnection) -> None:
         super()._prepare_insert_events(conn)
         self._prepare(
             conn, self.insert_tracking_statement_name, self.insert_tracking_statement
@@ -834,7 +747,7 @@ class PostgresProcessRecorder(
 
     def _insert_events(
         self,
-        c: cursor,
+        c: PostgresCursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
@@ -863,8 +776,8 @@ class Factory(InfrastructureFactory):
     POSTGRES_CONN_MAX_AGE = "POSTGRES_CONN_MAX_AGE"
     POSTGRES_PRE_PING = "POSTGRES_PRE_PING"
     POSTGRES_LOCK_TIMEOUT = "POSTGRES_LOCK_TIMEOUT"
-    POSTGRES_POOL_MAX_CONN = "POSTGRES_POOL_MAX_CONN"
-    POSTGRES_POOL_MIN_CONN = "POSTGRES_POOL_MIN_CONN"
+    POSTGRES_POOL_SIZE = "POSTGRES_POOL_SIZE"
+    POSTGRES_POOL_MAX_OVERFLOW = "POSTGRES_POOL_MAX_OVERFLOW"
     POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT = (
         "POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT"
     )
@@ -924,38 +837,38 @@ class Factory(InfrastructureFactory):
                     f"'{conn_max_age_str}'"
                 )
 
-        pool_max_conn: Optional[int]
-        pool_max_conn_str = self.env.get(self.POSTGRES_POOL_MAX_CONN)
-        if pool_max_conn_str is None:
-            pool_max_conn = 10
-        elif pool_max_conn_str == "":
-            pool_max_conn = 10
+        pool_max_overflow: Optional[int]
+        pool_max_overflow_str = self.env.get(self.POSTGRES_POOL_MAX_OVERFLOW)
+        if pool_max_overflow_str is None:
+            pool_max_overflow = 10
+        elif pool_max_overflow_str == "":
+            pool_max_overflow = 10
         else:
             try:
-                pool_max_conn = int(pool_max_conn_str)
+                pool_max_overflow = int(pool_max_overflow_str)
             except ValueError:
                 raise EnvironmentError(
                     f"Postgres environment value for key "
-                    f"'{self.POSTGRES_POOL_MAX_CONN}' is invalid. "
+                    f"'{self.POSTGRES_POOL_MAX_OVERFLOW}' is invalid. "
                     f"If set, an integer or empty string is expected: "
-                    f"'{pool_max_conn_str}'"
+                    f"'{pool_max_overflow_str}'"
                 )
 
-        pool_min_conn: Optional[int]
-        pool_min_conn_str = self.env.get(self.POSTGRES_POOL_MIN_CONN)
-        if pool_min_conn_str is None:
-            pool_min_conn = 10
-        elif pool_min_conn_str == "":
-            pool_min_conn = 10
+        pool_size: Optional[int]
+        pool_size_str = self.env.get(self.POSTGRES_POOL_SIZE)
+        if pool_size_str is None:
+            pool_size = 10
+        elif pool_size_str == "":
+            pool_size = 10
         else:
             try:
-                pool_min_conn = int(pool_min_conn_str)
+                pool_size = int(pool_size_str)
             except ValueError:
                 raise EnvironmentError(
                     f"Postgres environment value for key "
-                    f"'{self.POSTGRES_POOL_MIN_CONN}' is invalid. "
+                    f"'{self.POSTGRES_POOL_SIZE}' is invalid. "
                     f"If set, an integer or empty string is expected: "
-                    f"'{pool_min_conn_str}'"
+                    f"'{pool_size_str}'"
                 )
 
         pre_ping = strtobool(self.env.get(self.POSTGRES_PRE_PING) or "no")
@@ -998,10 +911,10 @@ class Factory(InfrastructureFactory):
             password=password,
             conn_max_age=conn_max_age,
             pre_ping=pre_ping,
-            lock_timeout=lock_timeout,
+            get_lock_timeout=lock_timeout,
             idle_in_transaction_session_timeout=idle_in_transaction_session_timeout,
-            max_conn=pool_max_conn,
-            min_conn=pool_min_conn,
+            max_overflow=pool_max_overflow,
+            pool_size=pool_size,
             schema=schema,
         )
 

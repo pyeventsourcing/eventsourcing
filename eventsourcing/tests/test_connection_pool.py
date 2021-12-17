@@ -2,7 +2,7 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from itertools import count
 from threading import Event, Lock, Thread
 from time import sleep, time
-from typing import List, Optional
+from typing import Any, List, Optional, Union
 from unittest import TestCase
 
 from eventsourcing.persistence import (
@@ -13,6 +13,7 @@ from eventsourcing.persistence import (
     ConnectionPoolExhausted,
     Cursor,
     PersistenceError,
+    ProgrammingError,
 )
 
 
@@ -21,7 +22,7 @@ class DummyCursor(Cursor):
         self._closed = False
         self._results = None
 
-    def execute(self, statement: str):
+    def execute(self, statement: Union[str, bytes], params: Any = None):
         if self._closed:
             raise PersistenceError
         assert statement == "SELECT 1"
@@ -30,9 +31,9 @@ class DummyCursor(Cursor):
     def fetchall(self):
         if self._closed:
             raise PersistenceError
-        results = self._results
-        self._results = None
-        return results
+        if self._results is None:
+            raise ProgrammingError
+        return self._results
 
     def close(self):
         self._closed = True
@@ -59,10 +60,10 @@ class DummyConnection(Connection):
             curs.close()
         return curs
 
-    def close(self):
+    def _close(self):
         for curs in self._cursors:
             curs.close()
-        super().close()
+        super()._close()
 
     def close_on_server(self):
         self._closed_on_server = True
@@ -70,7 +71,7 @@ class DummyConnection(Connection):
 
 class DummyConnectionPool(ConnectionPool):
     def _create_connection(self) -> Connection:
-        return DummyConnection(max_age=self._max_age)
+        return DummyConnection(max_age=self.max_age)
 
 
 class TestConnection(TestCase):
@@ -110,13 +111,30 @@ class TestConnection(TestCase):
 
 
 class TestConnectionPool(TestCase):
+    ProgrammingError = ProgrammingError
+    PersistenceError = PersistenceError
+
+    def create_pool(self, pool_size=1, max_overflow=0, max_age=None, pre_ping=False):
+        return DummyConnectionPool(
+            pool_size=pool_size,
+            max_overflow=max_overflow,
+            max_age=max_age,
+            pre_ping=pre_ping,
+        )
+
+    def close_connection_on_server(self, *connections):
+        for conn in connections:
+            assert isinstance(conn, DummyConnection)
+            conn.close_on_server()
+
     def test_get_and_put(self):
-        pool = DummyConnectionPool(pool_size=2, max_overhead=2)
+        pool_size = 2
+        max_overflow = 2
+        pool = self.create_pool(pool_size, max_overflow)
         self.assertEqual(pool.num_in_use, 0)
         self.assertEqual(pool.num_in_pool, 0)
 
         conn1 = pool.get_connection()
-        self.assertIsInstance(conn1, DummyConnection)
         self.assertEqual(pool.num_in_use, 1)
         self.assertEqual(pool.num_in_pool, 0)
 
@@ -179,12 +197,10 @@ class TestConnectionPool(TestCase):
         self.assertEqual(pool.num_in_pool, 0)
 
         conn8 = pool.get_connection()
-        self.assertIsInstance(conn3, DummyConnection)
         self.assertEqual(pool.num_in_use, 3)
         self.assertEqual(pool.num_in_pool, 0)
 
         conn9 = pool.get_connection()
-        self.assertIsInstance(conn4, DummyConnection)
         self.assertEqual(pool.num_in_use, 4)
         self.assertEqual(pool.num_in_pool, 0)
 
@@ -226,12 +242,12 @@ class TestConnectionPool(TestCase):
         self.assertTrue(conn10.closed)
 
     def test_connection_not_from_pool(self):
-        pool = DummyConnectionPool(pool_size=2, max_overhead=2)
+        pool = self.create_pool()
         with self.assertRaises(ConnectionNotFromPool):
-            pool.put_connection(DummyConnection())
+            pool.put_connection(pool._create_connection())
 
     def test_close_before_returning(self):
-        pool = DummyConnectionPool(pool_size=2, max_overhead=2)
+        pool = self.create_pool(pool_size=2, max_overflow=2)
         self.assertEqual(pool.num_in_use, 0)
         self.assertEqual(pool.num_in_pool, 0)
 
@@ -245,11 +261,12 @@ class TestConnectionPool(TestCase):
         self.assertEqual(pool.num_in_pool, 0)
 
     def test_close_after_returning_without_pre_ping(self):
-        pool = DummyConnectionPool(pool_size=1, max_overhead=0)
+        pool = self.create_pool()
 
         conn1 = pool.get_connection()
         curs = conn1.cursor()
-        self.assertEqual(curs.fetchall(), None)
+        with self.assertRaises(self.ProgrammingError):
+            self.assertEqual(curs.fetchall(), None)
         curs.execute("SELECT 1")
         self.assertEqual(curs.fetchall(), [[1]])
 
@@ -264,33 +281,32 @@ class TestConnectionPool(TestCase):
         conn1.cursor().execute("SELECT 1")
 
     def test_close_on_server_after_returning_without_pre_ping(self):
-        pool = DummyConnectionPool(pool_size=1, max_overhead=0)
+        pool = self.create_pool()
 
         conn1 = pool.get_connection()
         curs = conn1.cursor()
-        self.assertEqual(curs.fetchall(), None)
+        with self.assertRaises(self.ProgrammingError):
+            self.assertEqual(curs.fetchall(), None)
         curs.execute("SELECT 1")
         self.assertEqual(curs.fetchall(), [[1]])
 
         pool.put_connection(conn1)
-        assert isinstance(conn1, DummyConnection)
-        conn1.close_on_server()
+        self.close_connection_on_server(conn1)
         self.assertEqual(pool.num_in_use, 0)
         self.assertEqual(pool.num_in_pool, 1)
 
         conn1 = pool.get_connection()
         self.assertFalse(conn1.closed)
 
-        with self.assertRaises(PersistenceError):
+        with self.assertRaises(self.PersistenceError):
             conn1.cursor().execute("SELECT 1")
 
     def test_close_on_server_after_returning_with_pre_ping(self):
-        pool = DummyConnectionPool(pool_size=1, max_overhead=0, pre_ping=True)
+        pool = self.create_pool(pool_size=1, max_overflow=0, pre_ping=True)
 
         conn1 = pool.get_connection()
         pool.put_connection(conn1)
-        assert isinstance(conn1, DummyConnection)
-        conn1.close_on_server()
+        self.close_connection_on_server(conn1)
         self.assertEqual(pool.num_in_use, 0)
         self.assertEqual(pool.num_in_pool, 1)
 
@@ -302,7 +318,7 @@ class TestConnectionPool(TestCase):
         self.assertEqual(curs.fetchall(), [[1]])
 
     def test_max_age(self):
-        pool = DummyConnectionPool(max_age=0.05)
+        pool = self.create_pool(max_age=0.05)
 
         # Timer fires after conn returned to pool.
         conn1 = pool.get_connection()
@@ -339,7 +355,7 @@ class TestConnectionPool(TestCase):
         pool.put_connection(conn3)
 
     def test_get_with_timeout(self):
-        pool = DummyConnectionPool(pool_size=1, max_overhead=0)
+        pool = self.create_pool()
         conn1 = pool.get_connection(timeout=1)
 
         started = time()
@@ -377,7 +393,7 @@ class TestConnectionPool(TestCase):
 
     def test_close_pool(self):
         # Get two connections and return one of them.
-        pool = DummyConnectionPool(pool_size=2, max_overhead=1)
+        pool = self.create_pool(pool_size=2, max_overflow=1)
         conn1 = pool.get_connection()
         conn2 = pool.get_connection()
         pool.put_connection(conn1)
@@ -401,41 +417,41 @@ class TestConnectionPool(TestCase):
         pool.close()
 
     def test_fairness_1_0_pre_ping_false(self):
-        self._test_fairness(pool_size=1, max_overhead=0, pre_ping=False)
+        self._test_fairness(pool_size=1, max_overflow=0, pre_ping=False)
 
     def test_fairness_1_0_pre_ping_true(self):
-        self._test_fairness(pool_size=1, max_overhead=0, pre_ping=True)
+        self._test_fairness(pool_size=1, max_overflow=0, pre_ping=True)
 
     def test_fairness_1_1_pre_ping_false(self):
-        self._test_fairness(pool_size=1, max_overhead=1, pre_ping=False)
+        self._test_fairness(pool_size=1, max_overflow=1, pre_ping=False)
 
     def test_fairness_1_2_pre_ping_true(self):
-        self._test_fairness(pool_size=1, max_overhead=1, pre_ping=True)
+        self._test_fairness(pool_size=1, max_overflow=1, pre_ping=True)
 
     def test_fairness_2_0_pre_ping_false(self):
-        self._test_fairness(pool_size=2, max_overhead=0, pre_ping=False)
+        self._test_fairness(pool_size=2, max_overflow=0, pre_ping=False)
 
     def test_fairness_3_0_pre_ping_false(self):
-        self._test_fairness(pool_size=3, max_overhead=0, pre_ping=False)
+        self._test_fairness(pool_size=3, max_overflow=0, pre_ping=False)
 
     def test_fairness_2_2_pre_ping_false(self):
-        self._test_fairness(pool_size=2, max_overhead=2, pre_ping=False)
+        self._test_fairness(pool_size=2, max_overflow=2, pre_ping=False)
 
     def test_fairness_2_2_pre_ping_true(self):
-        self._test_fairness(pool_size=2, max_overhead=2, pre_ping=True)
+        self._test_fairness(pool_size=2, max_overflow=2, pre_ping=True)
 
     def test_fairness_3_2_pre_ping_false(self):
-        self._test_fairness(pool_size=3, max_overhead=2, pre_ping=False)
+        self._test_fairness(pool_size=3, max_overflow=2, pre_ping=False)
 
     def test_fairness_3_2_pre_ping_true(self):
-        self._test_fairness(pool_size=3, max_overhead=2, pre_ping=True)
+        self._test_fairness(pool_size=3, max_overflow=2, pre_ping=True)
 
     def test_fairness_20_0_pre_ping_false(self):
-        self._test_fairness(pool_size=20, max_overhead=0, pre_ping=False)
+        self._test_fairness(pool_size=20, max_overflow=0, pre_ping=False)
 
-    def _test_fairness(self, pool_size=1, max_overhead=1, pre_ping=True):
-        connection_pool = DummyConnectionPool(
-            pool_size=pool_size, max_overhead=max_overhead, pre_ping=pre_ping
+    def _test_fairness(self, pool_size=1, max_overflow=1, pre_ping=True):
+        connection_pool = self.create_pool(
+            pool_size=pool_size, max_overflow=max_overflow, pre_ping=pre_ping
         )
 
         num_threads = 5
@@ -526,8 +542,8 @@ class TestConnectionPool(TestCase):
                     f"{waited_for :.3f}",
                     f"{remaining_until_timeout :.3f}",
                 )
-                assert pool.num_in_use <= pool._pool_size + pool._max_overhead
-                assert pool.num_in_pool <= pool._pool_size
+                assert pool.num_in_use <= pool.pool_size + pool.max_overflow
+                assert pool.num_in_pool <= pool.pool_size
                 # print("num used connections:", pool.num_in_use)
                 if not ((j + 1) % 4) and do_close:
                     print("closing connection", j, "before returning to pool")
@@ -544,8 +560,6 @@ class TestConnectionPool(TestCase):
 
             # print(name, "put connection", j)
         print(name, "finished")
-
-    # def test_lock_acquire
 
 
 _print = print

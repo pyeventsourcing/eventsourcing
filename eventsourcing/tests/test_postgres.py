@@ -1,15 +1,13 @@
-from threading import Event, Thread, Timer
+from threading import Event, Thread
 from time import sleep
 from unittest import TestCase
 from unittest.mock import MagicMock, Mock
 from uuid import uuid4
 
 import psycopg2
-from psycopg2._psycopg import cursor
 from psycopg2.extensions import connection
 
 from eventsourcing.persistence import (
-    ConnectionPoolClosed,
     DatabaseError,
     DataError,
     InfrastructureFactory,
@@ -24,16 +22,15 @@ from eventsourcing.persistence import (
     Tracking,
 )
 from eventsourcing.postgres import (
-    Connection,
-    ConnectionPool,
-    ConnectionPoolExhaustedError,
-    ConnectionPoolUnkeyedConnectionError,
     Factory,
     PostgresAggregateRecorder,
     PostgresApplicationRecorder,
+    PostgresConnection,
+    PostgresConnectionPool,
+    PostgresCursor,
     PostgresDatastore,
     PostgresProcessRecorder,
-    Transaction,
+    PostgresTransaction,
 )
 from eventsourcing.tests.aggregaterecorder_testcase import (
     AggregateRecorderTestCase,
@@ -47,6 +44,7 @@ from eventsourcing.tests.infrastructure_testcases import (
 from eventsourcing.tests.processrecorder_testcase import (
     ProcessRecorderTestCase,
 )
+from eventsourcing.tests.test_connection_pool import TestConnectionPool
 from eventsourcing.utils import Environment, get_topic
 
 
@@ -89,142 +87,16 @@ def pg_close_all_connections(
     return close_all_connections, pg_conn_cursor
 
 
-class TestConnection(TestCase):
-    def test_connection_with_max_age_none(self):
-        pg_conn = psycopg2.connect(
-            dbname="eventsourcing",
-            host="127.0.0.1",
-            port="5432",
-            user="eventsourcing",
-            password="eventsourcing",
-            connect_timeout=5,
-        )
-        conn = Connection(pg_conn=pg_conn, max_age=None)
-        self.assertEqual(conn._pg_conn, pg_conn)
-        self.assertEqual(conn._max_age, None)
-        self.assertIsNone(conn._timer, None)
-        self.assertFalse(conn.is_idle)
-        self.assertFalse(conn.is_closing)
-        self.assertFalse(conn.closed)
-
-        conn.set_is_idle()
-        self.assertTrue(conn.is_idle)
-        self.assertFalse(conn.is_closing)
-        self.assertFalse(conn.closed)
-
-        conn.set_is_closing()
-        self.assertTrue(conn.is_idle)
-        self.assertTrue(conn.is_closing)
-        self.assertFalse(conn.closed)
-
-        conn.close()
-        self.assertTrue(conn.is_idle)
-        self.assertTrue(conn.is_closing)
-        self.assertTrue(conn.closed)
-
-    def test_connection_with_max_age_zero(self):
-        pg_conn = psycopg2.connect(
-            dbname="eventsourcing",
-            host="127.0.0.1",
-            port="5432",
-            user="eventsourcing",
-            password="eventsourcing",
-            connect_timeout=5,
-        )
-        conn = Connection(pg_conn=pg_conn, max_age=0)
-        self.assertEqual(conn._max_age, 0)
-        self.assertIsInstance(conn._timer, Timer)
-        self.assertFalse(conn.is_idle)
-        self.assertTrue(conn.is_closing)
-        self.assertFalse(conn.closed)
-
-        conn.set_is_idle()
-        self.assertTrue(conn._is_closing.wait(0.01))
-        self.assertTrue(conn.is_idle)
-        self.assertTrue(conn.is_closing)
-        sleep(0.01)
-        self.assertTrue(conn.closed)
-
-    def test_connection_with_max_age(self):
-        pg_conn = psycopg2.connect(
-            dbname="eventsourcing",
-            host="127.0.0.1",
-            port="5432",
-            user="eventsourcing",
-            password="eventsourcing",
-            connect_timeout=5,
-        )
-        conn = Connection(pg_conn=pg_conn, max_age=0.5)
-        self.assertEqual(conn._max_age, 0.5)
-        self.assertIsInstance(conn._timer, Timer)
-
-        self.assertFalse(conn.is_idle)
-        self.assertFalse(conn.is_closing)
-        self.assertFalse(conn.closed)
-
-        conn.set_is_idle()
-        sleep(0.1)
-        self.assertTrue(conn.is_idle)
-        self.assertFalse(conn.is_closing)
-        self.assertFalse(conn.closed)
-
-        conn.set_not_idle()
-        sleep(0.5)
-        self.assertFalse(conn.is_idle)
-        self.assertTrue(conn.is_closing)
-        self.assertFalse(conn.closed)
-
-        conn.set_is_idle()
-        sleep(0.01)
-
-        self.assertTrue(conn.is_idle)
-        self.assertTrue(conn.is_closing)
-        self.assertTrue(conn.closed)
-        self.assertTrue(conn.was_closed_by_timer)
-
-    def test_cursor_returns_a_cursor(self):
-        pg_conn = psycopg2.connect(
-            dbname="eventsourcing",
-            host="127.0.0.1",
-            port="5432",
-            user="eventsourcing",
-            password="eventsourcing",
-            connect_timeout=5,
-        )
-        conn = Connection(pg_conn=pg_conn, max_age=1)
-        curs = conn.cursor()
-        self.assertIsInstance(curs, cursor)
-
-        with self.assertRaises(psycopg2.ProgrammingError):
-            curs.fetchall()
-
-        curs.execute("SELECT 1")
-        self.assertEqual(curs.fetchall(), [[1]])
-
-    def test_cursor_raises_when_execute_is_called_after_connection_closed(self):
-        pg_conn = psycopg2.connect(
-            dbname="eventsourcing",
-            host="127.0.0.1",
-            port="5432",
-            user="eventsourcing",
-            password="eventsourcing",
-            connect_timeout=5,
-        )
-        conn = Connection(pg_conn=pg_conn, max_age=1)
-        curs = conn.cursor()
-        conn.close()
-        with self.assertRaises(psycopg2.InterfaceError):
-            curs.execute("SELECT 1")
-
+class TestPostgresConnection(TestCase):
     def test_commit_calls_commit(self):
         mock = MagicMock(connection)
-        conn = Connection(pg_conn=mock, max_age=1)
+        conn = PostgresConnection(pg_conn=mock, max_age=1)
         conn.commit()
         mock.commit.assert_called_once()
 
     def test_rollback_calls_rollback(self):
         mock = MagicMock(connection)
-        conn = Connection(pg_conn=mock, max_age=1)
+        conn = PostgresConnection(pg_conn=mock, max_age=1)
         conn.rollback()
         mock.rollback.assert_called_once()
 
@@ -237,9 +109,9 @@ class TestConnection(TestCase):
             password="eventsourcing",
             connect_timeout=5,
         )
-        conn = Connection(pg_conn=pg_conn, max_age=1)
+        conn = PostgresConnection(pg_conn=pg_conn, max_age=1)
         with conn.transaction(commit=False) as curs:
-            self.assertIsInstance(curs, cursor)
+            self.assertIsInstance(curs, PostgresCursor)
             curs.execute("SELECT 1")
             self.assertEqual(curs.fetchall(), [[1]])
 
@@ -248,238 +120,35 @@ class TestConnection(TestCase):
                 curs.execute("BLAH")
 
 
-class TestConnectionPool(TestCase):
-    def setUp(self) -> None:
-        self.pool = ConnectionPool(
+class TestPostgresConnectionPool(TestConnectionPool):
+    ProgrammingError = psycopg2.ProgrammingError
+    PersistenceError = psycopg2.Error
+
+    def create_pool(self, pool_size=1, max_overflow=0, max_age=None, pre_ping=False):
+        return PostgresConnectionPool(
             dbname="eventsourcing",
             host="127.0.0.1",
             port="5432",
             user="eventsourcing",
             password="eventsourcing",
+            pool_size=pool_size,
+            max_overflow=max_overflow,
+            max_age=max_age,
+            pre_ping=pre_ping,
         )
 
-    def tearDown(self) -> None:
-        self.pool.close()
-
-    def test_max_conn_property(self):
-        self.assertEqual(self.pool.max_conn, 20)
-        self.assertEqual(self.pool.maxconn, 20)
-
-        self.pool.max_conn = 10
-
-        self.assertEqual(self.pool.max_conn, 10)
-        self.assertEqual(self.pool.maxconn, 10)
-
-        self.pool.maxconn = 5
-
-        self.assertEqual(self.pool.max_conn, 5)
-        self.assertEqual(self.pool.maxconn, 5)
-
-    def test_min_conn_property(self):
-        self.assertEqual(self.pool.min_conn, 0)
-        self.assertEqual(self.pool.minconn, 0)
-
-        self.pool.min_conn = 10
-
-        self.assertEqual(self.pool.min_conn, 10)
-        self.assertEqual(self.pool.minconn, 10)
-
-        self.pool.minconn = 5
-
-        self.assertEqual(self.pool.min_conn, 5)
-        self.assertEqual(self.pool.minconn, 5)
-
-    def test_can_call_close_several_times(self):
-        self.pool.close()
-        self.pool.close()
+    def close_connection_on_server(self, *connections):
+        # Close all connections.
+        pg_close_all_connections()
 
     def test_get_connection(self):
-        self.assertGreater(self.pool.maxconn, 0)
-        self.assertEqual(self.pool.min_conn, 0)
-
-        # We can get a connection.
-        conn = self.pool.get()
-        self.assertIsInstance(conn, Connection)
-
-    def test_get_when_closed_raises_exception(self):
-        self.pool.close()
-        with self.assertRaises(ConnectionPoolClosed):
-            self.pool.get()
-
-    def test_put_connection(self):
-        # Can put back a connection that we did get from the pool.
-        conn = self.pool.get()
-        self.pool.put(conn)
-
-        # Can't put a connection that we didn't get from the pool.
-        pg_conn = psycopg2.connect(
-            dbname="eventsourcing",
-            host="127.0.0.1",
-            port="5432",
-            user="eventsourcing",
-            password="eventsourcing",
-            connect_timeout=5,
-        )
-        conn = Connection(pg_conn=pg_conn, max_age=1)
-        with self.assertRaises(ConnectionPoolUnkeyedConnectionError):
-            self.pool.put(conn)
-
-    def test_maxconn_causes_pool_exahusted_error(self):
-        self.pool.maxconn = 1
-        # Getting two connections concurrently raises an error.
-        conn = self.pool.get()
-        with self.assertRaises(ConnectionPoolExhaustedError):
-            self.pool.get()
-        self.pool.put(conn)
-
-        # Getting ten connections sequentially is okay.
-        for _ in range(10):
-            conn = self.pool.get()
-            self.pool.put(conn)
-
-    def test_get_maxconn_simultaneous_connections(self):
-        connections = []
-        self.assertEqual(self.pool.maxconn, 20)
-        for _ in range(self.pool.maxconn):
-            conn = self.pool.get()
-            connections.append(conn)
-
-    def test_pool_closes_connections_when_pool_size_not_less_than_min_conn(self):
-        # Check min_conn is zero.
-        self.assertEqual(self.pool.min_conn, 0)
-
-        # Hold connection object refs, avoids Python reusing object IDs.
-        seen_connections = []
-
-        # Get and put a connection several times.
-        seen_ids = set()
-        for _ in range(10):
-            conn = self.pool.get()
-            seen_connections.append(conn)
-            seen_ids.add(id(conn))
-            self.pool.put(conn)
-            sleep(0.01)
-
-        # Check we got the same connection object each time.
-        self.assertEqual(len(seen_ids), 10)
-
-    def test_pool_keeps_connections_when_pool_size_less_than_min_conn(self):
-        # Set min_conn > 0.
-        self.pool.min_conn = 1
-
-        # Hold connection object refs, avoids Python reusing object IDs.
-        seen_connections = []
-
-        # Get and put a connection several times.
-        seen_ids = set()
-        for _ in range(10):
-            conn = self.pool.get()
-            seen_connections.append(conn)
-            seen_ids.add(id(conn))
-            self.pool.put(conn)
-
-        # Check we got the same connection object each time.
-        self.assertEqual(len(seen_ids), 1)
-
-    def test_min_conn_initialises_connections_when_pool_constructed(self):
-        pool = ConnectionPool(
-            dbname="eventsourcing",
-            host="127.0.0.1",
-            port="5432",
-            user="eventsourcing",
-            password="eventsourcing",
-            min_conn=1,
-        )
-        self.assertEqual(pool.min_conn, 1)
-        self.assertEqual(len(pool._pool), 1)
-
-    def test_connection_does_not_continue_in_pool_when_closed_before_put(self):
-        # Set min_conn > 0.
-        self.pool.min_conn = 1
-
-        # Hold connection object ref, avoids Python reusing object IDs.
-        seen_connections = []
-
-        # Get and put a connection several times.
-        seen_ids = set()
-        for _ in range(10):
-            conn = self.pool.get()
-            conn.close()
-            seen_connections.append(conn)
-            seen_ids.add(id(conn))
-            self.pool.put(conn)
-
-        # Check we got the same connection object each time.
-        self.assertEqual(len(seen_ids), 10)
-
-    def test_new_connection_returned_by_get_when_closed_after_put(self):
-        # Set min_conn > 0.
-        self.pool.min_conn = 1
-
-        # Get a connection.
-        conn = self.pool.get()
-        self.pool.put(conn)
-
-        # Close the connection.
-        conn.close()
-
-        # Check we get a connection that isn't closed.
-        conn = self.pool.get()
-        self.assertFalse(conn.closed)
-
-    def test_dysfunctional_connection_returned_by_get_when_closed_on_server(self):
-        # Set min_conn.
-        self.pool.min_conn = 1
-
-        # Get and put a connection in the pool.
-        conn = self.pool.get()
-        self.pool.put(conn)
-        self.assertTrue(self.pool._pool)
-
-        # Close all connections.
-        pg_close_all_connections()
-
-        # Check the connection doesn't think it's closed.
-        self.assertFalse(self.pool._pool[0].closed)
-
-        # Check we get a connection that isn't closed.
-        conn = self.pool.get()
-        self.assertFalse(conn.closed)
-
-        # Check the connection actually doesn't work.
-        with self.assertRaises(psycopg2.Error):
-            conn.cursor().execute("SELECT 1")
-
-    def test_pre_ping(self):
-        # Set min_conn and pre-ping.
-        self.pool.min_conn = 1
-        self.pool.pre_ping = True
-
-        # Get and put a connection in the pool.
-        conn1 = self.pool.get()
-        self.pool.put(conn1)
-        self.assertTrue(self.pool._pool)
-
-        # Close all connections.
-        pg_close_all_connections()
-
-        # Check the connection doesn't think it's closed.
-        self.assertFalse(self.pool._pool[0].closed)
-
-        # Check we get a connection that isn't closed.
-        conn2 = self.pool.get()
-        self.assertFalse(conn2.closed)
-
-        # Check the connection actually does work (new connection was created).
-        curs = conn2.cursor()
-        curs.execute("SELECT 1")
-        self.assertEqual(curs.fetchall(), [[1]])
-
-        # Check it's a different connection.
-        self.assertNotEqual(id(conn1), id(conn2))
+        # Check we can get a postgres connection.
+        pool = self.create_pool()
+        conn = pool.get_connection()
+        self.assertIsInstance(conn, PostgresConnection)
 
     def test_bad_connection_config(self):
-        pool = ConnectionPool(
+        pool = PostgresConnectionPool(
             dbname="eventsourcing",
             host="127.0.0.1",
             port="4321",
@@ -487,28 +156,19 @@ class TestConnectionPool(TestCase):
             password="eventsourcing",
         )
         with self.assertRaises(OperationalError):
-            pool.get()
+            pool.get_connection()
 
-    def test_idle_status(self):
-        self.pool.min_conn = 1
+    def test_close_on_server_after_returning_with_pre_ping(self):
+        super().test_close_after_returning_without_pre_ping()
 
-        # Check new connection is not idle.
-        conn = self.pool.get()
-        self.assertFalse(conn.is_idle)
-
-        # Check connection becomes idle when returned to pool.
-        self.pool.put(conn)
-        self.assertTrue(conn.is_idle)
-
-        # Check same connection becomes not idle again when reused.
-        self.assertEqual(id(conn), id(self.pool.get()))
-        self.assertFalse(conn.is_idle)
+    def test_close_on_server_after_returning_without_pre_ping(self):
+        super().test_close_on_server_after_returning_without_pre_ping()
 
 
 class TestTransaction(TestCase):
     def setUp(self) -> None:
-        self.mock = MagicMock(Connection(MagicMock(connection), max_age=None))
-        self.t = Transaction(self.mock, commit=True)
+        self.mock = MagicMock(PostgresConnection(MagicMock(connection), max_age=None))
+        self.t = PostgresTransaction(self.mock, commit=True)
 
     def test_calls_commit_if_error_not_raised_during_transaction(self):
         with self.t:
@@ -529,7 +189,7 @@ class TestTransaction(TestCase):
         # Avoid traceback error from Transaction.__del__.
         self.t.has_entered = True
         # Create transaction with commit=False.
-        self.t = Transaction(self.mock, commit=False)
+        self.t = PostgresTransaction(self.mock, commit=False)
         with self.t:
             pass
         self.mock.commit.assert_not_called()
@@ -618,7 +278,7 @@ class TestTransaction(TestCase):
         self.mock.close.assert_called()
 
     def test_idle_in_transaction_session_timeout_actually_works(self):
-        pool = ConnectionPool(
+        pool = PostgresConnectionPool(
             dbname="eventsourcing",
             host="127.0.0.1",
             port="5432",
@@ -627,9 +287,8 @@ class TestTransaction(TestCase):
             idle_in_transaction_session_timeout=1,
         )
         self.assertFalse(pool._pool)
-        self.assertFalse(pool.min_conn)
 
-        conn = pool.get()
+        conn = pool.get_connection()
         with self.assertRaises(PersistenceError) as cm:
             with conn.transaction(commit=False) as curs:
                 curs.execute("SELECT 1")
@@ -650,7 +309,7 @@ class TestPostgresDatastore(TestCase):
             user="eventsourcing",
             password="eventsourcing",
         )
-        self.assertIsInstance(datastore.pool, ConnectionPool)
+        self.assertIsInstance(datastore.pool, PostgresConnectionPool)
 
     def test_get_connection(self):
         datastore = PostgresDatastore(
@@ -661,7 +320,7 @@ class TestPostgresDatastore(TestCase):
             password="eventsourcing",
         )
         with datastore.get_connection() as conn:
-            self.assertIsInstance(conn, Connection)
+            self.assertIsInstance(conn, PostgresConnection)
 
     def test_transactions_from_connection(self):
         datastore = PostgresDatastore(
@@ -734,7 +393,7 @@ class TestPostgresDatastore(TestCase):
                 port="5432",
                 user="eventsourcing",
                 password="eventsourcing",
-                min_conn=1,
+                pool_size=1,
                 pre_ping=pre_ping,
             )
 
@@ -860,7 +519,7 @@ class TestPostgresAggregateRecorder(SetupPostgresDatastore, AggregateRecorderTes
     def test_report_on_prepared_statements(self):
         # Shouldn't be any prepared statements, because haven't done anything.
         recorder = self.create_recorder()
-        self.datastore.pool.min_conn = 1
+        self.datastore.pool.pool_size = 1
         pg, py = recorder.datastore.report_on_prepared_statements()
         self.assertEqual(pg, [])
         self.assertEqual(py, [])
@@ -907,7 +566,7 @@ class TestPostgresAggregateRecorder(SetupPostgresDatastore, AggregateRecorderTes
 
     def test_retry_insert_events_after_closing_connection(self):
         # This checks connection is recreated after connections are closed.
-        self.datastore.pool.min_conn = 1
+        self.datastore.pool.pool_size = 1
 
         # Construct the recorder.
         recorder = self.create_recorder()
@@ -933,7 +592,7 @@ class TestPostgresAggregateRecorder(SetupPostgresDatastore, AggregateRecorderTes
 
         # Construct the recorder.
         recorder = self.create_recorder()
-        self.datastore.pool.min_conn = 1
+        self.datastore.pool.pool_size = 1
 
         # Write a stored event.
         stored_event1 = StoredEvent(
@@ -967,7 +626,7 @@ class TestPostgresAggregateRecorder(SetupPostgresDatastore, AggregateRecorderTes
 
         # Construct the recorder.
         recorder = self.create_recorder()
-        self.datastore.pool.min_conn = 1
+        self.datastore.pool.pool_size = 1
 
         # Write a stored event.
         originator_id = uuid4()
@@ -991,7 +650,7 @@ class TestPostgresAggregateRecorder(SetupPostgresDatastore, AggregateRecorderTes
 
         # Construct the recorder.
         recorder = self.create_recorder()
-        self.datastore.pool.min_conn = 1
+        self.datastore.pool.pool_size = 1
 
         # Write a stored event.
         originator_id = uuid4()
@@ -1105,7 +764,7 @@ class TestPostgresAggregateRecorderErrors(SetupPostgresDatastore, TestCase):
     def test_duplicate_prepared_statement_error_is_ignored(self):
         # Construct the recorder.
         recorder = self.create_recorder()
-        self.datastore.pool.min_conn = 1
+        self.datastore.pool.pool_size = 1
 
         # Create the table.
         recorder.create_table()
@@ -1146,9 +805,11 @@ class TestPostgresApplicationRecorder(
         return recorder
 
     def test_concurrent_no_conflicts(self):
+        self.datastore.pool.pool_size = 10
         super().test_concurrent_no_conflicts()
 
     def test_concurrent_throughput(self):
+        self.datastore.pool.pool_size = 4
         super().test_concurrent_throughput()
 
     def test_retry_select_notifications_after_closing_connection(self):
@@ -1156,7 +817,7 @@ class TestPostgresApplicationRecorder(
 
         # Construct the recorder.
         recorder = self.create_recorder()
-        self.datastore.pool.min_conn = 1
+        self.datastore.pool.pool_size = 1
 
         # Write a stored event.
         originator_id = uuid4()
@@ -1180,7 +841,7 @@ class TestPostgresApplicationRecorder(
 
         # Construct the recorder.
         recorder = self.create_recorder()
-        self.datastore.pool.min_conn = 1
+        self.datastore.pool.pool_size = 1
 
         # Write a stored event.
         originator_id = uuid4()
@@ -1212,7 +873,7 @@ class TestPostgresApplicationRecorder(
 
         # Construct the recorder.
         recorder = self.create_recorder()
-        self.datastore.pool.min_conn = 1
+        self.datastore.pool.pool_size = 1
 
         # Write a stored event.
         originator_id = uuid4()
@@ -1236,7 +897,7 @@ class TestPostgresApplicationRecorder(
 
         # Construct the recorder.
         recorder = self.create_recorder()
-        self.datastore.pool.min_conn = 1
+        self.datastore.pool.pool_size = 1
 
         # Write a stored event.
         originator_id = uuid4()
@@ -1484,7 +1145,7 @@ class TestPostgresProcessRecorder(SetupPostgresDatastore, ProcessRecorderTestCas
 
         # Construct the recorder.
         recorder = self.create_recorder()
-        self.datastore.pool.min_conn = 1
+        self.datastore.pool.pool_size = 1
 
         # Write a tracking record.
         originator_id = uuid4()
@@ -1509,7 +1170,7 @@ class TestPostgresProcessRecorder(SetupPostgresDatastore, ProcessRecorderTestCas
 
         # Construct the recorder.
         recorder = self.create_recorder()
-        self.datastore.pool.min_conn = 1
+        self.datastore.pool.pool_size = 1
 
         # Write a tracking record.
         originator_id = uuid4()
@@ -1631,32 +1292,32 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         self.assertEqual(self.factory.datastore.pool.max_age, 0)
 
     def test_max_conn_is_ten_by_default(self):
-        self.assertTrue(Factory.POSTGRES_POOL_MAX_CONN not in self.env)
+        self.assertTrue(Factory.POSTGRES_POOL_MAX_OVERFLOW not in self.env)
         self.factory = Factory(self.env)
-        self.assertEqual(self.factory.datastore.pool.max_conn, 10)
+        self.assertEqual(self.factory.datastore.pool.max_overflow, 10)
 
-        self.env[Factory.POSTGRES_POOL_MAX_CONN] = ""
+        self.env[Factory.POSTGRES_POOL_MAX_OVERFLOW] = ""
         self.factory = Factory(self.env)
-        self.assertEqual(self.factory.datastore.pool.max_conn, 10)
+        self.assertEqual(self.factory.datastore.pool.max_overflow, 10)
 
     def test_max_conn_is_nonzero(self):
-        self.env[Factory.POSTGRES_POOL_MAX_CONN] = "1"
+        self.env[Factory.POSTGRES_POOL_MAX_OVERFLOW] = "1"
         self.factory = Factory(self.env)
-        self.assertEqual(self.factory.datastore.pool.max_conn, 1)
+        self.assertEqual(self.factory.datastore.pool.max_overflow, 1)
 
     def test_min_conn_is_ten_by_default(self):
-        self.assertTrue(Factory.POSTGRES_POOL_MIN_CONN not in self.env)
+        self.assertTrue(Factory.POSTGRES_POOL_SIZE not in self.env)
         self.factory = Factory(self.env)
-        self.assertEqual(self.factory.datastore.pool.min_conn, 10)
+        self.assertEqual(self.factory.datastore.pool.pool_size, 10)
 
-        self.env[Factory.POSTGRES_POOL_MIN_CONN] = ""
+        self.env[Factory.POSTGRES_POOL_SIZE] = ""
         self.factory = Factory(self.env)
-        self.assertEqual(self.factory.datastore.pool.min_conn, 10)
+        self.assertEqual(self.factory.datastore.pool.pool_size, 10)
 
     def test_min_conn_is_nonzero(self):
-        self.env[Factory.POSTGRES_POOL_MIN_CONN] = "1"
+        self.env[Factory.POSTGRES_POOL_SIZE] = "1"
         self.factory = Factory(self.env)
-        self.assertEqual(self.factory.datastore.pool.min_conn, 1)
+        self.assertEqual(self.factory.datastore.pool.pool_size, 1)
 
     def test_lock_timeout_is_zero_by_default(self):
         self.assertTrue(Factory.POSTGRES_LOCK_TIMEOUT not in self.env)
@@ -1729,22 +1390,22 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         )
 
     def test_environment_error_raised_when_min_conn_not_an_integer(self):
-        self.env[Factory.POSTGRES_POOL_MIN_CONN] = "abc"
+        self.env[Factory.POSTGRES_POOL_SIZE] = "abc"
         with self.assertRaises(EnvironmentError) as cm:
             self.factory = Factory(self.env)
         self.assertEqual(
             cm.exception.args[0],
-            "Postgres environment value for key 'POSTGRES_POOL_MIN_CONN' "
+            "Postgres environment value for key 'POSTGRES_POOL_SIZE' "
             "is invalid. If set, an integer or empty string is expected: 'abc'",
         )
 
     def test_environment_error_raised_when_max_conn_not_an_integer(self):
-        self.env[Factory.POSTGRES_POOL_MAX_CONN] = "abc"
+        self.env[Factory.POSTGRES_POOL_MAX_OVERFLOW] = "abc"
         with self.assertRaises(EnvironmentError) as cm:
             self.factory = Factory(self.env)
         self.assertEqual(
             cm.exception.args[0],
-            "Postgres environment value for key 'POSTGRES_POOL_MAX_CONN' "
+            "Postgres environment value for key 'POSTGRES_POOL_MAX_OVERFLOW' "
             "is invalid. If set, an integer or empty string is expected: 'abc'",
         )
 
@@ -1882,6 +1543,7 @@ del ProcessRecorderTestCase
 del InfrastructureFactoryTestCase
 del SetupPostgresDatastore
 del WithSchema
+del TestConnectionPool
 
 
 def drop_postgres_table(datastore: PostgresDatastore, table_name):

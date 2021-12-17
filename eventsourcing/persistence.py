@@ -722,7 +722,7 @@ class Tracking:
 
 class Cursor(ABC):
     @abstractmethod
-    def execute(self, statement: str) -> None:
+    def execute(self, statement: Union[str, bytes], params: Any = None) -> None:
         """Executes given statement."""
 
     @abstractmethod
@@ -730,10 +730,14 @@ class Cursor(ABC):
         """Fetches all results."""
 
 
-class Connection(ABC):
+TCursor = TypeVar("TCursor", bound=Cursor)
+
+
+class Connection(ABC, Generic[TCursor]):
     def __init__(self, max_age: Optional[float] = None) -> None:
         self._closed = False
         self._closing = Event()
+        self._close_lock = Lock()
         self.in_use = Lock()
         self.in_use.acquire()
         if max_age is not None:
@@ -741,6 +745,7 @@ class Connection(ABC):
                 interval=max_age,
                 function=self._close_on_timer,
             )
+            self._max_age_timer.daemon = True
             self._max_age_timer.start()
         else:
             self._max_age_timer = None
@@ -762,11 +767,15 @@ class Connection(ABC):
         """Rolls back transaction."""
 
     @abstractmethod
-    def cursor(self) -> Cursor:
+    def cursor(self) -> TCursor:
         """Creates new cursor."""
 
-    @abstractmethod
     def close(self) -> None:
+        with self._close_lock:
+            self._close()
+
+    @abstractmethod
+    def _close(self) -> None:
         self._closed = True
         if self._max_age_timer:
             self._max_age_timer.cancel()
@@ -778,6 +787,9 @@ class Connection(ABC):
                 self.close()
 
 
+TConnection = TypeVar("TConnection", bound=Connection[Any])
+
+
 class ConnectionPoolClosed(Exception):
     pass
 
@@ -786,24 +798,26 @@ class ConnectionNotFromPool(Exception):
     pass
 
 
-class ConnectionPoolExhausted(Exception):
+class ConnectionPoolExhausted(OperationalError):
     pass
 
 
-class ConnectionPool(ABC):
+class ConnectionPool(ABC, Generic[TConnection]):
     def __init__(
         self,
         pool_size: int = 1,
-        max_overhead: int = 0,
+        max_overflow: int = 0,
         max_age: Optional[float] = None,
         pre_ping: bool = False,
+        pool_timeout: float = 5.0,
     ) -> None:
-        self._pool_size = pool_size
-        self._max_overhead = max_overhead
-        self._max_age = max_age
-        self._pre_ping = pre_ping
-        self._pool: Deque[Connection] = deque()
-        self._in_use: Dict[int, Connection] = dict()
+        self.pool_size = pool_size
+        self.max_overflow = max_overflow
+        self.max_age = max_age
+        self.pre_ping = pre_ping
+        self.pool_timeout = pool_timeout
+        self._pool: Deque[TConnection] = deque()
+        self._in_use: Dict[int, TConnection] = dict()
         self._semaphore = Semaphore()
         self._condition = Condition()
         self._closed = False
@@ -828,22 +842,23 @@ class ConnectionPool(ABC):
 
     @property
     def _is_pool_full(self) -> bool:
-        return self._num_in_pool >= self._pool_size
+        return self._num_in_pool >= self.pool_size
 
     @property
     def _is_use_full(self) -> bool:
-        return self._num_in_use < self._pool_size + self._max_overhead
+        return self._num_in_use < self.pool_size + self.max_overflow
 
-    def get_connection(self, timeout: float = 0.0) -> Connection:
+    def get_connection(self, timeout: Optional[float] = None) -> TConnection:
         if self._closed:
             raise ConnectionPoolClosed
         started = time()
         with self._semaphore:
+            pool_timeout = self.pool_timeout if timeout is None else timeout
             return self._get_connection(
-                timeout=self._remaining_timeout(timeout, started)
+                timeout=self._remaining_timeout(pool_timeout, started)
             )
 
-    def _get_connection(self, timeout: float = 0.0) -> Connection:
+    def _get_connection(self, timeout: float = 0.0) -> TConnection:
         started = time()
         with self._condition:
             try:
@@ -872,10 +887,10 @@ class ConnectionPool(ABC):
                     return self._get_connection(
                         timeout=self._remaining_timeout(timeout, started)
                     )
-                elif self._pre_ping:
+                elif self.pre_ping:
                     try:
                         conn.cursor().execute("SELECT 1")
-                    except PersistenceError:
+                    except Exception:
                         return self._get_connection(
                             timeout=self._remaining_timeout(timeout, started)
                         )
@@ -886,7 +901,7 @@ class ConnectionPool(ABC):
     def _remaining_timeout(timeout: float, started: float) -> float:
         return max(0.0, timeout + started - time())
 
-    def put_connection(self, conn: Connection) -> None:
+    def put_connection(self, conn: TConnection) -> None:
         with self._condition:
             if self._closed:
                 raise ConnectionPoolClosed("Pool is closed")
@@ -908,7 +923,7 @@ class ConnectionPool(ABC):
                 self._condition.notify_all()
 
     @abstractmethod
-    def _create_connection(self) -> Connection:
+    def _create_connection(self) -> TConnection:
         """Creates new connection."""
 
     def close(self) -> None:
@@ -925,3 +940,6 @@ class ConnectionPool(ABC):
                 else:
                     conn.close()
             self._closed = True
+
+    def __del__(self) -> None:
+        self.close()
