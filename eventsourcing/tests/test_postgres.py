@@ -1291,7 +1291,16 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.pool.max_age, 0)
 
-    def test_max_conn_is_ten_by_default(self):
+    def test_pool_size_is_five_by_default(self):
+        self.assertTrue(Factory.POSTGRES_POOL_SIZE not in self.env)
+        self.factory = Factory(self.env)
+        self.assertEqual(self.factory.datastore.pool.pool_size, 5)
+
+        self.env[Factory.POSTGRES_POOL_SIZE] = ""
+        self.factory = Factory(self.env)
+        self.assertEqual(self.factory.datastore.pool.pool_size, 5)
+
+    def test_max_overflow_is_ten_by_default(self):
         self.assertTrue(Factory.POSTGRES_POOL_MAX_OVERFLOW not in self.env)
         self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.pool.max_overflow, 10)
@@ -1300,24 +1309,43 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.pool.max_overflow, 10)
 
-    def test_max_conn_is_nonzero(self):
-        self.env[Factory.POSTGRES_POOL_MAX_OVERFLOW] = "1"
+    def test_max_overflow_is_set(self):
+        self.env[Factory.POSTGRES_POOL_MAX_OVERFLOW] = "7"
         self.factory = Factory(self.env)
-        self.assertEqual(self.factory.datastore.pool.max_overflow, 1)
+        self.assertEqual(self.factory.datastore.pool.max_overflow, 7)
 
-    def test_min_conn_is_ten_by_default(self):
-        self.assertTrue(Factory.POSTGRES_POOL_SIZE not in self.env)
+    def test_pool_size_is_Set(self):
+        self.env[Factory.POSTGRES_POOL_SIZE] = "6"
         self.factory = Factory(self.env)
-        self.assertEqual(self.factory.datastore.pool.pool_size, 10)
+        self.assertEqual(self.factory.datastore.pool.pool_size, 6)
 
-        self.env[Factory.POSTGRES_POOL_SIZE] = ""
+    def test_connect_timeout_is_five_by_default(self):
+        self.assertTrue(Factory.POSTGRES_CONNECT_TIMEOUT not in self.env)
         self.factory = Factory(self.env)
-        self.assertEqual(self.factory.datastore.pool.pool_size, 10)
+        self.assertEqual(self.factory.datastore.pool.connect_timeout, 5)
 
-    def test_min_conn_is_nonzero(self):
-        self.env[Factory.POSTGRES_POOL_SIZE] = "1"
+        self.env[Factory.POSTGRES_CONNECT_TIMEOUT] = ""
         self.factory = Factory(self.env)
-        self.assertEqual(self.factory.datastore.pool.pool_size, 1)
+        self.assertEqual(self.factory.datastore.pool.connect_timeout, 5)
+
+    def test_connect_timeout_is_set(self):
+        self.env[Factory.POSTGRES_CONNECT_TIMEOUT] = "8"
+        self.factory = Factory(self.env)
+        self.assertEqual(self.factory.datastore.pool.connect_timeout, 8)
+
+    def test_pool_timeout_is_30_by_default(self):
+        self.assertTrue(Factory.POSTGRES_POOL_TIMEOUT not in self.env)
+        self.factory = Factory(self.env)
+        self.assertEqual(self.factory.datastore.pool.pool_timeout, 30)
+
+        self.env[Factory.POSTGRES_POOL_TIMEOUT] = ""
+        self.factory = Factory(self.env)
+        self.assertEqual(self.factory.datastore.pool.pool_timeout, 30)
+
+    def test_pool_timeout_is_set(self):
+        self.env[Factory.POSTGRES_POOL_TIMEOUT] = "8"
+        self.factory = Factory(self.env)
+        self.assertEqual(self.factory.datastore.pool.pool_timeout, 8)
 
     def test_lock_timeout_is_zero_by_default(self):
         self.assertTrue(Factory.POSTGRES_LOCK_TIMEOUT not in self.env)
@@ -1328,31 +1356,31 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.lock_timeout, 0)
 
-    def test_lock_timeout_is_nonzero(self):
+    def test_lock_timeout_is_set(self):
         self.env[Factory.POSTGRES_LOCK_TIMEOUT] = "1"
         self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.lock_timeout, 1)
 
-    def test_idle_in_transaction_session_timeout_is_zero_by_default(self):
+    def test_idle_in_transaction_session_timeout_is_5_by_default(self):
         self.assertTrue(
             Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT not in self.env
         )
         self.factory = Factory(self.env)
         self.assertEqual(
-            self.factory.datastore.pool.idle_in_transaction_session_timeout, 0
+            self.factory.datastore.pool.idle_in_transaction_session_timeout, 5
         )
 
         self.env[Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT] = ""
         self.factory = Factory(self.env)
         self.assertEqual(
-            self.factory.datastore.pool.idle_in_transaction_session_timeout, 0
+            self.factory.datastore.pool.idle_in_transaction_session_timeout, 5
         )
 
-    def test_idle_in_transaction_session_timeout_is_nonzero(self):
-        self.env[Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT] = "1"
+    def test_idle_in_transaction_session_timeout_is_set(self):
+        self.env[Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT] = "10"
         self.factory = Factory(self.env)
         self.assertEqual(
-            self.factory.datastore.pool.idle_in_transaction_session_timeout, 1
+            self.factory.datastore.pool.idle_in_transaction_session_timeout, 10
         )
 
     def test_pre_ping_off_by_default(self):
@@ -1376,6 +1404,26 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         self.assertEqual(
             cm.exception.args[0],
             "Postgres environment value for key 'POSTGRES_CONN_MAX_AGE' "
+            "is invalid. If set, a float or empty string is expected: 'abc'",
+        )
+
+    def test_environment_error_raised_when_connect_timeout_not_an_integer(self):
+        self.env[Factory.POSTGRES_CONNECT_TIMEOUT] = "abc"
+        with self.assertRaises(EnvironmentError) as cm:
+            self.factory = Factory(self.env)
+        self.assertEqual(
+            cm.exception.args[0],
+            "Postgres environment value for key 'POSTGRES_CONNECT_TIMEOUT' "
+            "is invalid. If set, an integer or empty string is expected: 'abc'",
+        )
+
+    def test_environment_error_raised_when_pool_timeout_not_an_integer(self):
+        self.env[Factory.POSTGRES_POOL_TIMEOUT] = "abc"
+        with self.assertRaises(EnvironmentError) as cm:
+            self.factory = Factory(self.env)
+        self.assertEqual(
+            cm.exception.args[0],
+            "Postgres environment value for key 'POSTGRES_POOL_TIMEOUT' "
             "is invalid. If set, a float or empty string is expected: 'abc'",
         )
 

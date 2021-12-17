@@ -1170,10 +1170,14 @@ infrastructure.
     environ["POSTGRES_PORT"] = "5432"
     environ["POSTGRES_USER"] = "eventsourcing"
     environ["POSTGRES_PASSWORD"] = "eventsourcing"
-    environ["POSTGRES_CONN_MAX_AGE"] = "10"
-    environ["POSTGRES_PRE_PING"] = "y"
-    environ["POSTGRES_LOCK_TIMEOUT"] = "5"
+    environ["POSTGRES_CONNECT_TIMEOUT"] = "5"
     environ["POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT"] = "5"
+    environ["POSTGRES_POOL_SIZE"] = "5"
+    environ["POSTGRES_MAX_OVERFLOW"] = "10"
+    environ["POSTGRES_CONN_MAX_AGE"] = ""
+    environ["POSTGRES_PRE_PING"] = "n"
+    environ["POSTGRES_POOL_TIMEOUT"] = "30"
+    environ["POSTGRES_LOCK_TIMEOUT"] = "5"
     environ["POSTGRES_SCHEMA"] = "public"
 
 
@@ -1181,17 +1185,44 @@ The environment variables ``POSTGRES_DBNAME``, ``POSTGRES_HOST``, ``POSTGRES_POR
 ``POSTGRES_USER``, and ``POSTGRES_PASSWORD`` are required to set the name of a database,
 the database server's host name and port number, and the database user name and password.
 
+The optional environment variable ``POSTGRES_CONNECT_TIMEOUT`` may be used to timeout
+attempts to create new database connections. If set, an integer value is required.
+The default value is 5.
+
+The optional environment variable ``POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT`` may be used to
+timeout sessions that are idle in a transaction. If a transaction cannot be ended for some reason,
+perhaps because the database server cannot be reached, the transaction may remain in an idle
+state and any locks will continue to be held. By timing out the session, transactions will be ended,
+locks will be released, and the connection slot will be freed. A value of 0 means sessions in an idle
+transaction will not timeout. Setting this value to a positive integer number of seconds will cause
+sessions in an idle transaction to timeout after that duration has passed. The default value is 5.
+
+The optional environment variable ``POSTGRES_POOL_SIZE`` is used to control the maximum number of
+database connections that will be kept open in the connection pool. A value of 0 means there will
+be zero connections maintained in the pool, and each access to the database will cause a new connection
+to be made. If set, an integer value is required. The default value is 5. Please note, the pool will
+only create a connection when there isn't one in the pool and a connection is needed, so that if your
+application is single-threaded, only one connection will be created, even if the pool size is configured
+to be greater than 1.
+
+The optional environment variable ``POSTGRES_MAX_OVERFLOW`` is used to control the maximum number
+of additional connections that can be opened, above the pool size. The maximum number of connections
+that can be opened is the sum of ``POSTGRES_POOL_SIZE`` and ``POSTGRES_MAX_OVERFLOW``. However
+connections that are returned to the pool when it is full will be immediately closed. If set, an
+integer value is required. The default value is 10.
+
 The optional environment variable ``POSTGRES_CONN_MAX_AGE`` is used to control the length of time in
 seconds before a connection is closed. By default this value is not set, and connections will
-be reused indefinitely (or until an operational database error is encountered). If this
-value is set to a positive integer, the connection will be closed after this number of
-seconds from the time it was created, but only when the connection is idle. If this value
-if set to zero, each connection will only be used for one transaction. Setting this value
-to an empty string has the same effect as not setting this value. Setting this value to
-any other value will cause an environment error exception to be raised. If your database
-terminates idle connections after some time, you should set ``POSTGRES_CONN_MAX_AGE`` to a
-lower value, so that attempts are not made to use connections that have been terminated
-by the database server.
+be reused indefinitely, until an operational database error is encountered, or the connection
+is returned to a pool that is full. If this value is set to a positive integer, the connection
+will be closed after this number of seconds from the time it was created, but only  when the
+connection is not in use after the connection has been returned to the pool. If this value if
+set to zero, each connection will only be used once. Setting this value to an empty string has
+the same effect as not setting this value. Setting this value to any other value will cause an
+environment error exception to be raised. If your database terminates idle connections after some
+time, you should set ``POSTGRES_CONN_MAX_AGE`` to a lower value, so that attempts are not made to
+use connections that have been terminated by the database server, and so that your connections are
+not suddenly terminated in the middle of a transaction.
 
 The optional environment variable ``POSTGRES_PRE_PING`` may be used to enable pessimistic
 disconnection handling. Setting this to a "true" value (``"y"``, ``"yes"``, ``"t"``, ``"true"``,
@@ -1199,6 +1230,11 @@ disconnection handling. Setting this to a "true" value (``"y"``, ``"yes"``, ``"t
 executing statements, and database connections remade if the connection is not usable. This
 value is by default "false", meaning connections will not be checked before they are reused.
 Enabling this option will incur a small impact on performance.
+
+The optional environment variable ``POSTGRES_POOL_TIMEOUT`` may be used to control how many seconds
+to wait before raising a "pool exhausted" exception for a connection to be returned to a pool that
+has already opened the maximum number of connections configured by ``POSTGRES_POOL_SIZE`` and
+``POSTGRES_MAX_OVERFLOW``. If set, a floating point number is required. The default value is 30.
 
 The optional environment variable ``POSTGRES_LOCK_TIMEOUT`` may be used to enable a timeout
 on acquiring an 'EXCLUSIVE' mode table lock when inserting stored events. To avoid interleaving
@@ -1215,15 +1251,6 @@ use write ahead logging, reading can proceed concurrently with writing. By defau
 has the value of 0 seconds, which means attempts to acquire the lock will not timeout. Setting
 this value to a positive integer number of seconds will cause attempt to obtain this lock to
 timeout after that duration has passed. The lock will be released when the transaction ends.
-
-The optional environment variable ``POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT`` may be used to
-timeout sessions that are idle in a transaction. If a transaction cannot be ended for some reason,
-perhaps because the database server cannot be reached, the transaction may remain in an idle
-state and any locks will continue to be held. By timing out the session, transactions will be ended,
-locks will be released, and the connection slot will be freed. By default, this timeout has the value
-of 0 seconds, which means sessions in an idle transaction will not timeout. Setting this value to a
-positive integer number of seconds will cause sessions in an idle transaction to timeout after that duration
-has passed.
 
 The optional environment variable ``POSTGRES_SCHEMA`` may be used to configure the table names
 used by the recorders to be qualified with a schema name. Setting this will create tables in

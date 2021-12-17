@@ -221,13 +221,13 @@ class PostgresDatastore:
         user: str,
         password: str,
         connect_timeout: int = 5,
-        conn_max_age: Optional[float] = None,
-        get_lock_timeout: int = 0,
         idle_in_transaction_session_timeout: int = 0,
         pool_size: int = 2,
         max_overflow: int = 2,
-        pool_timeout: float = 5.0,
+        conn_max_age: Optional[float] = None,
         pre_ping: bool = False,
+        pool_timeout: float = 5.0,
+        lock_timeout: int = 0,
         schema: str = "",
     ):
         self.pool = PostgresConnectionPool(
@@ -244,7 +244,7 @@ class PostgresDatastore:
             pre_ping=pre_ping,
             pool_timeout=pool_timeout,
         )
-        self.lock_timeout = get_lock_timeout
+        self.lock_timeout = lock_timeout
         self.schema = schema.strip()
 
     @contextmanager
@@ -773,8 +773,10 @@ class Factory(InfrastructureFactory):
     POSTGRES_PORT = "POSTGRES_PORT"
     POSTGRES_USER = "POSTGRES_USER"
     POSTGRES_PASSWORD = "POSTGRES_PASSWORD"
+    POSTGRES_CONNECT_TIMEOUT = "POSTGRES_CONNECT_TIMEOUT"
     POSTGRES_CONN_MAX_AGE = "POSTGRES_CONN_MAX_AGE"
     POSTGRES_PRE_PING = "POSTGRES_PRE_PING"
+    POSTGRES_POOL_TIMEOUT = "POSTGRES_POOL_TIMEOUT"
     POSTGRES_LOCK_TIMEOUT = "POSTGRES_LOCK_TIMEOUT"
     POSTGRES_POOL_SIZE = "POSTGRES_POOL_SIZE"
     POSTGRES_POOL_MAX_OVERFLOW = "POSTGRES_POOL_MAX_OVERFLOW"
@@ -820,21 +822,54 @@ class Factory(InfrastructureFactory):
                 f"'{self.POSTGRES_PASSWORD}'"
             )
 
-        conn_max_age: Optional[float]
-        conn_max_age_str = self.env.get(self.POSTGRES_CONN_MAX_AGE)
-        if conn_max_age_str is None:
-            conn_max_age = None
-        elif conn_max_age_str == "":
-            conn_max_age = None
+        connect_timeout: Optional[int]
+        connect_timeout_str = self.env.get(self.POSTGRES_CONNECT_TIMEOUT)
+        if connect_timeout_str is None:
+            connect_timeout = 5
+        elif connect_timeout_str == "":
+            connect_timeout = 5
         else:
             try:
-                conn_max_age = float(conn_max_age_str)
+                connect_timeout = int(connect_timeout_str)
             except ValueError:
                 raise EnvironmentError(
                     f"Postgres environment value for key "
-                    f"'{self.POSTGRES_CONN_MAX_AGE}' is invalid. "
-                    f"If set, a float or empty string is expected: "
-                    f"'{conn_max_age_str}'"
+                    f"'{self.POSTGRES_CONNECT_TIMEOUT}' is invalid. "
+                    f"If set, an integer or empty string is expected: "
+                    f"'{connect_timeout_str}'"
+                )
+
+        idle_in_transaction_session_timeout_str = (
+            self.env.get(self.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT) or "5"
+        )
+
+        try:
+            idle_in_transaction_session_timeout = int(
+                idle_in_transaction_session_timeout_str
+            )
+        except ValueError:
+            raise EnvironmentError(
+                f"Postgres environment value for key "
+                f"'{self.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT}' is invalid. "
+                f"If set, an integer or empty string is expected: "
+                f"'{idle_in_transaction_session_timeout_str}'"
+            )
+
+        pool_size: Optional[int]
+        pool_size_str = self.env.get(self.POSTGRES_POOL_SIZE)
+        if pool_size_str is None:
+            pool_size = 5
+        elif pool_size_str == "":
+            pool_size = 5
+        else:
+            try:
+                pool_size = int(pool_size_str)
+            except ValueError:
+                raise EnvironmentError(
+                    f"Postgres environment value for key "
+                    f"'{self.POSTGRES_POOL_SIZE}' is invalid. "
+                    f"If set, an integer or empty string is expected: "
+                    f"'{pool_size_str}'"
                 )
 
         pool_max_overflow: Optional[int]
@@ -854,24 +889,41 @@ class Factory(InfrastructureFactory):
                     f"'{pool_max_overflow_str}'"
                 )
 
-        pool_size: Optional[int]
-        pool_size_str = self.env.get(self.POSTGRES_POOL_SIZE)
-        if pool_size_str is None:
-            pool_size = 10
-        elif pool_size_str == "":
-            pool_size = 10
+        conn_max_age: Optional[float]
+        conn_max_age_str = self.env.get(self.POSTGRES_CONN_MAX_AGE)
+        if conn_max_age_str is None:
+            conn_max_age = None
+        elif conn_max_age_str == "":
+            conn_max_age = None
         else:
             try:
-                pool_size = int(pool_size_str)
+                conn_max_age = float(conn_max_age_str)
             except ValueError:
                 raise EnvironmentError(
                     f"Postgres environment value for key "
-                    f"'{self.POSTGRES_POOL_SIZE}' is invalid. "
-                    f"If set, an integer or empty string is expected: "
-                    f"'{pool_size_str}'"
+                    f"'{self.POSTGRES_CONN_MAX_AGE}' is invalid. "
+                    f"If set, a float or empty string is expected: "
+                    f"'{conn_max_age_str}'"
                 )
 
         pre_ping = strtobool(self.env.get(self.POSTGRES_PRE_PING) or "no")
+
+        pool_timeout: Optional[float]
+        pool_timeout_str = self.env.get(self.POSTGRES_POOL_TIMEOUT)
+        if pool_timeout_str is None:
+            pool_timeout = 30
+        elif pool_timeout_str == "":
+            pool_timeout = 30
+        else:
+            try:
+                pool_timeout = float(pool_timeout_str)
+            except ValueError:
+                raise EnvironmentError(
+                    f"Postgres environment value for key "
+                    f"'{self.POSTGRES_POOL_TIMEOUT}' is invalid. "
+                    f"If set, a float or empty string is expected: "
+                    f"'{pool_timeout_str}'"
+                )
 
         lock_timeout_str = self.env.get(self.POSTGRES_LOCK_TIMEOUT) or "0"
 
@@ -885,22 +937,6 @@ class Factory(InfrastructureFactory):
                 f"'{lock_timeout_str}'"
             )
 
-        idle_in_transaction_session_timeout_str = (
-            self.env.get(self.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT) or "0"
-        )
-
-        try:
-            idle_in_transaction_session_timeout = int(
-                idle_in_transaction_session_timeout_str
-            )
-        except ValueError:
-            raise EnvironmentError(
-                f"Postgres environment value for key "
-                f"'{self.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT}' is invalid. "
-                f"If set, an integer or empty string is expected: "
-                f"'{idle_in_transaction_session_timeout_str}'"
-            )
-
         schema = self.env.get(self.POSTGRES_SCHEMA) or ""
 
         self.datastore = PostgresDatastore(
@@ -909,12 +945,14 @@ class Factory(InfrastructureFactory):
             port=port,
             user=user,
             password=password,
+            connect_timeout=connect_timeout,
+            idle_in_transaction_session_timeout=idle_in_transaction_session_timeout,
+            pool_size=pool_size,
+            max_overflow=pool_max_overflow,
             conn_max_age=conn_max_age,
             pre_ping=pre_ping,
-            get_lock_timeout=lock_timeout,
-            idle_in_transaction_session_timeout=idle_in_transaction_session_timeout,
-            max_overflow=pool_max_overflow,
-            pool_size=pool_size,
+            pool_timeout=pool_timeout,
+            lock_timeout=lock_timeout,
             schema=schema,
         )
 
