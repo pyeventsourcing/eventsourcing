@@ -26,6 +26,7 @@ from psycopg2.pool import PoolError, ThreadedConnectionPool
 from eventsourcing.persistence import (
     AggregateRecorder,
     ApplicationRecorder,
+    ConnectionPoolClosed,
     DatabaseError,
     DataError,
     InfrastructureFactory,
@@ -124,10 +125,6 @@ class Connection:
     @property
     def was_closed_by_timer(self) -> bool:
         return self._was_closed_by_timer
-
-
-class ConnectionPoolClosed(Exception):
-    pass
 
 
 class ConnectionPoolExhaustedError(OperationalError):

@@ -1,12 +1,16 @@
 import json
 import uuid
 from abc import ABC, abstractmethod
+from collections import deque
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
+from threading import Condition, Event, Lock, Semaphore, Timer
+from time import time
 from types import ModuleType
 from typing import (
     Any,
+    Deque,
     Dict,
     Generic,
     Iterator,
@@ -714,3 +718,210 @@ class Tracking:
 
     application_name: str
     notification_id: int
+
+
+class Cursor(ABC):
+    @abstractmethod
+    def execute(self, statement: str) -> None:
+        """Executes given statement."""
+
+    @abstractmethod
+    def fetchall(self) -> Any:
+        """Fetches all results."""
+
+
+class Connection(ABC):
+    def __init__(self, max_age: Optional[float] = None) -> None:
+        self._closed = False
+        self._closing = Event()
+        self.in_use = Lock()
+        self.in_use.acquire()
+        if max_age is not None:
+            self._max_age_timer: Optional[Timer] = Timer(
+                interval=max_age,
+                function=self._close_on_timer,
+            )
+            self._max_age_timer.start()
+        else:
+            self._max_age_timer = None
+
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
+    @property
+    def closing(self) -> bool:
+        return self._closing.is_set()
+
+    @abstractmethod
+    def commit(self) -> None:
+        """Commits transaction."""
+
+    @abstractmethod
+    def rollback(self) -> None:
+        """Rolls back transaction."""
+
+    @abstractmethod
+    def cursor(self) -> Cursor:
+        """Creates new cursor."""
+
+    @abstractmethod
+    def close(self) -> None:
+        self._closed = True
+        if self._max_age_timer:
+            self._max_age_timer.cancel()
+
+    def _close_on_timer(self) -> None:
+        self._closing.set()
+        with self.in_use:
+            if not self._closed:
+                self.close()
+
+
+class ConnectionPoolClosed(Exception):
+    pass
+
+
+class ConnectionNotFromPool(Exception):
+    pass
+
+
+class ConnectionPoolExhausted(Exception):
+    pass
+
+
+class ConnectionPool(ABC):
+    def __init__(
+        self,
+        pool_size: int = 1,
+        max_overhead: int = 0,
+        max_age: Optional[float] = None,
+        pre_ping: bool = False,
+    ) -> None:
+        self._pool_size = pool_size
+        self._max_overhead = max_overhead
+        self._max_age = max_age
+        self._pre_ping = pre_ping
+        self._pool: Deque[Connection] = deque()
+        self._in_use: Dict[int, Connection] = dict()
+        self._semaphore = Semaphore()
+        self._condition = Condition()
+        self._closed = False
+
+    @property
+    def num_in_use(self) -> int:
+        with self._condition:
+            return self._num_in_use
+
+    @property
+    def _num_in_use(self) -> int:
+        return len(self._in_use)
+
+    @property
+    def num_in_pool(self) -> int:
+        with self._condition:
+            return self._num_in_pool
+
+    @property
+    def _num_in_pool(self) -> int:
+        return len(self._pool)
+
+    @property
+    def _is_pool_full(self) -> bool:
+        return self._num_in_pool >= self._pool_size
+
+    @property
+    def _is_use_full(self) -> bool:
+        return self._num_in_use < self._pool_size + self._max_overhead
+
+    def get_connection(self, timeout: float = 0.0) -> Connection:
+        if self._closed:
+            raise ConnectionPoolClosed
+        started = time()
+        with self._semaphore:
+            return self._get_connection(
+                timeout=self._remaining_timeout(timeout, started)
+            )
+
+    def _get_connection(self, timeout: float = 0.0) -> Connection:
+        started = time()
+        with self._condition:
+            try:
+                conn = self._pool.popleft()
+            except IndexError:
+                if self._is_use_full:
+                    conn = self._create_connection()
+                    self._in_use[id(conn)] = conn
+                    return conn
+                else:
+                    if self._condition.wait(
+                        timeout=self._remaining_timeout(timeout, started)
+                    ):
+                        return self._get_connection(
+                            timeout=self._remaining_timeout(timeout, started)
+                        )
+                    else:
+                        raise ConnectionPoolExhausted("Pool is exhausted") from None
+
+            else:
+                if conn.closing or not conn.in_use.acquire(blocking=False):
+                    return self._get_connection(
+                        timeout=self._remaining_timeout(timeout, started)
+                    )
+                elif conn.closed:
+                    return self._get_connection(
+                        timeout=self._remaining_timeout(timeout, started)
+                    )
+                elif self._pre_ping:
+                    try:
+                        conn.cursor().execute("SELECT 1")
+                    except PersistenceError:
+                        return self._get_connection(
+                            timeout=self._remaining_timeout(timeout, started)
+                        )
+                self._in_use[id(conn)] = conn
+                return conn
+
+    @staticmethod
+    def _remaining_timeout(timeout: float, started: float) -> float:
+        return max(0.0, timeout + started - time())
+
+    def put_connection(self, conn: Connection) -> None:
+        with self._condition:
+            if self._closed:
+                raise ConnectionPoolClosed("Pool is closed")
+
+            try:
+                del self._in_use[id(conn)]
+            except KeyError:
+                raise ConnectionNotFromPool(
+                    "Connection not in use in this pool"
+                ) from None
+            try:
+                if not conn.closed:
+                    if conn.closing or self._is_pool_full:
+                        conn.close()
+                    else:
+                        self._pool.append(conn)
+            finally:
+                conn.in_use.release()
+                self._condition.notify_all()
+
+    @abstractmethod
+    def _create_connection(self) -> Connection:
+        """Creates new connection."""
+
+    def close(self) -> None:
+        with self._condition:
+            if self._closed:
+                return
+            for conn in self._in_use.values():
+                conn.close()
+            while True:
+                try:
+                    conn = self._pool.popleft()
+                except IndexError:
+                    break
+                else:
+                    conn.close()
+            self._closed = True

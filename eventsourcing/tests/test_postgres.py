@@ -9,6 +9,7 @@ from psycopg2._psycopg import cursor
 from psycopg2.extensions import connection
 
 from eventsourcing.persistence import (
+    ConnectionPoolClosed,
     DatabaseError,
     DataError,
     InfrastructureFactory,
@@ -25,7 +26,6 @@ from eventsourcing.persistence import (
 from eventsourcing.postgres import (
     Connection,
     ConnectionPool,
-    ConnectionPoolClosed,
     ConnectionPoolExhaustedError,
     ConnectionPoolUnkeyedConnectionError,
     Factory,
