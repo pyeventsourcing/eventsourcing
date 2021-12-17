@@ -422,32 +422,11 @@ class TestConnectionPool(TestCase):
     def test_fairness_1_0_pre_ping_true(self):
         self._test_fairness(pool_size=1, max_overflow=0, pre_ping=True)
 
-    def test_fairness_1_1_pre_ping_false(self):
-        self._test_fairness(pool_size=1, max_overflow=1, pre_ping=False)
-
-    def test_fairness_1_2_pre_ping_true(self):
-        self._test_fairness(pool_size=1, max_overflow=1, pre_ping=True)
-
-    def test_fairness_2_0_pre_ping_false(self):
-        self._test_fairness(pool_size=2, max_overflow=0, pre_ping=False)
-
-    def test_fairness_3_0_pre_ping_false(self):
-        self._test_fairness(pool_size=3, max_overflow=0, pre_ping=False)
-
-    def test_fairness_2_2_pre_ping_false(self):
-        self._test_fairness(pool_size=2, max_overflow=2, pre_ping=False)
-
-    def test_fairness_2_2_pre_ping_true(self):
-        self._test_fairness(pool_size=2, max_overflow=2, pre_ping=True)
-
     def test_fairness_3_2_pre_ping_false(self):
         self._test_fairness(pool_size=3, max_overflow=2, pre_ping=False)
 
     def test_fairness_3_2_pre_ping_true(self):
         self._test_fairness(pool_size=3, max_overflow=2, pre_ping=True)
-
-    def test_fairness_20_0_pre_ping_false(self):
-        self._test_fairness(pool_size=20, max_overflow=0, pre_ping=False)
 
     def _test_fairness(self, pool_size=1, max_overflow=1, pre_ping=True):
         connection_pool = self.create_pool(
