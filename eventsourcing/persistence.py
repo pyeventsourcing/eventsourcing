@@ -807,15 +807,15 @@ class ConnectionPool(ABC, Generic[TConnection]):
         self,
         pool_size: int = 1,
         max_overflow: int = 0,
+        pool_timeout: float = 5.0,
         max_age: Optional[float] = None,
         pre_ping: bool = False,
-        pool_timeout: float = 5.0,
     ) -> None:
         self.pool_size = pool_size
         self.max_overflow = max_overflow
+        self.pool_timeout = pool_timeout
         self.max_age = max_age
         self.pre_ping = pre_ping
-        self.pool_timeout = pool_timeout
         self._pool: Deque[TConnection] = deque()
         self._in_use: Dict[int, TConnection] = dict()
         self._semaphore = Semaphore()

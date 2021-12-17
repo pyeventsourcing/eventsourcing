@@ -1211,6 +1211,11 @@ that can be opened is the sum of ``POSTGRES_POOL_SIZE`` and ``POSTGRES_MAX_OVERF
 connections that are returned to the pool when it is full will be immediately closed. If set, an
 integer value is required. The default value is 10.
 
+The optional environment variable ``POSTGRES_POOL_TIMEOUT`` may be used to control how many seconds
+to wait before raising a "pool exhausted" exception for a connection to be returned to a pool that
+has already opened the maximum number of connections configured by ``POSTGRES_POOL_SIZE`` and
+``POSTGRES_MAX_OVERFLOW``. If set, a floating point number is required. The default value is 30.
+
 The optional environment variable ``POSTGRES_CONN_MAX_AGE`` is used to control the length of time in
 seconds before a connection is closed. By default this value is not set, and connections will
 be reused indefinitely, until an operational database error is encountered, or the connection
@@ -1230,11 +1235,6 @@ disconnection handling. Setting this to a "true" value (``"y"``, ``"yes"``, ``"t
 executing statements, and database connections remade if the connection is not usable. This
 value is by default "false", meaning connections will not be checked before they are reused.
 Enabling this option will incur a small impact on performance.
-
-The optional environment variable ``POSTGRES_POOL_TIMEOUT`` may be used to control how many seconds
-to wait before raising a "pool exhausted" exception for a connection to be returned to a pool that
-has already opened the maximum number of connections configured by ``POSTGRES_POOL_SIZE`` and
-``POSTGRES_MAX_OVERFLOW``. If set, a floating point number is required. The default value is 30.
 
 The optional environment variable ``POSTGRES_LOCK_TIMEOUT`` may be used to enable a timeout
 on acquiring an 'EXCLUSIVE' mode table lock when inserting stored events. To avoid interleaving
