@@ -11,12 +11,12 @@ Contents
 .. toctree::
    :maxdepth: 3
 
-   topics/introduction
    topics/installing
-   topics/support
-   topics/tutorial
+   topics/introduction
    topics/modules
    topics/examples
+   topics/tutorial
+   topics/support
    topics/release_notes
 
 
