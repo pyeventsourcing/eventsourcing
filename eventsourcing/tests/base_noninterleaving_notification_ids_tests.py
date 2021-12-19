@@ -20,23 +20,28 @@ class NonInterleavingNotificationIDsBaseCase(ABC, TestCase):
         stack1 = self.create_stack(originator1_id)
         stack2 = self.create_stack(originator2_id)
 
-        def insert_stack1():
-            race_started.wait()
-            recorder.insert_events(stack1)
+        errors = []
 
-        def insert_stack2():
-            race_started.wait()
-            recorder.insert_events(stack2)
+        def insert_stack(stack):
+            try:
+                race_started.wait()
+                recorder.insert_events(stack)
+            except Exception as e:
+                errors.append(e)
 
-        thread1 = Thread(target=insert_stack1, daemon=True)
-
-        thread2 = Thread(target=insert_stack2, daemon=True)
+        thread1 = Thread(target=insert_stack, args=(stack1,), daemon=True)
+        thread2 = Thread(target=insert_stack, args=(stack2,), daemon=True)
 
         thread1.start()
         thread2.start()
+
         race_started.set()
+
         thread1.join()
         thread2.join()
+
+        if errors:
+            raise errors[0]
 
         notifications = recorder.select_notifications(start=1, limit=1000000)
         ids_for_sequence1 = [

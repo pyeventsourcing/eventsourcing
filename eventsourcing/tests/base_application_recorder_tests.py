@@ -163,6 +163,7 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         recorder = self.create_recorder()
 
         errors_happened = Event()
+        errors = []
 
         counts = {}
         threads = {}
@@ -195,22 +196,20 @@ class ApplicationRecorderTestCase(TestCase, ABC):
             try:
                 recorder.insert_events(stored_events)
 
-            except Exception:
+            except Exception as e:
+                if errors:
+                    return
                 ended = datetime.now()
                 duration = (ended - started).total_seconds()
                 print(f"Error after starting {duration}")
-                errors_happened.set()
-                tb = traceback.format_exc()
-                print(tb)
-                pass
+                errors.append(e)
             else:
-                return "OK"
-            finally:
                 ended = datetime.now()
                 duration = (ended - started).total_seconds()
                 counts[thread_id] += 1
                 if duration > durations[thread_id]:
                     durations[thread_id] = duration
+                sleep(0)
 
         stop_reading = Event()
 
@@ -218,26 +217,38 @@ class ApplicationRecorderTestCase(TestCase, ABC):
             while not stop_reading.is_set():
                 try:
                     recorder.select_notifications(0, 10)
-                except Exception:
-                    errors_happened.set()
-                    tb = traceback.format_exc()
-                    print(tb)
-                else:
-                    sleep(0.01)
+                except Exception as e:
+                    errors.append(e)
+                    return
+                # else:
+                # sleep(0.01)
 
-        reader_thread = Thread(target=read_continuously)
-        reader_thread.start()
+        reader_thread1 = Thread(target=read_continuously)
+        reader_thread1.start()
+
+        reader_thread2 = Thread(target=read_continuously)
+        reader_thread2.start()
 
         with ThreadPoolExecutor(max_workers=10) as executor:
             futures = []
             for _ in range(100):
+                if errors:
+                    break
                 future = executor.submit(_createevent)
                 futures.append(future)
             for future in futures:
-                future.result()
+                if errors:
+                    break
+                try:
+                    future.result()
+                except Exception as e:
+                    errors.append(e)
+                    break
 
         stop_reading.set()
-        reader_thread.join()
+
+        if errors:
+            raise errors[0]
 
         for thread_id, thread_num in threads.items():
             count = counts[thread_id]

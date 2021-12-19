@@ -14,6 +14,9 @@ from eventsourcing.persistence import (
     Cursor,
     PersistenceError,
     ProgrammingError,
+    ReaderBlockedByWriter,
+    WriterBlockedByReaders,
+    WriterBlockedByWriter,
 )
 
 
@@ -34,6 +37,13 @@ class DummyCursor(Cursor):
         if self._results is None:
             raise ProgrammingError
         return self._results
+
+    def fetchone(self):
+        if self._closed:
+            raise PersistenceError
+        if self._results is None:
+            raise ProgrammingError
+        return self._results[0]
 
     def close(self):
         self._closed = True
@@ -128,9 +138,8 @@ class TestConnectionPool(TestCase):
             conn.close_on_server()
 
     def test_get_and_put(self):
-        pool_size = 2
-        max_overflow = 2
-        pool = self.create_pool(pool_size, max_overflow)
+        pool = self.create_pool(pool_size=2, max_overflow=2)
+
         self.assertEqual(pool.num_in_use, 0)
         self.assertEqual(pool.num_in_pool, 0)
 
@@ -247,7 +256,7 @@ class TestConnectionPool(TestCase):
             pool.put_connection(pool._create_connection())
 
     def test_close_before_returning(self):
-        pool = self.create_pool(pool_size=2, max_overflow=2)
+        pool = self.create_pool()
         self.assertEqual(pool.num_in_use, 0)
         self.assertEqual(pool.num_in_pool, 0)
 
@@ -260,25 +269,15 @@ class TestConnectionPool(TestCase):
         self.assertEqual(pool.num_in_use, 0)
         self.assertEqual(pool.num_in_pool, 0)
 
-    def test_close_after_returning_without_pre_ping(self):
+    def test_close_after_returning(self):
         pool = self.create_pool()
-
         conn1 = pool.get_connection()
-        curs = conn1.cursor()
-        with self.assertRaises(self.ProgrammingError):
-            self.assertEqual(curs.fetchall(), None)
-        curs.execute("SELECT 1")
-        self.assertEqual(curs.fetchall(), [[1]])
-
         pool.put_connection(conn1)
         conn1.close()
         self.assertEqual(pool.num_in_use, 0)
         self.assertEqual(pool.num_in_pool, 1)
-
         conn1 = pool.get_connection()
         self.assertFalse(conn1.closed)
-
-        conn1.cursor().execute("SELECT 1")
 
     def test_close_on_server_after_returning_without_pre_ping(self):
         pool = self.create_pool()
@@ -392,10 +391,11 @@ class TestConnectionPool(TestCase):
         self.assertTrue(got_conn2.wait(timeout=0.3))
 
     def test_close_pool(self):
-        # Get two connections and return one of them.
+        # Get three connections and return one of them.
         pool = self.create_pool(pool_size=2, max_overflow=1)
         conn1 = pool.get_connection()
         conn2 = pool.get_connection()
+        conn3 = pool.get_connection()
         pool.put_connection(conn1)
 
         # Close pool.
@@ -404,10 +404,14 @@ class TestConnectionPool(TestCase):
         # All connections are closed (returned and those in use).
         self.assertTrue(conn1.closed)
         self.assertTrue(conn2.closed)
+        self.assertTrue(conn3.closed)
 
         # Raises error when putting connection after pool closed.
         with self.assertRaises(ConnectionPoolClosed):
             pool.put_connection(conn2)
+
+        with self.assertRaises(ConnectionPoolClosed):
+            pool.put_connection(conn3)
 
         # Raises error when getting connection after pool closed.
         with self.assertRaises(ConnectionPoolClosed):
@@ -447,19 +451,83 @@ class TestConnectionPool(TestCase):
         futures = []
         wait_for = None
         is_stopped = Event()
+
+        debug = False
+
+        def get_conn(
+            name,
+            has_started,
+            wait_for,
+            do_close,
+        ):
+            if wait_for:
+                assert wait_for.wait(timeout=1)
+            has_started.set()
+            if debug:
+                print(name, "started")
+            for _ in range(num_gets):
+                # print(name, "getting connection")
+                started = time()
+                try:
+                    conn = connection_pool.get_connection(
+                        timeout=timeout_get_connection
+                    )
+                except Exception as exp:
+                    waited_for = time() - started
+                    msg = (
+                        f"{name} errored after {waited_for :.3f}, "
+                        f"timeout {timeout_get_connection}"
+                    )
+                    print(msg, type(exp))
+                    raise Exception(msg) from exp
+                else:
+                    assert conn
+                    if pre_ping:
+                        assert not conn.closed
+                    j = next(self.counter)
+                    if debug:
+                        waited_for = time() - started
+                        print(
+                            name,
+                            "got connection",
+                            j,
+                            "after",
+                            f"{waited_for :.3f}",
+                            f"{timeout_get_connection - waited_for  :.3f}",
+                        )
+                    assert (
+                        connection_pool.num_in_use
+                        <= connection_pool.pool_size + connection_pool.max_overflow
+                    )
+                    assert connection_pool.num_in_pool <= connection_pool.pool_size
+                    if debug:
+                        print("num used connections:", connection_pool.num_in_use)
+                    if not ((j + 1) % 4) and do_close:
+                        if debug:
+                            print("closing connection", j, "before returning to pool")
+                        conn.close()
+                    sleep(hold_connection_for)
+                    if not ((j + 3) % 4) and do_close:
+                        if debug:
+                            print("closing connection", j, "after returning to pool")
+                        conn.close()
+                    connection_pool.put_connection(conn)
+                    # sleep(0.001)
+                if is_stopped.is_set():
+                    print(name, "stopping early....")
+                    return
+
+                # print(name, "put connection", j)
+            if debug:
+                print(name, "finished")
+
         for k in range(num_threads):
             has_started = Event()
             future = thread_pool.submit(
-                self.get_conn,
+                get_conn,
                 name=k,
-                num_gets=num_gets,
-                pool=connection_pool,
-                hold_for=hold_connection_for,
-                timeout=timeout_get_connection,
                 has_started=has_started,
                 wait_for=wait_for,
-                pre_ping=pre_ping,
-                is_stopped=is_stopped,
                 do_close=True,
             )
             wait_for = has_started
@@ -479,66 +547,54 @@ class TestConnectionPool(TestCase):
                 is_stopped.set()
                 raise
 
-    def get_conn(
-        self,
-        name,
-        num_gets,
-        pool,
-        hold_for,
-        timeout,
-        has_started,
-        wait_for,
-        pre_ping,
-        is_stopped,
-        do_close,
-    ):
-        if wait_for:
-            assert wait_for.wait(timeout=1)
-        has_started.set()
-        print(name, "started")
-        for _ in range(num_gets):
-            # print(name, "getting connection")
-            started = time()
-            try:
-                conn = pool.get_connection(timeout=timeout)
-            except Exception as exp:
-                waited_for = time() - started
-                msg = f"{name} errored after {waited_for :.3f}, timeout {timeout}"
-                print(msg, type(exp))
-                raise Exception(msg) from exp
-            else:
-                waited_for = time() - started
-                remaining_until_timeout = timeout - waited_for
-                assert conn
-                if pre_ping:
-                    assert not conn.closed
-                j = next(self.counter)
-                print(
-                    name,
-                    "got connection",
-                    j,
-                    "after",
-                    f"{waited_for :.3f}",
-                    f"{remaining_until_timeout :.3f}",
-                )
-                assert pool.num_in_use <= pool.pool_size + pool.max_overflow
-                assert pool.num_in_pool <= pool.pool_size
-                # print("num used connections:", pool.num_in_use)
-                if not ((j + 1) % 4) and do_close:
-                    print("closing connection", j, "before returning to pool")
-                    conn.close()
-                sleep(hold_for)
-                if not ((j + 3) % 4) and do_close:
-                    print("closing connection", j, "after returning to pool")
-                    conn.close()
-                pool.put_connection(conn)
-                # sleep(0.001)
-            if is_stopped.is_set():
-                print(name, "stopping early....")
-                return
+    def test_reader_writer_lock(self):
+        pool = self.create_pool(pool_size=2, max_overflow=1)
 
-            # print(name, "put connection", j)
-        print(name, "finished")
+        # Get writer.
+        writer_conn = pool.get_connection(is_writer=True, timeout=0)
+        self.assertIs(writer_conn.is_writer, True)
+
+        # Return writer.
+        pool.put_connection(writer_conn)
+
+        # Get two readers.
+        reader_conn1 = pool.get_connection(is_writer=False)
+        reader_conn2 = pool.get_connection(is_writer=False)
+
+        self.assertIs(reader_conn1.is_writer, False)
+        self.assertIs(reader_conn2.is_writer, False)
+
+        # Fail to get writer.
+        with self.assertRaises(WriterBlockedByReaders):
+            pool.get_connection(is_writer=True, timeout=0)
+
+        # Return readers to pool.
+        pool.put_connection(reader_conn1)
+        pool.put_connection(reader_conn2)
+
+        # Get writer.
+        writer_conn = pool.get_connection(is_writer=True, timeout=0)
+
+        # Fail to get reader.
+        with self.assertRaises(ReaderBlockedByWriter):
+            pool.get_connection(is_writer=False, timeout=0)
+
+        # Fail to get writer.
+        with self.assertRaises(WriterBlockedByWriter):
+            pool.get_connection(is_writer=True, timeout=0)
+
+        # Return writer.
+        pool.put_connection(writer_conn)
+
+        # Get and put another writer.
+        writer_conn = pool.get_connection(is_writer=True)
+        pool.put_connection(writer_conn)
+
+        # Get two readers.
+        reader_conn1 = pool.get_connection(is_writer=False)
+        reader_conn2 = pool.get_connection(is_writer=False)
+        pool.put_connection(reader_conn1)
+        pool.put_connection(reader_conn2)
 
 
 _print = print

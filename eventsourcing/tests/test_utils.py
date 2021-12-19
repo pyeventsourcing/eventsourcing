@@ -2,10 +2,10 @@ from typing import cast
 from unittest import TestCase
 
 import eventsourcing
-from eventsourcing import utils
 from eventsourcing.domain import Aggregate
 from eventsourcing.utils import (
     TopicError,
+    clear_topic_cache,
     get_topic,
     register_topic,
     resolve_topic,
@@ -226,4 +226,4 @@ class TestTopics(TestCase):
         self.assertIn("is already registered for topic 'old'", cm.exception.args[0])
 
     def tearDown(self) -> None:
-        utils._topic_cache.clear()
+        clear_topic_cache()

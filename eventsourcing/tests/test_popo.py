@@ -4,16 +4,16 @@ from eventsourcing.popo import (
     POPOApplicationRecorder,
     POPOProcessRecorder,
 )
-from eventsourcing.tests.aggregaterecorder_testcase import (
+from eventsourcing.tests.base_aggregate_recorder_tests import (
     AggregateRecorderTestCase,
 )
-from eventsourcing.tests.applicationrecorder_testcase import (
+from eventsourcing.tests.base_application_recorder_tests import (
     ApplicationRecorderTestCase,
 )
-from eventsourcing.tests.infrastructure_testcases import (
+from eventsourcing.tests.base_infrastructure_tests import (
     InfrastructureFactoryTestCase,
 )
-from eventsourcing.tests.processrecorder_testcase import (
+from eventsourcing.tests.base_process_recorder_tests import (
     ProcessRecorderTestCase,
 )
 from eventsourcing.utils import Environment

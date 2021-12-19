@@ -436,10 +436,9 @@ class SingleThreadedRunner(Runner, Promptable):
         """
         super().__init__(system, env)
         self.apps: Dict[str, Application[Aggregate]] = {}
-        self.notifications_received: Dict[str, List[Notification]] = {}
-        self.notifications_received_lock = Lock()
-        self.is_prompting = False
-        self.is_prompting_lock = Lock()
+        self._notifications_received: Dict[str, List[Notification]] = {}
+        self._notifications_received_lock = Lock()
+        self._processing_lock = Lock()
         self.last_ids: Dict[Tuple[str, str], int] = {}
         # self.debug_received_notifications = set()
 
@@ -497,51 +496,49 @@ class SingleThreadedRunner(Runner, Promptable):
         received to its application by calling the application's
         :func:`~Follower.pull_and_process` method for each prompted name.
         """
-        with self.notifications_received_lock:
-            if leader_name not in self.notifications_received:
-                self.notifications_received[leader_name] = notifications
+        with self._notifications_received_lock:
+            if leader_name not in self._notifications_received:
+                self._notifications_received[leader_name] = notifications
             else:
-                self.notifications_received[leader_name] += notifications
+                self._notifications_received[leader_name] += notifications
 
-            if self.is_prompting:
-                return
-            else:
-                self.is_prompting = True
+        if self._processing_lock.acquire(blocking=False):
+            try:
+                while True:
 
-        while True:
-
-            with self.notifications_received_lock:
-                notifications_received, self.notifications_received = (
-                    self.notifications_received,
-                    {},
-                )
-
-                if not notifications_received:
-                    self.is_prompting = False
-                    return
-
-            for leader_name, notifications in notifications_received.items():
-                for follower_name in self.system.leads[leader_name]:
-                    follower = self.apps[follower_name]
-                    assert isinstance(follower, Follower)
-                    last_id = self.last_ids.get((follower.name, leader_name))
-                    if last_id is None:
-                        last_id = follower.recorder.max_tracking_id(leader_name)
-                    next_id = last_id + 1
-                    mapper = follower.mappers[leader_name]
-                    if follower.chose_to_pull(notifications[0].id, next_id):
-                        for notifications in follower.pull_notifications(
-                            leader_name, start=next_id
-                        ):
-                            self.filter_convert_process(
-                                notifications, follower, leader_name, mapper
-                            )
-
-                    else:
-                        # Process received notifications.
-                        self.filter_convert_process(
-                            notifications, follower, leader_name, mapper
+                    with self._notifications_received_lock:
+                        notifications_received, self._notifications_received = (
+                            self._notifications_received,
+                            {},
                         )
+
+                        if not notifications_received:
+                            break
+
+                    for leader_name, notifications in notifications_received.items():
+                        for follower_name in self.system.leads[leader_name]:
+                            follower = self.apps[follower_name]
+                            assert isinstance(follower, Follower)
+                            last_id = self.last_ids.get((follower.name, leader_name))
+                            if last_id is None:
+                                last_id = follower.recorder.max_tracking_id(leader_name)
+                            next_id = last_id + 1
+                            mapper = follower.mappers[leader_name]
+                            if follower.chose_to_pull(notifications[0].id, next_id):
+                                for notifications in follower.pull_notifications(
+                                    leader_name, start=next_id
+                                ):
+                                    self.filter_convert_process(
+                                        notifications, follower, leader_name, mapper
+                                    )
+
+                            else:
+                                # Process received notifications.
+                                self.filter_convert_process(
+                                    notifications, follower, leader_name, mapper
+                                )
+            finally:
+                self._processing_lock.release()
 
     def filter_convert_process(
         self,

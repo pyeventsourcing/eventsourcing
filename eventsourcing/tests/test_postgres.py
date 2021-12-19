@@ -32,16 +32,16 @@ from eventsourcing.postgres import (
     PostgresProcessRecorder,
     PostgresTransaction,
 )
-from eventsourcing.tests.aggregaterecorder_testcase import (
+from eventsourcing.tests.base_aggregate_recorder_tests import (
     AggregateRecorderTestCase,
 )
-from eventsourcing.tests.applicationrecorder_testcase import (
+from eventsourcing.tests.base_application_recorder_tests import (
     ApplicationRecorderTestCase,
 )
-from eventsourcing.tests.infrastructure_testcases import (
+from eventsourcing.tests.base_infrastructure_tests import (
     InfrastructureFactoryTestCase,
 )
-from eventsourcing.tests.processrecorder_testcase import (
+from eventsourcing.tests.base_process_recorder_tests import (
     ProcessRecorderTestCase,
 )
 from eventsourcing.tests.test_connection_pool import TestConnectionPool
@@ -159,7 +159,7 @@ class TestPostgresConnectionPool(TestConnectionPool):
             pool.get_connection()
 
     def test_close_on_server_after_returning_with_pre_ping(self):
-        super().test_close_after_returning_without_pre_ping()
+        super().test_close_on_server_after_returning_with_pre_ping()
 
     def test_close_on_server_after_returning_without_pre_ping(self):
         super().test_close_on_server_after_returning_without_pre_ping()

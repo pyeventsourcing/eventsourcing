@@ -729,6 +729,10 @@ class Cursor(ABC):
     def fetchall(self) -> Any:
         """Fetches all results."""
 
+    @abstractmethod
+    def fetchone(self) -> Any:
+        """Fetches one result."""
+
 
 TCursor = TypeVar("TCursor", bound=Cursor)
 
@@ -749,6 +753,7 @@ class Connection(ABC, Generic[TCursor]):
             self._max_age_timer.start()
         else:
             self._max_age_timer = None
+        self.is_writer: Optional[bool] = None
 
     @property
     def closed(self) -> bool:
@@ -798,6 +803,18 @@ class ConnectionNotFromPool(Exception):
     pass
 
 
+class WriterBlockedByReaders(OperationalError):
+    pass
+
+
+class ReaderBlockedByWriter(OperationalError):
+    pass
+
+
+class WriterBlockedByWriter(OperationalError):
+    pass
+
+
 class ConnectionPoolExhausted(OperationalError):
     pass
 
@@ -818,13 +835,16 @@ class ConnectionPool(ABC, Generic[TConnection]):
         self.pre_ping = pre_ping
         self._pool: Deque[TConnection] = deque()
         self._in_use: Dict[int, TConnection] = dict()
-        self._semaphore = Semaphore()
-        self._condition = Condition()
+        self._get_semaphore = Semaphore()
+        self._put_condition = Condition()
+        self._no_readers = Condition()
+        self._num_readers: int = 0
+        self._writer_lock = Lock()
         self._closed = False
 
     @property
     def num_in_use(self) -> int:
-        with self._condition:
+        with self._put_condition:
             return self._num_in_use
 
     @property
@@ -833,7 +853,7 @@ class ConnectionPool(ABC, Generic[TConnection]):
 
     @property
     def num_in_pool(self) -> int:
-        with self._condition:
+        with self._put_condition:
             return self._num_in_pool
 
     @property
@@ -846,30 +866,59 @@ class ConnectionPool(ABC, Generic[TConnection]):
 
     @property
     def _is_use_full(self) -> bool:
-        return self._num_in_use < self.pool_size + self.max_overflow
+        return self._num_in_use >= self.pool_size + self.max_overflow
 
-    def get_connection(self, timeout: Optional[float] = None) -> TConnection:
+    def get_connection(
+        self, timeout: Optional[float] = None, is_writer: Optional[bool] = None
+    ) -> TConnection:
         if self._closed:
             raise ConnectionPoolClosed
+        timeout = self.pool_timeout if timeout is None else timeout
         started = time()
-        with self._semaphore:
-            pool_timeout = self.pool_timeout if timeout is None else timeout
-            return self._get_connection(
-                timeout=self._remaining_timeout(pool_timeout, started)
+
+        with self._get_semaphore:
+            if is_writer is not None:
+                remaining = self._remaining_timeout(timeout, started)
+                if not self._writer_lock.acquire(timeout=remaining):
+                    if is_writer:
+                        raise WriterBlockedByWriter()
+                    else:
+                        raise ReaderBlockedByWriter()
+                if is_writer:
+                    with self._no_readers:
+                        if self._num_readers > 0:
+                            remaining = self._remaining_timeout(timeout, started)
+                            if not self._no_readers.wait(timeout=remaining):
+                                self._writer_lock.release()
+                                raise WriterBlockedByReaders()
+                else:
+                    with self._no_readers:
+                        self._num_readers += 1
+                    self._writer_lock.release()
+
+            conn = self._get_connection(
+                timeout=self._remaining_timeout(timeout, started)
             )
+            # print(
+            #     "got connection", self.num_in_pool, "pooled,", self.num_in_use, "used"
+            # )
+            if is_writer is not None:
+                conn.is_writer = is_writer
+
+            return conn
 
     def _get_connection(self, timeout: float = 0.0) -> TConnection:
         started = time()
-        with self._condition:
+        with self._put_condition:
             try:
                 conn = self._pool.popleft()
             except IndexError:
-                if self._is_use_full:
+                if not self._is_use_full:
                     conn = self._create_connection()
                     self._in_use[id(conn)] = conn
                     return conn
                 else:
-                    if self._condition.wait(
+                    if self._put_condition.wait(
                         timeout=self._remaining_timeout(timeout, started)
                     ):
                         return self._get_connection(
@@ -902,7 +951,11 @@ class ConnectionPool(ABC, Generic[TConnection]):
         return max(0.0, timeout + started - time())
 
     def put_connection(self, conn: TConnection) -> None:
-        with self._condition:
+        # print("putting connection", self.num_in_pool, "in pool")
+
+        is_writer = conn.is_writer
+        conn.is_writer = None
+        with self._put_condition:
             if self._closed:
                 raise ConnectionPoolClosed("Pool is closed")
 
@@ -920,14 +973,23 @@ class ConnectionPool(ABC, Generic[TConnection]):
                         self._pool.append(conn)
             finally:
                 conn.in_use.release()
-                self._condition.notify_all()
+
+                if is_writer is not None:
+                    if is_writer:
+                        self._writer_lock.release()
+                    else:
+                        with self._no_readers:
+                            self._num_readers -= 1
+                            if self._num_readers == 0:
+                                self._no_readers.notify()
+                self._put_condition.notify()
 
     @abstractmethod
     def _create_connection(self) -> TConnection:
         """Creates new connection."""
 
     def close(self) -> None:
-        with self._condition:
+        with self._put_condition:
             if self._closed:
                 return
             for conn in self._in_use.values():

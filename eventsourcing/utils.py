@@ -128,6 +128,10 @@ def register_topic(topic: str, obj: Any) -> None:
                 )
 
 
+def clear_topic_cache() -> None:
+    _topic_cache.clear()
+
+
 def retry(
     exc: Union[Type[Exception], Sequence[Type[Exception]]] = Exception,
     max_attempts: int = 1,

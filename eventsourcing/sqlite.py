@@ -1,14 +1,16 @@
 import sqlite3
-import threading
+from contextlib import contextmanager
 from sqlite3 import Connection, Cursor
-from threading import Lock
 from types import TracebackType
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Type
+from typing import Any, Iterator, List, Optional, Sequence, Tuple, Type, cast
 from uuid import UUID
 
 from eventsourcing.persistence import (
     AggregateRecorder,
     ApplicationRecorder,
+    Connection as BaseConnection,
+    ConnectionPool,
+    Cursor as BaseCursor,
     DatabaseError,
     DataError,
     InfrastructureFactory,
@@ -29,22 +31,71 @@ from eventsourcing.utils import Environment, strtobool
 SQLITE3_DEFAULT_LOCK_TIMEOUT = 5
 
 
-class Transaction:
-    def __init__(
-        self, connection: Connection, commit: bool = False, lock: Optional[Lock] = None
-    ):
+class SQLiteCursor(BaseCursor):
+    def __init__(self, sqlite_cursor: Cursor):
+        self.sqlite_cursor = sqlite_cursor
+
+    def __enter__(self, *args: Any, **kwargs: Any) -> Cursor:
+        return self.sqlite_cursor
+
+    def __exit__(self, *args: Any, **kwargs: Any) -> None:
+        self.sqlite_cursor.close()
+
+    def execute(self, *args: Any, **kwargs: Any) -> None:
+        self.sqlite_cursor.execute(*args, **kwargs)
+
+    def executemany(self, *args: Any, **kwargs: Any) -> None:
+        self.sqlite_cursor.executemany(*args, **kwargs)
+
+    def fetchall(self) -> Any:
+        return self.sqlite_cursor.fetchall()
+
+    def fetchone(self) -> Any:
+        return self.sqlite_cursor.fetchone()
+
+    @property
+    def lastrowid(self) -> Any:
+        return self.sqlite_cursor.lastrowid
+
+
+class SQLiteConnection(BaseConnection[SQLiteCursor]):
+    def __init__(self, sqlite_conn: Connection, max_age: Optional[float]):
+        super().__init__(max_age=max_age)
+        self._sqlite_conn = sqlite_conn
+
+    @contextmanager
+    def transaction(self, commit: bool) -> Iterator[SQLiteCursor]:
+        # Context managed transaction.
+        with SQLiteTransaction(self, commit) as curs:
+            # Context managed cursor.
+            with curs:
+                yield curs
+
+    def cursor(self) -> SQLiteCursor:
+        return SQLiteCursor(self._sqlite_conn.cursor())
+
+    def rollback(self) -> None:
+        self._sqlite_conn.rollback()
+
+    def commit(self) -> None:
+        self._sqlite_conn.commit()
+
+    def _close(self) -> None:
+        self._sqlite_conn.close()
+        super()._close()
+
+
+class SQLiteTransaction:
+    def __init__(self, connection: SQLiteConnection, commit: bool = False):
         self.connection = connection
         self.commit = commit
-        self.lock = lock
 
-    def __enter__(self) -> Cursor:
-        if self.lock:
-            self.lock.acquire()
+    def __enter__(self) -> SQLiteCursor:
         # We must issue a "BEGIN" explicitly
         # when running in auto-commit mode.
-        self.connection.execute("BEGIN")
-        self.cursor = self.connection.cursor()
-        return self.cursor
+        cursor = self.connection.cursor()
+        cursor.execute("BEGIN")
+        return cursor
 
     def __exit__(
         self,
@@ -53,7 +104,6 @@ class Transaction:
         exc_tb: TracebackType,
     ) -> None:
         try:
-            self.cursor.close()
             if exc_val:
                 # Roll back all changes
                 # if an exception occurs.
@@ -64,58 +114,48 @@ class Transaction:
             else:
                 self.connection.commit()
         except sqlite3.InterfaceError as e:
-            raise InterfaceError(e)
+            raise InterfaceError(e) from e
         except sqlite3.DataError as e:
-            raise DataError(e)
+            raise DataError(e) from e
         except sqlite3.OperationalError as e:
-            raise OperationalError(e)
+            raise OperationalError(e) from e
         except sqlite3.IntegrityError as e:
-            raise IntegrityError(e)
+            raise IntegrityError(e) from e
         except sqlite3.InternalError as e:
-            raise InternalError(e)
+            raise InternalError(e) from e
         except sqlite3.ProgrammingError as e:
-            raise ProgrammingError(e)
+            raise ProgrammingError(e) from e
         except sqlite3.NotSupportedError as e:
-            raise NotSupportedError(e)
+            raise NotSupportedError(e) from e
         except sqlite3.DatabaseError as e:
-            raise DatabaseError(e)
+            raise DatabaseError(e) from e
         except sqlite3.Error as e:
-            raise PersistenceError(e)
-        finally:
-            if self.lock:
-                self.lock.release()
+            raise PersistenceError(e) from e
 
 
-class SQLiteDatastore:
-    def __init__(self, db_name: str, lock_timeout: Optional[int] = None):
+class SQLiteConnectionPool(ConnectionPool[SQLiteConnection]):
+    def __init__(
+        self,
+        db_name: str,
+        lock_timeout: Optional[int] = None,
+        pool_size: int = 5,
+        max_overflow: int = 10,
+        pool_timeout: float = 5.0,
+        max_age: Optional[float] = None,
+        pre_ping: bool = False,
+    ):
         self.db_name = db_name
+        self.lock_timeout = lock_timeout
         self.is_sqlite_memory_mode = self.detect_memory_mode(db_name)
-        self.lock: Optional[Lock] = None
-        if self.is_sqlite_memory_mode:
-            self.lock = Lock()
-
-        self.connections: Dict[int, Connection] = {}
         self.is_journal_mode_wal = False
         self.journal_mode_was_changed_to_wal = False
-        self.lock_timeout = lock_timeout
+        super().__init__(pool_size, max_overflow, pool_timeout, max_age, pre_ping)
 
-    def detect_memory_mode(self, db_name: str) -> bool:
+    @staticmethod
+    def detect_memory_mode(db_name: str) -> bool:
         return bool(db_name) and (":memory:" in db_name or "mode=memory" in db_name)
 
-    def transaction(self, commit: bool = False) -> Transaction:
-        c = self.get_connection()
-        return Transaction(c, commit, self.lock)
-
-    def get_connection(self) -> Connection:
-        thread_id = threading.get_ident()
-        try:
-            c = self.connections[thread_id]
-        except KeyError:
-            c = self.create_connection()
-            self.connections[thread_id] = c
-        return c
-
-    def create_connection(self) -> Connection:
+    def _create_connection(self) -> SQLiteConnection:
         # Make a connection to an SQLite database.
         try:
             c = sqlite3.connect(
@@ -146,18 +186,51 @@ class SQLiteDatastore:
         c.row_factory = sqlite3.Row
 
         # Return the connection.
-        return c
+        return SQLiteConnection(sqlite_conn=c, max_age=self.max_age)
 
-    def close_all_connections(self) -> None:
-        for c in self.connections.values():
-            c.close()
-        self.connections.clear()
+
+class SQLiteDatastore:
+    def __init__(
+        self,
+        db_name: str,
+        lock_timeout: Optional[int] = None,
+        pool_size: int = 5,
+        max_overflow: int = 10,
+        pool_timeout: float = 5.0,
+        max_age: Optional[float] = None,
+        pre_ping: bool = False,
+    ):
+        self.pool = SQLiteConnectionPool(
+            db_name=db_name,
+            lock_timeout=lock_timeout,
+            pool_size=pool_size,
+            max_overflow=max_overflow,
+            pool_timeout=pool_timeout,
+            max_age=max_age,
+            pre_ping=pre_ping,
+        )
+
+    @contextmanager
+    def transaction(self, commit: bool) -> Iterator[SQLiteCursor]:
+        with self.get_connection(commit=commit) as conn:
+            with conn.transaction(commit) as curs:
+                yield curs
+
+    @contextmanager
+    def get_connection(self, commit: bool) -> Iterator[SQLiteConnection]:
+        # Using reader-writer interlocking is necessary for in-memory databases,
+        # but also speeds up (and provides "fairness") to file-based databases.
+        conn = self.pool.get_connection(is_writer=commit)
+        try:
+            yield conn
+        finally:
+            self.pool.put_connection(conn)
 
     def close(self) -> None:
-        self.close_all_connections()
+        self.pool.close()
 
     def __del__(self) -> None:
-        self.close_all_connections()
+        self.close()
 
 
 class SQLiteAggregateRecorder(AggregateRecorder):
@@ -206,7 +279,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
 
     def _insert_events(
         self,
-        c: Cursor,
+        c: BaseCursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
@@ -220,7 +293,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
                     stored_event.state,
                 )
             )
-        c.executemany(self.insert_events_statement, params)
+        cast(SQLiteCursor, c).executemany(self.insert_events_statement, params)
         return [(s, None) for s in stored_events]
 
     def select_events(
@@ -248,7 +321,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
             statement += "LIMIT ? "
             params.append(limit)
         stored_events = []
-        with self.datastore.transaction() as c:
+        with self.datastore.transaction(commit=False) as c:
             c.execute(statement, params)
             for row in c.fetchall():
                 stored_events.append(
@@ -301,7 +374,7 @@ class SQLiteApplicationRecorder(
 
     def _insert_events(
         self,
-        c: Cursor,
+        c: BaseCursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
@@ -316,7 +389,7 @@ class SQLiteApplicationRecorder(
                     stored_event.state,
                 ),
             )
-            returning.append((stored_event, c.lastrowid))
+            returning.append((stored_event, cast(SQLiteCursor, c).lastrowid))
         return returning
 
     def select_notifications(
@@ -327,7 +400,7 @@ class SQLiteApplicationRecorder(
         from 'start', limited by 'limit'.
         """
         notifications = []
-        with self.datastore.transaction() as c:
+        with self.datastore.transaction(commit=False) as c:
             if not topics:
                 c.execute(self.select_notifications_statement, [start, limit])
             else:
@@ -353,10 +426,10 @@ class SQLiteApplicationRecorder(
         """
         Returns the maximum notification ID.
         """
-        with self.datastore.transaction() as c:
+        with self.datastore.transaction(commit=False) as c:
             return self._max_notification_id(c)
 
-    def _max_notification_id(self, c: Cursor) -> int:
+    def _max_notification_id(self, c: BaseCursor) -> int:
         c.execute(self.select_max_notification_id_statement)
         return c.fetchone()[0] or 0
 
@@ -391,14 +464,14 @@ class SQLiteProcessRecorder(
 
     def max_tracking_id(self, application_name: str) -> int:
         params = [application_name]
-        with self.datastore.transaction() as c:
+        with self.datastore.transaction(commit=False) as c:
             c.execute(self.select_max_tracking_id_statement, params)
             max_id = c.fetchone()[0] or 0
         return max_id
 
     def _insert_events(
         self,
-        c: Cursor,
+        c: BaseCursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:

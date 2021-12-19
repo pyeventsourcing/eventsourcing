@@ -21,30 +21,32 @@ from eventsourcing.sqlite import (
     Factory,
     SQLiteAggregateRecorder,
     SQLiteApplicationRecorder,
+    SQLiteConnectionPool,
     SQLiteDatastore,
     SQLiteProcessRecorder,
-    Transaction,
+    SQLiteTransaction,
 )
-from eventsourcing.tests.aggregaterecorder_testcase import (
+from eventsourcing.tests.base_aggregate_recorder_tests import (
     AggregateRecorderTestCase,
 )
-from eventsourcing.tests.applicationrecorder_testcase import (
+from eventsourcing.tests.base_application_recorder_tests import (
     ApplicationRecorderTestCase,
 )
-from eventsourcing.tests.infrastructure_testcases import (
+from eventsourcing.tests.base_infrastructure_tests import (
     InfrastructureFactoryTestCase,
 )
-from eventsourcing.tests.processrecorder_testcase import (
+from eventsourcing.tests.base_process_recorder_tests import (
     ProcessRecorderTestCase,
 )
 from eventsourcing.tests.ramdisk import tmpfile_uris
+from eventsourcing.tests.test_connection_pool import TestConnectionPool
 from eventsourcing.utils import Environment, get_topic
 
 
 class TestTransaction(TestCase):
     def setUp(self) -> None:
         self.mock = Mock(Connection)
-        self.t = Transaction(self.mock, commit=True)
+        self.t = SQLiteTransaction(self.mock, commit=True)
 
     def test_calls_commit_if_error_not_raised_during_transaction(self):
         with self.t:
@@ -77,6 +79,29 @@ class TestTransaction(TestCase):
                     raise psy_err
 
 
+class TestSQLiteConnectionPool(TestConnectionPool):
+    def setUp(self) -> None:
+        self.tmp_urls = tmpfile_uris()
+
+    def test_get_and_put(self):
+        super().test_get_and_put()
+
+    def create_pool(self, pool_size=1, max_overflow=0, max_age=None, pre_ping=False):
+        return SQLiteConnectionPool(
+            db_name=next(self.tmp_urls),
+            pool_size=pool_size,
+            max_overflow=max_overflow,
+            max_age=max_age,
+            pre_ping=pre_ping,
+        )
+
+    def test_close_on_server_after_returning_with_pre_ping(self):
+        pass
+
+    def test_close_on_server_after_returning_without_pre_ping(self):
+        pass
+
+
 class TestSqliteDatastore(TestCase):
     def setUp(self) -> None:
         self.datastore = SQLiteDatastore(":memory:")
@@ -84,10 +109,11 @@ class TestSqliteDatastore(TestCase):
     def test_connect_failure_raises_interface_error(self):
         datastore = SQLiteDatastore(None)
         with self.assertRaises(InterfaceError):
-            datastore.transaction()
+            with datastore.transaction(commit=False):
+                pass
 
     def test_transaction(self):
-        transaction = self.datastore.transaction()
+        transaction = self.datastore.transaction(commit=False)
         with transaction as cursor:
             cursor.execute("SELECT 1")
             rows = cursor.fetchall()
@@ -97,32 +123,32 @@ class TestSqliteDatastore(TestCase):
 
     def test_sets_wal_journal_mode_if_not_memory(self):
         # Check datastore for in-memory database.
-        with self.datastore.transaction():
+        with self.datastore.transaction(commit=False):
             pass
 
-        self.assertFalse(self.datastore.is_journal_mode_wal)
-        self.assertFalse(self.datastore.journal_mode_was_changed_to_wal)
+        self.assertFalse(self.datastore.pool.is_journal_mode_wal)
+        self.assertFalse(self.datastore.pool.journal_mode_was_changed_to_wal)
 
         # Create datastore for non-existing file database.
         self.uris = tmpfile_uris()
         self.db_uri = next(self.uris)
         datastore = SQLiteDatastore(self.db_uri)
 
-        with datastore.transaction():
+        with datastore.transaction(commit=False):
             pass
 
-        self.assertTrue(datastore.is_journal_mode_wal)
-        self.assertTrue(datastore.journal_mode_was_changed_to_wal)
+        self.assertTrue(datastore.pool.is_journal_mode_wal)
+        self.assertTrue(datastore.pool.journal_mode_was_changed_to_wal)
 
-        datastore.close_all_connections()
+        datastore.close()
         del datastore
 
         # Recreate datastore for existing database.
         datastore = SQLiteDatastore(self.db_uri)
-        with datastore.transaction():
+        with datastore.transaction(commit=False):
             pass
-        self.assertTrue(datastore.is_journal_mode_wal)
-        self.assertFalse(datastore.journal_mode_was_changed_to_wal)
+        self.assertTrue(datastore.pool.is_journal_mode_wal)
+        self.assertFalse(datastore.pool.journal_mode_was_changed_to_wal)
 
 
 class TestSQLiteAggregateRecorder(AggregateRecorderTestCase):
@@ -155,7 +181,9 @@ class TestSQLiteAggregateRecorderErrors(TestCase):
 
 class TestSQLiteApplicationRecorder(ApplicationRecorderTestCase):
     def create_recorder(self):
-        recorder = SQLiteApplicationRecorder(SQLiteDatastore(self.db_uri))
+        recorder = SQLiteApplicationRecorder(
+            SQLiteDatastore(db_name=self.db_uri, pool_size=100)
+        )
         recorder.create_table()
         return recorder
 
@@ -283,15 +311,15 @@ class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase):
 
     def test_lock_timeout_value(self):
         factory = Factory(self.env)
-        self.assertEqual(factory.datastore.lock_timeout, None)
+        self.assertEqual(factory.datastore.pool.lock_timeout, None)
 
         self.env[Factory.SQLITE_LOCK_TIMEOUT] = ""
         factory = Factory(self.env)
-        self.assertEqual(factory.datastore.lock_timeout, None)
+        self.assertEqual(factory.datastore.pool.lock_timeout, None)
 
         self.env[Factory.SQLITE_LOCK_TIMEOUT] = "10"
         factory = Factory(self.env)
-        self.assertEqual(factory.datastore.lock_timeout, 10)
+        self.assertEqual(factory.datastore.pool.lock_timeout, 10)
 
 
 del AggregateRecorderTestCase

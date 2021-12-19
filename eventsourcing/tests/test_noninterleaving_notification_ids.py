@@ -5,7 +5,7 @@ from eventsourcing.postgres import (
     PostgresDatastore,
 )
 from eventsourcing.sqlite import SQLiteApplicationRecorder, SQLiteDatastore
-from eventsourcing.tests.noninterleaving_notification_ids_testcase import (
+from eventsourcing.tests.base_noninterleaving_notification_ids_tests import (
     NonInterleavingNotificationIDsBaseCase,
 )
 from eventsourcing.tests.ramdisk import tmpfile_uris
