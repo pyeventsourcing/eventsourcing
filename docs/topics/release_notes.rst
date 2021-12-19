@@ -26,151 +26,167 @@ code and stored events is very possible.
 Version 9.2.0 (forthcoming)
 ---------------------------
 
-Added support for specifying in which PostgreSQL schema tables
-should be created. Added support for selecting a persistence module in
-application environment ('PERSISTENCE_MODULE') rather than specifying the
-topic of a factory class. Improved documentation. Added support for
-returning new notification IDs after inserting events in application
-recorders. Reworked MultiThreadedRunner to pull concurrently when
-an application is following more than one other application. Added
-support for selecting event notifications that match a list of topics
-(previously it wasn't possible to filter event notifications by topic).
-Added support for mentioning 'id' in aggregate init method when using
-explicitly defined event classes (previously this only worked with
-implicitly defined event classes). Stopped including tests and example
-packages in the distribution. Renamed ProcessEvent.collect_events()
-method (previously was called save() which is still supported but
-deprecated).
-
+* Added support for specifying in which PostgreSQL schema tables
+  should be created.
+* Added support for selecting a persistence module in
+  application environment ('PERSISTENCE_MODULE') rather than specifying the
+  topic of a factory class.
+* Improved documentation.
+* Added support for returning new notification IDs after inserting events
+  in application recorders.
+* Reworked MultiThreadedRunner to pull concurrently when
+  an application is following more than one other application.
+* Added support for selecting event notifications that match a list of
+  topics (previously it wasn't possible to filter event notifications by
+  topic).
+* Added support for mentioning 'id' in aggregate init method when using
+  explicitly defined event classes (previously this only worked with
+  implicitly defined event classes).
+* Stopped including tests and example packages in the distribution.
+* Renamed ProcessEvent.collect_events() method (previously was called
+  save() which is still supported but is now deprecated).
+* Added abstract generic connection pool class, and a connection pool
+  for the postgres and sqlite persistence modules.
 
 Version 9.1.9 (released 5 December 2021)
 -----------------------------------------
 
-Fixed register_topic() for race condition when setting topic cache with identical value.
+* Fixed register_topic() for race condition when setting topic cache with identical value.
 
 
 Version 9.1.8 (released 30 November 2021)
 -----------------------------------------
 
-Fixed postgres.py to recreate connection and retry after OperationalError.
+* Fixed postgres.py to recreate connection and retry after OperationalError.
 
 
 Version 9.1.7 (released 19 November 2021)
 -----------------------------------------
 
-Fixed errors in the documentation.
+* Fixed errors in the documentation.
 
 
 Version 9.1.6 (released 18 November 2021)
 -----------------------------------------
 
-Fixed typos and wording in the documentation.
+* Fixed typos and wording in the documentation.
 
 
 Version 9.1.5 (released 17 November 2021)
 -----------------------------------------
 
-Improved the documentation, examples, and tests.
-Fixed PostgreSQL recorder to use bigint for notification_id
-in tracking table, and to lock table only when inserting
-stored events into a total order (ie not when inserting
-snapshots). Refactored several things: extracted register_topic()
-function; changed handling of event attributes to pass
-in what is expected by a decorated method; extracted
-aggregate mutator function allowing non-default mutator
-function to be used with repository get() method; stopped
-using deprecated Thread.setDaemon() method. Improved static
-type hinting.
+* Improved the documentation, examples, and tests.
+* Fixed PostgreSQL recorder to use bigint for notification_id
+  in tracking table, and to lock table only when inserting
+  stored events into a total order (ie not when inserting
+  snapshots).
+* Refactored several things:
+
+  * extracted register_topic() function;
+  * changed handling of event attributes to pass
+    in what is expected by a decorated method;
+  * extracted aggregate mutator function allowing non-default mutator
+    function to be used with repository get() method;
+  * stopped using deprecated Thread.setDaemon() method.
+
+* Improved static type hinting.
 
 Version 9.1.4 (released 20 October 2021)
 ----------------------------------------
 
-Fixed discrepancy between Application save() and Follower record()
-methods, so that Follower applications will do automatic snapshotting
-based on their 'snapshotting_intervals' after their policy() has been
-called, as expected.
+* Fixed discrepancy between Application save() and Follower record()
+  methods, so that Follower applications will do automatic snapshotting
+  based on their 'snapshotting_intervals' after their policy() has been
+  called, as expected.
 
 
 Version 9.1.3 (released 8 October 2021)
 ---------------------------------------
 
-Added "trove classifier" for Python 3.10.
+* Added "trove classifier" for Python 3.10.
 
 
 Version 9.1.2 (released 1 October 2021)
 ---------------------------------------
 
-Clarified Postgres configuration options (POSTGRES_LOCK_TIMEOUT and
-POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT) require integer seconds.
-Added py.typed file (was missing since v9).
+* Clarified Postgres configuration options (POSTGRES_LOCK_TIMEOUT and
+  POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT) require integer seconds.
+* Added py.typed file (was missing since v9).
 
 
 Version 9.1.1 (released 20 August 2021)
 ---------------------------------------
 
-Changed PostgreSQL schema to use BIGSERIAL (was SERIAL) for notification IDs.
+* Changed PostgreSQL schema to use BIGSERIAL (was SERIAL) for notification IDs.
 
 
 Version 9.1.0 (released 18 August 2021)
 ---------------------------------------
 
-Added support for setting environment when constructing application.
-Added "eq" and "repr" methods on aggregate base class.
-Reinstated explicit definition of Aggregate.Created class.
-Added Invoice example, and Parking Lot example.
-Fixed bug when decorating property setter (use method argument name).
-Improved type annotations.
-Adjusted order of calling domain event mutate() and apply() methods,
-so apply() method is called first, in case exceptions are raised by
-apply() method so that the aggregate object can emerge unscathed
-whereas previously its version number and modified time would always
-be changed. Improved robustness of recorder classes, with more attention
-to connection state, closing connections on certain errors, retrying
-operations under certain conditions, and especially by changing the
-postgres recorders to obtain 'EXCLUSIVE' mode table lock when inserting
-events. Obtaining the table lock in PostgreSQL avoids interleaving of
-inserts between commits, which avoids event notifications from being
-committed with lower notification IDs than event notifications that
-have already been committed, and thereby prevents readers who are
-tailing the notification log of an application from missing event
-notifications for this reason. Added various environment variable
-options: for sqlite a lock timeout option; and for postgres a max
-connection age option which allows connections over a certain age
-to be closed when idle, a connection pre-ping option, a lock timeout
-option, and an option to timeout sessions idle in transaction so
-that locks can be released even if the database client has somehow
-ceased to continue its interactions with the server in a way that
-leave the session open. Improved the exception classes, to follow
-the standard Python DBAPI class names, and to encapsulate errors
-from drivers with library errors following this standard. Added
-methods to notification log and reader classes to allow notifications
-to be selected directly. Changed Follower class to select()
-rather than read() notifications. Supported defining initial version
-number of aggregates on aggregate class (with INITIAL_VERSION attribute).
+* Added support for setting environment when constructing application.
+* Added "eq" and "repr" methods on aggregate base class.
+* Reinstated explicit definition of Aggregate.Created class.
+* Added Invoice example, and Parking Lot example.
+* Fixed bug when decorating property setter (use method argument name).
+* Improved type annotations.
+* Adjusted order of calling domain event mutate() and apply() methods,
+  so apply() method is called first, in case exceptions are raised by
+  apply() method so that the aggregate object can emerge unscathed
+  whereas previously its version number and modified time would always
+  be changed.
+* Improved robustness of recorder classes, with more attention
+  to connection state, closing connections on certain errors, retrying
+  operations under certain conditions, and especially by changing the
+  postgres recorders to obtain 'EXCLUSIVE' mode table lock when inserting
+  events.
+* Obtaining the table lock in PostgreSQL avoids interleaving of
+  inserts between commits, which avoids event notifications from being
+  committed with lower notification IDs than event notifications that
+  have already been committed, and thereby prevents readers who are
+  tailing the notification log of an application from missing event
+  notifications for this reason.
+* Added various environment variable options:
+
+  * for sqlite a lock timeout option; and
+  * for postgres a max connection age option which allows connections
+    over a certain age to be closed when idle, a connection pre-ping option,
+    a lock timeout option, and an option to timeout sessions idle in transaction
+    so that locks can be released even if the database client has somehow
+    ceased to continue its interactions with the server in a way that
+    leave the session open.
+
+* Improved the exception classes, to follow the standard Python DBAPI class names,
+  and to encapsulate errors from drivers with library errors following this standard.
+* Added methods to notification log and reader classes to allow notifications
+  to be selected directly.
+* Changed Follower class to select() rather than read() notifications.
+* Supported defining initial version number of aggregates on aggregate class
+  (with INITIAL_VERSION attribute).
 
 
 Version 9.0.3 (released 17 May 2021)
 --------------------------------------
 
-Changed PostgreSQL queries to use transaction class context manager
-(transactions were started and not closed). Added possibility to
-specify a port for Postgres (thanks to Valentin Dion). Added \*\*kwargs
-to Application.save() method signature, so other things can be
-passed down the stack. Fixed reference in installing.rst (thanks to
-Karl Heinrichmeyer). Made properties out of aggregate attributes:
-'modified_on' and 'version'. Improved documentation.
-
+* Changed PostgreSQL queries to use transaction class context manager
+  (transactions were started and not closed).
+* Added possibility to specify a port for Postgres (thanks to Valentin Dion).
+* Added \*\*kwargs to Application.save() method signature, so other things can be
+  passed down the stack.
+* Fixed reference in installing.rst (thanks to Karl Heinrichmeyer).
+* Made properties out of aggregate attributes: 'modified_on' and 'version'.
+* Improved documentation.
 
 Version 9.0.2 (released 16 April 2021)
 --------------------------------------
 
-Fixed issue with type hints in PyCharm v2021.1 for methods decorated with the @event decorator.
+* Fixed issue with type hints in PyCharm v2021.1 for methods decorated with the @event decorator.
 
 
 Version 9.0.1 (released 29 March 2021)
 --------------------------------------
 
-Improved documentation. Moved cipher base class to avoid importing cipher module.
+* Improved documentation.
+* Moved cipher base class to avoid importing cipher module.
 
 
 Version 9.0.0 (released 13 March 2021)
@@ -182,93 +198,96 @@ version focuses directly on expressing the important concerns, without
 the variations and alternatives that had been accumulated over the past
 few years of learning and pathfinding.
 
-The highlight is the new :ref:`declarative syntax <Declarative syntax>`
-for event sourced domain models.
+* The highlight is the new :ref:`declarative syntax <Declarative syntax>`
+  for event sourced domain models.
 
-Dedicated persistence modules for SQLite and PostgresSQL have been
-introduced. Support for SQLAlchemy and Django, and other databases,
-has been removed. The plan is to support these in separate package
-distributions. The default "plain old Python object" infrastructure
-continues to exist, and now offers event storage and retrieval
-performance of around 20x the speed of using PostgreSQL and around
-4x the speed of using SQLite in memory.
+* Dedicated persistence modules for SQLite and PostgresSQL have been
+  introduced. Support for SQLAlchemy and Django, and other databases,
+  has been removed. The plan is to support these in separate package
+  distributions. The default "plain old Python object" infrastructure
+  continues to exist, and now offers event storage and retrieval
+  performance of around 20x the speed of using PostgreSQL and around
+  4x the speed of using SQLite in memory.
 
-The event storage format is more efficient, because originator IDs and
-originator versions are removed from the stored event state before
-serialisation, and then reinstated on serialisation.
+* The event storage format is more efficient, because originator IDs and
+  originator versions are removed from the stored event state before
+  serialisation, and then reinstated on serialisation.
 
-Rather than the using "INSERT SELECT MAX" SQL statements, database
-sequences are used to generate event notifications. This avoids table
-conflicts that sometimes caused exceptions and required retries when
-storing events. Although this leads to notification ID sequences that
-may have gaps, the use of sequences means there is still no risk of
-event notifications being inserted in the gaps after later event
-notifications have been processed, which was the motivation for using
-gapless sequences in previous versions. The notification log and log
-reader classes have been adjusted to support the possible existence of
-gaps in the notification log sequence.
+* Rather than the using "INSERT SELECT MAX" SQL statements, database
+  sequences are used to generate event notifications. This avoids table
+  conflicts that sometimes caused exceptions and required retries when
+  storing events. Although this leads to notification ID sequences that
+  may have gaps, the use of sequences means there is still no risk of
+  event notifications being inserted in the gaps after later event
+  notifications have been processed, which was the motivation for using
+  gapless sequences in previous versions. The notification log and log
+  reader classes have been adjusted to support the possible existence of
+  gaps in the notification log sequence.
 
-The transcoder is more easily extensible, with the new style for defining
-and registering individual transcoding objects to support individual types
-of object that are not supported by default.
+* The transcoder is more easily extensible, with the new style for defining
+  and registering individual transcoding objects to support individual types
+  of object that are not supported by default.
 
-Domain event classes have been greatly simplified, with the deep hierarchy
-of entity and event classes removed in favour of the simple aggregate base
-class.
+* Domain event classes have been greatly simplified, with the deep hierarchy
+  of entity and event classes removed in favour of the simple aggregate base
+  class.
 
-The repository class has been changed to provide a single get() method. It no
-longer supports the Python "indexing" square-bracket syntax, so that there is
-just one way to get an aggregate regardless of whether the requested version
-is specified or not.
+* The repository class has been changed to provide a single get() method. It no
+  longer supports the Python "indexing" square-bracket syntax, so that there is
+  just one way to get an aggregate regardless of whether the requested version
+  is specified or not.
 
-Application configuration of persistence infrastructure is now driven by
-environment variables rather than constructor parameters, leading to a
-simpler interface for application object classes. The mechanism for storing
-aggregates has been simplified, so that aggregates are saved using the
-application "save" method. A new "notify" method has been added to the
-application class, to support applications that need to know when new
-events have just been recorded.
+* Application configuration of persistence infrastructure is now driven by
+  environment variables rather than constructor parameters, leading to a
+  simpler interface for application object classes. The mechanism for storing
+  aggregates has been simplified, so that aggregates are saved using the
+  application "save" method. A new "notify" method has been added to the
+  application class, to support applications that need to know when new
+  events have just been recorded.
 
-The mechanism by which aggregates published their events and a
-"persistence subscriber" subscribed and persisted published domain events
-has been completely removed, since aggregates that are saved always need
-some persistence infrastructure to store the events, and it is the
-responsibility of the application to bring together the domain model and
-infrastructure, so that when an aggregate can be saved there is always
-an application.
+* The mechanism by which aggregates published their events and a
+  "persistence subscriber" subscribed and persisted published domain events
+  has been completely removed, since aggregates that are saved always need
+  some persistence infrastructure to store the events, and it is the
+  responsibility of the application to bring together the domain model and
+  infrastructure, so that when an aggregate can be saved there is always
+  an application.
 
-Process application policy methods are now given a process event object
-and will use it to collect domain events, using its "save" method, which
-has the same method signature as the application "save" method. This
-allows policies to accumulate new events on the process event object
-in the order they were generated, whereas previously if new events
-were generated on one aggregate and then a second and then the first,
-the events of one aggregate would be stored first and the events of
-the second aggregate would be stored afterwards, leading to an incorrect
-ordering of the domain events in the notification log. The process
-event object existed in previous versions, was used to keep track
-of the position in a notification log of the event notification
-that was being processed by a policy, and continues to be used
-for that purpose.
+* Process application policy methods are now given a process event object
+  and will use it to collect domain events, using its "save" method, which
+  has the same method signature as the application "save" method. This
+  allows policies to accumulate new events on the process event object
+  in the order they were generated, whereas previously if new events
+  were generated on one aggregate and then a second and then the first,
+  the events of one aggregate would be stored first and the events of
+  the second aggregate would be stored afterwards, leading to an incorrect
+  ordering of the domain events in the notification log. The process
+  event object existed in previous versions, was used to keep track
+  of the position in a notification log of the event notification
+  that was being processed by a policy, and continues to be used
+  for that purpose.
 
-The system runners have been reduced to the single-threaded and
-multi-threaded runners, with support for running with Ray and gRPC
-and so on removed (the plan being to support these in separate package
-distributions).
+* The system runners have been reduced to the single-threaded and
+  multi-threaded runners, with support for running with Ray and gRPC
+  and so on removed (the plan being to support these in separate package
+  distributions).
 
-Altogether, these changes mean the core library now depends only on
-the PythonStandard Library, except for the optional extra dependencies
-on a cryptographic library (PyCryptodome) and a PostgresSQL driver (psycopg2),
-and the dependencies of development tools. Altogether, these changes make the
-test suite much faster to run (several seconds rather than several minutes for
-the previous version). These changes make the build time on CI services much
-quicker (around one minute, rather than nearly ten minutes for the previous
-version). And these changes make the library more approachable and fun for
-users and library developers. Test coverage has been increased to 100% line
-and branch coverage. Also mypy and flake8 checking is done.
+* The core library now depends only on the PythonStandard Library, except for
+  the optional extra dependencies on a cryptographic library (PyCryptodome)
+  and a PostgresSQL driver (psycopg2), and the dependencies of development tools.
 
-The documentation has been rewritten to focus more on usage of the library code,
-and less on explaining surrounding concepts and considerations.
+* The test suite is now much faster to run (several seconds rather than several
+  minutes for the previous version). These changes make the build time on CI
+  services much quicker (around one minute, rather than nearly ten minutes for
+  the previous version). And these changes make the library more approachable
+  and fun for users and library developers.
+
+* Test coverage has been increased to 100% line and branch coverage.
+
+* Added mypy and flake8 checking.
+
+* The documentation has been rewritten to focus more on usage of the library code,
+  and less on explaining surrounding concepts and considerations.
 
 
 Version 8.x
@@ -284,111 +303,113 @@ moved to a new "system" package.
 Version 8.3.0 (released 9 January 2021)
 ---------------------------------------
 
-Added gRPC runner. Improved Django record manager, so that it supports
-setting notification log IDs in the application like the SQLAlchemy
-record manager (this optionally avoids use of the "insert select max"
-statement and thereby makes it possible to exclude domain events from
-the notification log at the risk of non-gapless notification log
-sequences). Also improved documentation.
+* Added gRPC runner.
+* Improved Django record manager, so that it supports
+  setting notification log IDs in the application like the SQLAlchemy
+  record manager (this optionally avoids use of the "insert select max"
+  statement and thereby makes it possible to exclude domain events from
+  the notification log at the risk of non-gapless notification log
+  sequences).
+* Also improved documentation.
 
 
 Version 8.2.5 (released 22 Dec 2020)
 --------------------------------------
 
-Increased versions of dependencies on requests, Django, Celery, PyMySQL.
+* Increased versions of dependencies on requests, Django, Celery, PyMySQL.
 
 Version 8.2.4 (released 12 Nov 2020)
 --------------------------------------
 
-Fixed issue with using Oracle database, where a trailing semicolon
-in an SQL statement caused the "invalid character" error (ORA-00911).
+* Fixed issue with using Oracle database, where a trailing semicolon
+  in an SQL statement caused the "invalid character" error (ORA-00911).
 
 Version 8.2.3 (released 19 May 2020)
 --------------------------------------
 
-Improved interactions with process applications in RayRunner
-so that they have the same style as interactions with process
-applications in other runners. This makes the RayRunner more
-interchangeable with the other runners, so that system client
-code can be written to work with any runner.
+* Improved interactions with process applications in RayRunner
+  so that they have the same style as interactions with process
+  applications in other runners. This makes the RayRunner more
+  interchangeable with the other runners, so that system client
+  code can be written to work with any runner.
 
 
 Version 8.2.2 (released 16 May 2020)
 --------------------------------------
 
-Improved documentation. Updated dockerization for local
-development. Added Makefile, to setup development environment,
-to build and run docker containers, to run the test suite, to
-format the code, and to build the docs. Reformatted the code.
+* Improved documentation.
+* Updated dockerization for local development.
+* Added Makefile, to setup development environment,
+  to build and run docker containers, to run the test suite, to
+  format the code, and to build the docs.
+* Reformatted the code.
 
 
 Version 8.2.1 (released 11 March 2020)
 --------------------------------------
 
-Improved documentation.
+* Improved documentation.
 
 
 Version 8.2.0 (released 10 March 2020)
 --------------------------------------
 
-Added optional versioning of domain events and entities, so that
-domain events and entity snapshots can be versioned and old
-versions of state can be upcast to new versions.
-
-Added optional correlation and causation IDs for domain events,
-so that a story can be traced through a system of applications.
-
-Added AxonApplication and AxonRecordManager so that Axon Server can
-be used as an event store by event-sourced applications.
-
-Added RayRunner, which allows a system of applications to be run with
-the Ray framework.
+* Added optional versioning of domain events and entities, so that
+  domain events and entity snapshots can be versioned and old
+  versions of state can be upcast to new versions.
+* Added optional correlation and causation IDs for domain events,
+  so that a story can be traced through a system of applications.
+* Added AxonApplication and AxonRecordManager so that Axon Server can
+  be used as an event store by event-sourced applications.
+* Added RayRunner, which allows a system of applications to be run with
+  the Ray framework.
 
 
 Version 8.1.0 (released 11 January 2020)
 ----------------------------------------
 
-Improved documentation. Improved transcoding (e.g. tuples
-are encoded as tuples also within other collections). Added
-event hash method name to event attributes, so that event hashes
-created with old version of event hashing can still be checked.
-Simplified repository base classes (removed "event player" class).
+* Improved documentation.
+* Improved transcoding (e.g. tuples are encoded as tuples also within other collections).
+* Added event hash method name to event attributes, so that event hashes
+  created with old version of event hashing can still be checked.
+* Simplified repository base classes (removed "event player" class).
 
 
 Version 8.0.0 (released 7 December 2019)
 ----------------------------------------
 
-The storage of event state has been changed from strings to bytes. This
-is definitely a backwards incompatible change. Previously state bytes were
-encoded with base64 before being saved as strings, which adds 33% to the size
-of each stored state. Compression of event state is now an option, independently
-of encryption, and compression is now configurable (defaults to zlib module,
-other compressors can be used). Attention will need to be paid to one of two
-alternatives. One alternative is to migrate your stored events (the state field),
-either from being stored as plaintext strings to being stored as plaintext bytes
-(you need to encode as utf-8), or from being stored as ciphertext bytes encoded
-with base64 decoded as utf-8 to being stored as ciphertext bytes (you need to
-encode as utf-8 and decode base64). The other alternative is to carry on using
-the same database schema, define custom stored event record classes in your project
-(copied from the previous version of the library), and extend the record manager
-to convert the bytes to strings and back. A later version of this library may
-bring support for one or both of these options, so if this change presents a
-challenge, please hold off from upgrading, and discuss your situation with the
-project developer(s). There is nothing wrong with the previous version, and you
-can continue to use it.
+* The storage of event state has been changed from strings to bytes. Previously state
+  bytes were encoded with base64 before being saved as strings, which adds 33% to the
+  size of each stored state. This is definitely a backwards incompatible change.
+  Attention will need to be paid to one of two alternatives. One alternative is to
+  migrate your stored events (the state field), either from being stored as plaintext
+  strings to being stored as plaintext bytes (you need to encode as utf-8), or from
+  being stored as ciphertext bytes encoded with base64 decoded as utf-8 to being stored
+  as ciphertext bytes (you need to encode as utf-8 and decode base64). The other alternative
+  is to carry on using the same database schema, define custom stored event record classes
+  in your project (copied from the previous version of the library), and extend the record
+  manager to convert the bytes to strings and back. A later version of this library may
+  bring support for one or both of these options, so if this change presents a
+  challenge, please hold off from upgrading, and discuss your situation with the
+  project developer(s). There is nothing wrong with the previous version, and you
+  can continue to use it.
 
-Other backwards incompatible changes involve renaming a number of methods, and
-moving classes and also modules (for example, the system modules have been moved
-from the applications package to a separate package). Please see the commit log
-for all the details.
+* Other backwards incompatible changes involve renaming a number of methods, and
+  moving classes and also modules (for example, the system modules have been moved
+  from the applications package to a separate package). Please see the commit log
+  for all the details.
 
-This version also brings improved and expanded transcoding, additional type
-annotations, automatic subclassing on domain entities of domain events (not
-enabled by default), an option to apply the policy of a process application
-to all events that are generated by its policy when an event notification
-is processed (continues until all successively generated events have been
-processed, with all generated events stored in the same atomic process event,
-as if all generated events were generated in a single policy function).
+* Compression of event state is now an option, independently
+  of encryption, and compression is now configurable (defaults to zlib module,
+  other compressors can be used).
+
+* This version also brings improved and expanded transcoding, additional type
+  annotations, automatic subclassing on domain entities of domain events (not
+  enabled by default), an option to apply the policy of a process application
+  to all events that are generated by its policy when an event notification
+  is processed (continues until all successively generated events have been
+  processed, with all generated events stored in the same atomic process event,
+  as if all generated events were generated in a single policy function).
 
 Please note, the transcoding now supports the encoding of tuples, and named tuples,
 as tuples. Previously tuples were encoded by the JSON transcoding as
@@ -409,102 +430,103 @@ accessing the process applications by class on the runner object.
 Version 7.x
 ===========
 
-Version 7.x series refined the "process and system" code.
+* Version 7.x series refined the "process and system" code.
 
 
 Version 7.2.4 (released 9 Oct 2019)
 ------------------------------------
 
-Version 7.2.4 fixed an issue in running the test suite.
+* Fixed an issue in running the test suite.
 
 
 Version 7.2.3 (released 9 Oct 2019)
 ------------------------------------
 
-Version 7.2.3 fixed a bug in MultiThreadedRunner.
+* Fixed a bug in MultiThreadedRunner.
 
 
 Version 7.2.2 (released 6 Oct 2019)
 ------------------------------------
 
-Version 7.2.2 has improved documentation for "reliable projections".
+* Improved documentation for "reliable projections".
 
 
 Version 7.2.1 (released 6 Oct 2019)
 ------------------------------------
 
-Version 7.2.1 has improved support for "reliable projections",
-which allows custom records to be deleted (previously only
-create and update was supported). The documentation for
-"reliable projections" was improved. The previous code
-snippet, which was merely suggestive, was replaced by a
-working example.
+* Improved support for "reliable projections",
+  which allows custom records to be deleted (previously only
+  create and update was supported). The documentation for
+  "reliable projections" was improved. The previous code
+  snippet, which was merely suggestive, was replaced by a
+  working example.
 
 
 Version 7.2.0 (released 1 Oct 2019)
 ------------------------------------
 
-Version 7.2.0 has support for "reliable projections" into custom
-ORM objects that can be coded as process application policies.
+* Add support for "reliable projections" into custom
+  ORM objects that can be coded as process application policies.
 
-Also a few issues were resolved: avoiding importing Django models from library
-when custom models are being used to store events prevents model conflicts;
-fixed multiprocess runner to work when an application is not being followed
-by another; process applications now reflect off the sequenced item tuple when
-reading notifications so that custom field names are used.
+* Also a few other issues were resolved: avoiding importing Django models from library
+  when custom models are being used to store events prevents model conflicts;
+  fixed multiprocess runner to work when an application is not being followed
+  by another; process applications now reflect off the sequenced item tuple when
+  reading notifications so that custom field names are used.
 
 
 Version 7.1.6 (released 2 Aug 2019)
 ------------------------------------
 
-Version 7.1.6 fixed an issue with the notification log reader. The notification
-log reader was sometimes using a "fast path" to get all the notifications without
-paging through the notification log using the linked sections. However, when there
-were too many notification, this failed to work. A few adjustments were made
-to fix the performance and robustness and configurability of the notification
-log reading functionality.
+* Fixed an issue with the notification log reader. The notification
+  log reader was sometimes using a "fast path" to get all the notifications without
+  paging through the notification log using the linked sections. However, when there
+  were too many notification, this failed to work. A few adjustments were made
+  to fix the performance and robustness and configurability of the notification
+  log reading functionality.
 
 
 Version 7.1.5 (released 26 Jul 2019)
 ------------------------------------
 
-Version 7.1.5 improved the library documentation with better links to
-module reference pages. The versions of dependencies were also updated,
-so that all versions of dependencies are the current stable versions
-of the package distributions on PyPI. In particular, requests was
-updated to a version that fixes a security vulnerability.
+* Improved the library documentation with better links to
+  module reference pages.
+* The versions of dependencies were also updated,
+  so that all versions of dependencies are the current stable versions
+  of the package distributions on PyPI. In particular, requests was
+  updated to a version that fixes a security vulnerability.
 
 
 Version 7.1.4 (released 10 Jul 2019)
 ------------------------------------
 
-Version 7.1.4 improved the library documentation.
+* Improved the library documentation.
 
 
 Version 7.1.3 (released 4 Jul 2019)
 ------------------------------------
 
-Version 7.1.3 improved the domain model layer documentation.
+* Improved the domain model layer documentation.
 
 
 Version 7.1.2 (released 26 Jun 2019)
 ------------------------------------
 
-Version 7.1.2 fixed method 'construct_app()' on class 'System' to set 'setup_table'
-on its process applications using the system's value of 'setup_tables'. Also
-updated version of dependency of SQLAlchemy-Utils.
+* Fixed method 'construct_app()' on class 'System' to set 'setup_table'
+  on its process applications using the system's value of 'setup_tables'.
+* Updated version of dependency of SQLAlchemy-Utils.
 
 
 Version 7.1.1 (released 21 Jun 2019)
 ------------------------------------
 
-Version 7.1.1 added 'Support options' and 'Contributing' sections to the documentation.
+* Added 'Support options' and 'Contributing' sections to the documentation.
 
 
 Version 7.1.0 (released 11 Jun 2019)
 ------------------------------------
 
-Version 7.1.0 improved structure to the documentation.
+* Improved structure to the documentation.
 
 
 Version 7.0.0 (released 21 Feb 2019)
@@ -719,7 +741,4 @@ Version 0.2.0 (released 27 Aug 2015)
 ------------------------------------
 
 Version 0.1.0 (released 27 Aug 2015)
-------------------------------------
-
-Version 0.0.1 (released 27 Aug 2015)
 ------------------------------------
