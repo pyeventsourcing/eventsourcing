@@ -601,190 +601,6 @@ overridden the settings from the operating system environment, and the settings 
 the operating system environment have overridden the settings from the class attribute.
 
 
-.. _Snapshotting:
-
-Snapshotting
-============
-
-If the reconstruction of an aggregate depends on obtaining and replaying
-a relatively large number of domain event objects, it can take a relatively
-long time to reconstruct the aggregate. Snapshotting aggregates can help to
-reduce access time of aggregates with lots of domain events.
-
-Snapshots are stored separately from the aggregate events. When snapshotting
-is enabled, the application object will have a snapshot store assigned to the
-attribute ``snapshots``. By default, snapshotting is not enabled, and the application
-object's ``snapshots`` attribute will have the value ``None``.
-
-.. code-block:: python
-
-    assert application.snapshots is None
-
-Enabling snapshotting
----------------------
-
-To enable snapshotting in application objects, the environment variable
-``IS_SNAPSHOTTING_ENABLED`` may be set to a valid "true"  value. The
-function :func:`~eventsourcing.utils.strtobool` is used to interpret
-the value of this environment variable, so that strings
-``"y"``, ``"yes"``, ``"t"``, ``"true"``, ``"on"`` and ``"1"`` are considered to
-be "true" values, and ``"n"``, ``"no"``, ``"f"``, ``"false"``, ``"off"`` and ``"0"``
-are considered to be "false" values, and other values are considered to be invalid.
-The default is for an application's snapshotting functionality to be not enabled.
-
-Application environment variables can be passed into the application using the
-``env`` argument when constructing an application object. Snapshotting can be
-enabled (or disabled) for an individual application object in this way.
-
-.. code-block:: python
-
-    application = Worlds(env={"IS_SNAPSHOTTING_ENABLED": "y"})
-
-    assert application.snapshots is not None
-
-
-Application environment variables can be also be set in the operating system environment.
-Setting operating system environment variables will affect all applications created in
-that environment.
-
-.. code-block:: python
-
-    os.environ["IS_SNAPSHOTTING_ENABLED"] = "y"
-
-    application = Worlds()
-
-    assert application.snapshots is not None
-
-    del os.environ["IS_SNAPSHOTTING_ENABLED"]
-
-
-Values passed into the application object will override operating system environment variables.
-
-.. code-block:: python
-
-    os.environ["IS_SNAPSHOTTING_ENABLED"] = "y"
-    application = Worlds(env={"IS_SNAPSHOTTING_ENABLED": "n"})
-
-    assert application.snapshots is None
-
-    del os.environ["IS_SNAPSHOTTING_ENABLED"]
-
-Snapshotting can also be enabled for all instances of an application class by
-setting the boolean attribute 'is_snapshotting_enabled' on the application class.
-
-.. code-block:: python
-
-    class WorldsWithSnapshottingEnabled(Worlds):
-        is_snapshotting_enabled = True
-
-
-    application = WorldsWithSnapshottingEnabled()
-    assert application.snapshots is not None
-
-However, this setting will also be overridden by both the construct arg ``env``
-and by the operating system environment. The example below demonstrates this
-by extending the ``Worlds`` application class defined above.
-
-.. code-block:: python
-
-    application = WorldsWithSnapshottingEnabled(env={"IS_SNAPSHOTTING_ENABLED": "n"})
-
-    assert application.snapshots is None
-
-    os.environ["IS_SNAPSHOTTING_ENABLED"] = "n"
-    application = WorldsWithSnapshottingEnabled()
-
-    assert application.snapshots is None
-
-    del os.environ["IS_SNAPSHOTTING_ENABLED"]
-
-
-Taking snapshots
-----------------
-
-The application method :func:`~eventsourcing.application.Application.take_snapshot`
-can be used to create a snapshot of the state of an aggregate. The ID of an aggregate
-to be snapshotted must be passed when calling this method. By passing in the ID
-(and optional version number), rather than an actual aggregate object, the risk of
-snapshotting a somehow "corrupted" aggregate object that does not represent the
-actually recorded state of the aggregate is avoided.
-
-.. code-block:: python
-
-    application = Worlds(env={"IS_SNAPSHOTTING_ENABLED": "y"})
-    world_id = application.create_world()
-
-    application.make_it_so(world_id, "dinosaurs")
-    application.make_it_so(world_id, "trucks")
-    application.make_it_so(world_id, "internet")
-
-    application.take_snapshot(world_id)
-
-
-Snapshots are stored separately from the aggregate events, but snapshot objects are
-implemented as a kind of domain event, and snapshotting uses the same mechanism
-for storing snapshots as for storing aggregate events. When snapshotting is enabled,
-the application object attribute ``snapshots`` is an event store dedicated to storing
-snapshots. The snapshots can be retrieved from the snapshot store using the
-:func:`~eventsourcing.persistence.EventStore.get` method. We can get the latest snapshot
-by selecting in descending order with a limit of 1.
-
-.. code-block:: python
-
-    snapshots = application.snapshots.get(world_id, desc=True, limit=1)
-
-    snapshots = list(snapshots)
-    assert len(snapshots) == 1, len(snapshots)
-    snapshot = snapshots[0]
-
-    assert snapshot.originator_id == world_id
-    assert snapshot.originator_version == 4
-
-When snapshotting is enabled, the application repository looks for snapshots in this way.
-If a snapshot is found by the aggregate repository when retrieving an aggregate,
-then only the snapshot and subsequent aggregate events will be retrieved and used
-to reconstruct the state of the aggregate.
-
-Automatic snapshotting
-----------------------
-
-Automatic snapshotting of aggregates at regular intervals can be enabled
-by setting the application class attribute 'snapshotting_intervals'. The
-'snapshotting_intervals' should be a mapping of aggregate classes to integers
-which represent the snapshotting interval. When aggregates are saved, snapshots
-will be taken if the version of aggregate coincides with the specified interval.
-The example below demonstrates this by extending the ``Worlds`` application class
-with ``World`` aggregates snapshotted every 2 events.
-
-.. code-block:: python
-
-    class WorldsWithAutomaticSnapshotting(Worlds):
-        snapshotting_intervals = {World: 2}
-
-
-    application = WorldsWithAutomaticSnapshotting()
-
-    world_id = application.create_world()
-
-    application.make_it_so(world_id, "dinosaurs")
-    application.make_it_so(world_id, "trucks")
-    application.make_it_so(world_id, "internet")
-
-    snapshots = application.snapshots.get(world_id)
-    snapshots = list(snapshots)
-
-    assert len(snapshots) == 2
-
-    assert snapshots[0].originator_id == world_id
-    assert snapshots[0].originator_version == 2
-
-    assert snapshots[1].originator_id == world_id
-    assert snapshots[1].originator_version == 4
-
-In practice, a suitable interval would most likely be larger than 2.
-And 'snapshotting_intervals' would be defined on your application
-class and not a subclass.
-
 .. _Persistence:
 
 Configuring persistence
@@ -1065,6 +881,191 @@ to see how this can be done.
     #Todo: Register custom transcodings on transcoder.
     #Todo: Show how to use UUID5.
     #Todo: Show how to use ORM objects for read model.
+
+.. _Snapshotting:
+
+Snapshotting
+============
+
+If the reconstruction of an aggregate depends on obtaining and replaying
+a relatively large number of domain event objects, it can take a relatively
+long time to reconstruct the aggregate. Snapshotting aggregates can help to
+reduce access time of aggregates with lots of domain events.
+
+Snapshots are stored separately from the aggregate events. When snapshotting
+is enabled, the application object will have a snapshot store assigned to the
+attribute ``snapshots``. By default, snapshotting is not enabled, and the application
+object's ``snapshots`` attribute will have the value ``None``.
+
+.. code-block:: python
+
+    assert application.snapshots is None
+
+Enabling snapshotting
+---------------------
+
+To enable snapshotting in application objects, the environment variable
+``IS_SNAPSHOTTING_ENABLED`` may be set to a valid "true"  value. The
+function :func:`~eventsourcing.utils.strtobool` is used to interpret
+the value of this environment variable, so that strings
+``"y"``, ``"yes"``, ``"t"``, ``"true"``, ``"on"`` and ``"1"`` are considered to
+be "true" values, and ``"n"``, ``"no"``, ``"f"``, ``"false"``, ``"off"`` and ``"0"``
+are considered to be "false" values, and other values are considered to be invalid.
+The default is for an application's snapshotting functionality to be not enabled.
+
+Application environment variables can be passed into the application using the
+``env`` argument when constructing an application object. Snapshotting can be
+enabled (or disabled) for an individual application object in this way.
+
+.. code-block:: python
+
+    application = Worlds(env={"IS_SNAPSHOTTING_ENABLED": "y"})
+
+    assert application.snapshots is not None
+
+
+Application environment variables can be also be set in the operating system environment.
+Setting operating system environment variables will affect all applications created in
+that environment.
+
+.. code-block:: python
+
+    os.environ["IS_SNAPSHOTTING_ENABLED"] = "y"
+
+    application = Worlds()
+
+    assert application.snapshots is not None
+
+    del os.environ["IS_SNAPSHOTTING_ENABLED"]
+
+
+Values passed into the application object will override operating system environment variables.
+
+.. code-block:: python
+
+    os.environ["IS_SNAPSHOTTING_ENABLED"] = "y"
+    application = Worlds(env={"IS_SNAPSHOTTING_ENABLED": "n"})
+
+    assert application.snapshots is None
+
+    del os.environ["IS_SNAPSHOTTING_ENABLED"]
+
+Snapshotting can also be enabled for all instances of an application class by
+setting the boolean attribute 'is_snapshotting_enabled' on the application class.
+
+.. code-block:: python
+
+    class WorldsWithSnapshottingEnabled(Worlds):
+        is_snapshotting_enabled = True
+
+
+    application = WorldsWithSnapshottingEnabled()
+    assert application.snapshots is not None
+
+However, this setting will also be overridden by both the construct arg ``env``
+and by the operating system environment. The example below demonstrates this
+by extending the ``Worlds`` application class defined above.
+
+.. code-block:: python
+
+    application = WorldsWithSnapshottingEnabled(env={"IS_SNAPSHOTTING_ENABLED": "n"})
+
+    assert application.snapshots is None
+
+    os.environ["IS_SNAPSHOTTING_ENABLED"] = "n"
+    application = WorldsWithSnapshottingEnabled()
+
+    assert application.snapshots is None
+
+    del os.environ["IS_SNAPSHOTTING_ENABLED"]
+
+
+Taking snapshots
+----------------
+
+The application method :func:`~eventsourcing.application.Application.take_snapshot`
+can be used to create a snapshot of the state of an aggregate. The ID of an aggregate
+to be snapshotted must be passed when calling this method. By passing in the ID
+(and optional version number), rather than an actual aggregate object, the risk of
+snapshotting a somehow "corrupted" aggregate object that does not represent the
+actually recorded state of the aggregate is avoided.
+
+.. code-block:: python
+
+    application = Worlds(env={"IS_SNAPSHOTTING_ENABLED": "y"})
+    world_id = application.create_world()
+
+    application.make_it_so(world_id, "dinosaurs")
+    application.make_it_so(world_id, "trucks")
+    application.make_it_so(world_id, "internet")
+
+    application.take_snapshot(world_id)
+
+
+Snapshots are stored separately from the aggregate events, but snapshot objects are
+implemented as a kind of domain event, and snapshotting uses the same mechanism
+for storing snapshots as for storing aggregate events. When snapshotting is enabled,
+the application object attribute ``snapshots`` is an event store dedicated to storing
+snapshots. The snapshots can be retrieved from the snapshot store using the
+:func:`~eventsourcing.persistence.EventStore.get` method. We can get the latest snapshot
+by selecting in descending order with a limit of 1.
+
+.. code-block:: python
+
+    snapshots = application.snapshots.get(world_id, desc=True, limit=1)
+
+    snapshots = list(snapshots)
+    assert len(snapshots) == 1, len(snapshots)
+    snapshot = snapshots[0]
+
+    assert snapshot.originator_id == world_id
+    assert snapshot.originator_version == 4
+
+When snapshotting is enabled, the application repository looks for snapshots in this way.
+If a snapshot is found by the aggregate repository when retrieving an aggregate,
+then only the snapshot and subsequent aggregate events will be retrieved and used
+to reconstruct the state of the aggregate.
+
+Automatic snapshotting
+----------------------
+
+Automatic snapshotting of aggregates at regular intervals can be enabled
+by setting the application class attribute 'snapshotting_intervals'. The
+'snapshotting_intervals' should be a mapping of aggregate classes to integers
+which represent the snapshotting interval. When aggregates are saved, snapshots
+will be taken if the version of aggregate coincides with the specified interval.
+The example below demonstrates this by extending the ``Worlds`` application class
+with ``World`` aggregates snapshotted every 2 events.
+
+.. code-block:: python
+
+    class WorldsWithAutomaticSnapshotting(Worlds):
+        snapshotting_intervals = {World: 2}
+
+
+    application = WorldsWithAutomaticSnapshotting()
+
+    world_id = application.create_world()
+
+    application.make_it_so(world_id, "dinosaurs")
+    application.make_it_so(world_id, "trucks")
+    application.make_it_so(world_id, "internet")
+
+    snapshots = application.snapshots.get(world_id)
+    snapshots = list(snapshots)
+
+    assert len(snapshots) == 2
+
+    assert snapshots[0].originator_id == world_id
+    assert snapshots[0].originator_version == 2
+
+    assert snapshots[1].originator_id == world_id
+    assert snapshots[1].originator_version == 4
+
+In practice, a suitable interval would most likely be larger than 2.
+Perhaps more like 100. And 'snapshotting_intervals' would be defined
+directly on your application class.
+
 
 Classes
 =======
