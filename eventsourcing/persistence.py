@@ -747,7 +747,7 @@ class Connection(ABC, Generic[TCursor]):
         if max_age is not None:
             self._max_age_timer: Optional[Timer] = Timer(
                 interval=max_age,
-                function=self._close_on_timer,
+                function=self._close_when_not_in_use,
             )
             self._max_age_timer.daemon = True
             self._max_age_timer.start()
@@ -785,7 +785,7 @@ class Connection(ABC, Generic[TCursor]):
         if self._max_age_timer:
             self._max_age_timer.cancel()
 
-    def _close_on_timer(self) -> None:
+    def _close_when_not_in_use(self) -> None:
         self._closing.set()
         with self.in_use:
             if not self._closed:
@@ -873,15 +873,33 @@ class ConnectionPool(ABC, Generic[TConnection]):
     def get_connection(
         self, timeout: Optional[float] = None, is_writer: Optional[bool] = None
     ) -> TConnection:
+        """
+        Tries to get a connection from the pool.
+
+        Provides "fairness" on attempts to get or create connections.
+
+        Writers wait for write lock, and for no readers if reading
+        excludes writing. Writers hold write lock until returned to
+        the pool. Readers wait for write lock if writing excludes
+        reading (readers release write lock, but will cause writers
+        to wait for no readers if reading excludes writing).
+        """
+        # Make sure we aren't dealing with a closed pool.
         if self._closed:
             raise ConnectionPoolClosed
+
+        # Decide the timeout for getting a connection.
         timeout = self.pool_timeout if timeout is None else timeout
+
+        # Remember when we started trying to get a connection.
         started = time()
 
         # if is_writer is True:
         #     print("writer getting connection")
 
+        # Join queue of threads waiting to get a connection ("fairness").
         with self._get_semaphore:
+            # If connection is for writing, get write lock and wait for no readers.
             if is_writer is True:
                 remaining = self._remaining_timeout(timeout, started)
                 if not self._writer_lock.acquire(timeout=remaining):
@@ -894,20 +912,25 @@ class ConnectionPool(ABC, Generic[TConnection]):
                             if not self._no_readers.wait(timeout=remaining):
                                 self._writer_lock.release()
                                 raise WriterBlockedByReaders()
+
+            # If connection is for reading and writing excludes reading,
+            # then wait for the write lock, and increment number of readers.
             elif is_writer is False:
-                remaining = self._remaining_timeout(timeout, started)
                 if self._mutually_exclusive_read_write:
+                    remaining = self._remaining_timeout(timeout, started)
                     if not self._writer_lock.acquire(timeout=remaining):
                         raise ReaderBlockedByWriter()
+                    self._writer_lock.release()
                     with self._no_readers:
                         self._num_readers += 1
-                    self._writer_lock.release()
 
+            # Actually try to get a connection withing the time remaining.
             conn = self._get_connection(
                 timeout=self._remaining_timeout(timeout, started)
             )
-            if is_writer is not None:
-                conn.is_writer = is_writer
+
+            # Remember if this connection is for reading or writing.
+            conn.is_writer = is_writer
 
             # if is_writer is None:
             #     for_writer = ""
@@ -924,89 +947,139 @@ class ConnectionPool(ABC, Generic[TConnection]):
             #     "used",
             # )
 
+            # Return the connection.
             return conn
 
     def _get_connection(self, timeout: float = 0.0) -> TConnection:
+        """
+        Gets or creates connections from pool within given
+        time, otherwise raises a "pool exhausted" error.
+
+        Waits for connections to be returned if the pool
+        is fully used. And optionally ensures a connection
+        is usable before returning a connection for use.
+
+        Tracks use of connections, and number of readers.
+        """
         started = time()
+        # Get lock on tracking usage of connections.
         with self._put_condition:
+
+            # Try to get a connection from the pool.
             try:
                 conn = self._pool.popleft()
             except IndexError:
-                # print("pool empty")
-                if not self._is_use_full:
-                    # print("created another connection")
-                    conn = self._create_connection()
-                    self._in_use[id(conn)] = conn
-                    return conn
-                else:
+                # Pool is empty, but are connections fully used?
+                if self._is_use_full:
+
+                    # Fully used, so wait for a connection to be returned.
                     if self._put_condition.wait(
                         timeout=self._remaining_timeout(timeout, started)
                     ):
+                        # Connection has been returned, so try again.
                         return self._get_connection(
                             timeout=self._remaining_timeout(timeout, started)
                         )
                     else:
+                        # Timed out waiting for a connection to be returned.
                         raise ConnectionPoolExhausted("Pool is exhausted") from None
+                else:
+                    # Not fully used, so create a new connection.
+                    conn = self._create_connection()
+                    # print("created another connection")
+
+                    # Connection should be pre-locked for use (avoids timer race).
+                    assert conn.in_use.locked()
 
             else:
-                if conn.closing or not conn.in_use.acquire(blocking=False):
+                # Got unused connection from pool, so lock for use.
+                conn.in_use.acquire()
+
+                # Check the connection wasn't closed by the timer.
+                if conn.closed:
                     return self._get_connection(
                         timeout=self._remaining_timeout(timeout, started)
                     )
-                elif conn.closed:
-                    return self._get_connection(
-                        timeout=self._remaining_timeout(timeout, started)
-                    )
-                elif self.pre_ping:
+
+                # Check the connection is actually usable.
+                if self.pre_ping:
                     try:
                         conn.cursor().execute("SELECT 1")
                     except Exception:
+                        # Probably connection is closed on server,
+                        # but just try to make sure it is closed.
+                        conn.close()
+
+                        # Try again to get a connection.
                         return self._get_connection(
                             timeout=self._remaining_timeout(timeout, started)
                         )
-                self._in_use[id(conn)] = conn
-                return conn
 
-    @staticmethod
-    def _remaining_timeout(timeout: float, started: float) -> float:
-        return max(0.0, timeout + started - time())
+            # Track the connection is now being used.
+            self._in_use[id(conn)] = conn
+
+            # Return the connection.
+            return conn
 
     def put_connection(self, conn: TConnection) -> None:
+        """
+        Returns connections to the pool, or closes connection
+        if the pool is full.
+
+        Tracks use of connections, and number of readers.
+        Unlocks write lock after writer has returned, and
+        updates count of readers when readers are returned.
+
+        Notifies waiters when connections have been returned,
+        and when there are no longer any readers.
+        """
+
         # print("putting connection", self.num_in_pool, "in pool")
 
-        is_writer = conn.is_writer
-        conn.is_writer = None
+        # Start forgetting if this connection was for reading or writing.
+        is_writer, conn.is_writer = conn.is_writer, None
+
+        # Get a lock on tracking usage of connections.
         with self._put_condition:
+
+            # Make sure we aren't dealing with a closed pool
             if self._closed:
                 raise ConnectionPoolClosed("Pool is closed")
 
+            # Make sure we are dealing with a connection from this pool.
             try:
                 del self._in_use[id(conn)]
             except KeyError:
                 raise ConnectionNotFromPool(
                     "Connection not in use in this pool"
                 ) from None
-            try:
-                if not conn.closed:
-                    if conn.closing or self._is_pool_full:
-                        # print(
-                        #     "closing connection",
-                        #     f"pool {'is' if self._is_pool_full else 'not'} full",
-                        # )
-                        conn.close()
-                    else:
-                        self._pool.append(conn)
-            finally:
-                conn.in_use.release()
 
-                if is_writer is True:
-                    self._writer_lock.release()
-                elif is_writer is False and self._mutually_exclusive_read_write:
-                    with self._no_readers:
-                        self._num_readers -= 1
-                        if self._num_readers == 0:
-                            self._no_readers.notify()
-                self._put_condition.notify()
+            if not conn.closed:
+                # Put open connection in pool if not full.
+                if not conn.closing and not self._is_pool_full:
+                    self._pool.append(conn)
+                    # Close open connection if the pool is full or timer has fired.
+                else:
+                    # Otherwise, close the connection.
+                    conn.close()
+
+            # Unlock the connection for subsequent use (and for closing by the timer).
+            conn.in_use.release()
+
+            # If the connection was for writing, unlock the writer lock.
+            if is_writer is True:
+                self._writer_lock.release()
+
+            # Or if it was for reading, decrement the number of readers.
+            elif is_writer is False and self._mutually_exclusive_read_write:
+                with self._no_readers:
+                    self._num_readers -= 1
+                    if self._num_readers == 0:
+                        self._no_readers.notify()
+
+            # Notify a thread that is waiting for a connection to be returned.
+            self._put_condition.notify()
+
             # if is_writer is None:
             #     for_writer = ""
             # elif is_writer:
@@ -1024,9 +1097,18 @@ class ConnectionPool(ABC, Generic[TConnection]):
 
     @abstractmethod
     def _create_connection(self) -> TConnection:
-        """Creates new connection."""
+        """
+        Create a new connection.
+
+        Subclasses should implement this method by
+        creating a database connection of the type
+        being pooled.
+        """
 
     def close(self) -> None:
+        """
+        Close the connection pool.
+        """
         with self._put_condition:
             if self._closed:
                 return
@@ -1040,6 +1122,10 @@ class ConnectionPool(ABC, Generic[TConnection]):
                 else:
                     conn.close()
             self._closed = True
+
+    @staticmethod
+    def _remaining_timeout(timeout: float, started: float) -> float:
+        return max(0.0, timeout + started - time())
 
     def __del__(self) -> None:
         self.close()
