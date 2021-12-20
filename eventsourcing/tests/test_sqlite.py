@@ -79,16 +79,19 @@ class TestTransaction(TestCase):
                     raise psy_err
 
 
-class TestSQLiteConnectionPool(TestConnectionPool):
-    def setUp(self) -> None:
-        self.tmp_urls = tmpfile_uris()
+class SQLiteConnectionPoolTestCase(TestConnectionPool):
+    db_name: str
 
-    def test_get_and_put(self):
-        super().test_get_and_put()
-
-    def create_pool(self, pool_size=1, max_overflow=0, max_age=None, pre_ping=False):
+    def create_pool(
+        self,
+        pool_size=1,
+        max_overflow=0,
+        max_age=None,
+        pre_ping=False,
+        mutually_exclusive_read_write=True,
+    ):
         return SQLiteConnectionPool(
-            db_name=next(self.tmp_urls),
+            db_name=self.db_name,
             pool_size=pool_size,
             max_overflow=max_overflow,
             max_age=max_age,
@@ -100,6 +103,23 @@ class TestSQLiteConnectionPool(TestConnectionPool):
 
     def test_close_on_server_after_returning_without_pre_ping(self):
         pass
+
+
+class TestSQLiteConnectionPoolWithInMemoryDB(SQLiteConnectionPoolTestCase):
+    def setUp(self) -> None:
+        self.db_name = ":memory:"
+
+    def test_reader_writer(self):
+        super()._test_reader_writer_with_mutually_exclusive_read_write()
+
+
+class TestSQLiteConnectionPoolWithFileDB(SQLiteConnectionPoolTestCase):
+    def setUp(self) -> None:
+        self.tmp_urls = tmpfile_uris()
+        self.db_name = next(self.tmp_urls)
+
+    def test_reader_writer(self):
+        super()._test_reader_writer_without_mutually_exclusive_read_write()
 
 
 class TestSqliteDatastore(TestCase):
@@ -326,3 +346,4 @@ del AggregateRecorderTestCase
 del ApplicationRecorderTestCase
 del ProcessRecorderTestCase
 del InfrastructureFactoryTestCase
+del SQLiteConnectionPoolTestCase

@@ -139,6 +139,7 @@ class PostgresConnectionPool(ConnectionPool[PostgresConnection]):
             pool_timeout=pool_timeout,
             max_age=max_age,
             pre_ping=pre_ping,
+            mutually_exclusive_read_write=False,
         )
 
     def _create_connection(self) -> PostgresConnection:

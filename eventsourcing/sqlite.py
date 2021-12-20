@@ -149,7 +149,14 @@ class SQLiteConnectionPool(ConnectionPool[SQLiteConnection]):
         self.is_sqlite_memory_mode = self.detect_memory_mode(db_name)
         self.is_journal_mode_wal = False
         self.journal_mode_was_changed_to_wal = False
-        super().__init__(pool_size, max_overflow, pool_timeout, max_age, pre_ping)
+        super().__init__(
+            pool_size=pool_size,
+            max_overflow=max_overflow,
+            pool_timeout=pool_timeout,
+            max_age=max_age,
+            pre_ping=pre_ping,
+            mutually_exclusive_read_write=self.is_sqlite_memory_mode,
+        )
 
     @staticmethod
     def detect_memory_mode(db_name: str) -> bool:

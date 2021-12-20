@@ -169,6 +169,12 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         threads = {}
         durations = {}
 
+        num_writers = 10
+        num_writes_per_writer = 100
+        num_events_per_write = 100
+        reader_sleep = 0.0
+        writer_sleep = 0.0
+
         def _createevent():
             thread_id = get_ident()
             if thread_id not in threads:
@@ -189,7 +195,7 @@ class ApplicationRecorderTestCase(TestCase, ABC):
                     topic="topic",
                     state=b"state",
                 )
-                for i in range(100)
+                for i in range(num_events_per_write)
             ]
             started = datetime.now()
             # print(f"Thread {thread_num} write beginning #{count + 1}")
@@ -209,7 +215,7 @@ class ApplicationRecorderTestCase(TestCase, ABC):
                 counts[thread_id] += 1
                 if duration > durations[thread_id]:
                     durations[thread_id] = duration
-                sleep(0)
+                sleep(writer_sleep)
 
         stop_reading = Event()
 
@@ -221,7 +227,7 @@ class ApplicationRecorderTestCase(TestCase, ABC):
                     errors.append(e)
                     return
                 # else:
-                # sleep(0.01)
+                sleep(reader_sleep)
 
         reader_thread1 = Thread(target=read_continuously)
         reader_thread1.start()
@@ -229,9 +235,9 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         reader_thread2 = Thread(target=read_continuously)
         reader_thread2.start()
 
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor(max_workers=num_writers) as executor:
             futures = []
-            for _ in range(100):
+            for _ in range(num_writes_per_writer):
                 if errors:
                     break
                 future = executor.submit(_createevent)

@@ -124,7 +124,14 @@ class TestPostgresConnectionPool(TestConnectionPool):
     ProgrammingError = psycopg2.ProgrammingError
     PersistenceError = psycopg2.Error
 
-    def create_pool(self, pool_size=1, max_overflow=0, max_age=None, pre_ping=False):
+    def create_pool(
+        self,
+        pool_size=1,
+        max_overflow=0,
+        max_age=None,
+        pre_ping=False,
+        mutually_exclusive_read_write=True,
+    ):
         return PostgresConnectionPool(
             dbname="eventsourcing",
             host="127.0.0.1",
@@ -163,6 +170,9 @@ class TestPostgresConnectionPool(TestConnectionPool):
 
     def test_close_on_server_after_returning_without_pre_ping(self):
         super().test_close_on_server_after_returning_without_pre_ping()
+
+    def test_reader_writer(self):
+        pass
 
 
 class TestTransaction(TestCase):
@@ -805,7 +815,6 @@ class TestPostgresApplicationRecorder(
         return recorder
 
     def test_concurrent_no_conflicts(self):
-        self.datastore.pool.pool_size = 10
         super().test_concurrent_no_conflicts()
 
     def test_concurrent_throughput(self):

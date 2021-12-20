@@ -124,12 +124,20 @@ class TestConnectionPool(TestCase):
     ProgrammingError = ProgrammingError
     PersistenceError = PersistenceError
 
-    def create_pool(self, pool_size=1, max_overflow=0, max_age=None, pre_ping=False):
+    def create_pool(
+        self,
+        pool_size=1,
+        max_overflow=0,
+        max_age=None,
+        pre_ping=False,
+        mutually_exclusive_read_write=True,
+    ):
         return DummyConnectionPool(
             pool_size=pool_size,
             max_overflow=max_overflow,
             max_age=max_age,
             pre_ping=pre_ping,
+            mutually_exclusive_read_write=mutually_exclusive_read_write,
         )
 
     def close_connection_on_server(self, *connections):
@@ -547,8 +555,13 @@ class TestConnectionPool(TestCase):
                 is_stopped.set()
                 raise
 
-    def test_reader_writer_lock(self):
-        pool = self.create_pool(pool_size=2, max_overflow=1)
+    def test_reader_writer(self):
+        self._test_reader_writer_with_mutually_exclusive_read_write()
+        self._test_reader_writer_without_mutually_exclusive_read_write()
+
+    def _test_reader_writer_with_mutually_exclusive_read_write(self):
+        pool = self.create_pool(pool_size=3)
+        self.assertTrue(pool._mutually_exclusive_read_write)
 
         # Get writer.
         writer_conn = pool.get_connection(is_writer=True, timeout=0)
@@ -595,6 +608,50 @@ class TestConnectionPool(TestCase):
         reader_conn2 = pool.get_connection(is_writer=False)
         pool.put_connection(reader_conn1)
         pool.put_connection(reader_conn2)
+
+    def _test_reader_writer_without_mutually_exclusive_read_write(self):
+        pool = self.create_pool(pool_size=3, mutually_exclusive_read_write=False)
+        self.assertFalse(pool._mutually_exclusive_read_write)
+
+        # Get writer.
+        writer_conn = pool.get_connection(is_writer=True, timeout=0)
+        self.assertIs(writer_conn.is_writer, True)
+
+        # Get two readers.
+        reader_conn1 = pool.get_connection(is_writer=False)
+        reader_conn2 = pool.get_connection(is_writer=False)
+
+        self.assertIs(reader_conn1.is_writer, False)
+        self.assertIs(reader_conn2.is_writer, False)
+
+        # Fail to get another writer.
+        with self.assertRaises(WriterBlockedByWriter):
+            pool.get_connection(is_writer=True, timeout=0)
+
+        # Return writer.
+        pool.put_connection(writer_conn)
+
+        # Return readers to pool.
+        pool.put_connection(reader_conn1)
+        pool.put_connection(reader_conn2)
+
+        # Get two readers.
+        reader_conn1 = pool.get_connection(is_writer=False)
+        reader_conn2 = pool.get_connection(is_writer=False)
+
+        # Get another writer.
+        writer_conn = pool.get_connection(is_writer=True, timeout=0)
+
+        # Fail to get another writer.
+        with self.assertRaises(WriterBlockedByWriter):
+            pool.get_connection(is_writer=True, timeout=0)
+
+        # Return writer.
+        pool.put_connection(writer_conn)
+
+        # Get and put another writer.
+        writer_conn = pool.get_connection(is_writer=True)
+        pool.put_connection(writer_conn)
 
 
 _print = print

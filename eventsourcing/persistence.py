@@ -827,6 +827,7 @@ class ConnectionPool(ABC, Generic[TConnection]):
         pool_timeout: float = 5.0,
         max_age: Optional[float] = None,
         pre_ping: bool = False,
+        mutually_exclusive_read_write: bool = True,
     ) -> None:
         self.pool_size = pool_size
         self.max_overflow = max_overflow
@@ -840,6 +841,7 @@ class ConnectionPool(ABC, Generic[TConnection]):
         self._no_readers = Condition()
         self._num_readers: int = 0
         self._writer_lock = Lock()
+        self._mutually_exclusive_read_write = mutually_exclusive_read_write
         self._closed = False
 
     @property
@@ -876,32 +878,53 @@ class ConnectionPool(ABC, Generic[TConnection]):
         timeout = self.pool_timeout if timeout is None else timeout
         started = time()
 
+        # if is_writer is True:
+        #     print("writer getting connection")
+
         with self._get_semaphore:
             if is_writer is not None:
                 remaining = self._remaining_timeout(timeout, started)
-                if not self._writer_lock.acquire(timeout=remaining):
+                if self._mutually_exclusive_read_write:
+                    if not self._writer_lock.acquire(timeout=remaining):
+                        if is_writer:
+                            raise WriterBlockedByWriter()
+                        else:
+                            raise ReaderBlockedByWriter()
                     if is_writer:
-                        raise WriterBlockedByWriter()
+                        with self._no_readers:
+                            if self._num_readers > 0:
+                                remaining = self._remaining_timeout(timeout, started)
+                                # print("writer waiting")
+                                if not self._no_readers.wait(timeout=remaining):
+                                    self._writer_lock.release()
+                                    raise WriterBlockedByReaders()
                     else:
-                        raise ReaderBlockedByWriter()
-                if is_writer:
-                    with self._no_readers:
-                        if self._num_readers > 0:
-                            remaining = self._remaining_timeout(timeout, started)
-                            if not self._no_readers.wait(timeout=remaining):
-                                self._writer_lock.release()
-                                raise WriterBlockedByReaders()
-                else:
-                    with self._no_readers:
-                        self._num_readers += 1
-                    self._writer_lock.release()
+                        with self._no_readers:
+                            self._num_readers += 1
+                        self._writer_lock.release()
+                elif is_writer:
+                    if not self._writer_lock.acquire(timeout=remaining):
+                        raise WriterBlockedByWriter()
 
             conn = self._get_connection(
                 timeout=self._remaining_timeout(timeout, started)
             )
+
+            # if is_writer is None:
+            #     for_writer = ""
+            # elif is_writer:
+            #     for_writer = "for writer"
+            # else:
+            #     for_writer = "for reader"
             # print(
-            #     "got connection", self.num_in_pool, "pooled,", self.num_in_use, "used"
+            #     "got connection",
+            #     for_writer,
+            #     self.num_in_pool,
+            #     "pooled,",
+            #     self.num_in_use,
+            #     "used",
             # )
+
             if is_writer is not None:
                 conn.is_writer = is_writer
 
@@ -913,7 +936,9 @@ class ConnectionPool(ABC, Generic[TConnection]):
             try:
                 conn = self._pool.popleft()
             except IndexError:
+                # print("pool empty")
                 if not self._is_use_full:
+                    # print("created another connection")
                     conn = self._create_connection()
                     self._in_use[id(conn)] = conn
                     return conn
@@ -968,6 +993,10 @@ class ConnectionPool(ABC, Generic[TConnection]):
             try:
                 if not conn.closed:
                     if conn.closing or self._is_pool_full:
+                        # print(
+                        #     "closing connection",
+                        #     f"pool {'is' if self._is_pool_full else 'not'} full",
+                        # )
                         conn.close()
                     else:
                         self._pool.append(conn)
@@ -977,12 +1006,26 @@ class ConnectionPool(ABC, Generic[TConnection]):
                 if is_writer is not None:
                     if is_writer:
                         self._writer_lock.release()
-                    else:
+                    elif self._mutually_exclusive_read_write:
                         with self._no_readers:
                             self._num_readers -= 1
                             if self._num_readers == 0:
                                 self._no_readers.notify()
                 self._put_condition.notify()
+            # if is_writer is None:
+            #     for_writer = ""
+            # elif is_writer:
+            #     for_writer = "for writer"
+            # else:
+            #     for_writer = "for reader"
+            # print(
+            #     "put connection",
+            #     for_writer,
+            #     self.num_in_pool,
+            #     "pooled,",
+            #     self.num_in_use,
+            #     "used",
+            # )
 
     @abstractmethod
     def _create_connection(self) -> TConnection:
