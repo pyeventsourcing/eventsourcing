@@ -130,7 +130,7 @@ class TestConnectionPool(TestCase):
         max_overflow=0,
         max_age=None,
         pre_ping=False,
-        mutually_exclusive_read_write=True,
+        mutually_exclusive_read_write=False,
     ):
         return DummyConnectionPool(
             pool_size=pool_size,
@@ -309,7 +309,7 @@ class TestConnectionPool(TestCase):
             conn1.cursor().execute("SELECT 1")
 
     def test_close_on_server_after_returning_with_pre_ping(self):
-        pool = self.create_pool(pool_size=1, max_overflow=0, pre_ping=True)
+        pool = self.create_pool(pre_ping=True)
 
         conn1 = pool.get_connection()
         pool.put_connection(conn1)
@@ -363,20 +363,26 @@ class TestConnectionPool(TestCase):
 
     def test_get_with_timeout(self):
         pool = self.create_pool()
-        conn1 = pool.get_connection(timeout=1)
 
+        # Get a connection.
+        conn1 = pool.get_connection()
+
+        # Check request for a second connection times out immediately.
         started = time()
         with self.assertRaises(ConnectionPoolExhausted):
             pool.get_connection(timeout=0)
         ended = time()
         self.assertLess(ended - started, 0.1)
 
+        # Check request for a second connection times out after delay.
         started = time()
         with self.assertRaises(ConnectionPoolExhausted):
             pool.get_connection(timeout=0.1)
         ended = time()
         self.assertGreater(ended - started, 0.1)
 
+        # Check request for second connection is kept waiting
+        # but doesn't timeout if first connection is returned.
         getting_conn2 = Event()
         got_conn2 = Event()
 
@@ -391,11 +397,9 @@ class TestConnectionPool(TestCase):
             got_conn2.set()
 
         thread1 = Thread(target=put_conn1, daemon=True)
-        thread1.start()
-
         thread2 = Thread(target=get_conn2, daemon=True)
+        thread1.start()
         thread2.start()
-
         self.assertTrue(got_conn2.wait(timeout=0.3))
 
     def test_close_pool(self):
@@ -448,10 +452,8 @@ class TestConnectionPool(TestCase):
         num_threads = 5
         num_gets = 5
         hold_connection_for = 0.1
-        expected_wait_periods = num_threads - 1
-        timeout_get_connection = (
-            (expected_wait_periods * hold_connection_for) + 0.1
-        ) * 1.1
+        expected_wait_periods = num_threads
+        timeout_get_connection = expected_wait_periods * hold_connection_for * 1.5
 
         self.counter = count()
 
@@ -560,7 +562,7 @@ class TestConnectionPool(TestCase):
         self._test_reader_writer_without_mutually_exclusive_read_write()
 
     def _test_reader_writer_with_mutually_exclusive_read_write(self):
-        pool = self.create_pool(pool_size=3)
+        pool = self.create_pool(pool_size=3, mutually_exclusive_read_write=True)
         self.assertTrue(pool._mutually_exclusive_read_write)
 
         # Get writer.
@@ -636,8 +638,8 @@ class TestConnectionPool(TestCase):
         pool.put_connection(reader_conn2)
 
         # Get two readers.
-        reader_conn1 = pool.get_connection(is_writer=False)
-        reader_conn2 = pool.get_connection(is_writer=False)
+        pool.get_connection(is_writer=False)
+        pool.get_connection(is_writer=False)
 
         # Get another writer.
         writer_conn = pool.get_connection(is_writer=True, timeout=0)

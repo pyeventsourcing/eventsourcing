@@ -199,6 +199,7 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
         command_id2 = commands.create_command("notacommand")
 
         self.wait_for_runner()
+        self.wait_for_runner()
 
         output, error = commands.get_result(command_id1)
         self.assertEqual(output, "Hello World\n")

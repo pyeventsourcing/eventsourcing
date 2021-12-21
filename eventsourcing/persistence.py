@@ -822,13 +822,43 @@ class ConnectionPoolExhausted(OperationalError):
 class ConnectionPool(ABC, Generic[TConnection]):
     def __init__(
         self,
-        pool_size: int = 1,
-        max_overflow: int = 0,
-        pool_timeout: float = 5.0,
+        pool_size: int = 5,
+        max_overflow: int = 10,
+        pool_timeout: float = 30.0,
         max_age: Optional[float] = None,
         pre_ping: bool = False,
-        mutually_exclusive_read_write: bool = True,
+        mutually_exclusive_read_write: bool = False,
     ) -> None:
+        """
+        Initialises a new connection pool.
+
+        The 'pool_size' argument specifies the maximum number of connections
+        that will be put into the pool when connections are returned. The
+        default value is 5
+
+        The 'max_overflow' argument specifies the additional number of
+        connections that can be issued by the pool, above the 'pool_size'.
+        The default value is 10.
+
+        The 'pool_timeout' argument specifies the maximum time in seconds
+        to keep requests for connections waiting. Connections are kept
+        waiting if the number of connections currently in use is not less
+        than the sum of 'pool_size' and 'max_overflow'. The default value
+        is 30.0
+
+        The 'max_age' argument specifies the time in seconds until a
+        connection will automatically be closed. Connections are only closed
+        in this way after are not in use. Connections that are in use will
+        not be closed automatically. The default value in None, meaning
+        connections will not be automatically closed in this way.
+
+        The 'mutually_exclusive_read_write' argument specifies whether
+        requests for connections for writing whilst connections for reading
+        are in use. It also specifies whether requests for connections for reading
+        will be kept waiting whilst a connection for writing is in use. The default
+        value is false, meaning reading and writing will not be mutually exclusive
+        in this way.
+        """
         self.pool_size = pool_size
         self.max_overflow = max_overflow
         self.pool_timeout = pool_timeout
@@ -846,6 +876,9 @@ class ConnectionPool(ABC, Generic[TConnection]):
 
     @property
     def num_in_use(self) -> int:
+        """
+        Indicates the total number of connections currently in use.
+        """
         with self._put_condition:
             return self._num_in_use
 
@@ -855,6 +888,9 @@ class ConnectionPool(ABC, Generic[TConnection]):
 
     @property
     def num_in_pool(self) -> int:
+        """
+        Indicates the number of connections currently in the pool.
+        """
         with self._put_condition:
             return self._num_in_pool
 
@@ -874,15 +910,28 @@ class ConnectionPool(ABC, Generic[TConnection]):
         self, timeout: Optional[float] = None, is_writer: Optional[bool] = None
     ) -> TConnection:
         """
-        Tries to get a connection from the pool.
+        Issues connections, or raises ConnectionPoolExhausted error.
+        Provides "fairness" on attempts to get connections, meaning that
+        connections are issued in the same order as they are requested.
 
-        Provides "fairness" on attempts to get or create connections.
+        The 'timeout' argument overrides the timeout specified
+        by the constructor argument 'pool_timeout'. The default
+        value is None, meaning the 'pool_timeout' argument will
+        not be overridden.
 
-        Writers wait for write lock, and for no readers if reading
-        excludes writing. Writers hold write lock until returned to
-        the pool. Readers wait for write lock if writing excludes
-        reading (readers release write lock, but will cause writers
-        to wait for no readers if reading excludes writing).
+        The optional 'is_writer' argument can be used to request
+        a connection for writing (true), and request a connection
+        for reading (false). If the value of this argument is None,
+        which is the default, the writing and reading interlocking
+        mechanism is not activated. Only one connection for writing
+        will be issued, which means requests for connections for
+        writing are kept waiting whilst another connection for writing
+        is in use.
+
+        If reading and writing are mutually exclusive, requsts for
+        connections for writing are kept waiting whilst connections
+        for reading are in use, and requests for connections for reading
+        are kept waiting whilst a connection for writing is in use.
         """
         # Make sure we aren't dealing with a closed pool.
         if self._closed:
@@ -893,9 +942,6 @@ class ConnectionPool(ABC, Generic[TConnection]):
 
         # Remember when we started trying to get a connection.
         started = time()
-
-        # if is_writer is True:
-        #     print("writer getting connection")
 
         # Join queue of threads waiting to get a connection ("fairness").
         with self._get_semaphore:
@@ -931,21 +977,6 @@ class ConnectionPool(ABC, Generic[TConnection]):
 
             # Remember if this connection is for reading or writing.
             conn.is_writer = is_writer
-
-            # if is_writer is None:
-            #     for_writer = ""
-            # elif is_writer:
-            #     for_writer = "for writer"
-            # else:
-            #     for_writer = "for reader"
-            # print(
-            #     "got connection",
-            #     for_writer,
-            #     self.num_in_pool,
-            #     "pooled,",
-            #     self.num_in_use,
-            #     "used",
-            # )
 
             # Return the connection.
             return conn
@@ -1026,15 +1057,12 @@ class ConnectionPool(ABC, Generic[TConnection]):
         Returns connections to the pool, or closes connection
         if the pool is full.
 
-        Tracks use of connections, and number of readers.
-        Unlocks write lock after writer has returned, and
+        Unlocks write lock after writer has returned., and
         updates count of readers when readers are returned.
 
         Notifies waiters when connections have been returned,
         and when there are no longer any readers.
         """
-
-        # print("putting connection", self.num_in_pool, "in pool")
 
         # Start forgetting if this connection was for reading or writing.
         is_writer, conn.is_writer = conn.is_writer, None
@@ -1079,21 +1107,6 @@ class ConnectionPool(ABC, Generic[TConnection]):
 
             # Notify a thread that is waiting for a connection to be returned.
             self._put_condition.notify()
-
-            # if is_writer is None:
-            #     for_writer = ""
-            # elif is_writer:
-            #     for_writer = "for writer"
-            # else:
-            #     for_writer = "for reader"
-            # print(
-            #     "put connection",
-            #     for_writer,
-            #     self.num_in_pool,
-            #     "pooled,",
-            #     self.num_in_use,
-            #     "used",
-            # )
 
     @abstractmethod
     def _create_connection(self) -> TConnection:
