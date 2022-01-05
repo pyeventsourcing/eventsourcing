@@ -13,6 +13,7 @@ from eventsourcing.persistence import (
     StoredEvent,
     Tracking,
 )
+from eventsourcing.utils import reversed_keys
 
 
 class POPOAggregateRecorder(AggregateRecorder):
@@ -74,7 +75,7 @@ class POPOAggregateRecorder(AggregateRecorder):
             index = self._stored_events_index[originator_id]
             positions: Iterable[int]
             if desc:
-                positions = reversed(index.keys())
+                positions = reversed_keys(index)
             else:
                 positions = index.keys()
             for p in positions:

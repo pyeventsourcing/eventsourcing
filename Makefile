@@ -121,7 +121,7 @@ coveragetest:
 
 .PHONY: coverage100
 coverage100:
-	@coverage report --fail-under=100
+	@coverage report --fail-under=100 --show-missing
 
 .PHONY: coveragehtml
 coveragehtml:

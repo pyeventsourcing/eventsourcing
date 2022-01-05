@@ -10,6 +10,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Iterator,
     List,
     Mapping,
     Optional,
@@ -215,12 +216,20 @@ def strtobool(val: str) -> bool:
         raise ValueError("invalid truth value %r" % (val,))
 
 
-def is_py310() -> bool:
-    return sys.version_info[0:2] == (3, 10)
+PY37 = sys.version_info[0:2] == (3, 7)
+PY310 = sys.version_info[0:2] == (3, 10)
+
+
+@no_type_check
+def reversed_keys(d: Dict[Any, Any]) -> Iterator[Any]:
+    if PY37:  # pragma: no cover
+        return reversed(list(d.keys()))
+    else:  # pragma: no cover
+        return reversed(d.keys())
 
 
 def get_method_name(method: Union[FunctionType, WrapperDescriptorType]) -> str:
-    return is_py310() and method.__qualname__ or method.__name__
+    return PY310 and method.__qualname__ or method.__name__
 
 
 EnvType = Mapping[str, str]
