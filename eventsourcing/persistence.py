@@ -17,7 +17,6 @@ from typing import (
     List,
     Optional,
     Sequence,
-    Tuple,
     Type,
     TypeVar,
     Union,
@@ -25,7 +24,12 @@ from typing import (
 )
 from uuid import UUID
 
-from eventsourcing.domain import DomainEvent, TDomainEvent
+from eventsourcing.domain import (
+    Aggregate,
+    AggregateEvent,
+    DomainEvent,
+    TDomainEvent,
+)
 from eventsourcing.utils import (
     Environment,
     TopicError,
@@ -412,7 +416,7 @@ class AggregateRecorder(Recorder):
     @abstractmethod
     def insert_events(
         self, stored_events: List[StoredEvent], **kwargs: Any
-    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
+    ) -> Optional[Sequence[int]]:
         """
         Writes stored events into database.
         """
@@ -456,11 +460,16 @@ class ApplicationRecorder(AggregateRecorder):
 
     @abstractmethod
     def select_notifications(
-        self, start: int, limit: int, topics: Sequence[str] = ()
+        self,
+        start: int,
+        limit: int,
+        stop: Optional[int] = None,
+        topics: Sequence[str] = (),
     ) -> List[Notification]:
         """
         Returns a list of event notifications
-        from 'start', limited by 'limit'.
+        from 'start', limited by 'limit' and
+        optionally by 'stop'.
         """
 
     @abstractmethod
@@ -488,6 +497,12 @@ class ProcessRecorder(ApplicationRecorder):
         """
 
 
+@dataclass(frozen=True)
+class Recording:
+    aggregate_event: AggregateEvent[Aggregate]
+    notification: Notification
+
+
 class EventStore(Generic[TDomainEvent]):
     """
     Stores and retrieves domain events.
@@ -502,14 +517,30 @@ class EventStore(Generic[TDomainEvent]):
         self.recorder = recorder
 
     def put(
-        self, events: Sequence[DomainEvent[Any]], **kwargs: Any
-    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
+        self, domain_events: Sequence[DomainEvent[Any]], **kwargs: Any
+    ) -> List[Recording]:
         """
         Stores domain events in aggregate sequence.
         """
-        return self.recorder.insert_events(
-            list(map(self.mapper.from_domain_event, events)), **kwargs
-        )
+        stored_events = list(map(self.mapper.from_domain_event, domain_events))
+        recordings = []
+        notification_ids = self.recorder.insert_events(stored_events, **kwargs)
+        if notification_ids:
+            assert len(notification_ids) == len(stored_events)
+            for d, s, n_id in zip(domain_events, stored_events, notification_ids):
+                recordings.append(
+                    Recording(
+                        cast(AggregateEvent[Aggregate], d),
+                        Notification(
+                            originator_id=s.originator_id,
+                            originator_version=s.originator_version,
+                            topic=s.topic,
+                            state=s.state,
+                            id=n_id,
+                        ),
+                    )
+                )
+        return recordings
 
     def get(
         self,

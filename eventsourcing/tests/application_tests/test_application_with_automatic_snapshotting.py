@@ -2,8 +2,10 @@ from decimal import Decimal
 from unittest import TestCase
 
 from eventsourcing.domain import Aggregate
-from eventsourcing.tests.test_aggregate import BankAccount
-from eventsourcing.tests.test_application_with_popo import BankAccounts
+from eventsourcing.tests.application_tests.test_application_with_popo import (
+    BankAccounts,
+)
+from eventsourcing.tests.domain_tests.test_aggregate import BankAccount
 
 
 class BankAccountsWithAutomaticSnapshotting(BankAccounts):

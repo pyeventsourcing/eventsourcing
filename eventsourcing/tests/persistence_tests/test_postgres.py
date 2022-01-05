@@ -32,19 +32,21 @@ from eventsourcing.postgres import (
     PostgresProcessRecorder,
     PostgresTransaction,
 )
-from eventsourcing.tests.base_aggregate_recorder_tests import (
+from eventsourcing.tests.persistence_tests.base_aggregate_recorder_tests import (
     AggregateRecorderTestCase,
 )
-from eventsourcing.tests.base_application_recorder_tests import (
+from eventsourcing.tests.persistence_tests.base_application_recorder_tests import (
     ApplicationRecorderTestCase,
 )
-from eventsourcing.tests.base_infrastructure_tests import (
+from eventsourcing.tests.persistence_tests.base_infrastructure_tests import (
     InfrastructureFactoryTestCase,
 )
-from eventsourcing.tests.base_process_recorder_tests import (
+from eventsourcing.tests.persistence_tests.base_process_recorder_tests import (
     ProcessRecorderTestCase,
 )
-from eventsourcing.tests.test_connection_pool import TestConnectionPool
+from eventsourcing.tests.persistence_tests.test_connection_pool import (
+    TestConnectionPool,
+)
 from eventsourcing.utils import Environment, get_topic
 
 
@@ -868,7 +870,9 @@ class TestPostgresApplicationRecorder(
         # Deallocate prepared statement.
         self.assertTrue(self.datastore.pool._pool)
         with self.datastore.get_connection() as conn:
-            statement_name = recorder.select_notifications_statement_name
+            statement_name = (
+                f"select_notifications_{recorder.events_table_name}".replace(".", "_")
+            )
             self.assertIn(statement_name, conn.is_prepared)
             conn.cursor().execute(
                 f"DEALLOCATE {recorder.statement_name_aliases[statement_name]}"
@@ -1066,18 +1070,6 @@ class TestPostgresApplicationRecorderErrors(SetupPostgresDatastore, TestCase):
         with self.assertRaises(ProgrammingError):
             recorder.select_notifications(start=1, limit=1)
 
-    def test_select_notification_raises_programming_error_when_sql_is_broken(self):
-        # Construct the recorder.
-        recorder = self.create_recorder()
-
-        # Create table.
-        recorder.create_table()
-
-        # Select notifications with broken statement.
-        recorder.select_notifications_statement = "BLAH"
-        with self.assertRaises(ProgrammingError):
-            recorder.select_notifications(start=1, limit=1)
-
     def test_max_notification_id_raises_programming_error_when_table_not_created(self):
         # Construct the recorder.
         recorder = PostgresApplicationRecorder(
@@ -1085,20 +1077,6 @@ class TestPostgresApplicationRecorderErrors(SetupPostgresDatastore, TestCase):
         )
 
         # Select notifications without creating table.
-        with self.assertRaises(ProgrammingError):
-            recorder.max_notification_id()
-
-    def test_max_notification_id_raises_programming_error_when_sql_is_broken(self):
-        # Construct the recorder.
-        recorder = PostgresApplicationRecorder(
-            datastore=self.datastore, events_table_name=EVENTS_TABLE_NAME
-        )
-
-        # Create table.
-        recorder.create_table()
-
-        # Select notifications with broken statement.
-        recorder.max_notification_id_statement = "BLAH"
         with self.assertRaises(ProgrammingError):
             recorder.max_notification_id()
 
@@ -1230,20 +1208,6 @@ class TestPostgresProcessRecorderErrors(SetupPostgresDatastore, TestCase):
         recorder = self.create_recorder()
 
         # Get max tracking ID without creating table.
-        with self.assertRaises(ProgrammingError):
-            recorder.max_tracking_id("upstream")
-
-    def test_max_tracking_id_raises_programming_error_when_sql_is_broken(self):
-        # Construct the recorder.
-        recorder = self.create_recorder()
-
-        # Create table.
-        recorder.create_table()
-
-        # Mess up the SQL statement.
-        recorder.max_tracking_id_statement = "BLAH"
-
-        # Get max tracking ID with broken statement.
         with self.assertRaises(ProgrammingError):
             recorder.max_tracking_id("upstream")
 

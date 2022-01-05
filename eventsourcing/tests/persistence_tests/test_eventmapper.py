@@ -14,7 +14,7 @@ from eventsourcing.persistence import (
     Transcoding,
     UUIDAsHex,
 )
-from eventsourcing.tests.test_aggregate import BankAccount
+from eventsourcing.tests.domain_tests.test_aggregate import BankAccount
 
 
 class TestMapper(TestCase):
@@ -133,9 +133,9 @@ class TestTranscoder(TestCase):
         self.assertEqual(
             cm.exception.args[0],
             (
-                "Object of type <class 'eventsourcing.tests.test_eventmapper."
-                "CustomType2'> is not serializable. Please define and register "
-                "a custom transcoding for this type."
+                "Object of type <class 'eventsourcing.tests.persistence_tests."
+                "test_eventmapper.CustomType2'> is not serializable. Please define "
+                "and register a custom transcoding for this type."
             ),
         )
 

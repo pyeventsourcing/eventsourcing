@@ -4,30 +4,30 @@ from uuid import uuid4
 
 from eventsourcing.domain import Aggregate
 from eventsourcing.persistence import Tracking
-from eventsourcing.system import ProcessEvent
-from eventsourcing.tests.test_aggregate import BankAccount
+from eventsourcing.system import ProcessingEvent
+from eventsourcing.tests.domain_tests.test_aggregate import BankAccount
 
 
 @singledispatch
-def policy(domain_event, process_event: ProcessEvent):
+def policy(domain_event, processing_event: ProcessingEvent):
     if isinstance(domain_event, BankAccount.Opened):
         notification = EmailNotification.create(
             to=domain_event.email_address,
             subject="Your New Account",
             message="Dear {}".format(domain_event.full_name),
         )
-        process_event.collect_events(notification)
+        processing_event.collect_events(notification)
 
 
 @singledispatch
-def policy_legacy_save(domain_event, process_event: ProcessEvent):
+def policy_legacy_save(domain_event, processing_event: ProcessingEvent):
     if isinstance(domain_event, BankAccount.Opened):
         notification = EmailNotification.create(
             to=domain_event.email_address,
             subject="Your New Account",
             message="Dear {}".format(domain_event.full_name),
         )
-        process_event.save(notification)
+        processing_event.save(notification)
 
 
 class TestProcessingPolicy(TestCase):
@@ -40,18 +40,18 @@ class TestProcessingPolicy(TestCase):
         events = account.collect_events()
         created_event = events[0]
 
-        process_event = ProcessEvent(
+        processing_event = ProcessingEvent(
             tracking=Tracking(
                 application_name="upstream_app",
                 notification_id=5,
             )
         )
 
-        policy(created_event, process_event)
+        policy(created_event, processing_event)
 
-        self.assertEqual(len(process_event.events), 1)
+        self.assertEqual(len(processing_event.events), 1)
         self.assertIsInstance(
-            process_event.events[0],
+            processing_event.events[0],
             EmailNotification.Created,
         )
 
@@ -64,18 +64,18 @@ class TestProcessingPolicy(TestCase):
         events = account.collect_events()
         created_event = events[0]
 
-        process_event = ProcessEvent(
+        processing_event = ProcessingEvent(
             tracking=Tracking(
                 application_name="upstream_app",
                 notification_id=5,
             )
         )
 
-        policy_legacy_save(created_event, process_event)
+        policy_legacy_save(created_event, processing_event)
 
-        self.assertEqual(len(process_event.events), 1)
+        self.assertEqual(len(processing_event.events), 1)
         self.assertIsInstance(
-            process_event.events[0],
+            processing_event.events[0],
             EmailNotification.Created,
         )
 

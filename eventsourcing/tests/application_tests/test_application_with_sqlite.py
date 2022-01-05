@@ -1,10 +1,10 @@
 import os
 
-from eventsourcing.tests.ramdisk import tmpfile_uris
-from eventsourcing.tests.test_application_with_popo import (
+from eventsourcing.tests.application_tests.test_application_with_popo import (
     TIMEIT_FACTOR,
     TestApplicationWithPOPO,
 )
+from eventsourcing.tests.ramdisk import tmpfile_uris
 
 
 class TestApplicationWithSQLiteFile(TestApplicationWithPOPO):

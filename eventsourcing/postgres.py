@@ -387,7 +387,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
     def insert_events(
         self, stored_events: List[StoredEvent], **kwargs: Any
-    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
+    ) -> Optional[Sequence[int]]:
         with self.datastore.get_connection() as conn:
             self._prepare_insert_events(conn)
             with conn.transaction(commit=True) as curs:
@@ -421,7 +421,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         c: PostgresCursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
-    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
+    ) -> Optional[Sequence[int]]:
         # Acquire "EXCLUSIVE" table lock, to serialize inserts so that
         # insertion of notification IDs is monotonic for notification log
         # readers. We want concurrent transactions to commit inserted
@@ -441,42 +441,42 @@ class PostgresAggregateRecorder(AggregateRecorder):
 
         len_stored_events = len(stored_events)
 
-        # Just do nothing here if there is nothing to do.
-        if len_stored_events == 0:
-            return []
+        # Only do something if there is something to do.
+        if len_stored_events > 0:
 
-        # Mogrify the table lock statements.
-        lock_sqls = (c.mogrify(s) for s in self.lock_statements)
+            # Mogrify the table lock statements.
+            lock_sqls = (c.mogrify(s) for s in self.lock_statements)
 
-        # Prepare the commands before getting the table lock.
-        alias = self.statement_name_aliases[self.insert_events_statement_name]
-        page_size = 500
-        pages = [
-            (
-                c.mogrify(
-                    f"EXECUTE {alias}(%s, %s, %s, %s)",
-                    (
-                        stored_event.originator_id,
-                        stored_event.originator_version,
-                        stored_event.topic,
-                        stored_event.state,
-                    ),
+            # Prepare the commands before getting the table lock.
+            alias = self.statement_name_aliases[self.insert_events_statement_name]
+            page_size = 500
+            pages = [
+                (
+                    c.mogrify(
+                        f"EXECUTE {alias}(%s, %s, %s, %s)",
+                        (
+                            stored_event.originator_id,
+                            stored_event.originator_version,
+                            stored_event.topic,
+                            stored_event.state,
+                        ),
+                    )
+                    for stored_event in page
                 )
-                for stored_event in page
-            )
-            for page in (
-                stored_events[ndx : min(ndx + page_size, len_stored_events)]
-                for ndx in range(0, len_stored_events, page_size)
-            )
-        ]
-        commands = [
-            b"; ".join(page) for page in chain([chain(lock_sqls, pages[0])], pages[1:])
-        ]
+                for page in (
+                    stored_events[ndx : min(ndx + page_size, len_stored_events)]
+                    for ndx in range(0, len_stored_events, page_size)
+                )
+            ]
+            commands = [
+                b"; ".join(page)
+                for page in chain([chain(lock_sqls, pages[0])], pages[1:])
+            ]
 
-        # Execute the commands.
-        for command in commands:
-            c.execute(command)
-        return [(s, None) for s in stored_events]
+            # Execute the commands.
+            for command in commands:
+                c.execute(command)
+        return None
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
     def select_events(
@@ -548,28 +548,6 @@ class PostgresApplicationRecorder(
             f"INSERT INTO {self.events_table_name} VALUES ($1, $2, $3, $4) "
             f"RETURNING notification_id"
         )
-
-        self.select_notifications_statement = (
-            "SELECT * "
-            f"FROM {self.events_table_name} "
-            "WHERE notification_id>=$1 "
-            "ORDER BY notification_id "
-            "LIMIT $2"
-        )
-        self.select_notifications_statement_name = (
-            f"select_notifications_{events_table_name}".replace(".", "_")
-        )
-        self.select_notifications_filter_topics_statement = (
-            "SELECT * "
-            f"FROM {self.events_table_name} "
-            "WHERE notification_id>=$1 AND topic = ANY($2) "
-            "ORDER BY notification_id "
-            "LIMIT $3"
-        )
-        self.select_notifications_filter_topics_statement_name = (
-            f"select_notifications_filter_topics_{events_table_name}"
-        )
-
         self.max_notification_id_statement = (
             f"SELECT MAX(notification_id) FROM {self.events_table_name}"
         )
@@ -601,38 +579,50 @@ class PostgresApplicationRecorder(
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
     def select_notifications(
-        self, start: int, limit: int, topics: Sequence[str] = ()
+        self,
+        start: int,
+        limit: int,
+        stop: Optional[int] = None,
+        topics: Sequence[str] = (),
     ) -> List[Notification]:
         """
         Returns a list of event notifications
         from 'start', limited by 'limit'.
         """
+
+        params: List[Union[int, str, Sequence[str]]] = [start]
+        statement = (
+            "SELECT * " f"FROM {self.events_table_name} " "WHERE notification_id>=$1 "
+        )
+        statement_name = f"select_notifications_{self.events_table_name}".replace(
+            ".", "_"
+        )
+
+        if stop is not None:
+            params.append(stop)
+            statement += f"AND notification_id <= ${len(params)} "
+            statement_name += "_stop"
+
+        if topics:
+            params.append(topics)
+            statement += f"AND topic = ANY(${len(params)}) "
+            statement_name += "_topics"
+
+        params.append(limit)
+        statement += "ORDER BY notification_id " f"LIMIT ${len(params)}"
+
         notifications = []
         with self.datastore.get_connection() as conn:
-            if topics:
-                statement_name = self.select_notifications_filter_topics_statement_name
-                statement_alias = self._prepare(
-                    conn,
-                    statement_name,
-                    self.select_notifications_filter_topics_statement,
-                )
-            else:
-                statement_name = self.select_notifications_statement_name
-                statement_alias = self._prepare(
-                    conn, statement_name, self.select_notifications_statement
-                )
-
+            alias = self._prepare(
+                conn,
+                statement_name,
+                statement,
+            )
             with conn.transaction(commit=False) as curs:
-                if topics:
-                    curs.execute(
-                        f"EXECUTE {statement_alias}(%s, %s, %s)",
-                        (start, topics, limit),
-                    )
-                else:
-                    curs.execute(
-                        f"EXECUTE {statement_alias}(%s, %s)",
-                        (start, limit),
-                    )
+                curs.execute(
+                    f"EXECUTE {alias}({', '.join(['%s' for _ in params])})",
+                    params,
+                )
                 for row in curs.fetchall():
                     notifications.append(
                         Notification(
@@ -668,7 +658,7 @@ class PostgresApplicationRecorder(
         c: PostgresCursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
-    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
+    ) -> Optional[Sequence[int]]:
         super()._insert_events(c, stored_events, **kwargs)
         if stored_events:
             last_notification_id = c.fetchone()[0]
@@ -678,10 +668,9 @@ class PostgresApplicationRecorder(
                     last_notification_id + 1,
                 )
             )
-            returning = [(s, notification_ids[i]) for i, s in enumerate(stored_events)]
         else:
-            returning = []
-        return returning
+            notification_ids = []
+        return notification_ids
 
 
 class PostgresProcessRecorder(
@@ -751,8 +740,8 @@ class PostgresProcessRecorder(
         c: PostgresCursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
-    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
-        returning = super()._insert_events(c, stored_events, **kwargs)
+    ) -> Optional[Sequence[int]]:
+        notification_ids = super()._insert_events(c, stored_events, **kwargs)
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking is not None:
             statement_alias = self.statement_name_aliases[
@@ -765,7 +754,7 @@ class PostgresProcessRecorder(
                     tracking.notification_id,
                 ),
             )
-        return returning
+        return notification_ids
 
 
 class Factory(InfrastructureFactory):

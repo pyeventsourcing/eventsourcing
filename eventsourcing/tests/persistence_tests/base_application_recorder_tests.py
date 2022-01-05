@@ -56,14 +56,14 @@ class ApplicationRecorderTestCase(TestCase, ABC):
             state=b"state3",
         )
 
-        returning = recorder.insert_events([])
-        self.assertEqual(returning, [])
+        notification_ids = recorder.insert_events([])
+        self.assertEqual(notification_ids, [])
 
-        returning = recorder.insert_events([stored_event1, stored_event2])
-        self.assertEqual(returning, [(stored_event1, 1), (stored_event2, 2)])
+        notification_ids = recorder.insert_events([stored_event1, stored_event2])
+        self.assertEqual(notification_ids, [1, 2])
 
-        returning = recorder.insert_events([stored_event3])
-        self.assertEqual(returning, [(stored_event3, 3)])
+        notification_ids = recorder.insert_events([stored_event3])
+        self.assertEqual(notification_ids, [3])
 
         stored_events1 = recorder.select_events(originator_id1)
         stored_events2 = recorder.select_events(originator_id2)
@@ -156,6 +156,15 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         notifications = recorder.select_notifications(3, 1)
         self.assertEqual(len(notifications), 1, len(notifications))
         self.assertEqual(notifications[0].id, 3)
+
+        notifications = recorder.select_notifications(start=2, limit=10, stop=2)
+        self.assertEqual(len(notifications), 1, len(notifications))
+        self.assertEqual(notifications[0].id, 2)
+
+        notifications = recorder.select_notifications(start=1, limit=10, stop=2)
+        self.assertEqual(len(notifications), 2, len(notifications))
+        self.assertEqual(notifications[0].id, 1)
+        self.assertEqual(notifications[1].id, 2)
 
     def test_concurrent_no_conflicts(self):
         print(self)

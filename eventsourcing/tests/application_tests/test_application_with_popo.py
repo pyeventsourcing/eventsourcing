@@ -13,7 +13,10 @@ from eventsourcing.persistence import (
     Transcoder,
     Transcoding,
 )
-from eventsourcing.tests.test_aggregate import BankAccount, EmailAddress
+from eventsourcing.tests.domain_tests.test_aggregate import (
+    BankAccount,
+    EmailAddress,
+)
 from eventsourcing.utils import get_topic
 
 TIMEIT_FACTOR = int(os.environ.get("TEST_TIMEIT_FACTOR", default=10))
@@ -73,27 +76,27 @@ class TestApplication(TestCase):
             ),
         )
 
-    def test_save_returns_new_notification_id(self):
+    def test_save_returns_recording_event(self):
         app = Application()
 
-        notifications = app.save()
-        self.assertEqual(notifications, [])
+        recordings = app.save()
+        self.assertEqual(recordings, [])
 
-        notifications = app.save(None)
-        self.assertEqual(notifications, [])
+        recordings = app.save(None)
+        self.assertEqual(recordings, [])
 
-        notifications = app.save(Aggregate())
-        self.assertEqual(len(notifications), 1)
-        self.assertEqual(notifications[0].id, 1)
+        recordings = app.save(Aggregate())
+        self.assertEqual(len(recordings), 1)
+        self.assertEqual(recordings[0].notification.id, 1)
 
-        notifications = app.save(Aggregate())
-        self.assertEqual(len(notifications), 1)
-        self.assertEqual(notifications[0].id, 2)
+        recordings = app.save(Aggregate())
+        self.assertEqual(len(recordings), 1)
+        self.assertEqual(recordings[0].notification.id, 2)
 
-        notifications = app.save(Aggregate(), Aggregate())
-        self.assertEqual(len(notifications), 2)
-        self.assertEqual(notifications[0].id, 3)
-        self.assertEqual(notifications[1].id, 4)
+        recordings = app.save(Aggregate(), Aggregate())
+        self.assertEqual(len(recordings), 2)
+        self.assertEqual(recordings[0].notification.id, 3)
+        self.assertEqual(recordings[1].notification.id, 4)
 
 
 class TestApplicationWithPOPO(TestCase):

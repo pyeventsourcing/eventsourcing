@@ -1,22 +1,24 @@
-from typing import List
 from unittest.case import TestCase
 
+from eventsourcing.application import RecordingEvent
 from eventsourcing.dispatch import singledispatchmethod
 from eventsourcing.domain import AggregateEvent
-from eventsourcing.persistence import IntegrityError, Notification, Transcoder
+from eventsourcing.persistence import IntegrityError, Transcoder
 from eventsourcing.system import (
     Follower,
     Leader,
     ProcessApplication,
-    ProcessEvent,
+    ProcessingEvent,
     Promptable,
 )
-from eventsourcing.tests.test_aggregate import BankAccount
-from eventsourcing.tests.test_application_with_popo import (
+from eventsourcing.tests.application_tests.test_application_with_popo import (
     BankAccounts,
     EmailAddressAsStr,
 )
-from eventsourcing.tests.test_processingpolicy import EmailNotification
+from eventsourcing.tests.application_tests.test_processingpolicy import (
+    EmailNotification,
+)
+from eventsourcing.tests.domain_tests.test_aggregate import BankAccount
 
 
 class TestProcessApplication(TestCase):
@@ -82,7 +84,7 @@ class EmailProcess(ProcessApplication):
     def policy(
         self,
         domain_event: AggregateEvent,
-        process_event: ProcessEvent,
+        processing_event: ProcessingEvent,
     ):
         """Default policy"""
 
@@ -90,7 +92,7 @@ class EmailProcess(ProcessApplication):
     def _(
         self,
         domain_event: AggregateEvent,
-        process_event: ProcessEvent,
+        processing_event: ProcessingEvent,
     ):
         assert isinstance(domain_event, BankAccount.Opened)
         notification = EmailNotification.create(
@@ -98,14 +100,15 @@ class EmailProcess(ProcessApplication):
             subject="Your New Account",
             message="Dear {}, ...".format(domain_event.full_name),
         )
-        process_event.collect_events(notification)
+        processing_event.collect_events(notification)
 
 
 class PromptForwarder(Promptable):
     def __init__(self, application: Follower):
         self.application = application
 
-    def receive_notifications(
-        self, leader_name: str, notifications: List[Notification]
-    ) -> None:
-        self.application.pull_and_process(leader_name, start=notifications[0].id)
+    def receive_recording_event(self, recording_event: RecordingEvent) -> None:
+        self.application.pull_and_process(
+            leader_name=recording_event.application_name,
+            start=recording_event.recordings[0].notification.id,
+        )

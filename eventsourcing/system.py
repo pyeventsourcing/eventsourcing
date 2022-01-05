@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import traceback
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from queue import Queue
+from queue import Full, Queue
 from threading import Event, Lock, RLock, Thread
 from typing import (
     Dict,
@@ -22,7 +23,8 @@ from typing import (
 from eventsourcing.application import (
     Application,
     NotificationLog,
-    ProcessEvent,
+    ProcessingEvent,
+    RecordingEvent,
     Section,
     TApplication,
 )
@@ -31,34 +33,13 @@ from eventsourcing.persistence import (
     Mapper,
     Notification,
     ProcessRecorder,
+    Recording,
     Tracking,
 )
 from eventsourcing.utils import EnvType, get_topic, resolve_topic
 
 ProcessingJob = Tuple[AggregateEvent[Aggregate], Tracking]
-
-
-class PullMode(ABC):
-    @abstractmethod
-    def chose_to_pull(self, received_id: int, expected_id: int) -> bool:
-        """
-        Decide whether to pull or not
-        """
-
-
-class AlwaysPull(PullMode):
-    def chose_to_pull(self, received_id: int, expected_id: int) -> bool:
-        return True
-
-
-class PullGaps(PullMode):
-    def chose_to_pull(self, received_id: int, expected_id: int) -> bool:
-        return received_id != expected_id
-
-
-class NeverPull(PullMode):
-    def chose_to_pull(self, received_id: int, expected_id: int) -> bool:
-        return False
+ConvertingJob = Optional[Union[RecordingEvent, List[Notification]]]
 
 
 class Follower(Application[TAggregate]):
@@ -71,7 +52,6 @@ class Follower(Application[TAggregate]):
 
     follow_topics: Sequence[str] = []
     pull_section_size = 10
-    pull_mode: PullMode = AlwaysPull()
 
     def __init__(self, env: Optional[EnvType] = None) -> None:
         super().__init__(env)
@@ -103,54 +83,64 @@ class Follower(Application[TAggregate]):
         self.mappers[name] = mapper
 
     # @retry(IntegrityError, max_attempts=100)
-    def pull_and_process(self, leader_name: str, start: Optional[int] = None) -> None:
+    def pull_and_process(
+        self, leader_name: str, start: Optional[int] = None, stop: Optional[int] = None
+    ) -> None:
         """
         Pull and process new domain event notifications.
         """
         if start is None:
             start = self.recorder.max_tracking_id(leader_name) + 1
-        mapper = self.mappers[leader_name]
-        for notifications in self.pull_notifications(leader_name, start=start):
+        for notifications in self.pull_notifications(
+            leader_name, start=start, stop=stop
+        ):
             notifications_iter = self.filter_received_notifications(notifications)
             for domain_event, tracking in self.convert_notifications(
-                mapper, leader_name, notifications_iter
+                leader_name, notifications_iter
             ):
                 self.process_event(domain_event, tracking)
 
     def pull_notifications(
-        self, leader_name: str, start: int
-    ) -> Iterable[List[Notification]]:
+        self, leader_name: str, start: int, stop: Optional[int] = None
+    ) -> Iterator[List[Notification]]:
         """
         Pulls batches of unseen :class:`~eventsourcing.persistence.Notification`
         objects from the notification log reader of the named application.
         """
-        return self.readers[leader_name].select(start=start, topics=self.follow_topics)
+        return self.readers[leader_name].select(
+            start=start, stop=stop, topics=self.follow_topics
+        )
 
     def filter_received_notifications(
-        self, notifications: Iterable[Notification]
-    ) -> Iterable[Notification]:
-        if self.follow_topics:
-            notifications = (n for n in notifications if n.topic in self.follow_topics)
-        return notifications
+        self, notifications: List[Notification]
+    ) -> List[Notification]:
+        return [
+            n
+            for n in notifications
+            if not self.follow_topics or n.topic in self.follow_topics
+        ]
 
     def convert_notifications(
-        self, mapper: Mapper, name: str, notifications: Iterable[Notification]
-    ) -> Iterable[ProcessingJob]:
+        self, leader_name: str, notifications: Iterable[Notification]
+    ) -> List[ProcessingJob]:
         """
         Uses the given :class:`~eventsourcing.persistence.Mapper` to convert
         each received :class:`~eventsourcing.persistence.Notification`
         object to an :class:`~eventsourcing.domain.AggregateEvent` object
         paired with a :class:`~eventsourcing.persistence.Tracking` object.
         """
+        mapper = self.mappers[leader_name]
+        processing_jobs = []
         for notification in notifications:
             domain_event = cast(
                 AggregateEvent[Aggregate], mapper.to_domain_event(notification)
             )
             tracking = Tracking(
-                application_name=name,
+                application_name=leader_name,
                 notification_id=notification.id,
             )
-            yield domain_event, tracking
+            processing_jobs.append((domain_event, tracking))
+        return processing_jobs
 
     # @retry(IntegrityError, max_attempts=50000, wait=0.01)
     def process_event(
@@ -159,7 +149,7 @@ class Follower(Application[TAggregate]):
         """
         Calls :func:`~eventsourcing.system.Follower.policy` method with
         the given :class:`~eventsourcing.domain.AggregateEvent` and a
-        new :class:`~eventsourcing.application.ProcessEvent` created from
+        new :class:`~eventsourcing.application.ProcessingEvent` created from
         the given :class:`~eventsourcing.persistence.Tracking` object.
 
         The policy will collect any new aggregate events on the process
@@ -175,24 +165,25 @@ class Follower(Application[TAggregate]):
         the new notifications are passed to the
         :func:`~eventsourcing.application.Application.notify` method.
         """
-        process_event = ProcessEvent(tracking=tracking)
+        processing_event = ProcessingEvent(tracking=tracking)
         with self.processing_lock:
-            self.policy(domain_event, process_event)
-            notifications = self.record(process_event)
-            self.take_snapshots(process_event)
-            self.notify(notifications)
+            self.policy(domain_event, processing_event)
+            recordings = self._record(processing_event)
+            self._take_snapshots(processing_event)
+            self.notify(processing_event.events)
+            self._notify(recordings)
 
     @abstractmethod
     def policy(
         self,
         domain_event: AggregateEvent[Aggregate],
-        process_event: ProcessEvent,
+        processing_event: ProcessingEvent,
     ) -> None:
         """
         Abstract domain event processing policy method. Must be
         implemented by event processing applications. When
         processing the given domain event, event processing
-        applications must use the :func:`~ProcessEvent.collect_events`
+        applications must use the :func:`~ProcessingEvent.collect_events`
         method of the given process event object (instead of
         the application's :func:`~eventsourcing.application.Application.save`
         method) to collect pending events from changed aggregates,
@@ -201,9 +192,6 @@ class Follower(Application[TAggregate]):
         domain event's notification.
         """
 
-    def chose_to_pull(self, received_id: int, expected_id: int) -> bool:
-        return self.pull_mode.chose_to_pull(received_id, expected_id)
-
 
 class Promptable(ABC):
     """
@@ -211,12 +199,9 @@ class Promptable(ABC):
     """
 
     @abstractmethod
-    def receive_notifications(
-        self, leader_name: str, notifications: List[Notification]
-    ) -> None:
+    def receive_recording_event(self, recording_event: RecordingEvent) -> None:
         """
-        Receives the name of leader that has new domain
-        event notifications.
+        Receives a recording event.
         """
 
 
@@ -238,23 +223,26 @@ class Leader(Application[TAggregate]):
         """
         self.followers.append(follower)
 
-    def notify(self, notifications: List[Notification]) -> None:
+    def _notify(self, recordings: List[Recording]) -> None:
         """
-        Extends the application :func:`~eventsourcing.application.Application.notify`
-        method by calling :func:`notify_followers` whenever new events have just
-        been saved.
+        Calls :func:`receive_recording_event` on each follower
+        whenever new events have just been saved.
         """
-        super().notify(notifications)
-        if notifications:
-            self.notify_followers(notifications)
-
-    def notify_followers(self, notifications: List[Notification]) -> None:
-        """
-        Prompts followers by calling their :func:`~Promptable.receive_prompt`
-        methods with the name of the application.
-        """
-        for follower in self.followers:
-            follower.receive_notifications(self.name, notifications)
+        super()._notify(recordings)
+        recordings = [
+            r
+            for r in recordings
+            if not self.notify_topics or r.notification.topic in self.notify_topics
+        ]
+        if recordings:
+            recording_event = RecordingEvent(
+                application_name=self.name,
+                recordings=recordings,
+                previous_max_notification_id=self.previous_max_notification_id,
+            )
+            self.previous_max_notification_id = recordings[-1].notification.id
+            for follower in self.followers:
+                follower.receive_recording_event(recording_event)
 
 
 class ProcessApplication(Leader[TAggregate], Follower[TAggregate], ABC):
@@ -436,11 +424,10 @@ class SingleThreadedRunner(Runner, Promptable):
         """
         super().__init__(system, env)
         self.apps: Dict[str, Application[Aggregate]] = {}
-        self._notifications_received: Dict[str, List[Notification]] = {}
-        self._notifications_received_lock = Lock()
+        self._recording_events_received: List[RecordingEvent] = []
+        self._recording_events_received_lock = Lock()
         self._processing_lock = Lock()
-        self.last_ids: Dict[Tuple[str, str], int] = {}
-        # self.debug_received_notifications = set()
+        self._previous_max_notification_ids: Dict[str, int] = {}
 
         # Construct followers.
         for name in self.system.followers:
@@ -485,73 +472,84 @@ class SingleThreadedRunner(Runner, Promptable):
             assert isinstance(leader, Leader)
             leader.lead(self)
 
-    def receive_notifications(
-        self, leader_name: str, notifications: List[Notification]
-    ) -> None:
+    def receive_recording_event(self, recording_event: RecordingEvent) -> None:
         """
-        Receives prompt by appending name of
-        leader to list of prompted names.
-        Unless this method has previously been called but not
-        yet returned, it will then proceed to forward the prompts
-        received to its application by calling the application's
-        :func:`~Follower.pull_and_process` method for each prompted name.
+        Receives recording event by appending it to list of received recording
+        events.
+
+        Unless this method has previously been called and not yet returned, it
+        will then attempt to make the followers process all received recording
+        events, until there are none remaining.
         """
-        with self._notifications_received_lock:
-            if leader_name not in self._notifications_received:
-                self._notifications_received[leader_name] = notifications
-            else:
-                self._notifications_received[leader_name] += notifications
+        with self._recording_events_received_lock:
+            self._recording_events_received.append(recording_event)
 
         if self._processing_lock.acquire(blocking=False):
             try:
                 while True:
+                    with self._recording_events_received_lock:
+                        recording_events_received = self._recording_events_received
+                        self._recording_events_received = []
 
-                    with self._notifications_received_lock:
-                        notifications_received, self._notifications_received = (
-                            self._notifications_received,
-                            {},
-                        )
-
-                        if not notifications_received:
+                        if not recording_events_received:
                             break
 
-                    for leader_name, notifications in notifications_received.items():
-                        for follower_name in self.system.leads[leader_name]:
-                            follower = self.apps[follower_name]
-                            assert isinstance(follower, Follower)
-                            last_id = self.last_ids.get((follower.name, leader_name))
-                            if last_id is None:
-                                last_id = follower.recorder.max_tracking_id(leader_name)
-                            next_id = last_id + 1
-                            mapper = follower.mappers[leader_name]
-                            if follower.chose_to_pull(notifications[0].id, next_id):
-                                for notifications in follower.pull_notifications(
-                                    leader_name, start=next_id
-                                ):
-                                    self.filter_convert_process(
-                                        notifications, follower, leader_name, mapper
-                                    )
+                    for recording_event in recording_events_received:
+                        leader_name = recording_event.application_name
+                        previous_max_notification_id = (
+                            self._previous_max_notification_ids.get(leader_name, 0)
+                        )
 
-                            else:
-                                # Process received notifications.
-                                self.filter_convert_process(
-                                    notifications, follower, leader_name, mapper
+                        # Ignore recording event if already seen a subsequent.
+                        if (
+                            recording_event.previous_max_notification_id is not None
+                            and recording_event.previous_max_notification_id
+                            < previous_max_notification_id
+                        ):
+                            continue
+
+                        # Catch up if there is a gap in sequence of recording events.
+                        if (
+                            recording_event.previous_max_notification_id is None
+                            or recording_event.previous_max_notification_id
+                            > previous_max_notification_id
+                        ):
+                            for follower_name in self.system.leads[leader_name]:
+                                follower = self.apps[follower_name]
+                                assert isinstance(follower, Follower)
+                                start = (
+                                    follower.recorder.max_tracking_id(leader_name) + 1
                                 )
+                                stop = recording_event.recordings[0].notification.id - 1
+                                follower.pull_and_process(
+                                    leader_name=leader_name,
+                                    start=start,
+                                    stop=stop,
+                                )
+                        for recording in recording_event.recordings:
+                            for follower_name in self.system.leads[leader_name]:
+                                follower = self.apps[follower_name]
+                                assert isinstance(follower, Follower)
+                                if (
+                                    follower.follow_topics
+                                    and recording.notification.topic
+                                    not in follower.follow_topics
+                                ):
+                                    continue
+                                follower.process_event(
+                                    domain_event=recording.aggregate_event,
+                                    tracking=Tracking(
+                                        application_name=recording_event.application_name,
+                                        notification_id=recording.notification.id,
+                                    ),
+                                )
+
+                        self._previous_max_notification_ids[
+                            leader_name
+                        ] = recording_event.recordings[-1].notification.id
+
             finally:
                 self._processing_lock.release()
-
-    def filter_convert_process(
-        self,
-        notifications: List[Notification],
-        follower: Follower[Aggregate],
-        leader_name: str,
-        mapper: Mapper,
-    ) -> None:
-        self.last_ids[(follower.name, leader_name)] = notifications[-1].id
-        notifications_iter = follower.filter_received_notifications(notifications)
-        jobs = follower.convert_notifications(mapper, leader_name, notifications_iter)
-        for domain_event, tracking in jobs:
-            follower.process_event(domain_event, tracking)
 
     def stop(self) -> None:
         for app in self.apps.values():
@@ -648,8 +646,7 @@ class MultiThreadedRunner(Runner, Promptable):
             follower.follow(leader.name, leader.log)
 
             # Create converting queue.
-            prompted_event = Event()
-            converting_queue: "Queue[Optional[List[Notification]]]" = Queue(
+            converting_queue: "Queue[ConvertingJob]" = Queue(
                 maxsize=self.QUEUE_MAX_SIZE
             )
 
@@ -667,7 +664,6 @@ class MultiThreadedRunner(Runner, Promptable):
             # Start pulling thread.
             pulling_thread = PullingThread(
                 converting_queue=converting_queue,
-                prompted_event=prompted_event,
                 follower=follower,
                 leader_name=leader_name,
                 has_errored=self.has_errored,
@@ -687,11 +683,6 @@ class MultiThreadedRunner(Runner, Promptable):
             leader = cast(Leader[Aggregate], self.apps[leader_name])
             assert isinstance(leader, Leader)
             leader.lead(self)
-
-        # # Prompt to pull (catch up on start).
-        # for thread in self.all_threads:
-        #     if isinstance(thread, PullingThread):
-        #         thread.prompted_event.set()
 
     def watch_for_errors(self, timeout: Optional[float] = None) -> bool:
         if self.has_errored.wait(timeout=timeout):
@@ -718,11 +709,9 @@ class MultiThreadedRunner(Runner, Promptable):
         assert isinstance(app, cls)
         return app
 
-    def receive_notifications(
-        self, leader_name: str, notifications: List[Notification]
-    ) -> None:
-        for pulling_thread in self.pulling_threads[leader_name]:
-            pulling_thread.receive_notifications(notifications)
+    def receive_recording_event(self, recording_event: RecordingEvent) -> None:
+        for pulling_thread in self.pulling_threads[recording_event.application_name]:
+            pulling_thread.receive_recording_event(recording_event)
 
 
 class PullingThread(Thread):
@@ -733,14 +722,16 @@ class PullingThread(Thread):
 
     def __init__(
         self,
-        converting_queue: "Queue[Optional[List[Notification]]]",
-        prompted_event: Event,
+        converting_queue: "Queue[ConvertingJob]",
         follower: Follower[Aggregate],
         leader_name: str,
         has_errored: Event,
     ):
         super().__init__(daemon=True)
-        self.prompted_event = prompted_event
+        self.overflow_event = Event()
+        self.recording_event_queue: "Queue[Optional[RecordingEvent]]" = Queue(
+            maxsize=100
+        )
         self.converting_queue = converting_queue
         self.receive_lock = Lock()
         self.follower = follower
@@ -750,47 +741,57 @@ class PullingThread(Thread):
         self.is_stopping = Event()
         self.has_started = Event()
         self.mapper = self.follower.mappers[self.leader_name]
-        self.last_id = self.follower.recorder.max_tracking_id(self.leader_name)
+        self.previous_max_notification_id = self.follower.recorder.max_tracking_id(
+            application_name=self.leader_name
+        )
 
     def run(self) -> None:
         self.has_started.set()
         try:
-            while self.prompted_event.wait() and not self.is_stopping.is_set():
-                self.prompted_event.clear()
-                with self.receive_lock:
-                    # Pull notifications.
+            while not self.is_stopping.is_set():
+                recording_event = self.recording_event_queue.get()
+                self.recording_event_queue.task_done()
+                if recording_event is None:
+                    return
+                # Ignore recording event if already seen a subsequent.
+                if (
+                    recording_event.previous_max_notification_id is not None
+                    and recording_event.previous_max_notification_id
+                    < self.previous_max_notification_id
+                ):
+                    continue
+
+                # Catch up if there is a gap in sequence of recording events.
+                if (
+                    recording_event.previous_max_notification_id is None
+                    or recording_event.previous_max_notification_id
+                    > self.previous_max_notification_id
+                ):
+                    start = self.previous_max_notification_id + 1
+                    stop = recording_event.recordings[0].notification.id - 1
                     for notifications in self.follower.pull_notifications(
-                        leader_name=self.leader_name, start=self.last_id + 1
+                        self.leader_name, start=start, stop=stop
                     ):
-                        self.filter_and_queue(notifications)
+                        self.converting_queue.put(notifications)
+                        self.previous_max_notification_id = notifications[-1].id
+                self.converting_queue.put(recording_event)
+                self.previous_max_notification_id = recording_event.recordings[
+                    -1
+                ].notification.id
         except Exception as e:
             self.error = NotificationPullingError(str(e))
             self.error.__cause__ = e
             self.has_errored.set()
 
-    def receive_notifications(self, notifications: List[Notification]) -> None:
-        if type(self.follower.pull_mode) is AlwaysPull:
-            # Prompt to pull notifications.
-            self.prompted_event.set()
-        else:
-            with self.receive_lock:
-                # Decide whether to pull or process.
-                if self.follower.chose_to_pull(notifications[0].id, self.last_id + 1):
-                    # Prompt to pull notifications.
-                    self.prompted_event.set()
-                else:
-                    # Process received notifications.
-                    self.filter_and_queue(notifications)
-
-    def filter_and_queue(self, notifications: List[Notification]) -> None:
-        self.last_id = notifications[-1].id
-        notifications = list(self.follower.filter_received_notifications(notifications))
-        if len(notifications):
-            self.converting_queue.put(notifications)
+    def receive_recording_event(self, recording_event: RecordingEvent) -> None:
+        try:
+            self.recording_event_queue.put(recording_event, timeout=0)
+        except Full:
+            self.overflow_event.set()
 
     def stop(self) -> None:
         self.is_stopping.set()
-        self.prompted_event.set()
+        self.recording_event_queue.put(None)
 
 
 class ConvertingThread(Thread):
@@ -800,7 +801,7 @@ class ConvertingThread(Thread):
 
     def __init__(
         self,
-        converting_queue: "Queue[Optional[List[Notification]]]",
+        converting_queue: "Queue[ConvertingJob]",
         processing_queue: "Queue[Optional[List[ProcessingJob]]]",
         follower: Follower[Aggregate],
         leader_name: str,
@@ -821,17 +822,39 @@ class ConvertingThread(Thread):
         self.has_started.set()
         try:
             while True:
-                notifications = self.converting_queue.get()
+                recording_event_or_notifications = self.converting_queue.get()
                 self.converting_queue.task_done()
-                if self.is_stopping.is_set() or notifications is None:
+                if (
+                    self.is_stopping.is_set()
+                    or recording_event_or_notifications is None
+                ):
                     return
-                processing_jobs = list(
-                    self.follower.convert_notifications(
-                        self.mapper, self.leader_name, notifications
+
+                processing_jobs = []
+
+                if isinstance(recording_event_or_notifications, RecordingEvent):
+                    recording_event = recording_event_or_notifications
+                    for recording in recording_event.recordings:
+                        if (
+                            self.follower.follow_topics
+                            and recording.notification.topic
+                            not in self.follower.follow_topics
+                        ):
+                            continue
+                        tracking = Tracking(
+                            application_name=recording_event.application_name,
+                            notification_id=recording.notification.id,
+                        )
+                        processing_jobs.append((recording.aggregate_event, tracking))
+                else:
+                    notifications = recording_event_or_notifications
+                    processing_jobs = self.follower.convert_notifications(
+                        leader_name=self.leader_name, notifications=notifications
                     )
-                )
-                self.processing_queue.put(processing_jobs)
+                if processing_jobs:
+                    self.processing_queue.put(processing_jobs)
         except Exception as e:
+            print(traceback.format_exc())
             self.error = NotificationConvertingError(str(e))
             self.error.__cause__ = e
             self.has_errored.set()
@@ -860,19 +883,17 @@ class ProcessingThread(Thread):
         self.has_errored = has_errored
         self.is_stopping = Event()
         self.has_started = Event()
-        self.last_id = 0
 
     def run(self) -> None:
         self.has_started.set()
         try:
             while True:
                 jobs = self.processing_queue.get()
+                self.processing_queue.task_done()
                 if self.is_stopping.is_set() or jobs is None:
                     return
-                self.processing_queue.task_done()
                 for domain_event, tracking in jobs:
                     self.follower.process_event(domain_event, tracking)
-                    self.last_id = tracking.notification_id
         except Exception as e:
             self.error = EventProcessingError(str(e))
             self.error.__cause__ = e
@@ -933,7 +954,7 @@ class NotificationLogReader:
                 section_id = section.next_id
 
     def select(
-        self, *, start: int, topics: Sequence[str] = ()
+        self, *, start: int, stop: Optional[int] = None, topics: Sequence[str] = ()
     ) -> Iterator[List[Notification]]:
         """
         Returns a generator that yields lists of event notifications
@@ -949,7 +970,7 @@ class NotificationLogReader:
         """
         while True:
             notifications = self.notification_log.select(
-                start, self.section_size, topics=topics
+                start=start, stop=stop, limit=self.section_size, topics=topics
             )
             # Stop if zero notifications.
             if len(notifications) == 0:

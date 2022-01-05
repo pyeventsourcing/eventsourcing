@@ -5,7 +5,7 @@ from unittest.case import TestCase
 from uuid import uuid4
 
 from eventsourcing.application import AggregateNotFound, Repository
-from eventsourcing.domain import TZINFO, Snapshot
+from eventsourcing.domain import TZINFO, Aggregate, Snapshot
 from eventsourcing.persistence import (
     DatetimeAsISO,
     DecimalAsStr,
@@ -14,9 +14,12 @@ from eventsourcing.persistence import (
     Mapper,
     UUIDAsHex,
 )
+from eventsourcing.popo import POPOAggregateRecorder
 from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatastore
-from eventsourcing.tests.test_aggregate import BankAccount
-from eventsourcing.tests.test_application_with_popo import EmailAddressAsStr
+from eventsourcing.tests.application_tests.test_application_with_popo import (
+    EmailAddressAsStr,
+)
+from eventsourcing.tests.domain_tests.test_aggregate import BankAccount
 from eventsourcing.utils import get_topic
 
 
@@ -298,3 +301,22 @@ class TestRepository(TestCase):
         copy8 = repository.get(account.id, version=4)
         assert isinstance(copy8, BankAccount)
         assert copy8.balance == Decimal("65.00"), copy8.balance
+
+    def test_contains(self):
+        transcoder = JSONTranscoder()
+        transcoder.register(UUIDAsHex())
+        transcoder.register(DecimalAsStr())
+        transcoder.register(DatetimeAsISO())
+
+        event_recorder = POPOAggregateRecorder()
+        event_store = EventStore(
+            mapper=Mapper(transcoder=transcoder),
+            recorder=event_recorder,
+        )
+
+        aggregate = Aggregate()
+        event_store.put(aggregate.collect_events())
+
+        repository: Repository = Repository(event_store)
+        self.assertTrue(aggregate.id in repository)
+        self.assertFalse(uuid4() in repository)

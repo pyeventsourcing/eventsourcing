@@ -13,7 +13,9 @@ from eventsourcing.interface import (
     NotificationLogJSONClient,
     NotificationLogJSONService,
 )
-from eventsourcing.tests.test_application_with_popo import BankAccounts
+from eventsourcing.tests.application_tests.test_application_with_popo import (
+    BankAccounts,
+)
 
 
 class TestRemoteNotificationLog(TestCase):

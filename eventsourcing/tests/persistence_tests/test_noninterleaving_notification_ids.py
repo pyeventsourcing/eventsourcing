@@ -5,11 +5,13 @@ from eventsourcing.postgres import (
     PostgresDatastore,
 )
 from eventsourcing.sqlite import SQLiteApplicationRecorder, SQLiteDatastore
-from eventsourcing.tests.base_noninterleaving_notification_ids_tests import (
+from eventsourcing.tests.persistence_tests.base_noninterleaving_notification_ids_tests import (
     NonInterleavingNotificationIDsBaseCase,
 )
+from eventsourcing.tests.persistence_tests.test_postgres import (
+    drop_postgres_table,
+)
 from eventsourcing.tests.ramdisk import tmpfile_uris
-from eventsourcing.tests.test_postgres import drop_postgres_table
 
 
 class TestNonInterleavingPOPO(NonInterleavingNotificationIDsBaseCase):

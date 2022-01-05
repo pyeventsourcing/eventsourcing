@@ -1,37 +1,42 @@
 import os
 import shlex
 import subprocess
+from queue import Queue
+from threading import Event
 from time import sleep
-from typing import Generic, Optional, Tuple, Type, TypeVar
+from typing import Generic, Iterable, List, Optional, Tuple, Type, TypeVar
 from unittest.case import TestCase
+from unittest.mock import MagicMock
 from uuid import UUID
 
-from eventsourcing.application import ProcessEvent
+from eventsourcing.application import ProcessingEvent, RecordingEvent
 from eventsourcing.domain import Aggregate, AggregateEvent, event
-from eventsourcing.persistence import ProgrammingError
+from eventsourcing.persistence import Notification, ProgrammingError
 from eventsourcing.postgres import PostgresDatastore
 from eventsourcing.system import (
-    AlwaysPull,
     ConvertingThread,
     EventProcessingError,
     MultiThreadedRunner,
-    NeverPull,
     NotificationConvertingError,
     NotificationPullingError,
     ProcessApplication,
-    ProcessingThread,
-    PullGaps,
+    ProcessingJob,
     PullingThread,
     Runner,
     RunnerAlreadyStarted,
     SingleThreadedRunner,
     System,
 )
+from eventsourcing.tests.application_tests.test_application_with_popo import (
+    BankAccounts,
+)
+from eventsourcing.tests.application_tests.test_processapplication import (
+    EmailProcess,
+)
+from eventsourcing.tests.persistence_tests.test_postgres import (
+    drop_postgres_table,
+)
 from eventsourcing.tests.ramdisk import tmpfile_uris
-from eventsourcing.tests.test_aggregate import BankAccount
-from eventsourcing.tests.test_application_with_popo import BankAccounts
-from eventsourcing.tests.test_postgres import drop_postgres_table
-from eventsourcing.tests.test_processapplication import EmailProcess
 from eventsourcing.utils import clear_topic_cache, get_topic
 
 
@@ -44,6 +49,7 @@ TRunner = TypeVar("TRunner", bound=Runner)
 
 class RunnerTestCase(TestCase, Generic[TRunner]):
     runner_class: Type[TRunner]
+    runner: Optional[TRunner]
 
     def setUp(self) -> None:
         self.runner: Optional[TRunner] = None
@@ -72,9 +78,9 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
     def test_system_with_one_edge(self):
         self.start_runner(System(pipes=[[BankAccounts, EmailProcess]]))
         accounts = self.runner.get(BankAccounts)
-        email_process1 = self.runner.get(EmailProcess)
+        email_process = self.runner.get(EmailProcess)
 
-        section = email_process1.log["1,5"]
+        section = email_process.log["1,5"]
         self.assertEqual(len(section.items), 0, section.items)
 
         for _ in range(10):
@@ -85,7 +91,7 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
 
         self.wait_for_runner()
 
-        section = email_process1.log["1,10"]
+        section = email_process.log["1,10"]
         self.assertEqual(len(section.items), 10)
 
     def test_system_with_two_edges(self):
@@ -158,7 +164,7 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
             def policy(
                 self,
                 domain_event: AggregateEvent[Aggregate],
-                process_event: ProcessEvent,
+                processing_event: ProcessingEvent,
             ) -> None:
                 if isinstance(domain_event, Result.Created):
                     command = self.repository.get(domain_event.command_id)
@@ -166,7 +172,7 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
                         output=domain_event.output,
                         error=domain_event.error,
                     )
-                    process_event.collect_events(command)
+                    processing_event.collect_events(command)
 
             def get_result(self, command_id: UUID) -> Tuple[str, str]:
                 command = self.repository.get(command_id)
@@ -176,7 +182,7 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
             def policy(
                 self,
                 domain_event: AggregateEvent[Aggregate],
-                process_event: ProcessEvent,
+                processing_event: ProcessingEvent,
             ) -> None:
                 if isinstance(domain_event, Command.Created):
                     try:
@@ -190,7 +196,7 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
                         output=output.decode("utf8"),
                         error=error,
                     )
-                    process_event.collect_events(result)
+                    processing_event.collect_events(result)
 
         self.start_runner(System([[Commands, Results, Commands]]))
 
@@ -201,89 +207,31 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
         self.wait_for_runner()
         self.wait_for_runner()
 
-        output, error = commands.get_result(command_id1)
+        for _ in range(10):
+            output, error = commands.get_result(command_id1)
+            if output is None:
+                sleep(0.1)
+            else:
+                break
+        else:
+            self.fail("No results from command")
+
         self.assertEqual(output, "Hello World\n")
         self.assertEqual(error, "")
 
-        output, error = commands.get_result(command_id2)
+        for _ in range(10):
+            output, error = commands.get_result(command_id2)
+            if output is None:
+                sleep(0.1)
+            else:
+                break
+        else:
+            self.fail("No results from command")
+
         self.assertEqual(output, "")
         self.assertIn("No such file or directory: 'notacommand'", error)
 
-    def test_follow_topics_always_pull_mode_catches_up(self):
-        # Construct system and runner.
-        self.runner = self.runner_class(System(pipes=[[BankAccounts, EmailProcess]]))
-
-        # Get apps.
-        accounts = self.runner.get(BankAccounts)
-        email_process1 = self.runner.get(EmailProcess)
-
-        # Set follower topics.
-        email_process1.follow_topics = [get_topic(BankAccount.Opened)]
-
-        # Use the "always pull" mode.
-        email_process1.pull_mode = AlwaysPull()
-
-        # Create an event.
-        accounts.open_account(
-            full_name="Alice",
-            email_address="alice@example.com",
-        )
-
-        # Start the runner.
-        self.runner.start()
-
-        # Check we processed nothing.
-        self.wait_for_runner()
-        self.assertEqual(len(email_process1.log["1,10"].items), 0)
-
-        # Create another event.
-        accounts.open_account(
-            full_name="Alice",
-            email_address="alice@example.com",
-        )
-
-        # Check we processed two events.
-        self.wait_for_runner()
-        self.assertEqual(len(email_process1.log["1,10"].items), 2)
-
-    def test_follow_topics_pull_gaps_mode_catches_up(self):
-        # Construct system and runner.
-        self.runner = self.runner_class(System(pipes=[[BankAccounts, EmailProcess]]))
-
-        # Get apps.
-        accounts = self.runner.get(BankAccounts)
-        email_process1 = self.runner.get(EmailProcess)
-
-        # Set follower topics.
-        email_process1.follow_topics = [get_topic(BankAccount.Opened)]
-
-        # Use the "pull gaps" mode.
-        email_process1.pull_mode = PullGaps()
-
-        # Create an event.
-        accounts.open_account(
-            full_name="Alice",
-            email_address="alice@example.com",
-        )
-
-        # Start runner.
-        self.runner.start()
-
-        # Check we processed nothing.
-        self.wait_for_runner()
-        self.assertEqual(len(email_process1.log["1,10"].items), 0)
-
-        # Create another event.
-        accounts.open_account(
-            full_name="Alice",
-            email_address="alice@example.com",
-        )
-
-        # Check we processed two events.
-        self.wait_for_runner()
-        self.assertEqual(len(email_process1.log["1,10"].items), 2)
-
-    def test_follow_topics_never_pull_mode_only_process_subsequent_notifications(self):
+    def test_catches_up_with_outstanding_notifications(self):
         # Construct system and runner.
         system = System(pipes=[[BankAccounts, EmailProcess]])
         self.runner = self.runner_class(system)
@@ -292,24 +240,17 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
         accounts = self.runner.get(BankAccounts)
         email_process1 = self.runner.get(EmailProcess)
 
-        # Use the "never pull" mode.
-        email_process1.pull_mode = NeverPull()
-
         # Create an event.
         accounts.open_account(
             full_name="Alice",
             email_address="alice@example.com",
         )
 
+        # Check we processed nothing.
+        self.assertEqual(email_process1.recorder.max_tracking_id("BankAccounts"), 0)
+
         # Start the runner.
         self.runner.start()
-
-        # Check we processed nothing.
-        self.wait_for_runner()
-        self.assertEqual(len(email_process1.log["1,10"].items), 0)
-
-        # Fix follower topics.
-        email_process1.follow_topics = [get_topic(BankAccount.Opened)]
 
         # Create another event.
         accounts.open_account(
@@ -319,7 +260,59 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
 
         # Check we processed two events.
         self.wait_for_runner()
-        self.assertEqual(len(email_process1.log["1,10"].items), 1)
+        self.assertEqual(email_process1.recorder.max_tracking_id("BankAccounts"), 2)
+
+    def test_filters_notifications_by_follow_topics(self):
+        class MyEmailProcess(EmailProcess):
+            follow_topics = [get_topic(AggregateEvent)]  # follow nothing
+
+        system = System(pipes=[[BankAccounts, MyEmailProcess]])
+        self.runner = self.runner_class(system)
+
+        accounts = self.runner.get(BankAccounts)
+        email_process = self.runner.get(MyEmailProcess)
+
+        accounts.open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+
+        self.runner.start()
+
+        accounts.open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+
+        self.wait_for_runner()
+
+        self.assertEqual(len(email_process.log["1,10"].items), 0)
+
+    def test_ignores_recording_event_if_seen_subsequent(self):
+        system = System(pipes=[[BankAccounts, EmailProcess]])
+        self.start_runner(system)
+
+        accounts = self.runner.get(BankAccounts)
+        email_process = self.runner.get(EmailProcess)
+
+        accounts.open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+        self.wait_for_runner()
+
+        self.assertEqual(len(email_process.log["1,10"].items), 1)
+
+        # Reset this to break sequence.
+        accounts.previous_max_notification_id -= 1
+
+        accounts.open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+        self.wait_for_runner()
+
+        self.assertEqual(len(email_process.log["1,10"].items), 1)
 
     def wait_for_runner(self):
         pass
@@ -344,23 +337,80 @@ class TestSingleThreadedRunner(RunnerTestCase[SingleThreadedRunner]):
         # Need to get the lock, so that they aren't cleared.
         with self.runner._processing_lock:
             accounts.open_account("Alice", "alice@example.com")
-            self.assertEqual(
-                len(self.runner._notifications_received[BankAccounts.name]), 1
-            )
+            self.assertEqual(len(self.runner._recording_events_received), 1)
             accounts.open_account("Bob", "bob@example.com")
-            self.assertEqual(
-                len(self.runner._notifications_received[BankAccounts.name]), 2
-            )
+            self.assertEqual(len(self.runner._recording_events_received), 2)
 
-    def test_system_with_processing_loop(self):
-        super().test_system_with_processing_loop()
+
+class TestPullingThread(TestCase):
+    def test_receive_recording_event_does_not_block(self):
+        thread = PullingThread(
+            converting_queue=Queue(),
+            follower=MagicMock(),
+            leader_name="BankAccounts",
+            has_errored=Event(),
+        )
+        thread.recording_event_queue.maxsize = 1
+        self.assertEqual(thread.recording_event_queue.qsize(), 0)
+        thread.receive_recording_event(
+            RecordingEvent(
+                application_name="BankAccounts",
+                recordings=[],
+                previous_max_notification_id=None,
+            )
+        )
+        self.assertEqual(thread.recording_event_queue.qsize(), 1)
+        self.assertFalse(thread.overflow_event.is_set())
+        thread.receive_recording_event(
+            RecordingEvent(
+                application_name="BankAccounts",
+                recordings=[],
+                previous_max_notification_id=1,
+            )
+        )
+        self.assertEqual(thread.recording_event_queue.qsize(), 1)
+        self.assertTrue(thread.overflow_event.is_set())
+
+    def test_stops_because_stopping_event_is_set(self):
+        thread = PullingThread(
+            converting_queue=Queue(),
+            follower=MagicMock(),
+            leader_name="BankAccounts",
+            has_errored=Event(),
+        )
+        self.assertEqual(thread.recording_event_queue.qsize(), 0)
+        thread.receive_recording_event(
+            RecordingEvent(
+                application_name="BankAccounts",
+                recordings=[],
+                previous_max_notification_id=None,
+            )
+        )
+        self.assertEqual(thread.recording_event_queue.qsize(), 1)
+        thread.stop()  # Set 'is_stopping' event.
+        self.assertEqual(thread.recording_event_queue.qsize(), 2)
+        thread.start()
+        thread.join(timeout=1)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(thread.recording_event_queue.qsize(), 2)
+
+    def test_stops_because_recording_event_queue_was_poisoned(self):
+        thread = PullingThread(
+            converting_queue=Queue(),
+            follower=MagicMock(),
+            leader_name="BankAccounts",
+            has_errored=Event(),
+        )
+        self.assertEqual(thread.recording_event_queue.qsize(), 0)
+        thread.start()
+        thread.stop()  # Poison queue.
+        thread.join(timeout=1)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(thread.recording_event_queue.qsize(), 0)
 
 
 class TestMultiThreadedRunner(RunnerTestCase[MultiThreadedRunner]):
     runner_class = MultiThreadedRunner
-
-    def test_follow_topics_pull_gaps_mode_catches_up(self):
-        super().test_follow_topics_pull_gaps_mode_catches_up()
 
     def wait_for_runner(self):
         sleep(0.1)
@@ -377,11 +427,15 @@ class TestMultiThreadedRunner(RunnerTestCase[MultiThreadedRunner]):
             )
 
     class BrokenPulling(EmailProcess):
-        def pull_notifications(self, leader_name, start):
+        def pull_notifications(
+            self, leader_name: str, start: int, stop: Optional[int] = None
+        ) -> Iterable[List[Notification]]:
             raise ProgrammingError("Just testing error handling when pulling is broken")
 
     class BrokenConverting(EmailProcess):
-        def convert_notifications(self, mapper, name, notifications):
+        def convert_notifications(
+            self, leader_name: str, notifications: Iterable[Notification]
+        ) -> List[ProcessingJob]:
             raise ProgrammingError(
                 "Just testing error handling when converting is broken"
             )
@@ -419,15 +473,27 @@ class TestMultiThreadedRunner(RunnerTestCase[MultiThreadedRunner]):
                 ],
             ]
         )
-        self.start_runner(system)
+        # Create runner.
+        self.runner = self.runner_class(system)
 
+        # Create some notifications.
         accounts = self.runner.get(BankAccounts)
         accounts.open_account(
             full_name="Alice",
             email_address="alice@example.com",
         )
 
-        # Wait for runner to stop.
+        # Start runner.
+        self.runner.start()
+
+        # Trigger pulling of notifications.
+        accounts = self.runner.get(BankAccounts)
+        accounts.open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+
+        # Wait for runner to error.
         self.assertTrue(self.runner.has_errored.wait(timeout=1))
 
         # Check stop() raises exception.
@@ -449,16 +515,28 @@ class TestMultiThreadedRunner(RunnerTestCase[MultiThreadedRunner]):
             ]
         )
 
-        self.start_runner(system)
+        # Create runner.
+        self.runner = self.runner_class(system)
 
+        # Create some notifications.
         accounts = self.runner.get(BankAccounts)
         accounts.open_account(
             full_name="Alice",
             email_address="alice@example.com",
         )
 
-        # Wait for runner to stop.
-        self.assertTrue(self.runner.has_errored.wait(timeout=1))
+        # Start runner.
+        self.runner.start()
+
+        # Trigger pulling of notifications.
+        accounts = self.runner.get(BankAccounts)
+        accounts.open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+
+        # Wait for runner to error.
+        self.assertTrue(self.runner.has_errored.wait(timeout=1000))
 
         # Check stop() raises exception.
         with self.assertRaises(NotificationConvertingError) as cm:
@@ -507,8 +585,20 @@ class TestMultiThreadedRunner(RunnerTestCase[MultiThreadedRunner]):
                 ],
             ]
         )
-        self.start_runner(system)
+        # Create runner.
+        self.runner = self.runner_class(system)
 
+        # Create some notifications.
+        accounts = self.runner.get(BankAccounts)
+        accounts.open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+
+        # Start runner.
+        self.runner.start()
+
+        # Trigger pulling of notifications.
         accounts = self.runner.get(BankAccounts)
         accounts.open_account(
             full_name="Alice",
@@ -529,14 +619,14 @@ class TestMultiThreadedRunner(RunnerTestCase[MultiThreadedRunner]):
             pipes=[
                 [
                     BankAccounts,
-                    TestMultiThreadedRunner.BrokenPulling,
+                    EmailProcess,
                 ],
             ]
         )
         self.start_runner(system)
 
         # Watch for error with a timeout. Check returns False.
-        self.assertFalse(self.runner.watch_for_errors(timeout=0.01))
+        self.assertFalse(self.runner.watch_for_errors(timeout=0.0))
 
     def test_stops_if_app_processing_is_broken(self):
         system = System(
@@ -565,27 +655,6 @@ class TestMultiThreadedRunner(RunnerTestCase[MultiThreadedRunner]):
         )
         self.runner = None
 
-    def test_filters_notifications_by_follow_topics(self):
-        system = System(pipes=[[BankAccounts, EmailProcess]])
-        self.start_runner(system)
-
-        accounts = self.runner.get(BankAccounts)
-        email_process1 = self.runner.get(EmailProcess)
-
-        email_process1.follow_topics = [get_topic(AggregateEvent)]
-        email_process1.pull_mode = NeverPull()
-        accounts.open_account(
-            full_name="Alice",
-            email_address="alice@example.com",
-        )
-        self.wait_for_runner()
-
-        for thread in self.runner.all_threads:
-            if isinstance(thread, PullingThread):
-                self.assertEqual(thread.last_id, 1)
-            elif isinstance(thread, ProcessingThread):
-                self.assertEqual(thread.last_id, 0)
-
     def test_queue_task_done_is_called(self):
         system = System(pipes=[[BankAccounts, EmailProcess]])
         self.start_runner(system)
@@ -601,11 +670,7 @@ class TestMultiThreadedRunner(RunnerTestCase[MultiThreadedRunner]):
         self.assertEqual(len(email_process1.log["1,10"].items), 1)
 
         for thread in self.runner.all_threads:
-            if isinstance(thread, PullingThread):
-                self.assertEqual(thread.last_id, 1)
-            elif isinstance(thread, ProcessingThread):
-                self.assertEqual(thread.last_id, 1)
-            elif isinstance(thread, ConvertingThread):
+            if isinstance(thread, ConvertingThread):
                 self.assertEqual(thread.converting_queue.unfinished_tasks, 0)
                 self.assertEqual(thread.processing_queue.unfinished_tasks, 0)
 
@@ -618,6 +683,7 @@ class TestMultiThreadedRunnerWithSQLiteFileBased(TestMultiThreadedRunner):
         os.environ[f"{BankAccounts.name.upper()}_SQLITE_DBNAME"] = next(uris)
         os.environ[f"{EmailProcess.name.upper()}_SQLITE_DBNAME"] = next(uris)
         os.environ[f"{EmailProcess.name.upper()}2_SQLITE_DBNAME"] = next(uris)
+        os.environ[f"MY{EmailProcess.name.upper()}_SQLITE_DBNAME"] = next(uris)
         os.environ["BROKENPROCESSING_SQLITE_DBNAME"] = next(uris)
         os.environ["BROKENCONVERTING_SQLITE_DBNAME"] = next(uris)
         os.environ["BROKENPULLING_SQLITE_DBNAME"] = next(uris)
@@ -628,6 +694,7 @@ class TestMultiThreadedRunnerWithSQLiteFileBased(TestMultiThreadedRunner):
         del os.environ["PERSISTENCE_MODULE"]
         del os.environ[f"{BankAccounts.name.upper()}_SQLITE_DBNAME"]
         del os.environ[f"{EmailProcess.name.upper()}_SQLITE_DBNAME"]
+        del os.environ[f"MY{EmailProcess.name.upper()}_SQLITE_DBNAME"]
         del os.environ[f"{EmailProcess.name.upper()}2_SQLITE_DBNAME"]
         del os.environ["BROKENPROCESSING_SQLITE_DBNAME"]
         del os.environ["BROKENCONVERTING_SQLITE_DBNAME"]
@@ -648,6 +715,9 @@ class TestMultiThreadedRunnerWithSQLiteInMemory(TestMultiThreadedRunner):
             f"{EmailProcess.name.upper()}_SQLITE_DBNAME"
         ] = f"file:{EmailProcess.name.lower()}?mode=memory&cache=shared"
         os.environ[
+            f"MY{EmailProcess.name.upper()}_SQLITE_DBNAME"
+        ] = f"file:{EmailProcess.name.lower()}?mode=memory&cache=shared"
+        os.environ[
             f"{EmailProcess.name.upper()}2_SQLITE_DBNAME"
         ] = f"file:{EmailProcess.name.lower()}2?mode=memory&cache=shared"
         os.environ[
@@ -665,6 +735,7 @@ class TestMultiThreadedRunnerWithSQLiteInMemory(TestMultiThreadedRunner):
     def tearDown(self):
         del os.environ["PERSISTENCE_MODULE"]
         del os.environ[f"{BankAccounts.name.upper()}_SQLITE_DBNAME"]
+        del os.environ[f"MY{EmailProcess.name.upper()}_SQLITE_DBNAME"]
         del os.environ[f"{EmailProcess.name.upper()}_SQLITE_DBNAME"]
         del os.environ[f"{EmailProcess.name.upper()}2_SQLITE_DBNAME"]
         del os.environ["BROKENPROCESSING_SQLITE_DBNAME"]
@@ -697,8 +768,15 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
         drop_postgres_table(db, f"{EmailProcess.name.lower()}2_events")
         drop_postgres_table(db, f"{EmailProcess.name.lower()}2_tracking")
         drop_postgres_table(db, "brokenprocessing_events")
-        drop_postgres_table(db, "brokenconverting_events")
         drop_postgres_table(db, "brokenprocessing_tracking")
+        drop_postgres_table(db, "brokenconverting_events")
+        drop_postgres_table(db, "brokenconverting_tracking")
+        drop_postgres_table(db, "brokenpulling_events")
+        drop_postgres_table(db, "brokenpulling_tracking")
+        drop_postgres_table(db, "commands_events")
+        drop_postgres_table(db, "commands_tracking")
+        drop_postgres_table(db, "results_events")
+        drop_postgres_table(db, "results_tracking")
 
         os.environ["PERSISTENCE_MODULE"] = "eventsourcing.postgres"
 
@@ -714,6 +792,12 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
     def wait_for_runner(self):
         sleep(0.4)
         super().wait_for_runner()
+
+    def test_stop_raises_if_notification_converting_is_broken(self):
+        super().test_stop_raises_if_notification_converting_is_broken()
+
+    def test_system_with_processing_loop(self):
+        super().test_system_with_processing_loop()
 
 
 del RunnerTestCase

@@ -1,7 +1,7 @@
 import json
 from abc import ABC, abstractmethod
 from base64 import b64decode, b64encode
-from typing import Generic, List, Sequence
+from typing import Generic, List, Optional, Sequence
 from uuid import UUID
 
 from eventsourcing.application import NotificationLog, Section, TApplication
@@ -68,7 +68,7 @@ class NotificationLogJSONService(NotificationLogInterface, Generic[TApplication]
     def get_notifications(
         self, start: int, limit: int, topics: Sequence[str] = ()
     ) -> str:
-        notifications = self.app.log.select(start, limit, topics)
+        notifications = self.app.log.select(start=start, limit=limit, topics=topics)
         return json.dumps(
             [
                 {
@@ -118,7 +118,11 @@ class NotificationLogJSONClient(NotificationLog):
         )
 
     def select(
-        self, start: int, limit: int, topics: Sequence[str] = ()
+        self,
+        start: int,
+        limit: int,
+        stop: Optional[int] = None,
+        topics: Sequence[str] = (),
     ) -> List[Notification]:
         """
         Returns a selection
@@ -134,6 +138,8 @@ class NotificationLogJSONClient(NotificationLog):
                 state=b64decode(item["state"].encode("utf8")),
             )
             for item in json.loads(
-                self.interface.get_notifications(start, limit, topics=topics)
+                self.interface.get_notifications(
+                    start=start, limit=limit, topics=topics
+                )
             )
         ]

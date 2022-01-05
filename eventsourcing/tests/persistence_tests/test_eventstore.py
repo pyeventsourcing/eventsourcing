@@ -10,8 +10,10 @@ from eventsourcing.persistence import (
     UUIDAsHex,
 )
 from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatastore
-from eventsourcing.tests.test_aggregate import BankAccount
-from eventsourcing.tests.test_application_with_popo import EmailAddressAsStr
+from eventsourcing.tests.application_tests.test_application_with_popo import (
+    EmailAddressAsStr,
+)
+from eventsourcing.tests.domain_tests.test_aggregate import BankAccount
 
 
 class TestEventStore(TestCase):

@@ -34,6 +34,7 @@ from eventsourcing.persistence import (
     JSONTranscoder,
     Mapper,
     Notification,
+    Recording,
     Tracking,
     Transcoder,
     UUIDAsHex,
@@ -124,6 +125,14 @@ class Repository(Generic[TAggregate]):
             # Return the aggregate.
             return aggregate
 
+    def __contains__(self, item: UUID) -> bool:
+        try:
+            self.get(aggregate_id=item)
+        except AggregateNotFound:
+            return False
+        else:
+            return True
+
 
 @dataclass(frozen=True)
 class Section:
@@ -166,7 +175,11 @@ class NotificationLog(ABC):
 
     @abstractmethod
     def select(
-        self, start: int, limit: int, topics: Sequence[str] = ()
+        self,
+        start: int,
+        limit: int,
+        stop: Optional[int] = None,
+        topics: Sequence[str] = (),
     ) -> List[Notification]:
         """
         Returns a selection
@@ -250,7 +263,11 @@ class LocalNotificationLog(NotificationLog):
         )
 
     def select(
-        self, start: int, limit: int, topics: Sequence[str] = ()
+        self,
+        start: int,
+        limit: int,
+        stop: Optional[int] = None,
+        topics: Sequence[str] = (),
     ) -> List[Notification]:
         """
         Returns a selection
@@ -261,14 +278,16 @@ class LocalNotificationLog(NotificationLog):
             raise ValueError(
                 f"Requested limit {limit} greater than section size {self.section_size}"
             )
-        return self.recorder.select_notifications(start, limit, topics=topics)
+        return self.recorder.select_notifications(
+            start=start, limit=limit, stop=stop, topics=topics
+        )
 
     @staticmethod
     def format_section_id(first_id: int, last_id: int) -> str:
         return "{},{}".format(first_id, last_id)
 
 
-class ProcessEvent:
+class ProcessingEvent:
     """
     Keeps together a :class:`~eventsourcing.persistence.Tracking`
     object, which represents the position of a domain event notification
@@ -308,11 +327,23 @@ class ProcessEvent:
         **kwargs: Any,
     ) -> None:
         """
-        DEPRECATED, in favour of collect(). Will be removed in future version.
+        DEPRECATED, in favour of collect_events(). Will be removed in future version.
 
         Collects pending domain events from the given aggregate.
         """
         self.collect_events(*aggregates, **kwargs)
+
+
+class RecordingEvent:
+    def __init__(
+        self,
+        application_name: str,
+        recordings: List[Recording],
+        previous_max_notification_id: Optional[int],
+    ):
+        self.application_name = application_name
+        self.recordings = recordings
+        self.previous_max_notification_id = previous_max_notification_id
 
 
 class Application(ABC, Generic[TAggregate]):
@@ -350,6 +381,9 @@ class Application(ABC, Generic[TAggregate]):
         self.repository = self.construct_repository()
         self.log = self.construct_notification_log()
         self.closing = Event()
+        self.previous_max_notification_id: Optional[
+            int
+        ] = self.recorder.max_notification_id()
 
     def construct_env(self, name: str, env: Optional[EnvType] = None) -> Environment:
         """
@@ -449,48 +483,35 @@ class Application(ABC, Generic[TAggregate]):
         self,
         *objs: Optional[Union[TAggregate, AggregateEvent[Aggregate]]],
         **kwargs: Any,
-    ) -> List[Notification]:
+    ) -> List[Recording]:
         """
         Collects pending events from given aggregates and
         puts them in the application's event store.
         """
-        process_event = ProcessEvent()
-        process_event.collect_events(*objs, **kwargs)
-        notifications = self.record(process_event)
-        self.take_snapshots(process_event)
-        self.notify(notifications)
-        return notifications
+        processing_event = ProcessingEvent()
+        processing_event.collect_events(*objs, **kwargs)
+        recordings = self._record(processing_event)
+        self._take_snapshots(processing_event)
+        self._notify(recordings)
+        self.notify(processing_event.events)  # Deprecated.
+        return recordings
 
-    def record(self, process_event: ProcessEvent) -> List[Notification]:
+    def _record(self, processing_event: ProcessingEvent) -> List[Recording]:
         """
         Records given process event in the application's recorder.
         """
-        # Send process event data down the stack.
-        returning = self.events.put(
-            process_event.events,
-            tracking=process_event.tracking,
-            **process_event.saved_kwargs,
+        return self.events.put(
+            processing_event.events,
+            tracking=processing_event.tracking,
+            **processing_event.saved_kwargs,
         )
-        notifications = [
-            Notification(
-                id=notification_id,
-                originator_id=stored_event.originator_id,
-                originator_version=stored_event.originator_version,
-                topic=stored_event.topic,
-                state=stored_event.state,
-            )
-            for stored_event, notification_id in returning
-            if notification_id
-            and (not self.notify_topics or stored_event.topic in self.notify_topics)
-        ]
-        return notifications
 
-    def take_snapshots(self, process_event: ProcessEvent) -> None:
+    def _take_snapshots(self, processing_event: ProcessingEvent) -> None:
         # Take snapshots using IDs and types.
         if self.snapshots and self.snapshotting_intervals:
-            for event in process_event.events:
+            for event in processing_event.events:
                 try:
-                    aggregate = process_event.aggregates[event.originator_id]
+                    aggregate = processing_event.aggregates[event.originator_id]
                 except KeyError:
                     continue
                 interval = self.snapshotting_intervals.get(type(aggregate))
@@ -519,10 +540,20 @@ class Application(ABC, Generic[TAggregate]):
             snapshot = Snapshot.take(aggregate)
             self.snapshots.put([snapshot])
 
-    def notify(self, notifications: List[Notification]) -> None:
+    def notify(self, new_events: List[AggregateEvent[Aggregate]]) -> None:
         """
-        Called after new domain events have been saved. This
-        method on this class class doesn't actually do anything,
+        Deprecated.
+
+        Called after new aggregate events have been saved. This
+        method on this class doesn't actually do anything,
+        but this method may be implemented by subclasses that
+        need to take action when new domain events have been saved.
+        """
+
+    def _notify(self, recordings: List[Recording]) -> None:
+        """
+        Called after new aggregate events have been saved. This
+        method on this class doesn't actually do anything,
         but this method may be implemented by subclasses that
         need to take action when new domain events have been saved.
         """

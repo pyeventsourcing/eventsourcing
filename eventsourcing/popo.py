@@ -1,6 +1,6 @@
 from collections import defaultdict
 from threading import Lock
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence
 from uuid import UUID
 
 from eventsourcing.persistence import (
@@ -23,13 +23,13 @@ class POPOAggregateRecorder(AggregateRecorder):
 
     def insert_events(
         self, stored_events: List[StoredEvent], **kwargs: Any
-    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
+    ) -> Optional[Sequence[int]]:
         self._insert_events(stored_events, **kwargs)
-        return [(s, None) for s in stored_events]
+        return None
 
     def _insert_events(
         self, stored_events: List[StoredEvent], **kwargs: Any
-    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
+    ) -> Optional[Sequence[int]]:
         with self._database_lock:
             self._assert_uniqueness(stored_events, **kwargs)
             return self._update_table(stored_events, **kwargs)
@@ -49,15 +49,15 @@ class POPOAggregateRecorder(AggregateRecorder):
 
     def _update_table(
         self, stored_events: List[StoredEvent], **kwargs: Any
-    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
-        returning = []
+    ) -> Optional[Sequence[int]]:
+        notification_ids = []
         for s in stored_events:
             self._stored_events.append(s)
             self._stored_events_index[s.originator_id][s.originator_version] = (
                 len(self._stored_events) - 1
             )
-            returning.append((s, len(self._stored_events)))
-        return returning
+            notification_ids.append(len(self._stored_events))
+        return notification_ids
 
     def select_events(
         self,
@@ -72,9 +72,11 @@ class POPOAggregateRecorder(AggregateRecorder):
             results = []
 
             index = self._stored_events_index[originator_id]
-            positions: Iterable[int] = index.keys()
+            positions: Iterable[int]
             if desc:
-                positions = reversed(list(positions))
+                positions = reversed(index.keys())
+            else:
+                positions = index.keys()
             for p in positions:
                 if gt is not None:
                     if not p > gt:
@@ -92,32 +94,39 @@ class POPOAggregateRecorder(AggregateRecorder):
 class POPOApplicationRecorder(ApplicationRecorder, POPOAggregateRecorder):
     def insert_events(
         self, stored_events: List[StoredEvent], **kwargs: Any
-    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
+    ) -> Optional[Sequence[int]]:
         return self._insert_events(stored_events, **kwargs)
 
     def select_notifications(
-        self, start: int, limit: int, topics: Sequence[str] = ()
+        self,
+        start: int,
+        limit: int,
+        stop: Optional[int] = None,
+        topics: Sequence[str] = (),
     ) -> List[Notification]:
         with self._database_lock:
             results = []
             i = start - 1
             while True:
+                if stop is not None and i > stop - 1:
+                    break
                 try:
                     s = self._stored_events[i]
                 except IndexError:
                     break
                 i += 1
-                if not topics or s.topic in topics:
-                    n = Notification(
-                        id=i,
-                        originator_id=s.originator_id,
-                        originator_version=s.originator_version,
-                        topic=s.topic,
-                        state=s.state,
-                    )
-                    results.append(n)
-                    if len(results) == limit:
-                        break
+                if topics and s.topic not in topics:
+                    continue
+                n = Notification(
+                    id=i,
+                    originator_id=s.originator_id,
+                    originator_version=s.originator_version,
+                    topic=s.topic,
+                    state=s.state,
+                )
+                results.append(n)
+                if len(results) == limit:
+                    break
             return results
 
     def max_notification_id(self) -> int:
@@ -139,17 +148,17 @@ class POPOProcessRecorder(ProcessRecorder, POPOApplicationRecorder):
             last = self.tracking_table.get(tracking.application_name, 0)
             if tracking.notification_id <= last:
                 raise IntegrityError(
-                    f"Tracking info {tracking} less than last recorded: {last}"
+                    f"Tracking info {tracking} not greater than last recorded: {last}"
                 )
 
     def _update_table(
         self, stored_events: List[StoredEvent], **kwargs: Any
-    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
-        returning = super()._update_table(stored_events, **kwargs)
+    ) -> Optional[Sequence[int]]:
+        notification_ids = super()._update_table(stored_events, **kwargs)
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking:
             self.tracking_table[tracking.application_name] = tracking.notification_id
-        return returning
+        return notification_ids
 
     def max_tracking_id(self, application_name: str) -> int:
         with self._database_lock:

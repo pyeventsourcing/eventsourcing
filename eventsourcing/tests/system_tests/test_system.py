@@ -1,21 +1,20 @@
-from typing import List
 from unittest.case import TestCase
-from uuid import uuid4
 
-from eventsourcing.application import Application
-from eventsourcing.persistence import Notification
+from eventsourcing.application import Application, RecordingEvent
+from eventsourcing.domain import Aggregate
 from eventsourcing.system import (
-    AlwaysPull,
     Follower,
     Leader,
-    NeverPull,
     ProcessApplication,
     Promptable,
-    PullGaps,
     System,
 )
-from eventsourcing.tests.test_application_with_popo import BankAccounts
-from eventsourcing.tests.test_processapplication import EmailProcess
+from eventsourcing.tests.application_tests.test_application_with_popo import (
+    BankAccounts,
+)
+from eventsourcing.tests.application_tests.test_processapplication import (
+    EmailProcess,
+)
 from eventsourcing.utils import get_topic
 
 
@@ -115,53 +114,24 @@ class TestLeader(TestCase):
         # Define fixture that receives prompts.
         class FollowerFixture(Promptable):
             def __init__(self):
-                self.num_prompts = 0
+                self.num_received = 0
 
-            def receive_notifications(
-                self, leader_name: str, notifications: List[Notification]
-            ) -> None:
-                self.num_prompts += 1
+            def receive_recording_event(self, recording_event: RecordingEvent) -> None:
+                self.num_received += 1
 
         # Test fixture is working.
         follower = FollowerFixture()
-        follower.receive_notifications("", [])
-        self.assertEqual(follower.num_prompts, 1)
+        follower.receive_recording_event(RecordingEvent("Leader", [], 1))
+        self.assertEqual(follower.num_received, 1)
 
         # Construct leader.
         leader = Leader()
         leader.lead(follower)
 
         # Check follower receives a prompt when there are new events.
-        leader.notify(
-            [
-                Notification(
-                    id=1,
-                    originator_id=uuid4(),
-                    originator_version=0,
-                    topic="topic1",
-                    state=b"",
-                )
-            ]
-        )
-        self.assertEqual(follower.num_prompts, 2)
+        leader.save(Aggregate())
+        self.assertEqual(follower.num_received, 2)
 
         # Check follower doesn't receive prompt when no new events.
         leader.save()
-        self.assertEqual(follower.num_prompts, 2)
-
-
-class TestPullMode(TestCase):
-    def test_always_pull(self):
-        mode = AlwaysPull()
-        self.assertTrue(mode.chose_to_pull(1, 1))
-        self.assertTrue(mode.chose_to_pull(2, 1))
-
-    def test_never_pull(self):
-        mode = NeverPull()
-        self.assertFalse(mode.chose_to_pull(1, 1))
-        self.assertFalse(mode.chose_to_pull(2, 1))
-
-    def test_pull_gaps(self):
-        mode = PullGaps()
-        self.assertFalse(mode.chose_to_pull(1, 1))
-        self.assertTrue(mode.chose_to_pull(2, 1))
+        self.assertEqual(follower.num_received, 2)

@@ -21,8 +21,8 @@ class AggregateRecorderTestCase(TestCase, ABC):
         recorder = self.create_recorder()
 
         # Check we can call insert_events() with an empty list.
-        returning = recorder.insert_events([])
-        self.assertEqual(returning, [])
+        notification_ids = recorder.insert_events([])
+        self.assertEqual(notification_ids, None)
 
         # Select stored events, expect empty list.
         originator_id1 = uuid4()
@@ -38,8 +38,8 @@ class AggregateRecorderTestCase(TestCase, ABC):
             topic="topic1",
             state=b"state1",
         )
-        returning = recorder.insert_events([stored_event1])
-        self.assertEqual(returning, [(stored_event1, None)])
+        notification_ids = recorder.insert_events([stored_event1])
+        self.assertEqual(notification_ids, None)
 
         # Select stored events, expect list of one.
         stored_events = recorder.select_events(originator_id1)
@@ -80,8 +80,8 @@ class AggregateRecorderTestCase(TestCase, ABC):
             topic="topic3",
             state=b"state3",
         )
-        returning = recorder.insert_events([stored_event2, stored_event3])
-        self.assertEqual(returning, [(stored_event2, None), (stored_event3, None)])
+        notification_ids = recorder.insert_events([stored_event2, stored_event3])
+        self.assertEqual(notification_ids, None)
 
         # Check we got what was written.
         stored_events = recorder.select_events(originator_id1)

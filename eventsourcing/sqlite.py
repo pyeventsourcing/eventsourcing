@@ -2,7 +2,7 @@ import sqlite3
 from contextlib import contextmanager
 from sqlite3 import Connection, Cursor
 from types import TracebackType
-from typing import Any, Iterator, List, Optional, Sequence, Tuple, Type, cast
+from typing import Any, Iterator, List, Optional, Sequence, Type, Union, cast
 from uuid import UUID
 
 from eventsourcing.persistence import (
@@ -280,7 +280,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
 
     def insert_events(
         self, stored_events: List[StoredEvent], **kwargs: Any
-    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
+    ) -> Optional[Sequence[int]]:
         with self.datastore.transaction(commit=True) as c:
             return self._insert_events(c, stored_events, **kwargs)
 
@@ -289,7 +289,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         c: BaseCursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
-    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
+    ) -> Optional[Sequence[int]]:
         params = []
         for stored_event in stored_events:
             params.append(
@@ -301,7 +301,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
                 )
             )
         cast(SQLiteCursor, c).executemany(self.insert_events_statement, params)
-        return [(s, None) for s in stored_events]
+        return None
 
     def select_events(
         self,
@@ -356,15 +356,6 @@ class SQLiteApplicationRecorder(
         self.select_max_notification_id_statement = (
             f"SELECT MAX(rowid) FROM {self.events_table_name}"
         )
-        self.select_notifications_statement = (
-            f"SELECT rowid, * FROM {self.events_table_name} "
-            "WHERE rowid>=? ORDER BY rowid LIMIT ?"
-        )
-
-        self.select_notifications_filter_topics_statement = (
-            f"SELECT rowid, * FROM {self.events_table_name} "
-            "WHERE rowid>=? AND topic IN (%s) ORDER BY rowid LIMIT ?"
-        )
 
     def construct_create_table_statements(self) -> List[str]:
         statement = (
@@ -384,7 +375,7 @@ class SQLiteApplicationRecorder(
         c: BaseCursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
-    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
+    ) -> Optional[Sequence[int]]:
         returning = []
         for stored_event in stored_events:
             c.execute(
@@ -396,25 +387,38 @@ class SQLiteApplicationRecorder(
                     stored_event.state,
                 ),
             )
-            returning.append((stored_event, cast(SQLiteCursor, c).lastrowid))
+            returning.append(cast(SQLiteCursor, c).lastrowid)
         return returning
 
     def select_notifications(
-        self, start: int, limit: int, topics: Sequence[str] = ()
+        self,
+        start: int,
+        limit: int,
+        stop: Optional[int] = None,
+        topics: Sequence[str] = (),
     ) -> List[Notification]:
         """
         Returns a list of event notifications
         from 'start', limited by 'limit'.
         """
         notifications = []
+
+        params: List[Union[int, str]] = [start]
+        statement = f"SELECT rowid, * FROM {self.events_table_name} " "WHERE rowid>=? "
+
+        if stop is not None:
+            params.append(stop)
+            statement += "AND rowid<=? "
+
+        if topics:
+            params += list(topics)
+            statement += "AND topic IN (%s) " % ",".join("?" * len(topics))
+
+        params.append(limit)
+        statement += "ORDER BY rowid LIMIT ?"
+
         with self.datastore.transaction(commit=False) as c:
-            if not topics:
-                c.execute(self.select_notifications_statement, [start, limit])
-            else:
-                qst_marks = ",".join("?" * len(topics))
-                stmt = self.select_notifications_filter_topics_statement % qst_marks
-                params = [str(start)] + list(topics) + [str(limit)]
-                c.execute(stmt, params)
+            c.execute(statement, params)
 
             for row in c.fetchall():
                 notifications.append(
@@ -481,7 +485,7 @@ class SQLiteProcessRecorder(
         c: BaseCursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
-    ) -> Sequence[Tuple[StoredEvent, Optional[int]]]:
+    ) -> Optional[Sequence[int]]:
         returning = super()._insert_events(c, stored_events, **kwargs)
         tracking: Optional[Tracking] = kwargs.get("tracking", None)
         if tracking is not None:

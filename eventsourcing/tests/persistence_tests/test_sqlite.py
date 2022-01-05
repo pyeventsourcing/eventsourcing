@@ -26,20 +26,22 @@ from eventsourcing.sqlite import (
     SQLiteProcessRecorder,
     SQLiteTransaction,
 )
-from eventsourcing.tests.base_aggregate_recorder_tests import (
+from eventsourcing.tests.persistence_tests.base_aggregate_recorder_tests import (
     AggregateRecorderTestCase,
 )
-from eventsourcing.tests.base_application_recorder_tests import (
+from eventsourcing.tests.persistence_tests.base_application_recorder_tests import (
     ApplicationRecorderTestCase,
 )
-from eventsourcing.tests.base_infrastructure_tests import (
+from eventsourcing.tests.persistence_tests.base_infrastructure_tests import (
     InfrastructureFactoryTestCase,
 )
-from eventsourcing.tests.base_process_recorder_tests import (
+from eventsourcing.tests.persistence_tests.base_process_recorder_tests import (
     ProcessRecorderTestCase,
 )
+from eventsourcing.tests.persistence_tests.test_connection_pool import (
+    TestConnectionPool,
+)
 from eventsourcing.tests.ramdisk import tmpfile_uris
-from eventsourcing.tests.test_connection_pool import TestConnectionPool
 from eventsourcing.utils import Environment, get_topic
 
 
