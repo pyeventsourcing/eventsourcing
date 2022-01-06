@@ -4,6 +4,11 @@ from unittest import TestCase
 from unittest.mock import Mock
 from uuid import uuid4
 
+from eventsourcing.base_test_cases import (
+    AggregateRecorderTestCase,
+    ApplicationRecorderTestCase,
+    ProcessRecorderTestCase,
+)
 from eventsourcing.persistence import (
     DatabaseError,
     DataError,
@@ -26,23 +31,14 @@ from eventsourcing.sqlite import (
     SQLiteProcessRecorder,
     SQLiteTransaction,
 )
-from eventsourcing.tests.persistence_tests.base_aggregate_recorder_tests import (
-    AggregateRecorderTestCase,
-)
-from eventsourcing.tests.persistence_tests.base_application_recorder_tests import (
-    ApplicationRecorderTestCase,
-)
 from eventsourcing.tests.persistence_tests.base_infrastructure_tests import (
     InfrastructureFactoryTestCase,
-)
-from eventsourcing.tests.persistence_tests.base_process_recorder_tests import (
-    ProcessRecorderTestCase,
 )
 from eventsourcing.tests.persistence_tests.test_connection_pool import (
     TestConnectionPool,
 )
 from eventsourcing.tests.ramdisk import tmpfile_uris
-from eventsourcing.utils import Environment, get_topic
+from eventsourcing.utils import Environment
 
 
 class TestTransaction(TestCase):
@@ -300,7 +296,7 @@ class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase):
 
     def setUp(self) -> None:
         self.env = Environment("TestCase")
-        self.env[InfrastructureFactory.PERSISTENCE_MODULE] = get_topic(Factory)
+        self.env[InfrastructureFactory.PERSISTENCE_MODULE] = Factory.__module__
         self.env[Factory.SQLITE_DBNAME] = ":memory:"
         super().setUp()
 

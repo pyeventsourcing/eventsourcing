@@ -1,6 +1,7 @@
 import zlib
 from abc import ABC, abstractmethod
 from datetime import datetime
+from typing import Optional
 from unittest.case import TestCase
 from uuid import uuid4
 
@@ -18,11 +19,11 @@ from eventsourcing.persistence import (
     ProcessRecorder,
     UUIDAsHex,
 )
-from eventsourcing.utils import get_topic
+from eventsourcing.utils import Environment, get_topic
 
 
 class InfrastructureFactoryTestCase(ABC, TestCase):
-    env = None
+    env: Optional[Environment] = None
 
     @abstractmethod
     def expected_factory_class(self):

@@ -7,6 +7,11 @@ from uuid import uuid4
 import psycopg2
 from psycopg2.extensions import connection
 
+from eventsourcing.base_test_cases import (
+    AggregateRecorderTestCase,
+    ApplicationRecorderTestCase,
+    ProcessRecorderTestCase,
+)
 from eventsourcing.persistence import (
     DatabaseError,
     DataError,
@@ -32,22 +37,13 @@ from eventsourcing.postgres import (
     PostgresProcessRecorder,
     PostgresTransaction,
 )
-from eventsourcing.tests.persistence_tests.base_aggregate_recorder_tests import (
-    AggregateRecorderTestCase,
-)
-from eventsourcing.tests.persistence_tests.base_application_recorder_tests import (
-    ApplicationRecorderTestCase,
-)
 from eventsourcing.tests.persistence_tests.base_infrastructure_tests import (
     InfrastructureFactoryTestCase,
-)
-from eventsourcing.tests.persistence_tests.base_process_recorder_tests import (
-    ProcessRecorderTestCase,
 )
 from eventsourcing.tests.persistence_tests.test_connection_pool import (
     TestConnectionPool,
 )
-from eventsourcing.utils import Environment, get_topic
+from eventsourcing.utils import Environment
 
 
 def pg_close_all_connections(
@@ -1230,7 +1226,7 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
 
     def setUp(self) -> None:
         self.env = Environment("TestCase")
-        self.env[InfrastructureFactory.PERSISTENCE_MODULE] = get_topic(Factory)
+        self.env[InfrastructureFactory.PERSISTENCE_MODULE] = Factory.__module__
         self.env[Factory.POSTGRES_DBNAME] = "eventsourcing"
         self.env[Factory.POSTGRES_HOST] = "127.0.0.1"
         self.env[Factory.POSTGRES_PORT] = "5432"
