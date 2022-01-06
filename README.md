@@ -29,20 +29,21 @@ install Python packages into a Python virtual environment.
 ## Synopsis
 
 Use the library's `Aggregate` base class to define event-sourced aggregates.
-Use the `@event` decorator on command methods to define aggregate events.
+Use the `@event` decorator to specify aggregate events from method signatures.
+The events will be triggered when the methods are called.
 
 ```python
 from eventsourcing.domain import Aggregate, event
 
-class World(Aggregate):
-    @event('Created')
+class Dog(Aggregate):
+    @event('Registered')
     def __init__(self, name):
         self.name = name
-        self.history = []
+        self.tricks = []
 
-    @event('SomethingHappened')
-    def make_it_so(self, what):
-        self.history.append(what)
+    @event('TrickAdded')
+    def add_trick(self, what):
+        self.tricks.append(what)
 ```
 
 Use the library's `Application` class to define an event-sourced application.
@@ -51,55 +52,43 @@ Add command and query methods that use event-sourced aggregates.
 ```python
 from eventsourcing.application import Application
 
-class Universe(Application):
-    def create_world(self, name):
-        world = World(name)
-        self.save(world)
-        return world.id
+class TrainingSchool(Application):
+    def register(self, name):
+        dog = Dog(name)
+        self.save(dog)
+        return dog.id
 
-    def make_it_so(self, world_id, what):
-        world = self.repository.get(world_id)
-        world.make_it_so(what)
-        self.save(world)
+    def add_trick(self, dog_id, trick):
+        dog = self.repository.get(dog_id)
+        dog.add_trick(trick)
+        self.save(dog)
 
-    def get_history(self, world_id):
-        world = self.repository.get(world_id)
-        return world.history
+    def get_tricks(self, dog_id):
+        dog = self.repository.get(dog_id)
+        return dog.tricks
 ```
 
 Construct an application object by calling the application class.
 
 ```python
-application = Universe()
+school = TrainingSchool()
 ```
 
 Evolve the state of the application by calling the
 application command methods.
 
 ```python
-world_id = application.create_world('Earth')
-application.make_it_so(world_id, 'dinosaurs')
-application.make_it_so(world_id, 'trucks')
-application.make_it_so(world_id, 'internet')
+dog_id = school.register('Fido')
+school.add_trick(dog_id, 'roll over')
+school.add_trick(dog_id, 'play dead')
 ```
 
 Access the state of the application by calling the
 application query methods.
 
 ```python
-history = application.get_history(world_id)
-assert history == ['dinosaurs', 'trucks', 'internet']
-```
-
-Configure an application by setting environment variables.
-
-```python
-application = Universe(
-    env={
-        'PERSISTENCE_MODULE': 'eventsourcing.sqlite',
-        'SQLITE_DBNAME': ':memory:',
-    }
-)
+tricks = school.get_tricks(dog_id)
+assert tricks == ['roll over', 'play dead']
 ```
 
 See the library's [documentation](https://eventsourcing.readthedocs.io/)
