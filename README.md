@@ -34,6 +34,7 @@ The events will be triggered when the methods are called.
 
 ```python
 from eventsourcing.domain import Aggregate, event
+from uuid import uuid5, NAMESPACE_URL
 
 class Dog(Aggregate):
     @event('Registered')
@@ -41,9 +42,13 @@ class Dog(Aggregate):
         self.name = name
         self.tricks = []
 
+    @staticmethod
+    def create_id(name):
+        return uuid5(NAMESPACE_URL, f'/dogs/{name}')
+
     @event('TrickAdded')
-    def add_trick(self, what):
-        self.tricks.append(what)
+    def add_trick(self, trick):
+        self.tricks.append(trick)
 ```
 
 Use the library's `Application` class to define an event-sourced application.
@@ -58,17 +63,17 @@ class TrainingSchool(Application):
         self.save(dog)
         return dog.id
 
-    def add_trick(self, dog_id, trick):
-        dog = self.repository.get(dog_id)
+    def add_trick(self, name, trick):
+        dog = self.repository.get(Dog.create_id(name))
         dog.add_trick(trick)
         self.save(dog)
 
-    def get_tricks(self, dog_id):
-        dog = self.repository.get(dog_id)
+    def get_tricks(self, name):
+        dog = self.repository.get(Dog.create_id(name))
         return dog.tricks
 ```
 
-Construct an application object by calling the application class.
+Construct and use the application.
 
 ```python
 school = TrainingSchool()
@@ -78,16 +83,16 @@ Evolve the state of the application by calling the
 application command methods.
 
 ```python
-dog_id = school.register('Fido')
-school.add_trick(dog_id, 'roll over')
-school.add_trick(dog_id, 'play dead')
+school.register('Fido')
+school.add_trick('Fido', 'roll over')
+school.add_trick('Fido', 'play dead')
 ```
 
 Access the state of the application by calling the
 application query methods.
 
 ```python
-tricks = school.get_tricks(dog_id)
+tricks = school.get_tricks('Fido')
 assert tricks == ['roll over', 'play dead']
 ```
 
