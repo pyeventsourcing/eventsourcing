@@ -42,13 +42,13 @@ class Dog(Aggregate):
         self.name = name
         self.tricks = []
 
-    @staticmethod
-    def create_id(name):
-        return uuid5(NAMESPACE_URL, f'/dogs/{name}')
-
     @event('TrickAdded')
     def add_trick(self, trick):
         self.tricks.append(trick)
+
+    @staticmethod
+    def create_id(name):
+        return uuid5(NAMESPACE_URL, f'/dogs/{name}')
 ```
 
 Use the library's `Application` class to define an event-sourced application.
