@@ -26,11 +26,54 @@ install Python packages into a Python virtual environment.
     $ pip install eventsourcing
 
 
-## Synopsis
+## Example
+
+Write a test expressing a use case.
+
+```python
+def test():
+    # Construct application object.
+    school = TrainingSchool()
+
+    # Evolve state of application.
+    school.register_dog('Fido')
+    school.add_trick('Fido', 'roll over')
+    school.add_trick('Fido', 'play dead')
+
+    # Query state of application.
+    tricks = school.get_tricks('Fido')
+    assert tricks == ['roll over', 'play dead']
+```
+
+Use the library's `Application` class to define an event-sourced application.
+Add command and query methods that use event-sourced aggregates.
+
+```python
+from eventsourcing.application import Application
+
+class TrainingSchool(Application):
+    def register_dog(self, name):
+        dog = Dog(name)
+        self.save(dog)
+        return dog.id
+
+    def add_trick(self, name, trick):
+        dog = self._get_dog(name)
+        dog.add_trick(trick)
+        self.save(dog)
+
+    def get_tricks(self, name):
+        dog = self._get_dog(name)
+        return dog.tricks
+
+    def _get_dog(self, name):
+        dog_id = Dog.create_id(name)
+        return self.repository.get(dog_id)
+```
 
 Use the library's `Aggregate` base class to define event-sourced aggregates.
 Use the `@event` decorator to specify aggregate events from method signatures.
-The events will be triggered when the methods are called.
+Aggregate events will be triggered when the methods are called.
 
 ```python
 from eventsourcing.domain import Aggregate, event
@@ -51,49 +94,21 @@ class Dog(Aggregate):
         return uuid5(NAMESPACE_URL, f'/dogs/{name}')
 ```
 
-Use the library's `Application` class to define an event-sourced application.
-Add command and query methods that use event-sourced aggregates.
+Run the test with default "in-memory" infrastructure (plain old Python objects).
 
 ```python
-from eventsourcing.application import Application
-
-class TrainingSchool(Application):
-    def register(self, name):
-        dog = Dog(name)
-        self.save(dog)
-        return dog.id
-
-    def add_trick(self, name, trick):
-        dog = self.repository.get(Dog.create_id(name))
-        dog.add_trick(trick)
-        self.save(dog)
-
-    def get_tricks(self, name):
-        dog = self.repository.get(Dog.create_id(name))
-        return dog.tricks
+test()
 ```
 
-Construct and use the application.
+To use a real database, configure application using environment variables.
 
 ```python
-school = TrainingSchool()
-```
+import os
 
-Evolve the state of the application by calling the
-application command methods.
+os.environ["PERSISTENCE_MODULE"] = 'eventsourcing.sqlite'
+os.environ["SQLITE_DBNAME"] = 'file:training_school?mode=memory&cache=shared'
 
-```python
-school.register('Fido')
-school.add_trick('Fido', 'roll over')
-school.add_trick('Fido', 'play dead')
-```
-
-Access the state of the application by calling the
-application query methods.
-
-```python
-tricks = school.get_tricks('Fido')
-assert tricks == ['roll over', 'play dead']
+test()
 ```
 
 See the library's [documentation](https://eventsourcing.readthedocs.io/)
