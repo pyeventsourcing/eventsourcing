@@ -32,15 +32,15 @@ Write a test expressing a use case.
 
 ```python
 def test():
-    # Construct application object.
+    # Construct application.
     school = TrainingSchool()
 
-    # Evolve state of application.
+    # Evolve state.
     school.register_dog('Fido')
     school.add_trick('Fido', 'roll over')
     school.add_trick('Fido', 'play dead')
 
-    # Query state of application.
+    # Query state.
     tricks = school.get_tricks('Fido')
     assert tricks == ['roll over', 'play dead']
 ```
@@ -55,7 +55,6 @@ class TrainingSchool(Application):
     def register_dog(self, name):
         dog = Dog(name)
         self.save(dog)
-        return dog.id
 
     def add_trick(self, name, trick):
         dog = self._get_dog(name)
@@ -71,9 +70,9 @@ class TrainingSchool(Application):
         return self.repository.get(dog_id)
 ```
 
-Use the library's `Aggregate` base class to define event-sourced aggregates.
+Define event-sourced aggregates with the library's `Aggregate` base class.
 Use the `@event` decorator to specify aggregate events from method signatures.
-Aggregate events will be triggered when the methods are called.
+Aggregate events are triggered when decorated methods are called.
 
 ```python
 from eventsourcing.domain import Aggregate, event
@@ -94,13 +93,13 @@ class Dog(Aggregate):
         return uuid5(NAMESPACE_URL, f'/dogs/{name}')
 ```
 
-Run the test with default "in-memory" infrastructure (plain old Python objects).
+Run the test with the default "in-memory" persistence module (plain old Python objects).
 
 ```python
 test()
 ```
 
-To use a real database, configure application using environment variables.
+To use the application with a real database, configure the application using environment variables.
 
 ```python
 import os
@@ -111,7 +110,7 @@ os.environ["SQLITE_DBNAME"] = 'file:training_school?mode=memory&cache=shared'
 test()
 ```
 
-See the library's [documentation](https://eventsourcing.readthedocs.io/)
+See the [documentation](https://eventsourcing.readthedocs.io/)
 for more information.
 
 ## Features
