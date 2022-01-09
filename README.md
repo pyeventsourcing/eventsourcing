@@ -28,7 +28,7 @@ install Python packages into a Python virtual environment.
 
 ## Example
 
-Write a test expressing a use case.
+First, write a test expressing a use case.
 
 ```python
 def test():
@@ -45,7 +45,7 @@ def test():
     assert tricks == ['roll over', 'play dead']
 ```
 
-Use the library's `Application` class to define an event-sourced application.
+Define an event-sourced application with the `Application` class.
 Add command and query methods that use event-sourced aggregates.
 
 ```python
@@ -70,7 +70,7 @@ class TrainingSchool(Application):
         return self.repository.get(dog_id)
 ```
 
-Define event-sourced aggregates with the library's `Aggregate` base class.
+Define event-sourced aggregates with the `Aggregate` class.
 Use the `@event` decorator to specify aggregate events from method signatures.
 Aggregate events are triggered when decorated methods are called.
 
