@@ -71,7 +71,7 @@ class TrainingSchool(Application):
 ```
 
 Define event-sourced aggregates with the `Aggregate` class.
-Use the `@event` decorator to specify aggregate events from method signatures.
+Specify aggregate events from method signatures with the `@event` decorator.
 Aggregate events are triggered when decorated methods are called.
 
 ```python
