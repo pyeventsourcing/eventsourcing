@@ -28,12 +28,12 @@ install Python packages into a Python virtual environment.
 
 ## Example
 
-Write a test.
+First, write a test following the outside-in approach to software development.
 
 ```python
 def test():
     # Construct application object.
-    school = TrainingSchool()
+    school = DogSchool()
 
     # Evolve application state.
     dog_id = school.register_dog('Fido')
@@ -41,7 +41,7 @@ def test():
     school.add_trick(dog_id, 'play dead')
 
     # Query application state.
-    dog = school.get_dog(dog_id)
+    dog = school.dog_details(dog_id)
     assert dog['name'] == 'Fido'
     assert dog['tricks'] == ['roll over', 'play dead']
 ```
@@ -52,7 +52,7 @@ Add command and query methods that use event-sourced aggregates.
 ```python
 from eventsourcing.application import Application
 
-class TrainingSchool(Application):
+class DogSchool(Application):
     def register_dog(self, name):
         dog = Dog(name)
         self.save(dog)
@@ -63,7 +63,7 @@ class TrainingSchool(Application):
         dog.add_trick(trick)
         self.save(dog)
 
-    def get_dog(self, dog_id):
+    def dog_details(self, dog_id):
         dog = self.repository.get(dog_id)
         return {'name': dog.name, 'tricks': dog.tricks}
 ```
@@ -86,7 +86,7 @@ class Dog(Aggregate):
         self.tricks.append(trick)
 ```
 
-Run the test with the default "in-memory" persistence module (plain old Python objects).
+Run the test with the default "in-memory" persistence module.
 
 ```python
 test()
@@ -98,7 +98,7 @@ To use the application with a real database, configure the application using env
 import os
 
 os.environ["PERSISTENCE_MODULE"] = 'eventsourcing.sqlite'
-os.environ["SQLITE_DBNAME"] = 'file:training_school?mode=memory&cache=shared'
+os.environ["SQLITE_DBNAME"] = 'dog-school.db'
 
 test()
 ```
