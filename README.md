@@ -99,8 +99,8 @@ os.environ["SQLITE_DBNAME"] = 'dog-school.db'
 test()
 ```
 
-Add interfaces that use your application objects. Add indexes or logs to discover aggregate IDs.
-
+Add interfaces that use your application objects.
+Add indexes or logs to discover aggregate IDs.
 See the [documentation](https://eventsourcing.readthedocs.io/) for more information.
 
 ## Features
