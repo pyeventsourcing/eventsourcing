@@ -3,7 +3,7 @@ from unittest.case import TestCase
 from eventsourcing.application import RecordingEvent
 from eventsourcing.dispatch import singledispatchmethod
 from eventsourcing.domain import AggregateEvent
-from eventsourcing.persistence import IntegrityError, Transcoder
+from eventsourcing.persistence import Transcoder
 from eventsourcing.system import (
     Follower,
     Leader,

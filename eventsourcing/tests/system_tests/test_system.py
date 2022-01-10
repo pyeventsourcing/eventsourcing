@@ -1,9 +1,9 @@
 from unittest.case import TestCase
-from uuid import uuid5, NAMESPACE_URL
+from uuid import NAMESPACE_URL, uuid5
 
 from eventsourcing.application import Application, RecordingEvent
 from eventsourcing.domain import Aggregate
-from eventsourcing.persistence import Tracking, IntegrityError
+from eventsourcing.persistence import IntegrityError, Tracking
 from eventsourcing.system import (
     Follower,
     Leader,
@@ -150,7 +150,7 @@ class TestFollower(TestCase):
 
             @staticmethod
             def create_id(to: str):
-                return uuid5(NAMESPACE_URL, f'/emails/{to}')
+                return uuid5(NAMESPACE_URL, f"/emails/{to}")
 
         class UUID5EmailProcess(EmailProcess):
             def policy(self, domain_event, processing_event):
