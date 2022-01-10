@@ -70,6 +70,7 @@ class TestDocs(TestCase):
 
     def tearDown(self) -> None:
         self.clean_env()
+        os.remove('dog-school.db')
 
     def clean_env(self):
         keys = [
