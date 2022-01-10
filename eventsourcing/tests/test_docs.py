@@ -70,7 +70,6 @@ class TestDocs(TestCase):
 
     def tearDown(self) -> None:
         self.clean_env()
-        os.remove('dog-school.db')
 
     def clean_env(self):
         keys = [
@@ -103,7 +102,11 @@ class TestDocs(TestCase):
         path = join(base_dir, "README.md")
         if not os.path.exists(path):
             self.skipTest("Skipped test, README file not found: {}".format(path))
-        self.check_code_snippets_in_file(path)
+
+        try:
+            self.check_code_snippets_in_file(path)
+        finally:
+            os.remove("dog-school.db")
 
         # path = join(base_dir, "README_example_with_axon.md")
         # if not os.path.exists(path):
