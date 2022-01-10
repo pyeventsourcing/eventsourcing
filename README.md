@@ -46,7 +46,7 @@ def test():
     assert dog['tricks'] == ['roll over', 'play dead']
 ```
 
-Define applications with the `Application` class.
+Define application objects with the `Application` class.
 
 ```python
 from eventsourcing.application import Application
@@ -99,10 +99,9 @@ os.environ["SQLITE_DBNAME"] = 'dog-school.db'
 test()
 ```
 
-Add interfaces that use applications. Add indexes or logs to discover aggregate IDs.
+Add interfaces that use your application objects. Add indexes or logs to discover aggregate IDs.
 
-See the [documentation](https://eventsourcing.readthedocs.io/)
-for more information.
+See the [documentation](https://eventsourcing.readthedocs.io/) for more information.
 
 ## Features
 
