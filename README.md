@@ -28,7 +28,7 @@ install Python packages into a Python virtual environment.
 
 ## Example
 
-Write a test, following the outside-in approach to software development.
+Write tests following the outside-in approach to software development.
 
 ```python
 def test():
@@ -46,7 +46,7 @@ def test():
     assert dog['tricks'] == ['roll over', 'play dead']
 ```
 
-Define an application with the `Application` class.
+Define applications with the `Application` class.
 
 ```python
 from eventsourcing.application import Application
@@ -67,8 +67,7 @@ class DogSchool(Application):
         return {'name': dog.name, 'tricks': dog.tricks}
 ```
 
-Define an aggregate with the `Aggregate` class.
-Specify aggregate events from method signatures with the `@event` decorator.
+Define aggregates with the `Aggregate` class and the `@event` decorator.
 
 ```python
 from eventsourcing.domain import Aggregate, event
@@ -84,13 +83,12 @@ class Dog(Aggregate):
         self.tricks.append(trick)
 ```
 
-Run the test with the default "in-memory" persistence module.
+Run tests with the default "in-memory" persistence module.
 
 ```python
 test()
 ```
-
-To use the application with a real database, configure with environment variables.
+Configure environment variables to run the application with a real database.
 
 ```python
 import os
@@ -101,8 +99,7 @@ os.environ["SQLITE_DBNAME"] = 'dog-school.db'
 test()
 ```
 
-Add an interface that uses the application object. Add an index or an event
-log to discover aggregate IDs.
+Add interfaces that use applications. Add indexes or logs to discover aggregate IDs.
 
 See the [documentation](https://eventsourcing.readthedocs.io/)
 for more information.
