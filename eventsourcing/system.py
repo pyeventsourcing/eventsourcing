@@ -30,6 +30,7 @@ from eventsourcing.application import (
 )
 from eventsourcing.domain import Aggregate, AggregateEvent, TAggregate
 from eventsourcing.persistence import (
+    IntegrityError,
     Mapper,
     Notification,
     ProcessRecorder,
@@ -168,10 +169,19 @@ class Follower(Application[TAggregate]):
         processing_event = ProcessingEvent(tracking=tracking)
         with self.processing_lock:
             self.policy(domain_event, processing_event)
-            recordings = self._record(processing_event)
-            self._take_snapshots(processing_event)
-            self.notify(processing_event.events)
-            self._notify(recordings)
+            try:
+                recordings = self._record(processing_event)
+            except IntegrityError:
+                if tracking.notification_id <= self.recorder.max_tracking_id(
+                    tracking.application_name
+                ):
+                    pass
+                else:
+                    raise
+            else:
+                self._take_snapshots(processing_event)
+                self.notify(processing_event.events)
+                self._notify(recordings)
 
     @abstractmethod
     def policy(

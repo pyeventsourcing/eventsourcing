@@ -387,7 +387,7 @@ class ApplicationRecorderTestCase(TestCase, ABC):
                     return
                 ended = datetime.now()
                 duration = (ended - started).total_seconds()
-                print(f"Error after starting {duration}")
+                print(f"Error after starting {duration}", e)
                 errors.append(e)
             else:
                 ended = datetime.now()

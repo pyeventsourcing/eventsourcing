@@ -49,9 +49,9 @@ class TestProcessApplication(TestCase):
         # Check we have processed the first event.
         self.assertEqual(email_process.recorder.max_tracking_id(BankAccounts.name), 1)
 
-        # Check trying to reprocess the first event causes an IntegrityError.
-        with self.assertRaises(IntegrityError):
-            email_process.pull_and_process(BankAccounts.name, start=1)
+        # Check reprocessing first event changes nothing (swallows IntegrityError).
+        email_process.pull_and_process(BankAccounts.name, start=1)
+        self.assertEqual(email_process.recorder.max_tracking_id(BankAccounts.name), 1)
 
         # Check we can continue from the next position.
         email_process.pull_and_process(BankAccounts.name, start=2)

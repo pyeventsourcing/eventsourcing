@@ -1,7 +1,9 @@
 from unittest.case import TestCase
+from uuid import uuid5, NAMESPACE_URL
 
 from eventsourcing.application import Application, RecordingEvent
 from eventsourcing.domain import Aggregate
+from eventsourcing.persistence import Tracking, IntegrityError
 from eventsourcing.system import (
     Follower,
     Leader,
@@ -15,6 +17,7 @@ from eventsourcing.tests.application_tests.test_application_with_popo import (
 from eventsourcing.tests.application_tests.test_processapplication import (
     EmailProcess,
 )
+from eventsourcing.tests.domain_tests.test_aggregate import BankAccount
 from eventsourcing.utils import get_topic
 
 
@@ -135,3 +138,68 @@ class TestLeader(TestCase):
         # Check follower doesn't receive prompt when no new events.
         leader.save()
         self.assertEqual(follower.num_received, 2)
+
+
+class TestFollower(TestCase):
+    def test_process_event(self):
+        class UUID5EmailNotification(Aggregate):
+            def __init__(self, to, subject, message):
+                self.to = to
+                self.subject = subject
+                self.message = message
+
+            @staticmethod
+            def create_id(to: str):
+                return uuid5(NAMESPACE_URL, f'/emails/{to}')
+
+        class UUID5EmailProcess(EmailProcess):
+            def policy(self, domain_event, processing_event):
+                if isinstance(domain_event, BankAccount.Opened):
+                    notification = UUID5EmailNotification(
+                        to=domain_event.email_address,
+                        subject="Your New Account",
+                        message="Dear {}, ...".format(domain_event.full_name),
+                    )
+                    processing_event.collect_events(notification)
+
+        bank_accounts = BankAccounts()
+        email_process = UUID5EmailProcess()
+
+        account = BankAccount.open(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+
+        recordings = bank_accounts.save(account)
+
+        self.assertEqual(len(recordings), 1)
+
+        aggregate_event = recordings[0].aggregate_event
+        notification = recordings[0].notification
+        tracking = Tracking(bank_accounts.name, notification.id)
+
+        # Process the event.
+        email_process.process_event(aggregate_event, tracking)
+        self.assertEqual(
+            email_process.recorder.max_tracking_id(bank_accounts.name), notification.id
+        )
+
+        # Process the event again, ignore tracking integrity error.
+        email_process.process_event(aggregate_event, tracking)
+        self.assertEqual(
+            email_process.recorder.max_tracking_id(bank_accounts.name), notification.id
+        )
+
+        # Create another event that will cause conflict with email processing.
+        account = BankAccount.open(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+        recordings = bank_accounts.save(account)
+
+        # Process the event and expect an integrity error.
+        aggregate_event = recordings[0].aggregate_event
+        notification = recordings[0].notification
+        tracking = Tracking(bank_accounts.name, notification.id)
+        with self.assertRaises(IntegrityError):
+            email_process.process_event(aggregate_event, tracking)
