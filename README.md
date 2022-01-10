@@ -28,7 +28,7 @@ install Python packages into a Python virtual environment.
 
 ## Example
 
-First, write a test following the outside-in approach to software development.
+Write a test, following the outside-in approach to software development.
 
 ```python
 def test():
@@ -102,6 +102,9 @@ os.environ["SQLITE_DBNAME"] = 'dog-school.db'
 
 test()
 ```
+
+Add an interface that uses the application object. Add an index or an event
+log to discover aggregate IDs.
 
 See the [documentation](https://eventsourcing.readthedocs.io/)
 for more information.
