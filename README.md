@@ -28,21 +28,22 @@ install Python packages into a Python virtual environment.
 
 ## Example
 
-First, write a test expressing a use case.
+Write a test.
 
 ```python
 def test():
-    # Construct application.
+    # Construct application object.
     school = TrainingSchool()
 
-    # Evolve state.
-    school.register_dog('Fido')
-    school.add_trick('Fido', 'roll over')
-    school.add_trick('Fido', 'play dead')
+    # Evolve application state.
+    dog_id = school.register_dog('Fido')
+    school.add_trick(dog_id, 'roll over')
+    school.add_trick(dog_id, 'play dead')
 
-    # Query state.
-    tricks = school.get_tricks('Fido')
-    assert tricks == ['roll over', 'play dead']
+    # Query application state.
+    dog = school.get_dog(dog_id)
+    assert dog['name'] == 'Fido'
+    assert dog['tricks'] == ['roll over', 'play dead']
 ```
 
 Define an event-sourced application with the `Application` class.
@@ -55,19 +56,16 @@ class TrainingSchool(Application):
     def register_dog(self, name):
         dog = Dog(name)
         self.save(dog)
+        return dog.id
 
-    def add_trick(self, name, trick):
-        dog = self._get_dog(name)
+    def add_trick(self, dog_id, trick):
+        dog = self.repository.get(dog_id)
         dog.add_trick(trick)
         self.save(dog)
 
-    def get_tricks(self, name):
-        dog = self._get_dog(name)
-        return dog.tricks
-
-    def _get_dog(self, name):
-        dog_id = Dog.create_id(name)
-        return self.repository.get(dog_id)
+    def get_dog(self, dog_id):
+        dog = self.repository.get(dog_id)
+        return {'name': dog.name, 'tricks': dog.tricks}
 ```
 
 Define event-sourced aggregates with the `Aggregate` class.
@@ -76,7 +74,6 @@ Aggregate events are triggered when decorated methods are called.
 
 ```python
 from eventsourcing.domain import Aggregate, event
-from uuid import uuid5, NAMESPACE_URL
 
 class Dog(Aggregate):
     @event('Registered')
@@ -87,10 +84,6 @@ class Dog(Aggregate):
     @event('TrickAdded')
     def add_trick(self, trick):
         self.tricks.append(trick)
-
-    @staticmethod
-    def create_id(name):
-        return uuid5(NAMESPACE_URL, f'/dogs/{name}')
 ```
 
 Run the test with the default "in-memory" persistence module (plain old Python objects).
