@@ -46,8 +46,7 @@ def test():
     assert dog['tricks'] == ['roll over', 'play dead']
 ```
 
-Define an event-sourced application with the `Application` class.
-Add command and query methods that use event-sourced aggregates.
+Define an application with the `Application` class.
 
 ```python
 from eventsourcing.application import Application
@@ -68,9 +67,8 @@ class DogSchool(Application):
         return {'name': dog.name, 'tricks': dog.tricks}
 ```
 
-Define event-sourced aggregates with the `Aggregate` class.
+Define an aggregate with the `Aggregate` class.
 Specify aggregate events from method signatures with the `@event` decorator.
-Aggregate events are triggered when decorated methods are called.
 
 ```python
 from eventsourcing.domain import Aggregate, event
