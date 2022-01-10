@@ -88,7 +88,7 @@ Run tests with the default "in-memory" persistence module.
 ```python
 test()
 ```
-Configure environment variables to run the application with a real database.
+Configure environment variables to run applications with real databases.
 
 ```python
 import os
