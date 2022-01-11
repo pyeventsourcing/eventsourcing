@@ -28,7 +28,9 @@ install Python packages into a Python virtual environment.
 
 ## Example
 
-Write tests following an outside-in approach to software development.
+The example below follows an outside-in approach to software development.
+
+First, write a test.
 
 ```python
 def test():
