@@ -1,13 +1,13 @@
 import os
 
-from eventsourcing.tests.application_tests.test_application_with_popo import (
+from eventsourcing.tests.example_application import (
     TIMEIT_FACTOR,
-    TestApplicationWithPOPO,
+    ExampleApplicationTestCase,
 )
 from eventsourcing.tests.ramdisk import tmpfile_uris
 
 
-class TestApplicationWithSQLiteFile(TestApplicationWithPOPO):
+class TestApplicationWithSQLiteFile(ExampleApplicationTestCase):
     timeit_number = 30 * TIMEIT_FACTOR
     expected_factory_topic = "eventsourcing.sqlite:Factory"
 
@@ -27,7 +27,7 @@ class TestApplicationWithSQLiteFile(TestApplicationWithPOPO):
         super().tearDown()
 
 
-class TestApplicationWithSQLiteInMemory(TestApplicationWithPOPO):
+class TestApplicationWithSQLiteInMemory(ExampleApplicationTestCase):
     timeit_number = 30 * TIMEIT_FACTOR
     expected_factory_topic = "eventsourcing.sqlite:Factory"
 
@@ -47,4 +47,4 @@ class TestApplicationWithSQLiteInMemory(TestApplicationWithPOPO):
         super().test_example_application()
 
 
-del TestApplicationWithPOPO
+del ExampleApplicationTestCase

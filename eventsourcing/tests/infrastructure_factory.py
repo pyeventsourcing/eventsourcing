@@ -2,7 +2,7 @@ import zlib
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Optional
-from unittest.case import TestCase
+from unittest import TestCase
 from uuid import uuid4
 
 from eventsourcing.cipher import AESCipher

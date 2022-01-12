@@ -4,11 +4,6 @@ from unittest import TestCase
 from unittest.mock import Mock
 from uuid import uuid4
 
-from eventsourcing.base_test_cases import (
-    AggregateRecorderTestCase,
-    ApplicationRecorderTestCase,
-    ProcessRecorderTestCase,
-)
 from eventsourcing.persistence import (
     DatabaseError,
     DataError,
@@ -31,13 +26,18 @@ from eventsourcing.sqlite import (
     SQLiteProcessRecorder,
     SQLiteTransaction,
 )
-from eventsourcing.tests.persistence_tests.base_infrastructure_tests import (
+from eventsourcing.tests.infrastructure_factory import (
     InfrastructureFactoryTestCase,
 )
 from eventsourcing.tests.persistence_tests.test_connection_pool import (
     TestConnectionPool,
 )
 from eventsourcing.tests.ramdisk import tmpfile_uris
+from eventsourcing.tests.recorders import (
+    AggregateRecorderTestCase,
+    ApplicationRecorderTestCase,
+    ProcessRecorderTestCase,
+)
 from eventsourcing.utils import Environment
 
 

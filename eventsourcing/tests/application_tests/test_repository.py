@@ -16,10 +16,8 @@ from eventsourcing.persistence import (
 )
 from eventsourcing.popo import POPOAggregateRecorder
 from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatastore
-from eventsourcing.tests.application_tests.test_application_with_popo import (
-    EmailAddressAsStr,
-)
-from eventsourcing.tests.domain_tests.test_aggregate import BankAccount
+from eventsourcing.tests.example_aggregate import BankAccount
+from eventsourcing.tests.example_application import EmailAddressAsStr
 from eventsourcing.utils import get_topic
 
 

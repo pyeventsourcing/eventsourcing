@@ -36,7 +36,7 @@ A library for event sourcing in Python.
 
 packages = [
     "eventsourcing",
-    # "eventsourcing.tests",
+    "eventsourcing.tests",
     # "eventsourcing.examples",
     # "eventsourcing.examples.bankaccounts",
     # "eventsourcing.examples.cargoshipping",
