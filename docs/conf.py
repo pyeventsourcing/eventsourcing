@@ -23,7 +23,7 @@ from eventsourcing import __version__
 # -- Project information -----------------------------------------------------
 
 project = 'eventsourcing'
-copyright = '2021, John Bywater'
+copyright = '2022, John Bywater'
 author = 'John Bywater'
 
 # The full version, including alpha/beta/rc tags
