@@ -1,6 +1,39 @@
 from unittest import TestCase
 
-from eventsourcing.application import LRUCache
+from eventsourcing.application import Cache, LRUCache
+
+
+class TestCache(TestCase):
+    def test_put_get(self):
+        cache = Cache()
+
+        with self.assertRaises(KeyError):
+            cache.get(1)
+
+        cache.put(1, 1)
+        self.assertEqual(cache.get(1), 1)
+
+        cache.put(2, 2)
+        self.assertEqual(1, cache.get(1))
+        self.assertEqual(2, cache.get(2))
+
+        cache.put(3, 3)
+        self.assertEqual(3, cache.get(3))
+        self.assertEqual(2, cache.get(2))
+        self.assertEqual(1, cache.get(1))
+
+        cache.put(1, 2)
+        self.assertEqual(2, cache.get(1))
+        cache.put(1, 3)
+        self.assertEqual(3, cache.get(1))
+
+        cache.get(1, evict=True)
+        with self.assertRaises(KeyError):
+            cache.get(1)
+
+        cache.put(1, None)
+        with self.assertRaises(KeyError):
+            cache.get(1)
 
 
 class TestLRUCache(TestCase):
@@ -25,8 +58,12 @@ class TestLRUCache(TestCase):
         self.assertEqual(3, cache.get(3))
         self.assertEqual(2, cache.get(2))
 
-        with self.assertRaises(KeyError):
-            cache.get(1)
+        cache.put(1, 1)
+        self.assertEqual(1, cache.get(1))
+        cache.put(1, 2)
+        self.assertEqual(2, cache.get(1))
+        cache.put(1, 3)
+        self.assertEqual(3, cache.get(1))
 
     def test_put_get_evict_recent(self):
         cache = LRUCache(maxsize=3)

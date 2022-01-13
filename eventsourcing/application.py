@@ -761,7 +761,7 @@ class AggregateNotFound(Exception):
 
 class EventSourcedLog(Generic[TDomainEvent]):
     """
-    Stored a sequence of domain events, like an aggregate.
+    Stores a sequence of domain events, like an aggregate.
     But unlike an aggregate the events can be triggered
     and selected for use in the application without
     reconstructing a current state from all events.
@@ -786,10 +786,10 @@ class EventSourcedLog(Generic[TDomainEvent]):
     ) -> TDomainEvent:
         if next_originator_version is None:
             last_logged = self.get_last()
-            if last_logged:
-                next_originator_version = last_logged.originator_version + 1
-            else:
+            if last_logged is None:
                 next_originator_version = Aggregate.INITIAL_VERSION
+            else:
+                next_originator_version = last_logged.originator_version + 1
 
         return self.logged_cls(
             originator_id=self.originator_id,

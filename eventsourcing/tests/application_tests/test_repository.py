@@ -4,7 +4,12 @@ from functools import reduce
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.application import AggregateNotFound, Repository
+from eventsourcing.application import (
+    AggregateNotFound,
+    Cache,
+    LRUCache,
+    Repository,
+)
 from eventsourcing.domain import TZINFO, Aggregate, Snapshot
 from eventsourcing.persistence import (
     DatetimeAsISO,
@@ -318,3 +323,126 @@ class TestRepository(TestCase):
         repository: Repository = Repository(event_store)
         self.assertTrue(aggregate.id in repository)
         self.assertFalse(uuid4() in repository)
+
+    def test_cache_maxsize_zero(self):
+        transcoder = JSONTranscoder()
+        transcoder.register(UUIDAsHex())
+        transcoder.register(DecimalAsStr())
+        transcoder.register(DatetimeAsISO())
+        transcoder.register(EmailAddressAsStr())
+
+        event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
+        event_recorder.create_table()
+        event_store = EventStore(
+            mapper=Mapper(transcoder=transcoder),
+            recorder=event_recorder,
+        )
+        repository: Repository = Repository(event_store, cache_maxsize=0)
+        self.assertEqual(type(repository.cache), Cache)
+
+        aggregate = Aggregate()
+
+        self.assertFalse(aggregate.id in repository)
+        event_store.put(aggregate.collect_events())
+        self.assertTrue(aggregate.id in repository)
+
+        self.assertEqual(1, repository.get(aggregate.id).version)
+
+        aggregate.trigger_event(Aggregate.Event)
+        event_store.put(aggregate.collect_events())
+        self.assertEqual(2, repository.get(aggregate.id).version)
+
+    def test_cache_maxsize_nonzero(self):
+        transcoder = JSONTranscoder()
+        transcoder.register(UUIDAsHex())
+        transcoder.register(DecimalAsStr())
+        transcoder.register(DatetimeAsISO())
+        transcoder.register(EmailAddressAsStr())
+
+        event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
+        event_recorder.create_table()
+        event_store = EventStore(
+            mapper=Mapper(transcoder=transcoder),
+            recorder=event_recorder,
+        )
+        repository: Repository = Repository(event_store, cache_maxsize=2)
+        self.assertEqual(type(repository.cache), LRUCache)
+
+        aggregate1 = Aggregate()
+        self.assertFalse(aggregate1.id in repository)
+        event_store.put(aggregate1.collect_events())
+        self.assertTrue(aggregate1.id in repository)
+
+        aggregate2 = Aggregate()
+        self.assertFalse(aggregate2.id in repository)
+        event_store.put(aggregate2.collect_events())
+        self.assertTrue(aggregate2.id in repository)
+
+        aggregate3 = Aggregate()
+        self.assertFalse(aggregate3.id in repository)
+        event_store.put(aggregate3.collect_events())
+        self.assertTrue(aggregate3.id in repository)
+
+        self.assertFalse(aggregate1.id in repository.cache.cache)
+
+        self.assertEqual(1, repository.get(aggregate1.id).version)
+        self.assertEqual(1, repository.get(aggregate2.id).version)
+        self.assertEqual(1, repository.get(aggregate3.id).version)
+
+        aggregate1.trigger_event(Aggregate.Event)
+        event_store.put(aggregate1.collect_events())
+        self.assertEqual(2, repository.get(aggregate1.id).version)
+
+    def test_cache_fastforward_false(self):
+        transcoder = JSONTranscoder()
+        transcoder.register(UUIDAsHex())
+        transcoder.register(DecimalAsStr())
+        transcoder.register(DatetimeAsISO())
+        transcoder.register(EmailAddressAsStr())
+
+        event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
+        event_recorder.create_table()
+        event_store = EventStore(
+            mapper=Mapper(transcoder=transcoder),
+            recorder=event_recorder,
+        )
+        repository: Repository = Repository(
+            event_store,
+            cache_maxsize=2,
+            fastforward=False,
+        )
+
+        aggregate = Aggregate()
+        event_store.put(aggregate.collect_events())
+        self.assertEqual(1, repository.get(aggregate.id).version)
+
+        aggregate.trigger_event(Aggregate.Event)
+        event_store.put(aggregate.collect_events())
+        self.assertEqual(1, repository.get(aggregate.id).version)
+
+    def test_cache_raises_aggregate_not_found_when_projector_func_returns_none(self):
+        transcoder = JSONTranscoder()
+        transcoder.register(UUIDAsHex())
+        transcoder.register(DecimalAsStr())
+        transcoder.register(DatetimeAsISO())
+        transcoder.register(EmailAddressAsStr())
+
+        event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
+        event_recorder.create_table()
+        event_store = EventStore(
+            mapper=Mapper(transcoder=transcoder),
+            recorder=event_recorder,
+        )
+        repository: Repository = Repository(
+            event_store,
+            cache_maxsize=2,
+        )
+
+        aggregate = Aggregate()
+        event_store.put(aggregate.collect_events())
+        self.assertEqual(1, repository.get(aggregate.id).version)
+
+        aggregate.trigger_event(Aggregate.Event)
+        event_store.put(aggregate.collect_events())
+        with self.assertRaises(AggregateNotFound):
+            repository.get(aggregate.id, projector_func=lambda _, __: None)

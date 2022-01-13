@@ -98,6 +98,13 @@ class TestApplication(TestCase):
             ),
         )
 
+    def test_application_with_cached_aggregates(self):
+        app = Application(env={"AGGREGATE_CACHE_MAXSIZE": "10"})
+
+        aggregate = Aggregate()
+        app.save(aggregate)
+        self.assertEqual(aggregate, app.repository.cache.get(aggregate.id))
+
 
 class TestApplicationWithPOPO(ExampleApplicationTestCase):
     expected_factory_topic = "eventsourcing.popo:Factory"
