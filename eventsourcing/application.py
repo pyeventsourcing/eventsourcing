@@ -1,8 +1,9 @@
 import os
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from dataclasses import dataclass
 from itertools import chain
-from threading import Event
+from threading import Event, RLock
 from typing import (
     Any,
     Callable,
@@ -39,7 +40,7 @@ from eventsourcing.persistence import (
     Transcoder,
     UUIDAsHex,
 )
-from eventsourcing.utils import Environment, EnvType
+from eventsourcing.utils import Environment, EnvType, strtobool
 
 T = TypeVar("T")
 ProjectorFunctionType = Callable[[Optional[T], Iterable[DomainEvent[T]]], Optional[T]]
@@ -58,6 +59,127 @@ def mutate_aggregate(
     return aggregate
 
 
+_S = TypeVar("_S")
+_T = TypeVar("_T")
+
+
+class Cache(Generic[_S, _T]):
+    def __init__(self):
+        self.cache: Dict[_S, _T] = {}
+
+    def get(self, key: _S, evict: bool = False) -> _T:
+        if evict:
+            return self.cache.pop(key)
+        else:
+            return self.cache[key]
+
+    def put(self, key: _S, value: _T) -> Optional[_T]:
+        if value is not None:
+            self.cache[key] = value
+        return None
+
+
+class LRUCache(Cache[_S, _T]):
+    """
+    Size limited caching that tracks accesses by recency.
+
+    This is basically copied from functools.lru_cache. But
+    we need to know when there was a cache hit so we can
+    fast-forward the aggregate with new stored events.
+    """
+
+    sentinel = object()  # unique object used to signal cache misses
+    PREV, NEXT, KEY, RESULT = 0, 1, 2, 3  # names for the link fields
+
+    def __init__(self, maxsize: int):
+        # Constants shared by all lru cache instances:
+        super().__init__()
+        self.maxsize = maxsize
+        self.full = False
+        self.lock = RLock()  # because linkedlist updates aren't threadsafe
+        self.root = []  # root of the circular doubly linked list
+        self.clear()
+
+    def clear(self):
+        self.root[:] = [
+            self.root,
+            self.root,
+            None,
+            None,
+        ]  # initialize by pointing to self
+
+    def get(self, key: _S, evict=False) -> _T:
+        with self.lock:
+            link = self.cache.get(key)
+            if link is not None:
+                link_prev, link_next, _key, result = link
+                if not evict:
+                    # Move the link to the front of the circular queue.
+                    link_prev[self.NEXT] = link_next
+                    link_next[self.PREV] = link_prev
+                    last = self.root[self.PREV]
+                    last[self.NEXT] = self.root[self.PREV] = link
+                    link[self.PREV] = last
+                    link[self.NEXT] = self.root
+                else:
+                    # Remove the link.
+                    link_prev[self.NEXT] = link_next
+                    link_next[self.PREV] = link_prev
+                    del self.cache[key]
+                    self.full = self.cache.__len__() >= self.maxsize
+
+                return result
+            else:
+                raise KeyError
+
+    def put(self, key: _S, value: _T) -> Optional[Any]:
+        evicted_key = None
+        evicted_value = None
+        with self.lock:
+            link = self.cache.get(key)
+            if link is not None:
+                # Set value.
+                link[self.RESULT] = value
+                # Move the link to the front of the circular queue.
+                link_prev, link_next, _key, result = link
+                link_prev[self.NEXT] = link_next
+                link_next[self.PREV] = link_prev
+                last = self.root[self.PREV]
+                last[self.NEXT] = self.root[self.PREV] = link
+                link[self.PREV] = last
+                link[self.NEXT] = self.root
+            elif self.full:
+                # Use the old root to store the new key and result.
+                oldroot = self.root
+                oldroot[self.KEY] = key
+                oldroot[self.RESULT] = value
+                # Empty the oldest link and make it the new root.
+                # Keep a reference to the old key and old result to
+                # prevent their ref counts from going to zero during the
+                # update. That will prevent potentially arbitrary object
+                # clean-up code (i.e. __del__) from running while we're
+                # still adjusting the links.
+                self.root = oldroot[self.NEXT]
+                evicted_key = self.root[self.KEY]
+                evicted_value = self.root[self.RESULT]
+                self.root[self.KEY] = self.root[self.RESULT] = None
+                # Now update the cache dictionary.
+                del self.cache[evicted_key]
+                # Save the potentially reentrant cache[key] assignment
+                # for last, after the root and links have been put in
+                # a consistent state.
+                self.cache[key] = oldroot
+            else:
+                # Put result in a new link at the front of the queue.
+                last = self.root[self.PREV]
+                link = [last, self.root, key, value]
+                last[self.NEXT] = self.root[self.PREV] = self.cache[key] = link
+                # Use the __len__() bound method instead of the len() function
+                # which could potentially be wrapped in an lru_cache itself.
+                self.full = self.cache.__len__() >= self.maxsize
+        return evicted_key, evicted_value
+
+
 class Repository(Generic[TAggregate]):
     """Reconstructs aggregates from events in an
     :class:`~eventsourcing.persistence.EventStore`,
@@ -68,6 +190,8 @@ class Repository(Generic[TAggregate]):
         self,
         event_store: EventStore[AggregateEvent[TAggregate]],
         snapshot_store: Optional[EventStore[Snapshot[TAggregate]]] = None,
+        cache_maxsize: Optional[int] = None,
+        fastforward: bool = True,
     ):
         """
         Initialises repository with given event store (an
@@ -80,15 +204,56 @@ class Repository(Generic[TAggregate]):
         self.event_store = event_store
         self.snapshot_store = snapshot_store
 
+        if cache_maxsize is None:
+            self.cache: Optional[Cache[UUID, TAggregate]] = None
+        elif cache_maxsize <= 0:
+            self.cache = Cache()
+        else:
+            self.cache = LRUCache(maxsize=cache_maxsize)
+        self.fastforward = fastforward
+
     def get(
         self,
         aggregate_id: UUID,
         version: Optional[int] = None,
         projector_func: ProjectorFunctionType[TAggregate] = mutate_aggregate,
     ) -> TAggregate:
+        if self.cache and version is None:
+            try:
+                # Look for aggregate in the cache.
+                aggregate = self.cache.get(aggregate_id)
+            except KeyError:
+                # Reconstruct aggregate from stored events.
+                aggregate = self._reconstruct_aggregate(
+                    aggregate_id, projector_func=projector_func
+                )
+                # Put aggregate in the cache.
+                self.cache.put(aggregate_id, aggregate)
+            else:
+                if self.fastforward:
+                    # Fast forward cached aggregate.
+                    new_events = self.event_store.get(
+                        originator_id=aggregate_id, gt=aggregate.version
+                    )
+                    aggregate = mutate_aggregate(aggregate, new_events)
+            # Deep copy cached aggregate, so bad mutations don't corrupt cache.
+            aggregate = deepcopy(aggregate)
+        else:
+            # Reconstruct historical version of aggregate from stored events.
+            aggregate = self._reconstruct_aggregate(
+                aggregate_id, version=version, projector_func=mutate_aggregate
+            )
+        return aggregate
+
+    def _reconstruct_aggregate(
+        self,
+        aggregate_id: UUID,
+        version: Optional[int] = None,
+        projector_func: ProjectorFunctionType[TAggregate] = mutate_aggregate,
+    ) -> TAggregate:
         """
-        Returns an :class:`~eventsourcing.domain.Aggregate`
-        for given ID, optionally at the given version.
+        Reconstructs an :class:`~eventsourcing.domain.Aggregate` for a
+        given ID from stored events, optionally at a particular version.
         """
         gt: Optional[int] = None
 
@@ -358,6 +523,9 @@ class Application(ABC, Generic[TAggregate]):
     log_section_size = 10
     notify_topics: Sequence[str] = []
 
+    AGGREGATE_CACHE_MAXSIZE = "AGGREGATE_CACHE_MAXSIZE"
+    AGGREGATE_CACHE_FASTFORWARD = "AGGREGATE_CACHE_FASTFORWARD"
+
     def __init_subclass__(cls, **kwargs: Any) -> None:
         if "name" not in cls.__dict__:
             cls.name = cls.__name__
@@ -468,9 +636,16 @@ class Application(ABC, Generic[TAggregate]):
         """
         Constructs a :class:`Repository` for use by the application.
         """
+        cache_maxsize_envvar = self.env.get(self.AGGREGATE_CACHE_MAXSIZE)
+        if cache_maxsize_envvar:
+            cache_maxsize = int(cache_maxsize_envvar)
+        else:
+            cache_maxsize = None
         return Repository(
             event_store=self.events,
             snapshot_store=self.snapshots,
+            cache_maxsize=cache_maxsize,
+            fastforward=strtobool(self.env.get(self.AGGREGATE_CACHE_FASTFORWARD, "y")),
         )
 
     def construct_notification_log(self) -> LocalNotificationLog:
@@ -500,11 +675,15 @@ class Application(ABC, Generic[TAggregate]):
         """
         Records given process event in the application's recorder.
         """
-        return self.events.put(
+        recordings = self.events.put(
             processing_event.events,
             tracking=processing_event.tracking,
             **processing_event.saved_kwargs,
         )
+        for aggregate_id, aggregate in processing_event.aggregates.items():
+            if self.repository.cache:
+                self.repository.cache.put(aggregate_id, aggregate)
+        return recordings
 
     def _take_snapshots(self, processing_event: ProcessingEvent) -> None:
         # Take snapshots using IDs and types.
