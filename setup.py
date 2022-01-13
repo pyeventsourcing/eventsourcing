@@ -47,7 +47,7 @@ setup(
     license="BSD-3-Clause",
     packages=packages,
     package_data={"eventsourcing": ["py.typed"]},
-    python_requires='>=3.7',
+    python_requires=">=3.7",
     install_requires=[],
     extras_require={
         "postgres": postgresql_requires,
