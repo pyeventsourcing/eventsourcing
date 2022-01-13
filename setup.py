@@ -26,20 +26,14 @@ dev_requires = docs_requires + [
     'backports.zoneinfo;python_version<"3.9"',
 ]
 
-long_description = """
-A library for event sourcing in Python.
+from pathlib import Path
 
-`Package documentation is now available <http://eventsourcing.readthedocs.io/>`_.
-
-`Please raise issues on GitHub <https://github.com/pyeventsourcing/eventsourcing/issues>`_.
-"""
+this_directory = Path(__file__).parent
+long_description = (this_directory / "README.md").read_text()
 
 packages = [
     "eventsourcing",
     "eventsourcing.tests",
-    # "eventsourcing.examples",
-    # "eventsourcing.examples.bankaccounts",
-    # "eventsourcing.examples.cargoshipping",
 ]
 
 
