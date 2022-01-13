@@ -8,22 +8,24 @@
 
 # Event Sourcing in Python
 
+[![Event sourcing in Python](images/Cupid-foot-686x343.jpeg)](https://eventsourcing.readthedocs.io/)
+
 A library for event sourcing in Python.
 
 *"totally amazing and a pleasure to use"*
 
 Please [read the docs](https://eventsourcing.readthedocs.io/). See also [extension projects](https://github.com/pyeventsourcing).
 
-[![Event sourcing in Python](images/Cupid-foot-686x343.jpeg)](https://eventsourcing.readthedocs.io/)
-
 
 ## Installation
 
 Use pip to install the [stable distribution](https://pypi.org/project/eventsourcing/)
-from the Python Package Index. Please note, it is recommended to
-install Python packages into a Python virtual environment.
+from the Python Package Index.
 
     $ pip install eventsourcing
+
+Please note, it is recommended to install Python
+packages into a Python virtual environment.
 
 
 ## Example
@@ -149,7 +151,6 @@ All code is annotated with type hints.
 
 **Worked examples** — includes examples showing how to develop aggregates, applications
 and systems.
-
 
 
 ## Extensions
