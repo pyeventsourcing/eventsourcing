@@ -67,8 +67,8 @@ _T = TypeVar("_T")
 
 
 class Cache(Generic[_S, _T]):
-    def __init__(self):
-        self.cache: Dict[_S, _T] = {}
+    def __init__(self) -> None:
+        self.cache: Dict[_S, Any] = {}
 
     def get(self, key: _S, evict: bool = False) -> _T:
         if evict:
@@ -100,10 +100,10 @@ class LRUCache(Cache[_S, _T]):
         self.maxsize = maxsize
         self.full = False
         self.lock = RLock()  # because linkedlist updates aren't threadsafe
-        self.root = []  # root of the circular doubly linked list
+        self.root: List[Any] = []  # root of the circular doubly linked list
         self.clear()
 
-    def clear(self):
+    def clear(self) -> None:
         self.root[:] = [
             self.root,
             self.root,
@@ -111,7 +111,7 @@ class LRUCache(Cache[_S, _T]):
             None,
         ]  # initialize by pointing to self
 
-    def get(self, key: _S, evict=False) -> _T:
+    def get(self, key: _S, evict: bool = False) -> _T:
         with self.lock:
             link = self.cache.get(key)
             if link is not None:
@@ -234,11 +234,15 @@ class Repository(Generic[TAggregate]):
                 self.cache.put(aggregate_id, aggregate)
             else:
                 if self.fastforward:
-                    # Fast forward cached aggregate.
+                    # Fast-forward cached aggregate.
                     new_events = self.event_store.get(
                         originator_id=aggregate_id, gt=aggregate.version
                     )
-                    aggregate = mutate_aggregate(aggregate, new_events)
+                    _aggregate = projector_func(aggregate, new_events)
+                    if _aggregate is None:
+                        raise AggregateNotFound(aggregate_id)
+                    else:
+                        aggregate = _aggregate
             # Deep copy cached aggregate, so bad mutations don't corrupt cache.
             aggregate = deepcopy(aggregate)
         else:
@@ -683,9 +687,9 @@ class Application(ABC, Generic[TAggregate]):
             tracking=processing_event.tracking,
             **processing_event.saved_kwargs,
         )
-        for aggregate_id, aggregate in processing_event.aggregates.items():
-            if self.repository.cache:
-                self.repository.cache.put(aggregate_id, aggregate)
+        if self.repository.cache:
+            for aggregate_id, aggregate in processing_event.aggregates.items():
+                self.repository.cache.put(aggregate_id, cast(TAggregate, aggregate))
         return recordings
 
     def _take_snapshots(self, processing_event: ProcessingEvent) -> None:
@@ -778,7 +782,7 @@ class EventSourcedLog(Generic[TDomainEvent]):
         self.logged_cls = logged_cls
 
     def trigger_event(
-        self, next_originator_version: Optional[int] = None, **kwargs
+        self, next_originator_version: Optional[int] = None, **kwargs: Any
     ) -> TDomainEvent:
         if next_originator_version is None:
             last_logged = self.get_last()
