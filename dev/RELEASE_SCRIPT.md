@@ -17,9 +17,9 @@ Steps to make a new release.
 13. Create a Git tag with the number of the version, prefixed with 'v' and set the message to the same thing.
 14. Push doc changes and tag to GitHub, and wait for docs to build in readthedocs.
 15. In readthedocs, adjust default version to point to new release version of the docs (tagged version).
-16. Run 'make prepare-dist' again.
-17. Run 'twine upload ./dist/eventsourcing-VERSION.tar.gz'.
-18. Check PyPI shows new release.
+16. Run 'make prepare-dist' again, and check it exits OK.
+17. To build and put distributions on PyPI, run 'make release-dist'.
+18. Check PyPI shows new distributions.
 19. Run 'make test-released-distribution' script (from project root directory).
 20. Checkout main branch.
 21. Merge changes into main branch.

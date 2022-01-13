@@ -30,17 +30,20 @@ def main():
     try:
         subprocess.check_call(
             # [sys.executable, "setup.py", "sdist", "upload", "-r", "pypitest"],
-            [sys.executable, "setup.py", "sdist"],
+            [sys.executable, "setup.py", "sdist", "bdist_wheel"],
             cwd=proj_path,
         )
     except CalledProcessError:
         sys.exit(1)
 
-    # Construct the path to the built distribution.
+    # Construct the path to the source and built distribution.
     version_path = os.path.join(proj_path, "eventsourcing", "__init__.py")
     version = open(version_path).readlines()[0].split("=")[-1].strip().strip('"')
-    distribution_path = os.path.join(
+    sdist_path = os.path.join(
         proj_path, 'dist', f'eventsourcing-{version}.tar.gz'
+    )
+    bdist_path = os.path.join(
+        proj_path, 'dist', f'eventsourcing-{version}-py3-none-any.whl'
     )
 
     # Define the test targets.
@@ -49,9 +52,7 @@ def main():
     ]
     os.environ["CASS_DRIVER_NO_CYTHON"] = "1"
 
-    # Test distribution for various targets.
-    for (venv_path, base_python_path) in targets:
-
+    def install_dist(dist_path, venv_path, base_python_path):
         # Remove existing virtualenv.
         if os.path.exists(venv_path):
             remove_virtualenv(proj_path, venv_path)
@@ -68,12 +69,12 @@ def main():
             [pip_path, "install", "-U", "pip", "wheel"], cwd=venv_path
         )
 
-        # Install from built distribution.
+        # Install from distribution.
         pip_install_cmd = [
             pip_path,
             "install",
             "--no-cache-dir",
-            distribution_path+"[postgres_dev,crypto]",
+            f"{dist_path}[postgres_dev,crypto]",
         ]
 
         patience = 10
@@ -94,14 +95,19 @@ def main():
             print("Failed to install.")
             sys.exit(1)
 
-        # Check installed tests all pass.
-        subprocess.check_call(
-            [python_path, "-m" "unittest", "discover",
-             "eventsourcing.tests"],
-            cwd=venv_path,
-        )
+        # # Check installed tests all pass.
+        # subprocess.check_call(
+        #     [python_path, "-m" "unittest", "discover",
+        #      "eventsourcing.tests"],
+        #     cwd=venv_path,
+        # )
 
         remove_virtualenv(proj_path, venv_path)
+
+    # Test source distribution for various targets.
+    for dist_path in [sdist_path, bdist_path]:
+        for (venv_path, base_python_path) in targets:
+            install_dist(dist_path, venv_path, base_python_path)
 
 
 def remove_virtualenv(proj_path, venv_path):
