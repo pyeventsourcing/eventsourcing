@@ -58,7 +58,7 @@ def main():
 
         # Create virtualenv.
         subprocess.check_call(
-            ["virtualenv", "--python", base_python_path, venv_path], cwd=proj_path
+            [base_python_path, "-m", "venv", venv_path], cwd=proj_path
         )
 
         pip_path = os.path.join(venv_path, 'bin', 'pip')
