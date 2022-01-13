@@ -27,26 +27,39 @@ Version 9.2.0 (forthcoming)
 ---------------------------
 
 * Added support for specifying in which PostgreSQL schema tables
-  should be created.
-* Added support for selecting a persistence module in
-  application environment ('PERSISTENCE_MODULE') rather than specifying the
-  topic of a factory class.
-* Improved documentation.
+  should be created (see 'POSTGRES_SCHEMA').
+* Added support for specifying in application environment the persistence
+  module to be used by an application (see 'PERSISTENCE_MODULE') rather
+  than specifying the topic of a factory class.
 * Added support for returning new notification IDs after inserting events
-  in application recorders.
-* Reworked MultiThreadedRunner to pull concurrently when
-  an application is following more than one other application.
+  in application recorders (all methods involves with storing events).
 * Added support for selecting event notifications that match a list of
-  topics (previously it wasn't possible to filter event notifications by
-  topic).
+  topics – previously it wasn't possible to filter event notifications by
+  topic (see 'follow_topics').
 * Added support for mentioning 'id' in aggregate init method when using
   explicitly defined event classes (previously this only worked with
   implicitly defined event classes).
-* Stopped including tests and example packages in the distribution.
-* Renamed ProcessEvent.collect_events() method (previously was called
-  save() which is still supported but is now deprecated).
 * Added abstract generic connection pool class, and a connection pool
-  for the postgres and sqlite persistence modules.
+  for the postgres and sqlite persistence modules (see 'ConnectionPool').
+* Added support for caching of aggregates in aggregate repository
+  (see 'AGGREGATE_CACHE_MAXSIZE' and 'AGGREGATE_CACHE_FASTFORWARD').
+* Added support for event-sourced logging, e.g. of aggregate IDs of a
+  particular type as one way of supporting discovery of aggregate IDs
+  (see 'EventSourcedLog').
+* Added ProcessEvent.collect_events() method and deprecated save(),
+  effectively renaming this method for clarity of its purpose.
+* Improved SingleThreadedRunner and MultiThreadedRunner to push domain
+  events to followers, and to fall back to pulling when gaps are detected
+  – this avoids wasteful deserialization of stored events.
+* Improved MultiThreadedRunner to pull concurrently when
+  an application is following more than one other application.
+* Improved Follower to avoid propagating an IntegrityError when a tracking
+  record conflict is detected (meaning event processing was somehow being
+  repeated) hence allowing processing to continue.
+* Improved documentation (in numerous ways).
+* Excluded test cases and example packages from being included in releases
+  (whilst still including base test cases and test utilities used by extensions).
+
 
 Version 9.1.9 (released 5 December 2021)
 -----------------------------------------
