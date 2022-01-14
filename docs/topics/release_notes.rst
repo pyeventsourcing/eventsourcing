@@ -26,28 +26,35 @@ code and stored events is very possible.
 Version 9.2.0 (forthcoming)
 ---------------------------
 
-* Added support for specifying in which PostgreSQL schema tables
-  should be created (see 'POSTGRES_SCHEMA').
 * Added support for specifying in application environment the persistence
   module to be used by an application (see 'PERSISTENCE_MODULE') rather
   than specifying the topic of a factory class.
+* Added ProcessEvent.collect_events() method and deprecated save(),
+  effectively renaming this method for clarity of its purpose.
+* Added Application.notifications and deprecated Application.log, effectively
+  renaming this attribute to avoid confusion with event-sourced logs.
+* Added connection pooling for the postgres and sqlite persistence modules
+  (see 'ConnectionPool').
+* Added support for caching of aggregates in aggregate repository
+  (see 'AGGREGATE_CACHE_MAXSIZE' and 'AGGREGATE_CACHE_FASTFORWARD').
+* Added support for event-sourced logging, e.g. of aggregate IDs of a
+  particular type as one way of supporting discovery of aggregate IDs
+  (see 'EventSourcedLog').
 * Added support for returning new notification IDs after inserting events
-  in application recorders (all methods involves with storing events).
+  in application recorders (see all methods involved with storing events).
 * Added support for selecting event notifications that match a list of
   topics – previously it wasn't possible to filter event notifications by
   topic (see 'follow_topics').
 * Added support for mentioning 'id' in aggregate init method when using
   explicitly defined event classes (previously this only worked with
   implicitly defined event classes).
-* Added abstract generic connection pool class, and a connection pool
-  for the postgres and sqlite persistence modules (see 'ConnectionPool').
-* Added support for caching of aggregates in aggregate repository
-  (see 'AGGREGATE_CACHE_MAXSIZE' and 'AGGREGATE_CACHE_FASTFORWARD').
-* Added support for event-sourced logging, e.g. of aggregate IDs of a
-  particular type as one way of supporting discovery of aggregate IDs
-  (see 'EventSourcedLog').
-* Added ProcessEvent.collect_events() method and deprecated save(),
-  effectively renaming this method for clarity of its purpose.
+* Added support for specifying in which PostgreSQL schema tables
+  should be created (see 'POSTGRES_SCHEMA').
+* Fixed postgres module to alias statement names that are too long, and to
+  assert table names are not greater than the maximum permissible length.
+* Excluded test cases and example packages from being included in releases
+  (whilst still including base test cases and test utilities used by extensions).
+* Improved documentation (in numerous ways).
 * Improved SingleThreadedRunner and MultiThreadedRunner to push domain
   events to followers, and to fall back to pulling when gaps are detected
   – this avoids wasteful deserialization of stored events.
@@ -56,9 +63,6 @@ Version 9.2.0 (forthcoming)
 * Improved Follower to avoid propagating an IntegrityError when a tracking
   record conflict is detected (meaning event processing was somehow being
   repeated) hence allowing processing to continue.
-* Improved documentation (in numerous ways).
-* Excluded test cases and example packages from being included in releases
-  (whilst still including base test cases and test utilities used by extensions).
 
 
 Version 9.1.9 (released 5 December 2021)
