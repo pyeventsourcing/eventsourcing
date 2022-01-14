@@ -29,7 +29,10 @@ dev_requires = docs_requires + [
 from pathlib import Path
 
 this_directory = Path(__file__).parent
-long_description = (this_directory / "README.md").read_text()
+readme_text = (this_directory / "README.md").read_text()
+parts = readme_text.partition("A library for event sourcing in Python.")
+long_description = "".join(parts[1:])
+
 
 packages = [
     "eventsourcing",
@@ -58,6 +61,7 @@ setup(
     },
     zip_safe=False,
     long_description=long_description,
+    long_description_content_type="text/markdown",
     keywords=[
         "event sourcing",
         "event store",
