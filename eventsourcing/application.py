@@ -500,11 +500,12 @@ class ProcessingEvent:
         *aggregates: Optional[Union[Aggregate, AggregateEvent[Aggregate]]],
         **kwargs: Any,
     ) -> None:
-        """
-        DEPRECATED, in favour of collect_events(). Will be removed in future version.
+        warn(
+            "'save()' is deprecated, use 'collect_events()' instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
-        Collects pending domain events from the given aggregate.
-        """
         self.collect_events(*aggregates, **kwargs)
 
 
@@ -564,8 +565,11 @@ class Application(ABC, Generic[TAggregate]):
 
     @property
     def log(self) -> LocalNotificationLog:
-        warn("'log' is deprecated, use 'notifications' instead",
-                      DeprecationWarning, stacklevel=2)
+        warn(
+            "'log' is deprecated, use 'notifications' instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.notifications
 
     def construct_env(self, name: str, env: Optional[EnvType] = None) -> Environment:
