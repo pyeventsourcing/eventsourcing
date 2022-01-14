@@ -899,11 +899,117 @@ pages, or update the old index to point to the new index, so that
 redirects can be implemented. See the :doc:`Wiki application example </topics/examples/wiki>`
 to see how this can be done.
 
+Using index aggregates, or aggregates with version-5 UUIDs is one way to
+discover version-4 aggregate IDs. By knowing the name, the IDs can be
+retrieved. A more powerful alternative is to implement a custom table
+of current values that can be used to index a collection of aggregates,
+but this requires a little bit more work. Another alternative is to
+have an aggregate that is a collection of many version-4 aggregate IDs,
+or even other attribute values, that can be used to the same effect.
+But this approach has limits because there may be too many aggregate IDs
+to contain in a single collection aggregate without suffering from performance
+issues. Another way that avoids the limits of collecting version-4 aggregate IDs
+in an event-sourced aggregate identified with a version-5 UUID is to use an
+event-sourced log.
 
 ..
-    #Todo: Register custom transcodings on transcoder.
-    #Todo: Show how to use UUID5.
     #Todo: Show how to use ORM objects for read model.
+
+
+Event-sourced log
+=================
+
+The library class :class:`~eventsourcing.application.EventSourcedLog`
+can be used with subclasses of :class:`~eventsourcing.application.LogEvent`
+to trigger log events that can be saved and listed. An event-sourced
+log can be constructed as a part of the application, with a version-5 UUID
+that is used to identify the sequence of events. This is similar to
+event-sourced aggregates, with the difference that the entire sequence
+does not need to be obtained in order to derive useful information in
+the application.
+A range of log events can be selected from the sequence, ascending or
+descending. The logged information can be retried from the log events.
+
+This can be used, for example, to incrementally discover the aggregate
+IDs of a particular type of aggregate. Log events can be triggered with
+the ID of newly created aggregates. Triggered log events can then be saved
+atomically with the newly created aggregate, by passing both to the
+application :func:`~eventsourcing.application.Application.save` method.
+
+In the example below, aggregate IDs of newly created aggregates are logged,
+so that the aggregate IDs of stored aggregates can be discovered.
+
+.. code-block:: python
+
+    from eventsourcing.application import EventSourcedLog, LogEvent
+
+    class LoggedID(LogEvent):
+        aggregate_id: UUID
+
+    class MyApplication(Application):
+        def __init__(self, env=None) -> None:
+            super().__init__(env=env)
+            self.aggregate_log = EventSourcedLog(
+                events=self.events,
+                originator_id=uuid5(NAMESPACE_URL, "/aggregates"),
+                logged_cls=LoggedID,
+            )
+
+        def create_aggregate(self):
+            aggregate = Aggregate()
+            logged_id = self.aggregate_log.trigger_event(aggregate_id=aggregate.id)
+            self.save(aggregate, logged_id)
+            return aggregate.id
+
+
+    app = MyApplication()
+
+    # Get lost created aggregate ID.
+    assert app.aggregate_log.get_last() == None
+
+    aggregate1_id = app.create_aggregate()
+    last = app.aggregate_log.get_last()
+    assert last.aggregate_id == aggregate1_id
+
+    aggregate2_id = app.create_aggregate()
+    last = app.aggregate_log.get_last()
+    assert last.aggregate_id == aggregate2_id
+
+    # Get all created aggregate ID.
+    aggregate_ids = [i.aggregate_id for i in app.aggregate_log.get()]
+    assert aggregate_ids == [aggregate1_id, aggregate2_id]
+
+    aggregate_ids = [i.aggregate_id for i in app.aggregate_log.get(desc=True)]
+    assert aggregate_ids == [aggregate2_id, aggregate1_id]
+
+    # Get ascending pages of aggregate IDs.
+    log_events = list(app.aggregate_log.get(limit=1))
+    aggregate_ids = [i.aggregate_id for i in log_events]
+    assert aggregate_ids == [aggregate1_id]
+
+    next = log_events[-1].originator_version
+    log_events = app.aggregate_log.get(limit=1, gt=next)
+    aggregate_ids = [i.aggregate_id for i in log_events]
+    assert aggregate_ids == [aggregate2_id]
+
+    # Get descending pages of aggregate IDs.
+    log_events = list(app.aggregate_log.get(desc=True, limit=1))
+    aggregate_ids = [i.aggregate_id for i in log_events]
+    assert aggregate_ids == [aggregate2_id]
+
+    next = log_events[-1].originator_version - 1
+    log_events = app.aggregate_log.get(desc=True, limit=1, lte=next)
+    aggregate_ids = [i.aggregate_id for i in log_events]
+    assert aggregate_ids == [aggregate1_id]
+
+
+This technique can be used to implement "list-detail" views common in
+non-event-sourced CRUD or ORM-based domain models in which the list is
+ordered by the aggregates' :py:obj:`~eventsourcing.domain.Aggregate.created_on`
+attribute (ascending or descending). To order by another attribute, such as
+:py:obj:`~eventsourcing.domain.Aggregate.modified_on` or a custom
+attribute, it will be necessary to maintain an index of the current
+values.
 
 .. _Snapshotting:
 

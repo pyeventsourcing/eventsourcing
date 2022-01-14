@@ -521,7 +521,7 @@ an optional ``id`` argument which should be a Python :class:`~uuid.UUID`
 object that will be used to uniquely identify the aggregate in the domain
 model. It uses the given value of its ``id`` argument as the new event's
 ``originator_id``. If a value is not provided, by default a
-`version 4 UUID <https://en.wikipedia.org/wiki/Universally_unique_identifier#Version_4_(random)>`_
+`version-4 UUID <https://en.wikipedia.org/wiki/Universally_unique_identifier#Version_4_(random)>`_
 will be created by calling its :func:`~eventsourcing.domain.MetaAggregate.create_id`
 method. It will also, by default, set the ``originator_version``
 to the value of ``1``. It derives the event's ``originator_topic`` value from the
@@ -747,9 +747,9 @@ a new ``World`` aggregate object. It calls the inherited
 :func:`~eventsourcing.domain.MetaAggregate._create` method that
 we discussed above. It uses its own ``Created`` event class as
 the value of the ``event_class`` argument. As above, it uses a
-`version 4 UUID <https://en.wikipedia.org/wiki/Universally_unique_identifier#Version_4_(random)>`_
+`version-4 UUID <https://en.wikipedia.org/wiki/Universally_unique_identifier#Version_4_(random)>`_
 object as the value of the ``id`` argument. See the :ref:`Namespaced IDs <Namespaced IDs>`
-section below for a discussion about using version 5 UUIDs.
+section below for a discussion about using version-5 UUIDs.
 
 The ``make_it_so()`` method is a command method that triggers
 a ``World.SomethingHappened`` domain event. It calls the inherited
@@ -874,7 +874,7 @@ works by calling these methods in this way for this purpose.
 Namespaced IDs
 --------------
 
-Aggregates can be created with `version 5 UUIDs <https://en.wikipedia
+Aggregates can be created with `version-5 UUIDs <https://en.wikipedia
 .org/wiki/Universally_unique_identifier#Versions_3_and_5_(namespace_name-based)>`_
 so that their IDs can be generated from a given name in a namespace. They can
 be used for example to create IDs for aggregates with fixed names that you want
@@ -891,7 +891,7 @@ attribute changes, or not.
 
 For example, if you have a collection of page aggregates with names that might change,
 and you want to be able to identify the pages by name, then you can create index
-aggregates with version 5 UUIDs that are generated from the names, and put the IDs
+aggregates with version-5 UUIDs that are generated from the names, and put the IDs
 of the page aggregates in the index aggregates. The aggregate classes ``Page`` and ``Index``
 in the example code below show how this can be done.
 
@@ -1359,7 +1359,7 @@ will be used when creating new aggregate instances.
 Defining the aggregate ID
 -------------------------
 
-By default, the aggregate ID will be a version 4 UUID, automatically
+By default, the aggregate ID will be a version-4 UUID, automatically
 generated when a new aggregate is created. However, the aggregate ID
 can also be defined as a function of the arguments used to create the
 aggregate. You can do this by defining a ``create_id()`` method.
@@ -1383,7 +1383,7 @@ aggregate. You can do this by defining a ``create_id()`` method.
     agg = MyAggregate(name="foo")
     assert agg.name == "foo"
 
-    # The aggregate ID is a version 5 UUID.
+    # The aggregate ID is a version-5 UUID.
     assert agg.id == MyAggregate.create_id("foo")
 
 
@@ -1391,7 +1391,7 @@ If a ``create_id()`` method is defined on the aggregate class, the base class
 method :func:`~eventsourcing.domain.MetaAggregate.create_id`
 will be overridden. The arguments used in this method must be a subset of the
 arguments used to create the aggregate. The base class method simply returns a
-version 4 UUID, which is the default behaviour for generating aggregate IDs.
+version-4 UUID, which is the default behaviour for generating aggregate IDs.
 
 Alternatively, an ``id`` attribute can be declared on the aggregate
 class, and an ``id`` argument supplied when creating new aggregates.

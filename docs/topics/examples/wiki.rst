@@ -3,7 +3,7 @@
 Wiki application
 =========================
 
-This example demonstrates the use of version 5 UUIDs for both discovery of aggregate
+This example demonstrates the use of version-5 UUIDs for both discovery of aggregate
 IDs and also to implement an application-wide rule (or "invariant"), the use of the
 declarative syntax for domain models with a "non-trivial" command method, automatic
 snapshotting, automatic setting of a common attribute on all events without needing
@@ -26,7 +26,7 @@ current version of the ``body`` and the new version. It then triggers an event,
 which contains the diff. The event is applied to the ``body`` by "patching" the
 current version of the ``body`` with this diff.
 
-The ``Index`` aggregate has a version 5 UUID which is a function of a ``slug``.
+The ``Index`` aggregate has a version-5 UUID which is a function of a ``slug``.
 The ``Index`` and ``Page`` aggregates are used in combination to maintain editable
 pages of text, with editable titles, and with editable "slugs" that can be used in page URLs.
 

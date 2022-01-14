@@ -2,7 +2,7 @@ from unittest import TestCase
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from eventsourcing.application import Application, EventSourcedLog, LogEvent
-from eventsourcing.domain import Aggregate, AggregateEvent
+from eventsourcing.domain import Aggregate
 from eventsourcing.persistence import (
     DatetimeAsISO,
     DecimalAsStr,
@@ -25,7 +25,7 @@ class TestEventSourcedLog(TestCase):
         with self.assertRaises(ProgrammingError):
             log_event.mutate(None)
 
-    def test_log(self) -> None:
+    def test_logging_aggregate_ids(self) -> None:
         class LoggedID(LogEvent):
             aggregate_id: UUID
 
@@ -76,7 +76,7 @@ class TestEventSourcedLog(TestCase):
         self.assertEqual(ids, [id3, id2, id1])
 
     def test_with_application(self) -> None:
-        class LoggedID(AggregateEvent):
+        class LoggedID(LogEvent):
             aggregate_id: UUID
 
         class MyApplication(Application):

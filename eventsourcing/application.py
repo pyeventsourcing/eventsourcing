@@ -774,9 +774,12 @@ class EventSourcedLog(Generic[TLogEvent]):
     and selected for use in the application without
     reconstructing a current state from all events.
 
-    This allows an indefinitely long sequence to be
-    generated, which is useful e.g. for logging and
-    discovering aggregate IDs of a particular type.
+    This allows an indefinitely long sequence of events to be
+    generated and used without the practical restrictions of
+    projecting the events into a current state before they
+    can be used, which is useful e.g. for logging and
+    discovering aggregate IDs of a particular type in
+    an application.
     """
 
     def __init__(
