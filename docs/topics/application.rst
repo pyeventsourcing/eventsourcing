@@ -964,7 +964,7 @@ so that the aggregate IDs of stored aggregates can be discovered.
 
     app = MyApplication()
 
-    # Get lost created aggregate ID.
+    # Get last created aggregate ID.
     assert app.aggregate_log.get_last() == None
 
     aggregate1_id = app.create_aggregate()
