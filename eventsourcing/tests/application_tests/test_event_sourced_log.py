@@ -1,7 +1,7 @@
 from unittest import TestCase
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
-from eventsourcing.application import Application, EventSourcedLog
+from eventsourcing.application import Application, EventSourcedLog, LogEvent
 from eventsourcing.domain import Aggregate, AggregateEvent
 from eventsourcing.persistence import (
     DatetimeAsISO,
@@ -9,14 +9,24 @@ from eventsourcing.persistence import (
     EventStore,
     JSONTranscoder,
     Mapper,
+    ProgrammingError,
     UUIDAsHex,
 )
 from eventsourcing.popo import POPOAggregateRecorder
 
 
 class TestEventSourcedLog(TestCase):
+    def test_log_event_mutate_raises_programming_error(self):
+        log_event = LogEvent(
+            originator_id=uuid4(),
+            originator_version=1,
+            timestamp=LogEvent.create_timestamp(),
+        )
+        with self.assertRaises(ProgrammingError):
+            log_event.mutate(None)
+
     def test_log(self) -> None:
-        class LoggedID(AggregateEvent):
+        class LoggedID(LogEvent):
             aggregate_id: UUID
 
         transcoder = JSONTranscoder()
@@ -30,7 +40,7 @@ class TestEventSourcedLog(TestCase):
             recorder=event_recorder,
         )
 
-        log = EventSourcedLog(
+        log: EventSourcedLog[LoggedID] = EventSourcedLog(
             events=event_store,
             originator_id=uuid5(NAMESPACE_URL, "/aggregates"),
             logged_cls=LoggedID,

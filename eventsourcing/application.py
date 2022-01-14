@@ -27,7 +27,6 @@ from eventsourcing.domain import (
     DomainEvent,
     Snapshot,
     TAggregate,
-    TDomainEvent,
 )
 from eventsourcing.persistence import (
     ApplicationRecorder,
@@ -38,6 +37,7 @@ from eventsourcing.persistence import (
     JSONTranscoder,
     Mapper,
     Notification,
+    ProgrammingError,
     Recording,
     Tracking,
     Transcoder,
@@ -759,7 +759,15 @@ class AggregateNotFound(Exception):
     """
 
 
-class EventSourcedLog(Generic[TDomainEvent]):
+class LogEvent(AggregateEvent[Aggregate]):
+    def mutate(self, aggregate: Optional[TAggregate]) -> Optional[TAggregate]:
+        raise ProgrammingError("Log events cannot be projected into aggregates")
+
+
+TLogEvent = TypeVar("TLogEvent", bound=LogEvent)
+
+
+class EventSourcedLog(Generic[TLogEvent]):
     """
     Stores a sequence of domain events, like an aggregate.
     But unlike an aggregate the events can be triggered
@@ -775,7 +783,7 @@ class EventSourcedLog(Generic[TDomainEvent]):
         self,
         events: EventStore[AggregateEvent[Aggregate]],
         originator_id: UUID,
-        logged_cls: Type[TDomainEvent],
+        logged_cls: Type[TLogEvent],
     ):
         self.events = events
         self.originator_id = originator_id
@@ -783,7 +791,7 @@ class EventSourcedLog(Generic[TDomainEvent]):
 
     def trigger_event(
         self, next_originator_version: Optional[int] = None, **kwargs: Any
-    ) -> TDomainEvent:
+    ) -> TLogEvent:
         if next_originator_version is None:
             last_logged = self.get_last()
             if last_logged is None:
@@ -798,7 +806,7 @@ class EventSourcedLog(Generic[TDomainEvent]):
             **kwargs,
         )
 
-    def get_last(self) -> Optional[TDomainEvent]:
+    def get_last(self) -> Optional[TLogEvent]:
         # Get last logged event.
         try:
             return next(self.get(desc=True, limit=1))
@@ -811,10 +819,10 @@ class EventSourcedLog(Generic[TDomainEvent]):
         lte: Optional[int] = None,
         desc: bool = False,
         limit: Optional[int] = None,
-    ) -> Iterator[TDomainEvent]:
+    ) -> Iterator[TLogEvent]:
         # Get logged events.
         return cast(
-            Iterator[TDomainEvent],
+            Iterator[TLogEvent],
             self.events.get(
                 originator_id=self.originator_id,
                 gt=gt,
