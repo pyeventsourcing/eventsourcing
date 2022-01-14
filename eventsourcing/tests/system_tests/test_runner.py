@@ -76,7 +76,7 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
         accounts = self.runner.get(BankAccounts)
         email_process = self.runner.get(EmailProcess)
 
-        section = email_process.log["1,5"]
+        section = email_process.notifications["1,5"]
         self.assertEqual(len(section.items), 0, section.items)
 
         for _ in range(10):
@@ -87,7 +87,7 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
 
         self.wait_for_runner()
 
-        section = email_process.log["1,10"]
+        section = email_process.notifications["1,10"]
         self.assertEqual(len(section.items), 10)
 
     def test_system_with_two_edges(self):
@@ -114,9 +114,9 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
         email_process2 = self.runner.get(EmailProcess2)
 
         # Check we processed nothing.
-        section = email_process1.log["1,5"]
+        section = email_process1.notifications["1,5"]
         self.assertEqual(len(section.items), 0, section.items)
-        section = email_process2.log["1,5"]
+        section = email_process2.notifications["1,5"]
         self.assertEqual(len(section.items), 0, section.items)
 
         # Create ten events.
@@ -128,9 +128,9 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
 
         # Check we processed ten events.
         self.wait_for_runner()
-        section = email_process1.log["1,10"]
+        section = email_process1.notifications["1,10"]
         self.assertEqual(len(section.items), 10)
-        section = email_process2.log["1,10"]
+        section = email_process2.notifications["1,10"]
         self.assertEqual(len(section.items), 10)
 
     def test_system_with_processing_loop(self):
@@ -282,7 +282,7 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
 
         self.wait_for_runner()
 
-        self.assertEqual(len(email_process.log["1,10"].items), 0)
+        self.assertEqual(len(email_process.notifications["1,10"].items), 0)
 
     def test_ignores_recording_event_if_seen_subsequent(self):
         system = System(pipes=[[BankAccounts, EmailProcess]])
@@ -297,7 +297,7 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
         )
         self.wait_for_runner()
 
-        self.assertEqual(len(email_process.log["1,10"].items), 1)
+        self.assertEqual(len(email_process.notifications["1,10"].items), 1)
 
         # Reset this to break sequence.
         accounts.previous_max_notification_id -= 1
@@ -308,7 +308,7 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
         )
         self.wait_for_runner()
 
-        self.assertEqual(len(email_process.log["1,10"].items), 1)
+        self.assertEqual(len(email_process.notifications["1,10"].items), 1)
 
     def wait_for_runner(self):
         pass
@@ -663,7 +663,7 @@ class TestMultiThreadedRunner(RunnerTestCase[MultiThreadedRunner]):
             email_address="alice@example.com",
         )
         sleep(0.1)
-        self.assertEqual(len(email_process1.log["1,10"].items), 1)
+        self.assertEqual(len(email_process1.notifications["1,10"].items), 1)
 
         for thread in self.runner.all_threads:
             if isinstance(thread, ConvertingThread):

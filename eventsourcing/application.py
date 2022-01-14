@@ -1,4 +1,5 @@
 import os
+import traceback
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from dataclasses import dataclass
@@ -20,6 +21,7 @@ from typing import (
     cast,
 )
 from uuid import UUID
+from warnings import warn
 
 from eventsourcing.domain import (
     Aggregate,
@@ -554,11 +556,17 @@ class Application(ABC, Generic[TAggregate]):
         self.events = self.construct_event_store()
         self.snapshots = self.construct_snapshot_store()
         self.repository = self.construct_repository()
-        self.log = self.construct_notification_log()
+        self.notifications = self.construct_notification_log()
         self.closing = Event()
         self.previous_max_notification_id: Optional[
             int
         ] = self.recorder.max_notification_id()
+
+    @property
+    def log(self) -> LocalNotificationLog:
+        warn("'log' is deprecated, use 'notifications' instead",
+                      DeprecationWarning, stacklevel=2)
+        return self.notifications
 
     def construct_env(self, name: str, env: Optional[EnvType] = None) -> Environment:
         """

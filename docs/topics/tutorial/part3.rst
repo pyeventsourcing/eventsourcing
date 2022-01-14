@@ -88,8 +88,8 @@ alternatives constructed instead of the standard defaults.
     assert application.repository.event_store.mapper.compressor is None
     assert application.repository.event_store.mapper.cipher is None
     assert application.repository.event_store.recorder
-    assert application.log
-    assert application.log.recorder
+    assert application.notifications
+    assert application.notifications.recorder
 
 
 To be specific, an application object has a repository object. The repository
@@ -200,7 +200,7 @@ of the aggregate's ``history`` attribute is returned to the caller.
 Event notifications
 ===================
 
-The ``Application`` class has a ``log`` attribute,
+The ``Application`` class has a ``notifications`` attribute,
 which is a 'notification log' (aka the 'outbox pattern').
 This pattern avoids the "dual writing" problem of recording
 application state and separately sending messages about
@@ -231,7 +231,7 @@ is called.
 
 .. code-block:: python
 
-    notifications = application.log.select(start=1, limit=4)
+    notifications = application.notifications.select(start=1, limit=4)
     assert [n.id for n in notifications] == [1, 2, 3, 4]
 
     assert 'World.Started' in notifications[0].topic
@@ -285,7 +285,7 @@ with PostgreSQL.
 
     def test(app: Universe, expect_visible_in_db: bool):
         # Check app has zero event notifications.
-        assert len(app.log['1,10'].items) == 0
+        assert len(app.notifications['1,10'].items) == 0
 
         # Create a new aggregate.
         world_id = app.create_world('Earth')
@@ -318,7 +318,7 @@ with PostgreSQL.
             expected_num_visible = 0
 
         actual_num_visible = 0
-        reader = NotificationLogReader(app.log)
+        reader = NotificationLogReader(app.notifications)
         for notification in reader.read(start=1):
             for what in values:
                 if what in notification.state:
@@ -332,7 +332,7 @@ with PostgreSQL.
         assert old.history[-1] == 'trucks'  # last thing to have happened was 'trucks'
 
         # Check app has four event notifications.
-        assert len(app.log['1,10'].items) == 4
+        assert len(app.notifications['1,10'].items) == 4
 
         # Optimistic concurrency control (no branches).
         old.make_it_so('future')
@@ -344,10 +344,10 @@ with PostgreSQL.
             raise Exception("Shouldn't get here")
 
         # Check app still has only four event notifications.
-        assert len(app.log['1,10'].items) == 4
+        assert len(app.notifications['1,10'].items) == 4
 
         # Read event notifications.
-        reader = NotificationLogReader(app.log)
+        reader = NotificationLogReader(app.notifications)
         notifications = list(reader.read(start=1))
         assert len(notifications) == 4
 

@@ -105,6 +105,10 @@ class TestApplication(TestCase):
         app.save(aggregate)
         self.assertEqual(aggregate, app.repository.cache.get(aggregate.id))
 
+    def test_application_log(self):
+        app = Application()
+        self.assertEqual(app.log, app.notifications)
+
 
 class TestApplicationWithPOPO(ExampleApplicationTestCase):
     expected_factory_topic = "eventsourcing.popo:Factory"

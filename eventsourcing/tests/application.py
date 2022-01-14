@@ -46,7 +46,7 @@ class ExampleApplicationTestCase(TestCase):
             Decimal("65.00"),
         )
 
-        section = app.log["1,10"]
+        section = app.notifications["1,10"]
         self.assertEqual(len(section.items), 4)
 
         # Take snapshot (specify version).

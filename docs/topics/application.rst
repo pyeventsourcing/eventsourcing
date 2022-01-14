@@ -58,10 +58,10 @@ The main features of an application are:
 * the command and query methods you define, which implement your "application services";
 * the :func:`~eventsourcing.application.Application.save` method, used for collecting
   and recording new aggregate events;
-* the ``repository`` object, with which aggregates are reconstructed;
-* the notification ``log`` object, from which the state of the application can be propagated;
+* the ``repository`` attribute, with which aggregates are reconstructed;
+* the ``notifications`` attribute, from which the state of the application can be propagated;
 * the :func:`~eventsourcing.application.Application.take_snapshot` method;
-* the application's ``env``, through which the application can be configured.
+* the application environment, used to configure an application.
 
 The :class:`~eventsourcing.application.Application` class defines an object method
 :func:`~eventsourcing.application.Application.save` which can be
@@ -79,7 +79,7 @@ The repository's :func:`~eventsourcing.application.Repository.get` method can be
 your application's command and query methods to obtain already existing aggregates.
 
 The :class:`~eventsourcing.application.Application` class defines an
-object attribute ``log`` which holds a :ref:`local notification log <Notification log>`.
+object attribute ``notifications`` which holds a :ref:`local notification log <Notification log>`.
 The notification log can be used to propagate the state of an application as a sequence of
 domain event notifications.
 
@@ -283,14 +283,14 @@ A notification log can be used to propagate the state of an application as a
 sequence of domain event notifications. The library's
 :class:`~eventsourcing.application.LocalNotificationLog` class presents
 the event notifications of an application.
-The application object attribute ``log`` is an instance of
+The application object attribute ``notifications`` is an instance of
 :class:`~eventsourcing.application.LocalNotificationLog`.
 
 .. code-block:: python
 
     from eventsourcing.application import LocalNotificationLog
 
-    assert isinstance(application.log, LocalNotificationLog)
+    assert isinstance(application.notifications, LocalNotificationLog)
 
 
 This class implements an abstract base class :class:`~eventsourcing.application.NotificationLog`
@@ -336,7 +336,7 @@ notification log of the ``application`` object.
 
 .. code-block:: python
 
-    notifications = application.log.select(start=1, limit=3)
+    notifications = application.notifications.select(start=1, limit=3)
 
 
 The ``start`` and ``limit`` arguments are used to specify the selection. The
@@ -398,7 +398,7 @@ last event notification ID to calculate the next ``start`` value.
 
 .. code-block:: python
 
-    notifications = application.log.select(
+    notifications = application.notifications.select(
         start=notification.id + 1, limit=3
     )
 
@@ -429,7 +429,7 @@ two integers separated by a comma, for example ``"1,10"``. The first integer
 specifies the notification ID of the first event notification included in the
 section. The second integer specifies the notification ID of the second event
 notification included in the section. Sections are requested from the notification
-using the Python square bracket syntax, for example ``application.log["1,10"]``.
+using the Python square bracket syntax, for example ``application.notifications["1,10"]``.
 
 The notification log will return a section that has no more than the requested
 number of event notifications. Sometimes there will be less event notifications
@@ -457,7 +457,7 @@ are four notifications in the notification log.
 
 .. code-block:: python
 
-    section = application.log["1,10"]
+    section = application.notifications["1,10"]
 
     assert len(section.items) == 4
     assert section.id == "1,4"

@@ -170,7 +170,7 @@ class TestParkingLot(TestCase):
         self.assertEqual(len(vehicle.inspection_failures), 1)
 
         # Check all domain events in bounded context.
-        notifications = NotificationLogReader(app.log).read(start=1)
+        notifications = NotificationLogReader(app.notifications).read(start=1)
         domain_events = [app.mapper.to_domain_event(n) for n in notifications]
         self.assertEqual(len(domain_events), 4)
 

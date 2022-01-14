@@ -99,7 +99,7 @@ This is a wiki about...
         )
 
         # Check all the Page events have the user_id.
-        for notification in NotificationLogReader(app.log).read(start=1):
+        for notification in NotificationLogReader(app.notifications).read(start=1):
             domain_event = app.mapper.to_domain_event(notification)
             if isinstance(domain_event, Page.Event):
                 self.assertEqual(domain_event.user_id, user_id)
