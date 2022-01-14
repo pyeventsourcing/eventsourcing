@@ -271,6 +271,8 @@ the current state of the aggregate from stored snapshots and domain events.
 By default, the repository will use the :func:`~eventsourcing.domain.AggregateEvent.mutate`
 methods of domain event objects to reconstruct the state of the requested aggregate.
 
+It is possible to enable caching of aggregates in the application repository.
+See :ref:`Configuring aggregate caching <Aggregate caching>` for more information.
 
 .. _Notification Log:
 
@@ -600,6 +602,27 @@ In the example above, we can see that the settings from the construct argument h
 overridden the settings from the operating system environment, and the settings from
 the operating system environment have overridden the settings from the class attribute.
 
+.. _Aggregate caching:
+
+Configuring aggregate caching
+=============================
+
+To enable caching of aggregates in an :ref:`application repository <Repository>`,
+set ``AGGREGATE_CACHE_MAXSIZE`` in the application
+environment to a string representing an integer value. A positive integer value
+such as ``'1000'`` will enable a "least recently used" cache, in which the least
+recently used aggregate will be evicted from the cache when it is full.
+A value of ``'0'`` will enable an unlimited cache. The default is for
+aggregate caching not to be enabled.
+
+To disable fast-forwarding of caches aggregates, set
+``AGGREGATE_CACHE_FASTFORWARD`` in the application environment to
+a false value as interpreted by :func:`~eventsourcing.utils.strtobool`,
+that is one of: ``'n'``, ``'no'``, ``'f'``, ``'false'``, ``'off'``, or ``'0'``.
+Only do this when there is only one instance of the application is being used
+to evolve the state of the aggregates, otherwise aggregates in the cache will
+become stale and integrity errors will occur when attempting to evolve the state
+of the stale aggregates. The default is for fast-forwarding to be enabled.
 
 .. _Persistence:
 
