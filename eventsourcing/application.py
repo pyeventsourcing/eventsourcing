@@ -1,5 +1,4 @@
 import os
-import traceback
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from dataclasses import dataclass
