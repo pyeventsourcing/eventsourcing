@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 
 from eventsourcing.application import AggregateNotFound, Application
 from eventsourcing.persistence import Transcoder, Transcoding
-from eventsourcing.tests.example_aggregate import BankAccount, EmailAddress
+from eventsourcing.tests.domain import BankAccount, EmailAddress
 from eventsourcing.utils import get_topic
 
 TIMEIT_FACTOR = int(os.environ.get("TEST_TIMEIT_FACTOR", default=10))

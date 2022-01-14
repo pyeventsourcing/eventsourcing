@@ -1,10 +1,10 @@
 import os
 
-from eventsourcing.tests.example_application import (
+from eventsourcing.tests.application import (
     TIMEIT_FACTOR,
     ExampleApplicationTestCase,
 )
-from eventsourcing.tests.ramdisk import tmpfile_uris
+from eventsourcing.tests.persistence import tmpfile_uris
 
 
 class TestApplicationWithSQLiteFile(ExampleApplicationTestCase):

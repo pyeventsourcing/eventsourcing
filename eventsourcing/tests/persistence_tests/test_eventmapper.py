@@ -14,7 +14,7 @@ from eventsourcing.persistence import (
     Transcoding,
     UUIDAsHex,
 )
-from eventsourcing.tests.example_aggregate import BankAccount
+from eventsourcing.tests.domain import BankAccount
 
 
 class TestMapper(TestCase):

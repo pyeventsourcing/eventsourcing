@@ -5,7 +5,7 @@ from uuid import uuid4
 from eventsourcing.domain import Aggregate
 from eventsourcing.persistence import Tracking
 from eventsourcing.system import ProcessingEvent
-from eventsourcing.tests.example_aggregate import BankAccount
+from eventsourcing.tests.domain import BankAccount
 
 
 @singledispatch

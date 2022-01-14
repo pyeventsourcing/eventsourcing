@@ -13,7 +13,7 @@ from eventsourcing.interface import (
     NotificationLogJSONClient,
     NotificationLogJSONService,
 )
-from eventsourcing.tests.example_application import BankAccounts
+from eventsourcing.tests.application import BankAccounts
 
 
 class TestRemoteNotificationLog(TestCase):

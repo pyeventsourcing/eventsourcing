@@ -4,7 +4,7 @@ from uuid import uuid4
 from eventsourcing.application import Application
 from eventsourcing.domain import Aggregate
 from eventsourcing.persistence import InfrastructureFactory
-from eventsourcing.tests.example_application import ExampleApplicationTestCase
+from eventsourcing.tests.application import ExampleApplicationTestCase
 
 
 class TestApplication(TestCase):

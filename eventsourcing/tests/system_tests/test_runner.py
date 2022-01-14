@@ -27,12 +27,12 @@ from eventsourcing.system import (
     SingleThreadedRunner,
     System,
 )
+from eventsourcing.tests.application import BankAccounts
 from eventsourcing.tests.application_tests.test_processapplication import (
     EmailProcess,
 )
-from eventsourcing.tests.example_application import BankAccounts
+from eventsourcing.tests.persistence import tmpfile_uris
 from eventsourcing.tests.postgres_utils import drop_postgres_table
-from eventsourcing.tests.ramdisk import tmpfile_uris
 from eventsourcing.utils import clear_topic_cache, get_topic
 
 

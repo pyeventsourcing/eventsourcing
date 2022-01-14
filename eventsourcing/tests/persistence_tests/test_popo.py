@@ -4,12 +4,10 @@ from eventsourcing.popo import (
     POPOApplicationRecorder,
     POPOProcessRecorder,
 )
-from eventsourcing.tests.infrastructure_factory import (
-    InfrastructureFactoryTestCase,
-)
-from eventsourcing.tests.recorders import (
+from eventsourcing.tests.persistence import (
     AggregateRecorderTestCase,
     ApplicationRecorderTestCase,
+    InfrastructureFactoryTestCase,
     ProcessRecorderTestCase,
 )
 from eventsourcing.utils import Environment

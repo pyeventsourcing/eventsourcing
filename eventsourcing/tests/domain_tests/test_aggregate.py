@@ -14,7 +14,7 @@ from eventsourcing.domain import (
     OriginatorVersionError,
     TAggregate,
 )
-from eventsourcing.tests.example_aggregate import (
+from eventsourcing.tests.domain import (
     AccountClosedError,
     BankAccount,
     InsufficientFundsError,

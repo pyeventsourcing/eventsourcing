@@ -11,14 +11,11 @@ from eventsourcing.system import (
     ProcessingEvent,
     Promptable,
 )
+from eventsourcing.tests.application import BankAccounts, EmailAddressAsStr
 from eventsourcing.tests.application_tests.test_processingpolicy import (
     EmailNotification,
 )
-from eventsourcing.tests.example_aggregate import BankAccount
-from eventsourcing.tests.example_application import (
-    BankAccounts,
-    EmailAddressAsStr,
-)
+from eventsourcing.tests.domain import BankAccount
 
 
 class TestProcessApplication(TestCase):

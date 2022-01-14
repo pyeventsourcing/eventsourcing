@@ -32,8 +32,11 @@ from eventsourcing.postgres import (
     PostgresProcessRecorder,
     PostgresTransaction,
 )
-from eventsourcing.tests.infrastructure_factory import (
+from eventsourcing.tests.persistence import (
+    AggregateRecorderTestCase,
+    ApplicationRecorderTestCase,
     InfrastructureFactoryTestCase,
+    ProcessRecorderTestCase,
 )
 from eventsourcing.tests.persistence_tests.test_connection_pool import (
     TestConnectionPool,
@@ -41,11 +44,6 @@ from eventsourcing.tests.persistence_tests.test_connection_pool import (
 from eventsourcing.tests.postgres_utils import (
     drop_postgres_table,
     pg_close_all_connections,
-)
-from eventsourcing.tests.recorders import (
-    AggregateRecorderTestCase,
-    ApplicationRecorderTestCase,
-    ProcessRecorderTestCase,
 )
 from eventsourcing.utils import Environment
 

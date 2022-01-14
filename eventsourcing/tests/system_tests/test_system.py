@@ -11,11 +11,11 @@ from eventsourcing.system import (
     Promptable,
     System,
 )
+from eventsourcing.tests.application import BankAccounts
 from eventsourcing.tests.application_tests.test_processapplication import (
     EmailProcess,
 )
-from eventsourcing.tests.example_aggregate import BankAccount
-from eventsourcing.tests.example_application import BankAccounts
+from eventsourcing.tests.domain import BankAccount
 from eventsourcing.utils import get_topic
 
 

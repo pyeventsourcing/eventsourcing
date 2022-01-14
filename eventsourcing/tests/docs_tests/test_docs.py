@@ -7,8 +7,8 @@ from unittest.case import TestCase
 
 import eventsourcing
 from eventsourcing.postgres import PostgresDatastore
+from eventsourcing.tests.persistence import tmpfile_uris
 from eventsourcing.tests.postgres_utils import drop_postgres_table
-from eventsourcing.tests.ramdisk import tmpfile_uris
 
 base_dir = dirname(dirname(os.path.abspath(eventsourcing.__file__)))
 

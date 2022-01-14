@@ -21,8 +21,8 @@ from eventsourcing.persistence import (
 )
 from eventsourcing.popo import POPOAggregateRecorder
 from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatastore
-from eventsourcing.tests.example_aggregate import BankAccount
-from eventsourcing.tests.example_application import EmailAddressAsStr
+from eventsourcing.tests.application import EmailAddressAsStr
+from eventsourcing.tests.domain import BankAccount
 from eventsourcing.utils import get_topic
 
 

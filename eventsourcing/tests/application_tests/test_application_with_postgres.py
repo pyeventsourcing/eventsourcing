@@ -1,7 +1,7 @@
 import os
 
 from eventsourcing.postgres import PostgresDatastore
-from eventsourcing.tests.example_application import (
+from eventsourcing.tests.application import (
     TIMEIT_FACTOR,
     ExampleApplicationTestCase,
 )
