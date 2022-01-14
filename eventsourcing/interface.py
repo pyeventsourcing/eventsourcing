@@ -68,7 +68,9 @@ class NotificationLogJSONService(NotificationLogInterface, Generic[TApplication]
     def get_notifications(
         self, start: int, limit: int, topics: Sequence[str] = ()
     ) -> str:
-        notifications = self.app.notifications.select(start=start, limit=limit, topics=topics)
+        notifications = self.app.notifications.select(
+            start=start, limit=limit, topics=topics
+        )
         return json.dumps(
             [
                 {
