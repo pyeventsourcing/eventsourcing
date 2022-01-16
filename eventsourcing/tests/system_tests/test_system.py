@@ -172,7 +172,7 @@ class TestFollower(TestCase):
 
         self.assertEqual(len(recordings), 1)
 
-        aggregate_event = recordings[0].aggregate_event
+        aggregate_event = recordings[0].domain_event
         notification = recordings[0].notification
         tracking = Tracking(bank_accounts.name, notification.id)
 
@@ -196,7 +196,7 @@ class TestFollower(TestCase):
         recordings = bank_accounts.save(account)
 
         # Process the event and expect an integrity error.
-        aggregate_event = recordings[0].aggregate_event
+        aggregate_event = recordings[0].domain_event
         notification = recordings[0].notification
         tracking = Tracking(bank_accounts.name, notification.id)
         with self.assertRaises(IntegrityError):

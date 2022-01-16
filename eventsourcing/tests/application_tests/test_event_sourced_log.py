@@ -3,14 +3,13 @@ from unittest import TestCase
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from eventsourcing.application import Application, EventSourcedLog, LogEvent
-from eventsourcing.domain import Aggregate
+from eventsourcing.domain import Aggregate, ProgrammingError
 from eventsourcing.persistence import (
     DatetimeAsISO,
     DecimalAsStr,
     EventStore,
     JSONTranscoder,
     Mapper,
-    ProgrammingError,
     UUIDAsHex,
 )
 from eventsourcing.popo import POPOAggregateRecorder

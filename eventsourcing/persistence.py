@@ -24,12 +24,7 @@ from typing import (
 )
 from uuid import UUID
 
-from eventsourcing.domain import (
-    Aggregate,
-    AggregateEvent,
-    DomainEvent,
-    TDomainEvent,
-)
+from eventsourcing.domain import DomainEvent, EventSourcingError
 from eventsourcing.utils import (
     Environment,
     TopicError,
@@ -197,7 +192,6 @@ class DatetimeAsISO(Transcoding):
 
 @dataclass(frozen=True)
 class StoredEvent:
-    # noinspection PyUnresolvedReferences
     """
     Frozen dataclass that represents :class:`~eventsourcing.domain.DomainEvent`
     objects, such as aggregate :class:`~eventsourcing.domain.Aggregate.Event`
@@ -325,13 +319,13 @@ class Mapper:
         return domain_event
 
 
-class RecordConflictError(Exception):
+class RecordConflictError(EventSourcingError):
     """
     Legacy exception, replaced with IntegrityError.
     """
 
 
-class PersistenceError(Exception):
+class PersistenceError(EventSourcingError):
     """
     The base class of the other exceptions in this module.
 
@@ -386,8 +380,8 @@ class InternalError(DatabaseError):
 
 class ProgrammingError(DatabaseError):
     """
-    Exception raised for programming errors, e.g. table not
-    found or already exists, syntax error in the SQL statement,
+    Exception raised for database programming errors, e.g. table
+    not found or already exists, syntax error in the SQL statement,
     wrong number of parameters specified, etc.
     """
 
@@ -499,11 +493,11 @@ class ProcessRecorder(ApplicationRecorder):
 
 @dataclass(frozen=True)
 class Recording:
-    aggregate_event: AggregateEvent[Aggregate]
+    domain_event: DomainEvent[Any]
     notification: Notification
 
 
-class EventStore(Generic[TDomainEvent]):
+class EventStore:
     """
     Stores and retrieves domain events.
     """
@@ -530,7 +524,7 @@ class EventStore(Generic[TDomainEvent]):
             for d, s, n_id in zip(domain_events, stored_events, notification_ids):
                 recordings.append(
                     Recording(
-                        cast(AggregateEvent[Aggregate], d),
+                        d,
                         Notification(
                             originator_id=s.originator_id,
                             originator_version=s.originator_version,
@@ -549,21 +543,18 @@ class EventStore(Generic[TDomainEvent]):
         lte: Optional[int] = None,
         desc: bool = False,
         limit: Optional[int] = None,
-    ) -> Iterator[TDomainEvent]:
+    ) -> Iterator[DomainEvent[Any]]:
         """
         Retrieves domain events from aggregate sequence.
         """
-        return cast(
-            Iterator[TDomainEvent],
-            map(
-                self.mapper.to_domain_event,
-                self.recorder.select_events(
-                    originator_id=originator_id,
-                    gt=gt,
-                    lte=lte,
-                    desc=desc,
-                    limit=limit,
-                ),
+        return map(
+            self.mapper.to_domain_event,
+            self.recorder.select_events(
+                originator_id=originator_id,
+                gt=gt,
+                lte=lte,
+                desc=desc,
+                limit=limit,
             ),
         )
 
@@ -702,7 +693,7 @@ class InfrastructureFactory(ABC):
         return compressor
 
     @staticmethod
-    def event_store(**kwargs: Any) -> EventStore[TDomainEvent]:
+    def event_store(**kwargs: Any) -> EventStore:
         """
         Constructs an event store.
         """
@@ -826,11 +817,11 @@ class Connection(ABC, Generic[TCursor]):
 TConnection = TypeVar("TConnection", bound=Connection[Any])
 
 
-class ConnectionPoolClosed(Exception):
+class ConnectionPoolClosed(EventSourcingError):
     pass
 
 
-class ConnectionNotFromPool(Exception):
+class ConnectionNotFromPool(EventSourcingError):
     pass
 
 

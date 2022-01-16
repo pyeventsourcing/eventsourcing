@@ -26,8 +26,11 @@ from eventsourcing.domain import (
     Aggregate,
     AggregateEvent,
     DomainEvent,
+    EventSourcingError,
+    LogEvent,
     Snapshot,
     TAggregate,
+    TLogEvent,
 )
 from eventsourcing.persistence import (
     ApplicationRecorder,
@@ -38,7 +41,6 @@ from eventsourcing.persistence import (
     JSONTranscoder,
     Mapper,
     Notification,
-    ProgrammingError,
     Recording,
     Tracking,
     Transcoder,
@@ -192,8 +194,8 @@ class Repository(Generic[TAggregate]):
 
     def __init__(
         self,
-        event_store: EventStore[AggregateEvent[TAggregate]],
-        snapshot_store: Optional[EventStore[Snapshot[TAggregate]]] = None,
+        event_store: EventStore,
+        snapshot_store: Optional[EventStore] = None,
         cache_maxsize: Optional[int] = None,
         fastforward: bool = True,
     ):
@@ -473,20 +475,20 @@ class ProcessingEvent:
         Initialises the process event with the given tracking object.
         """
         self.tracking = tracking
-        self.events: List[AggregateEvent[Any]] = []
+        self.events: List[Union[AggregateEvent[Any], LogEvent]] = []
         self.aggregates: Dict[UUID, Aggregate] = {}
         self.saved_kwargs: Dict[Any, Any] = {}
 
     def collect_events(
         self,
-        *objs: Optional[Union[Aggregate, AggregateEvent[Aggregate]]],
+        *objs: Optional[Union[Aggregate, AggregateEvent[Aggregate], LogEvent]],
         **kwargs: Any,
     ) -> None:
         """
         Collects pending domain events from the given aggregate.
         """
         for obj in objs:
-            if isinstance(obj, AggregateEvent):
+            if isinstance(obj, (AggregateEvent, LogEvent)):
                 self.events.append(obj)
             elif isinstance(obj, Aggregate):
                 self.aggregates[obj.id] = obj
@@ -554,7 +556,9 @@ class Application(ABC, Generic[TAggregate]):
         self.mapper = self.construct_mapper()
         self.recorder = self.construct_recorder()
         self.events = self.construct_event_store()
-        self.snapshots = self.construct_snapshot_store()
+        self.snapshots: Optional[EventStore] = None
+        if self.factory.is_snapshotting_enabled():
+            self.snapshots = self.construct_snapshot_store()
         self.repository = self.construct_repository()
         self.notifications = self.construct_notification_log()
         self.closing = Event()
@@ -625,7 +629,7 @@ class Application(ABC, Generic[TAggregate]):
         """
         return self.factory.application_recorder()
 
-    def construct_event_store(self) -> EventStore[AggregateEvent[TAggregate]]:
+    def construct_event_store(self) -> EventStore:
         """
         Constructs an :class:`~eventsourcing.persistence.EventStore`
         for use by the application to store and retrieve aggregate
@@ -636,14 +640,12 @@ class Application(ABC, Generic[TAggregate]):
             recorder=self.recorder,
         )
 
-    def construct_snapshot_store(self) -> Optional[EventStore[Snapshot[TAggregate]]]:
+    def construct_snapshot_store(self) -> EventStore:
         """
         Constructs an :class:`~eventsourcing.persistence.EventStore`
         for use by the application to store and retrieve aggregate
         :class:`~eventsourcing.domain.Snapshot` objects.
         """
-        if not self.factory.is_snapshotting_enabled():
-            return None
         recorder = self.factory.aggregate_recorder(purpose="snapshots")
         return self.factory.event_store(
             mapper=self.mapper,
@@ -674,7 +676,7 @@ class Application(ABC, Generic[TAggregate]):
 
     def save(
         self,
-        *objs: Optional[Union[TAggregate, AggregateEvent[Aggregate]]],
+        *objs: Optional[Union[TAggregate, AggregateEvent[Aggregate], LogEvent]],
         **kwargs: Any,
     ) -> List[Recording]:
         """
@@ -737,7 +739,9 @@ class Application(ABC, Generic[TAggregate]):
             snapshot = Snapshot.take(aggregate)
             self.snapshots.put([snapshot])
 
-    def notify(self, new_events: List[AggregateEvent[Aggregate]]) -> None:
+    def notify(
+        self, new_events: List[Union[AggregateEvent[Aggregate], LogEvent]]
+    ) -> None:
         """
         Deprecated.
 
@@ -763,19 +767,11 @@ class Application(ABC, Generic[TAggregate]):
 TApplication = TypeVar("TApplication", bound=Application[Aggregate])
 
 
-class AggregateNotFound(Exception):
+class AggregateNotFound(EventSourcingError):
     """
     Raised when an :class:`~eventsourcing.domain.Aggregate`
     object is not found in a :class:`Repository`.
     """
-
-
-class LogEvent(AggregateEvent[Aggregate]):
-    def mutate(self, aggregate: Optional[TAggregate]) -> Optional[TAggregate]:
-        raise ProgrammingError("Log events cannot be projected into aggregates")
-
-
-TLogEvent = TypeVar("TLogEvent", bound=LogEvent)
 
 
 class EventSourcedLog(Generic[TLogEvent]):
@@ -795,7 +791,7 @@ class EventSourcedLog(Generic[TLogEvent]):
 
     def __init__(
         self,
-        events: EventStore[AggregateEvent[Aggregate]],
+        events: EventStore,
         originator_id: UUID,
         logged_cls: Type[TLogEvent],
     ):

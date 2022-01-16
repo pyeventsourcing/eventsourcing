@@ -156,6 +156,31 @@ class AggregateCreated(AggregateEvent[TAggregate]):
         return agg
 
 
+class EventSourcingError(Exception):
+    """
+    Base exception class.
+    """
+
+
+class ProgrammingError(EventSourcingError):
+    """
+    Exception class for domain model programming errors.
+    """
+
+
+class LogEvent(DomainEvent[None], metaclass=MetaDomainEvent):
+    """
+    Base class for the events of event-sourced logs.
+    """
+
+    def mutate(self, aggregate: None) -> None:
+        """Raises a ProgrammingError exception if called."""
+        raise ProgrammingError("Log events cannot be projected into aggregates")
+
+
+TLogEvent = TypeVar("TLogEvent", bound=LogEvent)
+
+
 def _select_kwargs_mentioned_in_sig(
     kwargs: Dict[str, Any], method: Callable[..., Any]
 ) -> Dict[str, Any]:
@@ -1197,7 +1222,7 @@ def aggregate(
         return decorator
 
 
-class OriginatorIDError(Exception):
+class OriginatorIDError(EventSourcingError):
     """
     Raised when a domain event can't be applied to
     an aggregate due to an ID mismatch indicating
@@ -1206,7 +1231,7 @@ class OriginatorIDError(Exception):
     """
 
 
-class OriginatorVersionError(Exception):
+class OriginatorVersionError(EventSourcingError):
     """
     Raised when a domain event can't be applied to
     an aggregate due to version mismatch indicating

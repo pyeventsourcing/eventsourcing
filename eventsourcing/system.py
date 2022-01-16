@@ -6,6 +6,7 @@ from collections import defaultdict
 from queue import Full, Queue
 from threading import Event, Lock, RLock, Thread
 from typing import (
+    Any,
     Dict,
     Iterable,
     Iterator,
@@ -28,7 +29,7 @@ from eventsourcing.application import (
     Section,
     TApplication,
 )
-from eventsourcing.domain import Aggregate, AggregateEvent, TAggregate
+from eventsourcing.domain import Aggregate, DomainEvent, TAggregate
 from eventsourcing.persistence import (
     IntegrityError,
     Mapper,
@@ -39,7 +40,7 @@ from eventsourcing.persistence import (
 )
 from eventsourcing.utils import EnvType, get_topic, resolve_topic
 
-ProcessingJob = Tuple[AggregateEvent[Aggregate], Tracking]
+ProcessingJob = Tuple[DomainEvent[Any], Tracking]
 ConvertingJob = Optional[Union[RecordingEvent, List[Notification]]]
 
 
@@ -133,9 +134,7 @@ class Follower(Application[TAggregate]):
         mapper = self.mappers[leader_name]
         processing_jobs = []
         for notification in notifications:
-            domain_event = cast(
-                AggregateEvent[Aggregate], mapper.to_domain_event(notification)
-            )
+            domain_event = mapper.to_domain_event(notification)
             tracking = Tracking(
                 application_name=leader_name,
                 notification_id=notification.id,
@@ -144,9 +143,7 @@ class Follower(Application[TAggregate]):
         return processing_jobs
 
     # @retry(IntegrityError, max_attempts=50000, wait=0.01)
-    def process_event(
-        self, domain_event: AggregateEvent[Aggregate], tracking: Tracking
-    ) -> None:
+    def process_event(self, domain_event: DomainEvent[Any], tracking: Tracking) -> None:
         """
         Calls :func:`~eventsourcing.system.Follower.policy` method with
         the given :class:`~eventsourcing.domain.AggregateEvent` and a
@@ -186,7 +183,7 @@ class Follower(Application[TAggregate]):
     @abstractmethod
     def policy(
         self,
-        domain_event: AggregateEvent[Aggregate],
+        domain_event: DomainEvent[Any],
         processing_event: ProcessingEvent,
     ) -> None:
         """
@@ -547,7 +544,7 @@ class SingleThreadedRunner(Runner, Promptable):
                                 ):
                                     continue
                                 follower.process_event(
-                                    domain_event=recording.aggregate_event,
+                                    domain_event=recording.domain_event,
                                     tracking=Tracking(
                                         application_name=recording_event.application_name,
                                         notification_id=recording.notification.id,
@@ -855,7 +852,7 @@ class ConvertingThread(Thread):
                             application_name=recording_event.application_name,
                             notification_id=recording.notification.id,
                         )
-                        processing_jobs.append((recording.aggregate_event, tracking))
+                        processing_jobs.append((recording.domain_event, tracking))
                 else:
                     notifications = recording_event_or_notifications
                     processing_jobs = self.follower.convert_notifications(
