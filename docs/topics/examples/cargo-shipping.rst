@@ -1,8 +1,8 @@
 
 .. _Cargo shipping example:
 
-Cargo shipping example
-======================
+Cargo shipping application
+==========================
 
 This example follows the original Cargo Shipping example that
 figures in the DDD book, as worked up into a running application
@@ -17,6 +17,18 @@ by the `DDD Sample <http://dddsample.sourceforge.net/>`__  project:
 The original example was not event-sourced and was coded in Java. The example below
 is an event-sourced version of the original coded in Python.
 
+Application
+-----------
+
+The application object ``BookingService`` allows new cargo to be booked, cargo details
+to be presented, the destination of cargo to be changed, choices of possible routes
+for cargo to be presented, a route to be assigned, and for cargo handling events
+to be registered.
+
+The ``Booking`` application defines and registers custom transcodings for the
+custom value objects that are defined and used in the domain model.
+
+.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/application.py
 
 Domain model
 ------------
@@ -37,19 +49,6 @@ locations are also defined, but in practice these would be editable and could be
 also modelled as event-sourced aggregates.
 
 .. literalinclude:: ../../../eventsourcing/examples/cargoshipping/domainmodel.py
-
-Application
------------
-
-The application object ``BookingService`` allows new cargo to be booked, cargo details
-to be presented, the destination of cargo to be changed, choices of possible routes
-for cargo to be presented, a route to be assigned, and for cargo handling events
-to be registered.
-
-The ``Booking`` application defines and registers custom transcodings for the
-custom value objects that are defined and used in the domain model.
-
-.. literalinclude:: ../../../eventsourcing/examples/cargoshipping/application.py
 
 
 Interface

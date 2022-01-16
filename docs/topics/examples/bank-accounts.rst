@@ -6,6 +6,18 @@ Bank accounts application
 This example demonstrates a straightforward event-sourced
 application.
 
+Application
+-----------
+
+The ``BankAccounts`` application has command and query methods for interacting
+with the domain model. New accounts can be opened. Existing accounts can be
+closed. Deposits and withdraws can be made on open accounts. Transfers can be
+made between open accounts, if there are sufficient funds on the debited account.
+All actions are atomic, including transfers between accounts.
+
+.. literalinclude:: ../../../eventsourcing/examples/bankaccounts/application.py
+
+
 Domain model
 ------------
 
@@ -19,18 +31,6 @@ balance would go below the overdraft limit. The overdraft
 limit can be adjusted.
 
 .. literalinclude:: ../../../eventsourcing/examples/bankaccounts/domainmodel.py
-
-
-Application
------------
-
-The ``BankAccounts`` application has command and query methods for interacting
-with the domain model. New accounts can be opened. Existing accounts can be
-closed. Deposits and withdraws can be made on open accounts. Transfers can be
-made between open accounts, if there are sufficient funds on the debited account.
-All actions are atomic, including transfers between accounts.
-
-.. literalinclude:: ../../../eventsourcing/examples/bankaccounts/application.py
 
 
 Test case
