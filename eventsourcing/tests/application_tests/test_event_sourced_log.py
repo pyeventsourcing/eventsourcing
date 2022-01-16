@@ -1,3 +1,4 @@
+from typing import Optional
 from unittest import TestCase
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
@@ -13,10 +14,11 @@ from eventsourcing.persistence import (
     UUIDAsHex,
 )
 from eventsourcing.popo import POPOAggregateRecorder
+from eventsourcing.utils import EnvType
 
 
 class TestEventSourcedLog(TestCase):
-    def test_log_event_mutate_raises_programming_error(self):
+    def test_log_event_mutate_raises_programming_error(self) -> None:
         log_event = LogEvent(
             originator_id=uuid4(),
             originator_version=1,
@@ -52,13 +54,19 @@ class TestEventSourcedLog(TestCase):
         self.assertEqual(log.get_last(), None)
         logged = log.trigger_event(aggregate_id=id1)
         event_store.put([logged])
-        self.assertEqual(log.get_last().aggregate_id, id1)
+        last = log.get_last()
+        assert last
+        self.assertEqual(last.aggregate_id, id1)
         logged = log.trigger_event(aggregate_id=id2)
         event_store.put([logged])
-        self.assertEqual(log.get_last().aggregate_id, id2)
+        last = log.get_last()
+        assert last
+        self.assertEqual(last.aggregate_id, id2)
         logged = log.trigger_event(aggregate_id=id3, next_originator_version=3)
         event_store.put([logged])
-        self.assertEqual(log.get_last().aggregate_id, id3)
+        last = log.get_last()
+        assert last
+        self.assertEqual(last.aggregate_id, id3)
 
         ids = [e.aggregate_id for e in log.get()]
         self.assertEqual(ids, [id1, id2, id3])
@@ -79,8 +87,8 @@ class TestEventSourcedLog(TestCase):
         class LoggedID(LogEvent):
             aggregate_id: UUID
 
-        class MyApplication(Application):
-            def __init__(self, env=None) -> None:
+        class MyApplication(Application[Aggregate]):
+            def __init__(self, env: Optional[EnvType] = None) -> None:
                 super().__init__(env=env)
                 self.aggregate_log = EventSourcedLog(
                     events=self.events,
@@ -88,7 +96,7 @@ class TestEventSourcedLog(TestCase):
                     logged_cls=LoggedID,
                 )
 
-            def create_aggregate(self):
+            def create_aggregate(self) -> UUID:
                 aggregate = Aggregate()
                 logged_id = self.aggregate_log.trigger_event(aggregate_id=aggregate.id)
                 self.save(aggregate, logged_id)
@@ -100,12 +108,12 @@ class TestEventSourcedLog(TestCase):
 
         aggregate1_id = app.create_aggregate()
         last = app.aggregate_log.get_last()
-        self.assertIsInstance(last, app.aggregate_log.logged_cls)
+        assert last
         self.assertEqual(last.aggregate_id, aggregate1_id)
 
         aggregate2_id = app.create_aggregate()
         last = app.aggregate_log.get_last()
-        self.assertIsInstance(last, app.aggregate_log.logged_cls)
+        assert last
         self.assertEqual(last.aggregate_id, aggregate2_id)
 
         aggregate_ids = [i.aggregate_id for i in app.aggregate_log.get()]
