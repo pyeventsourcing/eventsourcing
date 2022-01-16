@@ -941,16 +941,16 @@ The library class :class:`~eventsourcing.application.EventSourcedLog`
 can be used with subclasses of :class:`~eventsourcing.application.LogEvent`
 to trigger log events that can be saved and listed. An event-sourced
 log can be constructed as a part of the application, with a version-5 UUID
-that is used to identify the sequence of events. This is similar to
+that is used to identify the sequence of log events. This is similar to
 event-sourced aggregates, with the difference that the entire sequence
-does not need to be obtained in order to derive useful information in
-the application.
-A range of log events can be selected from the sequence, ascending or
-descending. The logged information can be retried from the log events.
+does not need to be obtained and used to reconstruct a current state
+in order to derive useful information in the application.
+Instead, a subset of the log events can be selected from the sequence.
+The logged information can then be retrieved from the log events.
 
-This can be used, for example, to incrementally discover the aggregate
-IDs of a particular type of aggregate. Log events can be triggered with
-the ID of newly created aggregates. Triggered log events can then be saved
+This can be used, for example, to record and incrementally discover the
+aggregate IDs of a particular type of aggregate. A log event can be triggered
+with the ID of a newly created aggregate. The log event can then be saved
 atomically with the newly created aggregate, by passing both to the
 application :func:`~eventsourcing.application.Application.save` method.
 
@@ -1026,8 +1026,8 @@ non-event-sourced CRUD or ORM-based domain models in which the list is
 ordered by the aggregates' :py:obj:`~eventsourcing.domain.Aggregate.created_on`
 attribute (ascending or descending). To order by another attribute, such as
 :py:obj:`~eventsourcing.domain.Aggregate.modified_on` or a custom
-attribute, it will be necessary to maintain an index of the current
-values.
+attribute, it will be necessary somehow to define and maintain an index of
+the current values.
 
 .. _Snapshotting:
 
@@ -1037,7 +1037,8 @@ Snapshotting
 If the reconstruction of an aggregate depends on obtaining and replaying
 a relatively large number of domain event objects, it can take a relatively
 long time to reconstruct the aggregate. Snapshotting aggregates can help to
-reduce access time of aggregates with lots of domain events.
+reduce the time it takes to reconstruct aggregates, and hence reduce the access
+time of aggregates with lots of domain events.
 
 Snapshots are stored separately from the aggregate events. When snapshotting
 is enabled, the application object will have a snapshot store assigned to the
@@ -1058,7 +1059,7 @@ the value of this environment variable, so that strings
 ``"y"``, ``"yes"``, ``"t"``, ``"true"``, ``"on"`` and ``"1"`` are considered to
 be "true" values, and ``"n"``, ``"no"``, ``"f"``, ``"false"``, ``"off"`` and ``"0"``
 are considered to be "false" values, and other values are considered to be invalid.
-The default is for an application's snapshotting functionality to be not enabled.
+The default is for an application's snapshotting functionality not to be enabled.
 
 Application environment variables can be passed into the application using the
 ``env`` argument when constructing an application object. Snapshotting can be
@@ -1177,12 +1178,16 @@ Automatic snapshotting
 ----------------------
 
 Automatic snapshotting of aggregates at regular intervals can be enabled
-by setting the application class attribute 'snapshotting_intervals'. The
-'snapshotting_intervals' should be a mapping of aggregate classes to integers
-which represent the snapshotting interval. When aggregates are saved, snapshots
+for an application class be setting the class attribute 'snapshotting_intervals'.
+The 'snapshotting_intervals' should be a mapping of aggregate classes to integers
+which represent the snapshotting interval. Setting this attribute implicitly
+enables snapshotting as described above. When aggregates are saved, snapshots
 will be taken if the version of aggregate coincides with the specified interval.
-The example below demonstrates this by extending the ``Worlds`` application class
-with ``World`` aggregates snapshotted every 2 events.
+
+The example extends the ``Worlds`` application class and specifies
+that ``World`` aggregates are to be automatically snapshotted every
+2 events. In practice, a suitable interval would most likely be larger
+than 2, perhaps more like 100.
 
 .. code-block:: python
 
@@ -1208,10 +1213,6 @@ with ``World`` aggregates snapshotted every 2 events.
 
     assert snapshots[1].originator_id == world_id
     assert snapshots[1].originator_version == 4
-
-In practice, a suitable interval would most likely be larger than 2.
-Perhaps more like 100. And 'snapshotting_intervals' would be defined
-directly on your application class.
 
 
 Classes
