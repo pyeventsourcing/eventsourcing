@@ -5,7 +5,7 @@ After Ed Blackburn's https://github.com/edblackburn/parking-lot/.
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import List, Type
+from typing import List, Type, cast
 from unittest import TestCase
 from uuid import NAMESPACE_URL, UUID, uuid5
 
@@ -90,7 +90,7 @@ class Vehicle(Aggregate):
         return uuid5(NAMESPACE_URL, f"/licence_plate_numbers/{licence_plate_number}")
 
 
-class ParkingLot(Application[Vehicle]):
+class ParkingLot(Application):
     def book(self, licence_plate: LicencePlate, product: Type[Product]) -> None:
         try:
             vehicle = self.get_vehicle(licence_plate)
@@ -107,7 +107,9 @@ class ParkingLot(Application[Vehicle]):
         self.save(vehicle)
 
     def get_vehicle(self, licence_plate: LicencePlate) -> Vehicle:
-        return self.repository.get(Vehicle.create_id(licence_plate.number))
+        return cast(
+            Vehicle, self.repository.get(Vehicle.create_id(licence_plate.number))
+        )
 
 
 class TestParkingLot(TestCase):

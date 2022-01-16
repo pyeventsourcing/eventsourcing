@@ -84,7 +84,7 @@ class TestEventSourcedLog(TestCase):
         class LoggedID(LogEvent):
             aggregate_id: UUID
 
-        class MyApplication(Application[Aggregate]):
+        class MyApplication(Application):
             def __init__(self, env: Optional[EnvType] = None) -> None:
                 super().__init__(env=env)
                 self.aggregate_log = EventSourcedLog(

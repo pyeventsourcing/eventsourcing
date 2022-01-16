@@ -163,7 +163,7 @@ class EmailAddressAsStr(Transcoding):
         return EmailAddress(data)
 
 
-class BankAccounts(Application[BankAccount]):
+class BankAccounts(Application):
     is_snapshotting_enabled = True
 
     def register_transcodings(self, transcoder: Transcoder) -> None:

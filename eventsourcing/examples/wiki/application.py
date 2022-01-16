@@ -6,14 +6,13 @@ from eventsourcing.application import (
     Application,
     EventSourcedLog,
 )
-from eventsourcing.domain import Aggregate
 from eventsourcing.examples.wiki.domainmodel import Index, Page, PageLogged
 from eventsourcing.utils import EnvType
 
 PageDetailsType = Dict[str, Union[str, Any]]
 
 
-class WikiApplication(Application[Aggregate]):
+class WikiApplication(Application):
     env = {"COMPRESSOR_TOPIC": "gzip"}
     snapshotting_intervals = {Page: 5}
 

@@ -186,7 +186,7 @@ class LRUCache(Cache[_S, _T]):
         return evicted_key, evicted_value
 
 
-class Repository(Generic[TAggregate]):
+class Repository:
     """Reconstructs aggregates from events in an
     :class:`~eventsourcing.persistence.EventStore`,
     possibly using snapshot store to avoid replaying
@@ -211,7 +211,7 @@ class Repository(Generic[TAggregate]):
         self.snapshot_store = snapshot_store
 
         if cache_maxsize is None:
-            self.cache: Optional[Cache[UUID, TAggregate]] = None
+            self.cache: Optional[Cache[UUID, Aggregate]] = None
         elif cache_maxsize <= 0:
             self.cache = Cache()
         else:
@@ -222,8 +222,8 @@ class Repository(Generic[TAggregate]):
         self,
         aggregate_id: UUID,
         version: Optional[int] = None,
-        projector_func: ProjectorFunctionType[TAggregate] = mutate_aggregate,
-    ) -> TAggregate:
+        projector_func: ProjectorFunctionType[Aggregate] = mutate_aggregate,
+    ) -> Aggregate:
         if self.cache and version is None:
             try:
                 # Look for aggregate in the cache.
@@ -259,8 +259,8 @@ class Repository(Generic[TAggregate]):
         self,
         aggregate_id: UUID,
         version: Optional[int] = None,
-        projector_func: ProjectorFunctionType[TAggregate] = mutate_aggregate,
-    ) -> TAggregate:
+        projector_func: ProjectorFunctionType[Aggregate] = mutate_aggregate,
+    ) -> Aggregate:
         """
         Reconstructs an :class:`~eventsourcing.domain.Aggregate` for a
         given ID from stored events, optionally at a particular version.
@@ -290,7 +290,7 @@ class Repository(Generic[TAggregate]):
         )
 
         # Reconstruct the aggregate from its events.
-        initial: Optional[TAggregate] = None
+        initial: Optional[Aggregate] = None
         aggregate = projector_func(initial, chain(snapshots, aggregate_events))
 
         # Raise exception if "not found".
@@ -522,7 +522,7 @@ class RecordingEvent:
         self.previous_max_notification_id = previous_max_notification_id
 
 
-class Application(ABC, Generic[TAggregate]):
+class Application(ABC):
     """
     Base class for event-sourced applications.
     """
@@ -652,7 +652,7 @@ class Application(ABC, Generic[TAggregate]):
             recorder=recorder,
         )
 
-    def construct_repository(self) -> Repository[TAggregate]:
+    def construct_repository(self) -> Repository:
         """
         Constructs a :class:`Repository` for use by the application.
         """
@@ -702,7 +702,7 @@ class Application(ABC, Generic[TAggregate]):
         )
         if self.repository.cache:
             for aggregate_id, aggregate in processing_event.aggregates.items():
-                self.repository.cache.put(aggregate_id, cast(TAggregate, aggregate))
+                self.repository.cache.put(aggregate_id, aggregate)
         return recordings
 
     def _take_snapshots(self, processing_event: ProcessingEvent) -> None:
@@ -764,7 +764,7 @@ class Application(ABC, Generic[TAggregate]):
         self.factory.close()
 
 
-TApplication = TypeVar("TApplication", bound=Application[Aggregate])
+TApplication = TypeVar("TApplication", bound=Application)
 
 
 class AggregateNotFound(EventSourcingError):

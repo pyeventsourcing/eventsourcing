@@ -151,7 +151,7 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
                 self.output = output
                 self.error = error
 
-        class Commands(ProcessApplication[Command]):
+        class Commands(ProcessApplication):
             def create_command(self, text: str) -> UUID:
                 command = Command(text=text)
                 self.save(command)
@@ -174,7 +174,7 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
                 command = self.repository.get(command_id)
                 return command.output, command.error
 
-        class Results(ProcessApplication[Result]):
+        class Results(ProcessApplication):
             def policy(
                 self,
                 domain_event: AggregateEvent[Aggregate],

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 from uuid import UUID
 
 from eventsourcing.application import Application
@@ -62,7 +62,7 @@ class LegAsDict(Transcoding):
         return Leg(**data)
 
 
-class BookingApplication(Application[Cargo]):
+class BookingApplication(Application):
     def register_transcodings(self, transcoder: Transcoder) -> None:
         super(BookingApplication, self).register_transcodings(transcoder)
         transcoder.register(LocationAsName())
@@ -120,4 +120,4 @@ class BookingApplication(Application[Cargo]):
         self.save(cargo)
 
     def get_cargo(self, tracking_id: UUID) -> Cargo:
-        return self.repository.get(tracking_id)
+        return cast(Cargo, self.repository.get(tracking_id))

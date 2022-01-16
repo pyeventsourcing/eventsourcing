@@ -29,7 +29,7 @@ from eventsourcing.application import (
     Section,
     TApplication,
 )
-from eventsourcing.domain import Aggregate, DomainEvent, TAggregate
+from eventsourcing.domain import DomainEvent
 from eventsourcing.persistence import (
     IntegrityError,
     Mapper,
@@ -44,7 +44,7 @@ ProcessingJob = Tuple[DomainEvent[Any], Tracking]
 ConvertingJob = Optional[Union[RecordingEvent, List[Notification]]]
 
 
-class Follower(Application[TAggregate]):
+class Follower(Application):
     """
     Extends the :class:`~eventsourcing.application.Application` class
     by using a process recorder as its application recorder, by keeping
@@ -212,7 +212,7 @@ class Promptable(ABC):
         """
 
 
-class Leader(Application[TAggregate]):
+class Leader(Application):
     """
     Extends the :class:`~eventsourcing.application.Application`
     class by also being responsible for keeping track of
@@ -252,7 +252,7 @@ class Leader(Application[TAggregate]):
                 follower.receive_recording_event(recording_event)
 
 
-class ProcessApplication(Leader[TAggregate], Follower[TAggregate], ABC):
+class ProcessApplication(Leader, Follower, ABC):
     """
     Base class for event processing applications
     that are both "leaders" and followers".
@@ -266,9 +266,9 @@ class System:
 
     def __init__(
         self,
-        pipes: Iterable[Iterable[Type[Application[Aggregate]]]],
+        pipes: Iterable[Iterable[Type[Application]]],
     ):
-        classes: Dict[str, Type[Application[Aggregate]]] = {}
+        classes: Dict[str, Type[Application]] = {}
         edges: Set[Tuple[str, str]] = set()
         # Build nodes and edges.
         for pipe in pipes:
@@ -332,12 +332,12 @@ class System:
     def processors(self) -> List[str]:
         return [name for name in self.leads.keys() if name in self.follows]
 
-    def get_app_cls(self, name: str) -> Type[Application[Aggregate]]:
+    def get_app_cls(self, name: str) -> Type[Application]:
         cls = resolve_topic(self.nodes[name])
         assert issubclass(cls, Application)
         return cls
 
-    def leader_cls(self, name: str) -> Type[Leader[Aggregate]]:
+    def leader_cls(self, name: str) -> Type[Leader]:
         cls = self.get_app_cls(name)
         if issubclass(cls, Leader):
             return cls
@@ -350,7 +350,7 @@ class System:
             assert issubclass(cls, Leader)
             return cls
 
-    def follower_cls(self, name: str) -> Type[Follower[Aggregate]]:
+    def follower_cls(self, name: str) -> Type[Follower]:
         cls = self.get_app_cls(name)
         assert issubclass(cls, Follower)
         return cls
@@ -430,7 +430,7 @@ class SingleThreadedRunner(Runner, Promptable):
         Initialises runner with the given :class:`System`.
         """
         super().__init__(system, env)
-        self.apps: Dict[str, Application[Aggregate]] = {}
+        self.apps: Dict[str, Application] = {}
         self._recording_events_received: List[RecordingEvent] = []
         self._recording_events_received_lock = Lock()
         self._processing_lock = Lock()
@@ -467,15 +467,15 @@ class SingleThreadedRunner(Runner, Promptable):
         for edge in self.system.edges:
             leader_name = edge[0]
             follower_name = edge[1]
-            leader = cast(Leader[Aggregate], self.apps[leader_name])
-            follower = cast(Follower[Aggregate], self.apps[follower_name])
+            leader = cast(Leader, self.apps[leader_name])
+            follower = cast(Follower, self.apps[follower_name])
             assert isinstance(leader, Leader)
             assert isinstance(follower, Follower)
             follower.follow(leader_name, leader.notifications)
 
         # Setup leaders to notify followers.
         for name in self.system.leaders:
-            leader = cast(Leader[Aggregate], self.apps[name])
+            leader = cast(Leader, self.apps[name])
             assert isinstance(leader, Leader)
             leader.lead(self)
 
@@ -588,7 +588,7 @@ class MultiThreadedRunner(Runner, Promptable):
         Initialises runner with the given :class:`System`.
         """
         super().__init__(system, env)
-        self.apps: Dict[str, Application[Aggregate]] = {}
+        self.apps: Dict[str, Application] = {}
         self.pulling_threads: Dict[str, List[PullingThread]] = {}
         self.processing_queues: Dict[str, "Queue[Optional[List[ProcessingJob]]]"] = {}
         self.all_threads: List[
@@ -631,7 +631,7 @@ class MultiThreadedRunner(Runner, Promptable):
 
         # Start the processing threads.
         for follower_name in self.system.followers:
-            follower = cast(Follower[Aggregate], self.apps[follower_name])
+            follower = cast(Follower, self.apps[follower_name])
             processing_queue: "Queue[Optional[List[ProcessingJob]]]" = Queue(
                 maxsize=self.QUEUE_MAX_SIZE
             )
@@ -647,9 +647,9 @@ class MultiThreadedRunner(Runner, Promptable):
         for edge in self.system.edges:
             # Set up follower to pull notifications from leader.
             leader_name = edge[0]
-            leader = cast(Leader[Aggregate], self.apps[leader_name])
+            leader = cast(Leader, self.apps[leader_name])
             follower_name = edge[1]
-            follower = cast(Follower[Aggregate], self.apps[follower_name])
+            follower = cast(Follower, self.apps[follower_name])
             follower.follow(leader.name, leader.notifications)
 
             # Create converting queue.
@@ -687,7 +687,7 @@ class MultiThreadedRunner(Runner, Promptable):
 
         # Subscribe for notifications from leaders.
         for leader_name in self.system.leaders:
-            leader = cast(Leader[Aggregate], self.apps[leader_name])
+            leader = cast(Leader, self.apps[leader_name])
             assert isinstance(leader, Leader)
             leader.lead(self)
 
@@ -730,7 +730,7 @@ class PullingThread(Thread):
     def __init__(
         self,
         converting_queue: "Queue[ConvertingJob]",
-        follower: Follower[Aggregate],
+        follower: Follower,
         leader_name: str,
         has_errored: Event,
     ):
@@ -810,7 +810,7 @@ class ConvertingThread(Thread):
         self,
         converting_queue: "Queue[ConvertingJob]",
         processing_queue: "Queue[Optional[List[ProcessingJob]]]",
-        follower: Follower[Aggregate],
+        follower: Follower,
         leader_name: str,
         has_errored: Event,
     ):
@@ -880,7 +880,7 @@ class ProcessingThread(Thread):
     def __init__(
         self,
         processing_queue: "Queue[Optional[List[ProcessingJob]]]",
-        follower: Follower[Aggregate],
+        follower: Follower,
         has_errored: Event,
     ):
         super().__init__(daemon=True)

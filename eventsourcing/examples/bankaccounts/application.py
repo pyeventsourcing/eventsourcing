@@ -5,7 +5,7 @@ from eventsourcing.application import AggregateNotFound, Application
 from eventsourcing.examples.bankaccounts.domainmodel import BankAccount
 
 
-class BankAccounts(Application[BankAccount]):
+class BankAccounts(Application):
     def open_account(self, full_name: str, email_address: str) -> UUID:
         account = BankAccount(
             full_name=full_name,
@@ -16,7 +16,9 @@ class BankAccounts(Application[BankAccount]):
 
     def get_account(self, account_id: UUID) -> BankAccount:
         try:
-            return self.repository.get(account_id)
+            aggregate = self.repository.get(account_id)
+            assert isinstance(aggregate, BankAccount)
+            return aggregate
         except AggregateNotFound:
             raise AccountNotFoundError(account_id)
 

@@ -144,7 +144,7 @@ class TestInvoice(TestCase):
         self.assertEqual(invoice.sent_via, SendMethod.EMAIL)
         self.assertEqual(invoice.status, Status.SENT)
 
-        app: Application[Invoice] = Application(env={"IS_SNAPSHOTTING_ENABLED": "y"})
+        app: Application = Application(env={"IS_SNAPSHOTTING_ENABLED": "y"})
         app.mapper.transcoder.register(PersonAsDict())
         app.mapper.transcoder.register(SendMethodAsStr())
         app.mapper.transcoder.register(StatusAsStr())
