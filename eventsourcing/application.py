@@ -776,17 +776,17 @@ class AggregateNotFound(EventSourcingError):
 
 class EventSourcedLog(Generic[TLogEvent]):
     """
-    Stores a sequence of domain events, like an aggregate.
+    Constructs a sequence of domain events, like an aggregate.
     But unlike an aggregate the events can be triggered
-    and selected for use in the application without
-    reconstructing a current state from all events.
+    and selected for use in an application without
+    reconstructing a current state from all the events.
 
     This allows an indefinitely long sequence of events to be
     generated and used without the practical restrictions of
     projecting the events into a current state before they
     can be used, which is useful e.g. for logging and
-    discovering aggregate IDs of a particular type in
-    an application.
+    progressively discovering all the aggregate IDs of a
+    particular type in an application.
     """
 
     def __init__(
@@ -802,6 +802,9 @@ class EventSourcedLog(Generic[TLogEvent]):
     def trigger_event(
         self, next_originator_version: Optional[int] = None, **kwargs: Any
     ) -> TLogEvent:
+        """
+        Constructs and returns a new log event.
+        """
         if next_originator_version is None:
             last_logged = self.get_last()
             if last_logged is None:
@@ -816,8 +819,19 @@ class EventSourcedLog(Generic[TLogEvent]):
             **kwargs,
         )
 
+    def get_first(self) -> Optional[TLogEvent]:
+        """
+        Selects the first logged event.
+        """
+        try:
+            return next(self.get(limit=1))
+        except StopIteration:
+            return None
+
     def get_last(self) -> Optional[TLogEvent]:
-        # Get last logged event.
+        """
+        Selects the last logged event.
+        """
         try:
             return next(self.get(desc=True, limit=1))
         except StopIteration:
@@ -830,7 +844,10 @@ class EventSourcedLog(Generic[TLogEvent]):
         desc: bool = False,
         limit: Optional[int] = None,
     ) -> Iterator[TLogEvent]:
-        # Get logged events.
+        """
+        Selects a range of logged events with limit,
+        with ascending or descending order.
+        """
         return cast(
             Iterator[TLogEvent],
             self.events.get(

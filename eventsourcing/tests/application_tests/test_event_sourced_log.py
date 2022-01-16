@@ -17,15 +17,6 @@ from eventsourcing.utils import EnvType
 
 
 class TestEventSourcedLog(TestCase):
-    def test_log_event_mutate_raises_programming_error(self) -> None:
-        log_event = LogEvent(
-            originator_id=uuid4(),
-            originator_version=1,
-            timestamp=LogEvent.create_timestamp(),
-        )
-        with self.assertRaises(ProgrammingError):
-            log_event.mutate(None)
-
     def test_logging_aggregate_ids(self) -> None:
         class LoggedID(LogEvent):
             aggregate_id: UUID
@@ -50,9 +41,13 @@ class TestEventSourcedLog(TestCase):
         id2 = uuid4()
         id3 = uuid4()
 
+        self.assertEqual(log.get_first(), None)
         self.assertEqual(log.get_last(), None)
         logged = log.trigger_event(aggregate_id=id1)
         event_store.put([logged])
+        first = log.get_first()
+        assert first
+        self.assertEqual(first.aggregate_id, id1)
         last = log.get_last()
         assert last
         self.assertEqual(last.aggregate_id, id1)
@@ -66,6 +61,9 @@ class TestEventSourcedLog(TestCase):
         last = log.get_last()
         assert last
         self.assertEqual(last.aggregate_id, id3)
+        first = log.get_first()
+        assert first
+        self.assertEqual(first.aggregate_id, id1)
 
         ids = [e.aggregate_id for e in log.get()]
         self.assertEqual(ids, [id1, id2, id3])
@@ -117,3 +115,12 @@ class TestEventSourcedLog(TestCase):
 
         aggregate_ids = [i.aggregate_id for i in app.aggregate_log.get()]
         self.assertEqual(aggregate_ids, [aggregate1_id, aggregate2_id])
+
+    def test_log_event_mutate_raises_programming_error(self) -> None:
+        log_event = LogEvent(
+            originator_id=uuid4(),
+            originator_version=1,
+            timestamp=LogEvent.create_timestamp(),
+        )
+        with self.assertRaises(ProgrammingError):
+            log_event.mutate(None)
