@@ -602,6 +602,9 @@ In the example above, we can see that the settings from the construct argument h
 overridden the settings from the operating system environment, and the settings from
 the operating system environment have overridden the settings from the class attribute.
 
+Please note, all values are expected to be strings, as would be the case if the values
+are set in the actual operating system process environment.
+
 .. _Aggregate caching:
 
 Configuring aggregate caching
@@ -615,22 +618,29 @@ recently used aggregate will be evicted from the cache when it is full.
 A value of ``'0'`` will enable an unlimited cache. The default is for
 aggregate caching not to be enabled.
 
-When caches aggregates are accessed, they are "deep copied" to prevent the cache
-being corrupted with aborted changes. When aggregates are succefully saved, the
-cache is updated. Retrieved aggregates are also placed in the cache. To avoid
-using stale aggregates from the cache, for which subsequent events have been
-stored outside of the application instance, cached aggregates are "fast-forwarded"
-with any subsequent events. This involves querying for subsequent events. To disable
-fast-forwarding of cached aggregates, set``AGGREGATE_CACHE_FASTFORWARD`` in the
-application environment to a false value as interpreted by
-:func:`~eventsourcing.utils.strtobool`, that is one of ``'n'``, ``'no'``, ``'f'``,
-``'false'``, ``'off'``, or ``'0'``. Only do this when only one instance of
-the application being used to evolve the state of the aggregates, otherwise
-integrity errors will occur when attempting to evolve the state of stale
-aggregates. The default is for fast-forwarding to be enabled when aggregate
+When getting an aggregate that is not found in the cache, the aggregate
+will be reconstructed from stored events, and then placed in the cache.
+When getting an aggregate that is found in the cache, it will be "deep copied"
+to prevent the cache being corrupted with partial or aborted changes made
+by an application command method. After a mutated aggregate is successfully
+saved, the cache is updated by replacing the old state of the aggregate with
+the new.
+
+To avoid an application getting stale aggregates from a repository when
+aggregate caching is enabled (that is, aggregates for which subsequent events
+have been stored outside of the application instance) cached aggregates are
+"fast-forwarded" with any subsequent events. This involves querying for subsequent
+events, and updating the state of the aggregate. To disable fast-forwarding of cached
+aggregates, set ``AGGREGATE_CACHE_FASTFORWARD`` in the application environment to a false
+value as interpreted by :func:`~eventsourcing.utils.strtobool`, that is one of ``'n'``,
+``'no'``, ``'f'``, ``'false'``, ``'off'``, or ``'0'``. Only do this when only one
+instance of the application is being used to evolve the state of the aggregates,
+because integrity errors will certainly occur when attempting to evolve the state of
+stale aggregates. The default is for fast-forwarding to be enabled when aggregate
 caching is enabled. But in cases where there is only one application instance,
-greater performance improvement will be obtained by disabling fast-forwarding
-because querying for new events will be avoided.
+querying for new events is unnecessary, and a greater performance improvement
+will be obtained by disabling fast-forwarding because querying for new events
+will be avoided.
 
 .. _Persistence:
 
