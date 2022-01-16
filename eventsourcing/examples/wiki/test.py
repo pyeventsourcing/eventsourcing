@@ -28,8 +28,6 @@ class TestWiki(TestCase):
         # Check the list of pages is empty.
         pages = list(app.get_pages())
         self.assertEqual(len(pages), 0)
-        pages = list(app.get_pages(offset=1))
-        self.assertEqual(len(pages), 0)
 
         # Create a page.
         app.create_page(title="Welcome", slug="welcome")
@@ -135,7 +133,7 @@ This is a wiki about us!
         app.create_page("Page 4", "page-4")
         app.create_page("Page 5", "page-5")
 
-        pages = list(app.get_pages())
+        pages = list(app.get_pages(desc=True))
         self.assertEqual(pages[0]["title"], "Page 5")
         self.assertEqual(pages[0]["slug"], "page-5")
         self.assertEqual(pages[1]["title"], "Page 4")
@@ -147,18 +145,18 @@ This is a wiki about us!
         self.assertEqual(pages[4]["title"], "Welcome Visitors")
         self.assertEqual(pages[4]["slug"], "welcome-visitors")
 
-        pages = list(app.get_pages(limit=3))
+        pages = list(app.get_pages(desc=True, limit=3))
         self.assertEqual(len(pages), 3)
         self.assertEqual(pages[0]["slug"], "page-5")
         self.assertEqual(pages[1]["slug"], "page-4")
         self.assertEqual(pages[2]["slug"], "page-3")
 
-        pages = list(app.get_pages(limit=3, offset=3))
+        pages = list(app.get_pages(desc=True, limit=3, lte=2))
         self.assertEqual(len(pages), 2)
         self.assertEqual(pages[0]["slug"], "page-2")
         self.assertEqual(pages[1]["slug"], "welcome-visitors")
 
-        pages = list(app.get_pages(offset=3))
+        pages = list(app.get_pages(desc=True, lte=2))
         self.assertEqual(len(pages), 2)
         self.assertEqual(pages[0]["slug"], "page-2")
         self.assertEqual(pages[1]["slug"], "welcome-visitors")

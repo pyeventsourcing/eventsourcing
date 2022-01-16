@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from eventsourcing.domain import Aggregate, AggregateEvent, event
+from eventsourcing.domain import Aggregate, LogEvent, event
 from eventsourcing.examples.wiki.utils import apply_patch, create_diff
 
 user_id_cvar: ContextVar[Optional[UUID]] = ContextVar("user_id", default=None)
@@ -52,5 +52,5 @@ class Index(Aggregate):
         self.ref = ref
 
 
-class PageLogged(AggregateEvent[Aggregate]):
+class PageLogged(LogEvent):
     page_id: UUID

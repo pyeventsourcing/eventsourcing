@@ -1,10 +1,13 @@
-from typing import Any, Dict, Generic, Iterator, Optional, Type, Union, cast
+from typing import Any, Dict, Iterator, Optional, Union, cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from eventsourcing.application import AggregateNotFound, Application
-from eventsourcing.domain import Aggregate, AggregateEvent, TDomainEvent
+from eventsourcing.application import (
+    AggregateNotFound,
+    Application,
+    EventSourcedLog,
+)
+from eventsourcing.domain import Aggregate
 from eventsourcing.examples.wiki.domainmodel import Index, Page, PageLogged
-from eventsourcing.persistence import EventStore
 from eventsourcing.utils import EnvType
 
 PageDetailsType = Dict[str, Union[str, Any]]
@@ -16,7 +19,7 @@ class WikiApplication(Application[Aggregate]):
 
     def __init__(self, env: Optional[EnvType] = None) -> None:
         super().__init__(env)
-        self.page_log: Log[PageLogged] = Log(
+        self.page_log: EventSourcedLog[PageLogged] = EventSourcedLog(
             self.events, uuid5(NAMESPACE_URL, "/page_log"), PageLogged
         )
 
@@ -80,63 +83,16 @@ class WikiApplication(Application[Aggregate]):
     def _get_index(self, slug: str) -> Index:
         return cast(Index, self.repository.get(Index.create_id(slug)))
 
-    def get_pages(self, limit: int = 10, offset: int = 0) -> Iterator[PageDetailsType]:
-        for page_logged in self.page_log.get(limit, offset):
+    def get_pages(
+        self,
+        gt: Optional[int] = None,
+        lte: Optional[int] = None,
+        desc: bool = False,
+        limit: Optional[int] = None,
+    ) -> Iterator[PageDetailsType]:
+        for page_logged in self.page_log.get(gt, lte, desc, limit):
             page = self._get_page_by_id(page_logged.page_id)
             yield self._details_from_page(page)
-
-
-class Log(Generic[TDomainEvent]):
-    def __init__(
-        self,
-        events: EventStore[AggregateEvent[Aggregate]],
-        originator_id: UUID,
-        logged_cls: Type[TDomainEvent],
-    ):
-        self.events = events
-        self.originator_id = originator_id
-        self.logged_cls = logged_cls
-
-    def trigger_event(self, **kwargs: Any) -> TDomainEvent:
-        last_logged = self._get_last_logged()
-        if last_logged:
-            next_originator_version = last_logged.originator_version + 1
-        else:
-            next_originator_version = Aggregate.INITIAL_VERSION
-        return self.logged_cls(
-            originator_id=self.originator_id,
-            originator_version=next_originator_version,
-            timestamp=self.logged_cls.create_timestamp(),
-            **kwargs,
-        )
-
-    def get(self, limit: int = 10, offset: int = 0) -> Iterator[TDomainEvent]:
-        # Calculate lte.
-        lte = None
-        if offset > 0:
-            last = self._get_last_logged()
-            if last:
-                lte = last.originator_version - offset
-
-        # Get logged events.
-        return cast(
-            Iterator[TDomainEvent],
-            self.events.get(
-                originator_id=self.originator_id,
-                lte=lte,
-                desc=True,
-                limit=limit,
-            ),
-        )
-
-    def _get_last_logged(
-        self,
-    ) -> Optional[TDomainEvent]:
-        events = self.events.get(originator_id=self.originator_id, desc=True, limit=1)
-        try:
-            return cast(TDomainEvent, next(events))
-        except StopIteration:
-            return None
 
 
 class PageNotFound(Exception):
