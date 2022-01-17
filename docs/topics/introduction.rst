@@ -11,17 +11,16 @@ it refers to an individual atomic immutable decision originated by the domain
 model of a software application, an occasion of experience that results in a
 "stubborn fact".
 
-Of course, as everybody knows, the commonsensical notion "event"
-has a broader meaning.
-Firstly, the commonsensical meaning includes all other such atomic "actual occasions"
-of experience that result in all the other stubborn facts that
-together make up the past. Such things importantly do not change. They are what they are.
-But the commonsensical meaning includes also inter-related sets of such things,
-"societies" of actual occasions, things that do indeed experience adventures of change.
-For example, the ordinary physical and social objects that we encounter in daily life that are
-each built up from an on-going history of inter-related decisions. A software system
-is also an event, in this broader sense, and a developer is also an event. And so is
-her cat and her cup of tea.
+Of course, the commonsensical notion "event" has a broader meaning. Firstly,
+it includes all other such atomic "actual occasions" of experience that result
+in all the other stubborn facts that together make up the past. Such things
+importantly do not change. They are what they are. But the commonsensical meaning
+includes also inter-related sets of such things, "societies" of actual occasions,
+enduring objects that experience adventures of change. For example, the ordinary
+physical and social objects that we encounter in daily life that are each built up
+from an on-going history of inter-related decisions. In this sense, a software system
+is also an event, in this broader sense. A developer is also an event. And so is
+her cat.
 
 As Gilles Deleuze wrote in his book on Leibniz when discussing Alfred North Whitehead's
 modern process philosophy:
@@ -41,6 +40,14 @@ modern process philosophy:
     grieved, like a bird abandoned by its mate; the violin
     heard its wail and responded to it like a neighbouring
     tree. It was like the beginning of the world. ...'"*
+
+However, the events of event sourcing are a very specific kind of event.
+They are the individual atomic decisions originated by the domain
+model of a software application. They result in immutable database records
+that are built up as an append-only log. And it is this log of events
+that is used as the "source of truth" to determine the current state of
+an application. The state of an application is partitioned into a collection
+of "aggregates" which are the enduring objects that enjoy adventures of change.
 
 
 What is event sourcing?
