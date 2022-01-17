@@ -45,9 +45,9 @@ def test():
     school.add_trick(dog_id, 'play dead')
 
     # Query application state.
-    dog = school.dog_details(dog_id)
+    dog = school.get_dog(dog_id)
     assert dog['name'] == 'Fido'
-    assert dog['tricks'] == ['roll over', 'play dead']
+    assert dog['tricks'] == ('roll over', 'play dead')
 ```
 
 Define application objects with the `Application` class.
@@ -66,9 +66,9 @@ class DogSchool(Application):
         dog.add_trick(trick)
         self.save(dog)
 
-    def dog_details(self, dog_id):
+    def get_dog(self, dog_id):
         dog = self.repository.get(dog_id)
-        return {'name': dog.name, 'tricks': dog.tricks}
+        return {'name': dog.name, 'tricks': tuple(dog.tricks)}
 ```
 
 Define aggregates with the `Aggregate` class and the `@event` decorator.
