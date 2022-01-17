@@ -698,12 +698,12 @@ and reconstructed.
     assert history[1] == "trucks"
     assert history[2] == "internet"
 
-See :ref:`SQLite infrastructure <SQLite>` for more information
+See :ref:`SQLite module <SQLite>` documentation for more information
 about using SQLite.
 
 To use the library's PostgreSQL persistence module,
 set ``PERSISTENCE_MODULE`` to the value ``"eventsourcing.postgres"``.
-See :ref:`PostgreSQL infrastructure <PostgreSQL>` documentation
+See :ref:`PostgreSQL module <PostgreSQL>` documentation
 for more information about using PostgreSQL.
 
 
