@@ -102,10 +102,10 @@ Design overview
 ===============
 
 The design of the library follows the notion of a "layered" or "onion" or "hexagonal"
-architecture in that there are separate layers for interfaces, application, domain,
-and infrastructure. The `application layer <application.html>`_ depends on
-the `domain <domain.html>`_ and `infrastructure <persistence.html>`_ layers,
-and the interface layer depends on the application layer.
+architecture in that there are separate modules for `application <application.html>`_,
+`domain <domain.html>`_, `infrastructure <persistence.html>`_, and `interface <interface.html>`_.
+The application module depends on the domain and infrastructure modules, and the interface
+module depends on the application module.
 
 Synopsis
 ========
