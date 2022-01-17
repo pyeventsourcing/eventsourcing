@@ -98,10 +98,19 @@ then the system can be run asynchronously on a cluster with durable databases,
 with the system effecting exactly the same behaviour.
 
 
+Design overview
+===============
+
+The design of the library follows the notion of a "layered" or "onion" or "hexagonal"
+architecture in that there are separate layers for interfaces, application, domain,
+and infrastructure. The `application layer <application.html>`_ depends on
+the `domain <domain.html>`_ and `infrastructure <persistence.html>`_ layers,
+and the interface layer depends on the application layer.
+
 Synopsis
 ========
 
-Use the library's ``Application`` class to define an event-sourced application.
+Use the library's ``Application`` class to define an event-sourced `application <application.html>`_.
 Add command and query methods that use event-sourced aggregates.
 
 .. code-block:: python
@@ -124,8 +133,10 @@ Add command and query methods that use event-sourced aggregates.
             return {'name': dog.name, 'tricks': tuple(dog.tricks)}
 
 
-Use the library's ``Aggregate`` base class to define event-sourced aggregates.
-Use the ``@event`` decorator on command methods to define aggregate events.
+Use the library's ``Aggregate`` class and the ``@event`` decorator to define
+event-sourced `aggregates <domain.html>`_. Aggregate events will be triggered
+when decorated methods are called, and the decorated method bodies will be
+used to mutate the state of the aggregate.
 
 .. code-block:: python
 
@@ -142,25 +153,26 @@ Use the ``@event`` decorator on command methods to define aggregate events.
             self.tricks.append(trick)
 
 
-Optionally configure an application by setting environment variables.
+Optionally :ref:`configure an application <Application environment>` by setting
+environment variables, for example to enable aggregate caching or to specify
+a `persistence module <persistence.html>`_.
 
 .. code-block:: python
 
-    application = DogSchool(
-        env={
-            'AGGREGATE_CACHE_MAXSIZE': '1000',
-            'PERSISTENCE_MODULE': 'eventsourcing.sqlite',
-            'SQLITE_DBNAME': ':memory:',
-        }
-    )
+    import os
 
+    # Enable aggregate caching.
+    os.environ['AGGREGATE_CACHE_MAXSIZE'] = '1000'
+
+    # Use SQLite.
+    os.environ['PERSISTENCE_MODULE'] = 'eventsourcing.sqlite'
+    os.environ['SQLITE_DBNAME'] = ':memory:'
 
 Construct an application object by calling the application class.
 
 .. code-block:: python
 
     application = DogSchool()
-
 
 Evolve the state of the application by calling command methods.
 
@@ -239,15 +251,6 @@ and systems.
     **Correlation and causation IDs** - Domain events can easily be given correlation and
     causation IDs, which allows a story to be traced through a system of applications.
 
-
-Design overview
-===============
-
-The design of the library follows the notion of a "layered" or "onion" or "hexagonal"
-architecture in that there are separate layers for interfaces, application, domain,
-and infrastructure. The `application layer <application.html>`_ depends on
-the `domain <domain.html>`_ and `infrastructure<persistence.html>`_ layers,
-and the interface layer depends on the application layer.
 
 Register issues
 ===============
