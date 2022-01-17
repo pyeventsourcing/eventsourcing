@@ -76,6 +76,7 @@ Quoting from Eric Evans' book `Domain-Driven Design
     of the domain can focus on expressing the problem ('what'), delegating
     the intricacies of the solution ('how') to the framework."*
 
+And that's why this library was created.
 
 This library
 ============
