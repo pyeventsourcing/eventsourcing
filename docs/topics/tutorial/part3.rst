@@ -111,19 +111,21 @@ recorder, and uses the mapper to reconstruct aggregate event objects. The mapper
 uses the transcoder to optionally decrypt and decompress the serialised state,
 and to deserialize stored events to aggregate events.
 
-An application's recorder also puts the stored events in a total order, and allows
-this order to be selected from. The notification log selects events from this order
-as the event notifications of the application.
+An application's recorder also puts the stored events in a "total order", meaning
+that all the events from all aggregates in the application have a serial ordering.
+The notification log supports selecting events as a series of event notifications,
+which allows the state of the application to be propagated beyond the application.
 
-In addition to these attributes, an application object has a method ``save()``
-which is responsible for collecting new aggregate events and putting them in
-the event store.
-The application ``save()`` method saves aggregates by
-collecting and storing pending aggregate events. The ``save()``
-method calls the given aggregates' ``collect_events()`` method and
-puts the pending aggregate events in the event store, with a
-guarantee that either all of the events will be stored or none of
-them will be.
+An application object also has a ``save()`` method, which can be called with one
+or many aggregates as its arguments. The ``save()`` method saves changes to these
+aggregates. It calls ``collect_events()`` on each given aggregate, to collect
+pending events from each aggregate. It then puts all of these aggregate events
+into the event store, with the guarantee that either all of the events will be stored
+or none of them will be. If the events aren't saved, an exception will be raised.
+That might be because of an operational error with the database, or because there
+is a conflict with previously recorded events. For example, attempts to record
+the same event twice, or to record a different event at the same position in
+an aggregate sequence, will result in an integrity error.
 
 The repository has a ``get()`` method which is responsible
 for reconstructing aggregates that have been previously saved.
@@ -134,15 +136,14 @@ previously stored events calling the ``mutate()`` method of aggregate
 event objects, and returns the reconstructed aggregate object to
 the caller.
 
-In addition to these attributes and these methods, a subclass of
-``Application`` will usually define command and query methods, which
-make use of the application's ``save()`` method and the repository's
+A subclass of ``Application`` will usually define command and query methods,
+which make use of the application's ``save()`` method and the repository's
 ``get()`` method.
 
-For example, the ``DogSchool`` class has a ``register_dog()`` method
-and a ``add_trick()`` method, which can be considered a command methods.
-It also has a ``get_tricks()`` method, which can be considered a query
-method.
+For example, the ``DogSchool`` class has ``register_dog()`` and ``add_trick()``
+methods, which are command methods that evolve the state of the application.
+It also has a ``get_tricks()`` method, which is a query method that presents
+something of the state of the application without evolving the state.
 
 
 Command methods
@@ -150,6 +151,10 @@ Command methods
 
 Let's consider the ``register_dog()`` and ``add_trick()`` methods
 of the ``DogSchool`` application.
+
+These are "command methods" because they change the application state - either
+creating new aggregates (as in the case of ``register_dog()``) or by modifying
+existing (as in the case of ``make_it_so()``).
 
 Firstly, let's create a new aggregate by calling the application method ``register_dog()``.
 
@@ -200,26 +205,24 @@ of the aggregate's ``tricks`` attribute is returned to the caller.
 Event notifications
 ===================
 
-The ``Application`` class has a ``notification_log`` attribute,
-which is a 'notification log' (aka the 'outbox pattern').
-This pattern avoids the "dual writing" problem of recording
-application state and separately sending messages about
-the changes. Please note, it is equally important to avoid
-"dual writing" in the consumption of event notifications.
+The limitation of application query methods is that they can only
+query the aggregate sequences. Often, users of your application will
+need to see views of the application state that depend on more sophisticated
+queries. To support these queries, it is sometimes desirable to "project" the
+state of the application as a whole into "materialised views" that are specifically
+designed to support such queries.
 
-The notification log can be used to propagate the state of
-the application in a manner that supports deterministic
-processing of the application state in event-driven systems.
-It presents all the aggregate events that have been stored
-across all the aggregates of an application as a sequence of
-event notifications.
+In order to do this, we must be able to propagate the state of the application
+as a whole, whilst avoiding the "dual writing" problem. This firstly requires
+recording all the aggregate evens of an application in a "total order" (as mentioned
+above).
+And since there may be a large number of these events, we also need to be
+able to select a small number from this potentially large sequence, so that
+we can progressively work along the sequence.
 
-The log presents the aggregate events in the order in which
-they were stored. Each of the event notifications has an integer
-ID which increases along the sequence. An event notification is
-simply a stored event (see above) that also has an ``id`` attribute.
-Therefore, depending on the configuration of the application, it
-may be already compressed and encrypted.
+As mentioned above, an application object has a ``notification_log`` attribute.
+The notification log presents all the aggregate eventsof an application as a
+sequence of event notifications in the order they were stored.
 
 The ``select()`` method of the notification log can be used
 to obtain a selection of the application's event notifications.
@@ -251,20 +254,23 @@ is called.
     assert dog_id == notifications[3].originator_id
 
 
-Application configuration
-=========================
+This is discussed further in the :ref:`application module documentation <Notification log>`
+and the `system module documentation <system.html>`_.
 
-An application object can be configured to use one
-of many different ways of storing and retrieving events.
+Database configuration
+======================
 
-The application object can be configured using
-:ref:`environment variables <Application environment>` to
-work with different databases, and optionally to encrypt and compress
-stored events. By default, the application serialises aggregate events
-using JSON, and stores them in memory as "plain old Python objects".
-The library also supports storing events in SQLite and PostgreSQL databases.
-Other databases are available. See the library's extension
-projects for more information about what is currently supported.
+An application object can be configured to work with different databases.
+By default, the application stores aggregate events in memory as "plain old Python objects".
+The library also supports storing events in :ref:`SQLite and PostgreSQL databases <Persistence>`.
+
+Other databases are available. See the library's
+`extension projects <https://github.com/pyeventsourcing>`__
+for more information about what is currently supported.
+
+See also the :ref:`application module documentation <Application environment>`
+for more information about configuring applications using environment
+variables.
 
 The ``test()`` function below demonstrates the example ``DogSchool``
 application in more detail, by creating many aggregates in one
@@ -272,7 +278,7 @@ application, by reading event notifications from the application log,
 by retrieving historical versions of an aggregate, and so on. The
 optimistic concurrency control, and the compression and encryption
 features are also demonstrated. The steps are commented for greater
-readability. Below, the ``test()`` function is used several times
+readability. The ``test()`` function will be used several times
 with different configurations of persistence for our application
 object: with "plain old Python objects", with SQLite, and then
 with PostgreSQL.
