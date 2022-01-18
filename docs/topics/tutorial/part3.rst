@@ -7,7 +7,7 @@ As we saw in :doc:`Part 1 </topics/tutorial/part1>`, we can
 use the library's ``Application`` class to define event-sourced
 applications.
 
-For example, the ``Universe`` application class, defined below, has a
+For example, the ``DogSchool`` application class, defined below, has a
 command method ``register_dog()`` that creates and saves a new ``Dog`` aggregate.
 It has a command method ``add_trick()`` that retrieves a previously saved
 aggregate, calls ``add_trick()`` on the aggregate, and then saves the
@@ -21,7 +21,7 @@ retrieves and returns the ``tricks`` of an aggregate object. The
     from eventsourcing.domain import Aggregate, event
 
 
-    class Universe(Application):
+    class DogSchool(Application):
         def register_dog(self, name):
             dog = Dog(name)
             self.save(dog)
@@ -52,7 +52,7 @@ We can construct an application object and call its methods.
 
 .. code-block:: python
 
-    application = Universe()
+    application = DogSchool()
 
     dog_id = application.register_dog('Fido')
     application.add_trick(dog_id, 'roll over')
@@ -79,7 +79,7 @@ alternatives constructed instead of the standard defaults.
 
 .. code-block:: python
 
-    application = Universe()
+    application = DogSchool()
 
     assert application.repository
     assert application.repository.event_store
@@ -139,7 +139,7 @@ In addition to these attributes and these methods, a subclass of
 make use of the application's ``save()`` method and the repository's
 ``get()`` method.
 
-For example, the ``Universe`` class has a ``register_dog()`` method
+For example, the ``DogSchool`` class has a ``register_dog()`` method
 and a ``add_trick()`` method, which can be considered a command methods.
 It also has a ``get_tricks()`` method, which can be considered a query
 method.
@@ -149,7 +149,7 @@ Command methods
 ===============
 
 Let's consider the ``register_dog()`` and ``add_trick()`` methods
-of the ``Universe`` application.
+of the ``DogSchool`` application.
 
 Firstly, let's create a new aggregate by calling the application method ``register_dog()``.
 
@@ -266,7 +266,7 @@ The library also supports storing events in SQLite and PostgreSQL databases.
 Other databases are available. See the library's extension
 projects for more information about what is currently supported.
 
-The ``test()`` function below demonstrates the example ``Universe``
+The ``test()`` function below demonstrates the example ``DogSchool``
 application in more detail, by creating many aggregates in one
 application, by reading event notifications from the application log,
 by retrieving historical versions of an aggregate, and so on. The
@@ -283,7 +283,7 @@ with PostgreSQL.
     from eventsourcing.system import NotificationLogReader
 
 
-    def test(app: Universe, expect_visible_in_db: bool):
+    def test(app: DogSchool, expect_visible_in_db: bool):
         # Check app has zero event notifications.
         assert len(app.notification_log['1,10'].items) == 0
 
@@ -385,7 +385,7 @@ tutorial so far.
 .. code-block:: python
 
     # Construct an application object.
-    app = Universe()
+    app = DogSchool()
 
     # Run the test.
     test(app, expect_visible_in_db=True)
@@ -431,7 +431,7 @@ can construct the application and run the test using SQLite.
 .. code-block:: python
 
     # Construct an application object.
-    app = Universe()
+    app = DogSchool()
 
     # Run the test.
     test(app, expect_visible_in_db=True)
@@ -509,7 +509,7 @@ we can construct the application and run the test using PostgreSQL.
 .. code-block:: python
 
     # Construct an application object.
-    app = Universe()
+    app = DogSchool()
 
     # Run the test.
     test(app, expect_visible_in_db=False)

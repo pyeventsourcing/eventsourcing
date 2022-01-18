@@ -64,8 +64,7 @@ persistence mechanism for domain-driven design appears as a
 "conceptually cohesive mechanism" and so can be partitioned into
 a "separate lightweight framework".
 
-Quoting from Eric Evans' book `Domain-Driven Design
-<https://en.wikipedia.org/wiki/Domain-driven_design>`__:
+Quoting from Eric Evans' book *Domain-Driven Design*:
 
 .. pull-quote::
 

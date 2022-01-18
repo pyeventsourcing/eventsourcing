@@ -58,8 +58,8 @@ Event-sourced aggregate
 =======================
 
 A persistent object that changes through a sequence of decisions
-corresponds to the notion of an 'aggregate' in the book Domain-Driven Design.
-An 'event-sourced' aggregate is persisted by persisting the decisions
+corresponds to the notion of an 'aggregate' in the book *Domain-Driven Design*.
+An event-sourced aggregate is persisted by persisting the decisions
 as a sequence of 'events'.
 We can use the aggregate base class ``Aggregate`` and the ``@event``
 decorator from the :doc:`domain module </topics/domain>` to define an
@@ -163,7 +163,7 @@ event-sourced applications.
     from eventsourcing.application import Application
 
 
-Let's define a ``Universe`` application that interacts with ``Dog`` aggregates.
+Let's define a ``DogSchool`` application that interacts with ``Dog`` aggregates.
 We can add command methods to create and change aggregates,
 and query methods to view current state.
 We can save aggregates with the application ``save()`` method, and
@@ -172,7 +172,7 @@ get previously saved aggregates with the repository ``get()`` method.
 
 .. code-block:: python
 
-    class Universe(Application):
+    class DogSchool(Application):
         def register_dog(self, name):
             dog = Dog(name)
             self.save(dog)
@@ -192,7 +192,7 @@ We can construct an instance of the application by calling the application class
 
 .. code-block:: python
 
-    application = Universe()
+    application = DogSchool()
 
 
 We can then create and update aggregates by calling the command methods of the application.
@@ -260,7 +260,7 @@ modules.
     def test():
 
         # Construct application object.
-        app = Universe()
+        app = DogSchool()
 
         # Call application command methods.
         dog_id = app.register_dog('Fido')
