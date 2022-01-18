@@ -1052,9 +1052,9 @@ example <Cargo shipping example>` for an example of this alternative.
 
 Another alternative is to use a mutator function defined at the module level. But then
 the event-specific parts of the aggregate projector will become more distant from
-definition of the event. The issue of setting "private" attributes on the aggregate
-returns. And the common aspects may need to repeated on each part of the projection
-that handles a particular type of event, which can be repetitive. However, such a
+the definition of the event. The issue of setting "private" attributes on the aggregate
+appears again. And the common aspects may need to be repeated on each part of the
+projection that handles a particular type of event. However, such a
 function can be passed into the :func:`~eventsourcing.application.Repository.get`
 method of an :ref:`application repository <Repository>` using the
 ``projector_func`` argument of that method.
