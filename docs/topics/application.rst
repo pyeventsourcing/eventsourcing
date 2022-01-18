@@ -560,197 +560,6 @@ method once for each of your custom transcodings.
             return date.fromisoformat(d)
 
 
-.. _Application environment:
-
-Application environment
-=======================
-
-An application can be configured using environment variables. You
-can set the application's environment either on the ``env``
-attribute of the application class, in the
-`operating system environment <https://docs.python.org/3/library/os.html#os.environ>`__,
-or by passing them into the application using the constructor argument ``env``. You
-can use all three ways for configuring an application in combination.
-
-.. code-block:: python
-
-    import os
-
-
-    # Configure by setting class attribute.
-    class MyApplication(Application):
-        env = {"SETTING_A": "1", "SETTING_B": "1", "SETTING_C": "1"}
-
-
-    # Configure by setting operating system environment.
-    os.environ["SETTING_B"] = "2"
-    os.environ["SETTING_C"] = "2"
-
-
-    # Configure by setting constructor argument.
-    app = MyApplication(env={"SETTING_C": "3"})
-
-The order of precedence
-is: constructor argument, operating system, class attribute. This means a constructor
-argument setting will override both an operating system and a class attribute setting. And
-an operating system setting will override a class attribute setting.
-
-.. code-block:: python
-
-    assert app.env["SETTING_A"] == "1"
-    assert app.env["SETTING_B"] == "2"
-    assert app.env["SETTING_C"] == "3"
-
-The resulting settings can be seen on the ``env`` attribute of the application object.
-In the example above, we can see that the settings from the construct argument have
-overridden the settings from the operating system environment, and the settings from
-the operating system environment have overridden the settings from the class attribute.
-
-Please note, all values are expected to be strings, as would be the case if the values
-are set in the actual operating system process environment.
-
-.. _Aggregate caching:
-
-Configuring aggregate caching
-=============================
-
-To enable caching of aggregates in an :ref:`application repository <Repository>`,
-set ``AGGREGATE_CACHE_MAXSIZE`` in the application
-environment to a string representing an integer value. A positive integer value
-such as ``'1000'`` will enable a "least recently used" cache, in which the least
-recently used aggregate will be evicted from the cache when it is full.
-A value of ``'0'`` will enable an unlimited cache. The default is for
-aggregate caching not to be enabled.
-
-When getting an aggregate that is not found in the cache, the aggregate
-will be reconstructed from stored events, and then placed in the cache.
-When getting an aggregate that is found in the cache, it will be "deep copied"
-to prevent the cache being corrupted with partial or aborted changes made
-by an application command method. After a mutated aggregate is successfully
-saved, the cache is updated by replacing the old state of the aggregate with
-the new.
-
-To avoid an application getting stale aggregates from a repository when
-aggregate caching is enabled (that is, aggregates for which subsequent events
-have been stored outside of the application instance) cached aggregates are
-"fast-forwarded" with any subsequent events. This involves querying for subsequent
-events, and updating the state of the aggregate. To disable fast-forwarding of cached
-aggregates, set ``AGGREGATE_CACHE_FASTFORWARD`` in the application environment to a false
-value as interpreted by :func:`~eventsourcing.utils.strtobool`, that is one of ``'n'``,
-``'no'``, ``'f'``, ``'false'``, ``'off'``, or ``'0'``. Only do this when only one
-instance of the application is being used to evolve the state of the aggregates,
-because integrity errors will certainly occur when attempting to evolve the state of
-stale aggregates. The default is for fast-forwarding to be enabled when aggregate
-caching is enabled. But in cases where there is only one application instance,
-querying for new events is unnecessary, and a greater performance improvement
-will be obtained by disabling fast-forwarding because querying for new events
-will be avoided.
-
-.. _Persistence:
-
-Configuring persistence
-=======================
-
-By default, application objects will be configured to use the library's
-"plain old Python objects" persistence module, and will store events in memory.
-The example above uses the application's default persistence module.
-This is good for development, because it is the fastest option. But the
-state of the application will be lost when the application object is
-deleted. So it is not very good for production.
-
-If you want the state of the application object to endure, you will need to
-use an alternative persistence module. To use alternative persistence
-infrastructure, set the variable ``PERSISTENCE_MODULE`` in the application
-environment. Using an alternative persistence module may involve setting
-further environment variables, perhaps to configure access to a real database,
-such as a database name, a user name, and a password.
-
-For example, to use the library's SQLite persistence module,
-set ``PERSISTENCE_MODULE`` to the value ``"eventsourcing.sqlite"``.
-The environment variable ``SQLITE_DBNAME`` must also be set. This value
-will be passed to Python's :func:`sqlite3.connect` function.
-
-.. code-block:: python
-
-    from tempfile import NamedTemporaryFile
-
-    tmpfile = NamedTemporaryFile(suffix="_eventsourcing_test.db")
-
-    os.environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
-    os.environ["SQLITE_DBNAME"] = tmpfile.name
-    application = DogSchool()
-
-    dog_id = application.register_dog()
-
-    application.add_trick(dog_id, "roll over")
-    application.add_trick(dog_id, "fetch ball")
-    application.add_trick(dog_id, "play dead")
-
-
-By using a file on disk, as we did in the example above, the state of
-the application will endure after the application object has been deleted
-and reconstructed.
-
-.. code-block:: python
-
-    del(application)
-
-    application = DogSchool()
-
-    tricks = application.get_tricks(dog_id)
-    assert tricks[0] == "roll over"
-    assert tricks[1] == "fetch ball"
-    assert tricks[2] == "play dead"
-
-See :ref:`SQLite module <SQLite>` documentation for more information
-about using SQLite.
-
-To use the library's PostgreSQL persistence module,
-set ``PERSISTENCE_MODULE`` to the value ``"eventsourcing.postgres"``.
-See :ref:`PostgreSQL module <PostgreSQL>` documentation
-for more information about using PostgreSQL.
-
-
-Encryption and compression
-==========================
-
-Application-level encryption is useful for encrypting the state
-of the application "on the wire" and "at rest". Compression is
-useful for reducing transport time of domain events and domain
-event notifications across a network and for reducing the total
-size of recorded application state.
-
-To enable encryption, set the environment variable ``CIPHER_TOPIC``
-to be the :ref:`topic <Topics>` of a cipher class, and ``CIPHER_KEY``
-to be a valid encryption key. To enable compression, set the environment
-variable ``COMPRESSOR_TOPIC`` to be the :ref:`topic <Topics>` of a
-compressor class or module.
-
-The library's :class:`~eventsourcing.cipher.AESCipher` class can
-be used to encrypt stored domain events. The Python :mod:`zlib` module
-can be used to compress stored domain events.
-When using the library's :class:`~eventsourcing.cipher.AESCipher` class,
-you can use its static method :func:`~eventsourcing.cipher.AESCipher.create_key`
-to generate a valid encryption key.
-
-
-.. code-block:: python
-
-    from eventsourcing.cipher import AESCipher
-
-    # Generate a cipher key (keep this safe).
-    cipher_key = AESCipher.create_key(num_bytes=32)
-
-    # Configure cipher key.
-    os.environ["CIPHER_KEY"] = cipher_key
-
-    # Configure cipher topic.
-    os.environ["CIPHER_TOPIC"] = "eventsourcing.cipher:AESCipher"
-
-    # Configure compressor topic.
-    os.environ["COMPRESSOR_TOPIC"] = "zlib"
-
-
 .. _Saving multiple aggregates:
 
 Saving multiple aggregates
@@ -1033,6 +842,198 @@ attribute (ascending or descending). To order by another attribute, such as
 attribute, it will be necessary somehow to define and maintain an index of
 the current values.
 
+
+.. _Application environment:
+
+Application environment
+=======================
+
+An application can be configured using environment variables. You
+can set the application's environment either on the ``env``
+attribute of the application class, in the
+`operating system environment <https://docs.python.org/3/library/os.html#os.environ>`__,
+or by passing them into the application using the constructor argument ``env``. You
+can use all three ways for configuring an application in combination.
+
+.. code-block:: python
+
+    import os
+
+
+    # Configure by setting class attribute.
+    class MyApplication(Application):
+        env = {"SETTING_A": "1", "SETTING_B": "1", "SETTING_C": "1"}
+
+
+    # Configure by setting operating system environment.
+    os.environ["SETTING_B"] = "2"
+    os.environ["SETTING_C"] = "2"
+
+
+    # Configure by setting constructor argument.
+    app = MyApplication(env={"SETTING_C": "3"})
+
+The order of precedence
+is: constructor argument, operating system, class attribute. This means a constructor
+argument setting will override both an operating system and a class attribute setting. And
+an operating system setting will override a class attribute setting.
+
+.. code-block:: python
+
+    assert app.env["SETTING_A"] == "1"
+    assert app.env["SETTING_B"] == "2"
+    assert app.env["SETTING_C"] == "3"
+
+The resulting settings can be seen on the ``env`` attribute of the application object.
+In the example above, we can see that the settings from the construct argument have
+overridden the settings from the operating system environment, and the settings from
+the operating system environment have overridden the settings from the class attribute.
+
+Please note, all values are expected to be strings, as would be the case if the values
+are set in the actual operating system process environment.
+
+.. _Aggregate caching:
+
+Configuring aggregate caching
+=============================
+
+To enable caching of aggregates in an :ref:`application repository <Repository>`,
+set ``AGGREGATE_CACHE_MAXSIZE`` in the application
+environment to a string representing an integer value. A positive integer value
+such as ``'1000'`` will enable a "least recently used" cache, in which the least
+recently used aggregate will be evicted from the cache when it is full.
+A value of ``'0'`` will enable an unlimited cache. The default is for
+aggregate caching not to be enabled.
+
+When getting an aggregate that is not found in the cache, the aggregate
+will be reconstructed from stored events, and then placed in the cache.
+When getting an aggregate that is found in the cache, it will be "deep copied"
+to prevent the cache being corrupted with partial or aborted changes made
+by an application command method. After a mutated aggregate is successfully
+saved, the cache is updated by replacing the old state of the aggregate with
+the new.
+
+To avoid an application getting stale aggregates from a repository when
+aggregate caching is enabled (that is, aggregates for which subsequent events
+have been stored outside of the application instance) cached aggregates are
+"fast-forwarded" with any subsequent events. This involves querying for subsequent
+events, and updating the state of the aggregate. To disable fast-forwarding of cached
+aggregates, set ``AGGREGATE_CACHE_FASTFORWARD`` in the application environment to a false
+value as interpreted by :func:`~eventsourcing.utils.strtobool`, that is one of ``'n'``,
+``'no'``, ``'f'``, ``'false'``, ``'off'``, or ``'0'``. Only do this when only one
+instance of the application is being used to evolve the state of the aggregates,
+because integrity errors will certainly occur when attempting to evolve the state of
+stale aggregates. The default is for fast-forwarding to be enabled when aggregate
+caching is enabled. But in cases where there is only one application instance,
+querying for new events is unnecessary, and a greater performance improvement
+will be obtained by disabling fast-forwarding because querying for new events
+will be avoided.
+
+.. _Persistence:
+
+Configuring persistence
+=======================
+
+By default, application objects will be configured to use the library's
+"plain old Python objects" persistence module, and will store events in memory.
+The example above uses the application's default persistence module.
+This is good for development, because it is the fastest option. But the
+state of the application will be lost when the application object is
+deleted. So it is not very good for production.
+
+If you want the state of the application object to endure, you will need to
+use an alternative persistence module. To use alternative persistence
+infrastructure, set the variable ``PERSISTENCE_MODULE`` in the application
+environment. Using an alternative persistence module may involve setting
+further environment variables, perhaps to configure access to a real database,
+such as a database name, a user name, and a password.
+
+For example, to use the library's SQLite persistence module,
+set ``PERSISTENCE_MODULE`` to the value ``"eventsourcing.sqlite"``.
+The environment variable ``SQLITE_DBNAME`` must also be set. This value
+will be passed to Python's :func:`sqlite3.connect` function.
+
+.. code-block:: python
+
+    from tempfile import NamedTemporaryFile
+
+    tmpfile = NamedTemporaryFile(suffix="_eventsourcing_test.db")
+
+    os.environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
+    os.environ["SQLITE_DBNAME"] = tmpfile.name
+    application = DogSchool()
+
+    dog_id = application.register_dog()
+
+    application.add_trick(dog_id, "roll over")
+    application.add_trick(dog_id, "fetch ball")
+    application.add_trick(dog_id, "play dead")
+
+
+By using a file on disk, as we did in the example above, the state of
+the application will endure after the application object has been deleted
+and reconstructed.
+
+.. code-block:: python
+
+    del(application)
+
+    application = DogSchool()
+
+    tricks = application.get_tricks(dog_id)
+    assert tricks[0] == "roll over"
+    assert tricks[1] == "fetch ball"
+    assert tricks[2] == "play dead"
+
+See :ref:`SQLite module <SQLite>` documentation for more information
+about using SQLite.
+
+To use the library's PostgreSQL persistence module,
+set ``PERSISTENCE_MODULE`` to the value ``"eventsourcing.postgres"``.
+See :ref:`PostgreSQL module <PostgreSQL>` documentation
+for more information about using PostgreSQL.
+
+
+Encryption and compression
+==========================
+
+Application-level encryption is useful for encrypting the state
+of the application "on the wire" and "at rest". Compression is
+useful for reducing transport time of domain events and domain
+event notifications across a network and for reducing the total
+size of recorded application state.
+
+To enable encryption, set the environment variable ``CIPHER_TOPIC``
+to be the :ref:`topic <Topics>` of a cipher class, and ``CIPHER_KEY``
+to be a valid encryption key. To enable compression, set the environment
+variable ``COMPRESSOR_TOPIC`` to be the :ref:`topic <Topics>` of a
+compressor class or module.
+
+The library's :class:`~eventsourcing.cipher.AESCipher` class can
+be used to encrypt stored domain events. The Python :mod:`zlib` module
+can be used to compress stored domain events.
+When using the library's :class:`~eventsourcing.cipher.AESCipher` class,
+you can use its static method :func:`~eventsourcing.cipher.AESCipher.create_key`
+to generate a valid encryption key.
+
+
+.. code-block:: python
+
+    from eventsourcing.cipher import AESCipher
+
+    # Generate a cipher key (keep this safe).
+    cipher_key = AESCipher.create_key(num_bytes=32)
+
+    # Configure cipher key.
+    os.environ["CIPHER_KEY"] = cipher_key
+
+    # Configure cipher topic.
+    os.environ["CIPHER_TOPIC"] = "eventsourcing.cipher:AESCipher"
+
+    # Configure compressor topic.
+    os.environ["COMPRESSOR_TOPIC"] = "zlib"
+
+
 .. _Snapshotting:
 
 Snapshotting
@@ -1065,10 +1066,6 @@ be "true" values, and ``"n"``, ``"no"``, ``"f"``, ``"false"``, ``"off"`` and ``"
 are considered to be "false" values, and other values are considered to be invalid.
 The default is for an application's snapshotting functionality not to be enabled.
 
-Application environment variables can be passed into the application using the
-``env`` argument when constructing an application object. Snapshotting can be
-enabled (or disabled) for an individual application object in this way.
-
 .. code-block:: python
 
     application = DogSchool(env={"IS_SNAPSHOTTING_ENABLED": "y"})
@@ -1076,60 +1073,16 @@ enabled (or disabled) for an individual application object in this way.
     assert application.snapshots is not None
 
 
-Application environment variables can be also be set in the operating system environment.
-Setting operating system environment variables will affect all applications created in
-that environment.
-
-.. code-block:: python
-
-    os.environ["IS_SNAPSHOTTING_ENABLED"] = "y"
-
-    application = DogSchool()
-
-    assert application.snapshots is not None
-
-    del os.environ["IS_SNAPSHOTTING_ENABLED"]
-
-
-Values passed into the application object will override operating system environment variables.
-
-.. code-block:: python
-
-    os.environ["IS_SNAPSHOTTING_ENABLED"] = "y"
-    application = DogSchool(env={"IS_SNAPSHOTTING_ENABLED": "n"})
-
-    assert application.snapshots is None
-
-    del os.environ["IS_SNAPSHOTTING_ENABLED"]
-
 Snapshotting can also be enabled for all instances of an application class by
 setting the boolean attribute 'is_snapshotting_enabled' on the application class.
 
 .. code-block:: python
 
-    class DogSchoolWithSnapshottingEnabled(DogSchool):
+    class SnapshottingApplication(Application):
         is_snapshotting_enabled = True
 
-
-    application = DogSchoolWithSnapshottingEnabled()
+    application = SnapshottingApplication()
     assert application.snapshots is not None
-
-However, this setting will also be overridden by both the construct arg ``env``
-and by the operating system environment. The example below demonstrates this
-by extending the ``DogSchool`` application class defined above.
-
-.. code-block:: python
-
-    application = DogSchoolWithSnapshottingEnabled(env={"IS_SNAPSHOTTING_ENABLED": "n"})
-
-    assert application.snapshots is None
-
-    os.environ["IS_SNAPSHOTTING_ENABLED"] = "n"
-    application = DogSchoolWithSnapshottingEnabled()
-
-    assert application.snapshots is None
-
-    del os.environ["IS_SNAPSHOTTING_ENABLED"]
 
 
 Taking snapshots
