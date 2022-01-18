@@ -13,9 +13,9 @@ Contents
 
    topics/installing
    topics/introduction
+   topics/tutorial
    topics/modules
    topics/examples
-   topics/tutorial
    topics/support
    topics/release_notes
 

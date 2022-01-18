@@ -471,7 +471,7 @@ class SingleThreadedRunner(Runner, Promptable):
             follower = cast(Follower, self.apps[follower_name])
             assert isinstance(leader, Leader)
             assert isinstance(follower, Follower)
-            follower.follow(leader_name, leader.notifications)
+            follower.follow(leader_name, leader.notification_log)
 
         # Setup leaders to notify followers.
         for name in self.system.leaders:
@@ -650,7 +650,7 @@ class MultiThreadedRunner(Runner, Promptable):
             leader = cast(Leader, self.apps[leader_name])
             follower_name = edge[1]
             follower = cast(Follower, self.apps[follower_name])
-            follower.follow(leader.name, leader.notifications)
+            follower.follow(leader.name, leader.notification_log)
 
             # Create converting queue.
             converting_queue: "Queue[ConvertingJob]" = Queue(

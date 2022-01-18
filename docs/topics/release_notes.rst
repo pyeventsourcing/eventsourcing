@@ -31,7 +31,7 @@ Version 9.2.0 (forthcoming)
   than specifying the topic of a factory class.
 * Added ProcessEvent.collect_events() method and deprecated save(),
   effectively renaming this method for clarity of its purpose.
-* Added Application.notifications and deprecated Application.log, effectively
+* Added Application.notification_log and deprecated Application.log, effectively
   renaming this attribute to avoid confusion with event-sourced logs.
 * Added connection pooling for the postgres and sqlite persistence modules
   (see 'ConnectionPool').

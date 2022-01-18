@@ -59,7 +59,7 @@ The main features of an application are:
 * the :func:`~eventsourcing.application.Application.save` method, used for collecting
   and recording new aggregate events;
 * the ``repository`` attribute, with which aggregates are reconstructed;
-* the ``notifications`` attribute, from which the state of the application can be propagated;
+* the ``notification_log`` attribute, from which the state of the application can be propagated;
 * the :func:`~eventsourcing.application.Application.take_snapshot` method;
 * the application environment, used to configure an application.
 
@@ -79,7 +79,7 @@ The repository's :func:`~eventsourcing.application.Repository.get` method can be
 your application's command and query methods to obtain already existing aggregates.
 
 The :class:`~eventsourcing.application.Application` class defines an
-object attribute ``notifications`` which holds a :ref:`local notification log <Notification log>`.
+object attribute ``notification_log`` which holds a :ref:`local notification log <Notification log>`.
 The notification log can be used to propagate the state of an application as a sequence of
 domain event notifications.
 
@@ -94,13 +94,14 @@ which can be redefined on your application classes. Application objects also hav
 an ``env`` attribute which is determined by a combination of the application class
 attribute, the operating system environment, and by an optional constructor argument.
 
+.. _Application simple example:
 
-Basic example
-=============
+Simple example
+==============
 
-In the example below, the ``Worlds`` application extends the library's
-application object base class. The ``World`` aggregate is defined and discussed
-as the :ref:`Simple example <Aggregate simple example>` in the domain module documentation.
+In the example below, the ``DogSchool`` application extends the library's
+application object base class. The ``Dog`` aggregate is defined and discussed
+as the :ref:`simple example <Aggregate simple example>` in the domain module documentation.
 
 ..
     #include-when-testing
@@ -111,25 +112,28 @@ as the :ref:`Simple example <Aggregate simple example>` in the domain module doc
     from eventsourcing.domain import Aggregate, AggregateEvent
 
 
-    class World(Aggregate):
+    class Dog(Aggregate):
         def __init__(self):
-            self.history = []
+            self.tricks = []
 
         @classmethod
-        def create(cls):
+        def register(cls):
             return cls._create(
-                event_class=cls.Created,
+                event_class=cls.Registered,
                 id=uuid4(),
             )
 
-        def make_it_so(self, what):
-            self.trigger_event(World.SomethingHappened, what=what)
+        class Registered(Aggregate.Created):
+            pass
 
-        class SomethingHappened(AggregateEvent):
-            what: str
+        def add_trick(self, trick):
+            self.trigger_event(Dog.TrickAdded, trick=trick)
 
-            def apply(self, world):
-                world.history.append(self.what)
+        class TrickAdded(AggregateEvent):
+            trick: str
+
+            def apply(self, dog):
+                dog.tricks.append(self.trick)
 
 
 .. code-block:: python
@@ -140,58 +144,58 @@ as the :ref:`Simple example <Aggregate simple example>` in the domain module doc
     from eventsourcing.application import Application
 
 
-    class Worlds(Application):
-        def create_world(self) -> UUID:
-            world = World.create()
-            self.save(world)
-            return world.id
+    class DogSchool(Application):
+        def register_dog(self) -> UUID:
+            dog = Dog.register()
+            self.save(dog)
+            return dog.id
 
-        def make_it_so(self, world_id: UUID, what: str):
-            world = self.repository.get(world_id)
-            world.make_it_so(what)
-            self.save(world)
+        def add_trick(self, dog_id: UUID, trick: str):
+            dog = self.repository.get(dog_id)
+            dog.add_trick(trick)
+            self.save(dog)
 
-        def get_world_history(self, world_id: UUID) -> List[str]:
-            world = self.repository.get(world_id)
-            return list(world.history)
+        def get_tricks(self, dog_id: UUID) -> List[str]:
+            dog = self.repository.get(dog_id)
+            return list(dog.tricks)
 
 
-The ``create_world()`` method is defined as a command method
-that creates and saves new ``World`` aggregates, returning a new ``world_id`` that can be
-used to identify the aggregate on subsequence method calls. It saves the new
-aggregate by calling the base class :func:`~eventsourcing.application.Application.save` method.
+The ``register_dog()`` method is defined as a command method that creates and saves a
+new ``Dog`` aggregate. It returns a new ``dog_id`` that can be used to identify the
+aggregate on subsequence method calls. It saves the new aggregate by calling the base
+class :func:`~eventsourcing.application.Application.save` method.
 
-The ``make_it_so()`` method is also defined as a command method.
-It works by obtaining an existing ``World`` aggregate from the repository. Then it calls the
-aggregate's command method ``make_it_so()``, and then saves the aggregate by calling the
+The ``add_trick()`` method is also defined as a command method.
+It works by obtaining an existing ``Dog`` aggregate from the repository. Then it calls the
+aggregate's command method ``add_trick()``, and then saves the aggregate by calling the
 application's :func:`~eventsourcing.application.Application.save` method.
 
-The application's ``get_world_history()`` method is defined as a query method
-that presents the current ``history`` of an existing ``World`` aggregate. It works by
+The application's ``get_tricks()`` method is defined as a query method
+that presents the current ``tricks`` of an existing ``Dog`` aggregate. It works by
 calling the repository :func:`~eventsourcing.application.Repository.get` method to
-reconstruct a ``World`` aggregate object from previously saved aggregate events, and
-then returns the value of its ``history`` attribute.
+reconstruct a ``Dog`` aggregate object from previously saved aggregate events, and
+then returns the value of its ``tricks`` attribute.
 
 Having define an application object, we can use it. Below, an instance of the
-``Worlds`` application is constructed. A new ``World`` aggregate is created
-by calling ``create_world()``. Three items are added to its ``history`` by
-calling ``make_it_so()`` three times. The recorded ``history`` of the aggregate
-is then obtained by calling ``get_world_history()`` method.
+``DogSchool`` application is constructed. A new ``Dog`` aggregate is created
+by calling ``register_dog()``. Three items are added to its ``tricks`` by
+calling ``add_trick()`` three times. The recorded ``tricks`` of the aggregate
+is then obtained by calling ``get_tricks()`` method.
 
 .. code-block:: python
 
-    application = Worlds()
+    application = DogSchool()
 
-    world_id = application.create_world()
+    dog_id = application.register_dog()
 
-    application.make_it_so(world_id, "dinosaurs")
-    application.make_it_so(world_id, "trucks")
-    application.make_it_so(world_id, "internet")
+    application.add_trick(dog_id, "roll over")
+    application.add_trick(dog_id, "fetch ball")
+    application.add_trick(dog_id, "play dead")
 
-    history = application.get_world_history(world_id)
-    assert history[0] == "dinosaurs"
-    assert history[1] == "trucks"
-    assert history[2] == "internet"
+    tricks = application.get_tricks(dog_id)
+    assert tricks[0] == "roll over"
+    assert tricks[1] == "fetch ball"
+    assert tricks[2] == "play dead"
 
 In the example above, the application object uses the library's
 "plain old Python objects" infrastructure, which keeps stored event
@@ -219,10 +223,10 @@ aggregate, and then using these to reconstruct an aggregate object.
 
 .. code-block:: python
 
-    world_latest = application.repository.get(world_id)
+    dog_latest = application.repository.get(dog_id)
 
-    assert len(world_latest.history) == 3
-    assert world_latest.version == 4
+    assert len(dog_latest.tricks) == 3
+    assert dog_latest.version == 4
 
 The repository :func:`~eventsourcing.application.Repository.get` method accepts
 three arguments: ``aggregate_id``, ``version``, and ``projector_func``.
@@ -236,34 +240,34 @@ highest available version of the aggregate will be returned.
 
 .. code-block:: python
 
-    world_v1 = application.repository.get(world_id, version=1)
+    dog_v1 = application.repository.get(dog_id, version=1)
 
-    assert world_v1.version == 1
-    assert len(world_v1.history) == 0
+    assert dog_v1.version == 1
+    assert len(dog_v1.tricks) == 0
 
-    world_v2 = application.repository.get(world_id, version=2)
+    dog_v2 = application.repository.get(dog_id, version=2)
 
-    assert world_v2.version == 2
-    assert len(world_v2.history) == 1
-    assert world_v2.history[-1] == "dinosaurs"
+    assert dog_v2.version == 2
+    assert len(dog_v2.tricks) == 1
+    assert dog_v2.tricks[-1] == "roll over"
 
-    world_v3 = application.repository.get(world_id, version=3)
+    dog_v3 = application.repository.get(dog_id, version=3)
 
-    assert world_v3.version == 3
-    assert len(world_v3.history) == 2
-    assert world_v3.history[-1] == "trucks"
+    assert dog_v3.version == 3
+    assert len(dog_v3.tricks) == 2
+    assert dog_v3.tricks[-1] == "fetch ball"
 
-    world_v4 = application.repository.get(world_id, version=4)
+    dog_v4 = application.repository.get(dog_id, version=4)
 
-    assert world_v4.version == 4
-    assert len(world_v4.history) == 3
-    assert world_v4.history[-1] == "internet"
+    assert dog_v4.version == 4
+    assert len(dog_v4.tricks) == 3
+    assert dog_v4.tricks[-1] == "play dead"
 
-    world_v5 = application.repository.get(world_id, version=5)
+    dog_v5 = application.repository.get(dog_id, version=5)
 
-    assert world_v5.version == 4  # There is no version 5.
-    assert len(world_v5.history) == 3
-    assert world_v5.history[-1] == "internet"
+    assert dog_v5.version == 4  # There is no version 5.
+    assert len(dog_v5.tricks) == 3
+    assert dog_v5.tricks[-1] == "play dead"
 
 The ``projector_func`` argument is also optional, and can be used to pass in an alternative
 "mutator function" that will be used as the "aggregate projector" to reconstruct
@@ -283,14 +287,14 @@ A notification log can be used to propagate the state of an application as a
 sequence of domain event notifications. The library's
 :class:`~eventsourcing.application.LocalNotificationLog` class presents
 the event notifications of an application.
-The application object attribute ``notifications`` is an instance of
+The application object attribute ``notification_log`` is an instance of
 :class:`~eventsourcing.application.LocalNotificationLog`.
 
 .. code-block:: python
 
     from eventsourcing.application import LocalNotificationLog
 
-    assert isinstance(application.notifications, LocalNotificationLog)
+    assert isinstance(application.notification_log, LocalNotificationLog)
 
 
 This class implements an abstract base class :class:`~eventsourcing.application.NotificationLog`
@@ -336,7 +340,7 @@ notification log of the ``application`` object.
 
 .. code-block:: python
 
-    notifications = application.notifications.select(start=1, limit=3)
+    notifications = application.notification_log.select(start=1, limit=2)
 
 
 The ``start`` and ``limit`` arguments are used to specify the selection. The
@@ -344,7 +348,7 @@ selection will contain no more than the specified ``limit``.
 
 .. code-block:: python
 
-    assert len(notifications) == 3
+    assert len(notifications) == 2
 
 
 We can see they are all instances of the :class:`~eventsourcing.persistence.Notification` class.
@@ -355,7 +359,6 @@ We can see they are all instances of the :class:`~eventsourcing.persistence.Noti
 
     assert isinstance(notifications[0], Notification)
     assert isinstance(notifications[1], Notification)
-    assert isinstance(notifications[2], Notification)
 
 
 Each event notification has an ``id`` that is the unique integer ID of
@@ -370,27 +373,21 @@ the first recorded event notification will have ID equal to ``1``.
 
     assert notifications[0].id == 1
     assert notifications[1].id == 2
-    assert notifications[2].id == 3
 
 
-We can see these notifications represent the facts that a ``World`` aggregate was
-created, and then two ``SomethingHappened`` events occurred ("dinosaurs", "trucks").
+We can see these notifications represent the facts that a ``Dog`` aggregate was
+created, and then two ``TrickAdded`` events occurred ("roll over", "fetch ball").
 
 .. code-block:: python
 
     notification = notifications[0]
-    assert "World.Created" in notification.topic
-    assert notification.originator_id == world_id
+    assert "Dog.Registered" in notification.topic
+    assert notification.originator_id == dog_id
 
     notification = notifications[1]
-    assert "World.SomethingHappened" in notification.topic
-    assert b"dinosaurs" in notification.state
-    assert notification.originator_id == world_id
-
-    notification = notifications[2]
-    assert "World.SomethingHappened" in notification.topic
-    assert b"trucks" in notification.state
-    assert notification.originator_id == world_id
+    assert "Dog.TrickAdded" in notification.topic
+    assert b"roll over" in notification.state
+    assert notification.originator_id == dog_id
 
 
 We can continue to select event notifications, by using the
@@ -398,13 +395,20 @@ last event notification ID to calculate the next ``start`` value.
 
 .. code-block:: python
 
-    notifications = application.notifications.select(
-        start=notification.id + 1, limit=3
+    notifications = application.notification_log.select(
+        start=notifications[-1].id + 1, limit=2
     )
 
+    assert notifications[0].id == 3
+    assert notifications[1].id == 4
+
     notification = notifications[0]
-    assert "World.SomethingHappened" in notification.topic
-    assert b"internet" in notification.state
+    assert "Dog.TrickAdded" in notification.topic
+    assert b"fetch ball" in notification.state
+
+    notification = notifications[1]
+    assert "Dog.TrickAdded" in notification.topic
+    assert b"play dead" in notification.state
 
 
 This method is used in a :class:`~eventsourcing.system.NotificationLogReader`
@@ -429,7 +433,7 @@ two integers separated by a comma, for example ``"1,10"``. The first integer
 specifies the notification ID of the first event notification included in the
 section. The second integer specifies the notification ID of the second event
 notification included in the section. Sections are requested from the notification
-using the Python square bracket syntax, for example ``application.notifications["1,10"]``.
+using the Python square bracket syntax, for example ``application.notification_log["1,10"]``.
 
 The notification log will return a section that has no more than the requested
 number of event notifications. Sometimes there will be less event notifications
@@ -457,7 +461,7 @@ are four notifications in the notification log.
 
 .. code-block:: python
 
-    section = application.notifications["1,10"]
+    section = application.notification_log["1,10"]
 
     assert len(section.items) == 4
     assert section.id == "1,4"
@@ -469,24 +473,24 @@ are four notifications in the notification log.
     assert section.items[2].id == 3
     assert section.items[3].id == 4
 
-    assert section.items[0].originator_id == world_id
-    assert section.items[1].originator_id == world_id
-    assert section.items[2].originator_id == world_id
-    assert section.items[3].originator_id == world_id
+    assert section.items[0].originator_id == dog_id
+    assert section.items[1].originator_id == dog_id
+    assert section.items[2].originator_id == dog_id
+    assert section.items[3].originator_id == dog_id
 
     assert section.items[0].originator_version == 1
     assert section.items[1].originator_version == 2
     assert section.items[2].originator_version == 3
     assert section.items[3].originator_version == 4
 
-    assert "World.Created" in section.items[0].topic
-    assert "World.SomethingHappened" in section.items[1].topic
-    assert "World.SomethingHappened" in section.items[2].topic
-    assert "World.SomethingHappened" in section.items[3].topic
+    assert "Dog.Registered" in section.items[0].topic
+    assert "Dog.TrickAdded" in section.items[1].topic
+    assert "Dog.TrickAdded" in section.items[2].topic
+    assert "Dog.TrickAdded" in section.items[3].topic
 
-    assert b"dinosaurs" in section.items[1].state
-    assert b"trucks" in section.items[2].state
-    assert b"internet" in section.items[3].state
+    assert b"roll over" in section.items[1].state
+    assert b"fetch ball" in section.items[2].state
+    assert b"play dead" in section.items[3].state
 
 A domain event can be reconstructed from an event notification by calling the
 application's mapper method :func:`~eventsourcing.persistence.Mapper.to_domain_event`.
@@ -496,13 +500,13 @@ will also be encrypted, but the mapper will decrypt the event notification.
 .. code-block:: python
 
     domain_event = application.mapper.to_domain_event(section.items[0])
-    assert isinstance(domain_event, World.Created)
-    assert domain_event.originator_id == world_id
+    assert isinstance(domain_event, Dog.Registered)
+    assert domain_event.originator_id == dog_id
 
     domain_event = application.mapper.to_domain_event(section.items[3])
-    assert isinstance(domain_event, World.SomethingHappened)
-    assert domain_event.originator_id == world_id
-    assert domain_event.what == "internet"
+    assert isinstance(domain_event, Dog.TrickAdded)
+    assert domain_event.originator_id == dog_id
+    assert domain_event.trick == "play dead"
 
 
 Registering custom transcodings
@@ -674,13 +678,13 @@ will be passed to Python's :func:`sqlite3.connect` function.
 
     os.environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
     os.environ["SQLITE_DBNAME"] = tmpfile.name
-    application = Worlds()
+    application = DogSchool()
 
-    world_id = application.create_world()
+    dog_id = application.register_dog()
 
-    application.make_it_so(world_id, "dinosaurs")
-    application.make_it_so(world_id, "trucks")
-    application.make_it_so(world_id, "internet")
+    application.add_trick(dog_id, "roll over")
+    application.add_trick(dog_id, "fetch ball")
+    application.add_trick(dog_id, "play dead")
 
 
 By using a file on disk, as we did in the example above, the state of
@@ -691,12 +695,12 @@ and reconstructed.
 
     del(application)
 
-    application = Worlds()
+    application = DogSchool()
 
-    history = application.get_world_history(world_id)
-    assert history[0] == "dinosaurs"
-    assert history[1] == "trucks"
-    assert history[2] == "internet"
+    tricks = application.get_tricks(dog_id)
+    assert tricks[0] == "roll over"
+    assert tricks[1] == "fetch ball"
+    assert tricks[2] == "play dead"
 
 See :ref:`SQLite module <SQLite>` documentation for more information
 about using SQLite.
@@ -1067,7 +1071,7 @@ enabled (or disabled) for an individual application object in this way.
 
 .. code-block:: python
 
-    application = Worlds(env={"IS_SNAPSHOTTING_ENABLED": "y"})
+    application = DogSchool(env={"IS_SNAPSHOTTING_ENABLED": "y"})
 
     assert application.snapshots is not None
 
@@ -1080,7 +1084,7 @@ that environment.
 
     os.environ["IS_SNAPSHOTTING_ENABLED"] = "y"
 
-    application = Worlds()
+    application = DogSchool()
 
     assert application.snapshots is not None
 
@@ -1092,7 +1096,7 @@ Values passed into the application object will override operating system environ
 .. code-block:: python
 
     os.environ["IS_SNAPSHOTTING_ENABLED"] = "y"
-    application = Worlds(env={"IS_SNAPSHOTTING_ENABLED": "n"})
+    application = DogSchool(env={"IS_SNAPSHOTTING_ENABLED": "n"})
 
     assert application.snapshots is None
 
@@ -1103,25 +1107,25 @@ setting the boolean attribute 'is_snapshotting_enabled' on the application class
 
 .. code-block:: python
 
-    class WorldsWithSnapshottingEnabled(Worlds):
+    class DogSchoolWithSnapshottingEnabled(DogSchool):
         is_snapshotting_enabled = True
 
 
-    application = WorldsWithSnapshottingEnabled()
+    application = DogSchoolWithSnapshottingEnabled()
     assert application.snapshots is not None
 
 However, this setting will also be overridden by both the construct arg ``env``
 and by the operating system environment. The example below demonstrates this
-by extending the ``Worlds`` application class defined above.
+by extending the ``DogSchool`` application class defined above.
 
 .. code-block:: python
 
-    application = WorldsWithSnapshottingEnabled(env={"IS_SNAPSHOTTING_ENABLED": "n"})
+    application = DogSchoolWithSnapshottingEnabled(env={"IS_SNAPSHOTTING_ENABLED": "n"})
 
     assert application.snapshots is None
 
     os.environ["IS_SNAPSHOTTING_ENABLED"] = "n"
-    application = WorldsWithSnapshottingEnabled()
+    application = DogSchoolWithSnapshottingEnabled()
 
     assert application.snapshots is None
 
@@ -1140,14 +1144,14 @@ actually recorded state of the aggregate is avoided.
 
 .. code-block:: python
 
-    application = Worlds(env={"IS_SNAPSHOTTING_ENABLED": "y"})
-    world_id = application.create_world()
+    application = DogSchool(env={"IS_SNAPSHOTTING_ENABLED": "y"})
+    dog_id = application.register_dog()
 
-    application.make_it_so(world_id, "dinosaurs")
-    application.make_it_so(world_id, "trucks")
-    application.make_it_so(world_id, "internet")
+    application.add_trick(dog_id, "roll over")
+    application.add_trick(dog_id, "fetch ball")
+    application.add_trick(dog_id, "play dead")
 
-    application.take_snapshot(world_id)
+    application.take_snapshot(dog_id)
 
 
 Snapshots are stored separately from the aggregate events, but snapshot objects are
@@ -1160,13 +1164,13 @@ by selecting in descending order with a limit of 1.
 
 .. code-block:: python
 
-    snapshots = application.snapshots.get(world_id, desc=True, limit=1)
+    snapshots = application.snapshots.get(dog_id, desc=True, limit=1)
 
     snapshots = list(snapshots)
     assert len(snapshots) == 1, len(snapshots)
     snapshot = snapshots[0]
 
-    assert snapshot.originator_id == world_id
+    assert snapshot.originator_id == dog_id
     assert snapshot.originator_version == 4
 
 When snapshotting is enabled, the application repository looks for snapshots in this way.
@@ -1184,34 +1188,34 @@ which represent the snapshotting interval. Setting this attribute implicitly
 enables snapshotting as described above. When aggregates are saved, snapshots
 will be taken if the version of aggregate coincides with the specified interval.
 
-The example extends the ``Worlds`` application class and specifies
-that ``World`` aggregates are to be automatically snapshotted every
+The example extends the ``DogSchool`` application class and specifies
+that ``Dog`` aggregates are to be automatically snapshotted every
 2 events. In practice, a suitable interval would most likely be larger
 than 2, perhaps more like 100.
 
 .. code-block:: python
 
-    class WorldsWithAutomaticSnapshotting(Worlds):
-        snapshotting_intervals = {World: 2}
+    class DogSchoolWithAutomaticSnapshotting(DogSchool):
+        snapshotting_intervals = {Dog: 2}
 
 
-    application = WorldsWithAutomaticSnapshotting()
+    application = DogSchoolWithAutomaticSnapshotting()
 
-    world_id = application.create_world()
+    dog_id = application.register_dog()
 
-    application.make_it_so(world_id, "dinosaurs")
-    application.make_it_so(world_id, "trucks")
-    application.make_it_so(world_id, "internet")
+    application.add_trick(dog_id, "roll over")
+    application.add_trick(dog_id, "fetch ball")
+    application.add_trick(dog_id, "play dead")
 
-    snapshots = application.snapshots.get(world_id)
+    snapshots = application.snapshots.get(dog_id)
     snapshots = list(snapshots)
 
     assert len(snapshots) == 2
 
-    assert snapshots[0].originator_id == world_id
+    assert snapshots[0].originator_id == dog_id
     assert snapshots[0].originator_version == 2
 
-    assert snapshots[1].originator_id == world_id
+    assert snapshots[1].originator_id == dog_id
     assert snapshots[1].originator_version == 4
 
 

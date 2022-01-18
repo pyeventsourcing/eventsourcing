@@ -39,7 +39,7 @@ modern process philosophy:
     that are prehending one another: 'First the solitary piano
     grieved, like a bird abandoned by its mate; the violin
     heard its wail and responded to it like a neighbouring
-    tree. It was like the beginning of the world. ...'"*
+    tree. It was like the beginning of the dog. ...'"*
 
 However, the events of event sourcing are a very specific kind of event.
 They are the individual atomic decisions originated by the domain
@@ -181,7 +181,7 @@ Evolve the state of the application by calling command methods.
 
     dog_id = application.register_dog('Fido')
     application.add_trick(dog_id, 'roll over')
-    application.add_trick(dog_id, 'play dead')
+    application.add_trick(dog_id, 'fetch ball')
 
 
 Access the state of the application by calling query methods.
@@ -190,7 +190,17 @@ Access the state of the application by calling query methods.
 
     dog_details = application.get_dog(dog_id)
     assert dog_details['name'] == 'Fido'
-    assert dog_details['tricks'] == ('roll over', 'play dead')
+    assert dog_details['tricks'] == ('roll over', 'fetch ball')
+
+Select event notifications from the notification log.
+
+.. code-block:: python
+
+    notifications = application.notification_log.select(start=1, limit=10)
+    assert len(notifications) == 3
+    assert notifications[0].id == 1
+    assert notifications[1].id == 2
+    assert notifications[2].id == 3
 
 
 Features

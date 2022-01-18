@@ -30,17 +30,17 @@ class TestProcessApplication(TestCase):
         email_process = EmailProcess()
         email_process.follow(
             accounts.name,
-            accounts.notifications,
+            accounts.notification_log,
         )
 
-        section = email_process.notifications["1,5"]
+        section = email_process.notification_log["1,5"]
         self.assertEqual(len(section.items), 0)
 
         accounts.open_account("Alice", "alice@example.com")
 
         email_process.pull_and_process(BankAccounts.name)
 
-        section = email_process.notifications["1,5"]
+        section = email_process.notification_log["1,5"]
         self.assertEqual(len(section.items), 1)
 
         # Check we have processed the first event.
@@ -55,7 +55,7 @@ class TestProcessApplication(TestCase):
 
         # Check we haven't actually processed anything further.
         self.assertEqual(email_process.recorder.max_tracking_id(BankAccounts.name), 1)
-        section = email_process.notifications["1,5"]
+        section = email_process.notification_log["1,5"]
         self.assertEqual(len(section.items), 1)
 
         # Subscribe for notifications.
@@ -65,7 +65,7 @@ class TestProcessApplication(TestCase):
         accounts.open_account("Bob", "bob@example.com")
 
         # Check we have processed the next notification.
-        section = email_process.notifications["1,5"]
+        section = email_process.notification_log["1,5"]
         self.assertEqual(len(section.items), 2)
 
         # Check we have actually processed the second event.

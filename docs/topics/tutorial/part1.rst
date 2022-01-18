@@ -8,47 +8,47 @@ Python classes
 This tutorial depends on a basic understanding of
 `Python classes <https://docs.python.org/3/tutorial/classes.html>`__.
 
-For example, using Python we can define a ``World`` class as follows.
+For example, using Python we can define a ``Dog`` class as follows.
 
 .. code-block:: python
 
-    class World:
+    class Dog:
         def __init__(self, name):
             self.name = name
-            self.history = []
+            self.tricks = []
 
-        def make_it_so(self, what):
-            self.history.append(what)
+        def add_trick(self, trick):
+            self.tricks.append(trick)
 
 Having defined a Python class, we can use it to create an instance.
 
 .. code-block:: python
 
-    world = World('Earth')
+    dog = Dog('Fido')
 
 
-As we might expect, the `world` object is an instance of the ``World`` class.
+As we might expect, the ``dog`` object is an instance of the ``Dog`` class.
 
 .. code-block:: python
 
-    assert isinstance(world, World)
+    assert isinstance(dog, Dog)
 
 
 We can see from the the ``__init__()`` method
-that attributes ``name`` and ``history`` will be initialised.
+that attributes ``name`` and ``tricks`` will be initialised.
 
 .. code-block:: python
 
-    assert world.name == 'Earth'
-    assert world.history == []
+    assert dog.name == 'Fido'
+    assert dog.tricks == []
 
-A ``World`` instance has a method ``make_it_so()`` which
-appends the value of ``what`` to ``history``.
+A ``Dog`` instance has a method ``add_trick()`` which
+appends the value of ``trick`` to ``tricks``.
 
 .. code-block:: python
 
-    world.make_it_so('Python')
-    assert world.history == ['Python']
+    dog.add_trick('roll over')
+    assert dog.tricks == ['roll over']
 
 This is a basic example of how Python classes work.
 However, if we want to use this object in future, we will want
@@ -58,53 +58,53 @@ Event-sourced aggregate
 =======================
 
 A persistent object that changes through a sequence of decisions
-corresponds to the notion of an 'aggregate' in Domain-Driven Design.
+corresponds to the notion of an 'aggregate' in the book Domain-Driven Design.
 An 'event-sourced' aggregate is persisted by persisting the decisions
 as a sequence of 'events'.
 We can use the aggregate base class ``Aggregate`` and the ``@event``
-decorator from the :doc:`domain module </topics/domain>` to define
-event-sourced aggregates.
+decorator from the :doc:`domain module </topics/domain>` to define an
+event-sourced aggregate.
 
 .. code-block:: python
 
     from eventsourcing.domain import Aggregate, event
 
 
-Let's convert ``World`` into an event-sourced aggregate. The changes are highlighted below.
+Let's convert ``Dog`` into an event-sourced aggregate. The changes are highlighted below.
 
 .. code-block:: python
     :emphasize-lines: 1,2,7
 
-    class World(Aggregate):
+    class Dog(Aggregate):
         @event('Created')
         def __init__(self, name):
             self.name = name
-            self.history = []
+            self.tricks = []
 
-        @event('SomethingHappened')
-        def make_it_so(self, what):
-            self.history.append(what)
+        @event('TrickAdded')
+        def add_trick(self, trick):
+            self.tricks.append(trick)
 
 
 As before, we can call the class to create a new instance.
 
 .. code-block:: python
 
-    world = World('Earth')
+    dog = Dog('Fido')
 
-The object is an instance of ``World``. It is also an ``Aggregate``.
-
-.. code-block:: python
-
-    assert isinstance(world, World)
-    assert isinstance(world, Aggregate)
-
-As we might expect, the attributes ``name`` and ``history`` have been initialised.
+The object is an instance of ``Dog``. It is also an ``Aggregate``.
 
 .. code-block:: python
 
-    assert world.name == 'Earth'
-    assert world.history == []
+    assert isinstance(dog, Dog)
+    assert isinstance(dog, Aggregate)
+
+As we might expect, the attributes ``name`` and ``tricks`` have been initialised.
+
+.. code-block:: python
+
+    assert dog.name == 'Fido'
+    assert dog.tricks == []
 
 
 The aggregate also has an ``id`` attribute. The ID is used to uniquely identify the
@@ -114,25 +114,25 @@ aggregate within a collection of aggregates. It happens to be a UUID.
 
     from uuid import UUID
 
-    assert isinstance(world.id, UUID)
+    assert isinstance(dog.id, UUID)
 
 
-We can call the aggregate method ``make_it_so()``. The given value is appended to ``history``.
+We can call the aggregate method ``add_trick()``. The given value is appended to ``tricks``.
 
 .. code-block:: python
 
-    world.make_it_so('Python')
+    dog.add_trick('roll over')
 
-    assert world.history == ['Python']
+    assert dog.tricks == ['roll over']
 
-By redefining the ``World`` class as an event-sourced aggregate in this way,
+By redefining the ``Dog`` class as an event-sourced aggregate in this way,
 when we call the class object and the decorated methods, we construct a sequence
 of event objects that can be used to reconstruct the aggregate. We can get
 the events from the aggregate by calling ``collect_events()``.
 
 .. code-block:: python
 
-    events = world.collect_events()
+    events = dog.collect_events()
 
 
 We can also reconstruct the aggregate by calling ``mutate()`` on the collected event objects.
@@ -143,7 +143,7 @@ We can also reconstruct the aggregate by calling ``mutate()`` on the collected e
     for e in events:
         copy = e.mutate(copy)
 
-    assert copy == world
+    assert copy == dog
 
 
 Interactions with aggregates usually occur in an application, where collected
@@ -163,7 +163,7 @@ event-sourced applications.
     from eventsourcing.application import Application
 
 
-Let's define a ``Universe`` application that interacts with ``World`` aggregates.
+Let's define a ``Universe`` application that interacts with ``Dog`` aggregates.
 We can add command methods to create and change aggregates,
 and query methods to view current state.
 We can save aggregates with the application ``save()`` method, and
@@ -173,19 +173,19 @@ get previously saved aggregates with the repository ``get()`` method.
 .. code-block:: python
 
     class Universe(Application):
-        def create_world(self, name):
-            world = World(name)
-            self.save(world)
-            return world.id
+        def register_dog(self, name):
+            dog = Dog(name)
+            self.save(dog)
+            return dog.id
 
-        def make_it_so(self, world_id, what):
-            world = self.repository.get(world_id)
-            world.make_it_so(what)
-            self.save(world)
+        def add_trick(self, dog_id, trick):
+            dog = self.repository.get(dog_id)
+            dog.add_trick(trick)
+            self.save(dog)
 
-        def get_history(self, world_id):
-            world = self.repository.get(world_id)
-            return world.history
+        def get_dog(self, dog_id):
+            dog = self.repository.get(dog_id)
+            return {'name': dog.name, 'tricks': tuple(dog.tricks)}
 
 
 We can construct an instance of the application by calling the application class.
@@ -195,24 +195,36 @@ We can construct an instance of the application by calling the application class
     application = Universe()
 
 
-We can then create and update aggregates by calling methods of the application.
+We can then create and update aggregates by calling the command methods of the application.
 
 .. code-block:: python
 
-    world_id = application.create_world('Earth')
-    application.make_it_so(world_id, 'dinosaurs')
-    application.make_it_so(world_id, 'trucks')
-    application.make_it_so(world_id, 'internet')
+    dog_id = application.register_dog('Fido')
+    application.add_trick(dog_id, 'roll over')
+    application.add_trick(dog_id, 'fetch ball')
+    application.add_trick(dog_id, 'play dead')
 
 
-We can also view the current state of the application by calling the application
-query method.
+We can view the state of the aggregates by calling application query methods.
 
 .. code-block:: python
 
-    history = application.get_history(world_id)
+    dog_details = application.get_dog(dog_id)
 
-    assert history == ['dinosaurs', 'trucks', 'internet']
+    assert dog_details['name'] == 'Fido'
+    assert dog_details['tricks'] == ('roll over', 'fetch ball', 'play dead')
+
+And we can propagate the state of the application as a whole by selecting
+event notifications from the application's notification log.
+
+.. code-block:: python
+
+    notifications = application.notification_log.select(start=1, limit=10)
+
+    assert len(notifications)
+    assert notifications[0].id == 1
+    assert notifications[1].id == 2
+    assert notifications[2].id == 3
 
 Any number of different kinds of event-sourced applications can
 be defined in this way.
@@ -251,15 +263,18 @@ modules.
         app = Universe()
 
         # Call application command methods.
-        world_id = app.create_world('Earth')
-        app.make_it_so(world_id, 'dinosaurs')
-        app.make_it_so(world_id, 'trucks')
+        dog_id = app.register_dog('Fido')
+        app.add_trick(dog_id, 'roll over')
+        app.add_trick(dog_id, 'fetch ball')
 
         # Call application query method.
-        assert app.get_history(world_id) == [
-            'dinosaurs',
-            'trucks'
-        ]
+        assert app.get_dog(dog_id) == {
+            'name': 'Fido',
+            'tricks': (
+                'roll over',
+                'fetch ball'
+            )
+        }
 
 Exercise
 ========

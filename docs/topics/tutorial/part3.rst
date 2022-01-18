@@ -8,12 +8,12 @@ use the library's ``Application`` class to define event-sourced
 applications.
 
 For example, the ``Universe`` application class, defined below, has a
-command method ``create_world()`` that creates and saves a new aggregate.
-It has a command method ``make_it_so()`` that retrieves a previously saved
-aggregate, calls ``make_it_so()`` on the aggregate, and then saves the
-modified aggregate. And it has a query method ``get_history()`` that
-retrieves and returns the ``history`` of an aggregate object. The
-``World`` aggregate is used by the application.
+command method ``register_dog()`` that creates and saves a new ``Dog`` aggregate.
+It has a command method ``add_trick()`` that retrieves a previously saved
+aggregate, calls ``add_trick()`` on the aggregate, and then saves the
+modified aggregate. And it has a query method ``get_tricks()`` that
+retrieves and returns the ``tricks`` of an aggregate object. The
+``Dog`` aggregate is used by the application.
 
 .. code-block:: python
 
@@ -22,30 +22,30 @@ retrieves and returns the ``history`` of an aggregate object. The
 
 
     class Universe(Application):
-        def create_world(self, name):
-            world = World(name)
-            self.save(world)
-            return world.id
+        def register_dog(self, name):
+            dog = Dog(name)
+            self.save(dog)
+            return dog.id
 
-        def make_it_so(self, world_id, what):
-            world = self.repository.get(world_id)
-            world.make_it_so(what)
-            self.save(world)
+        def add_trick(self, dog_id, trick):
+            dog = self.repository.get(dog_id)
+            dog.add_trick(trick)
+            self.save(dog)
 
-        def get_history(self, world_id):
-            world = self.repository.get(world_id)
-            return world.history
+        def get_tricks(self, dog_id):
+            dog = self.repository.get(dog_id)
+            return dog.tricks
 
 
-    class World(Aggregate):
+    class Dog(Aggregate):
         @event('Started')
         def __init__(self, name):
             self.name = name
-            self.history = []
+            self.tricks = []
 
-        @event('SomethingHappened')
-        def make_it_so(self, what):
-            self.history.append(what)
+        @event('TrickAdded')
+        def add_trick(self, trick):
+            self.tricks.append(trick)
 
 
 We can construct an application object and call its methods.
@@ -54,14 +54,14 @@ We can construct an application object and call its methods.
 
     application = Universe()
 
-    world_id = application.create_world('Earth')
-    application.make_it_so(world_id, 'dinosaurs')
-    application.make_it_so(world_id, 'trucks')
-    application.make_it_so(world_id, 'internet')
+    dog_id = application.register_dog('Fido')
+    application.add_trick(dog_id, 'roll over')
+    application.add_trick(dog_id, 'fetch ball')
+    application.add_trick(dog_id, 'play dead')
 
-    history = application.get_history(world_id)
+    history = application.get_tricks(dog_id)
 
-    assert history == ['dinosaurs', 'trucks', 'internet']
+    assert history == ['roll over', 'fetch ball', 'play dead']
 
 
 Let's explore how this works in more detail.
@@ -88,8 +88,8 @@ alternatives constructed instead of the standard defaults.
     assert application.repository.event_store.mapper.compressor is None
     assert application.repository.event_store.mapper.cipher is None
     assert application.repository.event_store.recorder
-    assert application.notifications
-    assert application.notifications.recorder
+    assert application.notification_log
+    assert application.notification_log.recorder
 
 
 To be specific, an application object has a repository object. The repository
@@ -139,43 +139,43 @@ In addition to these attributes and these methods, a subclass of
 make use of the application's ``save()`` method and the repository's
 ``get()`` method.
 
-For example, the ``Universe`` class has a ``create_world()`` method
-and a ``make_it_so()`` method, which can be considered a command methods.
-It also has a ``get_history()`` method, which can be considered a query
+For example, the ``Universe`` class has a ``register_dog()`` method
+and a ``add_trick()`` method, which can be considered a command methods.
+It also has a ``get_tricks()`` method, which can be considered a query
 method.
 
 
 Command methods
 ===============
 
-Let's consider the ``create_world()`` and ``make_it_so()`` methods
+Let's consider the ``register_dog()`` and ``add_trick()`` methods
 of the ``Universe`` application.
 
-Firstly, let's create a new aggregate by calling the application method ``create_world()``.
+Firstly, let's create a new aggregate by calling the application method ``register_dog()``.
 
 .. code-block:: python
 
-    world_id = application.create_world('Earth')
+    dog_id = application.register_dog('Fido')
 
-When the application command method ``create_world()``
-is called, a new ``World`` aggregate object is created, by calling
+When the application command method ``register_dog()``
+is called, a new ``Dog`` aggregate object is created, by calling
 the aggregate class. The new aggregate object is saved by calling
 the application's ``save()`` method, and then the ID of the aggregate
 is returned to the caller.
 
 We can then evolve the state of the aggregate by calling the
-application command method ``make_it_so()``.
+application command method ``add_trick()``.
 
 .. code-block:: python
 
-    application.make_it_so(world_id, 'dinosaurs')
-    application.make_it_so(world_id, 'trucks')
-    application.make_it_so(world_id, 'internet')
+    application.add_trick(dog_id, 'roll over')
+    application.add_trick(dog_id, 'fetch ball')
+    application.add_trick(dog_id, 'play dead')
 
-When the application command method ``make_it_so()`` is called with
+When the application command method ``add_trick()`` is called with
 the ID of an aggregate, the ``get()`` method of the ``repository`` is
-used to get the aggregate, the aggregate's ``make_it_so()`` method is
-called with the given value of ``what``, and the aggregate is then
+used to get the aggregate, the aggregate's ``add_trick()`` method is
+called with the given value of ``trick``, and the aggregate is then
 saved by calling the application's ``save()`` method.
 
 
@@ -183,24 +183,24 @@ Query methods
 =============
 
 We can access the state of the application's aggregate by calling the
-application query method ``get_history()``.
+application query method ``get_tricks()``.
 
 .. code-block:: python
 
-    history = application.get_history(world_id)
-    assert history == ['dinosaurs', 'trucks', 'internet']
+    history = application.get_tricks(dog_id)
+    assert history == ['roll over', 'fetch ball', 'play dead']
 
 
-When the application query method ``get_history()`` is called with
+When the application query method ``get_tricks()`` is called with
 the ID of an aggregate, the ``get()`` method of the ``repository``
 is used to reconstruct the aggregate from saved events, and the value
-of the aggregate's ``history`` attribute is returned to the caller.
+of the aggregate's ``tricks`` attribute is returned to the caller.
 
 
 Event notifications
 ===================
 
-The ``Application`` class has a ``notifications`` attribute,
+The ``Application`` class has a ``notification_log`` attribute,
 which is a 'notification log' (aka the 'outbox pattern').
 This pattern avoids the "dual writing" problem of recording
 application state and separately sending messages about
@@ -231,24 +231,24 @@ is called.
 
 .. code-block:: python
 
-    notifications = application.notifications.select(start=1, limit=4)
+    notifications = application.notification_log.select(start=1, limit=4)
     assert [n.id for n in notifications] == [1, 2, 3, 4]
 
-    assert 'World.Started' in notifications[0].topic
-    assert b'Earth' in notifications[0].state
-    assert world_id == notifications[0].originator_id
+    assert 'Dog.Started' in notifications[0].topic
+    assert b'Fido' in notifications[0].state
+    assert dog_id == notifications[0].originator_id
 
-    assert 'World.SomethingHappened' in notifications[1].topic
-    assert b'dinosaurs' in notifications[1].state
-    assert world_id == notifications[1].originator_id
+    assert 'Dog.TrickAdded' in notifications[1].topic
+    assert b'roll over' in notifications[1].state
+    assert dog_id == notifications[1].originator_id
 
-    assert 'World.SomethingHappened' in notifications[2].topic
-    assert b'trucks' in notifications[2].state
-    assert world_id == notifications[2].originator_id
+    assert 'Dog.TrickAdded' in notifications[2].topic
+    assert b'fetch ball' in notifications[2].state
+    assert dog_id == notifications[2].originator_id
 
-    assert 'World.SomethingHappened' in notifications[3].topic
-    assert b'internet' in notifications[3].state
-    assert world_id == notifications[3].originator_id
+    assert 'Dog.TrickAdded' in notifications[3].topic
+    assert b'play dead' in notifications[3].state
+    assert dog_id == notifications[3].originator_id
 
 
 Application configuration
@@ -285,57 +285,57 @@ with PostgreSQL.
 
     def test(app: Universe, expect_visible_in_db: bool):
         # Check app has zero event notifications.
-        assert len(app.notifications['1,10'].items) == 0
+        assert len(app.notification_log['1,10'].items) == 0
 
         # Create a new aggregate.
-        world_id = app.create_world('Earth')
+        dog_id = app.register_dog('Fido')
 
         # Execute application commands.
-        app.make_it_so(world_id, 'dinosaurs')
-        app.make_it_so(world_id, 'trucks')
+        app.add_trick(dog_id, 'roll over')
+        app.add_trick(dog_id, 'fetch ball')
 
         # Check recorded state of the aggregate.
-        assert app.get_history(world_id) == [
-            'dinosaurs',
-            'trucks'
+        assert app.get_tricks(dog_id) == [
+            'roll over',
+            'fetch ball'
         ]
 
         # Execute another command.
-        app.make_it_so(world_id, 'internet')
+        app.add_trick(dog_id, 'play dead')
 
         # Check recorded state of the aggregate.
-        assert app.get_history(world_id) == [
-            'dinosaurs',
-            'trucks',
-            'internet'
+        assert app.get_tricks(dog_id) == [
+            'roll over',
+            'fetch ball',
+            'play dead'
         ]
 
         # Check values are (or aren't visible) in the database.
-        values = [b'dinosaurs', b'trucks', b'internet']
+        tricks = [b'roll over', b'fetch ball', b'play dead']
         if expect_visible_in_db:
-            expected_num_visible = len(values)
+            expected_num_visible = len(tricks)
         else:
             expected_num_visible = 0
 
         actual_num_visible = 0
-        reader = NotificationLogReader(app.notifications)
+        reader = NotificationLogReader(app.notification_log)
         for notification in reader.read(start=1):
-            for what in values:
-                if what in notification.state:
+            for trick in tricks:
+                if trick in notification.state:
                     actual_num_visible += 1
                     break
         assert expected_num_visible == actual_num_visible
 
-        # Get historical state (at version 3, before 'internet' happened).
-        old = app.repository.get(world_id, version=3)
-        assert len(old.history) == 2
-        assert old.history[-1] == 'trucks'  # last thing to have happened was 'trucks'
+        # Get historical state (at version 3, before 'play dead' happened).
+        old = app.repository.get(dog_id, version=3)
+        assert len(old.tricks) == 2
+        assert old.tricks[-1] == 'fetch ball'  # last thing to have happened was 'fetch ball'
 
         # Check app has four event notifications.
-        assert len(app.notifications['1,10'].items) == 4
+        assert len(app.notification_log['1,10'].items) == 4
 
         # Optimistic concurrency control (no branches).
-        old.make_it_so('future')
+        old.add_trick('future')
         try:
             app.save(old)
         except IntegrityError:
@@ -344,23 +344,23 @@ with PostgreSQL.
             raise Exception("Shouldn't get here")
 
         # Check app still has only four event notifications.
-        assert len(app.notifications['1,10'].items) == 4
+        assert len(app.notification_log['1,10'].items) == 4
 
         # Read event notifications.
-        reader = NotificationLogReader(app.notifications)
+        reader = NotificationLogReader(app.notification_log)
         notifications = list(reader.read(start=1))
         assert len(notifications) == 4
 
         # Create eight more aggregate events.
-        world_id = app.create_world('Mars')
-        app.make_it_so(world_id, 'plants')
-        app.make_it_so(world_id, 'fish')
-        app.make_it_so(world_id, 'mammals')
+        dog_id = app.register_dog('Millie')
+        app.add_trick(dog_id, 'shake hands')
+        app.add_trick(dog_id, 'fetch ball')
+        app.add_trick(dog_id, 'sit pretty')
 
-        world_id = app.create_world('Venus')
-        app.make_it_so(world_id, 'morning')
-        app.make_it_so(world_id, 'afternoon')
-        app.make_it_so(world_id, 'evening')
+        dog_id = app.register_dog('Scrappy')
+        app.add_trick(dog_id, 'come')
+        app.add_trick(dog_id, 'spin')
+        app.add_trick(dog_id, 'stay')
 
         # Get the new event notifications from the reader.
         last_id = notifications[-1].id

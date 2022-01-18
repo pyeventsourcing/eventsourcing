@@ -107,7 +107,7 @@ class TestApplication(TestCase):
 
     def test_application_log(self):
         app = Application()
-        self.assertEqual(app.log, app.notifications)
+        self.assertEqual(app.log, app.notification_log)
 
 
 class TestApplicationWithPOPO(ExampleApplicationTestCase):

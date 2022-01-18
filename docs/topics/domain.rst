@@ -446,7 +446,7 @@ Aggregate base class
 
 This library's :class:`~eventsourcing.domain.Aggregate` class is a base class for
 event-sourced aggregates. It can be used to develop event-sourced aggregates. See
-for example the ``World`` aggregate in the :ref:`Simple example <Aggregate simple example>`
+for example the ``Dog`` aggregate in the :ref:`Simple example <Aggregate simple example>`
 below.
 
 
@@ -488,7 +488,7 @@ instance of the aggregate class, which it then returns to the caller.
 
 Usually, this generically named "private" method will be called by a "public"
 class method defined on a subclass of the :class:`~eventsourcing.domain.Aggregate`
-base class. For example, see the class method ``create()`` of ``World`` aggregate
+base class. For example, see the class method ``create()`` of ``Dog`` aggregate
 class in the :ref:`Simple example <Aggregate simple example>` below. Your public
 "create" method should be named after a particular concern
 in your domain. Nevertheless, we need a name to refer to this sort of thing
@@ -613,7 +613,7 @@ to trigger a subsequent aggregate event object.
 
 This method can be called by the command methods of an aggregate to
 capture the decisions that are made. For example, see the
-``make_it_so()`` method of the ``World`` class in the :ref:`Simple example <Aggregate simple example>`
+``add_trick()`` method of the ``Dog`` class in the :ref:`Simple example <Aggregate simple example>`
 below. The creation of the aggregate event object is the final stage in the
 coming-to-be of a private individual occasion of experience within the aggregate,
 that begins before the event object is created. The event object is the beginning
@@ -638,7 +638,7 @@ as a subclass of the :class:`~eventsourcing.domain.AggregateEvent`
 discussed above in the section on :ref:`Aggregate events <Aggregate events>`.
 The :class:`~eventsourcing.domain.Aggregate.Event` class can be
 used as a base class to define the particular aggregate event classes
-needed by in your domain model. For example, see the ``SomethingHappened``
+needed by in your domain model. For example, see the ``TrickAdded``
 class in the :ref:`Simple example <Aggregate simple example>` below.
 Aggregate event classes are usually named using past participles
 to describe what was decided by the command method, such as "Done",
@@ -649,10 +649,10 @@ The :func:`~eventsourcing.domain.Aggregate.trigger_event` method also accepts ar
 keyword-only arguments, which will be used to construct the aggregate event object. As with the
 :func:`~eventsourcing.domain.MetaAggregate._create` method described above, the event object will be constructed
 with these arguments, and so any extra arguments must be matched by the expected values of
-the event class. For example, ``what`` on the ``SomethingHappened`` event class definition
-in the :ref:`Simple example <Aggregate simple example>` below matches the ``what=what``
+the event class. For example, ``trick`` on the ``TrickAdded`` event class definition
+in the :ref:`Simple example <Aggregate simple example>` below matches the ``trick=trick``
 keyword argument passed in the call to the :func:`~eventsourcing.domain.Aggregate.trigger_event`
-method in the ``make_it_so()`` command.
+method in the ``add_trick()`` command.
 
 After creating the aggregate event object, the :func:`~eventsourcing.domain.Aggregate.trigger_event` method
 will apply the event to the aggregate by calling the event object's
@@ -717,33 +717,36 @@ return an empty list.
 Simple example
 --------------
 
-In the example below, the ``World`` aggregate is defined as a subclass of the :class:`~eventsourcing.domain.Aggregate` class.
+In the example below, the ``Dog`` aggregate is defined as a subclass of the :class:`~eventsourcing.domain.Aggregate` class.
 
 .. code-block:: python
 
-    class World(Aggregate):
+    class Dog(Aggregate):
         def __init__(self):
-            self.history = []
+            self.tricks = []
 
         @classmethod
-        def create(cls):
-            return cls._create(cls.Created, id=uuid4())
+        def register(cls):
+            return cls._create(cls.Registered, id=uuid4())
 
-        def make_it_so(self, what):
-            self.trigger_event(self.SomethingHappened, what=what)
+        class Registered(Aggregate.Created):
+            pass
 
-        class SomethingHappened(Aggregate.Event):
-            what: str
+        def add_trick(self, trick):
+            self.trigger_event(self.TrickAdded, trick=trick)
 
-            def apply(self, world):
-                world.history.append(self.what)
+        class TrickAdded(Aggregate.Event):
+            trick: str
+
+            def apply(self, dog):
+                dog.tricks.append(self.trick)
 
 
 The ``__init__()`` method
-initialises a ``history`` attribute with an empty Python ``list`` object.
+initialises a ``tricks`` attribute with an empty Python ``list`` object.
 
-The ``World.create()`` class method creates and returns
-a new ``World`` aggregate object. It calls the inherited
+The ``Dog.register()`` class method creates and returns
+a new ``Dog`` aggregate object. It calls the inherited
 :func:`~eventsourcing.domain.MetaAggregate._create` method that
 we discussed above. It uses its own ``Created`` event class as
 the value of the ``event_class`` argument. As above, it uses a
@@ -751,15 +754,15 @@ the value of the ``event_class`` argument. As above, it uses a
 object as the value of the ``id`` argument. See the :ref:`Namespaced IDs <Namespaced IDs>`
 section below for a discussion about using version-5 UUIDs.
 
-The ``make_it_so()`` method is a command method that triggers
-a ``World.SomethingHappened`` domain event. It calls the inherited
+The ``add_trick()`` method is a command method that triggers
+a ``Dog.TrickAdded`` domain event. It calls the inherited
 :func:`~eventsourcing.domain.Aggregate.trigger_event` method.
-The event is triggered with the method argument ``what``.
+The event is triggered with the method argument ``trick``.
 
-The nested ``SomethingHappened`` class is a frozen data class that extends the
+The nested ``TrickAdded`` class is a frozen data class that extends the
 base aggregate event class ``Aggregate.Event`` (also a frozen data class) with a
-field ``what`` which is defined as a Python :class:`str`. An ``apply()`` method
-is defined which appends the ``what`` value to the aggregate's ``history``. This
+field ``trick`` which is defined as a Python :class:`str`. An ``apply()`` method
+is defined which appends the ``trick`` value to the aggregate's ``tricks``. This
 method is called when the event is triggered (see :ref:`Aggregate events <Aggregate events>`).
 
 By defining the event class under the command method which triggers it, and then
@@ -767,13 +770,13 @@ defining an ``apply()`` method as part of the event class definition, the story 
 calling a command method, triggering an event, and evolving the state of the aggregate
 is expressed in three cohesive parts that are neatly co-located.
 
-Having defined the ``World`` aggregate class, we can create a new ``World``
-aggregate object by calling the ``World.create()`` class method.
+Having defined the ``Dog`` aggregate class, we can create a new ``Dog``
+aggregate object by calling the ``Dog.register()`` class method.
 
 .. code-block:: python
 
-    world = World.create()
-    assert isinstance(world, World)
+    dog = Dog.register()
+    assert isinstance(dog, Dog)
 
 The aggregate's attributes ``created_on`` and ``modified_on`` show
 when the aggregate was created and when it was modified. Since there
@@ -784,26 +787,26 @@ were created.
 
 .. code-block:: python
 
-    assert world.created_on == world.modified_on
+    assert dog.created_on == dog.modified_on
 
 
-We can now call the aggregate object methods. The ``World`` aggregate has a command
-method ``make_it_so()`` which triggers the ``SomethingHappened`` event. The
-``apply()`` method of the ``SomethingHappened`` class appends the ``what``
-of the event to the ``history`` of the ``world``. So when we call the ``make_it_so()``
-command, the argument ``what`` will be appended to the ``history``.
+We can now call the aggregate object methods. The ``Dog`` aggregate has a command
+method ``add_trick()`` which triggers the ``TrickAdded`` event. The
+``apply()`` method of the ``TrickAdded`` class appends the ``trick``
+of the event to the ``tricks`` of the ``dog``. So when we call the ``add_trick()``
+command, the argument ``trick`` will be appended to the ``tricks``.
 
 .. code-block:: python
 
     # Commands methods trigger events.
-    world.make_it_so("dinosaurs")
-    world.make_it_so("trucks")
-    world.make_it_so("internet")
+    dog.add_trick("roll over")
+    dog.add_trick("fetch ball")
+    dog.add_trick("play dead")
 
     # State of aggregate object has changed.
-    assert world.history[0] == "dinosaurs"
-    assert world.history[1] == "trucks"
-    assert world.history[2] == "internet"
+    assert dog.tricks[0] == "roll over"
+    assert dog.tricks[1] == "fetch ball"
+    assert dog.tricks[2] == "play dead"
 
 
 Now that more than one domain event has been created, the aggregate's
@@ -811,7 +814,7 @@ Now that more than one domain event has been created, the aggregate's
 
 .. code-block:: python
 
-    assert world.modified_on > world.created_on
+    assert dog.modified_on > dog.created_on
 
 
 The resulting domain events are now held internally in the aggregate in
@@ -822,28 +825,28 @@ These events are pending to be saved, and indeed the library's
 :func:`~eventsourcing.application.Application.save` method which
 works by calling this method. So far, we have created four domain events and
 we have not yet collected them, and so there will be four pending events: one
-``Created`` event, and three ``SomethingHappened`` events.
+``Created`` event, and three ``TrickAdded`` events.
 
 .. code-block:: python
 
     # Has four pending events.
-    assert len(world.pending_events) == 4
+    assert len(dog.pending_events) == 4
 
     # Collect pending events.
-    pending_events = world.collect_events()
+    pending_events = dog.collect_events()
     assert len(pending_events) == 4
-    assert len(world.pending_events) == 0
+    assert len(dog.pending_events) == 0
 
-    assert isinstance(pending_events[0], World.Created)
-    assert isinstance(pending_events[1], World.SomethingHappened)
-    assert isinstance(pending_events[2], World.SomethingHappened)
-    assert isinstance(pending_events[3], World.SomethingHappened)
-    assert pending_events[1].what == "dinosaurs"
-    assert pending_events[2].what == "trucks"
-    assert pending_events[3].what == "internet"
+    assert isinstance(pending_events[0], Dog.Registered)
+    assert isinstance(pending_events[1], Dog.TrickAdded)
+    assert isinstance(pending_events[2], Dog.TrickAdded)
+    assert isinstance(pending_events[3], Dog.TrickAdded)
+    assert pending_events[1].trick == "roll over"
+    assert pending_events[2].trick == "fetch ball"
+    assert pending_events[3].trick == "play dead"
 
-    assert pending_events[0].timestamp == world.created_on
-    assert pending_events[3].timestamp == world.modified_on
+    assert pending_events[0].timestamp == dog.created_on
+    assert pending_events[3].timestamp == dog.modified_on
 
 
 As discussed above, the event objects can be used to reconstruct
@@ -856,12 +859,12 @@ the current state of the aggregate, by calling their
     for domain_event in pending_events:
         copy = domain_event.mutate(copy)
 
-    assert isinstance(copy, World)
-    assert copy.id == world.id
-    assert copy.version == world.version
-    assert copy.created_on == world.created_on
-    assert copy.modified_on == world.modified_on
-    assert copy.history == world.history
+    assert isinstance(copy, Dog)
+    assert copy.id == dog.id
+    assert copy.version == dog.version
+    assert copy.created_on == dog.created_on
+    assert copy.modified_on == dog.modified_on
+    assert copy.tricks == dog.tricks
 
 
 The :func:`~eventsourcing.application.Repository.get`
@@ -1233,14 +1236,14 @@ feature of the dataclasses module.
 
     @dataclass
     class MyAggregate(Aggregate):
-        history: List[str] = field(default_factory=list, init=False)
+        tricks: List[str] = field(default_factory=list, init=False)
 
 
     # Create a new aggregate.
     agg = MyAggregate()
 
     # The aggregate has a list.
-    assert agg.history == []
+    assert agg.tricks == []
 
 
 Please note, when using the dataclass-style for defining ``__init__()``
@@ -1683,46 +1686,46 @@ instead of the :data:`@event` decorator (it does the same thing).
     assert pending_events[1].name == "bar"
 
 
-The World aggregate class revisited
+The Dog aggregate class revisited
 -----------------------------------
 
-Using the declarative syntax described above, the ``World`` aggregate in
+Using the declarative syntax described above, the ``Dog`` aggregate in
 the :ref:`Simple example <Aggregate simple example>` above can be
 expressed more concisely in the following way.
 
 .. code-block:: python
 
-    class World(Aggregate):
+    class Dog(Aggregate):
         def __init__(self):
-            self.history = []
+            self.tricks = []
 
-        @event("SomethingHappened")
-        def make_it_so(self, what):
-            self.history.append(what)
+        @event("TrickAdded")
+        def add_trick(self, trick):
+            self.tricks.append(trick)
 
 
-In this example, the ``World.SomethingHappened`` event is automatically
-defined by inspecting the ``make_it_so()`` method. The event class
-name "SomethingHappened" is given to the method's decorator. The
-body of the ``make_it_so()`` method will be used as the ``apply()``
-method of the ``World.SomethingHappened`` event.
+In this example, the ``Dog.TrickAdded`` event is automatically
+defined by inspecting the ``add_trick()`` method. The event class
+name "TrickAdded" is given to the method's decorator. The
+body of the ``add_trick()`` method will be used as the ``apply()``
+method of the ``Dog.TrickAdded`` event.
 
-The ``World`` aggregate class can be called directly. Calling the
-``make_it_so()`` method will trigger a ``World.SomethingHappened``
+The ``Dog`` aggregate class can be called directly. Calling the
+``add_trick()`` method will trigger a ``Dog.TrickAdded``
 event, and this event will be used to mutate the state of the aggregate,
-such that the ``make_it_so()`` method argument ``what`` will be
-appended to the aggregate's ``history`` attribute.
+such that the ``add_trick()`` method argument ``trick`` will be
+appended to the aggregate's ``tricks`` attribute.
 
 .. code-block:: python
 
-    world = World()
-    world.make_it_so("dinosaurs")
-    world.make_it_so("trucks")
-    world.make_it_so("internet")
+    dog = Dog()
+    dog.add_trick("roll over")
+    dog.add_trick("fetch ball")
+    dog.add_trick("play dead")
 
-    assert world.history[0] == "dinosaurs"
-    assert world.history[1] == "trucks"
-    assert world.history[2] == "internet"
+    assert dog.tricks[0] == "roll over"
+    assert dog.tricks[1] == "fetch ball"
+    assert dog.tricks[2] == "play dead"
 
 
 As before, the pending events can be collected
@@ -1730,20 +1733,20 @@ and used to reconstruct the aggregate object.
 
 .. code-block:: python
 
-    pending_events = world.collect_events()
+    pending_events = dog.collect_events()
 
     assert len(pending_events) == 4
 
     copy = reconstruct_aggregate_from_events(pending_events)
 
-    assert copy.id == world.id
-    assert copy.version == world.version
-    assert copy.created_on == world.created_on
-    assert copy.modified_on == world.modified_on
+    assert copy.id == dog.id
+    assert copy.version == dog.version
+    assert copy.created_on == dog.created_on
+    assert copy.modified_on == dog.modified_on
 
-    assert copy.history[0] == "dinosaurs"
-    assert copy.history[1] == "trucks"
-    assert copy.history[2] == "internet"
+    assert copy.tricks[0] == "roll over"
+    assert copy.tricks[1] == "fetch ball"
+    assert copy.tricks[2] == "play dead"
 
 
 The Page and Index aggregates revisited
@@ -2487,15 +2490,15 @@ create a snapshot of an aggregate object.
 
 .. code-block:: python
 
-    snapshot = Snapshot.take(world)
+    snapshot = Snapshot.take(dog)
 
     assert isinstance(snapshot, Snapshot)
-    assert snapshot.originator_id == world.id
-    assert snapshot.originator_version == world.version
-    assert snapshot.topic == "__main__:World", snapshot.topic
-    assert snapshot.state["history"] == world.history
-    assert snapshot.state["_created_on"] == world.created_on
-    assert snapshot.state["_modified_on"] == world.modified_on
+    assert snapshot.originator_id == dog.id
+    assert snapshot.originator_version == dog.version
+    assert snapshot.topic == "__main__:Dog", snapshot.topic
+    assert snapshot.state["tricks"] == dog.tricks
+    assert snapshot.state["_created_on"] == dog.created_on
+    assert snapshot.state["_modified_on"] == dog.modified_on
     assert len(snapshot.state) == 3
 
 
@@ -2506,12 +2509,12 @@ aggregate object instance.
 
     copy = snapshot.mutate(None)
 
-    assert isinstance(copy, World)
-    assert copy.id == world.id
-    assert copy.version == world.version
-    assert copy.created_on == world.created_on
-    assert copy.modified_on == world.modified_on
-    assert copy.history == world.history
+    assert isinstance(copy, Dog)
+    assert copy.id == dog.id
+    assert copy.version == dog.version
+    assert copy.created_on == dog.created_on
+    assert copy.modified_on == dog.modified_on
+    assert copy.tricks == dog.tricks
 
 The signature of the :func:`~eventsourcing.domain.Snapshot.mutate` method is the same as the
 domain event object method of the same name, so that when reconstructing an aggregate, a list

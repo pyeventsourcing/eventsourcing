@@ -87,6 +87,7 @@ class TestDocs(TestCase):
             "CIPHER_TOPIC",
             "CIPHER_KEY",
             "COMPRESSOR_TOPIC",
+            "AGGREGATE_CACHE_MAXSIZE",
         ]
         for key in keys:
             try:

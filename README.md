@@ -48,6 +48,10 @@ def test():
     dog = school.get_dog(dog_id)
     assert dog['name'] == 'Fido'
     assert dog['tricks'] == ('roll over', 'play dead')
+
+    # Select notifications.
+    notifications = school.notification_log.select(start=1, limit=10)
+    assert len(notifications) == 3
 ```
 
 Define application objects with the `Application` class.

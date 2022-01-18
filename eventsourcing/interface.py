@@ -47,7 +47,7 @@ class NotificationLogJSONService(NotificationLogInterface, Generic[TApplication]
         Returns JSON serialised :class:`~eventsourcing.application.Section`
         from a notification log.
         """
-        section = self.app.notifications[section_id]
+        section = self.app.notification_log[section_id]
         return json.dumps(
             {
                 "id": section.id,
@@ -68,7 +68,7 @@ class NotificationLogJSONService(NotificationLogInterface, Generic[TApplication]
     def get_notifications(
         self, start: int, limit: int, topics: Sequence[str] = ()
     ) -> str:
-        notifications = self.app.notifications.select(
+        notifications = self.app.notification_log.select(
             start=start, limit=limit, topics=topics
         )
         return json.dumps(

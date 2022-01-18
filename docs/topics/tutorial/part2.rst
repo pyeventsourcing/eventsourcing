@@ -20,7 +20,7 @@ simply subclassing ``Aggregate``.
 
 .. code-block:: python
 
-    class World(Aggregate):
+    class Dog(Aggregate):
         pass
 
 
@@ -29,32 +29,28 @@ calling the class object.
 
 .. code-block:: python
 
-    world = World()
+    dog = Dog()
 
-    assert isinstance(world, World)
+    assert isinstance(dog, Dog)
 
 
 Normally when a class instance is constructed by calling the class object, Python directly
 instantiates and initialises the class instance. However, when a subclass of ``Aggregate``
-is called, the class instance is constructed in a slightly indirect way.
-Firstly, an event object is constructed. This event object represents the fact the aggregate
-was "created". Then, this event object is used to construct and initialise the aggregate
-object. The point being, that same event object can be used again to reconstruct the aggregate
-object in future.
+is called, firstly an event object is constructed. This event object represents the fact that
+the aggregate was "created". Then, this event object is used to construct and initialise
+the aggregate object. The aggregate object is returned to the caller of the class.
 
-To reconstruct the aggregate object from the event object, we firstly need to get hold
-of the new event object. Fortunately, the new event object is not lost. It is held by
-the aggregate in an internal list. We can collect the event object from our aggregate by
-calling the aggregate's ``collect_events()`` method. This method is kindly provided by the
-aggregate base class.
+The new event object is held by the aggregate in an internal list of "pending events". We can
+collect pending events from aggregates by calling the aggregate's ``collect_events()`` method,
+which is defined on the ``Aggregate`` base class.
 
 .. code-block:: python
 
-    events = world.collect_events()
+    events = dog.collect_events()
 
     assert len(events) == 1
 
-The "created" event object can be used to reconstruct the aggregate
+The event object can be recorded and used to reconstruct the aggregate
 object. To reconstruct the aggregate object, we can simply call the
 event object's ``mutate()`` method.
 
@@ -62,7 +58,7 @@ event object's ``mutate()`` method.
 
     copy = events[0].mutate(None)
 
-    assert copy == world
+    assert copy == dog
 
 Using events to determine the state of an aggregate is the essence of
 event sourcing. Calling the event's ``mutate()`` method is exactly how
@@ -85,14 +81,14 @@ that.
 
 .. code-block:: python
 
-    assert isinstance(World.Created, type)
+    assert isinstance(Dog.Created, type)
 
 
-The event we collected from the aggregate is an instance of ``World.Created``.
+The event we collected from the aggregate is an instance of ``Dog.Created``.
 
 .. code-block:: python
 
-    assert isinstance(events[0], World.Created)
+    assert isinstance(events[0], Dog.Created)
 
 
 We can specify an aggregate event class by decorating an aggregate method
@@ -111,28 +107,28 @@ The changes are highlighted below.
 .. code-block:: python
   :emphasize-lines: 2-4
 
-    class World(Aggregate):
-        @event('Started')
+    class Dog(Aggregate):
+        @event('Registered')
         def __init__(self, name):
             self.name = name
 
 
-By specifying the name of the "created" event to be ``'Started'``, an event
+By specifying the name of the "created" event to be ``'Registered'``, an event
 class with this name is defined on the aggregate class.
 
 .. code-block:: python
 
-    assert isinstance(World.Started, type)
+    assert isinstance(Dog.Registered, type)
 
 
-We can call such events "created" events. They are the initial
-event in the aggregate's sequence of aggregate events. The inherit the base
-class "created" event, which has a method ``mutate()`` that knows how to
-construct and initialise aggregate objects.
+We can call such events "created" events. They are the initial event in the
+aggregate's sequence of aggregate events. They inherit from the base class
+"created" event, which has a method ``mutate()`` that knows how to construct
+and initialise aggregate objects.
 
 .. code-block:: python
 
-    assert issubclass(World.Started, Aggregate.Created)
+    assert issubclass(Dog.Registered, Aggregate.Created)
 
 
 Again, as above, we can create a new aggregate instance by calling
@@ -147,7 +143,7 @@ the ``name`` argument.
 
 .. code-block:: python
 
-    world = World('Earth')
+    dog = Dog('Fido')
 
 
 As we might expect, the given ``name`` is used to initialise the ``name``
@@ -155,19 +151,19 @@ attribute of the aggregate.
 
 .. code-block:: python
 
-    assert world.name == 'Earth'
+    assert dog.name == 'Fido'
 
 
 We can call ``collect_events()`` to get the "created" event from
 the aggregate object. We can see the event object is an instance of
-the class ``World.Started``.
+the class ``Dog.Registered``.
 
 .. code-block:: python
 
-    events = world.collect_events()
+    events = dog.collect_events()
 
     assert len(events) == 1
-    assert isinstance(events[0], World.Started)
+    assert isinstance(events[0], Dog.Registered)
 
 
 The attributes of an event class specified by using the ``@event`` decorator
@@ -177,15 +173,26 @@ aggregate's ``__init__()`` method.
 
 .. code-block:: python
 
-    assert events[0].name == 'Earth'
+    assert events[0].name == 'Fido'
 
 
-The "created" event object can be used to reconstruct the initial state of
-the aggregate.
+The "created" event object can be used to construct another object with the
+same state as the original aggregate object. That is, it can be used to
+reconstruct the initial current state of the aggregate.
 
 .. code-block:: python
 
-    assert events[0].mutate(None) == world
+    copy = events[0].mutate(None)
+    assert copy == dog
+
+Note what's happening there.  We start with nothing - ``None`` - and end up with an instance of ``Dog`` that
+has the same state as the original ``dog`` object.  Note also that ``dog`` and ``copy`` are different objects
+with the same type and state, not two references to the same Python object.
+
+.. code-block:: python
+
+    assert copy.name == 'Fido'
+    assert id(copy) != id(dog)
 
 
 Subsequent events
@@ -194,8 +201,8 @@ Subsequent events
 We can take this further by defining a second method that will be used
 to change the aggregate object after it has been created.
 
-Let's firstly adjust the ``__init__()`` to initialise a ``history``
-attribute with an empty list. Then let's also define a ``make_it_so()``
+Let's firstly adjust the ``__init__()`` to initialise a ``tricks``
+attribute with an empty list. Then let's also define a ``add_trick()``
 method that appends to this list, and decorate this method with
 the ``@event`` decorator. The changes are highlighted below.
 
@@ -205,24 +212,24 @@ the ``@event`` decorator. The changes are highlighted below.
     from eventsourcing.domain import Aggregate, event
 
 
-    class World(Aggregate):
-        @event('Started')
+    class Dog(Aggregate):
+        @event('Registered')
         def __init__(self, name):
             self.name = name
-            self.history = []
+            self.tricks = []
 
-        @event('SomethingHappened')
-        def make_it_so(self, what):
-            self.history.append(what)
+        @event('TrickAdded')
+        def add_trick(self, trick):
+            self.tricks.append(trick)
 
 
-By decorating the ``make_it_so()`` method with the ``@event`` decorator,
-an event class ``SomethingHappened`` was automatically defined on the
+By decorating the ``add_trick()`` method with the ``@event`` decorator,
+an event class ``TrickAdded`` was automatically defined on the
 aggregate class.
 
 .. code-block:: python
 
-    assert isinstance(World.SomethingHappened, type)
+    assert isinstance(Dog.TrickAdded, type)
 
 The event will be triggered when the method is called. The
 body of the method will be used by the event to mutate the
@@ -238,63 +245,68 @@ Let's create an aggregate instance.
 
 .. code-block:: python
 
-    world = World('Earth')
+    dog = Dog('Fido')
 
 As we might expect, the ``name`` of the aggregate object is ``'Earth``,
-and the ``history`` attribute is an empty list.
+and the ``tricks`` attribute is an empty list.
 
 .. code-block:: python
 
-    assert world.name == 'Earth'
-    assert world.history == []
+    assert dog.name == 'Fido'
+    assert dog.tricks == []
 
-Now let's call ``make_it_so()`` with the value ``'Python'`` as the argument.
-
-.. code-block:: python
-
-    world.make_it_so('Python')
-
-
-The ``history`` list now has one item, ``'Python'``,
-the value we passed when calling ``make_it_so()``.
+Now let's call ``add_trick()`` with the value ``'roll over'`` as the argument.
 
 .. code-block:: python
 
-    assert world.history == ['Python']
+    dog.add_trick('roll over')
+
+
+The ``tricks`` list now has one item, ``'roll over'``,
+the value we passed when calling ``add_trick()``.
+
+.. code-block:: python
+
+    assert dog.tricks == ['roll over']
 
 Creating and updating the aggregate caused two events to occur,
-a "started" event and a "something happened" event. We can collect
+a "registered" event and a "trick added" event. We can collect
 these two events by calling ``collect_events()``.
 
 .. code-block:: python
 
-    events = world.collect_events()
+    events = dog.collect_events()
 
     assert len(events) == 2
 
-Just like the "started" event has a ``name`` attribute, so the
-"something happened" event has a ``what`` attribute.
+Just like the "registered" event has a ``name`` attribute, so the
+"trick added" event has a ``trick`` attribute.
 
 .. code-block:: python
 
-    assert isinstance(events[0], World.Started)
-    assert events[0].name == 'Earth'
+    assert isinstance(events[0], Dog.Registered)
+    assert events[0].name == 'Fido'
 
-    assert isinstance(events[1], World.SomethingHappened)
-    assert events[1].what == 'Python'
+    assert isinstance(events[1], Dog.TrickAdded)
+    assert events[1].trick == 'roll over'
 
 The attributes of the event objects follow from the signatures of the
 decorated methods. The ``__init__()`` method has a ``name`` argument
-and so the "started" event has a ``name`` attribute. The ``make_it_so()``
-method has a ``what`` attribute, and so the "something happened" event
-has a ``what`` attribute. The arguments of a method decorated with ``@event``
-are used to define the attributes of an event class. When the method is called,
-the values of the method arguments are used to construct an event object. The
-method body is then executed with the attributes of the event. The resulting
-state of the aggregate is the same as if the method were not decorated. The
-difference is that a sequence of events is generated. The point being, this
-sequence of events can be used in future to reconstruct the current state
-of the aggregate.
+and so the "registered" event has a ``name`` attribute. The ``add_trick()``
+method has a ``trick`` argument, and so the "trick added" event
+has a ``trick`` attribute. The arguments of a method decorated with ``@event``
+are used to define the attributes of an event class.
+
+Just like when the ``Dog`` class is called the constructor arguments are used to
+create a ``Dog.Registered`` event object, similarly when the ``add_trick()`` method
+is called, the values of the method arguments are used to construct a
+``Dog.TrickAdded`` event object. The method body is then executed with the
+attributes of the event. The resulting state of the aggregate is the same as if the
+method were not decorated. The important difference is that a sequence of events is
+generated.
+
+This sequence of events can be used in future to reconstruct the current state
+of the aggregate, as shown below.
 
 .. code-block:: python
 
@@ -302,13 +314,13 @@ of the aggregate.
     for e in events:
         copy = e.mutate(copy)
 
-    assert copy == world
+    assert copy == dog
 
-Calling the aggregate's ``collect_events()`` method is what happens when
-an application's ``save()`` method is called. Calling the ``mutate()``
+To put this in the context of aggregates being used within an application:
+calling the aggregate's ``collect_events()`` method is what happens when
+an application's ``save()`` method is called, and calling the ``mutate()``
 methods of saved events' is how an application repository reconstructs
 aggregates from saved events when its ``get()`` is called.
-
 
 You can try all of this for yourself by copying the code snippets above.
 
@@ -324,62 +336,61 @@ to be ``'TrickAdded'``. Copy the test below and make it pass.
 ..
     #include-when-testing
 ..
-    class Dog(Aggregate):
-        @event('Named')
+    class Todos(Aggregate):
+        @event('Started')
         def __init__(self, name):
             self.name = name
-            self.tricks = []
+            self.items = []
 
-        @event('TrickAdded')
-        def add_trick(self, trick):
-            self.tricks.append(trick)
+        @event('ItemAdded')
+        def add_item(self, item):
+            self.items.append(item)
 
 
 .. code-block:: python
 
     def test():
 
-        # Give a dog a name, and some tricks.
-        fido = Dog(name='Fido')
-        fido.add_trick('fetch ball')
-        fido.add_trick('roll over')
-        fido.add_trick('play dead')
+        # Start a list of todos, and add some items.
+        todos1 = Todos(name='Shopping list')
+        todos1.add_item('bread')
+        todos1.add_item('milk')
+        todos1.add_item('eggs')
 
         # Check the state of the aggregate.
-        assert fido.name == 'Fido'
-        assert fido.tricks == [
-            'fetch ball',
-            'roll over',
-            'play dead',
+        assert todos1.name == 'Shopping list'
+        assert todos1.items == [
+            'bread',
+            'milk',
+            'eggs',
         ]
 
         # Check the aggregate events.
-        events = fido.collect_events()
+        events = todos1.collect_events()
         assert len(events) == 4
-        assert isinstance(events[0], Dog.Named)
-        assert events[0].name == 'Fido'
-        assert isinstance(events[1], Dog.TrickAdded)
-        assert events[1].trick == 'fetch ball'
-        assert isinstance(events[2], Dog.TrickAdded)
-        assert events[2].trick == 'roll over'
-        assert isinstance(events[3], Dog.TrickAdded)
-        assert events[3].trick == 'play dead'
+        assert isinstance(events[0], Todos.Started)
+        assert events[0].name == 'Shopping list'
+        assert isinstance(events[1], Todos.ItemAdded)
+        assert events[1].item == 'bread'
+        assert isinstance(events[2], Todos.ItemAdded)
+        assert events[2].item == 'milk'
+        assert isinstance(events[3], Todos.ItemAdded)
+        assert events[3].item == 'eggs'
 
         # Reconstruct aggregate from events.
         copy = None
         for e in events:
             copy = e.mutate(copy)
-        assert copy == fido
+        assert copy == todos1
 
         # Create and test another aggregate.
-        buddy = Dog(name='Buddy')
-        assert fido != buddy
-        events = buddy.collect_events()
+        todos2 = Todos(name='Household repairs')
+        assert todos1 != todos2
+        events = todos2.collect_events()
         assert len(events) == 1
-        assert isinstance(events[0], Dog.Named)
-        assert events[0].name == 'Buddy'
-        assert events[0].mutate(None) == buddy
-
+        assert isinstance(events[0], Todos.Started)
+        assert events[0].name == 'Household repairs'
+        assert events[0].mutate(None) == todos2
 
 ..
     #include-when-testing
