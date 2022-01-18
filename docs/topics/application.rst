@@ -117,14 +117,11 @@ as the :ref:`simple example <Aggregate simple example>` in the domain module doc
             self.tricks = []
 
         @classmethod
-        def register(cls):
+        def create(cls):
             return cls._create(
-                event_class=cls.Registered,
+                event_class=cls.Created,
                 id=uuid4(),
             )
-
-        class Registered(Aggregate.Created):
-            pass
 
         def add_trick(self, trick):
             self.trigger_event(Dog.TrickAdded, trick=trick)
@@ -146,7 +143,7 @@ as the :ref:`simple example <Aggregate simple example>` in the domain module doc
 
     class DogSchool(Application):
         def register_dog(self) -> UUID:
-            dog = Dog.register()
+            dog = Dog.create()
             self.save(dog)
             return dog.id
 
@@ -381,7 +378,7 @@ created, and then two ``TrickAdded`` events occurred ("roll over", "fetch ball")
 .. code-block:: python
 
     notification = notifications[0]
-    assert "Dog.Registered" in notification.topic
+    assert "Dog.Created" in notification.topic
     assert notification.originator_id == dog_id
 
     notification = notifications[1]
@@ -483,7 +480,7 @@ are four notifications in the notification log.
     assert section.items[2].originator_version == 3
     assert section.items[3].originator_version == 4
 
-    assert "Dog.Registered" in section.items[0].topic
+    assert "Dog.Created" in section.items[0].topic
     assert "Dog.TrickAdded" in section.items[1].topic
     assert "Dog.TrickAdded" in section.items[2].topic
     assert "Dog.TrickAdded" in section.items[3].topic
@@ -500,7 +497,7 @@ will also be encrypted, but the mapper will decrypt the event notification.
 .. code-block:: python
 
     domain_event = application.mapper.to_domain_event(section.items[0])
-    assert isinstance(domain_event, Dog.Registered)
+    assert isinstance(domain_event, Dog.Created)
     assert domain_event.originator_id == dog_id
 
     domain_event = application.mapper.to_domain_event(section.items[3])

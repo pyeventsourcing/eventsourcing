@@ -726,10 +726,10 @@ In the example below, the ``Dog`` aggregate is defined as a subclass of the :cla
             self.tricks = []
 
         @classmethod
-        def register(cls):
-            return cls._create(cls.Registered, id=uuid4())
+        def create(cls):
+            return cls._create(cls.Created, id=uuid4())
 
-        class Registered(Aggregate.Created):
+        class Created(Aggregate.Created):
             pass
 
         def add_trick(self, trick):
@@ -745,7 +745,7 @@ In the example below, the ``Dog`` aggregate is defined as a subclass of the :cla
 The ``__init__()`` method
 initialises a ``tricks`` attribute with an empty Python ``list`` object.
 
-The ``Dog.register()`` class method creates and returns
+The ``Dog.create()`` class method creates and returns
 a new ``Dog`` aggregate object. It calls the inherited
 :func:`~eventsourcing.domain.MetaAggregate._create` method that
 we discussed above. It uses its own ``Created`` event class as
@@ -771,11 +771,11 @@ calling a command method, triggering an event, and evolving the state of the agg
 is expressed in three cohesive parts that are neatly co-located.
 
 Having defined the ``Dog`` aggregate class, we can create a new ``Dog``
-aggregate object by calling the ``Dog.register()`` class method.
+aggregate object by calling the ``Dog.create()`` class method.
 
 .. code-block:: python
 
-    dog = Dog.register()
+    dog = Dog.create()
     assert isinstance(dog, Dog)
 
 The aggregate's attributes ``created_on`` and ``modified_on`` show
@@ -837,7 +837,7 @@ we have not yet collected them, and so there will be four pending events: one
     assert len(pending_events) == 4
     assert len(dog.pending_events) == 0
 
-    assert isinstance(pending_events[0], Dog.Registered)
+    assert isinstance(pending_events[0], Dog.Created)
     assert isinstance(pending_events[1], Dog.TrickAdded)
     assert isinstance(pending_events[2], Dog.TrickAdded)
     assert isinstance(pending_events[3], Dog.TrickAdded)
@@ -923,8 +923,8 @@ how this can work.
         @classmethod
         def create(cls, name: str, body: str = ""):
             return cls._create(
-                id=uuid4(),
                 event_class=cls.Created,
+                id=uuid4(),
                 name=name,
                 body=body
             )
