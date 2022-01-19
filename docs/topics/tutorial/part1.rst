@@ -59,7 +59,7 @@ The method ``add_trick()`` appends the argument ``trick`` to the attribute ``tri
     dog.add_trick('roll over')
     assert dog.tricks == ['roll over']
 
-This is a simple example of how Python classes work.
+This is a simple example of a Python class.
 
 In the next section, we convert the ``Dog`` class to be an event-sourced aggregate.
 
@@ -75,19 +75,15 @@ An event-sourced aggregate is persisted by recording the sequence of decisions
 as a sequence of 'events'. This sequence of events is used to reconstruct
 the current state of the aggregate.
 
-We can define event-sourced aggregates with the ``Aggregate`` class and
-``@event`` decorator from the library's :doc:`domain module </topics/domain>`.
+We can convert the ``Dog`` class into an event-sourced aggregate using
+the ``Aggregate`` class and ``@event`` decorator from the library's
+:doc:`domain module </topics/domain>`. Events will be triggered when
+decorated methods are called. The changes are highlighted below.
 
 .. code-block:: python
+    :emphasize-lines: 3,4,9
 
     from eventsourcing.domain import Aggregate, event
-
-
-We can convert the ``Dog`` class into an event-sourced aggregate using
-the ``Aggregate`` class and ``@event`` decorator. The changes are highlighted below.
-
-.. code-block:: python
-    :emphasize-lines: 1,2,7
 
     class Dog(Aggregate):
         @event('Registered')
@@ -99,7 +95,6 @@ the ``Aggregate`` class and ``@event`` decorator. The changes are highlighted be
         def add_trick(self, trick):
             self.tricks.append(trick)
 
-Events will be triggered when decorated methods are called.
 
 As before, we can call the class to create a new instance.
 
