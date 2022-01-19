@@ -55,13 +55,13 @@ along with those of its :ref:`domain model aggregates <Aggregates>`.
 
 The main features of an application are:
 
-* the command and query methods you define, which implement your "application services";
 * the :func:`~eventsourcing.application.Application.save` method, used for collecting
   and recording new aggregate events;
 * the ``repository`` attribute, with which aggregates are reconstructed;
 * the ``notification_log`` attribute, from which the state of the application can be propagated;
 * the :func:`~eventsourcing.application.Application.take_snapshot` method;
-* the application environment, used to configure an application.
+* the application environment, used to configure an application;
+* the command and query methods you define, which implement your "application services".
 
 The :class:`~eventsourcing.application.Application` class defines an object method
 :func:`~eventsourcing.application.Application.save` which can be
@@ -93,6 +93,9 @@ The :class:`~eventsourcing.application.Application` class has an ``env`` attribu
 which can be redefined on your application classes. Application objects also have
 an ``env`` attribute which is determined by a combination of the application class
 attribute, the operating system environment, and by an optional constructor argument.
+
+The :class:`~eventsourcing.application.Application` class can be extended with command
+and query methods that use :doc:`event-sourced aggregates </topics/domain>`.
 
 .. _Application simple example:
 
