@@ -2,13 +2,20 @@
 Tutorial - Part 1 - Getting Started
 ===================================
 
+This tutorial provides a a very gradual introduction to event-sourced aggregates and
+applications, explaining just enough on the mechanics of this library to help users
+of the library understand how things work. It expands and explains the
+:ref:`Synopsis <Synopsis>`, and prepares new users of the library for reading
+the :doc:`Modules </topics/modules>` documentation.
+
+
 Python classes
 ==============
 
 This tutorial depends on a basic understanding of
 `Python classes <https://docs.python.org/3/tutorial/classes.html>`__.
 
-For example, using Python we can define a ``Dog`` class as follows.
+For example, we can define a ``Dog`` class in Python as follows.
 
 .. code-block:: python
 
@@ -20,6 +27,10 @@ For example, using Python we can define a ``Dog`` class as follows.
         def add_trick(self, trick):
             self.tricks.append(trick)
 
+This example is taken from the `Class and Instance Variables
+<https://docs.python.org/3/tutorial/classes.html#class-and-instance-variables>`__
+section of the Python docs.
+
 Having defined a Python class, we can use it to create an instance.
 
 .. code-block:: python
@@ -27,56 +38,59 @@ Having defined a Python class, we can use it to create an instance.
     dog = Dog('Fido')
 
 
-As we might expect, the ``dog`` object is an instance of the ``Dog`` class.
+The ``dog`` object is an instance of the ``Dog`` class.
 
 .. code-block:: python
 
     assert isinstance(dog, Dog)
 
 
-We can see from the the ``__init__()`` method
-that attributes ``name`` and ``tricks`` will be initialised.
+The ``__init__()`` method initialises the attributes ``name`` and ``tricks``.
 
 .. code-block:: python
 
     assert dog.name == 'Fido'
     assert dog.tricks == []
 
-A ``Dog`` instance has a method ``add_trick()`` which
-appends the value of ``trick`` to ``tricks``.
+The method ``add_trick()`` appends the argument ``trick`` to the attribute ``tricks``.
 
 .. code-block:: python
 
     dog.add_trick('roll over')
     assert dog.tricks == ['roll over']
 
-This is a basic example of how Python classes work.
-However, if we want to use this object in future, we will want
-to save and reconstruct it. We will want it to be 'persistent'.
+This is a simple example of how Python classes work.
+
+In the next section, we convert the ``Dog`` class to be an event-sourced aggregate.
 
 Event-sourced aggregate
 =======================
 
 A persistent object that changes through a sequence of decisions
 corresponds to the notion of an 'aggregate' in the book *Domain-Driven Design*.
-An event-sourced aggregate is persisted by persisting the decisions
-as a sequence of 'events'.
-We can use the aggregate base class ``Aggregate`` and the ``@event``
-decorator from the :doc:`domain module </topics/domain>` to define an
-event-sourced aggregate.
+In the book, aggregates are persisted by inserting or updating
+database records that represent the current state of the object.
+
+An event-sourced aggregate is persisted by recording the sequence of decisions
+as a sequence of 'events'. This sequence of events is used to reconstruct
+the current state of the aggregate.
+
+We can define event-sourced aggregates with the ``Aggregate`` class and
+``@event`` decorator from the library's :doc:`domain module </topics/domain>`.
 
 .. code-block:: python
 
     from eventsourcing.domain import Aggregate, event
 
 
-Let's convert ``Dog`` into an event-sourced aggregate. The changes are highlighted below.
+We can convert the ``Dog`` class into an event-sourced aggregate using
+the ``Aggregate`` class and ``@event`` decorator. The changes are highlighted below.
 
 .. code-block:: python
     :emphasize-lines: 1,2,7
 
     class Dog(Aggregate):
-        @event('Created')
+        @event('Registered')
         def __init__(self, name):
             self.name = name
             self.tricks = []
@@ -85,6 +99,7 @@ Let's convert ``Dog`` into an event-sourced aggregate. The changes are highlight
         def add_trick(self, trick):
             self.tricks.append(trick)
 
+Events will be triggered when decorated methods are called.
 
 As before, we can call the class to create a new instance.
 
@@ -107,8 +122,8 @@ As we might expect, the attributes ``name`` and ``tricks`` have been initialised
     assert dog.tricks == []
 
 
-The aggregate also has an ``id`` attribute. The ID is used to uniquely identify the
-aggregate within a collection of aggregates. It happens to be a UUID.
+The ``dog`` aggregate also has an ``id`` attribute. The ID is used to uniquely identify
+the aggregate within a collection of aggregates. It happens to be a UUID.
 
 .. code-block:: python
 
@@ -117,7 +132,7 @@ aggregate within a collection of aggregates. It happens to be a UUID.
     assert isinstance(dog.id, UUID)
 
 
-We can call the aggregate method ``add_trick()``. The given value is appended to ``tricks``.
+As above, we can call the method ``add_trick()``. The given value is appended to ``tricks``.
 
 .. code-block:: python
 
@@ -125,17 +140,17 @@ We can call the aggregate method ``add_trick()``. The given value is appended to
 
     assert dog.tricks == ['roll over']
 
-By redefining the ``Dog`` class as an event-sourced aggregate in this way,
-when we call the class object and the decorated methods, we construct a sequence
-of event objects that can be used to reconstruct the aggregate. We can get
-the events from the aggregate by calling ``collect_events()``.
+By redefining the ``Dog`` class as an event-sourced aggregate in this way, we can
+generate a sequence of event objects that can be used to reconstruct the aggregate.
+
+We can get the events from the aggregate by calling ``collect_events()``.
 
 .. code-block:: python
 
     events = dog.collect_events()
 
 
-We can also reconstruct the aggregate by calling ``mutate()`` on the collected event objects.
+We can then reconstruct the aggregate by calling ``mutate()`` on the collected event objects.
 
 .. code-block:: python
 
@@ -146,29 +161,32 @@ We can also reconstruct the aggregate by calling ``mutate()`` on the collected e
     assert copy == dog
 
 
-Interactions with aggregates usually occur in an application, where collected
-events can be persisted and used to reconstruct aggregates.
+Event-sourced aggregates can be developed and tested independently.
+
+However, event-sourced aggregates are normally used within an application object, so
+that aggregate events can be stored in a database, and so that aggregates can
+be reconstructed from stored events.
 
 
 Event-sourced application
 =========================
 
-An event-sourced application comprises many event-sourced aggregates,
-and a persistence mechanism to store and retrieve aggregate events.
-We can use the library's ``Application`` base class to define
-event-sourced applications.
+Event-sourced applications combine event-sourced aggregates
+with a persistence mechanism to store and retrieve aggregate events.
+
+We can define event-sourced applications with the ``Application`` class
+from the library's :doc:`application module </topics/application>`.
 
 .. code-block:: python
 
     from eventsourcing.application import Application
 
 
-Let's define a ``DogSchool`` application that interacts with ``Dog`` aggregates.
-We can add command methods to create and change aggregates,
-and query methods to view current state.
-We can save aggregates with the application ``save()`` method, and
-get previously saved aggregates with the repository ``get()`` method.
+We can save aggregates with the application's ``save()`` method, and
+reconstruct previously saved aggregates with the application repository's
+``get()`` method.
 
+Let's define a ``DogSchool`` application that uses the ``Dog`` aggregate class.
 
 .. code-block:: python
 
@@ -187,6 +205,8 @@ get previously saved aggregates with the repository ``get()`` method.
             dog = self.repository.get(dog_id)
             return {'name': dog.name, 'tricks': tuple(dog.tricks)}
 
+The "command" methods ``register_dog()`` and ``add_trick()`` evolve application
+state, and the "query" method ``get_dog()`` presents current state.
 
 We can construct an instance of the application by calling the application class.
 
@@ -202,7 +222,6 @@ We can then create and update aggregates by calling the command methods of the a
     dog_id = application.register_dog('Fido')
     application.add_trick(dog_id, 'roll over')
     application.add_trick(dog_id, 'fetch ball')
-    application.add_trick(dog_id, 'play dead')
 
 
 We can view the state of the aggregates by calling application query methods.
@@ -212,7 +231,7 @@ We can view the state of the aggregates by calling application query methods.
     dog_details = application.get_dog(dog_id)
 
     assert dog_details['name'] == 'Fido'
-    assert dog_details['tricks'] == ('roll over', 'fetch ball', 'play dead')
+    assert dog_details['tricks'] == ('roll over', 'fetch ball')
 
 And we can propagate the state of the application as a whole by selecting
 event notifications from the application's notification log.
@@ -221,12 +240,12 @@ event notifications from the application's notification log.
 
     notifications = application.notification_log.select(start=1, limit=10)
 
-    assert len(notifications)
+    assert len(notifications) == 3
     assert notifications[0].id == 1
     assert notifications[1].id == 2
     assert notifications[2].id == 3
 
-Any number of different kinds of event-sourced applications can
+Many different kinds of event-sourced applications can
 be defined in this way.
 
 
@@ -249,11 +268,12 @@ may wish to put your aggregate classes in a file named
 Writing tests
 =============
 
-You can get started with your event sourcing project by first writing a failing test
-in ``tests.py``, then define your application and aggregate classes in the test module.
-You can then refactor by moving aggregate and application classes to separate Python modules.
-You can also convert these modules to packages if you want to break things up into smaller
-modules.
+It is generally recommended to follow a test-driven approach to the development of
+event-sourced applications. You can get started with your event sourcing project by
+first writing a failing test in ``tests.py``. You can begin by defining your application
+and aggregate classes in the test module. You can then refactor by moving aggregate and
+application classes to separate Python modules. You can convert these modules to packages
+if you want to split things up into smaller modules.
 
 .. code-block:: python
 
@@ -279,7 +299,7 @@ modules.
 Exercise
 ========
 
-Try it for yourself by copying the code snippets above and running the test.
+Try it for yourself by copying the code snippets above into your IDE, and running the test.
 
 
 .. code-block:: python
@@ -290,5 +310,7 @@ Try it for yourself by copying the code snippets above and running the test.
 Next steps
 ==========
 
-For more information about event-sourced aggregates, please read through
-:doc:`Part 2 </topics/tutorial/part2>` of this tutorial.
+* For more information about event-sourced aggregates, please
+  read :doc:`Part 2 </topics/tutorial/part2>` of this tutorial.
+* For more information about event-sourced applications, please
+  read :doc:`Part 3 </topics/tutorial/part3>` of this tutorial.

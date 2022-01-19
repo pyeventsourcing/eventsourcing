@@ -107,6 +107,8 @@ architecture in that there are `separate modules <modules.html>`_ for `applicati
 The application module depends on the domain and infrastructure modules, and the interface
 module depends on the application module.
 
+.. _Synopsis:
+
 Synopsis
 ========
 
