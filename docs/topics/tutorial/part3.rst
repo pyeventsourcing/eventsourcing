@@ -100,13 +100,13 @@ from these aggregates by calling the ``collect_events()`` method on each aggrega
 (see :doc:`Part 2 </topics/tutorial/part2>`). It puts all of the aggregate events that
 it has collected into an "event store", with the guarantee that all or none of the aggregate
 events will be stored. When the events cannot be saved, an exception will be raised. The
-``save()`` method is used by the command methods of an application.
+``save()`` method is commonly used by the command methods of an application.
 
 An application has a ``repository`` that has a ``get()`` method. The repository's
 ``get()`` method is called with an aggregate ID. It uses the given ID to select
 aggregate events from an event store. It reconstructs the aggregate from these
 events, and returns the reconstructed aggregate to the caller. The ``get()`` method
-is used by both the command and the query methods of an application.
+may be used by both command and query methods.
 
 
 Event store
@@ -124,13 +124,14 @@ Repository
 ==========
 
 An application has a repository, which is responsible for reconstructing aggregates that
-have been previously saved from recorded stored events.
+have been previously saved.
 
 When a previously saved aggregate is requested, the repository selects stored events for
-the aggregate from the recorder, and uses the mapper to reconstruct the aggregate events.
-The mapper uses the transcoder to deserialize stored events to aggregate events.
-The transcoder may also decrypt and decompress the serialised state. The repository then
-uses a "projector function" to reconstruct the aggregate from its events.
+the aggregate from the recorder, and uses the mapper to reconstruct the aggregate events
+from the stored events. The mapper uses the transcoder to deserialize stored events to
+aggregate events. The transcoder may also decrypt and decompress the serialised state.
+The repository then uses a "projector function" to reconstruct the aggregate from its
+events.
 
 Recorder
 ========
@@ -142,26 +143,18 @@ Events are recorded in two sequences: a sequence for the aggregate which origina
 event, and a sequence for the application as a whole. The positions in these sequences
 are occupied uniquely. Events are written using an atomic transaction. If there is a
 conflict or other kind of error when writing any of the events, then the transaction
-can be rolled back and an exception can be raised.
-
-Notification log
-================
-
-An application also has a notification log. The notification log supports selecting the
-aggregate events from the application sequence as a series of "event notifications". This
-allows the state of the application to be propagated beyond the application, so that the
-events can be processed in a reliable way.
+will be rolled back and an exception will be raised.
 
 Command methods
 ===============
 
-Let's consider the ``register_dog()`` and ``add_trick()`` methods
+Consider the ``register_dog()`` and ``add_trick()`` methods
 of the ``DogSchool`` application.
 
 These are "command methods" because they evolve the application state, either
 by creating new aggregates or by modifying existing aggregates.
 
-Firstly, let's create a new ``Dog`` aggregate by calling ``register_dog()``.
+Let's create a new ``Dog`` aggregate by calling ``register_dog()``.
 
 .. code-block:: python
 
@@ -191,7 +184,8 @@ saved by calling the application's ``save()`` method.
 Query methods
 =============
 
-Let's consider the ``get_tricks()`` method of the ``DogSchool`` application.
+Consider the ``get_tricks()`` method of the ``DogSchool`` application.
+
 This method is a "query method" because it presents application state
 without making any changes.
 
@@ -209,26 +203,46 @@ to reconstruct the aggregate from its events. The value of the
 aggregate's ``tricks`` attribute is returned to the caller.
 
 
-Event notifications
-===================
+Notification log
+================
+
+An application object also has a "notification log".
+
+.. code-block:: python
+
+    assert application.notification_log
+
 
 The limitation of application query methods is that they can only
-query the aggregate sequences. Often, users of your application will
-need views of the application state that depend on more sophisticated
-queries. To support these queries, it is sometimes desirable to "project" the
-state of the application as a whole into "materialised views" that are specifically
+query the aggregate sequences.
+
+Users of your application may need views of the application state
+that depend on more sophisticated queries.
+
+For this reason, it may be necessary to "project" the state of the
+application as a whole into "materialised views" that are specifically
 designed to support such queries.
 
-In order to do this, we must be able to propagate the state of the application
-as a whole, whilst avoiding the "dual writing" problem. This firstly requires
-recording all the aggregate evens of an application in a sequence for the application
-as a whole.
+We can propagate the state of the application in a reliable way by
+propagating all of the aggregate events. That is why the recorder
+positions stored events in both an aggregate sequence and a
+sequence for the application as a whole.
 
-As mentioned above, an application object has a ``notification_log`` attribute.
-The notification log presents all the aggregate events of an application
-in the order they were stored as a sequence of "event notifications". An
-event notification is nothing more than a stored event that also has a
-"notification ID".
+The notification log supports selecting "event notifications" from the application
+sequence. An event notification is nothing more than a stored event that also has a
+"notification ID". The notification log presents all the aggregate events of an
+application in the order they were stored. This allows the state of the application
+to be propagated and processed in a reliable way.
+
+Because all aggregate events are recorded within an atomic transaction
+in two sequences (a sequence for the aggregate which originated the event,
+and a sequence for the application as a whole) there will never be an event
+notification without there also being an aggregate event, and there will never
+be an aggregate event without there also being an event notification. This
+avoids the "dual writing" problem which arises when firstly an update to
+application state is written to a database and separately a message is
+written to a message queue: the problem being that one may happen successfully
+and the other may fail.
 
 The ``select()`` method of the notification log can be used
 to obtain a selection of the application's event notifications.
