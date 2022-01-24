@@ -942,7 +942,7 @@ class NotificationLogReader:
         a notification log, and yields the individual event notifications
         that are contained in each section. When all the event notifications
         from a section have been yielded, the reader will retrieve the next
-        section, and continue yielding event notification until all subsequent
+        section, and continues yielding event notification until all subsequent
         event notifications in the notification log from the start position
         have been yielded.
         """

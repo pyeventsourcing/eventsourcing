@@ -5,15 +5,15 @@ Tutorial - Part 3 - Applications
 
 As we saw in :doc:`Part 1 </topics/tutorial/part1>`, we can
 use the library's ``Application`` class to define event-sourced
-applications.
+applications. A subclass of ``Application`` will usually
+define methods which evolve and present the state of the
+application.
 
-For example, the ``DogSchool`` application class, defined below, has a
-command method ``register_dog()`` that creates and saves a new ``Dog`` aggregate.
-It has a command method ``add_trick()`` that retrieves a previously saved
-aggregate, calls ``add_trick()`` on the aggregate, and then saves the
-modified aggregate. And it has a query method ``get_tricks()`` that
-retrieves and returns the ``tricks`` of an aggregate object. The
-``Dog`` aggregate is used by the application.
+For example, the ``DogSchool`` class has ``register_dog()``
+and ``add_trick()`` methods, which are command methods that evolve the state
+of the application. It also has a ``get_tricks()`` method, which is a query
+method that presents something of the state of the application without evolving
+the state. These methods depend on the ``Dog`` aggregate, shown below.
 
 .. code-block:: python
 
@@ -48,7 +48,7 @@ retrieves and returns the ``tricks`` of an aggregate object. The
             self.tricks.append(trick)
 
 
-We can construct an application object and call its methods.
+We can construct an application object, and call its methods.
 
 .. code-block:: python
 
@@ -59,9 +59,9 @@ We can construct an application object and call its methods.
     application.add_trick(dog_id, 'fetch ball')
     application.add_trick(dog_id, 'play dead')
 
-    history = application.get_tricks(dog_id)
+    tricks = application.get_tricks(dog_id)
 
-    assert history == ['roll over', 'fetch ball', 'play dead']
+    assert tricks == ['roll over', 'fetch ball', 'play dead']
 
 
 Let's explore how this works in more detail.
@@ -70,81 +70,87 @@ Let's explore how this works in more detail.
 Applications in more detail
 ===========================
 
-An event-sourced application comprises many event-sourced aggregates,
-and a persistence mechanism to store and retrieve aggregate events.
-Constructing an application object constructs a persistence mechanism
-the application will use to store and retrieve events. The construction
-of the persistence mechanism can be easily configured, with
-alternatives constructed instead of the standard defaults.
+An application object brings together an event-sourced domain model comprised
+of many event-sourced aggregates and a persistence mechanism that allows
+aggregates to be "saved" and "retrieved". We can construct an application object
+by calling an application class.
 
 .. code-block:: python
 
     application = DogSchool()
+    assert isinstance(application, Application)
 
+
+An application object has a ``save()`` method, and it has a ``repository`` that has
+a ``get()`` method. As we can see from the ``DogSchool`` example, an application's
+methods can use the application's ``save()`` method to "save" aggregates that
+have been created or updated. And they can use the application repository's ``get()``
+method to "retrieve" aggregates that have been previously saved.
+
+.. code-block:: python
+
+    assert application.save
     assert application.repository
-    assert application.repository.event_store
-    assert application.repository.event_store.mapper
-    assert application.repository.event_store.mapper.transcoder
-    assert application.repository.event_store.mapper.compressor is None
-    assert application.repository.event_store.mapper.cipher is None
-    assert application.repository.event_store.recorder
-    assert application.notification_log
-    assert application.notification_log.recorder
+    assert application.repository.get
 
 
-To be specific, an application object has a repository object. The repository
-object has an event store. The event store object has a mapper. The mapper
-object has a transcoder, an optional compressor, and an optional cipher. The
-application also has a notification log. The notification log object
-has a recorder.
+An application has a ``save()`` method. An application's ``save()`` method can be called
+with one or many aggregates as its arguments. The ``save()`` method collects new events
+from these aggregates by calling the ``collect_events()`` method on each aggregate
+(see :doc:`Part 2 </topics/tutorial/part2>`). It puts all of the aggregate events that
+it has collected into an "event store", with the guarantee that all or none of the aggregate
+events will be stored. When the events cannot be saved, an exception will be raised. The
+``save()`` method is used by the command methods of an application.
 
-The event store converts aggregate events to a common type of object called
-"stored events", using the mapper, and then records the stored event objects
-in the database using the recorder. The mapper uses the transcoder to serialize
-aggregate events, and optionally to compress and encrypt the serialised state.
-The recorder adapts a particular database, supporting the recording of stored events
-in that database.
+An application has a ``repository`` that has a ``get()`` method. The repository's
+``get()`` method is called with an aggregate ID. It uses the given ID to select
+aggregate events from an event store. It reconstructs the aggregate from these
+events, and returns the reconstructed aggregate to the caller. The ``get()`` method
+is used by both the command and the query methods of an application.
 
-The repository reconstructs aggregate objects from aggregate event objects that
-it retrieves from the event store. The event store gets stored events from the
-recorder, and uses the mapper to reconstruct aggregate event objects. The mapper
-uses the transcoder to optionally decrypt and decompress the serialised state,
-and to deserialize stored events to aggregate events.
 
-An application's recorder also puts the stored events in a "total order", meaning
-that all the events from all aggregates in the application have a serial ordering.
-The notification log supports selecting events as a series of event notifications,
-which allows the state of the application to be propagated beyond the application.
+Event store
+===========
 
-An application object also has a ``save()`` method, which can be called with one
-or many aggregates as its arguments. The ``save()`` method saves changes to these
-aggregates. It calls ``collect_events()`` on each given aggregate, to collect
-pending events from each aggregate. It then puts all of these aggregate events
-into the event store, with the guarantee that either all of the events will be stored
-or none of them will be. If the events aren't saved, an exception will be raised.
-That might be because of an operational error with the database, or because there
-is a conflict with previously recorded events. For example, attempts to record
-the same event twice, or to record a different event at the same position in
-an aggregate sequence, will result in an integrity error.
+An application object has an event store. When an application puts new aggregate events
+into the event store, the event store uses a "mapper" to convert aggregate events to a
+common type of object used to store events. These objects are referred to as "stored events".
+The event store then uses a "recorder" to write the stored event objects into a database.
 
-The repository has a ``get()`` method which is responsible
-for reconstructing aggregates that have been previously saved.
-The ``get()`` method is called with an aggregate ID. It retrieves
-stored events for an aggregate from an event store, selecting them
-using the given ID. It then reconstructs the aggregate object from its
-previously stored events calling the ``mutate()`` method of aggregate
-event objects, and returns the reconstructed aggregate object to
-the caller.
+The event store's mapper uses a "transcoder" to serialize the state of aggregate events.
+The transcoder may also compress and then encrypt the serialised state.
 
-A subclass of ``Application`` will usually define command and query methods,
-which make use of the application's ``save()`` method and the repository's
-``get()`` method.
+Repository
+==========
 
-For example, the ``DogSchool`` class has ``register_dog()`` and ``add_trick()``
-methods, which are command methods that evolve the state of the application.
-It also has a ``get_tricks()`` method, which is a query method that presents
-something of the state of the application without evolving the state.
+An application has a repository, which is responsible for reconstructing aggregates that
+have been previously saved from recorded stored events.
 
+When a previously saved aggregate is requested, the repository selects stored events for
+the aggregate from the recorder, and uses the mapper to reconstruct the aggregate events.
+The mapper uses the transcoder to deserialize stored events to aggregate events.
+The transcoder may also decrypt and decompress the serialised state. The repository then
+uses a "projector function" to reconstruct the aggregate from its events.
+
+Recorder
+========
+
+An application recorder adapts a particular database management system, and uses that
+system to record stored events for an application, in a database for that application.
+
+Events are recorded in two sequences: a sequence for the aggregate which originated the
+event, and a sequence for the application as a whole. The positions in these sequences
+are occupied uniquely. Events are written using an atomic transaction. If there is a
+conflict or other kind of error when writing any of the events, then the transaction
+can be rolled back and an exception can be raised.
+
+Notification log
+================
+
+An application also has a notification log. The notification log supports selecting the
+aggregate events from the application sequence as a series of "event notifications". This
+allows the state of the application to be propagated beyond the application, so that the
+events can be processed in a reliable way.
 
 Command methods
 ===============
@@ -152,30 +158,28 @@ Command methods
 Let's consider the ``register_dog()`` and ``add_trick()`` methods
 of the ``DogSchool`` application.
 
-These are "command methods" because they change the application state - either
-creating new aggregates (as in the case of ``register_dog()``) or by modifying
-existing (as in the case of ``make_it_so()``).
+These are "command methods" because they evolve the application state, either
+by creating new aggregates or by modifying existing aggregates.
 
-Firstly, let's create a new aggregate by calling the application method ``register_dog()``.
+Firstly, let's create a new ``Dog`` aggregate by calling ``register_dog()``.
 
 .. code-block:: python
 
     dog_id = application.register_dog('Fido')
 
 When the application command method ``register_dog()``
-is called, a new ``Dog`` aggregate object is created, by calling
+is called, a new ``Dog`` aggregate object is created by calling
 the aggregate class. The new aggregate object is saved by calling
-the application's ``save()`` method, and then the ID of the aggregate
+the application's ``save()`` method. The ID of the new aggregate
 is returned to the caller.
 
-We can then evolve the state of the aggregate by calling the
-application command method ``add_trick()``.
+We can evolve the state of the ``Dog`` aggregate by calling ``add_trick()``.
 
 .. code-block:: python
 
-    application.add_trick(dog_id, 'roll over')
-    application.add_trick(dog_id, 'fetch ball')
-    application.add_trick(dog_id, 'play dead')
+    application.add_trick(dog_id, trick='roll over')
+    application.add_trick(dog_id, trick='fetch ball')
+    application.add_trick(dog_id, trick='play dead')
 
 When the application command method ``add_trick()`` is called with
 the ID of an aggregate, the ``get()`` method of the ``repository`` is
@@ -187,19 +191,22 @@ saved by calling the application's ``save()`` method.
 Query methods
 =============
 
-We can access the state of the application's aggregate by calling the
-application query method ``get_tricks()``.
+Let's consider the ``get_tricks()`` method of the ``DogSchool`` application.
+This method is a "query method" because it presents application state
+without making any changes.
+
+We can access the state of a ``Dog`` aggregate by calling ``get_tricks()``.
 
 .. code-block:: python
 
-    history = application.get_tricks(dog_id)
-    assert history == ['roll over', 'fetch ball', 'play dead']
+    tricks = application.get_tricks(dog_id)
+    assert tricks == ['roll over', 'fetch ball', 'play dead']
 
 
 When the application query method ``get_tricks()`` is called with
-the ID of an aggregate, the ``get()`` method of the ``repository``
-is used to reconstruct the aggregate from saved events, and the value
-of the aggregate's ``tricks`` attribute is returned to the caller.
+the ID of an aggregate, the repository's ``get()`` method is used
+to reconstruct the aggregate from its events. The value of the
+aggregate's ``tricks`` attribute is returned to the caller.
 
 
 Event notifications
@@ -207,35 +214,34 @@ Event notifications
 
 The limitation of application query methods is that they can only
 query the aggregate sequences. Often, users of your application will
-need to see views of the application state that depend on more sophisticated
+need views of the application state that depend on more sophisticated
 queries. To support these queries, it is sometimes desirable to "project" the
 state of the application as a whole into "materialised views" that are specifically
 designed to support such queries.
 
 In order to do this, we must be able to propagate the state of the application
 as a whole, whilst avoiding the "dual writing" problem. This firstly requires
-recording all the aggregate evens of an application in a "total order" (as mentioned
-above).
-And since there may be a large number of these events, we also need to be
-able to select a small number from this potentially large sequence, so that
-we can progressively work along the sequence.
+recording all the aggregate evens of an application in a sequence for the application
+as a whole.
 
 As mentioned above, an application object has a ``notification_log`` attribute.
-The notification log presents all the aggregate eventsof an application as a
-sequence of event notifications in the order they were stored.
+The notification log presents all the aggregate events of an application
+in the order they were stored as a sequence of "event notifications". An
+event notification is nothing more than a stored event that also has a
+"notification ID".
 
 The ``select()`` method of the notification log can be used
 to obtain a selection of the application's event notifications.
-The argument ``start`` can be used to progressively read all
-of a potentially very large number of event notifications.
-The ``limit`` argument can be used to restrict the number
-of event notifications that will be returned when the method
-is called.
+The ``start`` and ``limit`` arguments can be used to progressively
+read all of a potentially very large number of event notifications.
 
 .. code-block:: python
 
-    notifications = application.notification_log.select(start=1, limit=4)
-    assert [n.id for n in notifications] == [1, 2, 3, 4]
+    # First page.
+    notifications = application.notification_log.select(
+        start=1, limit=2
+    )
+    assert [n.id for n in notifications] == [1, 2]
 
     assert 'Dog.Started' in notifications[0].topic
     assert b'Fido' in notifications[0].state
@@ -245,13 +251,19 @@ is called.
     assert b'roll over' in notifications[1].state
     assert dog_id == notifications[1].originator_id
 
-    assert 'Dog.TrickAdded' in notifications[2].topic
-    assert b'fetch ball' in notifications[2].state
-    assert dog_id == notifications[2].originator_id
+    # Next page.
+    notifications = application.notification_log.select(
+        start=notifications[-1].id + 1, limit=2
+    )
+    assert [n.id for n in notifications] == [3, 4]
 
-    assert 'Dog.TrickAdded' in notifications[3].topic
-    assert b'play dead' in notifications[3].state
-    assert dog_id == notifications[3].originator_id
+    assert 'Dog.TrickAdded' in notifications[0].topic
+    assert b'fetch ball' in notifications[0].state
+    assert dog_id == notifications[0].originator_id
+
+    assert 'Dog.TrickAdded' in notifications[1].topic
+    assert b'play dead' in notifications[1].state
+    assert dog_id == notifications[1].originator_id
 
 
 This is discussed further in the :ref:`application module documentation <Notification log>`
@@ -338,7 +350,8 @@ with PostgreSQL.
         assert old.tricks[-1] == 'fetch ball'  # last thing to have happened was 'fetch ball'
 
         # Check app has four event notifications.
-        assert len(app.notification_log['1,10'].items) == 4
+        notifications = list(reader.read(start=1))
+        assert len(notifications) == 4
 
         # Optimistic concurrency control (no branches).
         old.add_trick('future')
@@ -350,10 +363,6 @@ with PostgreSQL.
             raise Exception("Shouldn't get here")
 
         # Check app still has only four event notifications.
-        assert len(app.notification_log['1,10'].items) == 4
-
-        # Read event notifications.
-        reader = NotificationLogReader(app.notification_log)
         notifications = list(reader.read(start=1))
         assert len(notifications) == 4
 
@@ -527,13 +536,23 @@ we can expect the recorded values not to be visible in the database records.
 Exercise
 ========
 
-Follow the steps in this tutorial in your development environment.
+Firstly, follow the steps in this tutorial in your development environment.
 
-Firstly, configure and run the application code you have written with
-an SQLite database. Secondly, create a PostgreSQL database, and configure
-and run your application with a PostgreSQL database. Connect to the databases
-with the command line clients for SQLite and PostgreSQL, and examine the
-database tables to verify that stored events have been recorded.
+* Copy the code snippets above.
+* Run the application code with default "plain old Python object"
+  infrastructure.
+* Configure and run the application with an SQLite database.
+* Create a PostgreSQL database, and configure and run the
+  application with a PostgreSQL database.
+* Connect to the databases with the command line clients for
+  SQLite and PostgreSQL, and examine the database tables to
+  observe the stored event records.
+
+Secondly, write an application class that uses the ``Todos`` aggregate
+class you created in the exercise at the end of :doc:`Part 2 </topics/tutorial/part2>`.
+Run your application class with default "plain old Python object" infrastructure,
+and then with SQLite, and finally with PostgreSQL. Look at the
+stored event records in the database tables.
 
 
 Next steps
