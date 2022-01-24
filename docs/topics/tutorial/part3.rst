@@ -572,10 +572,5 @@ stored event records in the database tables.
 Next steps
 ==========
 
-For more information about event-sourced aggregates, please read through
-the :doc:`domain module documentation </topics/domain>`.
-For more information about event-sourced applications, please read through
-the :doc:`application module documentation </topics/application>`.
-For more information about the persistence mechanism for event-sourced
-applications, please read through the the
-:doc:`persistence module documentation </topics/persistence>`.
+* See also the :doc:`application module </topics/application>`
+  and the :doc:`persistence module </topics/persistence>` documentation.
