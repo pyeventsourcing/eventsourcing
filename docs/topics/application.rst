@@ -976,7 +976,7 @@ and reconstructed.
 
 .. code-block:: python
 
-    del(application)
+    del application
 
     application = DogSchool()
 
