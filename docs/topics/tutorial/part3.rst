@@ -288,7 +288,8 @@ obtained in two "pages" each having two event notifications.
     assert dog_id == notifications[1].originator_id
 
 
-This is discussed further in the :ref:`application module documentation <Notification log>`
+Notification logs, and the propagation and processing of event notifications
+is discussed further in the :ref:`application module documentation <Notification log>`
 and the `system module documentation <system.html>`_.
 
 Database configuration
