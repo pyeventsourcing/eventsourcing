@@ -38,7 +38,7 @@ the state. These methods depend on the ``Dog`` aggregate, shown below.
 
 
     class Dog(Aggregate):
-        @event('Started')
+        @event('Registered')
         def __init__(self, name):
             self.name = name
             self.tricks = []
@@ -224,25 +224,25 @@ application as a whole into "materialised views" that are specifically
 designed to support such queries.
 
 We can propagate the state of the application in a reliable way by
-propagating all of the aggregate events. That is why the recorder
-positions stored events in both an aggregate sequence and a
-sequence for the application as a whole.
-
-The notification log supports selecting "event notifications" from the application
-sequence. An event notification is nothing more than a stored event that also has a
-"notification ID". The notification log presents all the aggregate events of an
-application in the order they were stored. This allows the state of the application
-to be propagated and processed in a reliable way.
+propagating all of the aggregate events in the order they were stored.
+That is why the recorder positions stored events in both an aggregate
+sequence and a sequence for the application as a whole. The application
+sequence has all the aggregate events of an application in the order they
+were stored.
 
 Because all aggregate events are recorded within an atomic transaction
-in two sequences (a sequence for the aggregate which originated the event,
-and a sequence for the application as a whole) there will never be an event
-notification without there also being an aggregate event, and there will never
-be an aggregate event without there also being an event notification. This
-avoids the "dual writing" problem which arises when firstly an update to
-application state is written to a database and separately a message is
-written to a message queue: the problem being that one may happen successfully
-and the other may fail.
+in two sequences (an aggregate sequence and the application sequence)
+there will never be an aggregate event that does not also appear in
+the application sequence. This avoids the "dual writing" problem which
+arises when firstly an update to application state is written to a database
+and separately a message is written to a message queue: the problem being
+that one may happen successfully and the other may fail.
+
+The notification log supports selecting "event notifications" from
+the application sequence. An event notification is a stored event
+that also has a "notification ID" that indicates the position in
+the application sequence. This allows the state of the application
+to be propagated and processed in a reliable way.
 
 The ``select()`` method of the notification log can be used
 to obtain a selection of the application's event notifications.
@@ -251,13 +251,13 @@ read all of a potentially very large number of event notifications.
 
 .. code-block:: python
 
-    # First page.
+    # First "page" of event notifications.
     notifications = application.notification_log.select(
         start=1, limit=2
     )
     assert [n.id for n in notifications] == [1, 2]
 
-    assert 'Dog.Started' in notifications[0].topic
+    assert 'Dog.Registered' in notifications[0].topic
     assert b'Fido' in notifications[0].state
     assert dog_id == notifications[0].originator_id
 
@@ -265,7 +265,7 @@ read all of a potentially very large number of event notifications.
     assert b'roll over' in notifications[1].state
     assert dog_id == notifications[1].originator_id
 
-    # Next page.
+    # Next "page" of event notifications.
     notifications = application.notification_log.select(
         start=notifications[-1].id + 1, limit=2
     )
