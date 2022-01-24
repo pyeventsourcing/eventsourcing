@@ -37,13 +37,14 @@ calling the class object.
 Normally when an instance is constructed by calling the class, Python directly
 instantiates and initialises the instance. However, when a subclass of ``Aggregate``
 is called, firstly an event object is constructed. This event object represents the
-fact that the aggregate was "created". Then, this event object is used to construct
+fact that the aggregate was "created". This event object is used to construct
 and initialise the aggregate instance. The aggregate instance is returned to the
 caller of the class.
 
 The new event object is held by the aggregate in an internal list of "pending events". We can
 collect pending events from aggregates by calling the aggregate's ``collect_events()`` method,
-which is defined on the ``Aggregate`` base class.
+which is defined on the ``Aggregate`` base class. Calling ``collect_events()`` drains the
+internal list of pending events.
 
 .. code-block:: python
 
@@ -51,8 +52,8 @@ which is defined on the ``Aggregate`` base class.
 
     assert len(events) == 1
 
-The event object can be recorded and used to reconstruct the aggregate. To reconstruct the
-aggregate, we can simply call the event's ``mutate()`` method.
+The "created" event object can be recorded and used to reconstruct the aggregate. To
+reconstruct the aggregate, we can simply call the event's ``mutate()`` method.
 
 .. code-block:: python
 
@@ -69,10 +70,10 @@ Next, let's talk about aggregate events in more detail.
 "Created" events
 ================
 
-We need to think of suitable names for the particular aggregate events we define
-in our domain models. But the general occurrence of creating aggregate objects
-requires a general name. The term "created" is used here for this purpose. It
-is also adopted as the default name for initial events that represent the
+Generally speaking, we need to think of suitably appropriate names for the particular
+aggregate events we define in our domain models. But the general occurrence of creating
+new aggregates requires a general name. The term "created" is used here for this purpose.
+This term is also adopted as the default name for initial events that represent the
 construction and initialisation of an aggregate.
 
 When the ``Dog`` aggregate class above was interpreted by Python, a "created" event
@@ -86,18 +87,19 @@ so the event we collected from the aggregate is an instance of ``Dog.Created``.
     assert isinstance(events[0], Dog.Created)
 
 
-We can specify an aggregate event class by decorating an aggregate method
-with the ``@event`` decorator. The event specified by the decorator will
-be triggered when the decorated method is called. This happens by default
-for ``__init__()`` methods of aggregate classes. But we can also decorate
-an ``__init__()`` method and specify a non-default name for the "created"
-event.
+Unless otherwise specified, a "created" event class will always be defined
+for an aggregate class. And a "created" event object of this type will be
+triggered when ``__init__()`` methods of aggregate classes are called. But
+we can explicitly specify a name for the "created" event by decorating the
+``__init__()`` method with the ``@event`` decorator. The attributes of the
+event class will be defined according to the ``__init__()`` method signature.
 
 Let's redefine the ``Dog`` aggregate class to have an ``__init__()`` method
-that takes a ``name`` argument, and initialises a ``name`` attribute with the
-given value of the argument. Let's also specify the name of the "created" event
-to be ``'Registered'``, by using an ``@event`` decorator on the ``__init__()``
-method. The changes are highlighted below.
+that is decorated with the ``@event`` decorator. Let's specify the name of
+the "created" event to be ``'Registered'``. Let's also define the ``__init__()``
+method signature to have a ``name`` argument, and a method body that initialises
+a ``name`` attribute with the given value of the argument. The changes are
+highlighted below.
 
 .. code-block:: python
   :emphasize-lines: 4-6
@@ -140,7 +142,7 @@ This time, we need to provide a value for the ``name`` argument.
     dog = Dog('Fido')
 
 
-As we might expect, the given ``name`` is used to initialise the ``name``
+As we might expect, the given ``name`` was used to initialise the ``name``
 attribute of the aggregate.
 
 .. code-block:: python
@@ -179,7 +181,7 @@ reconstruct the initial current state of the aggregate.
     copy = events[0].mutate(None)
     assert copy == dog
 
-Note what's happening there.  We start with nothing - ``None`` - and end up with an instance of ``Dog`` that
+Note what's happening there.  We start with ``None`` and end up with an instance of ``Dog`` that
 has the same state as the original ``dog`` object.  Note also that ``dog`` and ``copy`` are different objects
 with the same type and state, not two references to the same Python object.
 
@@ -189,6 +191,11 @@ with the same type and state, not two references to the same Python object.
     assert id(copy) != id(dog)
 
 
+We have specified an aggregate event class by decorating an aggregate method
+with the ``@event`` decorator. The event specified by the decorator was
+triggered when the decorated method was called.
+
+
 Subsequent events
 =================
 
@@ -196,16 +203,13 @@ We can take this further by defining a second method that will be used
 to change the aggregate object after it has been created.
 
 Let's firstly adjust the ``__init__()`` to initialise a ``tricks``
-attribute with an empty list. Let's also define a ``add_trick()``
-method that appends to this list, and decorate this method with
-the ``@event`` decorator, specifying the name of the event to
+attribute with an empty list. Let's also define an ``add_trick()``
+method that appends to this list. Let's also decorate ``add_trick()``
+with the ``@event`` decorator, specifying the name of the event to
 be ``'TrickAdded'``. The changes are highlighted below.
 
 .. code-block:: python
-    :emphasize-lines: 8,10-12
-
-    from eventsourcing.domain import Aggregate, event
-
+    :emphasize-lines: 5,7-9
 
     class Dog(Aggregate):
         @event('Registered')
@@ -271,19 +275,21 @@ We can collect these two events by calling ``collect_events()``.
 
     assert len(events) == 2
 
-Just like when the ``Dog`` class is called the constructor arguments are used to
-create a ``Dog.Registered`` event object, similarly when the ``add_trick()`` method
-is called, the values of the method arguments are used to construct a
-``Dog.TrickAdded`` event object.
+When the ``Dog`` class is called a ``Dog.Registered`` event object was created.
+Similarly, when the ``add_trick()`` method was called, a ``Dog.TrickAdded`` event
+object was created.
 
 .. code-block:: python
 
     assert isinstance(events[0], Dog.Registered)
     assert isinstance(events[1], Dog.TrickAdded)
 
-The attributes of the event objects follow from the signatures of the decorated
-methods. Just like the "registered" event has a ``name`` attribute, the
-"trick added" event has a ``trick`` attribute.
+The signatures of the decorated methods are used to define the event classes.
+And the values of the method arguments are used to instantiate the event objects.
+
+And so, just like the "registered" event has a ``name`` attribute, the
+"trick added" event has a ``trick`` attribute. The values of these attributes
+are the values that were given when the methods were called.
 
 .. code-block:: python
 
