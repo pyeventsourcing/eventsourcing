@@ -11,7 +11,7 @@ application.
 
 For example, the ``DogSchool`` class has ``register_dog()``
 and ``add_trick()`` methods, which are command methods that evolve the state
-of the application. It also has a ``get_tricks()`` method, which is a query
+of the application. It also has a ``get_dog()`` method, which is a query
 method that presents something of the state of the application without evolving
 the state. These methods depend on the ``Dog`` aggregate, shown below.
 
@@ -32,9 +32,9 @@ the state. These methods depend on the ``Dog`` aggregate, shown below.
             dog.add_trick(trick)
             self.save(dog)
 
-        def get_tricks(self, dog_id):
+        def get_dog(self, dog_id):
             dog = self.repository.get(dog_id)
-            return dog.tricks
+            return {'name': dog.name, 'tricks': tuple(dog.tricks)}
 
 
     class Dog(Aggregate):
@@ -57,11 +57,10 @@ We can construct an application object, and call its methods.
     dog_id = application.register_dog('Fido')
     application.add_trick(dog_id, 'roll over')
     application.add_trick(dog_id, 'fetch ball')
-    application.add_trick(dog_id, 'play dead')
 
-    tricks = application.get_tricks(dog_id)
-
-    assert tricks == ['roll over', 'fetch ball', 'play dead']
+    dog_details = application.get_dog(dog_id)
+    assert dog_details['name'] == 'Fido'
+    assert dog_details['tricks'] == ('roll over', 'fetch ball')
 
 
 Let's explore how this works in more detail.
@@ -176,31 +175,33 @@ We can evolve the state of the ``Dog`` aggregate by calling ``add_trick()``.
 
 When the application command method ``add_trick()`` is called with
 the ID of an aggregate, the ``get()`` method of the ``repository`` is
-used to get the aggregate, the aggregate's ``add_trick()`` method is
-called with the given value of ``trick``, and the aggregate is then
+used to get the aggregate. The aggregate's ``add_trick()`` method is
+called with the given value of ``trick``. The aggregate is then
 saved by calling the application's ``save()`` method.
 
 
 Query methods
 =============
 
-Consider the ``get_tricks()`` method of the ``DogSchool`` application.
+Consider the ``get_dog()`` method of the ``DogSchool`` application.
 
-This method is a "query method" because it presents application state
-without making any changes.
+This method is a "query method" because it presents something of the
+application state without making any changes.
 
-We can access the state of a ``Dog`` aggregate by calling ``get_tricks()``.
+We can access the state of a ``Dog`` aggregate by calling ``get_dog()``.
 
 .. code-block:: python
 
-    tricks = application.get_tricks(dog_id)
-    assert tricks == ['roll over', 'fetch ball', 'play dead']
+    dog_details = application.get_dog(dog_id)
+
+    assert dog_details['name'] == 'Fido'
+    assert dog_details['tricks'] == ('roll over', 'fetch ball', 'play dead')
 
 
-When the application query method ``get_tricks()`` is called with
+When the application query method ``get_dog()`` is called with
 the ID of an aggregate, the repository's ``get()`` method is used
-to reconstruct the aggregate from its events. The value of the
-aggregate's ``tricks`` attribute is returned to the caller.
+to reconstruct the aggregate from its events. The details of the
+``Dog`` aggregate are returned to the caller.
 
 
 Notification log
@@ -319,12 +320,10 @@ with PostgreSQL.
 .. code-block:: python
 
     from eventsourcing.persistence import IntegrityError
-    from eventsourcing.system import NotificationLogReader
-
 
     def test(app: DogSchool, expect_visible_in_db: bool):
         # Check app has zero event notifications.
-        assert len(app.notification_log['1,10'].items) == 0
+        assert len(app.notification_log.select(start=1, limit=10)) == 0
 
         # Create a new aggregate.
         dog_id = app.register_dog('Fido')
@@ -334,20 +333,17 @@ with PostgreSQL.
         app.add_trick(dog_id, 'fetch ball')
 
         # Check recorded state of the aggregate.
-        assert app.get_tricks(dog_id) == [
-            'roll over',
-            'fetch ball'
-        ]
+        dog_details = app.get_dog(dog_id)
+        assert dog_details['name'] == 'Fido'
+        assert dog_details['tricks'] == ('roll over', 'fetch ball')
 
         # Execute another command.
         app.add_trick(dog_id, 'play dead')
 
         # Check recorded state of the aggregate.
-        assert app.get_tricks(dog_id) == [
-            'roll over',
-            'fetch ball',
-            'play dead'
-        ]
+        dog_details = app.get_dog(dog_id)
+        assert dog_details['name'] == 'Fido'
+        assert dog_details['tricks'] == ('roll over', 'fetch ball', 'play dead')
 
         # Check values are (or aren't visible) in the database.
         tricks = [b'roll over', b'fetch ball', b'play dead']
@@ -357,8 +353,8 @@ with PostgreSQL.
             expected_num_visible = 0
 
         actual_num_visible = 0
-        reader = NotificationLogReader(app.notification_log)
-        for notification in reader.read(start=1):
+        notifications = app.notification_log.select(start=1, limit=10)
+        for notification in notifications:
             for trick in tricks:
                 if trick in notification.state:
                     actual_num_visible += 1
@@ -371,7 +367,7 @@ with PostgreSQL.
         assert old.tricks[-1] == 'fetch ball'  # last thing to have happened was 'fetch ball'
 
         # Check app has four event notifications.
-        notifications = list(reader.read(start=1))
+        notifications = app.notification_log.select(start=1, limit=10)
         assert len(notifications) == 4
 
         # Optimistic concurrency control (no branches).
@@ -384,7 +380,7 @@ with PostgreSQL.
             raise Exception("Shouldn't get here")
 
         # Check app still has only four event notifications.
-        notifications = list(reader.read(start=1))
+        notifications = app.notification_log.select(start=1, limit=10)
         assert len(notifications) == 4
 
         # Create eight more aggregate events.
@@ -400,12 +396,8 @@ with PostgreSQL.
 
         # Get the new event notifications from the reader.
         last_id = notifications[-1].id
-        notifications = list(reader.read(start=last_id + 1))
+        notifications = app.notification_log.select(start=last_id + 1, limit=10)
         assert len(notifications) == 8
-
-        # Get all the event notifications from the application log.
-        notifications = list(reader.read(start=1))
-        assert len(notifications) == 12
 
 
 Development environment

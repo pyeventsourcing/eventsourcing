@@ -52,9 +52,9 @@ Now let's define an application...
             dog.add_trick(trick)
             self.save(dog)
 
-        def get_dog_history(self, dog_id):
+        def get_dog(self, dog_id):
             dog = self.repository.get(dog_id)
-            return list(dog.tricks)
+            return {'name': dog.name, 'tricks': tuple(dog.tricks)}
 
 
 Now let's define an analytics application...
