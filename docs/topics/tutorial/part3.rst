@@ -223,13 +223,19 @@ For this reason, it may be necessary to "project" the state of the
 application as a whole into "materialised views" that are specifically
 designed to support such queries.
 
-We can propagate the state of the application in a reliable way by
-propagating all of the aggregate events in the order they were stored.
-That is why the recorder positions stored events in both an aggregate
-sequence and a sequence for the application as a whole. The application
-sequence has all the aggregate events of an application in the order they
-were stored.
+We can propagate the state of the application by propagating all of
+the aggregate events. That is why the recorder positions stored events
+in both an aggregate sequence and a sequence for the application as a whole.
+The application sequence has all the aggregate events of an application in
+the order they were stored.
 
+The notification log supports selecting "event notifications" from
+the application sequence. An event notification is a stored event
+that also has an integer ID that indicates the position in
+the application sequence.
+
+This allows the state of the application to be propagated and processed
+in a progressive and reliable way.
 Because all aggregate events are recorded within an atomic transaction
 in two sequences (an aggregate sequence and the application sequence)
 there will never be an aggregate event that does not also appear in
@@ -237,12 +243,6 @@ the application sequence. This avoids the "dual writing" problem which
 arises when firstly an update to application state is written to a database
 and separately a message is written to a message queue: the problem being
 that one may happen successfully and the other may fail.
-
-The notification log supports selecting "event notifications" from
-the application sequence. An event notification is a stored event
-that also has a "notification ID" that indicates the position in
-the application sequence. This allows the state of the application
-to be propagated and processed in a reliable way.
 
 The ``select()`` method of the notification log can be used
 to obtain a selection of the application's event notifications.
