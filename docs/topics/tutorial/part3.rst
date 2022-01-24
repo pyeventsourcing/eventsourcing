@@ -234,20 +234,27 @@ the application sequence. An event notification is a stored event
 that also has an integer ID that indicates the position in
 the application sequence.
 
-This allows the state of the application to be propagated and processed
-in a progressive and reliable way.
-Because all aggregate events are recorded within an atomic transaction
-in two sequences (an aggregate sequence and the application sequence)
-there will never be an aggregate event that does not also appear in
-the application sequence. This avoids the "dual writing" problem which
-arises when firstly an update to application state is written to a database
-and separately a message is written to a message queue: the problem being
-that one may happen successfully and the other may fail.
+This allows the state of the application to be propagated in a progressive
+and reliable way. The application state can be propagated progressively because
+the sequence can be followed by following the sequence of IDs. The application
+state can be propagated reliably because all aggregate events are recorded within
+an atomic transaction in two sequences (an aggregate sequence and the application
+sequence) so there will never be an aggregate event that does not also appear in
+the application sequence. This avoids the "dual writing" problem which arises when
+firstly an update to application state is written to a database and separately a
+message is written to a message queue: the problem being that one may happen
+successfully and the other may fail. This is why event sourcing is a good foundation
+for building reliable distributed systems.
 
-The ``select()`` method of the notification log can be used
-to obtain a selection of the application's event notifications.
-The ``start`` and ``limit`` arguments can be used to progressively
-read all of a potentially very large number of event notifications.
+The notification log has a ``select()`` method. The ``select()`` method of the
+notification log can be used to obtain a selection of the application's event
+notifications. The ``start`` and ``limit`` arguments can be used to specify
+some of a potentially very large number of event notifications.
+Successive calls to ``select()`` can be made, so that processing
+of event notifications can progress along the application sequence.
+
+The example below shows how the four events created above can be
+obtained in two "pages" each having two event notifications.
 
 .. code-block:: python
 
