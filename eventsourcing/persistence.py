@@ -599,13 +599,12 @@ class InfrastructureFactory(ABC):
         )
         try:
             obj: Union[Type[TF], ModuleType] = resolve_topic(topic)
-        except TopicError:
+        except TopicError as e:
             raise EnvironmentError(
-                "Failed to resolve "
-                "infrastructure factory topic: "
+                "Failed to resolve persistence module topic: "
                 f"'{topic}' from environment "
                 f"variable '{cls.PERSISTENCE_MODULE}'"
-            )
+            ) from e
 
         if isinstance(obj, ModuleType):
             # Find the factory in the module.

@@ -510,6 +510,11 @@ class ProcessingEvent:
         self.collect_events(*aggregates, **kwargs)
 
 
+# Old deprecated name of ProcessingEvent class. Included for
+# backwards compatibility. Will be removed in a future version.
+ProcessEvent = ProcessingEvent
+
+
 class RecordingEvent:
     def __init__(
         self,

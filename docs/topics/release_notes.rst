@@ -26,9 +26,17 @@ code and stored events is very possible.
 Version 9.2.0 (forthcoming)
 ---------------------------
 
-* Added support for specifying in application environment the persistence
-  module to be used by an application (see 'PERSISTENCE_MODULE') rather
-  than specifying the topic of a factory class.
+* Added support for specifying the persistence module to be used by an application
+  (see environment variable 'PERSISTENCE_MODULE') rather than specifying the topic
+  of a factory class as the way to select a persistence module.
+* Added support for specifying application environment variables with environment
+  variable names that are prefixed with the application name, so that different
+  applications can use a distinct set of environment variables (previously this
+  was supported only for some environment variables).
+* Added support for setting the name of an application, that is different from the
+  class name. This allows application classes to be renamed, and also supports
+  having more than one application class in the same environment and persistence
+  namespace.
 * Added ProcessEvent.collect_events() method and deprecated save(),
   effectively renaming this method for clarity of its purpose.
 * Added Application.notification_log and deprecated Application.log, effectively
@@ -54,7 +62,9 @@ Version 9.2.0 (forthcoming)
   assert table names are not greater than the maximum permissible length.
 * Excluded test cases and example packages from being included in releases
   (whilst still including base test cases and test utilities used by extensions).
-* Improved documentation (in numerous ways).
+* Improved documentation (in numerous ways). For example, the central example in
+  docs was changed from `World` to `Dog` most importantly to avoid the
+  aggregate attribute 'history' which was overloaded in this context.
 * Improved SingleThreadedRunner and MultiThreadedRunner to push domain
   events to followers, and to fall back to pulling when gaps are detected
   – this avoids wasteful deserialization of stored events.

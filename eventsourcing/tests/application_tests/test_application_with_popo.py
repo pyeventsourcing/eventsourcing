@@ -1,7 +1,11 @@
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.application import Application
+from eventsourcing.application import (
+    Application,
+    ProcessEvent,
+    ProcessingEvent,
+)
 from eventsourcing.domain import Aggregate
 from eventsourcing.persistence import InfrastructureFactory
 from eventsourcing.tests.application import ExampleApplicationTestCase
@@ -106,8 +110,13 @@ class TestApplication(TestCase):
         self.assertEqual(aggregate, app.repository.cache.get(aggregate.id))
 
     def test_application_log(self):
+        # Check the old 'log' attribute presents the 'notification log' object.
         app = Application()
-        self.assertEqual(app.log, app.notification_log)
+        self.assertIs(app.log, app.notification_log)
+
+    def test_process_event_class(self):
+        # Check the old 'ProcessEvent' class still works.
+        self.assertIs(ProcessEvent, ProcessingEvent)
 
 
 class TestApplicationWithPOPO(ExampleApplicationTestCase):
