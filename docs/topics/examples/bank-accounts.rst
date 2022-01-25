@@ -25,7 +25,7 @@ The ``BankAccount`` aggregate class is defined using the
 :ref:`declarative syntax <Declarative syntax>`. It has a
 balance and an overdraft limit. Accounts can be opened and
 closed. Accounts can be credited and debited, which affects
-the balance. Neither credits nor debits are not allowed if
+the balance. Neither credits nor debits are allowed if
 the account has been closed. Debits are not allowed if the
 balance would go below the overdraft limit. The overdraft
 limit can be adjusted.
