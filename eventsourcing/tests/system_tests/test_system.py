@@ -1,9 +1,9 @@
 from unittest.case import TestCase
-from uuid import NAMESPACE_URL, uuid5, uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from eventsourcing.application import Application, RecordingEvent
 from eventsourcing.domain import Aggregate
-from eventsourcing.persistence import IntegrityError, Tracking, Notification
+from eventsourcing.persistence import IntegrityError, Notification, Tracking
 from eventsourcing.system import (
     Follower,
     Leader,
@@ -221,7 +221,7 @@ class TestFollower(TestCase):
                 originator_id=uuid4(),
                 originator_version=1,
                 state=b"",
-                topic="topic1"
+                topic="topic1",
             )
         ]
         self.assertEqual(len(follower.filter_received_notifications(notifications)), 1)

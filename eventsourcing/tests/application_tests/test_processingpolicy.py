@@ -78,7 +78,9 @@ class TestProcessingPolicy(TestCase):
         # Verify deprecation warning.
         assert len(w) == 1
         assert issubclass(w[-1].category, DeprecationWarning)
-        assert "'save()' is deprecated, use 'collect_events()' instead" in str(w[-1].message)
+        assert "'save()' is deprecated, use 'collect_events()' instead" in str(
+            w[-1].message
+        )
 
         self.assertEqual(len(processing_event.events), 1)
         self.assertIsInstance(
