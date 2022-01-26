@@ -1,9 +1,9 @@
 from unittest.case import TestCase
-from uuid import NAMESPACE_URL, uuid5
+from uuid import NAMESPACE_URL, uuid5, uuid4
 
 from eventsourcing.application import Application, RecordingEvent
 from eventsourcing.domain import Aggregate
-from eventsourcing.persistence import IntegrityError, Tracking
+from eventsourcing.persistence import IntegrityError, Tracking, Notification
 from eventsourcing.system import (
     Follower,
     Leader,
@@ -137,6 +137,11 @@ class TestLeader(TestCase):
         leader.save()
         self.assertEqual(follower.num_received, 2)
 
+        # Check follower doesn't receive prompt when recordings are filtered out.
+        leader.notify_topics = ["topic1"]
+        leader.save(Aggregate())
+        self.assertEqual(follower.num_received, 2)
+
 
 class TestFollower(TestCase):
     def test_process_event(self):
@@ -201,3 +206,26 @@ class TestFollower(TestCase):
         tracking = Tracking(bank_accounts.name, notification.id)
         with self.assertRaises(IntegrityError):
             email_process.process_event(aggregate_event, tracking)
+
+    def test_filter_received_notifications(self):
+        class MyFollower(Follower):
+            follow_topics = []
+
+            def policy(self, *args, **kwargs):
+                pass
+
+        follower = MyFollower()
+        notifications = [
+            Notification(
+                id=1,
+                originator_id=uuid4(),
+                originator_version=1,
+                state=b"",
+                topic="topic1"
+            )
+        ]
+        self.assertEqual(len(follower.filter_received_notifications(notifications)), 1)
+        follower.follow_topics = ["topic1"]
+        self.assertEqual(len(follower.filter_received_notifications(notifications)), 1)
+        follower.follow_topics = ["topic2"]
+        self.assertEqual(len(follower.filter_received_notifications(notifications)), 0)

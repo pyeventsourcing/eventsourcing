@@ -116,11 +116,10 @@ class Follower(Application):
     def filter_received_notifications(
         self, notifications: List[Notification]
     ) -> List[Notification]:
-        return [
-            n
-            for n in notifications
-            if not self.follow_topics or n.topic in self.follow_topics
-        ]
+        if self.follow_topics:
+            return [n for n in notifications if n.topic in self.follow_topics]
+        else:
+            return notifications
 
     def convert_notifications(
         self, leader_name: str, notifications: Iterable[Notification]
@@ -236,11 +235,10 @@ class Leader(Application):
         whenever new events have just been saved.
         """
         super()._notify(recordings)
-        recordings = [
-            r
-            for r in recordings
-            if not self.notify_topics or r.notification.topic in self.notify_topics
-        ]
+        if self.notify_topics:
+            recordings = [
+                r for r in recordings if r.notification.topic in self.notify_topics
+            ]
         if recordings:
             recording_event = RecordingEvent(
                 application_name=self.name,
