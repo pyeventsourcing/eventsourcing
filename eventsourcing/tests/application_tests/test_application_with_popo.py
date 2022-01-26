@@ -1,3 +1,4 @@
+import warnings
 from unittest.case import TestCase
 from uuid import uuid4
 
@@ -112,7 +113,13 @@ class TestApplication(TestCase):
     def test_application_log(self):
         # Check the old 'log' attribute presents the 'notification log' object.
         app = Application()
-        self.assertIs(app.log, app.notification_log)
+        with warnings.catch_warnings(record=True) as w:
+            self.assertIs(app.log, app.notification_log)
+
+        # Verify deprecation warning.
+        assert len(w) == 1
+        assert issubclass(w[-1].category, DeprecationWarning)
+        assert "'log' is deprecated, use 'notifications' instead" in str(w[-1].message)
 
     def test_process_event_class(self):
         # Check the old 'ProcessEvent' class still works.

@@ -1,3 +1,4 @@
+import warnings
 from functools import singledispatch
 from unittest.case import TestCase
 from uuid import uuid4
@@ -71,7 +72,13 @@ class TestProcessingPolicy(TestCase):
             )
         )
 
-        policy_legacy_save(created_event, processing_event)
+        with warnings.catch_warnings(record=True) as w:
+            policy_legacy_save(created_event, processing_event)
+
+        # Verify deprecation warning.
+        assert len(w) == 1
+        assert issubclass(w[-1].category, DeprecationWarning)
+        assert "'save()' is deprecated, use 'collect_events()' instead" in str(w[-1].message)
 
         self.assertEqual(len(processing_event.events), 1)
         self.assertIsInstance(
