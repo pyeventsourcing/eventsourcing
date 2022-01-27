@@ -8,7 +8,7 @@ from eventsourcing.system import (
     Follower,
     Leader,
     ProcessApplication,
-    Promptable,
+    RecordingEventReceiver,
     System,
 )
 from eventsourcing.tests.application import BankAccounts
@@ -113,7 +113,7 @@ class TestLeader(TestCase):
     def test(self):
 
         # Define fixture that receives prompts.
-        class FollowerFixture(Promptable):
+        class FollowerFixture(RecordingEventReceiver):
             def __init__(self):
                 self.num_received = 0
 

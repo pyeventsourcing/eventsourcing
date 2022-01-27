@@ -199,9 +199,9 @@ class Follower(Application):
         """
 
 
-class Promptable(ABC):
+class RecordingEventReceiver(ABC):
     """
-    Abstract base class for "promptable" objects.
+    Abstract base class for objects that may receive recording events.
     """
 
     @abstractmethod
@@ -221,9 +221,9 @@ class Leader(Application):
 
     def __init__(self, env: Optional[EnvType] = None) -> None:
         super().__init__(env)
-        self.followers: List[Promptable] = []
+        self.followers: List[RecordingEventReceiver] = []
 
-    def lead(self, follower: Promptable) -> None:
+    def lead(self, follower: RecordingEventReceiver) -> None:
         """
         Adds given follower to a list of followers.
         """
@@ -413,7 +413,7 @@ class EventProcessingError(Exception):
     """
 
 
-class SingleThreadedRunner(Runner, Promptable):
+class SingleThreadedRunner(Runner, RecordingEventReceiver):
     """
     Runs a :class:`System` in a single thread.
     A single threaded runner is a runner, and so implements the
@@ -567,7 +567,7 @@ class SingleThreadedRunner(Runner, Promptable):
         return app
 
 
-class MultiThreadedRunner(Runner, Promptable):
+class MultiThreadedRunner(Runner, RecordingEventReceiver):
     """
     Runs a :class:`System` with a :class:`MultiThreadedRunnerThread` for each
     follower in the system definition.

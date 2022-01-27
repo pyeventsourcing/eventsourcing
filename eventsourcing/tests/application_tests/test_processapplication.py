@@ -9,7 +9,7 @@ from eventsourcing.system import (
     Leader,
     ProcessApplication,
     ProcessingEvent,
-    Promptable,
+    RecordingEventReceiver,
 )
 from eventsourcing.tests.application import BankAccounts, EmailAddressAsStr
 from eventsourcing.tests.application_tests.test_processingpolicy import (
@@ -100,7 +100,7 @@ class EmailProcess(ProcessApplication):
         processing_event.collect_events(notification)
 
 
-class PromptForwarder(Promptable):
+class PromptForwarder(RecordingEventReceiver):
     def __init__(self, application: Follower):
         self.application = application
 
