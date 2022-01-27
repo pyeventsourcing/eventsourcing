@@ -3,6 +3,7 @@ import os
 from abc import ABC, ABCMeta
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
+from functools import lru_cache
 from types import FunctionType, WrapperDescriptorType
 from typing import (
     Any,
@@ -207,7 +208,7 @@ class CommandMethodDecorator:
         self.decorated_property: Optional[property] = None
         self.is_property_setter = False
         self.property_setter_arg_name: Optional[str] = None
-        self.decorated_method: AnyCallable
+        self.decorated_method: Union[FunctionType, WrapperDescriptorType]
 
         # Event name has been specified.
         if isinstance(event_spec, str):
@@ -238,7 +239,7 @@ class CommandMethodDecorator:
             self.decorated_property = decorated_obj
 
             # Remember the decorated method as the "setter" of the property.
-            self.decorated_method = decorated_obj.fset
+            self.decorated_method = cast(FunctionType, decorated_obj.fset)
 
             assert isinstance(self.decorated_method, FunctionType)
 
@@ -524,22 +525,41 @@ def _check_no_variable_params(method: FunctionType) -> None:
 
 
 def _coerce_args_to_kwargs(
-    method: AnyCallable,
+    method: Union[FunctionType, WrapperDescriptorType],
     args: Iterable[Any],
     kwargs: Dict[str, Any],
     expects_id: bool = False,
 ) -> Dict[str, Any]:
     assert isinstance(method, (FunctionType, WrapperDescriptorType))
 
-    method_signature = inspect.signature(method)
+    args = tuple(args)
+    enumerated_args_names, keyword_defaults_items = _spec_coerce_args_to_kwargs(
+        method=method,
+        len_args=len(args),
+        kwargs_keys=tuple(kwargs.keys()),
+        expects_id=expects_id,
+    )
 
     copy_kwargs = dict(kwargs)
-    args = tuple(args)
+    for i, name in enumerated_args_names:
+        copy_kwargs[name] = args[i]
+    for name, value in keyword_defaults_items:
+        copy_kwargs[name] = value
+    return copy_kwargs
+
+
+@lru_cache(maxsize=None)
+def _spec_coerce_args_to_kwargs(
+    method: Union[FunctionType, WrapperDescriptorType],
+    len_args: int,
+    kwargs_keys: Tuple[str],
+    expects_id: bool,
+) -> Tuple[Tuple[Tuple[int, str], ...], Tuple[Tuple[str, Any], ...]]:
+    method_signature = inspect.signature(method)
     positional_names = []
     keyword_defaults = {}
     required_positional = []
     required_keyword_only = []
-
     if expects_id:
         positional_names.append("id")
         required_positional.append("id")
@@ -555,30 +575,24 @@ def _coerce_args_to_kwargs(
                 required_positional.append(name)
         if param.default != param.empty:
             keyword_defaults[name] = param.default
-
     # if not required_keyword_only and not positional_names:
     #     if args or kwargs:
     #         raise TypeError(f"{method.__name__}() takes no args")
-
-    for name in kwargs:
+    method_name = get_method_name(method)
+    for name in kwargs_keys:
         if name not in required_keyword_only and name not in positional_names:
             raise TypeError(
-                f"{get_method_name(method)}() got an unexpected "
-                f"keyword argument '{name}'"
+                f"{method_name}() got an unexpected " f"keyword argument '{name}'"
             )
-
-    counter = 0
-    len_args = len(args)
     if len_args > len(positional_names):
         msg = (
-            f"{get_method_name(method)}() takes {len(positional_names) + 1} "
+            f"{method_name}() takes {len(positional_names) + 1} "
             f"positional argument{'' if len(positional_names) + 1 == 1 else 's'} "
             f"but {len_args + 1} were given"
         )
         raise TypeError(msg)
-
     required_positional_not_in_kwargs = [
-        n for n in required_positional if n not in kwargs
+        n for n in required_positional if n not in kwargs_keys
     ]
     num_missing = len(required_positional_not_in_kwargs) - len_args
     if num_missing > 0:
@@ -586,40 +600,40 @@ def _coerce_args_to_kwargs(
             f"'{name}'" for name in required_positional_not_in_kwargs[len_args:]
         ]
         msg = (
-            f"{get_method_name(method)}() missing {num_missing} required positional "
+            f"{method_name}() missing {num_missing} required positional "
             f"argument{'' if num_missing == 1 else 's'}: "
         )
         raise_missing_names_type_error(missing_names, msg)
-
+    counter = 0
+    args_names = []
     for name in positional_names:
         if counter + 1 > len_args:
             break
-        if name not in kwargs:
-            copy_kwargs[name] = args[counter]
-            counter += 1
-        else:
+        if name in kwargs_keys:
             raise TypeError(
-                f"{get_method_name(method)}() got multiple values for argument '{name}'"
+                f"{method_name}() got multiple values for argument '{name}'"
             )
-
+        else:
+            args_names.append(name)
+            counter += 1
     missing_keyword_only_arguments = []
     for name in required_keyword_only:
-        if name not in kwargs:
+        if name not in kwargs_keys:
             missing_keyword_only_arguments.append(name)
-
     if missing_keyword_only_arguments:
         missing_names = [f"'{name}'" for name in missing_keyword_only_arguments]
         msg = (
-            f"{get_method_name(method)}() missing {len(missing_names)} "
+            f"{method_name}() missing {len(missing_names)} "
             f"required keyword-only argument"
             f"{'' if len(missing_names) == 1 else 's'}: "
         )
         raise_missing_names_type_error(missing_names, msg)
-
-    for name, value in keyword_defaults.items():
-        if name not in copy_kwargs:
-            copy_kwargs[name] = value
-    return copy_kwargs
+    for key in tuple(keyword_defaults.keys()):
+        if key in args_names or key in kwargs_keys:
+            keyword_defaults.pop(key)
+    enumerated_args_names = tuple(enumerate(args_names))
+    keyword_defaults_items = tuple(keyword_defaults.items())
+    return enumerated_args_names, keyword_defaults_items
 
 
 def raise_missing_names_type_error(missing_names: List[str], msg: str) -> None:
