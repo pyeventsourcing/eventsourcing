@@ -248,28 +248,6 @@ class TestTransaction(TestCase):
         self.mock.rollback.assert_called()
         self.mock.close.assert_called()
 
-    def test_idle_in_transaction_session_timeout_actually_works(self):
-        pool = PostgresConnectionPool(
-            dbname="eventsourcing",
-            host="127.0.0.1",
-            port="5432",
-            user="eventsourcing",
-            password="eventsourcing",
-            idle_in_transaction_session_timeout=1,
-        )
-        self.assertFalse(pool._pool)
-
-        conn = pool.get_connection()
-        with self.assertRaises(PersistenceError) as cm:
-            with conn.transaction(commit=False) as curs:
-                curs.execute("SELECT 1")
-                self.assertFalse(curs.closed)
-                sleep(2)
-        self.assertIn(
-            "terminating connection due to idle-in-transaction timeout",
-            cm.exception.args[0],
-        )
-
 
 class TestPostgresDatastore(TestCase):
     def test_has_connection_pool(self):
@@ -401,6 +379,25 @@ class TestPostgresDatastore(TestCase):
 
         # Now try that again with pre-ping enabled.
         open_close_execute(pre_ping=True)
+
+    def test_idle_in_transaction_session_timeout(self):
+        datastore = PostgresDatastore(
+            dbname="eventsourcing",
+            host="127.0.0.1",
+            port="5432",
+            user="eventsourcing",
+            password="eventsourcing",
+            idle_in_transaction_session_timeout=1,
+        )
+        with self.assertRaises(PersistenceError) as cm:
+            with datastore.transaction(commit=False) as curs:
+                curs.execute("SELECT 1")
+                self.assertFalse(curs.closed)
+                sleep(2)
+        self.assertIn(
+            "terminating connection due to idle-in-transaction timeout",
+            cm.exception.args[0],
+        )
 
     def test_report_on_prepared_statements(self):
         datastore = PostgresDatastore(

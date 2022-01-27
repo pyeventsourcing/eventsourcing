@@ -208,10 +208,6 @@ class PostgresTransaction:
         except psycopg2.Error as e:
             raise PersistenceError(str(e)) from e
 
-    def __del__(self) -> None:
-        if not self.has_entered:
-            raise RuntimeWarning(f"Transaction {self} was not used as context manager")
-
 
 class PostgresDatastore:
     def __init__(
