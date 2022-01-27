@@ -135,14 +135,16 @@ class AggregateCreated(AggregateEvent[TAggregate]):
         agg = aggregate_class.__new__(aggregate_class)
 
         # Separate the base class keywords arguments.
-        base_kwargs = _select_kwargs_mentioned_in_sig(self.__dict__, agg.__base_init__)
+        base_kwargs = _filter_kwargs_for_method_params(
+            self.__dict__, type(agg).__base_init__
+        )
 
         # Call the base class init method.
         agg.__base_init__(**base_kwargs)
 
         # Select values that aren't mentioned in the method signature.
-        init_kwargs = _select_kwargs_mentioned_in_sig(
-            self.__dict__, agg.__init__  # type: ignore
+        init_kwargs = _filter_kwargs_for_method_params(
+            self.__dict__, type(agg).__init__
         )
 
         # Provide the id, if the init method expects it.
@@ -182,12 +184,17 @@ class LogEvent(DomainEvent[None], metaclass=MetaDomainEvent):
 TLogEvent = TypeVar("TLogEvent", bound=LogEvent)
 
 
-def _select_kwargs_mentioned_in_sig(
+def _filter_kwargs_for_method_params(
     kwargs: Dict[str, Any], method: Callable[..., Any]
 ) -> Dict[str, Any]:
-    method_signature = inspect.signature(method)
-    names = set(method_signature.parameters)
+    names = _spec_filter_kwargs_for_method_params(method)
     return {k: v for k, v in kwargs.items() if k in names}
+
+
+@lru_cache(maxsize=None)
+def _spec_filter_kwargs_for_method_params(method: Callable[..., Any]) -> Set[str]:
+    method_signature = inspect.signature(method)
+    return set(method_signature.parameters)
 
 
 EventSpecType = Optional[Union[str, Type[AggregateEvent[Any]]]]
@@ -474,7 +481,9 @@ class BoundCommandMethodDecorator:
             self.event_decorator.decorated_method, args, kwargs
         )
         event_cls = decorated_event_classes[self.event_decorator]
-        kwargs = _select_kwargs_mentioned_in_sig(kwargs, event_cls.__dict__["__init__"])
+        kwargs = _filter_kwargs_for_method_params(
+            kwargs, event_cls.__dict__["__init__"]
+        )
         self.aggregate.trigger_event(event_cls, **kwargs)
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:
@@ -498,7 +507,7 @@ class DecoratedEvent(AggregateEvent[Any]):
         decorated_method = decorated_methods[type(self)]
 
         # Select event attributes mentioned in method signature.
-        kwargs = _select_kwargs_mentioned_in_sig(self.__dict__, decorated_method)
+        kwargs = _filter_kwargs_for_method_params(self.__dict__, decorated_method)
 
         # Call the original method with event attribute values.
         decorated_method(aggregate, **kwargs)
