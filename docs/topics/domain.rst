@@ -99,10 +99,14 @@ new balance of £80. That might be coded as follows:
     class BankAccount:
         def __init__(self, starting_balance: int):
             self.balance = starting_balance
+
         def debit(self, amount):
             self.balance = self.balance - amount
+
+
     account = BankAccount(100)
     account.debit(20)
+
     assert account.balance == 80
 
 Note that the *event* --- the reason that the balance changed from 100 to 80 --- is
