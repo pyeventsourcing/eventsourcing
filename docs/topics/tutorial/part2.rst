@@ -318,6 +318,120 @@ aggregates from saved events when its ``get()`` is called.
 
 You can try all of this for yourself by copying the code snippets above.
 
+Explicit style
+==============
+
+Sometimes you may wish to define aggregate event classes explicitly.
+
+One reason for defining explicit event classes is to code for model changes.
+The version of the event class can be defined along with :ref:`upcast methods <Versioning>`
+that adjust stored events created at previous versions.
+
+The example below shows the ``Dog`` aggregate class defined using explicit
+event classes.
+
+.. code-block:: python
+
+    class Dog(Aggregate):
+        class Registered(Aggregate.Created):
+            name: str
+
+        @event(Registered)
+        def __init__(self, name):
+            self.name = name
+            self.tricks = []
+
+        class TrickAdded(Aggregate.Event):
+            trick: str
+
+        @event(TrickAdded)
+        def add_trick(self, trick):
+            self.tricks.append(trick)
+
+
+The ``Dog.Registered`` class inherits ``Aggregate.Created`` event class.
+The ``Dog.TrickAdded`` class inherits base ``Aggregate.Event`` class.
+The ``@event`` decorator is used to specify the event class
+that will be triggered when the decorated method is called.
+
+..
+    #include-when-testing
+..
+    import eventsourcing.utils
+    eventsourcing.utils._topic_cache.clear()
+
+.. code-block:: python
+
+    dog = Dog('Fido')
+
+    assert dog.name == 'Fido'
+    assert dog.tricks == []
+
+    dog.add_trick('roll over')
+    assert dog.tricks == ['roll over']
+
+Sometimes you may wish to explicitly trigger aggregate events within
+the command method body, rather than having them triggered when the method
+is called.
+
+One reason for triggering aggregate events explicitly within a command
+method body is so that the command method can do some work on the command
+method arguments, and trigger an event that has attributes that do not
+match the command method signature.
+(Although, if an aggregate command method needs to do some work on the method
+arguments before triggering an event, a private method can be called that is
+decorated with the ``@event`` decorator.)
+
+The example below shows a ``Dog`` aggregate class with a command
+method ``add_trick()`` that triggers ``Dog.TrickAdded`` events explicitly
+using the ``trigger_event()`` method defined by the ``Aggregate`` class.
+
+.. code-block:: python
+
+    class Dog(Aggregate):
+        def __init__(self, name):
+            self.name = name
+            self.tricks = []
+
+        def add_trick(self, trick):
+            self.trigger_event(self.TrickAdded, trick=trick)
+
+        class TrickAdded(Aggregate.Event[Dog]):
+            trick: str
+
+            def mutate(self, aggregate: Dog):
+                aggregate.tricks.append(self.trick)
+
+
+Because the ``trick_added()`` method is not decorated with the ``@event``
+decorator, the method body will not be used to mutate the state of
+the aggregate, and so a ``mutate()`` method has been defined on the
+``Dog.TrickAdded`` event class for this purpose. (See the module documentation
+for information about alternative mutator function styles for implementing
+aggregate projections.)
+
+..
+    #include-when-testing
+..
+    import eventsourcing.utils
+    eventsourcing.utils._topic_cache.clear()
+
+.. code-block:: python
+
+    dog = Dog('Fido')
+
+    assert dog.name == 'Fido'
+    assert dog.tricks == []
+
+    dog.add_trick('roll over')
+    assert dog.tricks == ['roll over']
+
+Using this explicit style is a more verbose way of defining event classes,
+triggering events, and mutating aggregate state. But the resulting aggregate
+interface and state is the same. The ``@event`` decorator was added to the
+library to offer a more concise way to express these concerns. The mechanism
+underlying the ``@event`` decorator involves calling the ``trigger_event()``
+and ``mutate()`` methods. You can choose which style you prefer.
 
 Exercise
 ========
@@ -385,6 +499,7 @@ to be ``'ItemAdded'``. Copy the test below and make it pass.
         assert isinstance(events[0], Todos.Started)
         assert events[0].name == 'Household repairs'
         assert events[0].mutate(None) == todos2
+
 
 ..
     #include-when-testing
