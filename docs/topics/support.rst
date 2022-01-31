@@ -6,8 +6,8 @@ Thank you for your interest in this library. It has taken some time
 to create. Similarly it may take some time to understand, and a sustained
 effort to develop well-designed event-sourced applications.
 
-To supplement the detailed documentation, professional training workshops
-and development services are available. Friendly community support is also
+To supplement the detailed documentation, professional training and
+development services are available. Friendly community support is also
 available on the Slack_ channel.
 
 If you see any errors or have any issues when using
@@ -18,32 +18,6 @@ pull request, or start a discussion in the Slack_ channel.
 If you like the project, please support the continuing maintenance of this
 library by starring the project on GitHub, by sponsoring the project, and
 by making a donation.
-
-
-Community support
-=================
-
-The library has a growing community that may be able to help.
-
-- You can ask questions on the Slack_ channel.
-
-- You can also register issues and requests on our
-  `issue tracker <https://github.com/pyeventsourcing/eventsourcing/issues>`__.
-
-.. _Slack: https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTJjMmJjYTc3ODQ3M2YwOTMwMDJlODJkMjk3ZmE1MGYyZDM4MjIxODZmYmVkZmJkODRhZDg5N2MwZjk1YzU3NmY>`__.
-
-
-Training workshops
-==================
-
-Training workshops are available to help developers more
-quickly learn how to use the library. Workshop participants
-will be guided through a series of topics, gradually discovering
-what the library is capable of doing, and learning how to use
-the library effectively.
-
-Please contact John Bywater via the Slack_ channel for more information about
-training workshops.
 
 
 Professional support
@@ -60,3 +34,28 @@ the development and management of event-sourced applications and systems.
 
 Please contact John Bywater via the Slack_ channel for more information about professional
 support.
+
+Training workshops
+==================
+
+Training workshops are available to help developers more
+quickly learn how to use the library. Workshop participants
+will be guided through a series of topics, gradually discovering
+what the library is capable of doing, and learning how to use
+the library effectively.
+
+Please contact John Bywater via the Slack_ channel for more information about
+training workshops.
+
+Community support
+=================
+
+The library has a growing community that may be able to help.
+
+- You can ask questions on the Slack_ channel.
+
+- You can also register issues and requests on our
+  `issue tracker <https://github.com/pyeventsourcing/eventsourcing/issues>`__.
+
+.. _Slack: https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTJjMmJjYTc3ODQ3M2YwOTMwMDJlODJkMjk3ZmE1MGYyZDM4MjIxODZmYmVkZmJkODRhZDg5N2MwZjk1YzU3NmY>`__.
+
