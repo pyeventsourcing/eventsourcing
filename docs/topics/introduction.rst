@@ -105,9 +105,11 @@ Design overview
 
 The design of the library follows the notion of a "layered" or "onion" or "hexagonal"
 architecture in that there are `separate modules <modules.html>`_ for `application <application.html>`_,
-`domain <domain.html>`_, `infrastructure <persistence.html>`_, and `interface <interface.html>`_.
-The application module depends on the domain and infrastructure modules, and the interface
-module depends on the application module.
+`domain <domain.html>`_, `persistence <persistence.html>`_, and `interface <interface.html>`_.
+The interface module depends on the application module. The application module depends on the domain
+module and the persistence module. The persistence module depends on the domain module.
+The domain module does not depend on any of the other modules. All these modules depend
+only on the Python Standard Library.
 
 .. _Synopsis:
 
