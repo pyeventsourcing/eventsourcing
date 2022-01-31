@@ -609,7 +609,6 @@ Attempting to serialize an unsupported type will result in a Python :class:`Type
 
     from datetime import date
 
-
     date1 = date(2021, 12, 31)
 
     try:
@@ -651,7 +650,6 @@ convert that representation back to an instance of that type.
 
     from eventsourcing.persistence import Transcoding
 
-
     class DateAsISO(Transcoding):
         type = date
         name = "date_iso"
@@ -662,9 +660,7 @@ convert that representation back to an instance of that type.
         def decode(self, data: str) -> date:
             return date.fromisoformat(data)
 
-
     transcoder.register(DateAsISO())
-
     data = transcoder.encode(date1)
     copy = transcoder.decode(data)
     assert copy == date1
@@ -704,7 +700,6 @@ transcoding simply returns that object.
 
     from uuid import UUID
 
-
     class SimpleCustomValue:
         def __init__(self, id: UUID, date: date):
             self.id = id
@@ -726,7 +721,6 @@ transcoding simply returns that object.
                 self.value == other.value
             )
 
-
     class SimpleCustomValueAsDict(Transcoding):
         type = SimpleCustomValue
         name = "simple_custom_value"
@@ -737,7 +731,6 @@ transcoding simply returns that object.
         def decode(self, data: dict) -> SimpleCustomValue:
             assert isinstance(data, dict)
             return SimpleCustomValue(**data)
-
 
     class ComplexCustomValueAsDict(Transcoding):
         type = ComplexCustomValue
