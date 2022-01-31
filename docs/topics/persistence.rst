@@ -1,89 +1,91 @@
-====================================================
-:mod:`~eventsourcing.persistence` --- Infrastructure
-====================================================
+================================================================
+:mod:`~eventsourcing.persistence` --- Persistence infrastructure
+================================================================
 
-This module provides a cohesive mechanism for storing
-and retrieving :ref:`domain events <Domain events>`.
+This module provides a :ref:`cohesive mechanism <Cohesive mechanism>`
+for storing and retrieving :ref:`domain events <Domain events>`.
 
-This module is the most important part of this library,
-along with the concrete persistence modules that adapt
-particular database management systems. The other modules
-function primarily as examples of how to use the persistence
-modules to build event-sourced applications and event-driven
-systems that are comprised of event-sourced applications.
+This module, along with the :ref:`concrete persistence modules <Persistence>` that
+adapt particular database management systems, are the most important parts of this
+library. The other modules (`domain <domain.html>`_, `application <application.html>`_,
+`system <system.html>`_) serve *primarily* as guiding examples of how to use the
+persistence modules to build event-sourced applications and event-driven systems.
 
 Requirements
 ============
 
-The requirements were written after the development of the persistence
-module, and after industry-wide online discussion about what is and isn't
-event sourcing. They effectively summarise the technical character of an
-adequate persistence mechanism for event sourcing. In summary: there needs to be
-one sequence for each aggregate and one for the application as a whole;
-the positions in these sequences must be occupied uniquely with new additions
-inserted at the end of the sequence; each event must recorded in both kinds
-of sequence atomically; and when these events results from processing other
-events this atomicity must be extended to include unique records that track
-which event notification have been processed.
+These requirements were written after industry-wide discussions about what
+is and isn't event sourcing demonstrated the need for such a statement. They
+effectively summarise the technical character of an adequate persistence mechanism
+for event sourcing, and happen to describe what this module essentially implements.
 
-1. We need a **common format** for recording domain events,
-because an application will have many different types of
-domain event. *An object that has this common format will
-be referred to as a 'stored event'.*
+In summary: there needs to be one sequence of events for each aggregate and one
+for the application as a whole; the positions in these sequences must be occupied
+uniquely, with new additions inserted at the end of the sequence; each event must
+recorded in both kinds of sequence atomically; and this atomic recording must be
+extended to include unique records that track which event notification has been
+processed when new events result from processing an event notification.
 
-2. We need to record each domain event in **a sequence for its
-aggregate**, because we need to select the events for an aggregate
-when reconstructing an aggregate from its events. *This sequence
-will be referred to as an 'aggregate sequence'.*
+1. We need a **universal type** for storing :ref:`domain events <Domain events>`,
+because an application will have different types of domain event and we
+want to record all of the events in the same way. The term 'stored event'
+shall be used to refer to objects of this type.
 
-3. We need aggregate events to be to **recorded in sequential order**
-in their aggregate sequence, because aggregate events will be generated
-by an aggregate in sequential order, and used in sequential order
-to reconstruct the state of the aggregate.
+2. We need to record each domain event in **a sequence for its aggregate**,
+because we also need to select the events for an :ref:`aggregate <Aggregates>`
+when reconstructing an aggregate from its events. The term 'aggregate sequence'
+shall be used to refer to the sequence of events of an individual aggregate.
+
+3. We need domain events to be to **recorded in sequential order**
+in their aggregate sequence, because domain events will be generated
+in sequential order, and used in sequential order to reconstruct the
+state of the aggregate.
 
 4. We need domain events to be **recorded uniquely** in their
 aggregate sequence, so that only one domain event can be recorded
-at any given position in its aggregate sequence. Aggregate events
-and snapshots will therefore need to be stored separately. This
-requirement is sometimes termed "optimistic concurrency control"
-but it also *protects against any subsequent over-writing of recorded
-domain events*.
+at any given position in its aggregate sequence. :ref:`Aggregate events <Aggregate events>`
+and :ref:`snapshots <Snapshots>` will therefore need to be stored separately.
+This requirement provides optimistic *concurrency* control,
+but it also protects against any *subsequent* over-writing of recorded
+domain events.
 
 5. We sometimes need aggregate events to be positioned in
 a **global sequence of event notifications** for the application
-as a whole. *This global sequence for the application as a whole
-will be referred to as the 'application sequence'.*
+as a whole. The term 'application sequence' shall be used to refer
+to the sequence of events of an application as a whole.
 
 6. We need event notifications to be to **recorded in sequential order**
-in their application sequence, because we need to propagate event notifications
-in the order that they were recorded.
+in their application sequence, because we also need to propagate event
+notifications in the order that they were recorded.
 
 7. We need event notifications to be **recorded uniquely** in their
 application sequence, so that only one aggregate event
 can be recorded at any given position in its application
-sequence. This requirement *protects against any subsequent
-over-writing of recorded event notifications*.
+sequence. This requirement protects against any concurrent writing
+or subsequent over-writing of recorded event notifications.
 
 8. When recording an aggregate event in both an aggregate sequence and an
 application sequence, we need **atomic recording of aggregate events with
 event notifications**, because we need to exclude the possibility that an
 aggregate event will appear in one sequence but not in the other. That is,
-we need to *avoid dual-writing in the recording of aggregate events and
-event notifications*.
+we need to avoid dual-writing in the recording of aggregate events and
+event notifications.
 
 9. We sometimes need to record a **notification tracking object**
 that indicates both the position in an application sequence of an event
 notification that has been processed, and the application to which that
 sequence belongs. We need tracking records to be **recorded uniquely**.
 This requirement supports knowing what has been processed and protects
-against *subsequent over-writing of recorded notification tracking records*.
+against subsequent over-writing of recorded notification tracking records.
 
 10. When tracking event notifications, we need **atomic recording of tracking
 objects with new aggregate events** (or any other new application state) generated
 from processing the event notification represented by that tracking object, because
 we need to exclude the possibility that a tracking object will be recorded without
 the consequences of processing the event notification it represents, and vice versa.
-That is, we need to *avoid dual writing in the consumption of event notifications*.
+That is, we need to avoid dual writing in the consumption of event notifications.
+This effectively provides "exactly once" semantics for the processing of event
+notifications into recorded application state changes.
 
 11. When recording aggregate events in an application sequence, we need the
 "insert order" and the "commit order" to be the same, so that those following
@@ -97,7 +99,7 @@ know the positions of the aggregate events in the application sequence, so that
 we can detect when those aggregate events have been processed by another application
 in an event-driven system.
 
-The subsequent sections describe how these requirements are accomplished by this library.
+The sections below describe how these requirements are implemented by this module.
 
 
 Overview
@@ -1050,7 +1052,7 @@ will construct a "process recorder", which is useful for tracking the processing
 of event notifications.
 
 By reading and responding to particular environment variables, the persistence
-infrastructure of an event-sourced :ref:`application can be easily configured <Persistence>`
+infrastructure of an event-sourced application :ref:`can be easily configured <Persistence>`
 in different ways at different times.
 
 The optional environment variables ``COMPRESSOR_TOPIC``, ``CIPHER_KEY``, and

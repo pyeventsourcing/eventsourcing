@@ -204,10 +204,10 @@ class Cargo(Aggregate):
 
     class Event(Aggregate.Event["Cargo"]):
         def apply(self, aggregate: "Cargo") -> None:
-            aggregate.apply(self)
+            aggregate.when(self)
 
     @singledispatchmethod
-    def apply(self, event: Event) -> None:
+    def when(self, event: Event) -> None:
         """
         Default method to apply an aggregate event to the aggregate object.
         """
@@ -221,7 +221,7 @@ class Cargo(Aggregate):
     class DestinationChanged(Event):
         destination: Location
 
-    @apply.register(DestinationChanged)
+    @when.register(DestinationChanged)
     def destination_changed(self, event: DestinationChanged) -> None:
         self._destination = event.destination
 
@@ -231,7 +231,7 @@ class Cargo(Aggregate):
     class RouteAssigned(Event):
         route: Itinerary
 
-    @apply.register(RouteAssigned)
+    @when.register(RouteAssigned)
     def route_assigned(self, event: RouteAssigned) -> None:
         self._route = event.route
         self._routing_status = "ROUTED"
@@ -260,7 +260,7 @@ class Cargo(Aggregate):
         location: Location
         handling_activity: str
 
-    @apply.register(HandlingEventRegistered)
+    @when.register(HandlingEventRegistered)
     def handling_event_registered(self, event: HandlingEventRegistered) -> None:
         assert self.route is not None
         if event.handling_activity == HandlingActivity.RECEIVE:

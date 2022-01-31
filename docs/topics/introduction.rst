@@ -58,6 +58,8 @@ event-sourced application is determined by a sequence of events.
 Another definition has event sourcing as a persistence mechanism
 for domain-driven design.
 
+.. _Cohesive mechanism:
+
 Whilst the basic event sourcing patterns are quite simple and
 can be reproduced in code for each project, event sourcing as a
 persistence mechanism for domain-driven design appears as a
