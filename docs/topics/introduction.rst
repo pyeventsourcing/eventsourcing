@@ -5,22 +5,19 @@ Introduction
 What is an event?
 =================
 
-The term 'event' is often used in discussions about event sourcing
-as an abbreviation which refers to a specific kind of event. That is to say,
-it refers to an individual atomic immutable decision originated by the domain
-model of a software application, an occasion of experience that results in a
-"stubborn fact".
+The term 'event' is used in discussions about event sourcing more or less
+as an abbreviation which refers to a very particular kind of event: an individual,
+atomic, immutable decision originated by the domain model of a software application.
 
-Of course, the commonsensical notion "event" has a broader meaning. Firstly,
-it includes all other such atomic "actual occasions" of experience that result
-in all the other stubborn facts that together make up the past. Such things
+The commonsensical notion "event" has a broader meaning. Firstly,
+it includes all the other atomic "actual occasions" of experience that result
+in all the other stubborn facts which together make up the past. Such things
 importantly do not change. They are what they are. But the commonsensical meaning
-includes also inter-related sets of such things, "societies" of actual occasions,
+also includes inter-related sets of such things: "societies" of actual occasions,
 enduring objects that experience adventures of change. For example, the ordinary
 physical and social objects that we encounter in daily life that are each built up
 from an on-going history of inter-related decisions. In this sense, a software system
-is also an event, in this broader sense. A developer is also an event. And so is
-her cat.
+is also an event. A developer is also an event. And so is her cat.
 
 As Gilles Deleuze wrote in his book on Leibniz when discussing Alfred North Whitehead's
 modern process philosophy:
@@ -41,13 +38,11 @@ modern process philosophy:
     heard its wail and responded to it like a neighbouring
     tree. It was like the beginning of the dog. ...'"*
 
-However, the events of event sourcing are a very specific kind of event.
-They are the individual atomic decisions originated by the domain
-model of a software application. They result in immutable database records
-that are built up as an append-only log. And it is this log of events
-that is used as the "source of truth" to determine the current state of
-an application. The state of an application is partitioned into a collection
-of "aggregates" which are the enduring objects that enjoy adventures of change.
+However, the events of an event-sourced application are a very specific kind
+of event. They are the individual decisions originated by a domain model. They
+end up as immutable database records built up as an append-only log.
+And it is this log of events that is used as the "source of truth" to determine
+the current state of an application.
 
 
 What is event sourcing?
