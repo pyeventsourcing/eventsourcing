@@ -12,11 +12,11 @@ Contents
    :maxdepth: 3
 
    topics/installing
+   topics/support
    topics/introduction
    topics/tutorial
    topics/modules
    topics/examples
-   topics/support
    topics/release_notes
 
 
