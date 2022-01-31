@@ -57,7 +57,7 @@ def mutate_aggregate(
 ) -> Optional[T]:
     """
     Mutator function for aggregate projections, which works
-    by successively calling the mutate() method of the given
+    by successively calling mutate() on each of the given
     list of domain events.
     """
     for domain_event in domain_events:
@@ -90,7 +90,7 @@ class LRUCache(Cache[_S, _T]):
     Size limited caching that tracks accesses by recency.
 
     This is basically copied from functools.lru_cache. But
-    we need to know when there was a cache hit so we can
+    we need to know when there was a cache hit, so we can
     fast-forward the aggregate with new stored events.
     """
 
@@ -321,7 +321,7 @@ class Section:
     notification ID that are included in the section.
     The :data:`next_id` attribute describes the section ID
     of the next section, and will be set if the section contains
-    as many notifications are were requested.
+    as many notifications as were requested.
 
     Constructor arguments:
 
@@ -398,7 +398,7 @@ class LocalNotificationLog(NotificationLog):
         the returned section will describe the event
         notifications that are actually contained in
         the returned section, and may vary from the
-        requested section ID if there are less notifications
+        requested section ID if there are fewer notifications
         in the recorder than were requested, or if there
         are gaps in the sequence of recorded event notification.
         """
@@ -617,7 +617,6 @@ class Application(ABC):
         self.register_transcodings(transcoder)
         return transcoder
 
-    # noinspection SpellCheckingInspection
     def register_transcodings(self, transcoder: Transcoder) -> None:
         """
         Registers :class:`~eventsourcing.persistence.Transcoding`

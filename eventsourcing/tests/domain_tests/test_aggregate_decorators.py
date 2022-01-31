@@ -92,7 +92,6 @@ class TestAggregateDecorator(TestCase):
 
     def test_raises_when_decorating_aggregate_subclass(self):
         with self.assertRaises(TypeError) as cm:
-            # noinspection PyUnusedLocal
             @aggregate
             class MyAgg(Aggregate):
                 pass
