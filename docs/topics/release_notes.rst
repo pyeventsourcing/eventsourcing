@@ -73,8 +73,8 @@ Version 9.2.0 (forthcoming)
 * Improved Follower's process_event() method to detect when a tracking record
   conflict occurs (meaning event processing was somehow being repeated) hence
   avoiding and propagating an IntegrityError and thereby allowing processing
-  to continue to completion without this resulting in an error (in either
-  SingleThreadedRunner or MultiThreadedRunner).
+  to continue to completion without this resulting in an error (in both
+  SingleThreadedRunner and MultiThreadedRunner).
 
 
 Version 9.1.9 (released 5 December 2021)
