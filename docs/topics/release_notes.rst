@@ -29,14 +29,14 @@ Version 9.2.0 (forthcoming)
 * Added support for specifying the persistence module to be used by an application
   (see environment variable 'PERSISTENCE_MODULE') rather than specifying the topic
   of a factory class as the way to select a persistence module.
-* Added support for specifying application environment variables with environment
+* Added support for specifying all application environment variables with environment
   variable names that are prefixed with the application name, so that different
   applications can use a distinct set of environment variables (previously this
   was supported only for some environment variables).
 * Added support for setting the name of an application, that is different from the
   class name. This allows application classes to be renamed, and also supports
   having more than one application class in the same environment and persistence
-  namespace.
+  namespace, or "bounded context" (use the 'name' attribute of application classes).
 * Added ProcessEvent.collect_events() method and deprecated save(),
   effectively renaming this method for clarity of its purpose.
 * Added Application.notification_log and deprecated Application.log, effectively
