@@ -111,6 +111,59 @@ module and the persistence module. The persistence module depends on the domain 
 The domain module does not depend on any of the other modules. All these modules depend
 only on the Python Standard Library.
 
+Buy the book
+============
+
+Buy the book `Event Sourcing in Python <https://leanpub.com/eventsourcinginpython>`_
+for a detailed discussion of the design patterns which structure the library code.
+
+.. image:: event-sourcing-in-python-cover.png
+    :width: 32%
+    :target: https://leanpub.com/eventsourcinginpython
+
+.. image:: patterns-map.png
+    :width: 64%
+    :target: https://leanpub.com/eventsourcinginpython
+
+The book has three parts, with five chapters in each part.
+
+Part 1 is about domain models. It has patterns to define, trigger, and
+store domain model events, and to project domain model events into the
+enduring objects which trigger them.
+
+    1. Domain Event
+    2. Aggregate
+    3. Mapper
+    4. Recorder
+    5. Event Store
+
+Part 2 is about applications. It has patterns to unify the components of
+an event-sourced application, and to propagate the state of the application.
+
+    6. Notification Log
+    7. Snapshot
+    8. Repository
+    9. Application
+    10. Remote Log
+
+Part 3 is about systems, and has patterns to process events and to define
+and run systems of applications that process domain model events.
+
+    11. Log Reader
+    12. Policy
+    13. Process
+    14. System
+    15. Runner
+
+Each chapter describes one pattern, one characteristic occasion of design,
+one building block for event-sourced Domain-Driven Design. The descriptions
+are each intended to contribute determination to future design events that
+have the particular character of that pattern. Each chapter includes working
+examples that illustrate the characterised occasion of design, but which
+could be varied by the reader in different ways. The chapter examples build
+on examples from previous chapters.
+
+
 .. _Synopsis:
 
 Synopsis
