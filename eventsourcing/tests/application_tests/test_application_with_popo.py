@@ -123,7 +123,7 @@ class TestApplication(TestCase):
 
     def test_process_event_class(self):
         # Check the old 'ProcessEvent' class still works.
-        self.assertIs(ProcessEvent, ProcessingEvent)
+        self.assertTrue(issubclass(ProcessEvent, ProcessingEvent))
 
 
 class TestApplicationWithPOPO(ExampleApplicationTestCase):

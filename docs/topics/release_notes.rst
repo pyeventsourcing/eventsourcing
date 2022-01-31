@@ -39,6 +39,9 @@ Version 9.2.0 (forthcoming)
   namespace, or "bounded context" (use the 'name' attribute of application classes).
 * Added ProcessEvent.collect_events() method and deprecated save(),
   effectively renaming this method for clarity of its purpose.
+* Added ProcessingEvent to replace (and deprecate) ProcessEvent. The new name
+  avoids confusion with the object not being an "action" but rather used to
+  propagate processing of an aggregate event down to application subscribers.
 * Added Application.notification_log and deprecated Application.log, effectively
   renaming this attribute to avoid confusion with event-sourced logs.
 * Added connection pooling for the postgres and sqlite persistence modules

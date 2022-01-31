@@ -21,6 +21,7 @@ from typing import (
     cast,
 )
 
+from eventsourcing.application import ProcessEvent  # noqa: F401
 from eventsourcing.application import (
     Application,
     NotificationLog,
