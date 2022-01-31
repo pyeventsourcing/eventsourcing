@@ -510,9 +510,23 @@ class ProcessingEvent:
         self.collect_events(*aggregates, **kwargs)
 
 
-# Old deprecated name of ProcessingEvent class. Included for
-# backwards compatibility. Will be removed in a future version.
-ProcessEvent = ProcessingEvent
+class ProcessEvent(ProcessingEvent):
+    """Deprecated, use :class:`ProcessingEvent` instead.
+
+    Keeps together a :class:`~eventsourcing.persistence.Tracking`
+    object, which represents the position of a domain event notification
+    in the notification log of a particular application, and the
+    new domain events that result from processing that notification.
+    """
+
+    def __init__(self, tracking: Optional[Tracking] = None):
+        warn(
+            "'ProcessEvent' is deprecated, use 'ProcessingEvent' instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
+        super().__init__(tracking)
 
 
 class RecordingEvent:

@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from eventsourcing.domain import Aggregate
 from eventsourcing.persistence import Tracking
-from eventsourcing.system import ProcessingEvent
+from eventsourcing.system import ProcessEvent, ProcessingEvent
 from eventsourcing.tests.domain import BankAccount
 
 
@@ -53,6 +53,38 @@ class TestProcessingPolicy(TestCase):
         self.assertEqual(len(processing_event.events), 1)
         self.assertIsInstance(
             processing_event.events[0],
+            EmailNotification.Created,
+        )
+
+    def test_legacy_process_event(self):
+        # Open an account.
+        account = BankAccount.open(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+        events = account.collect_events()
+        created_event = events[0]
+
+        with warnings.catch_warnings(record=True) as w:
+            process_event = ProcessEvent(
+                tracking=Tracking(
+                    application_name="upstream_app",
+                    notification_id=5,
+                )
+            )
+
+        # Verify deprecation warning.
+        assert len(w) == 1
+        assert issubclass(w[-1].category, DeprecationWarning)
+        assert "'ProcessEvent' is deprecated, use 'ProcessingEvent' instead" in str(
+            w[-1].message
+        )
+
+        policy(created_event, process_event)
+
+        self.assertEqual(len(process_event.events), 1)
+        self.assertIsInstance(
+            process_event.events[0],
             EmailNotification.Created,
         )
 
