@@ -26,6 +26,9 @@ code and stored events is very possible.
 Version 9.2.0 (forthcoming)
 ---------------------------
 
+* Removed generic typing of 'Application' with the stored aggregate type.
+  An application repository can store more than one type of aggregate so this
+  typing (inheritance) could be confusing.
 * Added support for specifying the persistence module to be used by an application
   (see environment variable 'PERSISTENCE_MODULE') rather than specifying the topic
   of a factory class as the way to select a persistence module.
