@@ -19,11 +19,11 @@ is and isn't event sourcing demonstrated the need for such a statement. They
 effectively summarise the technical character of an adequate persistence mechanism
 for event sourcing, and happen to describe what this module essentially implements.
 
-In summary: there needs to be one sequence of events for each aggregate and one
-for the application as a whole; the positions in these sequences must be occupied
-uniquely, with new additions inserted at the end of the sequence; each event must
-recorded in both kinds of sequence atomically; and this atomic recording must be
-extended to include unique records that track which event notification has been
+In summary: there needs to be one sequence of events for each aggregate, and usually
+one sequence for the application as a whole; the positions in these sequences must be
+occupied uniquely, with new additions inserted at the end of the sequence; each event
+should be recorded in both kinds of sequence atomically; and this atomic recording can
+be extended to include unique records that track which event notification has been
 processed when new events result from processing an event notification.
 
 1. We need a **universal type** for storing :ref:`domain events <Domain events>`,
@@ -151,7 +151,7 @@ store uses a mapper to convert domain events to stored events, and
 it uses a recorder to insert stored events in a datastore.
 
 An **infrastructure factory** helps with the construction of persistence
-infrastructure classes, providing a common interface for applications to
+infrastructure objects, providing a common interface for applications to
 construct and configure a particular persistence mechanism from a particular
 persistence module.
 
@@ -178,7 +178,7 @@ is a Python :data:`int` that identifies the position of the domain event in that
 sequence. A stored event object also has a ``state`` attribute which is a Python
 :data:`bytes` object that is the serialized state of the :ref:`domain event
 <Domain events>` object. And it has a `topic` attribute which is a Python
-:data:`str` that identifies the class of the domain event (see `:ref:`Topics <Topics>`).
+:data:`str` that identifies the class of the domain event (see :ref:`Topics <Topics>`).
 
 .. code-block:: python
 
@@ -239,9 +239,10 @@ there will never be an aggregate event that is not available to be
 passed as an event notification message across a network, and there
 will never be an event notification message passed across a network
 that doesn't correspond to a recorded aggregate event. This solves
-the "dual writing" problem that occurs when separately a domain model
-is updated and then a message is put on a message queue, a problem
-that can cause catastrophic inconsistencies in the state of a system.
+the problem of "dual writing" in the production of event notifications
+that occurs when a domain model is updated and then separately a message
+is put on a message queue, a problem of reliability that may cause
+catastrophic inconsistencies in the state of a system.
 
 .. _Tracking objects:
 
@@ -278,9 +279,11 @@ a domain event notification is never processed twice. And by using the tracked
 position of the last event notification that has been processed, we can resume
 processing event notifications from an application at the correct next position.
 This constructs "exactly once" semantics when processing event notifications, by
-solving the "dual writing" problem that occurs when separately an event notification
-is consumed from a message queue with updates made to materialized view, and then
-an acknowledgement is sent back to the message queue.
+solving the problem of "dual writing" in the consumption of event notifications
+that occurs when an event notification is consumed from a message queue with
+updates made to materialized view and then separately an acknowledgement is
+sent back to the message queue, a problem of reliability that may cause
+catastrophic inconsistencies in the state of a system.
 
 .. _Recorder:
 
@@ -307,14 +310,6 @@ object that has the position in an application sequence of
 an event notification. Any stored events that are recorded
 with a tracking object will have been generated from processing
 that event notification.
-
-
-The library's :class:`~eventsourcing.persistence.Recorder`
-class is the abstract base class for all stored event recorders.
-
-.. literalinclude:: ../../eventsourcing/persistence.py
-   :pyobject: Recorder
-
 
 The library's :class:`~eventsourcing.persistence.AggregateRecorder` class
 is an abstract base class for all aggregate recorders.
@@ -357,9 +352,9 @@ that use "plain old Python objects", which simply keep stored events in a
 data structure in memory, and provides the fastest alternative for rapid
 development of event sourced applications. Stored events can be recorded
 and retrieved in microseconds, allowing a test suite to run in milliseconds.
-It ~4x faster than using SQLite with an in-memory database, and ~20x faster
-than using PostgreSQL. This is the default persistence module used by
-application classes.
+It is about 4x faster than using SQLite with an in-memory database, and
+approximately 20x faster than using PostgreSQL. This is the default
+persistence module used by application classes.
 
 The :class:`~eventsourcing.popo.POPOAggregateRecorder` class implements
 :class:`~eventsourcing.persistence.AggregateRecorder`.
@@ -491,7 +486,7 @@ Recorder classes are conveniently constructed by using an
 Transcoder
 ==========
 
-A transcoder to serializes and deserializes the state of domain events.
+A transcoder serializes and deserializes the state of domain events.
 
 The library's :class:`~eventsourcing.persistence.JSONTranscoder` class
 can be constructed without any arguments.
@@ -513,13 +508,13 @@ serialisation and deserialisation. The serialised state is a Python :class:`byte
     assert copy == {"a": 1}
 
 The library's :class:`~eventsourcing.persistence.JSONTranscoder` uses the Python
-:mod:`json` module. And so, by default, only the basic object types supported by that
+:mod:`json` module. And so, by default, only the object types supported by that
 module can be encoded and decoded.
 
 The transcoder can be extended by registering
 transcodings for the other types of object used in your domain model's event objects.
-A transcoding will convert other types of object to a representation of the non-basic
-type of object that uses the basic types that are supported. The transcoder method
+A transcoding will convert other types of object to a representation of the object
+that uses other types that are supported. The transcoder method
 :func:`~eventsourcing.persistence.Transcoder.register` is used to register
 individual transcodings with the transcoder.
 
@@ -528,17 +523,14 @@ individual transcodings with the transcoder.
 Transcodings
 ============
 
-In order to encode and decode non-basic types of object that are not supported by
+In order to encode and decode types of object that are not supported by
 the transcoder by default, custom transcodings need to be defined in code and
 registered with the :ref:`transcoder<Transcoder>` using the transcoder object's
 :func:`~eventsourcing.persistence.Transcoder.register` method. A transcoding
-will encode an instance of a non-basic type of object that cannot by default be
-encoded by the transcoder into a basic type of object that can be encoded by the
-transcoder, and will decode that representation into the original type of object.
-This makes it possible to transcode custom value objects, including custom types
-that contain custom types. The transcoder works recursively through the object
-and so included custom types do not need to be encoded by the transcoder, but
-will be converted subsequently.
+will encode an instance of a type of object into a representation of that object
+that can be encoded by the transcoder, and will decode that representation into
+the original type of object. This makes it possible to transcode custom value objects,
+including custom types that contain custom types.
 
 The library includes a limited collection of custom transcoding objects. For
 example, the library's :class:`~eventsourcing.persistence.UUIDAsHex` class
@@ -683,9 +675,10 @@ currently possible to transcode subclasses of the basic Python types that
 are supported by default, such as :class:`dict`, :class:`list`, :class:`tuple`,
 :class:`str`, :class:`int`, :class:`float`, and :class:`bool`. This behaviour
 also means an encoded :class:`tuple` will be decoded as a :class:`list`.
-This behaviour is coded in Python as C code, and can't be suspended without
-avoiding the use of this C code and thereby incurring a performance penalty
-in the transcoding of domain event objects.
+If you don't want tuples to be converted to lists, please avoid using tuples
+in event objects. This behaviour is coded in Python as C code, and can't be
+suspended without avoiding the use of this C code and thereby incurring a
+performance penalty in the transcoding of domain event objects.
 
 .. code-block:: python
 
