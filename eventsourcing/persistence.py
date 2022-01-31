@@ -395,13 +395,7 @@ class NotSupportedError(DatabaseError):
     """
 
 
-class Recorder(ABC):
-    """
-    Abstract base class for stored event recorders.
-    """
-
-
-class AggregateRecorder(Recorder):
+class AggregateRecorder(ABC):
     """
     Abstract base class for recorders that record and
     retrieve stored events for domain model aggregates.
