@@ -124,7 +124,7 @@ class CustomType2AsDict(Transcoding):
 
 
 class TestTranscoder(TestCase):
-    def test(self):
+    def test_nested_custom_type(self):
         transcoder = JSONTranscoder()
         obj = CustomType2(CustomType1(UUID("b2723fe2c01a40d2875ea3aac6a09ff5")))
         with self.assertRaises(TypeError) as cm:
