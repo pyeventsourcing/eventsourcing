@@ -36,7 +36,7 @@ because we also need to select the events for an :ref:`aggregate <Aggregates>`
 when reconstructing an aggregate from its events. The term 'aggregate sequence'
 shall be used to refer to the sequence of events of an individual aggregate.
 
-3. We need domain events to be to **recorded in sequential order**
+3. We need domain events to be **recorded in sequential order**
 in their aggregate sequence, because domain events will be generated
 in sequential order, and used in sequential order to reconstruct the
 state of the aggregate.
@@ -54,7 +54,7 @@ a **global sequence of event notifications** for the application
 as a whole. The term 'application sequence' shall be used to refer
 to the sequence of events of an application as a whole.
 
-6. We need event notifications to be to **recorded in sequential order**
+6. We need event notifications to be **recorded in sequential order**
 in their application sequence, because we also need to propagate event
 notifications in the order that they were recorded.
 
@@ -161,7 +161,7 @@ persistence module.
 Stored event
 ============
 
-A stored event object represents a domain event in way that allows
+A stored event object represents a domain event in a way that allows
 the domain event object to be reconstructed.
 
 The library's :class:`~eventsourcing.persistence.StoredEvent` class
@@ -261,8 +261,8 @@ is a Python frozen dataclass.
 
 The :class:`~eventsourcing.persistence.Tracking` class has a ``notification_id``
 attribute which in a Python :data:`int` that indicates the position in an application
-sequence of an event notification that has been processed. And it an
-``application_name`` attribute which in a Python :data:`str` that identifies
+sequence of an event notification that has been processed. And it has an
+``application_name`` attribute which is a Python :data:`str` that identifies
 the name of that application.
 
 .. code-block:: python
@@ -1208,7 +1208,7 @@ The optional environment variable ``POSTGRES_CONN_MAX_AGE`` is used to control t
 seconds before a connection is closed. By default this value is not set, and connections will
 be reused indefinitely, until an operational database error is encountered, or the connection
 is returned to a pool that is full. If this value is set to a positive integer, the connection
-will be closed after this number of seconds from the time it was created, but only  when the
+will be closed after this number of seconds from the time it was created, but only when the
 connection is not in use after the connection has been returned to the pool. If this value if
 set to zero, each connection will only be used once. Setting this value to an empty string has
 the same effect as not setting this value. Setting this value to any other value will cause an
