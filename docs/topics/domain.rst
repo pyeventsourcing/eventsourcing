@@ -194,6 +194,12 @@ domain event object was created. The reason for ordering a sequence of events by
 a gapless sequence that excludes the possibility for inserting new items before old ones,
 and timestamps are more likely to have such gaps and anyway can suffer from clock skews.
 
+The :class:`~eventsourcing.domain.DomainEvent` class also has a static method
+:func:`~eventsourcing.domain.DomainEvent.create_timestamp` which returns a
+a timezone-aware Python :class:`~datetime.datetime` that is created by calling
+:func:`datetime.now`. This method is used in various places in the library to
+create the ``timestamp`` value of domain event objects.
+
 In this library, domain event objects are specialised into two different kinds: 'aggregate event'
 and 'snapshot'.
 The various types of domain events that are triggered by an aggregate are referred to
@@ -211,7 +217,7 @@ class. See the :ref:`Snapshots <Snapshots>` section for more information about s
 Aggregate events
 ----------------
 
-Aggregate events represent original decisions by a domain model that advance
+Aggregate events represent original decisions made in a domain model that advance
 the state of an application. The library's :class:`~eventsourcing.domain.AggregateEvent`
 class is defined as a subclass of :class:`~eventsourcing.domain.DomainEvent`. It can be
 used to define domain-specific aggregate event objects in your domain model. Aggregate
@@ -459,7 +465,7 @@ below.
     from eventsourcing.domain import Aggregate
 
 
-It has three methods which can be used by and on subclasses:
+It has three methods which can be used by or on subclasses:
 
 * the "private" class method :func:`~eventsourcing.domain.MetaAggregate._create`
   will create new aggregate objects;
@@ -530,8 +536,9 @@ will be created by calling its :func:`~eventsourcing.domain.MetaAggregate.create
 method. It will also, by default, set the ``originator_version``
 to the value of ``1``. It derives the event's ``originator_topic`` value from the
 aggregate class itself, using the library's :func:`~eventsourcing.utils.get_topic`
-function. And it calls :func:`datetime.now` to create the event's ``timestamp``
-value, a timezone-aware Python :class:`~datetime.datetime` object.
+function. And it calls :func:`~eventsourcing.domain.DomainEvent.create_timestamp` to
+create a timezone-aware Python :class:`~datetime.datetime` object for the event's
+``timestamp`` value.
 
 The :func:`~eventsourcing.domain.MetaAggregate._create` method also accepts variable
 keyword arguments, ``**kwargs``, which if given will also be used to construct the event
@@ -606,8 +613,8 @@ identical, and equal to the timestamp of the "created" event.
 Triggering subsequent events
 ----------------------------
 
-Secondly, the :class:`~eventsourcing.domain.Aggregate` class has a
-method :func:`~eventsourcing.domain.Aggregate.trigger_event` which can be called
+Secondly, an :class:`~eventsourcing.domain.Aggregate` instance has a method
+:func:`~eventsourcing.domain.Aggregate.trigger_event` which can be called
 to trigger a subsequent aggregate event object.
 
 .. code-block:: python
@@ -625,29 +632,28 @@ of a transition of this private individuality to the publicity of many such thin
 one stubborn fact amongst the many which together determine the current state of an
 event-sourced application.
 
-Like the :func:`~eventsourcing.domain.MetaAggregate._create` method, the
-:func:`~eventsourcing.domain.Aggregate.trigger_event` method has a required
-positional argument ``event_class``, which is the type of aggregate
-event object to be triggered.
-
-It uses the ``id`` attribute of the aggregate as the ``originator_id`` of the new
-domain event. It uses the current aggregate ``version`` to create the next version
-number (by adding ``1``) and uses this value as the ``originator_version`` of the
-new aggregate event. It calls :func:`datetime.now` to create the ``timestamp``
-value of the new domain event, a timezone-aware Python :class:`~datetime.datetime` object
+The :func:`~eventsourcing.domain.Aggregate.trigger_event` method has a required
+positional argument ``event_class``, which is the type of aggregate event object
+to be triggered. It uses the ``id`` attribute of the aggregate as the ``originator_id``
+of the new domain event. The ``originator_version`` of the new aggregate event is
+calculated by adding ``1`` to the current aggregate ``version``. It calls
+:func:`~eventsourcing.domain.DomainEvent.create_timestamp` on the event class
+to create a timezone-aware Python :class:`~datetime.datetime` object that is used
+as the ``timestamp`` value of the domain event object.
 
 The :class:`~eventsourcing.domain.Aggregate` class has a nested
 :class:`~eventsourcing.domain.Aggregate.Event` class. It is defined
 as a subclass of the :class:`~eventsourcing.domain.AggregateEvent`
 discussed above in the section on :ref:`Aggregate events <Aggregate events>`.
 The :class:`~eventsourcing.domain.Aggregate.Event` class can be
-used as a base class to define the particular aggregate event classes
+used as a base class to define the subsequent aggregate event classes
 needed by in your domain model. For example, see the ``TrickAdded``
 class in the :ref:`Simple example <Aggregate simple example>` below.
-Aggregate event classes are usually named using past participles
-to describe what was decided by the command method, such as "Done",
-"Updated", "Closed"... names that are meaningful in your domain,
-expressing and helping to constitute your project's ubiquitous language.
+As mentioned above, aggregate event classes are normally named using
+past participles. The class name describes what was decided by the
+command method, such as "Done", "Updated", "Closed", names that are
+meaningful in your domain, expressing and helping to constitute your
+project's ubiquitous language.
 
 The :func:`~eventsourcing.domain.Aggregate.trigger_event` method also accepts arbitrary
 keyword-only arguments, which will be used to construct the aggregate event object. As with the
@@ -2135,13 +2141,13 @@ Timestamp timezones
 ===================
 
 The timestamp values mentioned above are timezone-aware Python :class:`datetime`
-objects, created by calling :func:`datetime.now`. By default, the timezone is set
-to UTC, as defined by :data:`timezone.utc` in Python's :data:`datetime` module. It
-is generally recommended to store date-times as timezone-aware values with UTC as
-the timezone, and then localize the values in the interface to the application,
-according to the local timezone of a particular user. You can localize date-time
-values by calling :data:`astimezone()` on a :class:`datetime` object, passing in
-a :class:`tzinfo` object.
+objects, created when :func:`eventsourcing.domain.DomainEvent.create_timestamp` calls
+:func:`datetime.now`. By default, the timezone is set to UTC, as defined by :data:`timezone.utc`
+in Python's :data:`datetime` module. It is generally recommended to store date-times as
+timezone-aware values with UTC as the timezone, and then localize the values in the
+interface to the application, according to the local timezone of a particular user.
+You can localize date-time values by calling :data:`astimezone()` on a
+:class:`datetime` object, passing in a :class:`tzinfo` object.
 
 .. code-block:: python
 
@@ -2467,9 +2473,11 @@ class, so that any snapshots will be upcast.
 If subsequently a new event is added that manipulates a new attribute that is expected to be initialised
 when the aggregate is created, in order that snapshots from earlier version will be upcast, the aggregate
 class attribute ``class_version`` will need to be set to ``4`` and a static method ``upcast_v3_v4()``
-defined on the aggregate class which upcasts the state of a previously created snapshot. In the example
-below, the new attribute ``d`` is initialised in the ``__init__()`` method, and a domain event which
-updates ``d`` is defined. Since the ``Created`` event class has not changed, it remains at version ``3``.
+defined on the aggregate class which upcasts the state of a previously created snapshot.
+
+In the example below, the new attribute ``d`` is initialised in the ``__init__()`` method, and an aggregate
+event which updates ``d`` is defined. Since the ``Created`` event class has not changed, it remains at
+version ``3``.
 
 .. code-block:: python
 

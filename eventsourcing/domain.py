@@ -57,6 +57,10 @@ class DomainEvent(ABC, Generic[T]):
 
     @staticmethod
     def create_timestamp() -> datetime:
+        """
+        Returns a timezone aware :class:`~datetime.datetime` object
+        that is created by calling :class:`~datetime.datetime.now()`.
+        """
         return datetime.now(tz=TZINFO)
 
 
