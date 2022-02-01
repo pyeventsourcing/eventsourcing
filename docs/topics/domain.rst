@@ -1038,9 +1038,8 @@ and imagine using the second index aggregate to get the ID of the page.
     assert index2.ref == page.id
 
 
-Saving and retrieving aggregates by ID is demonstrated in the discussion
-about :ref:`saving multiple aggregates <Saving multiple aggregates>` in
-the :ref:`applications <Application objects>` documentation.
+This technique of using names to discover aggregates is demonstrated further
+in the discussion about :ref:`saving multiple aggregates <Saving multiple aggregates>`.
 
 Alternative styles for implementing aggregate projector
 -------------------------------------------------------
