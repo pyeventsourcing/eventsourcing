@@ -1,6 +1,6 @@
-================================================================
-:mod:`~eventsourcing.persistence` --- Persistence infrastructure
-================================================================
+=================================================
+:mod:`~eventsourcing.persistence` --- Persistence
+=================================================
 
 This module provides a :ref:`cohesive mechanism <Cohesive mechanism>`
 for storing and retrieving :ref:`domain events <Domain events>`.

@@ -1,6 +1,6 @@
-================================================================
-:mod:`~eventsourcing.application` --- Event-sourced applications
-================================================================
+==================================================
+:mod:`~eventsourcing.application` --- Applications
+==================================================
 
 This module helps with developing event-sourced applications.
 
