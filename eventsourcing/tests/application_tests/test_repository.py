@@ -1,4 +1,3 @@
-from datetime import datetime
 from decimal import Decimal
 from functools import reduce
 from unittest.case import TestCase
@@ -10,7 +9,7 @@ from eventsourcing.application import (
     LRUCache,
     Repository,
 )
-from eventsourcing.domain import TZINFO, Aggregate, Snapshot
+from eventsourcing.domain import Aggregate, Snapshot
 from eventsourcing.persistence import (
     DatetimeAsISO,
     DecimalAsStr,
@@ -78,7 +77,7 @@ class TestRepository(TestCase):
         snapshot = Snapshot(
             originator_id=account.id,
             originator_version=account.version,
-            timestamp=datetime.now(tz=TZINFO),
+            timestamp=Snapshot.create_timestamp(),
             topic=get_topic(type(account)),
             state=account.__dict__,
         )
@@ -260,7 +259,7 @@ class TestRepository(TestCase):
         snapshot = Snapshot(
             originator_id=account.id,
             originator_version=account.version,
-            timestamp=datetime.now(tz=TZINFO),
+            timestamp=Snapshot.create_timestamp(),
             topic=get_topic(type(account)),
             state=account.__dict__,
         )

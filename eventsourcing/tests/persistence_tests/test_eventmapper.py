@@ -1,11 +1,9 @@
-from datetime import datetime
 from decimal import Decimal
 from unittest.case import TestCase
 from uuid import UUID, uuid4
 
 from eventsourcing.cipher import AESCipher
 from eventsourcing.compressor import ZlibCompressor
-from eventsourcing.domain import TZINFO
 from eventsourcing.persistence import (
     DatetimeAsISO,
     DecimalAsStr,
@@ -15,6 +13,7 @@ from eventsourcing.persistence import (
     UUIDAsHex,
 )
 from eventsourcing.tests.domain import BankAccount
+from eventsourcing.utils import Environment
 
 
 class TestMapper(TestCase):
@@ -26,7 +25,9 @@ class TestMapper(TestCase):
         transcoder.register(DatetimeAsISO())
 
         # Construct cipher.
-        cipher = AESCipher(cipher_key=AESCipher.create_key(16))
+        environment = Environment()
+        environment[AESCipher.CIPHER_KEY] = AESCipher.create_key(16)
+        cipher = AESCipher(environment)
 
         # Construct compressor.
         compressor = ZlibCompressor()
@@ -38,7 +39,7 @@ class TestMapper(TestCase):
         domain_event = BankAccount.TransactionAppended(
             originator_id=uuid4(),
             originator_version=123456,
-            timestamp=datetime.now(tz=TZINFO),
+            timestamp=BankAccount.TransactionAppended.create_timestamp(),
             amount=Decimal("10.00"),
         )
 

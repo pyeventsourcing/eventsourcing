@@ -2,20 +2,25 @@ from base64 import b64encode
 from unittest.case import TestCase
 
 from eventsourcing.cipher import AESCipher
+from eventsourcing.utils import Environment
 
 
 class TestAESCipher(TestCase):
     def test_createkey(self):
+        environment = Environment()
 
         # Valid key lengths.
         key = AESCipher.create_key(16)
-        AESCipher(key)
+        environment["CIPHER_KEY"] = key
+        AESCipher(environment)
 
         key = AESCipher.create_key(24)
-        AESCipher(key)
+        environment["CIPHER_KEY"] = key
+        AESCipher(environment)
 
         key = AESCipher.create_key(32)
-        AESCipher(key)
+        environment["CIPHER_KEY"] = key
+        AESCipher(environment)
 
         # Non-valid key lengths (on generate key).
         with self.assertRaises(ValueError):
@@ -35,29 +40,36 @@ class TestAESCipher(TestCase):
             return b64encode(AESCipher.random_bytes(num_bytes)).decode("utf8")
 
         key = create_key(12)
+        environment["CIPHER_KEY"] = key
         with self.assertRaises(ValueError):
-            AESCipher(key)
+            AESCipher(environment)
 
         key = create_key(20)
+        environment["CIPHER_KEY"] = key
         with self.assertRaises(ValueError):
-            AESCipher(key)
+            AESCipher(environment)
 
         key = create_key(28)
+        environment["CIPHER_KEY"] = key
         with self.assertRaises(ValueError):
-            AESCipher(key)
+            AESCipher(environment)
 
         key = create_key(36)
+        environment["CIPHER_KEY"] = key
         with self.assertRaises(ValueError):
-            AESCipher(key)
+            AESCipher(environment)
 
     def test_encrypt_and_decrypt(self):
+        environment = Environment()
+
         key = AESCipher.create_key(16)
+        environment["CIPHER_KEY"] = key
 
         # Check plain text can be encrypted and recovered.
         plain_text = b"some text"
-        cipher = AESCipher(key)
+        cipher = AESCipher(environment)
         cipher_text = cipher.encrypt(plain_text)
-        cipher = AESCipher(key)
+        cipher = AESCipher(environment)
         recovered_text = cipher.decrypt(cipher_text)
         self.assertEqual(recovered_text, plain_text)
 
@@ -75,6 +87,7 @@ class TestAESCipher(TestCase):
 
         # Check raises on invalid key.
         key = AESCipher.create_key(16)
-        cipher = AESCipher(key)
+        environment["CIPHER_KEY"] = key
+        cipher = AESCipher(environment)
         with self.assertRaises(ValueError):
             cipher.decrypt(cipher_text)

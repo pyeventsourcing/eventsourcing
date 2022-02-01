@@ -845,7 +845,7 @@ class TestSubsequentEvents(TestCase):
         event = AggregateEvent(
             originator_id=a.id,
             originator_version=a.version,  # NB not +1.
-            timestamp=datetime.now(tz=TZINFO),
+            timestamp=AggregateEvent.create_timestamp(),
         )
         # Check raises "VersionError".
         with self.assertRaises(OriginatorVersionError):
@@ -858,7 +858,7 @@ class TestSubsequentEvents(TestCase):
         event = AggregateEvent(
             originator_id=uuid4(),
             originator_version=a.version + 1,
-            timestamp=datetime.now(tz=TZINFO),
+            timestamp=AggregateEvent.create_timestamp(),
         )
         # Check raises "VersionError".
         with self.assertRaises(OriginatorIDError):

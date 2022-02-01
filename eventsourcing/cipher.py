@@ -6,6 +6,7 @@ from Crypto.Cipher._mode_gcm import GcmMode
 from Crypto.Cipher.AES import key_size
 
 from eventsourcing.persistence import Cipher
+from eventsourcing.utils import Environment
 
 
 class AESCipher(Cipher):
@@ -13,6 +14,7 @@ class AESCipher(Cipher):
     Cipher strategy that uses AES cipher in GCM mode.
     """
 
+    CIPHER_KEY = "CIPHER_KEY"
     KEY_SIZES = key_size
 
     @staticmethod
@@ -38,12 +40,15 @@ class AESCipher(Cipher):
         return os.urandom(num_bytes)
 
     # noinspection PyMissingConstructor
-    def __init__(self, cipher_key: str):
+    def __init__(self, environment: Environment):
         """
         Initialises AES cipher with ``cipher_key``.
 
         :param str cipher_key: 16, 24, or 32 bytes encoded as base64
         """
+        cipher_key = environment.get(self.CIPHER_KEY)
+        if not cipher_key:
+            raise EnvironmentError(f"'{self.CIPHER_KEY}' not set in env")
         key = b64decode(cipher_key.encode("utf8"))
         AESCipher.check_key_size(len(key))
         self.key = key

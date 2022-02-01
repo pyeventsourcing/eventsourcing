@@ -38,7 +38,6 @@ from eventsourcing.persistence import (
     DecimalAsStr,
     EventStore,
     InfrastructureFactory,
-    JSONTranscoder,
     Mapper,
     Notification,
     Recording,
@@ -627,7 +626,7 @@ class Application(ABC):
         Constructs a :class:`~eventsourcing.persistence.Transcoder`
         for use by the application.
         """
-        transcoder = JSONTranscoder()
+        transcoder = self.factory.transcoder()
         self.register_transcodings(transcoder)
         return transcoder
 

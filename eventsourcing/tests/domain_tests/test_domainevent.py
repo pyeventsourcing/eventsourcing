@@ -3,7 +3,7 @@ from datetime import datetime
 from unittest.case import TestCase
 from uuid import UUID, uuid4
 
-from eventsourcing.domain import TZINFO, DomainEvent, MetaDomainEvent
+from eventsourcing.domain import DomainEvent, MetaDomainEvent
 
 
 class TestMetaDomainEvent(TestCase):
@@ -45,7 +45,7 @@ class TestDomainEvent(TestCase):
         event3 = AccountOpened(
             originator_id=uuid4(),
             originator_version=0,
-            timestamp=datetime.now(tz=TZINFO),
+            timestamp=AccountOpened.create_timestamp(),
             full_name="Alice",
         )
 
@@ -64,7 +64,7 @@ class TestDomainEvent(TestCase):
         event4 = FullNameUpdated(
             originator_id=event3.originator_id,
             originator_version=1,
-            timestamp=datetime.now(tz=TZINFO),
+            timestamp=FullNameUpdated.create_timestamp(),
             full_name="Bob",
         )
 

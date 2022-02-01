@@ -236,9 +236,9 @@ class Cipher(ABC):
 
     # noinspection PyUnusedLocal
     @abstractmethod
-    def __init__(self, cipher_key: str):
+    def __init__(self, environment: Environment):
         """
-        Initialises cipher with given key.
+        Initialises cipher with given environment.
         """
 
     @abstractmethod
@@ -564,7 +564,6 @@ class InfrastructureFactory(ABC):
     PERSISTENCE_MODULE = "PERSISTENCE_MODULE"
     MAPPER_TOPIC = "MAPPER_TOPIC"
     CIPHER_TOPIC = "CIPHER_TOPIC"
-    CIPHER_KEY = "CIPHER_KEY"
     COMPRESSOR_TOPIC = "COMPRESSOR_TOPIC"
     IS_SNAPSHOTTING_ENABLED = "IS_SNAPSHOTTING_ENABLED"
 
@@ -631,6 +630,14 @@ class InfrastructureFactory(ABC):
         """
         self.env = env
 
+    def transcoder(
+        self,
+    ) -> Transcoder:
+        """
+        Constructs a transcoder.
+        """
+        return JSONTranscoder()
+
     def mapper(
         self,
         transcoder: Transcoder,
@@ -651,20 +658,14 @@ class InfrastructureFactory(ABC):
         to construct a cipher.
         """
         cipher_topic = self.env.get(self.CIPHER_TOPIC)
-        cipher_key = self.env.get(self.CIPHER_KEY)
         cipher: Optional[Cipher] = None
-        if cipher_topic:
-            if not cipher_key:
-                raise EnvironmentError(
-                    f"'{self.CIPHER_KEY}' not set in env, "
-                    f"although '{self.CIPHER_TOPIC}' was set"
-                )
-        elif cipher_key:
-            cipher_topic = "eventsourcing.cipher:AESCipher"
+        default_cipher_topic = "eventsourcing.cipher:AESCipher"
+        if self.env.get("CIPHER_KEY") and not cipher_topic:
+            cipher_topic = default_cipher_topic
 
-        if cipher_topic and cipher_key:
+        if cipher_topic:
             cipher_cls: Type[Cipher] = resolve_topic(cipher_topic)
-            cipher = cipher_cls(cipher_key=cipher_key)
+            cipher = cipher_cls(self.env)
 
         return cipher
 

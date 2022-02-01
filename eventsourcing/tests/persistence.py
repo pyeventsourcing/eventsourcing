@@ -14,7 +14,7 @@ from uuid import uuid4
 
 from eventsourcing.cipher import AESCipher
 from eventsourcing.compressor import ZlibCompressor
-from eventsourcing.domain import TZINFO, DomainEvent
+from eventsourcing.domain import DomainEvent
 from eventsourcing.persistence import (
     AggregateRecorder,
     ApplicationRecorder,
@@ -822,7 +822,7 @@ class InfrastructureFactoryTestCase(ABC, TestCase):
         del self.env[self.factory.CIPHER_TOPIC]
 
         cipher_key = AESCipher.create_key(16)
-        self.env[self.factory.CIPHER_KEY] = cipher_key
+        self.env[AESCipher.CIPHER_KEY] = cipher_key
 
         # Create mapper with cipher.
         mapper = self.factory.mapper(transcoder=self.transcoder)
@@ -839,7 +839,7 @@ class InfrastructureFactoryTestCase(ABC, TestCase):
 
         self.env[self.factory.CIPHER_TOPIC] = get_topic(AESCipher)
         cipher_key = AESCipher.create_key(16)
-        self.env[self.factory.CIPHER_KEY] = cipher_key
+        self.env[AESCipher.CIPHER_KEY] = cipher_key
 
         mapper = self.factory.mapper(transcoder=self.transcoder)
         self.assertIsInstance(mapper, Mapper)
@@ -851,8 +851,8 @@ class InfrastructureFactoryTestCase(ABC, TestCase):
         self.env[self.factory.CIPHER_TOPIC] = get_topic(AESCipher)
         cipher_key1 = AESCipher.create_key(16)
         cipher_key2 = AESCipher.create_key(16)
-        self.env["APP1_" + self.factory.CIPHER_KEY] = cipher_key1
-        self.env["APP2_" + self.factory.CIPHER_KEY] = cipher_key2
+        self.env["APP1_" + AESCipher.CIPHER_KEY] = cipher_key1
+        self.env["APP2_" + AESCipher.CIPHER_KEY] = cipher_key2
 
         mapper1: Mapper = self.factory.mapper(
             transcoder=self.transcoder,
@@ -861,7 +861,7 @@ class InfrastructureFactoryTestCase(ABC, TestCase):
         domain_event = DomainEvent(
             originator_id=uuid4(),
             originator_version=1,
-            timestamp=datetime.now(tz=TZINFO),
+            timestamp=DomainEvent.create_timestamp(),
         )
         stored_event = mapper1.from_domain_event(domain_event)
         copy = mapper1.to_domain_event(stored_event)
