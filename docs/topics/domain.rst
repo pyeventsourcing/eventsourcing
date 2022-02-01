@@ -78,6 +78,46 @@ basic object-orientated programming, and we can recognise the use of command and
 query methods as the more refined pattern called CQS, the 'consistency boundary'
 notion gives to the aggregates in *Domain-Driven Design* their distinctive character.
 
+This distinctive character of aggregates in *Domain-Driven Design*, of constructing
+a serially ordered set of decisions, gives the domain models of *Domain-Driven Design*
+their distinctive character. Because the domain models of *Domain-Driven Design* are
+comprised of many aggregates, they therefore have the distinctive character of constructing
+many individual sequences of decisions.
+
+Because we might want to develop a domain model for supporting any domain, we need to
+consider whether or not the structure 'many individual sequences of decisions'
+is generally adequate. In answering this question, we can turn to the philosophical scheme
+of Alfred North Whitehead, explained most fully in his famous book *Process and Reality*.
+The term 'domain event' corresponds to Whitehead's notion 'actual entity' (also known
+as 'actual occasion'). The term 'aggregate' corresponds to the notion 'enduring object'.
+A sequence of decisions corresponds to Whitehead's notion of 'personal order'. And the
+term 'domain model' understood as many strands of enduring object corresponds to the notion
+'corpuscular society'. This isn't the place to discuss Whitehead's scheme in great detail,
+however it is worth noting that Whitehead proposes these distinctions as his categories
+of existence, and this general structure as being adequate and applicable for analysing
+(and therefore for designing) the ordinary objects we may encounter in the world.
+
+    *An ordinary physical object, which has temporal endurance, is a society
+    [of 'actual occasions' or 'actual entities']. In the ideally simple case,
+    it has personal [serial] order and is an 'enduring object'. A society may
+    (or may not) be analysable into many strands of 'enduring objects'. This
+    will be the case for most ordinary physical objects. These enduring objects
+    and 'societies' analysable into strands of enduring objects, are the permanent
+    entities which enjoy adventures of change throughout time and space. For example,
+    they form the subject-matter of the science of dynamics. Actual entities perish,
+    but do not change; they are what they are. A nexus which (i) enjoys social order,
+    and (ii) is analysable into strands of enduring objects may be termed a
+    'corpuscular society'.*
+
+We know that Whitehead's scheme was enormously influential for Christopher Alexander
+when inventing his pattern language scheme. And we know that Christopher Alexander's
+scheme was enormously influential for Eric Evans when writing *Domain-Driven Design*.
+What wasn't known by Eric Evans was the influence on Alexander's work of Whitehead's
+scheme. Nevertheless, something of Whitehead's scheme has been carried through this
+chain of influence, and the appearance in software development of a general model
+that involves many strands of enduring objects as the structure of analysis and design
+is, in my understanding, the primary way in which *Domain-Driven Design* constitutes a
+novel and important advance for the development of domain models in software.
 
 .. _Aggregates:
 
