@@ -1039,7 +1039,8 @@ and imagine using the second index aggregate to get the ID of the page.
 
 
 This technique of using names to discover aggregates is demonstrated further
-in the discussion about :ref:`saving multiple aggregates <Saving multiple aggregates>`.
+in the discussion about :ref:`saving multiple aggregates <Saving multiple aggregates>`
+in the application module documentation.
 
 Alternative styles for implementing aggregate projector
 -------------------------------------------------------

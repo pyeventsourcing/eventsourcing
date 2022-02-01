@@ -750,6 +750,10 @@ event-sourced log.
 Event-sourced log
 =================
 
+The application :func:`~eventsourcing.application.Application.save` method
+can be used to collect and store new events from more than one aggregate.
+It can also be used to store the events of an event-sourced log.
+
 The library class :class:`~eventsourcing.application.EventSourcedLog`
 can be used with subclasses of :class:`~eventsourcing.application.LogEvent`
 to trigger log events that can be saved and listed. An event-sourced
