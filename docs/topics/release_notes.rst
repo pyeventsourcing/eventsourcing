@@ -23,8 +23,8 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
-Version 9.2.0 (forthcoming)
----------------------------
+Version 9.2.0 (released 1 February 2022)
+----------------------------------------
 
 * Removed generic typing of 'Application' with the stored aggregate type.
   An application repository can store more than one type of aggregate so this
