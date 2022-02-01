@@ -1048,16 +1048,17 @@ The advantage of defining ``apply()`` methods on the aggregate event classes
 is that the aggregate projector is implemented in a way that keeps the code
 that mutates the aggregate state close to the code that defines the event class.
 
-However, there are two important disadvantages when defining ``apply()`` methods
-on the aggregate event classes. Firstly, the aggregate that is to be mutated is
-an argument to the event's method. There is a "reverse intuition" that
-comes with mutating method arguments. It is more natural to set values on ``self``
-using the values given by method arguments, than to set values on the method
-argument using values taken from ``self``. Secondly, it is perhaps illegitimate
-for the event to use "private" attributes of the aggregate, but then if
-we code for mutating the state of the aggregate with "public" methods
-we extend the "public interface" of the aggregate beyond the event-triggering
-command methods which genuine clients of the aggregate should be using.
+However, there are two important disadvantages that come with using ``apply()``
+methods on the aggregate event classes to define the aggregate projector function.
+Firstly, the aggregate that is to be mutated is an argument to the event's
+method. There is a "reverse intuition" that comes with mutating method arguments.
+It is more natural to set values on ``self`` using the values given by method
+arguments, than to set values on the method argument using values taken from
+``self``. Secondly, it is perhaps illegitimate for the event to use "private"
+attributes of the aggregate, but then if we code for mutating the state of the
+aggregate with "public" methods we extend the "public interface" of the aggregate
+beyond the event-triggering command methods which genuine clients of the aggregate
+should be using.
 
 An alternative to defining :func:`~eventsourcing.domain.AggregateEvent.apply` methods
 on all the aggregate event classes is to define the aggregate mutator function on
