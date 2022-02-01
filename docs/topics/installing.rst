@@ -19,12 +19,12 @@ avoid installing future incompatible releases, it is recommended to specify
 the major and minor version numbers.
 
 As an example, the expression below would install the latest version of the
-v9.1.x release, allowing future bug fixes released with point version number
+v9.2.x release, allowing future bug fixes released with point version number
 increments.
 
 ::
 
-    eventsourcing<=9.1.99999
+    eventsourcing<=9.2.99999
 
 Specifying the major and minor version number in this way will avoid any
 potentially destabilising additional features introduced with minor version
