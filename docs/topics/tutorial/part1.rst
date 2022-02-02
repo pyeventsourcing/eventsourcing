@@ -135,8 +135,8 @@ As above, we can call the method ``add_trick()``. The given value is appended to
 
     assert dog.tricks == ['roll over']
 
-By redefining the ``Dog`` class as an event-sourced aggregate in this way, we can
-generate a sequence of event objects that can be used to reconstruct the aggregate.
+By redefining the ``Dog`` class as an event-sourced aggregate in this way, we can generate a sequence 
+of event objects that can be recorded and used later to reconstruct the aggregate.
 
 We can get the events from the aggregate by calling ``collect_events()``.
 
@@ -170,7 +170,7 @@ when the copy was taken.  Let's explore that a little:
     assert partial_copy.tricks == []
 
 Here, we've stripped off the last event in ``dog``'s history.  That corresponds to adding the ``roll over`` trick.
-We then use that partial history to create another copy of ``dog``.  We can see that the name is set correctly, but 
+We then use that partial history to create another copy of ``dog``.  We can see that the name is set correctly, but the 
 ``roll over`` trick hasn't been added.
 
 Event sourced aggregates keep a record of history. They're like a built-in Git repository for each aggregate that can be
