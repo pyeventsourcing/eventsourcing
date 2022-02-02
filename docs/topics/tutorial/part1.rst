@@ -164,7 +164,7 @@ when the copy was taken.  Let's explore that a little:
     partial_events = events[:-1]
     partial_copy = None
     for e in partial_events:
-        partial_copy = e.mutate(copy)
+        partial_copy = e.mutate(partial_copy)
     
     assert dog.name == 'Fido'
     assert partial_copy.tricks == []
@@ -175,6 +175,7 @@ We then use that partial history to create another copy of ``dog``.  We can see 
 
 Event sourced aggregates keep a record of history. They're like a built-in Git repository for each aggregate that can be
 accessed at run time.  At any given point, we can go "back through time" to observe the aggregate's change history.
+For example: imagine a bank acount that carries its transaction history with it.
 
 Event-sourced aggregates can be developed and tested independently.
 
