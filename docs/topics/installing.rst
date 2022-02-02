@@ -85,7 +85,9 @@ Sphinx, Coverage.py, Black, mypy, Flake8, and isort.
 
 ::
 
-    $ pip install ".[dev]"
+    $ pip install -U pip
+    $ pip install wheel
+    $ pip install -e ".[dev]"
 
 Alternatively, the project's Makefile can be used to the same effect with
 the following command.
