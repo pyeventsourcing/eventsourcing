@@ -155,7 +155,22 @@ We can then reconstruct the aggregate by calling ``mutate()`` on the collected e
 
     assert copy == dog
 
+
 Event-sourced aggregates can be developed and tested independently.
+
+.. code-block:: python
+
+    def test_dog():
+        dog = Dog('Fido')
+        assert dog.name == 'Fido'
+        assert dog.tricks == []
+
+        dog.add_trick('roll over')
+        assert dog.tricks == ['roll over']
+    
+    # Run the test
+    test_dog()
+
 
 However, event-sourced aggregates are normally used within an application object, so
 that aggregate events can be stored in a database, and so that aggregates can
