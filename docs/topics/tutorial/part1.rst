@@ -135,8 +135,8 @@ As above, we can call the method ``add_trick()``. The given value is appended to
 
     assert dog.tricks == ['roll over']
 
-By redefining the ``Dog`` class as an event-sourced aggregate in this way, we can
-generate a sequence of event objects that can be used to reconstruct the aggregate.
+By redefining the ``Dog`` class as an event-sourced aggregate in this way, we can generate a sequence 
+of event objects that can be recorded and used later to reconstruct the aggregate.
 
 We can get the events from the aggregate by calling ``collect_events()``.
 
@@ -156,7 +156,7 @@ We can then reconstruct the aggregate by calling ``mutate()`` on the collected e
     assert copy == dog
 
 
-Event-sourced aggregates can be developed and tested independently.  For example:
+Event-sourced aggregates can be developed and tested independently.
 
 .. code-block:: python
 
