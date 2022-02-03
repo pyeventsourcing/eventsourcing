@@ -155,28 +155,6 @@ We can then reconstruct the aggregate by calling ``mutate()`` on the collected e
 
     assert copy == dog
 
-Now, at this point, you might reasonably observe that, with conventional code, you would
-simply write ``copy = dog``.  But that wouldn't give us the history; just the current state of ``dog`` 
-when the copy was taken.  Let's explore that a little:
-
-.. code-block:: python
-
-    partial_events = events[:-1]
-    partial_copy = None
-    for e in partial_events:
-        partial_copy = e.mutate(partial_copy)
-    
-    assert dog.name == 'Fido'
-    assert partial_copy.tricks == []
-
-Here, we've stripped off the last event in ``dog``'s history.  That corresponds to adding the ``roll over`` trick.
-We then use that partial history to create another copy of ``dog``.  We can see that the name is set correctly, but the 
-``roll over`` trick hasn't been added.
-
-Event sourced aggregates keep a record of history. They're like a built-in Git repository for each aggregate that can be
-accessed at run time.  At any given point, we can go "back through time" to observe the aggregate's change history.
-For example: imagine a bank acount that carries its transaction history with it.
-
 Event-sourced aggregates can be developed and tested independently.
 
 However, event-sourced aggregates are normally used within an application object, so
