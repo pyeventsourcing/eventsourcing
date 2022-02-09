@@ -191,7 +191,7 @@ class AggregateRecorderTestCase(TestCase, ABC):
 
         number = 100
         duration = timeit(insert, number=number)
-        print(self, f"{duration / number:.9f}")
+        print(self, f"\n{1000000 * duration / number:.1f}μs per insert")
 
 
 class ApplicationRecorderTestCase(TestCase, ABC):
