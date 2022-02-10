@@ -92,7 +92,7 @@ class JSONTranscoder(Transcoder):
 
     def __init__(self) -> None:
         super().__init__()
-        self.encoder = json.JSONEncoder(default=self._encode_obj)
+        self.encoder = json.JSONEncoder(default=self._encode_obj, separators=(",", ":"))
         self.decoder = json.JSONDecoder(object_hook=self._decode_obj)
 
     def encode(self, obj: Any) -> bytes:
@@ -115,7 +115,7 @@ class JSONTranscoder(Transcoder):
                 f"Object of type {type(o)} is not "
                 "serializable. Please define and register "
                 "a custom transcoding for this type."
-            )
+            ) from None
         else:
             return {
                 "_type_": transcoding.name,
