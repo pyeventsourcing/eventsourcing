@@ -57,7 +57,7 @@ class TestMapper(TestCase):
         assert copy.timestamp == domain_event.timestamp, copy.timestamp
         assert copy.originator_version == domain_event.originator_version
 
-        assert len(stored_event.state) == 171, len(stored_event.state)
+        assert len(stored_event.state) == 162, len(stored_event.state)
 
         # Construct mapper with cipher and compressor.
         mapper = Mapper(
