@@ -207,7 +207,7 @@ used to mutate the state of the aggregate.
             self.tricks.append(trick)
 
 
-Optionally :ref:`configure an application <Application environment>` by setting
+Optionally :ref:`configure an application <Application configuration>` by setting
 environment variables, for example to enable aggregate caching or to specify
 a `persistence module <persistence.html>`_.
 

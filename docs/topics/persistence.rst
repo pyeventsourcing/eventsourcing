@@ -497,12 +497,12 @@ transcodes a Python :class:`~uuid.UUID` objects as a hexadecimal string.
 
 .. code-block:: python
 
-    from uuid import uuid4
+    from uuid import UUID
     from eventsourcing.persistence import UUIDAsHex
 
     transcoding = UUIDAsHex()
 
-    id1 = uuid4()
+    id1 = UUID("ffffffffffffffffffffffffffffffff")
     data = transcoding.encode(id1)
     copy = transcoding.decode(data)
     assert copy == id1
@@ -737,10 +737,10 @@ avoid defining transcodings that return such a thing.
 .. code-block:: python
 
     expected_data = (
-        b'{"_type_": "complex_custom_value", "_data_": {"_type_": '
-        b'"simple_custom_value", "_data_": {"id": {"_type_": '
-        b'"uuid_hex", "_data_": "b2723fe2c01a40d2875ea3aac6a09ff5"},'
-        b' "date": {"_type_": "date_iso", "_data_": "2000-02-20"}'
+        b'{"_type_":"complex_custom_value","_data_":{"_type_":'
+        b'"simple_custom_value","_data_":{"id":{"_type_":'
+        b'"uuid_hex","_data_":"b2723fe2c01a40d2875ea3aac6a09ff5"},'
+        b'"date":{"_type_":"date_iso","_data_":"2000-02-20"}'
         b'}}}'
     )
     assert data == expected_data
@@ -772,10 +772,14 @@ The :func:`~eventsourcing.persistence.Mapper.from_domain_event` method of the
 
     from eventsourcing.domain import DomainEvent, TZINFO
 
-    domain_event = DomainEvent(
-        originator_id = id1,
-        originator_version = 1,
-        timestamp = datetime.now(tz=TZINFO),
+    class MyDomainEvent(DomainEvent):
+        obj: ComplexCustomValue
+
+    domain_event = MyDomainEvent(
+        originator_id=id1,
+        originator_version=1,
+        timestamp=MyDomainEvent.create_timestamp(),
+        obj=obj1,
     )
 
     stored_event = mapper.from_domain_event(domain_event)
@@ -791,29 +795,74 @@ The :func:`~eventsourcing.persistence.Mapper.to_domain_event` method of the
     assert mapper.to_domain_event(stored_event) == domain_event
 
 
+.. _Compression:
+
+Compression
+===========
+
+A compressor can be used to reduce the size of stored events.
+
+The mapper's constructor argument ``compressor`` accepts
+:class:`~eventsourcing.compressor.Compressor` objects.
+
+The library's :class:`~eventsourcing.compressor.ZlibCompressor` class
+implements the abstract base class :class:`~eventsourcing.compressor.Compressor`.
+It can be used to compress and decompress the state of stored events using
+Python's :mod:`zlib` module.
+
+.. code-block:: python
+
+    from eventsourcing.compressor import ZlibCompressor
+
+    compressor = ZlibCompressor()
+
+    mapper = Mapper(
+        transcoder=transcoder,
+        compressor=compressor,
+    )
+
+    compressed_stored_event = mapper.from_domain_event(domain_event)
+    assert mapper.to_domain_event(compressed_stored_event) == domain_event
+
+The compressed state of a stored event will normally be much
+smaller than the state of a stored event that is not compressed.
+
+.. code-block:: python
+
+    assert len(compressed_stored_event.state) < len(stored_event.state)
+
+If you want to use another compression strategy, then implement the
+:class:`~eventsourcing.compressor.Compressor` base class.
+
+
 .. _Encryption:
 
 Encryption
 ==========
 
-Using a cryptographic cipher with your mapper will make the state of your application encrypted
-"at rest" and "on the wire".
+A cryptographic cipher will encrypt the state of stored events.
 
-Without encryption, the state of the domain event will be visible in the
-recorded stored events in your database. For example, the encoded
-``timestamp`` of ``domain_event`` is visible in the ``state`` of ``stored_event``.
+The mapper's constructor argument ``cipher`` accepts
+:class:`~eventsourcing.cipher.Cipher` objects.
 
-.. code-block:: python
+The library's :class:`~eventsourcing.cipher.AESCipher` class
+implements the abstract base class :class:`~eventsourcing.cipher.Cipher`.
+It can be used to cryptographically encode and decode the state of stored
+events using the `AES cipher <https://pycryptodome.readthedocs.io/en/stable/src/cipher/aes.html>`_
+from the `PyCryptodome library <https://pycryptodome.readthedocs.io/en/stable/index.html>`_
+in `GCM mode <https://pycryptodome.readthedocs.io/en/stable/src/cipher/modern.html#gcm-mode>`_.
+AES is a very fast and secure symmetric block cipher, and is the de facto
+standard for symmetric encryption. Galois/Counter Mode (GCM) is a mode of
+operation for symmetric block ciphers that is designed to provide both data
+authenticity and confidentiality, and is widely adopted for its performance.
 
-    encoded_timestamp = DateAsISO().encode(domain_event.timestamp)
-    assert encoded_timestamp in str(stored_event.state)
+A :class:`~eventsourcing.cipher.Cipher` is constructed with an
+:class:`~eventsourcing.utils.Environment` object so that that
+encryption can be configured using environment variables.
 
-
-The library's :class:`~eventsourcing.cipher.AESCipher` class can
-be used to cryptographically encode and decode the state of stored
-events. It is constructed with an :class:`~eventsourcing.utils.Environment`
-object, and reads a cipher key from environment variable ``CIPHER_KEY``. The
-class method :func:`~eventsourcing.cipher.AESCipher.create_key` can be used to
+The :class:`~eventsourcing.cipher.AESCipher` reads a cipher key
+from environment variable ``CIPHER_KEY``. The static method
+:func:`~eventsourcing.cipher.AESCipher.create_key` can be used to
 generate a cipher key. The AES cipher key must be either 16, 24, or
 32 bytes long. Please note, the same cipher key must be used to
 decrypt stored events as that which was used to encrypt stored events.
@@ -834,52 +883,26 @@ decrypt stored events as that which was used to encrypt stored events.
     )
 
     encrypted_stored_event = mapper.from_domain_event(domain_event)
-    assert isinstance(encrypted_stored_event, StoredEvent)
     assert mapper.to_domain_event(encrypted_stored_event) == domain_event
 
-With encryption, the state of the domain event will not be visible in the
-stored event. This feature can be used to implement "application-level
-encryption" in an event-sourced application.
+
+The state of an encrypted stored event will normally be slightly larger
+than the state of a stored event that is not encrypted.
 
 .. code-block:: python
 
-    assert encoded_timestamp not in str(encrypted_stored_event.state)
+    assert len(encrypted_stored_event.state) > len(stored_event.state)
 
-The library's :class:`~eventsourcing.cipher.AESCipher` class uses the
-`AES cipher <https://pycryptodome.readthedocs.io/en/stable/src/cipher/aes.html>`_
-from the `PyCryptodome library <https://pycryptodome.readthedocs.io/en/stable/index.html>`_
-in `GCM mode <https://pycryptodome.readthedocs.io/en/stable/src/cipher/modern.html#gcm-mode>`_.
-AES is a very fast and secure symmetric block cipher, and is the de facto
-standard for symmetric encryption. Galois/Counter Mode (GCM) is a mode of
-operation for symmetric block ciphers that is designed to provide both data
-authenticity and confidentiality, and is widely adopted for its performance.
+If you want to use a different cipher strategy, then implement the base
+class class:`~eventsourcing.cipher.Cipher`.
 
-The mapper expects an instance of the abstract base class :class:`~eventsourcing.cipher.Cipher`,
-and :class:`~eventsourcing.cipher.AESCipher` implements this abstract base class.
-So if you want to use a different cipher strategy simply implement the base class
-and specify the topic of your cipher class as the environment variable ``CIPHER_TOPIC``.
-Your cipher class will also be constructed with an :class:`~eventsourcing.utils.Environment`
-object, and so you are free to use whichever environment variables are required
-to configure your cipher strategy.
 
-.. _Compression:
+Compression and Encryption
+==========================
 
-Compression
-===========
-
-A compressor can be used to reduce the size of stored events.
-
-The library's :class:`~eventsourcing.compressor.ZlibCompressor` class
-can be used to compress and decompress the state of stored events. The
-size of the state of a compressed and encrypted stored event will normally
-be less than the size of the state of a stored event that is
-encrypted but not compressed.
+Stored events can be both compressed and encrypted.
 
 .. code-block:: python
-
-    from eventsourcing.compressor import ZlibCompressor
-
-    compressor = ZlibCompressor()
 
     mapper = Mapper(
         transcoder=transcoder,
@@ -887,21 +910,21 @@ encrypted but not compressed.
         compressor=compressor,
     )
 
-    compressed_stored_event = mapper.from_domain_event(domain_event)
-
-    assert mapper.to_domain_event(compressed_stored_event) == domain_event
-    assert len(compressed_stored_event.state) <= len(encrypted_stored_event.state)
+    compressed_and_encrypted = mapper.from_domain_event(domain_event)
+    assert mapper.to_domain_event(compressed_and_encrypted) == domain_event
 
 
-The library's :class:`~eventsourcing.compressor.ZlibCompressor` class
-uses Python's :mod:`zlib` module.
+The state of a stored event that is both compressed and encrypted will
+usually be significantly smaller than the state of a stored event that
+is neither compressed not encrypted. But it will normally be marginally
+larger than the state of a stored event that is compressed but not encrypted.
 
-The mapper expects an instance of the abstract base class
-:class:`~eventsourcing.compressor.Compressor`, and
-:class:`~eventsourcing.compressor.ZlibCompressor` implements this
-abstract base class. If you want to use another compression
-strategy simply implement the base class and specify the topic
-of your compressor as the environment variable ``COMPRESSOR_TOPIC``.
+.. code-block:: python
+
+    assert len(compressed_and_encrypted.state) < len(stored_event.state)
+    assert len(compressed_and_encrypted.state) > len(compressed_stored_event.state)
+
+
 
 .. _Store:
 
@@ -1024,6 +1047,9 @@ will construct a transcoder object.
     transcoder = factory.transcoder()
     transcoder.register(UUIDAsHex())
     transcoder.register(DatetimeAsISO())
+    transcoder.register(DateAsISO())
+    transcoder.register(ComplexCustomValueAsDict())
+    transcoder.register(SimpleCustomValueAsDict())
 
 The method :func:`~eventsourcing.persistence.InfrastructureFactory.mapper`
 will construct a mapper object.

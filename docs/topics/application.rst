@@ -847,10 +847,10 @@ attribute, it will be necessary somehow to define and maintain an index of
 the current values.
 
 
-.. _Application environment:
+.. _Application configuration:
 
-Application environment
-=======================
+Application configuration
+=========================
 
 An application can be configured using environment variables. You
 can set the application's environment either on the ``env``
@@ -863,16 +863,13 @@ can use all three ways for configuring an application in combination.
 
     import os
 
-
     # Configure by setting class attribute.
     class MyApplication(Application):
         env = {"SETTING_A": "1", "SETTING_B": "1", "SETTING_C": "1"}
 
-
     # Configure by setting operating system environment.
     os.environ["SETTING_B"] = "2"
     os.environ["SETTING_C"] = "2"
-
 
     # Configure by setting constructor argument.
     app = MyApplication(env={"SETTING_C": "3"})
@@ -998,28 +995,39 @@ See :ref:`PostgreSQL module <PostgreSQL>` documentation
 for more information about using PostgreSQL.
 
 
-Encryption and compression
-==========================
+Configuring compression
+=======================
+
+Compression is useful for reducing the total size of recorded
+application state, and for reducing transport time of domain
+events and domain event notifications across a network.
+
+To enable compression, set the environment variable ``COMPRESSOR_TOPIC``
+as the :ref:`topic <Topics>` of a compressor class or module.
+The  library's :class:`~eventsourcing.compressor.ZlibCompressor`
+can be used to compress stored domain events.
+
+.. code-block:: python
+
+    # Configure compressor topic.
+    os.environ["COMPRESSOR_TOPIC"] = "eventsourcing.compressor:ZlibCompressor"
+
+
+Configuring encryption
+======================
 
 Application-level encryption is useful for encrypting the state
-of the application "on the wire" and "at rest". Compression is
-useful for reducing transport time of domain events and domain
-event notifications across a network and for reducing the total
-size of recorded application state.
+of the application "on the wire" and "at rest".
 
-To enable encryption, set the environment variable ``CIPHER_TOPIC``
-to be the :ref:`topic <Topics>` of a cipher class, and ``CIPHER_KEY``
-to be a valid encryption key. To enable compression, set the environment
-variable ``COMPRESSOR_TOPIC`` to be the :ref:`topic <Topics>` of a
-compressor class or module.
+To enable application-level encryption, set the environment variable
+``CIPHER_TOPIC`` to be the :ref:`topic <Topics>` of a cipher class.
 
 The library's :class:`~eventsourcing.cipher.AESCipher` class can
-be used to encrypt stored domain events. The Python :mod:`zlib` module
-can be used to compress stored domain events.
-When using the library's :class:`~eventsourcing.cipher.AESCipher` class,
-you can use its static method :func:`~eventsourcing.cipher.AESCipher.create_key`
-to generate a valid encryption key.
-
+be used to encrypt stored domain events.
+When using the library's :class:`~eventsourcing.cipher.AESCipher`
+class, set environment variable ``CIPHER_KEY`` to be a valid encryption
+key. You can use the static method :func:`~eventsourcing.cipher.AESCipher.create_key`
+on the :class:`~eventsourcing.cipher.AESCipher` class to generate a valid encryption key.
 
 .. code-block:: python
 
@@ -1028,14 +1036,11 @@ to generate a valid encryption key.
     # Generate a cipher key (keep this safe).
     cipher_key = AESCipher.create_key(num_bytes=32)
 
-    # Configure cipher key.
-    os.environ["CIPHER_KEY"] = cipher_key
-
     # Configure cipher topic.
     os.environ["CIPHER_TOPIC"] = "eventsourcing.cipher:AESCipher"
 
-    # Configure compressor topic.
-    os.environ["COMPRESSOR_TOPIC"] = "zlib"
+    # Configure cipher key.
+    os.environ["CIPHER_KEY"] = cipher_key
 
 
 .. _Snapshotting:
