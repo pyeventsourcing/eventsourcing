@@ -1003,6 +1003,16 @@ class TranscoderTestCase(TestCase):
         data = self.transcoder.encode(obj)
         self.assertEqual(obj, self.transcoder.decode(data))
 
+    def test_dict_with_len_2_and__data_(self):
+        obj = {"_data_": 1, "something_else": 2}
+        data = self.transcoder.encode(obj)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+    def test_dict_with_len_2_and__type_(self):
+        obj = {"_type_": 1, "something_else": 2}
+        data = self.transcoder.encode(obj)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
     def test_dict_subclass(self):
         class MyDict(dict):
             def __repr__(self):
