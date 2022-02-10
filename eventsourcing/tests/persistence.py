@@ -193,7 +193,11 @@ class AggregateRecorderTestCase(TestCase, ABC):
 
         number = 100
         duration = timeit(insert, number=number)
-        print(self, f"\n{1000000 * duration / number:.1f}μs per insert")
+        print(
+            self,
+            f"\n{1000000 * duration / number:.1f} μs per insert, "
+            f"{number / duration:.0f} inserts per second",
+        )
 
 
 class ApplicationRecorderTestCase(TestCase, ABC):
@@ -519,7 +523,8 @@ class ApplicationRecorderTestCase(TestCase, ABC):
 
         self.assertFalse(errors_happened.is_set(), "There were errors (see above)")
         ended = datetime.now()
-        print("Rate:", NUM_JOBS * NUM_EVENTS / (ended - started).total_seconds())
+        rate = NUM_JOBS * NUM_EVENTS / (ended - started).total_seconds()
+        print(f"Rate: {rate:.0f} inserts per second")
 
     def close_db_connection(self, *args: Any) -> None:
         """"""
@@ -659,7 +664,11 @@ class ProcessRecorderTestCase(TestCase, ABC):
             )
 
         duration = timeit(insert_events, number=number)
-        print(self, f"{duration / number:.9f}")
+        print(
+            f"\n{self}",
+            f"{1000000 * duration / number:.1f} μs per insert, "
+            f"{number / duration:.0f} inserts per second",
+        )
 
 
 class NonInterleavingNotificationIDsBaseCase(ABC, TestCase):
