@@ -829,7 +829,7 @@ class EventSourcedLog(Generic[TLogEvent]):
             else:
                 next_originator_version = last_logged.originator_version + 1
 
-        return self.logged_cls(
+        return self.logged_cls(  # type: ignore
             originator_id=self.originator_id,
             originator_version=next_originator_version,
             timestamp=self.logged_cls.create_timestamp(),

@@ -117,7 +117,7 @@ class TestEventSourcedLog(TestCase):
         self.assertEqual(aggregate_ids, [aggregate1_id, aggregate2_id])
 
     def test_log_event_mutate_raises_programming_error(self) -> None:
-        log_event = LogEvent(
+        log_event = LogEvent(  # type: ignore
             originator_id=uuid4(),
             originator_version=1,
             timestamp=LogEvent.create_timestamp(),
