@@ -24,7 +24,7 @@ code and stored events is very possible.
 
 
 Version 9.2.1 (released 15 February 2022)
-----------------------------------------
+-----------------------------------------
 
 * Improved decode performance of JSONTranscoder class.
 * Improved encode behaviour of JSONTranscoder class (no whitespace in separators).
