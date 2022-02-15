@@ -1,11 +1,20 @@
 from unittest import skip
 
-from eventsourcing.persistence import JSONTranscoder
-from eventsourcing.tests.persistence import TranscoderTestCase
+from eventsourcing.persistence import JSONTranscoder, UUIDAsHex
+from eventsourcing.tests.persistence import (
+    CustomType1AsDict,
+    CustomType2AsDict,
+    TranscoderTestCase,
+)
 
 
 class TestJSONTranscoder(TranscoderTestCase):
-    transcoder_class = JSONTranscoder
+    def construct_transcoder(self):
+        transcoder = JSONTranscoder()
+        transcoder.register(CustomType1AsDict())
+        transcoder.register(CustomType2AsDict())
+        transcoder.register(UUIDAsHex())
+        return transcoder
 
     @skip("test_tuple(): JSONTranscoder converts tuples to lists")
     def test_tuple(self):
