@@ -92,7 +92,7 @@ class JSONTranscoder(Transcoder):
 
     def __init__(self) -> None:
         super().__init__()
-        self.encoder = json.JSONEncoder(default=self._encode_obj)
+        self.encoder = json.JSONEncoder(default=self._encode_obj, separators=(",", ":"))
         self.decoder = json.JSONDecoder(object_hook=self._decode_obj)
 
     def encode(self, obj: Any) -> bytes:
@@ -115,7 +115,7 @@ class JSONTranscoder(Transcoder):
                 f"Object of type {type(o)} is not "
                 "serializable. Please define and register "
                 "a custom transcoding for this type."
-            )
+            ) from None
         else:
             return {
                 "_type_": transcoding.name,
@@ -123,22 +123,27 @@ class JSONTranscoder(Transcoder):
             }
 
     def _decode_obj(self, d: Dict[str, Any]) -> Any:
-        if set(d.keys()) == {
-            "_type_",
-            "_data_",
-        }:
-            t = d["_type_"]
-            t = cast(str, t)
+        if len(d) == 2:
             try:
-                transcoding = self.names[t]
+                _type_ = d["_type_"]
             except KeyError:
-                raise TypeError(
-                    f"Data serialized with name '{t}' is not "
-                    "deserializable. Please register a "
-                    "custom transcoding for this type."
-                )
-
-            return transcoding.decode(d["_data_"])
+                return d
+            else:
+                try:
+                    _data_ = d["_data_"]
+                except KeyError:
+                    return d
+                else:
+                    try:
+                        transcoding = self.names[cast(str, _type_)]
+                    except KeyError:
+                        raise TypeError(
+                            f"Data serialized with name '{cast(str, _type_)}' is not "
+                            "deserializable. Please register a "
+                            "custom transcoding for this type."
+                        )
+                    else:
+                        return transcoding.decode(_data_)
         else:
             return d
 

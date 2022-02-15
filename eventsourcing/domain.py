@@ -41,8 +41,7 @@ class MetaDomainEvent(ABCMeta):
 T = TypeVar("T")
 
 
-@dataclass(frozen=True)
-class DomainEvent(ABC, Generic[T]):
+class DomainEvent(ABC, Generic[T], metaclass=MetaDomainEvent):
     """
     Base class for domain events, such as aggregate :class:`AggregateEvent`
     and aggregate :class:`Snapshot`.
@@ -68,7 +67,7 @@ TDomainEvent = TypeVar("TDomainEvent", bound=DomainEvent[Any])
 TAggregate = TypeVar("TAggregate", bound="Aggregate")
 
 
-class AggregateEvent(DomainEvent[TAggregate], metaclass=MetaDomainEvent):
+class AggregateEvent(DomainEvent[TAggregate]):
     """
     Base class for aggregate events. Subclasses will model
     decisions made by the domain model aggregates.
@@ -175,7 +174,7 @@ class ProgrammingError(EventSourcingError):
     """
 
 
-class LogEvent(DomainEvent[None], metaclass=MetaDomainEvent):
+class LogEvent(DomainEvent[None]):
     """
     Base class for the events of event-sourced logs.
     """
@@ -1277,7 +1276,7 @@ class VersionError(OriginatorVersionError):
     """
 
 
-class Snapshot(DomainEvent[TAggregate], metaclass=MetaDomainEvent):
+class Snapshot(DomainEvent[TAggregate]):
     # noinspection PyUnresolvedReferences
     """
     Snapshots represent the state of an aggregate at a particular

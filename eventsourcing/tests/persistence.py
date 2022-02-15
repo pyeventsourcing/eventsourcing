@@ -10,7 +10,7 @@ from time import sleep
 from timeit import timeit
 from typing import Any, Dict, List, Optional
 from unittest import TestCase
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from eventsourcing.cipher import AESCipher
 from eventsourcing.compressor import ZlibCompressor
@@ -27,6 +27,7 @@ from eventsourcing.persistence import (
     ProcessRecorder,
     StoredEvent,
     Tracking,
+    Transcoding,
     UUIDAsHex,
 )
 from eventsourcing.utils import Environment, get_topic
@@ -191,7 +192,11 @@ class AggregateRecorderTestCase(TestCase, ABC):
 
         number = 100
         duration = timeit(insert, number=number)
-        print(self, f"{duration / number:.9f}")
+        print(
+            self,
+            f"\n{1000000 * duration / number:.1f} μs per insert, "
+            f"{number / duration:.0f} inserts per second",
+        )
 
 
 class ApplicationRecorderTestCase(TestCase, ABC):
@@ -517,7 +522,8 @@ class ApplicationRecorderTestCase(TestCase, ABC):
 
         self.assertFalse(errors_happened.is_set(), "There were errors (see above)")
         ended = datetime.now()
-        print("Rate:", NUM_JOBS * NUM_EVENTS / (ended - started).total_seconds())
+        rate = NUM_JOBS * NUM_EVENTS / (ended - started).total_seconds()
+        print(f"Rate: {rate:.0f} inserts per second")
 
     def close_db_connection(self, *args: Any) -> None:
         """"""
@@ -657,7 +663,11 @@ class ProcessRecorderTestCase(TestCase, ABC):
             )
 
         duration = timeit(insert_events, number=number)
-        print(self, f"{duration / number:.9f}")
+        print(
+            f"\n{self}",
+            f"{1000000 * duration / number:.1f} μs per insert, "
+            f"{number / duration:.0f} inserts per second",
+        )
 
 
 class NonInterleavingNotificationIDsBaseCase(ABC, TestCase):
@@ -918,3 +928,266 @@ def tmpfile_uris():
         tmp_file = NamedTemporaryFile(prefix=prefix, suffix="_eventsourcing_test.db")
         tmp_files.append(tmp_file)
         yield "file:" + tmp_file.name
+
+
+class CustomType1:
+    def __init__(self, value: UUID):
+        self.value = value
+
+    def __eq__(self, other: "CustomType1"):
+        return type(self) == type(other) and self.__dict__ == other.__dict__
+
+
+class CustomType2:
+    def __init__(self, value: CustomType1):
+        self.value = value
+
+    def __eq__(self, other: "CustomType2"):
+        return type(self) == type(other) and self.__dict__ == other.__dict__
+
+
+class MyDict(dict):
+    def __repr__(self):
+        return f"{type(self).__name__}({tuple(self.items())})"
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.__dict__ == other.__dict__
+
+
+class MyList(list):
+    def __repr__(self):
+        return f"{type(self).__name__}({super().__repr__()})"
+
+    def __eq__(self, other):
+        return type(self) == type(other) and super().__eq__(other)
+
+
+class MyStr(str):
+    def __repr__(self):
+        return f"{type(self).__name__}({super().__repr__()})"
+
+    def __eq__(self, other):
+        return type(self) == type(other) and super().__eq__(other)
+
+
+class MyInt(int):
+    def __repr__(self):
+        return f"{type(self).__name__}({super().__repr__()})"
+
+    def __eq__(self, other):
+        return type(self) == type(other) and super().__eq__(other)
+
+
+class MyClass:
+    pass
+
+
+class CustomType1AsDict(Transcoding):
+    type = CustomType1
+    name = "custom_type1_as_dict"
+
+    def encode(self, obj: CustomType1) -> UUID:
+        return obj.value
+
+    def decode(self, data: UUID) -> CustomType1:
+        assert isinstance(data, UUID)
+        return CustomType1(value=data)
+
+
+class CustomType2AsDict(Transcoding):
+    type = CustomType2
+    name = "custom_type2_as_dict"
+
+    def encode(self, obj: CustomType2) -> CustomType1:
+        return obj.value
+
+    def decode(self, data: CustomType1) -> CustomType2:
+        assert isinstance(data, CustomType1)
+        return CustomType2(data)
+
+
+class TranscoderTestCase(TestCase):
+    def setUp(self) -> None:
+        self.transcoder = self.construct_transcoder()
+
+    def construct_transcoder(self):
+        raise NotImplementedError()
+
+    def test_str(self):
+        obj = "a"
+        data = self.transcoder.encode(obj)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+    def test_dict(self):
+        # Empty dict.
+        obj = {}
+        data = self.transcoder.encode(obj)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+        # Empty dict in dict.
+        obj = {"a": {}}
+        data = self.transcoder.encode(obj)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+        # Empty dict in dict in dict.
+        obj = {"a": {"b": {}}}
+        data = self.transcoder.encode(obj)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+        # Int in dict in dict in dict.
+        obj = {"a": {"b": {"c": 1}}}
+        data = self.transcoder.encode(obj)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+    def test_dict_with_len_2_and__data_(self):
+        obj = {"_data_": 1, "something_else": 2}
+        data = self.transcoder.encode(obj)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+    def test_dict_with_len_2_and__type_(self):
+        obj = {"_type_": 1, "something_else": 2}
+        data = self.transcoder.encode(obj)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+    def test_dict_subclass(self):
+        my_dict = MyDict((("a", 1),))
+        data = self.transcoder.encode(my_dict)
+        copy = self.transcoder.decode(data)
+        self.assertEqual(my_dict, copy)
+
+    def test_list_subclass(self):
+        my_list = MyList((("a", 1),))
+        data = self.transcoder.encode(my_list)
+        copy = self.transcoder.decode(data)
+        self.assertEqual(my_list, copy)
+
+    def test_str_subclass(self):
+        my_str = MyStr("a")
+        data = self.transcoder.encode(my_str)
+        copy = self.transcoder.decode(data)
+        self.assertEqual(my_str, copy)
+
+    def test_int_subclass(self):
+        my_int = MyInt(3)
+        data = self.transcoder.encode(my_int)
+        copy = self.transcoder.decode(data)
+        self.assertEqual(my_int, copy)
+
+    def test_tuple(self):
+        # Empty tuple.
+        obj = ()
+        data = self.transcoder.encode(obj)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+        # Empty tuple in a tuple.
+        obj = ((),)
+        data = self.transcoder.encode(obj)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+        # Int in tuple in a tuple.
+        obj = ((1, 2),)
+        data = self.transcoder.encode(obj)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+        # Str in tuple in a tuple.
+        obj = (("a", "b"),)
+        data = self.transcoder.encode(obj)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+        # Int and str in tuple in a tuple.
+        obj = ((1, "a"),)
+        data = self.transcoder.encode(obj)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+    def test_list(self):
+        # Empty list.
+        obj = []
+        data = self.transcoder.encode(obj)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+        # Empty list in a list.
+        obj = [[]]
+        data = self.transcoder.encode(obj)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+        # Int in list in a list.
+        obj = [[1, 2]]
+        data = self.transcoder.encode(obj)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+        # Str in list in a list.
+        obj = [["a", "b"]]
+        data = self.transcoder.encode(obj)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+        # Int and str in list in a list.
+        obj = [[1, "a"]]
+        data = self.transcoder.encode(obj)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+    def test_mixed(self):
+        obj = [(1, "a"), {"b": 2}]
+        data = self.transcoder.encode(obj)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+        obj = ([1, "a"], {"b": 2})
+        data = self.transcoder.encode(obj)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+        obj = {"a": (1, 2), "b": [3, 4]}
+        data = self.transcoder.encode(obj)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+    def test_custom_type_in_dict(self):
+        # Int in dict in dict in dict.
+        obj = {"a": CustomType2(CustomType1(UUID("b2723fe2c01a40d2875ea3aac6a09ff5")))}
+        data = self.transcoder.encode(obj)
+        decoded_obj = self.transcoder.decode(data)
+        self.assertEqual(obj, decoded_obj)
+
+    def test_nested_custom_type(self):
+        # Check we get a TypeError when encoding because transcodings aren't registered.
+        obj = CustomType2(CustomType1(UUID("b2723fe2c01a40d2875ea3aac6a09ff5")))
+
+        # Register transcodings.
+        data = self.transcoder.encode(obj)
+        expect = (
+            b'{"_type_":"custom_type2_as_dict","_data_":'
+            b'{"_type_":"custom_type1_as_dict","_data_":'
+            b'{"_type_":"uuid_hex","_data_":"b2723fe2c01'
+            b'a40d2875ea3aac6a09ff5"}}}'
+        )
+
+        self.assertEqual(data, expect)
+        copy = self.transcoder.decode(data)
+        self.assertIsInstance(copy, CustomType2)
+        self.assertIsInstance(copy.value, CustomType1)
+        self.assertIsInstance(copy.value.value, UUID)
+        self.assertEqual(copy.value.value, obj.value.value)
+
+        # Check we get a TypeError when encoding because transcodings not registered.
+        with self.assertRaises(TypeError) as cm:
+            self.transcoder.encode(MyClass())
+
+        self.assertEqual(
+            cm.exception.args[0],
+            (
+                "Object of type <class 'eventsourcing.tests.persistence."
+                "MyClass'> is not serializable. Please define "
+                "and register a custom transcoding for this type."
+            ),
+        )
+
+        # Check we get a TypeError when decoding because transcodings aren't registered.
+        data = b'{"_type_":"custom_type3_as_dict","_data_":""}'
+
+        with self.assertRaises(TypeError) as cm:
+            self.transcoder.decode(data)
+
+        self.assertEqual(
+            cm.exception.args[0],
+            (
+                "Data serialized with name 'custom_type3_as_dict' is not "
+                "deserializable. Please register a custom transcoding for this type."
+            ),
+        )

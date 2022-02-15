@@ -36,7 +36,7 @@ modern process philosophy:
     that are prehending one another: 'First the solitary piano
     grieved, like a bird abandoned by its mate; the violin
     heard its wail and responded to it like a neighbouring
-    tree. It was like the beginning of the dog. ...'"*
+    tree. It was like the beginning of the world....'"*
 
 However, the events of an event-sourced application are a very specific kind
 of event. They are the individual decisions originated by a domain model. They
@@ -207,7 +207,7 @@ used to mutate the state of the aggregate.
             self.tricks.append(trick)
 
 
-Optionally :ref:`configure an application <Application environment>` by setting
+Optionally :ref:`configure an application <Application configuration>` by setting
 environment variables, for example to enable aggregate caching or to specify
 a `persistence module <persistence.html>`_.
 

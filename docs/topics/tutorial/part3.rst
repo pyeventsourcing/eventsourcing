@@ -303,7 +303,7 @@ Other databases are available. See the library's
 `extension projects <https://github.com/pyeventsourcing>`__
 for more information about what is currently supported.
 
-See also the :ref:`application module documentation <Application environment>`
+See also the :ref:`application module documentation <Application configuration>`
 for more information about configuring applications using environment
 variables.
 
