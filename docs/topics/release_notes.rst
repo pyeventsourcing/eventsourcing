@@ -23,6 +23,15 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.2.1 (released 15 February 2022)
+----------------------------------------
+
+* Improved decode performance of JSONTranscoder class.
+* Improved encode behaviour of JSONTranscoder class (no whitespace in separators).
+* Improved documentation about compression and encryption.
+* Fixed documentation (typos, and developer install instructions).
+* Adjusted tests, so transcoder test is available for extensions.
+
 Version 9.2.0 (released 1 February 2022)
 ----------------------------------------
 
