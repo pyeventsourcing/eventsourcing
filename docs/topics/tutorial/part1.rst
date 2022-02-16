@@ -342,10 +342,11 @@ Writing tests
 
 It is generally recommended to follow a test-driven approach to the development of
 event-sourced applications. You can get started with your event sourcing project by
-first writing a failing test in ``test_application.py``. You can begin by defining
-your application and aggregate classes in the test module. You can then refactor by
-moving aggregate and application classes to separate Python modules. You can convert
-these modules to packages if you want to split things up into smaller modules.
+first writing a failing test in a Python file, for example ``test_application.py``.
+You can begin by defining your application and aggregate classes in this file. You
+can then refactor by moving aggregate and application classes to separate Python
+modules. You can convert these modules to packages if you want to split things up
+into smaller modules.
 
 .. code-block:: python
 
@@ -362,10 +363,7 @@ these modules to packages if you want to split things up into smaller modules.
         # Call application query method.
         assert app.get_dog(dog_id) == {
             'name': 'Fido',
-            'tricks': (
-                'roll over',
-                'fetch ball'
-            )
+            'tricks': ('roll over', 'fetch ball'),
         }
 
 Exercise
