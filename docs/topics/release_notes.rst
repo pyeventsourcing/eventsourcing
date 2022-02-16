@@ -4,7 +4,7 @@ Release notes
 
 It is the aim of the project that releases with the same major version
 number are backwards compatible, within the scope of the documented
-examples. New major versions indicate backwards incompatible changes
+examples. New major versions indicate backward incompatible changes
 have been introduced since the previous major version. New minor
 version indicate new functionality has been added, or existing functionality
 extended. New point version indicates existing code or documentation
@@ -424,7 +424,7 @@ Version 8.0.0 (released 7 December 2019)
 
 * The storage of event state has been changed from strings to bytes. Previously state
   bytes were encoded with base64 before being saved as strings, which adds 33% to the
-  size of each stored state. This is definitely a backwards incompatible change.
+  size of each stored state. This is definitely a backward incompatible change.
   Attention will need to be paid to one of two alternatives. One alternative is to
   migrate your stored events (the state field), either from being stored as plaintext
   strings to being stored as plaintext bytes (you need to encode as utf-8), or from
@@ -438,7 +438,7 @@ Version 8.0.0 (released 7 December 2019)
   project developer(s). There is nothing wrong with the previous version, and you
   can continue to use it.
 
-* Other backwards incompatible changes involve renaming a number of methods, and
+* Other backward incompatible changes involve renaming a number of methods, and
   moving classes and also modules (for example, the system modules have been moved
   from the applications package to a separate package). Please see the commit log
   for all the details.

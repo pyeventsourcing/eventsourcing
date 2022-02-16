@@ -6,13 +6,30 @@ This version of the library is compatible with Python versions 3.7, 3.8,
 3.9, and 3.10. The library's suite of tests is run against these versions
 and has 100% line and branch coverage.
 
+Start new project
+=================
+
+To quickly start a new project, use the :ref:`project template <Template>`.
+
+
+Install with pip
+================
+
 You can use pip to install the library from the
 `Python Package Index <https://pypi.org/project/eventsourcing/>`__.
-It is recommended always to install into a virtual environment.
 
 ::
 
     $ pip install eventsourcing
+
+It is recommended to install the library into a Python virtual environment.
+
+::
+
+    $ python3 -mvenv my_venv
+    $ source my_venv/bin/activate
+    (my_venv) $ pip install eventsourcing
+
 
 When including the library in a list of project dependencies, in order to
 avoid installing future incompatible releases, it is recommended to specify
@@ -24,16 +41,33 @@ increments.
 
 ::
 
-    eventsourcing<=9.2.99999
+    $ pip install "eventsourcing<=9.2.99999"
+
+If you are specifying dependencies of your project in a `pyproject.toml` file,
+and for example using the Poetry build tool, you can specify the dependency
+on this library in the following way.
+
+::
+
+    [tool.poetry.dependencies]
+    python = "^3.8"
+    eventsourcing = { version = "~9.2.0" }
+
 
 Specifying the major and minor version number in this way will avoid any
 potentially destabilising additional features introduced with minor version
-number increments, and also any backwards incompatible changes introduced
+number increments, and also any backward incompatible changes introduced
 with major version number increments.
+
+Upgrading to new minor versions is encouraged, but it is recommended to
+do this manually so that you are sure your project isn't inadvertently
+broken by changes in the library. Migrating to new major versions is
+also encouraged, but by definition this may involve your making changes
+to your project to adjust for the backward incompatibilities introduced
+by the new major version.
 
 This package depends only on modules from the Python Standard Library,
 except for the extra options described below.
-
 
 Install options
 ===============
