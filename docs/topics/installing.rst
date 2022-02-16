@@ -81,10 +81,13 @@ without any options, you can easily install optional dependencies
 later by running the install command again with the options you want.
 You can also make your project depend directly on the extra dependencies.
 
-For example, if you want to store cryptographically encrypted events,
-then install with the ``crypto`` option. This simply installs
+For example, if you want the option to store cryptographically encrypted
+events, then install with the ``crypto`` option. This simply installs
 `PyCryptodome <https://pypi.org/project/pycryptodome/>`_
-so feel free to make your project depend on that instead.
+so feel free to make your project directly depend on that package.
+After installing this package, you will need to
+:ref:`configure your application <Application configuration>`
+environment to enable encryption.
 
 ::
 
