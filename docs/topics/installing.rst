@@ -68,7 +68,8 @@ do this manually so that you are sure your project isn't inadvertently
 broken by changes in the library. Migrating to new major versions is
 also encouraged, but by definition this may involve your making changes
 to your project to adjust for the backward incompatibilities introduced
-by the new major version. Of course, if you wish, feel free to pin only
+by the new major version. Of course it's your project so, if you wish,
+feel free to pin the major and minor and point version, or indeed only
 the major version.
 
 Install options
