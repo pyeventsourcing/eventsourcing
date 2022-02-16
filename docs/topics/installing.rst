@@ -79,6 +79,7 @@ Running the install command with different options will install
 the extra dependencies associated with that option. If you installed
 without any options, you can easily install optional dependencies
 later by running the install command again with the options you want.
+You can also make your project depend directly on the extra dependencies.
 
 For example, if you want to store cryptographically encrypted events,
 then install with the ``crypto`` option. This simply installs
