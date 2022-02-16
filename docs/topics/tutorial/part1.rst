@@ -280,7 +280,7 @@ Project template
 ================
 
 To get started quickly, you can use the
-`project template <https://github.com/pyeventsourcing/cookiecutter-eventsourcing#readme>`__.
+`template for Python eventsourcing projects <https://github.com/pyeventsourcing/cookiecutter-eventsourcing#readme>`__.
 
 Install Cookiecutter into a dedicated virtual environment.
 
@@ -334,7 +334,7 @@ You can adjust the tests, rename the classes, and change the methods.
 Or just delete the included example code for a fresh start.
 
 See the `project template repo on GitHub <https://github.com/pyeventsourcing/cookiecutter-eventsourcing#readme>`__
-for more information and guidance about the project template.
+for more information and guidance.
 
 
 Writing tests
