@@ -282,7 +282,7 @@ Project template
 To get started quickly, you can use the
 `project template <https://github.com/pyeventsourcing/cookiecutter-eventsourcing#readme>`__.
 
-Install cookiecutter into a dedicated virtual environment.
+Install Cookiecutter into a dedicated virtual environment.
 
 ::
 
@@ -298,7 +298,7 @@ Create a new project from the template.
     author_fullname [Author Name]: Your Name
     author_email [example@example.com]: your@email.address
 
-Remove the cookiecutter virtual environment.
+Remove the Cookiecutter virtual environment.
 
 ::
 
@@ -311,10 +311,9 @@ Start using your eventsourcing project.
     $ cd your_project
     $ make install
 
-
-The ``make install`` command uses ``poetry`` to create a dedicated Python
-virtual environment for your project, and installs into it the ``eventsourcing``
-library and popular development dependencies such as ``black``, ``isort``, and ``pytest``.
+The ``make install`` command uses the build tool Poetry to create a dedicated
+Python virtual environment for your eventsourcing project, and installs popular
+development dependencies such as Black, isort and pytest.
 
 Add tests in ``./tests``. Add code in ``./your_project``.
 
@@ -343,10 +342,10 @@ Writing tests
 
 It is generally recommended to follow a test-driven approach to the development of
 event-sourced applications. You can get started with your event sourcing project by
-first writing a failing test in ``test_application.py``. You can begin by defining your application
-and aggregate classes in the test module. You can then refactor by moving aggregate and
-application classes to separate Python modules. You can convert these modules to packages
-if you want to split things up into smaller modules.
+first writing a failing test in ``test_application.py``. You can begin by defining
+your application and aggregate classes in the test module. You can then refactor by
+moving aggregate and application classes to separate Python modules. You can convert
+these modules to packages if you want to split things up into smaller modules.
 
 .. code-block:: python
 
