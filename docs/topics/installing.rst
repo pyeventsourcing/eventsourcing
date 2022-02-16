@@ -12,8 +12,8 @@ Start new project
 To quickly start a new project, use the :ref:`project template <Template>`.
 
 
-Install with pip
-================
+Pip install
+===========
 
 You can use pip to install the library from the
 `Python Package Index <https://pypi.org/project/eventsourcing/>`__.
@@ -36,7 +36,7 @@ avoid installing future incompatible releases, it is recommended to specify
 the major and minor version numbers.
 
 As an example, the expression below would install the latest version of the
-v9.2.x release, allowing future bug fixes released with point version number
+9.2 series, allowing future bug fixes released with point version number
 increments.
 
 ::
@@ -112,10 +112,10 @@ Developers
 ==========
 
 If you want to install the code for the purpose of developing the library, then
-fork and clone the GitHub repository and install from the root folder with the
-'dev' option. This option will install a number of packages that help with
-development and documentation, such as the above extra dependencies along with
-Sphinx, Coverage.py, Black, mypy, Flake8, and isort.
+fork and clone the GitHub repository and install into a Python virtual environment
+from the root folder with the 'dev' option. This option will install a number of
+packages that help with development and documentation, such as the above extra
+dependencies along with Sphinx, Coverage.py, Black, mypy, Flake8, and isort.
 
 ::
 
