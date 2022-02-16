@@ -43,7 +43,7 @@ increments.
 
     $ pip install "eventsourcing<=9.2.99999"
 
-If you are specifying dependencies of your project in a `pyproject.toml` file,
+If you are specifying dependencies of your project in a ``pyproject.toml`` file,
 and for example using the Poetry build tool, you can specify the dependency
 on this library in the following way.
 
