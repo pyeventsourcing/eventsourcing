@@ -6,6 +6,9 @@ This version of the library is compatible with Python versions 3.7, 3.8,
 3.9, and 3.10. The library's suite of tests is run against these versions
 and has 100% line and branch coverage.
 
+This package depends only on modules from the Python Standard Library,
+except for the extra install options described below.
+
 Start new project
 =================
 
@@ -35,17 +38,18 @@ When including the library in a list of project dependencies, in order to
 avoid installing future incompatible releases, it is recommended to specify
 the major and minor version numbers.
 
-As an example, the expression below would install the latest version of the
-9.2 series, allowing future bug fixes released with point version number
-increments.
+As an example, the expression ``eventsourcing<=9.2.99999`` would install the
+latest version of the 9.2 series, allowing future bug fixes released with
+point version number increments. You can use this expression in a ``pip install``
+command, in a ``requirements.txt`` file, or in a ``setup.py`` file.
 
 ::
 
     $ pip install "eventsourcing<=9.2.99999"
 
-If you are specifying dependencies of your project in a ``pyproject.toml`` file,
-and for example using the Poetry build tool, you can specify the dependency
-on this library in the following way.
+If you are specifying the dependencies of your project in a ``pyproject.toml``
+file, and for example using the Poetry build tool, you can specify the
+dependency on this library in the following way.
 
 ::
 
@@ -56,7 +60,7 @@ on this library in the following way.
 
 Specifying the major and minor version number in this way will avoid any
 potentially destabilising additional features introduced with minor version
-number increments, and also any backward incompatible changes introduced
+number increments, and also avoid all backward incompatible changes introduced
 with major version number increments.
 
 Upgrading to new minor versions is encouraged, but it is recommended to
@@ -64,10 +68,8 @@ do this manually so that you are sure your project isn't inadvertently
 broken by changes in the library. Migrating to new major versions is
 also encouraged, but by definition this may involve your making changes
 to your project to adjust for the backward incompatibilities introduced
-by the new major version.
-
-This package depends only on modules from the Python Standard Library,
-except for the extra options described below.
+by the new major version. Of course, if you wish, feel free to pin only
+the major version.
 
 Install options
 ===============
