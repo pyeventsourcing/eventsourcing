@@ -274,32 +274,6 @@ class Repository:
             )
         return aggregate
 
-    def _use_fastforward_lock(self, aggregate_id: UUID) -> Lock:
-        with self._fastforward_locks_lock:
-            try:
-                lock, num_users = self._fastforward_locks_inuse[aggregate_id]
-            except KeyError:
-                try:
-                    lock = self._fastforward_locks_cache.get(aggregate_id, evict=True)
-                except KeyError:
-                    lock = Lock()
-                finally:
-                    num_users = 0
-            finally:
-                num_users += 1
-                self._fastforward_locks_inuse[aggregate_id] = (lock, num_users)
-            return lock
-
-    def _disuse_fastforward_lock(self, aggregate_id: UUID) -> None:
-        with self._fastforward_locks_lock:
-            lock_, num_users = self._fastforward_locks_inuse[aggregate_id]
-            num_users -= 1
-            if num_users == 0:
-                del self._fastforward_locks_inuse[aggregate_id]
-                self._fastforward_locks_cache.put(aggregate_id, lock_)
-            else:
-                self._fastforward_locks_inuse[aggregate_id] = (lock_, num_users)
-
     def _reconstruct_aggregate(
         self,
         aggregate_id: UUID,
@@ -340,6 +314,32 @@ class Repository:
         else:
             # Return the aggregate.
             return aggregate
+
+    def _use_fastforward_lock(self, aggregate_id: UUID) -> Lock:
+        with self._fastforward_locks_lock:
+            try:
+                lock, num_users = self._fastforward_locks_inuse[aggregate_id]
+            except KeyError:
+                try:
+                    lock = self._fastforward_locks_cache.get(aggregate_id, evict=True)
+                except KeyError:
+                    lock = Lock()
+                finally:
+                    num_users = 0
+            finally:
+                num_users += 1
+                self._fastforward_locks_inuse[aggregate_id] = (lock, num_users)
+            return lock
+
+    def _disuse_fastforward_lock(self, aggregate_id: UUID) -> None:
+        with self._fastforward_locks_lock:
+            lock_, num_users = self._fastforward_locks_inuse[aggregate_id]
+            num_users -= 1
+            if num_users == 0:
+                del self._fastforward_locks_inuse[aggregate_id]
+                self._fastforward_locks_cache.put(aggregate_id, lock_)
+            else:
+                self._fastforward_locks_inuse[aggregate_id] = (lock_, num_users)
 
     def __contains__(self, item: UUID) -> bool:
         try:
