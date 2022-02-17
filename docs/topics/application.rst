@@ -931,13 +931,14 @@ To avoid an application getting stale aggregates from a repository when
 aggregate caching is enabled (that is, aggregates for which subsequent events
 have been stored outside of the application instance) cached aggregates are
 "fast-forwarded" with any subsequent events. This involves querying for subsequent
-events, and updating the state of the aggregate. To disable fast-forwarding of cached
-aggregates, set ``AGGREGATE_CACHE_FASTFORWARD`` in the application environment to a false
-value as interpreted by :func:`~eventsourcing.utils.strtobool`, that is one of ``'n'``,
-``'no'``, ``'f'``, ``'false'``, ``'off'``, or ``'0'``. Only do this when only one
-instance of the application is being used to evolve the state of the aggregates,
-because integrity errors will certainly occur when attempting to evolve the state of
-stale aggregates. The default is for fast-forwarding to be enabled when aggregate
+events, and updating the state of the aggregate.
+
+To disable fast-forwarding of cached aggregates, set ``AGGREGATE_CACHE_FASTFORWARD`` in
+the application environment to a false value as interpreted by :func:`~eventsourcing.utils.strtobool`,
+that is one of ``'n'``, ``'no'``, ``'f'``, ``'false'``, ``'off'``, or ``'0'``. Only do
+this when only one instance of the application is being used to evolve the state of the
+aggregates, because integrity errors will certainly occur when attempting to evolve the
+state of stale aggregates. The default is for fast-forwarding to be enabled when aggregate
 caching is enabled. But in cases where there is only one application instance,
 querying for new events is unnecessary, and a greater performance improvement
 will be obtained by disabling fast-forwarding because querying for new events
