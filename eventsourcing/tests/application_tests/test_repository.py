@@ -45,7 +45,7 @@ class TestRepository(TestCase):
             mapper=Mapper(transcoder=transcoder),
             recorder=snapshot_recorder,
         )
-        repository: Repository = Repository(event_store, snapshot_store)
+        repository = Repository(event_store, snapshot_store)
 
         # Check key error.
         with self.assertRaises(AggregateNotFound):
@@ -144,7 +144,7 @@ class TestRepository(TestCase):
             mapper=Mapper(transcoder=transcoder),
             recorder=event_recorder,
         )
-        repository: Repository = Repository(event_store)
+        repository = Repository(event_store)
 
         # Check key error.
         with self.assertRaises(AggregateNotFound):
@@ -227,7 +227,7 @@ class TestRepository(TestCase):
             mapper=Mapper(transcoder=transcoder),
             recorder=snapshot_recorder,
         )
-        repository: Repository = Repository(event_store, snapshot_store)
+        repository = Repository(event_store, snapshot_store)
 
         # Check key error.
         with self.assertRaises(AggregateNotFound):
@@ -319,7 +319,7 @@ class TestRepository(TestCase):
         aggregate = Aggregate()
         event_store.put(aggregate.collect_events())
 
-        repository: Repository = Repository(event_store)
+        repository = Repository(event_store)
         self.assertTrue(aggregate.id in repository)
         self.assertFalse(uuid4() in repository)
 
@@ -336,7 +336,7 @@ class TestRepository(TestCase):
             mapper=Mapper(transcoder=transcoder),
             recorder=event_recorder,
         )
-        repository: Repository = Repository(event_store, cache_maxsize=0)
+        repository = Repository(event_store, cache_maxsize=0)
         self.assertEqual(type(repository.cache), Cache)
 
         aggregate = Aggregate()
@@ -364,7 +364,7 @@ class TestRepository(TestCase):
             mapper=Mapper(transcoder=transcoder),
             recorder=event_recorder,
         )
-        repository: Repository = Repository(event_store, cache_maxsize=2)
+        repository = Repository(event_store, cache_maxsize=2)
         self.assertEqual(type(repository.cache), LRUCache)
 
         aggregate1 = Aggregate()
@@ -405,7 +405,7 @@ class TestRepository(TestCase):
             mapper=Mapper(transcoder=transcoder),
             recorder=event_recorder,
         )
-        repository: Repository = Repository(
+        repository = Repository(
             event_store,
             cache_maxsize=2,
             fastforward=False,
@@ -432,7 +432,7 @@ class TestRepository(TestCase):
             mapper=Mapper(transcoder=transcoder),
             recorder=event_recorder,
         )
-        repository: Repository = Repository(
+        repository = Repository(
             event_store,
             cache_maxsize=2,
         )
@@ -445,3 +445,60 @@ class TestRepository(TestCase):
         event_store.put(aggregate.collect_events())
         with self.assertRaises(AggregateNotFound):
             repository.get(aggregate.id, projector_func=lambda _, __: None)
+
+    def test_fastforward_lock(self):
+        repository = Repository(
+            EventStore(
+                mapper=Mapper(transcoder=JSONTranscoder()),
+                recorder=POPOAggregateRecorder(),
+            ),
+            cache_maxsize=2,
+        )
+        cache_maxsize = repository._fastforward_locks_cache.maxsize
+        aggregate_ids = [uuid4() for i in range(cache_maxsize + 1)]
+        self.assertEqual(0, len(repository._fastforward_locks_inuse))
+        self.assertEqual(0, len(repository._fastforward_locks_cache.cache))
+
+        # Use a lock and check it's "in use".
+        repository._use_fastforward_lock(aggregate_ids[0])
+        self.assertEqual(1, len(repository._fastforward_locks_inuse))
+        self.assertEqual(0, len(repository._fastforward_locks_cache.cache))
+        self.assertEqual(1, repository._fastforward_locks_inuse[aggregate_ids[0]][1])
+
+        # Disuse a lock and check it's "cached" and not "in use".
+        repository._disuse_fastforward_lock(aggregate_ids[0])
+        self.assertEqual(0, len(repository._fastforward_locks_inuse))
+        self.assertEqual(1, len(repository._fastforward_locks_cache.cache))
+
+        # Use two locks and check it's "in use" by two users.
+        repository._use_fastforward_lock(aggregate_ids[0])
+        repository._use_fastforward_lock(aggregate_ids[0])
+        self.assertEqual(1, len(repository._fastforward_locks_inuse))
+        self.assertEqual(0, len(repository._fastforward_locks_cache.cache))
+        self.assertEqual(2, repository._fastforward_locks_inuse[aggregate_ids[0]][1])
+
+        # Disuse the lock and check it's still "in use" by one user.
+        repository._disuse_fastforward_lock(aggregate_ids[0])
+        self.assertEqual(1, len(repository._fastforward_locks_inuse))
+        self.assertEqual(0, len(repository._fastforward_locks_cache.cache))
+        self.assertEqual(1, repository._fastforward_locks_inuse[aggregate_ids[0]][1])
+
+        # Disuse the lock and check it's cached and not "in use".
+        repository._disuse_fastforward_lock(aggregate_ids[0])
+        self.assertEqual(0, len(repository._fastforward_locks_inuse))
+        self.assertEqual(1, len(repository._fastforward_locks_cache.cache))
+
+        # Use more locks that the cache holds.
+        for aggregate_id in aggregate_ids:
+            repository._use_fastforward_lock(aggregate_id)
+        self.assertEqual(len(aggregate_ids), len(repository._fastforward_locks_inuse))
+        self.assertEqual(0, len(repository._fastforward_locks_cache.cache))
+
+        # Disuse all the locks and check the cache has evicted one.
+        self.assertEqual(len(aggregate_ids), cache_maxsize + 1)
+        for aggregate_id in aggregate_ids:
+            repository._disuse_fastforward_lock(aggregate_id)
+        self.assertEqual(0, len(repository._fastforward_locks_inuse))
+        self.assertEqual(
+            len(aggregate_ids) - 1, len(repository._fastforward_locks_cache.cache)
+        )

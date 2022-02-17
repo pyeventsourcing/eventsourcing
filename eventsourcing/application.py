@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 from dataclasses import dataclass
 from itertools import chain
-from threading import Event, RLock
+from threading import Event, Lock
 from typing import (
     Any,
     Callable,
@@ -14,6 +14,7 @@ from typing import (
     List,
     Optional,
     Sequence,
+    Tuple,
     Type,
     TypeVar,
     Union,
@@ -101,7 +102,7 @@ class LRUCache(Cache[_S, _T]):
         super().__init__()
         self.maxsize = maxsize
         self.full = False
-        self.lock = RLock()  # because linkedlist updates aren't threadsafe
+        self.lock = Lock()  # because linkedlist updates aren't threadsafe
         self.root: List[Any] = []  # root of the circular doubly linked list
         self.clear()
 
@@ -191,6 +192,8 @@ class Repository:
     possibly using snapshot store to avoid replaying
     all events."""
 
+    FASTFORWARD_LOCKS_CACHE_MAXSIZE = 50
+
     def __init__(
         self,
         event_store: EventStore,
@@ -217,12 +220,23 @@ class Repository:
             self.cache = LRUCache(maxsize=cache_maxsize)
         self.fastforward = fastforward
 
+        # Because fast-forwarding a cached aggregate isn't thread-safe.
+        self._fastforward_locks_lock = Lock()
+        self._fastforward_locks_cache: LRUCache[UUID, Lock] = LRUCache(
+            maxsize=self.FASTFORWARD_LOCKS_CACHE_MAXSIZE
+        )
+        self._fastforward_locks_inuse: Dict[UUID, Tuple[Lock, int]] = {}
+
     def get(
         self,
         aggregate_id: UUID,
         version: Optional[int] = None,
         projector_func: ProjectorFunctionType[Aggregate] = mutate_aggregate,
     ) -> Aggregate:
+        """
+        Reconstructs an :class:`~eventsourcing.domain.Aggregate` for a
+        given ID from stored events, optionally at a particular version.
+        """
         if self.cache and version is None:
             try:
                 # Look for aggregate in the cache.
@@ -237,10 +251,16 @@ class Repository:
             else:
                 if self.fastforward:
                     # Fast-forward cached aggregate.
-                    new_events = self.event_store.get(
-                        originator_id=aggregate_id, gt=aggregate.version
-                    )
-                    _aggregate = projector_func(aggregate, new_events)
+                    fastforward_lock = self._use_fastforward_lock(aggregate_id)
+                    try:
+                        with fastforward_lock:
+                            new_events = self.event_store.get(
+                                originator_id=aggregate_id, gt=aggregate.version
+                            )
+                            _aggregate = projector_func(aggregate, new_events)
+                    finally:
+                        self._disuse_fastforward_lock(aggregate_id)
+
                     if _aggregate is None:
                         raise AggregateNotFound(aggregate_id)
                     else:
@@ -260,10 +280,6 @@ class Repository:
         version: Optional[int] = None,
         projector_func: ProjectorFunctionType[Aggregate] = mutate_aggregate,
     ) -> Aggregate:
-        """
-        Reconstructs an :class:`~eventsourcing.domain.Aggregate` for a
-        given ID from stored events, optionally at a particular version.
-        """
         gt: Optional[int] = None
 
         if self.snapshot_store is not None:
@@ -299,7 +315,36 @@ class Repository:
             # Return the aggregate.
             return aggregate
 
+    def _use_fastforward_lock(self, aggregate_id: UUID) -> Lock:
+        with self._fastforward_locks_lock:
+            try:
+                lock, num_users = self._fastforward_locks_inuse[aggregate_id]
+            except KeyError:
+                try:
+                    lock = self._fastforward_locks_cache.get(aggregate_id, evict=True)
+                except KeyError:
+                    lock = Lock()
+                finally:
+                    num_users = 0
+            finally:
+                num_users += 1
+                self._fastforward_locks_inuse[aggregate_id] = (lock, num_users)
+            return lock
+
+    def _disuse_fastforward_lock(self, aggregate_id: UUID) -> None:
+        with self._fastforward_locks_lock:
+            lock_, num_users = self._fastforward_locks_inuse[aggregate_id]
+            num_users -= 1
+            if num_users == 0:
+                del self._fastforward_locks_inuse[aggregate_id]
+                self._fastforward_locks_cache.put(aggregate_id, lock_)
+            else:
+                self._fastforward_locks_inuse[aggregate_id] = (lock_, num_users)
+
     def __contains__(self, item: UUID) -> bool:
+        """
+        Tests to see if an aggregate exists in the repository.
+        """
         try:
             self.get(aggregate_id=item)
         except AggregateNotFound:

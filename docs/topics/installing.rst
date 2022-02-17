@@ -6,34 +6,71 @@ This version of the library is compatible with Python versions 3.7, 3.8,
 3.9, and 3.10. The library's suite of tests is run against these versions
 and has 100% line and branch coverage.
 
+This package depends only on modules from the Python Standard Library,
+except for the extra install options described below.
+
+Start new project
+=================
+
+To quickly start a new project, use the :ref:`project template <Template>`.
+
+
+Pip install
+===========
+
 You can use pip to install the library from the
 `Python Package Index <https://pypi.org/project/eventsourcing/>`__.
-It is recommended always to install into a virtual environment.
 
 ::
 
     $ pip install eventsourcing
 
+It is recommended to install the library into a Python virtual environment.
+
+::
+
+    $ python3 -mvenv my_venv
+    $ source my_venv/bin/activate
+    (my_venv) $ pip install eventsourcing
+
+
 When including the library in a list of project dependencies, in order to
 avoid installing future incompatible releases, it is recommended to specify
 the major and minor version numbers.
 
-As an example, the expression below would install the latest version of the
-v9.2.x release, allowing future bug fixes released with point version number
-increments.
+As an example, the expression ``eventsourcing<=9.2.99999`` would install the
+latest version of the 9.2 series, allowing future bug fixes released with
+point version number increments. You can use this expression in a ``pip install``
+command, in a ``requirements.txt`` file, or in a ``setup.py`` file.
 
 ::
 
-    eventsourcing<=9.2.99999
+    $ pip install "eventsourcing<=9.2.99999"
+
+If you are specifying the dependencies of your project in a ``pyproject.toml``
+file, and for example using the Poetry build tool, you can specify the
+dependency on this library in the following way.
+
+::
+
+    [tool.poetry.dependencies]
+    python = "^3.8"
+    eventsourcing = { version = "~9.2.0" }
+
 
 Specifying the major and minor version number in this way will avoid any
 potentially destabilising additional features introduced with minor version
-number increments, and also any backwards incompatible changes introduced
+number increments, and also avoid all backward incompatible changes introduced
 with major version number increments.
 
-This package depends only on modules from the Python Standard Library,
-except for the extra options described below.
-
+Upgrading to new minor versions is encouraged, but it is recommended to
+do this manually so that you are sure your project isn't inadvertently
+broken by changes in the library. Migrating to new major versions is
+also encouraged, but by definition this may involve your making changes
+to your project to adjust for the backward incompatibilities introduced
+by the new major version. Of course it's your project so, if you wish,
+feel free to pin the major and minor and point version, or indeed only
+the major version.
 
 Install options
 ===============
@@ -42,11 +79,15 @@ Running the install command with different options will install
 the extra dependencies associated with that option. If you installed
 without any options, you can easily install optional dependencies
 later by running the install command again with the options you want.
+You can also make your project depend directly on the extra dependencies.
 
-For example, if you want to store cryptographically encrypted events,
-then install with the ``crypto`` option. This simply installs
+For example, if you want the option to store cryptographically encrypted
+events, then install with the ``crypto`` option. This simply installs
 `PyCryptodome <https://pypi.org/project/pycryptodome/>`_
-so feel free to make your project depend on that instead.
+so feel free to make your project directly depend on that package.
+After installing this package, you will need to
+:ref:`configure your application <Application configuration>`
+environment to enable encryption.
 
 ::
 
@@ -78,10 +119,10 @@ Developers
 ==========
 
 If you want to install the code for the purpose of developing the library, then
-fork and clone the GitHub repository and install from the root folder with the
-'dev' option. This option will install a number of packages that help with
-development and documentation, such as the above extra dependencies along with
-Sphinx, Coverage.py, Black, mypy, Flake8, and isort.
+fork and clone the GitHub repository and install into a Python virtual environment
+from the root folder with the 'dev' option. This option will install a number of
+packages that help with development and documentation, such as the above extra
+dependencies along with Sphinx, Coverage.py, Black, mypy, Flake8, and isort.
 
 ::
 

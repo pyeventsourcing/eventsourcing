@@ -35,7 +35,7 @@ The example below follows an outside-in approach to software development.
 First, write a test.
 
 ```python
-def test():
+def test_dog_school():
     # Construct application object.
     school = DogSchool()
 
@@ -94,7 +94,7 @@ class Dog(Aggregate):
 Run tests with the default "in-memory" persistence module.
 
 ```python
-test()
+test_dog_school()
 ```
 Configure environment variables to run applications with real databases.
 
@@ -104,7 +104,7 @@ import os
 os.environ["PERSISTENCE_MODULE"] = 'eventsourcing.sqlite'
 os.environ["SQLITE_DBNAME"] = 'dog-school.db'
 
-test()
+test_dog_school()
 ```
 
 Add interfaces that use your application objects.
