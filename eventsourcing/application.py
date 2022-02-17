@@ -223,6 +223,10 @@ class Repository:
         version: Optional[int] = None,
         projector_func: ProjectorFunctionType[Aggregate] = mutate_aggregate,
     ) -> Aggregate:
+        """
+        Reconstructs an :class:`~eventsourcing.domain.Aggregate` for a
+        given ID from stored events, optionally at a particular version.
+        """
         if self.cache and version is None:
             try:
                 # Look for aggregate in the cache.
@@ -260,10 +264,6 @@ class Repository:
         version: Optional[int] = None,
         projector_func: ProjectorFunctionType[Aggregate] = mutate_aggregate,
     ) -> Aggregate:
-        """
-        Reconstructs an :class:`~eventsourcing.domain.Aggregate` for a
-        given ID from stored events, optionally at a particular version.
-        """
         gt: Optional[int] = None
 
         if self.snapshot_store is not None:
