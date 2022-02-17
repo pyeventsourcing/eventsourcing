@@ -342,6 +342,9 @@ class Repository:
                 self._fastforward_locks_inuse[aggregate_id] = (lock_, num_users)
 
     def __contains__(self, item: UUID) -> bool:
+        """
+        Tests to see if an aggregate exists in the repository.
+        """
         try:
             self.get(aggregate_id=item)
         except AggregateNotFound:

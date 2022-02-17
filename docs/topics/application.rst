@@ -228,6 +228,19 @@ aggregate, and then using these to reconstruct an aggregate object.
     assert len(dog_latest.tricks) == 3
     assert dog_latest.version == 4
 
+
+The :class:`~eventsourcing.application.Repository` class implements a
+:func:`~eventsourcing.application.Repository.__contains__` method, so that
+you can use the Python ``in`` keyword to see whether or not an aggregate
+exists in the repository
+
+.. code-block:: python
+
+    assert dog_id in application.repository
+
+    assert uuid4() not in application.repository
+
+
 The repository :func:`~eventsourcing.application.Repository.get` method accepts
 three arguments: ``aggregate_id``, ``version``, and ``projector_func``.
 The ``aggregate_id`` argument is required, and should be the ID of an already existing
