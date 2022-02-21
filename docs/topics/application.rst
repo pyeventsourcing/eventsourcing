@@ -232,7 +232,7 @@ aggregate, and then using these to reconstruct an aggregate object.
 The :class:`~eventsourcing.application.Repository` class implements a
 :func:`~eventsourcing.application.Repository.__contains__` method, so that
 you can use the Python ``in`` keyword to see whether or not an aggregate
-exists in the repository
+exists in the repository.
 
 .. code-block:: python
 
