@@ -24,6 +24,7 @@ from eventsourcing.system import (
     PullingThread,
     Runner,
     RunnerAlreadyStarted,
+    SimpleMultiThreadedRunner,
     SingleThreadedRunner,
     System,
 )
@@ -577,7 +578,7 @@ class TestMultiThreadedRunner(RunnerTestCase[MultiThreadedRunner]):
             pipes=[
                 [
                     BankAccounts,
-                    TestMultiThreadedRunner.BrokenPulling,
+                    TestMultiThreadedRunner.BrokenProcessing,
                 ],
             ]
         )
@@ -602,10 +603,11 @@ class TestMultiThreadedRunner(RunnerTestCase[MultiThreadedRunner]):
         )
 
         # Check watch_for_errors() raises exception.
-        with self.assertRaises(NotificationPullingError) as cm:
+        with self.assertRaises(EventProcessingError) as cm:
             self.runner.watch_for_errors(timeout=1)
         self.assertEqual(
-            cm.exception.args[0], "Just testing error handling when pulling is broken"
+            cm.exception.args[0],
+            "Just testing error handling when processing is broken",
         )
         self.runner = None
 
@@ -794,6 +796,41 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
 
     def test_system_with_processing_loop(self):
         super().test_system_with_processing_loop()
+
+
+class TestSimpleMultiThreadedRunner(TestMultiThreadedRunner):
+    runner_class = SimpleMultiThreadedRunner
+
+    def test_system_with_one_edge(self):
+        super().test_system_with_one_edge()
+
+    def test_ignores_recording_event_if_seen_subsequent(self):
+        # Skipping this because this runner doesn't take
+        # notice of attribute previous_max_notification_id.
+        pass
+
+    def test_queue_task_done_is_called(self):
+        # Skipping this because this runner doesn't
+        # have a queue.
+        pass
+
+    def test_stop_raises_if_notification_converting_is_broken(self):
+        # Skipping this because this runner doesn't have
+        # a separate notification converting thread.
+        pass
+
+    def test_stop_raises_if_notification_pulling_is_broken(self):
+        # Skipping this because this runner doesn't have
+        # a separate notification pulling thread.
+        pass
+
+    def wait_for_runner(self):
+        sleep(0.1)
+        try:
+            self.runner.reraise_thread_errors()
+        except Exception as e:
+            self.runner = None
+            raise Exception("Runner errored: " + str(e)) from e
 
 
 del RunnerTestCase

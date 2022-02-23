@@ -910,6 +910,181 @@ class ProcessingThread(Thread):
         self.processing_queue.put(None)
 
 
+class SimpleMultiThreadedRunner(Runner):
+    """
+    Runs a :class:`System` with a :class:`SimpleMultiThreadedRunnerThread` for each
+    follower in the system definition.
+    It is a runner, and so implements the :func:`start`, :func:`stop`,
+    and :func:`get` methods.
+    """
+
+    def __init__(self, system: System):
+        """
+        Initialises runner with the given :class:`System`.
+        """
+        super().__init__(system)
+        self.apps: Dict[str, Application] = {}
+        self.threads: Dict[str, SimpleMultiThreadedRunnerThread] = {}
+        self.has_errored = Event()
+
+        # Construct followers.
+        for follower_name in self.system.followers:
+            follower_class = self.system.follower_cls(follower_name)
+            try:
+                follower = follower_class(env=self.env)
+            except Exception:
+                self.has_errored.set()
+                raise
+            self.apps[follower_name] = follower
+
+        # Construct non-follower leaders.
+        for leader_name in self.system.leaders_only:
+            self.apps[leader_name] = self.system.leader_cls(leader_name)(env=self.env)
+
+        # Construct singles.
+        for name in self.system.singles:
+            single = self.system.get_app_cls(name)(env=self.env)
+            self.apps[name] = single
+
+    def start(self) -> None:
+        """
+        Starts the runner.
+        A multi-threaded runner thread is started for each
+        'follower' application in the system, and constructs
+        an instance of each non-follower leader application in
+        the system. The followers are then setup to follow the
+        applications they follow (have a notification log reader
+        with the notification log of the leader), and their leaders
+        are  setup to lead the follower's thead (send prompts).
+        """
+        super().start()
+
+        # Construct followers.
+        for follower_name in self.system.followers:
+            follower = cast(Follower, self.apps[follower_name])
+
+            thread = SimpleMultiThreadedRunnerThread(
+                follower=follower,
+                has_errored=self.has_errored,
+            )
+            self.threads[follower.name] = thread
+            thread.start()
+
+        # Wait until all the threads have started.
+        for thread in self.threads.values():
+            thread.has_started.wait()
+
+        # Lead and follow.
+        for edge in self.system.edges:
+            leader = cast(Leader, self.apps[edge[0]])
+            follower = cast(Follower, self.apps[edge[1]])
+            follower.follow(leader.name, leader.notification_log)
+            thread = self.threads[follower.name]
+            leader.lead(thread)
+
+    def watch_for_errors(self, timeout: Optional[float] = None) -> bool:
+        if self.has_errored.wait(timeout=timeout):
+            self.stop()
+        return self.has_errored.is_set()
+
+    def stop(self) -> None:
+        threads = self.threads.values()
+        for thread in threads:
+            thread.stop()
+        for thread in threads:
+            thread.join(timeout=2)
+        for app in self.apps.values():
+            app.close()
+        self.apps.clear()
+        self.reraise_thread_errors()
+
+    def reraise_thread_errors(self) -> None:
+        for thread in self.threads.values():
+            if thread.error:
+                raise thread.error
+
+    def get(self, cls: Type[TApplication]) -> TApplication:
+        app = self.apps[cls.name]
+        assert isinstance(app, cls)
+        return app
+
+
+class SimpleMultiThreadedRunnerThread(RecordingEventReceiver, Thread):
+    """
+    Runs one process application for a
+    :class:`~eventsourcing.system.MultiThreadedRunner`.
+    A multi-threaded runner thread is a :class:`~eventsourcing.system.Promptable`
+    object, and implements the :func:`receive_prompt` method by collecting
+    prompted names and setting its threading event 'is_prompted'.
+    A multi-threaded runner thread is a Python :class:`threading.Thread` object,
+    and implements the thread's :func:`run` method by waiting until the
+    'is_prompted' event has been set and then calling its process application's
+    :func:`~eventsourcing.system.Follower.pull_and_process`
+    method once for each prompted name. It is expected that
+    the process application will have been set up by the runner
+    with a notification log reader from which event notifications
+    will be pulled.
+    """
+
+    def __init__(
+        self,
+        follower: Follower,
+        has_errored: Event,
+    ):
+        super().__init__()
+        self.follower = follower
+        self.has_errored = has_errored
+        self.error: Optional[Exception] = None
+        self.is_stopping = Event()
+        self.has_started = Event()
+        self.is_prompted = Event()
+        self.prompted_names: List[str] = []
+        self.prompted_names_lock = Lock()
+        self.setDaemon(True)
+        self.is_running = Event()
+
+    def run(self) -> None:
+        """
+        Begins by constructing an application instance from
+        given application class and then loops forever until
+        stopped. The loop blocks on waiting for the 'is_prompted'
+        event to be set, then forwards the prompts already received
+        to its application by calling the application's
+        :func:`~Follower.pull_and_process` method for each prompted name.
+        """
+        self.has_started.set()
+
+        try:
+            while not self.is_stopping.is_set():
+                self.is_prompted.wait()
+
+                with self.prompted_names_lock:
+                    prompted_names = self.prompted_names
+                    self.prompted_names = []
+                    self.is_prompted.clear()
+                for name in prompted_names:
+                    self.follower.pull_and_process(name)
+        except Exception as e:
+            self.error = EventProcessingError(str(e))
+            self.error.__cause__ = e
+            self.has_errored.set()
+
+    def receive_recording_event(self, recording_event: RecordingEvent) -> None:
+        """
+        Receives prompt by appending name of
+        leader to list of prompted names.
+        """
+        leader_name = recording_event.application_name
+        with self.prompted_names_lock:
+            if leader_name not in self.prompted_names:
+                self.prompted_names.append(leader_name)
+            self.is_prompted.set()
+
+    def stop(self) -> None:
+        self.is_stopping.set()
+        self.is_prompted.set()
+
+
 class NotificationLogReader:
     """
     Reads domain event notifications from a notification log.
