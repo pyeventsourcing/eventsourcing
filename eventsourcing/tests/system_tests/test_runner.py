@@ -16,7 +16,7 @@ from eventsourcing.postgres import PostgresDatastore
 from eventsourcing.system import (
     ConvertingThread,
     EventProcessingError,
-    MultiThreadedRunner,
+    NewMultiThreadedRunner,
     NotificationConvertingError,
     NotificationPullingError,
     ProcessApplication,
@@ -24,7 +24,7 @@ from eventsourcing.system import (
     PullingThread,
     Runner,
     RunnerAlreadyStarted,
-    SimpleMultiThreadedRunner,
+    MultiThreadedRunner,
     SingleThreadedRunner,
     System,
 )
@@ -409,6 +409,11 @@ class TestPullingThread(TestCase):
 class TestMultiThreadedRunner(RunnerTestCase[MultiThreadedRunner]):
     runner_class = MultiThreadedRunner
 
+    def test_ignores_recording_event_if_seen_subsequent(self):
+        # Skipping this because this runner doesn't take
+        # notice of attribute previous_max_notification_id.
+        pass
+
     def wait_for_runner(self):
         sleep(0.1)
         try:
@@ -421,20 +426,6 @@ class TestMultiThreadedRunner(RunnerTestCase[MultiThreadedRunner]):
         def __init__(self, *args, **kwargs):
             raise ProgrammingError(
                 "Just testing error handling when initialisation is broken"
-            )
-
-    class BrokenPulling(EmailProcess):
-        def pull_notifications(
-            self, leader_name: str, start: int, stop: Optional[int] = None
-        ) -> Iterable[List[Notification]]:
-            raise ProgrammingError("Just testing error handling when pulling is broken")
-
-    class BrokenConverting(EmailProcess):
-        def convert_notifications(
-            self, leader_name: str, notifications: Iterable[Notification]
-        ) -> List[ProcessingJob]:
-            raise ProgrammingError(
-                "Just testing error handling when converting is broken"
             )
 
     class BrokenProcessing(EmailProcess):
@@ -460,89 +451,6 @@ class TestMultiThreadedRunner(RunnerTestCase[MultiThreadedRunner]):
             cm.exception.args[0],
             "Just testing error handling when initialisation is broken",
         )
-
-    def test_stop_raises_if_notification_pulling_is_broken(self):
-        system = System(
-            pipes=[
-                [
-                    BankAccounts,
-                    TestMultiThreadedRunner.BrokenPulling,
-                ],
-            ]
-        )
-        # Create runner.
-        self.runner = self.runner_class(system)
-
-        # Create some notifications.
-        accounts = self.runner.get(BankAccounts)
-        accounts.open_account(
-            full_name="Alice",
-            email_address="alice@example.com",
-        )
-
-        # Start runner.
-        self.runner.start()
-
-        # Trigger pulling of notifications.
-        accounts = self.runner.get(BankAccounts)
-        accounts.open_account(
-            full_name="Alice",
-            email_address="alice@example.com",
-        )
-
-        # Wait for runner to error.
-        self.assertTrue(self.runner.has_errored.wait(timeout=1))
-
-        # Check stop() raises exception.
-        with self.assertRaises(NotificationPullingError) as cm:
-            self.runner.stop()
-        self.assertIn(
-            "Just testing error handling when pulling is broken",
-            cm.exception.args[0],
-        )
-        self.runner = None
-
-    def test_stop_raises_if_notification_converting_is_broken(self):
-        system = System(
-            pipes=[
-                [
-                    BankAccounts,
-                    TestMultiThreadedRunner.BrokenConverting,
-                ],
-            ]
-        )
-
-        # Create runner.
-        self.runner = self.runner_class(system)
-
-        # Create some notifications.
-        accounts = self.runner.get(BankAccounts)
-        accounts.open_account(
-            full_name="Alice",
-            email_address="alice@example.com",
-        )
-
-        # Start runner.
-        self.runner.start()
-
-        # Trigger pulling of notifications.
-        accounts = self.runner.get(BankAccounts)
-        accounts.open_account(
-            full_name="Alice",
-            email_address="alice@example.com",
-        )
-
-        # Wait for runner to error.
-        self.assertTrue(self.runner.has_errored.wait(timeout=1000))
-
-        # Check stop() raises exception.
-        with self.assertRaises(NotificationConvertingError) as cm:
-            self.runner.stop()
-        self.assertIn(
-            "Just testing error handling when converting is broken",
-            cm.exception.args[0],
-        )
-        self.runner = None
 
     def test_stop_raises_if_event_processing_is_broken(self):
         system = System(
@@ -652,25 +560,6 @@ class TestMultiThreadedRunner(RunnerTestCase[MultiThreadedRunner]):
             cm.exception.args[0],
         )
         self.runner = None
-
-    def test_queue_task_done_is_called(self):
-        system = System(pipes=[[BankAccounts, EmailProcess]])
-        self.start_runner(system)
-
-        accounts = self.runner.get(BankAccounts)
-        email_process1 = self.runner.get(EmailProcess)
-
-        accounts.open_account(
-            full_name="Alice",
-            email_address="alice@example.com",
-        )
-        sleep(0.1)
-        self.assertEqual(len(email_process1.notification_log["1,10"].items), 1)
-
-        for thread in self.runner.all_threads:
-            if isinstance(thread, ConvertingThread):
-                self.assertEqual(thread.converting_queue.unfinished_tasks, 0)
-                self.assertEqual(thread.processing_queue.unfinished_tasks, 0)
 
 
 class TestMultiThreadedRunnerWithSQLiteFileBased(TestMultiThreadedRunner):
@@ -791,38 +680,152 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
         sleep(0.4)
         super().wait_for_runner()
 
-    def test_stop_raises_if_notification_converting_is_broken(self):
-        super().test_stop_raises_if_notification_converting_is_broken()
 
-    def test_system_with_processing_loop(self):
-        super().test_system_with_processing_loop()
+class TestNewMultiThreadedRunner(TestMultiThreadedRunner):
+    runner_class = NewMultiThreadedRunner
 
+    class BrokenPulling(EmailProcess):
+        def pull_notifications(
+            self, leader_name: str, start: int, stop: Optional[int] = None
+        ) -> Iterable[List[Notification]]:
+            raise ProgrammingError("Just testing error handling when pulling is broken")
 
-class TestSimpleMultiThreadedRunner(TestMultiThreadedRunner):
-    runner_class = SimpleMultiThreadedRunner
+    class BrokenConverting(EmailProcess):
+        def convert_notifications(
+            self, leader_name: str, notifications: Iterable[Notification]
+        ) -> List[ProcessingJob]:
+            raise ProgrammingError(
+                "Just testing error handling when converting is broken"
+            )
 
-    def test_system_with_one_edge(self):
-        super().test_system_with_one_edge()
-
+    # This duplicates test method above.
     def test_ignores_recording_event_if_seen_subsequent(self):
-        # Skipping this because this runner doesn't take
-        # notice of attribute previous_max_notification_id.
-        pass
+        system = System(pipes=[[BankAccounts, EmailProcess]])
+        self.start_runner(system)
+
+        accounts = self.runner.get(BankAccounts)
+        email_process = self.runner.get(EmailProcess)
+
+        accounts.open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+        self.wait_for_runner()
+
+        self.assertEqual(len(email_process.notification_log["1,10"].items), 1)
+
+        # Reset this to break sequence.
+        accounts.previous_max_notification_id -= 1
+
+        accounts.open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+        self.wait_for_runner()
+
+        self.assertEqual(len(email_process.notification_log["1,10"].items), 1)
 
     def test_queue_task_done_is_called(self):
-        # Skipping this because this runner doesn't
-        # have a queue.
-        pass
+        system = System(pipes=[[BankAccounts, EmailProcess]])
+        self.start_runner(system)
+
+        accounts = self.runner.get(BankAccounts)
+        email_process1 = self.runner.get(EmailProcess)
+
+        accounts.open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+        sleep(0.1)
+        self.assertEqual(len(email_process1.notification_log["1,10"].items), 1)
+
+        for thread in self.runner.all_threads:
+            if isinstance(thread, ConvertingThread):
+                self.assertEqual(thread.converting_queue.unfinished_tasks, 0)
+                self.assertEqual(thread.processing_queue.unfinished_tasks, 0)
 
     def test_stop_raises_if_notification_converting_is_broken(self):
-        # Skipping this because this runner doesn't have
-        # a separate notification converting thread.
-        pass
+        system = System(
+            pipes=[
+                [
+                    BankAccounts,
+                    TestNewMultiThreadedRunner.BrokenConverting,
+                ],
+            ]
+        )
+
+        # Create runner.
+        self.runner = self.runner_class(system)
+
+        # Create some notifications.
+        accounts = self.runner.get(BankAccounts)
+        accounts.open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+
+        # Start runner.
+        self.runner.start()
+
+        # Trigger pulling of notifications.
+        accounts = self.runner.get(BankAccounts)
+        accounts.open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+
+        # Wait for runner to error.
+        self.assertTrue(self.runner.has_errored.wait(timeout=1000))
+
+        # Check stop() raises exception.
+        with self.assertRaises(NotificationConvertingError) as cm:
+            self.runner.stop()
+        self.assertIn(
+            "Just testing error handling when converting is broken",
+            cm.exception.args[0],
+        )
+        self.runner = None
 
     def test_stop_raises_if_notification_pulling_is_broken(self):
-        # Skipping this because this runner doesn't have
-        # a separate notification pulling thread.
-        pass
+        system = System(
+            pipes=[
+                [
+                    BankAccounts,
+                    TestNewMultiThreadedRunner.BrokenPulling,
+                ],
+            ]
+        )
+        # Create runner.
+        self.runner = self.runner_class(system)
+
+        # Create some notifications.
+        accounts = self.runner.get(BankAccounts)
+        accounts.open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+
+        # Start runner.
+        self.runner.start()
+
+        # Trigger pulling of notifications.
+        accounts = self.runner.get(BankAccounts)
+        accounts.open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+
+        # Wait for runner to error.
+        self.assertTrue(self.runner.has_errored.wait(timeout=1))
+
+        # Check stop() raises exception.
+        with self.assertRaises(NotificationPullingError) as cm:
+            self.runner.stop()
+        self.assertIn(
+            "Just testing error handling when pulling is broken",
+            cm.exception.args[0],
+        )
+        self.runner = None
 
     def wait_for_runner(self):
         sleep(0.1)
