@@ -1,6 +1,6 @@
 from collections import defaultdict
 from threading import Lock
-from typing import Any, Dict, Iterable, List, Optional, Sequence
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Set
 from uuid import UUID
 
 from eventsourcing.persistence import (
@@ -138,35 +138,38 @@ class POPOApplicationRecorder(ApplicationRecorder, POPOAggregateRecorder):
 class POPOProcessRecorder(ProcessRecorder, POPOApplicationRecorder):
     def __init__(self) -> None:
         super().__init__()
-        self.tracking_table: Dict[str, int] = defaultdict(None)
+        self._tracking_table: Dict[str, Set[int]] = defaultdict(set)
+        self._max_tracking_ids: Dict[str, int] = defaultdict(lambda: 0)
 
     def _assert_uniqueness(
         self, stored_events: List[StoredEvent], **kwargs: Any
     ) -> None:
         super()._assert_uniqueness(stored_events, **kwargs)
-        tracking: Optional[Tracking] = kwargs.get("tracking", None)
-        if tracking:
-            last = self.tracking_table.get(tracking.application_name, 0)
-            if tracking.notification_id <= last:
-                raise IntegrityError(
-                    f"Tracking info {tracking} not greater than last recorded: {last}"
-                )
+        t: Optional[Tracking] = kwargs.get("tracking", None)
+        if t and t.notification_id in self._tracking_table[t.application_name]:
+            raise IntegrityError(
+                f"Already recorded notification ID {t.notification_id} "
+                f"for application {t.application_name}"
+            )
 
     def _update_table(
         self, stored_events: List[StoredEvent], **kwargs: Any
     ) -> Optional[Sequence[int]]:
         notification_ids = super()._update_table(stored_events, **kwargs)
-        tracking: Optional[Tracking] = kwargs.get("tracking", None)
-        if tracking:
-            self.tracking_table[tracking.application_name] = tracking.notification_id
+        t: Optional[Tracking] = kwargs.get("tracking", None)
+        if t:
+            self._tracking_table[t.application_name].add(t.notification_id)
+            if self._max_tracking_ids[t.application_name] < t.notification_id:
+                self._max_tracking_ids[t.application_name] = t.notification_id
         return notification_ids
 
     def max_tracking_id(self, application_name: str) -> int:
         with self._database_lock:
-            try:
-                return self.tracking_table[application_name]
-            except KeyError:
-                return 0
+            return self._max_tracking_ids[application_name]
+
+    def has_tracking_id(self, application_name: str, notification_id: int) -> bool:
+        with self._database_lock:
+            return notification_id in self._tracking_table[application_name]
 
 
 class Factory(InfrastructureFactory):

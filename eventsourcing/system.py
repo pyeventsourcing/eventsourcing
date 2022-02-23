@@ -169,8 +169,9 @@ class Follower(Application):
             try:
                 recordings = self._record(processing_event)
             except IntegrityError:
-                if tracking.notification_id <= self.recorder.max_tracking_id(
-                    tracking.application_name
+                if self.recorder.has_tracking_id(
+                    tracking.application_name,
+                    tracking.notification_id,
                 ):
                     pass
                 else:

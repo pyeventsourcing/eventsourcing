@@ -632,6 +632,41 @@ class ProcessRecorderTestCase(TestCase, ABC):
             2,
         )
 
+    def test_has_tracking_id(self):
+        # Construct the recorder.
+        recorder = self.create_recorder()
+
+        self.assertFalse(recorder.has_tracking_id("upstream_app", 1))
+        self.assertFalse(recorder.has_tracking_id("upstream_app", 2))
+        self.assertFalse(recorder.has_tracking_id("upstream_app", 3))
+
+        tracking1 = Tracking(
+            application_name="upstream_app",
+            notification_id=1,
+        )
+        tracking2 = Tracking(
+            application_name="upstream_app",
+            notification_id=2,
+        )
+
+        recorder.insert_events(
+            stored_events=[],
+            tracking=tracking1,
+        )
+
+        self.assertTrue(recorder.has_tracking_id("upstream_app", 1))
+        self.assertFalse(recorder.has_tracking_id("upstream_app", 2))
+        self.assertFalse(recorder.has_tracking_id("upstream_app", 3))
+
+        recorder.insert_events(
+            stored_events=[],
+            tracking=tracking2,
+        )
+
+        self.assertTrue(recorder.has_tracking_id("upstream_app", 1))
+        self.assertTrue(recorder.has_tracking_id("upstream_app", 2))
+        self.assertFalse(recorder.has_tracking_id("upstream_app", 3))
+
     def test_performance(self) -> None:
 
         # Construct the recorder.

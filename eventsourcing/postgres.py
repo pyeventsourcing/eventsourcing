@@ -693,8 +693,16 @@ class PostgresProcessRecorder(
             f"FROM {self.tracking_table_name} "
             "WHERE application_name=$1"
         )
+        self.count_tracking_id_statement = (
+            "SELECT COUNT(*) "
+            f"FROM {self.tracking_table_name} "
+            "WHERE application_name=$1 AND notification_id=$2"
+        )
         self.max_tracking_id_statement_name = (
             f"max_tracking_id_{tracking_table_name}".replace(".", "_")
+        )
+        self.count_tracking_id_statement_name = (
+            f"count_tracking_id_{tracking_table_name}".replace(".", "_")
         )
 
     def construct_create_table_statements(self) -> List[str]:
@@ -724,6 +732,21 @@ class PostgresProcessRecorder(
                 )
                 max_id = curs.fetchone()[0] or 0
         return max_id
+
+    @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
+    def has_tracking_id(self, application_name: str, notification_id: int) -> bool:
+        statement_name = self.count_tracking_id_statement_name
+        with self.datastore.get_connection() as conn:
+            statement_alias = self._prepare(
+                conn, statement_name, self.count_tracking_id_statement
+            )
+
+            with conn.transaction(commit=False) as curs:
+                curs.execute(
+                    f"EXECUTE {statement_alias}(%s, %s)",
+                    (application_name, notification_id),
+                )
+                return bool(curs.fetchone()[0])
 
     def _prepare_insert_events(self, conn: PostgresConnection) -> None:
         super()._prepare_insert_events(conn)

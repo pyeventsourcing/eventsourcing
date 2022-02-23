@@ -489,6 +489,12 @@ class ProcessRecorder(ApplicationRecorder):
         Returns the last recorded notification ID from given application.
         """
 
+    @abstractmethod
+    def has_tracking_id(self, application_name: str, notification_id: int) -> bool:
+        """
+        Returns the last recorded notification ID from given application.
+        """
+
 
 @dataclass(frozen=True)
 class Recording:

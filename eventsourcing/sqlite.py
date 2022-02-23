@@ -460,6 +460,10 @@ class SQLiteProcessRecorder(
         self.select_max_tracking_id_statement = (
             "SELECT MAX(notification_id) FROM tracking WHERE application_name=?"
         )
+        self.count_tracking_id_statement = (
+            "SELECT COUNT(*) FROM tracking WHERE "
+            "application_name=? AND notification_id=?"
+        )
 
     def construct_create_table_statements(self) -> List[str]:
         statements = super().construct_create_table_statements()
@@ -479,6 +483,12 @@ class SQLiteProcessRecorder(
             c.execute(self.select_max_tracking_id_statement, params)
             max_id = c.fetchone()[0] or 0
         return max_id
+
+    def has_tracking_id(self, application_name: str, notification_id: int) -> bool:
+        params = [application_name, notification_id]
+        with self.datastore.transaction(commit=False) as c:
+            c.execute(self.count_tracking_id_statement, params)
+            return bool(c.fetchone()[0])
 
     def _insert_events(
         self,
