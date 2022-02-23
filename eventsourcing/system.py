@@ -424,7 +424,7 @@ class SingleThreadedRunner(Runner, RecordingEventReceiver):
         """
         Initialises runner with the given :class:`System`.
         """
-        super().__init__(system, env)
+        super().__init__(system=system, env=env)
         self.apps: Dict[str, Application] = {}
         self._recording_events_received: List[RecordingEvent] = []
         self._prompted_names_lock = Lock()
@@ -525,7 +525,7 @@ class NewSingleThreadedRunner(Runner, RecordingEventReceiver):
         """
         Initialises runner with the given :class:`System`.
         """
-        super().__init__(system, env)
+        super().__init__(system=system, env=env)
         self.apps: Dict[str, Application] = {}
         self._recording_events_received: List[RecordingEvent] = []
         self._recording_events_received_lock = Lock()
@@ -671,11 +671,11 @@ class MultiThreadedRunner(Runner):
     for each :class:`Follower` in the system definition.
     """
 
-    def __init__(self, system: System):
+    def __init__(self, system: System, env: Optional[EnvType] = None):
         """
         Initialises runner with the given :class:`System`.
         """
-        super().__init__(system)
+        super().__init__(system=system, env=env)
         self.apps: Dict[str, Application] = {}
         self.threads: Dict[str, MultiThreadedRunnerThread] = {}
         self.has_errored = Event()
@@ -842,7 +842,7 @@ class NewMultiThreadedRunner(Runner, RecordingEventReceiver):
         """
         Initialises runner with the given :class:`System`.
         """
-        super().__init__(system, env)
+        super().__init__(system=system, env=env)
         self.apps: Dict[str, Application] = {}
         self.pulling_threads: Dict[str, List[PullingThread]] = {}
         self.processing_queues: Dict[str, "Queue[Optional[List[ProcessingJob]]]"] = {}

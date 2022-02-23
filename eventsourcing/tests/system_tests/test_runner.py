@@ -63,6 +63,31 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
         self.runner = self.runner_class(system)
         self.runner.start()
 
+    def test_runner_constructed_with_env_has_apps_with_env(self):
+        system = System(pipes=[[BankAccounts, EmailProcess]])
+        env = {"MY_ENV_VAR": "my_env_val"}
+        self.runner = self.runner_class(system, env)
+        self.runner.start()
+
+        # Check leaders get the environment.
+        app = self.runner.get(BankAccounts)
+        self.assertEqual(app.env.get("MY_ENV_VAR"), "my_env_val")
+
+        # Check followers get the environment.
+        app = self.runner.get(EmailProcess)
+        self.assertEqual(app.env.get("MY_ENV_VAR"), "my_env_val")
+
+        # Stop the runner before we start another.
+        self.runner.stop()
+
+        # Check singles get the environment.
+        system = System(pipes=[[BankAccounts]])
+        env = {"MY_ENV_VAR": "my_env_val"}
+        self.runner = self.runner_class(system, env)
+        self.runner.start()
+        app = self.runner.get(BankAccounts)
+        self.assertEqual(app.env.get("MY_ENV_VAR"), "my_env_val")
+
     def test_starts_with_single_app(self):
         self.start_runner(System(pipes=[[BankAccounts]]))
         app = self.runner.get(BankAccounts)
