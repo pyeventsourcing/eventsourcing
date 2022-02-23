@@ -16,7 +16,9 @@ from eventsourcing.postgres import PostgresDatastore
 from eventsourcing.system import (
     ConvertingThread,
     EventProcessingError,
+    MultiThreadedRunner,
     NewMultiThreadedRunner,
+    NewSingleThreadedRunner,
     NotificationConvertingError,
     NotificationPullingError,
     ProcessApplication,
@@ -24,7 +26,6 @@ from eventsourcing.system import (
     PullingThread,
     Runner,
     RunnerAlreadyStarted,
-    MultiThreadedRunner,
     SingleThreadedRunner,
     System,
 )
@@ -285,6 +286,17 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
 
         self.assertEqual(len(email_process.notification_log["1,10"].items), 0)
 
+    def wait_for_runner(self):
+        pass
+
+
+class TestSingleThreadedRunner(RunnerTestCase[SingleThreadedRunner]):
+    runner_class = SingleThreadedRunner
+
+
+class TestNewSingleThreadedRunner(RunnerTestCase[NewSingleThreadedRunner]):
+    runner_class = NewSingleThreadedRunner
+
     def test_ignores_recording_event_if_seen_subsequent(self):
         system = System(pipes=[[BankAccounts, EmailProcess]])
         self.start_runner(system)
@@ -310,13 +322,6 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
         self.wait_for_runner()
 
         self.assertEqual(len(email_process.notification_log["1,10"].items), 1)
-
-    def wait_for_runner(self):
-        pass
-
-
-class TestSingleThreadedRunner(RunnerTestCase[SingleThreadedRunner]):
-    runner_class = SingleThreadedRunner
 
     def test_received_notifications_accumulate(self):
         self.start_runner(

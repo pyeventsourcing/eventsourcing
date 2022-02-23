@@ -418,11 +418,107 @@ class EventProcessingError(Exception):
 class SingleThreadedRunner(Runner, RecordingEventReceiver):
     """
     Runs a :class:`System` in a single thread.
-    A single threaded runner is a runner, and so implements the
-    :func:`start`, :func:`stop`, and :func:`get` methods.
-    A single threaded runner is also a :class:`Promptable` object, and
-    implements the :func:`receive_prompt` method by collecting prompted
-    names.
+    """
+
+    def __init__(self, system: System, env: Optional[EnvType] = None):
+        """
+        Initialises runner with the given :class:`System`.
+        """
+        super().__init__(system, env)
+        self.apps: Dict[str, Application] = {}
+        self._recording_events_received: List[RecordingEvent] = []
+        self._prompted_names_lock = Lock()
+        self._prompted_names: Set[str] = set()
+        self._processing_lock = Lock()
+
+        # Construct followers.
+        for name in self.system.followers:
+            self.apps[name] = self.system.follower_cls(name)(env=self.env)
+
+        # Construct leaders.
+        for name in self.system.leaders_only:
+            leader = self.system.leader_cls(name)(env=self.env)
+            self.apps[name] = leader
+
+        # Construct singles.
+        for name in self.system.singles:
+            single = self.system.get_app_cls(name)(env=self.env)
+            self.apps[name] = single
+
+    def start(self) -> None:
+        """
+        Starts the runner.
+        The applications are constructed, and setup to lead and follow
+        each other, according to the system definition.
+        The followers are setup to follow the applications they follow
+        (have a notification log reader with the notification log of the
+        leader), and their leaders are setup to lead the runner itself
+        (send prompts).
+        """
+
+        super().start()
+
+        # Setup followers to follow leaders.
+        for edge in self.system.edges:
+            leader_name = edge[0]
+            follower_name = edge[1]
+            leader = cast(Leader, self.apps[leader_name])
+            follower = cast(Follower, self.apps[follower_name])
+            assert isinstance(leader, Leader)
+            assert isinstance(follower, Follower)
+            follower.follow(leader_name, leader.notification_log)
+
+        # Setup leaders to notify followers.
+        for name in self.system.leaders:
+            leader = cast(Leader, self.apps[name])
+            assert isinstance(leader, Leader)
+            leader.lead(self)
+
+    def receive_recording_event(self, recording_event: RecordingEvent) -> None:
+        """
+        Receives recording event by appending it to list of received recording
+        events.
+
+        Unless this method has previously been called and not yet returned, it
+        will then attempt to make the followers process all received recording
+        events, until there are none remaining.
+        """
+        leader_name = recording_event.application_name
+        with self._prompted_names_lock:
+            self._prompted_names.add(leader_name)
+
+        if self._processing_lock.acquire(blocking=False):
+            try:
+                while True:
+                    with self._prompted_names_lock:
+                        prompted_names = self._prompted_names
+                        self._prompted_names = set()
+
+                        if not prompted_names:
+                            break
+
+                    for leader_name in prompted_names:
+                        for follower_name in self.system.leads[leader_name]:
+                            follower = cast(Follower, self.apps[follower_name])
+                            follower.pull_and_process(leader_name)
+
+            finally:
+                self._processing_lock.release()
+
+    def stop(self) -> None:
+        for app in self.apps.values():
+            app.close()
+        self.apps.clear()
+
+    def get(self, cls: Type[TApplication]) -> TApplication:
+        app = self.apps[cls.name]
+        assert isinstance(app, cls)
+        return app
+
+
+class NewSingleThreadedRunner(Runner, RecordingEventReceiver):
+    """
+    Runs a :class:`System` in a single thread.
     """
 
     def __init__(self, system: System, env: Optional[EnvType] = None):
