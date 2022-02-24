@@ -124,3 +124,45 @@ class TestEventSourcedLog(TestCase):
         )
         with self.assertRaises(ProgrammingError):
             log_event.mutate(None)
+
+    def test_subclasses(self) -> None:
+        transcoder = JSONTranscoder()
+        transcoder.register(UUIDAsHex())
+        transcoder.register(DecimalAsStr())
+        transcoder.register(DatetimeAsISO())
+
+        event_recorder = POPOAggregateRecorder()
+        event_store = EventStore(
+            mapper=Mapper(transcoder=transcoder),
+            recorder=event_recorder,
+        )
+
+        # Subclass LogEvent.
+        class TransactionLogEvent(LogEvent):
+            pass
+
+        class AccountCredited(TransactionLogEvent):
+            pass
+
+        class AccountDebited(TransactionLogEvent):
+            pass
+
+        # Subclass EventSourcedLog.
+        class TransactionLog(EventSourcedLog[TransactionLogEvent]):
+            def account_credited(self) -> AccountCredited:
+                return self._trigger_event(logged_cls=AccountCredited)
+
+            def account_debited(self) -> AccountDebited:
+                return self._trigger_event(logged_cls=AccountDebited)
+
+        transaction_log = TransactionLog(
+            events=event_store,
+            originator_id=uuid5(NAMESPACE_URL, "/aggregates"),
+            logged_cls=TransactionLogEvent,
+        )
+
+        account_credited = transaction_log.account_credited()
+        self.assertIsInstance(account_credited, AccountCredited)
+
+        account_debited = transaction_log.account_debited()
+        self.assertIsInstance(account_debited, AccountDebited)

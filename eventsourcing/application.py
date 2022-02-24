@@ -862,8 +862,25 @@ class EventSourcedLog(Generic[TLogEvent]):
         self.logged_cls = logged_cls
 
     def trigger_event(
-        self, next_originator_version: Optional[int] = None, **kwargs: Any
+        self,
+        next_originator_version: Optional[int] = None,
+        **kwargs: Any,
     ) -> TLogEvent:
+        """
+        Constructs and returns a new log event.
+        """
+        return self._trigger_event(
+            logged_cls=self.logged_cls,
+            next_originator_version=next_originator_version,
+            **kwargs,
+        )
+
+    def _trigger_event(
+        self,
+        logged_cls: Optional[Type[T]],
+        next_originator_version: Optional[int] = None,
+        **kwargs: Any,
+    ) -> T:
         """
         Constructs and returns a new log event.
         """
@@ -874,7 +891,7 @@ class EventSourcedLog(Generic[TLogEvent]):
             else:
                 next_originator_version = last_logged.originator_version + 1
 
-        return self.logged_cls(  # type: ignore
+        return logged_cls(  # type: ignore
             originator_id=self.originator_id,
             originator_version=next_originator_version,
             timestamp=self.logged_cls.create_timestamp(),
