@@ -23,6 +23,21 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.2.2 (released 17 February 2022)
+-----------------------------------------
+
+* Added documentation for the __contains__() method of Repository class
+  to indicate the possibility to use the Python 'in' keyword to check
+  whether or not an aggregate exists in the repository.
+* Added per-aggregate locking around fast-forwarding of cached aggregates,
+  because fast-forwarding isn't thread-safe.
+* Mentioned in the documentation the cookie project template for starting
+  new projects.
+* Fixed other minor issues in the documentation (Repository get() method,
+  discussion of version numbers and expressing dependency of a project
+  on the library, etc).
+
+
 Version 9.2.1 (released 15 February 2022)
 -----------------------------------------
 
