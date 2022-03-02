@@ -92,7 +92,11 @@ class JSONTranscoder(Transcoder):
 
     def __init__(self) -> None:
         super().__init__()
-        self.encoder = json.JSONEncoder(default=self._encode_obj, separators=(",", ":"))
+        self.encoder = json.JSONEncoder(
+            default=self._encode_obj,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        )
         self.decoder = json.JSONDecoder(object_hook=self._decode_obj)
 
     def encode(self, obj: Any) -> bytes:

@@ -77,6 +77,8 @@ class TestMapper(TestCase):
         assert copy.originator_version == domain_event.originator_version
 
         assert len(stored_event.state) in (
+            133,
+            134,
             135,
             136,
             137,

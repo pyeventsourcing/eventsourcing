@@ -983,10 +983,10 @@ class CustomType2:
 
 class MyDict(dict):
     def __repr__(self):
-        return f"{type(self).__name__}({tuple(self.items())})"
+        return f"{type(self).__name__}({super().__repr__()})"
 
     def __eq__(self, other):
-        return type(self) == type(other) and self.__dict__ == other.__dict__
+        return type(self) == type(other) and super().__eq__(other)
 
 
 class MyList(list):
@@ -1051,28 +1051,83 @@ class TranscoderTestCase(TestCase):
     def test_str(self):
         obj = "a"
         data = self.transcoder.encode(obj)
+        self.assertEqual(data, b'"a"')
         self.assertEqual(obj, self.transcoder.decode(data))
+
+        obj = "abc"
+        data = self.transcoder.encode(obj)
+        self.assertEqual(data, b'"abc"')
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+        obj = "a'b"
+        data = self.transcoder.encode(obj)
+        self.assertEqual(data, b'''"a'b"''')
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+        obj = 'a"b'
+        data = self.transcoder.encode(obj)
+        self.assertEqual(data, b'''"a\\"b"''')
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+        obj = "🐈 哈哈"
+        data = self.transcoder.encode(obj)
+        self.assertEqual(b'"\xf0\x9f\x90\x88 \xe5\x93\x88\xe5\x93\x88"', data)
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+        # Check data encoded with ensure_ascii=True can be decoded okay.
+        legacy_encoding_with_ensure_ascii_true = b'"\\ud83d\\udc08 \\u54c8\\u54c8"'
+        self.assertEqual(
+            obj, self.transcoder.decode(legacy_encoding_with_ensure_ascii_true)
+        )
 
     def test_dict(self):
         # Empty dict.
         obj = {}
         data = self.transcoder.encode(obj)
+        self.assertEqual(data, b"{}")
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+        # Dict with single key.
+        obj = {"a": 1}
+        data = self.transcoder.encode(obj)
+        self.assertEqual(data, b'{"a":1}')
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+        # Dict with many keys.
+        obj = {"a": 1, "b": 2}
+        data = self.transcoder.encode(obj)
+        self.assertEqual(data, b'{"a":1,"b":2}')
         self.assertEqual(obj, self.transcoder.decode(data))
 
         # Empty dict in dict.
         obj = {"a": {}}
         data = self.transcoder.encode(obj)
+        self.assertEqual(data, b'{"a":{}}')
+        self.assertEqual(obj, self.transcoder.decode(data))
+
+        # Empty dicts in dict.
+        obj = {"a": {}, "b": {}}
+        data = self.transcoder.encode(obj)
+        self.assertEqual(data, b'{"a":{},"b":{}}')
         self.assertEqual(obj, self.transcoder.decode(data))
 
         # Empty dict in dict in dict.
         obj = {"a": {"b": {}}}
         data = self.transcoder.encode(obj)
+        self.assertEqual(data, b'{"a":{"b":{}}}')
         self.assertEqual(obj, self.transcoder.decode(data))
 
         # Int in dict in dict in dict.
         obj = {"a": {"b": {"c": 1}}}
         data = self.transcoder.encode(obj)
+        self.assertEqual(data, b'{"a":{"b":{"c":1}}}')
         self.assertEqual(obj, self.transcoder.decode(data))
+
+        # Todo: Int keys?
+        # obj = {1: "a"}
+        # data = self.transcoder.encode(obj)
+        # self.assertEqual(data, b'{1:{"a"}')
+        # self.assertEqual(obj, self.transcoder.decode(data))
 
     def test_dict_with_len_2_and__data_(self):
         obj = {"_data_": 1, "something_else": 2}
@@ -1085,8 +1140,9 @@ class TranscoderTestCase(TestCase):
         self.assertEqual(obj, self.transcoder.decode(data))
 
     def test_dict_subclass(self):
-        my_dict = MyDict((("a", 1),))
+        my_dict = MyDict({"a": 1})
         data = self.transcoder.encode(my_dict)
+        self.assertEqual(b'{"_type_":"mydict","_data_":{"a":1}}', data)
         copy = self.transcoder.decode(data)
         self.assertEqual(my_dict, copy)
 
@@ -1112,6 +1168,7 @@ class TranscoderTestCase(TestCase):
         # Empty tuple.
         obj = ()
         data = self.transcoder.encode(obj)
+        self.assertEqual(data, b'{"_type_":"tuple_as_list","_data_":[]}')
         self.assertEqual(obj, self.transcoder.decode(data))
 
         # Empty tuple in a tuple.
@@ -1181,10 +1238,7 @@ class TranscoderTestCase(TestCase):
         self.assertEqual(obj, decoded_obj)
 
     def test_nested_custom_type(self):
-        # Check we get a TypeError when encoding because transcodings aren't registered.
         obj = CustomType2(CustomType1(UUID("b2723fe2c01a40d2875ea3aac6a09ff5")))
-
-        # Register transcodings.
         data = self.transcoder.encode(obj)
         expect = (
             b'{"_type_":"custom_type2_as_dict","_data_":'
@@ -1192,7 +1246,6 @@ class TranscoderTestCase(TestCase):
             b'{"_type_":"uuid_hex","_data_":"b2723fe2c01'
             b'a40d2875ea3aac6a09ff5"}}}'
         )
-
         self.assertEqual(data, expect)
         copy = self.transcoder.decode(data)
         self.assertIsInstance(copy, CustomType2)
@@ -1200,9 +1253,23 @@ class TranscoderTestCase(TestCase):
         self.assertIsInstance(copy.value.value, UUID)
         self.assertEqual(copy.value.value, obj.value.value)
 
-        # Check we get a TypeError when encoding because transcodings not registered.
+    def test_custom_type_error(self):
+        # Expect a TypeError when encoding because transcoding not registered.
         with self.assertRaises(TypeError) as cm:
             self.transcoder.encode(MyClass())
+
+        self.assertEqual(
+            cm.exception.args[0],
+            (
+                "Object of type <class 'eventsourcing.tests.persistence."
+                "MyClass'> is not serializable. Please define "
+                "and register a custom transcoding for this type."
+            ),
+        )
+
+        # Expect a TypeError when encoding because transcoding not registered (nested).
+        with self.assertRaises(TypeError) as cm:
+            self.transcoder.encode({"a": MyClass()})
 
         self.assertEqual(
             cm.exception.args[0],
