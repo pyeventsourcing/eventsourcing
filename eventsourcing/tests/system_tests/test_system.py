@@ -20,9 +20,43 @@ from eventsourcing.utils import get_topic
 
 
 class TestSystem(TestCase):
-    def test_graph(self):
+    def test_graph_nodes_and_edges(self):
         system = System(
             pipes=[
+                [
+                    BankAccounts,
+                    EmailProcess,
+                ],
+                [Application],
+            ]
+        )
+        self.assertEqual(len(system.nodes), 3)
+        self.assertEqual(system.nodes["BankAccounts"], get_topic(BankAccounts))
+        self.assertEqual(system.nodes["EmailProcess"], get_topic(EmailProcess))
+        self.assertEqual(system.nodes["Application"], get_topic(Application))
+
+        self.assertEqual(system.leaders, ["BankAccounts"])
+        self.assertEqual(system.followers, ["EmailProcess"])
+        self.assertEqual(system.singles, ["Application"])
+
+        self.assertEqual(len(system.edges), 1)
+        self.assertIn(
+            (
+                "BankAccounts",
+                "EmailProcess",
+            ),
+            system.edges,
+        )
+
+        self.assertEqual(len(system.singles), 1)
+
+    def test_duplicate_edges_are_eliminated(self):
+        system = System(
+            pipes=[
+                [
+                    BankAccounts,
+                    EmailProcess,
+                ],
                 [
                     BankAccounts,
                     EmailProcess,
