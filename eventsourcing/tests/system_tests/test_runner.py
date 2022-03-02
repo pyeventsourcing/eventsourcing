@@ -315,11 +315,63 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
         pass
 
 
-class TestSingleThreadedRunner(RunnerTestCase[SingleThreadedRunner]):
+class SingleThreadedRunnerFollowersOrderingMixin:
+    """Followers ordering tests for single-threaded runners."""
+
+    def test_followers_are_prompted_in_declaration_order(self):
+        """Validate the order in which followers are prompted by the runner.
+
+        This test can, by nature, show some flakiness. That is, we can
+        see false negatives at times when a random ordering would match
+        the expected ordering. We mitigate this problem by increasing
+        the number of followers to be ordered.
+        """
+        clear_topic_cache()
+        app_calls = []
+
+        class NameLogger(EmailProcess):
+            def policy(self, domain_event, processing_event):
+                app_calls.append(self.__class__.__name__)
+
+        def make_name_logger(n: int) -> Type:
+            return type(f"NameLogger{n}", (NameLogger,), {})
+
+        # Construct system and runner.
+        system = System(
+            pipes=[
+                [BankAccounts, make_name_logger(3)],
+                [BankAccounts, make_name_logger(4)],
+                [BankAccounts, make_name_logger(1)],
+                [BankAccounts, make_name_logger(5)],
+                [BankAccounts, make_name_logger(2)],
+            ]
+        )
+        self.start_runner(system)
+
+        # Create an event.
+        self.runner.get(BankAccounts).open_account(
+            full_name="Alice",
+            email_address="alice@example.com",
+        )
+
+        self.wait_for_runner()
+
+        # Check the applications' policy were called in the right order.
+        self.assertEqual(
+            app_calls,
+            ["NameLogger3", "NameLogger4", "NameLogger1", "NameLogger5", "NameLogger2"],
+        )
+
+
+class TestSingleThreadedRunner(
+    RunnerTestCase[SingleThreadedRunner], SingleThreadedRunnerFollowersOrderingMixin
+):
     runner_class = SingleThreadedRunner
 
 
-class TestNewSingleThreadedRunner(RunnerTestCase[NewSingleThreadedRunner]):
+class TestNewSingleThreadedRunner(
+    RunnerTestCase[NewSingleThreadedRunner], SingleThreadedRunnerFollowersOrderingMixin
+):
     runner_class = NewSingleThreadedRunner
 
     def test_ignores_recording_event_if_seen_subsequent(self):
