@@ -23,6 +23,17 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.2.3 (released TBD)
+-----------------------------------------
+
+* Fixed ordering of edges in system to follow order of definition.
+* Fixed single- and multi-threaded runners to be more robust when
+  multiple instances of the same system are running.
+* Fixed event-sourced log to be more extensible.
+* Fixed errors in the documentation.
+* Adjusted JSONTranscoder to use JSONEncoder with ensure_ascii=False.
+
+
 Version 9.2.2 (released 17 February 2022)
 -----------------------------------------
 
