@@ -1,3 +1,5 @@
+[![Event sourcing in Python](images/Cupid-foot-686x343.jpeg)](https://eventsourcing.readthedocs.io/)
+
 [![Build Status](https://github.com/pyeventsourcing/eventsourcing/actions/workflows/runtests.yaml/badge.svg?branch=9.2)](https://github.com/pyeventsourcing/eventsourcing/tree/9.2)
 [![Coverage Status](https://coveralls.io/repos/github/johnbywater/eventsourcing/badge.svg?branch=9.2)](https://coveralls.io/github/johnbywater/eventsourcing?branch=9.2)
 [![Documentation Status](https://readthedocs.org/projects/eventsourcing/badge/?version=stable)](https://eventsourcing.readthedocs.io/en/stable/)
@@ -7,8 +9,6 @@
 
 
 # Event Sourcing in Python
-
-[![Event sourcing in Python](images/Cupid-foot-686x343.jpeg)](https://eventsourcing.readthedocs.io/)
 
 A library for event sourcing in Python.
 
