@@ -38,14 +38,14 @@ When including the library in a list of project dependencies, in order to
 avoid installing future incompatible releases, it is recommended to specify
 the major and minor version numbers.
 
-As an example, the expression ``eventsourcing<=9.2.99999`` would install the
-latest version of the 9.2 series, allowing future bug fixes released with
+As an example, the expression ``eventsourcing<=9.3.99999`` would install the
+latest version of the 9.3 series, allowing future bug fixes released with
 point version number increments. You can use this expression in a ``pip install``
 command, in a ``requirements.txt`` file, or in a ``setup.py`` file.
 
 ::
 
-    $ pip install "eventsourcing<=9.2.99999"
+    $ pip install "eventsourcing<=9.3.99999"
 
 If you are specifying the dependencies of your project in a ``pyproject.toml``
 file, and for example using the Poetry build tool, you can specify the
@@ -55,7 +55,7 @@ dependency on this library in the following way.
 
     [tool.poetry.dependencies]
     python = "^3.8"
-    eventsourcing = { version = "~9.2.0" }
+    eventsourcing = { version = "~9.3.0" }
 
 
 Specifying the major and minor version number in this way will avoid any
