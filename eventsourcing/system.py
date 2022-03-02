@@ -269,7 +269,7 @@ class System:
         pipes: Iterable[Iterable[Type[Application]]],
     ):
         classes: Dict[str, Type[Application]] = {}
-        edges: Set[Tuple[str, str]] = set()
+        self.edges: List[Tuple[str, str]] = list()
         # Build nodes and edges.
         for pipe in pipes:
             follower_cls = None
@@ -280,14 +280,10 @@ class System:
                 else:
                     leader_cls = follower_cls
                     follower_cls = cls
-                    edges.add(
-                        (
-                            leader_cls.name,
-                            follower_cls.name,
-                        )
-                    )
+                    edge = (leader_cls.name, follower_cls.name)
+                    if edge not in self.edges:
+                        self.edges.append(edge)
 
-        self.edges = list(edges)
         self.nodes: Dict[str, str] = {}
         for name in classes:
             topic = get_topic(classes[name])
@@ -296,7 +292,7 @@ class System:
         # Identify leaders and followers.
         self.follows: Dict[str, List[str]] = defaultdict(list)
         self.leads: Dict[str, List[str]] = defaultdict(list)
-        for edge in edges:
+        for edge in self.edges:
             self.leads[edge[0]].append(edge[1])
             self.follows[edge[1]].append(edge[0])
 
