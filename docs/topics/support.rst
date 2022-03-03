@@ -16,8 +16,9 @@ the library or reading the documentation, please `raise an issue on GitHub
 pull request, or start a discussion in the Slack_ channel.
 
 If you like the project, please support the continuing maintenance of this
-library by starring the project on GitHub, by sponsoring the project, and
-by making a donation.
+library by starring the project on GitHub, by `sponsoring the project
+<https://github.com/sponsors/pyeventsourcing?frequency=recurring>`_, or
+`by making a donation <https://github.com/sponsors/pyeventsourcing?frequency=one-time>`_.
 
 
 Professional support
