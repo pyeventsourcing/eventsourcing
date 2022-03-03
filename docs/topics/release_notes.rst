@@ -23,8 +23,8 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
-Version 9.2.3 (released TBD)
------------------------------------------
+Version 9.2.3 (released 3 March 2022)
+-------------------------------------
 
 * Fixed single- and multi-threaded runners to be more robust when
   multiple instances of the same system are running.
