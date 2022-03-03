@@ -333,7 +333,7 @@ class TestConnectionPool(TestCase):
         self.assertFalse(conn1.closing)
         pool.put_connection(conn1)
         self.assertEqual(pool.num_in_pool, 1)
-        sleep(0.2)
+        sleep(0.3)
         self.assertTrue(conn1.closed)
         self.assertTrue(conn1.closing)
 
@@ -346,7 +346,7 @@ class TestConnectionPool(TestCase):
         self.assertEqual(pool.num_in_pool, 0)
 
         # Timer fires before conn returned to pool.
-        sleep(0.2)
+        sleep(0.3)
         self.assertFalse(conn2.closed)
         self.assertTrue(conn2.closing)
         self.assertEqual(pool.num_in_pool, 0)
