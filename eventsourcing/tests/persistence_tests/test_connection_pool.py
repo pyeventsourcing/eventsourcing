@@ -444,6 +444,7 @@ class TestConnectionPool(TestCase):
         connection_pool = self.create_pool(
             pool_size=pool_size, max_overflow=max_overflow, pre_ping=pre_ping
         )
+        print(self)
 
         # Pre-initialise pool.
         connections = []
@@ -598,6 +599,8 @@ class TestConnectionPool(TestCase):
         print(f"Min time to wait for connection: {min_waited_for:.6f}s")
         actual_deadline_margin = 100 * (deadline - max_waited_for) / max_waited_for
         print(f"Actual deadline margin: {actual_deadline_margin:.0f}%")
+        print("")
+        sleep(0.05)
 
     def test_reader_writer(self):
         self._test_reader_writer_with_mutually_exclusive_read_write()
