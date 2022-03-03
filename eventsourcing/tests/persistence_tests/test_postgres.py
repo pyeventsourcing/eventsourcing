@@ -84,6 +84,7 @@ class TestPostgresConnection(TestCase):
 class TestPostgresConnectionPool(TestConnectionPool):
     ProgrammingError = psycopg2.ProgrammingError
     PersistenceError = psycopg2.Error
+    allowed_connecting_time = 0.02
 
     def create_pool(
         self,
