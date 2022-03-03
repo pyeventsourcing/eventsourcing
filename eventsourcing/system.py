@@ -769,7 +769,7 @@ class MultiThreadedRunnerThread(RecordingEventReceiver, Thread):
         follower: Follower,
         has_errored: Event,
     ):
-        super().__init__()
+        super().__init__(daemon=True)
         self.follower = follower
         self.has_errored = has_errored
         self.error: Optional[Exception] = None
@@ -778,7 +778,6 @@ class MultiThreadedRunnerThread(RecordingEventReceiver, Thread):
         self.is_prompted = Event()
         self.prompted_names: List[str] = []
         self.prompted_names_lock = Lock()
-        self.setDaemon(True)
         self.is_running = Event()
 
     def run(self) -> None:
