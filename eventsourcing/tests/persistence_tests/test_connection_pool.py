@@ -9,14 +9,10 @@ from eventsourcing.persistence import (
     ConnectionNotFromPool,
     ConnectionPool,
     ConnectionPoolClosed,
-    ConnectionPoolExhausted,
-    ConnectionPoolSemphoreTimeout,
+    ConnectionUnavailable,
     Cursor,
     PersistenceError,
     ProgrammingError,
-    ReaderBlockedByWriter,
-    WriterBlockedByReaders,
-    WriterBlockedByWriter,
 )
 
 
@@ -171,7 +167,7 @@ class TestConnectionPool(TestCase):
         self.assertEqual(pool.num_in_use, 4)
         self.assertEqual(pool.num_in_pool, 0)
 
-        with self.assertRaises(ConnectionPoolExhausted):
+        with self.assertRaises(ConnectionUnavailable):
             pool.get_connection(timeout=0)
         self.assertEqual(pool.num_in_use, 4)
         self.assertEqual(pool.num_in_pool, 0)
@@ -185,7 +181,7 @@ class TestConnectionPool(TestCase):
         self.assertEqual(pool.num_in_use, 4)
         self.assertEqual(pool.num_in_pool, 0)
 
-        with self.assertRaises(ConnectionPoolExhausted):
+        with self.assertRaises(ConnectionUnavailable):
             pool.get_connection(timeout=0)
 
         pool.put_connection(conn2)
@@ -225,7 +221,7 @@ class TestConnectionPool(TestCase):
         self.assertEqual(pool.num_in_use, 4)
         self.assertEqual(pool.num_in_pool, 0)
 
-        with self.assertRaises(ConnectionPoolExhausted):
+        with self.assertRaises(ConnectionUnavailable):
             pool.get_connection(timeout=0)
         self.assertEqual(pool.num_in_use, 4)
         self.assertEqual(pool.num_in_pool, 0)
@@ -239,7 +235,7 @@ class TestConnectionPool(TestCase):
         self.assertEqual(pool.num_in_use, 4)
         self.assertEqual(pool.num_in_pool, 0)
 
-        with self.assertRaises(ConnectionPoolExhausted):
+        with self.assertRaises(ConnectionUnavailable):
             pool.get_connection(timeout=0)
 
         pool.put_connection(conn7)
@@ -373,14 +369,14 @@ class TestConnectionPool(TestCase):
 
         # Check request for a second connection times out immediately.
         started = time()
-        with self.assertRaises(ConnectionPoolExhausted):
+        with self.assertRaises(ConnectionUnavailable):
             pool.get_connection(timeout=0)
         ended = time()
         self.assertLess(ended - started, 0.1)
 
         # Check request for a second connection times out after delay.
         started = time()
-        with self.assertRaises(ConnectionPoolExhausted):
+        with self.assertRaises(ConnectionUnavailable):
             pool.get_connection(timeout=0.1)
         ended = time()
         self.assertGreater(ended - started, 0.1)
@@ -695,8 +691,9 @@ class TestConnectionPool(TestCase):
         self.assertEqual(2, pool._num_readers)
 
         # Fail to get writer.
-        with self.assertRaises(WriterBlockedByReaders):
+        with self.assertRaises(ConnectionUnavailable) as cm:
             pool.get_connection(is_writer=True, timeout=0)
+        self.assertEqual(cm.exception.args[0], "Timed out waiting for return of reader")
 
         self.assertEqual(0, pool._num_writers)
         self.assertEqual(2, pool._num_readers)
@@ -715,12 +712,14 @@ class TestConnectionPool(TestCase):
         self.assertEqual(0, pool._num_readers)
 
         # Fail to get reader.
-        with self.assertRaises(ReaderBlockedByWriter):
+        with self.assertRaises(ConnectionUnavailable) as cm:
             pool.get_connection(is_writer=False, timeout=0)
+        self.assertEqual(cm.exception.args[0], "Timed out waiting for return of writer")
 
         # Fail to get writer.
-        with self.assertRaises(WriterBlockedByWriter):
+        with self.assertRaises(ConnectionUnavailable) as cm:
             pool.get_connection(is_writer=True, timeout=0)
+        self.assertEqual(cm.exception.args[0], "Timed out waiting for return of writer")
 
         self.assertEqual(1, pool._num_writers)
         self.assertEqual(0, pool._num_readers)
@@ -776,8 +775,9 @@ class TestConnectionPool(TestCase):
         self.assertEqual(2, pool._num_readers)
 
         # Fail to get another writer.
-        with self.assertRaises(WriterBlockedByWriter):
+        with self.assertRaises(ConnectionUnavailable) as cm:
             pool.get_connection(is_writer=True, timeout=0)
+        self.assertEqual(cm.exception.args[0], "Timed out waiting for return of writer")
 
         self.assertEqual(1, pool._num_writers)
         self.assertEqual(2, pool._num_readers)
@@ -809,8 +809,9 @@ class TestConnectionPool(TestCase):
         self.assertEqual(2, pool._num_readers)
 
         # Fail to get another writer.
-        with self.assertRaises(WriterBlockedByWriter):
+        with self.assertRaises(ConnectionUnavailable) as cm:
             pool.get_connection(is_writer=True, timeout=0)
+        self.assertEqual(cm.exception.args[0], "Timed out waiting for return of writer")
 
         self.assertEqual(1, pool._num_writers)
         self.assertEqual(2, pool._num_readers)
@@ -827,7 +828,6 @@ class TestConnectionPool(TestCase):
 
         self.assertEqual(0, pool._num_writers)
         self.assertEqual(2, pool._num_readers)
-
 
     def test_semaphore_timeout_branch(self):
         # This test exercises unusual path where waiting for
@@ -858,7 +858,7 @@ class TestConnectionPool(TestCase):
             def run(self):
                 try:
                     pool.get_connection(timeout=0.1, is_writer=True)
-                except WriterBlockedByWriter:
+                except ConnectionUnavailable:
                     pass
 
         thread = WriterThread()
@@ -869,8 +869,11 @@ class TestConnectionPool(TestCase):
             sleep(0.001)
 
         # With a zero timeout, fail to get semaphore.
-        with self.assertRaises(ConnectionPoolSemphoreTimeout):
+        with self.assertRaises(ConnectionUnavailable) as cm:
             pool.get_connection(timeout=0)
+        self.assertEqual(
+            cm.exception.args[0], "Timed out waiting for connection pool semaphore"
+        )
 
 
 _print = print

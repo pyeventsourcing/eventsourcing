@@ -827,31 +827,22 @@ TConnection = TypeVar("TConnection", bound=Connection[Any])
 
 
 class ConnectionPoolClosed(EventSourcingError):
-    pass
+    """
+    Raised when using a connection pool that is already closed.
+    """
 
 
 class ConnectionNotFromPool(EventSourcingError):
-    pass
+    """
+    Raised when putting a connection in the wrong pool.
+    """
 
 
-class ConnectionPoolExhausted(OperationalError, TimeoutError):
-    pass
-
-
-class WriterBlockedByReaders(ConnectionPoolExhausted):
-    pass
-
-
-class ReaderBlockedByWriter(ConnectionPoolExhausted):
-    pass
-
-
-class WriterBlockedByWriter(ConnectionPoolExhausted):
-    pass
-
-
-class ConnectionPoolSemphoreTimeout(ConnectionPoolExhausted):
-    pass
+class ConnectionUnavailable(OperationalError, TimeoutError):
+    """
+    Raised when a request to get a connection from a
+    connection pool times out.
+    """
 
 
 class ConnectionPool(ABC, Generic[TConnection]):
@@ -987,8 +978,8 @@ class ConnectionPool(ABC, Generic[TConnection]):
                     if not self._writer_lock.acquire(
                         timeout=self._time_remaining(timeout, started)
                     ):
-                        raise WriterBlockedByWriter(
-                            "Connection pool timed out waiting for return of writer"
+                        raise ConnectionUnavailable(
+                            "Timed out waiting for return of writer"
                         )
                     if self._mutually_exclusive_read_write:
                         with self._no_readers:
@@ -998,7 +989,7 @@ class ConnectionPool(ABC, Generic[TConnection]):
                                     timeout=self._time_remaining(timeout, started)
                                 ):
                                     self._writer_lock.release()
-                                    raise WriterBlockedByReaders(
+                                    raise ConnectionUnavailable(
                                         "Timed out waiting for return of reader"
                                     )
                     self._num_writers += 1
@@ -1010,7 +1001,7 @@ class ConnectionPool(ABC, Generic[TConnection]):
                         if not self._writer_lock.acquire(
                             timeout=self._time_remaining(timeout, started)
                         ):
-                            raise ReaderBlockedByWriter(
+                            raise ConnectionUnavailable(
                                 "Timed out waiting for return of writer"
                             )
                         self._writer_lock.release()
@@ -1031,8 +1022,8 @@ class ConnectionPool(ABC, Generic[TConnection]):
                 self._get_semaphore.release()
         else:
             # Timed out waiting for semaphore.
-            raise ConnectionPoolSemphoreTimeout(
-                "Timed out waiting for lock to get connection from pool"
+            raise ConnectionUnavailable(
+                "Timed out waiting for connection pool semaphore"
             )
 
     def _get_connection(self, timeout: float = 0.0) -> TConnection:
@@ -1067,8 +1058,8 @@ class ConnectionPool(ABC, Generic[TConnection]):
                         )
                     else:
                         # Timed out waiting for a connection to be returned.
-                        raise ConnectionPoolExhausted(
-                            "Timed out waiting for connection to be returned to pool"
+                        raise ConnectionUnavailable(
+                            "Timed out waiting for return of connection"
                         ) from None
                 else:
                     # Not fully used, so create a new connection.
