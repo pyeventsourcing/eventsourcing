@@ -436,7 +436,7 @@ class TestConnectionPool(TestCase):
         pool.close()
 
     def test_fairness(self):
-        self._test_fairness(pool_size=1, num_threads=5, num_gets=5)
+        self._test_fairness(pool_size=1, num_threads=8, num_gets=5)
 
     def _test_fairness(
         self, pool_size=1, num_threads=20, num_gets=50, max_overflow=0, pre_ping=False
@@ -444,7 +444,7 @@ class TestConnectionPool(TestCase):
         connection_pool = self.create_pool(
             pool_size=pool_size, max_overflow=max_overflow, pre_ping=pre_ping
         )
-        print(self)
+        print("Testing fairness of", connection_pool.__class__.__name__)
 
         # Pre-initialise pool.
         connections = []
@@ -467,17 +467,17 @@ class TestConnectionPool(TestCase):
         wait_between_connections_for = 0.01
         print(f"Hold connection for: {hold_connection_for:.1f}s")
         print(f"Allowed connecting time: {self.allowed_connecting_time:.4f}s")
-        deadline = (
+        connection_deadline = (
             expected_wait_periods * hold_connection_for + self.allowed_connecting_time
         )
         print(
-            f"Strict test deadline: {deadline:.4f}s",
+            f"Strict connection deadline: {connection_deadline:.4f}s",
         )
-        allowed_deadline_margin = 25  # percent
+        allowed_deadline_margin = 75  # percent
         print(f"Allowed deadline margin: {allowed_deadline_margin}%")
-        deadline *= 1 + allowed_deadline_margin / 100
+        connection_deadline *= 1 + allowed_deadline_margin / 100
         print(
-            f"Actual test deadline: {deadline:.4f}s",
+            f"Actual connection deadline: {connection_deadline:.4f}s",
         )
 
         self.counter = count()
@@ -506,13 +506,13 @@ class TestConnectionPool(TestCase):
                 # print(name, "getting connection")
                 started = time()
                 try:
-                    conn = connection_pool.get_connection(timeout=deadline)
+                    conn = connection_pool.get_connection(timeout=connection_deadline)
                 except Exception as exp:
                     is_stopped.set()
                     waited_for = time() - started
                     msg = (
                         f"Thread {name} errored after {waited_for :.4f}s, "
-                        f"timeout {deadline:.4f}s: {exp}"
+                        f"timeout {connection_deadline:.4f}s: {exp}"
                     )
                     print(msg)
                     raise Exception(msg) from exp
@@ -523,12 +523,12 @@ class TestConnectionPool(TestCase):
                     j = next(self.counter)
                     waited_for = time() - started
                     if debug:
-                        print(
-                            f"Thread {name} got connection {j} after "
-                            f"{waited_for :.3f}s, remaining time before "
-                            f"timeout: {deadline - waited_for  :.3f}"
-                        )
-                    print(f"Thread {name} waited {waited_for:.6f}s to get connection")
+                        # print(
+                        #     f"Thread {name} got connection {j} after "
+                        #     f"{waited_for :.3f}s, remaining time before "
+                        #     f"timeout: {deadline - waited_for  :.3f}"
+                        # )
+                        print(f"Thread {name} waited {waited_for:.6f}s to get connection")
                     waited_fors.append(waited_for)
 
                     assert (
@@ -571,7 +571,7 @@ class TestConnectionPool(TestCase):
 
         total_timeout = (
             num_gets
-            * (deadline + hold_connection_for + wait_between_connections_for)
+            * (connection_deadline + hold_connection_for + wait_between_connections_for)
             * 1.5
         )
         future_wait_started = time()
@@ -597,10 +597,10 @@ class TestConnectionPool(TestCase):
         print(f"Max time to wait for connection: {max_waited_for:.6f}s")
         print(f"Avg time to wait for connection: {avg_waited_for:.6f}s")
         print(f"Min time to wait for connection: {min_waited_for:.6f}s")
-        actual_deadline_margin = 100 * (deadline - max_waited_for) / max_waited_for
+        actual_deadline_margin = 100 * (connection_deadline - max_waited_for) / max_waited_for
         print(f"Actual deadline margin: {actual_deadline_margin:.0f}%")
         print("")
-        sleep(0.05)
+        sleep(0.1)
 
     def test_reader_writer(self):
         self._test_reader_writer_with_mutually_exclusive_read_write()
