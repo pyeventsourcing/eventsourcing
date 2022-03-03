@@ -82,6 +82,7 @@ class SQLiteConnectionPoolTestCase(TestConnectionPool):
         self,
         pool_size=1,
         max_overflow=0,
+        pool_timeout=5.0,
         max_age=None,
         pre_ping=False,
         mutually_exclusive_read_write=True,
@@ -90,6 +91,7 @@ class SQLiteConnectionPoolTestCase(TestConnectionPool):
             db_name=self.db_name,
             pool_size=pool_size,
             max_overflow=max_overflow,
+            pool_timeout=pool_timeout,
             max_age=max_age,
             pre_ping=pre_ping,
         )
@@ -102,6 +104,8 @@ class SQLiteConnectionPoolTestCase(TestConnectionPool):
 
 
 class TestSQLiteConnectionPoolWithInMemoryDB(SQLiteConnectionPoolTestCase):
+    allowed_connecting_time = 0.01
+
     def setUp(self) -> None:
         self.db_name = ":memory:"
 
@@ -110,6 +114,8 @@ class TestSQLiteConnectionPoolWithInMemoryDB(SQLiteConnectionPoolTestCase):
 
 
 class TestSQLiteConnectionPoolWithFileDB(SQLiteConnectionPoolTestCase):
+    allowed_connecting_time = 0.01
+
     def setUp(self) -> None:
         self.tmp_urls = tmpfile_uris()
         self.db_name = next(self.tmp_urls)

@@ -84,6 +84,7 @@ class TestPostgresConnection(TestCase):
 class TestPostgresConnectionPool(TestConnectionPool):
     ProgrammingError = psycopg2.ProgrammingError
     PersistenceError = psycopg2.Error
+    allowed_connecting_time = 0.02
 
     def create_pool(
         self,
@@ -133,7 +134,7 @@ class TestPostgresConnectionPool(TestConnectionPool):
         super().test_close_on_server_after_returning_without_pre_ping()
 
     def test_reader_writer(self):
-        pass
+        self.skipTest("Recorders don't use reader/writer exclusion mechanism")
 
 
 class TestTransaction(TestCase):
