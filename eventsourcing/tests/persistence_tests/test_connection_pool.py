@@ -1,6 +1,4 @@
-from concurrent.futures import ThreadPoolExecutor, TimeoutError
-from itertools import count
-from math import ceil
+import sys
 from threading import Event, Lock, Thread
 from time import sleep, time
 from typing import Any, List, Optional, Union
@@ -87,6 +85,9 @@ class DummyConnectionPool(ConnectionPool):
 
 
 class TestConnection(TestCase):
+    def tearDown(self) -> None:
+        sys.stdout.flush()
+
     def test_commit_rollback_close(self):
         conn = DummyConnection()
         self.assertFalse(conn.closed)
@@ -436,175 +437,228 @@ class TestConnectionPool(TestCase):
         pool.close()
 
     def test_fairness(self):
-        self._test_fairness(pool_size=1, num_threads=8, num_gets=5)
-
-    def _test_fairness(
-        self, pool_size=1, num_threads=20, num_gets=50, max_overflow=0, pre_ping=False
-    ):
-        connection_pool = self.create_pool(
-            pool_size=pool_size, max_overflow=max_overflow, pre_ping=pre_ping
-        )
-        print("Testing fairness of", connection_pool.__class__.__name__)
+        pool_size = 1
+        num_threads = 5
+        num_gets = 5
 
         # Pre-initialise pool.
+        pool = self.create_pool(pool_size=pool_size, max_overflow=0, pre_ping=False)
         connections = []
         for _ in range(pool_size):
-            connections.append(connection_pool.get_connection())
-        self.assertEqual(connection_pool.num_in_use, pool_size)
+            connections.append(pool.get_connection())
+        self.assertEqual(pool.num_in_use, pool_size)
         for conn in connections:
-            connection_pool.put_connection(conn)
+            pool.put_connection(conn)
 
-        print(f"Num client threads: {num_threads}")
-        num_connections = pool_size + max_overflow
-        print(f"Num connections available: {num_connections}")
-        max_num_waiting = max(0, num_threads - num_connections)
-        print(f"Max num waiting: {max_num_waiting}")
-        expected_wait_periods = ceil(max_num_waiting / (num_connections))
-        print(
-            f"Num expected wait periods: {expected_wait_periods}",
-        )
-        hold_connection_for = 0.1
-        wait_between_connections_for = 0.01
-        print(f"Hold connection for: {hold_connection_for:.1f}s")
-        print(f"Allowed connecting time: {self.allowed_connecting_time:.4f}s")
-        connection_deadline = (
-            expected_wait_periods * hold_connection_for + self.allowed_connecting_time
-        )
-        print(
-            f"Strict connection deadline: {connection_deadline:.4f}s",
-        )
-        allowed_deadline_margin = 75  # percent
-        print(f"Allowed deadline margin: {allowed_deadline_margin}%")
-        connection_deadline *= 1 + allowed_deadline_margin / 100
-        print(
-            f"Actual connection deadline: {connection_deadline:.4f}s",
-        )
-
-        self.counter = count()
-
-        thread_pool = ThreadPoolExecutor(max_workers=num_threads)
-        futures = []
-        wait_for = None
         is_stopped = Event()
+        hold_connection = 0.1
+        wait_after_connection = 0.01
+        conn_sequence = list()
 
-        debug = False
+        deadline = num_threads * num_gets * hold_connection * 10
 
-        waited_fors = list()
+        class WorkerThread(Thread):
+            def __init__(self, name):
+                super().__init__(daemon=True)
+                self.name = name
 
-        def get_conn(
-            name,
-            has_started,
-            wait_for,
-            do_close,
-        ):
-            if wait_for:
-                assert wait_for.wait(timeout=1)
-            has_started.set()
-            if debug:
-                print(name, "started")
-            for _ in range(num_gets):
-                # print(name, "getting connection")
-                started = time()
-                try:
-                    conn = connection_pool.get_connection(timeout=connection_deadline)
-                except Exception as exp:
-                    is_stopped.set()
-                    waited_for = time() - started
-                    msg = (
-                        f"Thread {name} errored after {waited_for :.4f}s, "
-                        f"timeout {connection_deadline:.4f}s: {exp}"
-                    )
-                    print(msg)
-                    raise Exception(msg) from exp
-                else:
-                    assert conn
-                    if pre_ping:
-                        assert not conn.closed
-                    j = next(self.counter)
-                    waited_for = time() - started
-                    if debug:
-                        # print(
-                        #     f"Thread {name} got connection {j} after "
-                        #     f"{waited_for :.3f}s, remaining time before "
-                        #     f"timeout: {deadline - waited_for  :.3f}"
-                        # )
-                        print(
-                            f"Thread {name} waited {waited_for:.6f}s to get connection"
-                        )
-                    waited_fors.append(waited_for)
+            def run(self):
+                for _ in range(num_gets):
+                    if is_stopped.is_set():
+                        break
+                    try:
+                        conn = pool.get_connection(timeout=deadline)
+                        conn_sequence.append(self.name)
+                        sleep(hold_connection)
+                        pool.put_connection(conn)
+                        sleep(wait_after_connection)
+                    except BaseException:
+                        is_stopped.set()
+                        raise
 
-                    assert (
-                        connection_pool.num_in_use
-                        <= connection_pool.pool_size + connection_pool.max_overflow
-                    )
-                    assert connection_pool.num_in_pool <= connection_pool.pool_size
-                    if debug:
-                        print("num used connections:", connection_pool.num_in_use)
-                    if not ((j + 1) % 4) and do_close:
-                        if debug:
-                            print("closing connection", j, "before returning to pool")
-                        conn.close()
-                    sleep(hold_connection_for)
-                    if not ((j + 3) % 4) and do_close:
-                        if debug:
-                            print("closing connection", j, "after returning to pool")
-                        conn.close()
-                    connection_pool.put_connection(conn)
-                    sleep(wait_between_connections_for)
-                if is_stopped.is_set():
-                    print(name, "stopping early....")
-                    return
+        names = [str(i) for i in range(num_threads)]
+        threads = []
+        for name in names:
+            thread = WorkerThread(name)
+            threads.append(thread)
+            sleep(wait_after_connection)
+            thread.start()
 
-                # print(name, "put connection", j)
-            if debug:
-                print(name, "finished")
+        for thread in threads:
+            thread.join(timeout=deadline)
+            self.assertFalse(is_stopped.is_set())
 
-        for k in range(num_threads):
-            has_started = Event()
-            future = thread_pool.submit(
-                get_conn,
-                name=k,
-                has_started=has_started,
-                wait_for=wait_for,
-                do_close=True,
-            )
-            wait_for = has_started
-            futures.append(future)
+        expected_sequence = names * num_gets
+        self.assertEqual(expected_sequence, conn_sequence)
 
-        total_timeout = (
-            num_gets
-            * (connection_deadline + hold_connection_for + wait_between_connections_for)
-            * 1.5
-        )
-        future_wait_started = time()
-        for future in futures:
-            try:
-                future.result(timeout=total_timeout)
-            except TimeoutError as e:
-                print("Stopping threads because test timed out...")
-                is_stopped.set()
-                thread_pool.shutdown()
-                raise Exception(
-                    f"Test timed out after {time() - future_wait_started}s "
-                    f"(timeout was {total_timeout}s)"
-                ) from e
-            except Exception as e:
-                is_stopped.set()
-                thread_pool.shutdown()
-                raise Exception(f"Test stopped after thread pool job error: {e}") from e
-
-        max_waited_for = max(waited_fors)
-        avg_waited_for = sum(waited_fors) / len(waited_fors)
-        min_waited_for = min(waited_fors)
-        print(f"Max time to wait for connection: {max_waited_for:.6f}s")
-        print(f"Avg time to wait for connection: {avg_waited_for:.6f}s")
-        print(f"Min time to wait for connection: {min_waited_for:.6f}s")
-        actual_deadline_margin = (
-            100 * (connection_deadline - max_waited_for) / max_waited_for
-        )
-        print(f"Actual deadline margin: {actual_deadline_margin:.0f}%")
-        print("")
-        sleep(0.1)
+    # def _test_fairness_based_on_timings(
+    #     self, pool_size=1, num_threads=20, num_gets=50, max_overflow=0, pre_ping=False
+    # ):
+    #
+    #     connection_pool = self.create_pool(
+    #         pool_size=pool_size, max_overflow=max_overflow, pre_ping=pre_ping
+    #     )
+    #     print("Testing fairness of", connection_pool.__class__.__name__)
+    #
+    #     # Pre-initialise pool.
+    #     connections = []
+    #     for _ in range(pool_size):
+    #         connections.append(connection_pool.get_connection())
+    #     self.assertEqual(connection_pool.num_in_use, pool_size)
+    #     for conn in connections:
+    #         connection_pool.put_connection(conn)
+    #
+    #     print(f"Num client threads: {num_threads}")
+    #     num_connections = pool_size + max_overflow
+    #     print(f"Num connections available: {num_connections}")
+    #     max_num_waiting = max(0, num_threads - num_connections)
+    #     print(f"Max num waiting: {max_num_waiting}")
+    #     expected_wait_periods = ceil(max_num_waiting / (num_connections))
+    #     print(
+    #         f"Num expected wait periods: {expected_wait_periods}",
+    #     )
+    #     hold_connection_for = 0.1
+    #     wait_between_connections_for = 0.01
+    #     print(f"Hold connection for: {hold_connection_for:.1f}s")
+    #     print(f"Allowed connecting time: {self.allowed_connecting_time:.4f}s")
+    #     connection_deadline = (
+    #         expected_wait_periods * hold_connection_for + self.allowed_connecting_time
+    #     )
+    #     print(
+    #         f"Strict connection deadline: {connection_deadline:.4f}s",
+    #     )
+    #     allowed_deadline_margin = 75  # percent
+    #     print(f"Allowed deadline margin: {allowed_deadline_margin}%")
+    #     connection_deadline *= 1 + allowed_deadline_margin / 100
+    #     print(
+    #         f"Actual connection deadline: {connection_deadline:.4f}s",
+    #     )
+    #
+    #     self.counter = count()
+    #
+    #     thread_pool = ThreadPoolExecutor(max_workers=num_threads)
+    #     futures = []
+    #     wait_for = None
+    #     is_stopped = Event()
+    #
+    #     debug = False
+    #
+    #     waited_fors = list()
+    #
+    #     def get_conn(
+    #         name,
+    #         has_started,
+    #         wait_for,
+    #         do_close,
+    #     ):
+    #         if wait_for:
+    #             assert wait_for.wait(timeout=1)
+    #         has_started.set()
+    #         if debug:
+    #             print(name, "started")
+    #         for _ in range(num_gets):
+    #             # print(name, "getting connection")
+    #             started = time()
+    #             try:
+    #                 conn = connection_pool.get_connection(timeout=connection_deadline)
+    #             except Exception as exp:
+    #                 is_stopped.set()
+    #                 waited_for = time() - started
+    #                 msg = (
+    #                     f"Thread {name} errored after {waited_for :.4f}s, "
+    #                     f"timeout {connection_deadline:.4f}s: {exp}"
+    #                 )
+    #                 print(msg)
+    #                 raise Exception(msg) from exp
+    #             else:
+    #                 assert conn
+    #                 if pre_ping:
+    #                     assert not conn.closed
+    #                 j = next(self.counter)
+    #                 waited_for = time() - started
+    #                 if debug:
+    #                     # print(
+    #                     #     f"Thread {name} got connection {j} after "
+    #                     #     f"{waited_for :.3f}s, remaining time before "
+    #                     #     f"timeout: {deadline - waited_for  :.3f}"
+    #                     # )
+    #                     print(
+    #                         f"Thread {name} waited {waited_for:.6f}s to get connection"
+    #                     )
+    #                 waited_fors.append(waited_for)
+    #
+    #                 assert (
+    #                     connection_pool.num_in_use
+    #                     <= connection_pool.pool_size + connection_pool.max_overflow
+    #                 )
+    #                 assert connection_pool.num_in_pool <= connection_pool.pool_size
+    #                 if debug:
+    #                     print("num used connections:", connection_pool.num_in_use)
+    #                 if not ((j + 1) % 4) and do_close:
+    #                     if debug:
+    #                         print("closing connection", j, "before returning to pool")
+    #                     conn.close()
+    #                 sleep(hold_connection_for)
+    #                 if not ((j + 3) % 4) and do_close:
+    #                     if debug:
+    #                         print("closing connection", j, "after returning to pool")
+    #                     conn.close()
+    #                 connection_pool.put_connection(conn)
+    #                 sleep(wait_between_connections_for)
+    #             if is_stopped.is_set():
+    #                 print(name, "stopping early....")
+    #                 return
+    #
+    #             # print(name, "put connection", j)
+    #         if debug:
+    #             print(name, "finished")
+    #
+    #     for k in range(num_threads):
+    #         has_started = Event()
+    #         future = thread_pool.submit(
+    #             get_conn,
+    #             name=k,
+    #             has_started=has_started,
+    #             wait_for=wait_for,
+    #             do_close=True,
+    #         )
+    #         wait_for = has_started
+    #         futures.append(future)
+    #
+    #     total_timeout = (
+    #         num_gets
+    #         * (connection_deadline + hold_connection_for + wait_between_connections_for)
+    #         * 1.5
+    #     )
+    #     future_wait_started = time()
+    #     for future in futures:
+    #         try:
+    #             future.result(timeout=total_timeout)
+    #         except TimeoutError as e:
+    #             print("Stopping threads because test timed out...")
+    #             is_stopped.set()
+    #             thread_pool.shutdown()
+    #             raise Exception(
+    #                 f"Test timed out after {time() - future_wait_started}s "
+    #                 f"(timeout was {total_timeout}s)"
+    #             ) from e
+    #         except Exception as e:
+    #             is_stopped.set()
+    #             thread_pool.shutdown()
+    #             raise Exception(f"Test stopped after thread pool job error: {e}") from e
+    #
+    #     max_waited_for = max(waited_fors)
+    #     avg_waited_for = sum(waited_fors) / len(waited_fors)
+    #     min_waited_for = min(waited_fors)
+    #     print(f"Max time to wait for connection: {max_waited_for:.6f}s")
+    #     print(f"Avg time to wait for connection: {avg_waited_for:.6f}s")
+    #     print(f"Min time to wait for connection: {min_waited_for:.6f}s")
+    #     actual_deadline_margin = (
+    #         100 * (connection_deadline - max_waited_for) / max_waited_for
+    #     )
+    #     print(f"Actual deadline margin: {actual_deadline_margin:.0f}%")
+    #     print("")
+    #     sleep(0.1)
 
     def test_reader_writer(self):
         self._test_reader_writer_with_mutually_exclusive_read_write()

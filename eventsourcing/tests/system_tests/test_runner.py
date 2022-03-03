@@ -445,7 +445,7 @@ class TestMultiThreadedRunner(RunnerTestCase[MultiThreadedRunner]):
         pass
 
     def wait_for_runner(self):
-        sleep(0.1)
+        sleep(0.3)
         try:
             self.runner.reraise_thread_errors()
         except Exception as e:
@@ -707,7 +707,7 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
         super().tearDown()
 
     def wait_for_runner(self):
-        sleep(0.4)
+        sleep(0.6)
         super().wait_for_runner()
 
 
