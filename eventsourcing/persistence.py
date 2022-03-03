@@ -906,6 +906,7 @@ class ConnectionPool(ABC, Generic[TConnection]):
         self._no_readers = Condition()
         self._num_readers: int = 0
         self._writer_lock = Lock()
+        self._num_writers: int = 0
         self._mutually_exclusive_read_write = mutually_exclusive_read_write
         self._closed = False
 
@@ -1000,9 +1001,10 @@ class ConnectionPool(ABC, Generic[TConnection]):
                                     raise WriterBlockedByReaders(
                                         "Timed out waiting for return of reader"
                                     )
+                    self._num_writers += 1
 
-                # If connection is for reading and writing excludes reading,
-                # then wait for the write lock, and increment number of readers.
+                # If connection is for reading, and writing excludes reading,
+                # then wait for the writer lock, and increment number of readers.
                 elif is_writer is False:
                     if self._mutually_exclusive_read_write:
                         if not self._writer_lock.acquire(
@@ -1011,9 +1013,9 @@ class ConnectionPool(ABC, Generic[TConnection]):
                             raise ReaderBlockedByWriter(
                                 "Timed out waiting for return of writer"
                             )
-                        with self._no_readers:
-                            self._num_readers += 1
                         self._writer_lock.release()
+                    with self._no_readers:
+                        self._num_readers += 1
 
                 # Actually try to get a connection withing the time remaining.
                 conn = self._get_connection(
@@ -1150,13 +1152,14 @@ class ConnectionPool(ABC, Generic[TConnection]):
 
             # If the connection was for writing, unlock the writer lock.
             if is_writer is True:
+                self._num_writers -= 1
                 self._writer_lock.release()
 
             # Or if it was for reading, decrement the number of readers.
-            elif is_writer is False and self._mutually_exclusive_read_write:
+            elif is_writer is False:
                 with self._no_readers:
                     self._num_readers -= 1
-                    if self._num_readers == 0:
+                    if self._num_readers == 0 and self._mutually_exclusive_read_write:
                         self._no_readers.notify()
 
             # Notify a thread that is waiting for a connection to be returned.

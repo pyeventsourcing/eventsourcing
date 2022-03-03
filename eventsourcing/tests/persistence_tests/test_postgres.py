@@ -134,7 +134,7 @@ class TestPostgresConnectionPool(TestConnectionPool):
         super().test_close_on_server_after_returning_without_pre_ping()
 
     def test_reader_writer(self):
-        pass
+        self.skipTest("Recorders don't use reader/writer exclusion mechanism")
 
 
 class TestTransaction(TestCase):

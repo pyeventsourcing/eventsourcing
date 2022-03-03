@@ -668,12 +668,21 @@ class TestConnectionPool(TestCase):
         pool = self.create_pool(pool_size=3, mutually_exclusive_read_write=True)
         self.assertTrue(pool._mutually_exclusive_read_write)
 
+        self.assertEqual(0, pool._num_writers)
+        self.assertEqual(0, pool._num_readers)
+
         # Get writer.
         writer_conn = pool.get_connection(is_writer=True, timeout=0)
         self.assertIs(writer_conn.is_writer, True)
 
+        self.assertEqual(1, pool._num_writers)
+        self.assertEqual(0, pool._num_readers)
+
         # Return writer.
         pool.put_connection(writer_conn)
+
+        self.assertEqual(0, pool._num_writers)
+        self.assertEqual(0, pool._num_readers)
 
         # Get two readers.
         reader_conn1 = pool.get_connection(is_writer=False)
@@ -682,16 +691,28 @@ class TestConnectionPool(TestCase):
         self.assertIs(reader_conn1.is_writer, False)
         self.assertIs(reader_conn2.is_writer, False)
 
+        self.assertEqual(0, pool._num_writers)
+        self.assertEqual(2, pool._num_readers)
+
         # Fail to get writer.
         with self.assertRaises(WriterBlockedByReaders):
             pool.get_connection(is_writer=True, timeout=0)
+
+        self.assertEqual(0, pool._num_writers)
+        self.assertEqual(2, pool._num_readers)
 
         # Return readers to pool.
         pool.put_connection(reader_conn1)
         pool.put_connection(reader_conn2)
 
+        self.assertEqual(0, pool._num_writers)
+        self.assertEqual(0, pool._num_readers)
+
         # Get writer.
         writer_conn = pool.get_connection(is_writer=True, timeout=0)
+
+        self.assertEqual(1, pool._num_writers)
+        self.assertEqual(0, pool._num_readers)
 
         # Fail to get reader.
         with self.assertRaises(ReaderBlockedByWriter):
@@ -701,26 +722,48 @@ class TestConnectionPool(TestCase):
         with self.assertRaises(WriterBlockedByWriter):
             pool.get_connection(is_writer=True, timeout=0)
 
+        self.assertEqual(1, pool._num_writers)
+        self.assertEqual(0, pool._num_readers)
+
         # Return writer.
         pool.put_connection(writer_conn)
+
+        self.assertEqual(0, pool._num_writers)
+        self.assertEqual(0, pool._num_readers)
 
         # Get and put another writer.
         writer_conn = pool.get_connection(is_writer=True)
         pool.put_connection(writer_conn)
 
+        self.assertEqual(0, pool._num_writers)
+        self.assertEqual(0, pool._num_readers)
+
         # Get two readers.
         reader_conn1 = pool.get_connection(is_writer=False)
         reader_conn2 = pool.get_connection(is_writer=False)
+
+        self.assertEqual(0, pool._num_writers)
+        self.assertEqual(2, pool._num_readers)
+
         pool.put_connection(reader_conn1)
         pool.put_connection(reader_conn2)
+
+        self.assertEqual(0, pool._num_writers)
+        self.assertEqual(0, pool._num_readers)
 
     def _test_reader_writer_without_mutually_exclusive_read_write(self):
         pool = self.create_pool(pool_size=3, mutually_exclusive_read_write=False)
         self.assertFalse(pool._mutually_exclusive_read_write)
 
+        self.assertEqual(0, pool._num_writers)
+        self.assertEqual(0, pool._num_readers)
+
         # Get writer.
         writer_conn = pool.get_connection(is_writer=True, timeout=0)
         self.assertIs(writer_conn.is_writer, True)
+
+        self.assertEqual(1, pool._num_writers)
+        self.assertEqual(0, pool._num_readers)
 
         # Get two readers.
         reader_conn1 = pool.get_connection(is_writer=False)
@@ -729,34 +772,62 @@ class TestConnectionPool(TestCase):
         self.assertIs(reader_conn1.is_writer, False)
         self.assertIs(reader_conn2.is_writer, False)
 
+        self.assertEqual(1, pool._num_writers)
+        self.assertEqual(2, pool._num_readers)
+
         # Fail to get another writer.
         with self.assertRaises(WriterBlockedByWriter):
             pool.get_connection(is_writer=True, timeout=0)
 
+        self.assertEqual(1, pool._num_writers)
+        self.assertEqual(2, pool._num_readers)
+
         # Return writer.
         pool.put_connection(writer_conn)
+
+        self.assertEqual(0, pool._num_writers)
+        self.assertEqual(2, pool._num_readers)
 
         # Return readers to pool.
         pool.put_connection(reader_conn1)
         pool.put_connection(reader_conn2)
 
+        self.assertEqual(0, pool._num_writers)
+        self.assertEqual(0, pool._num_readers)
+
         # Get two readers.
         pool.get_connection(is_writer=False)
         pool.get_connection(is_writer=False)
 
+        self.assertEqual(0, pool._num_writers)
+        self.assertEqual(2, pool._num_readers)
+
         # Get another writer.
         writer_conn = pool.get_connection(is_writer=True, timeout=0)
+
+        self.assertEqual(1, pool._num_writers)
+        self.assertEqual(2, pool._num_readers)
 
         # Fail to get another writer.
         with self.assertRaises(WriterBlockedByWriter):
             pool.get_connection(is_writer=True, timeout=0)
 
+        self.assertEqual(1, pool._num_writers)
+        self.assertEqual(2, pool._num_readers)
+
         # Return writer.
         pool.put_connection(writer_conn)
+
+        self.assertEqual(0, pool._num_writers)
+        self.assertEqual(2, pool._num_readers)
 
         # Get and put another writer.
         writer_conn = pool.get_connection(is_writer=True)
         pool.put_connection(writer_conn)
+
+        self.assertEqual(0, pool._num_writers)
+        self.assertEqual(2, pool._num_readers)
+
 
     def test_semaphore_timeout_branch(self):
         # This test exercises unusual path where waiting for
