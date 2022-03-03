@@ -528,7 +528,9 @@ class TestConnectionPool(TestCase):
                         #     f"{waited_for :.3f}s, remaining time before "
                         #     f"timeout: {deadline - waited_for  :.3f}"
                         # )
-                        print(f"Thread {name} waited {waited_for:.6f}s to get connection")
+                        print(
+                            f"Thread {name} waited {waited_for:.6f}s to get connection"
+                        )
                     waited_fors.append(waited_for)
 
                     assert (
@@ -597,7 +599,9 @@ class TestConnectionPool(TestCase):
         print(f"Max time to wait for connection: {max_waited_for:.6f}s")
         print(f"Avg time to wait for connection: {avg_waited_for:.6f}s")
         print(f"Min time to wait for connection: {min_waited_for:.6f}s")
-        actual_deadline_margin = 100 * (connection_deadline - max_waited_for) / max_waited_for
+        actual_deadline_margin = (
+            100 * (connection_deadline - max_waited_for) / max_waited_for
+        )
         print(f"Actual deadline margin: {actual_deadline_margin:.0f}%")
         print("")
         sleep(0.1)
