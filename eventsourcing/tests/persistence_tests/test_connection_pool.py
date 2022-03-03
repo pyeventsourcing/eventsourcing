@@ -325,7 +325,7 @@ class TestConnectionPool(TestCase):
         self.assertEqual(curs.fetchall(), [[1]])
 
     def test_max_age(self):
-        pool = self.create_pool(max_age=0.05)
+        pool = self.create_pool(max_age=0.2)
 
         # Timer fires after conn returned to pool.
         conn1 = pool.get_connection()
@@ -333,8 +333,9 @@ class TestConnectionPool(TestCase):
         self.assertFalse(conn1.closing)
         pool.put_connection(conn1)
         self.assertEqual(pool.num_in_pool, 1)
-        sleep(0.1)
+        sleep(0.3)
         self.assertTrue(conn1.closed)
+        self.assertTrue(conn1.closing)
 
         # Pool returns a new connection.
         conn2 = pool.get_connection()
@@ -345,13 +346,13 @@ class TestConnectionPool(TestCase):
         self.assertEqual(pool.num_in_pool, 0)
 
         # Timer fires before conn returned to pool.
-        sleep(0.1)
+        sleep(0.3)
         self.assertFalse(conn2.closed)
         self.assertTrue(conn2.closing)
         self.assertEqual(pool.num_in_pool, 0)
         pool.put_connection(conn2)
         self.assertEqual(pool.num_in_pool, 0)
-        sleep(0.05)
+        sleep(0.1)
         self.assertTrue(conn1.closed)
 
         # Pool returns another new connection.

@@ -36,7 +36,7 @@ packages into a Python virtual environment.
 
 The example below follows an outside-in approach to software development.
 
-First, write a test.
+Write a test.
 
 ```python
 def test_dog_school():
@@ -111,8 +111,6 @@ os.environ["SQLITE_DBNAME"] = 'dog-school.db'
 test_dog_school()
 ```
 
-Add interfaces that use your application objects.
-Add indexes or logs to discover aggregate IDs.
 See the [documentation](https://eventsourcing.readthedocs.io/) for more information.
 
 ## Features
