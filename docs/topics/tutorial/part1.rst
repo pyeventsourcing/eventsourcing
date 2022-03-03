@@ -2,7 +2,7 @@
 Tutorial - Part 1 - Getting Started
 ===================================
 
-This tutorial provides a a very gradual introduction to event-sourced aggregates and
+This tutorial provides a very gradual introduction to event-sourced aggregates and
 applications, explaining just enough on the mechanics of this library to help users
 of the library understand how things work. It expands and explains the
 :ref:`Synopsis <Synopsis>`, and prepares new users of the library for reading
