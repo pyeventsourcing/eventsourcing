@@ -85,13 +85,12 @@ class EmailProcess(ProcessApplication):
     ):
         """Default policy"""
 
-    @policy.register(BankAccount.Opened)
+    @policy.register
     def _(
         self,
-        domain_event: AggregateEvent,
+        domain_event: BankAccount.Opened,
         processing_event: ProcessingEvent,
     ):
-        assert isinstance(domain_event, BankAccount.Opened)
         notification = EmailNotification.create(
             to=domain_event.email_address,
             subject="Your New Account",
