@@ -782,12 +782,10 @@ class MultiThreadedRunnerThread(RecordingEventReceiver, Thread):
 
     def run(self) -> None:
         """
-        Begins by constructing an application instance from
-        given application class and then loops forever until
-        stopped. The loop blocks on waiting for the 'is_prompted'
-        event to be set, then forwards the prompts already received
-        to its application by calling the application's
-        :func:`~Follower.pull_and_process` method for each prompted name.
+        Loops forever until stopped. The loop blocks on waiting
+        for the 'is_prompted' event to be set, then calls
+        :func:`~Follower.pull_and_process` method for each
+        prompted name.
         """
         self.has_started.set()
 
