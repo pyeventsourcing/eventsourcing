@@ -593,6 +593,10 @@ class InfrastructureFactory(ABC):
         # noinspection SpellCheckingInspection
         topic = (
             env.get(
+                cls.PERSISTENCE_MODULE,
+                "",
+            )
+            or env.get(
                 "INFRASTRUCTURE_FACTORY",  # Legacy.
                 "",
             )
@@ -600,10 +604,7 @@ class InfrastructureFactory(ABC):
                 "FACTORY_TOPIC",  # Legacy.
                 "",
             )
-            or env.get(
-                cls.PERSISTENCE_MODULE,
-                "eventsourcing.popo:Factory",
-            )
+            or "eventsourcing.popo"
         )
         try:
             obj: Union[Type[TF], ModuleType] = resolve_topic(topic)
