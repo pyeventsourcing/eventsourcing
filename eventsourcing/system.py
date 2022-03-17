@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import ast
+import inspect
 import traceback
 from abc import ABC, abstractmethod
 from collections import defaultdict
@@ -268,9 +270,31 @@ class System:
         self,
         pipes: Iterable[Iterable[Type[Application]]],
     ):
-        classes: Dict[str, Type[Application]] = {}
-        self.edges: List[Tuple[str, str]] = list()
+        # Try to identify 'topic' of resulting system object, by
+        # looking for a module level assignment 'x = System(...)'.
+        self.topic: Optional[str] = None
+        try:
+            frame1 = inspect.stack()[1]
+            module = inspect.getmodule(frame1[0])
+            if frame1.code_context is not None and module is not None:
+                code = ast.parse(frame1.code_context[0])
+                if (
+                    len(code.body) == 1
+                    and isinstance(code.body[0], ast.Assign)
+                    and len(code.body[0].targets) == 1
+                    and isinstance(code.body[0].targets[0], ast.Name)
+                ):
+                    self.topic = f"{module.__name__}:{code.body[0].targets[0].id}"
+                else:  # pragma: nocover
+                    pass
+            else:  # pragma: nocover
+                pass
+        except BaseException:
+            pass
+
         # Build nodes and edges.
+        self.edges: List[Tuple[str, str]] = list()
+        classes: Dict[str, Type[Application]] = {}
         for pipe in pipes:
             follower_cls = None
             for cls in pipe:

@@ -16,7 +16,9 @@ from eventsourcing.tests.application_tests.test_processapplication import (
     EmailProcess,
 )
 from eventsourcing.tests.domain import BankAccount
-from eventsourcing.utils import get_topic
+from eventsourcing.utils import get_topic, resolve_topic
+
+system_defined_as_global = System([[]])
 
 
 class TestSystem(TestCase):
@@ -141,6 +143,18 @@ class TestSystem(TestCase):
         )
         self.assertTrue(issubclass(system.leader_cls("Application"), Leader))
         self.assertTrue(issubclass(system.leader_cls("ProcessApplication"), Leader))
+
+    def test_system_has_topic_if_defined_as_global_variable(self):
+        system_topic = system_defined_as_global.topic
+        self.assertEqual(
+            system_topic,
+            "eventsourcing.tests.system_tests.test_system:system_defined_as_global",
+        )
+        self.assertEqual(resolve_topic(system_topic), system_defined_as_global)
+
+    def test_system_topic_is_none_if_defined_otherwise(self):
+        system = System([[]])
+        self.assertIsNone(system.topic)
 
 
 class TestLeader(TestCase):
