@@ -43,59 +43,74 @@ called 'aggregate' in the following way.
     through the root. Allow external objects to hold references to the
     root only."*
 
-That is to say, an 'aggregate' is a cluster of 'entities' and 'value objects'. An
-'entity' is an object with a fixed unique identity and other attributes that may vary.
-A 'value object' does not vary, nor does it necessarily have a unique identity.
-This basic notion of a cluster of software objects is understandable as
-straightforward `object-oriented programming
+That is to say, an 'aggregate' is a cluster of 'entities' and 'value objects'.
+An 'entity' is an object with a fixed unique identity (an ID) and other attributes
+that may vary. A 'value object' does not vary, nor does it necessarily have a
+unique identity.
+
+This basic notion of a cluster of software objects is understandable
+as straightforward `object-oriented programming
 <https://en.wikipedia.org/wiki/Object-oriented_programming>`_.
 
 An aggregate has a 'root'. The 'root' of an aggregate is an entity.
-This entity is known as the 'root entity' or the 'aggregate root'. Entities
-have IDs and the ID of the root entity is used to uniquely identify the
-cluster of objects in a domain model. Access to the cluster of objects
-is made through the root entity, which means that the root entity will
-have those methods that are required to interact with the aggregate.
+This entity is known as the 'root entity' or the 'aggregate root'. The
+ID of the root entity is used to uniquely identify and the aggregate in
+a domain model. References to the aggregate are references to the aggregate's
+root entity.
 
-Changes to the cluster of objects are made using 'command methods' defined on
-the root entity, and the state of the cluster of objects is obtained by using
-either 'query methods' or properties of the root entity. The idea of distinguishing
-between command methods (methods that change state but do not return values) and
-query methods (methods that return values but do not change state) is known as
-'command-query separation' or CQS. `CQS was devised by Bertrand Meyer
-<https://en.wikipedia.org/wiki/Command%E2%80%93query_separation>`_ and
-described in his book *Object Oriented Software Construction*.
+Access to the aggregate's cluster of objects is made through the aggregate's
+root entity. Changes to the aggregate's cluster of objects are decided by
+'command methods'. The state of the cluster of objects is accessed using
+'query methods'. The aggregate's command and query methods will usually be
+defined on the aggregate's root entity.
 
-The 'boundary' of the aggregate is defined by the extent of the cluster of objects.
+The idea of distinguishing between command methods (methods that change state but
+do not return values) and query methods (methods that return values but do not
+change state) is known as 'command-query separation' or CQS. `CQS was devised
+by Bertrand Meyer <https://en.wikipedia.org/wiki/Command%E2%80%93query_separation>`_
+and described in his book *Object Oriented Software Construction*.
+
+The extent of the cluster of objects defines the 'boundary' of the aggregate.
 The 'consistency' of the cluster of objects is maintained by making sure all
 the changes that result from a single command are `recorded atomically
-<https://en.wikipedia.org/wiki/Atomicity_(database_systems)>`_. There is
-only ever one cluster of objects for any given aggregate, so there is
-no branching, and the atomic changes have a serial order. These two notions
+<https://en.wikipedia.org/wiki/Atomicity_(database_systems)>`_. These two notions
 of 'consistency' and 'boundary' are combined in the notion in *Domain-Driven
-Design* of 'consistency boundary'. Whilst we can recognise the cluster of objects as
-basic object-orientated programming, and we can recognise the use of command and
-query methods as the more refined pattern called CQS, the 'consistency boundary'
-notion gives to the aggregates in *Domain-Driven Design* their distinctive character.
+Design* of 'consistency boundary'. Whilst we can recognise a cluster of software
+objects as basic object-orientated programming, and the use of command and query
+methods as the more refined pattern called CQS, the 'consistency boundary' notion
+gives aggregates of *Domain-Driven Design* their distinctive character.
 
-This distinctive character of aggregates in *Domain-Driven Design*, of constructing
-a serially ordered set of decisions, gives the domain models of *Domain-Driven Design*
-their distinctive character. Because the domain models of *Domain-Driven Design* are
-comprised of many aggregates, they therefore have the distinctive character of constructing
-many individual sequences of decisions.
+What is this distinctive character? The state of an aggregate is determined by the state
+of its cluster of entities and value objects. There is only ever one cluster of objects
+for any given aggregate, so there is no branching of the state of an aggregate. Therefore,
+the atomic changes decided by an aggregate's command methods must have a serial order.
+Constructing a serially ordered sequence of decisions for a cluster of domain model objects
+gives the notion 'consistency boundary' its meaning. Furthermore, the distinctive character
+of the domain models of *Domain-Driven Design* is the generation of many serially ordered
+sequences of decisions, because they are comprised of many aggregates. By comparison, the
+domain model pattern in Martin Fowler's *Patterns of Enterprise Application Architecture* does
+not have this degree of order in its society of decisions.
 
-Because we might want to develop a domain model for supporting any domain, we need to
-consider whether or not the structure 'many individual sequences of decisions'
-is generally adequate. In answering this question, we can turn to the philosophical scheme
-of Alfred North Whitehead, explained most fully in his famous book *Process and Reality*.
-The term 'domain event' corresponds to Whitehead's notion 'actual entity' (also known
-as 'actual occasion'). The term 'aggregate' corresponds to the notion 'enduring object'.
-A sequence of decisions corresponds to Whitehead's notion of 'personal order'. And the
-term 'domain model' understood as many strands of enduring object corresponds to the notion
-'corpuscular society'. This isn't the place to discuss Whitehead's scheme in great detail,
-however it is worth noting that Whitehead proposes these distinctions as his categories
-of existence, and this general structure as being adequate and applicable for analysing
-(and therefore for designing) the ordinary objects we may encounter in the world.
+If *Domain-Driven Design* is a general approach to creating domain models
+for any domain, that is because the structure 'many individual sequences of decisions'
+is generally adequate and applicable for analysis and design. To understand this in general,
+we can use Alfred North Whitehead's process-philosophical scheme, which is explained most
+fully in his famous book *Process and Reality*. The term 'domain model' in
+*Domain-Driven Design* corresponds to the notion 'corpuscular society' in Whitehead's scheme.
+The term 'aggregate' in  *Domain-Driven Design* corresponds to the notion 'enduring object' in
+Whitehead's scheme. A corpuscular society is said to comprise many strands of enduring object.
+An enduring object is said to have 'personal order'. A sequence of decisions corresponds to
+Whitehead's notion of 'personal order'. The term 'domain event' corresponds the notion
+'actual entity' (also known as 'actual occasion'). An actual occasion in Whitehead's scheme
+is the creative process of becoming in which many previous decisions are 'felt' and in which
+these feelings are grown together into a complex unity of feeling that decides what the actual
+occasion will be (its decision).
+
+This isn't the place to discuss Whitehead's scheme in great detail,
+however it is worth noting that Whitehead proposes these terms in his categories
+of existence, and proposes this general structure as being adequate and applicable
+for analysing (and therefore for designing) the ordinary objects we may encounter
+in the world.
 
     *An ordinary physical object, which has temporal endurance, is a society
     [of 'actual occasions' or 'actual entities']. In the ideally simple case,
