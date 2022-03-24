@@ -270,7 +270,7 @@ class Repository:
         else:
             # Reconstruct historical version of aggregate from stored events.
             aggregate = self._reconstruct_aggregate(
-                aggregate_id, version=version, projector_func=mutate_aggregate
+                aggregate_id, version=version, projector_func=projector_func
             )
         return aggregate
 
