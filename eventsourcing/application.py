@@ -244,7 +244,7 @@ class Repository:
             except KeyError:
                 # Reconstruct aggregate from stored events.
                 aggregate = self._reconstruct_aggregate(
-                    aggregate_id, projector_func=projector_func
+                    aggregate_id, None, projector_func
                 )
                 # Put aggregate in the cache.
                 self.cache.put(aggregate_id, aggregate)
@@ -270,15 +270,15 @@ class Repository:
         else:
             # Reconstruct historical version of aggregate from stored events.
             aggregate = self._reconstruct_aggregate(
-                aggregate_id, version=version, projector_func=projector_func
+                aggregate_id, version, projector_func
             )
         return aggregate
 
     def _reconstruct_aggregate(
         self,
         aggregate_id: UUID,
-        version: Optional[int] = None,
-        projector_func: ProjectorFunctionType[Aggregate] = mutate_aggregate,
+        version: Optional[int],
+        projector_func: ProjectorFunctionType[Aggregate],
     ) -> Aggregate:
         gt: Optional[int] = None
 
