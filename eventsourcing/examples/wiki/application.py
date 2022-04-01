@@ -1,11 +1,7 @@
 from typing import Any, Dict, Iterator, Optional, Union, cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from eventsourcing.application import (
-    AggregateNotFound,
-    Application,
-    EventSourcedLog,
-)
+from eventsourcing.application import AggregateNotFound, Application, EventSourcedLog
 from eventsourcing.examples.wiki.domainmodel import Index, Page, PageLogged
 from eventsourcing.utils import EnvType
 

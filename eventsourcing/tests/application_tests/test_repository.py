@@ -3,12 +3,7 @@ from functools import reduce
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.application import (
-    AggregateNotFound,
-    Cache,
-    LRUCache,
-    Repository,
-)
+from eventsourcing.application import AggregateNotFound, Cache, LRUCache, Repository
 from eventsourcing.domain import Aggregate, Snapshot
 from eventsourcing.persistence import (
     DatetimeAsISO,

@@ -2,11 +2,7 @@ import warnings
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.application import (
-    Application,
-    ProcessEvent,
-    ProcessingEvent,
-)
+from eventsourcing.application import Application, ProcessEvent, ProcessingEvent
 from eventsourcing.domain import Aggregate
 from eventsourcing.persistence import InfrastructureFactory
 from eventsourcing.tests.application import ExampleApplicationTestCase
