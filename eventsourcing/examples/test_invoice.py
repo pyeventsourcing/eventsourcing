@@ -151,7 +151,7 @@ class TestInvoice(TestCase):
 
         app.save(invoice)
 
-        copy = app.repository.get(invoice.id)
+        copy: Invoice = app.repository.get(invoice.id)
         self.assertEqual(invoice, copy)
 
         assert app.snapshots is not None
