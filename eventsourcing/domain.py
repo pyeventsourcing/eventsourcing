@@ -1199,7 +1199,7 @@ class Aggregate(ABC, metaclass=MetaAggregate):
         # Mutate aggregate with domain event.
         new_event.mutate(self)
         # Append the domain event to pending list.
-        self.pending_events.append(new_event)
+        self._pending_events.append(new_event)
 
     def collect_events(self) -> List[AggregateEvent[Any]]:
         """
@@ -1207,8 +1207,8 @@ class Aggregate(ABC, metaclass=MetaAggregate):
         :class:`AggregateEvent` objects.
         """
         collected = []
-        while self.pending_events:
-            collected.append(self.pending_events.pop(0))
+        while self._pending_events:
+            collected.append(self._pending_events.pop(0))
         return collected
 
 
