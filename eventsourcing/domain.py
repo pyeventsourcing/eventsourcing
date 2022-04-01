@@ -28,6 +28,27 @@ from eventsourcing.utils import get_method_name, get_topic, resolve_topic
 # noinspection SpellCheckingInspection
 TZINFO: tzinfo = resolve_topic(os.getenv("TZINFO_TOPIC", "datetime:timezone.utc"))
 
+try:
+    from typing import Protocol
+except ImportError:  # pragma: no cover
+    from typing_extensions import Protocol  # type: ignore
+
+
+class HasIDVersion(Protocol):
+    id: UUID
+    version: int
+
+
+class HasOriginatorIDVersion(Protocol):
+    originator_id: UUID
+    originator_version: int
+
+
+THasIDVersion = TypeVar("THasIDVersion", bound=HasIDVersion)
+THasOriginatorIDVersion = TypeVar(
+    "THasOriginatorIDVersion", bound=HasOriginatorIDVersion
+)
+
 
 class MetaDomainEvent(ABCMeta):
     def __new__(
@@ -1276,7 +1297,7 @@ class VersionError(OriginatorVersionError):
     """
 
 
-class Snapshot(DomainEvent[TAggregate]):
+class Snapshot(DomainEvent[THasIDVersion]):
     # noinspection PyUnresolvedReferences
     """
     Snapshots represent the state of an aggregate at a particular
@@ -1295,27 +1316,28 @@ class Snapshot(DomainEvent[TAggregate]):
     state: Dict[str, Any]
 
     @classmethod
-    def take(cls, aggregate: TAggregate) -> "Snapshot[TAggregate]":
+    def take(cls, aggregate: THasIDVersion) -> "Snapshot[THasIDVersion]":
         """
         Creates a snapshot of the given :class:`Aggregate` object.
         """
         aggregate_state = dict(aggregate.__dict__)
-        aggregate_state.pop("_pending_events")
         class_version = getattr(type(aggregate), "class_version", 1)
         if class_version > 1:
             aggregate_state["class_version"] = class_version
-        originator_id = aggregate_state.pop("_id")
-        originator_version = aggregate_state.pop("_version")
+        if isinstance(aggregate, Aggregate):
+            aggregate_state.pop("_id")
+            aggregate_state.pop("_version")
+            aggregate_state.pop("_pending_events")
         # noinspection PyArgumentList
         return cls(  # type: ignore
-            originator_id=originator_id,
-            originator_version=originator_version,
+            originator_id=aggregate.id,
+            originator_version=aggregate.version,
             timestamp=cls.create_timestamp(),
             topic=get_topic(type(aggregate)),
             state=aggregate_state,
         )
 
-    def mutate(self, _: Optional[TAggregate]) -> TAggregate:
+    def mutate(self, _: Optional[THasIDVersion]) -> THasIDVersion:
         """
         Reconstructs the snapshotted :class:`Aggregate` object.
         """
@@ -1333,7 +1355,7 @@ class Snapshot(DomainEvent[TAggregate]):
         aggregate_state["_id"] = self.originator_id
         aggregate_state["_version"] = self.originator_version
         aggregate_state["_pending_events"] = []
-        aggregate: TAggregate = object.__new__(cls)
+        aggregate: THasIDVersion = object.__new__(cls)
 
         aggregate.__dict__.update(aggregate_state)
         return aggregate

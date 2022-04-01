@@ -316,7 +316,6 @@ class Mapper:
         event_state["originator_id"] = stored.originator_id
         event_state["originator_version"] = stored.originator_version
         cls = resolve_topic(stored.topic)
-        assert issubclass(cls, DomainEvent)
         class_version = getattr(cls, "class_version", 1)
         from_version = event_state.pop("class_version", 1)
         while from_version < class_version:

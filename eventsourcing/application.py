@@ -31,6 +31,8 @@ from eventsourcing.domain import (
     LogEvent,
     Snapshot,
     TAggregate,
+    THasIDVersion,
+    THasOriginatorIDVersion,
     TLogEvent,
 )
 from eventsourcing.persistence import (
@@ -48,44 +50,46 @@ from eventsourcing.persistence import (
 )
 from eventsourcing.utils import Environment, EnvType, strtobool
 
-T = TypeVar("T")
-ProjectorFunctionType = Callable[[Optional[T], Iterable[DomainEvent[T]]], Optional[T]]
+ProjectorFunctionType = Callable[
+    [Optional[THasIDVersion], Iterable[THasOriginatorIDVersion]],
+    Optional[THasIDVersion],
+]
 
 
-def mutate_aggregate(
-    aggregate: Optional[T], domain_events: Iterable[DomainEvent[T]]
-) -> Optional[T]:
+def project_aggregate(
+    aggregate: Optional[THasIDVersion], domain_events: Iterable[THasOriginatorIDVersion]
+) -> Optional[THasIDVersion]:
     """
-    Mutator function for aggregate projections, which works
-    by successively calling mutate() on each of the given
-    list of domain events.
+    Projector function for aggregate projections, which works
+    by successively calling aggregate mutator function mutate()
+    on each of the given list of domain events in turn.
     """
-    for domain_event in domain_events:
+    for domain_event in cast(Iterable[DomainEvent[THasIDVersion]], domain_events):
         aggregate = domain_event.mutate(aggregate)
     return aggregate
 
 
-_S = TypeVar("_S")
-_T = TypeVar("_T")
+S = TypeVar("S")
+T = TypeVar("T")
 
 
-class Cache(Generic[_S, _T]):
+class Cache(Generic[S, T]):
     def __init__(self) -> None:
-        self.cache: Dict[_S, Any] = {}
+        self.cache: Dict[S, Any] = {}
 
-    def get(self, key: _S, evict: bool = False) -> _T:
+    def get(self, key: S, evict: bool = False) -> T:
         if evict:
             return self.cache.pop(key)
         else:
             return self.cache[key]
 
-    def put(self, key: _S, value: _T) -> Optional[_T]:
+    def put(self, key: S, value: T) -> Optional[T]:
         if value is not None:
             self.cache[key] = value
         return None
 
 
-class LRUCache(Cache[_S, _T]):
+class LRUCache(Cache[S, T]):
     """
     Size limited caching that tracks accesses by recency.
 
@@ -114,7 +118,7 @@ class LRUCache(Cache[_S, _T]):
             None,
         ]  # initialize by pointing to self
 
-    def get(self, key: _S, evict: bool = False) -> _T:
+    def get(self, key: S, evict: bool = False) -> T:
         with self.lock:
             link = self.cache.get(key)
             if link is not None:
@@ -138,7 +142,7 @@ class LRUCache(Cache[_S, _T]):
             else:
                 raise KeyError
 
-    def put(self, key: _S, value: _T) -> Optional[Any]:
+    def put(self, key: S, value: T) -> Optional[Any]:
         evicted_key = None
         evicted_value = None
         with self.lock:
@@ -231,8 +235,10 @@ class Repository:
         self,
         aggregate_id: UUID,
         version: Optional[int] = None,
-        projector_func: ProjectorFunctionType[Aggregate] = mutate_aggregate,
-    ) -> Aggregate:
+        projector_func: ProjectorFunctionType[
+            THasIDVersion, THasOriginatorIDVersion
+        ] = project_aggregate,
+    ) -> THasIDVersion:
         """
         Reconstructs an :class:`~eventsourcing.domain.Aggregate` for a
         given ID from stored events, optionally at a particular version.
@@ -240,22 +246,25 @@ class Repository:
         if self.cache and version is None:
             try:
                 # Look for aggregate in the cache.
-                aggregate = self.cache.get(aggregate_id)
+                aggregate = cast(THasIDVersion, self.cache.get(aggregate_id))
             except KeyError:
                 # Reconstruct aggregate from stored events.
                 aggregate = self._reconstruct_aggregate(
                     aggregate_id, None, projector_func
                 )
                 # Put aggregate in the cache.
-                self.cache.put(aggregate_id, aggregate)
+                self.cache.put(aggregate_id, cast(Aggregate, aggregate))
             else:
                 if self.fastforward:
                     # Fast-forward cached aggregate.
                     fastforward_lock = self._use_fastforward_lock(aggregate_id)
                     try:
                         with fastforward_lock:
-                            new_events = self.event_store.get(
-                                originator_id=aggregate_id, gt=aggregate.version
+                            new_events = cast(
+                                Iterable[THasOriginatorIDVersion],
+                                self.event_store.get(
+                                    originator_id=aggregate_id, gt=aggregate.version
+                                ),
                             )
                             _aggregate = projector_func(aggregate, new_events)
                     finally:
@@ -278,18 +287,21 @@ class Repository:
         self,
         aggregate_id: UUID,
         version: Optional[int],
-        projector_func: ProjectorFunctionType[Aggregate],
-    ) -> Aggregate:
+        projector_func: ProjectorFunctionType[THasIDVersion, THasOriginatorIDVersion],
+    ) -> THasIDVersion:
         gt: Optional[int] = None
 
         if self.snapshot_store is not None:
             # Try to get a snapshot.
             snapshots = list(
-                self.snapshot_store.get(
-                    originator_id=aggregate_id,
-                    desc=True,
-                    limit=1,
-                    lte=version,
+                cast(
+                    Iterable[THasOriginatorIDVersion],
+                    self.snapshot_store.get(
+                        originator_id=aggregate_id,
+                        desc=True,
+                        limit=1,
+                        lte=version,
+                    ),
                 )
             )
             if snapshots:
@@ -298,14 +310,17 @@ class Repository:
             snapshots = []
 
         # Get aggregate events.
-        aggregate_events = self.event_store.get(
-            originator_id=aggregate_id,
-            gt=gt,
-            lte=version,
+        aggregate_events = cast(
+            Iterable[THasOriginatorIDVersion],
+            self.event_store.get(
+                originator_id=aggregate_id,
+                gt=gt,
+                lte=version,
+            ),
         )
 
         # Reconstruct the aggregate from its events.
-        initial: Optional[Aggregate] = None
+        initial: Optional[THasIDVersion] = None
         aggregate = projector_func(initial, chain(snapshots, aggregate_events))
 
         # Raise exception if "not found".
@@ -538,11 +553,17 @@ class ProcessingEvent:
                 self.aggregates[obj.id] = obj
                 for event in obj.collect_events():
                     self.events.append(event)
+            elif hasattr(obj, "collect_events"):
+                for event in obj.collect_events():
+                    self.events.append(event)
+            elif obj is not None:
+                self.events.append(obj)
+
         self.saved_kwargs.update(kwargs)
 
     def save(
         self,
-        *aggregates: Optional[Union[Aggregate, AggregateEvent[Aggregate]]],
+        *aggregates: Optional[Union[Aggregate, AggregateEvent[Aggregate], LogEvent]],
         **kwargs: Any,
     ) -> None:
         warn(
@@ -783,7 +804,14 @@ class Application(ABC):
                             version=event.originator_version,
                         )
 
-    def take_snapshot(self, aggregate_id: UUID, version: Optional[int] = None) -> None:
+    def take_snapshot(
+        self,
+        aggregate_id: UUID,
+        version: Optional[int] = None,
+        projector_func: ProjectorFunctionType[
+            THasIDVersion, THasOriginatorIDVersion
+        ] = project_aggregate,
+    ) -> None:
         """
         Takes a snapshot of the recorded state of the aggregate,
         and puts the snapshot in the snapshot store.
@@ -797,7 +825,9 @@ class Application(ABC):
                 "application class."
             )
         else:
-            aggregate = self.repository.get(aggregate_id, version)
+            aggregate: THasIDVersion = self.repository.get(
+                aggregate_id, version=version, projector_func=projector_func
+            )
             snapshot = Snapshot.take(aggregate)
             self.snapshots.put([snapshot])
 
