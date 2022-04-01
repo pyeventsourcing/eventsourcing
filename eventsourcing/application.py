@@ -2,6 +2,7 @@ import os
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from dataclasses import dataclass
+from inspect import ismethod
 from itertools import chain
 from threading import Event, Lock
 from typing import (
@@ -553,11 +554,12 @@ class ProcessingEvent:
                 self.aggregates[obj.id] = obj
                 for event in obj.collect_events():
                     self.events.append(event)
-            elif hasattr(obj, "collect_events"):
-                for event in obj.collect_events():
-                    self.events.append(event)
             elif obj is not None:
-                self.events.append(obj)
+                if hasattr(obj, "collect_events") and ismethod(obj.collect_events):
+                    for event in obj.collect_events():
+                        self.events.append(event)
+                else:
+                    self.events.append(obj)
 
         self.saved_kwargs.update(kwargs)
 
