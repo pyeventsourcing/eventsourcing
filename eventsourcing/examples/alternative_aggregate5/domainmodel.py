@@ -31,7 +31,6 @@ class Aggregate(HasIDVersionFields):
         event_class: Type[DomainEvent],
         **kwargs: Any,
     ) -> DomainEvent:
-        # Impose the required common domain event attribute values.
         kwargs = kwargs.copy()
         kwargs.update(
             originator_id=self.id,

@@ -38,27 +38,14 @@ class Aggregate(ABC):
         event_class: Type[DomainEvent],
         **kwargs: Any,
     ) -> None:
-        """
-        Triggers domain event of given type, by creating
-        an event object and using it to mutate the aggregate.
-        """
-        # Construct the domain event as the
-        # next in the aggregate's sequence.
-        # Use counting to generate the sequence.
-        next_version = self.version + 1
-
-        # Impose the required common domain event attribute values.
         kwargs = kwargs.copy()
         kwargs.update(
             originator_id=self.id,
-            originator_version=next_version,
+            originator_version=self.version + 1,
             timestamp=event_class.create_timestamp(),
         )
         new_event = event_class(**kwargs)
-
-        # Mutate aggregate with domain event.
         self.apply(new_event)
-        # Append the domain event to pending list.
         self._pending_events.append(new_event)
 
     @abstractmethod
