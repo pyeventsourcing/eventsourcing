@@ -58,7 +58,7 @@ class Aggregate(HasIDVersion):
 @dataclass(frozen=True)
 class Dog(Aggregate):
     name: str
-    tricks: List[str]
+    tricks: Tuple[str, ...]
 
     @dataclass(frozen=True)
     class Registered(DomainEvent):
@@ -91,7 +91,7 @@ class Dog(Aggregate):
                 version=event.originator_version,
                 created_on=event.timestamp,
                 name=event.name,
-                tricks=[],
+                tricks=tuple(),
             )
         elif isinstance(event, cls.TrickAdded):
             assert aggregate is not None
@@ -100,7 +100,7 @@ class Dog(Aggregate):
                 version=event.originator_version,
                 created_on=event.timestamp,
                 name=aggregate.name,
-                tricks=aggregate.tricks + [event.trick],
+                tricks=aggregate.tricks + (event.trick,),
             )
         elif isinstance(event, Snapshot):
             return Dog(
