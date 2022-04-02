@@ -1,7 +1,7 @@
 .. _Aggregate example 1:
 
-Aggregate example 1
-===================
+Aggregate 1 - Declarative Syntax
+================================
 
 This example shows the ``Dog`` class used in the tutorial and module docs.
 

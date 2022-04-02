@@ -1,7 +1,7 @@
 .. _Aggregate example 2:
 
-Aggregate example 2
-===================
+Aggregate 2 - Explicit Event Classes
+====================================
 
 This example shows the ``Dog`` class used in the tutorial and module docs.
 

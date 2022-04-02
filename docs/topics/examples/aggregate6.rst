@@ -1,7 +1,7 @@
 .. _Aggregate example 6:
 
-Aggregate example 6
-===================
+Aggregate 6 - Functional Style
+==============================
 
 This example shows the ``Dog`` class used in the tutorial and module docs.
 
