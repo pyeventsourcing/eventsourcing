@@ -1,5 +1,5 @@
 ===============
-Support options
+Support Options
 ===============
 
 Thank you for your interest in this library. It has taken some time
