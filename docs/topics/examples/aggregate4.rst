@@ -1,6 +1,6 @@
 .. _Aggregate example 4:
 
-Aggregate 4 - Custom Base Classes
+Aggregate 4 - Custom base classes
 =================================
 
 This example shows the ``Dog`` class used in the tutorial and module docs.

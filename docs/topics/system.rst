@@ -1,5 +1,5 @@
 =====================================================
-:mod:`~eventsourcing.system` --- Event-Driven Systems
+:mod:`~eventsourcing.system` --- Event-driven systems
 =====================================================
 
 This module shows how :doc:`event-sourced applications

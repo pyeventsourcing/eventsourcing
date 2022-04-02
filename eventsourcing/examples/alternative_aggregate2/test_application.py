@@ -3,7 +3,7 @@ from unittest import TestCase
 from eventsourcing.examples.alternative_aggregate2.application import DogSchool
 
 
-class TestAlternativeAggregate(TestCase):
+class TestDogSchool(TestCase):
     def test_dog_school(self) -> None:
         # Construct application object.
         school = DogSchool()

@@ -16,6 +16,8 @@ docs_requires = (
 )
 
 dev_requires = docs_requires + [
+    "orjson",
+    "pydantic",
     "python-coveralls",
     "coverage",
     "black",

@@ -1,7 +1,7 @@
 .. _Bank accounts example:
 
-Bank accounts application
-=========================
+Application 1 - Bank accounts
+=============================
 
 This example demonstrates a straightforward event-sourced
 application.

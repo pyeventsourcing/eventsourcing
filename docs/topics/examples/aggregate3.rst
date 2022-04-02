@@ -1,7 +1,7 @@
 .. _Aggregate example 3:
 
-Aggregate 3 - Separate Apply Methods
-====================================
+Aggregate 3 - Separate mutator
+==============================
 
 This example shows the ``Dog`` class used in the tutorial and module docs.
 

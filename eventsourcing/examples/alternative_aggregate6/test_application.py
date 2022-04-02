@@ -4,7 +4,7 @@ from eventsourcing.examples.alternative_aggregate6.application import DogSchool
 from eventsourcing.examples.alternative_aggregate6.domainmodel import project_dog
 
 
-class TestAlternativeAggregate(TestCase):
+class TestDogSchool(TestCase):
     def test_dog_school(self) -> None:
         # Construct application object.
         school = DogSchool()

@@ -25,6 +25,7 @@ involves creating and updating a `Dog` aggregate, and taking a snapshot.
    examples/aggregate4
    examples/aggregate5
    examples/aggregate6
+   examples/aggregate7
 
 
 Example applications

@@ -654,13 +654,12 @@ class InfrastructureFactory(ABC):
         return JSONTranscoder()
 
     def mapper(
-        self,
-        transcoder: Transcoder,
+        self, transcoder: Transcoder, mapper_class: Type[Mapper] = Mapper
     ) -> Mapper:
         """
         Constructs a mapper.
         """
-        return Mapper(
+        return mapper_class(
             transcoder=transcoder,
             cipher=self.cipher(),
             compressor=self.compressor(),

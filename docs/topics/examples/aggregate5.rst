@@ -1,7 +1,7 @@
 .. _Aggregate example 5:
 
-Aggregate 5 - Immutable Object
-==============================
+Aggregate 5 - Immutable aggregate
+=================================
 
 This example shows the ``Dog`` class used in the tutorial and module docs.
 

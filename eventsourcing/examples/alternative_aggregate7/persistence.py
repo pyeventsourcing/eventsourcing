@@ -1,0 +1,45 @@
+from typing import Any, Dict
+
+import orjson
+
+from eventsourcing.domain import HasOriginatorIDVersion, THasOriginatorIDVersion
+from eventsourcing.persistence import Mapper, StoredEvent, Transcoder, Transcoding
+from eventsourcing.utils import get_topic, resolve_topic
+
+
+class PydanticMapper(Mapper):
+    def from_domain_event(self, domain_event: HasOriginatorIDVersion) -> StoredEvent:
+        topic: str = get_topic(domain_event.__class__)
+        event_state = domain_event.__dict__.copy()
+        stored_state: bytes = self.transcoder.encode(event_state)
+        if self.compressor:
+            stored_state = self.compressor.compress(stored_state)  # pragma: no cover
+        if self.cipher:
+            stored_state = self.cipher.encrypt(stored_state)  # pragma: no cover
+        return StoredEvent(
+            originator_id=domain_event.originator_id,
+            originator_version=domain_event.originator_version,
+            topic=topic,
+            state=stored_state,
+        )
+
+    def to_domain_event(self, stored: StoredEvent) -> THasOriginatorIDVersion:
+        stored_state: bytes = stored.state
+        if self.cipher:
+            stored_state = self.cipher.decrypt(stored_state)  # pragma: no cover
+        if self.compressor:
+            stored_state = self.compressor.decompress(stored_state)  # pragma: no cover
+        event_state: Dict[str, Any] = self.transcoder.decode(stored_state)
+        cls = resolve_topic(stored.topic)
+        return cls(**event_state)
+
+
+class OrjsonTranscoder(Transcoder):
+    def encode(self, obj: Any) -> bytes:
+        return orjson.dumps(obj)
+
+    def decode(self, data: bytes) -> Any:
+        return orjson.loads(data)
+
+    def register(self, transcoding: Transcoding) -> None:
+        raise RuntimeError("Transcodings not supported")  # pragma: no cover
