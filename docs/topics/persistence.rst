@@ -897,7 +897,7 @@ If you want to use a different cipher strategy, then implement the base
 class class:`~eventsourcing.cipher.Cipher`.
 
 
-Compression and Encryption
+Compression and encryption
 ==========================
 
 Stored events can be both compressed and encrypted.
