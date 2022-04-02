@@ -8,7 +8,6 @@ from collections import defaultdict
 from queue import Full, Queue
 from threading import Event, Lock, RLock, Thread
 from typing import (
-    Any,
     Dict,
     Iterable,
     Iterator,
@@ -23,6 +22,7 @@ from typing import (
     cast,
 )
 
+# For backwards compatibility of import statements.
 from eventsourcing.application import ProcessEvent  # noqa: F401
 from eventsourcing.application import (
     Application,
@@ -32,7 +32,7 @@ from eventsourcing.application import (
     Section,
     TApplication,
 )
-from eventsourcing.domain import DomainEvent
+from eventsourcing.domain import HasOriginatorIDVersion
 from eventsourcing.persistence import (
     IntegrityError,
     Mapper,
@@ -43,7 +43,7 @@ from eventsourcing.persistence import (
 )
 from eventsourcing.utils import EnvType, get_topic, resolve_topic
 
-ProcessingJob = Tuple[DomainEvent[Any], Tracking]
+ProcessingJob = Tuple[HasOriginatorIDVersion, Tracking]
 ConvertingJob = Optional[Union[RecordingEvent, List[Notification]]]
 
 
@@ -136,7 +136,7 @@ class Follower(Application):
         mapper = self.mappers[leader_name]
         processing_jobs = []
         for notification in notifications:
-            domain_event = mapper.to_domain_event(notification)
+            domain_event: HasOriginatorIDVersion = mapper.to_domain_event(notification)
             tracking = Tracking(
                 application_name=leader_name,
                 notification_id=notification.id,
@@ -145,7 +145,9 @@ class Follower(Application):
         return processing_jobs
 
     # @retry(IntegrityError, max_attempts=50000, wait=0.01)
-    def process_event(self, domain_event: DomainEvent[Any], tracking: Tracking) -> None:
+    def process_event(
+        self, domain_event: HasOriginatorIDVersion, tracking: Tracking
+    ) -> None:
         """
         Calls :func:`~eventsourcing.system.Follower.policy` method with
         the given :class:`~eventsourcing.domain.AggregateEvent` and a
@@ -186,7 +188,7 @@ class Follower(Application):
     @abstractmethod
     def policy(
         self,
-        domain_event: DomainEvent[Any],
+        domain_event: HasOriginatorIDVersion,
         processing_event: ProcessingEvent,
     ) -> None:
         """

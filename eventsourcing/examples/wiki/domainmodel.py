@@ -43,6 +43,9 @@ class Index(Aggregate):
     slug: str
     ref: Optional[UUID]
 
+    class Event(Aggregate.Event["Index"]):
+        pass
+
     @staticmethod
     def create_id(slug: str) -> UUID:
         return uuid5(NAMESPACE_URL, f"/slugs/{slug}")

@@ -2,7 +2,6 @@ import os
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from dataclasses import dataclass
-from inspect import ismethod
 from itertools import chain
 from threading import Event, Lock
 from typing import (
@@ -29,9 +28,12 @@ from eventsourcing.domain import (
     AggregateEvent,
     DomainEvent,
     EventSourcingError,
+    HasCollectEvents,
+    HasIDVersionFields,
+    HasIDVersionProperties,
+    HasOriginatorIDVersion,
     LogEvent,
     Snapshot,
-    TAggregate,
     THasIDVersion,
     THasOriginatorIDVersion,
     TLogEvent,
@@ -218,7 +220,7 @@ class Repository:
         self.snapshot_store = snapshot_store
 
         if cache_maxsize is None:
-            self.cache: Optional[Cache[UUID, Aggregate]] = None
+            self.cache: Optional[Cache[UUID, HasCollectEvents]] = None
         elif cache_maxsize <= 0:
             self.cache = Cache()
         else:
@@ -534,31 +536,30 @@ class ProcessingEvent:
         Initialises the process event with the given tracking object.
         """
         self.tracking = tracking
-        self.events: List[Union[AggregateEvent[Any], LogEvent]] = []
-        self.aggregates: Dict[UUID, Aggregate] = {}
+        self.events: List[Union[HasOriginatorIDVersion]] = []
+        self.aggregates: Dict[UUID, HasCollectEvents] = {}
         self.saved_kwargs: Dict[Any, Any] = {}
 
     def collect_events(
         self,
-        *objs: Optional[Union[Aggregate, AggregateEvent[Aggregate], LogEvent]],
+        *objs: Optional[Union[HasCollectEvents, HasOriginatorIDVersion]],
         **kwargs: Any,
     ) -> None:
         """
         Collects pending domain events from the given aggregate.
         """
         for obj in objs:
-            if isinstance(obj, (AggregateEvent, LogEvent)):
-                self.events.append(obj)
-            elif isinstance(obj, Aggregate):
-                self.aggregates[obj.id] = obj
+            if obj is None:
+                continue
+            elif isinstance(obj, HasCollectEvents):
                 for event in obj.collect_events():
                     self.events.append(event)
-            elif obj is not None:
-                if hasattr(obj, "collect_events") and ismethod(obj.collect_events):
-                    for event in obj.collect_events():
-                        self.events.append(event)
-                else:
-                    self.events.append(obj)
+                if isinstance(obj, (HasIDVersionFields, HasIDVersionProperties)):
+                    self.aggregates[obj.id] = obj
+                else:  # pragma: no cover
+                    pass
+            else:
+                self.events.append(obj)
 
         self.saved_kwargs.update(kwargs)
 
@@ -615,7 +616,7 @@ class Application(ABC):
     name = "Application"
     env: EnvType = {}
     is_snapshotting_enabled: bool = False
-    snapshotting_intervals: Optional[Dict[Type[Aggregate], int]] = None
+    snapshotting_intervals: Optional[Dict[Type[HasCollectEvents], int]] = None
     log_section_size = 10
     notify_topics: Sequence[str] = []
 
@@ -760,7 +761,7 @@ class Application(ABC):
 
     def save(
         self,
-        *objs: Optional[Union[TAggregate, AggregateEvent[Aggregate], LogEvent]],
+        *objs: Optional[Union[HasCollectEvents, HasOriginatorIDVersion]],
         **kwargs: Any,
     ) -> List[Recording]:
         """
@@ -832,9 +833,7 @@ class Application(ABC):
             snapshot = Snapshot.take(aggregate)
             self.snapshots.put([snapshot])
 
-    def notify(
-        self, new_events: List[Union[AggregateEvent[Aggregate], LogEvent]]
-    ) -> None:
+    def notify(self, new_events: List[HasOriginatorIDVersion]) -> None:
         """
         Deprecated.
 

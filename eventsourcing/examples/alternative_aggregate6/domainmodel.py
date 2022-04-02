@@ -16,7 +16,7 @@ from typing import (
 from uuid import UUID, uuid4
 
 from eventsourcing.application import ProjectorFunctionType
-from eventsourcing.domain import HasIDVersion, HasOriginatorIDVersion, Snapshot
+from eventsourcing.domain import HasIDVersionFields, HasOriginatorIDVersion, Snapshot
 
 
 @dataclass(frozen=True)
@@ -34,7 +34,7 @@ TAggregate = TypeVar("TAggregate", bound="Aggregate")
 
 
 @dataclass(frozen=True)
-class Aggregate(HasIDVersion):
+class Aggregate(HasIDVersionFields):
     id: UUID
     version: int
     created_on: datetime
@@ -81,7 +81,7 @@ class TrickAdded(DomainEvent):
 @dataclass(frozen=True)
 class Dog(Aggregate):
     name: str
-    tricks: List[str]
+    tricks: Tuple[str, ...]
 
 
 def register_dog(name: str) -> Tuple[Dog, List[DomainEvent]]:
@@ -115,7 +115,7 @@ def _(event: DogRegistered, _: Dog) -> Dog:
         version=event.originator_version,
         created_on=event.timestamp,
         name=event.name,
-        tricks=[],
+        tricks=(),
     )
 
 
@@ -126,7 +126,7 @@ def _(event: TrickAdded, dog: Dog) -> Dog:
         version=event.originator_version,
         created_on=event.timestamp,
         name=dog.name,
-        tricks=dog.tricks + [event.trick],
+        tricks=dog.tricks + (event.trick,),
     )
 
 
@@ -137,7 +137,7 @@ def _(event: Snapshot[Dog], dog: Dog) -> Dog:
         version=event.state["version"],
         created_on=event.state["created_on"],
         name=event.state["name"],
-        tricks=event.state["tricks"],
+        tricks=tuple(event.state["tricks"]),  # comes back from JSON as a list
     )
 
 

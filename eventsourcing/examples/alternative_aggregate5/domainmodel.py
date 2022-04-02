@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any, Iterable, List, Optional, Tuple, Type, TypeVar, cast
 from uuid import UUID, uuid4
 
-from eventsourcing.domain import HasIDVersion, HasOriginatorIDVersion, Snapshot
+from eventsourcing.domain import HasIDVersionFields, HasOriginatorIDVersion, Snapshot
 
 
 @dataclass(frozen=True)
@@ -21,7 +21,7 @@ TAggregate = TypeVar("TAggregate", bound="Aggregate")
 
 
 @dataclass(frozen=True)
-class Aggregate(HasIDVersion):
+class Aggregate(HasIDVersionFields):
     id: UUID
     version: int
     created_on: datetime
@@ -108,7 +108,7 @@ class Dog(Aggregate):
                 version=event.state["version"],
                 created_on=event.state["created_on"],
                 name=event.state["name"],
-                tricks=event.state["tricks"],
+                tricks=tuple(event.state["tricks"]),  # comes back from JSON as a list
             )
         else:
             raise NotImplementedError(event)  # pragma: no cover

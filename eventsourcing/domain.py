@@ -1,6 +1,5 @@
 import inspect
 import os
-from abc import ABC, ABCMeta
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
 from functools import lru_cache
@@ -13,6 +12,7 @@ from typing import (
     Iterable,
     List,
     Optional,
+    Sequence,
     Set,
     Tuple,
     Type,
@@ -21,35 +21,58 @@ from typing import (
     cast,
     overload,
 )
+
+try:
+    from typing import Protocol, runtime_checkable
+except ImportError:  # pragma: no cover
+    from typing_extensions import Protocol, runtime_checkable  # type: ignore
+
 from uuid import UUID, uuid4
 
 from eventsourcing.utils import get_method_name, get_topic, resolve_topic
 
 TZINFO: tzinfo = resolve_topic(os.getenv("TZINFO_TOPIC", "datetime:timezone.utc"))
 
-try:
-    from typing import Protocol
-except ImportError:  # pragma: no cover
-    from typing_extensions import Protocol  # type: ignore
 
-
-class HasIDVersion(Protocol):
-    id: UUID
-    version: int
-
-
+@runtime_checkable
 class HasOriginatorIDVersion(Protocol):
     originator_id: UUID
     originator_version: int
 
 
-THasIDVersion = TypeVar("THasIDVersion", bound=HasIDVersion)
+@runtime_checkable
+class HasIDVersionFields(Protocol):
+    id: UUID
+    version: int
+
+
+@runtime_checkable
+class HasIDVersionProperties(Protocol):
+    @property
+    def id(self) -> UUID:
+        ...  # pragma: no cover
+
+    @property
+    def version(self) -> int:
+        ...  # pragma: no cover
+
+
+HasIDVersion = Union[HasIDVersionProperties, HasIDVersionFields]
+
+
+@runtime_checkable
+class HasCollectEvents(Protocol):
+    def collect_events(self) -> Sequence[HasOriginatorIDVersion]:
+        ...  # pragma: no cover
+
+
 THasOriginatorIDVersion = TypeVar(
     "THasOriginatorIDVersion", bound=HasOriginatorIDVersion
 )
+THasIDVersion = TypeVar("THasIDVersion", bound=HasIDVersion)
 
 
-class MetaDomainEvent(ABCMeta):
+class MetaDomainEvent(type):
     def __new__(
         mcs, name: str, bases: Tuple[type, ...], cls_dict: Dict[str, Any]
     ) -> "MetaDomainEvent":
@@ -61,7 +84,7 @@ class MetaDomainEvent(ABCMeta):
 T = TypeVar("T")
 
 
-class DomainEvent(ABC, Generic[T], metaclass=MetaDomainEvent):
+class DomainEvent(Generic[T], metaclass=MetaDomainEvent):
     """
     Base class for domain events, such as aggregate :class:`AggregateEvent`
     and aggregate :class:`Snapshot`.
@@ -683,7 +706,7 @@ _annotations_mention_id: Set["MetaAggregate"] = set()
 _init_mentions_id: Set["MetaAggregate"] = set()
 
 
-class MetaAggregate(ABCMeta):
+class MetaAggregate(type):
     INITIAL_VERSION = 1
 
     class Event(AggregateEvent[TAggregate]):
@@ -707,7 +730,7 @@ class MetaAggregate(ABCMeta):
                 annotations_mention_id = False
             else:
                 annotations_mention_id = True
-        cls = ABCMeta.__new__(mcs, *args)
+        cls = type.__new__(mcs, *args)
         if class_annotations:
             cls = dataclass(eq=False, repr=False)(cls)
         if annotations_mention_id:
@@ -770,7 +793,7 @@ class MetaAggregate(ABCMeta):
                 "Can't use both '_created_event_class' and 'created_event_name'"
             )
 
-        # Is the init method method decorated with a CommandMethodDecorator?
+        # Is the init method decorated with a CommandMethodDecorator?
         if isinstance(cls.__dict__.get("__init__"), CommandMethodDecorator):
             init_decorator: CommandMethodDecorator = cls.__dict__["__init__"]
 
@@ -1045,9 +1068,8 @@ class MetaAggregate(ABCMeta):
         Factory method to construct a new
         aggregate object instance.
         """
-        # Construct the domain event class,
-        # with an ID and version, and the
-        # a topic for the aggregate class.
+        # Construct the domain event with an ID and a
+        # version, and a topic for the aggregate class.
         create_id_kwargs = {
             k: v for k, v in kwargs.items() if k in cls._create_id_param_names
         }
@@ -1086,7 +1108,7 @@ class MetaAggregate(ABCMeta):
         return uuid4()
 
 
-class Aggregate(ABC, metaclass=MetaAggregate):
+class Aggregate(metaclass=MetaAggregate):
     """
     Base class for aggregate roots.
     """
@@ -1195,7 +1217,7 @@ class Aggregate(ABC, metaclass=MetaAggregate):
         # Append the domain event to pending list.
         self._pending_events.append(new_event)
 
-    def collect_events(self) -> List[AggregateEvent[Any]]:
+    def collect_events(self) -> Sequence[HasOriginatorIDVersion]:
         """
         Collects and returns a list of pending aggregate
         :class:`AggregateEvent` objects.

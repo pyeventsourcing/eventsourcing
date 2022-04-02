@@ -2,11 +2,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Any, Dict, Union
+from typing import Any, Dict, List, Union
 from unittest import TestCase
 
 from eventsourcing.application import Application
-from eventsourcing.domain import Aggregate, event
+from eventsourcing.domain import Aggregate, Snapshot, event
 from eventsourcing.persistence import Transcoding
 
 
@@ -155,7 +155,7 @@ class TestInvoice(TestCase):
         self.assertEqual(invoice, copy)
 
         assert app.snapshots is not None
-        snapshots = list(app.snapshots.get(invoice.id))
+        snapshots: List[Snapshot[Invoice]] = list(app.snapshots.get(invoice.id))
         self.assertEqual(len(snapshots), 0)
 
         app.take_snapshot(invoice.id)

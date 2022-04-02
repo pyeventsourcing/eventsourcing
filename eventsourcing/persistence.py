@@ -24,7 +24,11 @@ from typing import (
 )
 from uuid import UUID
 
-from eventsourcing.domain import DomainEvent, EventSourcingError
+from eventsourcing.domain import (
+    EventSourcingError,
+    HasOriginatorIDVersion,
+    THasOriginatorIDVersion,
+)
 from eventsourcing.utils import (
     Environment,
     TopicError,
@@ -277,7 +281,7 @@ class Mapper:
         self.compressor = compressor
         self.cipher = cipher
 
-    def from_domain_event(self, domain_event: DomainEvent[Any]) -> StoredEvent:
+    def from_domain_event(self, domain_event: HasOriginatorIDVersion) -> StoredEvent:
         """
         Converts the given domain event to a :class:`StoredEvent` object.
         """
@@ -300,7 +304,7 @@ class Mapper:
             state=stored_state,
         )
 
-    def to_domain_event(self, stored: StoredEvent) -> DomainEvent[Any]:
+    def to_domain_event(self, stored: StoredEvent) -> THasOriginatorIDVersion:
         """
         Converts the given :class:`StoredEvent` to a domain event object.
         """
@@ -498,7 +502,7 @@ class ProcessRecorder(ApplicationRecorder):
 
 @dataclass(frozen=True)
 class Recording:
-    domain_event: DomainEvent[Any]
+    domain_event: HasOriginatorIDVersion
     notification: Notification
 
 
@@ -516,7 +520,7 @@ class EventStore:
         self.recorder = recorder
 
     def put(
-        self, domain_events: Sequence[DomainEvent[Any]], **kwargs: Any
+        self, domain_events: Sequence[HasOriginatorIDVersion], **kwargs: Any
     ) -> List[Recording]:
         """
         Stores domain events in aggregate sequence.
@@ -548,7 +552,7 @@ class EventStore:
         lte: Optional[int] = None,
         desc: bool = False,
         limit: Optional[int] = None,
-    ) -> Iterator[DomainEvent[Any]]:
+    ) -> Iterator[THasOriginatorIDVersion]:
         """
         Retrieves domain events from aggregate sequence.
         """
