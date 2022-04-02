@@ -25,7 +25,6 @@ from uuid import UUID, uuid4
 
 from eventsourcing.utils import get_method_name, get_topic, resolve_topic
 
-# noinspection SpellCheckingInspection
 TZINFO: tzinfo = resolve_topic(os.getenv("TZINFO_TOPIC", "datetime:timezone.utc"))
 
 try:
@@ -129,7 +128,6 @@ class AggregateEvent(DomainEvent[TAggregate]):
 
 
 class AggregateCreated(AggregateEvent[TAggregate]):
-    # noinspection PyUnresolvedReferences
     """
     Domain event for when aggregate is created.
 
@@ -1065,7 +1063,6 @@ class MetaAggregate(ABCMeta):
         )
 
         try:
-            # noinspection PyArgumentList
             created_event = event_class(
                 **kwargs,
             )
@@ -1081,7 +1078,6 @@ class MetaAggregate(ABCMeta):
         # Return the aggregate.
         return agg
 
-    # noinspection PyUnusedLocal
     @staticmethod
     def create_id(**kwargs: Any) -> UUID:
         """
@@ -1124,7 +1120,6 @@ class Aggregate(ABC, metaclass=MetaAggregate):
 
     @version.setter
     def version(self, version: int) -> None:
-        # noinspection PyAttributeOutsideInit
         self._version = version
 
     @property
@@ -1143,7 +1138,6 @@ class Aggregate(ABC, metaclass=MetaAggregate):
 
     @modified_on.setter
     def modified_on(self, modified_on: datetime) -> None:
-        # noinspection PyAttributeOutsideInit
         self._modified_on = modified_on
 
     @property
@@ -1298,7 +1292,6 @@ class VersionError(OriginatorVersionError):
 
 
 class Snapshot(DomainEvent[THasIDVersion]):
-    # noinspection PyUnresolvedReferences
     """
     Snapshots represent the state of an aggregate at a particular
     version.
@@ -1328,7 +1321,6 @@ class Snapshot(DomainEvent[THasIDVersion]):
             aggregate_state.pop("_id")
             aggregate_state.pop("_version")
             aggregate_state.pop("_pending_events")
-        # noinspection PyArgumentList
         return cls(  # type: ignore
             originator_id=aggregate.id,
             originator_version=aggregate.version,

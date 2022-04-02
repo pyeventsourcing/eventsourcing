@@ -39,7 +39,6 @@ class AESCipher(Cipher):
     def random_bytes(num_bytes: int) -> bytes:
         return os.urandom(num_bytes)
 
-    # noinspection PyMissingConstructor
     def __init__(self, environment: Environment):
         """
         Initialises AES cipher with ``cipher_key``.

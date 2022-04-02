@@ -789,7 +789,6 @@ class TestAggregateCreation(TestCase):
 
         def assert_id_dataclass_style(cls):
             with self.assertRaises(TypeError) as cm:
-                # noinspection PyArgumentList
                 cls()
             self.assertEqual(
                 cm.exception.args[0],

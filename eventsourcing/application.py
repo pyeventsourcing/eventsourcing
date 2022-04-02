@@ -371,7 +371,6 @@ class Repository:
 
 @dataclass(frozen=True)
 class Section:
-    # noinspection PyUnresolvedReferences
     """
     Frozen dataclass that represents a section from a :class:`NotificationLog`.
     The :data:`items` attribute contains a list of

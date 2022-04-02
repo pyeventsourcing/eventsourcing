@@ -253,7 +253,6 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         self.insert_events_statement = (
             f"INSERT INTO {self.events_table_name} VALUES (?,?,?,?)"
         )
-        # noinspection SqlResolve
         self.select_events_statement = (
             "SELECT * " f"FROM {self.events_table_name} " "WHERE originator_id=? "
         )
@@ -455,7 +454,6 @@ class SQLiteProcessRecorder(
         events_table_name: str = "stored_events",
     ):
         super().__init__(datastore, events_table_name)
-        # noinspection SqlResolve
         self.insert_tracking_statement = "INSERT INTO tracking VALUES (?,?)"
         self.select_max_tracking_id_statement = (
             "SELECT MAX(notification_id) FROM tracking WHERE application_name=?"

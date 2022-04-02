@@ -35,7 +35,6 @@ from eventsourcing.utils import (
 
 
 class Transcoding(ABC):
-    # noinspection SpellCheckingInspection
     """
     Abstract base class for custom transcodings.
     """
@@ -43,7 +42,6 @@ class Transcoding(ABC):
     @property
     @abstractmethod
     def type(self) -> type:
-        # noinspection SpellCheckingInspection
         """Object type of transcoded object."""
 
     @property
@@ -243,7 +241,6 @@ class Cipher(ABC):
     Base class for ciphers.
     """
 
-    # noinspection PyUnusedLocal
     @abstractmethod
     def __init__(self, environment: Environment):
         """
@@ -589,7 +586,6 @@ class InfrastructureFactory(ABC):
         topic from environment variable 'PERSISTENCE_MODULE'.
         """
         factory_cls: Type[TF]
-        # noinspection SpellCheckingInspection
         topic = (
             env.get(
                 cls.PERSISTENCE_MODULE,
