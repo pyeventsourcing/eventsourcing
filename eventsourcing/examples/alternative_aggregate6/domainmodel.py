@@ -1,18 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
-from functools import singledispatch
-from typing import (
-    Any,
-    Callable,
-    Iterable,
-    List,
-    Optional,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-    cast,
-)
+from functools import reduce, singledispatch
+from typing import Callable, Iterable, List, Optional, Tuple, TypeVar, Union, cast
 from uuid import UUID, uuid4
 
 from eventsourcing.application import ProjectorFunctionType
@@ -25,13 +14,6 @@ class DomainEvent(HasOriginatorIDVersion):
     originator_version: int
     timestamp: datetime
 
-    @classmethod
-    def create_timestamp(cls) -> datetime:
-        return datetime.now()
-
-
-TAggregate = TypeVar("TAggregate", bound="Aggregate")
-
 
 @dataclass(frozen=True)
 class Aggregate(HasIDVersionFields):
@@ -40,42 +22,27 @@ class Aggregate(HasIDVersionFields):
     created_on: datetime
 
 
-def trigger_event(
-    aggregate: TAggregate,
-    event_class: Type[DomainEvent],
-    **kwargs: Any,
-) -> DomainEvent:
-    # Impose the required common domain event attribute values.
-    kwargs = kwargs.copy()
-    kwargs.update(
-        originator_id=aggregate.id,
-        originator_version=aggregate.version + 1,
-        timestamp=event_class.create_timestamp(),
-    )
-    return event_class(**kwargs)
+TAggregate = TypeVar("TAggregate", bound=Aggregate)
 
 
 def aggregate_projector(
     mutator: Callable[[DomainEvent, Optional[TAggregate]], Optional[TAggregate]]
 ) -> Callable[[Optional[TAggregate], Iterable[DomainEvent]], Optional[TAggregate]]:
+    def reducer(
+        aggregate: Optional[TAggregate], event: DomainEvent
+    ) -> Optional[TAggregate]:
+        return mutator(event, aggregate)
+
     def project_aggregate(
         aggregate: Optional[TAggregate], events: Iterable[DomainEvent]
     ) -> Optional[TAggregate]:
-        for event in events:
-            aggregate = mutator(event, aggregate)
-        return aggregate
+        return reduce(reducer, events, aggregate)
 
     return project_aggregate
 
 
-@dataclass(frozen=True)
-class DogRegistered(DomainEvent):
-    name: str
-
-
-@dataclass(frozen=True)
-class TrickAdded(DomainEvent):
-    trick: str
+def create_timestamp() -> datetime:
+    return datetime.now()
 
 
 @dataclass(frozen=True)
@@ -88,17 +55,30 @@ def register_dog(name: str) -> Tuple[Dog, List[DomainEvent]]:
     event = DogRegistered(
         originator_id=uuid4(),
         originator_version=1,
-        timestamp=DomainEvent.create_timestamp(),
+        timestamp=create_timestamp(),
         name=name,
     )
-    dog = mutate_dog(event, None)
-    assert dog is not None
-    return dog, [event]
+    return cast(Dog, mutate_dog(event, None)), [event]
+
+
+@dataclass(frozen=True)
+class DogRegistered(DomainEvent):
+    name: str
 
 
 def add_trick(dog: Dog, trick: str) -> Tuple[Dog, List[DomainEvent]]:
-    event = trigger_event(aggregate=dog, event_class=TrickAdded, trick=trick)
+    event = TrickAdded(
+        originator_id=dog.id,
+        originator_version=dog.version + 1,
+        timestamp=create_timestamp(),
+        trick=trick,
+    )
     return cast(Dog, mutate_dog(event, dog)), [event]
+
+
+@dataclass(frozen=True)
+class TrickAdded(DomainEvent):
+    trick: str
 
 
 @singledispatch
@@ -108,7 +88,7 @@ def mutate_dog(
     """Mutates aggregate with event."""
 
 
-@mutate_dog.register(DogRegistered)
+@mutate_dog.register
 def _(event: DogRegistered, _: Dog) -> Dog:
     return Dog(
         id=event.originator_id,
@@ -119,7 +99,7 @@ def _(event: DogRegistered, _: Dog) -> Dog:
     )
 
 
-@mutate_dog.register(TrickAdded)
+@mutate_dog.register
 def _(event: TrickAdded, dog: Dog) -> Dog:
     return Dog(
         id=dog.id,
@@ -131,7 +111,7 @@ def _(event: TrickAdded, dog: Dog) -> Dog:
 
 
 @mutate_dog.register(Snapshot)
-def _(event: Snapshot[Dog], dog: Dog) -> Dog:
+def _(event: Snapshot[Dog], _: Dog) -> Dog:
     return Dog(
         id=event.state["id"],
         version=event.state["version"],
