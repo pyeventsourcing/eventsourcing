@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from functools import reduce, singledispatch
 from typing import (
@@ -58,13 +60,32 @@ def aggregate_projector(
     return project_aggregate
 
 
-def create_timestamp() -> datetime:
-    return datetime.now()
-
-
 class Dog(Aggregate):
     name: str
     tricks: Tuple[str, ...]
+
+
+class DogRegistered(DomainEvent):
+    name: str
+
+
+class TrickAdded(DomainEvent):
+    trick: str
+
+
+class Snapshot(DomainEvent):
+    topic: str
+    state: Dict[str, Any]
+
+    @classmethod
+    def take(cls, aggregate: HasIDVersion) -> Snapshot:
+        return cls(
+            originator_id=aggregate.id,
+            originator_version=aggregate.version,
+            timestamp=create_timestamp(),
+            topic=get_topic(type(aggregate)),
+            state=cast(Aggregate, aggregate).dict(),
+        )
 
 
 def register_dog(name: str) -> Tuple[Dog, List[DomainEvent]]:
@@ -77,26 +98,6 @@ def register_dog(name: str) -> Tuple[Dog, List[DomainEvent]]:
     return cast(Dog, mutate_dog(event, None)), [event]
 
 
-class DogRegistered(DomainEvent):
-    name: str
-
-
-class Snapshot(DomainEvent):
-    topic: str
-    state: Dict[str, Any]
-
-    @classmethod
-    def take(cls, aggregate: HasIDVersion) -> "Snapshot":
-        aggregate_state = cast(Aggregate, aggregate).dict()
-        return cls(
-            originator_id=aggregate.id,
-            originator_version=aggregate.version,
-            timestamp=create_timestamp(),
-            topic=get_topic(type(aggregate)),
-            state=aggregate_state,
-        )
-
-
 def add_trick(dog: Dog, trick: str) -> Tuple[Dog, List[DomainEvent]]:
     event = TrickAdded(
         originator_id=dog.id,
@@ -107,8 +108,8 @@ def add_trick(dog: Dog, trick: str) -> Tuple[Dog, List[DomainEvent]]:
     return cast(Dog, mutate_dog(event, dog)), [event]
 
 
-class TrickAdded(DomainEvent):
-    trick: str
+def create_timestamp() -> datetime:
+    return datetime.now()
 
 
 @singledispatch
