@@ -439,7 +439,7 @@ class TestUpcasting(TestCase):
         class DUpdated(AggregateEvent):
             d: Decimal
 
-            def apply(self, aggregate: "Aggregate") -> None:
+            def apply(self, aggregate: Aggregate) -> None:
                 aggregate.d = self.d
 
         class_version = 4

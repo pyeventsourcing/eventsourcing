@@ -24,7 +24,7 @@ class TestDomainEvent(TestCase):
     def test_domain_event_instance(self):
         originator_id = uuid4()
         originator_version = 101
-        timestamp = datetime.now()
+        timestamp = DomainEvent.create_timestamp()
         a = DomainEvent(
             originator_id=originator_id,
             originator_version=originator_version,

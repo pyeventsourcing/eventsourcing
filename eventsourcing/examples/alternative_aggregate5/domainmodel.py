@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
+from time import monotonic
 from typing import Any, Iterable, List, Optional, Tuple, Type, TypeVar, cast
 from uuid import UUID, uuid4
 
@@ -12,9 +13,9 @@ class DomainEvent(HasOriginatorIDVersion):
     originator_version: int
     timestamp: datetime
 
-    @classmethod
-    def create_timestamp(cls) -> datetime:
-        return datetime.now()
+    @staticmethod
+    def create_timestamp() -> datetime:
+        return datetime.fromtimestamp(monotonic(), timezone.utc)
 
 
 TAggregate = TypeVar("TAggregate", bound="Aggregate")

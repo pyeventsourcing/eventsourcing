@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Union
 from uuid import UUID, uuid4
 
 from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain import TZINFO, Aggregate
+from eventsourcing.domain import Aggregate
 
 
 class Location(Enum):
@@ -188,7 +190,7 @@ class Cargo(Aggregate):
         origin: Location,
         destination: Location,
         arrival_deadline: datetime,
-    ) -> "Cargo":
+    ) -> Cargo:
         return cls._create(
             event_class=cls.BookingStarted,
             id=uuid4(),
@@ -203,7 +205,7 @@ class Cargo(Aggregate):
         arrival_deadline: datetime
 
     class Event(Aggregate.Event["Cargo"]):
-        def apply(self, aggregate: "Cargo") -> None:
+        def apply(self, aggregate: Cargo) -> None:
             aggregate.when(self)
 
     @singledispatchmethod
@@ -235,7 +237,9 @@ class Cargo(Aggregate):
     def route_assigned(self, event: RouteAssigned) -> None:
         self._route = event.route
         self._routing_status = "ROUTED"
-        self._estimated_time_of_arrival = datetime.now(tz=TZINFO) + timedelta(weeks=1)
+        self._estimated_time_of_arrival = Cargo.Event.create_timestamp() + timedelta(
+            weeks=1
+        )
         self._next_expected_activity = (HandlingActivity.RECEIVE, self.origin, "")
         self._is_misdirected = False
 

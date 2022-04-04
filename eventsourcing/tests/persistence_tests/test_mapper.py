@@ -51,15 +51,15 @@ class TestMapper(TestCase):
         copy = mapper.to_domain_event(stored_event)
 
         # Check values are not visible.
-        assert "Alice" not in str(stored_event.state)
+        self.assertNotIn("Alice", str(stored_event.state))
 
         # Check decrypted copy has correct values.
-        assert copy.originator_id == domain_event.originator_id
-        assert copy.originator_version == domain_event.originator_version
-        assert copy.timestamp == domain_event.timestamp, copy.timestamp
-        assert copy.originator_version == domain_event.originator_version
+        self.assertEqual(copy.originator_id, domain_event.originator_id)
+        self.assertEqual(copy.originator_version, domain_event.originator_version)
+        self.assertEqual(copy.timestamp, domain_event.timestamp)
+        self.assertEqual(copy.originator_version, domain_event.originator_version)
 
-        assert len(stored_event.state) == 162, len(stored_event.state)
+        self.assertEqual(len(stored_event.state), 162)
 
         # Construct mapper with cipher and compressor.
         mapper = Mapper(
@@ -75,22 +75,10 @@ class TestMapper(TestCase):
         copy = mapper.to_domain_event(stored_event)
 
         # Check decompressed copy has correct values.
-        assert copy.originator_id == domain_event.originator_id
-        assert copy.originator_version == domain_event.originator_version
+        self.assertEqual(copy.originator_id, domain_event.originator_id)
+        self.assertEqual(copy.originator_version, domain_event.originator_version)
 
-        assert len(stored_event.state) in (
-            133,
-            134,
-            135,
-            136,
-            137,
-            138,
-            139,
-            140,
-            141,
-            142,
-            143,
-        ), len(stored_event.state)
+        self.assertIn(len(stored_event.state), range(129, 143))
 
     def test_from_domain_event_gives_deprecated_warning(self):
         # Construct transcoder.

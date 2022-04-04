@@ -1,7 +1,8 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import reduce, singledispatch
-from typing import Callable, Iterable, List, Optional, Tuple, TypeVar, Union, cast
+from time import monotonic
+from typing import Callable, Iterable, List, Optional, Tuple, Type, TypeVar, Union, cast
 from uuid import UUID, uuid4
 
 from eventsourcing.application import ProjectorFunctionType
@@ -13,6 +14,10 @@ class DomainEvent(HasOriginatorIDVersion):
     originator_id: UUID
     originator_version: int
     timestamp: datetime
+
+
+def create_timestamp() -> datetime:
+    return datetime.fromtimestamp(monotonic(), timezone.utc)
 
 
 @dataclass(frozen=True)
@@ -41,14 +46,20 @@ def aggregate_projector(
     return project_aggregate
 
 
-def create_timestamp() -> datetime:
-    return datetime.now()
-
-
 @dataclass(frozen=True)
 class Dog(Aggregate):
     name: str
     tricks: Tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class DogRegistered(DomainEvent):
+    name: str
+
+
+@dataclass(frozen=True)
+class TrickAdded(DomainEvent):
+    trick: str
 
 
 def register_dog(name: str) -> Tuple[Dog, List[DomainEvent]]:
@@ -61,11 +72,6 @@ def register_dog(name: str) -> Tuple[Dog, List[DomainEvent]]:
     return cast(Dog, mutate_dog(event, None)), [event]
 
 
-@dataclass(frozen=True)
-class DogRegistered(DomainEvent):
-    name: str
-
-
 def add_trick(dog: Dog, trick: str) -> Tuple[Dog, List[DomainEvent]]:
     event = TrickAdded(
         originator_id=dog.id,
@@ -76,11 +82,6 @@ def add_trick(dog: Dog, trick: str) -> Tuple[Dog, List[DomainEvent]]:
     return cast(Dog, mutate_dog(event, dog)), [event]
 
 
-@dataclass(frozen=True)
-class TrickAdded(DomainEvent):
-    trick: str
-
-
 @singledispatch
 def mutate_dog(
     event: Union[DomainEvent, Snapshot[Dog]], dog: Optional[Dog]
@@ -89,7 +90,7 @@ def mutate_dog(
 
 
 @mutate_dog.register
-def _(event: DogRegistered, _: Dog) -> Dog:
+def _(event: DogRegistered, _: Type[None]) -> Dog:
     return Dog(
         id=event.originator_id,
         version=event.originator_version,
@@ -111,7 +112,7 @@ def _(event: TrickAdded, dog: Dog) -> Dog:
 
 
 @mutate_dog.register(Snapshot)
-def _(event: Snapshot[Dog], _: Dog) -> Dog:
+def _(event: Snapshot[Dog], _: Type[None]) -> Dog:
     return Dog(
         id=event.state["id"],
         version=event.state["version"],

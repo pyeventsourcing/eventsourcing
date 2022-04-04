@@ -6,7 +6,6 @@ from unittest.case import TestCase
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from eventsourcing.domain import (
-    TZINFO,
     Aggregate,
     AggregateCreated,
     AggregateEvent,
@@ -108,13 +107,13 @@ class TestMetaAggregate(TestCase):
 class TestAggregateCreation(TestCase):
     def test_call_class_method_create(self):
         # Check the _create() method creates a new aggregate.
-        before_created = datetime.now(tz=TZINFO)
+        before_created = Aggregate.Event.create_timestamp()
         uuid = uuid4()
         a = Aggregate._create(
             event_class=AggregateCreated,
             id=uuid,
         )
-        after_created = datetime.now(tz=TZINFO)
+        after_created = Aggregate.Event.create_timestamp()
         self.assertIsInstance(a, Aggregate)
         self.assertEqual(a.id, uuid)
         self.assertEqual(a.version, 1)
@@ -142,9 +141,9 @@ class TestAggregateCreation(TestCase):
         )
 
     def test_call_base_class(self):
-        before_created = datetime.now(tz=TZINFO)
+        before_created = Aggregate.Event.create_timestamp()
         a = Aggregate()
-        after_created = datetime.now(tz=TZINFO)
+        after_created = Aggregate.Event.create_timestamp()
         self.assertIsInstance(a, Aggregate)
         self.assertIsInstance(a.id, UUID)
         self.assertIsInstance(a.version, int)

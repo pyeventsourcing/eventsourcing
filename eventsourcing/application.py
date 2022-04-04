@@ -687,9 +687,7 @@ class Application(ABC):
         Constructs a :class:`~eventsourcing.persistence.Mapper`
         for use by the application.
         """
-        return self.factory.mapper(
-            transcoder=self.construct_transcoder(),
-        )
+        return self.factory.mapper(transcoder=self.construct_transcoder())
 
     def construct_transcoder(self) -> Transcoder:
         """

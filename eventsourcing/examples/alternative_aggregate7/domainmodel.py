@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import reduce, singledispatch
+from time import monotonic
 from typing import (
     Any,
     Callable,
@@ -10,8 +11,8 @@ from typing import (
     List,
     Optional,
     Tuple,
+    Type,
     TypeVar,
-    Union,
     cast,
 )
 from uuid import UUID, uuid4
@@ -32,6 +33,10 @@ class DomainEvent(BaseModel):
     timestamp: datetime
 
 
+def create_timestamp() -> datetime:
+    return datetime.fromtimestamp(monotonic(), timezone.utc)
+
+
 class Aggregate(BaseModel):
     class Config:
         allow_mutation = False
@@ -39,6 +44,21 @@ class Aggregate(BaseModel):
     id: UUID
     version: int
     created_on: datetime
+
+
+class Snapshot(DomainEvent):
+    topic: str
+    state: Dict[str, Any]
+
+    @classmethod
+    def take(cls, aggregate: HasIDVersion) -> Snapshot:
+        return cls(
+            originator_id=aggregate.id,
+            originator_version=aggregate.version,
+            timestamp=create_timestamp(),
+            topic=get_topic(type(aggregate)),
+            state=cast(Aggregate, aggregate).dict(),
+        )
 
 
 TAggregate = TypeVar("TAggregate", bound=Aggregate)
@@ -73,21 +93,6 @@ class TrickAdded(DomainEvent):
     trick: str
 
 
-class Snapshot(DomainEvent):
-    topic: str
-    state: Dict[str, Any]
-
-    @classmethod
-    def take(cls, aggregate: HasIDVersion) -> Snapshot:
-        return cls(
-            originator_id=aggregate.id,
-            originator_version=aggregate.version,
-            timestamp=create_timestamp(),
-            topic=get_topic(type(aggregate)),
-            state=cast(Aggregate, aggregate).dict(),
-        )
-
-
 def register_dog(name: str) -> Tuple[Dog, List[DomainEvent]]:
     event = DogRegistered(
         originator_id=uuid4(),
@@ -108,19 +113,13 @@ def add_trick(dog: Dog, trick: str) -> Tuple[Dog, List[DomainEvent]]:
     return cast(Dog, mutate_dog(event, dog)), [event]
 
 
-def create_timestamp() -> datetime:
-    return datetime.now()
-
-
 @singledispatch
-def mutate_dog(
-    event: Union[DomainEvent, Snapshot], dog: Optional[Dog]
-) -> Optional[Dog]:
+def mutate_dog(event: DomainEvent, dog: Optional[Dog]) -> Optional[Dog]:
     """Mutates aggregate with event."""
 
 
 @mutate_dog.register
-def _(event: DogRegistered, _: Dog) -> Dog:
+def _(event: DogRegistered, _: Type[None]) -> Dog:
     return Dog(
         id=event.originator_id,
         version=event.originator_version,
@@ -142,13 +141,13 @@ def _(event: TrickAdded, dog: Dog) -> Dog:
 
 
 @mutate_dog.register
-def _(event: Snapshot, _: Dog) -> Dog:
+def _(event: Snapshot, _: Type[None]) -> Dog:
     return Dog(
         id=event.state["id"],
         version=event.state["version"],
         created_on=event.state["created_on"],
         name=event.state["name"],
-        tricks=tuple(event.state["tricks"]),  # comes back from JSON as a list
+        tricks=event.state["tricks"],
     )
 
 

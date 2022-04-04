@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Optional
@@ -19,7 +21,7 @@ class Page(Aggregate):
     class Event(Aggregate.Event["Page"]):
         user_id: Optional[UUID] = field(default_factory=user_id_cvar.get, init=False)
 
-        def apply(self, aggregate: "Page") -> None:
+        def apply(self, aggregate: Page) -> None:
             aggregate.modified_by = self.user_id
 
     @event("SlugUpdated")

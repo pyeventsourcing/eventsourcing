@@ -96,7 +96,7 @@ class ParkingLot(Application):
             vehicle = self.get_vehicle(licence_plate)
         except AggregateNotFound:
             vehicle = Vehicle(licence_plate.number)
-        start = datetime.now()
+        start = Vehicle.Event.create_timestamp()
         finish = product.calc_finish(start)
         vehicle.book(start=start, finish=finish)
         self.save(vehicle)
@@ -155,7 +155,7 @@ class TestParkingLot(TestCase):
         booking2 = vehicle.bookings[-1]
 
         # Inspect whilst has booking.
-        app.inspect(licence_plate, datetime.now())
+        app.inspect(licence_plate, Vehicle.Event.create_timestamp())
 
         # Check vehicle state.
         vehicle = app.get_vehicle(licence_plate)
@@ -163,7 +163,7 @@ class TestParkingLot(TestCase):
         self.assertEqual(len(vehicle.inspection_failures), 0)
 
         # Inspect after bookings expired.
-        inspected_on = datetime.now() + timedelta(days=10)
+        inspected_on = Vehicle.Event.create_timestamp() + timedelta(days=10)
         app.inspect(licence_plate, inspected_on)
 
         # Check vehicle state.

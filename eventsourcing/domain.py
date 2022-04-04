@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import inspect
 import os
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
 from functools import lru_cache
+from time import monotonic
 from types import FunctionType, WrapperDescriptorType
 from typing import (
     Any,
@@ -75,7 +78,7 @@ THasIDVersion = TypeVar("THasIDVersion", bound=HasIDVersion)
 class MetaDomainEvent(type):
     def __new__(
         mcs, name: str, bases: Tuple[type, ...], cls_dict: Dict[str, Any]
-    ) -> "MetaDomainEvent":
+    ) -> MetaDomainEvent:
         event_cls = super().__new__(mcs, name, bases, cls_dict)
         event_cls = dataclass(frozen=True)(event_cls)  # type: ignore
         return event_cls
@@ -101,9 +104,9 @@ class DomainEvent(Generic[T], metaclass=MetaDomainEvent):
     def create_timestamp() -> datetime:
         """
         Returns a timezone aware :class:`~datetime.datetime` object
-        that is created by calling :class:`~datetime.datetime.now()`.
+        for the current time.
         """
-        return datetime.now(tz=TZINFO)
+        return datetime.fromtimestamp(monotonic(), TZINFO)
 
 
 TDomainEvent = TypeVar("TDomainEvent", bound=DomainEvent[Any])
@@ -347,20 +350,20 @@ class CommandMethodDecorator:
 
     @overload
     def __get__(
-        self, instance: None, owner: "MetaAggregate"
-    ) -> Union["UnboundCommandMethodDecorator", property]:
+        self, instance: None, owner: MetaAggregate
+    ) -> Union[UnboundCommandMethodDecorator, property]:
         ...  # pragma: no cover
 
     @overload
     def __get__(
-        self, instance: "Aggregate", owner: "MetaAggregate"
-    ) -> Union["BoundCommandMethodDecorator", Any]:
+        self, instance: Aggregate, owner: MetaAggregate
+    ) -> Union[BoundCommandMethodDecorator, Any]:
         ...  # pragma: no cover
 
     def __get__(
-        self, instance: Optional["Aggregate"], owner: "MetaAggregate"
+        self, instance: Optional[Aggregate], owner: MetaAggregate
     ) -> Union[
-        "BoundCommandMethodDecorator", "UnboundCommandMethodDecorator", property, Any
+        BoundCommandMethodDecorator, UnboundCommandMethodDecorator, property, Any
     ]:
         # If we are decorating a property, then delegate to the property's __get__.
         if self.decorated_property:
@@ -374,7 +377,7 @@ class CommandMethodDecorator:
         else:
             return UnboundCommandMethodDecorator(self)
 
-    def __set__(self, instance: "Aggregate", value: Any) -> None:
+    def __set__(self, instance: Aggregate, value: Any) -> None:
         # Set decorated property indirectly by triggering an event.
         assert self.property_setter_arg_name
         b = BoundCommandMethodDecorator(self, instance)
@@ -505,9 +508,7 @@ class BoundCommandMethodDecorator:
     on an aggregate so that the aggregate methods can be accessed.
     """
 
-    def __init__(
-        self, event_decorator: CommandMethodDecorator, aggregate: "TAggregate"
-    ):
+    def __init__(self, event_decorator: CommandMethodDecorator, aggregate: TAggregate):
         """
 
         :param CommandMethodDecorator event_decorator:
@@ -541,7 +542,7 @@ aggregate_has_many_created_event_classes: Dict[type, List[str]] = {}
 
 
 class DecoratedEvent(AggregateEvent[Any]):
-    def apply(self, aggregate: "TAggregate") -> None:
+    def apply(self, aggregate: TAggregate) -> None:
         """
         Applies event to aggregate by calling method decorated by @event.
         """
@@ -702,8 +703,8 @@ def raise_missing_names_type_error(missing_names: List[str], msg: str) -> None:
 
 TT = TypeVar("TT", bound="type")
 
-_annotations_mention_id: Set["MetaAggregate"] = set()
-_init_mentions_id: Set["MetaAggregate"] = set()
+_annotations_mention_id: Set[MetaAggregate] = set()
+_init_mentions_id: Set[MetaAggregate] = set()
 
 
 class MetaAggregate(type):
@@ -1085,9 +1086,7 @@ class MetaAggregate(type):
         )
 
         try:
-            created_event = event_class(
-                **kwargs,
-            )
+            created_event = event_class(**kwargs)
         except TypeError as e:
             msg = f"Unable to construct '{event_class.__name__}' event: {e}"
             raise TypeError(msg)
@@ -1338,7 +1337,7 @@ class Snapshot(DomainEvent[THasIDVersion]):
     state: Dict[str, Any]
 
     @classmethod
-    def take(cls, aggregate: HasIDVersion) -> "Snapshot[HasIDVersion]":
+    def take(cls, aggregate: HasIDVersion) -> Snapshot[HasIDVersion]:
         """
         Creates a snapshot of the given :class:`Aggregate` object.
         """
