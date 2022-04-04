@@ -3,6 +3,7 @@ from uuid import UUID
 
 from eventsourcing.application import Application
 from eventsourcing.examples.alternative_aggregate7.domainmodel import (
+    Snapshot,
     add_trick,
     project_dog,
     register_dog,
@@ -16,6 +17,7 @@ from eventsourcing.persistence import Mapper, Transcoder
 
 class DogSchool(Application):
     is_snapshotting_enabled = True
+    snapshot_class = Snapshot
 
     def register_dog(self, name: str) -> UUID:
         dog, events = register_dog(name)

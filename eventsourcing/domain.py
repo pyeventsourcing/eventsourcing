@@ -61,7 +61,7 @@ HasIDVersion = Union[HasIDVersionProperties, HasIDVersionFields]
 
 
 @runtime_checkable
-class HasCollectEvents(Protocol):
+class CanCollectEvents(Protocol):
     def collect_events(self) -> Sequence[HasOriginatorIDVersion]:
         ...  # pragma: no cover
 
@@ -1313,6 +1313,13 @@ class VersionError(OriginatorVersionError):
     """
 
 
+@runtime_checkable
+class CanTake(Protocol):
+    @classmethod
+    def take(cls, aggregate: HasIDVersion) -> HasOriginatorIDVersion:
+        ...  # pragma: no cover
+
+
 class Snapshot(DomainEvent[THasIDVersion]):
     """
     Snapshots represent the state of an aggregate at a particular
@@ -1331,7 +1338,7 @@ class Snapshot(DomainEvent[THasIDVersion]):
     state: Dict[str, Any]
 
     @classmethod
-    def take(cls, aggregate: THasIDVersion) -> "Snapshot[THasIDVersion]":
+    def take(cls, aggregate: HasIDVersion) -> "Snapshot[HasIDVersion]":
         """
         Creates a snapshot of the given :class:`Aggregate` object.
         """

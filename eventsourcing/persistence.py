@@ -23,6 +23,7 @@ from typing import (
     cast,
 )
 from uuid import UUID
+from warnings import warn
 
 from eventsourcing.domain import (
     EventSourcingError,
@@ -281,18 +282,18 @@ class Mapper:
         self.compressor = compressor
         self.cipher = cipher
 
-    def from_domain_event(self, domain_event: HasOriginatorIDVersion) -> StoredEvent:
+    def to_stored_event(self, domain_event: HasOriginatorIDVersion) -> StoredEvent:
         """
         Converts the given domain event to a :class:`StoredEvent` object.
         """
-        topic: str = get_topic(domain_event.__class__)
+        topic = get_topic(domain_event.__class__)
         event_state = domain_event.__dict__.copy()
         originator_id = event_state.pop("originator_id")
         originator_version = event_state.pop("originator_version")
         class_version = getattr(type(domain_event), "class_version", 1)
         if class_version > 1:
             event_state["class_version"] = class_version
-        stored_state: bytes = self.transcoder.encode(event_state)
+        stored_state = self.transcoder.encode(event_state)
         if self.compressor:
             stored_state = self.compressor.compress(stored_state)
         if self.cipher:
@@ -304,19 +305,28 @@ class Mapper:
             state=stored_state,
         )
 
-    def to_domain_event(self, stored: StoredEvent) -> THasOriginatorIDVersion:
+    def from_domain_event(self, domain_event: HasOriginatorIDVersion) -> StoredEvent:
+        warn(
+            "'from_domain_event()' is deprecated, use 'to_stored_event()' instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
+        return self.to_stored_event(domain_event)
+
+    def to_domain_event(self, stored_event: StoredEvent) -> THasOriginatorIDVersion:
         """
         Converts the given :class:`StoredEvent` to a domain event object.
         """
-        stored_state: bytes = stored.state
+        stored_state = stored_event.state
         if self.cipher:
             stored_state = self.cipher.decrypt(stored_state)
         if self.compressor:
             stored_state = self.compressor.decompress(stored_state)
         event_state: Dict[str, Any] = self.transcoder.decode(stored_state)
-        event_state["originator_id"] = stored.originator_id
-        event_state["originator_version"] = stored.originator_version
-        cls = resolve_topic(stored.topic)
+        event_state["originator_id"] = stored_event.originator_id
+        event_state["originator_version"] = stored_event.originator_version
+        cls = resolve_topic(stored_event.topic)
         class_version = getattr(cls, "class_version", 1)
         from_version = event_state.pop("class_version", 1)
         while from_version < class_version:
@@ -525,7 +535,7 @@ class EventStore:
         """
         Stores domain events in aggregate sequence.
         """
-        stored_events = list(map(self.mapper.from_domain_event, domain_events))
+        stored_events = list(map(self.mapper.to_stored_event, domain_events))
         recordings = []
         notification_ids = self.recorder.insert_events(stored_events, **kwargs)
         if notification_ids:

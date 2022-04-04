@@ -65,6 +65,7 @@ class TestProcessingPolicy(TestCase):
         events = account.collect_events()
         created_event = events[0]
 
+        # Verify deprecation warning.
         with warnings.catch_warnings(record=True) as w:
             process_event = ProcessEvent(
                 tracking=Tracking(
@@ -73,11 +74,11 @@ class TestProcessingPolicy(TestCase):
                 )
             )
 
-        # Verify deprecation warning.
-        assert len(w) == 1
-        assert issubclass(w[-1].category, DeprecationWarning)
-        assert "'ProcessEvent' is deprecated, use 'ProcessingEvent' instead" in str(
-            w[-1].message
+        self.assertEqual(1, len(w))
+        self.assertIs(w[-1].category, DeprecationWarning)
+        self.assertEqual(
+            "'ProcessEvent' is deprecated, use 'ProcessingEvent' instead",
+            w[-1].message.args[0],
         )
 
         policy(created_event, process_event)
@@ -104,14 +105,15 @@ class TestProcessingPolicy(TestCase):
             )
         )
 
+        # Verify deprecation warning.
         with warnings.catch_warnings(record=True) as w:
             policy_legacy_save(created_event, processing_event)
 
-        # Verify deprecation warning.
-        assert len(w) == 1
-        assert issubclass(w[-1].category, DeprecationWarning)
-        assert "'save()' is deprecated, use 'collect_events()' instead" in str(
-            w[-1].message
+        self.assertEqual(1, len(w))
+        self.assertIs(w[-1].category, DeprecationWarning)
+        self.assertEqual(
+            "'save()' is deprecated, use 'collect_events()' instead",
+            w[-1].message.args[0],
         )
 
         self.assertEqual(len(processing_event.events), 1)

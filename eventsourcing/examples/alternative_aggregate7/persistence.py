@@ -1,17 +1,24 @@
-from typing import Any, Dict
+from typing import Any, Dict, cast
 
 import orjson
+from pydantic import BaseModel
 
 from eventsourcing.domain import HasOriginatorIDVersion, THasOriginatorIDVersion
-from eventsourcing.persistence import Mapper, StoredEvent, Transcoder, Transcoding
+from eventsourcing.persistence import (
+    Mapper,
+    ProgrammingError,
+    StoredEvent,
+    Transcoder,
+    Transcoding,
+)
 from eventsourcing.utils import get_topic, resolve_topic
 
 
 class PydanticMapper(Mapper):
-    def from_domain_event(self, domain_event: HasOriginatorIDVersion) -> StoredEvent:
-        topic: str = get_topic(domain_event.__class__)
-        event_state = domain_event.__dict__.copy()
-        stored_state: bytes = self.transcoder.encode(event_state)
+    def to_stored_event(self, domain_event: HasOriginatorIDVersion) -> StoredEvent:
+        topic = get_topic(domain_event.__class__)
+        event_state = cast(BaseModel, domain_event).dict()
+        stored_state = self.transcoder.encode(event_state)
         if self.compressor:
             stored_state = self.compressor.compress(stored_state)  # pragma: no cover
         if self.cipher:
@@ -24,7 +31,7 @@ class PydanticMapper(Mapper):
         )
 
     def to_domain_event(self, stored: StoredEvent) -> THasOriginatorIDVersion:
-        stored_state: bytes = stored.state
+        stored_state = stored.state
         if self.cipher:
             stored_state = self.cipher.decrypt(stored_state)  # pragma: no cover
         if self.compressor:
@@ -42,4 +49,4 @@ class OrjsonTranscoder(Transcoder):
         return orjson.loads(data)
 
     def register(self, transcoding: Transcoding) -> None:
-        raise RuntimeError("Transcodings not supported")  # pragma: no cover
+        raise ProgrammingError("Please use Pydantic BaseModel")  # pragma: no cover

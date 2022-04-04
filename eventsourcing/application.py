@@ -26,9 +26,10 @@ from warnings import warn
 from eventsourcing.domain import (
     Aggregate,
     AggregateEvent,
+    CanCollectEvents,
+    CanTake,
     DomainEvent,
     EventSourcingError,
-    HasCollectEvents,
     HasIDVersionFields,
     HasIDVersionProperties,
     HasOriginatorIDVersion,
@@ -220,7 +221,7 @@ class Repository:
         self.snapshot_store = snapshot_store
 
         if cache_maxsize is None:
-            self.cache: Optional[Cache[UUID, HasCollectEvents]] = None
+            self.cache: Optional[Cache[UUID, CanCollectEvents]] = None
         elif cache_maxsize <= 0:
             self.cache = Cache()
         else:
@@ -537,12 +538,12 @@ class ProcessingEvent:
         """
         self.tracking = tracking
         self.events: List[Union[HasOriginatorIDVersion]] = []
-        self.aggregates: Dict[UUID, HasCollectEvents] = {}
+        self.aggregates: Dict[UUID, CanCollectEvents] = {}
         self.saved_kwargs: Dict[Any, Any] = {}
 
     def collect_events(
         self,
-        *objs: Optional[Union[HasCollectEvents, HasOriginatorIDVersion]],
+        *objs: Optional[Union[CanCollectEvents, HasOriginatorIDVersion]],
         **kwargs: Any,
     ) -> None:
         """
@@ -551,7 +552,7 @@ class ProcessingEvent:
         for obj in objs:
             if obj is None:
                 continue
-            elif isinstance(obj, HasCollectEvents):
+            elif isinstance(obj, CanCollectEvents):
                 for event in obj.collect_events():
                     self.events.append(event)
                 if isinstance(obj, (HasIDVersionFields, HasIDVersionProperties)):
@@ -616,7 +617,8 @@ class Application(ABC):
     name = "Application"
     env: EnvType = {}
     is_snapshotting_enabled: bool = False
-    snapshotting_intervals: Optional[Dict[Type[HasCollectEvents], int]] = None
+    snapshotting_intervals: Optional[Dict[Type[CanCollectEvents], int]] = None
+    snapshot_class: Type[CanTake] = Snapshot
     log_section_size = 10
     notify_topics: Sequence[str] = []
 
@@ -761,7 +763,7 @@ class Application(ABC):
 
     def save(
         self,
-        *objs: Optional[Union[HasCollectEvents, HasOriginatorIDVersion]],
+        *objs: Optional[Union[CanCollectEvents, HasOriginatorIDVersion]],
         **kwargs: Any,
     ) -> List[Recording]:
         """
@@ -830,7 +832,7 @@ class Application(ABC):
             aggregate: THasIDVersion = self.repository.get(
                 aggregate_id, version=version, projector_func=projector_func
             )
-            snapshot = Snapshot.take(aggregate)
+            snapshot = type(self).snapshot_class.take(aggregate)
             self.snapshots.put([snapshot])
 
     def notify(self, new_events: List[HasOriginatorIDVersion]) -> None:
