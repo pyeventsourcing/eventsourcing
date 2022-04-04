@@ -13,7 +13,6 @@ from typing import (
     Tuple,
     Type,
     TypeVar,
-    Union,
     cast,
 )
 from uuid import UUID, uuid4
@@ -115,9 +114,7 @@ def add_trick(dog: Dog, trick: str) -> Tuple[Dog, List[DomainEvent]]:
 
 
 @singledispatch
-def mutate_dog(
-    event: Union[DomainEvent, Snapshot], dog: Optional[Dog]
-) -> Optional[Dog]:
+def mutate_dog(event: DomainEvent, dog: Optional[Dog]) -> Optional[Dog]:
     """Mutates aggregate with event."""
 
 
