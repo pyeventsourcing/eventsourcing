@@ -11,6 +11,7 @@ from typing import (
     List,
     Optional,
     Tuple,
+    Type,
     TypeVar,
     Union,
     cast,
@@ -121,7 +122,7 @@ def mutate_dog(
 
 
 @mutate_dog.register
-def _(event: DogRegistered, _: Dog) -> Dog:
+def _(event: DogRegistered, _: Type[None]) -> Dog:
     return Dog(
         id=event.originator_id,
         version=event.originator_version,
@@ -143,7 +144,7 @@ def _(event: TrickAdded, dog: Dog) -> Dog:
 
 
 @mutate_dog.register
-def _(event: Snapshot, _: Dog) -> Dog:
+def _(event: Snapshot, _: Type[None]) -> Dog:
     return Dog(
         id=event.state["id"],
         version=event.state["version"],
