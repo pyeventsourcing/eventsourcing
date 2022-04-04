@@ -37,30 +37,57 @@ of the new functionality, and then repeating this cycle until the software adequ
 supports the useful or important activities it was intended to support.
 
 The application layer is the thing your interface layer interacts with. The application
-layer handles commands and queries issued by the user of your software through the
-interface. The application handles these commands and queries by interacting with the
+layer handles "commands" and "queries" that will be issued through the interface by the users
+of your software. The application handles these commands and queries by interacting with the
 domain and persistence layers. The application layer combines the domain layer with the
-persistence layer. It interacts with the domain layer so that the state of the application
-can evolve in a logical and coherent way. It interacts with the persistence layer so that
-the state of the application can be saved and retrieved, so that the state of the application
-endures after the software stops running, and so that the state of the application can be
-obtained when the software is used again in the future.
+persistence layer, which do not otherwise interact with each other. The application layer
+interacts with the domain layer so that the state of the application can evolve in a logical
+and coherent way. The application layer interacts with the persistence layer so that the state
+of the application can be stored and retrieved, so that the state of the application will endure
+after the software stops running, and so that the state of the application can be obtained when
+the software is used again in future. The state is changed in response to commands from the
+interface, which are responded to in the application by it making decisions as a function of
+its current state. The commands from the user are usually made by the user with some understanding
+of the current state of the application, and of what they are trying to accomplish by using
+the software. So that users can issue meaningful commands, the state of the application must
+somehow be presented to the user. The state of an application is commonly presented to users
+in a set of "views". The state of the application is presented by the application through the
+interface to users by responding to queries that inform these views. For this reason, a test
+case will generally give a command to the application in the expectation that that application
+state will be changed in some particular kind of way, and then the test will check the expectation
+is satisfied by checking the result of a query. When developing software, consideration must
+therefore be given both to the commands and they way in which they will be handled (what decisions
+the application will make) and also the way in which the state of the application will need to be
+viewed and navigated by user (what decisions the user will make).
 
 The domain layer involves a "model" which in *Domain-Driven Design* comprises a collection
 of "aggregates", perhaps several different types. Although *Domain-Driven Design* is an
 approach for the analysis and design of complex software systems, the partitioning of
 application state across a set of aggregates is more generally applicable. Aggregates
 each have a current "state". Together, the state of the aggregates determines the state
-of the application. They also have "behaviour" by which the state is evolved. The state
-changes in response to "commands" from the interface, which are responded to by making
-decisions in the context of the current state. These decisions affect the current state,
-changing both the conditions within which future decisions will be made. The commands
-from the user are usually made with some understanding of the current state of the application.
-View of the current state are informed by the application responding to "queries" made
-by through the interface.
+of the application. The aggregates have "behaviour" by which the state is evolved.
+This behaviour is simply a collection of functions that make decisions. The decisions are
+a function of the current state of the aggregate and the "commands" issued by users through
+the interface and application. The state of an aggregate is evolved through a sequence
+of decisions. And the state of the application is evolved through many individual sequences
+of decisions. These decisions affect the current state, changing both the conditions within
+which future decisions will be made, and the result of future queries. Because the views
+may involve many aggregates, there is a tension between a design that will best support
+the commands and a design that will best support the queries. This is the reason for
+sometimes wanting to separate a "command model" in which the aggregate decisions are
+recorded from a "query model" into which the state of the application is projected.
+This is the realm of "event processing", of "event-driven systems", of "CQRS", and of
+"materialized views". However, in many cases there is no immediate need to develop
+separate command and query models. The aggregates themselves are often sufficient
+to inform the views, and the user can then issue commands that will be handled by
+the aggregates.
 
-The persistence layer is involves the way in which the current state is stored, so that it
-is available in future and not lost when the software stops running.
+Finally, the persistence layer involves the way in which the current state is stored, so
+that it is available in future and not lost when the software stops running. It makes good
+sense to separate this concern from the concerns described above, so that tests can be
+developed with a persistence layer that is fast and easy to use, and then the software
+can be deployed for users with a database that is operationally capable of supporting
+their needs.
 
 Below we will review Python classes, then discuss event-sourced aggregates, and then
 turn our attention to event-sourced applications.
