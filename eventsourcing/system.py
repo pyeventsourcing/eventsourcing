@@ -906,7 +906,7 @@ class NewMultiThreadedRunner(Runner, RecordingEventReceiver):
         # Start the processing threads.
         for follower_name in self.system.followers:
             follower = cast(Follower, self.apps[follower_name])
-            processing_queue: "Queue[Optional[List[ProcessingJob]]]" = Queue(
+            processing_queue: Queue[Optional[List[ProcessingJob]]] = Queue(
                 maxsize=self.QUEUE_MAX_SIZE
             )
             self.processing_queues[follower_name] = processing_queue
@@ -927,9 +927,7 @@ class NewMultiThreadedRunner(Runner, RecordingEventReceiver):
             follower.follow(leader.name, leader.notification_log)
 
             # Create converting queue.
-            converting_queue: "Queue[ConvertingJob]" = Queue(
-                maxsize=self.QUEUE_MAX_SIZE
-            )
+            converting_queue: Queue[ConvertingJob] = Queue(maxsize=self.QUEUE_MAX_SIZE)
 
             # Start converting thread.
             converting_thread = ConvertingThread(
@@ -1003,16 +1001,14 @@ class PullingThread(Thread):
 
     def __init__(
         self,
-        converting_queue: "Queue[ConvertingJob]",
+        converting_queue: Queue[ConvertingJob],
         follower: Follower,
         leader_name: str,
         has_errored: Event,
     ):
         super().__init__(daemon=True)
         self.overflow_event = Event()
-        self.recording_event_queue: "Queue[Optional[RecordingEvent]]" = Queue(
-            maxsize=100
-        )
+        self.recording_event_queue: Queue[Optional[RecordingEvent]] = Queue(maxsize=100)
         self.converting_queue = converting_queue
         self.receive_lock = Lock()
         self.follower = follower
@@ -1082,8 +1078,8 @@ class ConvertingThread(Thread):
 
     def __init__(
         self,
-        converting_queue: "Queue[ConvertingJob]",
-        processing_queue: "Queue[Optional[List[ProcessingJob]]]",
+        converting_queue: Queue[ConvertingJob],
+        processing_queue: Queue[Optional[List[ProcessingJob]]],
         follower: Follower,
         leader_name: str,
         has_errored: Event,
@@ -1153,7 +1149,7 @@ class ProcessingThread(Thread):
 
     def __init__(
         self,
-        processing_queue: "Queue[Optional[List[ProcessingJob]]]",
+        processing_queue: Queue[Optional[List[ProcessingJob]]],
         follower: Follower,
         has_errored: Event,
     ):

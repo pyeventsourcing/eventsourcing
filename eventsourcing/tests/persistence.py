@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import traceback
 import zlib
@@ -969,7 +971,7 @@ class CustomType1:
     def __init__(self, value: UUID):
         self.value = value
 
-    def __eq__(self, other: "CustomType1"):
+    def __eq__(self, other: CustomType1):
         return type(self) == type(other) and self.__dict__ == other.__dict__
 
 
@@ -977,7 +979,7 @@ class CustomType2:
     def __init__(self, value: CustomType1):
         self.value = value
 
-    def __eq__(self, other: "CustomType2"):
+    def __eq__(self, other: CustomType2):
         return type(self) == type(other) and self.__dict__ == other.__dict__
 
 

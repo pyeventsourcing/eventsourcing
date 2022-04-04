@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import List
 
 from eventsourcing.dispatch import singledispatchmethod
@@ -13,7 +15,7 @@ class Dog(Aggregate):
         self.tricks: List[str] = []
 
     class Event(Aggregate.Event["Dog"]):
-        def apply(self, aggregate: "Dog") -> None:
+        def apply(self, aggregate: Dog) -> None:
             aggregate.apply(self)
 
     @singledispatchmethod

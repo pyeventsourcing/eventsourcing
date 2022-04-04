@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from decimal import Decimal
 from uuid import uuid4
@@ -65,7 +67,7 @@ class BankAccount(Aggregate):
 
         amount: Decimal
 
-        def apply(self, account: "BankAccount") -> None:
+        def apply(self, account: BankAccount) -> None:
             """
             Increments the account balance.
             """
@@ -91,7 +93,7 @@ class BankAccount(Aggregate):
 
         overdraft_limit: Decimal
 
-        def apply(self, account: "BankAccount"):
+        def apply(self, account: BankAccount):
             account.overdraft_limit = self.overdraft_limit
 
     def close(self) -> None:
@@ -105,7 +107,7 @@ class BankAccount(Aggregate):
         Domain event for when account is closed.
         """
 
-        def apply(self, account: "BankAccount"):
+        def apply(self, account: BankAccount):
             account.is_closed = True
 
 
