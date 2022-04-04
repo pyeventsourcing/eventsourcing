@@ -908,7 +908,7 @@ class InfrastructureFactoryTestCase(ABC, TestCase):
             originator_version=1,
             timestamp=DomainEvent.create_timestamp(),
         )
-        stored_event = mapper1.from_domain_event(domain_event)
+        stored_event = mapper1.to_stored_event(domain_event)
         copy = mapper1.to_domain_event(stored_event)
         self.assertEqual(domain_event.originator_id, copy.originator_id)
 

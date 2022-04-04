@@ -1,9 +1,6 @@
 from eventsourcing.persistence import ApplicationRecorder
 from eventsourcing.popo import POPOApplicationRecorder
-from eventsourcing.postgres import (
-    PostgresApplicationRecorder,
-    PostgresDatastore,
-)
+from eventsourcing.postgres import PostgresApplicationRecorder, PostgresDatastore
 from eventsourcing.sqlite import SQLiteApplicationRecorder, SQLiteDatastore
 from eventsourcing.tests.persistence import (
     NonInterleavingNotificationIDsBaseCase,

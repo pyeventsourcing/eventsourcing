@@ -1,9 +1,6 @@
 import os
 
-from eventsourcing.tests.application import (
-    TIMEIT_FACTOR,
-    ExampleApplicationTestCase,
-)
+from eventsourcing.tests.application import TIMEIT_FACTOR, ExampleApplicationTestCase
 from eventsourcing.tests.persistence import tmpfile_uris
 
 

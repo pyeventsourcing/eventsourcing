@@ -2,11 +2,7 @@ import warnings
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.application import (
-    Application,
-    ProcessEvent,
-    ProcessingEvent,
-)
+from eventsourcing.application import Application, ProcessEvent, ProcessingEvent
 from eventsourcing.domain import Aggregate
 from eventsourcing.persistence import InfrastructureFactory
 from eventsourcing.tests.application import ExampleApplicationTestCase
@@ -113,13 +109,16 @@ class TestApplication(TestCase):
     def test_application_log(self):
         # Check the old 'log' attribute presents the 'notification log' object.
         app = Application()
+
+        # Verify deprecation warning.
         with warnings.catch_warnings(record=True) as w:
             self.assertIs(app.log, app.notification_log)
 
-        # Verify deprecation warning.
-        assert len(w) == 1
-        assert issubclass(w[-1].category, DeprecationWarning)
-        assert "'log' is deprecated, use 'notifications' instead" in str(w[-1].message)
+        self.assertEqual(1, len(w))
+        self.assertIs(w[-1].category, DeprecationWarning)
+        self.assertEqual(
+            "'log' is deprecated, use 'notifications' instead", w[-1].message.args[0]
+        )
 
     def test_process_event_class(self):
         # Check the old 'ProcessEvent' class still works.

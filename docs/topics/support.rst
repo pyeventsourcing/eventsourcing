@@ -1,14 +1,9 @@
-===============
-Support options
-===============
+=======
+Support
+=======
 
-Thank you for your interest in this library. It has taken some time
-to create. Similarly it may take some time to understand, and a sustained
-effort to develop well-designed event-sourced applications.
-
-To supplement the detailed documentation, professional training and
-development services are available. Friendly community support is also
-available on the Slack_ channel.
+Professional training and development services are available.
+Friendly community support is also available on the Slack_ channel.
 
 If you see any errors or have any issues when using
 the library or reading the documentation, please `raise an issue on GitHub
@@ -19,6 +14,8 @@ If you like the project, please support the continuing maintenance of this
 library by starring the project on GitHub, by `sponsoring the project
 <https://github.com/sponsors/pyeventsourcing?frequency=recurring>`_, or
 `by making a donation <https://github.com/sponsors/pyeventsourcing?frequency=one-time>`_.
+
+Thank you for your interest in this library.
 
 
 Professional support

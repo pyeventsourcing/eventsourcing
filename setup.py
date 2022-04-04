@@ -16,6 +16,8 @@ docs_requires = (
 )
 
 dev_requires = docs_requires + [
+    "orjson",
+    "pydantic",
     "python-coveralls",
     "coverage",
     "black",
@@ -51,7 +53,9 @@ setup(
     packages=packages,
     package_data={"eventsourcing": ["py.typed"]},
     python_requires=">=3.7",
-    install_requires=[],
+    install_requires=[
+        'typing_extensions;python_version<"3.8"',
+    ],
     extras_require={
         "postgres": postgresql_requires,
         "postgres_dev": postgresql_dev_requires,

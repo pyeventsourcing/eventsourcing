@@ -16,9 +16,7 @@ class BankAccounts(Application):
 
     def get_account(self, account_id: UUID) -> BankAccount:
         try:
-            aggregate = self.repository.get(account_id)
-            assert isinstance(aggregate, BankAccount)
-            return aggregate
+            return self.repository.get(account_id)
         except AggregateNotFound:
             raise AccountNotFoundError(account_id)
 

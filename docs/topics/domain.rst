@@ -1166,7 +1166,7 @@ for an example of this style of implementing aggregate projector functions.
         class DestinationChanged(Event):
             destination: Location
 
-        @when.register(DestinationChanged)
+        @when.register
         def destination_changed(self, event: DestinationChanged) -> None:
             self._destination = event.destination
 

@@ -23,8 +23,13 @@ from typing import (
     cast,
 )
 from uuid import UUID
+from warnings import warn
 
-from eventsourcing.domain import DomainEvent, EventSourcingError
+from eventsourcing.domain import (
+    EventSourcingError,
+    HasOriginatorIDVersion,
+    THasOriginatorIDVersion,
+)
 from eventsourcing.utils import (
     Environment,
     TopicError,
@@ -35,7 +40,6 @@ from eventsourcing.utils import (
 
 
 class Transcoding(ABC):
-    # noinspection SpellCheckingInspection
     """
     Abstract base class for custom transcodings.
     """
@@ -43,7 +47,6 @@ class Transcoding(ABC):
     @property
     @abstractmethod
     def type(self) -> type:
-        # noinspection SpellCheckingInspection
         """Object type of transcoded object."""
 
     @property
@@ -243,7 +246,6 @@ class Cipher(ABC):
     Base class for ciphers.
     """
 
-    # noinspection PyUnusedLocal
     @abstractmethod
     def __init__(self, environment: Environment):
         """
@@ -280,18 +282,18 @@ class Mapper:
         self.compressor = compressor
         self.cipher = cipher
 
-    def from_domain_event(self, domain_event: DomainEvent[Any]) -> StoredEvent:
+    def to_stored_event(self, domain_event: HasOriginatorIDVersion) -> StoredEvent:
         """
         Converts the given domain event to a :class:`StoredEvent` object.
         """
-        topic: str = get_topic(domain_event.__class__)
+        topic = get_topic(domain_event.__class__)
         event_state = domain_event.__dict__.copy()
         originator_id = event_state.pop("originator_id")
         originator_version = event_state.pop("originator_version")
         class_version = getattr(type(domain_event), "class_version", 1)
         if class_version > 1:
             event_state["class_version"] = class_version
-        stored_state: bytes = self.transcoder.encode(event_state)
+        stored_state = self.transcoder.encode(event_state)
         if self.compressor:
             stored_state = self.compressor.compress(stored_state)
         if self.cipher:
@@ -303,20 +305,28 @@ class Mapper:
             state=stored_state,
         )
 
-    def to_domain_event(self, stored: StoredEvent) -> DomainEvent[Any]:
+    def from_domain_event(self, domain_event: HasOriginatorIDVersion) -> StoredEvent:
+        warn(
+            "'from_domain_event()' is deprecated, use 'to_stored_event()' instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
+        return self.to_stored_event(domain_event)
+
+    def to_domain_event(self, stored_event: StoredEvent) -> THasOriginatorIDVersion:
         """
         Converts the given :class:`StoredEvent` to a domain event object.
         """
-        stored_state: bytes = stored.state
+        stored_state = stored_event.state
         if self.cipher:
             stored_state = self.cipher.decrypt(stored_state)
         if self.compressor:
             stored_state = self.compressor.decompress(stored_state)
         event_state: Dict[str, Any] = self.transcoder.decode(stored_state)
-        event_state["originator_id"] = stored.originator_id
-        event_state["originator_version"] = stored.originator_version
-        cls = resolve_topic(stored.topic)
-        assert issubclass(cls, DomainEvent)
+        event_state["originator_id"] = stored_event.originator_id
+        event_state["originator_version"] = stored_event.originator_version
+        cls = resolve_topic(stored_event.topic)
         class_version = getattr(cls, "class_version", 1)
         from_version = event_state.pop("class_version", 1)
         while from_version < class_version:
@@ -502,7 +512,7 @@ class ProcessRecorder(ApplicationRecorder):
 
 @dataclass(frozen=True)
 class Recording:
-    domain_event: DomainEvent[Any]
+    domain_event: HasOriginatorIDVersion
     notification: Notification
 
 
@@ -520,12 +530,12 @@ class EventStore:
         self.recorder = recorder
 
     def put(
-        self, domain_events: Sequence[DomainEvent[Any]], **kwargs: Any
+        self, domain_events: Sequence[HasOriginatorIDVersion], **kwargs: Any
     ) -> List[Recording]:
         """
         Stores domain events in aggregate sequence.
         """
-        stored_events = list(map(self.mapper.from_domain_event, domain_events))
+        stored_events = list(map(self.mapper.to_stored_event, domain_events))
         recordings = []
         notification_ids = self.recorder.insert_events(stored_events, **kwargs)
         if notification_ids:
@@ -552,7 +562,7 @@ class EventStore:
         lte: Optional[int] = None,
         desc: bool = False,
         limit: Optional[int] = None,
-    ) -> Iterator[DomainEvent[Any]]:
+    ) -> Iterator[THasOriginatorIDVersion]:
         """
         Retrieves domain events from aggregate sequence.
         """
@@ -590,7 +600,6 @@ class InfrastructureFactory(ABC):
         topic from environment variable 'PERSISTENCE_MODULE'.
         """
         factory_cls: Type[TF]
-        # noinspection SpellCheckingInspection
         topic = (
             env.get(
                 cls.PERSISTENCE_MODULE,
@@ -655,13 +664,12 @@ class InfrastructureFactory(ABC):
         return JSONTranscoder()
 
     def mapper(
-        self,
-        transcoder: Transcoder,
+        self, transcoder: Transcoder, mapper_class: Type[Mapper] = Mapper
     ) -> Mapper:
         """
         Constructs a mapper.
         """
-        return Mapper(
+        return mapper_class(
             transcoder=transcoder,
             cipher=self.cipher(),
             compressor=self.compressor(),

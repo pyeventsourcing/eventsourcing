@@ -163,7 +163,6 @@ class PostgresConnectionPool(ConnectionPool[PostgresConnection]):
 
 
 class PostgresTransaction:
-    # noinspection PyShadowingNames
     def __init__(self, conn: PostgresConnection, commit: bool):
         self.conn = conn
         self.commit = commit
@@ -276,7 +275,6 @@ class PostgresDatastore:
 PG_IDENTIFIER_MAX_LEN = 63
 
 
-# noinspection SqlResolve
 class PostgresAggregateRecorder(AggregateRecorder):
     def __init__(
         self,
@@ -529,11 +527,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
             return stored_events
 
 
-# noinspection SqlResolve
-class PostgresApplicationRecorder(
-    PostgresAggregateRecorder,
-    ApplicationRecorder,
-):
+class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder):
     def __init__(
         self,
         datastore: PostgresDatastore,
@@ -669,10 +663,7 @@ class PostgresApplicationRecorder(
         return notification_ids
 
 
-class PostgresProcessRecorder(
-    PostgresApplicationRecorder,
-    ProcessRecorder,
-):
+class PostgresProcessRecorder(PostgresApplicationRecorder, ProcessRecorder):
     def __init__(
         self,
         datastore: PostgresDatastore,

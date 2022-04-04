@@ -1,5 +1,5 @@
 ===================================
-Tutorial - Part 1 - Getting Started
+Tutorial - Part 1 - Getting started
 ===================================
 
 This tutorial provides a very gradual introduction to event-sourced aggregates and

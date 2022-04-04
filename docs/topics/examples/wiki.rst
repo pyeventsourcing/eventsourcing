@@ -1,7 +1,7 @@
 .. _Wiki example:
 
-Wiki application
-================
+Application 3 - Content management
+==================================
 
 This example demonstrates the use of version-5 UUIDs for both discovery of aggregate
 IDs and also to implement an application-wide rule (or "invariant"), the use of the

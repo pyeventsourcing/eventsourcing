@@ -1,8 +1,8 @@
 
 .. _Cargo shipping example:
 
-Cargo shipping application
-==========================
+Application 2 - Cargo shipping
+==============================
 
 This example follows the original Cargo Shipping example that
 figures in the DDD book, as worked up into a running application

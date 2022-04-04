@@ -764,7 +764,7 @@ must be constructed with a :ref:`transcoder<Transcoder>` object.
 
     mapper = Mapper(transcoder=transcoder)
 
-The :func:`~eventsourcing.persistence.Mapper.from_domain_event` method of the
+The :func:`~eventsourcing.persistence.Mapper.to_stored_event` method of the
 ``mapper`` object converts :class:`~eventsourcing.domain.DomainEvent` objects to
 :class:`~eventsourcing.persistence.StoredEvent` objects.
 
@@ -782,7 +782,7 @@ The :func:`~eventsourcing.persistence.Mapper.from_domain_event` method of the
         obj=obj1,
     )
 
-    stored_event = mapper.from_domain_event(domain_event)
+    stored_event = mapper.to_stored_event(domain_event)
     assert isinstance(stored_event, StoredEvent)
 
 
@@ -821,7 +821,7 @@ Python's :mod:`zlib` module.
         compressor=compressor,
     )
 
-    compressed_stored_event = mapper.from_domain_event(domain_event)
+    compressed_stored_event = mapper.to_stored_event(domain_event)
     assert mapper.to_domain_event(compressed_stored_event) == domain_event
 
 The compressed state of a stored event will normally be much
@@ -882,7 +882,7 @@ decrypt stored events as that which was used to encrypt stored events.
         cipher=cipher,
     )
 
-    encrypted_stored_event = mapper.from_domain_event(domain_event)
+    encrypted_stored_event = mapper.to_stored_event(domain_event)
     assert mapper.to_domain_event(encrypted_stored_event) == domain_event
 
 
@@ -897,7 +897,7 @@ If you want to use a different cipher strategy, then implement the base
 class class:`~eventsourcing.cipher.Cipher`.
 
 
-Compression and Encryption
+Compression and encryption
 ==========================
 
 Stored events can be both compressed and encrypted.
@@ -910,7 +910,7 @@ Stored events can be both compressed and encrypted.
         compressor=compressor,
     )
 
-    compressed_and_encrypted = mapper.from_domain_event(domain_event)
+    compressed_and_encrypted = mapper.to_stored_event(domain_event)
     assert mapper.to_domain_event(compressed_and_encrypted) == domain_event
 
 

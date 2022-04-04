@@ -1,6 +1,5 @@
 import inspect
 import os
-from abc import ABC, ABCMeta
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
 from functools import lru_cache
@@ -13,6 +12,7 @@ from typing import (
     Iterable,
     List,
     Optional,
+    Sequence,
     Set,
     Tuple,
     Type,
@@ -21,15 +21,58 @@ from typing import (
     cast,
     overload,
 )
+
+try:
+    from typing import Protocol, runtime_checkable
+except ImportError:  # pragma: no cover
+    from typing_extensions import Protocol, runtime_checkable  # type: ignore
+
 from uuid import UUID, uuid4
 
 from eventsourcing.utils import get_method_name, get_topic, resolve_topic
 
-# noinspection SpellCheckingInspection
 TZINFO: tzinfo = resolve_topic(os.getenv("TZINFO_TOPIC", "datetime:timezone.utc"))
 
 
-class MetaDomainEvent(ABCMeta):
+@runtime_checkable
+class HasOriginatorIDVersion(Protocol):
+    originator_id: UUID
+    originator_version: int
+
+
+@runtime_checkable
+class HasIDVersionFields(Protocol):
+    id: UUID
+    version: int
+
+
+@runtime_checkable
+class HasIDVersionProperties(Protocol):
+    @property
+    def id(self) -> UUID:
+        ...  # pragma: no cover
+
+    @property
+    def version(self) -> int:
+        ...  # pragma: no cover
+
+
+HasIDVersion = Union[HasIDVersionProperties, HasIDVersionFields]
+
+
+@runtime_checkable
+class CanCollectEvents(Protocol):
+    def collect_events(self) -> Sequence[HasOriginatorIDVersion]:
+        ...  # pragma: no cover
+
+
+THasOriginatorIDVersion = TypeVar(
+    "THasOriginatorIDVersion", bound=HasOriginatorIDVersion
+)
+THasIDVersion = TypeVar("THasIDVersion", bound=HasIDVersion)
+
+
+class MetaDomainEvent(type):
     def __new__(
         mcs, name: str, bases: Tuple[type, ...], cls_dict: Dict[str, Any]
     ) -> "MetaDomainEvent":
@@ -41,7 +84,7 @@ class MetaDomainEvent(ABCMeta):
 T = TypeVar("T")
 
 
-class DomainEvent(ABC, Generic[T], metaclass=MetaDomainEvent):
+class DomainEvent(Generic[T], metaclass=MetaDomainEvent):
     """
     Base class for domain events, such as aggregate :class:`AggregateEvent`
     and aggregate :class:`Snapshot`.
@@ -108,7 +151,6 @@ class AggregateEvent(DomainEvent[TAggregate]):
 
 
 class AggregateCreated(AggregateEvent[TAggregate]):
-    # noinspection PyUnresolvedReferences
     """
     Domain event for when aggregate is created.
 
@@ -664,7 +706,7 @@ _annotations_mention_id: Set["MetaAggregate"] = set()
 _init_mentions_id: Set["MetaAggregate"] = set()
 
 
-class MetaAggregate(ABCMeta):
+class MetaAggregate(type):
     INITIAL_VERSION = 1
 
     class Event(AggregateEvent[TAggregate]):
@@ -688,7 +730,7 @@ class MetaAggregate(ABCMeta):
                 annotations_mention_id = False
             else:
                 annotations_mention_id = True
-        cls = ABCMeta.__new__(mcs, *args)
+        cls = type.__new__(mcs, *args)
         if class_annotations:
             cls = dataclass(eq=False, repr=False)(cls)
         if annotations_mention_id:
@@ -751,7 +793,7 @@ class MetaAggregate(ABCMeta):
                 "Can't use both '_created_event_class' and 'created_event_name'"
             )
 
-        # Is the init method method decorated with a CommandMethodDecorator?
+        # Is the init method decorated with a CommandMethodDecorator?
         if isinstance(cls.__dict__.get("__init__"), CommandMethodDecorator):
             init_decorator: CommandMethodDecorator = cls.__dict__["__init__"]
 
@@ -1026,9 +1068,8 @@ class MetaAggregate(ABCMeta):
         Factory method to construct a new
         aggregate object instance.
         """
-        # Construct the domain event class,
-        # with an ID and version, and the
-        # a topic for the aggregate class.
+        # Construct the domain event with an ID and a
+        # version, and a topic for the aggregate class.
         create_id_kwargs = {
             k: v for k, v in kwargs.items() if k in cls._create_id_param_names
         }
@@ -1044,7 +1085,6 @@ class MetaAggregate(ABCMeta):
         )
 
         try:
-            # noinspection PyArgumentList
             created_event = event_class(
                 **kwargs,
             )
@@ -1060,7 +1100,6 @@ class MetaAggregate(ABCMeta):
         # Return the aggregate.
         return agg
 
-    # noinspection PyUnusedLocal
     @staticmethod
     def create_id(**kwargs: Any) -> UUID:
         """
@@ -1069,7 +1108,7 @@ class MetaAggregate(ABCMeta):
         return uuid4()
 
 
-class Aggregate(ABC, metaclass=MetaAggregate):
+class Aggregate(metaclass=MetaAggregate):
     """
     Base class for aggregate roots.
     """
@@ -1103,7 +1142,6 @@ class Aggregate(ABC, metaclass=MetaAggregate):
 
     @version.setter
     def version(self, version: int) -> None:
-        # noinspection PyAttributeOutsideInit
         self._version = version
 
     @property
@@ -1122,7 +1160,6 @@ class Aggregate(ABC, metaclass=MetaAggregate):
 
     @modified_on.setter
     def modified_on(self, modified_on: datetime) -> None:
-        # noinspection PyAttributeOutsideInit
         self._modified_on = modified_on
 
     @property
@@ -1178,16 +1215,16 @@ class Aggregate(ABC, metaclass=MetaAggregate):
         # Mutate aggregate with domain event.
         new_event.mutate(self)
         # Append the domain event to pending list.
-        self.pending_events.append(new_event)
+        self._pending_events.append(new_event)
 
-    def collect_events(self) -> List[AggregateEvent[Any]]:
+    def collect_events(self) -> Sequence[HasOriginatorIDVersion]:
         """
         Collects and returns a list of pending aggregate
         :class:`AggregateEvent` objects.
         """
         collected = []
-        while self.pending_events:
-            collected.append(self.pending_events.pop(0))
+        while self._pending_events:
+            collected.append(self._pending_events.pop(0))
         return collected
 
 
@@ -1276,8 +1313,14 @@ class VersionError(OriginatorVersionError):
     """
 
 
-class Snapshot(DomainEvent[TAggregate]):
-    # noinspection PyUnresolvedReferences
+@runtime_checkable
+class CanTake(Protocol):
+    @classmethod
+    def take(cls, aggregate: HasIDVersion) -> HasOriginatorIDVersion:
+        ...  # pragma: no cover
+
+
+class Snapshot(DomainEvent[THasIDVersion]):
     """
     Snapshots represent the state of an aggregate at a particular
     version.
@@ -1295,27 +1338,27 @@ class Snapshot(DomainEvent[TAggregate]):
     state: Dict[str, Any]
 
     @classmethod
-    def take(cls, aggregate: TAggregate) -> "Snapshot[TAggregate]":
+    def take(cls, aggregate: HasIDVersion) -> "Snapshot[HasIDVersion]":
         """
         Creates a snapshot of the given :class:`Aggregate` object.
         """
         aggregate_state = dict(aggregate.__dict__)
-        aggregate_state.pop("_pending_events")
         class_version = getattr(type(aggregate), "class_version", 1)
         if class_version > 1:
             aggregate_state["class_version"] = class_version
-        originator_id = aggregate_state.pop("_id")
-        originator_version = aggregate_state.pop("_version")
-        # noinspection PyArgumentList
+        if isinstance(aggregate, Aggregate):
+            aggregate_state.pop("_id")
+            aggregate_state.pop("_version")
+            aggregate_state.pop("_pending_events")
         return cls(  # type: ignore
-            originator_id=originator_id,
-            originator_version=originator_version,
+            originator_id=aggregate.id,
+            originator_version=aggregate.version,
             timestamp=cls.create_timestamp(),
             topic=get_topic(type(aggregate)),
             state=aggregate_state,
         )
 
-    def mutate(self, _: Optional[TAggregate]) -> TAggregate:
+    def mutate(self, _: Optional[THasIDVersion]) -> THasIDVersion:
         """
         Reconstructs the snapshotted :class:`Aggregate` object.
         """
@@ -1333,7 +1376,7 @@ class Snapshot(DomainEvent[TAggregate]):
         aggregate_state["_id"] = self.originator_id
         aggregate_state["_version"] = self.originator_version
         aggregate_state["_pending_events"] = []
-        aggregate: TAggregate = object.__new__(cls)
+        aggregate: THasIDVersion = object.__new__(cls)
 
         aggregate.__dict__.update(aggregate_state)
         return aggregate

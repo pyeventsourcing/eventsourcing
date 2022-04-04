@@ -1,9 +1,11 @@
+import warnings
 from decimal import Decimal
 from unittest.case import TestCase
 from uuid import uuid4
 
 from eventsourcing.cipher import AESCipher
 from eventsourcing.compressor import ZlibCompressor
+from eventsourcing.domain import AggregateEvent
 from eventsourcing.persistence import (
     DatetimeAsISO,
     DecimalAsStr,
@@ -42,8 +44,8 @@ class TestMapper(TestCase):
             amount=Decimal("10.00"),
         )
 
-        # Map from domain event.
-        stored_event = mapper.from_domain_event(domain_event)
+        # Map to stored event.
+        stored_event = mapper.to_stored_event(domain_event)
 
         # Map to domain event.
         copy = mapper.to_domain_event(stored_event)
@@ -66,8 +68,8 @@ class TestMapper(TestCase):
             compressor=compressor,
         )
 
-        # Map from domain event.
-        stored_event = mapper.from_domain_event(domain_event)
+        # Map to stored event.
+        stored_event = mapper.to_stored_event(domain_event)
 
         # Map to domain event.
         copy = mapper.to_domain_event(stored_event)
@@ -89,3 +91,35 @@ class TestMapper(TestCase):
             142,
             143,
         ), len(stored_event.state)
+
+    def test_from_domain_event_gives_deprecated_warning(self):
+        # Construct transcoder.
+        transcoder = JSONTranscoder()
+        transcoder.register(UUIDAsHex())
+        transcoder.register(DatetimeAsISO())
+
+        # Construct mapper with cipher.
+        mapper = Mapper(transcoder=transcoder)
+
+        # Create a domain event.
+        domain_event = AggregateEvent(
+            originator_id=uuid4(),
+            originator_version=123456,
+            timestamp=AggregateEvent.create_timestamp(),
+        )
+
+        # Verify deprecation warning.
+        with warnings.catch_warnings(record=True) as w:
+            stored_event = mapper.from_domain_event(domain_event)
+
+        self.assertEqual(len(w), 1)
+        self.assertIs(w[-1].category, DeprecationWarning)
+        self.assertEqual(
+            "'from_domain_event()' is deprecated, use 'to_stored_event()' instead",
+            w[-1].message.args[0],
+        )
+
+        self.assertEqual(stored_event.originator_id, domain_event.originator_id)
+        self.assertEqual(
+            stored_event.originator_version, domain_event.originator_version
+        )

@@ -136,7 +136,6 @@ class TestAggregateDecorator(TestCase):
         self.assertEqual(type(a.pending_events[0]).__name__, "Started")
 
 
-# noinspection PyUnresolvedReferences
 class TestEventDecorator(TestCase):
     def test_event_name_inferred_from_method_no_args(self):
         class MyAgg(Aggregate):
@@ -275,7 +274,6 @@ class TestEventDecorator(TestCase):
         def assert_raises(cls):
             obj = cls()
             with self.assertRaises(TypeError) as cm:
-                # noinspection PyArgumentList
                 obj.value_changed(1)
 
             name = get_method_name(cls.value_changed)
@@ -301,7 +299,6 @@ class TestEventDecorator(TestCase):
         def assert_raises(cls):
             obj = cls()
             with self.assertRaises(TypeError) as cm:
-                # noinspection PyArgumentList
                 obj.value_changed(1, 2)
             name = get_method_name(cls.value_changed)
             self.assertEqual(
@@ -810,7 +807,6 @@ class TestEventDecorator(TestCase):
             cm.exception.args[0], "*args not supported by decorator on method()"
         )
 
-    # noinspection PyPep8Naming
     def test_raises_when_decorated_method_has_variable_kwargs(self):
 
         with self.assertRaises(TypeError) as cm:
