@@ -13,7 +13,7 @@ classes, from the declarative syntax which provides the most concise style
 for expressing business concerns, to a functional style which uses immutable
 aggregate objects. All these examples make use of the library's application
 and persistence modules. All these examples satisfy the same test case which
-involves creating and updating a `Dog` aggregate, and taking a snapshot.
+involves creating and updating a ``Dog`` aggregate, and taking a snapshot.
 
 
 .. toctree::
