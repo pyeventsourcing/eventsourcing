@@ -11,11 +11,10 @@ In contrast to the previous example, the aggregate and event classes are
 defined using Pydantic, rather than as Python frozen dataclasses.
 
 The application class uses a mapper that works with Pydantic and a
-transcoder that uses Orjson. There are no transcodings registered.
-Orjson is entirely responsible for serialising Python objects
-to JSON, and Pydantic is entirely responsible for reconstructing
-model types from deserialised JSON objects.
-
+transcoder that uses orjson. Pydantic is responsible for converting
+model objects to object types that orjson can serialise, and
+for reconstructing model objects from JSON objects deserialised
+by orjson.
 
 Domain model
 ------------
