@@ -897,7 +897,7 @@ class TestEventDecorator(TestCase):
 
         order = Order()
 
-        order.confirm(datetime.now())
+        order.confirm(AggregateEvent.create_timestamp())
         self.assertIsInstance(order.confirmed_at, datetime)
 
         app: Application = Application()
@@ -1012,7 +1012,7 @@ class TestEventDecorator(TestCase):
         order = Order("name")
         self.assertEqual(len(order.pending_events), 1)
         try:
-            order.pickup(datetime.now())
+            order.pickup(AggregateEvent.create_timestamp())
         except RuntimeError:
             pass
         self.assertEqual(len(order.pending_events), 1)
@@ -1356,17 +1356,17 @@ class TestOrder(TestCase):
         self.assertEqual(order.name, "my order")
 
         with self.assertRaises(Exception) as cm:
-            order.pickup(datetime.now())
+            order.pickup(AggregateEvent.create_timestamp())
         self.assertEqual(cm.exception.args[0], "Order is not confirmed")
 
         self.assertEqual(order.confirmed_at, None)
         self.assertEqual(order.pickedup_at, None)
 
-        order.confirm(datetime.now())
+        order.confirm(AggregateEvent.create_timestamp())
         self.assertIsInstance(order.confirmed_at, datetime)
         self.assertEqual(order.pickedup_at, None)
 
-        order.pickup(datetime.now())
+        order.pickup(AggregateEvent.create_timestamp())
         self.assertIsInstance(order.confirmed_at, datetime)
         self.assertIsInstance(order.pickedup_at, datetime)
 

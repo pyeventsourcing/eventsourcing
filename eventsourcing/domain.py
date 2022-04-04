@@ -3,6 +3,7 @@ import os
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
 from functools import lru_cache
+from time import monotonic
 from types import FunctionType, WrapperDescriptorType
 from typing import (
     Any,
@@ -101,9 +102,9 @@ class DomainEvent(Generic[T], metaclass=MetaDomainEvent):
     def create_timestamp() -> datetime:
         """
         Returns a timezone aware :class:`~datetime.datetime` object
-        that is created by calling :class:`~datetime.datetime.now()`.
+        for the current time.
         """
-        return datetime.now(tz=TZINFO)
+        return datetime.fromtimestamp(monotonic(), TZINFO)
 
 
 TDomainEvent = TypeVar("TDomainEvent", bound=DomainEvent[Any])

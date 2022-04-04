@@ -1,8 +1,8 @@
 import unittest
-from datetime import datetime, timedelta
+from datetime import timedelta
 
-from eventsourcing.domain import TZINFO
 from eventsourcing.examples.cargoshipping.application import BookingApplication
+from eventsourcing.examples.cargoshipping.domainmodel import Cargo
 from eventsourcing.examples.cargoshipping.interface import (
     BookingService,
     select_preferred_itinerary,
@@ -14,7 +14,7 @@ class TestBookingService(unittest.TestCase):
         self.service = BookingService(BookingApplication())
 
     def test_admin_can_book_new_cargo(self) -> None:
-        arrival_deadline = datetime.now(tz=TZINFO) + timedelta(weeks=3)
+        arrival_deadline = Cargo.Event.create_timestamp() + timedelta(weeks=3)
 
         cargo_id = self.service.book_new_cargo(
             origin="NLRTM",
@@ -43,7 +43,7 @@ class TestBookingService(unittest.TestCase):
         # in no more than two weeks.
         origin = "HONGKONG"
         destination = "STOCKHOLM"
-        arrival_deadline = datetime.now(tz=TZINFO) + timedelta(weeks=2)
+        arrival_deadline = Cargo.Event.create_timestamp() + timedelta(weeks=2)
 
         # Use case 1: booking.
 

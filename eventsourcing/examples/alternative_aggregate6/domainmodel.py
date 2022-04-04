@@ -1,6 +1,7 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import reduce, singledispatch
+from time import monotonic
 from typing import Callable, Iterable, List, Optional, Tuple, TypeVar, Union, cast
 from uuid import UUID, uuid4
 
@@ -42,7 +43,7 @@ def aggregate_projector(
 
 
 def create_timestamp() -> datetime:
-    return datetime.now()
+    return datetime.fromtimestamp(monotonic(), timezone.utc)
 
 
 @dataclass(frozen=True)
