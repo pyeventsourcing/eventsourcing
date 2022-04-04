@@ -9,6 +9,63 @@ of the library understand how things work. It expands and explains the
 the :doc:`Modules </topics/modules>` documentation.
 
 
+Overview
+========
+
+Software is often created to support some useful or important activities.
+This kind of software is commonly separated into four layers. Users generally
+interact with an interface layer, using some kind of technology. The interface
+depends on an application layer, which provide support for users of the software
+independently of any particular interface technology. The application layer depends
+on two other layers: the domain layer and the persistence layer. The domain layer
+contains the "logic" of the application, and the persistence layer is responsible
+for storing the current state of the application by using some kind of database
+technology.
+
+The interface layer might be a graphical user interface that directly connects to the
+application layer, or a remote client that connects to a server such as Web browser and
+Web server where the interface is partly in the client and partly on the server, or a
+mobile application that works in a similar way. The interface layer might also be a suite
+of test cases, that directly uses the application layer. When developing a new piece of
+software, it can make good sense to start by writing tests that represent what a user
+might usefully do with the software. An application can then be developed to pass these
+tests. A Web or graphical user interface or mobile app can then be developed that uses
+the application, repeating the commands and queries that were expressed in the tests. In
+practice, these things would be developed together, by writing a small test, changing
+the application code to pass the test, adjusting the user interface so that it makes use
+of the new functionality, and then repeating this cycle until the software adequately
+supports the useful or important activities it was intended to support.
+
+The application layer is the thing your interface layer interacts with. The application
+layer handles commands and queries issued by the user of your software through the
+interface. The application handles these commands and queries by interacting with the
+domain and persistence layers. The application layer combines the domain layer with the
+persistence layer. It interacts with the domain layer so that the state of the application
+can evolve in a logical and coherent way. It interacts with the persistence layer so that
+the state of the application can be saved and retrieved, so that the state of the application
+endures after the software stops running, and so that the state of the application can be
+obtained when the software is used again in the future.
+
+The domain layer involves a "model" which in *Domain-Driven Design* comprises a collection
+of "aggregates", perhaps several different types. Although *Domain-Driven Design* is an
+approach for the analysis and design of complex software systems, the partitioning of
+application state across a set of aggregates is more generally applicable. Aggregates
+each have a current "state". Together, the state of the aggregates determines the state
+of the application. They also have "behaviour" by which the state is evolved. The state
+changes in response to "commands" from the interface, which are responded to by making
+decisions in the context of the current state. These decisions affect the current state,
+changing both the conditions within which future decisions will be made. The commands
+from the user are usually made with some understanding of the current state of the application.
+View of the current state are informed by the application responding to "queries" made
+by through the interface.
+
+The persistence layer is involves the way in which the current state is stored, so that it
+is available in future and not lost when the software stops running.
+
+Below we will review Python classes, then discuss event-sourced aggregates, and then
+turn our attention to event-sourced applications.
+
+
 Python classes
 ==============
 
@@ -72,8 +129,14 @@ In the book, aggregates are persisted by inserting or updating
 database records that represent the current state of the object.
 
 An event-sourced aggregate is persisted by recording the sequence of decisions
-as a sequence of 'events'. This sequence of events is used to reconstruct
-the current state of the aggregate.
+that it makes as a sequence of 'events'. This sequence of events is used to reconstruct
+the current state of the aggregate. In earlier approaches to application architecture,
+only the current state was persisted. The stored state was then updated as further
+decisions were made. However, recording changing state brings several complications,
+which are avoided by recording the decisions made by a domain model. Recording
+the decisions, which do not change, is a more solid foundation on which to build
+applications. Recording domain model decisions, and using them as the "source of
+truth" in an application, is commonly termed "event sourcing".
 
 We can convert the ``Dog`` class into an event-sourced aggregate using
 the ``Aggregate`` class and ``@event`` decorator from the library's
@@ -179,6 +242,11 @@ be reconstructed from stored events.
 
 Event-sourced application
 =========================
+
+This library has "application objects" which simply implements this layered architecture
+for a particular scope of concern. So that an application object supports a particular
+set of commands and queries, has a particular set of aggregates, and uses a particular
+database.
 
 Event-sourced applications combine event-sourced aggregates
 with a persistence mechanism to store and retrieve aggregate events.
