@@ -208,6 +208,8 @@ class Repository:
         snapshot_store: Optional[EventStore] = None,
         cache_maxsize: Optional[int] = None,
         fastforward: bool = True,
+        fastforward_skipping: bool = False,
+        deepcopy_from_cache: bool = True,
     ):
         """
         Initialises repository with given event store (an
@@ -227,6 +229,8 @@ class Repository:
         else:
             self.cache = LRUCache(maxsize=cache_maxsize)
         self.fastforward = fastforward
+        self.fastforward_skipping = fastforward_skipping
+        self.deepcopy_from_cache = deepcopy_from_cache
 
         # Because fast-forwarding a cached aggregate isn't thread-safe.
         self._fastforward_locks_lock = Lock()
@@ -242,6 +246,8 @@ class Repository:
         projector_func: ProjectorFunctionType[
             THasIDVersion, THasOriginatorIDVersion
         ] = project_aggregate,
+        fastforward_skipping: bool = False,
+        deepcopy_from_cache: bool = True,
     ) -> THasIDVersion:
         """
         Reconstructs an :class:`~eventsourcing.domain.Aggregate` for a
@@ -262,8 +268,9 @@ class Repository:
                 if self.fastforward:
                     # Fast-forward cached aggregate.
                     fastforward_lock = self._use_fastforward_lock(aggregate_id)
+                    blocking = not (fastforward_skipping or self.fastforward_skipping)
                     try:
-                        if fastforward_lock.acquire(blocking=False):
+                        if fastforward_lock.acquire(blocking=blocking):
                             try:
                                 new_events = cast(
                                     Iterable[THasOriginatorIDVersion],
@@ -281,12 +288,9 @@ class Repository:
                     finally:
                         self._disuse_fastforward_lock(aggregate_id)
 
-                    if _aggregate is None:
-                        raise AggregateNotFound(aggregate_id)
-                    else:
-                        aggregate = _aggregate
-            # Deep copy cached aggregate, so bad mutations don't corrupt cache.
-            aggregate = deepcopy(aggregate)
+            # Copy mutable aggregates for commands, so bad mutations don't corrupt.
+            if deepcopy_from_cache and self.deepcopy_from_cache:
+                aggregate = deepcopy(aggregate)
         else:
             # Reconstruct historical version of aggregate from stored events.
             aggregate = self._reconstruct_aggregate(
@@ -631,6 +635,8 @@ class Application(ABC):
 
     AGGREGATE_CACHE_MAXSIZE = "AGGREGATE_CACHE_MAXSIZE"
     AGGREGATE_CACHE_FASTFORWARD = "AGGREGATE_CACHE_FASTFORWARD"
+    AGGREGATE_CACHE_FASTFORWARD_SKIPPING = "AGGREGATE_CACHE_FASTFORWARD_SKIPPING"
+    AGGREGATE_DEEPCOPY_FROM_CACHE = "AGGREGATE_DEEPCOPY_FROM_CACHE"
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         if "name" not in cls.__dict__:
@@ -758,6 +764,12 @@ class Application(ABC):
             snapshot_store=self.snapshots,
             cache_maxsize=cache_maxsize,
             fastforward=strtobool(self.env.get(self.AGGREGATE_CACHE_FASTFORWARD, "y")),
+            fastforward_skipping=strtobool(
+                self.env.get(self.AGGREGATE_CACHE_FASTFORWARD_SKIPPING, "n")
+            ),
+            deepcopy_from_cache=strtobool(
+                self.env.get(self.AGGREGATE_DEEPCOPY_FROM_CACHE, "y")
+            ),
         )
 
     def construct_notification_log(self) -> LocalNotificationLog:

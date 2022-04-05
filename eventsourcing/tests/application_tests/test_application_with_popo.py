@@ -130,8 +130,13 @@ class TestApplication(TestCase):
         app.repository.get(aggregate.id)
         self.assertEqual(aggregate, app.repository.cache.get(aggregate.id))
 
-    def test_application_fastforward_skipped_during_contention(self):
-        app = Application(env={"AGGREGATE_CACHE_MAXSIZE": "10"})
+    def test_application_fastforward_skipping_during_contention(self):
+        app = Application(
+            env={
+                "AGGREGATE_CACHE_MAXSIZE": "10",
+                "AGGREGATE_CACHE_FASTFORWARD_SKIPPING": "y",
+            }
+        )
 
         aggregate = Aggregate()
         aggregate_id = aggregate.id
@@ -150,12 +155,13 @@ class TestApplication(TestCase):
                         app.save(aggregate)
                     except IntegrityError:
                         continue
-                    if saved_version != app.repository.get(aggregate_id).version:
+                    cached_version = app.repository.get(aggregate_id).version
+                    if saved_version > cached_version:
                         print(f"Skipped fast-forwarding at version {saved_version}")
                         stopped.set()
                     if aggregate.version % 1000 == 0:
                         print("Version:", aggregate.version, get_ident())
-                    sleep(0.001)
+                    sleep(0.00)
                 except BaseException:
                     print(traceback.format_exc())
                     raise
@@ -167,6 +173,51 @@ class TestApplication(TestCase):
         if not stopped.wait(timeout=100):
             stopped.set()
             self.fail("Didn't skip fast forwarding before test timed out...")
+        executor.shutdown()
+
+    def test_application_fastforward_blocking_during_contention(self):
+        app = Application(
+            env={
+                "AGGREGATE_CACHE_MAXSIZE": "10",
+            }
+        )
+
+        aggregate = Aggregate()
+        aggregate_id = aggregate.id
+        app.save(aggregate)
+
+        stopped = Event()
+
+        # Trigger, save, get, check.
+        def trigger_save_get_check():
+            while not stopped.is_set():
+                try:
+                    aggregate = app.repository.get(aggregate_id)
+                    aggregate.trigger_event(Aggregate.Event)
+                    saved_version = aggregate.version
+                    try:
+                        app.save(aggregate)
+                    except IntegrityError:
+                        continue
+                    cached_version = app.repository.get(aggregate_id).version
+                    if saved_version > cached_version:
+                        print(f"Skipped fast-forwarding at version {saved_version}")
+                        stopped.set()
+                    if aggregate.version % 1000 == 0:
+                        print("Version:", aggregate.version, get_ident())
+                    sleep(0.00)
+                except BaseException:
+                    print(traceback.format_exc())
+                    raise
+
+        executor = ThreadPoolExecutor(max_workers=100)
+        for _ in range(100):
+            executor.submit(trigger_save_get_check)
+
+        if not stopped.wait(timeout=3):
+            stopped.set()
+        else:
+            self.fail("Wrongly skipped fast forwarding")
         executor.shutdown()
 
     def test_application_with_cached_aggregates_not_fastforward(self):
@@ -182,6 +233,39 @@ class TestApplication(TestCase):
         self.assertEqual(aggregate, app.repository.cache.get(aggregate.id))
         app.repository.get(aggregate.id)
         self.assertEqual(aggregate, app.repository.cache.get(aggregate.id))
+
+    def test_application_with_deepcopy_from_cache_arg(self):
+        app = Application(
+            env={
+                "AGGREGATE_CACHE_MAXSIZE": "10",
+            }
+        )
+        aggregate = Aggregate()
+        app.save(aggregate)
+        self.assertEqual(aggregate.version, 1)
+        aggregate = app.repository.get(aggregate.id)
+        aggregate.version = 101
+        self.assertEqual(app.repository.cache.get(aggregate.id).version, 1)
+        aggregate = app.repository.get(aggregate.id, deepcopy_from_cache=False)
+        aggregate.version = 101
+        self.assertEqual(app.repository.cache.get(aggregate.id).version, 101)
+
+    def test_application_with_deepcopy_from_cache_attribute(self):
+        app = Application(
+            env={
+                "AGGREGATE_CACHE_MAXSIZE": "10",
+            }
+        )
+        aggregate = Aggregate()
+        app.save(aggregate)
+        self.assertEqual(aggregate.version, 1)
+        aggregate = app.repository.get(aggregate.id)
+        aggregate.version = 101
+        self.assertEqual(app.repository.cache.get(aggregate.id).version, 1)
+        app.repository.deepcopy_from_cache = False
+        aggregate = app.repository.get(aggregate.id)
+        aggregate.version = 101
+        self.assertEqual(app.repository.cache.get(aggregate.id).version, 101)
 
     def test_application_log(self):
         # Check the old 'log' attribute presents the 'notification log' object.
