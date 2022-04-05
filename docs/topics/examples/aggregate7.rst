@@ -10,7 +10,7 @@ style, and does not use the library ``Aggregate`` class.
 In contrast to the previous example, the aggregate and event classes are
 defined as Pydantic immutable models, rather than as Python frozen dataclasses.
 
-the application class in this example uses the persistence classes
+The application class in this example uses the persistence classes
 ``PydanticMapper`` and ``OrjsonTranscoder``. Pydantic is responsible
 for converting domain model objects to object types that orjson can
 serialise, and for reconstructing model objects from JSON objects

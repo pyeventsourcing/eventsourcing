@@ -22,7 +22,7 @@ from typing import (
     cast,
 )
 
-# For backwards compatibility of import statements.
+# For backwards compatibility of import statements...
 from eventsourcing.application import ProcessEvent  # noqa: F401
 from eventsourcing.application import (
     Application,

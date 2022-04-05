@@ -23,17 +23,18 @@ from typing import (
 from uuid import UUID
 from warnings import warn
 
+# For backwards compatibility of import statements...
+from eventsourcing.domain import LogEvent  # noqa: F401
 from eventsourcing.domain import (
     Aggregate,
-    AggregateEvent,
     CanCollectEvents,
-    CanTake,
-    DomainEvent,
+    CanMutateAggregate,
+    CanSnapshot,
     EventSourcingError,
+    HasIDVersion,
     HasIDVersionFields,
     HasIDVersionProperties,
     HasOriginatorIDVersion,
-    LogEvent,
     Snapshot,
     THasIDVersion,
     THasOriginatorIDVersion,
@@ -68,7 +69,9 @@ def project_aggregate(
     by successively calling aggregate mutator function mutate()
     on each of the given list of domain events in turn.
     """
-    for domain_event in cast(Iterable[DomainEvent[THasIDVersion]], domain_events):
+    for domain_event in cast(
+        Iterable[CanMutateAggregate[THasIDVersion]], domain_events
+    ):
         aggregate = domain_event.mutate(aggregate)
     return aggregate
 
@@ -223,7 +226,7 @@ class Repository:
         self.snapshot_store = snapshot_store
 
         if cache_maxsize is None:
-            self.cache: Optional[Cache[UUID, CanCollectEvents]] = None
+            self.cache: Optional[Cache[UUID, HasIDVersion]] = None
         elif cache_maxsize <= 0:
             self.cache = Cache()
         else:
@@ -263,7 +266,7 @@ class Repository:
                     aggregate_id, None, projector_func
                 )
                 # Put aggregate in the cache.
-                self.cache.put(aggregate_id, cast(Aggregate, aggregate))
+                self.cache.put(aggregate_id, cast(HasIDVersion, aggregate))
             else:
                 if self.fastforward:
                     # Fast-forward cached aggregate.
@@ -549,7 +552,7 @@ class ProcessingEvent:
         """
         self.tracking = tracking
         self.events: List[Union[HasOriginatorIDVersion]] = []
-        self.aggregates: Dict[UUID, CanCollectEvents] = {}
+        self.aggregates: Dict[UUID, HasIDVersion] = {}
         self.saved_kwargs: Dict[Any, Any] = {}
 
     def collect_events(
@@ -577,7 +580,7 @@ class ProcessingEvent:
 
     def save(
         self,
-        *aggregates: Optional[Union[Aggregate, AggregateEvent[Aggregate], LogEvent]],
+        *aggregates: Optional[Union[CanCollectEvents, HasOriginatorIDVersion]],
         **kwargs: Any,
     ) -> None:
         warn(
@@ -628,8 +631,8 @@ class Application(ABC):
     name = "Application"
     env: EnvType = {}
     is_snapshotting_enabled: bool = False
-    snapshotting_intervals: Optional[Dict[Type[CanCollectEvents], int]] = None
-    snapshot_class: Type[CanTake] = Snapshot
+    snapshotting_intervals: Optional[Dict[Type[HasIDVersion], int]] = None
+    snapshot_class: Type[CanSnapshot[Any]] = Snapshot
     log_section_size = 10
     notify_topics: Sequence[str] = []
 

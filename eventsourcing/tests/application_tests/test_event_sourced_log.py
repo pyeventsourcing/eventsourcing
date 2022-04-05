@@ -3,7 +3,7 @@ from unittest import TestCase
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from eventsourcing.application import Application, EventSourcedLog, LogEvent
-from eventsourcing.domain import Aggregate, ProgrammingError
+from eventsourcing.domain import Aggregate
 from eventsourcing.persistence import (
     DatetimeAsISO,
     DecimalAsStr,
@@ -115,15 +115,6 @@ class TestEventSourcedLog(TestCase):
 
         aggregate_ids = [i.aggregate_id for i in app.aggregate_log.get()]
         self.assertEqual(aggregate_ids, [aggregate1_id, aggregate2_id])
-
-    def test_log_event_mutate_raises_programming_error(self) -> None:
-        log_event = LogEvent(  # type: ignore
-            originator_id=uuid4(),
-            originator_version=1,
-            timestamp=LogEvent.create_timestamp(),
-        )
-        with self.assertRaises(ProgrammingError):
-            log_event.mutate(None)
 
     def test_subclasses(self) -> None:
         transcoder = JSONTranscoder()

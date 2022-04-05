@@ -515,10 +515,8 @@ class TestEventDecorator(TestCase):
                 def value_changed():
                     pass
 
-        self.assertTrue(
-            cm.exception.args[0].endswith(
-                " is not a str, aggregate event class, function, or property",
-            ),
+        self.assertIn(
+            "is not a str, function, property, or subclass of CanMutateAggregate",
             cm.exception.args[0],
         )
 
@@ -546,10 +544,8 @@ class TestEventDecorator(TestCase):
                 def value_changed(cls):
                     pass
 
-        self.assertTrue(
-            cm.exception.args[0].endswith(
-                " is not a str, aggregate event class, function, or property",
-            ),
+        self.assertIn(
+            "is not a str, function, property, or subclass of CanMutateAggregate",
             cm.exception.args[0],
         )
 
@@ -768,11 +764,11 @@ class TestEventDecorator(TestCase):
             "@event under value() property setter requires event class name",
         )
 
-    def test_raises_unsupported_usage_when_event_decorator_used_with_wrong_args(self):
+    def test_raises_when_event_decorator_used_with_wrong_args(self):
         with self.assertRaises(TypeError) as cm:
             event(1)
         self.assertEqual(
-            "1 is not a str, aggregate event class, function, or property",
+            "1 is not a str, function, property, or subclass of CanMutateAggregate",
             cm.exception.args[0],
         )
 
@@ -1279,24 +1275,28 @@ class TestEventDecorator(TestCase):
             cm.exception.args[0],
         )
 
-    def test_raises_type_error_if_given_event_class_not_aggregate_created_on_init(self):
-        with self.assertRaises(TypeError):
+    def test_raises_type_error_if_given_event_class_cannot_init_aggregate(self):
+        with self.assertRaises(TypeError) as cm:
 
             class MyAggregate(Aggregate):
                 @event(Aggregate.Event)
                 def __init__(self):
                     pass
 
-    def test_raises_if_given_event_class_on_command_method_is_aggregate_created(self):
-        with self.assertRaises(TypeError):
+        self.assertIn("not subclass of CanInitAggregate", cm.exception.args[0])
+
+    def test_raises_if_given_event_class_on_command_method_can_init_aggregate(self):
+        with self.assertRaises(TypeError) as cm:
 
             class MyAggregate(Aggregate):
                 @event(Aggregate.Created)
                 def do_something(self):
                     pass
 
+        self.assertIn("is subclass of CanInitAggregate", cm.exception.args[0])
+
     def test_raises_if_given_event_class_on_command_method_is_not_aggregate_event(self):
-        with self.assertRaises(TypeError):
+        with self.assertRaises(TypeError) as cm:
 
             class X:
                 pass
@@ -1305,6 +1305,11 @@ class TestEventDecorator(TestCase):
                 @event(X)
                 def do_something(self):
                     pass
+
+        self.assertIn(
+            "is not a str, function, property, or subclass of CanMutateAggregate",
+            cm.exception.args[0],
+        )
 
     # def test_raises_when_apply_method_returns_value(self):
     #     # Different name.

@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterable, List, Optional, Type, TypeVar
 from uuid import UUID, uuid4
 
 from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain import HasOriginatorIDVersion, Snapshot
+from eventsourcing.domain import HasIDVersionFields, HasOriginatorIDVersion, Snapshot
 
 
 @dataclass(frozen=True)
@@ -24,7 +24,7 @@ class DomainEvent(HasOriginatorIDVersion):
 TAggregate = TypeVar("TAggregate", bound="Aggregate")
 
 
-class Aggregate(ABC):
+class Aggregate(HasIDVersionFields, ABC):
     id: UUID
     version: int
     created_on: datetime

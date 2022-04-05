@@ -20,33 +20,38 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel
 
 from eventsourcing.application import ProjectorFunctionType
-from eventsourcing.domain import HasIDVersion
+from eventsourcing.domain import (
+    CanSnapshot,
+    HasIDVersion,
+    HasIDVersionFields,
+    HasOriginatorIDVersion,
+)
 from eventsourcing.utils import get_topic
 
 
-class DomainEvent(BaseModel):
-    class Config:
-        allow_mutation = False
-
+class DomainEvent(BaseModel, HasOriginatorIDVersion):
     originator_id: UUID
     originator_version: int
     timestamp: datetime
+
+    class Config:
+        allow_mutation = False
 
 
 def create_timestamp() -> datetime:
     return datetime.fromtimestamp(monotonic(), timezone.utc)
 
 
-class Aggregate(BaseModel):
-    class Config:
-        allow_mutation = False
-
+class Aggregate(BaseModel, HasIDVersionFields):
     id: UUID
     version: int
     created_on: datetime
 
+    class Config:
+        allow_mutation = False
 
-class Snapshot(DomainEvent):
+
+class Snapshot(DomainEvent, CanSnapshot[HasIDVersionFields]):
     topic: str
     state: Dict[str, Any]
 
