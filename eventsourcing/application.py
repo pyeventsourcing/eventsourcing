@@ -263,14 +263,21 @@ class Repository:
                     # Fast-forward cached aggregate.
                     fastforward_lock = self._use_fastforward_lock(aggregate_id)
                     try:
-                        with fastforward_lock:
-                            new_events = cast(
-                                Iterable[THasOriginatorIDVersion],
-                                self.event_store.get(
-                                    originator_id=aggregate_id, gt=aggregate.version
-                                ),
-                            )
-                            _aggregate = projector_func(aggregate, new_events)
+                        if fastforward_lock.acquire(blocking=False):
+                            try:
+                                new_events = cast(
+                                    Iterable[THasOriginatorIDVersion],
+                                    self.event_store.get(
+                                        originator_id=aggregate_id, gt=aggregate.version
+                                    ),
+                                )
+                                _aggregate = projector_func(aggregate, new_events)
+                                if _aggregate is None:
+                                    raise AggregateNotFound(aggregate_id)
+                                else:
+                                    aggregate = _aggregate
+                            finally:
+                                fastforward_lock.release()
                     finally:
                         self._disuse_fastforward_lock(aggregate_id)
 
@@ -785,7 +792,7 @@ class Application(ABC):
             tracking=processing_event.tracking,
             **processing_event.saved_kwargs,
         )
-        if self.repository.cache:
+        if self.repository.cache and not self.repository.fastforward:
             for aggregate_id, aggregate in processing_event.aggregates.items():
                 self.repository.cache.put(aggregate_id, aggregate)
         return recordings
