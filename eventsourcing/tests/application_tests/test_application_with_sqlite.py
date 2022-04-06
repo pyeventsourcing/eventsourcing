@@ -1,9 +1,10 @@
 import os
 from unittest import TestCase
 
-from eventsourcing.tests.application import TIMEIT_FACTOR, ExampleApplicationTestCase
-from eventsourcing.tests.application_tests.test_application_with_popo import (
-    TestApplication,
+from eventsourcing.tests.application import (
+    TIMEIT_FACTOR,
+    ApplicationTestCase,
+    ExampleApplicationTestCase,
 )
 from eventsourcing.tests.persistence import tmpfile_uris
 
@@ -45,7 +46,7 @@ class WithSQLiteInMemory(TestCase):
         super().tearDown()
 
 
-class TestApplicationWithSQLiteFile(TestApplication, WithSQLiteFile):
+class TestApplicationWithSQLiteFile(ApplicationTestCase, WithSQLiteFile):
     pass
 
 
@@ -65,7 +66,7 @@ class TestExampleApplicationWithSQLiteInMemory(
     expected_factory_topic = "eventsourcing.sqlite:Factory"
 
 
-del TestApplication
+del ApplicationTestCase
 del ExampleApplicationTestCase
 del WithSQLiteFile
 del WithSQLiteInMemory
