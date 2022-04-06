@@ -7,11 +7,11 @@ from typing import Any, Dict, Iterable, List, Optional, Type, TypeVar
 from uuid import UUID, uuid4
 
 from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain import HasIDVersionFields, HasOriginatorIDVersion, Snapshot
+from eventsourcing.domain import HasIDVersionFields, Snapshot
 
 
 @dataclass(frozen=True)
-class DomainEvent(HasOriginatorIDVersion):
+class DomainEvent:
     originator_version: int
     originator_id: UUID
     timestamp: datetime

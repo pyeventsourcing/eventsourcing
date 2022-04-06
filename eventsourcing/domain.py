@@ -39,11 +39,21 @@ TZINFO: tzinfo = resolve_topic(os.getenv("TZINFO_TOPIC", "datetime:timezone.utc"
 
 
 class OriginatorIDVersionProtocol(Protocol):
-    originator_id: UUID
-    originator_version: int
+    @property
+    def originator_id(self) -> UUID:
+        ...  # pragma: no cover
+
+    @property
+    def originator_version(self) -> int:
+        ...  # pragma: no cover
 
 
-class HasOriginatorIDVersion(OriginatorIDVersionProtocol, ABC):
+THasOriginatorIDVersion = TypeVar(
+    "THasOriginatorIDVersion", bound=OriginatorIDVersionProtocol
+)
+
+
+class HasOriginatorIDVersion:
     originator_id: UUID
     originator_version: int
 
@@ -88,17 +98,14 @@ HasIDVersion = Union[HasIDVersionProperties, HasIDVersionFields]
 
 @runtime_checkable
 class CanCollectEvents(Protocol):
-    def collect_events(self) -> Sequence[HasOriginatorIDVersion]:
+    def collect_events(self) -> Sequence[OriginatorIDVersionProtocol]:
         ...  # pragma: no cover
 
 
-THasOriginatorIDVersion = TypeVar(
-    "THasOriginatorIDVersion", bound=OriginatorIDVersionProtocol
-)
 THasIDVersion = TypeVar("THasIDVersion", bound=HasIDVersion)
 
 
-class MetaDomainEvent(ABCMeta):
+class MetaDomainEvent(type):
     def __new__(
         mcs, name: str, bases: Tuple[type, ...], cls_dict: Dict[str, Any]
     ) -> MetaDomainEvent:
@@ -111,7 +118,7 @@ class MetaDomainEvent(ABCMeta):
 T = TypeVar("T")
 
 
-class CanCreateTimestamp(ABC):
+class CanCreateTimestamp:
     @staticmethod
     def create_timestamp() -> datetime:
         """
@@ -1352,7 +1359,7 @@ class SnapshotProtocol(OriginatorIDVersionProtocol, Protocol):
 
 
 class CanSnapshotAggregate(
-    SnapshotProtocol, HasOriginatorIDVersion, CanCreateTimestamp, Generic[THasIDVersion]
+    HasOriginatorIDVersion, CanCreateTimestamp, Generic[THasIDVersion]
 ):
     timestamp: datetime
     topic: str

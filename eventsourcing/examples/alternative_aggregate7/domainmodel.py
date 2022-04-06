@@ -20,7 +20,7 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel
 
 from eventsourcing.application import ProjectorFunctionType
-from eventsourcing.domain import HasIDVersionFields, HasIDVersion
+from eventsourcing.domain import HasIDVersion, HasIDVersionFields
 from eventsourcing.utils import get_topic
 
 

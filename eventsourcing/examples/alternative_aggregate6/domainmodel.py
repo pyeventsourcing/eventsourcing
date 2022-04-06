@@ -6,11 +6,11 @@ from typing import Callable, Iterable, List, Optional, Tuple, Type, TypeVar, Uni
 from uuid import UUID, uuid4
 
 from eventsourcing.application import ProjectorFunctionType
-from eventsourcing.domain import HasIDVersionFields, HasOriginatorIDVersion, Snapshot
+from eventsourcing.domain import HasIDVersionFields, Snapshot
 
 
 @dataclass(frozen=True)
-class DomainEvent(HasOriginatorIDVersion):
+class DomainEvent:
     originator_id: UUID
     originator_version: int
     timestamp: datetime
