@@ -29,7 +29,7 @@ from eventsourcing.domain import (
     Aggregate,
     CanCollectEvents,
     CanMutateAggregate,
-    CanSnapshot,
+    CanSnapshotAggregate,
     EventSourcingError,
     HasIDVersion,
     HasIDVersionFields,
@@ -632,7 +632,7 @@ class Application(ABC):
     env: EnvType = {}
     is_snapshotting_enabled: bool = False
     snapshotting_intervals: Optional[Dict[Type[HasIDVersion], int]] = None
-    snapshot_class: Type[CanSnapshot[Any]] = Snapshot
+    snapshot_class: Type[CanSnapshotAggregate[Any]] = Snapshot
     log_section_size = 10
     notify_topics: Sequence[str] = []
 
@@ -943,12 +943,13 @@ class EventSourcedLog(Generic[TLogEvent]):
             else:
                 next_originator_version = last_logged.originator_version + 1
 
-        return logged_cls(  # type: ignore
+        logged_event = logged_cls(  # type: ignore
             originator_id=self.originator_id,
             originator_version=next_originator_version,
             timestamp=self.logged_cls.create_timestamp(),
             **kwargs,
         )
+        return logged_event
 
     def get_first(self) -> Optional[TLogEvent]:
         """

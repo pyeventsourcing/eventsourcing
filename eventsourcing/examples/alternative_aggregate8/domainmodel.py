@@ -7,10 +7,10 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from eventsourcing.domain import (
-    Aggregate,
+    Aggregate as BaseAggregate,
     CanInitAggregate,
     CanMutateAggregate,
-    CanSnapshot,
+    CanSnapshotAggregate,
     event,
 )
 
@@ -24,26 +24,26 @@ class DomainEvent(BaseModel):
         allow_mutation = False
 
 
-class BaseAggregate(Aggregate):
-    class Event(DomainEvent, CanMutateAggregate[Aggregate]):
+class Aggregate(BaseAggregate):
+    class Event(DomainEvent, CanMutateAggregate["Aggregate"]):
         pass
 
-    class Created(Event, CanInitAggregate[Aggregate]):
+    class Created(Event, CanInitAggregate["Aggregate"]):
         originator_topic: str
 
 
-class Snapshot(DomainEvent, CanSnapshot[BaseAggregate]):
+class Snapshot(DomainEvent, CanSnapshotAggregate[Aggregate]):
     topic: str
     state: Dict[str, Any]
 
 
-class Dog(BaseAggregate):
+class Dog(Aggregate):
     @event("Registered")
     def __init__(self, name: str) -> None:
         self.name = name
         self.tricks: List[str] = []
 
-    class TrickAdded(BaseAggregate.Event):
+    class TrickAdded(Aggregate.Event):
         trick: str
 
     @event(TrickAdded)

@@ -442,9 +442,6 @@ class AggregateRecorder(ABC):
         """
 
 
-# Todo: Reimplement select_events() methods, to get in batches in case lots of events.
-
-
 @dataclass(frozen=True)
 class Notification(StoredEvent):
     """

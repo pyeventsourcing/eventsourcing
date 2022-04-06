@@ -1343,15 +1343,17 @@ class VersionError(OriginatorVersionError):
     """
 
 
-class CanSnapshot(HasOriginatorIDVersion, CanCreateTimestamp, Generic[THasIDVersion]):
+class CanSnapshotAggregate(
+    HasOriginatorIDVersion, CanCreateTimestamp, Generic[THasIDVersion]
+):
     timestamp: datetime
     topic: str
     state: Dict[str, Any]
 
     @classmethod
     def take(
-        cls: Type[CanSnapshot[THasIDVersion]], aggregate: THasIDVersion
-    ) -> CanSnapshot[THasIDVersion]:
+        cls: Type[CanSnapshotAggregate[THasIDVersion]], aggregate: THasIDVersion
+    ) -> CanSnapshotAggregate[THasIDVersion]:
         """
         Creates a snapshot of the given :class:`Aggregate` object.
         """
@@ -1363,13 +1365,14 @@ class CanSnapshot(HasOriginatorIDVersion, CanCreateTimestamp, Generic[THasIDVers
             aggregate_state.pop("_id")
             aggregate_state.pop("_version")
             aggregate_state.pop("_pending_events")
-        return cls(  # type: ignore
+        snapshot = cls(  # type: ignore
             originator_id=aggregate.id,
             originator_version=aggregate.version,
             timestamp=cls.create_timestamp(),
             topic=get_topic(type(aggregate)),
             state=aggregate_state,
         )
+        return snapshot
 
     def mutate(self, _: Optional[THasIDVersion]) -> THasIDVersion:
         """
@@ -1395,7 +1398,7 @@ class CanSnapshot(HasOriginatorIDVersion, CanCreateTimestamp, Generic[THasIDVers
         return aggregate
 
 
-class Snapshot(CanSnapshot[THasIDVersion], DomainEvent[THasIDVersion]):
+class Snapshot(CanSnapshotAggregate[THasIDVersion], DomainEvent[THasIDVersion]):
     """
     Snapshots represent the state of an aggregate at a particular
     version.

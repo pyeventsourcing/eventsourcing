@@ -21,7 +21,7 @@ from pydantic import BaseModel
 
 from eventsourcing.application import ProjectorFunctionType
 from eventsourcing.domain import (
-    CanSnapshot,
+    CanSnapshotAggregate,
     HasIDVersion,
     HasIDVersionFields,
     HasOriginatorIDVersion,
@@ -51,7 +51,7 @@ class Aggregate(BaseModel, HasIDVersionFields):
         allow_mutation = False
 
 
-class Snapshot(DomainEvent, CanSnapshot[HasIDVersionFields]):
+class Snapshot(DomainEvent, CanSnapshotAggregate[HasIDVersionFields]):
     topic: str
     state: Dict[str, Any]
 
