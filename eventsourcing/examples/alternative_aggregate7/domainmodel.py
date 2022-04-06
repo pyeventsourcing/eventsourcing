@@ -24,12 +24,11 @@ from eventsourcing.domain import (
     CanSnapshotAggregate,
     HasIDVersion,
     HasIDVersionFields,
-    HasOriginatorIDVersion,
 )
 from eventsourcing.utils import get_topic
 
 
-class DomainEvent(BaseModel, HasOriginatorIDVersion):
+class DomainEvent(BaseModel):
     originator_id: UUID
     originator_version: int
     timestamp: datetime

@@ -24,7 +24,7 @@ from uuid import UUID
 from warnings import warn
 
 # For backwards compatibility of import statements...
-from eventsourcing.domain import LogEvent  # noqa: F401
+from eventsourcing.domain import LogEvent, OriginatorIDVersionProtocol  # noqa: F401
 from eventsourcing.domain import (
     Aggregate,
     CanCollectEvents,
@@ -551,13 +551,13 @@ class ProcessingEvent:
         Initialises the process event with the given tracking object.
         """
         self.tracking = tracking
-        self.events: List[Union[HasOriginatorIDVersion]] = []
+        self.events: List[Union[OriginatorIDVersionProtocol]] = []
         self.aggregates: Dict[UUID, HasIDVersion] = {}
         self.saved_kwargs: Dict[Any, Any] = {}
 
     def collect_events(
         self,
-        *objs: Optional[Union[CanCollectEvents, HasOriginatorIDVersion]],
+        *objs: Optional[Union[CanCollectEvents, OriginatorIDVersionProtocol]],
         **kwargs: Any,
     ) -> None:
         """
@@ -783,7 +783,7 @@ class Application(ABC):
 
     def save(
         self,
-        *objs: Optional[Union[CanCollectEvents, HasOriginatorIDVersion]],
+        *objs: Optional[Union[CanCollectEvents, OriginatorIDVersionProtocol]],
         **kwargs: Any,
     ) -> List[Recording]:
         """
@@ -855,7 +855,7 @@ class Application(ABC):
             snapshot = type(self).snapshot_class.take(aggregate)
             self.snapshots.put([snapshot])
 
-    def notify(self, new_events: List[HasOriginatorIDVersion]) -> None:
+    def notify(self, new_events: List[OriginatorIDVersionProtocol]) -> None:
         """
         Deprecated.
 

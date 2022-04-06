@@ -28,7 +28,7 @@ from warnings import warn
 from eventsourcing.domain import (
     EventSourcingError,
     HasOriginatorIDVersion,
-    THasOriginatorIDVersion,
+    THasOriginatorIDVersion, OriginatorIDVersionProtocol,
 )
 from eventsourcing.utils import (
     Environment,
@@ -282,7 +282,7 @@ class Mapper:
         self.compressor = compressor
         self.cipher = cipher
 
-    def to_stored_event(self, domain_event: HasOriginatorIDVersion) -> StoredEvent:
+    def to_stored_event(self, domain_event: OriginatorIDVersionProtocol) -> StoredEvent:
         """
         Converts the given domain event to a :class:`StoredEvent` object.
         """
@@ -305,7 +305,7 @@ class Mapper:
             state=stored_state,
         )
 
-    def from_domain_event(self, domain_event: HasOriginatorIDVersion) -> StoredEvent:
+    def from_domain_event(self, domain_event: OriginatorIDVersionProtocol) -> StoredEvent:
         warn(
             "'from_domain_event()' is deprecated, use 'to_stored_event()' instead",
             DeprecationWarning,
@@ -314,7 +314,7 @@ class Mapper:
 
         return self.to_stored_event(domain_event)
 
-    def to_domain_event(self, stored_event: StoredEvent) -> THasOriginatorIDVersion:
+    def to_domain_event(self, stored_event: StoredEvent) -> OriginatorIDVersionProtocol:
         """
         Converts the given :class:`StoredEvent` to a domain event object.
         """
@@ -509,7 +509,7 @@ class ProcessRecorder(ApplicationRecorder):
 
 @dataclass(frozen=True)
 class Recording:
-    domain_event: HasOriginatorIDVersion
+    domain_event: OriginatorIDVersionProtocol
     notification: Notification
 
 
@@ -527,7 +527,7 @@ class EventStore:
         self.recorder = recorder
 
     def put(
-        self, domain_events: Sequence[HasOriginatorIDVersion], **kwargs: Any
+        self, domain_events: Sequence[OriginatorIDVersionProtocol], **kwargs: Any
     ) -> List[Recording]:
         """
         Stores domain events in aggregate sequence.
@@ -559,7 +559,7 @@ class EventStore:
         lte: Optional[int] = None,
         desc: bool = False,
         limit: Optional[int] = None,
-    ) -> Iterator[THasOriginatorIDVersion]:
+    ) -> Iterator[OriginatorIDVersionProtocol]:
         """
         Retrieves domain events from aggregate sequence.
         """

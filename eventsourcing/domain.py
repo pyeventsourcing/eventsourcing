@@ -38,8 +38,12 @@ from eventsourcing.utils import get_method_name, get_topic, resolve_topic
 TZINFO: tzinfo = resolve_topic(os.getenv("TZINFO_TOPIC", "datetime:timezone.utc"))
 
 
-# @runtime_checkable
-class HasOriginatorIDVersion(ABC):
+class OriginatorIDVersionProtocol(Protocol):
+    originator_id: UUID
+    originator_version: int
+
+
+class HasOriginatorIDVersion(OriginatorIDVersionProtocol, ABC):
     originator_id: UUID
     originator_version: int
 
@@ -95,7 +99,7 @@ class CanCollectEvents(Protocol):
 
 
 THasOriginatorIDVersion = TypeVar(
-    "THasOriginatorIDVersion", bound=HasOriginatorIDVersion
+    "THasOriginatorIDVersion", bound=OriginatorIDVersionProtocol
 )
 THasIDVersion = TypeVar("THasIDVersion", bound=HasIDVersion)
 
