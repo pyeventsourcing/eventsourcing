@@ -38,7 +38,7 @@ from eventsourcing.utils import get_method_name, get_topic, resolve_topic
 TZINFO: tzinfo = resolve_topic(os.getenv("TZINFO_TOPIC", "datetime:timezone.utc"))
 
 
-class OriginatorIDVersionProtocol(Protocol):
+class DomainEventProtocol(Protocol):
     @property
     def originator_id(self) -> UUID:
         ...  # pragma: no cover
@@ -48,8 +48,8 @@ class OriginatorIDVersionProtocol(Protocol):
         ...  # pragma: no cover
 
 
-THasOriginatorIDVersion = TypeVar(
-    "THasOriginatorIDVersion", bound=OriginatorIDVersionProtocol
+TDomainEvent = TypeVar(
+    "TDomainEvent", bound=DomainEventProtocol
 )
 
 
@@ -98,7 +98,7 @@ HasIDVersion = Union[HasIDVersionProperties, HasIDVersionFields]
 
 @runtime_checkable
 class CanCollectEvents(Protocol):
-    def collect_events(self) -> Sequence[OriginatorIDVersionProtocol]:
+    def collect_events(self) -> Sequence[DomainEventProtocol]:
         ...  # pragma: no cover
 
 
@@ -1349,9 +1349,14 @@ class VersionError(OriginatorVersionError):
 
 
 @runtime_checkable
-class SnapshotProtocol(OriginatorIDVersionProtocol, Protocol):
-    # topic: str
-    # state: Dict[str, Any]
+class SnapshotProtocol(DomainEventProtocol, Protocol):
+    @property
+    def topic(self) -> str:
+        ...  # pragma: no cover
+
+    @property
+    def state(self) -> Dict[str, Any]:
+        ...  # pragma: no cover
 
     @classmethod
     def take(cls, aggregate: THasIDVersion) -> SnapshotProtocol:

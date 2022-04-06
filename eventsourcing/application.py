@@ -34,11 +34,11 @@ from eventsourcing.domain import (
     HasIDVersionFields,
     HasIDVersionProperties,
     HasOriginatorIDVersion,
-    OriginatorIDVersionProtocol,
+    DomainEventProtocol,
     Snapshot,
     SnapshotProtocol,
     THasIDVersion,
-    THasOriginatorIDVersion,
+    TDomainEvent,
     TLogEvent,
 )
 from eventsourcing.persistence import (
@@ -57,13 +57,13 @@ from eventsourcing.persistence import (
 from eventsourcing.utils import Environment, EnvType, strtobool
 
 ProjectorFunctionType = Callable[
-    [Optional[THasIDVersion], Iterable[THasOriginatorIDVersion]],
+    [Optional[THasIDVersion], Iterable[TDomainEvent]],
     Optional[THasIDVersion],
 ]
 
 
 def project_aggregate(
-    aggregate: Optional[THasIDVersion], domain_events: Iterable[THasOriginatorIDVersion]
+    aggregate: Optional[THasIDVersion], domain_events: Iterable[TDomainEvent]
 ) -> Optional[THasIDVersion]:
     """
     Projector function for aggregate projections, which works
@@ -248,7 +248,7 @@ class Repository:
         aggregate_id: UUID,
         version: Optional[int] = None,
         projector_func: ProjectorFunctionType[
-            THasIDVersion, THasOriginatorIDVersion
+            THasIDVersion, TDomainEvent
         ] = project_aggregate,
         fastforward_skipping: bool = False,
         deepcopy_from_cache: bool = True,
@@ -277,7 +277,7 @@ class Repository:
                         if fastforward_lock.acquire(blocking=blocking):
                             try:
                                 new_events = cast(
-                                    Iterable[THasOriginatorIDVersion],
+                                    Iterable[TDomainEvent],
                                     self.event_store.get(
                                         originator_id=aggregate_id, gt=aggregate.version
                                     ),
@@ -306,7 +306,7 @@ class Repository:
         self,
         aggregate_id: UUID,
         version: Optional[int],
-        projector_func: ProjectorFunctionType[THasIDVersion, THasOriginatorIDVersion],
+        projector_func: ProjectorFunctionType[THasIDVersion, TDomainEvent],
     ) -> THasIDVersion:
         gt: Optional[int] = None
 
@@ -314,7 +314,7 @@ class Repository:
             # Try to get a snapshot.
             snapshots = list(
                 cast(
-                    Iterable[THasOriginatorIDVersion],
+                    Iterable[TDomainEvent],
                     self.snapshot_store.get(
                         originator_id=aggregate_id,
                         desc=True,
@@ -330,7 +330,7 @@ class Repository:
 
         # Get aggregate events.
         aggregate_events = cast(
-            Iterable[THasOriginatorIDVersion],
+            Iterable[TDomainEvent],
             self.event_store.get(
                 originator_id=aggregate_id,
                 gt=gt,
@@ -552,13 +552,13 @@ class ProcessingEvent:
         Initialises the process event with the given tracking object.
         """
         self.tracking = tracking
-        self.events: List[Union[OriginatorIDVersionProtocol]] = []
+        self.events: List[Union[DomainEventProtocol]] = []
         self.aggregates: Dict[UUID, HasIDVersion] = {}
         self.saved_kwargs: Dict[Any, Any] = {}
 
     def collect_events(
         self,
-        *objs: Optional[Union[CanCollectEvents, OriginatorIDVersionProtocol]],
+        *objs: Optional[Union[CanCollectEvents, DomainEventProtocol]],
         **kwargs: Any,
     ) -> None:
         """
@@ -581,7 +581,7 @@ class ProcessingEvent:
 
     def save(
         self,
-        *aggregates: Optional[Union[CanCollectEvents, HasOriginatorIDVersion]],
+        *aggregates: Optional[Union[CanCollectEvents, DomainEventProtocol]],
         **kwargs: Any,
     ) -> None:
         warn(
@@ -784,7 +784,7 @@ class Application(ABC):
 
     def save(
         self,
-        *objs: Optional[Union[CanCollectEvents, OriginatorIDVersionProtocol]],
+        *objs: Optional[Union[CanCollectEvents, DomainEventProtocol]],
         **kwargs: Any,
     ) -> List[Recording]:
         """
@@ -834,7 +834,7 @@ class Application(ABC):
         aggregate_id: UUID,
         version: Optional[int] = None,
         projector_func: ProjectorFunctionType[
-            THasIDVersion, THasOriginatorIDVersion
+            THasIDVersion, TDomainEvent
         ] = project_aggregate,
     ) -> None:
         """
@@ -856,7 +856,7 @@ class Application(ABC):
             snapshot = type(self).snapshot_class.take(aggregate)
             self.snapshots.put([snapshot])
 
-    def notify(self, new_events: List[OriginatorIDVersionProtocol]) -> None:
+    def notify(self, new_events: List[DomainEventProtocol]) -> None:
         """
         Deprecated.
 

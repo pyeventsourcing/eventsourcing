@@ -32,7 +32,7 @@ from eventsourcing.application import (
     Section,
     TApplication,
 )
-from eventsourcing.domain import OriginatorIDVersionProtocol
+from eventsourcing.domain import DomainEventProtocol
 from eventsourcing.persistence import (
     IntegrityError,
     Mapper,
@@ -43,7 +43,7 @@ from eventsourcing.persistence import (
 )
 from eventsourcing.utils import EnvType, get_topic, resolve_topic
 
-ProcessingJob = Tuple[OriginatorIDVersionProtocol, Tracking]
+ProcessingJob = Tuple[DomainEventProtocol, Tracking]
 ConvertingJob = Optional[Union[RecordingEvent, List[Notification]]]
 
 
@@ -136,7 +136,7 @@ class Follower(Application):
         mapper = self.mappers[leader_name]
         processing_jobs = []
         for notification in notifications:
-            domain_event: OriginatorIDVersionProtocol = mapper.to_domain_event(
+            domain_event: DomainEventProtocol = mapper.to_domain_event(
                 notification
             )
             tracking = Tracking(
@@ -148,7 +148,7 @@ class Follower(Application):
 
     # @retry(IntegrityError, max_attempts=50000, wait=0.01)
     def process_event(
-        self, domain_event: OriginatorIDVersionProtocol, tracking: Tracking
+        self, domain_event: DomainEventProtocol, tracking: Tracking
     ) -> None:
         """
         Calls :func:`~eventsourcing.system.Follower.policy` method with
@@ -190,7 +190,7 @@ class Follower(Application):
     @abstractmethod
     def policy(
         self,
-        domain_event: OriginatorIDVersionProtocol,
+        domain_event: DomainEventProtocol,
         processing_event: ProcessingEvent,
     ) -> None:
         """

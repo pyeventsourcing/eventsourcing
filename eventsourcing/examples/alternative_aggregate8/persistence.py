@@ -3,7 +3,7 @@ from typing import Any, Dict, cast
 import orjson
 from pydantic import BaseModel
 
-from eventsourcing.domain import OriginatorIDVersionProtocol
+from eventsourcing.domain import DomainEventProtocol
 from eventsourcing.persistence import (
     Mapper,
     ProgrammingError,
@@ -15,7 +15,7 @@ from eventsourcing.utils import get_topic, resolve_topic
 
 
 class PydanticMapper(Mapper):
-    def to_stored_event(self, domain_event: OriginatorIDVersionProtocol) -> StoredEvent:
+    def to_stored_event(self, domain_event: DomainEventProtocol) -> StoredEvent:
         topic = get_topic(domain_event.__class__)
         event_state = cast(BaseModel, domain_event).dict()
         stored_state = self.transcoder.encode(event_state)
@@ -30,7 +30,7 @@ class PydanticMapper(Mapper):
             state=stored_state,
         )
 
-    def to_domain_event(self, stored: StoredEvent) -> OriginatorIDVersionProtocol:
+    def to_domain_event(self, stored: StoredEvent) -> DomainEventProtocol:
         stored_state = stored.state
         if self.cipher:
             stored_state = self.cipher.decrypt(stored_state)  # pragma: no cover
