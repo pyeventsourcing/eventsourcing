@@ -20,11 +20,7 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel
 
 from eventsourcing.application import ProjectorFunctionType
-from eventsourcing.domain import (
-    CanSnapshotAggregate,
-    HasIDVersion,
-    HasIDVersionFields,
-)
+from eventsourcing.domain import HasIDVersion, HasIDVersionFields
 from eventsourcing.utils import get_topic
 
 
@@ -50,7 +46,7 @@ class Aggregate(BaseModel, HasIDVersionFields):
         allow_mutation = False
 
 
-class Snapshot(DomainEvent, CanSnapshotAggregate[HasIDVersionFields]):
+class Snapshot(DomainEvent):
     topic: str
     state: Dict[str, Any]
 

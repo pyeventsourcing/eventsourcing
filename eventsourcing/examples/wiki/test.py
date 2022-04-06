@@ -1,4 +1,4 @@
-from typing import Union, cast
+from typing import cast
 from unittest import TestCase
 from uuid import uuid4
 

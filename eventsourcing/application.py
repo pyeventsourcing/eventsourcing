@@ -24,18 +24,19 @@ from uuid import UUID
 from warnings import warn
 
 # For backwards compatibility of import statements...
-from eventsourcing.domain import LogEvent, OriginatorIDVersionProtocol  # noqa: F401
+from eventsourcing.domain import LogEvent  # noqa: F401
 from eventsourcing.domain import (
     Aggregate,
     CanCollectEvents,
     CanMutateAggregate,
-    CanSnapshotAggregate,
     EventSourcingError,
     HasIDVersion,
     HasIDVersionFields,
     HasIDVersionProperties,
     HasOriginatorIDVersion,
+    OriginatorIDVersionProtocol,
     Snapshot,
+    SnapshotProtocol,
     THasIDVersion,
     THasOriginatorIDVersion,
     TLogEvent,
@@ -632,7 +633,7 @@ class Application(ABC):
     env: EnvType = {}
     is_snapshotting_enabled: bool = False
     snapshotting_intervals: Optional[Dict[Type[HasIDVersion], int]] = None
-    snapshot_class: Type[CanSnapshotAggregate[Any]] = Snapshot
+    snapshot_class: Type[SnapshotProtocol] = Snapshot
     log_section_size = 10
     notify_topics: Sequence[str] = []
 

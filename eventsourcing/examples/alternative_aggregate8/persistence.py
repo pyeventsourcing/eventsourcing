@@ -3,8 +3,7 @@ from typing import Any, Dict, cast
 import orjson
 from pydantic import BaseModel
 
-from eventsourcing.domain import HasOriginatorIDVersion, THasOriginatorIDVersion, \
-    OriginatorIDVersionProtocol
+from eventsourcing.domain import OriginatorIDVersionProtocol
 from eventsourcing.persistence import (
     Mapper,
     ProgrammingError,

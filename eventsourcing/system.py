@@ -32,7 +32,7 @@ from eventsourcing.application import (
     Section,
     TApplication,
 )
-from eventsourcing.domain import HasOriginatorIDVersion, OriginatorIDVersionProtocol
+from eventsourcing.domain import OriginatorIDVersionProtocol
 from eventsourcing.persistence import (
     IntegrityError,
     Mapper,
@@ -136,7 +136,9 @@ class Follower(Application):
         mapper = self.mappers[leader_name]
         processing_jobs = []
         for notification in notifications:
-            domain_event: OriginatorIDVersionProtocol = mapper.to_domain_event(notification)
+            domain_event: OriginatorIDVersionProtocol = mapper.to_domain_event(
+                notification
+            )
             tracking = Tracking(
                 application_name=leader_name,
                 notification_id=notification.id,

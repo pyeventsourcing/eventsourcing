@@ -1347,17 +1347,25 @@ class VersionError(OriginatorVersionError):
     """
 
 
+@runtime_checkable
+class SnapshotProtocol(OriginatorIDVersionProtocol, Protocol):
+    # topic: str
+    # state: Dict[str, Any]
+
+    @classmethod
+    def take(cls, aggregate: HasIDVersion) -> SnapshotProtocol:
+        ...  # pragma: no cover
+
+
 class CanSnapshotAggregate(
-    HasOriginatorIDVersion, CanCreateTimestamp, Generic[THasIDVersion]
+    SnapshotProtocol, HasOriginatorIDVersion, CanCreateTimestamp, Generic[THasIDVersion]
 ):
     timestamp: datetime
     topic: str
     state: Dict[str, Any]
 
     @classmethod
-    def take(
-        cls: Type[CanSnapshotAggregate[THasIDVersion]], aggregate: THasIDVersion
-    ) -> CanSnapshotAggregate[THasIDVersion]:
+    def take(cls, aggregate: HasIDVersion) -> CanSnapshotAggregate[THasIDVersion]:
         """
         Creates a snapshot of the given :class:`Aggregate` object.
         """
