@@ -20,7 +20,7 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel
 
 from eventsourcing.application import ProjectorFunctionType
-from eventsourcing.domain import HasIDVersion, HasIDVersionFields
+from eventsourcing.domain import HasIDVersionFields, HasIDVersion
 from eventsourcing.utils import get_topic
 
 
@@ -52,7 +52,7 @@ class Snapshot(DomainEvent):
 
     @classmethod
     def take(cls, aggregate: HasIDVersion) -> Snapshot:
-        return cls(
+        return Snapshot(
             originator_id=aggregate.id,
             originator_version=aggregate.version,
             timestamp=create_timestamp(),

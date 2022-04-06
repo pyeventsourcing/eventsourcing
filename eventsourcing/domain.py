@@ -49,33 +49,15 @@ class HasOriginatorIDVersion(OriginatorIDVersionProtocol, ABC):
 
 
 # @runtime_checkable
-class HasCreatedOnModifiedOnFields(ABC):
+class HasIDVersionFields(ABC):
+    id: UUID
+    version: int
     created_on: datetime
     modified_on: datetime
 
 
-class HasCreatedOnModifiedOnProperties(ABC):
-    @property
-    def created_on(self) -> datetime:
-        ...  # pragma: no cover
-
-    @property
-    def modified_on(self) -> datetime:
-        ...  # pragma: no cover
-
-    @modified_on.setter
-    def modified_on(self, version: datetime) -> None:
-        ...  # pragma: no cover
-
-
 # @runtime_checkable
-class HasIDVersionFields(HasCreatedOnModifiedOnFields):
-    id: UUID
-    version: int
-
-
-# @runtime_checkable
-class HasIDVersionProperties(HasCreatedOnModifiedOnProperties):
+class HasIDVersionProperties(ABC):
     @property
     def id(self) -> UUID:
         ...  # pragma: no cover
@@ -86,6 +68,18 @@ class HasIDVersionProperties(HasCreatedOnModifiedOnProperties):
 
     @version.setter
     def version(self, version: int) -> None:
+        ...  # pragma: no cover
+
+    @property
+    def created_on(self) -> datetime:
+        ...  # pragma: no cover
+
+    @property
+    def modified_on(self) -> datetime:
+        ...  # pragma: no cover
+
+    @modified_on.setter
+    def modified_on(self, version: datetime) -> None:
         ...  # pragma: no cover
 
 
@@ -1353,7 +1347,7 @@ class SnapshotProtocol(OriginatorIDVersionProtocol, Protocol):
     # state: Dict[str, Any]
 
     @classmethod
-    def take(cls, aggregate: HasIDVersion) -> SnapshotProtocol:
+    def take(cls, aggregate: THasIDVersion) -> SnapshotProtocol:
         ...  # pragma: no cover
 
 
