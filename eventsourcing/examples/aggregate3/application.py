@@ -2,7 +2,7 @@ from typing import Any, Dict
 from uuid import UUID
 
 from eventsourcing.application import Application
-from eventsourcing.examples.alternative_aggregate3.domainmodel import Dog
+from eventsourcing.examples.aggregate3.domainmodel import Dog
 
 
 class DogSchool(Application):

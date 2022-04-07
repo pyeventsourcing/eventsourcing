@@ -2,8 +2,8 @@ from typing import Any, Dict
 from uuid import UUID
 
 from eventsourcing.application import Application
-from eventsourcing.examples.alternative_aggregate8.domainmodel import Dog, Snapshot
-from eventsourcing.examples.alternative_aggregate8.persistence import (
+from eventsourcing.examples.aggregate8.domainmodel import Dog, Snapshot
+from eventsourcing.examples.aggregate8.persistence import (
     OrjsonTranscoder,
     PydanticMapper,
 )
@@ -11,7 +11,11 @@ from eventsourcing.persistence import Mapper, Transcoder
 
 
 class DogSchool(Application):
-    is_snapshotting_enabled = True
+    env = {
+        "AGGREGATE_CACHE_MAXSIZE": "50",
+        "DEEPCOPY_FROM_AGGREGATE_CACHE": "n",
+        "IS_SNAPSHOTTING_ENABLED": "y",
+    }
     snapshot_class = Snapshot
 
     def register_dog(self, name: str) -> UUID:

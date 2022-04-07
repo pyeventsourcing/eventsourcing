@@ -24,18 +24,18 @@ repository and when taking snapshots.
 Domain model
 ------------
 
-.. literalinclude:: ../../../eventsourcing/examples/alternative_aggregate5/domainmodel.py
+.. literalinclude:: ../../../eventsourcing/examples/aggregate5/domainmodel.py
 
 
 Application
 -----------
 
 
-.. literalinclude:: ../../../eventsourcing/examples/alternative_aggregate5/application.py
+.. literalinclude:: ../../../eventsourcing/examples/aggregate5/application.py
 
 
 Test case
 ---------
 
 
-.. literalinclude:: ../../../eventsourcing/examples/alternative_aggregate5/test_application.py
+.. literalinclude:: ../../../eventsourcing/examples/aggregate5/test_application.py

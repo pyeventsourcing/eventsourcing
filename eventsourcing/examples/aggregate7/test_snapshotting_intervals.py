@@ -3,8 +3,8 @@ from unittest import TestCase
 from uuid import UUID
 
 from eventsourcing.domain import ProgrammingError
-from eventsourcing.examples.alternative_aggregate7.application import DogSchool
-from eventsourcing.examples.alternative_aggregate7.domainmodel import (
+from eventsourcing.examples.aggregate7.application import DogSchool
+from eventsourcing.examples.aggregate7.domainmodel import (
     Dog,
     add_trick,
     project_dog,

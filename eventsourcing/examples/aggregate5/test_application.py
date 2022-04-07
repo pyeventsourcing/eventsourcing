@@ -1,7 +1,7 @@
 from unittest import TestCase
 
-from eventsourcing.examples.alternative_aggregate4.application import DogSchool
-from eventsourcing.examples.alternative_aggregate4.domainmodel import Dog
+from eventsourcing.examples.aggregate5.application import DogSchool
+from eventsourcing.examples.aggregate5.domainmodel import Dog
 
 
 class TestDogSchool(TestCase):

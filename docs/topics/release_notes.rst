@@ -23,9 +23,33 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
-Version 9.2.4 (released TBD)
---------------------------------------
+Version 9.2.4 (7 April 2022)
+----------------------------
 
+* Added examples showing how persistence and application modules can be
+  used with alternative infrastructure, including Pydantic event classes
+  and immutable aggregate classes.
+* Added protocol types for events and aggregates so that alternative
+  domain model classes can be both used and type checked with mypy.
+* Added application environment option 'DEEPCOPY_FROM_AGGREGATE_CACHE'
+  to allow deepcopy to be always avoided when using immutable aggregates
+  (enabled by default).
+* Added repository get() method argument 'deepcopy_from_cache' to allow
+  to deepcopy to be avoided when using aggregates in read-only queries.
+* Added application environment option 'AGGREGATE_CACHE_FASTFORWARD_SKIPPING'
+  to skip waiting for aggregate-specific lock for serialised database query
+  to get any new events to fast-forward a cached aggregate when another
+  thread is already doing this, hence avoiding delaying response and spikes
+  on database load at the expense of risking seeing the very latest version
+  of an aggregate that has just been updated (not enabled by default).
+* Changed application to avoid putting aggregates in the cache after they
+  have been saved, unless fast-forwarding of cached aggregates is disabled.
+  This avoids the risk that the cache might corrupted by a mistaken mutation
+  in a command, and means the cache state will be constructed purely from
+  recorded events (just like snapshots are).
+* Changed create_timestamp() to use time.monotonic().
+* Improved docs (docstring in runner, double word in tutorial, and better
+  wording in domain module doc, overview in tutorial).
 * Fixed a call to '_reconstruct_aggregate' to use given 'projector_func'
   arg (was using default 'mutator_func').
 * Adjusted order of looking for PERSISTENCE_MODULE, INFRASTRUCTURE_FACTORY
@@ -33,8 +57,6 @@ Version 9.2.4 (released TBD)
   for last, allowing the persistence module to be set to POPO when constructing
   application objects for their transcoder in remote clients so that the
   application doesn't try to connect to a real database).
-* Improved docs (doctring in runner, double word in tutorial, and better
-  wording in domain module doc).
 
 
 Version 9.2.3 (released 3 March 2022)
