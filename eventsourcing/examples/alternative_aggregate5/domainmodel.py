@@ -4,7 +4,7 @@ from time import monotonic
 from typing import Any, Iterable, List, Optional, Tuple, Type, TypeVar, cast
 from uuid import UUID, uuid4
 
-from eventsourcing.domain import HasIDVersionFields, Snapshot
+from eventsourcing.domain import Snapshot
 
 
 @dataclass(frozen=True)
@@ -22,7 +22,7 @@ TAggregate = TypeVar("TAggregate", bound="Aggregate")
 
 
 @dataclass(frozen=True)
-class Aggregate(HasIDVersionFields):
+class Aggregate:
     id: UUID
     version: int
     created_on: datetime

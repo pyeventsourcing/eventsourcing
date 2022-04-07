@@ -47,10 +47,10 @@ class EndOfWeek(Product):
 
 
 class Vehicle(Aggregate):
-    class Event(Aggregate.Event["Vehicle"]):
+    class Event(Aggregate.Event):
         pass
 
-    class Registered(Event, Aggregate.Created["Vehicle"]):
+    class Registered(Event, Aggregate.Created):
         licence_plate_number: str
 
     class Booked(Event):

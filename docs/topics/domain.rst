@@ -1004,7 +1004,7 @@ how this can work.
         class NameUpdated(Aggregate.Event):
             name: str
 
-            def apply(self, page: "Page"):
+            def apply(self, page):
                 page.name = self.name
 
 
@@ -1036,7 +1036,7 @@ how this can work.
         class RefUpdated(Aggregate.Event):
             ref: Optional[UUID]
 
-            def apply(self, index: "Index"):
+            def apply(self, index):
                 index.ref = self.ref
 
 
@@ -1147,12 +1147,12 @@ for an example of this style of implementing aggregate projector functions.
 
         ...
 
-        class Event(Aggregate.Event["Cargo"]):
-            def apply(self, aggregate: "Cargo") -> None:
+        class Event(Aggregate.Event):
+            def apply(self, aggregate) -> None:
                 aggregate.when(self)
 
         @singledispatchmethod
-        def when(self, event: Event) -> None:
+        def when(self, event) -> None:
             """
             Default method to apply an aggregate event to the aggregate object.
             """

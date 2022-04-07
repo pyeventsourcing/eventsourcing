@@ -136,9 +136,7 @@ class Follower(Application):
         mapper = self.mappers[leader_name]
         processing_jobs = []
         for notification in notifications:
-            domain_event: DomainEventProtocol = mapper.to_domain_event(
-                notification
-            )
+            domain_event: DomainEventProtocol = mapper.to_domain_event(notification)
             tracking = Tracking(
                 application_name=leader_name,
                 notification_id=notification.id,

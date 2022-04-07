@@ -25,7 +25,7 @@ from typing import (
 from uuid import UUID
 from warnings import warn
 
-from eventsourcing.domain import EventSourcingError, DomainEventProtocol
+from eventsourcing.domain import DomainEventProtocol, EventSourcingError
 from eventsourcing.utils import (
     Environment,
     TopicError,
@@ -301,9 +301,7 @@ class Mapper:
             state=stored_state,
         )
 
-    def from_domain_event(
-        self, domain_event: DomainEventProtocol
-    ) -> StoredEvent:
+    def from_domain_event(self, domain_event: DomainEventProtocol) -> StoredEvent:
         warn(
             "'from_domain_event()' is deprecated, use 'to_stored_event()' instead",
             DeprecationWarning,

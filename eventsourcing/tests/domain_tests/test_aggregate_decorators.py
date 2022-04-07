@@ -1283,7 +1283,7 @@ class TestEventDecorator(TestCase):
                 def __init__(self):
                     pass
 
-        self.assertIn("not subclass of CanInitAggregate", cm.exception.args[0])
+        self.assertIn("not subclass of CanInit", cm.exception.args[0])
 
     def test_raises_if_given_event_class_on_command_method_can_init_aggregate(self):
         with self.assertRaises(TypeError) as cm:
@@ -1293,7 +1293,7 @@ class TestEventDecorator(TestCase):
                 def do_something(self):
                     pass
 
-        self.assertIn("is subclass of CanInitAggregate", cm.exception.args[0])
+        self.assertIn("is subclass of CanInit", cm.exception.args[0])
 
     def test_raises_if_given_event_class_on_command_method_is_not_aggregate_event(self):
         with self.assertRaises(TypeError) as cm:

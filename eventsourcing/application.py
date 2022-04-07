@@ -27,19 +27,15 @@ from warnings import warn
 from eventsourcing.domain import LogEvent  # noqa: F401
 from eventsourcing.domain import (
     Aggregate,
-    CanCollectEvents,
-    CanMutateAggregate,
-    EventSourcingError,
-    HasIDVersion,
-    HasIDVersionFields,
-    HasIDVersionProperties,
-    HasOriginatorIDVersion,
+    CanMutateProtocol,
+    CollectEventsProtocol,
     DomainEventProtocol,
+    EventSourcingError,
+    MutableOrImmutableAggregate,
     Snapshot,
     SnapshotProtocol,
-    THasIDVersion,
-    TDomainEvent,
     TLogEvent,
+    TMutableOrImmutableAggregate,
 )
 from eventsourcing.persistence import (
     ApplicationRecorder,
@@ -56,23 +52,27 @@ from eventsourcing.persistence import (
 )
 from eventsourcing.utils import Environment, EnvType, strtobool
 
-ProjectorFunctionType = Callable[
-    [Optional[THasIDVersion], Iterable[TDomainEvent]],
-    Optional[THasIDVersion],
+ProjectorFunction = Callable[
+    [Optional[TMutableOrImmutableAggregate], Iterable[Any]],
+    Optional[TMutableOrImmutableAggregate],
+]
+
+MutatorFunction = Callable[
+    [DomainEventProtocol, Optional[MutableOrImmutableAggregate]],
+    Optional[TMutableOrImmutableAggregate],
 ]
 
 
 def project_aggregate(
-    aggregate: Optional[THasIDVersion], domain_events: Iterable[TDomainEvent]
-) -> Optional[THasIDVersion]:
+    aggregate: Optional[TMutableOrImmutableAggregate],
+    domain_events: Iterable[CanMutateProtocol[TMutableOrImmutableAggregate]],
+) -> Optional[TMutableOrImmutableAggregate]:
     """
     Projector function for aggregate projections, which works
     by successively calling aggregate mutator function mutate()
     on each of the given list of domain events in turn.
     """
-    for domain_event in cast(
-        Iterable[CanMutateAggregate[THasIDVersion]], domain_events
-    ):
+    for domain_event in domain_events:
         aggregate = domain_event.mutate(aggregate)
     return aggregate
 
@@ -227,7 +227,7 @@ class Repository:
         self.snapshot_store = snapshot_store
 
         if cache_maxsize is None:
-            self.cache: Optional[Cache[UUID, HasIDVersion]] = None
+            self.cache: Optional[Cache[UUID, MutableOrImmutableAggregate]] = None
         elif cache_maxsize <= 0:
             self.cache = Cache()
         else:
@@ -247,12 +247,12 @@ class Repository:
         self,
         aggregate_id: UUID,
         version: Optional[int] = None,
-        projector_func: ProjectorFunctionType[
-            THasIDVersion, TDomainEvent
+        projector_func: ProjectorFunction[
+            TMutableOrImmutableAggregate
         ] = project_aggregate,
         fastforward_skipping: bool = False,
         deepcopy_from_cache: bool = True,
-    ) -> THasIDVersion:
+    ) -> TMutableOrImmutableAggregate:
         """
         Reconstructs an :class:`~eventsourcing.domain.Aggregate` for a
         given ID from stored events, optionally at a particular version.
@@ -260,14 +260,16 @@ class Repository:
         if self.cache and version is None:
             try:
                 # Look for aggregate in the cache.
-                aggregate = cast(THasIDVersion, self.cache.get(aggregate_id))
+                aggregate = cast(
+                    TMutableOrImmutableAggregate, self.cache.get(aggregate_id)
+                )
             except KeyError:
                 # Reconstruct aggregate from stored events.
                 aggregate = self._reconstruct_aggregate(
                     aggregate_id, None, projector_func
                 )
                 # Put aggregate in the cache.
-                self.cache.put(aggregate_id, cast(HasIDVersion, aggregate))
+                self.cache.put(aggregate_id, aggregate)
             else:
                 if self.fastforward:
                     # Fast-forward cached aggregate.
@@ -276,11 +278,8 @@ class Repository:
                     try:
                         if fastforward_lock.acquire(blocking=blocking):
                             try:
-                                new_events = cast(
-                                    Iterable[TDomainEvent],
-                                    self.event_store.get(
-                                        originator_id=aggregate_id, gt=aggregate.version
-                                    ),
+                                new_events = self.event_store.get(
+                                    originator_id=aggregate_id, gt=aggregate.version
                                 )
                                 _aggregate = projector_func(aggregate, new_events)
                                 if _aggregate is None:
@@ -306,22 +305,19 @@ class Repository:
         self,
         aggregate_id: UUID,
         version: Optional[int],
-        projector_func: ProjectorFunctionType[THasIDVersion, TDomainEvent],
-    ) -> THasIDVersion:
+        projector_func: ProjectorFunction[TMutableOrImmutableAggregate],
+    ) -> TMutableOrImmutableAggregate:
         gt: Optional[int] = None
 
         if self.snapshot_store is not None:
             # Try to get a snapshot.
             snapshots = list(
-                cast(
-                    Iterable[TDomainEvent],
-                    self.snapshot_store.get(
-                        originator_id=aggregate_id,
-                        desc=True,
-                        limit=1,
-                        lte=version,
-                    ),
-                )
+                self.snapshot_store.get(
+                    originator_id=aggregate_id,
+                    desc=True,
+                    limit=1,
+                    lte=version,
+                ),
             )
             if snapshots:
                 gt = snapshots[0].originator_version
@@ -329,17 +325,14 @@ class Repository:
             snapshots = []
 
         # Get aggregate events.
-        aggregate_events = cast(
-            Iterable[TDomainEvent],
-            self.event_store.get(
-                originator_id=aggregate_id,
-                gt=gt,
-                lte=version,
-            ),
+        aggregate_events = self.event_store.get(
+            originator_id=aggregate_id,
+            gt=gt,
+            lte=version,
         )
 
         # Reconstruct the aggregate from its events.
-        initial: Optional[THasIDVersion] = None
+        initial: Optional[TMutableOrImmutableAggregate] = None
         aggregate = projector_func(initial, chain(snapshots, aggregate_events))
 
         # Raise exception if "not found".
@@ -553,12 +546,12 @@ class ProcessingEvent:
         """
         self.tracking = tracking
         self.events: List[Union[DomainEventProtocol]] = []
-        self.aggregates: Dict[UUID, HasIDVersion] = {}
+        self.aggregates: Dict[UUID, MutableOrImmutableAggregate] = {}
         self.saved_kwargs: Dict[Any, Any] = {}
 
     def collect_events(
         self,
-        *objs: Optional[Union[CanCollectEvents, DomainEventProtocol]],
+        *objs: Optional[Union[MutableOrImmutableAggregate, DomainEventProtocol]],
         **kwargs: Any,
     ) -> None:
         """
@@ -567,21 +560,19 @@ class ProcessingEvent:
         for obj in objs:
             if obj is None:
                 continue
-            elif isinstance(obj, CanCollectEvents):
-                for event in obj.collect_events():
-                    self.events.append(event)
-                if isinstance(obj, (HasIDVersionFields, HasIDVersionProperties)):
-                    self.aggregates[obj.id] = obj
-                else:  # pragma: no cover
-                    pass
-            else:
+            elif isinstance(obj, DomainEventProtocol):
                 self.events.append(obj)
+            else:
+                if isinstance(obj, CollectEventsProtocol):
+                    for event in obj.collect_events():
+                        self.events.append(event)
+                self.aggregates[obj.id] = obj
 
         self.saved_kwargs.update(kwargs)
 
     def save(
         self,
-        *aggregates: Optional[Union[CanCollectEvents, DomainEventProtocol]],
+        *aggregates: Optional[Union[MutableOrImmutableAggregate, DomainEventProtocol]],
         **kwargs: Any,
     ) -> None:
         warn(
@@ -632,7 +623,9 @@ class Application(ABC):
     name = "Application"
     env: EnvType = {}
     is_snapshotting_enabled: bool = False
-    snapshotting_intervals: Optional[Dict[Type[HasIDVersion], int]] = None
+    snapshotting_intervals: Optional[
+        Dict[Type[MutableOrImmutableAggregate], int]
+    ] = None
     snapshot_class: Type[SnapshotProtocol] = Snapshot
     log_section_size = 10
     notify_topics: Sequence[str] = []
@@ -784,7 +777,7 @@ class Application(ABC):
 
     def save(
         self,
-        *objs: Optional[Union[CanCollectEvents, DomainEventProtocol]],
+        *objs: Optional[Union[MutableOrImmutableAggregate, DomainEventProtocol]],
         **kwargs: Any,
     ) -> List[Recording]:
         """
@@ -833,8 +826,8 @@ class Application(ABC):
         self,
         aggregate_id: UUID,
         version: Optional[int] = None,
-        projector_func: ProjectorFunctionType[
-            THasIDVersion, TDomainEvent
+        projector_func: ProjectorFunction[
+            TMutableOrImmutableAggregate
         ] = project_aggregate,
     ) -> None:
         """
@@ -850,7 +843,7 @@ class Application(ABC):
                 "application class."
             )
         else:
-            aggregate: THasIDVersion = self.repository.get(
+            aggregate = self.repository.get(
                 aggregate_id, version=version, projector_func=projector_func
             )
             snapshot = type(self).snapshot_class.take(aggregate)

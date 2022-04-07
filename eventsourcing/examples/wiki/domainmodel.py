@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from eventsourcing.domain import Aggregate, LogEvent, event
@@ -18,11 +18,11 @@ class Page(Aggregate):
     body: str = ""
     modified_by: Optional[UUID] = field(default=None, init=False)
 
-    class Event(Aggregate.Event["Page"]):
+    class Event(Aggregate.Event):
         user_id: Optional[UUID] = field(default_factory=user_id_cvar.get, init=False)
 
-        def apply(self, aggregate: Page) -> None:
-            aggregate.modified_by = self.user_id
+        def apply(self, aggregate: Aggregate) -> None:
+            cast(Page, aggregate).modified_by = self.user_id
 
     @event("SlugUpdated")
     def update_slug(self, slug: str) -> None:
@@ -45,7 +45,7 @@ class Index(Aggregate):
     slug: str
     ref: Optional[UUID]
 
-    class Event(Aggregate.Event["Index"]):
+    class Event(Aggregate.Event):
         pass
 
     @staticmethod

@@ -4,7 +4,7 @@ from eventsourcing.domain import Aggregate, event
 
 
 class Dog(Aggregate):
-    class Registered(Aggregate.Created["Dog"]):
+    class Registered(Aggregate.Created):
         name: str
 
     @event(Registered)
@@ -12,7 +12,7 @@ class Dog(Aggregate):
         self.name = name
         self.tricks: List[str] = []
 
-    class TrickAdded(Aggregate.Event["Dog"]):
+    class TrickAdded(Aggregate.Event):
         trick: str
 
     @event(TrickAdded)
