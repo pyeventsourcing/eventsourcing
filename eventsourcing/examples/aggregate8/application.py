@@ -11,7 +11,11 @@ from eventsourcing.persistence import Mapper, Transcoder
 
 
 class DogSchool(Application):
-    is_snapshotting_enabled = True
+    env = {
+        "AGGREGATE_CACHE_MAXSIZE": "50",
+        "DEEPCOPY_FROM_AGGREGATE_CACHE": "n",
+        "IS_SNAPSHOTTING_ENABLED": "y",
+    }
     snapshot_class = Snapshot
 
     def register_dog(self, name: str) -> UUID:

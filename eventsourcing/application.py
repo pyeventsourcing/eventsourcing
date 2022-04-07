@@ -637,7 +637,7 @@ class Application(ABC):
     AGGREGATE_CACHE_MAXSIZE = "AGGREGATE_CACHE_MAXSIZE"
     AGGREGATE_CACHE_FASTFORWARD = "AGGREGATE_CACHE_FASTFORWARD"
     AGGREGATE_CACHE_FASTFORWARD_SKIPPING = "AGGREGATE_CACHE_FASTFORWARD_SKIPPING"
-    AGGREGATE_DEEPCOPY_FROM_CACHE = "AGGREGATE_DEEPCOPY_FROM_CACHE"
+    DEEPCOPY_FROM_AGGREGATE_CACHE = "DEEPCOPY_FROM_AGGREGATE_CACHE"
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         if "name" not in cls.__dict__:
@@ -769,7 +769,7 @@ class Application(ABC):
                 self.env.get(self.AGGREGATE_CACHE_FASTFORWARD_SKIPPING, "n")
             ),
             deepcopy_from_cache=strtobool(
-                self.env.get(self.AGGREGATE_DEEPCOPY_FROM_CACHE, "y")
+                self.env.get(self.DEEPCOPY_FROM_AGGREGATE_CACHE, "y")
             ),
         )
 
