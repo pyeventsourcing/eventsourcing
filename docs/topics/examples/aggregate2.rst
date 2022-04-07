@@ -17,18 +17,18 @@ class as if it were a normal Python object class.
 Domain model
 ------------
 
-.. literalinclude:: ../../../eventsourcing/examples/alternative_aggregate2/domainmodel.py
+.. literalinclude:: ../../../eventsourcing/examples/aggregate2/domainmodel.py
 
 
 Application
 -----------
 
 
-.. literalinclude:: ../../../eventsourcing/examples/alternative_aggregate2/application.py
+.. literalinclude:: ../../../eventsourcing/examples/aggregate2/application.py
 
 
 Test case
 ---------
 
 
-.. literalinclude:: ../../../eventsourcing/examples/alternative_aggregate2/test_application.py
+.. literalinclude:: ../../../eventsourcing/examples/aggregate2/test_application.py

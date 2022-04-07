@@ -2,8 +2,8 @@ from typing import Any, Dict
 from uuid import UUID
 
 from eventsourcing.application import Application
-from eventsourcing.examples.alternative_aggregate8.domainmodel import Dog, Snapshot
-from eventsourcing.examples.alternative_aggregate8.persistence import (
+from eventsourcing.examples.aggregate8.domainmodel import Dog, Snapshot
+from eventsourcing.examples.aggregate8.persistence import (
     OrjsonTranscoder,
     PydanticMapper,
 )

@@ -1,6 +1,7 @@
 from unittest import TestCase
 
-from eventsourcing.examples.alternative_aggregate8.application import DogSchool
+from eventsourcing.examples.aggregate4.application import DogSchool
+from eventsourcing.examples.aggregate4.domainmodel import Dog
 
 
 class TestDogSchool(TestCase):
@@ -23,7 +24,7 @@ class TestDogSchool(TestCase):
         assert len(notifications) == 3
 
         # Take snapshot.
-        school.take_snapshot(dog_id, version=1)
+        school.take_snapshot(dog_id, version=1, projector_func=Dog.projector)
         dog = school.get_dog(dog_id)
         assert dog["name"] == "Fido"
         assert dog["tricks"] == ("roll over", "play dead")

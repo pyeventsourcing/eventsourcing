@@ -22,25 +22,25 @@ model.
 Domain model
 ------------
 
-.. literalinclude:: ../../../eventsourcing/examples/alternative_aggregate7/domainmodel.py
+.. literalinclude:: ../../../eventsourcing/examples/aggregate7/domainmodel.py
 
 
 Application
 -----------
 
 
-.. literalinclude:: ../../../eventsourcing/examples/alternative_aggregate7/application.py
+.. literalinclude:: ../../../eventsourcing/examples/aggregate7/application.py
 
 
 Persistence
 -----------
 
 
-.. literalinclude:: ../../../eventsourcing/examples/alternative_aggregate7/persistence.py
+.. literalinclude:: ../../../eventsourcing/examples/aggregate7/persistence.py
 
 
 Test case
 ---------
 
 
-.. literalinclude:: ../../../eventsourcing/examples/alternative_aggregate7/test_application.py
+.. literalinclude:: ../../../eventsourcing/examples/aggregate7/test_application.py
