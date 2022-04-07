@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from eventsourcing.domain import (
     Aggregate as BaseAggregate,
-    CanInit,
+    CanInitAggregate,
     CanMutateAggregate,
     CanSnapshotAggregate,
     event,
@@ -28,11 +28,11 @@ class Aggregate(BaseAggregate):
     class Event(DomainEvent, CanMutateAggregate):
         pass
 
-    class Created(Event, CanInit):
+    class Created(Event, CanInitAggregate):
         originator_topic: str
 
 
-class Snapshot(DomainEvent, CanSnapshotAggregate[Aggregate]):
+class Snapshot(DomainEvent, CanSnapshotAggregate):
     topic: str
     state: Dict[str, Any]
 

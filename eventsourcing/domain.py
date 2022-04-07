@@ -154,7 +154,7 @@ class CanMutateAggregate(HasOriginatorIDVersion, CanCreateTimestamp):
         """
 
 
-class CanInit(CanMutateAggregate):
+class CanInitAggregate(CanMutateAggregate):
     def mutate(self, aggregate: Optional[TAggregate]) -> Optional[TAggregate]:
         """
         Constructs aggregate instance defined
@@ -215,14 +215,14 @@ class DomainEvent(CanCreateTimestamp, metaclass=MetaDomainEvent):
     timestamp: datetime
 
 
-class AggregateEvent(DomainEvent, CanMutateAggregate):
+class AggregateEvent(CanMutateAggregate, DomainEvent):
     """
     Base class for aggregate events. Subclasses will model
     decisions made by the domain model aggregates.
     """
 
 
-class AggregateCreated(CanInit, AggregateEvent):
+class AggregateCreated(CanInitAggregate, AggregateEvent):
     """
     Domain event for when aggregate is created.
 
@@ -744,7 +744,7 @@ class MetaAggregate(type):
             # Call the original method with event attribute values.
             decorated_method(aggregate, **kwargs)
 
-    _created_event_class: Type[CanInit]
+    _created_event_class: Type[CanInitAggregate]
 
     def __new__(mcs: Type[_TT], *args: Any, **kwargs: Any) -> _TT:
         try:
@@ -799,13 +799,13 @@ class MetaAggregate(type):
                     setattr(cls, name, sub_class)
 
         # Identify or define the aggregate's "created" event class.
-        created_event_class: Optional[Type[CanInit]] = None
+        created_event_class: Optional[Type[CanInitAggregate]] = None
 
         # Has the "created" event class been indicated with '_created_event_class'.
         if "_created_event_class" in cls.__dict__:
             created_event_class = cls.__dict__["_created_event_class"]
             if isinstance(created_event_class, type) and issubclass(
-                created_event_class, CanInit
+                created_event_class, CanInitAggregate
             ):
                 # We just subclassed the event classes, so reassign this.
                 created_event_class = getattr(cls, created_event_class.__name__)
@@ -813,7 +813,7 @@ class MetaAggregate(type):
                 cls._created_event_class = created_event_class
             else:
                 raise TypeError(
-                    f"{created_event_class} not subclass of {CanInit.__name__}"
+                    f"{created_event_class} not subclass of {CanInitAggregate.__name__}"
                 )
 
         # Disallow using both '_created_event_class' and 'created_event_name'.
@@ -845,13 +845,14 @@ class MetaAggregate(type):
                     cls, init_decorator.given_event_cls.__name__
                 )
                 if isinstance(created_event_class, type) and issubclass(
-                    created_event_class, CanInit
+                    created_event_class, CanInitAggregate
                 ):
                     assert created_event_class
                     cls._created_event_class = created_event_class
                 else:
                     raise TypeError(
-                        f"{created_event_class} not subclass of " f"{CanInit.__name__}"
+                        f"{created_event_class} not subclass of "
+                        f"{CanInitAggregate.__name__}"
                     )
 
             # Does the decorator specify a "create" event name?
@@ -961,10 +962,10 @@ class MetaAggregate(type):
 
                 if attribute.given_event_cls:
                     # Check this is not a "created" event class.
-                    if issubclass(attribute.given_event_cls, CanInit):
+                    if issubclass(attribute.given_event_cls, CanInitAggregate):
                         raise TypeError(
                             f"{attribute.given_event_cls} "
-                            f"is subclass of {CanInit.__name__}"
+                            f"is subclass of {CanInitAggregate.__name__}"
                         )
 
                     # Define event class as subclass of given class.
@@ -1087,7 +1088,7 @@ class MetaAggregate(type):
 
     def _create(
         cls,
-        event_class: Type[CanInit],
+        event_class: Type[CanInitAggregate],
         *,
         id: Optional[UUID] = None,
         **kwargs: Any,
@@ -1354,20 +1355,18 @@ class SnapshotProtocol(DomainEventProtocol, Protocol):
         ...  # pragma: no cover
 
 
-TSnapshot = TypeVar("TSnapshot", bound=SnapshotProtocol)
+TCanSnapshotAggregate = TypeVar("TCanSnapshotAggregate", bound="CanSnapshotAggregate")
 
 
-class CanSnapshotAggregate(
-    HasOriginatorIDVersion, CanCreateTimestamp, Generic[TMutableOrImmutableAggregate]
-):
+class CanSnapshotAggregate(HasOriginatorIDVersion, CanCreateTimestamp):
     topic: str
     state: Dict[str, Any]
 
     @classmethod
     def take(
-        cls: Type[CanSnapshotAggregate[TMutableOrImmutableAggregate]],
-        aggregate: TMutableOrImmutableAggregate,
-    ) -> CanSnapshotAggregate[TMutableOrImmutableAggregate]:
+        cls: Type[TCanSnapshotAggregate],
+        aggregate: MutableOrImmutableAggregate,
+    ) -> TCanSnapshotAggregate:
         """
         Creates a snapshot of the given :class:`Aggregate` object.
         """
@@ -1388,12 +1387,11 @@ class CanSnapshotAggregate(
         )
         return snapshot
 
-    def mutate(self, _: None) -> TMutableOrImmutableAggregate:
+    def mutate(self, _: None) -> Aggregate:
         """
         Reconstructs the snapshotted :class:`Aggregate` object.
         """
-        cls = resolve_topic(self.topic)
-        assert issubclass(cls, Aggregate)
+        cls = cast(Type[Aggregate], resolve_topic(self.topic))
         aggregate_state = dict(self.state)
         from_version = aggregate_state.pop("class_version", 1)
         class_version = getattr(cls, "class_version", 1)
@@ -1406,13 +1404,12 @@ class CanSnapshotAggregate(
         aggregate_state["_id"] = self.originator_id
         aggregate_state["_version"] = self.originator_version
         aggregate_state["_pending_events"] = []
-        aggregate: TMutableOrImmutableAggregate = object.__new__(cls)
-
+        aggregate = object.__new__(cls)
         aggregate.__dict__.update(aggregate_state)
         return aggregate
 
 
-class Snapshot(CanSnapshotAggregate[TMutableOrImmutableAggregate], DomainEvent):
+class Snapshot(CanSnapshotAggregate, DomainEvent):
     """
     Snapshots represent the state of an aggregate at a particular
     version.

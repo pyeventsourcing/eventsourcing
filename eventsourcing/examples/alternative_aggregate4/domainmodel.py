@@ -123,5 +123,5 @@ class Dog(Aggregate):
         self.version = event.originator_version
 
     @apply.register(Snapshot)
-    def _(self, event: Snapshot[TAggregate]) -> None:
+    def _(self, event: Snapshot) -> None:
         self.__dict__.update(event.state)

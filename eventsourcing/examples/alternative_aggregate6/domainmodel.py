@@ -79,7 +79,7 @@ def add_trick(dog: Dog, trick: str) -> DomainEvent:
 
 @singledispatch
 def mutate_dog(
-    event: Union[DomainEvent, Snapshot[Dog]], dog: Optional[Dog]
+    event: Union[DomainEvent, Snapshot], dog: Optional[Dog]
 ) -> Optional[Dog]:
     """Mutates aggregate with event."""
 
@@ -107,7 +107,7 @@ def _(event: TrickAdded, dog: Dog) -> Dog:
 
 
 @mutate_dog.register(Snapshot)
-def _(event: Snapshot[Dog], _: None) -> Dog:
+def _(event: Snapshot, _: None) -> Dog:
     return Dog(
         id=event.state["id"],
         version=event.state["version"],
