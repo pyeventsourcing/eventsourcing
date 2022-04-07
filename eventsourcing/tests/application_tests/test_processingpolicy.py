@@ -1,5 +1,4 @@
 import warnings
-from functools import singledispatch
 from unittest.case import TestCase
 from uuid import uuid4
 
@@ -9,7 +8,6 @@ from eventsourcing.system import ProcessEvent, ProcessingEvent
 from eventsourcing.tests.domain import BankAccount
 
 
-@singledispatch
 def policy(domain_event, processing_event: ProcessingEvent):
     if isinstance(domain_event, BankAccount.Opened):
         notification = EmailNotification.create(
@@ -20,7 +18,6 @@ def policy(domain_event, processing_event: ProcessingEvent):
         processing_event.collect_events(notification)
 
 
-@singledispatch
 def policy_legacy_save(domain_event, processing_event: ProcessingEvent):
     if isinstance(domain_event, BankAccount.Opened):
         notification = EmailNotification.create(
