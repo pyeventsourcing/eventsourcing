@@ -23,9 +23,16 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
-Version 9.2.4 (released TBD)
---------------------------------------
+Version 9.2.4 (7 April 2022)
+----------------------------
 
+* Added examples showing how persistence and application modules can be
+  used with alternative infrastructure.
+* Added protocol types for events and aggregates so that alternative
+  domain model classes can be both used and type checked with mypy.
+* Changed create_timestamp() to use time.monotonic().
+* Improved docs (docstring in runner, double word in tutorial, and better
+  wording in domain module doc, overview in tutorial).
 * Fixed a call to '_reconstruct_aggregate' to use given 'projector_func'
   arg (was using default 'mutator_func').
 * Adjusted order of looking for PERSISTENCE_MODULE, INFRASTRUCTURE_FACTORY
@@ -33,8 +40,6 @@ Version 9.2.4 (released TBD)
   for last, allowing the persistence module to be set to POPO when constructing
   application objects for their transcoder in remote clients so that the
   application doesn't try to connect to a real database).
-* Improved docs (doctring in runner, double word in tutorial, and better
-  wording in domain module doc).
 
 
 Version 9.2.3 (released 3 March 2022)
