@@ -23,8 +23,8 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
-Version 9.2.4 (7 April 2022)
-----------------------------
+Version 9.2.4 (released 7 April 2022)
+-------------------------------------
 
 * Added examples showing how persistence and application modules can be
   used with alternative infrastructure, including Pydantic event classes
