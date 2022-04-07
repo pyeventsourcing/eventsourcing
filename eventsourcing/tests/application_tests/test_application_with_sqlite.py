@@ -1,10 +1,15 @@
 import os
+from unittest import TestCase
 
-from eventsourcing.tests.application import TIMEIT_FACTOR, ExampleApplicationTestCase
+from eventsourcing.tests.application import (
+    TIMEIT_FACTOR,
+    ApplicationTestCase,
+    ExampleApplicationTestCase,
+)
 from eventsourcing.tests.persistence import tmpfile_uris
 
 
-class TestApplicationWithSQLiteFile(ExampleApplicationTestCase):
+class WithSQLiteFile(TestCase):
     timeit_number = 30 * TIMEIT_FACTOR
     expected_factory_topic = "eventsourcing.sqlite:Factory"
 
@@ -24,7 +29,7 @@ class TestApplicationWithSQLiteFile(ExampleApplicationTestCase):
         super().tearDown()
 
 
-class TestApplicationWithSQLiteInMemory(ExampleApplicationTestCase):
+class WithSQLiteInMemory(TestCase):
     timeit_number = 30 * TIMEIT_FACTOR
     expected_factory_topic = "eventsourcing.sqlite:Factory"
 
@@ -32,7 +37,7 @@ class TestApplicationWithSQLiteInMemory(ExampleApplicationTestCase):
         super().setUp()
         os.environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
         os.environ["CREATE_TABLE"] = "y"
-        os.environ["SQLITE_DBNAME"] = ":memory:"
+        os.environ["SQLITE_DBNAME"] = "file:memory:?mode=memory&cache=shared"
 
     def tearDown(self) -> None:
         del os.environ["PERSISTENCE_MODULE"]
@@ -40,8 +45,28 @@ class TestApplicationWithSQLiteInMemory(ExampleApplicationTestCase):
         del os.environ["SQLITE_DBNAME"]
         super().tearDown()
 
-    def test_example_application(self):
-        super().test_example_application()
+
+class TestApplicationWithSQLiteFile(ApplicationTestCase, WithSQLiteFile):
+    pass
 
 
+# class TestApplicationWithSQLiteInMemory(TestApplication, WithSQLiteInMemory):
+#     pass
+
+
+class TestExampleApplicationWithSQLiteFile(ExampleApplicationTestCase, WithSQLiteFile):
+    timeit_number = 30 * TIMEIT_FACTOR
+    expected_factory_topic = "eventsourcing.sqlite:Factory"
+
+
+class TestExampleApplicationWithSQLiteInMemory(
+    ExampleApplicationTestCase, WithSQLiteInMemory
+):
+    timeit_number = 30 * TIMEIT_FACTOR
+    expected_factory_topic = "eventsourcing.sqlite:Factory"
+
+
+del ApplicationTestCase
 del ExampleApplicationTestCase
+del WithSQLiteFile
+del WithSQLiteInMemory

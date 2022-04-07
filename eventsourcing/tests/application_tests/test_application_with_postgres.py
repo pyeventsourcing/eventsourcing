@@ -1,11 +1,16 @@
 import os
+from unittest import TestCase
 
 from eventsourcing.postgres import PostgresDatastore
-from eventsourcing.tests.application import TIMEIT_FACTOR, ExampleApplicationTestCase
+from eventsourcing.tests.application import (
+    TIMEIT_FACTOR,
+    ApplicationTestCase,
+    ExampleApplicationTestCase,
+)
 from eventsourcing.tests.postgres_utils import drop_postgres_table
 
 
-class TestApplicationWithPostgres(ExampleApplicationTestCase):
+class WithPostgres(TestCase):
     timeit_number = 5 * TIMEIT_FACTOR
     expected_factory_topic = "eventsourcing.postgres:Factory"
 
@@ -56,4 +61,15 @@ class TestApplicationWithPostgres(ExampleApplicationTestCase):
         super().tearDown()
 
 
+class TestApplicationWithPostgres(ApplicationTestCase, WithPostgres):
+    pass
+
+
+class TestExampleApplicationWithPostgres(ExampleApplicationTestCase, WithPostgres):
+    timeit_number = 5 * TIMEIT_FACTOR
+    expected_factory_topic = "eventsourcing.postgres:Factory"
+
+
+del ApplicationTestCase
 del ExampleApplicationTestCase
+del WithPostgres

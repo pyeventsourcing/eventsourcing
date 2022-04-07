@@ -396,10 +396,10 @@ using the ``trigger_event()`` method defined by the ``Aggregate`` class.
         def add_trick(self, trick):
             self.trigger_event(self.TrickAdded, trick=trick)
 
-        class TrickAdded(Aggregate.Event[Dog]):
+        class TrickAdded(Aggregate.Event):
             trick: str
 
-            def mutate(self, aggregate: Dog):
+            def mutate(self, aggregate):
                 aggregate.tricks.append(self.trick)
 
 

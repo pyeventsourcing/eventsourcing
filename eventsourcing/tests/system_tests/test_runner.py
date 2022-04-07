@@ -184,7 +184,7 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
 
             def policy(
                 self,
-                domain_event: AggregateEvent[Aggregate],
+                domain_event: AggregateEvent,
                 processing_event: ProcessingEvent,
             ) -> None:
                 if isinstance(domain_event, Result.Created):
@@ -202,7 +202,7 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
         class Results(ProcessApplication):
             def policy(
                 self,
-                domain_event: AggregateEvent[Aggregate],
+                domain_event: AggregateEvent,
                 processing_event: ProcessingEvent,
             ) -> None:
                 if isinstance(domain_event, Command.Created):

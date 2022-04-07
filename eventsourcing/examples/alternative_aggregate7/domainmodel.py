@@ -1,36 +1,24 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from functools import reduce, singledispatch
+from functools import singledispatch
 from time import monotonic
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Tuple,
-    Type,
-    TypeVar,
-    cast,
-)
+from typing import Any, Dict, Iterable, Optional, Tuple, TypeVar
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel
 
-from eventsourcing.application import ProjectorFunctionType
-from eventsourcing.domain import HasIDVersion
+from eventsourcing.application import MutatorFunction, ProjectorFunction
 from eventsourcing.utils import get_topic
 
 
 class DomainEvent(BaseModel):
-    class Config:
-        allow_mutation = False
-
     originator_id: UUID
     originator_version: int
     timestamp: datetime
+
+    class Config:
+        allow_mutation = False
 
 
 def create_timestamp() -> datetime:
@@ -38,26 +26,29 @@ def create_timestamp() -> datetime:
 
 
 class Aggregate(BaseModel):
-    class Config:
-        allow_mutation = False
-
     id: UUID
     version: int
     created_on: datetime
+
+    class Config:
+        allow_mutation = False
 
 
 class Snapshot(DomainEvent):
     topic: str
     state: Dict[str, Any]
 
+    class Config:
+        allow_mutation = False
+
     @classmethod
-    def take(cls, aggregate: HasIDVersion) -> Snapshot:
-        return cls(
+    def take(cls, aggregate: Aggregate) -> Snapshot:
+        return Snapshot(
             originator_id=aggregate.id,
             originator_version=aggregate.version,
             timestamp=create_timestamp(),
             topic=get_topic(type(aggregate)),
-            state=cast(Aggregate, aggregate).dict(),
+            state=aggregate.dict(),
         )
 
 
@@ -65,17 +56,14 @@ TAggregate = TypeVar("TAggregate", bound=Aggregate)
 
 
 def aggregate_projector(
-    mutator: Callable[[DomainEvent, Optional[TAggregate]], Optional[TAggregate]]
-) -> Callable[[Optional[TAggregate], Iterable[DomainEvent]], Optional[TAggregate]]:
-    def reducer(
-        aggregate: Optional[TAggregate], event: DomainEvent
-    ) -> Optional[TAggregate]:
-        return mutator(event, aggregate)
-
+    mutator: MutatorFunction[TAggregate],
+) -> ProjectorFunction[TAggregate]:
     def project_aggregate(
         aggregate: Optional[TAggregate], events: Iterable[DomainEvent]
     ) -> Optional[TAggregate]:
-        return reduce(reducer, events, aggregate)
+        for event in events:
+            aggregate = mutator(event, aggregate)
+        return aggregate
 
     return project_aggregate
 
@@ -93,24 +81,22 @@ class TrickAdded(DomainEvent):
     trick: str
 
 
-def register_dog(name: str) -> Tuple[Dog, List[DomainEvent]]:
-    event = DogRegistered(
+def register_dog(name: str) -> DomainEvent:
+    return DogRegistered(
         originator_id=uuid4(),
         originator_version=1,
         timestamp=create_timestamp(),
         name=name,
     )
-    return cast(Dog, mutate_dog(event, None)), [event]
 
 
-def add_trick(dog: Dog, trick: str) -> Tuple[Dog, List[DomainEvent]]:
-    event = TrickAdded(
+def add_trick(dog: Dog, trick: str) -> DomainEvent:
+    return TrickAdded(
         originator_id=dog.id,
         originator_version=dog.version + 1,
         timestamp=create_timestamp(),
         trick=trick,
     )
-    return cast(Dog, mutate_dog(event, dog)), [event]
 
 
 @singledispatch
@@ -119,7 +105,7 @@ def mutate_dog(event: DomainEvent, dog: Optional[Dog]) -> Optional[Dog]:
 
 
 @mutate_dog.register
-def _(event: DogRegistered, _: Type[None]) -> Dog:
+def _(event: DogRegistered, _: None) -> Dog:
     return Dog(
         id=event.originator_id,
         version=event.originator_version,
@@ -141,7 +127,7 @@ def _(event: TrickAdded, dog: Dog) -> Dog:
 
 
 @mutate_dog.register
-def _(event: Snapshot, _: Type[None]) -> Dog:
+def _(event: Snapshot, _: None) -> Dog:
     return Dog(
         id=event.state["id"],
         version=event.state["version"],
@@ -151,4 +137,4 @@ def _(event: Snapshot, _: Type[None]) -> Dog:
     )
 
 
-project_dog: ProjectorFunctionType[Dog, DomainEvent] = aggregate_projector(mutate_dog)
+project_dog = aggregate_projector(mutate_dog)

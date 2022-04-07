@@ -11,7 +11,6 @@ from typing import (
     Any,
     Callable,
     Dict,
-    Generic,
     Iterable,
     List,
     Optional,
@@ -38,19 +37,34 @@ TZINFO: tzinfo = resolve_topic(os.getenv("TZINFO_TOPIC", "datetime:timezone.utc"
 
 
 @runtime_checkable
-class HasOriginatorIDVersion(Protocol):
-    originator_id: UUID
-    originator_version: int
+class DomainEventProtocol(Protocol):
+    @property
+    def originator_id(self) -> UUID:
+        ...  # pragma: no cover
+
+    @property
+    def originator_version(self) -> int:
+        ...  # pragma: no cover
 
 
-@runtime_checkable
-class HasIDVersionFields(Protocol):
-    id: UUID
-    version: int
+TDomainEvent = TypeVar("TDomainEvent", bound=DomainEventProtocol)
 
 
-@runtime_checkable
-class HasIDVersionProperties(Protocol):
+class MutableAggregateProtocol(Protocol):
+    @property
+    def id(self) -> UUID:
+        ...  # pragma: no cover
+
+    @property
+    def version(self) -> int:
+        ...  # pragma: no cover
+
+    @version.setter
+    def version(self, value: int) -> None:
+        ...  # pragma: no cover
+
+
+class ImmutableAggregateProtocol(Protocol):
     @property
     def id(self) -> UUID:
         ...  # pragma: no cover
@@ -60,46 +74,31 @@ class HasIDVersionProperties(Protocol):
         ...  # pragma: no cover
 
 
-HasIDVersion = Union[HasIDVersionProperties, HasIDVersionFields]
+MutableOrImmutableAggregate = Union[
+    ImmutableAggregateProtocol, MutableAggregateProtocol
+]
+
+
+TMutableOrImmutableAggregate = TypeVar(
+    "TMutableOrImmutableAggregate", bound=MutableOrImmutableAggregate
+)
 
 
 @runtime_checkable
-class CanCollectEvents(Protocol):
-    def collect_events(self) -> Sequence[HasOriginatorIDVersion]:
+class CollectEventsProtocol(Protocol):
+    def collect_events(self) -> Sequence[DomainEventProtocol]:
         ...  # pragma: no cover
 
 
-THasOriginatorIDVersion = TypeVar(
-    "THasOriginatorIDVersion", bound=HasOriginatorIDVersion
-)
-THasIDVersion = TypeVar("THasIDVersion", bound=HasIDVersion)
+@runtime_checkable
+class CanMutateProtocol(DomainEventProtocol, Protocol[TMutableOrImmutableAggregate]):
+    def mutate(
+        self, aggregate: Optional[TMutableOrImmutableAggregate]
+    ) -> Optional[TMutableOrImmutableAggregate]:
+        ...  # pragma: no cover
 
 
-class MetaDomainEvent(type):
-    def __new__(
-        mcs, name: str, bases: Tuple[type, ...], cls_dict: Dict[str, Any]
-    ) -> MetaDomainEvent:
-        event_cls = super().__new__(mcs, name, bases, cls_dict)
-        event_cls = dataclass(frozen=True)(event_cls)  # type: ignore
-        return event_cls
-
-
-T = TypeVar("T")
-
-
-class DomainEvent(Generic[T], metaclass=MetaDomainEvent):
-    """
-    Base class for domain events, such as aggregate :class:`AggregateEvent`
-    and aggregate :class:`Snapshot`.
-    """
-
-    originator_id: UUID
-    originator_version: int
-    timestamp: datetime
-
-    def mutate(self, aggregate: Optional[T]) -> Optional[T]:
-        """Abstract mutator method."""
-
+class CanCreateTimestamp:
     @staticmethod
     def create_timestamp() -> datetime:
         """
@@ -109,15 +108,16 @@ class DomainEvent(Generic[T], metaclass=MetaDomainEvent):
         return datetime.fromtimestamp(monotonic(), TZINFO)
 
 
-TDomainEvent = TypeVar("TDomainEvent", bound=DomainEvent[Any])
 TAggregate = TypeVar("TAggregate", bound="Aggregate")
 
 
-class AggregateEvent(DomainEvent[TAggregate]):
-    """
-    Base class for aggregate events. Subclasses will model
-    decisions made by the domain model aggregates.
-    """
+class HasOriginatorIDVersion:
+    originator_id: UUID
+    originator_version: int
+
+
+class CanMutateAggregate(HasOriginatorIDVersion, CanCreateTimestamp):
+    timestamp: datetime
 
     def mutate(self, aggregate: Optional[TAggregate]) -> Optional[TAggregate]:
         """
@@ -147,26 +147,13 @@ class AggregateEvent(DomainEvent[TAggregate]):
         # Return the mutated aggregate.
         return aggregate
 
-    def apply(self, aggregate: TAggregate) -> None:
+    def apply(self, aggregate: Aggregate) -> None:
         """
-        Applies the domain event to the aggregate.
+        Applies the domain event to its aggregate.
         """
 
 
-class AggregateCreated(AggregateEvent[TAggregate]):
-    """
-    Domain event for when aggregate is created.
-
-    Constructor arguments:
-
-    :param UUID originator_id: ID of originating aggregate.
-    :param int originator_version: version of originating aggregate.
-    :param datetime timestamp: date-time of the event
-    :param str originator_topic: topic for the aggregate class
-    """
-
-    originator_topic: str
-
+class CanInitAggregate(CanMutateAggregate):
     def mutate(self, aggregate: Optional[TAggregate]) -> Optional[TAggregate]:
         """
         Constructs aggregate instance defined
@@ -207,6 +194,48 @@ class AggregateCreated(AggregateEvent[TAggregate]):
         return agg
 
 
+class MetaDomainEvent(type):
+    def __new__(
+        mcs, name: str, bases: Tuple[type, ...], cls_dict: Dict[str, Any]
+    ) -> MetaDomainEvent:
+        event_cls = super().__new__(mcs, name, bases, cls_dict)
+        event_cls = dataclass(frozen=True)(event_cls)  # type: ignore
+        event_cls.__signature__ = inspect.signature(event_cls.__init__)  # type: ignore
+        return event_cls
+
+
+class DomainEvent(CanCreateTimestamp, metaclass=MetaDomainEvent):
+    """
+    Base class for dataclass domain events.
+    """
+
+    originator_id: UUID
+    originator_version: int
+    timestamp: datetime
+
+
+class AggregateEvent(CanMutateAggregate, DomainEvent):
+    """
+    Base class for aggregate events. Subclasses will model
+    decisions made by the domain model aggregates.
+    """
+
+
+class AggregateCreated(CanInitAggregate, AggregateEvent):
+    """
+    Domain event for when aggregate is created.
+
+    Constructor arguments:
+
+    :param UUID originator_id: ID of originating aggregate.
+    :param int originator_version: version of originating aggregate.
+    :param datetime timestamp: date-time of the event
+    :param str originator_topic: topic for the aggregate class
+    """
+
+    originator_topic: str
+
+
 class EventSourcingError(Exception):
     """
     Base exception class.
@@ -219,14 +248,10 @@ class ProgrammingError(EventSourcingError):
     """
 
 
-class LogEvent(DomainEvent[None]):
+class LogEvent(DomainEvent):
     """
     Base class for the events of event-sourced logs.
     """
-
-    def mutate(self, aggregate: None) -> None:
-        """Raises a ProgrammingError exception if called."""
-        raise ProgrammingError("Log events cannot be projected into aggregates")
 
 
 TLogEvent = TypeVar("TLogEvent", bound=LogEvent)
@@ -245,7 +270,7 @@ def _spec_filter_kwargs_for_method_params(method: Callable[..., Any]) -> Set[str
     return set(method_signature.parameters)
 
 
-EventSpecType = Optional[Union[str, Type[AggregateEvent[Any]]]]
+EventSpecType = Optional[Union[str, Type[CanMutateAggregate]]]
 AnyCallable = Callable[..., None]
 DecoratedObjType = TypeVar("DecoratedObjType", bound=Union[AnyCallable, property])
 InjectEventType = bool
@@ -258,7 +283,7 @@ class CommandMethodDecorator:
         decorated_obj: DecoratedObjType,
     ):
         self.is_name_inferred_from_method = False
-        self.given_event_cls: Optional[Type[AggregateEvent[Any]]] = None
+        self.given_event_cls: Optional[Type[CanMutateAggregate]] = None
         self.event_cls_name: Optional[str] = None
         self.decorated_property: Optional[property] = None
         self.is_property_setter = False
@@ -272,7 +297,9 @@ class CommandMethodDecorator:
             self.event_cls_name = event_spec
 
         # Event class has been specified.
-        elif isinstance(event_spec, type) and issubclass(event_spec, AggregateEvent):
+        elif isinstance(event_spec, type) and issubclass(
+            event_spec, CanMutateAggregate
+        ):
             if event_spec in given_event_classes:
                 name = event_spec.__name__
                 raise TypeError(f"{name} event class used in more than one decorator")
@@ -461,7 +488,7 @@ def event(
         arg is None
         or isinstance(arg, str)
         or isinstance(arg, type)
-        and issubclass(arg, AggregateEvent)
+        and issubclass(arg, CanMutateAggregate)
     ):
         event_spec = arg
 
@@ -478,7 +505,8 @@ def event(
 
     else:
         raise TypeError(
-            f"{arg} is not a str, aggregate event class, function, or property"
+            f"{arg} is not a str, function, property, or subclass of "
+            f"{CanMutateAggregate.__name__}"
         )
 
 
@@ -527,9 +555,7 @@ class BoundCommandMethodDecorator:
             self.event_decorator.decorated_method, args, kwargs
         )
         event_cls = decorated_event_classes[self.event_decorator]
-        kwargs = _filter_kwargs_for_method_params(
-            kwargs, event_cls.__dict__["__init__"]
-        )
+        kwargs = _filter_kwargs_for_method_params(kwargs, event_cls)
         self.aggregate.trigger_event(event_cls, **kwargs)
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:
@@ -541,25 +567,9 @@ decorated_methods: Dict[type, AnyCallable] = {}
 aggregate_has_many_created_event_classes: Dict[type, List[str]] = {}
 
 
-class DecoratedEvent(AggregateEvent[Any]):
-    def apply(self, aggregate: TAggregate) -> None:
-        """
-        Applies event to aggregate by calling method decorated by @event.
-        """
-        # Call super method, just in case any base classes need it.
-        super().apply(aggregate)
-
-        # Identify the method that was decorated.
-        decorated_method = decorated_methods[type(self)]
-
-        # Select event attributes mentioned in method signature.
-        kwargs = _filter_kwargs_for_method_params(self.__dict__, decorated_method)
-
-        # Call the original method with event attribute values.
-        decorated_method(aggregate, **kwargs)
-
-
-decorated_event_classes: Dict[CommandMethodDecorator, Type[DecoratedEvent]] = {}
+decorated_event_classes: Dict[
+    CommandMethodDecorator, Type[MetaAggregate.DecoratedEvent]
+] = {}
 
 
 def _check_no_variable_params(method: FunctionType) -> None:
@@ -658,7 +668,7 @@ def _spec_coerce_args_to_kwargs(
             f"{method_name}() missing {num_missing} required positional "
             f"argument{'' if num_missing == 1 else 's'}: "
         )
-        raise_missing_names_type_error(missing_names, msg)
+        _raise_missing_names_type_error(missing_names, msg)
     counter = 0
     args_names = []
     for name in positional_names:
@@ -682,7 +692,7 @@ def _spec_coerce_args_to_kwargs(
             f"required keyword-only argument"
             f"{'' if len(missing_names) == 1 else 's'}: "
         )
-        raise_missing_names_type_error(missing_names, msg)
+        _raise_missing_names_type_error(missing_names, msg)
     for key in tuple(keyword_defaults.keys()):
         if key in args_names or key in kwargs_keys:
             keyword_defaults.pop(key)
@@ -691,7 +701,7 @@ def _spec_coerce_args_to_kwargs(
     return enumerated_args_names, keyword_defaults_items
 
 
-def raise_missing_names_type_error(missing_names: List[str], msg: str) -> None:
+def _raise_missing_names_type_error(missing_names: List[str], msg: str) -> None:
     msg += missing_names[0]
     if len(missing_names) == 2:
         msg += f" and {missing_names[1]}"
@@ -701,7 +711,7 @@ def raise_missing_names_type_error(missing_names: List[str], msg: str) -> None:
     raise TypeError(msg)
 
 
-TT = TypeVar("TT", bound="type")
+_TT = TypeVar("_TT", bound="type")
 
 _annotations_mention_id: Set[MetaAggregate] = set()
 _init_mentions_id: Set[MetaAggregate] = set()
@@ -710,15 +720,32 @@ _init_mentions_id: Set[MetaAggregate] = set()
 class MetaAggregate(type):
     INITIAL_VERSION = 1
 
-    class Event(AggregateEvent[TAggregate]):
+    class Event(AggregateEvent):
         pass
 
-    class Created(Event[TAggregate], AggregateCreated[TAggregate]):
+    class Created(Event, AggregateCreated):
         pass
 
-    _created_event_class: Type[AggregateCreated[Any]]
+    class DecoratedEvent(CanMutateAggregate):
+        def apply(self, aggregate: Aggregate) -> None:
+            """
+            Applies event to aggregate by calling method decorated by @event.
+            """
+            # Call super method, just in case any base classes need it.
+            super().apply(aggregate)
 
-    def __new__(mcs: Type[TT], *args: Any, **kwargs: Any) -> TT:
+            # Identify the method that was decorated.
+            decorated_method = decorated_methods[type(self)]
+
+            # Select event attributes mentioned in method signature.
+            kwargs = _filter_kwargs_for_method_params(self.__dict__, decorated_method)
+
+            # Call the original method with event attribute values.
+            decorated_method(aggregate, **kwargs)
+
+    _created_event_class: Type[CanInitAggregate]
+
+    def __new__(mcs: Type[_TT], *args: Any, **kwargs: Any) -> _TT:
         try:
             class_annotations = args[2]["__annotations__"]
         except KeyError:
@@ -771,13 +798,13 @@ class MetaAggregate(type):
                     setattr(cls, name, sub_class)
 
         # Identify or define the aggregate's "created" event class.
-        created_event_class: Optional[Type[AggregateCreated[Any]]] = None
+        created_event_class: Optional[Type[CanInitAggregate]] = None
 
         # Has the "created" event class been indicated with '_created_event_class'.
         if "_created_event_class" in cls.__dict__:
             created_event_class = cls.__dict__["_created_event_class"]
             if isinstance(created_event_class, type) and issubclass(
-                created_event_class, AggregateCreated
+                created_event_class, CanInitAggregate
             ):
                 # We just subclassed the event classes, so reassign this.
                 created_event_class = getattr(cls, created_event_class.__name__)
@@ -785,7 +812,7 @@ class MetaAggregate(type):
                 cls._created_event_class = created_event_class
             else:
                 raise TypeError(
-                    f"{created_event_class} not subclass of {AggregateCreated.__name__}"
+                    f"{created_event_class} not subclass of {CanInitAggregate.__name__}"
                 )
 
         # Disallow using both '_created_event_class' and 'created_event_name'.
@@ -817,14 +844,14 @@ class MetaAggregate(type):
                     cls, init_decorator.given_event_cls.__name__
                 )
                 if isinstance(created_event_class, type) and issubclass(
-                    created_event_class, AggregateCreated
+                    created_event_class, CanInitAggregate
                 ):
                     assert created_event_class
                     cls._created_event_class = created_event_class
                 else:
                     raise TypeError(
                         f"{created_event_class} not subclass of "
-                        f"{AggregateCreated.__name__}"
+                        f"{CanInitAggregate.__name__}"
                     )
 
             # Does the decorator specify a "create" event name?
@@ -848,7 +875,7 @@ class MetaAggregate(type):
         if created_event_class is None:
 
             # Discover all the "created" event classes already defined.
-            created_event_classes: Dict[str, Type[AggregateCreated[Any]]] = {}
+            created_event_classes: Dict[str, Type[AggregateCreated]] = {}
             for name, value in tuple(cls.__dict__.items()):
                 if isinstance(value, type) and issubclass(value, AggregateCreated):
                     created_event_classes[name] = value
@@ -898,7 +925,7 @@ class MetaAggregate(type):
                 setattr(cls, created_event_name, event_cls)
 
                 # Remember which is the "created" event class.
-                cls._created_event_class = cast(Type[AggregateCreated[Any]], event_cls)
+                cls._created_event_class = cast(Type[AggregateCreated], event_cls)
 
             # Prepare to disallow ambiguity of choice between created event classes.
             else:
@@ -934,17 +961,17 @@ class MetaAggregate(type):
 
                 if attribute.given_event_cls:
                     # Check this is not a "created" event class.
-                    if issubclass(attribute.given_event_cls, AggregateCreated):
+                    if issubclass(attribute.given_event_cls, CanInitAggregate):
                         raise TypeError(
                             f"{attribute.given_event_cls} "
-                            f"is subclass of AggregateCreated"
+                            f"is subclass of {CanInitAggregate.__name__}"
                         )
 
                     # Define event class as subclass of given class.
                     given_subclass = getattr(cls, attribute.given_event_cls.__name__)
                     event_cls = cls._define_event_class(
                         attribute.given_event_cls.__name__,
-                        (DecoratedEvent, given_subclass),
+                        (cls.DecoratedEvent, given_subclass),
                         None,
                     )
 
@@ -961,7 +988,7 @@ class MetaAggregate(type):
                     # Define event class from signature of original method.
                     event_cls = cls._define_event_class(
                         attribute.event_cls_name,
-                        (DecoratedEvent, base_event_cls),
+                        (cls.DecoratedEvent, base_event_cls),
                         attribute.decorated_method,
                     )
 
@@ -973,7 +1000,7 @@ class MetaAggregate(type):
 
                 # Remember which event class to trigger.
                 decorated_event_classes[attribute] = cast(
-                    Type[DecoratedEvent], event_cls
+                    Type[MetaAggregate.DecoratedEvent], event_cls
                 )
 
         # Check any create_id method defined on this class is static or class method.
@@ -1024,7 +1051,7 @@ class MetaAggregate(type):
                     continue
                 # Don't override super class annotations, unless no default on param.
                 if param_name not in super_annotations or param.default == param.empty:
-                    annotations[param_name] = "typing.Any"  # Todo: Improve this?
+                    annotations[param_name] = param.annotation or "typing.Any"
         event_cls_qualname = ".".join([cls.__qualname__, name])
         event_cls_dict = {
             "__annotations__": annotations,
@@ -1060,7 +1087,7 @@ class MetaAggregate(type):
 
     def _create(
         cls,
-        event_class: Type[AggregateCreated[TAggregate]],
+        event_class: Type[CanInitAggregate],
         *,
         id: Optional[UUID] = None,
         **kwargs: Any,
@@ -1123,7 +1150,7 @@ class Aggregate(metaclass=MetaAggregate):
         self._version = originator_version
         self._created_on = timestamp
         self._modified_on = timestamp
-        self._pending_events: List[AggregateEvent[Any]] = []
+        self._pending_events: List[CanMutateAggregate] = []
 
     @property
     def id(self) -> UUID:
@@ -1162,16 +1189,16 @@ class Aggregate(metaclass=MetaAggregate):
         self._modified_on = modified_on
 
     @property
-    def pending_events(self) -> List[AggregateEvent[Any]]:
+    def pending_events(self) -> List[CanMutateAggregate]:
         """
         A list of pending events.
         """
         return self._pending_events
 
-    class Event(AggregateEvent[TAggregate]):
+    class Event(AggregateEvent):
         pass
 
-    class Created(Event[TAggregate], AggregateCreated[TAggregate]):
+    class Created(Event, AggregateCreated):
         pass
 
     def __eq__(self, other: Any) -> bool:
@@ -1187,7 +1214,7 @@ class Aggregate(metaclass=MetaAggregate):
 
     def trigger_event(
         self,
-        event_class: Type[AggregateEvent[Any]],
+        event_class: Type[CanMutateAggregate],
         **kwargs: Any,
     ) -> None:
         """
@@ -1216,7 +1243,7 @@ class Aggregate(metaclass=MetaAggregate):
         # Append the domain event to pending list.
         self._pending_events.append(new_event)
 
-    def collect_events(self) -> Sequence[HasOriginatorIDVersion]:
+    def collect_events(self) -> Sequence[CanMutateAggregate]:
         """
         Collects and returns a list of pending aggregate
         :class:`AggregateEvent` objects.
@@ -1312,14 +1339,76 @@ class VersionError(OriginatorVersionError):
     """
 
 
-@runtime_checkable
-class CanTake(Protocol):
+class SnapshotProtocol(DomainEventProtocol, Protocol):
+    @property
+    def topic(self) -> str:
+        ...  # pragma: no cover
+
+    @property
+    def state(self) -> Dict[str, Any]:
+        ...  # pragma: no cover
+
+    # Todo: Improve on this 'Any'.
     @classmethod
-    def take(cls, aggregate: HasIDVersion) -> HasOriginatorIDVersion:
+    def take(cls: Any, aggregate: Any) -> Any:
         ...  # pragma: no cover
 
 
-class Snapshot(DomainEvent[THasIDVersion]):
+TCanSnapshotAggregate = TypeVar("TCanSnapshotAggregate", bound="CanSnapshotAggregate")
+
+
+class CanSnapshotAggregate(HasOriginatorIDVersion, CanCreateTimestamp):
+    topic: str
+    state: Dict[str, Any]
+
+    @classmethod
+    def take(
+        cls: Type[TCanSnapshotAggregate],
+        aggregate: MutableOrImmutableAggregate,
+    ) -> TCanSnapshotAggregate:
+        """
+        Creates a snapshot of the given :class:`Aggregate` object.
+        """
+        aggregate_state = dict(aggregate.__dict__)
+        class_version = getattr(type(aggregate), "class_version", 1)
+        if class_version > 1:
+            aggregate_state["class_version"] = class_version
+        if isinstance(aggregate, Aggregate):
+            aggregate_state.pop("_id")
+            aggregate_state.pop("_version")
+            aggregate_state.pop("_pending_events")
+        snapshot = cls(  # type: ignore
+            originator_id=aggregate.id,
+            originator_version=aggregate.version,
+            timestamp=cls.create_timestamp(),
+            topic=get_topic(type(aggregate)),
+            state=aggregate_state,
+        )
+        return snapshot
+
+    def mutate(self, _: None) -> Aggregate:
+        """
+        Reconstructs the snapshotted :class:`Aggregate` object.
+        """
+        cls = cast(Type[Aggregate], resolve_topic(self.topic))
+        aggregate_state = dict(self.state)
+        from_version = aggregate_state.pop("class_version", 1)
+        class_version = getattr(cls, "class_version", 1)
+        while from_version < class_version:
+            upcast_name = f"upcast_v{from_version}_v{from_version + 1}"
+            upcast = getattr(cls, upcast_name)
+            upcast(aggregate_state)
+            from_version += 1
+
+        aggregate_state["_id"] = self.originator_id
+        aggregate_state["_version"] = self.originator_version
+        aggregate_state["_pending_events"] = []
+        aggregate = object.__new__(cls)
+        aggregate.__dict__.update(aggregate_state)
+        return aggregate
+
+
+class Snapshot(CanSnapshotAggregate, DomainEvent):
     """
     Snapshots represent the state of an aggregate at a particular
     version.
@@ -1335,47 +1424,3 @@ class Snapshot(DomainEvent[THasIDVersion]):
 
     topic: str
     state: Dict[str, Any]
-
-    @classmethod
-    def take(cls, aggregate: HasIDVersion) -> Snapshot[HasIDVersion]:
-        """
-        Creates a snapshot of the given :class:`Aggregate` object.
-        """
-        aggregate_state = dict(aggregate.__dict__)
-        class_version = getattr(type(aggregate), "class_version", 1)
-        if class_version > 1:
-            aggregate_state["class_version"] = class_version
-        if isinstance(aggregate, Aggregate):
-            aggregate_state.pop("_id")
-            aggregate_state.pop("_version")
-            aggregate_state.pop("_pending_events")
-        return cls(  # type: ignore
-            originator_id=aggregate.id,
-            originator_version=aggregate.version,
-            timestamp=cls.create_timestamp(),
-            topic=get_topic(type(aggregate)),
-            state=aggregate_state,
-        )
-
-    def mutate(self, _: Optional[THasIDVersion]) -> THasIDVersion:
-        """
-        Reconstructs the snapshotted :class:`Aggregate` object.
-        """
-        cls = resolve_topic(self.topic)
-        assert issubclass(cls, Aggregate)
-        aggregate_state = dict(self.state)
-        from_version = aggregate_state.pop("class_version", 1)
-        class_version = getattr(cls, "class_version", 1)
-        while from_version < class_version:
-            upcast_name = f"upcast_v{from_version}_v{from_version + 1}"
-            upcast = getattr(cls, upcast_name)
-            upcast(aggregate_state)
-            from_version += 1
-
-        aggregate_state["_id"] = self.originator_id
-        aggregate_state["_version"] = self.originator_version
-        aggregate_state["_pending_events"] = []
-        aggregate: THasIDVersion = object.__new__(cls)
-
-        aggregate.__dict__.update(aggregate_state)
-        return aggregate

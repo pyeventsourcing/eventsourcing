@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, cast
 from uuid import UUID, uuid4
 
 from eventsourcing.dispatch import singledispatchmethod
@@ -199,14 +199,14 @@ class Cargo(Aggregate):
             arrival_deadline=arrival_deadline,
         )
 
-    class BookingStarted(Aggregate.Created["Cargo"]):
+    class BookingStarted(Aggregate.Created):
         origin: Location
         destination: Location
         arrival_deadline: datetime
 
-    class Event(Aggregate.Event["Cargo"]):
-        def apply(self, aggregate: Cargo) -> None:
-            aggregate.when(self)
+    class Event(Aggregate.Event):
+        def apply(self, aggregate: Aggregate) -> None:
+            cast(Cargo, aggregate).when(self)
 
     @singledispatchmethod
     def when(self, event: Event) -> None:

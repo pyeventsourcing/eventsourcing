@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -7,11 +7,11 @@ from typing import Any, Dict, Iterable, List, Optional, Type, TypeVar
 from uuid import UUID, uuid4
 
 from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain import HasOriginatorIDVersion, Snapshot
+from eventsourcing.domain import Snapshot
 
 
 @dataclass(frozen=True)
-class DomainEvent(HasOriginatorIDVersion):
+class DomainEvent:
     originator_version: int
     originator_id: UUID
     timestamp: datetime
@@ -24,7 +24,7 @@ class DomainEvent(HasOriginatorIDVersion):
 TAggregate = TypeVar("TAggregate", bound="Aggregate")
 
 
-class Aggregate(ABC):
+class Aggregate:
     id: UUID
     version: int
     created_on: datetime
@@ -123,5 +123,5 @@ class Dog(Aggregate):
         self.version = event.originator_version
 
     @apply.register(Snapshot)
-    def _(self, event: Snapshot[TAggregate]) -> None:
+    def _(self, event: Snapshot) -> None:
         self.__dict__.update(event.state)

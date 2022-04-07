@@ -47,10 +47,10 @@ class EndOfWeek(Product):
 
 
 class Vehicle(Aggregate):
-    class Event(Aggregate.Event["Vehicle"]):
+    class Event(Aggregate.Event):
         pass
 
-    class Registered(Event, Aggregate.Created["Vehicle"]):
+    class Registered(Event, Aggregate.Created):
         licence_plate_number: str
 
     class Booked(Event):
@@ -173,9 +173,7 @@ class TestParkingLot(TestCase):
 
         # Check all domain events in bounded context.
         notifications = NotificationLogReader(app.notification_log).read(start=1)
-        domain_events: List[Vehicle.Event] = [
-            app.mapper.to_domain_event(n) for n in notifications
-        ]
+        domain_events = [app.mapper.to_domain_event(n) for n in notifications]
         self.assertEqual(len(domain_events), 4)
 
         vehicle1_id = Vehicle.create_id("123-123")

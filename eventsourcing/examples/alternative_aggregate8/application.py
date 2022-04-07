@@ -2,13 +2,8 @@ from typing import Any, Dict
 from uuid import UUID
 
 from eventsourcing.application import Application
-from eventsourcing.examples.alternative_aggregate7.domainmodel import (
-    Snapshot,
-    add_trick,
-    project_dog,
-    register_dog,
-)
-from eventsourcing.examples.alternative_aggregate7.persistence import (
+from eventsourcing.examples.alternative_aggregate8.domainmodel import Dog, Snapshot
+from eventsourcing.examples.alternative_aggregate8.persistence import (
     OrjsonTranscoder,
     PydanticMapper,
 )
@@ -20,17 +15,18 @@ class DogSchool(Application):
     snapshot_class = Snapshot
 
     def register_dog(self, name: str) -> UUID:
-        event = register_dog(name)
-        self.save(event)
-        return event.originator_id
+        dog = Dog(name)
+        self.save(dog)
+        return dog.id
 
     def add_trick(self, dog_id: UUID, trick: str) -> None:
-        dog = self.repository.get(dog_id, projector_func=project_dog)
-        self.save(add_trick(dog, trick))
+        dog: Dog = self.repository.get(dog_id)
+        dog.add_trick(trick)
+        self.save(dog)
 
     def get_dog(self, dog_id: UUID) -> Dict[str, Any]:
-        dog = self.repository.get(dog_id, projector_func=project_dog)
-        return {"name": dog.name, "tricks": dog.tricks}
+        dog: Dog = self.repository.get(dog_id)
+        return {"name": dog.name, "tricks": tuple(dog.tricks)}
 
     def construct_mapper(self) -> Mapper:
         return self.factory.mapper(
