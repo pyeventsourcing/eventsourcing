@@ -32,6 +32,7 @@ from eventsourcing.domain import (
     DomainEventProtocol,
     EventSourcingError,
     MutableOrImmutableAggregate,
+    ProgrammingError,
     Snapshot,
     SnapshotProtocol,
     TLogEvent,
@@ -626,6 +627,9 @@ class Application(ABC):
     snapshotting_intervals: Optional[
         Dict[Type[MutableOrImmutableAggregate], int]
     ] = None
+    snapshotting_projectors: Optional[
+        Dict[Type[MutableOrImmutableAggregate], ProjectorFunction[Any]]
+    ] = None
     snapshot_class: Type[SnapshotProtocol] = Snapshot
     log_section_size = 10
     notify_topics: Sequence[str] = []
@@ -817,9 +821,26 @@ class Application(ABC):
                 interval = self.snapshotting_intervals.get(type(aggregate))
                 if interval is not None:
                     if event.originator_version % interval == 0:
+                        projector_func: ProjectorFunction[
+                            MutableOrImmutableAggregate
+                        ] = (
+                            self.snapshotting_projectors
+                            and self.snapshotting_projectors.get(type(aggregate))
+                        ) or project_aggregate
+                        if (
+                            not isinstance(event, CanMutateProtocol)
+                            and projector_func is project_aggregate
+                        ):
+                            raise ProgrammingError(
+                                (
+                                    "Aggregate projector function not found. Please set "
+                                    "snapshotting_projectors on application class."
+                                )
+                            )
                         self.take_snapshot(
                             aggregate_id=event.originator_id,
                             version=event.originator_version,
+                            projector_func=projector_func,
                         )
 
     def take_snapshot(
