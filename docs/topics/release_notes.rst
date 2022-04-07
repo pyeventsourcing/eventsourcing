@@ -23,8 +23,8 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
-Version 9.2.4 (7 April 2022)
-----------------------------
+Version 9.2.4 (released 7 April 2022)
+-------------------------------------
 
 * Added examples showing how persistence and application modules can be
   used with alternative infrastructure, including Pydantic event classes
@@ -52,8 +52,8 @@ Version 9.2.4 (7 April 2022)
   wording in domain module doc, overview in tutorial).
 * Fixed a call to '_reconstruct_aggregate' to use given 'projector_func'
   arg (was using default 'mutator_func').
-* Adjusted order of looking for PERSISTENCE_MODULE, INFRASTRUCTURE_FACTORY
-  and FACTORY_TOPIC in environment (so that legacy alternatives are looked
+* Adjusted order of looking for 'PERSISTENCE_MODULE', 'INFRASTRUCTURE_FACTORY'
+  and 'FACTORY_TOPIC' in environment (so that legacy alternatives are looked
   for last, allowing the persistence module to be set to POPO when constructing
   application objects for their transcoder in remote clients so that the
   application doesn't try to connect to a real database).
