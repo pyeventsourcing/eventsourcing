@@ -20,9 +20,9 @@ class PydanticMapper(Mapper):
         event_state = cast(BaseModel, domain_event).dict()
         stored_state = self.transcoder.encode(event_state)
         if self.compressor:
-            stored_state = self.compressor.compress(stored_state)  # pragma: no cover
+            stored_state = self.compressor.compress(stored_state)
         if self.cipher:
-            stored_state = self.cipher.encrypt(stored_state)  # pragma: no cover
+            stored_state = self.cipher.encrypt(stored_state)
         return StoredEvent(
             originator_id=domain_event.originator_id,
             originator_version=domain_event.originator_version,
@@ -33,9 +33,9 @@ class PydanticMapper(Mapper):
     def to_domain_event(self, stored: StoredEvent) -> DomainEventProtocol:
         stored_state = stored.state
         if self.cipher:
-            stored_state = self.cipher.decrypt(stored_state)  # pragma: no cover
+            stored_state = self.cipher.decrypt(stored_state)
         if self.compressor:
-            stored_state = self.compressor.decompress(stored_state)  # pragma: no cover
+            stored_state = self.compressor.decompress(stored_state)
         event_state: Dict[str, Any] = self.transcoder.decode(stored_state)
         cls = resolve_topic(stored.topic)
         return cls(**event_state)
