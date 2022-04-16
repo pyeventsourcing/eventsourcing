@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from functools import singledispatch
-from time import monotonic
 from typing import Any, Dict, Iterable, Optional, Tuple, TypeVar
 from uuid import UUID, uuid4
 
@@ -22,7 +21,7 @@ class DomainEvent(BaseModel):
 
 
 def create_timestamp() -> datetime:
-    return datetime.fromtimestamp(monotonic(), timezone.utc)
+    return datetime.now(tz=timezone.utc)
 
 
 class Aggregate(BaseModel):

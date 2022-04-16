@@ -5,7 +5,6 @@ import os
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
 from functools import lru_cache
-from time import monotonic
 from types import FunctionType, WrapperDescriptorType
 from typing import (
     Any,
@@ -105,7 +104,7 @@ class CanCreateTimestamp:
         Returns a timezone aware :class:`~datetime.datetime` object
         for the current time.
         """
-        return datetime.fromtimestamp(monotonic(), TZINFO)
+        return datetime.now(tz=TZINFO)
 
 
 TAggregate = TypeVar("TAggregate", bound="Aggregate")

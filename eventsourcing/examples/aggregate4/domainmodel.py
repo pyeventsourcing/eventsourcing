@@ -2,7 +2,6 @@ from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from time import monotonic
 from typing import Any, Dict, Iterable, List, Optional, Type, TypeVar
 from uuid import UUID, uuid4
 
@@ -18,7 +17,7 @@ class DomainEvent:
 
     @staticmethod
     def create_timestamp() -> datetime:
-        return datetime.fromtimestamp(monotonic(), timezone.utc)
+        return datetime.now(tz=timezone.utc)
 
 
 TAggregate = TypeVar("TAggregate", bound="Aggregate")
