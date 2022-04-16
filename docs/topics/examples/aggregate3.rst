@@ -3,7 +3,7 @@
 Aggregate 3 - Explicit trigger and apply
 ========================================
 
-This example shows the ``Dog`` class used in the tutorial and module docs.
+This example shows another variation of the ``Dog`` aggregate class.
 
 Like the previous example, this example uses the ``Aggregate`` class from the
 library. Event classes are defined explicitly to match command method signatures.

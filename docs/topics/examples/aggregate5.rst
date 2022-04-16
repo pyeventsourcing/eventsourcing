@@ -3,21 +3,24 @@
 Aggregate 5 - Immutable aggregate
 =================================
 
-This example shows the ``Dog`` class used in the tutorial and module docs.
+This example shows another variation of the ``Dog`` aggregate class used
+in the tutorial and module docs.
 
-This example also does *not* use the library ``Aggregate`` class. Instead, it
-defines its own ``Aggregate`` and ``DomainEvent`` base classes. In contrast
-to the previous examples, both the event and the aggregate classes are
-defined as frozen dataclasses.
+Like in the previous example, this example also does *not* use the library
+``Aggregate`` class. Instead, it defines its own ``Aggregate`` and ``DomainEvent``
+base classes. In contrast to the previous examples, the aggregate is defined
+as frozen dataclasses to be an immutable object. This has implications for
+the aggregate command methods, which must simply return the events that they
+trigger without mutating the state of the aggregate object.
 
-The ``Dog`` aggregate is a frozen dataclass, but it otherwise similar to the
-previous example. It explicitly defines event classes. And it explicitly
-triggers events in command methods. However, in this example the aggregate
-state is evolved by constructing a new instance of the aggregate class.
+The ``Dog`` aggregate is an immutable frozen dataclass, but it otherwise similar
+to the previous example. It explicitly defines event classes. And it explicitly
+triggers events in command methods. However, it has a ``mutate()`` method which
+evolves aggregate state by constructing a new instance of the aggregate class
+for each event.
 
-In contrast to the previous examples, the application code in this example
-must receive the new aggregate instance and the new domain events that are
-returned from the aggregate command methods. The aggregate
+The application code in this example must receive the new events that
+are triggered when calling the aggregate command methods. The aggregate
 projector function must also be supplied when getting an aggregate from the
 repository and when taking snapshots.
 

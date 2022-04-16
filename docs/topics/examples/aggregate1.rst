@@ -10,7 +10,7 @@ to define events that are derived from command method signatures.
 The bodies of the command methods are used to apply the events
 to the aggregate state.
 
-The application code simply uses the aggregate class as if it were a normal
+The application class simply uses the aggregate class as if it were a normal
 Python object class.
 
 Domain model
