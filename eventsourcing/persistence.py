@@ -40,15 +40,8 @@ class Transcoding(ABC):
     Abstract base class for custom transcodings.
     """
 
-    @property
-    @abstractmethod
-    def type(self) -> type:
-        """Object type of transcoded object."""
-
-    @property
-    @abstractmethod
-    def name(self) -> str:
-        """Name of transcoding."""
+    type: type
+    name: str
 
     @abstractmethod
     def encode(self, obj: Any) -> Any:
