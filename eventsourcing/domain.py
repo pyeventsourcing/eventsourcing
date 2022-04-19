@@ -770,7 +770,7 @@ class MetaAggregate(type):
     def __init__(
         cls,
         *args: Any,
-        created_event_name: Optional[str] = None,
+        created_event_name: str = "",
     ) -> None:
         super().__init__(*args)
 
@@ -1269,7 +1269,7 @@ class Aggregate(metaclass=MetaAggregate):
 def aggregate(
     cls: Optional[Any] = None,
     *,
-    created_event_name: Optional[str] = None,
+    created_event_name: str = "",
 ) -> Union[Type[Aggregate], Callable[[Any], Type[Aggregate]]]:
     """
     Converts the class that was passed in to inherit from Aggregate.
