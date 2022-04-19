@@ -27,7 +27,7 @@ class Aggregate:
     created_on: datetime
 
     def trigger_event(
-        self: TAggregate,
+        self,
         event_class: Type[DomainEvent],
         **kwargs: Any,
     ) -> DomainEvent:
