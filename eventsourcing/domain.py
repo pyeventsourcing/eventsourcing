@@ -1078,9 +1078,9 @@ class MetaAggregate(type, Generic[TAggregate]):
         except KeyError:
             pass
 
-        self_init: WrapperDescriptorType = cls.__init__  # type: ignore
+        cls_init: Union[FunctionType, WrapperDescriptorType] = cls.__init__  # type: ignore
         kwargs = _coerce_args_to_kwargs(
-            self_init,
+            cls_init,
             args,
             kwargs,
             expects_id=cls in _annotations_mention_id,
