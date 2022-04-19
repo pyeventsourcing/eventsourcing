@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import os
+import sys
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
 from functools import lru_cache
@@ -23,10 +24,10 @@ from typing import (
     overload,
 )
 
-try:
+if sys.version_info >= (3, 8):  # pragma: no cover
     from typing import Protocol, runtime_checkable
-except ImportError:  # pragma: no cover
-    from typing_extensions import Protocol, runtime_checkable  # type: ignore
+else:
+    from typing_extensions import Protocol, runtime_checkable
 
 from uuid import UUID, uuid4
 
