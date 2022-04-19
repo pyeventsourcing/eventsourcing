@@ -56,8 +56,8 @@ class Invoice(Aggregate):
     def amount(self) -> Decimal:
         return self._amount
 
-    @event("AmountUpdated")  # type: ignore
-    @amount.setter
+    @amount.setter  # type: ignore
+    @event("AmountUpdated")
     def amount(self, value: Decimal) -> None:
         assert self.status == Status.INITIATED
         self._amount = value
