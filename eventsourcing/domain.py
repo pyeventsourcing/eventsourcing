@@ -196,10 +196,12 @@ class CanInitAggregate(CanMutateAggregate):
 
 class MetaDomainEvent(type):
     def __new__(
-        mcs, name: str, bases: Tuple[type, ...], cls_dict: Dict[str, Any]
-    ) -> MetaDomainEvent:
-        event_cls = super().__new__(mcs, name, bases, cls_dict)
-        event_cls = dataclass(frozen=True)(event_cls)  # type: ignore
+        cls, name: str, bases: Tuple[Type[TDomainEvent], ...], cls_dict: Dict[str, Any]
+    ) -> Type[TDomainEvent]:
+        event_cls = cast(
+            Type[TDomainEvent], super().__new__(cls, name, bases, cls_dict)
+        )
+        event_cls = dataclass(frozen=True)(event_cls)
         event_cls.__signature__ = inspect.signature(event_cls.__init__)  # type: ignore
         return event_cls
 
