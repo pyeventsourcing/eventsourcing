@@ -546,7 +546,7 @@ class ProcessingEvent:
         Initialises the process event with the given tracking object.
         """
         self.tracking = tracking
-        self.events: List[Union[DomainEventProtocol]] = []
+        self.events: List[DomainEventProtocol] = []
         self.aggregates: Dict[UUID, MutableOrImmutableAggregate] = {}
         self.saved_kwargs: Dict[Any, Any] = {}
 
