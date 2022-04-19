@@ -11,6 +11,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Generic,
     Iterable,
     List,
     Optional,
@@ -379,18 +380,18 @@ class CommandMethodDecorator:
 
     @overload
     def __get__(
-        self, instance: None, owner: MetaAggregate
+        self, instance: None, owner: MetaAggregate[Aggregate]
     ) -> Union[UnboundCommandMethodDecorator, property]:
         ...  # pragma: no cover
 
     @overload
     def __get__(
-        self, instance: Aggregate, owner: MetaAggregate
+        self, instance: Aggregate, owner: MetaAggregate[Aggregate]
     ) -> Union[BoundCommandMethodDecorator, Any]:
         ...  # pragma: no cover
 
     def __get__(
-        self, instance: Optional[Aggregate], owner: MetaAggregate
+        self, instance: Optional[Aggregate], owner: MetaAggregate[Aggregate]
     ) -> Union[
         BoundCommandMethodDecorator, UnboundCommandMethodDecorator, property, Any
     ]:
@@ -715,11 +716,11 @@ def _raise_missing_names_type_error(missing_names: List[str], msg: str) -> None:
 
 _TT = TypeVar("_TT", bound="type")
 
-_annotations_mention_id: Set[MetaAggregate] = set()
-_init_mentions_id: Set[MetaAggregate] = set()
+_annotations_mention_id: Set[MetaAggregate[Aggregate]] = set()
+_init_mentions_id: Set[MetaAggregate[Aggregate]] = set()
 
 
-class MetaAggregate(type):
+class MetaAggregate(type, Generic[TAggregate]):
     INITIAL_VERSION = 1
 
     class Event(AggregateEvent):
@@ -768,7 +769,7 @@ class MetaAggregate(type):
         return cls
 
     def __init__(
-        cls,
+        cls: MetaAggregate[Aggregate],
         *args: Any,
         created_event_name: str = "",
     ) -> None:
@@ -1064,7 +1065,9 @@ class MetaAggregate(type):
         # Create the event class object.
         return type(name, bases, event_cls_dict)
 
-    def __call__(cls, *args: Any, **kwargs: Any) -> Any:
+    def __call__(
+        cls: MetaAggregate[TAggregate], *args: Any, **kwargs: Any
+    ) -> TAggregate:
         try:
             created_event_classes = aggregate_has_many_created_event_classes[cls]
             raise TypeError(
@@ -1088,15 +1091,35 @@ class MetaAggregate(type):
         )
 
     def _create(
-        cls,
+        cls: MetaAggregate[TAggregate],
+        event_class: Type[CanInitAggregate],
+        **kwargs: Any,
+    ) -> TAggregate:
+        raise NotImplementedError()  # pragma: no cover
+
+    @staticmethod
+    def create_id(**kwargs: Any) -> UUID:
+        """
+        Returns a new aggregate ID.
+        """
+        return uuid4()
+
+
+class Aggregate(metaclass=MetaAggregate):
+    """
+    Base class for aggregate roots.
+    """
+
+    @classmethod
+    def _create(
+        cls: Type[TAggregate],
         event_class: Type[CanInitAggregate],
         *,
         id: Optional[UUID] = None,
         **kwargs: Any,
     ) -> TAggregate:
         """
-        Factory method to construct a new
-        aggregate object instance.
+        Constructs a new aggregate object instance.
         """
         # Construct the domain event with an ID and a
         # version, and a topic for the aggregate class.
@@ -1127,19 +1150,6 @@ class MetaAggregate(type):
         agg.pending_events.append(created_event)
         # Return the aggregate.
         return agg
-
-    @staticmethod
-    def create_id(**kwargs: Any) -> UUID:
-        """
-        Returns a new aggregate ID.
-        """
-        return uuid4()
-
-
-class Aggregate(metaclass=MetaAggregate):
-    """
-    Base class for aggregate roots.
-    """
 
     def __base_init__(
         self, originator_id: UUID, originator_version: int, timestamp: datetime
