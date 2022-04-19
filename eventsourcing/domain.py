@@ -536,7 +536,7 @@ class BoundCommandMethodDecorator:
     on an aggregate so that the aggregate methods can be accessed.
     """
 
-    def __init__(self, event_decorator: CommandMethodDecorator, aggregate: TAggregate):
+    def __init__(self, event_decorator: CommandMethodDecorator, aggregate: Aggregate):
         """
 
         :param CommandMethodDecorator event_decorator:
