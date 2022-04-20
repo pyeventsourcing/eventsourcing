@@ -922,7 +922,7 @@ class MetaAggregate(type, Generic[TAggregate]):
                 # Define a "created" event class for this aggregate.
                 if issubclass(cls.Created, base_event_cls):
                     # Don't subclass from base event class twice.
-                    bases: Tuple[type, ...] = (cls.Created,)
+                    bases: Tuple[Type[DomainEvent], ...] = (cls.Created,)
                 else:
                     bases = (cls.Created, base_event_cls)
                 event_cls = cls._define_event_class(
@@ -989,8 +989,9 @@ class MetaAggregate(type, Generic[TAggregate]):
                         )
 
                     # Define event class as subclass of given class.
-                    given_subclass = getattr(
-                        cls, event_decorator.given_event_cls.__name__
+                    given_subclass = cast(
+                        Type[HasOriginatorIDVersion],
+                        getattr(cls, event_decorator.given_event_cls.__name__),
                     )
                     event_cls = cls._define_event_class(
                         event_decorator.given_event_cls.__name__,
@@ -1056,9 +1057,9 @@ class MetaAggregate(type, Generic[TAggregate]):
     def _define_event_class(
         cls,
         name: str,
-        bases: Tuple[type, ...],
+        bases: Tuple[Type[DomainEventProtocol], ...],
         apply_method: Optional[CommandMethod],
-    ) -> type:
+    ) -> Type[DomainEventProtocol]:
         # Define annotations for the event class (specs the init method).
         annotations = {}
         if apply_method is not None:
@@ -1082,7 +1083,7 @@ class MetaAggregate(type, Generic[TAggregate]):
         }
 
         # Create the event class object.
-        return type(name, bases, event_cls_dict)
+        return cast(Type[DomainEventProtocol], type(name, bases, event_cls_dict))
 
     def __call__(
         cls: MetaAggregate[TAggregate], *args: Any, **kwargs: Any
@@ -1162,7 +1163,7 @@ class Aggregate(metaclass=MetaAggregate):
             msg = f"Unable to construct '{event_class.__name__}' event: {e}"
             raise TypeError(msg)
         # Construct the aggregate object.
-        agg = created_event.mutate(None)
+        agg = cast(TAggregate, created_event.mutate(None))
 
         assert agg is not None
         # Append the domain event to pending list.
