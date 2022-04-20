@@ -539,7 +539,6 @@ class UnboundCommandMethodDecorator:
         :param CommandMethodDecorator event_decorator:
         """
         self.event_decorator = event_decorator
-        assert event_decorator.decorated_method
         self.__qualname__ = event_decorator.decorated_method.__qualname__
         self.__name__ = event_decorator.decorated_method.__name__
 
@@ -556,15 +555,12 @@ class BoundCommandMethodDecorator:
         :param CommandMethodDecorator event_decorator:
         :param Aggregate aggregate:
         """
-        assert event_decorator.decorated_method
         self.event_decorator = event_decorator
         self.__qualname__ = event_decorator.decorated_method.__qualname__
         self.__name__ = event_decorator.decorated_method.__name__
         self.aggregate = aggregate
 
     def trigger(self, *args: Any, **kwargs: Any) -> None:
-        assert isinstance(self.event_decorator, CommandMethodDecorator)  # for PyCharm
-        assert self.event_decorator.decorated_method
         kwargs = _coerce_args_to_kwargs(
             self.event_decorator.decorated_method, args, kwargs
         )
