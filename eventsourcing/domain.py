@@ -759,7 +759,7 @@ class MetaAggregate(type, Generic[TAggregate]):
 
     _created_event_class: Type[CanInitAggregate]
 
-    def __new__(mcs: Type[_TT], *args: Any, **kwargs: Any) -> _TT:
+    def __new__(cls, *args: Any, **kwargs: Any) -> MetaAggregate[Aggregate]:
         try:
             class_annotations = args[2]["__annotations__"]
         except KeyError:
@@ -772,12 +772,12 @@ class MetaAggregate(type, Generic[TAggregate]):
                 annotations_mention_id = False
             else:
                 annotations_mention_id = True
-        cls = type.__new__(mcs, *args)
+        aggregate_cls = type.__new__(cls, *args)
         if class_annotations:
-            cls = dataclass(eq=False, repr=False)(cls)
+            aggregate_cls = dataclass(eq=False, repr=False)(aggregate_cls)
         if annotations_mention_id:
-            _annotations_mention_id.add(cls)
-        return cls
+            _annotations_mention_id.add(aggregate_cls)
+        return aggregate_cls
 
     def __init__(
         cls: MetaAggregate[Aggregate],
