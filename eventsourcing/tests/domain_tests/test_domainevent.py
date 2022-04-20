@@ -18,8 +18,15 @@ class TestMetaDomainEvent(TestCase):
 
 
 class TestDomainEvent(TestCase):
-    # def test_domain_event_class_is_a_meta_domain_event(self):
-    #     self.assertIsInstance(DomainEvent, MetaDomainEvent)
+    def test_domain_event_class_is_a_meta_domain_event(self):
+        self.assertIsInstance(DomainEvent, MetaDomainEvent)
+
+    def test_create_timestamp(self):
+        before = datetime.now(tz=timezone.utc)
+        timestamp = DomainEvent.create_timestamp()
+        after = datetime.now(tz=timezone.utc)
+        self.assertGreater(timestamp, before)
+        self.assertGreater(after, timestamp)
 
     def test_domain_event_instance(self):
         originator_id = uuid4()
