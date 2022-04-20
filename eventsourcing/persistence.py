@@ -564,7 +564,9 @@ class EventStore:
         )
 
 
-TF = TypeVar("TF", bound="InfrastructureFactory")
+TInfrastructureFactory = TypeVar(
+    "TInfrastructureFactory", bound="InfrastructureFactory"
+)
 
 
 class InfrastructureFactory(ABC):
@@ -579,13 +581,15 @@ class InfrastructureFactory(ABC):
     IS_SNAPSHOTTING_ENABLED = "IS_SNAPSHOTTING_ENABLED"
 
     @classmethod
-    def construct(cls: Type[TF], env: Environment) -> TF:
+    def construct(
+        cls: Type[TInfrastructureFactory], env: Environment
+    ) -> TInfrastructureFactory:
         """
         Constructs concrete infrastructure factory for given
         named application. Reads and resolves persistence
         topic from environment variable 'PERSISTENCE_MODULE'.
         """
-        factory_cls: Type[TF]
+        factory_cls: Type[InfrastructureFactory]
         topic = (
             env.get(
                 cls.PERSISTENCE_MODULE,
@@ -602,7 +606,7 @@ class InfrastructureFactory(ABC):
             or "eventsourcing.popo"
         )
         try:
-            obj: Union[Type[TF], ModuleType] = resolve_topic(topic)
+            obj: Union[Type[InfrastructureFactory], ModuleType] = resolve_topic(topic)
         except TopicError as e:
             raise EnvironmentError(
                 "Failed to resolve persistence module topic: "
@@ -612,14 +616,14 @@ class InfrastructureFactory(ABC):
 
         if isinstance(obj, ModuleType):
             # Find the factory in the module.
-            factory_classes: List[Type[TF]] = []
+            factory_classes: List[Type[InfrastructureFactory]] = []
             for member in obj.__dict__.values():
                 if (
-                    isinstance(member, type)
+                    member is not InfrastructureFactory
+                    and isinstance(member, type)
                     and issubclass(member, InfrastructureFactory)
-                    and member != InfrastructureFactory
                 ):
-                    factory_classes.append(cast(Type[TF], member))
+                    factory_classes.append(member)
             if len(factory_classes) == 1:
                 factory_cls = factory_classes[0]
             else:
@@ -633,7 +637,7 @@ class InfrastructureFactory(ABC):
             raise AssertionError(
                 f"Not an infrastructure factory class or module: {topic}"
             )
-        return factory_cls(env=env)
+        return cast(TInfrastructureFactory, factory_cls(env=env))
 
     def __init__(self, env: Environment):
         """
