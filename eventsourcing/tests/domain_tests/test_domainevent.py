@@ -1,5 +1,5 @@
 from dataclasses import _DataclassParams
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.case import TestCase
 from uuid import UUID, uuid4
 

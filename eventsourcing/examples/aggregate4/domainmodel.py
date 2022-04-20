@@ -1,3 +1,4 @@
+import sys
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -47,7 +48,10 @@ class Aggregate:
         self.apply(new_event)
         self._pending_events.append(new_event)
 
-    apply: singledispatchmethod
+    if sys.version_info >= (3, 8):  # pragma: no cover
+        apply: singledispatchmethod[None]
+    else:
+        apply: singledispatchmethod
 
     def collect_events(self) -> List[DomainEvent]:
         events, self._pending_events = self._pending_events, []

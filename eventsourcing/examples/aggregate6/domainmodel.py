@@ -1,10 +1,9 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import singledispatch
-from typing import Iterable, Optional, Tuple, TypeVar, Union
+from typing import Callable, Iterable, Optional, Tuple, TypeVar, Union
 from uuid import UUID, uuid4
 
-from eventsourcing.application import MutatorFunction, ProjectorFunction
 from eventsourcing.domain import Snapshot
 
 
@@ -27,11 +26,12 @@ class Aggregate:
 
 
 TAggregate = TypeVar("TAggregate", bound=Aggregate)
+MutatorFunction = Callable[..., Optional[TAggregate]]
 
 
 def aggregate_projector(
     mutator: MutatorFunction[TAggregate],
-) -> ProjectorFunction[TAggregate]:
+) -> Callable[[Optional[TAggregate], Iterable[DomainEvent]], Optional[TAggregate]]:
     def project_aggregate(
         aggregate: Optional[TAggregate], events: Iterable[DomainEvent]
     ) -> Optional[TAggregate]:

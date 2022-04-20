@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from functools import singledispatch
-from typing import Any, Dict, Iterable, Optional, Tuple, TypeVar
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, TypeVar
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel
 
-from eventsourcing.application import MutatorFunction, ProjectorFunction
 from eventsourcing.utils import get_topic
 
 
@@ -52,11 +51,12 @@ class Snapshot(DomainEvent):
 
 
 TAggregate = TypeVar("TAggregate", bound=Aggregate)
+MutatorFunction = Callable[..., Optional[TAggregate]]
 
 
 def aggregate_projector(
     mutator: MutatorFunction[TAggregate],
-) -> ProjectorFunction[TAggregate]:
+) -> Callable[[Optional[TAggregate], Iterable[DomainEvent]], Optional[TAggregate]]:
     def project_aggregate(
         aggregate: Optional[TAggregate], events: Iterable[DomainEvent]
     ) -> Optional[TAggregate]:
