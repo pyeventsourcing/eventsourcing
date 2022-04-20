@@ -274,8 +274,9 @@ def _spec_filter_kwargs_for_method_params(method: Callable[..., Any]) -> Set[str
 
 
 EventSpecType = Optional[Union[str, Type[CanMutateAggregate]]]
-AnyCallable = Callable[..., None]
-DecoratedObjType = TypeVar("DecoratedObjType", bound=Union[AnyCallable, property])
+CommandMethod = Callable[..., None]
+DecoratedObjType = Union[CommandMethod, property]
+TDecoratedObjType = TypeVar("TDecoratedObjType", bound=DecoratedObjType)
 InjectEventType = bool
 
 
@@ -417,19 +418,21 @@ class CommandMethodDecorator:
 
 # Called because specifying decorator params.
 @overload
-def event(arg: EventSpecType = None) -> Callable[[DecoratedObjType], DecoratedObjType]:
+def event(
+    arg: EventSpecType = None,
+) -> Callable[[TDecoratedObjType], TDecoratedObjType]:
     ...  # pragma: no cover
 
 
 # Called because Python is actually decorating something.
 @overload
-def event(arg: DecoratedObjType) -> DecoratedObjType:
+def event(arg: TDecoratedObjType) -> TDecoratedObjType:
     ...  # pragma: no cover
 
 
 def event(
-    arg: Union[EventSpecType, DecoratedObjType] = None,
-) -> Union[Callable[[DecoratedObjType], DecoratedObjType], DecoratedObjType]:
+    arg: Union[EventSpecType, TDecoratedObjType] = None,
+) -> Union[Callable[[TDecoratedObjType], TDecoratedObjType], TDecoratedObjType]:
     """
     Can be used to decorate an aggregate method so that when the
     method is called an event is triggered. The body of the method
@@ -484,7 +487,7 @@ def event(
             decorated_obj=arg,
         )
         return cast(
-            Callable[[DecoratedObjType], DecoratedObjType], command_method_decorator
+            Callable[[TDecoratedObjType], TDecoratedObjType], command_method_decorator
         )
 
     elif (
@@ -496,13 +499,13 @@ def event(
         event_spec = arg
 
         def create_command_method_decorator(
-            decorated_obj: DecoratedObjType,
-        ) -> DecoratedObjType:
+            decorated_obj: TDecoratedObjType,
+        ) -> TDecoratedObjType:
             command_method_decorator = CommandMethodDecorator(
                 event_spec=event_spec,
                 decorated_obj=decorated_obj,
             )
-            return cast(DecoratedObjType, command_method_decorator)
+            return cast(TDecoratedObjType, command_method_decorator)
 
         return create_command_method_decorator
 
@@ -566,7 +569,7 @@ class BoundCommandMethodDecorator:
 
 
 given_event_classes: Set[type] = set()
-decorated_methods: Dict[type, AnyCallable] = {}
+decorated_methods: Dict[type, CommandMethod] = {}
 aggregate_has_many_created_event_classes: Dict[type, List[str]] = {}
 
 
@@ -1038,7 +1041,7 @@ class MetaAggregate(type, Generic[TAggregate]):
         cls,
         name: str,
         bases: Tuple[type, ...],
-        apply_method: Optional[AnyCallable],
+        apply_method: Optional[CommandMethod],
     ) -> type:
         # Define annotations for the event class (specs the init method).
         annotations = {}
