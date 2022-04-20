@@ -9,14 +9,14 @@ class DogSchool(Application):
     is_snapshotting_enabled = True
 
     def register_dog(self, name: str) -> UUID:
-        dog, events = Dog.register(name)
-        self.save(*events)
-        return dog.id
+        event = Dog.register(name)
+        self.save(event)
+        return event.originator_id
 
     def add_trick(self, dog_id: UUID, trick: str) -> None:
         dog = self.repository.get(dog_id, projector_func=Dog.projector)
-        dog, events = dog.add_trick(trick)
-        self.save(*events)
+        event = dog.add_trick(trick)
+        self.save(event)
 
     def get_dog(self, dog_id: UUID) -> Dict[str, Any]:
         dog = self.repository.get(dog_id, projector_func=Dog.projector)

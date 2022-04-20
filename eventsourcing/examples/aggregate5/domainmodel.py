@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from time import monotonic
-from typing import Any, Iterable, List, Optional, Tuple, Type, TypeVar, cast
+from typing import Any, Iterable, Optional, Tuple, Type, TypeVar
 from uuid import UUID, uuid4
 
 from eventsourcing.domain import Snapshot
@@ -15,7 +14,7 @@ class DomainEvent:
 
     @staticmethod
     def create_timestamp() -> datetime:
-        return datetime.fromtimestamp(monotonic(), timezone.utc)
+        return datetime.now(tz=timezone.utc)
 
 
 TAggregate = TypeVar("TAggregate", bound="Aggregate")
@@ -28,7 +27,7 @@ class Aggregate:
     created_on: datetime
 
     def trigger_event(
-        self: TAggregate,
+        self,
         event_class: Type[DomainEvent],
         **kwargs: Any,
     ) -> DomainEvent:
@@ -65,22 +64,20 @@ class Dog(Aggregate):
         name: str
 
     @classmethod
-    def register(cls, name: str) -> Tuple["Dog", List[DomainEvent]]:
-        event = cls.Registered(
+    def register(cls, name: str) -> DomainEvent:
+        return cls.Registered(
             originator_id=uuid4(),
             originator_version=1,
             timestamp=DomainEvent.create_timestamp(),
             name=name,
         )
-        return cast(Dog, cls.mutate(event, None)), [event]
 
     @dataclass(frozen=True)
     class TrickAdded(DomainEvent):
         trick: str
 
-    def add_trick(self, trick: str) -> Tuple["Dog", List[DomainEvent]]:
-        event = self.trigger_event(self.TrickAdded, trick=trick)
-        return cast(Dog, type(self).mutate(event, self)), [event]
+    def add_trick(self, trick: str) -> DomainEvent:
+        return self.trigger_event(self.TrickAdded, trick=trick)
 
     @classmethod
     def mutate(cls, event: DomainEvent, aggregate: Optional["Dog"]) -> Optional["Dog"]:

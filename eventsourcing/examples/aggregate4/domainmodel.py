@@ -1,8 +1,9 @@
-from abc import abstractmethod
+from __future__ import annotations
+
+import sys
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from time import monotonic
 from typing import Any, Dict, Iterable, List, Optional, Type, TypeVar
 from uuid import UUID, uuid4
 
@@ -18,7 +19,7 @@ class DomainEvent:
 
     @staticmethod
     def create_timestamp() -> datetime:
-        return datetime.fromtimestamp(monotonic(), timezone.utc)
+        return datetime.now(tz=timezone.utc)
 
 
 TAggregate = TypeVar("TAggregate", bound="Aggregate")
@@ -49,9 +50,10 @@ class Aggregate:
         self.apply(new_event)
         self._pending_events.append(new_event)
 
-    @abstractmethod
-    def apply(self: TAggregate, event: DomainEvent) -> None:
-        """Applies event to aggregate."""
+    if sys.version_info >= (3, 8):  # pragma: no cover
+        apply: singledispatchmethod[None]
+    else:  # pragma: no cover
+        apply: singledispatchmethod
 
     def collect_events(self) -> List[DomainEvent]:
         events, self._pending_events = self._pending_events, []

@@ -1,6 +1,10 @@
-try:
+from __future__ import annotations
+
+import sys
+
+if sys.version_info >= (3, 8):  # pragma: no cover
     from functools import singledispatchmethod
-except ImportError:
+else:
     from functools import singledispatch, update_wrapper
 
     class singledispatchmethod:

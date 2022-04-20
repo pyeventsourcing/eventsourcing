@@ -216,20 +216,18 @@ def strtobool(val: str) -> bool:
         raise ValueError("invalid truth value %r" % (val,))
 
 
-PY37 = sys.version_info[0:2] == (3, 7)
-PY310 = sys.version_info[0:2] == (3, 10)
-
-
-@no_type_check
 def reversed_keys(d: Dict[Any, Any]) -> Iterator[Any]:
-    if PY37:  # pragma: no cover
-        return reversed(list(d.keys()))
-    else:  # pragma: no cover
+    if sys.version_info >= (3, 8):  # pragma: no cover
         return reversed(d.keys())
+    else:  # pragma: no cover
+        return reversed(list(d.keys()))
 
 
 def get_method_name(method: Union[FunctionType, WrapperDescriptorType]) -> str:
-    return PY310 and method.__qualname__ or method.__name__
+    if sys.version_info >= (3, 10):  # pragma: no cover
+        return method.__qualname__
+    else:  # pragma: no cover
+        return method.__name__
 
 
 EnvType = Mapping[str, str]

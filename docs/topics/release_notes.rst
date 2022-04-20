@@ -23,6 +23,19 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.2.6 (released 20 April 2022)
+--------------------------------------
+
+* Improved typing annotations.
+
+
+Version 9.2.5 (released 16 April 2022)
+--------------------------------------
+
+* Reverted create_timestamp() to use datetime.now().
+* Improved aggregate examples.
+
+
 Version 9.2.4 (released 7 April 2022)
 -------------------------------------
 

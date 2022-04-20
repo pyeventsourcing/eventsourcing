@@ -1,5 +1,6 @@
 from dataclasses import _DataclassParams
-from datetime import datetime
+from datetime import datetime, timezone
+from time import sleep
 from unittest.case import TestCase
 from uuid import UUID, uuid4
 
@@ -18,8 +19,17 @@ class TestMetaDomainEvent(TestCase):
 
 
 class TestDomainEvent(TestCase):
-    # def test_domain_event_class_is_a_meta_domain_event(self):
-    #     self.assertIsInstance(DomainEvent, MetaDomainEvent)
+    def test_domain_event_class_is_a_meta_domain_event(self):
+        self.assertIsInstance(DomainEvent, MetaDomainEvent)
+
+    def test_create_timestamp(self):
+        before = datetime.now(tz=timezone.utc)
+        sleep(1e-5)
+        timestamp = DomainEvent.create_timestamp()
+        sleep(1e-5)
+        after = datetime.now(tz=timezone.utc)
+        self.assertGreater(timestamp, before)
+        self.assertGreater(after, timestamp)
 
     def test_domain_event_instance(self):
         originator_id = uuid4()

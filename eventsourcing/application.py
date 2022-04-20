@@ -35,6 +35,7 @@ from eventsourcing.domain import (
     ProgrammingError,
     Snapshot,
     SnapshotProtocol,
+    TDomainEvent,
     TLogEvent,
     TMutableOrImmutableAggregate,
 )
@@ -54,19 +55,19 @@ from eventsourcing.persistence import (
 from eventsourcing.utils import Environment, EnvType, strtobool
 
 ProjectorFunction = Callable[
-    [Optional[TMutableOrImmutableAggregate], Iterable[Any]],
+    [Optional[TMutableOrImmutableAggregate], Iterable[TDomainEvent]],
     Optional[TMutableOrImmutableAggregate],
 ]
 
 MutatorFunction = Callable[
-    [DomainEventProtocol, Optional[MutableOrImmutableAggregate]],
+    [TDomainEvent, Optional[TMutableOrImmutableAggregate]],
     Optional[TMutableOrImmutableAggregate],
 ]
 
 
 def project_aggregate(
     aggregate: Optional[TMutableOrImmutableAggregate],
-    domain_events: Iterable[CanMutateProtocol[TMutableOrImmutableAggregate]],
+    domain_events: Iterable[DomainEventProtocol],
 ) -> Optional[TMutableOrImmutableAggregate]:
     """
     Projector function for aggregate projections, which works
@@ -74,6 +75,7 @@ def project_aggregate(
     on each of the given list of domain events in turn.
     """
     for domain_event in domain_events:
+        assert isinstance(domain_event, CanMutateProtocol)
         aggregate = domain_event.mutate(aggregate)
     return aggregate
 
@@ -249,7 +251,7 @@ class Repository:
         aggregate_id: UUID,
         version: Optional[int] = None,
         projector_func: ProjectorFunction[
-            TMutableOrImmutableAggregate
+            TMutableOrImmutableAggregate, TDomainEvent
         ] = project_aggregate,
         fastforward_skipping: bool = False,
         deepcopy_from_cache: bool = True,
@@ -282,7 +284,9 @@ class Repository:
                                 new_events = self.event_store.get(
                                     originator_id=aggregate_id, gt=aggregate.version
                                 )
-                                _aggregate = projector_func(aggregate, new_events)
+                                _aggregate = projector_func(
+                                    aggregate, cast(Iterable[TDomainEvent], new_events)
+                                )
                                 if _aggregate is None:
                                     raise AggregateNotFound(aggregate_id)
                                 else:
@@ -306,7 +310,7 @@ class Repository:
         self,
         aggregate_id: UUID,
         version: Optional[int],
-        projector_func: ProjectorFunction[TMutableOrImmutableAggregate],
+        projector_func: ProjectorFunction[TMutableOrImmutableAggregate, TDomainEvent],
     ) -> TMutableOrImmutableAggregate:
         gt: Optional[int] = None
 
@@ -334,7 +338,13 @@ class Repository:
 
         # Reconstruct the aggregate from its events.
         initial: Optional[TMutableOrImmutableAggregate] = None
-        aggregate = projector_func(initial, chain(snapshots, aggregate_events))
+        aggregate = projector_func(
+            initial,
+            chain(
+                cast(Iterable[TDomainEvent], snapshots),
+                cast(Iterable[TDomainEvent], aggregate_events),
+            ),
+        )
 
         # Raise exception if "not found".
         if aggregate is None:
@@ -546,7 +556,7 @@ class ProcessingEvent:
         Initialises the process event with the given tracking object.
         """
         self.tracking = tracking
-        self.events: List[Union[DomainEventProtocol]] = []
+        self.events: List[DomainEventProtocol] = []
         self.aggregates: Dict[UUID, MutableOrImmutableAggregate] = {}
         self.saved_kwargs: Dict[Any, Any] = {}
 
@@ -628,7 +638,7 @@ class Application(ABC):
         Dict[Type[MutableOrImmutableAggregate], int]
     ] = None
     snapshotting_projectors: Optional[
-        Dict[Type[MutableOrImmutableAggregate], ProjectorFunction[Any]]
+        Dict[Type[MutableOrImmutableAggregate], ProjectorFunction[Any, Any]]
     ] = None
     snapshot_class: Type[SnapshotProtocol] = Snapshot
     log_section_size = 10
@@ -822,11 +832,17 @@ class Application(ABC):
                 if interval is not None:
                     if event.originator_version % interval == 0:
                         projector_func: ProjectorFunction[
-                            MutableOrImmutableAggregate
-                        ] = (
+                            MutableOrImmutableAggregate, DomainEventProtocol
+                        ]
+                        if (
                             self.snapshotting_projectors
-                            and self.snapshotting_projectors.get(type(aggregate))
-                        ) or project_aggregate
+                            and type(aggregate) in self.snapshotting_projectors
+                        ):
+                            projector_func = self.snapshotting_projectors[
+                                type(aggregate)
+                            ]
+                        else:
+                            projector_func = project_aggregate
                         if (
                             not isinstance(event, CanMutateProtocol)
                             and projector_func is project_aggregate
@@ -848,7 +864,7 @@ class Application(ABC):
         aggregate_id: UUID,
         version: Optional[int] = None,
         projector_func: ProjectorFunction[
-            TMutableOrImmutableAggregate
+            TMutableOrImmutableAggregate, TDomainEvent
         ] = project_aggregate,
     ) -> None:
         """
