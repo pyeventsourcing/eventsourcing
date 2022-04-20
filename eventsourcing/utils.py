@@ -219,14 +219,14 @@ def strtobool(val: str) -> bool:
 def reversed_keys(d: Dict[Any, Any]) -> Iterator[Any]:
     if sys.version_info >= (3, 8):  # pragma: no cover
         return reversed(d.keys())
-    else:
+    else:  # pragma: no cover
         return reversed(list(d.keys()))
 
 
 def get_method_name(method: Union[FunctionType, WrapperDescriptorType]) -> str:
     if sys.version_info >= (3, 10):  # pragma: no cover
         return method.__qualname__
-    else:
+    else:  # pragma: no cover
         return method.__name__
 
 

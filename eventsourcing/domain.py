@@ -27,7 +27,7 @@ from typing import (
 
 if sys.version_info >= (3, 8):  # pragma: no cover
     from typing import Protocol, runtime_checkable
-else:
+else:  # pragma: no cover
     from typing_extensions import Protocol, runtime_checkable
 
 from uuid import UUID, uuid4

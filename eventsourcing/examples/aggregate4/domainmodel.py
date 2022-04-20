@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import sys
 from collections import defaultdict
 from dataclasses import dataclass
@@ -50,7 +52,7 @@ class Aggregate:
 
     if sys.version_info >= (3, 8):  # pragma: no cover
         apply: singledispatchmethod[None]
-    else:
+    else:  # pragma: no cover
         apply: singledispatchmethod
 
     def collect_events(self) -> List[DomainEvent]:
