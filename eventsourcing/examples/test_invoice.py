@@ -42,25 +42,25 @@ class Invoice(Aggregate):
         self.initiated_at = timestamp
         self.status = Status.INITIATED
 
-    @property
-    def number(self) -> str:
+    def _get_number(self) -> str:
         return self._number
 
-    @number.setter  # type: ignore
-    @event("NumberUpdated")
-    def number(self, value: str) -> None:
+    @event
+    def _number_updated(self, value: str) -> None:
         assert self.status == Status.INITIATED
         self._number = value
 
-    @property
-    def amount(self) -> Decimal:
+    number = property(_get_number, _number_updated)
+
+    def _get_amount(self) -> Decimal:
         return self._amount
 
-    @amount.setter  # type: ignore
     @event("AmountUpdated")
-    def amount(self, value: Decimal) -> None:
+    def _set_amount(self, value: Decimal) -> None:
         assert self.status == Status.INITIATED
         self._amount = value
+
+    amount = property(_get_amount, _set_amount)
 
     @event("Issued")
     def issue(self, issued_by: str, timestamp: Union[datetime, Any] = None) -> None:
@@ -124,10 +124,10 @@ class TestInvoice(TestCase):
         )
         self.assertEqual(invoice.status, Status.INITIATED)
 
-        invoice.number = "INV/2021/11/02"  # type: ignore
+        invoice.number = "INV/2021/11/02"
         self.assertEqual(invoice.number, "INV/2021/11/02")
 
-        invoice.amount = Decimal("43.20")  # type: ignore
+        invoice.amount = Decimal("43.20")
         self.assertEqual(invoice.number, "INV/2021/11/02")
 
         invoice.issue(issued_by="Cookie Monster")
@@ -135,10 +135,10 @@ class TestInvoice(TestCase):
         self.assertEqual(invoice.status, Status.ISSUED)
 
         with self.assertRaises(AssertionError):
-            invoice.number = "INV/2021/11/03"  # type: ignore
+            invoice.number = "INV/2021/11/03"
 
         with self.assertRaises(AssertionError):
-            invoice.amount = Decimal("54.20")  # type: ignore
+            invoice.amount = Decimal("54.20")
 
         invoice.send(sent_via=SendMethod.EMAIL)
         self.assertEqual(invoice.sent_via, SendMethod.EMAIL)

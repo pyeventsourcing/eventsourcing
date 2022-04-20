@@ -643,6 +643,34 @@ class TestEventDecorator(TestCase):
         self.assertEqual(len(a.pending_events), 2)
         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
 
+    def test_event_called_to_redefine_method_with_explicit_name(self):
+        class MyAgg(Aggregate):
+            def set_value(self, value):
+                self.value = value
+
+            set_value = event("ValueChanged")(set_value)
+
+        a = MyAgg()
+        a.set_value(value=1)
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a.pending_events), 2)
+        self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
+
+    def test_event_called_to_redefine_method_with_implied_name(self):
+        class MyAgg(Aggregate):
+            def value_changed(self, value):
+                self.value = value
+
+            set_value = event(value_changed)
+
+        a = MyAgg()
+        a.set_value(value=1)
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a.pending_events), 2)
+        self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
+
     def test_event_name_set_in_decorator_cannot_be_empty_string(self):
 
         with self.assertRaises(ValueError) as cm:
@@ -688,6 +716,76 @@ class TestEventDecorator(TestCase):
             @event("ValueChanged")
             def value(self, x):
                 self._value = x
+
+        a = MyAgg()
+        a.value = 1
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a.pending_events), 2)
+        self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
+
+    def test_property_called_with_decorated_set_method_with_name_given(self):
+        class MyAgg(Aggregate):
+            def get_value(self):
+                return self._value
+
+            @event("ValueChanged")
+            def set_value(self, x):
+                self._value = x
+
+            value = property(get_value, set_value)
+
+        a = MyAgg()
+        a.value = 1
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a.pending_events), 2)
+        self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
+
+    def test_property_called_with_decorated_set_method_with_name_inferred(self):
+        class MyAgg(Aggregate):
+            def get_value(self):
+                return self._value
+
+            @event
+            def value_changed(self, x):
+                self._value = x
+
+            value = property(get_value, value_changed)
+
+        a = MyAgg()
+        a.value = 1
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a.pending_events), 2)
+        self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
+
+    def test_property_called_with_wrapped_set_method_with_name_given(self):
+        class MyAgg(Aggregate):
+            def get_value(self):
+                return self._value
+
+            def set_value(self, x):
+                self._value = x
+
+            value = property(get_value, event("ValueChanged")(set_value))
+
+        a = MyAgg()
+        a.value = 1
+        self.assertEqual(a.value, 1)
+        self.assertIsInstance(a, Aggregate)
+        self.assertEqual(len(a.pending_events), 2)
+        self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
+
+    def test_property_called_with_wrapped_set_method_with_name_inferred(self):
+        class MyAgg(Aggregate):
+            def get_value(self):
+                return self._value
+
+            def value_changed(self, x):
+                self._value = x
+
+            value = property(get_value, event(value_changed))
 
         a = MyAgg()
         a.value = 1
