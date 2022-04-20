@@ -273,7 +273,7 @@ def _spec_filter_kwargs_for_method_params(method: Callable[..., Any]) -> Set[str
     return set(method_signature.parameters)
 
 
-EventSpecType = Optional[Union[str, Type[CanMutateAggregate]]]
+EventSpecType = Union[str, Type[CanMutateAggregate]]
 CommandMethod = Callable[..., None]
 DecoratedObjType = Union[CommandMethod, property]
 TDecoratedObjType = TypeVar("TDecoratedObjType", bound=DecoratedObjType)
@@ -283,7 +283,7 @@ InjectEventType = bool
 class CommandMethodDecorator:
     def __init__(
         self,
-        event_spec: EventSpecType,
+        event_spec: Optional[EventSpecType],
         decorated_obj: DecoratedObjType,
     ):
         self.is_name_inferred_from_method = False
@@ -416,23 +416,31 @@ class CommandMethodDecorator:
         b.trigger(**kwargs)
 
 
-# Called because specifying decorator params.
-@overload
-def event(
-    arg: EventSpecType = None,
-) -> Callable[[TDecoratedObjType], TDecoratedObjType]:
-    ...  # pragma: no cover
-
-
-# Called because Python is actually decorating something.
+# Called when actually decorating something.
 @overload
 def event(arg: TDecoratedObjType) -> TDecoratedObjType:
     ...  # pragma: no cover
 
 
+# Called when specifying event.
+@overload
 def event(
-    arg: Union[EventSpecType, TDecoratedObjType] = None,
-) -> Union[Callable[[TDecoratedObjType], TDecoratedObjType], TDecoratedObjType]:
+    arg: EventSpecType,
+) -> Callable[[TDecoratedObjType], TDecoratedObjType]:
+    ...  # pragma: no cover
+
+
+# Called without specifying event.
+@overload
+def event(
+    arg: None = None,
+) -> Callable[[TDecoratedObjType], TDecoratedObjType]:
+    ...  # pragma: no cover
+
+
+def event(
+    arg: Optional[Union[EventSpecType, TDecoratedObjType]] = None,
+) -> Union[TDecoratedObjType, Callable[[TDecoratedObjType], TDecoratedObjType]]:
     """
     Can be used to decorate an aggregate method so that when the
     method is called an event is triggered. The body of the method
