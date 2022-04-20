@@ -1,5 +1,6 @@
 from dataclasses import _DataclassParams
 from datetime import datetime, timezone
+from time import sleep
 from unittest.case import TestCase
 from uuid import UUID, uuid4
 
@@ -23,7 +24,9 @@ class TestDomainEvent(TestCase):
 
     def test_create_timestamp(self):
         before = datetime.now(tz=timezone.utc)
+        sleep(1e-5)
         timestamp = DomainEvent.create_timestamp()
+        sleep(1e-5)
         after = datetime.now(tz=timezone.utc)
         self.assertGreater(timestamp, before)
         self.assertGreater(after, timestamp)
