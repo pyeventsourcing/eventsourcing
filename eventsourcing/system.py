@@ -273,7 +273,7 @@ class System:
         self,
         pipes: Iterable[Iterable[Type[Application]]],
     ):
-        # Remember the caller frame, so that we might identify a topic.
+        # Remember the caller frame's module, so that we might identify a topic.
         caller_frame = cast(FrameType, cast(FrameType, inspect.currentframe()).f_back)
         module = cast(ModuleType, inspect.getmodule(caller_frame))
         type(self).__caller_modules[id(self)] = module
