@@ -39,12 +39,18 @@ TZINFO: tzinfo = resolve_topic(os.getenv("TZINFO_TOPIC", "datetime:timezone.utc"
 
 @runtime_checkable
 class DomainEventProtocol(Protocol):
+    """
+    Protocol for domain event objects.
+    """
+
     @property
     def originator_id(self) -> UUID:
+        """Domain events have an originator ID that is a UUID."""
         ...  # pragma: no cover
 
     @property
     def originator_version(self) -> int:
+        """Domain events have an originator version that is an int."""
         ...  # pragma: no cover
 
 
@@ -52,12 +58,18 @@ TDomainEvent = TypeVar("TDomainEvent", bound=DomainEventProtocol)
 
 
 class MutableAggregateProtocol(Protocol):
+    """
+    Protocol for mutable aggregate objects.
+    """
+
     @property
     def id(self) -> UUID:
+        """Mutable aggregates have a read-only ID that is a UUID."""
         ...  # pragma: no cover
 
     @property
     def version(self) -> int:
+        """Mutable aggregates have a read-write version that is an int."""
         ...  # pragma: no cover
 
     @version.setter
@@ -66,12 +78,18 @@ class MutableAggregateProtocol(Protocol):
 
 
 class ImmutableAggregateProtocol(Protocol):
+    """
+    Protocol for immutable aggregate objects.
+    """
+
     @property
     def id(self) -> UUID:
+        """Mutable aggregates have a read-only ID that is a UUID."""
         ...  # pragma: no cover
 
     @property
     def version(self) -> int:
+        """Mutable aggregates have a read-only version that is an int."""
         ...  # pragma: no cover
 
 
@@ -87,19 +105,36 @@ TMutableOrImmutableAggregate = TypeVar(
 
 @runtime_checkable
 class CollectEventsProtocol(Protocol):
+    """
+    Protocol for aggregates that support collecting pending events.
+    """
+
     def collect_events(self) -> Sequence[DomainEventProtocol]:
         ...  # pragma: no cover
 
 
 @runtime_checkable
 class CanMutateProtocol(DomainEventProtocol, Protocol[TMutableOrImmutableAggregate]):
+    """
+    Protocol for events that have a mutate method.
+    """
+
     def mutate(
         self, aggregate: Optional[TMutableOrImmutableAggregate]
     ) -> Optional[TMutableOrImmutableAggregate]:
+        """
+        Evolves the state of the given aggregate, either by
+        returning the given aggregate instance with modified attributes
+        or by constructing and returning a new aggregate instance.
+        """
         ...  # pragma: no cover
 
 
 class CanCreateTimestamp:
+    """
+    Provides a create_timestamp() method to subclasses.
+    """
+
     @staticmethod
     def create_timestamp() -> datetime:
         """
@@ -728,6 +763,12 @@ _init_mentions_id: Set[MetaAggregate[Aggregate]] = set()
 
 
 class MetaAggregate(type, Generic[TAggregate]):
+    """
+    Metaclass for aggregate classes.
+
+    Initialises aggregate classes by defining event classes.
+    """
+
     INITIAL_VERSION = 1
 
     class Event(AggregateEvent):
@@ -756,6 +797,9 @@ class MetaAggregate(type, Generic[TAggregate]):
     _created_event_class: Type[CanInitAggregate]
 
     def __new__(cls, *args: Any, **kwargs: Any) -> MetaAggregate[Aggregate]:
+        """
+        Configures aggregate class definition.
+        """
         try:
             class_annotations = args[2]["__annotations__"]
         except KeyError:
@@ -780,6 +824,9 @@ class MetaAggregate(type, Generic[TAggregate]):
         *args: Any,
         created_event_name: str = "",
     ) -> None:
+        """
+        Initialises aggregate class by completing the definition of its event classes.
+        """
         super().__init__(*args)
 
         # Identify or define a base event class for this aggregate.
