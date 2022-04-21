@@ -2,25 +2,36 @@
 Introduction
 ============
 
+This a library for event sourcing in Python. This sections introduces the
+library, and presents a synopsis of the code. This section also provides
+a conceptual overview of event sourcing.
+
+Before discussing event sourcing, let's begin by briefly considering
+the meaning of the term 'event'.
+
 What is an event?
 =================
 
-The term 'event' is used in discussions about event sourcing more or less
-as an abbreviation which refers to a very particular kind of event: an individual,
-atomic, immutable decision originated by the domain model of a software application.
+The term 'event' of 'event sourcing' refers to a very particular kind of
+event: an individual decision originated by the domain model of a software
+application. However, the commonsensical notion 'event' has a broader meaning.
+This broader meaning has two parts.
 
-The commonsensical notion "event" has a broader meaning. Firstly,
-it includes all the other atomic "actual occasions" of experience that result
-in all the other stubborn facts which together make up the past. Such things
-importantly do not change. They are what they are. But the commonsensical meaning
-also includes inter-related sets of such things: "societies" of actual occasions,
-enduring objects that experience adventures of change. For example, the ordinary
-physical and social objects that we encounter in daily life that are each built up
-from an on-going history of inter-related decisions. In this sense, a software system
-is also an event. A developer is also an event. And so is her cat.
+Firstly, the commonsensical notion 'event' includes all the individual decisions
+in the universe: the creation of the individual stubborn facts that together make
+up the conditions within which subsequent decisions come to be made. These things
+come to be, but importantly they do not change. We can't change the past. They are
+what they are. These events are the 'actual entities' by which the actual world
+is built up.
 
-As Gilles Deleuze wrote in his book on Leibniz when discussing Alfred North Whitehead's
-modern process philosophy:
+Secondly, the enduring objects we encounter in daily life are all really built up
+as inter-related histories of decisions. Their nature follows from their history.
+The ordinary biological, technical, and social objects we encounter in
+daily life are all 'societies of actual entities'. These are the things that
+experience adventures of change. For example, an episode of software development
+is an event that is made of events. The life of a software developer is also an
+event, and so is her cat. As the philosopher Gilles Deleuze wrote in his book on
+Leibniz when discussing Alfred North Whitehead's modern process philosophy:
 
 .. pull-quote::
 
@@ -39,25 +50,27 @@ modern process philosophy:
     tree. It was like the beginning of the world....'"*
 
 However, the events of an event-sourced application are a very specific kind
-of event. They are the individual decisions originated by a domain model. They
-end up as immutable database records built up as an append-only log.
-And it is this log of events that is used as the "source of truth" to determine
-the current state of an application.
-
+of event. They are the individual decisions originated by a domain model. These
+decisions are encapsulated by software objects known as 'domain events'
+that are stored as database records in an append-only log. And it is this log of
+events that is used as the source of truth to determine the current state of a
+software application.
 
 What is event sourcing?
 =======================
 
-One definition of event sourcing suggests the state of an
+One common definition of event sourcing suggests the state of an
 event-sourced application is determined by a sequence of events.
 Another definition has event sourcing as a persistence mechanism
-for domain-driven design.
+for Domain-Driven Design. The term 'event sourcing' means that
+domain event objects are used as the source of truth in a software
+application.
 
 .. _Cohesive mechanism:
 
 Whilst the basic event sourcing patterns are quite simple and
 can be reproduced in code for each project, event sourcing as a
-persistence mechanism for domain-driven design appears as a
+persistence mechanism for Domain-Driven Design appears as a
 "conceptually cohesive mechanism" and so can be partitioned into
 a "separate lightweight framework".
 
@@ -72,23 +85,34 @@ Quoting from Eric Evans' book *Domain-Driven Design*:
     of the domain can focus on expressing the problem ('what'), delegating
     the intricacies of the solution ('how') to the framework."*
 
-And that's why this library was created.
+That's how this library was created. And although it has been said that
+event sourcing is simply a left-fold over a stream of events, and some people
+say you shouldn't use a framework for event sourcing, it turns out that event
+sourcing isn't just a simple thing, and indeed some considerable experience
+and understanding is needed to avoid failure in event sourcing projects. And
+whilst a software library can't make people think, which is ultimately what
+is required to succeed, a well-written open-source library that records previous
+successful experiences can usefully guide thought and enhance understanding.
+It can also usefully function as a reusable cohesive mechanism that saves a
+lot of time and trouble.
 
 This library
 ============
 
 This is a library for event sourcing in Python. At its core, this library
-supports storing and retrieving sequences of events, such as the domain events
-of event-sourced aggregates in a domain-driven design, and snapshots of those
-aggregates. A variety of schemas and technologies can be used for storing events,
-and this library supports several of these possibilities.
+supports storing and retrieving sequences of domain events, such as the events
+of event-sourced aggregates in a domain-driven design and snapshots of those
+aggregates. A variety of schemas and technologies can be used for persisting domain
+events, and this library supports several of these possibilities.
 
 To demonstrate how storing and retrieving domain events can be used effectively
 as a persistence mechanism in an event-sourced application, this library includes
-base classes and examples of event-sourced aggregates and event-sourced applications.
+base classes for, and examples of event-sourced aggregates and event-sourced
+applications.
 
-It is possible using this library to define an entire event-driven system of
-event-sourced applications independently of infrastructure and mode of running.
+To demonstrate how event-sourced applications can be combined to make an event-driven
+system, it is also possible using this library to define an entire event-driven system
+of event-sourced applications independently of infrastructure and mode of running.
 That means system behaviours can be rapidly developed whilst running the entire
 system synchronously in a single thread with a single in-memory database. And
 then the system can be run asynchronously on a cluster with durable databases,
