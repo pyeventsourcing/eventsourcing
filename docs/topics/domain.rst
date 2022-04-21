@@ -127,8 +127,8 @@ in the world.
 We know that Whitehead's scheme was enormously influential for Christopher Alexander
 when inventing his pattern language scheme. And we know that Christopher Alexander's
 scheme was enormously influential for Eric Evans when writing *Domain-Driven Design*.
-What wasn't known by Eric Evans was the influence on Alexander's work of Whitehead's
-scheme. Nevertheless, something of Whitehead's scheme has been carried through this
+What wasn't known by Eric Evans was the influence of Whitehead's scheme on Alexander's
+work. Nevertheless, something of Whitehead's scheme has been carried through this
 chain of influence, and the appearance in software development of a general model
 that involves many strands of enduring objects as the structure of analysis and design
 is, in my understanding, the primary way in which *Domain-Driven Design* constitutes a
