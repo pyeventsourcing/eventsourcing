@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import ast
 import inspect
 import traceback
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from queue import Full, Queue
 from threading import Event, Lock, RLock, Thread
+from types import FrameType, ModuleType
 from typing import (
     Dict,
     Iterable,
@@ -17,7 +17,6 @@ from typing import (
     Set,
     Tuple,
     Type,
-    TypeVar,
     Union,
     cast,
 )
@@ -268,31 +267,16 @@ class System:
     Defines a system of applications.
     """
 
+    __caller_modules: Dict[int, ModuleType] = {}
+
     def __init__(
         self,
         pipes: Iterable[Iterable[Type[Application]]],
     ):
-        # Try to identify 'topic' of resulting system object, by
-        # looking for a module level assignment 'x = System(...)'.
-        self.topic: Optional[str] = None
-        try:
-            frame1 = inspect.stack()[1]
-            module = inspect.getmodule(frame1[0])
-            if frame1.code_context is not None and module is not None:
-                code = ast.parse(frame1.code_context[0])
-                if (
-                    len(code.body) == 1
-                    and isinstance(code.body[0], ast.Assign)
-                    and len(code.body[0].targets) == 1
-                    and isinstance(code.body[0].targets[0], ast.Name)
-                ):
-                    self.topic = f"{module.__name__}:{code.body[0].targets[0].id}"
-                else:  # pragma: nocover
-                    pass
-            else:  # pragma: nocover
-                pass
-        except BaseException:
-            pass
+        # Remember the caller frame, so that we might identify a topic.
+        caller_frame = cast(FrameType, cast(FrameType, inspect.currentframe()).f_back)
+        module = cast(ModuleType, inspect.getmodule(caller_frame))
+        type(self).__caller_modules[id(self)] = module
 
         # Build nodes and edges.
         self.edges: List[Tuple[str, str]] = list()
@@ -377,8 +361,18 @@ class System:
         assert issubclass(cls, Follower)
         return cls
 
-
-A = TypeVar("A")
+    @property
+    def topic(self) -> Optional[str]:
+        """
+        Returns a topic to the system object, if constructed as a module attribute.
+        """
+        topic: Optional[str] = None
+        module = System.__caller_modules[id(self)]
+        for name, value in module.__dict__.items():
+            if value is self:
+                topic = module.__name__ + ":" + name
+                assert resolve_topic(topic) is self
+        return topic
 
 
 class Runner(ABC):
