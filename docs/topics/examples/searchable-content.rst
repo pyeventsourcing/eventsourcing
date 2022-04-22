@@ -20,7 +20,7 @@ information that will be used to update a searchable index of the event-sourced
 content. And it introduces a ``search()`` method that expects a ``query``
 argument and returns a list of pages.
 
-.. literalinclude:: ../../../eventsourcing/examples/searchablewiki/application.py
+.. literalinclude:: ../../../eventsourcing/examples/searchablecontent/application.py
 
 
 Persistence
@@ -40,7 +40,7 @@ according to the information passed down from the application through the
 ``save()`` method's variable keyword parameters. It introduces a ``search_page_bodies()``
 method which returns the page slugs for page bodies that match the given search query.
 
-.. literalinclude:: ../../../eventsourcing/examples/searchablewiki/persistence.py
+.. literalinclude:: ../../../eventsourcing/examples/searchablecontent/persistence.py
 
 
 Test case
@@ -50,4 +50,4 @@ The test case below creates three pages for animals, plants, and minerals.
 Content is added to the pages. The pages are searched with various queries
 and the search results are checked.
 
-.. literalinclude:: ../../../eventsourcing/examples/searchablewiki/test.py
+.. literalinclude:: ../../../eventsourcing/examples/searchablecontent/test.py

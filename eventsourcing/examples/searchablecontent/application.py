@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional, Union, cast
 
 from eventsourcing.domain import DomainEventProtocol, MutableOrImmutableAggregate
-from eventsourcing.examples.searchablewiki.persistence import (
+from eventsourcing.examples.searchablecontent.persistence import (
     SearchableWikiApplicationRecorder,
     SearchableWikiInfrastructureFactory,
 )
