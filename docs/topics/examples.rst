@@ -38,3 +38,4 @@ Example applications
    examples/bank-accounts
    examples/cargo-shipping
    examples/wiki
+   examples/wiki-searchable
