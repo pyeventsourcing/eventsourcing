@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import List, cast
 
 from eventsourcing.dispatch import singledispatchmethod
@@ -28,6 +26,6 @@ class Dog(Aggregate):
     def add_trick(self, trick: str) -> None:
         self.trigger_event(self.TrickAdded, trick=trick)
 
-    @apply.register(TrickAdded)
+    @apply.register
     def _(self, event: TrickAdded) -> None:
         self.tricks.append(event.trick)
