@@ -88,9 +88,9 @@ Quoting from Eric Evans' book *Domain-Driven Design*:
 That's how this library was created. And although it has been said that
 event sourcing is simply a left-fold over a stream of events, and some people
 say you shouldn't use a framework for event sourcing, it turns out that event
-sourcing isn't just a simple thing, and indeed some considerable experience
-and understanding is needed to avoid failure in event sourcing projects. And
-whilst a software library can't make people think, which is ultimately what
+sourcing isn't just a simple thing, and indeed `some considerable experience
+and understanding is needed to avoid failure <https://youtu.be/FKFu78ZEIi8?t=614>`_
+in event sourcing projects. And whilst a software library can't make people think, which is ultimately what
 is required to succeed, a well-written open-source library that records previous
 successful experiences can usefully guide thought and enhance understanding.
 It can also usefully function as a reusable cohesive mechanism that saves a
