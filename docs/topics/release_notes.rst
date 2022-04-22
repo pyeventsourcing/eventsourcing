@@ -23,6 +23,19 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.2.8 (released 21 April 2022)
+--------------------------------------
+
+* Improved the documentation (missing doc strings).
+* Fixed detection of the topic of a system.
+
+
+Version 9.2.7 (released 21 April 2022)
+--------------------------------------
+
+* Improved the documentation (introduction, installation, example content management application).
+
+
 Version 9.2.6 (released 20 April 2022)
 --------------------------------------
 
