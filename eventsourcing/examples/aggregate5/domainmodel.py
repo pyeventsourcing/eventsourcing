@@ -25,6 +25,7 @@ class Aggregate:
     id: UUID
     version: int
     created_on: datetime
+    modified_on: datetime
 
     def trigger_event(
         self,
@@ -87,6 +88,7 @@ class Dog(Aggregate):
                 id=event.originator_id,
                 version=event.originator_version,
                 created_on=event.timestamp,
+                modified_on=event.timestamp,
                 name=event.name,
                 tricks=tuple(),
             )
@@ -95,7 +97,8 @@ class Dog(Aggregate):
             return Dog(
                 id=aggregate.id,
                 version=event.originator_version,
-                created_on=event.timestamp,
+                created_on=aggregate.created_on,
+                modified_on=event.timestamp,
                 name=aggregate.name,
                 tricks=aggregate.tricks + (event.trick,),
             )
@@ -104,6 +107,7 @@ class Dog(Aggregate):
                 id=event.state["id"],
                 version=event.state["version"],
                 created_on=event.state["created_on"],
+                modified_on=event.state["modified_on"],
                 name=event.state["name"],
                 tricks=tuple(event.state["tricks"]),  # comes back from JSON as a list
             )

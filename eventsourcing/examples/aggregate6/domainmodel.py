@@ -23,6 +23,7 @@ class Aggregate:
     id: UUID
     version: int
     created_on: datetime
+    modified_on: datetime
 
 
 TAggregate = TypeVar("TAggregate", bound=Aggregate)
@@ -89,6 +90,7 @@ def _(event: DogRegistered, _: None) -> Dog:
         id=event.originator_id,
         version=event.originator_version,
         created_on=event.timestamp,
+        modified_on=event.timestamp,
         name=event.name,
         tricks=(),
     )
@@ -99,7 +101,8 @@ def _(event: TrickAdded, dog: Dog) -> Dog:
     return Dog(
         id=dog.id,
         version=event.originator_version,
-        created_on=event.timestamp,
+        created_on=dog.created_on,
+        modified_on=event.timestamp,
         name=dog.name,
         tricks=dog.tricks + (event.trick,),
     )
@@ -111,6 +114,7 @@ def _(event: Snapshot, _: None) -> Dog:
         id=event.state["id"],
         version=event.state["version"],
         created_on=event.state["created_on"],
+        modified_on=event.state["modified_on"],
         name=event.state["name"],
         tricks=tuple(event.state["tricks"]),  # comes back from JSON as a list
     )
