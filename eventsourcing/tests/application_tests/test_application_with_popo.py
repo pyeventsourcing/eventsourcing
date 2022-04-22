@@ -1,4 +1,5 @@
 from eventsourcing.tests.application import (
+    TIMEIT_FACTOR,
     ApplicationTestCase,
     ExampleApplicationTestCase,
 )
@@ -13,6 +14,7 @@ class TestApplicationWithPOPO(ApplicationTestCase):
 
 
 class TestExampleApplicationWithPOPO(ExampleApplicationTestCase):
+    timeit_number = 100 * TIMEIT_FACTOR
     expected_factory_topic = "eventsourcing.popo:Factory"
 
 
