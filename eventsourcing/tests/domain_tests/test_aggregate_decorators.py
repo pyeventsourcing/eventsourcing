@@ -1409,6 +1409,64 @@ class TestEventDecorator(TestCase):
             cm.exception.args[0],
         )
 
+    def test_decorated_method_has_original_docstring(self):
+        class MyAggregate(Aggregate):
+            def method0(self):
+                """Method 0"""
+
+            @event
+            def method1(self):
+                """Method 1"""
+
+        self.assertEqual(MyAggregate.method0.__doc__, "Method 0")
+        self.assertEqual(MyAggregate().method0.__doc__, "Method 0")
+        self.assertEqual(MyAggregate.method1.__doc__, "Method 1")
+        self.assertEqual(MyAggregate().method1.__doc__, "Method 1")
+
+    def test_decorated_method_has_original_annotations(self):
+        class MyAggregate(Aggregate):
+            def method0(self, a: int):
+                """Method 0"""
+
+            @event
+            def method1(self, a: int):
+                """Method 1"""
+
+        expected_annotations = {"a": int}
+        self.assertEqual(MyAggregate.method0.__annotations__, expected_annotations)
+        self.assertEqual(MyAggregate().method0.__annotations__, expected_annotations)
+        self.assertEqual(MyAggregate.method1.__annotations__, expected_annotations)
+        self.assertEqual(MyAggregate().method1.__annotations__, expected_annotations)
+
+    def test_decorated_method_has_original_module(self):
+        class MyAggregate(Aggregate):
+            def method0(self, a: int):
+                """Method 0"""
+
+            @event
+            def method1(self, a: int):
+                """Method 1"""
+
+        expected_module = __name__
+        self.assertEqual(MyAggregate.method0.__module__, expected_module)
+        self.assertEqual(MyAggregate().method0.__module__, expected_module)
+        self.assertEqual(MyAggregate.method1.__module__, expected_module)
+        self.assertEqual(MyAggregate().method1.__module__, expected_module)
+
+    def test_decorated_method_has_original_name(self):
+        class MyAggregate(Aggregate):
+            def method0(self, a: int):
+                """Method 0"""
+
+            @event
+            def method1(self, a: int):
+                """Method 1"""
+
+        self.assertEqual(MyAggregate.method0.__name__, "method0")
+        self.assertEqual(MyAggregate().method0.__name__, "method0")
+        self.assertEqual(MyAggregate.method1.__name__, "method1")
+        self.assertEqual(MyAggregate().method1.__name__, "method1")
+
     # def test_raises_when_apply_method_returns_value(self):
     #     # Different name.
     #     class MyAgg(Aggregate):

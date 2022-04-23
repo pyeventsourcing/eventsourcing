@@ -574,8 +574,11 @@ class UnboundCommandMethodDecorator:
         :param CommandMethodDecorator event_decorator:
         """
         self.event_decorator = event_decorator
-        self.__qualname__ = event_decorator.decorated_method.__qualname__
+        self.__module__ = event_decorator.decorated_method.__module__
         self.__name__ = event_decorator.decorated_method.__name__
+        self.__qualname__ = event_decorator.decorated_method.__qualname__
+        self.__annotations__ = event_decorator.decorated_method.__annotations__
+        self.__doc__ = event_decorator.decorated_method.__doc__
 
 
 class BoundCommandMethodDecorator:
@@ -591,8 +594,11 @@ class BoundCommandMethodDecorator:
         :param Aggregate aggregate:
         """
         self.event_decorator = event_decorator
-        self.__qualname__ = event_decorator.decorated_method.__qualname__
+        self.__module__ = event_decorator.decorated_method.__module__
         self.__name__ = event_decorator.decorated_method.__name__
+        self.__qualname__ = event_decorator.decorated_method.__qualname__
+        self.__annotations__ = event_decorator.decorated_method.__annotations__
+        self.__doc__ = event_decorator.decorated_method.__doc__
         self.aggregate = aggregate
 
     def trigger(self, *args: Any, **kwargs: Any) -> None:
