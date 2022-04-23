@@ -2,7 +2,9 @@ import os
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.examples.searchablecontent.application import SearchableWikiApplication
+from eventsourcing.examples.searchablecontent.application import (
+    SearchableWikiApplication,
+)
 from eventsourcing.examples.wiki.domainmodel import user_id_cvar
 from eventsourcing.postgres import PostgresDatastore
 from eventsourcing.tests.postgres_utils import drop_postgres_table
