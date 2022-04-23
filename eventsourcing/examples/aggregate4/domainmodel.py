@@ -1,7 +1,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, List, Optional, Type, TypeVar
+from typing import Any, Dict, Iterable, List, Optional, Type, TypeVar, cast
 from uuid import UUID, uuid4
 
 from eventsourcing.dispatch import singledispatchmethod
@@ -45,20 +45,20 @@ class Aggregate:
         )
         new_event = event_class(**kwargs)
         self.apply(new_event)
-        self._pending_events.append(new_event)
+        self.pending_events.append(new_event)
 
     @singledispatchmethod
     def apply(self, event: DomainEvent) -> None:
         """Applies event to aggregate."""
 
     def collect_events(self) -> List[DomainEvent]:
-        events, self._pending_events = self._pending_events, []
+        events, self.pending_events = self.pending_events, []
         return events
 
     @classmethod
     def projector(
         cls: Type[TAggregate],
-        aggregate: Optional[TAggregate],
+        _: Optional[TAggregate],
         events: Iterable[DomainEvent],
     ) -> Optional[TAggregate]:
         aggregate = object.__new__(cls)
@@ -66,15 +66,15 @@ class Aggregate:
             aggregate.apply(event)
         return aggregate
 
-    __pending_events: Dict[int, List[DomainEvent]] = defaultdict(list)
-
     @property
-    def _pending_events(self) -> List[DomainEvent]:
+    def pending_events(self) -> List[DomainEvent]:
         return type(self).__pending_events[id(self)]
 
-    @_pending_events.setter
-    def _pending_events(self, pending_events: List[DomainEvent]) -> None:
+    @pending_events.setter
+    def pending_events(self, pending_events: List[DomainEvent]) -> None:
         type(self).__pending_events[id(self)] = pending_events
+
+    __pending_events: Dict[int, List[DomainEvent]] = defaultdict(list)
 
     def __del__(self) -> None:
         try:
@@ -88,15 +88,24 @@ class Dog(Aggregate):
     class Registered(DomainEvent):
         name: str
 
-    def __init__(self, name: str) -> None:
-        event = self.Registered(
+    @dataclass(frozen=True)
+    class TrickAdded(DomainEvent):
+        trick: str
+
+    @classmethod
+    def register(cls, name: str) -> "Dog":
+        event = cls.Registered(
             originator_id=uuid4(),
             originator_version=1,
             timestamp=DomainEvent.create_timestamp(),
             name=name,
         )
-        self.apply(event)
-        self._pending_events.append(event)
+        dog = cast(Dog, cls.projector(None, [event]))
+        dog.pending_events.append(event)
+        return dog
+
+    def add_trick(self, trick: str) -> None:
+        self.trigger_event(self.TrickAdded, trick=trick)
 
     @singledispatchmethod
     def apply(self, event: DomainEvent) -> None:
@@ -107,13 +116,6 @@ class Dog(Aggregate):
         super().__init__(event)
         self.name = event.name
         self.tricks: List[str] = []
-
-    @dataclass(frozen=True)
-    class TrickAdded(DomainEvent):
-        trick: str
-
-    def add_trick(self, trick: str) -> None:
-        self.trigger_event(self.TrickAdded, trick=trick)
 
     @apply.register
     def _(self, event: TrickAdded) -> None:

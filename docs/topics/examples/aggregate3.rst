@@ -9,10 +9,14 @@ Like the previous example, this example uses the ``Aggregate`` class from the
 library. Event classes are defined explicitly to match command method signatures.
 In contrast to the previous example, this example explicitly triggers events within
 the command method bodies, and separately applies the events to the aggregate using
-``singledispatchmethod``.
+an ``when()`` method decorated with ``singledispatchmethod`` with which event-specific
+methods are registered. To make this work, an ``Event`` class common to all the
+aggregate's events is defined, which calls the aggregate's ``apply()`` method from
+its ``apply()`` method.
 
 Like in the previous examples, the application code simply uses the aggregate
-class as if it were a normal Python object class.
+class as if it were a normal Python object class, albeit the aggregate class method
+``register()`` is used to register a new dog.
 
 Domain model
 ------------

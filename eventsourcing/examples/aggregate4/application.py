@@ -9,7 +9,7 @@ class DogSchool(Application):
     is_snapshotting_enabled = True
 
     def register_dog(self, name: str) -> UUID:
-        dog = Dog(name)
+        dog = Dog.register(name)
         self.save(dog)
         return dog.id
 

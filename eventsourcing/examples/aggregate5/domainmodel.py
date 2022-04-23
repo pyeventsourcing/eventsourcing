@@ -64,6 +64,10 @@ class Dog(Aggregate):
     class Registered(DomainEvent):
         name: str
 
+    @dataclass(frozen=True)
+    class TrickAdded(DomainEvent):
+        trick: str
+
     @classmethod
     def register(cls, name: str) -> DomainEvent:
         return cls.Registered(
@@ -72,10 +76,6 @@ class Dog(Aggregate):
             timestamp=DomainEvent.create_timestamp(),
             name=name,
         )
-
-    @dataclass(frozen=True)
-    class TrickAdded(DomainEvent):
-        trick: str
 
     def add_trick(self, trick: str) -> DomainEvent:
         return self.trigger_event(self.TrickAdded, trick=trick)

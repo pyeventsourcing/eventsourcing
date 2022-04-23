@@ -2046,10 +2046,9 @@ an exception to be raised.
     assert order.pickedup_at > order.confirmed_at
 
 
-This ordinary Python class can be easily converted into an
-event-sourced aggregate by inheriting from ``Aggregate``
-and using the :data:`@event` decorator on the ``confirm()``
-and ``_pickup()`` methods.
+This ordinary Python class can be easily converted into an event-sourced aggregate
+by inheriting from :class:`~eventsourcing.domain.Aggregate` and using the
+:data:`@event` decorator on the ``confirm()`` and ``_pickup()`` methods.
 
 .. code-block:: python
 
@@ -2073,13 +2072,10 @@ and ``_pickup()`` methods.
             self.pickedup_at = at
 
 Now, when the ``confirm()`` method is called, an ``Order.Confirmed`` event
-will be triggered. However, when the ``pickup()`` method is called,
-its conditional logic checks whether or not order has been confirmed,
-and the private ``_pickup()`` is called only if the order has been confirmed.
-When the private ``_pickup()`` method is called, an ``Order.PickedUp`` event
-will be triggered. The body of the ``pickup()`` method is executed only when
-the command method is called, and before an event is triggered. The body of
-the ``_pickup()`` method is executed after the event is triggered and each
+will be triggered. However, when the ``pickup()`` method is called, an ``Order.PickedUp``
+event will be triggered only if the order has been confirmed. The body of the ``pickup()``
+method is executed only when the command method is called, and before an event is triggered.
+The body of the ``_pickup()`` method is executed after the event is triggered and each
 time the event is applied to evolve the state of the aggregate.
 
 We can use the event-sourced ``Order`` aggregate in exactly the same way as
