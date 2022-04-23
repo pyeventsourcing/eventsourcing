@@ -331,7 +331,7 @@ the variations and alternatives that had been accumulated over the past
 few years of learning and pathfinding.
 
 * The highlight is the new :ref:`declarative syntax <Declarative syntax>`
-  for event sourced domain models.
+  for event-sourced domain models.
 
 * Dedicated persistence modules for SQLite and PostgresSQL have been
   introduced. Support for SQLAlchemy and Django, and other databases,

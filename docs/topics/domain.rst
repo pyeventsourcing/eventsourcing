@@ -949,7 +949,7 @@ be used for example to create IDs for aggregates with fixed names that you want
 to identify by name. For example, you can use this technique to identify a system
 configuration object. This technique can also be used to identify index aggregates
 that hold the IDs of aggregates with mutable names, or used to index other mutable
-attributes of an event sourced aggregate. It isn't possible to change the ID of an
+attributes of an event-sourced aggregate. It isn't possible to change the ID of an
 existing aggregate, because the domain events will need to be stored together in a
 single sequence. And so, using an index aggregate that has an ID that can be recreated
 from a particular value of a mutable attribute of another aggregate to hold the
@@ -1961,29 +1961,37 @@ In the examples above, the work of the command methods is "trivial", in
 that the command method arguments are always used directly as the aggregate event
 attribute values. But often a command method needs to do some work before
 triggering an event. As a result of this processing, the event attributes
-may not be the same as the command method arguments. And the logic of the
-command may be such that under some conditions an event should not be triggered.
+may not be the same as the command method arguments. In some cases, the command
+involve conditional logic, such that under some conditions an event should not
+be triggered. And in other cases, the logic of the command method may be such
+that different events should be triggered under different conditions.
 
-Any processing of method arguments that should be done only once, and not
-repeated when reconstructing aggregates from stored events, should be done
-in a undecorated command method. For example, if the triggered event will
-have a new UUID, you will either want to use a separate command method, or
-create this value in the expression used when calling the method, and not
-generate the UUID in the decorated method body. Otherwise, rather than being
-fixed in the stored state of the aggregate, a new UUID will be created each
-time the aggregate is reconstructed.
+Any processing of the command method arguments that should be done only once, and
+not repeated when reconstructing aggregates from stored events, should be done
+before the event is triggered. For example, if the triggered event is to have a
+new date-time value, or a new random UUID, then the new value must be generated
+before the event is triggered, and not when the event is applied to the aggregate.
+Otherwise, a new value will be generated each time the aggregate is reconstructed,
+rather than the value being fixed in the stored state of the aggregate.
 
-To illustrate this, consider the following ``Order`` class. It is an ordinary
-Python object class. Its ``__init__()`` method takes a ``name`` argument. The
-method ``confirm()`` sets the attribute ``confirmed_at``. The method
-``pickup()`` checks that the order has been confirmed before calling
-the ``_pickup()`` method which sets the attribute ``pickedup_at``.
-If the order has not been confirmed, an exception will be raised. That is,
-whilst the ``confirm()`` command method is trivial in that its arguments
-are always used as the event attributes, the ``pickup()`` method is non-trivial
-in that it will only trigger an event if the order has been confirmed. That
-means we can't decorate the ``pickup()`` method with the :data:`@event` decorator
-without triggering an unwanted event.
+This can be accomplished with the declarative syntax by decorating a "private" method
+that is called by a "public" method that is not decorated. The "public" command method
+will not trigger an event when it is called, and its method body will be executed only
+when the command is executed. The "private" method will trigger an event when it is called,
+its method body will be executed each time the event is applied to the aggregate.
+
+To illustrate this, let's consider a command method that has some conditional logic. The
+following ``Order`` class is an ordinary Python class. The ``confirm()``  method
+simply assigns the given value of its argument ``at`` to the order's ``confirmed_at``
+attribute. This method is "trivial", in that the argument of the ``confirm()`` method
+is assigned directly to the object attribute. However, the ``pickup()`` method
+has some conditional logic. It firstly checks that the order has been confirmed. If
+the order as not been confirmed, it raises an exception. Otherwise, if the order has
+been confirmed, it calls the "private" ``_pickup()`` method. The "private" ``_pickup()``
+method directly assigns the given value of the ``at`` argument to the order's ``pickedup_at``
+attribute. The ``pickup()`` method is "non-trivial", in that it has conditional logic which
+will only decide to assign the given value of the ``at`` argument to the order object if the
+order has been confirmed.
 
 .. code-block:: python
 
@@ -1997,36 +2005,52 @@ without triggering an unwanted event.
             self.confirmed_at = at
 
         def pickup(self, at):
-            if self.confirmed_at:
-                self._pickup(at)
-            else:
-                raise RuntimeError("Order is not confirmed")
+            if self.confirmed_at is None:
+                raise AssertionError("Order is not confirmed")
+            self._pickup(at)
 
         def _pickup(self, at):
             self.pickedup_at = at
 
 
-This ordinary Python class can used in the usual way. We can construct
-a new instance of the class, and call its command methods.
+We can construct a new instance of the ``Order`` class, and call its
+command methods. Calling ``pickup()`` before ``confirm()`` causes
+an exception to be raised.
 
 .. code-block:: python
 
     # Start a new order, confirm, and pick up.
     order = Order("my order")
+    assert order.name == "my order"
+    assert order.confirmed_at is None
+    assert order.pickedup_at is None
 
+    # Error when calling pickup() before calling confirm().
     try:
         order.pickup(datetime.now())
-    except RuntimeError:
-        pass
+    except AssertionError as e:
+        assert e.args[0] == "Order is not confirmed"
+        assert order.confirmed_at is None
+        assert order.pickedup_at is None
     else:
-        raise AssertionError("shouldn't get here")
+        raise Exception("shouldn't get here")
 
+    # Confirm the order.
     order.confirm(datetime.now())
-    order.pickup(datetime.now())
+    assert order.confirmed_at is not None
+    assert order.pickedup_at is None
 
-This ordinary Python class can be easily converted into an event sourced aggregate
-by applying the library's :data:`@event` decorator to the
-``confirm()`` and ``_pickup()`` methods.
+    # Pick up the order.
+    order.pickup(datetime.now())
+    assert order.confirmed_at is not None
+    assert order.pickedup_at is not None
+    assert order.pickedup_at > order.confirmed_at
+
+
+This ordinary Python class can be easily converted into an
+event-sourced aggregate by inheriting from ``Aggregate``
+and using the :data:`@event` decorator on the ``confirm()``
+and ``_pickup()`` methods.
 
 .. code-block:: python
 
@@ -2041,52 +2065,77 @@ by applying the library's :data:`@event` decorator to the
             self.confirmed_at = at
 
         def pickup(self, at):
-            if self.confirmed_at:
-                self._pickup(at)
-            else:
-                raise RuntimeError("Order is not confirmed")
+            if self.confirmed_at is None:
+                raise AssertionError("Order is not confirmed")
+            self._pickup(at)
 
         @event("PickedUp")
         def _pickup(self, at):
             self.pickedup_at = at
 
-Because the command methods are decorated in this way, when the ``confirm()``
-method is called, an ``Order.Confirmed`` event will be triggered. When the
-``_pickup()`` method is called, an ``Order.PickedUp`` event will be triggered.
-Those event classes are defined automatically from the method signatures. The
-``pickup()`` method is a good example of a command method that needs to do
-some work before an event is triggered. The body of the ``pickup()`` method
-is executed when the command method is called and before an event is triggered,
-whereas the body of the ``_pickup()`` method is executed after the event is
-triggered and each time the event is applied to evolve the state of the aggregate.
+Now, when the ``confirm()`` method is called, an ``Order.Confirmed`` event
+will be triggered. However, when the ``pickup()`` method is called,
+its conditional logic checks whether or not order has been confirmed,
+and the private ``_pickup()`` is called only if the order has been confirmed.
+When the private ``_pickup()`` method is called, an ``Order.PickedUp`` event
+will be triggered. The body of the ``pickup()`` method is executed only when
+the command method is called, and before an event is triggered. The body of
+the ``_pickup()`` method is executed after the event is triggered and each
+time the event is applied to evolve the state of the aggregate.
 
-We can use the event sourced ``Order`` aggregate in the same way as the undecorated
-ordinary Python ``Order`` class. The event sourced version has the advantage
-that using it will trigger a sequence of aggregate events that can be persisted in
-a database and used in future to determine the state of the order.
+We can use the event-sourced ``Order`` aggregate in exactly the same way as
+the ordinary Python ``Order`` class.
 
 .. code-block:: python
 
+    # Start a new order, confirm, and pick up.
     order = Order("my order")
-    order.confirm(datetime.now())
-    order.pickup(datetime.now())
-
-    # Check the state of the order.
     assert order.name == "my order"
-    assert isinstance(order.confirmed_at, datetime)
-    assert isinstance(order.pickedup_at, datetime)
+    assert order.confirmed_at is None
+    assert order.pickedup_at is None
+
+    # Error when calling pickup() before calling confirm().
+    try:
+        order.pickup(datetime.now())
+    except AssertionError as e:
+        assert e.args[0] == "Order is not confirmed"
+        assert order.confirmed_at is None
+        assert order.pickedup_at is None
+    else:
+        raise Exception("shouldn't get here")
+
+    # Confirm the order.
+    order.confirm(datetime.now())
+    assert order.confirmed_at is not None
+    assert order.pickedup_at is None
+
+    # Pick up the order.
+    order.pickup(datetime.now())
+    assert order.confirmed_at is not None
+    assert order.pickedup_at is not None
     assert order.pickedup_at > order.confirmed_at
 
-    # Check the triggered events determine the state of the order.
-    pending_events = order.collect_events()
-    copy = None
-    for e in pending_events:
-        copy = e.mutate(copy)
-    assert copy.name == order.name
-    assert copy.created_on == order.created_on
-    assert copy.modified_on == order.modified_on
-    assert copy.confirmed_at == order.confirmed_at
-    assert copy.pickedup_at == order.pickedup_at
+The difference is the event-sourced version of the ``Order`` class will
+trigger a sequence of aggregate events that can be persisted in a database
+and used in future to reconstruct the current state of the order.
+
+.. code-block:: python
+
+    # Collect the aggregate events.
+    events = order.collect_events()
+
+    reconstructed = None
+    for e in events:
+        reconstructed = e.mutate(reconstructed)
+
+    assert reconstructed.name == order.name
+    assert reconstructed.confirmed_at == order.confirmed_at
+    assert reconstructed.pickedup_at == order.pickedup_at
+
+    assert reconstructed.id == order.id
+    assert reconstructed.version == order.version
+    assert reconstructed.created_on == order.created_on
+    assert reconstructed.modified_on == order.modified_on
 
 
 Raising exceptions in the body of decorated methods
@@ -2128,11 +2177,9 @@ obtain a fresh version of the aggregate before continuing to trigger events.
 
         @event("PickedUp")
         def pickup(self, at):
-            if self.confirmed_at:
-                self.pickedup_at = at
-            else:
-                raise RuntimeError("Order is not confirmed")
-
+            if self.confirmed_at is None:
+                raise AssertionError("Order is not confirmed")
+            self.pickedup_at = at
 
         # Creating the aggregate causes one pending event.
         order = Order("name")
@@ -2141,8 +2188,10 @@ obtain a fresh version of the aggregate before continuing to trigger events.
         # Call pickup() too early raises an exception.
         try:
             order.pickup(datetime.now())
-        except RuntimeError:
-            pass
+        except AssertionError as e:
+            assert e.args[0] == "Order is not confirmed"
+            assert order.confirmed_at is None
+            assert order.pickedup_at is None
         else:
             raise Exception("Shouldn't get here")
 
@@ -2165,7 +2214,7 @@ The :data:`@aggregate` decorator
 --------------------------------
 
 Just for fun, the library's :func:`~eventsourcing.domain.aggregate` function can be
-used to declare event sourced aggregate classes. This is equivalent to inheriting
+used to declare event-sourced aggregate classes. This is equivalent to inheriting
 from the library's :class:`~eventsourcing.domain.Aggregate` class. The created
 event name can be defined using the ``created_event_name`` argument of the decorator.
 However, it is recommended to inherit from the :class:`~eventsourcing.domain.Aggregate`
