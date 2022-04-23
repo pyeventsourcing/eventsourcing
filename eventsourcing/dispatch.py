@@ -3,7 +3,22 @@ from __future__ import annotations
 import sys
 
 if sys.version_info >= (3, 8):  # pragma: no cover
-    from functools import singledispatchmethod
+    from functools import singledispatchmethod as _singledispatchmethod
+
+    class singledispatchmethod(_singledispatchmethod):
+        def register(self, cls, method=None):
+            """generic_method.register(cls, func) -> func
+
+            Registers a new implementation for the given *cls* on a *generic_method*.
+            """
+            if isinstance(cls, (classmethod, staticmethod)):
+                first_annotation = {}
+                for k, v in cls.__func__.__annotations__.items():
+                    first_annotation[k] = v
+                    break
+                cls.__annotations__ = first_annotation
+            return self.dispatcher.register(cls, func=method)
+
 else:
     from functools import singledispatch, update_wrapper
 
@@ -26,6 +41,12 @@ else:
 
             Registers a new implementation for the given *cls* on a *generic_method*.
             """
+            if isinstance(cls, (classmethod, staticmethod)):
+                first_annotation = {}
+                for k, v in cls.__func__.__annotations__.items():
+                    first_annotation[k] = v
+                    break
+                cls.__annotations__ = first_annotation
             return self.dispatcher.register(cls, func=method)
 
         def __get__(self, obj, cls=None):
