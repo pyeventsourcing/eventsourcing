@@ -1957,28 +1957,27 @@ concisely in the following way.
 Non-trivial command methods
 ---------------------------
 
-In the examples above, the work of the command methods is "trivial", in
-that the command method arguments are always used directly as the aggregate event
-attribute values. But often a command method needs to do some work before
-triggering an event. As a result of this processing, the event attributes
-may not be the same as the command method arguments. In some cases, the command
-involve conditional logic, such that under some conditions an event should not
-be triggered. And in other cases, the logic of the command method may be such
-that different events should be triggered under different conditions.
+In the examples above, the command methods are "trivial", in that the arguments
+of the command methods are the same as the attributes of the aggregate events
+that they trigger. But often a command method needs to do some work before
+triggering an event. In some cases, the command method involves conditional logic,
+such that an event might not be triggered. In other cases, the logic of the
+command method may be such that different events could be triggered.
 
-Any processing of the command method arguments that should be done only once, and
-not repeated when reconstructing aggregates from stored events, should be done
-before the event is triggered. For example, if the triggered event is to have a
-new date-time value, or a new random UUID, then the new value must be generated
-before the event is triggered, and not when the event is applied to the aggregate.
-Otherwise, a new value will be generated each time the aggregate is reconstructed,
-rather than the value being fixed in the stored state of the aggregate.
+The event attributes might be different from the command arguments. For example,
+if the triggered event is to have a new date-time value, or a new random UUID, then
+the new value must be generated before the event is triggered, not when the event
+is applied to the aggregate. Otherwise, a new value will be generated each time the
+aggregate is reconstructed, rather than the value being fixed in the stored state
+of the aggregate.
 
-This can be accomplished with the declarative syntax by decorating a "private" method
-that is called by a "public" method that is not decorated. The "public" command method
-will not trigger an event when it is called, and its method body will be executed only
-when the command is executed. The "private" method will trigger an event when it is called,
-its method body will be executed each time the event is applied to the aggregate.
+Any processing of the command method arguments should be done only once, and not repeated
+when reconstructing aggregates from stored events, before the event is triggered. This can
+be accomplished with the declarative syntax by defining a "public" method that is not
+decorated, which calls a "private" method that is decorated. The "public" command method
+will not trigger an event when it is called, and its method body will be executed only when
+the command is executed. The "private" method will trigger an event when it is called, and its
+method body will be executed each time the event is applied to the aggregate.
 
 To illustrate this, let's consider a command method that has some conditional logic. The
 following ``Order`` class is an ordinary Python class. The ``confirm()``  method
