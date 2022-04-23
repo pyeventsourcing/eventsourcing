@@ -5,26 +5,31 @@ from eventsourcing.domain import Aggregate
 
 
 class Dog(Aggregate):
-    class Registered(Aggregate.Created):
-        name: str
-
-    def __init__(self, name: str) -> None:
-        self.name = name
-        self.tricks: List[str] = []
-
     class Event(Aggregate.Event):
         def apply(self, aggregate: Aggregate) -> None:
             cast(Dog, aggregate).apply(self)
 
-    @singledispatchmethod
-    def apply(self, event: Event) -> None:
-        pass
+    class Registered(Event, Aggregate.Created):
+        name: str
 
-    class TrickAdded(Aggregate.Event):
+    class TrickAdded(Event):
         trick: str
+
+    @classmethod
+    def register(cls, name: str) -> "Dog":
+        return cls._create(cls.Registered, name=name)
 
     def add_trick(self, trick: str) -> None:
         self.trigger_event(self.TrickAdded, trick=trick)
+
+    @singledispatchmethod
+    def apply(self, event: Event) -> None:
+        """Applies event to aggregate."""
+
+    @apply.register
+    def _(self, event: Registered) -> None:
+        self.name = event.name
+        self.tricks: List[str] = []
 
     @apply.register
     def _(self, event: TrickAdded) -> None:

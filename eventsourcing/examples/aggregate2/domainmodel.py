@@ -7,13 +7,13 @@ class Dog(Aggregate):
     class Registered(Aggregate.Created):
         name: str
 
+    class TrickAdded(Aggregate.Event):
+        trick: str
+
     @event(Registered)
     def __init__(self, name: str) -> None:
         self.name = name
         self.tricks: List[str] = []
-
-    class TrickAdded(Aggregate.Event):
-        trick: str
 
     @event(TrickAdded)
     def add_trick(self, trick: str) -> None:

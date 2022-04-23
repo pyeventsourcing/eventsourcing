@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import Any, Iterable, Optional, Tuple, Type, TypeVar
 from uuid import UUID, uuid4
 
+from eventsourcing.dispatch import singledispatchmethod
 from eventsourcing.domain import Snapshot
 
 
@@ -50,8 +51,9 @@ class Aggregate:
             aggregate = cls.mutate(event, aggregate)
         return aggregate
 
-    @classmethod
-    def mutate(cls, event: DomainEvent, aggregate: Any) -> Any:
+    @singledispatchmethod
+    @staticmethod
+    def mutate(event: DomainEvent, aggregate: Any) -> Any:
         """Mutates aggregate with event."""
 
 
@@ -64,52 +66,60 @@ class Dog(Aggregate):
     class Registered(DomainEvent):
         name: str
 
-    @classmethod
-    def register(cls, name: str) -> DomainEvent:
-        return cls.Registered(
+    @dataclass(frozen=True)
+    class TrickAdded(DomainEvent):
+        trick: str
+
+    @staticmethod
+    def register(name: str) -> DomainEvent:
+        return Dog.Registered(
             originator_id=uuid4(),
             originator_version=1,
             timestamp=DomainEvent.create_timestamp(),
             name=name,
         )
 
-    @dataclass(frozen=True)
-    class TrickAdded(DomainEvent):
-        trick: str
-
     def add_trick(self, trick: str) -> DomainEvent:
-        return self.trigger_event(self.TrickAdded, trick=trick)
+        return self.trigger_event(Dog.TrickAdded, trick=trick)
 
+    @singledispatchmethod
     @classmethod
     def mutate(cls, event: DomainEvent, aggregate: Optional["Dog"]) -> Optional["Dog"]:
         """Mutates aggregate with event."""
-        if isinstance(event, cls.Registered):
-            return Dog(
-                id=event.originator_id,
-                version=event.originator_version,
-                created_on=event.timestamp,
-                modified_on=event.timestamp,
-                name=event.name,
-                tricks=tuple(),
-            )
-        elif isinstance(event, cls.TrickAdded):
-            assert aggregate is not None
-            return Dog(
-                id=aggregate.id,
-                version=event.originator_version,
-                created_on=aggregate.created_on,
-                modified_on=event.timestamp,
-                name=aggregate.name,
-                tricks=aggregate.tricks + (event.trick,),
-            )
-        elif isinstance(event, Snapshot):
-            return Dog(
-                id=event.state["id"],
-                version=event.state["version"],
-                created_on=event.state["created_on"],
-                modified_on=event.state["modified_on"],
-                name=event.state["name"],
-                tricks=tuple(event.state["tricks"]),  # comes back from JSON as a list
-            )
-        else:
-            raise NotImplementedError(event)  # pragma: no cover
+
+    @mutate.register
+    @classmethod
+    def _(cls, event: Registered, _: Optional["Dog"]) -> "Dog":
+        return Dog(
+            id=event.originator_id,
+            version=event.originator_version,
+            created_on=event.timestamp,
+            modified_on=event.timestamp,
+            name=event.name,
+            tricks=tuple(),
+        )
+
+    @mutate.register
+    @classmethod
+    def _(cls, event: TrickAdded, aggregate: Optional["Dog"]) -> "Dog":
+        assert aggregate is not None
+        return Dog(
+            id=aggregate.id,
+            version=event.originator_version,
+            created_on=aggregate.created_on,
+            modified_on=event.timestamp,
+            name=aggregate.name,
+            tricks=aggregate.tricks + (event.trick,),
+        )
+
+    @mutate.register
+    @classmethod
+    def _(cls, event: Snapshot, _: Optional["Dog"]) -> "Dog":
+        return Dog(
+            id=event.state["id"],
+            version=event.state["version"],
+            created_on=event.state["created_on"],
+            modified_on=event.state["modified_on"],
+            name=event.state["name"],
+            tricks=tuple(event.state["tricks"]),  # comes back from JSON as a list
+        )

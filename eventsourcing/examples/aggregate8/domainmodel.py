@@ -41,9 +41,6 @@ class Dog(Aggregate):
         self.name = name
         self.tricks: List[str] = []
 
-    class TrickAdded(Aggregate.Event):
-        trick: str
-
-    @event(TrickAdded)
+    @event("TrickAdded")
     def add_trick(self, trick: str) -> None:
         self.tricks.append(trick)

@@ -23,6 +23,13 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.2.9 (released 23 April 2022)
+--------------------------------------
+
+* Improved the documentation (improved examples).
+* Fixed event decorator to have __doc__, __annotations__, and __module__ from original method.
+
+
 Version 9.2.8 (released 21 April 2022)
 --------------------------------------
 
