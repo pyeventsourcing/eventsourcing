@@ -2141,27 +2141,26 @@ and used in future to reconstruct the current state of the order.
 Raising exceptions in the body of decorated methods
 ---------------------------------------------------
 
-It is actually possible to decorate the ``pickup()`` command method
-with the :data:`@event` decorator, but if a decorated command method
-has conditional logic that would mean the state of the aggregate
-should not be evolved, you must take care both to raise an exception
-rather than returning early, and to raise an exception before changing
-the state of the aggregate at all. By raising an exception in the body
-of a decorated method, the triggered event will not in fact be appended
+It is sometimes possible to decorate a non-trivial command method with
+the :data:`@event` decorator. By raising an exception in the body of a
+decorated method, the triggered event will not in fact be appended
 to the aggregate's list of pending events, and it will be as if it never
-happened. However, the conditional expression will be perhaps needlessly
-evaluated each time the aggregate is reconstructed from stored events. Of
-course this conditional logic may be useful and considered as validation
-of the projection of earlier events, for example checking the the ``Confirmed``
-event is working properly.
+happened. It is important to avoid changing the state of the aggregate instance
+before raising an exception, in case the aggregate instance will continue to be
+used. It is also important to remember that if the body of a decorated method
+has conditional logic, this conditional logic will be executed each time the
+aggregate is reconstructed from stored events. Of course, this conditional
+logic may be usefully considered as validation of the projection of earlier
+events, for example checking the the ``Confirmed`` event is working properly.
 
 If you wish to use this style, just make sure to raise an exception rather
 than returning early, and make sure not to change the state of the aggregate
-if an exception may be raised later. Returning early will mean the event
-will be appended to the list of pending events. Changing the state before
-raising an exception will mean the state will differ from the recorded state.
-So if your method does change state and then raise an exception, make sure to
-obtain a fresh version of the aggregate before continuing to trigger events.
+if an exception may be raised later in the method body. Returning early will
+mean the event will be appended to the list of pending events. Changing the
+state before raising an exception will mean the state of the aggregate instance
+will differ from the recorded state. So if your method does change state and
+then raise an exception, make sure to obtain a fresh version of the aggregate
+before continuing to trigger events in your application.
 
 .. code-block:: python
 
@@ -2190,25 +2189,37 @@ obtain a fresh version of the aggregate before continuing to trigger events.
             order.pickup(datetime.now())
         except AssertionError as e:
             assert e.args[0] == "Order is not confirmed"
-            assert order.confirmed_at is None
-            assert order.pickedup_at is None
         else:
             raise Exception("Shouldn't get here")
 
         # There is still only one pending event.
         assert len(order.pending_events) == 1
 
+        # The state of the aggregate instance is unchanged.
+        assert order.confirmed_at is None
+        assert order.pickedup_at is None
+
 
 Recording command arguments and reprocessing them each time the aggregate is
-reconstructed is perhaps best described as "command sourcing".
+reconstructed is known as "command sourcing". However, this is still
+"event sourcing". Command sourcing is a special case of event sourcing
+when the command arguments are used directly, and when the command method
+body is executed each time the aggregate is reconstructed from its events.
+As mentioned above, command sourcing doesn't work when the command method
+body generates new values that aren't a deterministic function of the command
+argument. Command sourcing can work if the change of state of the aggregate
+is a deterministic function of the command method arguments. However, in most
+cases it is more desirable to trigger an event with the results of the work
+of the command method, rather than repeating this work each time. The choice
+is yours.
 
-In many cases, a command will do some work and trigger
-an aggregate event that has attributes that are different from the command,
-and in those cases it is necessary to have two different methods with different
-signatures: a command method that is not decorated and a decorated method that
-triggers and applies an aggregate event. This second method may arguably be
-well named by using a past participle rather than the imperative form.
-
+In the cases where an aggregate event is to be triggered that has attributes
+that are different from the command method arguments, it is necessary, when
+using the :data:`@event` decorator to define and trigger events, to define two
+methods with different signatures: a "public" command method that is not
+decorated; and a "private" helper method that is decorated. Arguably, this
+second method may be well-named by using a past participle rather than the
+imperative form.
 
 The :data:`@aggregate` decorator
 --------------------------------
