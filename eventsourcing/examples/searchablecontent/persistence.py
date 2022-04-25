@@ -82,9 +82,6 @@ class SearchableWikiApplicationRecorder(PostgresApplicationRecorder):
         self._prepare(
             conn, self.update_page_body_statement_name, self.update_page_body_statement
         )
-        self._prepare(
-            conn, self.search_page_body_statement_name, self.search_page_body_statement
-        )
 
     def _insert_events(
         self,
@@ -129,6 +126,10 @@ class SearchableWikiApplicationRecorder(PostgresApplicationRecorder):
         page_slugs = []
 
         with self.datastore.get_connection() as conn:
+            self._prepare(
+                conn, self.search_page_body_statement_name,
+                self.search_page_body_statement
+            )
             with conn.transaction(commit=False) as curs:
                 statement_alias = self.statement_name_aliases[
                     self.search_page_body_statement_name
