@@ -130,6 +130,10 @@ class CanMutateProtocol(DomainEventProtocol, Protocol[TMutableOrImmutableAggrega
         ...  # pragma: no cover
 
 
+def create_utc_datetime_now() -> datetime:
+    return datetime.now(tz=TZINFO)
+
+
 class CanCreateTimestamp:
     """
     Provides a create_timestamp() method to subclasses.
@@ -141,7 +145,7 @@ class CanCreateTimestamp:
         Returns a timezone aware :class:`~datetime.datetime` object
         for the current time.
         """
-        return datetime.now(tz=TZINFO)
+        return create_utc_datetime_now()
 
 
 TAggregate = TypeVar("TAggregate", bound="Aggregate")
