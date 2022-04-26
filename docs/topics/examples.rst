@@ -39,3 +39,4 @@ Example applications
    examples/cargo-shipping
    examples/wiki
    examples/searchable-content
+   examples/searchable-timestamps
