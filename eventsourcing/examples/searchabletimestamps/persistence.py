@@ -13,21 +13,6 @@ from eventsourcing.postgres import (
 )
 
 
-class SearchableTimestampsInfrastructureFactory(Factory):
-    def application_recorder(self) -> ApplicationRecorder:
-        prefix = (self.datastore.schema + ".") if self.datastore.schema else ""
-        prefix += self.env.name.lower() or "stored"
-        events_table_name = prefix + "_events"
-        event_timestamps_table_name = prefix + "_timestamps"
-        recorder = SearchableTimestampsApplicationRecorder(
-            datastore=self.datastore,
-            events_table_name=events_table_name,
-            event_timestamps_table_name=event_timestamps_table_name,
-        )
-        recorder.create_table()
-        return recorder
-
-
 class SearchableTimestampsApplicationRecorder(PostgresApplicationRecorder):
     def __init__(
         self,
@@ -117,3 +102,18 @@ class SearchableTimestampsApplicationRecorder(PostgresApplicationRecorder):
                     return row["originator_version"]
                 else:
                     return Aggregate.INITIAL_VERSION - 1
+
+
+class SearchableTimestampsInfrastructureFactory(Factory):
+    def application_recorder(self) -> ApplicationRecorder:
+        prefix = (self.datastore.schema + ".") if self.datastore.schema else ""
+        prefix += self.env.name.lower() or "stored"
+        events_table_name = prefix + "_events"
+        event_timestamps_table_name = prefix + "_timestamps"
+        recorder = SearchableTimestampsApplicationRecorder(
+            datastore=self.datastore,
+            events_table_name=events_table_name,
+            event_timestamps_table_name=event_timestamps_table_name,
+        )
+        recorder.create_table()
+        return recorder

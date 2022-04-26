@@ -27,16 +27,18 @@ Persistence
 -----------
 
 The recorder class ``SearchableTimestampsApplicationRecorder`` creates a table that
-contains rows with the originator ID, timestamp, and originator version of domain event,
-It defines SQL statements that inserts and selects from the rows of the table.
+contains rows with the originator ID, timestamp, and originator version of `Cargo`
+events. It defines SQL statements that insert and select from the rows of the table.
 
-It extends the ``_insert_events()`` method by inserting rows, according to the information
-passed down from the application. It introduces a ``get_version_at_timestamp()``
-method which returns the version of an aggregate at a particular time.
+It extends the ``_insert_events()`` method by inserting rows, according to the
+event timestamp data passed down from the application. It defines a method
+``get_version_at_timestamp()`` method returns the version of an aggregate
+at a particular time.
 
-The infrastructure factory class ``SearchableTimestampsInfrastructureFactory`` extends the PosgreSQL
-``Factory`` class by overriding the ``application_recorder()`` method so that the
-``SearchableTimestampsApplicationRecorder`` is constructed for the application.
+The infrastructure factory class ``SearchableTimestampsInfrastructureFactory``
+extends the PosgreSQL ``Factory`` class by overriding the ``application_recorder()``
+method so that the ``SearchableTimestampsApplicationRecorder`` is constructed as the
+application recorder.
 
 .. literalinclude:: ../../../eventsourcing/examples/searchabletimestamps/persistence.py
 

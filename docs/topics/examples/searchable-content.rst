@@ -38,7 +38,7 @@ method which returns the page slugs for page bodies that match the given search 
 
 The infrastructure factory class ``SearchableContentInfrastructureFactory`` extends the
 PosgreSQL ``Factory`` class by overriding the ``application_recorder()`` method so that
-the ``SearchableContentApplicationRecorder`` is constructed for the application.
+the ``SearchableContentApplicationRecorder`` is constructed as the application recorder.
 
 .. literalinclude:: ../../../eventsourcing/examples/searchablecontent/persistence.py
 
