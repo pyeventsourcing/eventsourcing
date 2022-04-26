@@ -10,21 +10,6 @@ from eventsourcing.postgres import (
 )
 
 
-class SearchableContentInfrastructureFactory(Factory):
-    def application_recorder(self) -> ApplicationRecorder:
-        prefix = (self.datastore.schema + ".") if self.datastore.schema else ""
-        prefix += self.env.name.lower() or "stored"
-        events_table_name = prefix + "_events"
-        page_bodies_table_name = prefix + "_page_bodies"
-        recorder = SearchableContentApplicationRecorder(
-            datastore=self.datastore,
-            events_table_name=events_table_name,
-            page_bodies_table_name=page_bodies_table_name,
-        )
-        recorder.create_table()
-        return recorder
-
-
 class SearchableContentApplicationRecorder(PostgresApplicationRecorder):
     def __init__(
         self,
@@ -140,3 +125,18 @@ class SearchableContentApplicationRecorder(PostgresApplicationRecorder):
                     page_slugs.append(row["page_slug"])
 
         return page_slugs
+
+
+class SearchableContentInfrastructureFactory(Factory):
+    def application_recorder(self) -> ApplicationRecorder:
+        prefix = (self.datastore.schema + ".") if self.datastore.schema else ""
+        prefix += self.env.name.lower() or "stored"
+        events_table_name = prefix + "_events"
+        page_bodies_table_name = prefix + "_page_bodies"
+        recorder = SearchableContentApplicationRecorder(
+            datastore=self.datastore,
+            events_table_name=events_table_name,
+            page_bodies_table_name=page_bodies_table_name,
+        )
+        recorder.create_table()
+        return recorder
