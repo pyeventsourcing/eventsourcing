@@ -10,13 +10,13 @@ from eventsourcing.postgres import (
 )
 
 
-class SearchableWikiInfrastructureFactory(Factory):
+class SearchableContentInfrastructureFactory(Factory):
     def application_recorder(self) -> ApplicationRecorder:
         prefix = (self.datastore.schema + ".") if self.datastore.schema else ""
         prefix += self.env.name.lower() or "stored"
         events_table_name = prefix + "_events"
         page_bodies_table_name = prefix + "_page_bodies"
-        recorder = SearchableWikiApplicationRecorder(
+        recorder = SearchableContentApplicationRecorder(
             datastore=self.datastore,
             events_table_name=events_table_name,
             page_bodies_table_name=page_bodies_table_name,
@@ -25,7 +25,7 @@ class SearchableWikiInfrastructureFactory(Factory):
         return recorder
 
 
-class SearchableWikiApplicationRecorder(PostgresApplicationRecorder):
+class SearchableContentApplicationRecorder(PostgresApplicationRecorder):
     def __init__(
         self,
         datastore: PostgresDatastore,
@@ -82,9 +82,6 @@ class SearchableWikiApplicationRecorder(PostgresApplicationRecorder):
         self._prepare(
             conn, self.update_page_body_statement_name, self.update_page_body_statement
         )
-        self._prepare(
-            conn, self.search_page_body_statement_name, self.search_page_body_statement
-        )
 
     def _insert_events(
         self,
@@ -129,6 +126,11 @@ class SearchableWikiApplicationRecorder(PostgresApplicationRecorder):
         page_slugs = []
 
         with self.datastore.get_connection() as conn:
+            self._prepare(
+                conn,
+                self.search_page_body_statement_name,
+                self.search_page_body_statement,
+            )
             with conn.transaction(commit=False) as curs:
                 statement_alias = self.statement_name_aliases[
                     self.search_page_body_statement_name

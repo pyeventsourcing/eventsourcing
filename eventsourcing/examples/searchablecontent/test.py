@@ -3,7 +3,7 @@ from unittest import TestCase
 from uuid import uuid4
 
 from eventsourcing.examples.searchablecontent.application import (
-    SearchableWikiApplication,
+    SearchableContentApplication,
 )
 from eventsourcing.examples.wiki.domainmodel import user_id_cvar
 from eventsourcing.postgres import PostgresDatastore
@@ -18,7 +18,7 @@ class TestSearchableWiki(TestCase):
         user_id_cvar.set(user_id)
 
         # Construct application.
-        app = SearchableWikiApplication()
+        app = SearchableContentApplication()
 
         # Create empty pages.
         app.create_page(title="Animals", slug="animals")
@@ -87,6 +87,6 @@ class TestSearchableWiki(TestCase):
             os.environ["POSTGRES_USER"],
             os.environ["POSTGRES_PASSWORD"],
         )
-        drop_postgres_table(db, "public.searchablewikiapplication_events")
-        drop_postgres_table(db, "public.searchablewikiapplication_page_bodies")
+        drop_postgres_table(db, "public.searchablecontentapplication_events")
+        drop_postgres_table(db, "public.searchablecontentapplication_page_bodies")
         db.close()

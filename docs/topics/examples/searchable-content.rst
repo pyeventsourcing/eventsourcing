@@ -1,4 +1,4 @@
-.. _Searchable wiki example:
+.. _Searchable content example:
 
 Application 4 - Searchable content
 ==================================
@@ -10,14 +10,14 @@ queries in an event-sourced application.
 Application
 -----------
 
-The application class ``SearchableWikiApplication`` extends the ``WikiApplication``
+The application class ``SearchableContentApplication`` extends the ``WikiApplication``
 class presented in the previous example. It overrides the application's
 ``construct_factory()`` method by constructing an extended version of
 the library's PostgreSQL infrastructure factory (see below). It extends
 the ``save()`` method by using the variable keyword parameters (``**kwargs``)
 of the application ``save()`` method to pass down to the recorder extra
 information that will be used to update a searchable index of the event-sourced
-content. And it introduces a ``search()`` method that expects a ``query``
+content. It also introduces a ``search()`` method that expects a ``query``
 argument and returns a list of pages.
 
 .. literalinclude:: ../../../eventsourcing/examples/searchablecontent/application.py
@@ -26,11 +26,7 @@ argument and returns a list of pages.
 Persistence
 -----------
 
-The infrastructure class ``SearchableWikiInfrastructureFactory`` extends the PosgreSQL ``Factory``
-class by overriding the ``application_recorder()`` so that the ``SearchableWikiApplicationRecorder``
-is constructed for the application.
-
-The recorder class ``SearchableWikiApplicationRecorder`` creates a table that contains the
+The recorder class ``SearchableContentApplicationRecorder`` creates a table that contains the
 current page body text, and a GIN index that allows the text to be searched. It
 defines SQL statements that insert, update, and search the rows of the table
 using search query syntax similar to the one used by web search engines.
@@ -39,6 +35,10 @@ It extends the ``_insert_events()`` method by inserting and updating rows,
 according to the information passed down from the application through the
 ``save()`` method's variable keyword parameters. It introduces a ``search_page_bodies()``
 method which returns the page slugs for page bodies that match the given search query.
+
+The infrastructure factory class ``SearchableContentInfrastructureFactory`` extends the
+PosgreSQL ``Factory`` class by overriding the ``application_recorder()`` method so that
+the ``SearchableContentApplicationRecorder`` is constructed for the application.
 
 .. literalinclude:: ../../../eventsourcing/examples/searchablecontent/persistence.py
 
