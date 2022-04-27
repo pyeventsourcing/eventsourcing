@@ -5,18 +5,13 @@ from uuid import UUID
 from eventsourcing.application import ProcessingEvent
 from eventsourcing.examples.cargoshipping.application import BookingApplication
 from eventsourcing.examples.cargoshipping.domainmodel import Cargo
-from eventsourcing.examples.searchabletimestamps.persistence import (
+from eventsourcing.examples.searchabletimestamps.postgres import (
     SearchableTimestampsApplicationRecorder,
-    SearchableTimestampsInfrastructureFactory,
 )
-from eventsourcing.persistence import InfrastructureFactory, Recording
-from eventsourcing.utils import Environment
+from eventsourcing.persistence import Recording
 
 
 class SearchableTimestampsApplication(BookingApplication):
-    def construct_factory(self, env: Environment) -> InfrastructureFactory:
-        return SearchableTimestampsInfrastructureFactory(env)
-
     def _record(self, processing_event: ProcessingEvent) -> List[Recording]:
         event_timestamps_data = [
             (e.originator_id, e.timestamp, e.originator_version)

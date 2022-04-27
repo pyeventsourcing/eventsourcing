@@ -1,10 +1,11 @@
 .. _Searchable timestamps example:
 
-Application 5 - Searchable timestamps
+Application 4 - Searchable timestamps
 =====================================
 
-This example demonstrates how to extend the library's PostgreSQL application recorder
-to support retrieving aggregates at a particular point in time.
+This example demonstrates how to extend the library's application recorder classes
+to support retrieving aggregates at a particular point in time with both PostgreSQL
+and SQLite.
 
 Application
 -----------
@@ -26,27 +27,42 @@ returns a ``Cargo`` aggregate as it was at the specified time.
 Persistence
 -----------
 
-The recorder class ``SearchableTimestampsApplicationRecorder`` creates a table that
-contains rows with the originator ID, timestamp, and originator version of `Cargo`
-events. It defines SQL statements that insert and select from the rows of the table.
-
-It extends the ``_insert_events()`` method by inserting rows, according to the
-event timestamp data passed down from the application. It defines a method
-``get_version_at_timestamp()`` method returns the version of an aggregate
-at a particular time.
-
-The infrastructure factory class ``SearchableTimestampsInfrastructureFactory``
-extends the PosgreSQL ``Factory`` class by overriding the ``application_recorder()``
-method so that the ``SearchableTimestampsApplicationRecorder`` is constructed as the
-application recorder.
+The recorder classes ``SearchableTimestampsApplicationRecorder`` extend the PostgreSQL
+and SQLite ``ApplicationRecorder`` classes by creating a table that contains rows
+with the originator ID, timestamp, and originator version of aggregate events. The
+define SQL statements that insert and select from the rows of the table.
+They define a ``get_version_at_timestamp()`` method which returns the version of
+an aggregate at a particular time.
 
 .. literalinclude:: ../../../eventsourcing/examples/searchabletimestamps/persistence.py
+
+The application recorder classes extend the ``_insert_events()`` method by inserting rows,
+according to the event timestamp data passed down from the application.
+
+The infrastructure factory classes ``SearchableTimestampsInfrastructureFactory`` extend the
+PostgreSQL and SQLite ``Factory`` classes by overriding the ``application_recorder()`` method
+so that a ``SearchableTimestampsApplicationRecorder`` is constructed as the application recorder.
+
+.. _persistence-postgres-searchable-timestamps:
+
+PostgreSQL
+----------
+
+.. literalinclude:: ../../../eventsourcing/examples/searchabletimestamps/postgres.py
+
+.. _persistence-sqlite-searchable-timestamps:
+
+SQLite
+------
+
+.. literalinclude:: ../../../eventsourcing/examples/searchabletimestamps/sqlite.py
 
 
 Test case
 ---------
 
-The test case below evolves the state of a ``Cargo`` aggregate. The aggregate
-is then reconstructed as it was at particular times in its evolution.
+The test case ``SearchableTimestampsApplicationTestCase`` evolves the state of a ``Cargo``
+aggregate. The aggregate is then reconstructed as it was at particular times in its evolution.
+The test is executed twice, with the application configured for both PostgreSQL and SQLite.
 
-.. literalinclude:: ../../../eventsourcing/examples/searchabletimestamps/test.py
+.. literalinclude:: ../../../eventsourcing/examples/searchabletimestamps/test_searchabletimestamps.py

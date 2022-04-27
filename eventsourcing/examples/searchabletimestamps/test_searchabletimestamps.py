@@ -1,6 +1,7 @@
 import os
 from datetime import timedelta
 from time import sleep
+from typing import Dict
 from unittest import TestCase
 
 from eventsourcing.application import AggregateNotFound
@@ -13,11 +14,12 @@ from eventsourcing.postgres import PostgresDatastore
 from eventsourcing.tests.postgres_utils import drop_postgres_table
 
 
-class TestSearchableTimestamps(TestCase):
-    def test(self) -> None:
+class SearchableTimestampsTestCase(TestCase):
+    env: Dict[str, str]
 
+    def test(self) -> None:
         # Construct application.
-        app = SearchableTimestampsApplication()
+        app = SearchableTimestampsApplication(env=self.env)
         timestamp0 = create_utc_datetime_now()
         sleep(1e-5)
 
@@ -45,6 +47,17 @@ class TestSearchableTimestamps(TestCase):
         cargo_at_timestamp2 = app.get_cargo_at_timestamp(tracking_id, timestamp2)
         self.assertEqual(cargo_at_timestamp2.destination, Location["AUMEL"])
 
+
+class WithSQLite(SearchableTimestampsTestCase):
+    env = {
+        "PERSISTENCE_MODULE": "eventsourcing.examples.searchabletimestamps.sqlite",
+        "SQLITE_DBNAME": ":memory:",
+    }
+
+
+class WithPostgreSQL(SearchableTimestampsTestCase):
+    env = {"PERSISTENCE_MODULE": "eventsourcing.examples.searchabletimestamps.postgres"}
+
     def setUp(self) -> None:
         super().setUp()
         os.environ["POSTGRES_DBNAME"] = "eventsourcing"
@@ -69,3 +82,6 @@ class TestSearchableTimestamps(TestCase):
         drop_postgres_table(db, "public.searchablewikiapplication_events")
         drop_postgres_table(db, "public.searchablewikiapplication_timestamps")
         db.close()
+
+
+del SearchableTimestampsTestCase
