@@ -12,10 +12,8 @@ Application
 -----------
 
 The application class ``SearchableContentApplication`` extends the ``WikiApplication``
-class presented in the :doc:`content management example </topics/examples/content-management>`. It
-overrides the application's ``construct_factory()`` method by constructing an extended
-version of the library's PostgreSQL infrastructure factory (see below). It extends
-the ``save()`` method by using the variable keyword parameters (``**kwargs``)
+class presented in the :doc:`content management example </topics/examples/content-management>`.
+It extends the ``save()`` method by using the variable keyword parameters (``**kwargs``)
 of the application ``save()`` method to pass down to the recorder extra
 information that will be used to update a searchable index of the event-sourced
 content. It also introduces a ``search()`` method that expects a ``query``

@@ -11,11 +11,10 @@ Application
 -----------
 
 The application class ``SearchableTimestampsApplication`` extends the ``BookingApplication``
-presented in the :doc:`cargo shipping example </topics/examples/cargo-shipping>`. It overrides
-the application's ``construct_factory()`` method by constructing an extended version of the
-library's PostgreSQL infrastructure factory. It extends the application ``_record()`` method
-by setting in the processing event a list of event timestamp data tuples that will be used
-by the recorder to insert timestamps into an index. It also introduces a ``get_cargo_at_timestamp()`` method that expects a ``timestamp`` argument, as well as a
+presented in the :doc:`cargo shipping example </topics/examples/cargo-shipping>`. It extends
+the application ``_record()`` method by setting in the processing event a list of event timestamp
+data tuples that will be used by the recorder to insert timestamps into an index. It also introduces
+a ``get_cargo_at_timestamp()`` method that expects a ``timestamp`` argument, as well as a
 ``tracking_id`` argument, and then returns a ``Cargo`` aggregate as it was at the specified time.
 
 .. literalinclude:: ../../../eventsourcing/examples/searchabletimestamps/application.py
