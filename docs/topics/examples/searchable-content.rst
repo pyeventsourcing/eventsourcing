@@ -3,9 +3,10 @@
 Application 4 - Searchable content
 ==================================
 
-This example demonstrates how to extend the library's PostgreSQL application recorder
-to support `full text search <https://www.postgresql.org/docs/current/textsearch.html_>`_
-queries in an event-sourced application.
+This example demonstrates how to extend the library's application recorder classes
+to support full text search queries in an event-sourced application with both
+`PostgreSQL <https://www.postgresql.org/docs/current/textsearch.html_>`_ and
+`SQLite <https://www.sqlite.org/fts5.html>`_.
 
 Application
 -----------
@@ -26,28 +27,44 @@ argument and returns a list of pages.
 Persistence
 -----------
 
-The recorder class ``SearchableContentApplicationRecorder`` creates a table that contains the
-current page body text, and a GIN index that allows the text to be searched. It
-defines SQL statements that insert, update, and search the rows of the table
-using search query syntax similar to the one used by web search engines.
+The recorder classes ``SearchableContentApplicationRecorder`` extend the PostgreSQL
+and SQLite ``ApplicationRecorder`` by creating a table that contains the current
+page body text. They define SQL statements that insert, update, and search the rows
+of the table using search query syntax similar to the one used by web search engines.
 
-It extends the ``_insert_events()`` method by inserting and updating rows,
-according to the information passed down from the application through the
-``save()`` method's variable keyword parameters. It introduces a ``search_page_bodies()``
-method which returns the page slugs for page bodies that match the given search query.
-
-The infrastructure factory class ``SearchableContentInfrastructureFactory`` extends the
-PosgreSQL ``Factory`` class by overriding the ``application_recorder()`` method so that
-the ``SearchableContentApplicationRecorder`` is constructed as the application recorder.
+The application recorder classes extend the ``_insert_events()`` method by inserting
+and updating rows, according to the information passed down from the application
+through the ``save()`` method's variable keyword parameters. They introduce a
+``search_page_bodies()`` method which returns the page slugs for page bodies that
+match the given search query.
 
 .. literalinclude:: ../../../eventsourcing/examples/searchablecontent/persistence.py
+
+The infrastructure factory classes ``SearchableContentInfrastructureFactory`` extend the
+PostgreSQL and SQLite ``Factory`` class by overriding the ``application_recorder()`` method so that
+the ``SearchableContentApplicationRecorder`` is constructed as the application recorder.
+
+PostgreSQL
+~~~~~~~~~~
+
+The PostgreSQL recorder uses a GIN index and the ``websearch_to_tsquery()`` function.
+
+.. literalinclude:: ../../../eventsourcing/examples/searchablecontent/postgres.py
+
+SQLite
+~~~~~~
+
+The SQLite recorder uses a virtual table and the ``MATCH`` operator.
+
+.. literalinclude:: ../../../eventsourcing/examples/searchablecontent/sqlite.py
 
 
 Test case
 ---------
 
-The test case below creates three pages for animals, plants, and minerals.
-Content is added to the pages. The pages are searched with various queries
-and the search results are checked.
+The test case ``SearchableContentApplicationTestCase`` creates three pages for animals,
+plants, and minerals. Content is added to the pages. The pages are searched with various
+queries and the search results are checked. The test is executed twice, with the application
+configured for both PostgreSQL and SQLite.
 
-.. literalinclude:: ../../../eventsourcing/examples/searchablecontent/test.py
+.. literalinclude:: ../../../eventsourcing/examples/searchablecontent/test_searchablecontent.py

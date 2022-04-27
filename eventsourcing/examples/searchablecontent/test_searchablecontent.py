@@ -1,4 +1,5 @@
 import os
+from typing import Dict
 from unittest import TestCase
 from uuid import uuid4
 
@@ -10,15 +11,15 @@ from eventsourcing.postgres import PostgresDatastore
 from eventsourcing.tests.postgres_utils import drop_postgres_table
 
 
-class TestSearchableWiki(TestCase):
-    def test(self) -> None:
+class SearchableContentApplicationTestCase(TestCase):
+    env: Dict[str, str] = {}
+
+    def test_app(self) -> None:
+        app = SearchableContentApplication(env=self.env)
 
         # Set user_id context variable.
         user_id = uuid4()
         user_id_cvar.set(user_id)
-
-        # Construct application.
-        app = SearchableContentApplication()
 
         # Create empty pages.
         app.create_page(title="Animals", slug="animals")
@@ -66,6 +67,17 @@ class TestSearchableWiki(TestCase):
         self.assertEqual(2, len(pages))
         self.assertEqual(["animals", "plants"], sorted(p["slug"] for p in pages))
 
+
+class TestWithSQLite(SearchableContentApplicationTestCase):
+    env = {
+        "PERSISTENCE_MODULE": "eventsourcing.examples.searchablecontent.sqlite",
+        "SQLITE_DBNAME": ":memory:",
+    }
+
+
+class TestWithPostgres(SearchableContentApplicationTestCase):
+    env = {"PERSISTENCE_MODULE": "eventsourcing.examples.searchablecontent.postgres"}
+
     def setUp(self) -> None:
         super().setUp()
         os.environ["POSTGRES_DBNAME"] = "eventsourcing"
@@ -90,3 +102,6 @@ class TestSearchableWiki(TestCase):
         drop_postgres_table(db, "public.searchablecontentapplication_events")
         drop_postgres_table(db, "public.searchablecontentapplication_page_bodies")
         db.close()
+
+
+del SearchableContentApplicationTestCase
