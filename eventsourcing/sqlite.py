@@ -2,7 +2,7 @@ import sqlite3
 from contextlib import contextmanager
 from sqlite3 import Connection, Cursor
 from types import TracebackType
-from typing import Any, Iterator, List, Optional, Sequence, Type, Union, cast
+from typing import Any, Iterator, List, Optional, Sequence, Type, Union
 from uuid import UUID
 
 from eventsourcing.persistence import (
@@ -285,7 +285,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
 
     def _insert_events(
         self,
-        c: BaseCursor,
+        c: SQLiteCursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> Optional[Sequence[int]]:
@@ -299,7 +299,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
                     stored_event.state,
                 )
             )
-        cast(SQLiteCursor, c).executemany(self.insert_events_statement, params)
+        c.executemany(self.insert_events_statement, params)
         return None
 
     def select_events(
@@ -371,7 +371,7 @@ class SQLiteApplicationRecorder(
 
     def _insert_events(
         self,
-        c: BaseCursor,
+        c: SQLiteCursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> Optional[Sequence[int]]:
@@ -386,7 +386,7 @@ class SQLiteApplicationRecorder(
                     stored_event.state,
                 ),
             )
-            returning.append(cast(SQLiteCursor, c).lastrowid)
+            returning.append(c.lastrowid)
         return returning
 
     def select_notifications(
@@ -439,7 +439,7 @@ class SQLiteApplicationRecorder(
         with self.datastore.transaction(commit=False) as c:
             return self._max_notification_id(c)
 
-    def _max_notification_id(self, c: BaseCursor) -> int:
+    def _max_notification_id(self, c: SQLiteCursor) -> int:
         c.execute(self.select_max_notification_id_statement)
         return c.fetchone()[0] or 0
 
@@ -490,7 +490,7 @@ class SQLiteProcessRecorder(
 
     def _insert_events(
         self,
-        c: BaseCursor,
+        c: SQLiteCursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> Optional[Sequence[int]]:
