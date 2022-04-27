@@ -6,7 +6,7 @@ from uuid import UUID
 from eventsourcing.persistence import ApplicationRecorder
 
 
-class SearchableRecorder(ApplicationRecorder):
+class SearchableTimestampsRecorder(ApplicationRecorder):
     @abstractmethod
     def get_version_at_timestamp(
         self, originator_id: UUID, timestamp: datetime

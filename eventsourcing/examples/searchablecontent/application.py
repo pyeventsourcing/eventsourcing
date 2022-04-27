@@ -1,7 +1,9 @@
 from typing import Any, Dict, List, Optional, Union, cast
 
 from eventsourcing.domain import DomainEventProtocol, MutableOrImmutableAggregate
-from eventsourcing.examples.searchablecontent.persistence import SearchableRecorder
+from eventsourcing.examples.searchablecontent.persistence import (
+    SearchableContentRecorder,
+)
 from eventsourcing.examples.wiki.application import PageDetailsType, WikiApplication
 from eventsourcing.examples.wiki.domainmodel import Page
 from eventsourcing.persistence import Recording
@@ -27,7 +29,7 @@ class SearchableContentApplication(WikiApplication):
 
     def search(self, query: str) -> List[PageDetailsType]:
         pages = []
-        recorder = cast(SearchableRecorder, self.recorder)
+        recorder = cast(SearchableContentRecorder, self.recorder)
         for slug in recorder.search_page_bodies(query):
             page = self.get_page_details(slug)
             pages.append(page)

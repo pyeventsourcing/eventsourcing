@@ -3,7 +3,9 @@ from typing import Any, List, Optional, Sequence, Tuple, cast
 from uuid import UUID
 
 from eventsourcing.domain import Aggregate
-from eventsourcing.examples.searchabletimestamps.persistence import SearchableRecorder
+from eventsourcing.examples.searchabletimestamps.persistence import (
+    SearchableTimestampsRecorder,
+)
 from eventsourcing.persistence import ApplicationRecorder, StoredEvent
 from eventsourcing.postgres import (
     Factory,
@@ -15,7 +17,7 @@ from eventsourcing.postgres import (
 
 
 class SearchableTimestampsApplicationRecorder(
-    SearchableRecorder, PostgresApplicationRecorder
+    SearchableTimestampsRecorder, PostgresApplicationRecorder
 ):
     def __init__(
         self,

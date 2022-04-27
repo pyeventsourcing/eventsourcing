@@ -79,8 +79,8 @@ class WithPostgreSQL(SearchableTimestampsTestCase):
             os.environ["POSTGRES_USER"],
             os.environ["POSTGRES_PASSWORD"],
         )
-        drop_postgres_table(db, "public.searchablewikiapplication_events")
-        drop_postgres_table(db, "public.searchablewikiapplication_timestamps")
+        drop_postgres_table(db, "public.searchabletimestampsapplication_events")
+        drop_postgres_table(db, "public.searchabletimestampsapplication_timestamps")
         db.close()
 
 

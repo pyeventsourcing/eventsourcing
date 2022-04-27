@@ -1,6 +1,8 @@
 from typing import Any, Dict, List, Optional, Sequence, cast
 
-from eventsourcing.examples.searchablecontent.persistence import SearchableRecorder
+from eventsourcing.examples.searchablecontent.persistence import (
+    SearchableContentRecorder,
+)
 from eventsourcing.persistence import ApplicationRecorder, StoredEvent
 from eventsourcing.sqlite import (
     Factory,
@@ -11,7 +13,7 @@ from eventsourcing.sqlite import (
 
 
 class SearchableContentApplicationRecorder(
-    SearchableRecorder, SQLiteApplicationRecorder
+    SearchableContentRecorder, SQLiteApplicationRecorder
 ):
     def __init__(
         self,
