@@ -737,11 +737,11 @@ index will result in the wiki not being updated.
     assert wiki.get_page(name="Mars").body == "Neque porro quisquam..."
 
 
-A :doc:`more refined implementation </topics/examples/wiki>` might release old index objects
-when page names are changed so that they can be reused by other
-pages, or update the old index to point to the new index, so that
-redirects can be implemented. See the :doc:`Wiki application example </topics/examples/wiki>`
-to see how this can be done.
+A :doc:`more refined implementation </topics/examples/content-management>` might release
+old index objects when page names are changed so that they can be reused by other pages,
+or update the old index to point to the new index, so that redirects can be implemented.
+See the :doc:`Wiki application example </topics/examples/content-management>` to see how
+this can be done.
 
 Using index aggregates, or aggregates with version-5 UUIDs is one way to
 discover version-4 aggregate IDs. By knowing the name, the IDs can be
@@ -759,6 +759,7 @@ event-sourced log.
 ..
     #Todo: Show how to use ORM objects for read model.
 
+.. _event-sourced-log:
 
 Event-sourced log
 =================
@@ -1153,6 +1154,9 @@ When snapshotting is enabled, the application repository looks for snapshots in 
 If a snapshot is found by the aggregate repository when retrieving an aggregate,
 then only the snapshot and subsequent aggregate events will be retrieved and used
 to reconstruct the state of the aggregate.
+
+
+.. _automatic-snapshotting:
 
 Automatic snapshotting
 ----------------------
