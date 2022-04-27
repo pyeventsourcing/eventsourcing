@@ -3,7 +3,9 @@ from typing import Any, List, Optional, Sequence, Tuple, cast
 from uuid import UUID
 
 from eventsourcing.domain import Aggregate
-from eventsourcing.examples.searchabletimestamps.persistence import SearchableRecorder
+from eventsourcing.examples.searchabletimestamps.persistence import (
+    SearchableTimestampsRecorder,
+)
 from eventsourcing.persistence import ApplicationRecorder, StoredEvent
 from eventsourcing.sqlite import (
     Factory,
@@ -13,8 +15,8 @@ from eventsourcing.sqlite import (
 )
 
 
-class SearchableContentApplicationRecorder(
-    SearchableRecorder, SQLiteApplicationRecorder
+class SearchableTimestampsApplicationRecorder(
+    SearchableTimestampsRecorder, SQLiteApplicationRecorder
 ):
     def __init__(
         self,
@@ -81,9 +83,9 @@ class SearchableContentApplicationRecorder(
                 return Aggregate.INITIAL_VERSION - 1
 
 
-class SearchableContentInfrastructureFactory(Factory):
+class SearchableTimestampsInfrastructureFactory(Factory):
     def application_recorder(self) -> ApplicationRecorder:
-        recorder = SearchableContentApplicationRecorder(datastore=self.datastore)
+        recorder = SearchableTimestampsApplicationRecorder(datastore=self.datastore)
         recorder.create_table()
         return recorder
 
