@@ -28,23 +28,23 @@ Persistence
 -----------
 
 The recorder classes ``SearchableContentApplicationRecorder`` extend the PostgreSQL
-and SQLite ``ApplicationRecorder`` by creating a table that contains the current
+and SQLite ``ApplicationRecorder`` classes by creating a table that contains the current
 page body text. They define SQL statements that insert, update, and search the rows
 of the table using search query syntax similar to the one used by web search engines.
-
-The application recorder classes extend the ``_insert_events()`` method by inserting
-and updating rows, according to the information passed down from the application
-through the ``save()`` method's variable keyword parameters. They introduce a
-``search_page_bodies()`` method which returns the page slugs for page bodies that
-match the given search query.
+They define a ``search_page_bodies()`` method which returns the page slugs for page
+bodies that match the given search query.
 
 .. literalinclude:: ../../../eventsourcing/examples/searchablecontent/persistence.py
 
-The infrastructure factory classes ``SearchableContentInfrastructureFactory`` extend the
-PostgreSQL and SQLite ``Factory`` class by overriding the ``application_recorder()`` method so that
-the ``SearchableContentApplicationRecorder`` is constructed as the application recorder.
+The application recorder classes extend the ``_insert_events()`` method by inserting
+and updating rows, according to the information passed down from the application
+through the ``save()`` method's variable keyword parameters.
 
-.. _persistence-postgres:
+The infrastructure factory classes ``SearchableContentInfrastructureFactory`` extend the
+PostgreSQL and SQLite ``Factory`` class by overriding the ``application_recorder()`` method
+so that a ``SearchableContentApplicationRecorder`` is constructed as the application recorder.
+
+.. _persistence-postgres-searchable-content:
 
 PostgreSQL
 ----------
@@ -53,7 +53,7 @@ The PostgreSQL recorder uses a GIN index and the ``websearch_to_tsquery()`` func
 
 .. literalinclude:: ../../../eventsourcing/examples/searchablecontent/postgres.py
 
-.. _persistence-sqlite:
+.. _persistence-sqlite-searchable-content:
 
 SQLite
 ------
