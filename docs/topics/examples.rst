@@ -38,5 +38,5 @@ Example applications
    examples/bank-accounts
    examples/cargo-shipping
    examples/wiki
-   examples/searchable-content
    examples/searchable-timestamps
+   examples/searchable-content

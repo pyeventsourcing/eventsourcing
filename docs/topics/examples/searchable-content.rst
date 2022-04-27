@@ -1,6 +1,6 @@
 .. _Searchable content example:
 
-Application 4 - Searchable content
+Application 5 - Searchable content
 ==================================
 
 This example demonstrates how to extend the library's application recorder classes

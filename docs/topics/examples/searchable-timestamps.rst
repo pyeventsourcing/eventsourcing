@@ -1,6 +1,6 @@
 .. _Searchable timestamps example:
 
-Application 5 - Searchable timestamps
+Application 4 - Searchable timestamps
 =====================================
 
 This example demonstrates how to extend the library's application recorder classes
