@@ -2,16 +2,20 @@ from typing import cast
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.examples.wiki.application import (
+from eventsourcing.examples.contentmanagement.application import (
+    ContentManagementApplication,
     PageNotFound,
     SlugConflictError,
-    WikiApplication,
 )
-from eventsourcing.examples.wiki.domainmodel import Index, Page, user_id_cvar
+from eventsourcing.examples.contentmanagement.domainmodel import (
+    Index,
+    Page,
+    user_id_cvar,
+)
 from eventsourcing.system import NotificationLogReader
 
 
-class TestWiki(TestCase):
+class TestContentManagement(TestCase):
     def test(self) -> None:
 
         # Set user_id context variable.
@@ -19,7 +23,7 @@ class TestWiki(TestCase):
         user_id_cvar.set(user_id)
 
         # Construct application.
-        app = WikiApplication()
+        app = ContentManagementApplication()
 
         # Check the page doesn't exist.
         with self.assertRaises(PageNotFound):

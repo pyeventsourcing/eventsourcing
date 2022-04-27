@@ -57,8 +57,9 @@ SQLite
 Test case
 ---------
 
-The test case ``SearchableTimestampsApplicationTestCase`` evolves the state of a ``Cargo``
-aggregate. The aggregate is then reconstructed as it was at particular times in its evolution.
-The test is executed twice, with the application configured for both PostgreSQL and SQLite.
+The test case ``SearchableTimestampsTestCase`` uses the application to evolve the
+state of a ``Cargo`` aggregate. The aggregate is then reconstructed as it was at
+particular times in its evolution. The test is executed twice, with the application
+configured for both PostgreSQL and SQLite.
 
 .. literalinclude:: ../../../eventsourcing/examples/searchabletimestamps/test_searchabletimestamps.py

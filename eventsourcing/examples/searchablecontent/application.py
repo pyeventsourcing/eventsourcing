@@ -1,15 +1,18 @@
 from typing import Any, Dict, List, Optional, Union, cast
 
 from eventsourcing.domain import DomainEventProtocol, MutableOrImmutableAggregate
+from eventsourcing.examples.contentmanagement.application import (
+    ContentManagementApplication,
+    PageDetailsType,
+)
+from eventsourcing.examples.contentmanagement.domainmodel import Page
 from eventsourcing.examples.searchablecontent.persistence import (
     SearchableContentRecorder,
 )
-from eventsourcing.examples.wiki.application import PageDetailsType, WikiApplication
-from eventsourcing.examples.wiki.domainmodel import Page
 from eventsourcing.persistence import Recording
 
 
-class SearchableContentApplication(WikiApplication):
+class SearchableContentApplication(ContentManagementApplication):
     def save(
         self,
         *objs: Optional[Union[MutableOrImmutableAggregate, DomainEventProtocol]],

@@ -64,9 +64,9 @@ The SQLite recorder uses a virtual table and the ``MATCH`` operator.
 Test case
 ---------
 
-The test case ``SearchableContentApplicationTestCase`` creates three pages for animals,
-plants, and minerals. Content is added to the pages. The pages are searched with various
-queries and the search results are checked. The test is executed twice, with the application
-configured for both PostgreSQL and SQLite.
+The test case ``SearchableContentTestCase`` uses the application to create three
+pages, for 'animals', 'plants' and 'minerals'. Content is added to the pages. The
+content is searched with various queries and the search results are checked. The
+test is executed twice, with the application configured for both PostgreSQL and SQLite.
 
 .. literalinclude:: ../../../eventsourcing/examples/searchablecontent/test_searchablecontent.py
