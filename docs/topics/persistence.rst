@@ -7,8 +7,8 @@ for storing and retrieving :ref:`domain events <Domain events>`.
 
 This module, along with the :ref:`concrete persistence modules <Persistence>` that
 adapt particular database management systems, are the most important parts of this
-library. The other modules (`domain <domain.html>`_, `application <application.html>`_,
-`system <system.html>`_) serve *primarily* as guiding examples of how to use the
+library. The other modules (:doc:`domain </topics/domain>`, :doc:`application </topics/application>`,
+:doc:`system </topics/system>`) serve *primarily* as guiding examples of how to use the
 persistence modules to build event-sourced applications and event-driven systems.
 
 Requirements

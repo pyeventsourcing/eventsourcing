@@ -290,7 +290,7 @@ obtained in two "pages" each having two event notifications.
 
 Notification logs, and the propagation and processing of event notifications
 is discussed further in the :ref:`application module documentation <Notification log>`
-and the `system module documentation <system.html>`_.
+and the :doc:`system module documentation </topics/system>`.
 
 Database configuration
 ======================

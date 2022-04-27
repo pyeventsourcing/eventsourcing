@@ -12,7 +12,7 @@ time needed to reconstruct an aggregate from its domain events can be reduced
 by using **snapshots**.
 
 The classes in this module were first introduced merely as a way of showing
-how the persistence module can be used. The `persistence <persistence.html>`_
+how the persistence module can be used. The :doc:`persistence </topics/persistence>`
 module is the original core of this library, and is the cohesive mechanism for
 storing and retrieving sequences ("streams") of immutable events. But without
 showing how this mechanism can be used to develop a domain model, there was
@@ -1198,7 +1198,7 @@ possible.
 
 The library offers a more concise style for expressing these concerns. The :ref:`declarative syntax <Declarative syntax>`,
 especially the ``@event`` decorator, which you may have seen on the project's README page and the
-`Introduction <introduction.html>`_ and the `Tutorial <tutorial.html>`_, is explained in detail below.
+`Introduction <introduction.html>`_ and the :doc:`Tutorial </topics/tutorial>`, is explained in detail below.
 This offers a more concise style which avoids all of the actually unnecessary repetition, keeps the
 specification of the event even closer to the code that mutates the aggregate, and allows the aggregate
 to be mutated in a natural way using "private" attributes.
@@ -1217,8 +1217,8 @@ aggregates above. In several places, the same argument was defined in a command
 method, on an event class, and in an apply method. The library offers a more concise
 way to express aggregates by using a declarative syntax. This is possibly the most
 concise way of expressing an event-sourced domain model across all programming
-languages. It is the style that is used in the `Introduction <introduction.html>`_
-and in the `Tutorial <tutorial.html>`_.
+languages. It is the style that is used in the :doc:`Introduction </topics/introduction>`
+and in the :doc:`Tutorial </topics/tutorial>`.
 
 
 Create new aggregate by calling the aggregate class directly
@@ -1953,6 +1953,8 @@ concisely in the following way.
     assert index2.ref == page.id
     assert index2.name == page.name
 
+
+.. _non-trivial-command-methods:
 
 Non-trivial command methods
 ---------------------------

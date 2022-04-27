@@ -123,8 +123,8 @@ Design overview
 ===============
 
 The design of the library follows the notion of a "layered" or "onion" or "hexagonal"
-architecture in that there are `separate modules <modules.html>`_ for `application <application.html>`_,
-`domain <domain.html>`_, `persistence <persistence.html>`_, and `interface <interface.html>`_.
+architecture in that there are :doc:`separate modules  </topics/modules>` for :doc:`application </topics/application>`,
+:doc:`domain </topics/domain>`, :doc:`persistence </topics/domain>`, and :doc:`interface </topics/interface>`.
 The interface module depends on the application module. The application module depends on the domain
 module and the persistence module. The persistence module depends on the domain module.
 The domain module does not depend on any of the other modules. All these modules depend
@@ -188,7 +188,7 @@ on examples from previous chapters.
 Synopsis
 ========
 
-Use the library's ``Application`` class to define an event-sourced `application <application.html>`_.
+Use the library's ``Application`` class to define an event-sourced :doc:`application </topics/application>`.
 Add command and query methods that use event-sourced aggregates.
 
 .. code-block:: python
@@ -212,7 +212,7 @@ Add command and query methods that use event-sourced aggregates.
 
 
 Use the library's ``Aggregate`` class and the ``@event`` decorator to define
-event-sourced `aggregates <domain.html>`_. Aggregate events will be triggered
+event-sourced :doc:`aggregates </topics/domain>`. Aggregate events will be triggered
 when decorated methods are called, and the decorated method bodies will be
 used to mutate the state of the aggregate.
 
@@ -233,7 +233,7 @@ used to mutate the state of the aggregate.
 
 Optionally :ref:`configure an application <Application configuration>` by setting
 environment variables, for example to enable aggregate caching or to specify
-a `persistence module <persistence.html>`_.
+a :doc:`persistence module </topics/persistence>`.
 
 .. code-block:: python
 

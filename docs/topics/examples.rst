@@ -37,6 +37,6 @@ Example applications
 
    examples/bank-accounts
    examples/cargo-shipping
-   examples/wiki
+   examples/content-management
    examples/searchable-timestamps
    examples/searchable-content

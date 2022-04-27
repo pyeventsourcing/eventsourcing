@@ -3,8 +3,7 @@
 Application 1 - Bank accounts
 =============================
 
-This example demonstrates a straightforward event-sourced
-application.
+This example demonstrates a straightforward `event-sourced application <../application.html>`_.
 
 Application
 -----------

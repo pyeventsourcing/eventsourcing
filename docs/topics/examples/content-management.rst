@@ -1,14 +1,13 @@
-.. _Wiki example:
+.. _Content management example:
 
 Application 3 - Content management
 ==================================
 
-This example demonstrates the use of version-5 UUIDs for both discovery of aggregate
-IDs and implementation of an application-wide rule (or "invariant").
-This example also involves event-sourced logs, automatic snapshotting,
-and the use of the declarative syntax for domain models with a "non-trivial"
-command method that is not decorated with the ``@event`` decorator but instead
-calls a private method that is decorated so.
+This example demonstrates the use of :ref:`namespaced IDs <Namespaced IDs>` for both
+discovery of aggregate IDs and implementation of an application-wide rule (or "invariant").
+This example also involves :ref:`event-sourced logs <event-sourced-log>`,
+automatic :ref:`snapshotting <automatic-snapshotting>`, and the use of the declarative
+syntax for domain models with :ref:`non-trivial command methods <non-trivial-command-methods>`.
 
 This example also shows how to use a thread-specific context variable to set the value
 of a common event attribute without cluttering all the command methods with the same
