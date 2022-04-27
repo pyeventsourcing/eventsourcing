@@ -3,15 +3,15 @@ from typing import Dict
 from unittest import TestCase
 from uuid import uuid4
 
+from eventsourcing.examples.contentmanagement.domainmodel import user_id_cvar
 from eventsourcing.examples.searchablecontent.application import (
     SearchableContentApplication,
 )
-from eventsourcing.examples.wiki.domainmodel import user_id_cvar
 from eventsourcing.postgres import PostgresDatastore
 from eventsourcing.tests.postgres_utils import drop_postgres_table
 
 
-class SearchableContentApplicationTestCase(TestCase):
+class SearchableContentTestCase(TestCase):
     env: Dict[str, str] = {}
 
     def test_app(self) -> None:
@@ -68,14 +68,14 @@ class SearchableContentApplicationTestCase(TestCase):
         self.assertEqual(["animals", "plants"], sorted(p["slug"] for p in pages))
 
 
-class TestWithSQLite(SearchableContentApplicationTestCase):
+class TestWithSQLite(SearchableContentTestCase):
     env = {
         "PERSISTENCE_MODULE": "eventsourcing.examples.searchablecontent.sqlite",
         "SQLITE_DBNAME": ":memory:",
     }
 
 
-class TestWithPostgres(SearchableContentApplicationTestCase):
+class TestWithPostgres(SearchableContentTestCase):
     env = {"PERSISTENCE_MODULE": "eventsourcing.examples.searchablecontent.postgres"}
 
     def setUp(self) -> None:
@@ -104,4 +104,4 @@ class TestWithPostgres(SearchableContentApplicationTestCase):
         db.close()
 
 
-del SearchableContentApplicationTestCase
+del SearchableContentTestCase

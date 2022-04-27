@@ -2,13 +2,13 @@ from typing import Any, Dict, Iterator, Optional, Union, cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from eventsourcing.application import AggregateNotFound, Application, EventSourcedLog
-from eventsourcing.examples.wiki.domainmodel import Index, Page, PageLogged
+from eventsourcing.examples.contentmanagement.domainmodel import Index, Page, PageLogged
 from eventsourcing.utils import EnvType
 
 PageDetailsType = Dict[str, Union[str, Any]]
 
 
-class WikiApplication(Application):
+class ContentManagementApplication(Application):
     env = {"COMPRESSOR_TOPIC": "gzip"}
     snapshotting_intervals = {Page: 5}
 
