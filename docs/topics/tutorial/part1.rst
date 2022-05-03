@@ -3,8 +3,8 @@ Tutorial - Part 1 - Getting started
 ===================================
 
 This tutorial provides a very gradual introduction to event-sourced aggregates and
-applications, explaining just enough on the mechanics of this library to help users
-of the library understand how things work. It expands and explains the
+applications, explaining just enough of the design and the mechanics of this library
+to help users understand how things work. It expands and explains the
 :ref:`Synopsis <Synopsis>`, and prepares new users of the library for reading
 the :doc:`Modules </topics/modules>` documentation.
 
@@ -14,8 +14,8 @@ Overview
 
 Software is often created to support some useful or important activities.
 This kind of software is commonly separated into four layers. Users generally
-interact with an interface layer, using some kind of technology. The interface
-depends on an application layer, which provide support for users of the software
+interact with an interface layer, using some kind of user interface technology.
+The interface layer depends on an application layer, which provides support for users of the software
 independently of any particular interface technology. The application layer depends
 on two other layers: the domain layer and the persistence layer. The domain layer
 contains the "logic" of the application, and the persistence layer is responsible
