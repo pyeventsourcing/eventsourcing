@@ -2718,7 +2718,7 @@ domain event object method of the same name, so that when reconstructing an aggr
 that starts with a snapshot and continues with the subsequent domain event objects can be
 treated in the same way as a list of all the domain event objects of an aggregate.
 This similarity is needed by the application :ref:`repository <Repository>`, since
-some specialist event stores (e.g. AxonDB) return a snapshot as the first domain event.
+some specialist event stores (e.g. Axon Server) return a snapshot as the first domain event.
 
 
 .. _Notes:

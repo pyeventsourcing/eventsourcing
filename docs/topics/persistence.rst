@@ -1375,12 +1375,15 @@ events recorded in PostgreSQL.
 Other persistence modules
 =========================
 
-`Other persistence modules are available or under development <https://github.com/pyeventsourcing>`_
-that adapt popular ORMs such as `SQLAlchemy <https://github.com/pyeventsourcing/eventsourcing-sqlalchemy>`_
-and `Django <https://github.com/pyeventsourcing/eventsourcing-django>`_, specialist event stores such as
-`EventStoreDB <https://github.com/pyeventsourcing/eventsourcing-eventstoredb>`_ and
-`AxonDB <https://github.com/pyeventsourcing/eventsourcing-axondb>`_, NoSQL databases
-such as `DynamoDB <https://github.com/pyeventsourcing/eventsourcing-dynamodb>`_, and so on.
+Other persistence modules are available or under development. There are extension projects that support
+using popular ORMs for persistence such as [Django](https://github.com/pyeventsourcing/eventsourcing-django)
+and [SQLAlchemy](https://github.com/pyeventsourcing/eventsourcing-sqlalchemy),
+specialist event stores such as
+[Axon Server](https://github.com/pyeventsourcing/eventsourcing-axonserver),
+and [EventStoreDB](https://github.com/pyeventsourcing/eventsourcing-eventstoredb).
+And NoSQL databases such as
+[DynamoDB](https://github.com/pyeventsourcing/eventsourcing-dynamodb)
+and MongoDB.
 
 
 Classes

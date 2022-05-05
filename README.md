@@ -164,13 +164,26 @@ and systems.
 The GitHub organisation
 [Event Sourcing in Python](https://github.com/pyeventsourcing)
 hosts extension projects for the Python eventsourcing library.
-There are projects that support ORMs such as [Django](https://github.com/pyeventsourcing/eventsourcing-django) and [SQLAlchemy](https://github.com/pyeventsourcing/eventsourcing-sqlalchemy).
-There are projects supporting databases such as AxonDB, DynamoDB,
-EventStoreDB, and Apache Kafka. Another project supports
-transcoding domain events with Protocol Buffers rather than JSON.
+There are projects that adapt popular ORMs such as
+[Django](https://github.com/pyeventsourcing/eventsourcing-django)
+and [SQLAlchemy](https://github.com/pyeventsourcing/eventsourcing-sqlalchemy).
+There are projects that adapt specialist event stores such as
+[Axon Server](https://github.com/pyeventsourcing/eventsourcing-axonserver),
+[EventStoreDB](https://github.com/pyeventsourcing/eventsourcing-eventstoredb).
+There are projects that support popular NoSQL databases such as
+[DynamoDB](https://github.com/pyeventsourcing/eventsourcing-dynamodb)
+and MongoDB.
 There are also projects that provide examples of using the
-library with such things as [FastAPI](https://github.com/pyeventsourcing/example-fastapi),
-Flask, and serverless.
+library with web frameworks as
+[FastAPI](https://github.com/pyeventsourcing/example-fastapi)
+and [Flask](https://github.com/pyeventsourcing/example-flask).
+And there are examples of event-sourced applications and systems
+of event-sourced applications, such as the
+[Paxos system](https://github.com/pyeventsourcing/example-paxos),
+which is used as the basis for a
+[replicated state machine](https://github.com/pyeventsourcing/example-paxos/tree/master/replicatedstatemachine),
+which is used as the basis for a
+[distributed key-value store](https://github.com/pyeventsourcing/example-paxos/tree/master/keyvaluestore).
 
 ## Project
 
