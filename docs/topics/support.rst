@@ -53,7 +53,7 @@ The library has a growing community that may be able to help.
 - You can ask questions on the Slack_ channel.
 
 - You can also register issues and requests on our
-  `issue tracker <https://github.com/pyeventsourcing/eventsourcing/issues>`__.
+  `issue tracker <https://github.com/pyeventsourcing/eventsourcing/issues>`_.
 
 .. _Slack: https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTJjMmJjYTc3ODQ3M2YwOTMwMDJlODJkMjk3ZmE1MGYyZDM4MjIxODZmYmVkZmJkODRhZDg5N2MwZjk1YzU3NmY>`__.
 

@@ -5,8 +5,8 @@ from uuid import UUID
 from eventsourcing.application import ProcessingEvent
 from eventsourcing.examples.cargoshipping.application import BookingApplication
 from eventsourcing.examples.cargoshipping.domainmodel import Cargo
-from eventsourcing.examples.searchabletimestamps.postgres import (
-    SearchableTimestampsApplicationRecorder,
+from eventsourcing.examples.searchabletimestamps.persistence import (
+    SearchableTimestampsRecorder,
 )
 from eventsourcing.persistence import Recording
 
@@ -22,6 +22,6 @@ class SearchableTimestampsApplication(BookingApplication):
         return super()._record(processing_event)
 
     def get_cargo_at_timestamp(self, tracking_id: UUID, timestamp: datetime) -> Cargo:
-        recorder = cast(SearchableTimestampsApplicationRecorder, self.recorder)
+        recorder = cast(SearchableTimestampsRecorder, self.recorder)
         version = recorder.get_version_at_timestamp(tracking_id, timestamp)
         return cast(Cargo, self.repository.get(tracking_id, version=version))

@@ -23,6 +23,13 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.2.11 (released 4 May 2022)
+------------------------------------
+
+* Improved the documentation (better wording and examples).
+* Improved test cases (to accommodate eventsourcing-axonserver).
+
+
 Version 9.2.10 (released 27 April 2022)
 ---------------------------------------
 

@@ -300,7 +300,7 @@ By default, the application stores aggregate events in memory as "plain old Pyth
 The library also supports storing events in :ref:`SQLite and PostgreSQL databases <Persistence>`.
 
 Other databases are available. See the library's
-`extension projects <https://github.com/pyeventsourcing>`__
+`extension projects <https://github.com/pyeventsourcing>`_
 for more information about what is currently supported.
 
 See also the :ref:`application module documentation <Application configuration>`

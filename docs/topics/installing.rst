@@ -19,7 +19,7 @@ Pip install
 ===========
 
 You can use pip to install the library from the
-`Python Package Index <https://pypi.org/project/eventsourcing/>`__.
+`Python Package Index <https://pypi.org/project/eventsourcing/>`_.
 
 ::
 

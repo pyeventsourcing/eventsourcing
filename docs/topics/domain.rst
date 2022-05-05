@@ -46,15 +46,13 @@ called 'aggregate' in the following way.
 That is to say, an 'aggregate' is a cluster of 'entities' and 'value objects'.
 An 'entity' is an object with a fixed unique identity (an ID) and other attributes
 that may vary. A 'value object' does not vary, nor does it necessarily have a
-unique identity.
-
-This basic notion of a cluster of software objects is understandable
+unique identity. The notion of a cluster of software objects is understandable
 as straightforward `object-oriented programming
 <https://en.wikipedia.org/wiki/Object-oriented_programming>`_.
 
 An aggregate has a 'root'. The 'root' of an aggregate is an entity.
 This entity is known as the 'root entity' or the 'aggregate root'. The
-ID of the root entity is used to uniquely identify and the aggregate in
+ID of the root entity is used to uniquely identify the aggregate in
 a domain model. References to the aggregate are references to the aggregate's
 root entity.
 
@@ -63,7 +61,6 @@ root entity. Changes to the aggregate's cluster of objects are decided by
 'command methods'. The state of the cluster of objects is accessed using
 'query methods'. The aggregate's command and query methods will usually be
 defined on the aggregate's root entity.
-
 The idea of distinguishing between command methods (methods that change state but
 do not return values) and query methods (methods that return values but do not
 change state) is known as 'command-query separation' or CQS. `CQS was devised
@@ -89,7 +86,7 @@ gives the notion 'consistency boundary' its meaning. Furthermore, the distinctiv
 of the domain models of *Domain-Driven Design* is the generation of many serially ordered
 sequences of decisions, because they are comprised of many aggregates. By comparison, the
 domain model pattern in Martin Fowler's *Patterns of Enterprise Application Architecture* does
-not have this degree of order in its society of decisions.
+not propose this degree of order in its society of decisions.
 
 If *Domain-Driven Design* is a general approach to creating domain models
 for any domain, that is because the structure 'many individual sequences of decisions'
@@ -2315,7 +2312,7 @@ a timezone with a fixed offset from UTC, in which case you will probably still n
 to convert to local time in the user interface. So it is strongly recommended to use
 the default :data:`TZINFO`.
 
-Please see the Python `docs <https://docs.python.org/3/library/zoneinfo.html>`__ for
+Please see the Python `docs <https://docs.python.org/3/library/zoneinfo.html>`_ for
 more information about timezones, in particular the need to install :data:`tzdata`
 on some systems. Please note, the ``zoneinfo`` package is new in Python 3.9, so users
 of earlier versions of Python may wish to install the ``backports.zoneinfo`` package.
@@ -2721,7 +2718,7 @@ domain event object method of the same name, so that when reconstructing an aggr
 that starts with a snapshot and continues with the subsequent domain event objects can be
 treated in the same way as a list of all the domain event objects of an aggregate.
 This similarity is needed by the application :ref:`repository <Repository>`, since
-some specialist event stores (e.g. AxonDB) return a snapshot as the first domain event.
+some specialist event stores (e.g. Axon Server) return a snapshot as the first domain event.
 
 
 .. _Notes:

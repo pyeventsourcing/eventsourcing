@@ -38,6 +38,7 @@ class ExampleApplicationTestCase(TestCase):
 
     def test_example_application(self):
         app = BankAccounts(env={"IS_SNAPSHOTTING_ENABLED": "y"})
+        max_notification_id = app.recorder.max_notification_id()
 
         self.assertEqual(get_topic(type(app.factory)), self.expected_factory_topic)
 
@@ -62,30 +63,36 @@ class ExampleApplicationTestCase(TestCase):
             Decimal("65.00"),
         )
 
-        section = app.notification_log["1,10"]
+        sleep(1)  # Added to make eventsourcing-axon tests work, perhaps not necessary.
+        section = app.notification_log[
+            f"{max_notification_id + 1},{max_notification_id + 10}"
+        ]
         self.assertEqual(len(section.items), 4)
 
         # Take snapshot (specify version).
-        app.take_snapshot(account_id, version=2)
+        app.take_snapshot(account_id, version=Aggregate.INITIAL_VERSION + 1)
 
-        snapshots = list(app.snapshots.get(account_id, desc=True, limit=1))
+        snapshots = list(app.snapshots.get(account_id))
         self.assertEqual(len(snapshots), 1)
-        self.assertEqual(snapshots[0].originator_version, 2)
+        self.assertEqual(snapshots[0].originator_version, Aggregate.INITIAL_VERSION + 1)
 
-        from_snapshot = app.repository.get(account_id, version=3)
+        from_snapshot = app.repository.get(
+            account_id, version=Aggregate.INITIAL_VERSION + 2
+        )
         self.assertIsInstance(from_snapshot, BankAccount)
-        self.assertEqual(from_snapshot.version, 3)
+        self.assertEqual(from_snapshot.version, Aggregate.INITIAL_VERSION + 2)
         self.assertEqual(from_snapshot.balance, Decimal("35.00"))
 
         # Take snapshot (don't specify version).
         app.take_snapshot(account_id)
-        snapshots = list(app.snapshots.get(account_id, desc=True, limit=1))
-        self.assertEqual(len(snapshots), 1)
-        self.assertEqual(snapshots[0].originator_version, 4)
+        snapshots = list(app.snapshots.get(account_id))
+        self.assertEqual(len(snapshots), 2)
+        self.assertEqual(snapshots[0].originator_version, Aggregate.INITIAL_VERSION + 1)
+        self.assertEqual(snapshots[1].originator_version, Aggregate.INITIAL_VERSION + 3)
 
         from_snapshot = app.repository.get(account_id)
         self.assertIsInstance(from_snapshot, BankAccount)
-        self.assertEqual(from_snapshot.version, 4)
+        self.assertEqual(from_snapshot.version, Aggregate.INITIAL_VERSION + 3)
         self.assertEqual(from_snapshot.balance, Decimal("65.00"))
 
     def test__put_performance(self):
