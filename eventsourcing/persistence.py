@@ -486,13 +486,16 @@ class ProcessRecorder(ApplicationRecorder):
     @abstractmethod
     def max_tracking_id(self, application_name: str) -> int:
         """
-        Returns the last recorded notification ID from given application.
+        Returns the largest notification ID across all tracking records
+        for the named application. Returns zero if there are no tracking
+        records.
         """
 
     @abstractmethod
     def has_tracking_id(self, application_name: str, notification_id: int) -> bool:
         """
-        Returns the last recorded notification ID from given application.
+        Returns true if a tracking record with the given application name
+        and notification ID exists, otherwise returns false.
         """
 
 
