@@ -869,7 +869,7 @@ Application configuration
 An application can be configured using environment variables. You
 can set the application's environment either on the ``env``
 attribute of the application class, in the
-`operating system environment <https://docs.python.org/3/library/os.html#os.environ>`__,
+`operating system environment <https://docs.python.org/3/library/os.html#os.environ>`_,
 or by passing them into the application using the constructor argument ``env``. You
 can use all three ways for configuring an application in combination.
 

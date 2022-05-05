@@ -97,7 +97,7 @@ Python classes
 ==============
 
 This tutorial depends on a basic understanding of
-`Python classes <https://docs.python.org/3/tutorial/classes.html>`__.
+`Python classes <https://docs.python.org/3/tutorial/classes.html>`_.
 
 For example, we can define a ``Dog`` class in Python as follows.
 
@@ -112,7 +112,7 @@ For example, we can define a ``Dog`` class in Python as follows.
             self.tricks.append(trick)
 
 This example is taken from the `Class and Instance Variables
-<https://docs.python.org/3/tutorial/classes.html#class-and-instance-variables>`__
+<https://docs.python.org/3/tutorial/classes.html#class-and-instance-variables>`_
 section of the Python docs.
 
 Having defined a Python class, we can use it to create an instance.
@@ -375,7 +375,7 @@ Project template
 ================
 
 To get started quickly, you can use the
-`template for Python eventsourcing projects <https://github.com/pyeventsourcing/cookiecutter-eventsourcing#readme>`__.
+`template for Python eventsourcing projects <https://github.com/pyeventsourcing/cookiecutter-eventsourcing#readme>`_.
 
 Install Cookiecutter into a dedicated virtual environment.
 
@@ -454,7 +454,7 @@ The project template includes the "dog school" example.
 You can adjust the tests, rename the classes, and change the methods.
 Or just delete the included example code for a fresh start.
 
-See the `project template repo on GitHub <https://github.com/pyeventsourcing/cookiecutter-eventsourcing#readme>`__
+See the `project template repo on GitHub <https://github.com/pyeventsourcing/cookiecutter-eventsourcing#readme>`_
 for more information and guidance.
 
 

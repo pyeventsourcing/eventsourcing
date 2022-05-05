@@ -2312,7 +2312,7 @@ a timezone with a fixed offset from UTC, in which case you will probably still n
 to convert to local time in the user interface. So it is strongly recommended to use
 the default :data:`TZINFO`.
 
-Please see the Python `docs <https://docs.python.org/3/library/zoneinfo.html>`__ for
+Please see the Python `docs <https://docs.python.org/3/library/zoneinfo.html>`_ for
 more information about timezones, in particular the need to install :data:`tzdata`
 on some systems. Please note, the ``zoneinfo`` package is new in Python 3.9, so users
 of earlier versions of Python may wish to install the ``backports.zoneinfo`` package.

@@ -343,6 +343,6 @@ and systems.
 Register issues
 ===============
 
-This project is `hosted on GitHub <https://github.com/pyeventsourcing/eventsourcing>`__.
+This project is `hosted on GitHub <https://github.com/pyeventsourcing/eventsourcing>`_.
 Please `register any issues, questions, and requests
-<https://github.com/pyeventsourcing/eventsourcing/issues>`__ you may have.
+<https://github.com/pyeventsourcing/eventsourcing/issues>`_ you may have.

@@ -6,7 +6,7 @@ Application 2 - Cargo shipping
 
 This example follows the original Cargo Shipping example that
 figures in the DDD book, as worked up into a running application
-by the `DDD Sample <http://dddsample.sourceforge.net/>`__  project:
+by the `DDD Sample <http://dddsample.sourceforge.net/>`_  project:
 
     *"One of the most requested aids to coming up to speed on DDD has been a running example
     application. Starting from a simple set of functions and a model based on the cargo example

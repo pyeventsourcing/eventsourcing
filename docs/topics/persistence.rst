@@ -1092,7 +1092,7 @@ SQLite module
 =============
 
 The persistence module :mod:`eventsourcing.sqlite` supports recording events in
-`SQLite <https://www.sqlite.org/>`__. Recorder classes use the Python :mod:`sqlite3`
+`SQLite <https://www.sqlite.org/>`_. Recorder classes use the Python :mod:`sqlite3`
 module. The direct use of the library's SQLite recorders is shown below.
 
 .. code-block:: python
@@ -1222,7 +1222,7 @@ PostgreSQL module
 =================
 
 The persistence module :mod:`eventsourcing.postgres` supports storing events in
-`PostgresSQL <https://www.postgresql.org/>`__ using the third party :mod:`psycopg2`
+`PostgresSQL <https://www.postgresql.org/>`_ using the third party :mod:`psycopg2`
 module.
 
 .. code-block:: python
@@ -1326,7 +1326,7 @@ timeout after that duration has passed. The lock will be released when the trans
 The optional environment variable ``POSTGRES_SCHEMA`` may be used to configure the table names
 used by the recorders to be qualified with a schema name. Setting this will create tables in
 a specific PostgreSQL schema. See the
-`PostgreSQL Schemas <https://www.postgresql.org/docs/current/ddl-schemas.html>`__
+`PostgreSQL Schemas <https://www.postgresql.org/docs/current/ddl-schemas.html>`_
 documentation for more information about creating and using PostgreSQL schemas safely.
 
 The optional environment variable ``CREATE_TABLE`` controls whether or not database tables are
@@ -1375,14 +1375,16 @@ events recorded in PostgreSQL.
 Other persistence modules
 =========================
 
-Other persistence modules are available or under development. There are extension projects that support
-using popular ORMs for persistence such as [Django](https://github.com/pyeventsourcing/eventsourcing-django)
-and [SQLAlchemy](https://github.com/pyeventsourcing/eventsourcing-sqlalchemy),
+Other persistence modules are available or under development. There are
+`extension projects <https://github.com/pyeventsourcing>`_
+that support using popular ORMs for persistence such as
+`Django <https://github.com/pyeventsourcing/eventsourcing-django>`_
+and `SQLAlchemy <https://github.com/pyeventsourcing/eventsourcing-sqlalchemy>`_,
 specialist event stores such as
-[Axon Server](https://github.com/pyeventsourcing/eventsourcing-axonserver),
-and [EventStoreDB](https://github.com/pyeventsourcing/eventsourcing-eventstoredb).
-And NoSQL databases such as
-[DynamoDB](https://github.com/pyeventsourcing/eventsourcing-dynamodb)
+`Axon Server <https://github.com/pyeventsourcing/eventsourcing-axonserver>`_,
+and `EventStoreDB <https://github.com/pyeventsourcing/eventsourcing-eventstoredb>`_,
+and other popular databases such as Azure,
+`DynamoDB <https://github.com/pyeventsourcing/eventsourcing-dynamodb>`_,
 and MongoDB.
 
 
