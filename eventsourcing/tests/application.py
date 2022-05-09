@@ -52,8 +52,21 @@ class ExampleApplicationTestCase(TestCase):
             email_address="alice@example.com",
         )
 
+        # Check balance.
+        self.assertEqual(
+            app.get_balance(account_id),
+            Decimal("0.00"),
+        )
+
         # Credit the account.
         app.credit_account(account_id, Decimal("10.00"))
+
+        # Check balance.
+        self.assertEqual(
+            app.get_balance(account_id),
+            Decimal("10.00"),
+        )
+
         app.credit_account(account_id, Decimal("25.00"))
         app.credit_account(account_id, Decimal("30.00"))
 

@@ -5,7 +5,7 @@ Application 5 - Searchable content
 
 This example demonstrates how to extend the library's application recorder classes
 to support full text search queries in an event-sourced application with both
-`PostgreSQL <https://www.postgresql.org/docs/current/textsearch.html_>`_ and
+`PostgreSQL <https://www.postgresql.org/docs/current/textsearch.html>`_ and
 `SQLite <https://www.sqlite.org/fts5.html>`_.
 
 Application
@@ -42,7 +42,6 @@ The infrastructure factory classes ``SearchableContentInfrastructureFactory`` ex
 PostgreSQL and SQLite ``Factory`` class by overriding the ``application_recorder()`` method
 so that a ``SearchableContentApplicationRecorder`` is constructed as the application recorder.
 
-.. _persistence-postgres-searchable-content:
 
 PostgreSQL
 ----------
@@ -51,7 +50,6 @@ The PostgreSQL recorder uses a GIN index and the ``websearch_to_tsquery()`` func
 
 .. literalinclude:: ../../../eventsourcing/examples/searchablecontent/postgres.py
 
-.. _persistence-sqlite-searchable-content:
 
 SQLite
 ------

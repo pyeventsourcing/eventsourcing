@@ -23,6 +23,21 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.2.12 (released 9 May 2022)
+------------------------------------
+
+* Fixed typing of EventSourcedLog class, and deprecated LogEvent class.
+* Improved documentation:
+
+  * improved wording in section "Event-sourced log";
+  * fixed broken link in docs (to PostgreSQL's full text search doc);
+  * added links to extension packages;
+  * fixed docstrings in ProcessRecorder; and
+  * fixed wording in section "Aggregates in DDD".
+
+* Adjusted application and persistence test cases (to accommodate testing
+  extensions for Axon Server and EventStoreDB).
+
 Version 9.2.11 (released 4 May 2022)
 ------------------------------------
 

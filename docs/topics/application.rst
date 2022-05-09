@@ -764,36 +764,41 @@ event-sourced log.
 Event-sourced log
 =================
 
-The application :func:`~eventsourcing.application.Application.save` method
-can be used to collect and store new events from more than one aggregate.
-It can also be used to store the events of an event-sourced log.
+As we have seen, event-sourced aggregates generate a sequence of events. The
+stored sequence of events can be retrieved and projected to reconstruct the
+current state of the aggregate. However, the mechanism for storing and retrieving
+events in a sequence is useful in itself. We can usefully log a sequence of events,
+and use this sequence without projecting the entire sequence into the current state
+of an aggregate. The term 'event-sourced log' refers to using the persistence mechanism
+for event sourcing without aggregate projections for the purpose of logging information
+that is useful in an application.
 
-The library class :class:`~eventsourcing.application.EventSourcedLog`
-can be used with subclasses of :class:`~eventsourcing.application.LogEvent`
-to trigger log events that can be saved and listed. An event-sourced
-log can be constructed as a part of the application, with a version-5 UUID
-that is used to identify the sequence of log events. This is similar to
-event-sourced aggregates, with the difference that the entire sequence
-does not need to be obtained and used to reconstruct a current state
-in order to derive useful information in the application.
-Instead, a subset of the log events can be selected from the sequence.
-The logged information can then be retrieved from the log events.
+An event-sourced log object can be constructed as a part of an application. The library
+class :class:`~eventsourcing.application.EventSourcedLog` can be used as an event-sourced
+log. An event-sourced log object is typically constructed with a version-5 UUID that
+identifies the sequence of logged events, and a subclass of :class:`~eventsourcing.domainmodel.DomainEvent`
+defined with attributes for the information to be logged.  A "trigger" method can be defined
+that expects to be given the kind of information to be logged. The "trigger" method constructs
+and returns a new event object of the given type with the given information. The event can
+then be saved atomically with other things, by passing it to the application's
+:func:`~eventsourcing.application.Application.save` method. A subsequence of logged
+events, of a given size and from a given position, can be selected from log. The logged
+information can be used directly.
 
-This can be used, for example, to record and incrementally discover the
-aggregate IDs of a particular type of aggregate. A log event can be triggered
-with the ID of a newly created aggregate. The log event can then be saved
-atomically with the newly created aggregate, by passing both to the
-application :func:`~eventsourcing.application.Application.save` method.
-
-In the example below, aggregate IDs of newly created aggregates are logged,
-so that the aggregate IDs of stored aggregates can be discovered.
+This technique can be used, for example, to record and later discover the version-4
+UUIDs of a particular type of aggregate. In the example below, aggregate IDs of newly
+created aggregates are logged, so that the aggregate IDs of stored aggregates can be
+discovered. The aggregate IDs are then accessed in pages of a fixed size.
 
 .. code-block:: python
 
-    from eventsourcing.application import EventSourcedLog, LogEvent
+    from eventsourcing.application import EventSourcedLog
+    from eventsourcing.domain import DomainEvent
 
-    class LoggedID(LogEvent):
+
+    class LoggedID(DomainEvent):
         aggregate_id: UUID
+
 
     class MyApplication(Application):
         def __init__(self, env=None) -> None:
@@ -806,8 +811,10 @@ so that the aggregate IDs of stored aggregates can be discovered.
 
         def create_aggregate(self):
             aggregate = Aggregate()
-            logged_id = self.aggregate_log.trigger_event(aggregate_id=aggregate.id)
-            self.save(aggregate, logged_id)
+            log_event = self.aggregate_log.trigger_event(
+                aggregate_id=aggregate.id
+            )
+            self.save(aggregate, log_event)
             return aggregate.id
 
 
@@ -855,10 +862,14 @@ so that the aggregate IDs of stored aggregates can be discovered.
 This technique can be used to implement "list-detail" views common in
 non-event-sourced CRUD or ORM-based domain models in which the list is
 ordered by the aggregates' :py:obj:`~eventsourcing.domain.Aggregate.created_on`
-attribute (ascending or descending). To order by another attribute, such as
-:py:obj:`~eventsourcing.domain.Aggregate.modified_on` or a custom
-attribute, it will be necessary somehow to define and maintain an index of
-the current values.
+attribute (ascending or descending).
+
+To order aggregates by another attribute, such as their
+:py:obj:`~eventsourcing.domain.Aggregate.modified_on` value,
+or a custom attribute, it will be necessary somehow to define
+and maintain a custom index of the current values. Similarly, a
+custom index will need to be maintained if aggregates are to be
+discarded, since it isn't possible to delete events from the log.
 
 
 .. _Application configuration:
@@ -964,7 +975,7 @@ environment. Using an alternative persistence module may involve setting
 further environment variables, perhaps to configure access to a real database,
 such as a database name, a user name, and a password.
 
-For example, to use the library's SQLite persistence module,
+For example, to use the library's :ref:`SQLite persistence module <sqlite-module>`,
 set ``PERSISTENCE_MODULE`` to the value ``"eventsourcing.sqlite"``.
 The environment variable ``SQLITE_DBNAME`` must also be set. This value
 will be passed to Python's :func:`sqlite3.connect` function.
@@ -1001,12 +1012,12 @@ and reconstructed.
     assert tricks[1] == "fetch ball"
     assert tricks[2] == "play dead"
 
-See :ref:`SQLite module <SQLite>` documentation for more information
+See :ref:`SQLite module <sqlite-module>` documentation for more information
 about using SQLite.
 
 To use the library's PostgreSQL persistence module,
 set ``PERSISTENCE_MODULE`` to the value ``"eventsourcing.postgres"``.
-See :ref:`PostgreSQL module <PostgreSQL>` documentation
+See :ref:`PostgreSQL module <postgres-module>` documentation
 for more information about using PostgreSQL.
 
 
