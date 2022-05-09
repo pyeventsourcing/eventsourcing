@@ -351,15 +351,15 @@ event notifications.
    :pyobject: ProcessRecorder
 
 These abstract base classes are implemented in concrete persistence
-modules. The :ref:`"plain old Python objects" persistence module <POPO>`
+modules. The :ref:`"plain old Python objects" persistence module <popo-module>`
 simply holds events in memory and is very fast and useful for development,
 but it isn't suitable for production because events are not written to disk.
-The core library also includes a :ref:`persistence module for SQLite <SQLite>`
-and a :ref:`persistence module for PostgreSQL <PostgreSQL>`.
-:ref:`Other persistence modules <Other modules>` are available.
+The core library also includes a :ref:`persistence module for SQLite <sqlite-module>`
+and a :ref:`persistence module for PostgreSQL <postgres-module>`.
+:ref:`Other persistence modules <other-persistence-modules>` are available.
 
 
-.. _POPO:
+.. _popo-module:
 
 POPO module
 ===========
@@ -998,7 +998,7 @@ will construct a concrete infrastructure factory from a persistence module. Set 
 environment variable ``PERSISTENCE_MODULE`` to the :ref:`topic <Topics>` of a
 persistence module to select which persistence module to use. By default, it will
 construct the infrastructure factory from the library's :ref:`"plain old Python
-objects" persistence module <POPO>`.
+objects" persistence module <popo-module>`.
 
 .. code-block:: python
 
@@ -1086,7 +1086,7 @@ compression and encryption of stored events. Different persistence modules use t
 own particular set of environment variables, of which some are required and some are
 optional.
 
-.. _SQLite:
+.. _sqlite-module:
 
 SQLite module
 =============
@@ -1216,7 +1216,7 @@ and ``CIPHER_TOPIC`` may be used to enable compression and encryption of stored
 events recorded in SQLite.
 
 
-.. _PostgreSQL:
+.. _postgres-module:
 
 PostgreSQL module
 =================
@@ -1370,7 +1370,7 @@ As above, the optional environment variables ``COMPRESSOR_TOPIC``, ``CIPHER_KEY`
 and ``CIPHER_TOPIC`` may be used to enable compression and encryption of stored
 events recorded in PostgreSQL.
 
-.. _Other modules:
+.. _other-persistence-modules:
 
 Other persistence modules
 =========================

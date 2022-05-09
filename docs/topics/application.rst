@@ -975,7 +975,7 @@ environment. Using an alternative persistence module may involve setting
 further environment variables, perhaps to configure access to a real database,
 such as a database name, a user name, and a password.
 
-For example, to use the library's SQLite persistence module,
+For example, to use the library's :ref:`SQLite persistence module <sqlite-module>`,
 set ``PERSISTENCE_MODULE`` to the value ``"eventsourcing.sqlite"``.
 The environment variable ``SQLITE_DBNAME`` must also be set. This value
 will be passed to Python's :func:`sqlite3.connect` function.
@@ -1012,12 +1012,12 @@ and reconstructed.
     assert tricks[1] == "fetch ball"
     assert tricks[2] == "play dead"
 
-See :ref:`SQLite module <SQLite>` documentation for more information
+See :ref:`SQLite module <sqlite-module>` documentation for more information
 about using SQLite.
 
 To use the library's PostgreSQL persistence module,
 set ``PERSISTENCE_MODULE`` to the value ``"eventsourcing.postgres"``.
-See :ref:`PostgreSQL module <PostgreSQL>` documentation
+See :ref:`PostgreSQL module <postgres-module>` documentation
 for more information about using PostgreSQL.
 
 

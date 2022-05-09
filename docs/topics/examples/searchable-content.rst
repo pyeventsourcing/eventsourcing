@@ -42,7 +42,6 @@ The infrastructure factory classes ``SearchableContentInfrastructureFactory`` ex
 PostgreSQL and SQLite ``Factory`` class by overriding the ``application_recorder()`` method
 so that a ``SearchableContentApplicationRecorder`` is constructed as the application recorder.
 
-.. _persistence-postgres-searchable-content:
 
 PostgreSQL
 ----------
@@ -51,7 +50,6 @@ The PostgreSQL recorder uses a GIN index and the ``websearch_to_tsquery()`` func
 
 .. literalinclude:: ../../../eventsourcing/examples/searchablecontent/postgres.py
 
-.. _persistence-sqlite-searchable-content:
 
 SQLite
 ------

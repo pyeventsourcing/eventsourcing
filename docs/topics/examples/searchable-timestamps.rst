@@ -39,14 +39,12 @@ The infrastructure factory classes ``SearchableTimestampsInfrastructureFactory``
 PostgreSQL and SQLite ``Factory`` classes by overriding the ``application_recorder()`` method
 so that a ``SearchableTimestampsApplicationRecorder`` is constructed as the application recorder.
 
-.. _persistence-postgres-searchable-timestamps:
 
 PostgreSQL
 ----------
 
 .. literalinclude:: ../../../eventsourcing/examples/searchabletimestamps/postgres.py
 
-.. _persistence-sqlite-searchable-timestamps:
 
 SQLite
 ------

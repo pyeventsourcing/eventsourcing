@@ -424,7 +424,7 @@ SQLite environment
 ==================
 
 We can also configure an application to use SQLite for storing events.
-To use the library's :ref:`SQLite module <SQLite>`,
+To use the library's :ref:`SQLite module <sqlite-module>`,
 set ``PERSISTENCE_MODULE`` to the value ``'eventsourcing.sqlite'``.
 When using the library's SQLite module, the environment variable
 ``SQLITE_DBNAME`` must also be set. This value will be passed to Python's
@@ -474,7 +474,7 @@ PostgreSQL environment
 ======================
 
 We can also configure a "production" environment to use PostgreSQL.
-Using the library's :ref:`PostgresSQL infrastructure <PostgreSQL>`
+Using the library's :ref:`PostgresSQL infrastructure <postgres-module>`
 will keep stored events in a PostgresSQL database.
 
 Please note, to use the library's PostgreSQL functionality,
