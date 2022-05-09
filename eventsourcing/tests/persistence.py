@@ -36,6 +36,8 @@ from eventsourcing.utils import Environment, get_topic
 
 
 class AggregateRecorderTestCase(TestCase, ABC):
+    INITIAL_VERSION = 1
+
     @abstractmethod
     def create_recorder(self) -> AggregateRecorder:
         """"""
@@ -59,7 +61,7 @@ class AggregateRecorderTestCase(TestCase, ABC):
         # Write a stored event.
         stored_event1 = StoredEvent(
             originator_id=originator_id1,
-            originator_version=0,
+            originator_version=self.INITIAL_VERSION,
             topic="topic1",
             state=b"state1",
         )
@@ -70,7 +72,7 @@ class AggregateRecorderTestCase(TestCase, ABC):
         stored_events = recorder.select_events(originator_id1)
         self.assertEqual(len(stored_events), 1)
         assert stored_events[0].originator_id == originator_id1
-        assert stored_events[0].originator_version == 0
+        assert stored_events[0].originator_version == self.INITIAL_VERSION
         assert stored_events[0].topic == "topic1"
 
         # Check get record conflict error if attempt to store it again.
@@ -81,7 +83,7 @@ class AggregateRecorderTestCase(TestCase, ABC):
         # Check writing of events is atomic.
         stored_event2 = StoredEvent(
             originator_id=originator_id1,
-            originator_version=1,
+            originator_version=self.INITIAL_VERSION + 1,
             topic="topic2",
             state=b"state2",
         )
@@ -94,14 +96,14 @@ class AggregateRecorderTestCase(TestCase, ABC):
         # Check still only have one record.
         stored_events = recorder.select_events(originator_id1)
         self.assertEqual(len(stored_events), 1)
-        assert stored_events[0].originator_id == originator_id1
-        assert stored_events[0].originator_version == 0
-        assert stored_events[0].topic == "topic1"
+        assert stored_events[0].originator_id == stored_event1.originator_id
+        assert stored_events[0].originator_version == stored_event1.originator_version
+        assert stored_events[0].topic == stored_event1.topic
 
         # Check can write two events together.
         stored_event3 = StoredEvent(
             originator_id=originator_id1,
-            originator_version=2,
+            originator_version=self.INITIAL_VERSION + 2,
             topic="topic3",
             state=b"state3",
         )
@@ -112,44 +114,40 @@ class AggregateRecorderTestCase(TestCase, ABC):
         stored_events = recorder.select_events(originator_id1)
         self.assertEqual(len(stored_events), 3)
         assert stored_events[0].originator_id == originator_id1
-        assert stored_events[0].originator_version == 0
+        assert stored_events[0].originator_version == self.INITIAL_VERSION
         assert stored_events[0].topic == "topic1"
         self.assertEqual(stored_events[0].state, b"state1")
         assert stored_events[1].originator_id == originator_id1
-        assert stored_events[1].originator_version == 1
+        assert stored_events[1].originator_version == self.INITIAL_VERSION + 1
         assert stored_events[1].topic == "topic2"
         assert stored_events[1].state == b"state2"
         assert stored_events[2].originator_id == originator_id1
-        assert stored_events[2].originator_version == 2
+        assert stored_events[2].originator_version == self.INITIAL_VERSION + 2
         assert stored_events[2].topic == "topic3"
         assert stored_events[2].state == b"state3"
 
         # Check we can get the last one recorded (used to get last snapshot).
-        events = recorder.select_events(originator_id1, desc=True, limit=1)
-        self.assertEqual(len(events), 1)
+        stored_events = recorder.select_events(originator_id1, desc=True, limit=1)
+        self.assertEqual(len(stored_events), 1)
         self.assertEqual(
-            events[0],
+            stored_events[0],
             stored_event3,
         )
 
         # Check we can get the last one before a particular version.
-        events = recorder.select_events(originator_id1, lte=1, desc=True, limit=1)
+        stored_events = recorder.select_events(originator_id1, lte=self.INITIAL_VERSION + 1, desc=True, limit=1)
+        self.assertEqual(len(stored_events), 1)
+        self.assertEqual(
+            stored_events[0],
+            stored_event2,
+        )
+
+        # Check we can get events between versions (historical state with snapshot).
+        events = recorder.select_events(originator_id1, gt=self.INITIAL_VERSION, lte=self.INITIAL_VERSION + 1)
         self.assertEqual(len(events), 1)
         self.assertEqual(
             events[0],
             stored_event2,
-        )
-
-        # Check we can get events between particular versions.
-        events = recorder.select_events(originator_id1, gt=0, lte=2)
-        self.assertEqual(len(events), 2)
-        self.assertEqual(
-            events[0],
-            stored_event2,
-        )
-        self.assertEqual(
-            events[1],
-            stored_event3,
         )
 
         # Check aggregate sequences are distinguished.
@@ -159,7 +157,7 @@ class AggregateRecorderTestCase(TestCase, ABC):
             [],
         )
 
-        # Write a stored event.
+        # Write a stored event in a different sequence.
         stored_event4 = StoredEvent(
             originator_id=originator_id2,
             originator_version=0,
@@ -182,7 +180,7 @@ class AggregateRecorderTestCase(TestCase, ABC):
 
             stored_event = StoredEvent(
                 originator_id=originator_id,
-                originator_version=0,
+                originator_version=self.INITIAL_VERSION,
                 topic="topic1",
                 state=b"state1",
             )
@@ -202,6 +200,8 @@ class AggregateRecorderTestCase(TestCase, ABC):
 
 
 class ApplicationRecorderTestCase(TestCase, ABC):
+    INITIAL_VERSION = 1
+
     @abstractmethod
     def create_recorder(self) -> ApplicationRecorder:
         """"""
@@ -236,19 +236,19 @@ class ApplicationRecorderTestCase(TestCase, ABC):
 
         stored_event1 = StoredEvent(
             originator_id=originator_id1,
-            originator_version=0,
+            originator_version=self.INITIAL_VERSION,
             topic="topic1",
             state=b"state1",
         )
         stored_event2 = StoredEvent(
             originator_id=originator_id1,
-            originator_version=1,
+            originator_version=self.INITIAL_VERSION + 1,
             topic="topic2",
             state=b"state2",
         )
         stored_event3 = StoredEvent(
             originator_id=originator_id2,
-            originator_version=0,
+            originator_version=self.INITIAL_VERSION,
             topic="topic3",
             state=b"state3",
         )
