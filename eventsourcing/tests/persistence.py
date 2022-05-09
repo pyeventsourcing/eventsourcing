@@ -135,7 +135,9 @@ class AggregateRecorderTestCase(TestCase, ABC):
         )
 
         # Check we can get the last one before a particular version.
-        stored_events = recorder.select_events(originator_id1, lte=self.INITIAL_VERSION + 1, desc=True, limit=1)
+        stored_events = recorder.select_events(
+            originator_id1, lte=self.INITIAL_VERSION + 1, desc=True, limit=1
+        )
         self.assertEqual(len(stored_events), 1)
         self.assertEqual(
             stored_events[0],
@@ -143,7 +145,9 @@ class AggregateRecorderTestCase(TestCase, ABC):
         )
 
         # Check we can get events between versions (historical state with snapshot).
-        events = recorder.select_events(originator_id1, gt=self.INITIAL_VERSION, lte=self.INITIAL_VERSION + 1)
+        events = recorder.select_events(
+            originator_id1, gt=self.INITIAL_VERSION, lte=self.INITIAL_VERSION + 1
+        )
         self.assertEqual(len(events), 1)
         self.assertEqual(
             events[0],
