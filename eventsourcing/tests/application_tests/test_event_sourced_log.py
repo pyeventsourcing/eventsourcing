@@ -2,8 +2,8 @@ from typing import Optional
 from unittest import TestCase
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
-from eventsourcing.application import Application, EventSourcedLog, LogEvent
-from eventsourcing.domain import Aggregate
+from eventsourcing.application import Application, EventSourcedLog
+from eventsourcing.domain import Aggregate, DomainEvent
 from eventsourcing.persistence import (
     DatetimeAsISO,
     DecimalAsStr,
@@ -18,7 +18,7 @@ from eventsourcing.utils import EnvType
 
 class TestEventSourcedLog(TestCase):
     def test_logging_aggregate_ids(self) -> None:
-        class LoggedID(LogEvent):
+        class LoggedID(DomainEvent):
             aggregate_id: UUID
 
         transcoder = JSONTranscoder()
@@ -81,7 +81,7 @@ class TestEventSourcedLog(TestCase):
         self.assertEqual(ids, [id3, id2, id1])
 
     def test_with_application(self) -> None:
-        class LoggedID(LogEvent):
+        class LoggedID(DomainEvent):
             aggregate_id: UUID
 
         class MyApplication(Application):
@@ -128,8 +128,7 @@ class TestEventSourcedLog(TestCase):
             recorder=event_recorder,
         )
 
-        # Subclass LogEvent.
-        class TransactionLogEvent(LogEvent):
+        class TransactionLogEvent(DomainEvent):
             pass
 
         class AccountCredited(TransactionLogEvent):

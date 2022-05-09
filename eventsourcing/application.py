@@ -25,6 +25,7 @@ from warnings import warn
 
 # For backwards compatibility of import statements...
 from eventsourcing.domain import LogEvent  # noqa: F401
+from eventsourcing.domain import TLogEvent  # noqa: F401
 from eventsourcing.domain import (
     Aggregate,
     CanMutateProtocol,
@@ -36,7 +37,6 @@ from eventsourcing.domain import (
     Snapshot,
     SnapshotProtocol,
     TDomainEvent,
-    TLogEvent,
     TMutableOrImmutableAggregate,
 )
 from eventsourcing.persistence import (
@@ -919,7 +919,7 @@ class AggregateNotFound(EventSourcingError):
     """
 
 
-class EventSourcedLog(Generic[TLogEvent]):
+class EventSourcedLog(Generic[TDomainEvent]):
     """
     Constructs a sequence of domain events, like an aggregate.
     But unlike an aggregate the events can be triggered
@@ -938,17 +938,17 @@ class EventSourcedLog(Generic[TLogEvent]):
         self,
         events: EventStore,
         originator_id: UUID,
-        logged_cls: Type[TLogEvent],
+        logged_cls: Type[TDomainEvent],  # Todo: Rename to 'event_class' in v10.
     ):
         self.events = events
         self.originator_id = originator_id
-        self.logged_cls = logged_cls
+        self.logged_cls = logged_cls  # Todo: Rename to 'event_class' in v10.
 
     def trigger_event(
         self,
         next_originator_version: Optional[int] = None,
         **kwargs: Any,
-    ) -> TLogEvent:
+    ) -> TDomainEvent:
         """
         Constructs and returns a new log event.
         """
@@ -982,7 +982,7 @@ class EventSourcedLog(Generic[TLogEvent]):
         )
         return logged_event
 
-    def get_first(self) -> Optional[TLogEvent]:
+    def get_first(self) -> Optional[TDomainEvent]:
         """
         Selects the first logged event.
         """
@@ -991,7 +991,7 @@ class EventSourcedLog(Generic[TLogEvent]):
         except StopIteration:
             return None
 
-    def get_last(self) -> Optional[TLogEvent]:
+    def get_last(self) -> Optional[TDomainEvent]:
         """
         Selects the last logged event.
         """
@@ -1006,13 +1006,13 @@ class EventSourcedLog(Generic[TLogEvent]):
         lte: Optional[int] = None,
         desc: bool = False,
         limit: Optional[int] = None,
-    ) -> Iterator[TLogEvent]:
+    ) -> Iterator[TDomainEvent]:
         """
         Selects a range of logged events with limit,
         with ascending or descending order.
         """
         return cast(
-            Iterator[TLogEvent],
+            Iterator[TDomainEvent],
             self.events.get(
                 originator_id=self.originator_id,
                 gt=gt,

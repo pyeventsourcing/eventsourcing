@@ -292,11 +292,14 @@ class ProgrammingError(EventSourcingError):
 
 class LogEvent(DomainEvent):
     """
+    Deprecated: Inherit from DomainEvent instead.
+
     Base class for the events of event-sourced logs.
     """
 
 
-TLogEvent = TypeVar("TLogEvent", bound=LogEvent)
+# Deprecated: Use TDomainEvent instead.
+TLogEvent = TypeVar("TLogEvent", bound=DomainEventProtocol)
 
 
 def _filter_kwargs_for_method_params(
