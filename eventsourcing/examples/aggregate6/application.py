@@ -10,11 +10,7 @@ from eventsourcing.examples.aggregate6.domainmodel import (
 
 
 class DogSchool(Application):
-    env = {
-        "AGGREGATE_CACHE_MAXSIZE": "50",
-        "DEEPCOPY_FROM_AGGREGATE_CACHE": "n",
-        "IS_SNAPSHOTTING_ENABLED": "y",
-    }
+    is_snapshotting_enabled = True
 
     def register_dog(self, name: str) -> UUID:
         event = register_dog(name)
