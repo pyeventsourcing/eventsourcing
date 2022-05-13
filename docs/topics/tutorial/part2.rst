@@ -401,6 +401,7 @@ using the ``trigger_event()`` method defined by the ``Aggregate`` class.
 
             def mutate(self, aggregate):
                 aggregate.tricks.append(self.trick)
+                return aggregate
 
 
 Because the ``trick_added()`` method is not decorated with the ``@event``
