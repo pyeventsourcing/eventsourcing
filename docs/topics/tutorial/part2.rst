@@ -362,29 +362,29 @@ that will be triggered when the decorated method is called.
 
 .. code-block:: python
 
+    # Check the command and query methods.
     dog = Dog('Fido')
-
     assert dog.name == 'Fido'
     assert dog.tricks == []
-
     dog.add_trick('roll over')
     assert dog.tricks == ['roll over']
 
-Sometimes you may wish to explicitly trigger aggregate events within
-the command method body, rather than having them triggered when the method
-is called.
+    # Check reconstruction of aggregate state.
+    copy = None
+    for e in dog.collect_events():
+        copy = e.mutate(copy)
+    assert copy == dog
 
-One reason for triggering aggregate events explicitly within a command
-method body is so that the command method can do some work on the command
-method arguments, and trigger an event that has attributes that do not
-match the command method signature.
-(Although, if an aggregate command method needs to do some work on the method
-arguments before triggering an event, a private method can be called that is
-decorated with the ``@event`` decorator.)
 
-The example below shows a ``Dog`` aggregate class with a command
-method ``add_trick()`` that triggers ``Dog.TrickAdded`` events explicitly
-using the ``trigger_event()`` method defined by the ``Aggregate`` class.
+Sometimes you will need the command method to do some work before the event
+is triggered.
+
+If an aggregate command method needs to do some work on its arguments before
+triggering an event, the ``@event`` decorator can be used on a "private" method
+that is called by the "public" command method after the work has been done.
+
+The example below shows a ``Dog`` aggregate class with an undecorated "public"
+command method ``add_trick()`` that call a decorated "private" method ``_add_trick()``.
 
 .. code-block:: python
 
@@ -394,21 +394,22 @@ using the ``trigger_event()`` method defined by the ``Aggregate`` class.
             self.tricks = []
 
         def add_trick(self, trick):
-            self.trigger_event(self.TrickAdded, trick=trick)
+            # Do some work.
+            assert isinstance(trick, str)
+            # Trigger event.
+            self._add_trick(trick)
 
         class TrickAdded(Aggregate.Event):
             trick: str
 
-            def mutate(self, aggregate):
-                aggregate.tricks.append(self.trick)
+        @event(TrickAdded)
+        def _add_trick(self, trick):
+            self.tricks.append(trick)
 
 
 Because the ``trick_added()`` method is not decorated with the ``@event``
-decorator, the method body will not be used to mutate the state of
-the aggregate, and so a ``mutate()`` method has been defined on the
-``Dog.TrickAdded`` event class for this purpose. (See the module documentation
-for information about alternative mutator function styles for implementing
-aggregate projections.)
+decorator, it does not trigger an event when it is called. Instead, the
+event is triggered when the ``_trick_added()`` method is called.
 
 ..
     #include-when-testing
@@ -418,20 +419,27 @@ aggregate projections.)
 
 .. code-block:: python
 
+    # Check the command and query methods.
     dog = Dog('Fido')
-
     assert dog.name == 'Fido'
     assert dog.tricks == []
-
     dog.add_trick('roll over')
     assert dog.tricks == ['roll over']
 
-Using this explicit style is a more verbose way of defining event classes,
-triggering events, and mutating aggregate state. But the resulting aggregate
-interface and state is the same. The ``@event`` decorator was added to the
-library to offer a more concise way to express these concerns. The mechanism
-underlying the ``@event`` decorator involves calling the ``trigger_event()``
-and ``mutate()`` methods. You can choose which style you prefer.
+    # Check the 'assert isinstance' statement.
+    try:
+        dog.add_trick(101)
+    except AssertionError:
+        assert dog.tricks == ['roll over']
+    else:
+        raise AssertionError("Shouldn't get here")
+
+    # Check reconstruction of aggregate state.
+    copy = None
+    for e in dog.collect_events():
+        copy = e.mutate(copy)
+    assert copy == dog
+
 
 Exercise
 ========
