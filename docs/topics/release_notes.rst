@@ -23,6 +23,12 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.2.13 (released 14 May 2022)
+-------------------------------------
+
+* Fixed tutorial part 2 (had broken 'mutate' method definition).
+
+
 Version 9.2.12 (released 9 May 2022)
 ------------------------------------
 
