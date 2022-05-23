@@ -799,8 +799,8 @@ class NonInterleavingNotificationIDsBaseCase(ABC, TestCase):
             StoredEvent(
                 originator_id=originator_id,
                 originator_version=i,
-                topic="",
-                state=b"",
+                topic="non-interleaving-test-event",
+                state=b"{}",
             )
             for i in range(self.insert_num)
         ]
