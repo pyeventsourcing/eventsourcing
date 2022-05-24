@@ -23,6 +23,14 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.2.14 (released 24 May 2022)
+-------------------------------------
+
+* Fixed test case for non-interleaving notification IDs
+  (eventsourcing_eventstoredb extension needs non-empty
+  topic strings).
+
+
 Version 9.2.13 (released 14 May 2022)
 -------------------------------------
 
