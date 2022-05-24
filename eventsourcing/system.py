@@ -1247,6 +1247,6 @@ class NotificationLogReader:
             if len(notifications) == 0:
                 break
 
-            # Otherwise yield and continue.
+            # Otherwise, yield and continue.
             yield notifications
             start = notifications[-1].id + 1
