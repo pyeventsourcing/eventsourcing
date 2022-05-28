@@ -9,12 +9,6 @@ and has 100% line and branch coverage.
 This package depends only on modules from the Python Standard Library,
 except for the extra install options described below.
 
-Start new project
-=================
-
-To quickly start a new project, use the :ref:`project template <Template>`.
-
-
 Pip install
 ===========
 
@@ -113,6 +107,27 @@ then install with the ``crypto`` and ``postgres`` options.
 ::
 
     $ pip install "eventsourcing[crypto,postgres]"
+
+
+.. _Template:
+
+Project template
+================
+
+To start a new project with modern tooling, you can use the
+`template for Python eventsourcing projects <https://github.com/pyeventsourcing/cookiecutter-eventsourcing#readme>`_.
+
+The project template uses Cookiecutter to generate project files.
+It uses the build tool Poetry to create a Python virtual environments
+for your project, to manage project dependencies, and to create distributions.
+It uses popular development dependencies such as pytest, coverage, Black,
+isort, and mypy to help you develop and maintain your code. It has a GitHub
+Actions workflow, and has an initial README and LICENCE files that you
+can adjust.
+
+The project template also includes the "dog school" example. The tests
+should pass. You can adjust the tests, rename the classes, and change the
+methods. Or just delete the included example code for a fresh start.
 
 
 Developers

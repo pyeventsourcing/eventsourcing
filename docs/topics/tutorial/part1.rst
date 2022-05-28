@@ -369,101 +369,15 @@ tests in a separate folder.
     tests/__init__.py
     tests/test_application.py
 
-.. _Template:
-
-Project template
-================
-
-To get started quickly, you can use the
-`template for Python eventsourcing projects <https://github.com/pyeventsourcing/cookiecutter-eventsourcing#readme>`_.
-
-Install Cookiecutter into a dedicated virtual environment.
-
-::
-
-    $ python3 -mvenv ./cookiecutter-venv
-    $ ./cookiecutter-venv/bin/pip install cookiecutter
-
-Create a new project from the template.
-
-::
-
-    $ ./cookiecutter-venv/bin/cookiecutter gh:pyeventsourcing/cookiecutter-eventsourcing
-    project_slug [my_project]: your_project
-    author_fullname [Author Name]: Your Name
-    author_email [example@example.com]: your@email.address
-
-Remove the Cookiecutter virtual environment.
-
-::
-
-    $ rm -r cookiecutter-venv
-
-You will now have the following files and folders.
-
-::
-
-    ./your_project
-    ./your_project/.editorconfig
-    ./your_project/.flake8
-    ./your_project/.github
-    ./your_project/.github/workflows
-    ./your_project/.github/workflows/github-actions.yml
-    ./your_project/.gitignore
-    ./your_project/LICENSE
-    ./your_project/Makefile
-    ./your_project/README.md
-    ./your_project/mypy.ini
-    ./your_project/pyproject.toml
-    ./your_project/pytest.ini
-    ./your_project/tests
-    ./your_project/tests/__init__.py
-    ./your_project/tests/test_application.py
-    ./your_project/your_project
-    ./your_project/your_project/__init__.py
-    ./your_project/your_project/application.py
-    ./your_project/your_project/domainmodel.py
-    ./your_project/your_project/py.typed
-
-Start using your eventsourcing project.
-
-::
-
-    $ cd your_project
-    $ make install
-
-The ``make install`` command uses the build tool Poetry to create a dedicated
-Python virtual environment for your eventsourcing project, and installs popular
-development dependencies such as Black, isort and pytest.
-
-Run tests.
-
-::
-
-    $ make test
-
-Check the syntax and formatting of your code.
-
-::
-
-    $ make lint
-
-Add test code in ``./tests`` and code under test in ``./your_project``.
-
-The project template includes the "dog school" example.
-You can adjust the tests, rename the classes, and change the methods.
-Or just delete the included example code for a fresh start.
-
-See the `project template repo on GitHub <https://github.com/pyeventsourcing/cookiecutter-eventsourcing#readme>`_
-for more information and guidance.
-
+It is generally recommended to put test code and code under test in separate
+folders.
 
 Writing tests
 =============
 
 It is generally recommended to follow a test-driven approach to the development of
 event-sourced applications. You can get started with your event sourcing project by
-first writing a failing test in a Python file, for example ``test_application.py``.
+first writing a failing test in a Python file, for example a file ``test_application.py``.
 You can begin by defining your application and aggregate classes in this file. You
 can then refactor by moving aggregate and application classes to separate Python
 modules. You can convert these modules to packages if you want to split things up
@@ -486,6 +400,20 @@ into smaller modules.
             'name': 'Fido',
             'tricks': ('roll over', 'fetch ball'),
         }
+
+Video
+=====
+
+.. raw:: html
+
+    <div style="position:relative;padding-bottom:63.5%;">
+      <iframe style="width:100%;height:100%;position:absolute;left:0px;top:0px;"
+        src="https://www.youtube.com/embed/V1iKSn7Fark" title="YouTube video player"
+        frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen>
+      </iframe>
+    </div>
 
 Exercise
 ========
