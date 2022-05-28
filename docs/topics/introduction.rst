@@ -4,13 +4,33 @@ Introduction
 
 This a library for event sourcing in Python. This sections introduces the
 library, and presents a synopsis of the code. This section also provides
-a conceptual overview of event sourcing.
+a conceptual overview of event sourcing and enterprise application architecture.
 
-Before discussing event sourcing, let's begin by briefly considering
-the meaning of the term 'event'.
+Event sourcing in 15 minutes
+============================
+
+The "live coding" video below shows how to do event sourcing with Python in less than 15 minutes.
+
+.. raw:: html
+
+    <div style="position:relative;padding-bottom:63.5%;">
+      <iframe style="width:100%;height:100%;position:absolute;left:0px;top:0px;"
+        src="https://www.youtube.com/embed/V1iKSn7Fark" title="YouTube video player"
+        frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen>
+      </iframe>
+    </div>
+    <br/>
+    <br/>
+
+
 
 What is an event?
 =================
+
+Before discussing event sourcing, let's begin by briefly considering
+the meaning of the term 'event'.
 
 The term 'event' of 'event sourcing' refers to a very particular kind of
 event: an individual decision originated by the domain model of a software
