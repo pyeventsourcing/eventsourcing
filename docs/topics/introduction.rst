@@ -2,7 +2,7 @@
 Introduction
 ============
 
-This a library for event sourcing in Python. This sections introduces the
+This a library for event sourcing in Python. This section introduces the
 library, and presents a synopsis of the code. This section also provides
 a conceptual overview of event sourcing and enterprise application architecture.
 
