@@ -107,8 +107,9 @@ events, and this library supports several of these possibilities.
 
 To demonstrate how storing and retrieving domain events can be used effectively
 as a persistence mechanism in an event-sourced application, this library includes
-base classes for, and examples of event-sourced aggregates and event-sourced
-applications.
+base classes for event-sourced aggregates and event-sourced applications, and the
+library documentation includes a range of examples of different styles for writing
+event-sourced aggregates.
 
 To demonstrate how event-sourced applications can be combined to make an event-driven
 system, it is also possible using this library to define an entire event-driven system
@@ -117,6 +118,108 @@ That means system behaviours can be rapidly developed whilst running the entire
 system synchronously in a single thread with a single in-memory database. And
 then the system can be run asynchronously on a cluster with durable databases,
 with the system effecting exactly the same behaviour.
+
+There is also a growing range of extension modules, which extend the functionality
+included in the core library, for example by adapting popular ORMs such as Django
+and SQLAlchemy, specialist event store databases such as Axon Server and EventStoreDB,
+alternative model and serialisation frameworks such as Pydantic and orjson, and efficient
+inter-process communication technologies like gRPC.
+
+Enterprise application architecture
+===================================
+
+Software is often created to support some useful or important activities.
+This kind of software is commonly separated into four "layers". Users generally
+interact with an interface layer, using some kind of user interface technology.
+The interface layer depends on an application layer, which provides support for
+users of the software independently of any particular interface technology. The
+application layer depends on two other layers: the domain layer and the persistence
+layer. The domain layer contains the "logic" of the application, and the persistence
+layer is responsible for storing the current state of the application by using some
+kind of database technology.
+
+Interfaces
+----------
+
+The interface layer might involve a graphical user interface that directly connects to the
+application layer, or a remote client that connects to a server such as Web browser and
+Web server where the interface is partly in the client and partly on the server, or a
+mobile application that works in a similar way. The interface layer might also involve a
+suite of test cases, that directly uses the application layer. When developing a new piece
+of software, it can make good sense to start by writing tests that represent what a user
+might usefully do with the software. An application can then be developed to pass these
+tests. A Web or graphical user interface or mobile app can then be developed that uses
+the application, repeating the commands and queries that were expressed in the tests. In
+practice, these things would be developed together, by writing a small test, changing
+the application code to pass the test, adjusting the user interface so that it makes use
+of the new functionality, and then repeating this cycle until the software adequately
+supports the useful or important activities it was intended to support.
+
+Applications
+------------
+
+The application layer is the thing your interface layer interacts with. The application
+layer handles "commands" and "queries" that will be issued through the interface by the users
+of your software. The application handles these commands and queries by interacting with the
+domain and persistence layers. The application layer combines the domain layer with the
+persistence layer, which do not otherwise interact with each other. The application layer
+interacts with the domain layer so that the state of the application can evolve in a logical
+and coherent way. The application layer interacts with the persistence layer so that the state
+of the application can be stored and retrieved, so that the state of the application will endure
+after the software stops running, and so that the state of the application can be obtained when
+the software is used again in future. The state is changed in response to commands from the
+interface, which are responded to in the application by it making decisions as a function of
+its current state. The commands from the user are usually made by the user with some understanding
+of the current state of the application, and of what they are trying to accomplish by using
+the software. So that users can issue meaningful commands, the state of the application must
+somehow be presented to the user. The state of an application is commonly presented to users
+in a set of "views". The state of the application is presented by the application through the
+interface to users by responding to queries that inform these views. For this reason, a test
+case will generally give a command to the application in the expectation that that application
+state will be changed in some particular kind of way, and then the test will check the expectation
+is satisfied by checking the result of a query. When developing software, consideration must
+therefore be given both to the commands and they way in which they will be handled (what decisions
+the application will make) and also to the way in which the state of the application will need to
+be viewed and navigated by its users (what decisions the users will make).
+
+Domain models
+-------------
+
+The domain layer involves a "model" which in *Domain-Driven Design* comprises a collection
+of "aggregates", perhaps several different types. Although *Domain-Driven Design* is an
+approach for the analysis and design of complex software systems, the partitioning of
+application state across a set of aggregates is more generally applicable. Aggregates
+each have a current "state". Together, the state of the aggregates determines the state
+of the application. The aggregates have "behaviour" by which the state is evolved.
+This behaviour is simply a collection of functions that make decisions, perhaps organised
+within an object class. The decisions are a function of the current state of the aggregate
+and the "commands" issued by users through the interface and application. The state of an
+aggregate is evolved through a sequence of decisions. And the state of the application is
+evolved through many individual sequences of decisions. These decisions affect the current
+state, changing both the conditions within which future decisions will be made, and the
+result of future queries. Because a view may depend on many aggregates, there is a conceptual
+tension between a design that will best support the commands and a design that will best
+support the queries. This is the reason for sometimes wanting a "command model" or "write
+model" with which the aggregates are presented and the aggregate's decisions are recorded
+that is separated from a "query model" or "read model" into which the state of the application
+is projected. This is the realm of "event processing", "event-driven systems", "CQRS", and
+"materialized views". In some cases there is no immediate need to develop separate command
+and query models. The aggregates themselves may be sufficient to inform the views, and the
+user can then issue commands that will be handled by the aggregates. However, it is generally
+important to provide for the possibility to propagate and process the state of the application.
+For these reasons it is generally useful to record the decisions that are made in the domain
+model explicitly, both in a "total order" for the application as a whole, and in sequences
+that record which aggregates made which decisions.
+
+Persistence
+-----------
+
+Finally, the persistence layer involves the way in which the current state is stored, so
+that it is available in future and not lost when the software stops running. It makes good
+sense to separate this concern from the concerns described above, so that tests can be
+developed with a persistence layer that is fast and easy to use, and then the software
+can be deployed for users with a database that is operationally capable of supporting
+their needs.
 
 
 Design overview
