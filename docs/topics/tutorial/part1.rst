@@ -320,20 +320,6 @@ into smaller modules.
             'tricks': ('roll over', 'fetch ball'),
         }
 
-Video
-=====
-
-.. raw:: html
-
-    <div style="position:relative;padding-bottom:63.5%;">
-      <iframe style="width:100%;height:100%;position:absolute;left:0px;top:0px;"
-        src="https://www.youtube.com/embed/V1iKSn7Fark" title="YouTube video player"
-        frameborder="0"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowfullscreen>
-      </iframe>
-    </div>
-
 Exercise
 ========
 
