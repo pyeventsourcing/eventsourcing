@@ -2,23 +2,27 @@
 Tutorial - Part 1 - Getting started
 ===================================
 
-This tutorial provides a very gradual introduction to event-sourced aggregates and
-applications, explaining just enough of the design and the mechanics of this library
-to help users understand how things work. It expands and explains the
-:ref:`Synopsis <Synopsis>`, and prepares new users of the library for reading
-the :doc:`Modules </topics/modules>` documentation.
+Part 1 of the tutorial introduces event-sourced aggregates and event-sourced applications.
 
-Below we will review Python classes, then discuss event-sourced aggregates, and then
-turn our attention to event-sourced applications.
+We will discuss how event-sourced aggregates and event-sourced applications
+can work in Python.
 
+By the end of this section, you will have an understanding of how to write
+event-sourced aggregates and event-sourced application in Python.
+
+Completing the exercise at the end of this section depends on having a working
+Python installation, and having :doc:`installed the eventsourcing library </topics/installing>`.
 
 Python classes
 ==============
 
 This tutorial depends on a basic understanding of
 `Python classes <https://docs.python.org/3/tutorial/classes.html>`_.
+This example is taken from the `Class and Instance Variables
+<https://docs.python.org/3/tutorial/classes.html#class-and-instance-variables>`_
+section of the Python docs.
 
-For example, we can define a ``Dog`` class in Python as follows.
+We can define a ``Dog`` class in Python as follows.
 
 .. code-block:: python
 
@@ -29,10 +33,6 @@ For example, we can define a ``Dog`` class in Python as follows.
 
         def add_trick(self, trick):
             self.tricks.append(trick)
-
-This example is taken from the `Class and Instance Variables
-<https://docs.python.org/3/tutorial/classes.html#class-and-instance-variables>`_
-section of the Python docs.
 
 Having defined a Python class, we can use it to create an instance.
 
@@ -278,7 +278,7 @@ Project structure
 
 You are free to structure your project files however you wish. You
 may wish to put your application class in a file named ``application.py``,
-your aggregate classes in a file named ``domainmodel.py``.
+and your aggregate classes in a file named ``domainmodel.py``.
 
 ::
 
@@ -320,17 +320,31 @@ into smaller modules.
             'tricks': ('roll over', 'fetch ball'),
         }
 
+        print("test_dog_school: PASSED")
+
 Exercise
 ========
 
-Try it for yourself by typing the code snippets into a Python file and calling test function.
+Try it for yourself by typing the code snippets into a Python file
+and calling the test function.
 
 .. code-block:: python
 
     test_dog_school()
 
-If everything goes well, you should be able to run the Python file without error. If
-you are feeling playful, you can add some print statements that show what is happening.
+If everything goes well, you should be able to run the Python file without error. The
+following message should be printed.
+
+.. code-block:: text
+
+    test_dog_school: PASSED
+
+
+If you are feeling playful, you can add some more print statements
+that show what happens in the aggregate and application classes.
+
+When your code is working, refactor by moving the aggregate and application classes to
+separate Python modules. Run the test again to make sure your code still works.
 
 Next steps
 ==========
