@@ -131,7 +131,7 @@ by a single command, and only the current state of domain objects was persisted.
 This approach caused several difficulties when software applications became
 more complex and when software systems became more distributed.
 
-One important difficult was ensuring the consistency of the recorded state of an
+One important difficulty was ensuring the consistency of the recorded state of an
 application when several domain objects were changed concurrently. Another
 important difficulty was the reliable propagation of the state of an application
 in a distributed system.
