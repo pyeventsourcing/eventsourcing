@@ -124,15 +124,17 @@ of time and trouble.
 Why event sourcing?
 ===================
 
-In earlier approaches to application architecture, domain models were built
-using domain object, often several domain objects were affected by a single
-command, and only the current state of domain objects was persisted.
+In an earlier approach to enterprise application architecture, domain models
+were built using domain objects. Often several domain objects were affected
+by a single command, and only the current state of domain objects was persisted.
 
 This approach caused several difficulties when software applications became
-more complex and when software systems became more distributed. One important
-difficult was ensuring the consistency of the recorded state of an application
-when several domain objects were changed concurrently. Another important difficulty
-was the reliable propagation of the state of an application in a distributed system.
+more complex and when software systems became more distributed.
+
+One important difficult was ensuring the consistency of the recorded state of an
+application when several domain objects were changed concurrently. Another
+important difficulty was the reliable propagation of the state of an application
+in a distributed system.
 
 Introducing the notion of an 'aggregate' as a cluster of entities and value objects
 helped to resolve the consistency problem, by ordering the set of all decisions in
@@ -141,18 +143,20 @@ objects and recording these event objects in an append-only log helped to resolv
 problem of propagating application state, because the events could easily be propagated
 in the order they were recorded.
 
-There were always decisions being made in a domain model, but they were not always
-made explicit as event objects, and they were not given the degree of order that we
-have when we use event-sourced aggregates to generate many individual sequences of
-events objects.
+There were always decisions being made in a domain model, but the decisions were not
+always given the degree of order they have when we use aggregates, and the decisions
+were not always made explicit as event objects. Event-sourced aggregates generate
+many individual sequences of events objects that represent the decisions made in
+a domain model.
 
 Using the recorded events as the "source of truth" of the state of an application is
 commonly termed "event sourcing". We can understand something important was missing
 from the older approach when we realise the notion of 'change' wasn't ever defined.
-The meaning of the notion 'change' can be defined as the contrast between subsequent
-decisions. The fact that decisions do not change is a more solid foundation on which
-to build, compared to the more fluid situation of dealing in terms of domain objects
-that change.
+The meaning of the notion 'change' can be defined as a contrast between subsequent
+decisions. Individual changes abstract from individual decisions, and the state of
+an application abstracts from the sequences of decisions that it makes. The fact
+that decisions do not change is a more solid foundation on which to build, compared
+to the more fluid situation of dealing primarily in terms of domain objects that change.
 
 Event-sourced aggregates is a generally applicable design for domain models because
 the structure "many individual sequences of decisions" is a generally adequate form
