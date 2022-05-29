@@ -174,7 +174,7 @@ persisting domain events, and this library supports several of these possibiliti
 
 To demonstrate how storing and retrieving domain events can be used effectively
 as a persistence mechanism in an event-sourced application, this library also
-has a domain module that include a base classe for event-sourced aggregates,
+has a domain module that includes a base class for event-sourced aggregates,
 and it has an application module that includes a base class for event-sourced
 applications. The library documentation includes a range of examples of different
 styles for writing event-sourced aggregates and applications.
