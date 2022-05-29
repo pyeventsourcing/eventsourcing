@@ -81,8 +81,11 @@ What is event sourcing?
 
 One common definition of event sourcing suggests the state of an
 event-sourced application is determined by a sequence of events.
+
 Another definition has event sourcing as a persistence mechanism
-for Domain-Driven Design. The term 'event sourcing' means that
+for Domain-Driven Design.
+
+The term 'event sourcing' means that
 domain event objects are used as the source of truth in a software
 application.
 
@@ -110,40 +113,82 @@ event sourcing is simply a left-fold over a stream of events, and some people
 say you shouldn't use a framework for event sourcing, it turns out that event
 sourcing isn't just a simple thing. Indeed, `some considerable experience
 and understanding is needed <https://youtu.be/FKFu78ZEIi8?t=614>`_ to avoid failure
-in event sourcing projects. Whilst a software library can't make people think, which
-is ultimately what is required to succeed, a well-written open-source library that
-records previous successful experiences can usefully guide thought and enhance
-understanding. It can also usefully function as a reusable cohesive mechanism that
-saves a lot of time and trouble.
+in event sourcing projects.
+
+Whilst a software library can't make people think, which is ultimately what is
+required to succeed, a well-written open-source library that records previous
+successful experiences can usefully guide thought and enhance understanding.
+It can also usefully function as a reusable cohesive mechanism that saves a lot
+of time and trouble.
+
+Why event sourcing?
+===================
+
+In earlier approaches to application architecture, domain models were built
+using domain object, often several domain objects were affected by a single
+command, and only the current state of domain objects was persisted.
+
+This approach caused several difficulties when software applications became
+more complex and when software systems became more distributed. One important
+difficult was ensuring the consistency of the recorded state of an application
+when several domain objects were changed concurrently. Another important difficulty
+was the reliable propagation of the state of an application in a distributed system.
+
+Introducing the notion of an 'aggregate' as a cluster of entities and value objects
+helped to resolve the consistency problem, by ordering the set of all decisions in
+a domain model into many individual sequences. Making the decisions explicit as event
+objects and recording these event objects in an append-only log helped to resolve the
+problem of propagating application state, because the events could easily be propagated
+in the order they were recorded.
+
+There were always decisions being made in a domain model, but they were not always
+made explicit as event objects, and they were not given the degree of order that we
+have when we use event-sourced aggregates to generate many individual sequences of
+events objects.
+
+Using the recorded events as the "source of truth" of the state of an application is
+commonly termed "event sourcing". We can understand something important was missing
+from the older approach when we realise the notion of 'change' wasn't ever defined.
+The meaning of the notion 'change' can be defined as the contrast between subsequent
+decisions. The fact that decisions do not change is a more solid foundation on which
+to build, compared to the more fluid situation of dealing in terms of domain objects
+that change.
+
+Event-sourced aggregates is a generally applicable design for domain models because
+the structure "many individual sequences of decisions" is a generally adequate form
+for analysis and design.
+
 
 This library
 ============
 
-This is a library for event sourcing in Python. At its core, this library
-supports storing and retrieving sequences of domain events, such as the events
-of event-sourced aggregates in a domain-driven design and snapshots of those
-aggregates. A variety of schemas and technologies can be used for persisting domain
-events, and this library supports several of these possibilities.
+This is a library for event sourcing in Python. At its core, this library has
+a generic persistence module that supports storing and retrieving sequences of
+domain events, such as the events of event-sourced aggregates (perhaps in a
+domain-driven design). A variety of schemas and technologies can be used for
+persisting domain events, and this library supports several of these possibilities.
 
 To demonstrate how storing and retrieving domain events can be used effectively
-as a persistence mechanism in an event-sourced application, this library includes
-base classes for event-sourced aggregates and event-sourced applications, and the
-library documentation includes a range of examples of different styles for writing
-event-sourced aggregates.
+as a persistence mechanism in an event-sourced application, this library also
+has a domain module that include a base classe for event-sourced aggregates,
+and it has an application module that includes a base class for event-sourced
+applications. The library documentation includes a range of examples of different
+styles for writing event-sourced aggregates and applications.
 
 To demonstrate how event-sourced applications can be combined to make an event-driven
-system, it is also possible using this library to define an entire event-driven system
-of event-sourced applications independently of infrastructure and mode of running.
-That means system behaviours can be rapidly developed whilst running the entire
-system synchronously in a single thread with a single in-memory database. And
-then the system can be run asynchronously on a cluster with durable databases,
-with the system effecting exactly the same behaviour.
+system, this library has a system module, which shows how to define an entire event-driven
+system of event-sourced applications independently of infrastructure and mode of running.
+System behaviours can be rapidly developed whilst running the entire system synchronously
+in a single thread with a single in-memory database. And then the system can be run
+asynchronously on a cluster with durable databases, with the system effecting exactly
+the same behaviour.
 
 There is also a growing range of extension modules, which extend the functionality
-included in the core library, for example by adapting popular ORMs such as Django
+included in this library, for example by adapting popular ORMs such as Django
 and SQLAlchemy, specialist event store databases such as Axon Server and EventStoreDB,
 alternative model and serialisation frameworks such as Pydantic and orjson, and efficient
 inter-process communication technologies like gRPC.
+
 
 Enterprise application architecture
 ===================================

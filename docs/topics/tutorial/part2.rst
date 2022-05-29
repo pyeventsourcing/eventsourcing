@@ -3,10 +3,8 @@ Tutorial - Part 2 - Aggregates
 ==============================
 
 In :doc:`Part 1 </topics/tutorial/part1>` we learned
-how to use the ``Aggregate`` class and the ``@event``
-decorator to define an event-sourced aggregate in Python,
-and how to use the ``Application`` class to define an
-event-sourced application.
+how to write event-sourced aggregates and applications
+in Python.
 
 Now let's look at how event-sourced aggregates work in more detail.
 
