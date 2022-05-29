@@ -74,20 +74,20 @@ corresponds to the notion of an 'aggregate' in the book *Domain-Driven Design*.
 In the book, aggregates are persisted by inserting or updating
 database records that represent the current state of the object.
 
-An event-sourced aggregate is persisted by recording the sequence of decisions
-that it makes as a sequence of 'events'. This sequence of events is used to reconstruct
-the current state of the aggregate. In earlier approaches to application architecture,
-only the current state was persisted. The stored state was then updated as further
-decisions were made. However, recording changing state brings several complications,
-which are avoided by recording the decisions made by a domain model. Recording
-the decisions, which do not change, is a more solid foundation on which to build
-applications. Recording domain model decisions, and using them as the "source of
-truth" in an application, is commonly termed "event sourcing".
+Event-sourced aggregates take this a step further, by recording the sequence
+of decisions that it makes as a sequence of event objects, and using the aggregate's
+sequence of event objects to reconstruct the current state of the aggregate.
+
+The important difference is that an event-sourced aggregate will generate a
+sequence of event objects, and these event objects will be used to evolve the
+state of the aggregate object.
 
 We can convert the ``Dog`` class into an event-sourced aggregate using
 the ``Aggregate`` class and ``@event`` decorator from the library's
-:doc:`domain module </topics/domain>`. Events will be triggered when
-decorated methods are called. The changes are highlighted below.
+:doc:`domain module </topics/domain>`. Aggregate event objects will be
+generated when decorated methods are called. The decorated method bodies
+will used to evolve the state of the aggregate. The changes are highlighted
+below.
 
 .. code-block:: python
     :emphasize-lines: 3,4,9
@@ -144,8 +144,9 @@ As above, we can call the method ``add_trick()``. The given value is appended to
 
     assert dog.tricks == ['roll over']
 
-By redefining the ``Dog`` class as an event-sourced aggregate in this way, we can generate a sequence
-of event objects that can be recorded and used later to reconstruct the aggregate.
+By redefining the ``Dog`` class as an event-sourced aggregate in this way, we can
+generate a sequence of event objects that can be recorded and used later to
+reconstruct the aggregate.
 
 We can get the events from the aggregate by calling ``collect_events()``.
 
@@ -181,21 +182,21 @@ Event-sourced aggregates can be developed and tested independently.
     test_dog()
 
 
-However, event-sourced aggregates are normally used within an application object, so
-that aggregate events can be stored in a database, and so that aggregates can
-be reconstructed from stored events.
+Event-sourced aggregates are normally used within an application object,
+so that aggregate events can be recorded in a database, and so that
+aggregates can be reconstructed from recorded events.
 
 
 Event-sourced application
 =========================
 
-This library has "application objects" which simply implements this layered architecture
-for a particular scope of concern. So that an application object supports a particular
-set of commands and queries, has a particular set of aggregates, and uses a particular
-database.
-
 Event-sourced applications combine event-sourced aggregates
 with a persistence mechanism to store and retrieve aggregate events.
+
+Event-source applications define command and query methods
+that can be used by interfaces to manipulate and access
+the state of an application without dealing with it aggregate
+objects.
 
 We can define event-sourced applications with the ``Application`` class
 from the library's :doc:`application module </topics/application>`.
@@ -205,11 +206,12 @@ from the library's :doc:`application module </topics/application>`.
     from eventsourcing.application import Application
 
 
-We can save aggregates with the application's ``save()`` method, and
-reconstruct previously saved aggregates with the application repository's
-``get()`` method.
-
 Let's define a ``DogSchool`` application that uses the ``Dog`` aggregate class.
+
+We can save aggregates with the application's ``save()`` method, and
+we can reconstruct previously saved aggregates with the application
+repository's ``get()`` method.
+
 
 .. code-block:: python
 
@@ -268,8 +270,7 @@ event notifications from the application's notification log.
     assert notifications[1].id == 2
     assert notifications[2].id == 3
 
-Many different kinds of event-sourced applications can
-be defined in this way.
+Many different kinds of event-sourced applications can be defined in this way.
 
 
 Project structure
@@ -277,8 +278,7 @@ Project structure
 
 You are free to structure your project files however you wish. You
 may wish to put your application class in a file named ``application.py``,
-your aggregate classes in a file named ``domainmodel.py``, and your
-tests in a separate folder.
+your aggregate classes in a file named ``domainmodel.py``.
 
 ::
 
@@ -288,7 +288,7 @@ tests in a separate folder.
     tests/__init__.py
     tests/test_application.py
 
-It is generally recommended to put test code and code under test in separate
+It is generally recommended to put test code and code-under-test in separate
 folders.
 
 Writing tests
@@ -323,12 +323,14 @@ into smaller modules.
 Exercise
 ========
 
-Try it for yourself by copying the code snippets above into your IDE, and running the test.
+Try it for yourself by typing the code snippets into a Python file and calling test function.
 
 .. code-block:: python
 
     test_dog_school()
 
+If everything goes well, you should be able to run the Python file without error. If
+you are feeling playful, you can add some print statements that show what is happening.
 
 Next steps
 ==========
