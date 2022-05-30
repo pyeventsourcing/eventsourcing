@@ -40,13 +40,11 @@ Having defined a Python class, we can use it to create an instance.
 
     dog = Dog('Fido')
 
-
 The ``dog`` object is an instance of the ``Dog`` class.
 
 .. code-block:: python
 
     assert isinstance(dog, Dog)
-
 
 The ``__init__()`` method initialises the attributes ``name`` and ``tricks``.
 
@@ -74,20 +72,20 @@ corresponds to the notion of an 'aggregate' in the book *Domain-Driven Design*.
 In the book, aggregates are persisted by inserting or updating
 database records that represent the current state of the object.
 
-Event-sourced aggregates take this a step further, by recording the sequence
-of decisions that it makes as a sequence of event objects, and using the aggregate's
+Event sourcing take this a step further, by recording the sequence of decisions
+that an aggregate makes as a sequence of event objects, and using the aggregate's
 sequence of event objects to reconstruct the current state of the aggregate.
 
 The important difference is that an event-sourced aggregate will generate a
 sequence of event objects, and these event objects will be used to evolve the
-state of the aggregate object.
+state of the aggregate object. So let's look at how this can be done.
 
-We can convert the ``Dog`` class into an event-sourced aggregate using
-the ``Aggregate`` class and ``@event`` decorator from the library's
-:doc:`domain module </topics/domain>`. Aggregate event objects will be
-generated when decorated methods are called. The decorated method bodies
-will used to evolve the state of the aggregate. The changes are highlighted
-below.
+We can convert the ``Dog`` class into an event-sourced aggregate, by using
+the ``Aggregate`` class as its super class, and by using the ``@event``
+decorator to decorate methods that change the state of the aggregate. Then,
+aggregate event objects will be generated when decorated methods are called,
+and the decorated method bodies will used to evolve the state of the aggregate.
+The changes are highlighted below.
 
 .. code-block:: python
     :emphasize-lines: 3,4,9
@@ -103,7 +101,6 @@ below.
         @event('TrickAdded')
         def add_trick(self, trick):
             self.tricks.append(trick)
-
 
 As before, we can call the class to create a new instance.
 
@@ -125,7 +122,6 @@ As we might expect, the attributes ``name`` and ``tricks`` have been initialised
     assert dog.name == 'Fido'
     assert dog.tricks == []
 
-
 The ``dog`` aggregate also has an ``id`` attribute. The ID is used to uniquely identify
 the aggregate within a collection of aggregates. It happens to be a UUID.
 
@@ -134,7 +130,6 @@ the aggregate within a collection of aggregates. It happens to be a UUID.
     from uuid import UUID
 
     assert isinstance(dog.id, UUID)
-
 
 As above, we can call the method ``add_trick()``. The given value is appended to ``tricks``.
 
@@ -154,7 +149,6 @@ We can get the events from the aggregate by calling ``collect_events()``.
 
     events = dog.collect_events()
 
-
 We can then reconstruct the aggregate by calling ``mutate()`` on the collected event objects.
 
 .. code-block:: python
@@ -165,22 +159,11 @@ We can then reconstruct the aggregate by calling ``mutate()`` on the collected e
 
     assert copy == dog
 
+If you are feeling playful, copy the Python code into a Python console
+and see for yourself that it works.
 
-Event-sourced aggregates can be developed and tested independently.
-
-.. code-block:: python
-
-    def test_dog():
-        dog = Dog('Fido')
-        assert dog.name == 'Fido'
-        assert dog.tricks == []
-
-        dog.add_trick('roll over')
-        assert dog.tricks == ['roll over']
-
-    # Run the test
-    test_dog()
-
+Event-sourced aggregates can be developed and tested independently
+of each other, and independently of any persistence infrastructure.
 
 Event-sourced aggregates are normally used within an application object,
 so that aggregate events can be recorded in a database, and so that
@@ -193,10 +176,9 @@ Event-sourced application
 Event-sourced applications combine event-sourced aggregates
 with a persistence mechanism to store and retrieve aggregate events.
 
-Event-source applications define command and query methods
-that can be used by interfaces to manipulate and access
-the state of an application without dealing with it aggregate
-objects.
+Event-sourced applications define "command methods" and "query methods"
+that can be used by interfaces to manipulate and access the state of an
+application without dealing with it aggregate objects.
 
 We can define event-sourced applications with the ``Application`` class
 from the library's :doc:`application module </topics/application>`.
@@ -205,13 +187,11 @@ from the library's :doc:`application module </topics/application>`.
 
     from eventsourcing.application import Application
 
-
 Let's define a ``DogSchool`` application that uses the ``Dog`` aggregate class.
 
 We can save aggregates with the application's ``save()`` method, and
 we can reconstruct previously saved aggregates with the application
 repository's ``get()`` method.
-
 
 .. code-block:: python
 
@@ -239,7 +219,6 @@ We can construct an instance of the application by calling the application class
 
     application = DogSchool()
 
-
 We can then create and update aggregates by calling the command methods of the application.
 
 .. code-block:: python
@@ -247,7 +226,6 @@ We can then create and update aggregates by calling the command methods of the a
     dog_id = application.register_dog('Fido')
     application.add_trick(dog_id, 'roll over')
     application.add_trick(dog_id, 'fetch ball')
-
 
 We can view the state of the aggregates by calling application query methods.
 
@@ -270,15 +248,64 @@ event notifications from the application's notification log.
     assert notifications[1].id == 2
     assert notifications[2].id == 3
 
-Many different kinds of event-sourced applications can be defined in this way.
+If you are feeling playful, copy the Python code into a Python console
+and see for yourself that it works.
 
+Event-sourced applications can be developed and tested independently
+using the library's default persistence infrastructure, which records
+stored events in memory using "plain old Python objects".
+
+
+Writing tests
+=============
+
+It is generally recommended to follow a test-driven approach to the
+development of event-sourced applications. You can get started by first
+writing a failing test for your application in in a Python module,
+for example a file ``test_application.py`` with the following test
+function.
+
+.. code-block:: python
+
+    def test_dog_school():
+
+        # Construct the application.
+        app = DogSchool()
+
+        # Register a dog.
+        dog_id = app.register_dog('Fido')
+
+        # Check the dog has been registered.
+        assert app.get_dog(dog_id) == {
+            'name': 'Fido',
+            'tricks': (),
+        }
+
+        # Add tricks.
+        app.add_trick(dog_id, 'roll over')
+        app.add_trick(dog_id, 'fetch ball')
+
+        # Check the tricks have been added.
+        assert app.get_dog(dog_id) == {
+            'name': 'Fido',
+            'tricks': ('roll over', 'fetch ball'),
+        }
+
+
+You can begin to develop your application by defining your application
+and aggregate classes in the test module. You can then refactor by moving
+your application and aggregate classes to separate modules. For example
+your application class could be moved to an ``application.py`` file, and
+your aggregate classes could be moved to a ``domainmodel.py`` file. See
+the "live coding" video :ref:`Event sourcing in 15 minutes <event-sourcing-in-15-minutes>`
+for a demonstration of how this can be done.
 
 Project structure
 =================
 
-You are free to structure your project files however you wish. You
-may wish to put your application class in a file named ``application.py``,
-and your aggregate classes in a file named ``domainmodel.py``.
+You are free to structure your project files however you wish. It is
+generally recommended to put test code and code-under-test in separate
+folders.
 
 ::
 
@@ -288,63 +315,36 @@ and your aggregate classes in a file named ``domainmodel.py``.
     tests/__init__.py
     tests/test_application.py
 
-It is generally recommended to put test code and code-under-test in separate
-folders.
+If you will have a larger number of aggregate classes, you may wish to
+convert the ``domainmodel.py`` file into a Python package, and have a
+separate submodule for each aggregate class.
 
-Writing tests
-=============
-
-It is generally recommended to follow a test-driven approach to the development of
-event-sourced applications. You can get started with your event sourcing project by
-first writing a failing test in a Python file, for example a file ``test_application.py``.
-You can begin by defining your application and aggregate classes in this file. You
-can then refactor by moving aggregate and application classes to separate Python
-modules. You can convert these modules to packages if you want to split things up
-into smaller modules.
-
-.. code-block:: python
-
-    def test_dog_school():
-
-        # Construct application object.
-        app = DogSchool()
-
-        # Call application command methods.
-        dog_id = app.register_dog('Fido')
-        app.add_trick(dog_id, 'roll over')
-        app.add_trick(dog_id, 'fetch ball')
-
-        # Call application query method.
-        assert app.get_dog(dog_id) == {
-            'name': 'Fido',
-            'tricks': ('roll over', 'fetch ball'),
-        }
-
-        print("test_dog_school: PASSED")
 
 Exercise
 ========
 
-Try it for yourself by typing the code snippets into a Python file
-and calling the test function.
+Try it for yourself by copying the ``test_dog_school()`` function into a
+Python file, for example ``test_application.py``. Then run the test function
+and see that it fails. Then add the ``DogSchool`` application and the ``Dog``
+aggregate code. Then run the test function again and see that it passes.
+
+You can either run the test by using the facilities in your Python IDE (for
+example, install pytest, or incorporate the test function in a ``unittest.TestCase``),
+or by adding a line at the bottom of your Python file that calls the test function
+and then executing the file directly using Python.
 
 .. code-block:: python
 
     test_dog_school()
 
-If everything goes well, you should be able to run the Python file without error. The
-following message should be printed.
-
-.. code-block:: text
-
-    test_dog_school: PASSED
-
+When your code is working, refactor by moving the application and
+aggregate classes to separate Python files, for example ``application.py``
+and ``domainmodel.py``. After completing your refactorings, run the test
+again to make sure your code still works.
 
 If you are feeling playful, you can add some more print statements
 that show what happens in the aggregate and application classes.
 
-When your code is working, refactor by moving the aggregate and application classes to
-separate Python modules. Run the test again to make sure your code still works.
 
 Next steps
 ==========
