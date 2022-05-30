@@ -85,12 +85,19 @@ so the event we collected from the aggregate is an instance of ``Dog.Created``.
     assert isinstance(events[0], Dog.Created)
 
 
-Unless otherwise specified, a "created" event class will always be defined
-for an aggregate class. And a "created" event object of this type will be
-triggered when ``__init__()`` methods of aggregate classes are called. But
-we can explicitly specify a name for the "created" event by decorating the
-``__init__()`` method with the ``@event`` decorator. The attributes of the
-event class will be defined according to the ``__init__()`` method signature.
+A "created" event class will always be defined for an aggregate class. And a
+"created" event object will be triggered when the ``__init__()`` method of an
+aggregate is called, which will happen whenever the aggregate class is called.
+The attributes of the "created" event class will be defined according to the
+``__init__()`` method signature, and the attribute values of the "created"
+event object will be set according to the values of the arguments when the
+``__init__()`` method is called, which are usually the values of the arguments
+when the aggregate class is called. The body of the ``__init__()`` method will
+be used to initialise the aggregate object.
+
+By default, the "created" event class will have the name ``'Created'``.
+But we can explicitly specify a name for the "created" event by decorating the
+``__init__()`` method with the ``@event`` decorator.
 
 Let's redefine the ``Dog`` aggregate class to have an ``__init__()`` method
 that is decorated with the ``@event`` decorator. Let's specify the name of
@@ -118,8 +125,8 @@ class with this name is defined on the aggregate class.
     assert isinstance(Dog.Registered, type)
 
 
-"Created" events inherit from the ``Aggregate.Created`` class, which defines a
-``mutate()`` method that knows how to construct aggregate instances.
+All "created" events inherit from the ``Aggregate.Created`` class, which defines
+a ``mutate()`` method that knows how to construct aggregate instances.
 
 .. code-block:: python
 
