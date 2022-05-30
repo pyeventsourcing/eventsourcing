@@ -6,6 +6,9 @@ This a library for event sourcing in Python. This section introduces the
 library, and presents a synopsis of the code. This section also provides
 a conceptual overview of event sourcing and enterprise application architecture.
 
+
+.. _event-sourcing-in-15-minutes:
+
 Event sourcing in 15 minutes
 ============================
 
