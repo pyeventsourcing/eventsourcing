@@ -10,19 +10,18 @@ can work in Python.
 By the end of this section, you will have an understanding of how to write
 event-sourced aggregates and event-sourced application in Python.
 
-Completing the exercise at the end of this section depends on having a working
-Python installation, and having :doc:`installed the eventsourcing library </topics/installing>`.
+This tutorial depends on a `basic understanding of the Python programming language
+<https://realpython.com/python-basics/>`_, and `Object-Oriented Programming in Python
+<https://realpython.com/python3-object-oriented-programming/>`_.
 
 Python classes
 ==============
 
-This tutorial depends on a basic understanding of
-`Python classes <https://docs.python.org/3/tutorial/classes.html>`_.
+We can define a ``Dog`` class in Python as follows.
 This example is taken from the `Class and Instance Variables
 <https://docs.python.org/3/tutorial/classes.html#class-and-instance-variables>`_
 section of the Python docs.
 
-We can define a ``Dog`` class in Python as follows.
 
 .. code-block:: python
 
@@ -67,9 +66,14 @@ In the next section, we convert the ``Dog`` class to be an event-sourced aggrega
 Event-sourced aggregate
 =======================
 
-A persistent object that changes through a sequence of decisions
-corresponds to the notion of an 'aggregate' in the book *Domain-Driven Design*.
-In the book, aggregates are persisted by inserting or updating
+A persistent object is an object (such as ``dog`` in the example above) that is
+stored in a database. Persistent objects are used in application domain models
+to record the state of the application. Persistent objects used for this purpose
+are sometimes referred to as 'aggregates'.
+
+The notion of an 'aggregate' was described in the book *Domain-Driven Design*.
+Aggregates evolve over time according to a sequence of decisions that they make.
+In *Domain-Driven Design*, aggregates are persisted by inserting or updating
 database records that represent the current state of the object.
 
 Event sourcing take this a step further, by recording the sequence of decisions
@@ -262,8 +266,7 @@ Writing tests
 It is generally recommended to follow a test-driven approach to the
 development of event-sourced applications. You can get started by first
 writing a failing test for your application in in a Python module,
-for example a file ``test_application.py`` with the following test
-function.
+for example a file ``test_application.py`` with the following test.
 
 .. code-block:: python
 
@@ -323,15 +326,14 @@ separate submodule for each aggregate class.
 Exercise
 ========
 
-Try it for yourself by copying the ``test_dog_school()`` function into a
-Python file, for example ``test_application.py``. Then run the test function
-and see that it fails. Then add the ``DogSchool`` application and the ``Dog``
-aggregate code. Then run the test function again and see that it passes.
+Completing this exercise depends on having a working Python installation,
+:doc:`installing the eventsourcing library </topics/installing>`,
+and knowing how to `write and run tests in Python <https://realpython.com/python-testing>`_.
 
-You can either run the test by using the facilities in your Python IDE (for
-example, install pytest, or incorporate the test function in a ``unittest.TestCase``),
-or by adding a line at the bottom of your Python file that calls the test function
-and then executing the file directly using Python.
+Copy the ``test_dog_school()`` function (see above) into a Python file, for example
+``test_application.py``. Then run the test function and see that it fails. Then add
+the ``DogSchool`` application and the ``Dog`` aggregate code. Then run the test function
+again and see that it passes.
 
 .. code-block:: python
 
