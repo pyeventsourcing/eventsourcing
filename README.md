@@ -1,5 +1,3 @@
-[![Event sourcing in Python](images/Cupid-foot-686x343.jpeg)](https://eventsourcing.readthedocs.io/)
-
 [![Build Status](https://github.com/pyeventsourcing/eventsourcing/actions/workflows/runtests.yaml/badge.svg?branch=main)](https://github.com/pyeventsourcing/eventsourcing/tree/main)
 [![Coverage Status](https://coveralls.io/repos/github/pyeventsourcing/eventsourcing/badge.svg?branch=main)](https://coveralls.io/github/pyeventsourcing/eventsourcing?branch=main)
 [![Documentation Status](https://readthedocs.org/projects/eventsourcing/badge/?version=stable)](https://eventsourcing.readthedocs.io/en/stable/)
@@ -32,31 +30,7 @@ Please note, it is recommended to install Python
 packages into a Python virtual environment.
 
 
-## Example
-
-The example below follows an outside-in approach to software development.
-
-Write a test.
-
-```python
-def test_dog_school():
-    # Construct application object.
-    school = DogSchool()
-
-    # Evolve application state.
-    dog_id = school.register_dog('Fido')
-    school.add_trick(dog_id, 'roll over')
-    school.add_trick(dog_id, 'play dead')
-
-    # Query application state.
-    dog = school.get_dog(dog_id)
-    assert dog['name'] == 'Fido'
-    assert dog['tricks'] == ('roll over', 'play dead')
-
-    # Select notifications.
-    notifications = school.notification_log.select(start=1, limit=10)
-    assert len(notifications) == 3
-```
+## Synopsis
 
 Define application objects with the `Application` class.
 
@@ -95,23 +69,51 @@ class Dog(Aggregate):
         self.tricks.append(trick)
 ```
 
-Run tests with the default "in-memory" persistence module.
+Write a test.
+
+```python
+def test_dog_school():
+    # Construct application object.
+    school = DogSchool()
+
+    # Evolve application state.
+    dog_id = school.register_dog('Fido')
+    school.add_trick(dog_id, 'roll over')
+    school.add_trick(dog_id, 'play dead')
+
+    # Query application state.
+    dog = school.get_dog(dog_id)
+    assert dog['name'] == 'Fido'
+    assert dog['tricks'] == ('roll over', 'play dead')
+
+    # Select notifications.
+    notifications = school.notification_log.select(start=1, limit=10)
+    assert len(notifications) == 3
+```
+
+Run the test with the default persistence module. Events are stored
+in memory using Python objects.
 
 ```python
 test_dog_school()
 ```
-Configure environment variables to run applications with real databases.
+Configure application to run with an SQLite databases. Other persistence modules are available.
 
 ```python
 import os
 
 os.environ["PERSISTENCE_MODULE"] = 'eventsourcing.sqlite'
 os.environ["SQLITE_DBNAME"] = 'dog-school.db'
+```
 
+Run tests with SQLite.
+
+```python
 test_dog_school()
 ```
 
 See the [documentation](https://eventsourcing.readthedocs.io/) for more information.
+
 
 ## Features
 
