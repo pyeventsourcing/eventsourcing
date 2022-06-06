@@ -2,36 +2,30 @@
 Support
 =======
 
-Professional training and development services are available.
-Friendly community support is also available on the Slack_ channel.
+Thank you for your interest in this library.
+Please show your support by
+`starring the project on GitHub <https://github.com/sponsors/pyeventsourcing/eventsourcing>`_,
+and either `sponsor the project <https://github.com/sponsors/pyeventsourcing?frequency=recurring>`_
+or `make a donation <https://github.com/sponsors/pyeventsourcing?frequency=one-time>`_.
 
 If you see any errors or have any issues when using
 the library or reading the documentation, please `raise an issue on GitHub
 <https://github.com/pyeventsourcing/eventsourcing/issues>`_, create a
 pull request, or start a discussion in the Slack_ channel.
 
-If you like the project, please support the continuing maintenance of this
-library by starring the project on GitHub, by `sponsoring the project
-<https://github.com/sponsors/pyeventsourcing?frequency=recurring>`_, or
-`by making a donation <https://github.com/sponsors/pyeventsourcing?frequency=one-time>`_.
 
-Thank you for your interest in this library.
+Community support
+=================
 
+The library has a growing community that may be able to help.
 
-Professional support
-====================
+- You can ask questions on the Slack_ channel.
 
-Professional services are available to help developers and managers with
-the development and management of event-sourced applications and systems.
+- You can also register issues and requests on our
+  `issue tracker <https://github.com/pyeventsourcing/eventsourcing/issues>`_.
 
-- Address specific concerns with how your event-sourced application or system is built and run.
-- Overall assessment of your existing implementation, with recommendations for improvement.
-- Development of applications and systems for production use.
-- Development of prototype or sample applications.
-- Training and coaching developers.
+.. _Slack: https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTJjMmJjYTc3ODQ3M2YwOTMwMDJlODJkMjk3ZmE1MGYyZDM4MjIxODZmYmVkZmJkODRhZDg5N2MwZjk1YzU3NmY>`__.
 
-Please contact John Bywater via the Slack_ channel for more information about professional
-support.
 
 Training workshops
 ==================
@@ -45,15 +39,19 @@ the library effectively.
 Please contact John Bywater via the Slack_ channel for more information about
 training workshops.
 
-Community support
-=================
 
-The library has a growing community that may be able to help.
+Professional support
+====================
 
-- You can ask questions on the Slack_ channel.
+Professional services are available to help developers and managers with
+the development and management of event-sourced applications and systems.
 
-- You can also register issues and requests on our
-  `issue tracker <https://github.com/pyeventsourcing/eventsourcing/issues>`_.
+- Training and coaching developers.
+- Development of prototype or sample applications.
+- Development of applications and systems for production use.
+- Overall assessment of your existing implementation, with recommendations for improvement.
+- Address specific concerns with how your event-sourced application or system is built and run.
 
-.. _Slack: https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTJjMmJjYTc3ODQ3M2YwOTMwMDJlODJkMjk3ZmE1MGYyZDM4MjIxODZmYmVkZmJkODRhZDg5N2MwZjk1YzU3NmY>`__.
+Please contact John Bywater via the Slack_ channel for more information about professional
+support.
 
