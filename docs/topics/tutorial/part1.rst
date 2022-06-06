@@ -80,11 +80,11 @@ The important difference is that an event-sourced aggregate will generate a
 sequence of event objects, and these event objects will be used to evolve the
 state of the aggregate object. Let's look at how this can be done.
 
-We can convert the ``Dog`` class into an event-sourced aggregate, by using
-the ``Aggregate`` class as its super class, and by using the ``@event``
-decorator to decorate methods that change the state of the aggregate. Then,
-aggregate event objects will be generated when decorated methods are called,
-and the decorated method bodies will used to evolve the state of the aggregate.
+We can convert the ``Dog`` class into an event-sourced aggregate, by inheriting
+from the library's ``Aggregate`` class, and by decorating methods that change
+the state of the aggregate with the library's ``@event`` decorator. Aggregate
+event objects will then be generated when decorated methods are called, and
+the decorated method bodies will be used to evolve the state of the aggregate.
 The changes are highlighted below.
 
 .. code-block:: python
@@ -102,11 +102,11 @@ The changes are highlighted below.
         def add_trick(self, trick):
             self.tricks.append(trick)
 
-As before, we can call the class to create a new instance.
+As before, we can call the ``Dog`` class to create a new instance.
 
 .. code-block:: python
 
-    dog = Dog('Fido')
+    dog = Dog(name='Fido')
 
 The object is an instance of ``Dog``. It is also an ``Aggregate``.
 
@@ -135,7 +135,7 @@ As above, we can call the method ``add_trick()``. The given value is appended to
 
 .. code-block:: python
 
-    dog.add_trick('roll over')
+    dog.add_trick(trick='roll over')
 
     assert dog.tricks == ['roll over']
 
@@ -178,10 +178,9 @@ with a persistence mechanism to store and retrieve aggregate events.
 
 Event-sourced applications define "command methods" and "query methods"
 that can be used by interfaces to manipulate and access the state of an
-application without dealing with it aggregate objects.
+application, without dealing directly with its aggregates.
 
-We can define event-sourced applications with the ``Application`` class
-from the library's :doc:`application module </topics/application>`.
+We can define event-sourced applications with the library's ``Application`` class.
 
 .. code-block:: python
 
@@ -189,9 +188,9 @@ from the library's :doc:`application module </topics/application>`.
 
 Let's define a ``DogSchool`` application that uses the ``Dog`` aggregate class.
 
-We can save aggregates with the application's ``save()`` method, and
-we can reconstruct previously saved aggregates with the application
-repository's ``get()`` method.
+We can collect and store aggregate events with the application's ``save()`` method.
+We can also retrieve stored events and reconstruct the aggregate
+instance with the application repository's ``get()`` method.
 
 .. code-block:: python
 
@@ -219,7 +218,7 @@ We can construct an instance of the application by calling the application class
 
     application = DogSchool()
 
-We can then create and update aggregates by calling the command methods of the application.
+We can then create and update aggregates by calling the application's command methods.
 
 .. code-block:: python
 
@@ -227,7 +226,7 @@ We can then create and update aggregates by calling the command methods of the a
     application.add_trick(dog_id, 'roll over')
     application.add_trick(dog_id, 'fetch ball')
 
-We can view the state of the aggregates by calling application query methods.
+We can view the state of the aggregates by calling application's query methods.
 
 .. code-block:: python
 
@@ -236,7 +235,7 @@ We can view the state of the aggregates by calling application query methods.
     assert dog_details['name'] == 'Fido'
     assert dog_details['tricks'] == ('roll over', 'fetch ball')
 
-And we can propagate the state of the application as a whole by selecting
+And we can propagate the state of the application by selecting
 event notifications from the application's notification log.
 
 .. code-block:: python
@@ -247,6 +246,10 @@ event notifications from the application's notification log.
     assert notifications[0].id == 1
     assert notifications[1].id == 2
     assert notifications[2].id == 3
+
+There will be one event notification for each aggregate event that was stored.
+The event notifications will be in the same order as the aggregate events were
+stored. The events of all aggregates will appear in the notification log.
 
 If you are feeling playful, copy the Python code into a Python console
 and see for yourself that it works.
@@ -316,7 +319,9 @@ folders.
 
 If you will have a larger number of aggregate classes, you may wish to
 convert the ``domainmodel.py`` file into a Python package, and have a
-separate submodule for each aggregate class.
+separate submodule for each aggregate class. To start a new project
+with modern tooling, you can use the `template for Python eventsourcing
+projects <https://github.com/pyeventsourcing/cookiecutter-eventsourcing#readme>`_.
 
 
 Exercise
@@ -340,8 +345,9 @@ aggregate classes to separate Python files, for example ``application.py``
 and ``domainmodel.py``. After completing your refactorings, run the test
 again to make sure your code still works.
 
-If you are feeling playful, you can add some more print statements
-that show what happens in the aggregate and application classes.
+If you are feeling playful, you can use a debugger or add some print
+statements to step through what happens in the aggregate and application
+classes.
 
 
 Next steps
