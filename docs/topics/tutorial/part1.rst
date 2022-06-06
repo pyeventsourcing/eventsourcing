@@ -2,26 +2,24 @@
 Tutorial - Part 1 - Getting started
 ===================================
 
-Part 1 of the tutorial introduces event-sourced aggregates and event-sourced applications.
-
-We will discuss how event-sourced aggregates and event-sourced applications
-can work in Python.
+In Part 1 of this tutorial, we will discuss how event-sourced aggregates
+and event-sourced applications can work in Python.
 
 By the end of this section, you will have an understanding of how to write
 event-sourced aggregates and event-sourced application in Python.
 
-This tutorial depends on a `basic understanding of the Python programming language
-<https://realpython.com/python-basics/>`_, and `Object-Oriented Programming in Python
-<https://realpython.com/python3-object-oriented-programming/>`_.
+This tutorial depends on a basic understanding of `Object-Oriented Programming
+in Python <https://realpython.com/python3-object-oriented-programming/>`_.
 
 Python classes
 ==============
+
+Let's briefly review how to write and use object classes in Python.
 
 We can define a ``Dog`` class in Python as follows.
 This example is taken from the `Class and Instance Variables
 <https://docs.python.org/3/tutorial/classes.html#class-and-instance-variables>`_
 section of the Python docs.
-
 
 .. code-block:: python
 
@@ -33,7 +31,7 @@ section of the Python docs.
         def add_trick(self, trick):
             self.tricks.append(trick)
 
-Having defined a Python class, we can use it to create an instance.
+Having defined a Python class, we can use it to create an instance of the class.
 
 .. code-block:: python
 
@@ -66,23 +64,21 @@ In the next section, we convert the ``Dog`` class to be an event-sourced aggrega
 Event-sourced aggregate
 =======================
 
-A persistent object is an object (such as ``dog`` in the example above) that is
-stored in a database. Persistent objects are used in application domain models
-to record the state of the application. Persistent objects used for this purpose
-are sometimes referred to as 'aggregates'.
-
 The notion of an 'aggregate' was described in the book *Domain-Driven Design*.
-Aggregates evolve over time according to a sequence of decisions that they make.
-In *Domain-Driven Design*, aggregates are persisted by inserting or updating
-database records that represent the current state of the object.
+Aggregates are persistent software objects that evolve over time according to
+a sequence of decisions that they make. In the book *Domain-Driven Design*,
+aggregates are persisted by recording the current state of the aggregate in
+a database. When the state of the aggregate changes, the recorded state in
+the database is updated.
 
-Event sourcing take this a step further, by recording the sequence of decisions
-that an aggregate makes as a sequence of event objects, and using the aggregate's
-sequence of event objects to reconstruct the current state of the aggregate.
+Event sourcing take this a step further. Rather than recording the current state
+of the aggregate, the sequence of decisions that an aggregate makes is recorded as
+a sequence of event objects. The recorded sequence of event objects is used to
+reconstruct the current state of the aggregate.
 
 The important difference is that an event-sourced aggregate will generate a
 sequence of event objects, and these event objects will be used to evolve the
-state of the aggregate object. So let's look at how this can be done.
+state of the aggregate object. Let's look at how this can be done.
 
 We can convert the ``Dog`` class into an event-sourced aggregate, by using
 the ``Aggregate`` class as its super class, and by using the ``@event``
