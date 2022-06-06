@@ -41,6 +41,7 @@ Add command and query methods that use event-sourced aggregates.
 
     from eventsourcing.application import Application
 
+
     class DogSchool(Application):
         def register_dog(self, name):
             dog = Dog(name)
@@ -66,6 +67,7 @@ used to mutate the state of the aggregate.
 
     from eventsourcing.domain import Aggregate, event
 
+
     class Dog(Aggregate):
         @event('Registered')
         def __init__(self, name):
@@ -77,32 +79,21 @@ used to mutate the state of the aggregate.
             self.tricks.append(trick)
 
 
-Optionally :ref:`configure an application <Application configuration>` by setting
-environment variables, for example to enable aggregate caching or to specify
-a :doc:`persistence module </topics/persistence>`.
-
-.. code-block:: python
-
-    import os
-
-    # Enable aggregate caching.
-    os.environ['AGGREGATE_CACHE_MAXSIZE'] = '1000'
-
-    # Use SQLite.
-    os.environ['PERSISTENCE_MODULE'] = 'eventsourcing.sqlite'
-    os.environ['SQLITE_DBNAME'] = ':memory:'
-
 Construct an application object by calling the application class.
 
 .. code-block:: python
 
     application = DogSchool()
 
+
 Evolve the state of the application by calling command methods.
 
 .. code-block:: python
 
+    # Register a new dog.
     dog_id = application.register_dog('Fido')
+
+    # Add tricks.
     application.add_trick(dog_id, 'roll over')
     application.add_trick(dog_id, 'fetch ball')
 
@@ -111,7 +102,9 @@ Access the state of the application by calling query methods.
 
 .. code-block:: python
 
+    # Get dog details.
     dog_details = application.get_dog(dog_id)
+
     assert dog_details['name'] == 'Fido'
     assert dog_details['tricks'] == ('roll over', 'fetch ball')
 
@@ -119,12 +112,13 @@ Select event notifications from the notification log.
 
 .. code-block:: python
 
+    # Select event notifications.
     notifications = application.notification_log.select(start=1, limit=10)
+
     assert len(notifications) == 3
     assert notifications[0].id == 1
     assert notifications[1].id == 2
     assert notifications[2].id == 3
-
 
 
 Features
