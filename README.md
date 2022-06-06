@@ -32,6 +32,22 @@ packages into a Python virtual environment.
 
 ## Synopsis
 
+Define aggregates with the `Aggregate` class and the `@event` decorator.
+
+```python
+from eventsourcing.domain import Aggregate, event
+
+class Dog(Aggregate):
+    @event('Registered')
+    def __init__(self, name):
+        self.name = name
+        self.tricks = []
+
+    @event('TrickAdded')
+    def add_trick(self, trick):
+        self.tricks.append(trick)
+```
+
 Define application objects with the `Application` class.
 
 ```python
@@ -51,22 +67,6 @@ class DogSchool(Application):
     def get_dog(self, dog_id):
         dog = self.repository.get(dog_id)
         return {'name': dog.name, 'tricks': tuple(dog.tricks)}
-```
-
-Define aggregates with the `Aggregate` class and the `@event` decorator.
-
-```python
-from eventsourcing.domain import Aggregate, event
-
-class Dog(Aggregate):
-    @event('Registered')
-    def __init__(self, name):
-        self.name = name
-        self.tricks = []
-
-    @event('TrickAdded')
-    def add_trick(self, trick):
-        self.tricks.append(trick)
 ```
 
 Write a test.
@@ -97,7 +97,8 @@ in memory using Python objects.
 ```python
 test_dog_school()
 ```
-Configure application to run with an SQLite databases. Other persistence modules are available.
+
+Configure the application to run with an SQLite database. Other persistence modules are available.
 
 ```python
 import os
@@ -106,7 +107,7 @@ os.environ["PERSISTENCE_MODULE"] = 'eventsourcing.sqlite'
 os.environ["SQLITE_DBNAME"] = 'dog-school.db'
 ```
 
-Run tests with SQLite.
+Run the test with SQLite.
 
 ```python
 test_dog_school()
