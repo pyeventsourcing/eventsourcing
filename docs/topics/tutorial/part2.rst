@@ -523,6 +523,6 @@ to be ``'ItemAdded'``. Copy the test below and make it pass.
 Next steps
 ==========
 
+* For more information about event-sourced aggregates, please read the :doc:`the domain module documentation </topics/domain>`.
 * For more information about event-sourced applications, please read
   :doc:`Part 3 </topics/tutorial/part3>` of this tutorial.
-* See also the :doc:`the domain module documentation </topics/domain>`.
