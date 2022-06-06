@@ -6,7 +6,7 @@ In Part 1 of this tutorial, we will discuss how event-sourced aggregates
 and event-sourced applications can work in Python.
 
 By the end of this section, you will have an understanding of how to write
-event-sourced aggregates and event-sourced application in Python.
+event-sourced aggregates and event-sourced applications in Python.
 
 This tutorial depends on a basic understanding of `Object-Oriented Programming
 in Python <https://realpython.com/python3-object-oriented-programming/>`_.
