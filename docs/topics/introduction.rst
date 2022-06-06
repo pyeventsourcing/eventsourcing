@@ -29,6 +29,221 @@ The "live coding" video below shows how to do event sourcing with Python in less
 
 
 
+.. _Synopsis:
+
+Synopsis
+========
+
+Use the library's ``Application`` class to define an event-sourced :doc:`application </topics/application>`.
+Add command and query methods that use event-sourced aggregates.
+
+.. code-block:: python
+
+    from eventsourcing.application import Application
+
+
+    class DogSchool(Application):
+        def register_dog(self, name):
+            dog = Dog(name)
+            self.save(dog)
+            return dog.id
+
+        def add_trick(self, dog_id, trick):
+            dog = self.repository.get(dog_id)
+            dog.add_trick(trick)
+            self.save(dog)
+
+        def get_dog(self, dog_id):
+            dog = self.repository.get(dog_id)
+            return {'name': dog.name, 'tricks': tuple(dog.tricks)}
+
+
+Use the library's ``Aggregate`` class and the ``@event`` decorator to define
+event-sourced :doc:`aggregates </topics/domain>`. Aggregate events will be triggered
+when decorated methods are called, and the decorated method bodies will be
+used to mutate the state of the aggregate.
+
+.. code-block:: python
+
+    from eventsourcing.domain import Aggregate, event
+
+
+    class Dog(Aggregate):
+        @event('Registered')
+        def __init__(self, name):
+            self.name = name
+            self.tricks = []
+
+        @event('TrickAdded')
+        def add_trick(self, trick):
+            self.tricks.append(trick)
+
+
+Construct an application object by calling the application class.
+
+.. code-block:: python
+
+    application = DogSchool()
+
+
+Evolve the state of the application by calling command methods.
+
+.. code-block:: python
+
+    # Register a new dog.
+    dog_id = application.register_dog('Fido')
+
+    # Add tricks.
+    application.add_trick(dog_id, 'roll over')
+    application.add_trick(dog_id, 'fetch ball')
+
+
+Access the state of the application by calling query methods.
+
+.. code-block:: python
+
+    # Get dog details.
+    dog_details = application.get_dog(dog_id)
+
+    assert dog_details['name'] == 'Fido'
+    assert dog_details['tricks'] == ('roll over', 'fetch ball')
+
+Select event notifications from the notification log.
+
+.. code-block:: python
+
+    # Select event notifications.
+    notifications = application.notification_log.select(start=1, limit=10)
+
+    assert len(notifications) == 3
+    assert notifications[0].id == 1
+    assert notifications[1].id == 2
+    assert notifications[2].id == 3
+
+
+Features
+========
+
+**Flexible event store** — flexible persistence of domain events. Combines
+an event mapper and an event recorder in ways that can be easily extended.
+Mapper uses a transcoder that can be easily extended to support custom
+model object types. Recorders supporting different databases can be easily
+substituted and configured with environment variables.
+
+**Domain models and applications** — base classes for domain model aggregates
+and applications. Suggests how to structure an event-sourced application.
+
+**Application-level encryption and compression** — encrypts and decrypts events inside the
+application. This means data will be encrypted in transit across a network ("on the wire")
+and at disk level including backups ("at rest"), which is a legal requirement in some
+jurisdictions when dealing with personally identifiable information (PII) for example
+the EU's GDPR. Compression reduces the size of stored domain events and snapshots, usually
+by around 25% to 50% of the original size. Compression reduces the size of data
+in the database and decreases transit time across a network.
+
+**Snapshotting** — reduces access-time for aggregates with many domain events.
+
+**Versioning** - allows domain model changes to be introduced after an application
+has been deployed. Both domain events and aggregate classes can be versioned.
+The recorded state of an older version can be upcast to be compatible with a new
+version. Stored events and snapshots are upcast from older versions
+to new versions before the event or aggregate object is reconstructed.
+
+**Optimistic concurrency control** — ensures a distributed or horizontally scaled
+application doesn't become inconsistent due to concurrent method execution. Leverages
+optimistic concurrency controls in adapted database management systems.
+
+**Notifications and projections** — reliable propagation of application
+events with pull-based notifications allows the application state to be
+projected accurately into replicas, indexes, view models, and other applications.
+Supports materialized views and CQRS.
+
+**Event-driven systems** — reliable event processing. Event-driven systems
+can be defined independently of particular persistence infrastructure and mode of
+running.
+
+**Detailed documentation** — documentation provides general overview, introduction
+of concepts, explanation of usage, and detailed descriptions of library classes.
+All code is annotated with type hints.
+
+**Worked examples** — includes examples showing how to develop aggregates, applications
+and systems.
+
+
+..
+    **Hash chaining** — Sequences of events can be hash-chained, and the entire sequence
+    of events checked for data integrity. Information lost in transit or on the disk from
+    database corruption can be detected. If the last hash can be independently validated,
+    then so can the entire sequence.
+
+..
+    **Correlation and causation IDs** - Domain events can easily be given correlation and
+    causation IDs, which allows a story to be traced through a system of applications.
+
+Design overview
+===============
+
+The design of the library follows the notion of a "layered" or "onion" or "hexagonal"
+architecture in that there are :doc:`separate modules  </topics/modules>` for :doc:`application </topics/application>`,
+:doc:`domain </topics/domain>`, :doc:`persistence </topics/domain>`, and :doc:`interface </topics/interface>`.
+The interface module depends on the application module. The application module depends on the domain
+module and the persistence module. The persistence module depends on the domain module.
+The domain module does not depend on any of the other modules. All these modules depend
+only on the Python Standard Library.
+
+Buy the book
+============
+
+Buy the book `Event Sourcing in Python <https://leanpub.com/eventsourcinginpython>`_
+for a detailed discussion of the design patterns which structure the library code.
+
+.. image:: event-sourcing-in-python-cover.png
+    :width: 32%
+    :target: https://leanpub.com/eventsourcinginpython
+
+.. image:: patterns-map.png
+    :width: 64%
+    :target: https://leanpub.com/eventsourcinginpython
+
+The book has three parts, with five chapters in each part.
+
+Part 1 is about domain models. It has patterns to define, trigger, and
+store domain model events, and to project domain model events into the
+enduring objects which trigger them.
+
+    1. Domain Event
+    2. Aggregate
+    3. Mapper
+    4. Recorder
+    5. Event Store
+
+Part 2 is about applications. It has patterns to unify the components of
+an event-sourced application, and to propagate the state of the application.
+
+    6. Notification Log
+    7. Snapshot
+    8. Repository
+    9. Application
+    10. Remote Log
+
+Part 3 is about systems, and has patterns to process events and to define
+and run systems of applications that process domain model events.
+
+    11. Log Reader
+    12. Policy
+    13. Process
+    14. System
+    15. Runner
+
+Each chapter describes one pattern, one characteristic occasion of design,
+one building block for event-sourced Domain-Driven Design. The descriptions
+are each intended to contribute determination to future design events that
+have the particular character of that pattern. Each chapter includes working
+examples that illustrate the characterised occasion of design, but which
+could be varied by the reader in different ways. The chapter examples build
+on examples from previous chapters.
+
+
 What is an event?
 =================
 
@@ -166,37 +381,6 @@ the structure "many individual sequences of decisions" is a generally adequate f
 for analysis and design.
 
 
-This library
-============
-
-This is a library for event sourcing in Python. At its core, this library has
-a generic persistence module that supports storing and retrieving sequences of
-domain events, such as the events of event-sourced aggregates (perhaps in a
-domain-driven design). A variety of schemas and technologies can be used for
-persisting domain events, and this library supports several of these possibilities.
-
-To demonstrate how storing and retrieving domain events can be used effectively
-as a persistence mechanism in an event-sourced application, this library also
-has a domain module that includes a base class for event-sourced aggregates,
-and it has an application module that includes a base class for event-sourced
-applications. The library documentation includes a range of examples of different
-styles for writing event-sourced aggregates and applications.
-
-To demonstrate how event-sourced applications can be combined to make an event-driven
-system, this library has a system module, which shows how to define an entire event-driven
-system of event-sourced applications independently of infrastructure and mode of running.
-System behaviours can be rapidly developed whilst running the entire system synchronously
-in a single thread with a single in-memory database. And then the system can be run
-asynchronously on a cluster with durable databases, with the system effecting exactly
-the same behaviour.
-
-There is also a growing range of extension modules, which extend the functionality
-included in this library, for example by adapting popular ORMs such as Django
-and SQLAlchemy, specialist event store databases such as Axon Server and EventStoreDB,
-alternative model and serialisation frameworks such as Pydantic and orjson, and efficient
-inter-process communication technologies like gRPC.
-
-
 Enterprise application architecture
 ===================================
 
@@ -293,226 +477,37 @@ developed with a persistence layer that is fast and easy to use, and then the so
 can be deployed for users with a database that is operationally capable of supporting
 their needs.
 
-
-Design overview
-===============
-
-The design of the library follows the notion of a "layered" or "onion" or "hexagonal"
-architecture in that there are :doc:`separate modules  </topics/modules>` for :doc:`application </topics/application>`,
-:doc:`domain </topics/domain>`, :doc:`persistence </topics/domain>`, and :doc:`interface </topics/interface>`.
-The interface module depends on the application module. The application module depends on the domain
-module and the persistence module. The persistence module depends on the domain module.
-The domain module does not depend on any of the other modules. All these modules depend
-only on the Python Standard Library.
-
-Buy the book
+This library
 ============
 
-Buy the book `Event Sourcing in Python <https://leanpub.com/eventsourcinginpython>`_
-for a detailed discussion of the design patterns which structure the library code.
+This is a library for event sourcing in Python. At its core, this library has
+a generic persistence module that supports storing and retrieving sequences of
+domain events, such as the events of event-sourced aggregates (perhaps in a
+domain-driven design). A variety of schemas and technologies can be used for
+persisting domain events, and this library supports several of these possibilities.
 
-.. image:: event-sourcing-in-python-cover.png
-    :width: 32%
-    :target: https://leanpub.com/eventsourcinginpython
+To demonstrate how storing and retrieving domain events can be used effectively
+as a persistence mechanism in an event-sourced application, this library also
+has a domain module that includes a base class for event-sourced aggregates,
+and it has an application module that includes a base class for event-sourced
+applications. The library documentation includes a range of examples of different
+styles for writing event-sourced aggregates and applications.
 
-.. image:: patterns-map.png
-    :width: 64%
-    :target: https://leanpub.com/eventsourcinginpython
+To demonstrate how event-sourced applications can be combined to make an event-driven
+system, this library has a system module, which shows how to define an entire event-driven
+system of event-sourced applications independently of infrastructure and mode of running.
+System behaviours can be rapidly developed whilst running the entire system synchronously
+in a single thread with a single in-memory database. And then the system can be run
+asynchronously on a cluster with durable databases, with the system effecting exactly
+the same behaviour.
 
-The book has three parts, with five chapters in each part.
-
-Part 1 is about domain models. It has patterns to define, trigger, and
-store domain model events, and to project domain model events into the
-enduring objects which trigger them.
-
-    1. Domain Event
-    2. Aggregate
-    3. Mapper
-    4. Recorder
-    5. Event Store
-
-Part 2 is about applications. It has patterns to unify the components of
-an event-sourced application, and to propagate the state of the application.
-
-    6. Notification Log
-    7. Snapshot
-    8. Repository
-    9. Application
-    10. Remote Log
-
-Part 3 is about systems, and has patterns to process events and to define
-and run systems of applications that process domain model events.
-
-    11. Log Reader
-    12. Policy
-    13. Process
-    14. System
-    15. Runner
-
-Each chapter describes one pattern, one characteristic occasion of design,
-one building block for event-sourced Domain-Driven Design. The descriptions
-are each intended to contribute determination to future design events that
-have the particular character of that pattern. Each chapter includes working
-examples that illustrate the characterised occasion of design, but which
-could be varied by the reader in different ways. The chapter examples build
-on examples from previous chapters.
+There is also a growing range of extension modules, which extend the functionality
+included in this library, for example by adapting popular ORMs such as Django
+and SQLAlchemy, specialist event store databases such as Axon Server and EventStoreDB,
+alternative model and serialisation frameworks such as Pydantic and orjson, and efficient
+inter-process communication technologies like gRPC.
 
 
-.. _Synopsis:
-
-Synopsis
-========
-
-Use the library's ``Application`` class to define an event-sourced :doc:`application </topics/application>`.
-Add command and query methods that use event-sourced aggregates.
-
-.. code-block:: python
-
-    from eventsourcing.application import Application
-
-    class DogSchool(Application):
-        def register_dog(self, name):
-            dog = Dog(name)
-            self.save(dog)
-            return dog.id
-
-        def add_trick(self, dog_id, trick):
-            dog = self.repository.get(dog_id)
-            dog.add_trick(trick)
-            self.save(dog)
-
-        def get_dog(self, dog_id):
-            dog = self.repository.get(dog_id)
-            return {'name': dog.name, 'tricks': tuple(dog.tricks)}
-
-
-Use the library's ``Aggregate`` class and the ``@event`` decorator to define
-event-sourced :doc:`aggregates </topics/domain>`. Aggregate events will be triggered
-when decorated methods are called, and the decorated method bodies will be
-used to mutate the state of the aggregate.
-
-.. code-block:: python
-
-    from eventsourcing.domain import Aggregate, event
-
-    class Dog(Aggregate):
-        @event('Registered')
-        def __init__(self, name):
-            self.name = name
-            self.tricks = []
-
-        @event('TrickAdded')
-        def add_trick(self, trick):
-            self.tricks.append(trick)
-
-
-Optionally :ref:`configure an application <Application configuration>` by setting
-environment variables, for example to enable aggregate caching or to specify
-a :doc:`persistence module </topics/persistence>`.
-
-.. code-block:: python
-
-    import os
-
-    # Enable aggregate caching.
-    os.environ['AGGREGATE_CACHE_MAXSIZE'] = '1000'
-
-    # Use SQLite.
-    os.environ['PERSISTENCE_MODULE'] = 'eventsourcing.sqlite'
-    os.environ['SQLITE_DBNAME'] = ':memory:'
-
-Construct an application object by calling the application class.
-
-.. code-block:: python
-
-    application = DogSchool()
-
-Evolve the state of the application by calling command methods.
-
-.. code-block:: python
-
-    dog_id = application.register_dog('Fido')
-    application.add_trick(dog_id, 'roll over')
-    application.add_trick(dog_id, 'fetch ball')
-
-
-Access the state of the application by calling query methods.
-
-.. code-block:: python
-
-    dog_details = application.get_dog(dog_id)
-    assert dog_details['name'] == 'Fido'
-    assert dog_details['tricks'] == ('roll over', 'fetch ball')
-
-Select event notifications from the notification log.
-
-.. code-block:: python
-
-    notifications = application.notification_log.select(start=1, limit=10)
-    assert len(notifications) == 3
-    assert notifications[0].id == 1
-    assert notifications[1].id == 2
-    assert notifications[2].id == 3
-
-
-Features
-========
-
-**Flexible event store** — flexible persistence of domain events. Combines
-an event mapper and an event recorder in ways that can be easily extended.
-Mapper uses a transcoder that can be easily extended to support custom
-model object types. Recorders supporting different databases can be easily
-substituted and configured with environment variables.
-
-**Domain models and applications** — base classes for domain model aggregates
-and applications. Suggests how to structure an event-sourced application.
-
-**Application-level encryption and compression** — encrypts and decrypts events inside the
-application. This means data will be encrypted in transit across a network ("on the wire")
-and at disk level including backups ("at rest"), which is a legal requirement in some
-jurisdictions when dealing with personally identifiable information (PII) for example
-the EU's GDPR. Compression reduces the size of stored domain events and snapshots, usually
-by around 25% to 50% of the original size. Compression reduces the size of data
-in the database and decreases transit time across a network.
-
-**Snapshotting** — reduces access-time for aggregates with many domain events.
-
-**Versioning** - allows domain model changes to be introduced after an application
-has been deployed. Both domain events and aggregate classes can be versioned.
-The recorded state of an older version can be upcast to be compatible with a new
-version. Stored events and snapshots are upcast from older versions
-to new versions before the event or aggregate object is reconstructed.
-
-**Optimistic concurrency control** — ensures a distributed or horizontally scaled
-application doesn't become inconsistent due to concurrent method execution. Leverages
-optimistic concurrency controls in adapted database management systems.
-
-**Notifications and projections** — reliable propagation of application
-events with pull-based notifications allows the application state to be
-projected accurately into replicas, indexes, view models, and other applications.
-Supports materialized views and CQRS.
-
-**Event-driven systems** — reliable event processing. Event-driven systems
-can be defined independently of particular persistence infrastructure and mode of
-running.
-
-**Detailed documentation** — documentation provides general overview, introduction
-of concepts, explanation of usage, and detailed descriptions of library classes.
-All code is annotated with type hints.
-
-**Worked examples** — includes examples showing how to develop aggregates, applications
-and systems.
-
-
-..
-    **Hash chaining** — Sequences of events can be hash-chained, and the entire sequence
-    of events checked for data integrity. Information lost in transit or on the disk from
-    database corruption can be detected. If the last hash can be independently validated,
-    then so can the entire sequence.
-
-..
-    **Correlation and causation IDs** - Domain events can easily be given correlation and
-    causation IDs, which allows a story to be traced through a system of applications.
 
 
 Register issues

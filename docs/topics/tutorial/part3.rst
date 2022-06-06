@@ -572,5 +572,7 @@ stored event records in the database tables.
 Next steps
 ==========
 
-* See also the :doc:`application module </topics/application>`
-  and the :doc:`persistence module </topics/persistence>` documentation.
+* For more information about event-sourced applications, please read the
+  :doc:`the application module documentation </topics/domain>`.
+* For more information about storing and retrieving domain events, please read
+  the :doc:`persistence module documentation </topics/persistence>`.
