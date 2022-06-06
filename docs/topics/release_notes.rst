@@ -23,6 +23,12 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.2.15 (released 6 June 2022)
+-------------------------------------
+
+* Improved documentation (Installation, Support, Introduction, and Tutorial pages).
+
+
 Version 9.2.14 (released 24 May 2022)
 -------------------------------------
 
