@@ -34,7 +34,29 @@ The "live coding" video below shows how to do event sourcing with Python in less
 Synopsis
 ========
 
-Use the library's ``Application`` class to define an event-sourced :doc:`application </topics/application>`.
+Use the library's ``Aggregate`` class and the ``@event`` decorator to define
+event-sourced aggregates.
+
+.. code-block:: python
+
+    from eventsourcing.domain import Aggregate, event
+
+
+    class Dog(Aggregate):
+        @event('Registered')
+        def __init__(self, name):
+            self.name = name
+            self.tricks = []
+
+        @event('TrickAdded')
+        def add_trick(self, trick):
+            self.tricks.append(trick)
+
+Aggregate events will be triggered when decorated
+methods are called, and the decorated method bodies will be used to mutate
+the state of the aggregate.
+
+Use the library's ``Application`` class to define event-sourced applications.
 Add command and query methods that use event-sourced aggregates.
 
 .. code-block:: python
@@ -58,26 +80,10 @@ Add command and query methods that use event-sourced aggregates.
             return {'name': dog.name, 'tricks': tuple(dog.tricks)}
 
 
-Use the library's ``Aggregate`` class and the ``@event`` decorator to define
-event-sourced :doc:`aggregates </topics/domain>`. Aggregate events will be triggered
-when decorated methods are called, and the decorated method bodies will be
-used to mutate the state of the aggregate.
-
-.. code-block:: python
-
-    from eventsourcing.domain import Aggregate, event
-
-
-    class Dog(Aggregate):
-        @event('Registered')
-        def __init__(self, name):
-            self.name = name
-            self.tricks = []
-
-        @event('TrickAdded')
-        def add_trick(self, trick):
-            self.tricks.append(trick)
-
+An application combines domain model aggregates persistence infrastructure.
+Aggregate events are collected and stored by the appliation ``save()``
+method. Aggregate events are retrieved and used to reconstruct aggregates
+by the repository ``get()`` method.
 
 Construct an application object by calling the application class.
 
@@ -86,7 +92,7 @@ Construct an application object by calling the application class.
     application = DogSchool()
 
 
-Evolve the state of the application by calling command methods.
+Evolve the state of the application by calling the application's command methods.
 
 .. code-block:: python
 
@@ -98,7 +104,7 @@ Evolve the state of the application by calling command methods.
     application.add_trick(dog_id, 'fetch ball')
 
 
-Access the state of the application by calling query methods.
+Access the state of the application by calling the application's query methods.
 
 .. code-block:: python
 
@@ -108,7 +114,7 @@ Access the state of the application by calling query methods.
     assert dog_details['name'] == 'Fido'
     assert dog_details['tricks'] == ('roll over', 'fetch ball')
 
-Select event notifications from the notification log.
+Select event notifications from the application's notification log.
 
 .. code-block:: python
 
@@ -120,6 +126,8 @@ Select event notifications from the notification log.
     assert notifications[1].id == 2
     assert notifications[2].id == 3
 
+
+Please read the :doc:`Tutorial </topics/tutorial>` for more information.
 
 Features
 ========
