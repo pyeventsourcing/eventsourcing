@@ -187,10 +187,8 @@ We can define event-sourced applications with the library's ``Application`` clas
     from eventsourcing.application import Application
 
 Let's define a ``DogSchool`` application that uses the ``Dog`` aggregate class.
-
-We can collect and store aggregate events with the application's ``save()`` method.
-We can also retrieve stored events and reconstruct the aggregate
-instance with the application repository's ``get()`` method.
+The command methods ``register_dog()`` and ``add_trick()`` evolve application
+state. The query method ``get_dog()`` presents current state.
 
 .. code-block:: python
 
@@ -209,8 +207,9 @@ instance with the application repository's ``get()`` method.
             dog = self.repository.get(dog_id)
             return {'name': dog.name, 'tricks': tuple(dog.tricks)}
 
-The "command" methods ``register_dog()`` and ``add_trick()`` evolve application
-state, and the "query" method ``get_dog()`` presents current state.
+The application's ``save()`` method collects and stores aggregate event objects.
+The application repository's ``get()`` method retrieves an aggregate's stored
+events, and reconstructs the aggregate instance from these event objects.
 
 We can construct an instance of the application by calling the application class.
 
