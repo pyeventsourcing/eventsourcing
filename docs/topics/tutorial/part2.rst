@@ -78,8 +78,7 @@ method.
     assert copy.id == dog.id
 
 Using events to determine the state of an aggregate is the essence of event
-sourcing. Calling the event's ``mutate()`` method is also how the aggregate
-instance was constructed when the aggregate class was called.
+sourcing.
 
 Next, let's talk about aggregate events in more detail.
 
@@ -302,7 +301,7 @@ Let's create an instance of this ``Dog`` aggregate.
 
 .. code-block:: python
 
-    dog = Dog('Fido')
+    dog = Dog(name='Fido')
 
 As we might expect, the ``name`` is ``'Fido'``,
 and ``tricks`` is an empty list.
@@ -376,14 +375,19 @@ You can try all of this for yourself by copying the code snippets above.
 Explicit style
 ==============
 
-Sometimes you may wish to define aggregate event classes explicitly.
-
-One reason for defining explicit event classes is to code for model changes.
-The version of the event class can be defined along with :ref:`upcast methods <Versioning>`
-that adjust stored events created at previous versions.
+You may prefer to define aggregate event classes explicitly.
 
 The example below shows the ``Dog`` aggregate class defined using explicit
-event classes.
+event classes. The ``@event`` decorator is used to specify the event class
+that will be triggered when the decorated method is called.
+
+The ``Dog.Registered`` class inherits ``Aggregate.Created``
+event class. It has a ``name`` attribute which matches the ``name`` argument
+of the ``__init__()`` method.
+
+The ``Dog.TrickAdded`` class inherits ``Aggregate.Event``
+class. It has a ``trick`` attribute which matches the ``trick`` argument of
+the ``add_trick()`` method.
 
 .. code-block:: python
     :emphasize-lines: 2,3,5,10,11,13
@@ -405,10 +409,14 @@ event classes.
             self.tricks.append(trick)
 
 
-The ``Dog.Registered`` class inherits ``Aggregate.Created`` event class.
-The ``Dog.TrickAdded`` class inherits base ``Aggregate.Event`` class.
-The ``@event`` decorator is used to specify the event class
-that will be triggered when the decorated method is called.
+The important things to remember are:
+
+* the ``@event`` decorator specifies the event class itself,
+* the "created" event class must be a subclass of ``Aggregate.Created``,
+* subsequent event classes must be subclasses of ``Aggregate.Event``, and
+* the event class attributes must match the decorated method arguments.
+
+We can use the aggregate class in the same way.
 
 ..
     #include-when-testing
@@ -419,13 +427,13 @@ that will be triggered when the decorated method is called.
 .. code-block:: python
 
     # Create a dog.
-    dog = Dog('Fido')
+    dog = Dog(name='Fido')
 
     assert dog.name == 'Fido'
     assert dog.tricks == []
 
     # Add trick.
-    dog.add_trick('roll over')
+    dog.add_trick(trick='roll over')
 
     assert dog.tricks == ['roll over']
 
@@ -438,6 +446,12 @@ that will be triggered when the decorated method is called.
     assert copy.name == dog.name
     assert copy.tricks == dog.tricks
 
+One reason for defining event classes explicitly is to be explicit about
+the event classes, as a matter of style. Another reason is versioning of
+the event class (see :ref:`Versioning <Versioning>`).
+
+Decorating private methods
+==========================
 
 Sometimes you will need the command method to do some work before the event
 is triggered.
@@ -462,7 +476,7 @@ command method ``add_trick()`` that call a decorated "private" method ``_add_tri
             # Do some work.
             assert isinstance(trick, str)
             # Trigger event.
-            self._add_trick(trick)
+            self._add_trick(trick=trick)
 
         class TrickAdded(Aggregate.Event):
             trick: str
@@ -485,17 +499,17 @@ event is triggered when the ``_trick_added()`` method is called.
 .. code-block:: python
 
     # Create a dog.
-    dog = Dog('Fido')
+    dog = Dog(name='Fido')
     assert dog.name == 'Fido'
     assert dog.tricks == []
 
     # Add trick.
-    dog.add_trick('roll over')
+    dog.add_trick(trick='roll over')
     assert dog.tricks == ['roll over']
 
     # Add trick - wrong type of argument.
     try:
-        dog.add_trick(101)
+        dog.add_trick(trick=101)
     except AssertionError:
         assert dog.tricks == ['roll over']
     else:

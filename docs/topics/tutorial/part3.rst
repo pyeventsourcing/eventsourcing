@@ -29,7 +29,7 @@ the state. These methods depend on the ``Dog`` aggregate, shown below.
 
         def add_trick(self, dog_id, trick):
             dog = self.repository.get(dog_id)
-            dog.add_trick(trick)
+            dog.add_trick(trick=trick)
             self.save(dog)
 
         def get_dog(self, dog_id):
@@ -54,9 +54,9 @@ We can construct an application object, and call its methods.
 
     application = DogSchool()
 
-    dog_id = application.register_dog('Fido')
-    application.add_trick(dog_id, 'roll over')
-    application.add_trick(dog_id, 'fetch ball')
+    dog_id = application.register_dog(name='Fido')
+    application.add_trick(dog_id, trick='roll over')
+    application.add_trick(dog_id, trick='fetch ball')
 
     dog_details = application.get_dog(dog_id)
     assert dog_details['name'] == 'Fido'
@@ -158,7 +158,7 @@ Let's create a new ``Dog`` aggregate by calling ``register_dog()``.
 
 .. code-block:: python
 
-    dog_id = application.register_dog('Fido')
+    dog_id = application.register_dog(name='Fido')
 
 When the application command method ``register_dog()``
 is called, a new ``Dog`` aggregate object is created by calling
@@ -328,11 +328,11 @@ with PostgreSQL.
         assert len(app.notification_log.select(start=1, limit=10)) == 0
 
         # Create a new aggregate.
-        dog_id = app.register_dog('Fido')
+        dog_id = app.register_dog(name='Fido')
 
         # Execute application commands.
-        app.add_trick(dog_id, 'roll over')
-        app.add_trick(dog_id, 'fetch ball')
+        app.add_trick(dog_id, trick='roll over')
+        app.add_trick(dog_id, trick='fetch ball')
 
         # Check recorded state of the aggregate.
         dog_details = app.get_dog(dog_id)
@@ -340,7 +340,7 @@ with PostgreSQL.
         assert dog_details['tricks'] == ('roll over', 'fetch ball')
 
         # Execute another command.
-        app.add_trick(dog_id, 'play dead')
+        app.add_trick(dog_id, trick='play dead')
 
         # Check recorded state of the aggregate.
         dog_details = app.get_dog(dog_id)
@@ -373,7 +373,7 @@ with PostgreSQL.
         assert len(notifications) == 4
 
         # Optimistic concurrency control (no branches).
-        old.add_trick('future')
+        old.add_trick(trick='future')
         try:
             app.save(old)
         except IntegrityError:
@@ -386,15 +386,15 @@ with PostgreSQL.
         assert len(notifications) == 4
 
         # Create eight more aggregate events.
-        dog_id = app.register_dog('Millie')
-        app.add_trick(dog_id, 'shake hands')
-        app.add_trick(dog_id, 'fetch ball')
-        app.add_trick(dog_id, 'sit pretty')
+        dog_id = app.register_dog(name='Millie')
+        app.add_trick(dog_id, trick='shake hands')
+        app.add_trick(dog_id, trick='fetch ball')
+        app.add_trick(dog_id, trick='sit pretty')
 
-        dog_id = app.register_dog('Scrappy')
-        app.add_trick(dog_id, 'come')
-        app.add_trick(dog_id, 'spin')
-        app.add_trick(dog_id, 'stay')
+        dog_id = app.register_dog(name='Scrappy')
+        app.add_trick(dog_id, trick='come')
+        app.add_trick(dog_id, trick='spin')
+        app.add_trick(dog_id, trick='stay')
 
         # Get the new event notifications from the reader.
         last_id = notifications[-1].id
