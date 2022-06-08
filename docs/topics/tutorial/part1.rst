@@ -72,14 +72,14 @@ and ``@event`` decorator.
     from eventsourcing.domain import Aggregate, event
 
 Aggregates are persistent software objects that evolve over time. In the
-book *Domain-Driven Design*, aggregates are persisted by recording its
-current state of the aggregate in a database. When the state of the
-aggregate changes, the recorded state in the database is updated.
+book *Domain-Driven Design*, aggregates are persisted by recording their
+current state in a database. When the state of an aggregate changes, the
+recorded state in the database is updated.
 
 Event sourcing take this two steps further. Firstly, each change that an
 aggregate can experience is split into two stages: a decision that is
 encapsulated by an event object, and the mutation of the aggregate state
-according to that event object. And secondly, rather than recording the
+according to that event object. Secondly, rather than recording the
 current state after the aggregate has changed, the event objects are recorded.
 The recorded sequence of event objects can then be used to reconstruct the
 current state of the aggregate.
