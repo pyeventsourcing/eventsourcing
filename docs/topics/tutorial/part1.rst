@@ -35,7 +35,7 @@ Having defined a Python class, we can use it to create an instance of the class.
 
 .. code-block:: python
 
-    dog = Dog('Fido')
+    dog = Dog(name='Fido')
 
 The ``dog`` object is an instance of the ``Dog`` class.
 
@@ -54,7 +54,7 @@ The method ``add_trick()`` appends the argument ``trick`` to the attribute ``tri
 
 .. code-block:: python
 
-    dog.add_trick('roll over')
+    dog.add_trick(trick='roll over')
     assert dog.tricks == ['roll over']
 
 This is a simple example of a Python class.
@@ -71,20 +71,23 @@ and ``@event`` decorator.
 
     from eventsourcing.domain import Aggregate, event
 
-Aggregates are persistent software objects that evolve over time according
-to a sequence of decisions. In the book *Domain-Driven Design*, aggregates
-are persisted by recording the current state of the aggregate in a database.
-When the state of the aggregate changes, the recorded state in the database
-is updated.
+Aggregates are persistent software objects that evolve over time. In the
+book *Domain-Driven Design*, aggregates are persisted by recording its
+current state of the aggregate in a database. When the state of the
+aggregate changes, the recorded state in the database is updated.
 
-Event sourcing take this a step further. Rather than recording the current state
-of the aggregate, the sequence of decisions that an aggregate makes is recorded as
-a sequence of event objects. The recorded sequence of event objects is used to
-reconstruct the current state of the aggregate.
+Event sourcing take this two steps further. Firstly, each change that an
+aggregate can experience is split into two stages: a decision that is
+encapsulated by an event object, and the mutation of the aggregate state
+according to that event object. And secondly, rather than recording the
+current state after the aggregate has changed, the event objects are recorded.
+The recorded sequence of event objects can then be used to reconstruct the
+current state of the aggregate.
 
-The important difference is that an event-sourced aggregate will generate a
-sequence of event objects, and these event objects will be used to evolve the
-state of the aggregate object. Let's look at how this can be done.
+The important difference for the aggregate is that when it is event-sourced,
+it will generate a sequence of event objects, one for each decision, and these
+event objects will be used to evolve the state of the aggregate object. Let's
+look at how this can be done.
 
 Let's convert the ``Dog`` class into an event-sourced aggregate, by inheriting
 from the library's ``Aggregate`` class, and by decorating methods that change
@@ -204,7 +207,7 @@ state. The query method ``get_dog()`` presents current state.
 
         def add_trick(self, dog_id, trick):
             dog = self.repository.get(dog_id)
-            dog.add_trick(trick)
+            dog.add_trick(trick=trick)
             self.save(dog)
 
         def get_dog(self, dog_id):
@@ -225,9 +228,9 @@ We can then create and update aggregates by calling the application's command me
 
 .. code-block:: python
 
-    dog_id = application.register_dog('Fido')
-    application.add_trick(dog_id, 'roll over')
-    application.add_trick(dog_id, 'fetch ball')
+    dog_id = application.register_dog(name='Fido')
+    application.add_trick(dog_id, trick='roll over')
+    application.add_trick(dog_id, trick='fetch ball')
 
 We can view the state of the aggregates by calling application's query methods.
 
@@ -267,7 +270,7 @@ Writing tests
 
 It is generally recommended to follow a test-driven approach to the
 development of event-sourced applications. You can get started by first
-writing a failing test for your application in in a Python module,
+writing a failing test for your application in a Python module,
 for example a file ``test_application.py`` with the following test.
 
 .. code-block:: python
@@ -278,7 +281,7 @@ for example a file ``test_application.py`` with the following test.
         app = DogSchool()
 
         # Register a dog.
-        dog_id = app.register_dog('Fido')
+        dog_id = app.register_dog(name='Fido')
 
         # Check the dog has been registered.
         assert app.get_dog(dog_id) == {
@@ -287,8 +290,8 @@ for example a file ``test_application.py`` with the following test.
         }
 
         # Add tricks.
-        app.add_trick(dog_id, 'roll over')
-        app.add_trick(dog_id, 'fetch ball')
+        app.add_trick(dog_id, trick='roll over')
+        app.add_trick(dog_id, trick='fetch ball')
 
         # Check the tricks have been added.
         assert app.get_dog(dog_id) == {

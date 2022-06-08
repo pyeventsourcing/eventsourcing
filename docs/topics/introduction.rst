@@ -97,11 +97,11 @@ Evolve the state of the application by calling the application's command methods
 .. code-block:: python
 
     # Register a new dog.
-    dog_id = application.register_dog('Fido')
+    dog_id = application.register_dog(name='Fido')
 
     # Add tricks.
-    application.add_trick(dog_id, 'roll over')
-    application.add_trick(dog_id, 'fetch ball')
+    application.add_trick(dog_id, trick='roll over')
+    application.add_trick(dog_id, trick='fetch ball')
 
 
 Access the state of the application by calling the application's query methods.
