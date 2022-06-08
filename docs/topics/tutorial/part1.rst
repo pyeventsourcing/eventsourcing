@@ -64,12 +64,18 @@ In the next section, we convert the ``Dog`` class to be an event-sourced aggrega
 Event-sourced aggregate
 =======================
 
-The notion of an 'aggregate' was described in the book *Domain-Driven Design*.
-Aggregates are persistent software objects that evolve over time according to
-a sequence of decisions that they make. In the book *Domain-Driven Design*,
-aggregates are persisted by recording the current state of the aggregate in
-a database. When the state of the aggregate changes, the recorded state in
-the database is updated.
+We can define event-sourced aggregates with the library's ``Aggregate`` class
+and ``@event`` decorator.
+
+.. code-block:: python
+
+    from eventsourcing.domain import Aggregate, event
+
+Aggregates are persistent software objects that evolve over time according
+to a sequence of decisions. In the book *Domain-Driven Design*, aggregates
+are persisted by recording the current state of the aggregate in a database.
+When the state of the aggregate changes, the recorded state in the database
+is updated.
 
 Event sourcing take this a step further. Rather than recording the current state
 of the aggregate, the sequence of decisions that an aggregate makes is recorded as
@@ -80,17 +86,15 @@ The important difference is that an event-sourced aggregate will generate a
 sequence of event objects, and these event objects will be used to evolve the
 state of the aggregate object. Let's look at how this can be done.
 
-We can convert the ``Dog`` class into an event-sourced aggregate, by inheriting
+Let's convert the ``Dog`` class into an event-sourced aggregate, by inheriting
 from the library's ``Aggregate`` class, and by decorating methods that change
-the state of the aggregate with the library's ``@event`` decorator. Aggregate
-event objects will then be generated when decorated methods are called, and
+the state of the aggregate with the library's ``@event`` decorator.
+Aggregate event objects will then be generated when decorated methods are called, and
 the decorated method bodies will be used to evolve the state of the aggregate.
 The changes are highlighted below.
 
 .. code-block:: python
-    :emphasize-lines: 3,4,9
-
-    from eventsourcing.domain import Aggregate, event
+    :emphasize-lines: 1,2,7
 
     class Dog(Aggregate):
         @event('Registered')
@@ -102,7 +106,7 @@ The changes are highlighted below.
         def add_trick(self, trick):
             self.tricks.append(trick)
 
-As before, we can call the ``Dog`` class to create a new instance.
+We can call the ``Dog`` class to create a new instance.
 
 .. code-block:: python
 
@@ -115,7 +119,7 @@ The object is an instance of ``Dog``. It is also an ``Aggregate``.
     assert isinstance(dog, Dog)
     assert isinstance(dog, Aggregate)
 
-As we might expect, the attributes ``name`` and ``tricks`` have been initialised.
+The attributes ``name`` and ``tricks`` have been initialised.
 
 .. code-block:: python
 
@@ -173,18 +177,18 @@ aggregates can be reconstructed from recorded events.
 Event-sourced application
 =========================
 
+We can define event-sourced applications with the library's ``Application`` class.
+
+.. code-block:: python
+
+    from eventsourcing.application import Application
+
 Event-sourced applications combine event-sourced aggregates
 with a persistence mechanism to store and retrieve aggregate events.
 
 Event-sourced applications define "command methods" and "query methods"
 that can be used by interfaces to manipulate and access the state of an
 application, without dealing directly with its aggregates.
-
-We can define event-sourced applications with the library's ``Application`` class.
-
-.. code-block:: python
-
-    from eventsourcing.application import Application
 
 Let's define a ``DogSchool`` application that uses the ``Dog`` aggregate class.
 The command methods ``register_dog()`` and ``add_trick()`` evolve application

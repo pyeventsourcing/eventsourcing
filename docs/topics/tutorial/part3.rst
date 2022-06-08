@@ -94,18 +94,19 @@ method to "retrieve" aggregates that have been previously saved.
 
 
 An application has a ``save()`` method. An application's ``save()`` method can be called
-with one or many aggregates as its arguments. The ``save()`` method collects new events
-from these aggregates by calling the ``collect_events()`` method on each aggregate
-(see :doc:`Part 2 </topics/tutorial/part2>`). It puts all of the aggregate events that
-it has collected into an "event store", with the guarantee that all or none of the aggregate
-events will be stored. When the events cannot be saved, an exception will be raised. The
-``save()`` method is commonly used by the command methods of an application.
+with one or many aggregates as its arguments. The ``save()`` method collects new event
+objects from these aggregates by calling the ``collect_events()`` method on each aggregate
+(see :doc:`Part 2 </topics/tutorial/part2>`). It puts all of the aggregate event objects
+that it has collected into an "event store", with the guarantee that all or none of the
+event objects will be stored. When the event objects cannot be saved, an exception will
+be raised. The ``save()`` method is used by the command methods of an application.
 
 An application has a ``repository`` that has a ``get()`` method. The repository's
 ``get()`` method is called with an aggregate ID. It uses the given ID to select
 aggregate events from an event store. It reconstructs the aggregate from these
-events, and returns the reconstructed aggregate to the caller. The ``get()`` method
-may be used by both command and query methods.
+events, by calling the each event object's ``mutate()`` method in sequence, and
+returns the reconstructed aggregate to the caller. The ``get()`` method is
+used by both command and query methods.
 
 
 Event store

@@ -8,8 +8,8 @@ This library contains several modules that can help with event sourcing in Pytho
 .. toctree::
    :maxdepth: 3
 
-   persistence
    domain
    application
+   persistence
    system
    interface
