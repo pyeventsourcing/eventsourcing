@@ -36,8 +36,8 @@ Domain model
 The aggregate ``Cargo`` allows new cargo bookings to be made, the destination
 of the cargo to be changed, a route to be assigned, and for handling events
 to be registered. It is defined in the more verbose style, using explicit
-definitions of aggregate events, an explicit "created" method, and command
-methods that explicitly trigger events by calling ``trigger_event()``.
+definitions of aggregate events, an explicit "create" method (``new_booking()``),
+and command methods that explicitly trigger events by calling ``trigger_event()``.
 An aggregate projector function is implemented on the aggregate object using
 ``@simpledispatchmethod``, with an event-specific method registered to handle
 each type of aggregate event.
