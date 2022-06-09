@@ -226,7 +226,7 @@ application as a whole into "materialised views" that are specifically
 designed to support such queries.
 
 We can propagate the state of the application by propagating all of
-the aggregate events. That is why the recorder positions stored events
+the aggregate events. That is why the recorder positions stores events
 in both an aggregate sequence and a sequence for the application as a whole.
 The application sequence has all the aggregate events of an application in
 the order they were stored.
@@ -316,8 +316,8 @@ optimistic concurrency control, and the compression and encryption
 features are also demonstrated. The steps are commented for greater
 readability. The ``test()`` function will be used several times
 with different configurations of persistence for our application
-object: with "plain old Python objects", with SQLite, and then
-with PostgreSQL.
+object: firstly with "plain old Python objects", secondly with SQLite,
+and then thirdly with PostgreSQL.
 
 .. code-block:: python
 
@@ -406,7 +406,7 @@ Development environment
 =======================
 
 We can run the test in a "development" environment using the application's
-default "plain old Python objects" infrastructure which keeps stored events
+default "plain old Python objects" persistence module which keeps stored events
 in memory. The example below runs without compression or encryption of the
 stored events. This is how the application objects have been working in this
 tutorial so far.
@@ -425,9 +425,9 @@ SQLite environment
 ==================
 
 We can also configure an application to use SQLite for storing events.
-To use the library's :ref:`SQLite module <sqlite-module>`,
+To use the library's :ref:`SQLite persistence module <sqlite-module>`,
 set ``PERSISTENCE_MODULE`` to the value ``'eventsourcing.sqlite'``.
-When using the library's SQLite module, the environment variable
+When using the library's SQLite persistence module, the environment variable
 ``SQLITE_DBNAME`` must also be set. This value will be passed to Python's
 :func:`sqlite3.connect`.
 
@@ -475,28 +475,34 @@ PostgreSQL environment
 ======================
 
 We can also configure a "production" environment to use PostgreSQL.
-Using the library's :ref:`PostgresSQL infrastructure <postgres-module>`
+Using the library's :ref:`PostgresSQL persistence module <postgres-module>`
 will keep stored events in a PostgresSQL database.
 
-Please note, to use the library's PostgreSQL functionality,
-please install the library with the `postgres` option (or just
-install the `psycopg2` package.)
+To use the library's PostgreSQL persistence module, either install the
+library with the ``postgres`` option, or install the ``psycopg2`` package
+directly.
 
 ::
 
     $ pip install eventsourcing[postgres]
 
-Please note, the library option `postgres_dev` will install the
-`psycopg2-binary` which is much faster to install, but this option
+Please note, the library option ``postgres_dev`` will install the
+``psycopg2-binary`` which is much faster to install, but this option
 is not recommended for production use. The binary package is a
 practical choice for development and testing but in production
 it is advised to use the package built from sources.
 
 The example below also uses zlib and AES to compress and encrypt the
-stored events (but this is optional). To use the library's
-encryption functionality with PostgreSQL, please install the library
-with both the `crypto` and the `postgres` option (or just install the
-`pycryptodome` and `psycopg2` packages.)
+stored events. To use the library's encryption functionality,
+either install the library with the ``crypto`` option, or install the
+``pycryptodome`` directly.
+
+::
+
+    $ pip install eventsourcing[crypto]
+
+Both the ``crypto`` and the ``postgres`` options can be installed together
+with the following command.
 
 ::
 
@@ -522,7 +528,7 @@ already been created, and the database server is running locally.
     # Compressor topic.
     os.environ['COMPRESSOR_TOPIC'] = 'eventsourcing.compressor:ZlibCompressor'
 
-    # Use Postgres infrastructure.
+    # Use Postgres database.
     os.environ['PERSISTENCE_MODULE'] = 'eventsourcing.postgres'
 
     # Configure database connections.
@@ -554,8 +560,8 @@ Exercise
 Firstly, follow the steps in this tutorial in your development environment.
 
 * Copy the code snippets above.
-* Run the application code with default "plain old Python object"
-  infrastructure.
+* Run the application code with the default "plain old Python object"
+  persistence module.
 * Configure and run the application with an SQLite database.
 * Create a PostgreSQL database, and configure and run the
   application with a PostgreSQL database.
@@ -565,8 +571,8 @@ Firstly, follow the steps in this tutorial in your development environment.
 
 Secondly, write an application class that uses the ``Todos`` aggregate
 class you created in the exercise at the end of :doc:`Part 2 </topics/tutorial/part2>`.
-Run your application class with default "plain old Python object" infrastructure,
-and then with SQLite, and finally with PostgreSQL. Look at the
+Run your application class with default "plain old Python object" persistence module,
+and then with an SQLite database, and finally with a PostgreSQL database. Look at the
 stored event records in the database tables.
 
 
