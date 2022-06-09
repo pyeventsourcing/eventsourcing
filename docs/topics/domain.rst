@@ -2472,7 +2472,7 @@ the version of the class. This attribute is inferred to have a default value of 
 changed, by adding or removing or renaming or changing the meaning of values of attributes, subsequent
 versions should be given a successively higher number than the previously deployed version. Static methods
 of the form ``upcast_vX_vY()`` will be called to update the state of a stored aggregate event or snapshot
-from a lower version ``X`` to the next higher version ``Y``. Such upcast methods will be called  to upcast
+from a lower version ``X`` to the next higher version ``Y``. Such upcast methods will be called to upcast
 the state from the version of the class with which it was created to the version of the class which will
 be reconstructed. For example, upcasting the stored state of an object created at version ``2`` of a
 class that will be used to reconstruct an object at version ``4`` of the class will involve calling
@@ -2499,7 +2499,9 @@ After an application that uses the above aggregate class has been deployed, its 
 will have been created and stored with the ``a`` attribute defined. If subsequently the attribute ``b``
 is added to the definition of the ``Created`` event, in order for the existing stored events to be
 constructed in a way that satisfies the new version of the class, the stored events will need to be
-upcast to have a value for ``b``. In the example below, the static method ``upcast_v1_v2()`` defined
+upcast to have a value for ``b``.
+
+In the example below, the static method ``upcast_v1_v2()`` defined
 on the ``Created`` event sets a default value for ``b`` in the given ``state``. The class attribute
 ``class_version`` is set to ``2``. The same treatment is given to the aggregate class as the domain
 event class, so that snapshots can be upcast.
@@ -2533,7 +2535,7 @@ event class, so that snapshots can be upcast.
 
 
 After an application that uses the above version 2 aggregate class has been deployed, its ``Created``
-events will have be created and stored with both the ``a`` and ``b`` attributes. If subsequently the
+events will have been created and stored with both the ``a`` and ``b`` attributes. If subsequently the
 attribute ``c`` is added to the definition of the ``Created`` event, in order for the existing stored
 events from version 1 to be constructed in a way that satisfies the new version of the class, they
 will need to be upcast to include a value for ``b`` and ``c``. The existing stored events from version 2
@@ -2581,9 +2583,9 @@ class, so that any snapshots will be upcast.
 
 
 If subsequently a new event is added that manipulates a new attribute that is expected to be initialised
-when the aggregate is created, in order that snapshots from earlier version will be upcast, the aggregate
-class attribute ``class_version`` will need to be set to ``4`` and a static method ``upcast_v3_v4()``
-defined on the aggregate class which upcasts the state of a previously created snapshot.
+when the aggregate is created, in order that snapshots from earlier versions will be upcast, the aggregate
+class attribute ``class_version`` will need to be set to ``4`` and a static method ``upcast_v3_v4()`` will
+need to be defined on the aggregate class which upcasts the state of a previously created snapshot.
 
 In the example below, the new attribute ``d`` is initialised in the ``__init__()`` method, and an aggregate
 event which updates ``d`` is defined. Since the ``Created`` event class has not changed, it remains at
@@ -2641,10 +2643,11 @@ version ``3``.
             state["d"] = False
 
 
-If the value objects used by your events also change, you may also need to define new transcodings
-with new names. Simply register the new transcodings after the old, and use a modified ``name`` value
-for the transcoding. In this way, the existing encoded values will be decoded by the old transcoding,
-and the new instances of the value object class will be encoded with the new version of the transcoding.
+If the value object classes used by your events have also been adjusted, you may also need to define new
+transcodings with new names. Simply register the new transcodings after the old transcodings, and use a
+modified ``name`` value for the new transcoding. In this way, the already encoded values will be decoded
+by the old transcoding, and the new instances of the value object class will be encoded and decoded with
+the new version of the transcoding.
 
 In order to support forward compatibility as well as backward compatibility, so that consumers designed for
 old versions will not be broken by modifications, it is advisable to restrict changes to existing types to
@@ -2658,6 +2661,7 @@ and may allow the domain model itself to be validated, so that classes are marke
 the attributes have changed. This may be addressed by a future version of this library. Considering model
 code changes as a sequence of immutable events brings the state of the domain model code itself into the same
 form of event-oriented consideration as the consideration of the state an application as a sequence of events.
+You are of course free to implement this in your code.
 
 
 .. _Snapshots:
