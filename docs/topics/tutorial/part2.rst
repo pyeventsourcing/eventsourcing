@@ -48,17 +48,19 @@ the aggregate within a collection of aggregates. It happens to be a UUID.
     assert isinstance(dog.id, UUID)
 
 
-Normally when an instance is constructed by calling the class, Python directly
-constructs the instance. However, when a subclass of ``Aggregate`` is called,
-firstly an event object is constructed. This event object represents the
-fact that the aggregate was "created". This event object is used to construct
-the aggregate instance. The aggregate instance is returned to the caller of the
-class.
+Normally an instance is constructed directly when a Python class is called.
+However, when a subclass of ``Aggregate`` is called, the aggregate instance
+is constructed indirectly. Firstly, an event object is constructed. The event
+object represents the fact that the aggregate was "created". Secondly, this
+event object is used to construct the aggregate instance. The aggregate
+instance is then returned to the caller of the class. The reason for this
+two-stage process is so the event object can be recorded and used in future
+to reconstruct the initial state of the aggregate.
 
-The event object is held by the aggregate in an internal list of "pending events".
-We can collect pending events from aggregates by calling the aggregate's
-``collect_events()`` method, which is defined on the ``Aggregate`` base
-class.
+The "created" event object is held by the aggregate in an internal list of
+"pending events". We can collect pending events from aggregates by calling
+the aggregate's ``collect_events()`` method, which is defined on the
+``Aggregate`` base class.
 
 .. code-block:: python
 
