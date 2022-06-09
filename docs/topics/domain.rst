@@ -2017,13 +2017,13 @@ an exception to be raised.
 
 .. code-block:: python
 
-    # Start a new order, confirm, and pick up.
+    # Create a new order.
     order = Order("my order")
     assert order.name == "my order"
     assert order.confirmed_at is None
     assert order.pickedup_at is None
 
-    # Error when calling pickup() before calling confirm().
+    # Can't pickup() before confirm().
     try:
         order.pickup(datetime.now())
     except AssertionError as e:
