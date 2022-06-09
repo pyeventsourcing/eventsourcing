@@ -240,27 +240,31 @@ In this section, we specified a "created" event class by decorating the
 ``__init__()`` method of an aggregate class with the ``@event`` decorator.
 When the aggregate class was called, a "created" event object was constructed
 and used to construct an aggregate instance. The "created" event object
-was used to reconstruct the state of the aggregate.
+was used to reconstruct the initial state of the aggregate.
 
-We can take this further by defining aggregate methods that will
-change the state of aggregate instances by triggering subsequent
-events.
-
+We can take this further by defining aggregate command methods that change
+the state of an aggregate, and subsequent event classes so the command
+methods can operate in an event-sourced style.
 
 Subsequent events
 =================
 
-We can define aggregate methods that change the state of an aggregate instance
-after it has been created.
+Aggregate command methods change the state of an aggregate after it has
+been created. When the command method of an event-sourced aggregate is called,
+rather than the method body being executed directly, instead an aggregate event
+object can be constructed and used to execute the method body. The event object
+can then be used in future to reconstruct the state of an aggregate that has been
+changed after it was created.
 
 Let's continue to develop the ``Dog`` class, by defining an ``add_trick()``
 method. This method appends a given ``trick`` to a list of tricks that
 a dog has been trained to perform. This method is decorated with ``@event``
-decorator, so that an event object will be constructed when the method is
-called. The event object will use the method body to change the state of
-the aggregate. The name of the event class is specified to be ``'TrickAdded'``.
-We also need to adjust the ``__init__()`` method, to initialise a ``tricks``
-attribute with an empty list. The changes are highlighted below.
+decorator, so that an event class will be defined, and so that an event object
+will be constructed when the method is called. The event object will use the
+method body to change the state of the aggregate. The name of the event class
+is specified to be ``'TrickAdded'``. We also need to adjust the ``__init__()``
+method, to initialise a ``tricks`` attribute with an empty list. The changes are
+highlighted below.
 
 .. code-block:: python
     :emphasize-lines: 5,7-9
@@ -291,7 +295,7 @@ The event class ``Dog.TrickAdded`` is a subclass of the base class ``Aggregate.E
     assert issubclass(Dog.TrickAdded, Aggregate.Event)
 
 
-Let's create an instance of this ``Dog`` aggregate.
+Let's call the ``Dog`` class to create a new aggregate.
 
 ..
     #include-when-testing
@@ -303,15 +307,16 @@ Let's create an instance of this ``Dog`` aggregate.
 
     dog = Dog(name='Fido')
 
-As we might expect, the ``name`` is ``'Fido'``,
-and ``tricks`` is an empty list.
+The aggregate's attribute ``name`` has the value ``'Fido'``.
+The attribute ``tricks`` is an empty list.
 
 .. code-block:: python
 
     assert dog.name == 'Fido'
     assert dog.tricks == []
 
-Now let's call ``add_trick()`` with ``'roll over'`` as the argument.
+Now let's call the ``add_trick()`` method with ``'roll over'`` as the value of the
+argument ``trick``.
 
 .. code-block:: python
 
@@ -374,22 +379,22 @@ below.
 
 You can try all of this for yourself by copying the code snippets above.
 
-Explicit style
-==============
+Explicitly defined event classes
+================================
 
-You may prefer to define aggregate event classes explicitly.
+In the discussion so far, aggregate event classes have been defined implicitly
+to match a method signature. Although that is the most concise style, you may
+want or need to define aggregate event classes explicitly.
 
 The example below shows the ``Dog`` aggregate class defined with explicit
 event classes. The ``@event`` decorator is used to specify the event class
 that will be triggered when the decorated method is called.
 
-The ``Dog.Registered`` class inherits ``Aggregate.Created``
-event class. It has a ``name`` attribute which matches the ``name`` argument
-of the ``__init__()`` method.
+The ``Dog.Registered`` class inherits ``Aggregate.Created`` event class. It has a
+``name`` attribute which matches the ``name`` argument of the ``__init__()`` method.
 
-The ``Dog.TrickAdded`` class inherits ``Aggregate.Event``
-class. It has a ``trick`` attribute which matches the ``trick`` argument of
-the ``add_trick()`` method.
+The ``Dog.TrickAdded`` class inherits ``Aggregate.Event`` class. It has a ``trick``
+attribute which matches the ``trick`` argument of the ``add_trick()`` method.
 
 The event class definitions are interpreted as `Python dataclasses <https://docs.python.org/3/library/dataclasses.html>`_.
 
@@ -452,12 +457,13 @@ We can use the aggregate class in the same way.
 
 One reason for defining event classes explicitly is to be explicit about
 the event classes, as a matter of style. Another reason is versioning of
-the event class (see :ref:`Versioning <Versioning>`).
+the event class, see :ref:`Versioning <Versioning>` in the
+:doc:`domain </topics/domain>` module documentation for more details.
 
 Decorating private methods
 ==========================
 
-Sometimes you will need the command method to do some work before the event
+Often an aggregate command method will need to do some work before the event
 is triggered.
 
 If an aggregate command method needs to do some work on its arguments before
@@ -467,7 +473,7 @@ that is called by the "public" command method after the work has been done. The
 method.
 
 The example below shows a ``Dog`` aggregate class with an undecorated "public"
-command method ``add_trick()`` that call a decorated "private" method ``_add_trick()``.
+command method ``add_trick()`` that calls a decorated "private" method ``_add_trick()``.
 
 .. code-block:: python
 
@@ -490,9 +496,10 @@ command method ``add_trick()`` that call a decorated "private" method ``_add_tri
             self.tricks.append(trick)
 
 
-Because the ``trick_added()`` method is not decorated with the ``@event``
-decorator, it does not trigger an event when it is called. Instead, the
-event is triggered when the ``_trick_added()`` method is called.
+Because the "public" command method ``trick_added()`` is not decorated with the
+``@event`` decorator, it does not trigger an event when it is called. Instead, the
+event is triggered when the "private" method ``_trick_added()`` is called by the
+command method.
 
 ..
     #include-when-testing
