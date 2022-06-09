@@ -342,8 +342,9 @@ the ``add_trick()`` method was called.
     assert isinstance(events[0], Dog.Registered)
     assert isinstance(events[1], Dog.TrickAdded)
 
-The signatures of the decorated methods are used to define the event classes.
-The values of the method arguments are used to instantiate the event objects.
+The signatures of the decorated methods are used to define event classes.
+When the method is called, the values of the method arguments are used to
+construct an event object.
 
 We can see the ``Dog.Registered`` event has a ``name`` attribute and the
 ``Dog.TrickAdded`` event has a ``trick`` attribute. The values of these
@@ -354,11 +355,12 @@ attributes are the values that were given when the methods were called.
     assert events[0].name == 'Fido'
     assert events[1].trick == 'roll over'
 
-Calling the methods triggers the events, and the events update the aggregate
-instance by executing the decorated method body. The resulting state of the
-aggregate is the same as if the method were not decorated. The important difference
-is that a sequence of events is generated. This sequence of events can be used in
-future to reconstruct the current state of the aggregate, as shown below.
+Calling a method constructs an event. The event updates the aggregate by
+executing the decorated method body. The resulting state of the aggregate
+is the same as if the method were not decorated. The important difference
+is that a sequence of events is generated. This sequence of events can be
+used in future to reconstruct the current state of the aggregate, as shown
+below.
 
 .. code-block:: python
 
@@ -377,7 +379,7 @@ Explicit style
 
 You may prefer to define aggregate event classes explicitly.
 
-The example below shows the ``Dog`` aggregate class defined using explicit
+The example below shows the ``Dog`` aggregate class defined with explicit
 event classes. The ``@event`` decorator is used to specify the event class
 that will be triggered when the decorated method is called.
 
@@ -388,6 +390,8 @@ of the ``__init__()`` method.
 The ``Dog.TrickAdded`` class inherits ``Aggregate.Event``
 class. It has a ``trick`` attribute which matches the ``trick`` argument of
 the ``add_trick()`` method.
+
+The event class definitions are interpreted as `Python dataclasses <https://docs.python.org/3/library/dataclasses.html>`_.
 
 .. code-block:: python
     :emphasize-lines: 2,3,5,10,11,13
