@@ -488,10 +488,7 @@ command method ``add_trick()`` that calls a decorated "private" method ``_add_tr
             # Trigger event.
             self._add_trick(trick=trick)
 
-        class TrickAdded(Aggregate.Event):
-            trick: str
-
-        @event(TrickAdded)
+        @event('TrickAdded')
         def _add_trick(self, trick):
             self.tricks.append(trick)
 
