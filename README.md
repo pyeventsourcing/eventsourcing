@@ -168,21 +168,22 @@ The GitHub organisation
 [Event Sourcing in Python](https://github.com/pyeventsourcing)
 hosts extension projects for the Python eventsourcing library.
 There are projects that adapt popular ORMs such as
-[Django](https://github.com/pyeventsourcing/eventsourcing-django)
-and [SQLAlchemy](https://github.com/pyeventsourcing/eventsourcing-sqlalchemy).
+[Django](https://github.com/pyeventsourcing/eventsourcing-django#readme)
+and [SQLAlchemy](https://github.com/pyeventsourcing/eventsourcing-sqlalchemy#readme).
 There are projects that adapt specialist event stores such as
-[Axon Server](https://github.com/pyeventsourcing/eventsourcing-axonserver),
-[EventStoreDB](https://github.com/pyeventsourcing/eventsourcing-eventstoredb).
+[Axon Server](https://github.com/pyeventsourcing/eventsourcing-axonserver#readme) and
+[EventStoreDB](https://github.com/pyeventsourcing/eventsourcing-eventstoredb#readme).
 There are projects that support popular NoSQL databases such as
-[DynamoDB](https://github.com/pyeventsourcing/eventsourcing-dynamodb)
-and MongoDB.
+[DynamoDB](https://github.com/pyeventsourcing/eventsourcing-dynamodb#readme).
 There are also projects that provide examples of using the
-library with web frameworks as
-[FastAPI](https://github.com/pyeventsourcing/example-fastapi)
-and [Flask](https://github.com/pyeventsourcing/example-flask).
+library with web frameworks such as
+[FastAPI](https://github.com/pyeventsourcing/example-fastapi#readme)
+and [Flask](https://github.com/pyeventsourcing/example-flask#readme),
+and for serving applications and running systems with efficient
+inter-process communication technologies like [gRPC](https://github.com/pyeventsourcing/eventsourcing-grpc#readme).
 And there are examples of event-sourced applications and systems
 of event-sourced applications, such as the
-[Paxos system](https://github.com/pyeventsourcing/example-paxos),
+[Paxos system](https://github.com/pyeventsourcing/example-paxos#readme),
 which is used as the basis for a
 [replicated state machine](https://github.com/pyeventsourcing/example-paxos/tree/master/replicatedstatemachine),
 which is used as the basis for a

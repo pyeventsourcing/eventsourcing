@@ -510,10 +510,15 @@ asynchronously on a cluster with durable databases, with the system effecting ex
 the same behaviour.
 
 There is also a growing range of extension modules, which extend the functionality
-included in this library, for example by adapting popular ORMs such as Django
-and SQLAlchemy, specialist event store databases such as Axon Server and EventStoreDB,
-alternative model and serialisation frameworks such as Pydantic and orjson, and efficient
-inter-process communication technologies like gRPC.
+included in this library, for example by adapting popular ORMs such as
+`Django <https://github.com/pyeventsourcing/eventsourcing-django#readme>`_
+and `SQLAlchemy <https://github.com/pyeventsourcing/eventsourcing-sqlalchemy#readme>`_,
+specialist event store databases such as
+`Axon Server <https://github.com/pyeventsourcing/eventsourcing-axonserver#readme>`_
+and `EventStoreDB <https://github.com/pyeventsourcing/eventsourcing-eventstoredb#readme>`_,
+alternative model and serialisation frameworks such as Pydantic and orjson, and for
+serving applications and running systems with efficient
+inter-process communication technologies like `gRPC <https://github.com/pyeventsourcing/eventsourcing-grpc#readme>`_.
 
 
 
