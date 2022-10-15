@@ -512,7 +512,7 @@ def event(
                     aggregate.name = self.name
 
     In the example above, the event "NameChanged" is defined automatically
-    by inspecting the signature of the `set_name()` method. If it is
+    by inspecting the signature of the ``set_name()`` method. If it is
     preferred to declare the event class explicitly, for example to define
     upcasting of old events, the event class itself can be mentioned in the
     event decorator rather than just providing the name of the event as a
