@@ -13,8 +13,8 @@ Application
 
 The application class ``SearchableContentApplication`` extends the ``WikiApplication``
 class presented in the :doc:`content management example </topics/examples/content-management>`.
-It extends the ``save()`` method by using the variable keyword parameters (``**kwargs``)
-of the application ``save()`` method to pass down to the recorder extra
+It extends the :func:`~eventsourcing.application.Application.save` method by using the variable keyword parameters (``**kwargs``)
+of the application :func:`~eventsourcing.application.Application.save` method to pass down to the recorder extra
 information that will be used to update a searchable index of the event-sourced
 content. It also introduces a ``search()`` method that expects a ``query``
 argument and returns a list of pages.
@@ -36,7 +36,7 @@ bodies that match the given search query.
 
 The application recorder classes extend the ``_insert_events()`` method by inserting
 and updating rows, according to the information passed down from the application
-through the ``save()`` method's variable keyword parameters.
+through the :func:`~eventsourcing.application.Application.save` method's variable keyword parameters.
 
 The infrastructure factory classes ``SearchableContentInfrastructureFactory`` extend the
 PostgreSQL and SQLite ``Factory`` class by overriding the ``application_recorder()`` method

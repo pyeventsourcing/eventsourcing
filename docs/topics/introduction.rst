@@ -34,7 +34,7 @@ The "live coding" video below shows how to do event sourcing with Python in less
 Synopsis
 ========
 
-Use the library's ``Aggregate`` class and the ``@event`` decorator to define
+Use the library's :class:`~eventsourcing.domain.Aggregate` class and the :func:`@event<eventsourcing.domain.event>` decorator to define
 event-sourced aggregates.
 
 .. code-block:: python
@@ -56,7 +56,7 @@ Aggregate events will be triggered when decorated
 methods are called, and the decorated method bodies will be used to mutate
 the state of the aggregate.
 
-Use the library's ``Application`` class to define event-sourced applications.
+Use the library's :class:`~eventsourcing.application.Application` class to define event-sourced applications.
 Add command and query methods that use event-sourced aggregates.
 
 .. code-block:: python
@@ -81,9 +81,9 @@ Add command and query methods that use event-sourced aggregates.
 
 
 An application combines domain model aggregates persistence infrastructure.
-Aggregate events are collected and stored by the appliation ``save()``
+Aggregate events are collected and stored by the appliation :func:`~eventsourcing.application.Application.save`
 method. Aggregate events are retrieved and used to reconstruct aggregates
-by the repository ``get()`` method.
+by the repository :func:`~eventsourcing.application.Repository.get` method.
 
 Construct an application object by calling the application class.
 

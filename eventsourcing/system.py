@@ -255,7 +255,7 @@ class Leader(Application):
                 follower.receive_recording_event(recording_event)
 
 
-class ProcessApplication(Leader, Follower, ABC):
+class ProcessApplication(Leader, Follower):
     """
     Base class for event processing applications
     that are both "leaders" and followers".

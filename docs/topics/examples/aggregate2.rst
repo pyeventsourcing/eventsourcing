@@ -6,7 +6,7 @@ Aggregate 2 - Explicit event classes
 This example shows a slightly different version of the ``Dog`` class used in the
 tutorial and module docs.
 
-It uses the ``Aggregate`` class and the ``@event`` decorator from the library,
+It uses the :class:`~eventsourcing.domain.Aggregate` class and the :func:`@event<eventsourcing.domain.event>` decorator from the library,
 but explicitly defines event classes to match command method signatures. As in
 the previous example, the event are triggered when the command methods are called,
 and the bodies of the command methods are used to apply the events to the aggregate

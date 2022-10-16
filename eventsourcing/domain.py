@@ -41,17 +41,24 @@ TZINFO: tzinfo = resolve_topic(os.getenv("TZINFO_TOPIC", "datetime:timezone.utc"
 class DomainEventProtocol(Protocol):
     """
     Protocol for domain event objects.
+
+    A protocol is defined to allow the event sourcing mechanisms
+    to work with different kinds of domain event classes. Whilst
+    the library by default uses frozen dataclasses to implement
+    its domain event classes, it is also possible to use other
+    kinds of domain event classes, such as Pydantic classes.
     """
 
     @property
     def originator_id(self) -> UUID:
-        """Domain events have an originator ID that is a UUID."""
+        """UUID identifying an aggregate to which the event belongs."""
         ...  # pragma: no cover
 
     @property
     def originator_version(self) -> int:
-        """Domain events have an originator version that is an int."""
-        ...  # pragma: no cover
+        """Integer identifying the version of the aggregate when the event occurred."""
+
+    ...  # pragma: no cover
 
 
 TDomainEvent = TypeVar("TDomainEvent", bound=DomainEventProtocol)
@@ -60,6 +67,12 @@ TDomainEvent = TypeVar("TDomainEvent", bound=DomainEventProtocol)
 class MutableAggregateProtocol(Protocol):
     """
     Protocol for mutable aggregate objects.
+
+    A protocol is defined to allow the event sourcing mechanisms
+    to work with different kinds of aggregate classes. Whilst
+    the library by default recommends using mutable classes to
+    implement aggregate classes, it is also possible to implement
+    immutable aggregate classes, and this is supported by this library.
     """
 
     @property
@@ -80,6 +93,12 @@ class MutableAggregateProtocol(Protocol):
 class ImmutableAggregateProtocol(Protocol):
     """
     Protocol for immutable aggregate objects.
+
+    A protocol is defined to allow the event sourcing mechanisms
+    to work with different kinds of aggregate classes. Whilst
+    the library by default recommends using mutable classes to
+    implement aggregate classes, it is also possible to implement
+    immutable aggregate classes, and this is supported by this library.
     """
 
     @property
@@ -96,11 +115,13 @@ class ImmutableAggregateProtocol(Protocol):
 MutableOrImmutableAggregate = Union[
     ImmutableAggregateProtocol, MutableAggregateProtocol
 ]
+"""Type alias defining a union of mutable and immutable aggregate protocols."""
 
 
 TMutableOrImmutableAggregate = TypeVar(
     "TMutableOrImmutableAggregate", bound=MutableOrImmutableAggregate
 )
+"""Type variable bound by the union of mutable and immutable aggregate protocols."""
 
 
 @runtime_checkable
@@ -110,6 +131,9 @@ class CollectEventsProtocol(Protocol):
     """
 
     def collect_events(self) -> Sequence[DomainEventProtocol]:
+        """
+        Returns a sequence of events.
+        """
         ...  # pragma: no cover
 
 
@@ -131,6 +155,9 @@ class CanMutateProtocol(DomainEventProtocol, Protocol[TMutableOrImmutableAggrega
 
 
 def create_utc_datetime_now() -> datetime:
+    """
+    Constructs a timezone-aware :class:`datetime` object for the current date and time.
+    """
     return datetime.now(tz=TZINFO)
 
 
@@ -142,8 +169,8 @@ class CanCreateTimestamp:
     @staticmethod
     def create_timestamp() -> datetime:
         """
-        Returns a timezone aware :class:`~datetime.datetime` object
-        for the current time.
+        Constructs a timezone-aware :class:`datetime` object
+        representing when an event occurred.
         """
         return create_utc_datetime_now()
 
@@ -152,17 +179,43 @@ TAggregate = TypeVar("TAggregate", bound="Aggregate")
 
 
 class HasOriginatorIDVersion:
+    """
+    Declares ``originator_id`` and ``originator_version`` attributes.
+    """
+
     originator_id: UUID
+    """UUID identifying an aggregate to which the event belongs."""
     originator_version: int
+    """Integer identifying the version of the aggregate when the event occurred."""
 
 
 class CanMutateAggregate(HasOriginatorIDVersion, CanCreateTimestamp):
+    """
+    Implements a :func:`~eventsourcing.domain.CanMutateAggregate.mutate`
+    method that evolves the state of an aggregate.
+    """
+
     timestamp: datetime
+    """Timezone-aware :class:`datetime` object representing when an event occurred."""
 
     def mutate(self, aggregate: Optional[TAggregate]) -> Optional[TAggregate]:
         """
-        Changes the state of the aggregate
-        according to domain event attributes.
+        Changes the state of the given ``aggregate`` argument
+        according to domain event attributes. The argument is typed
+        as an optional argument, but the value is expected to be not
+        ``None``.
+
+        Validates the aggregate by checking the aggregate's ID equals the
+        ``originator_id``, and checks the ``originator_version`` is one greater
+        than the aggregate's version.
+
+        If the aggregate is not valid, an exception is raised.
+
+        If the aggregate is valid, the
+        :func:`~eventsourcing.domain.CanMutateAggregate.apply` method is called,
+        and then ``originator_version`` is assigned to the aggregate's ``version``
+        attribute, and the ``timestamp`` is assigned to the aggregate's
+        ``modified_on`` attribute.
         """
         assert aggregate is not None
 
@@ -178,10 +231,10 @@ class CanMutateAggregate(HasOriginatorIDVersion, CanCreateTimestamp):
         # Call apply() before mutating values, in case exception is raised.
         self.apply(aggregate)
 
-        # Update the aggregate version.
+        # Update the aggregate's 'version' number.
         aggregate.version = self.originator_version
 
-        # Update the modified time.
+        # Update the aggregate's 'modified on' time.
         aggregate.modified_on = self.timestamp
 
         # Return the mutated aggregate.
@@ -190,21 +243,34 @@ class CanMutateAggregate(HasOriginatorIDVersion, CanCreateTimestamp):
     def apply(self, aggregate: Aggregate) -> None:
         """
         Applies the domain event to its aggregate.
+
+        This method does nothing but exist to be
+        overridden as a convenient way for users
+        to define how an event evolves the state
+        of an aggregate.
         """
 
 
 class CanInitAggregate(CanMutateAggregate):
+    """
+    Implements a :func:`~eventsourcing.domain.CanMutateAggregate.mutate`
+    method that constructs the initial state of an aggregate.
+    """
+
+    originator_topic: str
+    """String describing the path to an aggregate class."""
+
     def mutate(self, aggregate: Optional[TAggregate]) -> Optional[TAggregate]:
         """
-        Constructs aggregate instance defined
-        by domain event object attributes.
+        Constructs an aggregate instance according to the attributes of an event.
+
+        The ``aggregate`` argument is typed as an optional argument, but the
+        value is expected to be ``None``.
         """
         assert aggregate is None
 
         # Resolve originator topic.
-        aggregate_class: Type[TAggregate] = resolve_topic(
-            self.__dict__["originator_topic"]
-        )
+        aggregate_class: Type[TAggregate] = resolve_topic(self.originator_topic)
 
         # Construct and return aggregate object.
         agg = aggregate_class.__new__(aggregate_class)
@@ -235,6 +301,10 @@ class CanInitAggregate(CanMutateAggregate):
 
 
 class MetaDomainEvent(type):
+    """
+    Metaclass which ensures all domain event classes are frozen dataclasses.
+    """
+
     def __new__(
         cls, name: str, bases: Tuple[Type[TDomainEvent], ...], cls_dict: Dict[str, Any]
     ) -> Type[TDomainEvent]:
@@ -248,34 +318,32 @@ class MetaDomainEvent(type):
 
 class DomainEvent(CanCreateTimestamp, metaclass=MetaDomainEvent):
     """
-    Base class for dataclass domain events.
+    Frozen data class representing domain model events.
     """
 
     originator_id: UUID
+    """UUID identifying an aggregate to which the event belongs."""
     originator_version: int
+    """Integer identifying the version of the aggregate when the event occurred."""
     timestamp: datetime
+    """Timezone-aware :class:`datetime` object representing when an event occurred."""
 
 
 class AggregateEvent(CanMutateAggregate, DomainEvent):
     """
-    Base class for aggregate events. Subclasses will model
-    decisions made by the domain model aggregates.
+    Frozen data class representing aggregate events.
+
+    Subclasses represent original decisions made by domain model aggregates.
     """
 
 
 class AggregateCreated(CanInitAggregate, AggregateEvent):
     """
-    Domain event for when aggregate is created.
-
-    Constructor arguments:
-
-    :param UUID originator_id: ID of originating aggregate.
-    :param int originator_version: version of originating aggregate.
-    :param datetime timestamp: date-time of the event
-    :param str originator_topic: topic for the aggregate class
+    Frozen data class representing the initial creation of an aggregate.
     """
 
     originator_topic: str
+    """String describing the path to an aggregate class."""
 
 
 class EventSourcingError(Exception):

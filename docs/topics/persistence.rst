@@ -165,7 +165,7 @@ A stored event object represents a domain event in a way that allows
 the domain event object to be reconstructed.
 
 The library's :class:`~eventsourcing.persistence.StoredEvent` class
-is a Python frozen dataclass.
+is a Python frozen data class.
 
 .. code-block:: python
 
@@ -206,7 +206,7 @@ object joins together the attributes of the stored event and the
 notification ID.
 
 The library's :class:`~eventsourcing.persistence.Notification` class
-is a Python frozen dataclass. It is a subclass of :class:`~eventsourcing.persistence.StoredEvent`.
+is a Python frozen data class. It is a subclass of :class:`~eventsourcing.persistence.StoredEvent`.
 
 .. code-block:: python
 
@@ -253,7 +253,7 @@ A tracking object identifies the position of an event notification
 in an application sequence.
 
 The library's :class:`~eventsourcing.persistence.Tracking` class
-is a Python frozen dataclass.
+is a Python frozen data class.
 
 .. code-block:: python
 

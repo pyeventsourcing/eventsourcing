@@ -64,8 +64,8 @@ In the next section, we convert the ``Dog`` class to be an event-sourced aggrega
 Event-sourced aggregate
 =======================
 
-We can define event-sourced aggregates with the library's ``Aggregate`` class
-and ``@event`` decorator.
+We can define event-sourced aggregates with the library's :class:`~eventsourcing.domain.Aggregate` class
+and :func:`@event<eventsourcing.domain.event>` decorator.
 
 .. code-block:: python
 
@@ -90,8 +90,8 @@ event objects will be used to evolve the state of the aggregate object. Let's
 look at how this can be done.
 
 Let's convert the ``Dog`` class into an event-sourced aggregate, by inheriting
-from the library's ``Aggregate`` class, and by decorating methods that change
-the state of the aggregate with the library's ``@event`` decorator.
+from the library's :class:`~eventsourcing.domain.Aggregate` class, and by decorating methods that change
+the state of the aggregate with the library's :func:`@event<eventsourcing.domain.event>` decorator.
 Aggregate event objects will then be generated when decorated methods are called, and
 the decorated method bodies will be used to evolve the state of the aggregate.
 The changes are highlighted below.
@@ -115,7 +115,7 @@ We can call the ``Dog`` class to create a new instance.
 
     dog = Dog(name='Fido')
 
-The object is an instance of ``Dog``. It is also an ``Aggregate``.
+The object is an instance of ``Dog``. It is also an :class:`~eventsourcing.domain.Aggregate`.
 
 .. code-block:: python
 
@@ -150,13 +150,13 @@ By redefining the ``Dog`` class as an event-sourced aggregate in this way, we ca
 generate a sequence of event objects that can be recorded and used later to
 reconstruct the aggregate.
 
-We can get the events from the aggregate by calling ``collect_events()``.
+We can get the events from the aggregate by calling :func:`~eventsourcing.domain.Aggregate.collect_events`.
 
 .. code-block:: python
 
     events = dog.collect_events()
 
-We can then reconstruct the aggregate by calling ``mutate()`` on the collected event objects.
+We can then reconstruct the aggregate by calling :func:`~eventsourcing.domain.CanMutateAggregate.mutate` on the collected event objects.
 
 .. code-block:: python
 
@@ -180,7 +180,7 @@ aggregates can be reconstructed from recorded events.
 Event-sourced application
 =========================
 
-We can define event-sourced applications with the library's ``Application`` class.
+We can define event-sourced applications with the library's :class:`~eventsourcing.application.Application` class.
 
 .. code-block:: python
 
@@ -214,8 +214,8 @@ state. The query method ``get_dog()`` presents current state.
             dog = self.repository.get(dog_id)
             return {'name': dog.name, 'tricks': tuple(dog.tricks)}
 
-The application's ``save()`` method collects and stores aggregate event objects.
-The application repository's ``get()`` method retrieves an aggregate's stored
+The application's :func:`~eventsourcing.application.Application.save` method collects and stores aggregate event objects.
+The application repository's :func:`~eventsourcing.application.Repository.get` method retrieves an aggregate's stored
 events, and reconstructs the aggregate instance from these event objects.
 
 We can construct an instance of the application by calling the application class.

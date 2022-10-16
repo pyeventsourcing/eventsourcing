@@ -11,15 +11,15 @@ Now let's look at how event-sourced aggregates work in more detail.
 Aggregates in more detail
 =========================
 
-We can define event-sourced aggregates with the library's ``Aggregate`` class
-and ``@event`` decorator.
+We can define event-sourced aggregates with the library's :class:`~eventsourcing.domain.Aggregate` class
+and :func:`@event<eventsourcing.domain.event>` decorator.
 
 .. code-block:: python
 
     from eventsourcing.domain import Aggregate, event
 
 Let's define the simplest possible event-sourced aggregate, by
-simply subclassing ``Aggregate``.
+simply subclassing :class:`~eventsourcing.domain.Aggregate`.
 
 .. code-block:: python
 
@@ -49,7 +49,7 @@ the aggregate within a collection of aggregates. It happens to be a UUID.
 
 
 Normally an instance is constructed directly when a Python class is called.
-However, when a subclass of ``Aggregate`` is called, the aggregate instance
+However, when a subclass of :class:`~eventsourcing.domain.Aggregate` is called, the aggregate instance
 is constructed indirectly. Firstly, an event object is constructed. The event
 object represents the fact that the aggregate was "created". Secondly, this
 event object is used to construct the aggregate instance. The aggregate
@@ -59,8 +59,8 @@ to reconstruct the initial state of the aggregate.
 
 The "created" event object is held by the aggregate in an internal list of
 "pending events". We can collect pending events from aggregates by calling
-the aggregate's ``collect_events()`` method, which is defined on the
-``Aggregate`` base class.
+the aggregate's :func:`~eventsourcing.domain.Aggregate.collect_events` method, which is defined on the
+:class:`~eventsourcing.domain.Aggregate` base class.
 
 .. code-block:: python
 
@@ -70,7 +70,7 @@ the aggregate's ``collect_events()`` method, which is defined on the
 
 The "created" event object can be used to reconstruct the aggregate.
 
-To reconstruct the aggregate from the event, we can call the event's ``mutate()``
+To reconstruct the aggregate from the event, we can call the event's :func:`~eventsourcing.domain.CanMutateAggregate.mutate`
 method.
 
 .. code-block:: python
@@ -100,7 +100,7 @@ so the event we collected from the aggregate is an instance of ``Dog.Created``.
     assert isinstance(events[0], Dog.Created)
 
 
-We can specify a name for the "created" event class by using the ``@event``
+We can specify a name for the "created" event class by using the :func:`@event<eventsourcing.domain.event>`
 decorator on the aggregate's ``__init__()`` method.
 
 Let's specify the name of the "created" event class to be ``'Registered'``.
@@ -178,7 +178,7 @@ has the value given when calling the aggregate class.
     assert dog.name == 'Fido'
 
 
-We can call ``collect_events()`` to get the "created" event from
+We can call :func:`~eventsourcing.domain.Aggregate.collect_events` to get the "created" event from
 the aggregate object.
 
 .. code-block:: python
@@ -200,7 +200,7 @@ The event class ``Dog.Registered`` is a subclass of the base class ``Aggregate.C
     assert issubclass(Dog.Registered, Aggregate.Created)
 
 
-Event classes defined by the ``@event`` decorator match the decorated
+Event classes defined by the :func:`@event<eventsourcing.domain.event>` decorator match the decorated
 method signature. Each parameter of the method signature will be matched by an
 event object attribute. Since the ``__init__()`` method signature has
 a ``name`` argument, so the "created" event has a ``name`` attribute.
@@ -228,7 +228,7 @@ reconstruct the initial current state of the aggregate.
     assert copy.id == dog.id
     assert copy.name == dog.name
 
-Note what's happening when we call ``mutate()``. We start with ``None`` and
+Note what's happening when we call :func:`~eventsourcing.domain.CanMutateAggregate.mutate`. We start with ``None`` and
 end up with an instance of ``Dog`` that has the same state as the original
 ``dog`` object. Note also that ``dog`` and ``copy`` are different objects
 with the same type and state, not two references to the same Python object.
@@ -239,7 +239,7 @@ with the same type and state, not two references to the same Python object.
 
 
 In this section, we specified a "created" event class by decorating the
-``__init__()`` method of an aggregate class with the ``@event`` decorator.
+``__init__()`` method of an aggregate class with the :func:`@event<eventsourcing.domain.event>` decorator.
 When the aggregate class was called, a "created" event object was constructed
 and used to construct an aggregate instance. The "created" event object
 was used to reconstruct the initial state of the aggregate.
@@ -260,7 +260,7 @@ changed after it was created.
 
 Let's continue to develop the ``Dog`` class, by defining an ``add_trick()``
 method. This method appends a given ``trick`` to a list of tricks that
-a dog has been trained to perform. This method is decorated with ``@event``
+a dog has been trained to perform. This method is decorated with :func:`@event<eventsourcing.domain.event>`
 decorator, so that an event class will be defined, and so that an event object
 will be constructed when the method is called. The event object will use the
 method body to change the state of the aggregate. The name of the event class
@@ -282,7 +282,7 @@ highlighted below.
             self.tricks.append(trick)
 
 
-Because the ``add_trick()`` method is decorated with the ``@event`` decorator,
+Because the ``add_trick()`` method is decorated with the :func:`@event<eventsourcing.domain.event>` decorator,
 an event class ``Dog.TrickAdded`` is defined on the aggregate class.
 
 .. code-block:: python
@@ -332,7 +332,7 @@ The ``tricks`` attribute is now a list with one item, ``'roll over'``.
     assert dog.tricks == ['roll over']
 
 Creating and updating the aggregate caused two events to occur.
-We can collect these two events by calling ``collect_events()``.
+We can collect these two events by calling :func:`~eventsourcing.domain.Aggregate.collect_events`.
 
 .. code-block:: python
 
@@ -389,7 +389,7 @@ to match a method signature. Although that is the most concise style, you may
 want or need to define aggregate event classes explicitly.
 
 The example below shows the ``Dog`` aggregate class defined with explicit
-event classes. The ``@event`` decorator is used to specify the event class
+event classes. The :func:`@event<eventsourcing.domain.event>` decorator is used to specify the event class
 that will be triggered when the decorated method is called.
 
 The ``Dog.Registered`` class inherits ``Aggregate.Created`` event class. It has a
@@ -398,7 +398,7 @@ The ``Dog.Registered`` class inherits ``Aggregate.Created`` event class. It has 
 The ``Dog.TrickAdded`` class inherits ``Aggregate.Event`` class. It has a ``trick``
 attribute which matches the ``trick`` argument of the ``add_trick()`` method.
 
-The event class definitions are interpreted as `Python dataclasses <https://docs.python.org/3/library/dataclasses.html>`_.
+The event class definitions are interpreted as `Python data classes <https://docs.python.org/3/library/dataclasses.html>`_.
 
 .. code-block:: python
     :emphasize-lines: 2,3,5,10,11,13
@@ -422,7 +422,7 @@ The event class definitions are interpreted as `Python dataclasses <https://docs
 
 The important things to remember are:
 
-* the ``@event`` decorator specifies the event class itself,
+* the :func:`@event<eventsourcing.domain.event>` decorator specifies the event class itself,
 * the "created" event class must be a subclass of ``Aggregate.Created``,
 * subsequent event classes must be subclasses of ``Aggregate.Event``, and
 * the event class attributes must match the decorated method arguments.
@@ -469,7 +469,7 @@ Often an aggregate command method will need to do some work before the event
 is triggered.
 
 If an aggregate command method needs to do some work on its arguments before
-triggering an event, the ``@event`` decorator can be used on a "private" method
+triggering an event, the :func:`@event<eventsourcing.domain.event>` decorator can be used on a "private" method
 that is called by the "public" command method after the work has been done. The
 "private" method can have a completely different method signature from the "public"
 method.
@@ -496,7 +496,7 @@ command method ``add_trick()`` that calls a decorated "private" method ``_add_tr
 
 
 Because the "public" command method ``trick_added()`` is not decorated with the
-``@event`` decorator, it does not trigger an event when it is called. Instead, the
+:func:`@event<eventsourcing.domain.event>` decorator, it does not trigger an event when it is called. Instead, the
 event is triggered when the "private" method ``_trick_added()`` is called by the
 command method.
 

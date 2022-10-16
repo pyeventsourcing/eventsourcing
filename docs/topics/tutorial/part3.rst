@@ -4,8 +4,8 @@ Tutorial - Part 3 - Applications
 
 
 As we saw in :doc:`Part 1 </topics/tutorial/part1>`, we can
-use the library's ``Application`` class to define event-sourced
-applications. A subclass of ``Application`` will usually
+use the library's :class:`~eventsourcing.application.Application` class to define event-sourced
+applications. A subclass of :class:`~eventsourcing.application.Application` will usually
 define methods which evolve and present the state of the
 application.
 
@@ -80,10 +80,10 @@ by calling an application class.
     assert isinstance(application, Application)
 
 
-An application object has a ``save()`` method, and it has a ``repository`` that has
-a ``get()`` method. As we can see from the ``DogSchool`` example, an application's
-methods can use the application's ``save()`` method to "save" aggregates that
-have been created or updated. And they can use the application repository's ``get()``
+An application object has a :func:`~eventsourcing.application.Application.save` method, and it has a ``repository`` that has
+a :func:`~eventsourcing.application.Repository.get` method. As we can see from the ``DogSchool`` example, an application's
+methods can use the application's :func:`~eventsourcing.application.Application.save` method to "save" aggregates that
+have been created or updated. And they can use the application repository's :func:`~eventsourcing.application.Repository.get`
 method to "retrieve" aggregates that have been previously saved.
 
 .. code-block:: python
@@ -93,19 +93,19 @@ method to "retrieve" aggregates that have been previously saved.
     assert application.repository.get
 
 
-An application has a ``save()`` method. An application's ``save()`` method can be called
-with one or many aggregates as its arguments. The ``save()`` method collects new event
-objects from these aggregates by calling the ``collect_events()`` method on each aggregate
+An application has a :func:`~eventsourcing.application.Application.save` method. An application's :func:`~eventsourcing.application.Application.save` method can be called
+with one or many aggregates as its arguments. The :func:`~eventsourcing.application.Application.save` method collects new event
+objects from these aggregates by calling the :func:`~eventsourcing.domain.Aggregate.collect_events` method on each aggregate
 (see :doc:`Part 2 </topics/tutorial/part2>`). It puts all of the aggregate event objects
 that it has collected into an "event store", with the guarantee that all or none of the
 event objects will be stored. When the event objects cannot be saved, an exception will
-be raised. The ``save()`` method is used by the command methods of an application.
+be raised. The :func:`~eventsourcing.application.Application.save` method is used by the command methods of an application.
 
-An application has a ``repository`` that has a ``get()`` method. The repository's
-``get()`` method is called with an aggregate ID. It uses the given ID to select
+An application has a ``repository`` that has a :func:`~eventsourcing.application.Repository.get` method. The repository's
+:func:`~eventsourcing.application.Repository.get` method is called with an aggregate ID. It uses the given ID to select
 aggregate events from an event store. It reconstructs the aggregate from these
-events, by calling the each event object's ``mutate()`` method in sequence, and
-returns the reconstructed aggregate to the caller. The ``get()`` method is
+events, by calling the each event object's :func:`~eventsourcing.domain.CanMutateAggregate.mutate` method in sequence, and
+returns the reconstructed aggregate to the caller. The :func:`~eventsourcing.application.Repository.get` method is
 used by both command and query methods.
 
 
@@ -163,7 +163,7 @@ Let's create a new ``Dog`` aggregate by calling ``register_dog()``.
 When the application command method ``register_dog()``
 is called, a new ``Dog`` aggregate object is created by calling
 the aggregate class. The new aggregate object is saved by calling
-the application's ``save()`` method. The ID of the new aggregate
+the application's :func:`~eventsourcing.application.Application.save` method. The ID of the new aggregate
 is returned to the caller.
 
 We can evolve the state of the ``Dog`` aggregate by calling ``add_trick()``.
@@ -175,10 +175,10 @@ We can evolve the state of the ``Dog`` aggregate by calling ``add_trick()``.
     application.add_trick(dog_id, trick='play dead')
 
 When the application command method ``add_trick()`` is called with
-the ID of an aggregate, the ``get()`` method of the ``repository`` is
+the ID of an aggregate, the :func:`~eventsourcing.application.Repository.get` method of the ``repository`` is
 used to get the aggregate. The aggregate's ``add_trick()`` method is
 called with the given value of ``trick``. The aggregate is then
-saved by calling the application's ``save()`` method.
+saved by calling the application's :func:`~eventsourcing.application.Application.save` method.
 
 
 Query methods
@@ -200,7 +200,7 @@ We can access the state of a ``Dog`` aggregate by calling ``get_dog()``.
 
 
 When the application query method ``get_dog()`` is called with
-the ID of an aggregate, the repository's ``get()`` method is used
+the ID of an aggregate, the repository's :func:`~eventsourcing.application.Repository.get` method is used
 to reconstruct the aggregate from its events. The details of the
 ``Dog`` aggregate are returned to the caller.
 
@@ -248,11 +248,11 @@ message is written to a message queue: the problem being that one may happen
 successfully and the other may fail. This is why event sourcing is a good foundation
 for building reliable distributed systems.
 
-The notification log has a ``select()`` method. The ``select()`` method of the
+The notification log has a :func:`~eventsourcing.application.LocalNotificationLog.select` method. The :func:`~eventsourcing.application.LocalNotificationLog.select` method of the
 notification log can be used to obtain a selection of the application's event
 notifications. The ``start`` and ``limit`` arguments can be used to specify
 some of a potentially very large number of event notifications.
-Successive calls to ``select()`` can be made, so that processing
+Successive calls to :func:`~eventsourcing.application.LocalNotificationLog.select` can be made, so that processing
 of event notifications can progress along the application sequence.
 
 The example below shows how the four events created above can be
