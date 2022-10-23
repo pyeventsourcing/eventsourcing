@@ -626,7 +626,7 @@ class RecordingEvent:
         self.previous_max_notification_id = previous_max_notification_id
 
 
-class Application(ABC):
+class Application:
     """
     Base class for event-sourced applications.
     """

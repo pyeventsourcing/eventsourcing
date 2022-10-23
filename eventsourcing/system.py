@@ -46,7 +46,7 @@ ProcessingJob = Tuple[DomainEventProtocol, Tracking]
 ConvertingJob = Optional[Union[RecordingEvent, List[Notification]]]
 
 
-class Follower(Application):
+class Follower(Application, ABC):
     """
     Extends the :class:`~eventsourcing.application.Application` class
     by using a process recorder as its application recorder, by keeping
@@ -255,7 +255,7 @@ class Leader(Application):
                 follower.receive_recording_event(recording_event)
 
 
-class ProcessApplication(Leader, Follower, ABC):
+class ProcessApplication(Leader, Follower):
     """
     Base class for event processing applications
     that are both "leaders" and followers".
