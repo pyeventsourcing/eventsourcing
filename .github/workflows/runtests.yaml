@@ -41,6 +41,7 @@ jobs:
       run: |
         PGPASSWORD=postgres psql -c 'CREATE DATABASE eventsourcing;' -U postgres -h localhost
         PGPASSWORD=postgres psql -c "CREATE USER eventsourcing WITH PASSWORD 'eventsourcing';" -U postgres -h localhost
+        PGPASSWORD=postgres psql -c "ALTER DATABASE eventsourcing OWNER TO eventsourcing;" -U postgres -h localhost
         PGPASSWORD=postgres psql eventsourcing -c "CREATE SCHEMA myschema AUTHORIZATION eventsourcing" -U postgres -h localhost
 
     - name: Install
