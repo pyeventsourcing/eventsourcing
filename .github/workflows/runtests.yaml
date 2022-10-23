@@ -11,13 +11,14 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.7", "3.8", "3.9", "3.10"]
+        postgres-version: ["15.0"]
 
     # Service containers to run with `runner-job`
     services:
       # Label used to access the service container
       postgres:
         # Docker Hub image
-        image: postgres:15.0
+        image: postgres:${{ matrix.postgres-version }}
         # Provide the password for postgres
         env:
           POSTGRES_PASSWORD: postgres
