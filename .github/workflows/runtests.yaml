@@ -7,11 +7,11 @@ jobs:
 
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 4
+      max-parallel: 20
       fail-fast: false
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10"]
-        postgres-version: ["14.5", "15.0"]
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        postgres-version: ["12", "13", "14", "15"]
 
     # Service containers to run with `runner-job`
     services:
@@ -65,10 +65,10 @@ jobs:
     needs: lint-and-test-code
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 4
+      max-parallel: 5
       fail-fast: false
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10"]
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
 
     steps:
     - uses: actions/checkout@v2

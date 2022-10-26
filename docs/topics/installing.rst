@@ -3,8 +3,8 @@ Installation
 ============
 
 This version of the library is compatible with Python versions 3.7, 3.8,
-3.9, and 3.10. The library's suite of tests is run against these versions
-and has 100% line and branch coverage.
+3.9, 3.10, and 3.11. The library's suite of tests is run against these
+versions and has 100% line and branch coverage.
 
 This package depends only on modules from the Python Standard Library,
 except for the extra install options described below.
