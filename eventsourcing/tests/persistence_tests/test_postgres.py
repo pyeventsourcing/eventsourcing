@@ -362,7 +362,6 @@ class TestPostgresDatastore(TestCase):
             # Check the connection doesn't think it's closed.
             self.assertTrue(datastore.pool._pool)
             self.assertFalse(datastore.pool._pool[0].closed)
-            # self.assertFalse()
 
             # Get a closed connection.
             with datastore.get_connection() as conn:
@@ -372,11 +371,8 @@ class TestPostgresDatastore(TestCase):
                     curs.execute("SELECT 1")
 
         # Check using the closed connection gives an error.
-        with self.assertRaises(psycopg2.Error) as cm:
+        with self.assertRaises(psycopg2.Error):
             open_close_execute(pre_ping=False)
-        self.assertIn(
-            "terminating connection due to administrator command", cm.exception.args[0]
-        )
 
         # Now try that again with pre-ping enabled.
         open_close_execute(pre_ping=True)
@@ -390,15 +386,11 @@ class TestPostgresDatastore(TestCase):
             password="eventsourcing",
             idle_in_transaction_session_timeout=1,
         )
-        with self.assertRaises(PersistenceError) as cm:
+        with self.assertRaises(PersistenceError):
             with datastore.transaction(commit=False) as curs:
                 curs.execute("SELECT 1")
                 self.assertFalse(curs.closed)
                 sleep(2)
-        self.assertIn(
-            "terminating connection due to idle-in-transaction timeout",
-            cm.exception.args[0],
-        )
 
     def test_report_on_prepared_statements(self):
         datastore = PostgresDatastore(
