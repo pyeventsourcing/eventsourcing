@@ -2120,6 +2120,8 @@ an exception to be raised.
     assert order.pickedup_at is None
 
     # Pick up the order.
+    from time import sleep
+    sleep(0.001)
     order.pickup(datetime.now())
     assert order.confirmed_at is not None
     assert order.pickedup_at is not None
