@@ -1,4 +1,6 @@
-from eventsourcing.persistence import Tracking
+from uuid import uuid4
+
+from eventsourcing.persistence import StoredEvent, Tracking
 from eventsourcing.popo import (
     Factory,
     POPOAggregateRecorder,
@@ -22,6 +24,35 @@ class TestPOPOAggregateRecorder(AggregateRecorderTestCase):
 class TestPOPOApplicationRecorder(ApplicationRecorderTestCase):
     def create_recorder(self):
         return POPOApplicationRecorder()
+
+    def test_insert_select(self) -> None:
+        super().test_insert_select()
+
+        # Check select_notifications() does not use negative indexes.
+
+        # Construct the recorder.
+        recorder = self.create_recorder()
+
+        # Write two stored events.
+        stored_event1 = StoredEvent(
+            originator_id=uuid4(),
+            originator_version=self.INITIAL_VERSION,
+            topic="topic1",
+            state=b"state1",
+        )
+        stored_event2 = StoredEvent(
+            originator_id=uuid4(),
+            originator_version=self.INITIAL_VERSION,
+            topic="topic2",
+            state=b"state2",
+        )
+        recorder.insert_events([stored_event1, stored_event2])
+
+        # This was returning 3.
+        self.assertEqual(len(recorder.select_notifications(0, 10)), 2)
+
+        # This was returning 4.
+        self.assertEqual(len(recorder.select_notifications(-1, 10)), 2)
 
 
 class TestPOPOProcessRecorder(ProcessRecorderTestCase):
