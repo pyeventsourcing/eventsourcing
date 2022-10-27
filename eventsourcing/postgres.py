@@ -107,7 +107,7 @@ class PostgresConnection(Connection[PostgresCursor]):
 
     @property
     def closed(self) -> bool:
-        return self._pg_conn.closed
+        return bool(self._pg_conn.closed)
 
 
 class PostgresConnectionPool(ConnectionPool[PostgresConnection]):
