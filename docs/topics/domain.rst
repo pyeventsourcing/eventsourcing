@@ -198,6 +198,9 @@ all the domain events triggered by responding to a single client request must be
 atomically in the order they were created, otherwise the recorded state of the aggregate
 may become inconsistent with respect to that which was desired or expected.
 
+Generally speaking, method names should use the imperative mood, and event class
+names should use past participles (regular or irregular).
+
 
 .. _Domain events:
 
@@ -514,8 +517,12 @@ the current state of an aggregate.
 
 Hence, the :func:`~eventsourcing.domain.CanMutateAggregate.mutate` and
 :func:`~eventsourcing.domain.CanMutateAggregate.apply` methods of aggregate events
-can be used effectively to implement an "aggregate projector", or "mutator function"
+can be used effectively to implement an "aggregate projector", a "mutator function"
 by which the state of an aggregate will be reconstructed from its history of events.
+
+In the example below, the function ``reconstruct_aggregate_from_events()`` implements
+an aggregate projector by iterating over a sequence of events and calling
+:func:`~eventsourcing.domain.CanMutateAggregate.mutate` on each.
 
 .. code-block:: python
 
@@ -543,22 +550,25 @@ This is essentially how the :func:`~eventsourcing.application.Repository.get`
 method of an :ref:`application repository <Repository>` reconstructs an aggregate
 from stored events when the aggregate is requested by ID.
 
-By typing the :func:`~eventsourcing.domain.CanMutateAggregate.mutate` methods's
-``aggregate`` argument and return value as optional,
-"created" events can be defined which start from ``None`` and return an aggregate
-object, and "discarded" events can be defined which start from an aggregate object
-and return ``None``, with other events both starting from and returning an aggregate.
+By typing as ``Optional`` the ``aggregate`` argument and return value of
+the base class :func:`~eventsourcing.domain.CanMutateAggregate.mutate` method, this
+method can implemented on subclasses in various ways. In particular, "created" events
+can be defined to accept ``None`` and return a newly constructed aggregate object,
+subsequent aggregate events can be defined to accept an aggregate object and return
+a modified aggregate object, and "discarded" events can be defined to accept an
+aggregate object and return ``None`.
 
-For example, an initial "created" event can construct an aggregate object, subsequent
-events can receive an aggregate and return a modified aggregate, and a final "discarded"
-event can receive a modified aggregate and return ``None``.
+In the example above, an ``AggregateDiscarded`` event class is defined with a ``mutate()``
+method that returns ``None``. A "discarded" event object is constructed using this class.
+This event object is appended to the list of ``events`` from the examples above. This list
+of events is then used to reconstruct the "current state" of the aggregate. The result is
+``None``.
 
 .. code-block:: python
 
     class AggregateDiscarded(AggregateEvent):
         def mutate(self, aggregate):
             super().mutate(aggregate)
-            aggregate._is_discarded = True
             return None
 
 
@@ -573,20 +583,18 @@ event can receive a modified aggregate and return ``None``.
     a = reconstruct_aggregate_from_events(events)
     assert a is None
 
-In the example above, an ``AggregateDiscarded`` event class is defined. A "discared"
-event object is constructed using this class. This event object is appended to the
-list of ``events`` from the examples above. This list of events is then used to
-reconstruct the "current state" of the aggregate. The result is ``None``.
+Although the library does not provide any "discarded" event classes, if you need
+to model an aggregate such that it eventually appears no longer to exist in an
+application repository, you can adapt this technique for your situation. For example,
+you may wish to define an attribute such as ``is_discarded`` and assert in aggregate
+command methods that the aggregate has not been discarded.
 
 
 Aggregate base class
 --------------------
 
 This library's :class:`~eventsourcing.domain.Aggregate` class is a base class for
-event-sourced aggregates. It can be used to develop event-sourced aggregates. See
-for example the ``Dog`` aggregate in the :ref:`Simple example <Aggregate simple example>`
-below.
-
+event-sourced aggregates. It can be used to develop event-sourced aggregates.
 
 .. code-block:: python
 
@@ -605,13 +613,14 @@ by subclasses:
 * the object method :func:`~eventsourcing.domain.Aggregate.collect_events`
   returns new events that have just been triggered.
 
-These methods are explained below.
+These methods are explained below, with a :ref:`simple example <Aggregate simple example>`
+that shows how it works.
 
 
 Creating new aggregates
 -----------------------
 
-Firstly, the :class:`~eventsourcing.domain.Aggregate` class has a "private" class
+The :class:`~eventsourcing.domain.Aggregate` class has a "private" class
 method :func:`~eventsourcing.domain.MetaAggregate._create` which can be used to create
 a new aggregate object.
 
@@ -621,74 +630,89 @@ a new aggregate object.
     aggregate = Aggregate._create(Aggregate.Created, id=aggregate_id)
 
 
-When called, this method creates the first of a new sequence of aggregate event
-objects, and uses this aggregate event object to construct and initialise an
-instance of the aggregate class, which it then returns to the caller.
+This "private" method will usually be called by a "public" class method defined on
+a subclass of :class:`~eventsourcing.domain.Aggregate`. See the class method
+``create()`` of ``Dog`` aggregate class in the :ref:`example <Aggregate simple example>`
+below.
 
-Usually, this generically named "private" method will be called by a "public"
-class method defined on a subclass of the :class:`~eventsourcing.domain.Aggregate`
-base class. For example, see the class method ``create()`` of ``Dog`` aggregate
-class in the :ref:`Simple example <Aggregate simple example>` below. Your public
-"create" method should be named after a particular concern
-in your domain. Nevertheless, we need a name to refer to this sort of thing
-in general, and the words "create" and "created" are used for that purpose.
+When called, the :func:`~eventsourcing.domain.MetaAggregate._create` method will
+create an aggregate event object, the first of a sequence of events of the new aggregate.
+It will use this initial aggregate event object to construct and initialise an aggregate
+object. It will return the aggregate object to the caller.
+
+In order to create this initial event object, it needs an event class, and it needs
+arguments to use when constructing the event object from the class.
 
 The :func:`~eventsourcing.domain.MetaAggregate._create` method has a required positional
-argument ``event_class`` which is used by the caller to pass a domain event class that
-will represent the fact that an aggregate was "created". A domain event object of this
-type will be constructed by this method, and this domain event object will be used to
-construct and initialise an aggregate object.
+argument ``event_class`` which is used by the caller to indicate which class will be
+constructed to represent the fact that an aggregate was "created".
 
-The :class:`~eventsourcing.domain.Aggregate` class is defined with
-a nested class :class:`~eventsourcing.domain.Aggregate.Created`, which is
-is a subclass of the :class:`~eventsourcing.domain.AggregateCreated` base class
-discussed in the :ref:`Aggregate events <Aggregate events>` section above. It can be used
-or extended (and is used in the example above) to represent the fact that an aggregate
-was "created".  It is defined for convenience, and adds no further attributes or methods.
+The :class:`~eventsourcing.domain.Aggregate` class is defined with a nested class
+:class:`~eventsourcing.domain.Aggregate.Created`, which is is a subclass of the
+:class:`~eventsourcing.domain.AggregateCreated` base class that was discussed in
+the :ref:`Aggregate events <Aggregate events>` section above.
 
-The :class:`~eventsourcing.domain.Aggregate.Created` class can
-be used directly, but can also be subclassed to define a particular "created"
-event class for a particular aggregate class, with a suitable name and
-with suitable extra attributes that represent the particular beginning
-of a particular type of aggregate. Aggregate event classes should be named using
-past participles (regular or irregular). And a "created" event class should be named
-using a past participle that describes the initiation or the beginning of something,
-such as "Started", "Opened", or indeed "Created".
+The :class:`~eventsourcing.domain.Aggregate.Created` class can be used directly,
+but more usually will be subclassed to define a particular "created" event class
+for a particular aggregate class, with a suitable name and with suitable extra
+attributes that represent the particular beginning of a particular type of aggregate.
 
-The :func:`~eventsourcing.domain.MetaAggregate._create` method also has
-an optional ``id`` argument which should be a Python :class:`~uuid.UUID`
-object that will be used to uniquely identify the aggregate in the domain
-model. It uses the given value of its ``id`` argument as the new event's
-:py:attr:`~eventsourcing.domain.DomainEvent.originator_id`. If a value is not provided, by default a
-`version-4 UUID <https://en.wikipedia.org/wiki/Universally_unique_identifier#Version_4_(random)>`_
-will be created by calling its :func:`~eventsourcing.domain.MetaAggregate.create_id`
-method. It will also, by default, set the :py:attr:`~eventsourcing.domain.DomainEvent.originator_version`
-to the value of ``1``. It derives the event's :py:attr:`~eventsourcing.domain.AggregateCreated.originator_topic` value from the
-aggregate class itself, using the library's :func:`~eventsourcing.utils.get_topic`
-function. And it calls :func:`~eventsourcing.domain.DomainEvent.create_timestamp` to
-create a timezone-aware Python :class:`~datetime.datetime` object for the event's
-:py:attr:`~eventsourcing.domain.DomainEvent.timestamp` value.
+A "created" event class should be named using a past participle that describes the
+particular initiation or beginning of this particular type of aggregate, such as
+"Started", "Opened", or indeed "Created".
+
+The :func:`~eventsourcing.domain.MetaAggregate._create` method needs to know which
+arguments to use when constructing the event object. The other arguments of this method
+are used to inform the event constructor arguments.
+
+As we have seen above, the arguments needed when constructing any domain event are
+:py:attr:`~eventsourcing.domain.DomainEvent.originator_id`,
+:py:attr:`~eventsourcing.domain.DomainEvent.originator_version`, and
+:py:attr:`~eventsourcing.domain.DomainEvent.timestamp`.
+An :class:`~eventsourcing.domain.AggregateCreated`
+object also needs an :py:attr:`~eventsourcing.domain.AggregateCreated.originator_topic`.
+Subclasses may define further attributes that may need to be supplied as constructor arguments.
+
+The :func:`~eventsourcing.domain.MetaAggregate._create` method has an optional ``id``
+argument, which should be a Python :class:`~uuid.UUID` object that will be used to uniquely
+identify the aggregate in the domain model. If supplied, the given value of the ``id`` argument
+will be used as the new event's :py:attr:`~eventsourcing.domain.DomainEvent.originator_id`. If a value
+is not provided, by default a `version-4 UUID <https://en.wikipedia.org/wiki/Universally_unique_identifier#Version_4_(random)>`_
+will be created by calling the aggregate class method :func:`~eventsourcing.domain.MetaAggregate.create_id`.
+The :func:`~eventsourcing.domain.MetaAggregate.create_id` can be overridden on aggregate classes.
+
+By default, the :py:attr:`~eventsourcing.domain.DomainEvent.originator_version` value
+will be set to ``1``.
+
+The event's :py:attr:`~eventsourcing.domain.AggregateCreated.originator_topic` value will be derived from
+the aggregate class itself, using the library's :func:`~eventsourcing.utils.get_topic` function.
+
+The event's :py:attr:`~eventsourcing.domain.DomainEvent.timestamp` will be generated by calling
+:func:`~eventsourcing.domain.DomainEvent.create_timestamp` to create a timezone-aware Python
+:class:`~datetime.datetime` object.
 
 The :func:`~eventsourcing.domain.MetaAggregate._create` method also accepts variable
-keyword arguments, ``**kwargs``, which if given will also be used to construct the event
-object in addition to those mentioned above. Since the "created" event object will be
-constructed with these additional arguments, so these other method arguments must be
-matched by the particular attributes of your "created" event class.
+keyword arguments, ``**kwargs``, which if given will be used as additional event
+constructor arguments. Since the "created" event object will be
+constructed with these additional arguments, so these variable keyword arguments must be
+matched by the particular attributes of the "created" event class. An error will be
+raised if the arguments are mismatched.
 
 After creating the event object, the :func:`~eventsourcing.domain.MetaAggregate._create`
-method will construct the aggregate object by calling the "created" event's
-:func:`~eventsourcing.domain.CanInitAggregate.mutate` method.
-If the "created" event extends the base class by defining any additional event attributes
-that are particular to itself, those attributes required to match the extra arguments passed
-to the :func:`~eventsourcing.domain.MetaAggregate._create` method as the variable keyword
-arguments, then an initializer method ``__init__()`` must be coded on the concrete aggregate
-class which accepts these additional attributes, since (as discussed above) they will all be
-passed to the ``__init__()`` method when it is called by the "created" event's
-:func:`~eventsourcing.domain.CanInitAggregate.mutate` method. Having constructed the
-aggregate object from the "created" event object, the
-:func:`~eventsourcing.domain.MetaAggregate._create` method will append the "created" event
-object to the aggregate object's list of "pending events", and then return the aggregate object
+method will call the event object's :func:`~eventsourcing.domain.CanInitAggregate.mutate` method,
+which will construct the aggregate object. The event attributes will be used to construct the
+aggregate object. Therefore, if the "created" event defines any additional event attributes,
+beyond the four attributes of :class:`~eventsourcing.domain.AggregateCreated`, then the ``__init__()``
+method of the aggregate class must be coded to accept these additional attributes. This can be done
+explicitly, or implicitly by defining suitable typing annotations on the aggregate class.
+
+Having constructed the aggregate object from the "created" event object, the
+:func:`~eventsourcing.domain.MetaAggregate._create` method will then return the aggregate object
 to the caller.
+
+Just before returning the aggregate object, the "created" event object is appended to a list
+of "pending" events on the aggregate object, so that the event object can be collected and
+recorded.
 
 Having been created, an aggregate object will have an aggregate ID. The ID is presented
 by its :py:obj:`~eventsourcing.domain.Aggregate.id` property. The ID will be identical to
@@ -712,8 +736,8 @@ to start at a different number, set ``INITIAL_VERSION`` on the aggregate class.
 
 A new aggregate instance has a :py:obj:`~eventsourcing.domain.Aggregate.created_on`
 property which gives the date and time when an aggregate object was created, and is determined
-by the timestamp attribute of the first event in the aggregate's sequence, which is the "created"
-event. The timestamps are timezone-aware Python :class:`~datetime.datetime` objects.
+by the :py:attr:`~eventsourcing.domain.DomainEvent.timestamp` attribute of its "created" event.
+The timestamps are timezone-aware Python :class:`~datetime.datetime` objects.
 
 .. code-block:: python
 
