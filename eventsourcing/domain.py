@@ -1256,6 +1256,8 @@ class MetaAggregate(type, Generic[TAggregate]):
 class Aggregate(metaclass=MetaAggregate):
     """
     Base class for aggregate roots.
+
+    .. automethod:: _create
     """
 
     @classmethod
