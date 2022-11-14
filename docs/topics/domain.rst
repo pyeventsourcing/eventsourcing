@@ -733,8 +733,8 @@ to start at a different number, set ``INITIAL_VERSION`` on the aggregate class.
     assert aggregate.version == 1
 
 
-The aggregate object also has a :py:obj:`~eventsourcing.domain.Aggregate.created_on`
-property which gives the date and time when an aggregate object was created. The value
+The aggregate object has a :py:obj:`~eventsourcing.domain.Aggregate.created_on`
+property which gives the date and time when the aggregate object was created. The value
 of this property is determined by the :py:attr:`~eventsourcing.domain.DomainEvent.timestamp`
 attribute of the "created" event. The timestamps are timezone-aware Python
 :class:`~datetime.datetime` objects.
@@ -745,8 +745,8 @@ attribute of the "created" event. The timestamps are timezone-aware Python
 
 
 The aggregate object also has a :py:obj:`~eventsourcing.domain.Aggregate.modified_on`
-property, which gives the date and time when an aggregate object was last modified, and
-is determined by the timestamp attribute of the last event in the aggregate's sequence.
+property, which gives the date and time when the aggregate object was last modified.
+It is determined by the timestamp attribute of the last event in the aggregate's sequence.
 
 .. code-block:: python
 
@@ -766,9 +766,9 @@ identical, and equal to the timestamp of the "created" event.
 Triggering subsequent events
 ----------------------------
 
-Secondly, an :class:`~eventsourcing.domain.Aggregate` instance has a method
+An :class:`~eventsourcing.domain.Aggregate` has a method
 :func:`~eventsourcing.domain.Aggregate.trigger_event` which can be called
-to trigger a subsequent aggregate event object.
+to create a subsequent aggregate event object.
 
 .. code-block:: python
 
@@ -776,54 +776,70 @@ to trigger a subsequent aggregate event object.
 
 
 This method can be called by the command methods of an aggregate to
-capture the decisions that are made. For example, see the
-``add_trick()`` method of the ``Dog`` class in the :ref:`Simple example <Aggregate simple example>`
-below. The creation of the aggregate event object is the final stage in the
+capture the decisions that it makes. For example, see the
+``add_trick()`` method of the ``Dog`` class in the :ref:`example <Aggregate simple example>`
+below.
+
+The creation of an event object by a command method is the final stage in the
 coming-to-be of a private individual occasion of experience within the aggregate,
-that begins before the event object is created. The event object is the beginning
-of a transition of this private individuality to the publicity of many such things,
-one stubborn fact amongst the many which together determine the current state of an
-event-sourced application.
+a decision making process that begins when the command method is called and ends
+with the creation of the event object. The creation of the event object is also the
+beginning of the transition of this private individuality to the publicity of many
+such things, one stubborn fact amongst the many which contribute determination to
+the state of an event-sourced aggregate. The events themselves don't fully determine
+the state of the aggregate, since the state of the aggregate is a function of the
+events, and the function is another fact that also contributes to determining the
+state of the aggregate.
 
 The :func:`~eventsourcing.domain.Aggregate.trigger_event` method has a required
-positional argument ``event_class``, which is the type of aggregate event object
-to be triggered. It uses the ``id`` attribute of the aggregate as the :py:attr:`~eventsourcing.domain.DomainEvent.originator_id`
-of the new domain event. The :py:attr:`~eventsourcing.domain.DomainEvent.originator_version` of the new aggregate event is
-calculated by adding ``1`` to the current aggregate ``version``. It calls
-:func:`~eventsourcing.domain.DomainEvent.create_timestamp` on the event class
-to create a timezone-aware Python :class:`~datetime.datetime` object that is used
-as the :py:attr:`~eventsourcing.domain.DomainEvent.timestamp` value of the domain event object.
+positional argument ``event_class``. The value of this argument determines the type
+of event object to be created. The event class should derive from the
+:class:`~eventsourcing.domain.AggregateEvent` discussed :ref:`above <Aggregate events>`,
+whilst not being a "created" event. For convenience, the
+:class:`~eventsourcing.domain.Aggregate` class has a nested :class:`~eventsourcing.domain.Aggregate.Event` class.
+It is defined as a subclass of :class:`~eventsourcing.domain.AggregateEvent`. The
+:class:`~eventsourcing.domain.Aggregate.Event` class can be used as a base class to
+define the subsequent aggregate event classes needed by in your domain model. For example,
+see the ``TrickAdded`` class in the :ref:`example <Aggregate simple example>` below.
+As mentioned above, aggregate event classes are normally named using past participles.
+The class name describes what was decided by the command method, such as "Done", "Updated",
+"Closed", names that are meaningful in your domain, expressing and helping to constitute
+your project's ubiquitous language.
 
-The :class:`~eventsourcing.domain.Aggregate` class has a nested
-:class:`~eventsourcing.domain.Aggregate.Event` class. It is defined
-as a subclass of the :class:`~eventsourcing.domain.AggregateEvent`
-discussed above in the section on :ref:`Aggregate events <Aggregate events>`.
-The :class:`~eventsourcing.domain.Aggregate.Event` class can be
-used as a base class to define the subsequent aggregate event classes
-needed by in your domain model. For example, see the ``TrickAdded``
-class in the :ref:`Simple example <Aggregate simple example>` below.
-As mentioned above, aggregate event classes are normally named using
-past participles. The class name describes what was decided by the
-command method, such as "Done", "Updated", "Closed", names that are
-meaningful in your domain, expressing and helping to constitute your
-project's ubiquitous language.
+The :func:`~eventsourcing.domain.Aggregate.trigger_event` method also accepts variable
+keyword-only arguments ``**kwargs`` which will also be used to construct the aggregate event
+object. As with the :func:`~eventsourcing.domain.Aggregate._create` method described above, the
+event object will be constructed with these arguments, and so any extra arguments must
+be matched by the attributes of the event class. For example, in the
+:ref:`example <Aggregate simple example>` below, the ``add_trick()`` command
+calls :func:`~eventsourcing.domain.Aggregate.trigger_event` with a ``trick`` keyword
+that matches the ``trick`` attribute on the ``TrickAdded`` event class.
 
-The :func:`~eventsourcing.domain.Aggregate.trigger_event` method also accepts arbitrary
-keyword-only arguments, which will be used to construct the aggregate event object. As with the
-:func:`~eventsourcing.domain.Aggregate._create` method described above, the event object will be constructed
-with these arguments, and so any extra arguments must be matched by the expected values of
-the event class. For example, ``trick`` on the ``TrickAdded`` event class definition
-in the :ref:`Simple example <Aggregate simple example>` below matches the ``trick=trick``
-keyword argument passed in the call to the :func:`~eventsourcing.domain.Aggregate.trigger_event`
-method in the ``add_trick()`` command.
+As discussed :ref:`above <Domain events>`, the arguments needed when constructing any
+domain event are :py:attr:`~eventsourcing.domain.DomainEvent.originator_id`,
+:py:attr:`~eventsourcing.domain.DomainEvent.originator_version`, and
+:py:attr:`~eventsourcing.domain.DomainEvent.timestamp`.
+The :func:`~eventsourcing.domain.Aggregate.trigger_event` method uses the ``id`` attribute
+of the aggregate as the :py:attr:`~eventsourcing.domain.DomainEvent.originator_id` of the new
+aggregate event. The :py:attr:`~eventsourcing.domain.DomainEvent.originator_version` of the
+new aggregate event is calculated by adding ``1`` to the current aggregate ``version``.
+It calls :func:`~eventsourcing.domain.DomainEvent.create_timestamp` on the event
+class to create a timezone-aware Python :class:`~datetime.datetime` object that is
+used as the :py:attr:`~eventsourcing.domain.DomainEvent.timestamp` value of the
+aggregate event.
 
 After creating the aggregate event object, the :func:`~eventsourcing.domain.Aggregate.trigger_event` method
-will apply the event to the aggregate by calling the event object's
-:func:`~eventsourcing.domain.CanMutateAggregate.mutate` method, which will
-call the event's :func:`~eventsourcing.domain.CanMutateAggregate.apply` method,
-and then update the ``version`` and ``modified_on`` attributes.
+will "mutate" the aggregate with the event. That is to say, the state of the aggregate will
+be changed according to the state of the event. It calls the event object's
+:func:`~eventsourcing.domain.CanMutateAggregate.mutate` method, which calls
+the event's :func:`~eventsourcing.domain.CanMutateAggregate.apply` method
+and then assigns new values to the aggregate's ``version`` and ``modified_on``
+attributes. Please note, it's possible to code "immutable" aggregates, but things
+need to be arranged slightly differently (see the :ref:`example aggregates <Example aggregates>`
+for some suggestions).
 
-Finally, it will append the aggregate event to the aggregate object's list of pending events.
+Finally, :func:`~eventsourcing.domain.Aggregate.trigger_event` method will append the
+new aggregate event to the aggregate object's list of pending events.
 
 Hence, after calling :func:`~eventsourcing.domain.Aggregate.trigger_event`, the aggregate's
 :py:obj:`~eventsourcing.domain.Aggregate.version` will have been incremented by ``1``, and the
@@ -838,17 +854,22 @@ Hence, after calling :func:`~eventsourcing.domain.Aggregate.trigger_event`, the 
 Collecting pending events
 -------------------------
 
-Thirdly, the :class:`~eventsourcing.domain.Aggregate` class has a "public" object method
-:func:`~eventsourcing.domain.Aggregate.collect_events`
-which can be called to collect the aggregate events that have been created
-either after the last call to this method, or after the aggregate object was
-constructed if the method hasn't been called.
+The :class:`~eventsourcing.domain.Aggregate` class has a "public" object method
+:func:`~eventsourcing.domain.Aggregate.collect_events` which can be called to
+collect new aggregate event objects. New aggregate event objects are appended
+to the aggregate's list of pending events when a new aggregate is "created"
+and when subsequent events are triggered.
+
+Hence, the example ``aggregate`` so far has two pending events.
 
 .. code-block:: python
+
+    assert len(aggregate.pending_events) == 2
 
     pending_events = aggregate.collect_events()
 
     assert len(pending_events) == 2
+    assert len(aggregate.pending_events) == 0
 
     assert isinstance(pending_events[0], Aggregate.Created)
     assert pending_events[0].originator_id == aggregate.id
@@ -923,10 +944,11 @@ a ``Dog.TrickAdded`` domain event. It calls the inherited
 The event is triggered with the method argument ``trick``.
 
 The nested ``TrickAdded`` class is a frozen data class that extends the
-base aggregate event class ``Aggregate.Event`` (also a frozen data class) with a
-field ``trick`` which is defined as a Python :class:`str`. An ``apply()`` method
-is defined which appends the ``trick`` value to the aggregate's ``tricks``. This
-method is called when the event is triggered (see :ref:`Aggregate events <Aggregate events>`).
+base aggregate event class :class:`~eventsourcing.domain.Aggregate.Event`
+(also a frozen data class) with a field ``trick`` which is defined as a
+Python :class:`str`. An ``apply()`` method is defined which appends the
+``trick`` value to the aggregate's ``tricks``. This method is called when
+the event is triggered (see :ref:`Aggregate events <Aggregate events>`).
 
 By defining the event class under the command method which triggers it, and then
 defining an ``apply()`` method as part of the event class definition, the story of
