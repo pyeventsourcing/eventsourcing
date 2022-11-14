@@ -372,7 +372,7 @@ in the order they were recorded.
 There were always decisions being made in a domain model, but the decisions were not
 always given the degree of order they have when we use aggregates, and the decisions
 were not always made explicit as event objects. Event-sourced aggregates generate
-many individual sequences of events objects that represent the decisions made in
+many individual sequences of event objects that represent the decisions made in
 a domain model.
 
 Using the recorded events as the "source of truth" of the state of an application is
