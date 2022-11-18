@@ -4,7 +4,7 @@ Support
 
 Thank you for your interest in this library.
 Please show your support by
-`starring the project on GitHub <https://github.com/sponsors/pyeventsourcing/eventsourcing>`_,
+`starring the project on GitHub <https://github.com/pyeventsourcing/eventsourcing>`_,
 and either `sponsor the project <https://github.com/sponsors/pyeventsourcing?frequency=recurring>`_
 or `make a donation <https://github.com/sponsors/pyeventsourcing?frequency=one-time>`_.
 
