@@ -23,6 +23,14 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.2.17 (released 10 January 2023)
+-----------------------------------------
+
+* Improved documentation (Tutorial and Module pages).
+* Fixed POPOApplicationRecorder.selection_notifications() to avoid using negative
+  indexes into its list of stored events.
+
+
 Version 9.2.16 (released 11 June 2022)
 --------------------------------------
 
