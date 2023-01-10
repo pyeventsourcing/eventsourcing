@@ -165,7 +165,7 @@ the ``name`` argument.
 
 
 When the aggregate class is called, a "created" event object is
-constructed and used to to construct an aggregate object.
+constructed and used to to construct an aggregate instance.
 The body of the ``__init__()`` method is used by the "created" event object
 to initialise the aggregate instance. The result is the aggregate instance's
 ``name`` attribute has the value given when calling the aggregate class.
@@ -179,7 +179,7 @@ has the value given when calling the aggregate class.
 
 
 We can call :func:`~eventsourcing.domain.Aggregate.collect_events` to get the "created" event from
-the aggregate object.
+the aggregate instance.
 
 .. code-block:: python
 
@@ -193,7 +193,7 @@ We can see the event object is an instance of the class ``Dog.Registered``.
 
     assert isinstance(events[0], Dog.Registered)
 
-The event class ``Dog.Registered`` is a subclass of the base class ``Aggregate.Created``.
+The event class ``Dog.Registered`` is a subclass of the base class :class:`Aggregate.Created <eventsourcing.domain.Aggregate.Created>`.
 
 .. code-block:: python
 
@@ -290,7 +290,7 @@ an event class ``Dog.TrickAdded`` is defined on the aggregate class.
     assert isinstance(Dog.TrickAdded, type)
 
 
-The event class ``Dog.TrickAdded`` is a subclass of the base class ``Aggregate.Event``.
+The event class ``Dog.TrickAdded`` is a subclass of the base class :class:`Aggregate.Event <eventsourcing.domain.Aggregate.Event>`.
 
 .. code-block:: python
 
@@ -392,10 +392,10 @@ The example below shows the ``Dog`` aggregate class defined with explicit
 event classes. The :func:`@event<eventsourcing.domain.event>` decorator is used to specify the event class
 that will be triggered when the decorated method is called.
 
-The ``Dog.Registered`` class inherits ``Aggregate.Created`` event class. It has a
+The ``Dog.Registered`` class inherits :class:`Aggregate.Created <eventsourcing.domain.Aggregate.Created>`. It has a
 ``name`` attribute which matches the ``name`` argument of the ``__init__()`` method.
 
-The ``Dog.TrickAdded`` class inherits ``Aggregate.Event`` class. It has a ``trick``
+The ``Dog.TrickAdded`` class inherits :class:`Aggregate.Event <eventsourcing.domain.Aggregate.Event>` class. It has a ``trick``
 attribute which matches the ``trick`` argument of the ``add_trick()`` method.
 
 The event class definitions are interpreted as `Python data classes <https://docs.python.org/3/library/dataclasses.html>`_.
@@ -423,8 +423,8 @@ The event class definitions are interpreted as `Python data classes <https://doc
 The important things to remember are:
 
 * the :func:`@event<eventsourcing.domain.event>` decorator specifies the event class itself,
-* the "created" event class must be a subclass of ``Aggregate.Created``,
-* subsequent event classes must be subclasses of ``Aggregate.Event``, and
+* the "created" event class must be a subclass of :class:`Aggregate.Created <eventsourcing.domain.Aggregate.Created>`,
+* subsequent event classes must be subclasses of :class:`Aggregate.Event <eventsourcing.domain.Aggregate.Event>`, and
 * the event class attributes must match the decorated method arguments.
 
 We can use the aggregate class in the same way.
@@ -457,15 +457,16 @@ We can use the aggregate class in the same way.
     assert copy.name == dog.name
     assert copy.tricks == dog.tricks
 
-One reason for defining event classes explicitly is to be explicit about
-the event classes, as a matter of style. Another reason is versioning of
-the event class, see :ref:`Versioning <Versioning>` in the
-:doc:`domain </topics/domain>` module documentation for more details.
+One reason for defining event classes explicitly is, as a matter of style, to be explicit
+about the event classes. Another reason is to code for versioning of the event class, see
+:ref:`Versioning <Versioning>` in the :doc:`domain </topics/domain>` module documentation
+for more details. Another reason is to have an explicit class definition to reference in
+event processing policies.
 
 Decorating private methods
 ==========================
 
-Often an aggregate command method will need to do some work before the event
+Often an aggregate command method will need to do some work before an event
 is triggered.
 
 If an aggregate command method needs to do some work on its arguments before
@@ -498,7 +499,7 @@ command method ``add_trick()`` that calls a decorated "private" method ``_add_tr
 Because the "public" command method ``trick_added()`` is not decorated with the
 :func:`@event<eventsourcing.domain.event>` decorator, it does not trigger an event when it is called. Instead, the
 event is triggered when the "private" method ``_trick_added()`` is called by the
-command method.
+"public" method.
 
 ..
     #include-when-testing
