@@ -2,7 +2,7 @@ from setuptools import setup
 
 from eventsourcing import __version__
 
-crypto_requires = ["pycryptodome<=3.12.99999"]
+crypto_requires = ["pycryptodome<=3.16.99999"]
 postgresql_requires = ["psycopg2<=2.9.99999"]
 postgresql_dev_requires = ["psycopg2-binary<=2.9.99999"]
 
