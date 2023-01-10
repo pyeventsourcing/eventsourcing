@@ -6,7 +6,7 @@ Steps to make a new release.
 2. Go to the minor version branch, or create a minor version branch.
 3. Check release notes describe what's new in this release.
 4. Increase version number to new release version number.
-5. Check copyright year in LICENSE file.
+5. Check copyright year in LICENSE file and docs conf.py.
 6. Run 'make prepush'.
 7. Run 'make prepare-dist'.
 8. Fix any errors, until built distribution is working.
