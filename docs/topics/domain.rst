@@ -819,10 +819,10 @@ As discussed :ref:`above <Domain events>`, the arguments needed when constructin
 domain event are :py:attr:`~eventsourcing.domain.DomainEvent.originator_id`,
 :py:attr:`~eventsourcing.domain.DomainEvent.originator_version`, and
 :py:attr:`~eventsourcing.domain.DomainEvent.timestamp`.
-The :func:`~eventsourcing.domain.Aggregate.trigger_event` method uses the ``id`` attribute
+The :func:`~eventsourcing.domain.Aggregate.trigger_event` method uses the :py:attr:`~eventsourcing.domain.Aggregate.id` attribute
 of the aggregate as the :py:attr:`~eventsourcing.domain.DomainEvent.originator_id` of the new
 aggregate event. The :py:attr:`~eventsourcing.domain.DomainEvent.originator_version` of the
-new aggregate event is calculated by adding ``1`` to the current aggregate ``version``.
+new aggregate event is calculated by adding ``1`` to the current aggregate :py:attr:`~eventsourcing.domain.Aggregate.version`.
 It calls :func:`~eventsourcing.domain.DomainEvent.create_timestamp` on the event
 class to create a timezone-aware Python :class:`~datetime.datetime` object that is
 used as the :py:attr:`~eventsourcing.domain.DomainEvent.timestamp` value of the
@@ -833,7 +833,7 @@ will "mutate" the aggregate with the event. That is to say, the state of the agg
 be changed according to the state of the event. It calls the event object's
 :func:`~eventsourcing.domain.CanMutateAggregate.mutate` method, which calls
 the event's :func:`~eventsourcing.domain.CanMutateAggregate.apply` method
-and then assigns new values to the aggregate's ``version`` and ``modified_on``
+and then assigns new values to the aggregate's :py:attr:`~eventsourcing.domain.Aggregate.version` and :py:attr:`~eventsourcing.domain.Aggregate.modified_on`
 attributes. Please note, it's possible to code "immutable" aggregates, but things
 need to be arranged slightly differently (see the :ref:`example aggregates <Example aggregates>`
 for some suggestions).
@@ -843,7 +843,7 @@ new aggregate event to the aggregate object's list of pending events.
 
 Hence, after calling :func:`~eventsourcing.domain.Aggregate.trigger_event`, the aggregate's
 :py:obj:`~eventsourcing.domain.Aggregate.version` will have been incremented by ``1``, and the
-``modified_on`` time should be greater than the ``created_on`` time.
+:py:attr:`~eventsourcing.domain.Aggregate.modified_on` time should be greater than the :py:attr:`~eventsourcing.domain.Aggregate.created_on` time.
 
 .. code-block:: python
 
@@ -963,7 +963,7 @@ aggregate object by calling the ``Dog.create()`` class method.
     dog = Dog.create()
     assert isinstance(dog, Dog)
 
-The aggregate's attributes ``created_on`` and ``modified_on`` show
+The aggregate's attributes :py:attr:`~eventsourcing.domain.Aggregate.created_on` and :py:attr:`~eventsourcing.domain.Aggregate.modified_on` show
 when the aggregate was created and when it was modified. Since there
 has only been one domain event, these are initially equal.
 These values follow from the :py:attr:`~eventsourcing.domain.DomainEvent.timestamp` values of the domain event
@@ -995,7 +995,8 @@ command, the argument ``trick`` will be appended to the ``tricks``.
 
 
 Now that more than one domain event has been created, the aggregate's
-``modified_on`` value is greater than its ``created_on`` value.
+:py:attr:`~eventsourcing.domain.Aggregate.modified_on` value is greater than its
+:py:attr:`~eventsourcing.domain.Aggregate.created_on` value.
 
 .. code-block:: python
 
@@ -1685,7 +1686,8 @@ class, and an ``id`` argument supplied when creating new aggregates.
 
 When defining an explicit ``__init__()`` method, the ``id`` argument can
 be set on the object as ``self._id``. Assigning to ``self.id`` won't work
-because ``id`` is defined as a read-only property on the base aggregate class.
+because :py:attr:`~eventsourcing.domain.Aggregate.id` is defined as a read-only
+property on the base aggregate class.
 
 ..
     #include-when-testing

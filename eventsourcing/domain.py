@@ -200,22 +200,23 @@ class CanMutateAggregate(HasOriginatorIDVersion, CanCreateTimestamp):
 
     def mutate(self, aggregate: Optional[TAggregate]) -> Optional[TAggregate]:
         """
-        Changes the state of the given ``aggregate`` argument
-        according to domain event attributes. The argument is typed
-        as an optional argument, but the value is expected to be not
-        ``None``.
+        Validates and adjusted the attributes of the given ``aggregate`` argument. The
+        argument is typed as ``Optional`` but the value is expected to be not ``None``.
 
-        Validates the aggregate by checking the aggregate's ID equals the
-        ``originator_id``, and checks the ``originator_version`` is one greater
-        than the aggregate's version.
+        Validates the ``aggregate`` argument by checking the event's
+        :py:attr:`~eventsourcing.domain.HasOriginatorIDVersion.originator_id` equals the
+        ``aggregate``'s :py:attr:`~eventsourcing.domain.Aggregate.id`, and the event's
+        :py:attr:`~eventsourcing.domain.HasOriginatorIDVersion.originator_version` is
+        one greater than the ``aggregate``'s current
+        :py:attr:`~eventsourcing.domain.Aggregate.version`.
+        If the ``aggregate`` argument is not valid, an exception is raised.
 
-        If the aggregate is not valid, an exception is raised.
-
-        If the aggregate is valid, the
-        :func:`~eventsourcing.domain.CanMutateAggregate.apply` method is called,
-        and then ``originator_version`` is assigned to the aggregate's ``version``
+        If the ``aggregate`` argument is valid, the
+        :func:`~eventsourcing.domain.CanMutateAggregate.apply` method is called, and
+        then :py:attr:`~eventsourcing.domain.HasOriginatorIDVersion.originator_id` is
+        assigned to the aggregate's :py:attr:`~eventsourcing.domain.Aggregate.version`
         attribute, and the ``timestamp`` is assigned to the aggregate's
-        ``modified_on`` attribute.
+        :py:attr:`~eventsourcing.domain.Aggregate.modified_on` attribute.
         """
         assert aggregate is not None
 
