@@ -266,7 +266,6 @@ class TestAggregateCreation(TestCase):
             pass
 
         def assert_raises(cls):
-
             method_name = get_method_name(cls.__init__)
 
             with self.assertRaises(TypeError) as cm:

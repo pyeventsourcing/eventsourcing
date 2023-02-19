@@ -165,7 +165,6 @@ class TestSystem(TestCase):
 
 class TestLeader(TestCase):
     def test(self):
-
         # Define fixture that receives prompts.
         class FollowerFixture(RecordingEventReceiver):
             def __init__(self):

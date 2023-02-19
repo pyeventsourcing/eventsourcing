@@ -68,7 +68,6 @@ class POPOAggregateRecorder(AggregateRecorder):
         desc: bool = False,
         limit: Optional[int] = None,
     ) -> List[StoredEvent]:
-
         with self._database_lock:
             results = []
 

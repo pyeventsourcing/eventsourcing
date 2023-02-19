@@ -109,7 +109,6 @@ class ExampleApplicationTestCase(TestCase):
         self.assertEqual(from_snapshot.balance, Decimal("65.00"))
 
     def test__put_performance(self):
-
         app = BankAccounts()
 
         # Open an account.
@@ -139,7 +138,6 @@ class ExampleApplicationTestCase(TestCase):
         self._test_get_performance(is_snapshotting_enabled=False)
 
     def _test_get_performance(self, is_snapshotting_enabled: bool):
-
         app = BankAccounts(
             env={"IS_SNAPSHOTTING_ENABLED": "y" if is_snapshotting_enabled else "n"}
         )

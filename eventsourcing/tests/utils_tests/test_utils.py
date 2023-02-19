@@ -44,7 +44,6 @@ class TestRetryDecorator(TestCase):
         f()
 
     def test_exception_type_error(self):
-
         with self.assertRaises(TypeError):
 
             @retry(1)
@@ -84,7 +83,6 @@ class TestRetryDecorator(TestCase):
         self.assertEqual(self.call_count, 2)
 
     def test_max_attempts_not_int(self):
-
         with self.assertRaises(TypeError):
 
             @retry(ValueError, max_attempts="a")

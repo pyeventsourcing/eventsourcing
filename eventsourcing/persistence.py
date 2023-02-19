@@ -1042,14 +1042,12 @@ class ConnectionPool(ABC, Generic[TConnection]):
         started = time()
         # Get lock on tracking usage of connections.
         with self._put_condition:
-
             # Try to get a connection from the pool.
             try:
                 conn = self._pool.popleft()
             except IndexError:
                 # Pool is empty, but are connections fully used?
                 if self._is_use_full:
-
                     # Fully used, so wait for a connection to be returned.
                     if self._put_condition.wait(
                         timeout=self._time_remaining(timeout, started)
@@ -1118,7 +1116,6 @@ class ConnectionPool(ABC, Generic[TConnection]):
 
         # Get a lock on tracking usage of connections.
         with self._put_condition:
-
             # Make sure we aren't dealing with a closed pool
             if self._closed:
                 raise ConnectionPoolClosed("Pool is closed")

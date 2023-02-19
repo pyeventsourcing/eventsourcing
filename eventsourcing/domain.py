@@ -428,7 +428,6 @@ class CommandMethodDecorator:
 
         # Process a decorated property.
         if isinstance(decorated_obj, property):
-
             # Disallow putting event decorator on property getter.
             if decorated_obj.fset is None:
                 assert decorated_obj.fget, "Property has no getter"
@@ -459,7 +458,6 @@ class CommandMethodDecorator:
 
         # Process a decorated method.
         elif isinstance(decorated_obj, FunctionType):
-
             # Remember the decorated method as the decorated object.
             self.decorated_method = decorated_obj
 
@@ -1041,7 +1039,6 @@ class MetaAggregate(type, Generic[TAggregate]):
 
         # If no "created" event class has been specified, find or create one.
         if created_event_class is None:
-
             # Discover all the "created" event classes already defined.
             created_event_classes: Dict[str, Type[AggregateCreated]] = {}
             for name, value in tuple(cls.__dict__.items()):
@@ -1059,7 +1056,6 @@ class MetaAggregate(type, Generic[TAggregate]):
             # If there are no "created" event classes already defined, or a name is
             # specified that hasn't matched, then define a "created" event class.
             elif len(created_event_classes) == 0 or created_event_name:
-
                 # If no "created" event name has been specified, use default name.
                 if not created_event_name:
                     # This is safe because len(created_event_classes) == 0.
@@ -1103,7 +1099,6 @@ class MetaAggregate(type, Generic[TAggregate]):
 
         # Prepare the subsequent event classes.
         for attr_name, attr_value in tuple(cls.__dict__.items()):
-
             event_decorator: Optional[CommandMethodDecorator] = None
 
             if isinstance(attr_value, CommandMethodDecorator):

@@ -683,7 +683,6 @@ class TestEventDecorator(TestCase):
         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
 
     def test_event_name_set_in_decorator_cannot_be_empty_string(self):
-
         with self.assertRaises(ValueError) as cm:
 
             class MyAgg(Aggregate):
@@ -889,7 +888,6 @@ class TestEventDecorator(TestCase):
         )
 
     def test_raises_when_decorated_method_has_variable_args(self):
-
         with self.assertRaises(TypeError) as cm:
 
             class _(Aggregate):
@@ -913,7 +911,6 @@ class TestEventDecorator(TestCase):
         )
 
     def test_raises_when_decorated_method_has_variable_kwargs(self):
-
         with self.assertRaises(TypeError) as cm:
 
             class _(Aggregate):

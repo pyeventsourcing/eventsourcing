@@ -334,7 +334,6 @@ class TestPostgresDatastore(TestCase):
                 pass
 
     def test_pre_ping(self):
-
         # Define method to open and close a connection, and then execute a statement.
         def open_close_execute(pre_ping: bool):
             datastore = PostgresDatastore(
@@ -1061,7 +1060,6 @@ class TestPostgresProcessRecorder(SetupPostgresDatastore, ProcessRecorderTestCas
         super().test_performance()
 
     def test_excessively_long_table_names_raise_error(self):
-
         with self.assertRaises(ProgrammingError):
             PostgresProcessRecorder(
                 datastore=self.datastore,
@@ -1486,7 +1484,6 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         self.assertEqual(recorder.events_table_name, "public.testcase_events")
 
     def test_scheme_adjusts_table_names_on_process_recorder(self):
-
         self.factory = Factory(self.env)
 
         # Check by default the table name is not qualified.

@@ -437,7 +437,6 @@ class PostgresAggregateRecorder(AggregateRecorder):
 
         # Only do something if there is something to do.
         if len_stored_events > 0:
-
             # Mogrify the table lock statements.
             lock_sqls = (c.mogrify(s) for s in self.lock_statements)
 

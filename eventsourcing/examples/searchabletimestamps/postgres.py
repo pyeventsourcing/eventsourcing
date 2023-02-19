@@ -89,7 +89,6 @@ class SearchableTimestampsApplicationRecorder(
     def get_version_at_timestamp(
         self, originator_id: UUID, timestamp: datetime
     ) -> Optional[int]:
-
         with self.datastore.get_connection() as conn:
             self._prepare(
                 conn,
