@@ -23,7 +23,7 @@ It is recommended to install the library into a Python virtual environment.
 
 ::
 
-    $ python3 -mvenv my_venv
+    $ python3 -m venv my_venv
     $ source my_venv/bin/activate
     (my_venv) $ pip install eventsourcing
 
