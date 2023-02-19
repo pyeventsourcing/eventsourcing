@@ -617,7 +617,7 @@ class TestEventDecorator(TestCase):
     #         cm.exception.args[0],
     #     )
 
-    def test_raises_when_decorated_method_called_directly(self):
+    def test_raises_when_decorated_method_called_directly_without_instance_arg(self):
         class MyAgg(Aggregate):
             @event
             def method(self):
@@ -627,8 +627,19 @@ class TestEventDecorator(TestCase):
             MyAgg.method()
         self.assertEqual(
             cm.exception.args[0],
-            "'UnboundCommandMethodDecorator' object is not callable",
+            "Expected aggregate as first argument",
         )
+
+    def test_decorated_method_called_directly_on_class(self):
+        class MyAgg(Aggregate):
+            @event
+            def method(self):
+                pass
+
+        a = MyAgg()
+        self.assertEqual(a.version, 1)
+        MyAgg.method(a)
+        self.assertEqual(a.version, 2)
 
     def test_event_name_set_in_decorator(self):
         class MyAgg(Aggregate):

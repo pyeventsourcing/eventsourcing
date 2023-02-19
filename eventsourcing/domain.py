@@ -675,6 +675,16 @@ class UnboundCommandMethodDecorator:
         self.__annotations__ = event_decorator.decorated_method.__annotations__
         self.__doc__ = event_decorator.decorated_method.__doc__
 
+    def __call__(self, *args: Any, **kwargs: Any) -> None:
+        # Expect first argument is an aggregate instance.
+        if len(args) < 1 or not isinstance(args[0], Aggregate):
+            raise TypeError("Expected aggregate as first argument")
+        aggregate: Aggregate = args[0]
+        assert isinstance(aggregate, Aggregate)
+        BoundCommandMethodDecorator(self.event_decorator, aggregate)(
+            *args[1:], **kwargs
+        )
+
 
 class BoundCommandMethodDecorator:
     """
