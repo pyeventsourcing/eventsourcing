@@ -51,14 +51,15 @@ class DomainEventProtocol(Protocol):
 
     @property
     def originator_id(self) -> UUID:
-        """UUID identifying an aggregate to which the event belongs."""
-        ...  # pragma: no cover
+        """
+        UUID identifying an aggregate to which the event belongs.
+        """
 
     @property
     def originator_version(self) -> int:
-        """Integer identifying the version of the aggregate when the event occurred."""
-
-    ...  # pragma: no cover
+        """
+        Integer identifying the version of the aggregate when the event occurred.
+        """
 
 
 TDomainEvent = TypeVar("TDomainEvent", bound=DomainEventProtocol)
@@ -77,17 +78,21 @@ class MutableAggregateProtocol(Protocol):
 
     @property
     def id(self) -> UUID:
-        """Mutable aggregates have a read-only ID that is a UUID."""
-        ...  # pragma: no cover
+        """
+        Mutable aggregates have a read-only ID that is a UUID.
+        """
 
     @property
     def version(self) -> int:
-        """Mutable aggregates have a read-write version that is an int."""
-        ...  # pragma: no cover
+        """
+        Mutable aggregates have a read-write version that is an int.
+        """
 
     @version.setter
     def version(self, value: int) -> None:
-        ...  # pragma: no cover
+        """
+        Mutable aggregates have a read-write version that is an int.
+        """
 
 
 class ImmutableAggregateProtocol(Protocol):
@@ -103,13 +108,15 @@ class ImmutableAggregateProtocol(Protocol):
 
     @property
     def id(self) -> UUID:
-        """Mutable aggregates have a read-only ID that is a UUID."""
-        ...  # pragma: no cover
+        """
+        Immutable aggregates have a read-only ID that is a UUID.
+        """
 
     @property
     def version(self) -> int:
-        """Mutable aggregates have a read-only version that is an int."""
-        ...  # pragma: no cover
+        """
+        Immutable aggregates have a read-only version that is an int.
+        """
 
 
 MutableOrImmutableAggregate = Union[
@@ -134,7 +141,6 @@ class CollectEventsProtocol(Protocol):
         """
         Returns a sequence of events.
         """
-        ...  # pragma: no cover
 
 
 @runtime_checkable
@@ -151,7 +157,6 @@ class CanMutateProtocol(DomainEventProtocol, Protocol[TMutableOrImmutableAggrega
         returning the given aggregate instance with modified attributes
         or by constructing and returning a new aggregate instance.
         """
-        ...  # pragma: no cover
 
 
 def create_utc_datetime_now() -> datetime:
@@ -494,19 +499,26 @@ class CommandMethodDecorator:
     def __get__(
         self, instance: None, owner: MetaAggregate[Aggregate]
     ) -> Union[UnboundCommandMethodDecorator, property]:
-        ...  # pragma: no cover
+        """
+        Descriptor protocol for getting decorated method or property on class object.
+        """
 
     @overload
     def __get__(
         self, instance: Aggregate, owner: MetaAggregate[Aggregate]
     ) -> Union[BoundCommandMethodDecorator, Any]:
-        ...  # pragma: no cover
+        """
+        Descriptor protocol for getting decorated method or property on instance object.
+        """
 
     def __get__(
         self, instance: Optional[Aggregate], owner: MetaAggregate[Aggregate]
     ) -> Union[
         BoundCommandMethodDecorator, UnboundCommandMethodDecorator, property, Any
     ]:
+        """
+        Descriptor protocol for getting decorated method or property.
+        """
         # If we are decorating a property, then delegate to the property's __get__.
         if self.decorated_property:
             return self.decorated_property.__get__(instance, owner)
@@ -520,6 +532,9 @@ class CommandMethodDecorator:
             return UnboundCommandMethodDecorator(self)
 
     def __set__(self, instance: Aggregate, value: Any) -> None:
+        """
+        Descriptor protocol for assigning to decorated property.
+        """
         # Set decorated property indirectly by triggering an event.
         assert self.property_setter_arg_name
         b = BoundCommandMethodDecorator(self, instance)
@@ -527,37 +542,42 @@ class CommandMethodDecorator:
         b.trigger(**kwargs)
 
 
-# Called when actually decorating something.
 @overload
 def event(arg: TDecoratedObjType) -> TDecoratedObjType:
-    ...  # pragma: no cover
+    """
+    Signature for calling ``@event`` decorator with decorated method.
+    """
 
 
-# Called when specifying event.
 @overload
 def event(
     arg: EventSpecType,
 ) -> Callable[[TDecoratedObjType], TDecoratedObjType]:
-    ...  # pragma: no cover
+    """
+    Signature for calling ``@event`` decorator with event specification.
+    """
 
 
-# Called without specifying event.
 @overload
 def event(
     arg: None = None,
 ) -> Callable[[TDecoratedObjType], TDecoratedObjType]:
-    ...  # pragma: no cover
+    """
+    Signature for calling ``@event`` decorator without event specification.
+    """
 
 
 def event(
     arg: Optional[Union[EventSpecType, TDecoratedObjType]] = None,
 ) -> Union[TDecoratedObjType, Callable[[TDecoratedObjType], TDecoratedObjType]]:
     """
-    Can be used to decorate an aggregate method so that when the
-    method is called an event is triggered. The body of the method
-    will be used to apply the event to the aggregate, both when the
-    event is triggered and when the aggregate is reconstructed from
-    stored events.
+    Event-triggering decorator for aggregate command methods and property setters.
+
+    Can be used to decorate an aggregate method or property setter so that an
+    event will be triggered when the method is called or the property is set.
+    The body of the method will be used to apply the event to the aggregate,
+    both when the event is triggered and when the aggregate is reconstructed
+    from stored events.
 
     .. code-block:: python
 
@@ -640,8 +660,7 @@ triggers = event
 
 class UnboundCommandMethodDecorator:
     """
-    Wraps an EventDecorator instance when attribute is accessed
-    on an aggregate class.
+    Wraps a CommandMethodDecorator instance when accessed on an aggregate class.
     """
 
     def __init__(self, event_decorator: CommandMethodDecorator):
@@ -659,8 +678,8 @@ class UnboundCommandMethodDecorator:
 
 class BoundCommandMethodDecorator:
     """
-    Wraps an EventDecorator instance when attribute is accessed
-    on an aggregate so that the aggregate methods can be accessed.
+    Binds a CommandMethodDecorator with an aggregate instance so calls to
+    decorated command methods can be intercepted and will trigger an event.
     """
 
     def __init__(self, event_decorator: CommandMethodDecorator, aggregate: Aggregate):
@@ -1505,16 +1524,22 @@ class VersionError(OriginatorVersionError):
 class SnapshotProtocol(DomainEventProtocol, Protocol):
     @property
     def topic(self) -> str:
-        ...  # pragma: no cover
+        """
+        Snapshots have a read-only 'topic'.
+        """
 
     @property
     def state(self) -> Dict[str, Any]:
-        ...  # pragma: no cover
+        """
+        Snapshots have a read-only 'state'.
+        """
 
     # Todo: Improve on this 'Any'.
     @classmethod
     def take(cls: Any, aggregate: Any) -> Any:
-        ...  # pragma: no cover
+        """
+        Snapshots have a 'take()' class method.
+        """
 
 
 TCanSnapshotAggregate = TypeVar("TCanSnapshotAggregate", bound="CanSnapshotAggregate")
