@@ -23,6 +23,15 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.2.18 (released 22 March 2023)
+---------------------------------------
+
+* Allowing access to event timestamp value in aggregate command method,
+  and event timestamp to be set by caller, by including 'timestamp' as
+  a parameter of the method signature.
+* Added support for calling "unbound" decorated aggregate command methods.
+* Improved documentation (doc strings, and discussion of aggregate events).
+
 Version 9.2.17 (released 10 January 2023)
 -----------------------------------------
 
