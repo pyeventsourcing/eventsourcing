@@ -1309,8 +1309,9 @@ class Aggregate(metaclass=MetaAggregate):
             originator_topic=get_topic(cls),
             originator_id=originator_id,
             originator_version=cls.INITIAL_VERSION,
-            timestamp=event_class.create_timestamp(),
         )
+        if kwargs.get("timestamp") is None:
+            kwargs["timestamp"] = event_class.create_timestamp()
 
         try:
             created_event = event_class(**kwargs)
@@ -1418,8 +1419,10 @@ class Aggregate(metaclass=MetaAggregate):
         kwargs.update(
             originator_id=self.id,
             originator_version=next_version,
-            timestamp=event_class.create_timestamp(),
         )
+        if kwargs.get("timestamp") is None:
+            kwargs["timestamp"] = event_class.create_timestamp()
+
         try:
             new_event = event_class(**kwargs)
         except TypeError as e:
