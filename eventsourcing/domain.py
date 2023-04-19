@@ -940,6 +940,7 @@ class MetaAggregate(type, Generic[TAggregate]):
 
         # Identify or define a base event class for this aggregate.
         base_event_name = "Event"
+        base_event_cls: Type[CanMutateAggregate]
         try:
             base_event_cls = cls.__dict__[base_event_name]
         except KeyError:
@@ -1076,7 +1077,7 @@ class MetaAggregate(type, Generic[TAggregate]):
                 # Define a "created" event class for this aggregate.
                 if issubclass(cls.Created, base_event_cls):
                     # Don't subclass from base event class twice.
-                    bases: Tuple[Type[DomainEvent], ...] = (cls.Created,)
+                    bases: Tuple[Type[CanMutateAggregate], ...] = (cls.Created,)
                 else:
                     bases = (cls.Created, base_event_cls)
                 event_cls = cls._define_event_class(
@@ -1143,7 +1144,7 @@ class MetaAggregate(type, Generic[TAggregate]):
 
                     # Define event class as subclass of given class.
                     given_subclass = cast(
-                        Type[HasOriginatorIDVersion],
+                        Type[CanMutateAggregate],
                         getattr(cls, event_decorator.given_event_cls.__name__),
                     )
                     event_cls = cls._define_event_class(
@@ -1210,9 +1211,9 @@ class MetaAggregate(type, Generic[TAggregate]):
     def _define_event_class(
         cls,
         name: str,
-        bases: Tuple[Type[DomainEventProtocol], ...],
+        bases: Tuple[Type[CanMutateAggregate], ...],
         apply_method: Optional[CommandMethod],
-    ) -> Type[DomainEventProtocol]:
+    ) -> Type[CanMutateAggregate]:
         # Define annotations for the event class (specs the init method).
         annotations = {}
         if apply_method is not None:
@@ -1236,7 +1237,7 @@ class MetaAggregate(type, Generic[TAggregate]):
         }
 
         # Create the event class object.
-        return cast(Type[DomainEventProtocol], type(name, bases, event_cls_dict))
+        return cast(Type[CanMutateAggregate], type(name, bases, event_cls_dict))
 
     def __call__(
         cls: MetaAggregate[TAggregate], *args: Any, **kwargs: Any
