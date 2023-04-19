@@ -26,6 +26,7 @@ from warnings import warn
 # For backwards compatibility of import statements...
 from eventsourcing.domain import LogEvent  # noqa: F401
 from eventsourcing.domain import TLogEvent  # noqa: F401
+from eventsourcing.domain import create_utc_datetime_now  # noqa: F401
 from eventsourcing.domain import (
     Aggregate,
     CanMutateProtocol,
@@ -977,7 +978,7 @@ class EventSourcedLog(Generic[TDomainEvent]):
         logged_event = logged_cls(  # type: ignore
             originator_id=self.originator_id,
             originator_version=next_originator_version,
-            timestamp=self.logged_cls.create_timestamp(),
+            timestamp=create_utc_datetime_now(),
             **kwargs,
         )
         return logged_event
