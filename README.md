@@ -197,7 +197,8 @@ Please register questions, requests and
 [issues on GitHub](https://github.com/pyeventsourcing/eventsourcing/issues),
 or post in the project's Slack channel.
 
-There is a [Slack channel](https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTJjMmJjYTc3ODQ3M2YwOTMwMDJlODJkMjk3ZmE1MGYyZDM4MjIxODZmYmVkZmJkODRhZDg5N2MwZjk1YzU3NmY)
-for this project, which you are [welcome to join](https://join.slack.com/t/eventsourcinginpython/shared_invite/enQtMjczNTc2MzcxNDI0LTJjMmJjYTc3ODQ3M2YwOTMwMDJlODJkMjk3ZmE1MGYyZDM4MjIxODZmYmVkZmJkODRhZDg5N2MwZjk1YzU3NmY).
+There is a [Slack channel](https://join.slack.com/t/eventsourcinginpython/shared_invite/zt-3hogb36o-LCvKd4Rz8JMALoLSl_pQ8g)
+for this project, which you are [welcome to join](https://join.slack.com/t/eventsourcinginpython/shared_invite/zt-3hogb36o-LCvKd4Rz8JMALoLSl_pQ8g).
 
 Please refer to the [documentation](https://eventsourcing.readthedocs.io/) for installation and usage guides.
+
