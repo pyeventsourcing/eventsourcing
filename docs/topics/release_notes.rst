@@ -23,6 +23,15 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.2.19 (released 19 April 2023)
+---------------------------------------
+
+* Fixed invite link to Slack workspace in docs (had somehow become invalid).
+* Fixed new mypy issue with call to TDomainEvent.create_timestamp() in
+  EventSourcedLog class, by directly calling create_utc_timestamp().
+* Slightly adjusted typing annotations in Aggregate class.
+
+
 Version 9.2.18 (released 22 March 2023)
 ---------------------------------------
 
