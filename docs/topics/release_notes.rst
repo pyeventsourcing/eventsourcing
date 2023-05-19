@@ -23,6 +23,11 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.2.20 (released 19 May 2023)
+---------------------------------------
+
+* Fixed invite link to Slack workspace in docs.
+
 Version 9.2.19 (released 19 April 2023)
 ---------------------------------------
 
