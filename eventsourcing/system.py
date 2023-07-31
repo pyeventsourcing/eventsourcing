@@ -1020,7 +1020,7 @@ class PullingThread(Thread):
         self.has_started.set()
         try:
             while not self.is_stopping.is_set():
-                if self.follower.recorder.max_notification_id() > self.previous_max_notification_id:
+                if self.recording_event_queue.qsize() == 0 and (self.follower.recorder.max_notification_id() > self.previous_max_notification_id):
                     start = self.previous_max_notification_id + 1
                     stop = self.follower.recorder.max_notification_id()
                     for notifications in self.follower.pull_notifications(
