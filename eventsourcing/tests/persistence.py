@@ -998,7 +998,7 @@ class CustomType1:
         self.value = value
 
     def __eq__(self, other: CustomType1):
-        return type(self) == type(other) and self.__dict__ == other.__dict__
+        return type(self) is type(other) and self.__dict__ == other.__dict__
 
 
 class CustomType2:
@@ -1006,7 +1006,7 @@ class CustomType2:
         self.value = value
 
     def __eq__(self, other: CustomType2):
-        return type(self) == type(other) and self.__dict__ == other.__dict__
+        return type(self) is type(other) and self.__dict__ == other.__dict__
 
 
 class MyDict(dict):
@@ -1014,7 +1014,7 @@ class MyDict(dict):
         return f"{type(self).__name__}({super().__repr__()})"
 
     def __eq__(self, other):
-        return type(self) == type(other) and super().__eq__(other)
+        return type(self) is type(other) and super().__eq__(other)
 
 
 class MyList(list):
@@ -1022,7 +1022,7 @@ class MyList(list):
         return f"{type(self).__name__}({super().__repr__()})"
 
     def __eq__(self, other):
-        return type(self) == type(other) and super().__eq__(other)
+        return type(self) is type(other) and super().__eq__(other)
 
 
 class MyStr(str):
@@ -1030,7 +1030,7 @@ class MyStr(str):
         return f"{type(self).__name__}({super().__repr__()})"
 
     def __eq__(self, other):
-        return type(self) == type(other) and super().__eq__(other)
+        return type(self) is type(other) and super().__eq__(other)
 
 
 class MyInt(int):
@@ -1038,7 +1038,7 @@ class MyInt(int):
         return f"{type(self).__name__}({super().__repr__()})"
 
     def __eq__(self, other):
-        return type(self) == type(other) and super().__eq__(other)
+        return type(self) is type(other) and super().__eq__(other)
 
 
 class MyClass:

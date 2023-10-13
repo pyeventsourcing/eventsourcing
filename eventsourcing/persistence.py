@@ -654,6 +654,7 @@ class InfrastructureFactory(ABC):
         """
         Constructs a transcoder.
         """
+        # Todo: Implement support for TRANSCODER_TOPIC.
         return JSONTranscoder()
 
     def mapper(
@@ -662,6 +663,7 @@ class InfrastructureFactory(ABC):
         """
         Constructs a mapper.
         """
+        # Todo: Implement support for MAPPER_TOPIC.
         return mapper_class(
             transcoder=transcoder,
             cipher=self.cipher(),

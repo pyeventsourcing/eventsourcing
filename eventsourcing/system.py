@@ -82,7 +82,9 @@ class Follower(Application):
         reader = NotificationLogReader(log, section_size=self.pull_section_size)
         env = self.construct_env(name, self.env)
         factory = self.construct_factory(env)
-        mapper = factory.mapper(self.construct_transcoder())
+        mapper = factory.mapper(
+            self.construct_transcoder(), mapper_class=type(self.mapper)
+        )
         self.readers[name] = reader
         self.mappers[name] = mapper
 

@@ -1391,7 +1391,7 @@ class Aggregate(metaclass=MetaAggregate):
         pass
 
     def __eq__(self, other: Any) -> bool:
-        return type(self) == type(other) and self.__dict__ == other.__dict__
+        return type(self) is type(other) and self.__dict__ == other.__dict__
 
     def __repr__(self) -> str:
         attrs = [
