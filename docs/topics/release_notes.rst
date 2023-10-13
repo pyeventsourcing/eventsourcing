@@ -23,6 +23,14 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.2.21 (released 13 Oct 2023)
+-------------------------------------
+
+* Changed Follower.follow() to pass application's mapper class into factory.mapper()
+  so that if an application uses a custom mapper class for its own recorders then
+  it will use that type also for mapping event notifications from upstream applications
+  in a system.
+
 Version 9.2.20 (released 19 May 2023)
 ---------------------------------------
 
