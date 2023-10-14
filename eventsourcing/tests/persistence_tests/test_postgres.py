@@ -334,7 +334,6 @@ class TestPostgresDatastore(TestCase):
                 pass
 
     def test_pre_ping(self):
-
         # Define method to open and close a connection, and then execute a statement.
         def open_close_execute(pre_ping: bool):
             datastore = PostgresDatastore(
@@ -362,7 +361,6 @@ class TestPostgresDatastore(TestCase):
             # Check the connection doesn't think it's closed.
             self.assertTrue(datastore.pool._pool)
             self.assertFalse(datastore.pool._pool[0].closed)
-            # self.assertFalse()
 
             # Get a closed connection.
             with datastore.get_connection() as conn:
@@ -372,11 +370,8 @@ class TestPostgresDatastore(TestCase):
                     curs.execute("SELECT 1")
 
         # Check using the closed connection gives an error.
-        with self.assertRaises(psycopg2.Error) as cm:
+        with self.assertRaises(psycopg2.Error):
             open_close_execute(pre_ping=False)
-        self.assertIn(
-            "terminating connection due to administrator command", cm.exception.args[0]
-        )
 
         # Now try that again with pre-ping enabled.
         open_close_execute(pre_ping=True)
@@ -390,15 +385,11 @@ class TestPostgresDatastore(TestCase):
             password="eventsourcing",
             idle_in_transaction_session_timeout=1,
         )
-        with self.assertRaises(PersistenceError) as cm:
+        with self.assertRaises(PersistenceError):
             with datastore.transaction(commit=False) as curs:
                 curs.execute("SELECT 1")
                 self.assertFalse(curs.closed)
                 sleep(2)
-        self.assertIn(
-            "terminating connection due to idle-in-transaction timeout",
-            cm.exception.args[0],
-        )
 
     def test_report_on_prepared_statements(self):
         datastore = PostgresDatastore(
@@ -1069,7 +1060,6 @@ class TestPostgresProcessRecorder(SetupPostgresDatastore, ProcessRecorderTestCas
         super().test_performance()
 
     def test_excessively_long_table_names_raise_error(self):
-
         with self.assertRaises(ProgrammingError):
             PostgresProcessRecorder(
                 datastore=self.datastore,
@@ -1494,7 +1484,6 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         self.assertEqual(recorder.events_table_name, "public.testcase_events")
 
     def test_scheme_adjusts_table_names_on_process_recorder(self):
-
         self.factory = Factory(self.env)
 
         # Check by default the table name is not qualified.

@@ -74,7 +74,6 @@ class TestDocs(TestCase):
         # self.check_code_snippets_in_file(path)
 
     def test_docs(self):
-
         skipped = [
             # 'deployment.rst'
         ]

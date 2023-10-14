@@ -165,7 +165,7 @@ A stored event object represents a domain event in a way that allows
 the domain event object to be reconstructed.
 
 The library's :class:`~eventsourcing.persistence.StoredEvent` class
-is a Python frozen dataclass.
+is a Python frozen data class.
 
 .. code-block:: python
 
@@ -206,7 +206,7 @@ object joins together the attributes of the stored event and the
 notification ID.
 
 The library's :class:`~eventsourcing.persistence.Notification` class
-is a Python frozen dataclass. It is a subclass of :class:`~eventsourcing.persistence.StoredEvent`.
+is a Python frozen data class. It is a subclass of :class:`~eventsourcing.persistence.StoredEvent`.
 
 .. code-block:: python
 
@@ -253,7 +253,7 @@ A tracking object identifies the position of an event notification
 in an application sequence.
 
 The library's :class:`~eventsourcing.persistence.Tracking` class
-is a Python frozen dataclass.
+is a Python frozen data class.
 
 .. code-block:: python
 
@@ -1378,14 +1378,13 @@ Other persistence modules
 Other persistence modules are available or under development. There are
 `extension projects <https://github.com/pyeventsourcing>`_
 that support using popular ORMs for persistence such as
-`Django <https://github.com/pyeventsourcing/eventsourcing-django>`_
-and `SQLAlchemy <https://github.com/pyeventsourcing/eventsourcing-sqlalchemy>`_,
+`Django <https://github.com/pyeventsourcing/eventsourcing-django#readme>`_
+and `SQLAlchemy <https://github.com/pyeventsourcing/eventsourcing-sqlalchemy#readme>`_,
 specialist event stores such as
-`Axon Server <https://github.com/pyeventsourcing/eventsourcing-axonserver>`_,
-and `EventStoreDB <https://github.com/pyeventsourcing/eventsourcing-eventstoredb>`_,
-and other popular databases such as Azure,
-`DynamoDB <https://github.com/pyeventsourcing/eventsourcing-dynamodb>`_,
-and MongoDB.
+`Axon Server <https://github.com/pyeventsourcing/eventsourcing-axonserver#readme>`_
+and `EventStoreDB <https://github.com/pyeventsourcing/eventsourcing-eventstoredb#readme>`_,
+and popular NoSQL databases such as
+`DynamoDB <https://github.com/pyeventsourcing/eventsourcing-dynamodb#readme>`_.
 
 
 Classes

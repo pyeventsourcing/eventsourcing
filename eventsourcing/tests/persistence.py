@@ -43,7 +43,6 @@ class AggregateRecorderTestCase(TestCase, ABC):
         """"""
 
     def test_insert_and_select(self) -> None:
-
         # Construct the recorder.
         recorder = self.create_recorder()
 
@@ -175,7 +174,6 @@ class AggregateRecorderTestCase(TestCase, ABC):
         )
 
     def test_performance(self) -> None:
-
         # Construct the recorder.
         recorder = self.create_recorder()
 
@@ -695,7 +693,6 @@ class ProcessRecorderTestCase(TestCase, ABC):
         self.assertFalse(recorder.has_tracking_id("upstream_app", 3))
 
     def test_performance(self) -> None:
-
         # Construct the recorder.
         recorder = self.create_recorder()
 
@@ -838,7 +835,6 @@ class InfrastructureFactoryTestCase(ABC, TestCase):
         self.transcoder.register(DatetimeAsISO())
 
     def test_createmapper(self):
-
         # Want to construct:
         #  - application recorder
         #  - snapshot recorder
@@ -875,7 +871,6 @@ class InfrastructureFactoryTestCase(ABC, TestCase):
         self.assertIsNone(mapper.compressor)
 
     def test_createmapper_with_compressor(self):
-
         # Create mapper with compressor class as topic.
         self.env[self.factory.COMPRESSOR_TOPIC] = get_topic(ZlibCompressor)
         mapper = self.factory.mapper(transcoder=self.transcoder)
@@ -891,7 +886,6 @@ class InfrastructureFactoryTestCase(ABC, TestCase):
         self.assertIsNone(mapper.cipher)
 
     def test_createmapper_with_cipher(self):
-
         # Check cipher needs a key.
         self.env[self.factory.CIPHER_TOPIC] = get_topic(AESCipher)
 
@@ -913,7 +907,6 @@ class InfrastructureFactoryTestCase(ABC, TestCase):
     def test_createmapper_with_cipher_and_compressor(
         self,
     ):
-
         # Create mapper with cipher and compressor.
         self.env[self.factory.COMPRESSOR_TOPIC] = get_topic(ZlibCompressor)
 
@@ -1005,7 +998,7 @@ class CustomType1:
         self.value = value
 
     def __eq__(self, other: CustomType1):
-        return type(self) == type(other) and self.__dict__ == other.__dict__
+        return type(self) is type(other) and self.__dict__ == other.__dict__
 
 
 class CustomType2:
@@ -1013,7 +1006,7 @@ class CustomType2:
         self.value = value
 
     def __eq__(self, other: CustomType2):
-        return type(self) == type(other) and self.__dict__ == other.__dict__
+        return type(self) is type(other) and self.__dict__ == other.__dict__
 
 
 class MyDict(dict):
@@ -1021,7 +1014,7 @@ class MyDict(dict):
         return f"{type(self).__name__}({super().__repr__()})"
 
     def __eq__(self, other):
-        return type(self) == type(other) and super().__eq__(other)
+        return type(self) is type(other) and super().__eq__(other)
 
 
 class MyList(list):
@@ -1029,7 +1022,7 @@ class MyList(list):
         return f"{type(self).__name__}({super().__repr__()})"
 
     def __eq__(self, other):
-        return type(self) == type(other) and super().__eq__(other)
+        return type(self) is type(other) and super().__eq__(other)
 
 
 class MyStr(str):
@@ -1037,7 +1030,7 @@ class MyStr(str):
         return f"{type(self).__name__}({super().__repr__()})"
 
     def __eq__(self, other):
-        return type(self) == type(other) and super().__eq__(other)
+        return type(self) is type(other) and super().__eq__(other)
 
 
 class MyInt(int):
@@ -1045,7 +1038,7 @@ class MyInt(int):
         return f"{type(self).__name__}({super().__repr__()})"
 
     def __eq__(self, other):
-        return type(self) == type(other) and super().__eq__(other)
+        return type(self) is type(other) and super().__eq__(other)
 
 
 class MyClass:

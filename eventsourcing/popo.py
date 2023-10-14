@@ -68,7 +68,6 @@ class POPOAggregateRecorder(AggregateRecorder):
         desc: bool = False,
         limit: Optional[int] = None,
     ) -> List[StoredEvent]:
-
         with self._database_lock:
             results = []
 
@@ -107,6 +106,7 @@ class POPOApplicationRecorder(ApplicationRecorder, POPOAggregateRecorder):
     ) -> List[Notification]:
         with self._database_lock:
             results = []
+            start = max(start, 1)  # Don't use negative indexes!
             i = start - 1
             while True:
                 if stop is not None and i > stop - 1:

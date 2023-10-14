@@ -7,7 +7,7 @@ This example shows another variation of the ``Dog`` aggregate class used
 in the tutorial and module docs.
 
 Like in the previous example, this example defines immutable ``Aggregate`` and
-``DomainEvent`` base classes, as frozen dataclasses. However, this time the
+``DomainEvent`` base classes, as frozen data classes. However, this time the
 aggregate class has no methods. All the functionality has been implemented
 as module-level functions.
 

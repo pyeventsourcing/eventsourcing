@@ -45,7 +45,6 @@ class TestDomainEvent(TestCase):
         self.assertEqual(a.timestamp, timestamp)
 
     def test_examples(self):
-
         # Define an 'account opened' domain event.
         class AccountOpened(DomainEvent):
             full_name: str

@@ -26,6 +26,7 @@ from warnings import warn
 # For backwards compatibility of import statements...
 from eventsourcing.domain import LogEvent  # noqa: F401
 from eventsourcing.domain import TLogEvent  # noqa: F401
+from eventsourcing.domain import create_utc_datetime_now  # noqa: F401
 from eventsourcing.domain import (
     Aggregate,
     CanMutateProtocol,
@@ -438,7 +439,7 @@ class NotificationLog(ABC):
         topics: Sequence[str] = (),
     ) -> List[Notification]:
         """
-        Returns a selection
+        Returns a selection of
         :class:`~eventsourcing.persistence.Notification` objects
         from the notification log.
         """
@@ -526,7 +527,7 @@ class LocalNotificationLog(NotificationLog):
         topics: Sequence[str] = (),
     ) -> List[Notification]:
         """
-        Returns a selection
+        Returns a selection of
         :class:`~eventsourcing.persistence.Notification` objects
         from the notification log.
         """
@@ -626,7 +627,7 @@ class RecordingEvent:
         self.previous_max_notification_id = previous_max_notification_id
 
 
-class Application(ABC):
+class Application:
     """
     Base class for event-sourced applications.
     """
@@ -977,7 +978,7 @@ class EventSourcedLog(Generic[TDomainEvent]):
         logged_event = logged_cls(  # type: ignore
             originator_id=self.originator_id,
             originator_version=next_originator_version,
-            timestamp=self.logged_cls.create_timestamp(),
+            timestamp=create_utc_datetime_now(),
             **kwargs,
         )
         return logged_event

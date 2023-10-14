@@ -127,7 +127,7 @@ class NotificationLogJSONClient(NotificationLog):
         topics: Sequence[str] = (),
     ) -> List[Notification]:
         """
-        Returns a selection
+        Returns a selection of
         :class:`~eventsourcing.persistence.Notification` objects
         from the notification log.
         """

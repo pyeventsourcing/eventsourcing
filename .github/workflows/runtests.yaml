@@ -7,17 +7,18 @@ jobs:
 
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 4
+      max-parallel: 20
       fail-fast: false
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10"]
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        postgres-version: ["12", "13", "14", "15"]
 
     # Service containers to run with `runner-job`
     services:
       # Label used to access the service container
       postgres:
         # Docker Hub image
-        image: postgres
+        image: postgres:${{ matrix.postgres-version }}
         # Provide the password for postgres
         env:
           POSTGRES_PASSWORD: postgres
@@ -41,6 +42,7 @@ jobs:
       run: |
         PGPASSWORD=postgres psql -c 'CREATE DATABASE eventsourcing;' -U postgres -h localhost
         PGPASSWORD=postgres psql -c "CREATE USER eventsourcing WITH PASSWORD 'eventsourcing';" -U postgres -h localhost
+        PGPASSWORD=postgres psql -c "ALTER DATABASE eventsourcing OWNER TO eventsourcing;" -U postgres -h localhost
         PGPASSWORD=postgres psql eventsourcing -c "CREATE SCHEMA myschema AUTHORIZATION eventsourcing" -U postgres -h localhost
 
     - name: Install
@@ -63,10 +65,10 @@ jobs:
     needs: lint-and-test-code
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 4
+      max-parallel: 5
       fail-fast: false
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10"]
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
 
     steps:
     - uses: actions/checkout@v2

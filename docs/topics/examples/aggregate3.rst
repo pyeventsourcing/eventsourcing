@@ -5,7 +5,7 @@ Aggregate 3 - Explicit trigger and apply
 
 This example shows another variation of the ``Dog`` aggregate class.
 
-Like the previous example, this example uses the ``Aggregate`` class from the
+Like the previous example, this example uses the :class:`~eventsourcing.domain.Aggregate` class from the
 library. Event classes are defined explicitly to match command method signatures.
 In contrast to the previous example, this example explicitly triggers events within
 the command method bodies, and separately applies the events to the aggregate using

@@ -348,8 +348,8 @@ Selecting notifications from the log
 The :func:`~eventsourcing.application.LocalNotificationLog.select` method of a
 notification log can be used to directly select a sub-sequence of
 :ref:`event notification objects <Notification objects>` from a notification log.
-In the example below, the first three event notifications are selected from the
-notification log of the ``application`` object.
+In the example below, the first two event notifications are selected from the
+notification log of the :class:`~eventsourcing.application.Application` object.
 
 .. code-block:: python
 

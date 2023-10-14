@@ -34,7 +34,7 @@ The "live coding" video below shows how to do event sourcing with Python in less
 Synopsis
 ========
 
-Use the library's ``Aggregate`` class and the ``@event`` decorator to define
+Use the library's :class:`~eventsourcing.domain.Aggregate` class and the :func:`@event<eventsourcing.domain.event>` decorator to define
 event-sourced aggregates.
 
 .. code-block:: python
@@ -56,7 +56,7 @@ Aggregate events will be triggered when decorated
 methods are called, and the decorated method bodies will be used to mutate
 the state of the aggregate.
 
-Use the library's ``Application`` class to define event-sourced applications.
+Use the library's :class:`~eventsourcing.application.Application` class to define event-sourced applications.
 Add command and query methods that use event-sourced aggregates.
 
 .. code-block:: python
@@ -81,9 +81,9 @@ Add command and query methods that use event-sourced aggregates.
 
 
 An application combines domain model aggregates persistence infrastructure.
-Aggregate events are collected and stored by the appliation ``save()``
+Aggregate events are collected and stored by the appliation :func:`~eventsourcing.application.Application.save`
 method. Aggregate events are retrieved and used to reconstruct aggregates
-by the repository ``get()`` method.
+by the repository :func:`~eventsourcing.application.Repository.get` method.
 
 Construct an application object by calling the application class.
 
@@ -372,7 +372,7 @@ in the order they were recorded.
 There were always decisions being made in a domain model, but the decisions were not
 always given the degree of order they have when we use aggregates, and the decisions
 were not always made explicit as event objects. Event-sourced aggregates generate
-many individual sequences of events objects that represent the decisions made in
+many individual sequences of event objects that represent the decisions made in
 a domain model.
 
 Using the recorded events as the "source of truth" of the state of an application is
@@ -510,10 +510,15 @@ asynchronously on a cluster with durable databases, with the system effecting ex
 the same behaviour.
 
 There is also a growing range of extension modules, which extend the functionality
-included in this library, for example by adapting popular ORMs such as Django
-and SQLAlchemy, specialist event store databases such as Axon Server and EventStoreDB,
-alternative model and serialisation frameworks such as Pydantic and orjson, and efficient
-inter-process communication technologies like gRPC.
+included in this library, for example by adapting popular ORMs such as
+`Django <https://github.com/pyeventsourcing/eventsourcing-django#readme>`_
+and `SQLAlchemy <https://github.com/pyeventsourcing/eventsourcing-sqlalchemy#readme>`_,
+specialist event store databases such as
+`Axon Server <https://github.com/pyeventsourcing/eventsourcing-axonserver#readme>`_
+and `EventStoreDB <https://github.com/pyeventsourcing/eventsourcing-eventstoredb#readme>`_,
+alternative model and serialisation frameworks such as Pydantic and orjson, and for
+serving applications and running systems with efficient
+inter-process communication technologies like `gRPC <https://github.com/pyeventsourcing/eventsourcing-grpc#readme>`_.
 
 
 

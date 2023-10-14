@@ -8,8 +8,9 @@ in the tutorial and module docs.
 
 Similar to the previous example, the model is expressed in a functional
 style. In contrast to the previous example, this example uses Pydantic
-to define immutable aggregate and event classes, rather than as Python
-frozen dataclasses. This has implications for the persistence layer.
+to define immutable aggregate and event classes, rather than defining
+them as Python frozen data classes. This has implications for the
+persistence layer.
 
 The application class in this example uses its own persistence classes
 ``PydanticMapper`` and ``OrjsonTranscoder``. Pydantic is responsible

@@ -46,7 +46,7 @@ Domain model
 ------------
 
 In the domain model below, the ``Page`` aggregate has a base class ``Event``
-which is defined with a ``user_id`` dataclass ``field``. This base aggregate
+which is defined with a ``user_id`` data class ``field``. This base aggregate
 event class is inherited by all its concrete aggregate event classes.
 The ``user_id`` field is defined not to be included in the ``__init__`` method
 of the aggregate's event classes (``init=False``), and so it does not need to

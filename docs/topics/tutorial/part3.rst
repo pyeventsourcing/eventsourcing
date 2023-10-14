@@ -4,16 +4,14 @@ Tutorial - Part 3 - Applications
 
 
 As we saw in :doc:`Part 1 </topics/tutorial/part1>`, we can
-use the library's ``Application`` class to define event-sourced
-applications. A subclass of ``Application`` will usually
-define methods which evolve and present the state of the
-application.
+use the library's :class:`~eventsourcing.application.Application` class to define event-sourced
+applications.
 
 For example, the ``DogSchool`` class has ``register_dog()``
 and ``add_trick()`` methods, which are command methods that evolve the state
 of the application. It also has a ``get_dog()`` method, which is a query
 method that presents something of the state of the application without evolving
-the state. These methods depend on the ``Dog`` aggregate, shown below.
+the state. These methods depend on the ``Dog`` aggregate class.
 
 .. code-block:: python
 
@@ -69,81 +67,130 @@ Let's explore how this works in more detail.
 Applications in more detail
 ===========================
 
-An application object brings together an event-sourced domain model comprised
-of many event-sourced aggregates and a persistence mechanism that allows
-aggregates to be "saved" and "retrieved". We can construct an application object
-by calling an application class.
+An event-sourced application brings together an event-sourced domain model,
+comprising many event-sourced aggregates, and a persistence mechanism for the
+aggregates. This means aggregate objects can be "saved" and later reconstructed
+by the application. If the persistence mechanism uses a durable database, the
+aggregate objects can be reconstructed even after the application object is
+reconstructed. If the persistence mechanism uses an in-memory database, the
+aggregates state will usually be lost when the application object is deleted.
+
+We can construct an application object class instance in the usual way,
+by calling the application class.
 
 .. code-block:: python
 
     application = DogSchool()
+
     assert isinstance(application, Application)
 
 
-An application object has a ``save()`` method, and it has a ``repository`` that has
-a ``get()`` method. As we can see from the ``DogSchool`` example, an application's
-methods can use the application's ``save()`` method to "save" aggregates that
-have been created or updated. And they can use the application repository's ``get()``
-method to "retrieve" aggregates that have been previously saved.
+An application object has a :func:`~eventsourcing.application.Application.save` method,
+which can be used to "save" aggregates that have been newly created or changed, so that
+the resulting state of the aggregate will be persisted.
 
 .. code-block:: python
 
     assert application.save
+
+The application's :func:`~eventsourcing.application.Application.save` method can be called
+with one or many aggregates as its arguments. The :func:`~eventsourcing.application.Application.save`
+method collects new event objects from these arguments by calling the
+:func:`~eventsourcing.domain.Aggregate.collect_events` method on each aggregate
+(see :doc:`Part 2 </topics/tutorial/part2>`). It puts all of the aggregate event objects
+that it has collected into an "event store", with the guarantee that all or none of the
+event objects will be stored. If, for some reason, the event objects cannot be saved, an
+exception will be raised. The :func:`~eventsourcing.application.Application.save` method
+is normally used by the command methods of an application.
+
+An application object also has a ``repository`` object. The application's repository has a
+:func:`~eventsourcing.application.Repository.get` method, which can be used to reconstruct
+an aggregate object from the persisted state.
+
+.. code-block:: python
+
     assert application.repository
     assert application.repository.get
 
+The repository's :func:`~eventsourcing.application.Repository.get` method is called with an
+aggregate ID argument. It uses the given aggregate ID to select aggregate events from an event
+store. It reconstructs an aggregate object from these events, by calling the each event object's
+:func:`~eventsourcing.domain.CanMutateAggregate.mutate` method in sequence, and then it returns
+the reconstructed aggregate to the caller. The :func:`~eventsourcing.application.Repository.get`
+method is normally used by both command and query methods.
 
-An application has a ``save()`` method. An application's ``save()`` method can be called
-with one or many aggregates as its arguments. The ``save()`` method collects new event
-objects from these aggregates by calling the ``collect_events()`` method on each aggregate
-(see :doc:`Part 2 </topics/tutorial/part2>`). It puts all of the aggregate event objects
-that it has collected into an "event store", with the guarantee that all or none of the
-event objects will be stored. When the event objects cannot be saved, an exception will
-be raised. The ``save()`` method is used by the command methods of an application.
+As we can see from the ``DogSchool`` example, an application's command methods will need to use
+the :func:`~eventsourcing.application.Application.save` method to "save" aggregates that
+have been created or updated. Query methods and some command methods will need to use
+the application repository's :func:`~eventsourcing.application.Repository.get` method
+to reconstruct aggregates that have been previously saved.
 
-An application has a ``repository`` that has a ``get()`` method. The repository's
-``get()`` method is called with an aggregate ID. It uses the given ID to select
-aggregate events from an event store. It reconstructs the aggregate from these
-events, by calling the each event object's ``mutate()`` method in sequence, and
-returns the reconstructed aggregate to the caller. The ``get()`` method is
-used by both command and query methods.
+An application object also has a ``notification_log`` object. The notification log presents
+the events that have been stored in the application in the order they were saved.
 
+.. code-block:: python
 
-Event store
-===========
+    assert application.notification_log
 
-An application object has an event store. When an application puts new aggregate events
-into the event store, the event store uses a "mapper" to convert aggregate events to a
-common type of object used to store events. These objects are referred to as "stored events".
-The event store then uses a "recorder" to write the stored event objects into a database.
-
-The event store's mapper uses a "transcoder" to serialize the state of aggregate events.
-The transcoder may also compress and then encrypt the serialised state.
+The notification log has a :func:`~eventsourcing.application.LocalNotificationLog.select` method,
+which allows a limited number of the stored events to be selected from a particular position.
 
 Repository
 ==========
 
 An application has a repository, which is responsible for reconstructing aggregates that
-have been previously saved.
+have been previously saved. Aggregates are requested by ID.
 
-When a previously saved aggregate is requested, the repository selects stored events for
-the aggregate from the recorder, and uses the mapper to reconstruct the aggregate events
-from the stored events. The mapper uses the transcoder to deserialize stored events to
-aggregate events. The transcoder may also decrypt and decompress the serialised state.
-The repository then uses a "projector function" to reconstruct the aggregate from its
+The repository selects events from the event store. The repository then uses a
+"projector function" to reconstruct the aggregate from its events.
+
+
+Event store
+===========
+
+An application object has an event store. The event store uses a "mapper" and "recorder".
+
+The event store uses its mapper to convert between aggregate event objects of different kinds
+and "stored event" objects, a common type of object used to store aggregate event objects.
+
+The event store uses its recorder both to record stored events in a database and to select
+stored event records from the database.
+
+When aggregate events are put into the event store, the mapper is used to convert aggregate
+events to stored events, and then the recorder is used to record the stored event objects in
+a database.
+
+When retrieving events from an event store, the recorder is used to select stored events
+from the database, and the mapper is used to convert stored event objects back to the original
+type of aggregate event objects.
+
+Mapper
+======
+
+The mapper has a "transcoder", which it uses to serialize and deserialize the state of aggregate
 events.
+
+The mapper may use a cipher to encrypt and decrypt the serialised state. The mapper
+may use a compressor to compress and decompress the serialised state. The serialized
+state may be both compressed and encrypted, or compressed but not encrypted, or encrypted
+but not compressed.
 
 Recorder
 ========
 
-An application recorder adapts a particular database management system, and uses that
-system to record stored events for an application, in a database for that application.
+A recorder adapts a particular database management system, and uses that
+system to record stored events for an application in a database.
 
-Events are recorded in two sequences: a sequence for the aggregate which originated the
-event, and a sequence for the application as a whole. The positions in these sequences
-are occupied uniquely. Events are written using an atomic transaction. If there is a
-conflict or other kind of error when writing any of the events, then the transaction
-will be rolled back and an exception will be raised.
+Events are typically recorded in two sequences: a sequence for the aggregate which
+originated the event, and a sequence for the application as a whole. The positions
+in these sequences are occupied uniquely. Events are written using an atomic transaction.
+If there is a conflict or other kind of error when writing any of the events, then the
+transaction will be rolled back and an exception will be raised.
+
+The aggregate sequences are used by the repository to select the events for an aggregate.
+
+The application sequence is used by the notification log to present all the aggregates events
+in the order they were recorded.
 
 Command methods
 ===============
@@ -163,7 +210,7 @@ Let's create a new ``Dog`` aggregate by calling ``register_dog()``.
 When the application command method ``register_dog()``
 is called, a new ``Dog`` aggregate object is created by calling
 the aggregate class. The new aggregate object is saved by calling
-the application's ``save()`` method. The ID of the new aggregate
+the application's :func:`~eventsourcing.application.Application.save` method. The ID of the new aggregate
 is returned to the caller.
 
 We can evolve the state of the ``Dog`` aggregate by calling ``add_trick()``.
@@ -175,10 +222,10 @@ We can evolve the state of the ``Dog`` aggregate by calling ``add_trick()``.
     application.add_trick(dog_id, trick='play dead')
 
 When the application command method ``add_trick()`` is called with
-the ID of an aggregate, the ``get()`` method of the ``repository`` is
+the ID of an aggregate, the :func:`~eventsourcing.application.Repository.get` method of the ``repository`` is
 used to get the aggregate. The aggregate's ``add_trick()`` method is
 called with the given value of ``trick``. The aggregate is then
-saved by calling the application's ``save()`` method.
+saved by calling the application's :func:`~eventsourcing.application.Application.save` method.
 
 
 Query methods
@@ -200,7 +247,7 @@ We can access the state of a ``Dog`` aggregate by calling ``get_dog()``.
 
 
 When the application query method ``get_dog()`` is called with
-the ID of an aggregate, the repository's ``get()`` method is used
+the ID of an aggregate, the repository's :func:`~eventsourcing.application.Repository.get` method is used
 to reconstruct the aggregate from its events. The details of the
 ``Dog`` aggregate are returned to the caller.
 
@@ -208,59 +255,30 @@ to reconstruct the aggregate from its events. The details of the
 Notification log
 ================
 
-An application object also has a "notification log".
+An application object has a "notification log". The notification log presents the
+stored events of an application so that the state of the application can be propagated
+in a reliable way.
+
+Each event that is stored in the application is assigned an integer notification ID
+when it is recorded. The notification IDs increase, so that later events have higher
+notification IDs. The numbering of stored events with notification IDs orders all of
+the stored events in a single sequence. This sequence is referred to as the "application sequence".
+
+The notification log has a :func:`~eventsourcing.application.LocalNotificationLog.select` method. The
+:func:`~eventsourcing.application.LocalNotificationLog.select` method can be used to obtain a subsequence
+of the application sequence. The ``start`` argument of this method is used to specify the notification ID
+of the first item in the selected subsequence. The ``limit`` argument is used to limit the length of the
+subsequence. Successive calls to :func:`~eventsourcing.application.LocalNotificationLog.select` can be made,
+so that a potentially very long (and unbound) application sequence can be progressively propagated and processed
+as relatively small and manageable (fixed size) subsequences.
+
+The example below shows how the four events we have stored so far in this example can be selected as two
+subsequences, each having two event notifications. In practice, the subsequences will be slightly longer,
+but in this example only four events have been stored.
 
 .. code-block:: python
 
-    assert application.notification_log
-
-
-The limitation of application query methods is that they can only
-query the aggregate sequences.
-
-Users of your application may need views of the application state
-that depend on more sophisticated queries.
-
-For this reason, it may be necessary to "project" the state of the
-application as a whole into "materialised views" that are specifically
-designed to support such queries.
-
-We can propagate the state of the application by propagating all of
-the aggregate events. That is why the recorder positions stored events
-in both an aggregate sequence and a sequence for the application as a whole.
-The application sequence has all the aggregate events of an application in
-the order they were stored.
-
-The notification log supports selecting "event notifications" from
-the application sequence. An event notification is a stored event
-that also has an integer ID that indicates the position in
-the application sequence.
-
-This allows the state of the application to be propagated in a progressive
-and reliable way. The application state can be propagated progressively because
-the sequence can be followed by following the sequence of IDs. The application
-state can be propagated reliably because all aggregate events are recorded within
-an atomic transaction in two sequences (an aggregate sequence and the application
-sequence) so there will never be an aggregate event that does not also appear in
-the application sequence. This avoids the "dual writing" problem which arises when
-firstly an update to application state is written to a database and separately a
-message is written to a message queue: the problem being that one may happen
-successfully and the other may fail. This is why event sourcing is a good foundation
-for building reliable distributed systems.
-
-The notification log has a ``select()`` method. The ``select()`` method of the
-notification log can be used to obtain a selection of the application's event
-notifications. The ``start`` and ``limit`` arguments can be used to specify
-some of a potentially very large number of event notifications.
-Successive calls to ``select()`` can be made, so that processing
-of event notifications can progress along the application sequence.
-
-The example below shows how the four events created above can be
-obtained in two "pages" each having two event notifications.
-
-.. code-block:: python
-
-    # First "page" of event notifications.
+    # First subsequence of event notifications.
     notifications = application.notification_log.select(
         start=1, limit=2
     )
@@ -274,7 +292,7 @@ obtained in two "pages" each having two event notifications.
     assert b'roll over' in notifications[1].state
     assert dog_id == notifications[1].originator_id
 
-    # Next "page" of event notifications.
+    # Second subsequence of event notifications.
     notifications = application.notification_log.select(
         start=notifications[-1].id + 1, limit=2
     )
@@ -289,35 +307,51 @@ obtained in two "pages" each having two event notifications.
     assert dog_id == notifications[1].originator_id
 
 
-Notification logs, and the propagation and processing of event notifications
-is discussed further in the :ref:`application module documentation <Notification log>`
-and the :doc:`system module documentation </topics/system>`.
+Why do we need to propagate the state of the application? The application query methods
+can only select aggregates by ID from the repository. However, the users of your software
+may need to see views of the application state that depend on more sophisticated queries.
+And so it may be necessary to "project" the state of the application as a whole into
+"materialised views" that are specifically designed to support more sophisticated queries.
+We need to propagate the state of the application so that it can be projected into
+these materialised views. You may also wish to make copies of the application state as a backup.
+
+We can propagate the state of an event-sourced application by propagating all of the stored
+events in the order they were recorded. The application state can be propagated reliably because
+events are recorded within an atomic transaction in two sequences, an aggregate sequence and
+the application sequence, so there will never be an event in an aggregate sequence that does not
+also appear in the application sequence. This avoids the "dual writing" problem which arises when
+firstly an update to application state is written to a database and separately a message is written
+to a message queue: the problem being that one may happen successfully and the other may fail. This
+is why event sourcing is a good foundation for building reliable distributed systems.
+
+There is a more :ref:`detailed discussion of notification logs <Notification log>` in the
+:doc:`application module </topics/application>` documentation. The propagation and processing
+of event notifications is discussed further in the :doc:`system module </topics/system>` documentation.
 
 Database configuration
 ======================
 
-An application object can be configured to work with different databases.
+An :ref:`application object can be configured <Application configuration>` to work with different
+database management systems. Database management systems are encapsulated for use by applications
+as "persistence modules", each encapsulating a different database management system.
+
 By default, the application stores aggregate events in memory as "plain old Python objects".
-The library also supports storing events in :ref:`SQLite and PostgreSQL databases <Persistence>`.
+This is suitable for a development environment. An application can be :ref:`configured to use
+alternative persistence modules <Persistence>`. The core library supports storing events in
+SQLite and PostgreSQL. Other databases are available. See the library's `extension projects
+<https://github.com/pyeventsourcing>`_ for more information about what is currently supported.
 
-Other databases are available. See the library's
-`extension projects <https://github.com/pyeventsourcing>`_
-for more information about what is currently supported.
+The ``test()`` function, defined below, below demonstrates the example ``DogSchool``
+application in more detail. It will be executed several times, with the application
+configured to use different persistence persistence modules. Firstly, it will be executed
+with the application using the default "plain old Python objects" persistence module,
+secondly with the library's SQLite persistence module, and then thirdly with the library's
+PostgreSQL persistence module.
 
-See also the :ref:`application module documentation <Application configuration>`
-for more information about configuring applications using environment
-variables.
-
-The ``test()`` function below demonstrates the example ``DogSchool``
-application in more detail, by creating many aggregates in one
-application, by reading event notifications from the application log,
-by retrieving historical versions of an aggregate, and so on. The
-optimistic concurrency control, and the compression and encryption
-features are also demonstrated. The steps are commented for greater
-readability. The ``test()`` function will be used several times
-with different configurations of persistence for our application
-object: with "plain old Python objects", with SQLite, and then
-with PostgreSQL.
+The ``test()`` function demonstrates creating many aggregates in one application, reading
+event notifications from the application log, and retrieving historical versions of an aggregate.
+The optimistic concurrency control feature, and the compression and encryption features are also
+demonstrated. The steps are commented for greater readability.
 
 .. code-block:: python
 
@@ -406,7 +440,7 @@ Development environment
 =======================
 
 We can run the test in a "development" environment using the application's
-default "plain old Python objects" infrastructure which keeps stored events
+default "plain old Python objects" persistence module which keeps stored events
 in memory. The example below runs without compression or encryption of the
 stored events. This is how the application objects have been working in this
 tutorial so far.
@@ -425,9 +459,9 @@ SQLite environment
 ==================
 
 We can also configure an application to use SQLite for storing events.
-To use the library's :ref:`SQLite module <sqlite-module>`,
+To use the library's :ref:`SQLite persistence module <sqlite-module>`,
 set ``PERSISTENCE_MODULE`` to the value ``'eventsourcing.sqlite'``.
-When using the library's SQLite module, the environment variable
+When using the library's SQLite persistence module, the environment variable
 ``SQLITE_DBNAME`` must also be set. This value will be passed to Python's
 :func:`sqlite3.connect`.
 
@@ -475,28 +509,34 @@ PostgreSQL environment
 ======================
 
 We can also configure a "production" environment to use PostgreSQL.
-Using the library's :ref:`PostgresSQL infrastructure <postgres-module>`
+Using the library's :ref:`PostgresSQL persistence module <postgres-module>`
 will keep stored events in a PostgresSQL database.
 
-Please note, to use the library's PostgreSQL functionality,
-please install the library with the `postgres` option (or just
-install the `psycopg2` package.)
+To use the library's PostgreSQL persistence module, either install the
+library with the ``postgres`` option, or install the ``psycopg2`` package
+directly.
 
 ::
 
     $ pip install eventsourcing[postgres]
 
-Please note, the library option `postgres_dev` will install the
-`psycopg2-binary` which is much faster to install, but this option
+Please note, the library option ``postgres_dev`` will install the
+``psycopg2-binary`` which is much faster to install, but this option
 is not recommended for production use. The binary package is a
 practical choice for development and testing but in production
 it is advised to use the package built from sources.
 
 The example below also uses zlib and AES to compress and encrypt the
-stored events (but this is optional). To use the library's
-encryption functionality with PostgreSQL, please install the library
-with both the `crypto` and the `postgres` option (or just install the
-`pycryptodome` and `psycopg2` packages.)
+stored events. To use the library's encryption functionality,
+either install the library with the ``crypto`` option, or install the
+``pycryptodome`` directly.
+
+::
+
+    $ pip install eventsourcing[crypto]
+
+Both the ``crypto`` and the ``postgres`` options can be installed together
+with the following command.
 
 ::
 
@@ -522,7 +562,7 @@ already been created, and the database server is running locally.
     # Compressor topic.
     os.environ['COMPRESSOR_TOPIC'] = 'eventsourcing.compressor:ZlibCompressor'
 
-    # Use Postgres infrastructure.
+    # Use Postgres database.
     os.environ['PERSISTENCE_MODULE'] = 'eventsourcing.postgres'
 
     # Configure database connections.
@@ -551,11 +591,11 @@ we can expect the recorded values not to be visible in the database records.
 Exercise
 ========
 
-Firstly, follow the steps in this tutorial in your development environment.
+Firstly, replicate the code in this tutorial in your development environment.
 
 * Copy the code snippets above.
-* Run the application code with default "plain old Python object"
-  infrastructure.
+* Run the application code with the default "plain old Python object"
+  persistence module.
 * Configure and run the application with an SQLite database.
 * Create a PostgreSQL database, and configure and run the
   application with a PostgreSQL database.
@@ -565,8 +605,8 @@ Firstly, follow the steps in this tutorial in your development environment.
 
 Secondly, write an application class that uses the ``Todos`` aggregate
 class you created in the exercise at the end of :doc:`Part 2 </topics/tutorial/part2>`.
-Run your application class with default "plain old Python object" infrastructure,
-and then with SQLite, and finally with PostgreSQL. Look at the
+Run your application class with default "plain old Python object" persistence module,
+and then with an SQLite database, and finally with a PostgreSQL database. Look at the
 stored event records in the database tables.
 
 

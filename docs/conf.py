@@ -23,7 +23,7 @@ from eventsourcing import __version__
 # -- Project information -----------------------------------------------------
 
 project = 'eventsourcing'
-copyright = '2022, John Bywater'
+copyright = '2023, John Bywater'
 author = 'John Bywater'
 
 # The full version, including alpha/beta/rc tags
@@ -47,6 +47,10 @@ extensions = [
     'sphinx.ext.doctest',
     'sphinx.ext.viewcode',
 ]
+
+autodoc_default_options = {
+    'inherited-members': False,
+}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

@@ -3,8 +3,8 @@ Installation
 ============
 
 This version of the library is compatible with Python versions 3.7, 3.8,
-3.9, and 3.10. The library's suite of tests is run against these versions
-and has 100% line and branch coverage.
+3.9, 3.10, and 3.11. The library's suite of tests is run against these
+versions and has 100% line and branch coverage.
 
 This package depends only on modules from the Python Standard Library,
 except for the extra install options described below.
@@ -23,7 +23,7 @@ It is recommended to install the library into a Python virtual environment.
 
 ::
 
-    $ python3 -mvenv my_venv
+    $ python3 -m venv my_venv
     $ source my_venv/bin/activate
     (my_venv) $ pip install eventsourcing
 
@@ -173,6 +173,9 @@ to run PostgreSQL in a Docker container, feel free to do that too.
     $ psql postgres
     postgres=# CREATE DATABASE eventsourcing;
     postgres=# CREATE USER eventsourcing WITH PASSWORD 'eventsourcing';
+    postgres=# ALTER DATABASE eventsourcing OWNER TO eventsourcing;
+    $ psql eventsourcing
+    postgres=# CREATE SCHEMA myschema AUTHORIZATION eventsourcing;
 
 
 You can also check the syntax and static types are correct with the

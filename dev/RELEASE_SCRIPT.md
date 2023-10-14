@@ -5,8 +5,8 @@ Steps to make a new release.
 1. Review versions of all dependencies.
 2. Go to the minor version branch, or create a minor version branch.
 3. Check release notes describe what's new in this release.
-4. Increase version number to new release version number.
-5. Check copyright year in LICENSE file.
+4. Check package version number is correct new release version number.
+5. Check copyright year in LICENSE file and docs conf.py.
 6. Run 'make prepush'.
 7. Run 'make prepare-dist'.
 8. Fix any errors, until built distribution is working.
@@ -23,4 +23,4 @@ Steps to make a new release.
 19. Run 'make test-released-distribution' script (from project root directory).
 20. Checkout main branch.
 21. Merge changes into main branch.
-22. Check version number on main branch is next minor version + '.0dev0'.
+22. Increase version number (on main branch to next minor version + '.0dev0', or on release branch to next point version).

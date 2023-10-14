@@ -5,7 +5,9 @@ Examples
 This library contains a few example applications of event sourcing in Python.
 
 
-Aggregate examples
+.. _Example aggregates:
+
+Example aggregates
 ==================
 
 The aggregate examples show a range of different styles for coding aggregate

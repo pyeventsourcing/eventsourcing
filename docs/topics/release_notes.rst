@@ -23,6 +23,51 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.2.21 (released 13 Oct 2023)
+-------------------------------------
+
+* Changed Follower.follow() to pass application's mapper class into factory.mapper()
+  so that if an application uses a custom mapper class for its own recorders then
+  it will use that type also for mapping event notifications from upstream applications
+  in a system.
+
+Version 9.2.20 (released 19 May 2023)
+---------------------------------------
+
+* Fixed invite link to Slack workspace in docs.
+
+Version 9.2.19 (released 19 April 2023)
+---------------------------------------
+
+* Fixed invite link to Slack workspace in docs (had somehow become invalid).
+* Fixed new mypy issue with call to TDomainEvent.create_timestamp() in
+  EventSourcedLog class, by directly calling create_utc_timestamp().
+* Slightly adjusted typing annotations in Aggregate class.
+
+
+Version 9.2.18 (released 22 March 2023)
+---------------------------------------
+
+* Allowing access to event timestamp value in aggregate command method,
+  and event timestamp to be set by caller, by including 'timestamp' as
+  a parameter of the method signature.
+* Added support for calling "unbound" decorated aggregate command methods.
+* Improved documentation (doc strings, and discussion of aggregate events).
+
+Version 9.2.17 (released 10 January 2023)
+-----------------------------------------
+
+* Improved documentation (Tutorial and Module pages).
+* Fixed POPOApplicationRecorder.selection_notifications() to avoid using negative
+  indexes into its list of stored events.
+
+
+Version 9.2.16 (released 11 June 2022)
+--------------------------------------
+
+* Improved documentation (Tutorial pages).
+
+
 Version 9.2.15 (released 6 June 2022)
 -------------------------------------
 

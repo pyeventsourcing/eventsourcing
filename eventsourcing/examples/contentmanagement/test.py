@@ -17,7 +17,6 @@ from eventsourcing.system import NotificationLogReader
 
 class TestContentManagement(TestCase):
     def test(self) -> None:
-
         # Set user_id context variable.
         user_id = uuid4()
         user_id_cvar.set(user_id)

@@ -617,7 +617,7 @@ class TestEventDecorator(TestCase):
     #         cm.exception.args[0],
     #     )
 
-    def test_raises_when_decorated_method_called_directly(self):
+    def test_raises_when_decorated_method_called_directly_without_instance_arg(self):
         class MyAgg(Aggregate):
             @event
             def method(self):
@@ -627,8 +627,19 @@ class TestEventDecorator(TestCase):
             MyAgg.method()
         self.assertEqual(
             cm.exception.args[0],
-            "'UnboundCommandMethodDecorator' object is not callable",
+            "Expected aggregate as first argument",
         )
+
+    def test_decorated_method_called_directly_on_class(self):
+        class MyAgg(Aggregate):
+            @event
+            def method(self):
+                pass
+
+        a = MyAgg()
+        self.assertEqual(a.version, 1)
+        MyAgg.method(a)
+        self.assertEqual(a.version, 2)
 
     def test_event_name_set_in_decorator(self):
         class MyAgg(Aggregate):
@@ -672,7 +683,6 @@ class TestEventDecorator(TestCase):
         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
 
     def test_event_name_set_in_decorator_cannot_be_empty_string(self):
-
         with self.assertRaises(ValueError) as cm:
 
             class MyAgg(Aggregate):
@@ -878,7 +888,6 @@ class TestEventDecorator(TestCase):
         )
 
     def test_raises_when_decorated_method_has_variable_args(self):
-
         with self.assertRaises(TypeError) as cm:
 
             class _(Aggregate):
@@ -902,7 +911,6 @@ class TestEventDecorator(TestCase):
         )
 
     def test_raises_when_decorated_method_has_variable_kwargs(self):
-
         with self.assertRaises(TypeError) as cm:
 
             class _(Aggregate):
@@ -1486,6 +1494,52 @@ class TestEventDecorator(TestCase):
     #         ),
     #         msg,
     #     )
+    def test_can_include_timestamp_in_command_method_signature(self):
+        class Order(Aggregate):
+            def __init__(self, name, timestamp=None):
+                self.name = name
+                self.confirmed_at = None
+                self.pickedup_at = None
+
+            class Started(AggregateCreated):
+                name: str
+
+            @event("Confirmed")
+            def confirm(self, timestamp=None):
+                self.confirmed_at = timestamp
+
+            class PickedUp(Aggregate.Event):
+                pass
+
+            @event(PickedUp)
+            def picked_up(self, timestamp=None):
+                self.pickedup_at = timestamp
+
+        order1 = Order("order1")
+        self.assertIsInstance(order1.created_on, datetime)
+        order1.confirm()
+        self.assertIsInstance(order1.modified_on, datetime)
+        self.assertGreater(order1.modified_on, order1.created_on)
+
+        order2 = Order("order2", timestamp=datetime(year=2000, month=1, day=1))
+        self.assertIsInstance(order2.created_on, datetime)
+        self.assertEqual(order2.created_on.year, 2000)
+        self.assertEqual(order2.created_on.month, 1)
+        self.assertEqual(order2.created_on.day, 1)
+
+        order2.confirm(timestamp=datetime(year=2000, month=1, day=2))
+        self.assertIsInstance(order2.created_on, datetime)
+        self.assertEqual(order2.modified_on.year, 2000)
+        self.assertEqual(order2.modified_on.month, 1)
+        self.assertEqual(order2.modified_on.day, 2)
+        self.assertEqual(order2.confirmed_at, order2.modified_on)
+
+        order2.picked_up(timestamp=datetime(year=2000, month=1, day=3))
+        self.assertIsInstance(order2.created_on, datetime)
+        self.assertEqual(order2.modified_on.year, 2000)
+        self.assertEqual(order2.modified_on.month, 1)
+        self.assertEqual(order2.modified_on.day, 3)
+        self.assertEqual(order2.pickedup_at, order2.modified_on)
 
 
 class TestOrder(TestCase):

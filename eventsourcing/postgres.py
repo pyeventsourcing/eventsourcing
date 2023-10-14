@@ -107,7 +107,7 @@ class PostgresConnection(Connection[PostgresCursor]):
 
     @property
     def closed(self) -> bool:
-        return self._pg_conn.closed
+        return bool(self._pg_conn.closed)
 
 
 class PostgresConnectionPool(ConnectionPool[PostgresConnection]):
@@ -405,7 +405,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
                     lock_timeout = self.datastore.lock_timeout
                     curs.execute(f"SET LOCAL lock_timeout = '{lock_timeout}s'")
                     curs.execute(f"PREPARE {statement_name_alias} AS " + statement)
-                except psycopg2.errors.lookup(DUPLICATE_PREPARED_STATEMENT):
+                except psycopg2.errors.lookup(DUPLICATE_PREPARED_STATEMENT):  # noqa
                     pass
                 conn.is_prepared.add(statement_name)
         return statement_name_alias
@@ -437,7 +437,6 @@ class PostgresAggregateRecorder(AggregateRecorder):
 
         # Only do something if there is something to do.
         if len_stored_events > 0:
-
             # Mogrify the table lock statements.
             lock_sqls = (c.mogrify(s) for s in self.lock_statements)
 

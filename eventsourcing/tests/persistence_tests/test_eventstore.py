@@ -69,4 +69,4 @@ class TestEventStore(TestCase):
         last_event = events[0]
 
         assert last_event.originator_id == account.id
-        assert type(last_event) == BankAccount.TransactionAppended
+        assert type(last_event) is BankAccount.TransactionAppended

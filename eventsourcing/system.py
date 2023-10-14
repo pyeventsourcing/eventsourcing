@@ -82,7 +82,9 @@ class Follower(Application):
         reader = NotificationLogReader(log, section_size=self.pull_section_size)
         env = self.construct_env(name, self.env)
         factory = self.construct_factory(env)
-        mapper = factory.mapper(self.construct_transcoder())
+        mapper = factory.mapper(
+            self.construct_transcoder(), mapper_class=type(self.mapper)
+        )
         self.readers[name] = reader
         self.mappers[name] = mapper
 
@@ -255,7 +257,7 @@ class Leader(Application):
                 follower.receive_recording_event(recording_event)
 
 
-class ProcessApplication(Leader, Follower, ABC):
+class ProcessApplication(Leader, Follower):
     """
     Base class for event processing applications
     that are both "leaders" and followers".
