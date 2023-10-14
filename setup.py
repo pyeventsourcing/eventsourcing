@@ -11,7 +11,7 @@ docs_requires = (
     + crypto_requires
     + [
         "Sphinx==4.2.0",
-        "sphinx_rtd_theme==1.0.0",
+        "sphinx_rtd_theme==1.3.0",
     ]
 )
 

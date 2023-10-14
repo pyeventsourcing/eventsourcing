@@ -2,6 +2,7 @@ from unittest import TestCase
 
 from eventsourcing.cipher import AESCipher
 from eventsourcing.examples.aggregate8.application import DogSchool
+from eventsourcing.examples.aggregate8.domainmodel import Trick
 
 
 class TestDogSchool(TestCase):
@@ -23,7 +24,7 @@ class TestDogSchool(TestCase):
         # Query application state.
         dog = school.get_dog(dog_id)
         assert dog["name"] == "Fido"
-        assert dog["tricks"] == ("roll over", "play dead")
+        assert dog["tricks"] == (Trick(name="roll over"), Trick(name="play dead"))
 
         # Select notifications.
         notifications = school.notification_log.select(start=1, limit=10)
@@ -33,10 +34,14 @@ class TestDogSchool(TestCase):
         school.take_snapshot(dog_id, version=3)
         dog = school.get_dog(dog_id)
         assert dog["name"] == "Fido"
-        assert dog["tricks"] == ("roll over", "play dead")
+        assert dog["tricks"] == (Trick(name="roll over"), Trick(name="play dead"))
 
         # Continue with snapshotted aggregate.
         school.add_trick(dog_id, "fetch ball")
         dog = school.get_dog(dog_id)
         assert dog["name"] == "Fido"
-        assert dog["tricks"] == ("roll over", "play dead", "fetch ball")
+        assert dog["tricks"] == (
+            Trick(name="roll over"),
+            Trick(name="play dead"),
+            Trick(name="fetch ball"),
+        )

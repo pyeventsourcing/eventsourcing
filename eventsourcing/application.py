@@ -884,7 +884,10 @@ class Application:
             aggregate = self.repository.get(
                 aggregate_id, version=version, projector_func=projector_func
             )
-            snapshot = type(self).snapshot_class.take(aggregate)
+            snapshot_class = getattr(
+                type(aggregate), "Snapshot", type(self).snapshot_class
+            )
+            snapshot = snapshot_class.take(aggregate)
             self.snapshots.put([snapshot])
 
     def notify(self, new_events: List[DomainEventProtocol]) -> None:

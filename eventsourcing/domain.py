@@ -1556,7 +1556,7 @@ TCanSnapshotAggregate = TypeVar("TCanSnapshotAggregate", bound="CanSnapshotAggre
 
 class CanSnapshotAggregate(HasOriginatorIDVersion, CanCreateTimestamp):
     topic: str
-    state: Dict[str, Any]
+    state: Any
 
     @classmethod
     def take(

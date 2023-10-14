@@ -4,6 +4,7 @@ from uuid import UUID
 from eventsourcing.application import Application
 from eventsourcing.examples.aggregate7.domainmodel import (
     Snapshot,
+    Trick,
     add_trick,
     project_dog,
     register_dog,
@@ -26,7 +27,7 @@ class DogSchool(Application):
 
     def add_trick(self, dog_id: UUID, trick: str) -> None:
         dog = self.repository.get(dog_id, projector_func=project_dog)
-        self.save(add_trick(dog, trick))
+        self.save(add_trick(dog, Trick(name=trick)))
 
     def get_dog(self, dog_id: UUID) -> Dict[str, Any]:
         dog = self.repository.get(dog_id, projector_func=project_dog)

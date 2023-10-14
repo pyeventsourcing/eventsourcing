@@ -68,9 +68,13 @@ def aggregate_projector(
     return project_aggregate
 
 
+class Trick(BaseModel):
+    name: str
+
+
 class Dog(Aggregate):
     name: str
-    tricks: Tuple[str, ...]
+    tricks: Tuple[Trick, ...]
 
 
 class DogRegistered(DomainEvent):
@@ -78,7 +82,7 @@ class DogRegistered(DomainEvent):
 
 
 class TrickAdded(DomainEvent):
-    trick: str
+    trick: Trick
 
 
 def register_dog(name: str) -> DomainEvent:
@@ -90,7 +94,7 @@ def register_dog(name: str) -> DomainEvent:
     )
 
 
-def add_trick(dog: Dog, trick: str) -> DomainEvent:
+def add_trick(dog: Dog, trick: Trick) -> DomainEvent:
     return TrickAdded(
         originator_id=dog.id,
         originator_version=dog.version + 1,
