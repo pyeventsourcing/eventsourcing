@@ -672,12 +672,28 @@ class Application:
         self.snapshots: Optional[EventStore] = None
         if self.factory.is_snapshotting_enabled():
             self.snapshots = self.construct_snapshot_store()
-        self.repository = self.construct_repository()
-        self.notification_log = self.construct_notification_log()
+        self._repository = self.construct_repository()
+        self._notification_log = self.construct_notification_log()
         self.closing = Event()
         self.previous_max_notification_id: Optional[
             int
         ] = self.recorder.max_notification_id()
+
+    @property
+    def repository(self) -> Repository:
+        """
+        An application's repository reconstructs aggregates from stored events.
+        """
+        return self._repository
+
+    @property
+    def notification_log(self) -> LocalNotificationLog:
+        """
+        An application's notification log presents all the aggregate events
+        of an application in the order they were recorded as a sequence of event
+        notifications.
+        """
+        return self._notification_log
 
     @property
     def log(self) -> LocalNotificationLog:
@@ -686,7 +702,7 @@ class Application:
             DeprecationWarning,
             stacklevel=2,
         )
-        return self.notification_log
+        return self._notification_log
 
     def construct_env(self, name: str, env: Optional[EnvType] = None) -> Environment:
         """
