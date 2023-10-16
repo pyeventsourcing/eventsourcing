@@ -24,8 +24,12 @@ class ContentManagementApplication(Application):
         index_entry = Index(slug, ref=page.id)
         self.save(page, page_logged, index_entry)
 
-    def get_page_details(self, slug: str) -> PageDetailsType:
+    def get_page_by_slug(self, slug: str) -> PageDetailsType:
         page = self._get_page_by_slug(slug)
+        return self._details_from_page(page)
+
+    def get_page_by_id(self, page_id: UUID) -> PageDetailsType:
+        page = self._get_page_by_id(page_id)
         return self._details_from_page(page)
 
     def _details_from_page(self, page: Page) -> PageDetailsType:

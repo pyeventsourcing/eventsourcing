@@ -148,7 +148,7 @@ create_postgres_db:
 .PHONY: updatetools
 updatetools:
 	pip install -U pip
-	pip install -U black mypy flake8 flake8-bugbear isort orjson python-coveralls coverage
+	pip install -U black mypy flake8 flake8-bugbear isort python-coveralls coverage orjson pydantic
 
 .PHONY: docs
 docs:

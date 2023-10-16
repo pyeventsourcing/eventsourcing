@@ -11,13 +11,12 @@ to support full text search queries in an event-sourced application with both
 Application
 -----------
 
-The application class ``SearchableContentApplication`` extends the ``WikiApplication``
-class presented in the :doc:`content management example </topics/examples/content-management>`.
-It extends the :func:`~eventsourcing.application.Application.save` method by using the variable keyword parameters (``**kwargs``)
-of the application :func:`~eventsourcing.application.Application.save` method to pass down to the recorder extra
-information that will be used to update a searchable index of the event-sourced
-content. It also introduces a ``search()`` method that expects a ``query``
-argument and returns a list of pages.
+The application class ``SearchableContentApplication`` extends the ``ContentManagementApplication``
+class presented in :doc:`/topics/examples/content-management`.
+Its :func:`~eventsourcing.application.Application.save` method sets the variable keyword
+parameters ``insert_pages`` and ``update_pages``. It also introduces a ``search()`` method that
+expects a ``query`` argument and returns a list of pages. The application's recorders are expected
+to be receptive to these variable keyword parameters and to support the ``search_pages()`` function.
 
 .. literalinclude:: ../../../eventsourcing/examples/searchablecontent/application.py
 
@@ -25,36 +24,33 @@ argument and returns a list of pages.
 Persistence
 -----------
 
-The recorder classes ``SearchableContentApplicationRecorder`` extend the PostgreSQL
-and SQLite ``ApplicationRecorder`` classes by creating a table that contains the current
-page body text. They define SQL statements that insert, update, and search the rows
-of the table using search query syntax similar to the one used by web search engines.
-They define a ``search_page_bodies()`` method which returns the page slugs for page
-bodies that match the given search query.
+The recorder class ``SearchableContentRecorder`` extends the ``AggregateRecorder`` by
+defining abstract methods to search and select pages. These methods will be implemented
+for both PostgreSQL and SQLite, which will also create custom tables for page content with
+a full text search indexes.
 
 .. literalinclude:: ../../../eventsourcing/examples/searchablecontent/persistence.py
 
-The application recorder classes extend the ``_insert_events()`` method by inserting
-and updating rows, according to the information passed down from the application
-through the :func:`~eventsourcing.application.Application.save` method's variable keyword parameters.
-
-The infrastructure factory classes ``SearchableContentInfrastructureFactory`` extend the
-PostgreSQL and SQLite ``Factory`` class by overriding the ``application_recorder()`` method
-so that a ``SearchableContentApplicationRecorder`` is constructed as the application recorder.
+The ``_insert_events()`` methods of the PostgreSQL and SQLite recorders are extended, so that
+rows are inserted and updated, according to the information passed down from the application
+in the variable keyword arguments ``insert_pages`` and ``update_pages``.
 
 
 PostgreSQL
 ----------
 
 The PostgreSQL recorder uses a GIN index and the ``websearch_to_tsquery()`` function.
+The PostgreSQL :class:`~eventsourcing.postgres.Factory` class is extended to involve this custom recorder
+in a custom PostgreSQL persistence module so that it can be used by the ``ContentManagementApplication``.
 
 .. literalinclude:: ../../../eventsourcing/examples/searchablecontent/postgres.py
-
 
 SQLite
 ------
 
 The SQLite recorder uses a virtual table and the ``MATCH`` operator.
+The SQLite :class:`~eventsourcing.sqlite.Factory` class is extended to involve this custom recorder
+in a custom SQLite persistence module so that it can be used by the ``ContentManagementApplication``.
 
 .. literalinclude:: ../../../eventsourcing/examples/searchablecontent/sqlite.py
 
@@ -62,9 +58,10 @@ The SQLite recorder uses a virtual table and the ``MATCH`` operator.
 Test case
 ---------
 
-The test case ``SearchableContentTestCase`` uses the application to create three
-pages, for 'animals', 'plants' and 'minerals'. Content is added to the pages. The
+The test case ``SearchableContentApplicationTestCase`` uses the ``SearchableContentApplication`` to
+create three pages, for 'animals', 'plants' and 'minerals'. Content is added to the pages. The
 content is searched with various queries and the search results are checked. The
-test is executed twice, with the application configured for both PostgreSQL and SQLite.
+test case is executed twice, once with the PostgreSQL persistence module, and once with the
+SQLite persistence module.
 
-.. literalinclude:: ../../../eventsourcing/examples/searchablecontent/test_searchablecontent.py
+.. literalinclude:: ../../../eventsourcing/examples/searchablecontent/test_application.py

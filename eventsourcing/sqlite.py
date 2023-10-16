@@ -512,6 +512,10 @@ class Factory(InfrastructureFactory):
     SQLITE_LOCK_TIMEOUT = "SQLITE_LOCK_TIMEOUT"
     CREATE_TABLE = "CREATE_TABLE"
 
+    aggregate_recorder_class = SQLiteAggregateRecorder
+    application_recorder_class = SQLiteApplicationRecorder
+    process_recorder_class = SQLiteProcessRecorder
+
     def __init__(self, env: Environment):
         super().__init__(env)
         db_name = self.env.get(self.SQLITE_DBNAME)
@@ -542,7 +546,7 @@ class Factory(InfrastructureFactory):
 
     def aggregate_recorder(self, purpose: str = "events") -> AggregateRecorder:
         events_table_name = "stored_" + purpose
-        recorder = SQLiteAggregateRecorder(
+        recorder = self.aggregate_recorder_class(
             datastore=self.datastore,
             events_table_name=events_table_name,
         )
@@ -551,13 +555,13 @@ class Factory(InfrastructureFactory):
         return recorder
 
     def application_recorder(self) -> ApplicationRecorder:
-        recorder = SQLiteApplicationRecorder(datastore=self.datastore)
+        recorder = self.application_recorder_class(datastore=self.datastore)
         if self.env_create_table():
             recorder.create_table()
         return recorder
 
     def process_recorder(self) -> ProcessRecorder:
-        recorder = SQLiteProcessRecorder(datastore=self.datastore)
+        recorder = self.process_recorder_class(datastore=self.datastore)
         if self.env_create_table():
             recorder.create_table()
         return recorder

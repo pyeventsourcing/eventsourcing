@@ -11,18 +11,23 @@ from eventsourcing.examples.contentmanagement.utils import apply_patch, create_d
 user_id_cvar: ContextVar[Optional[UUID]] = ContextVar("user_id", default=None)
 
 
-@dataclass
 class Page(Aggregate):
-    title: str
-    slug: str
-    body: str = ""
-    modified_by: Optional[UUID] = field(default=None, init=False)
-
     class Event(Aggregate.Event):
         user_id: Optional[UUID] = field(default_factory=user_id_cvar.get, init=False)
 
         def apply(self, aggregate: Aggregate) -> None:
             cast(Page, aggregate).modified_by = self.user_id
+
+    class Created(Event, Aggregate.Created):
+        title: str
+        slug: str
+        body: str
+
+    def __init__(self, title: str, slug: str, body: str = ""):
+        self.title = title
+        self.slug = slug
+        self.body = body
+        self.modified_by: Optional[UUID] = None
 
     @event("SlugUpdated")
     def update_slug(self, slug: str) -> None:
@@ -35,7 +40,10 @@ class Page(Aggregate):
     def update_body(self, body: str) -> None:
         self._update_body(create_diff(old=self.body, new=body))
 
-    @event("BodyUpdated")
+    class BodyUpdated(Event):
+        diff: str
+
+    @event(BodyUpdated)
     def _update_body(self, diff: str) -> None:
         self.body = apply_patch(old=self.body, diff=diff)
 

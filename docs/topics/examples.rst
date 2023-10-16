@@ -42,3 +42,11 @@ Example applications
    examples/content-management
    examples/searchable-timestamps
    examples/searchable-content
+
+Example systems
+===============
+
+.. toctree::
+   :maxdepth: 2
+
+   examples/content-management-system

@@ -785,6 +785,10 @@ class Factory(InfrastructureFactory):
     POSTGRES_SCHEMA = "POSTGRES_SCHEMA"
     CREATE_TABLE = "CREATE_TABLE"
 
+    aggregate_recorder_class = PostgresAggregateRecorder
+    application_recorder_class = PostgresApplicationRecorder
+    process_recorder_class = PostgresProcessRecorder
+
     def __init__(self, env: Environment):
         super().__init__(env)
         dbname = self.env.get(self.POSTGRES_DBNAME)
@@ -960,7 +964,7 @@ class Factory(InfrastructureFactory):
         events_table_name = prefix + "_" + purpose
         if self.datastore.schema:
             events_table_name = f"{self.datastore.schema}.{events_table_name}"
-        recorder = PostgresAggregateRecorder(
+        recorder = type(self).aggregate_recorder_class(
             datastore=self.datastore,
             events_table_name=events_table_name,
         )
@@ -973,7 +977,7 @@ class Factory(InfrastructureFactory):
         events_table_name = prefix + "_events"
         if self.datastore.schema:
             events_table_name = f"{self.datastore.schema}.{events_table_name}"
-        recorder = PostgresApplicationRecorder(
+        recorder = type(self).application_recorder_class(
             datastore=self.datastore,
             events_table_name=events_table_name,
         )
@@ -989,7 +993,7 @@ class Factory(InfrastructureFactory):
         if self.datastore.schema:
             events_table_name = f"{self.datastore.schema}.{events_table_name}"
             tracking_table_name = f"{self.datastore.schema}.{tracking_table_name}"
-        recorder = PostgresProcessRecorder(
+        recorder = type(self).process_recorder_class(
             datastore=self.datastore,
             events_table_name=events_table_name,
             tracking_table_name=tracking_table_name,
