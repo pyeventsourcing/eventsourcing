@@ -16,7 +16,7 @@ class DomainEvent(BaseModel):
     timestamp: datetime
 
     class Config:
-        allow_mutation = False
+        frozen = True
 
 
 def create_timestamp() -> datetime:
@@ -30,15 +30,12 @@ class Aggregate(BaseModel):
     modified_on: datetime
 
     class Config:
-        allow_mutation = False
+        frozen = True
 
 
 class Snapshot(DomainEvent):
     topic: str
     state: Dict[str, Any]
-
-    class Config:
-        allow_mutation = False
 
     @classmethod
     def take(cls, aggregate: Aggregate) -> Snapshot:
@@ -47,7 +44,7 @@ class Snapshot(DomainEvent):
             originator_version=aggregate.version,
             timestamp=create_timestamp(),
             topic=get_topic(type(aggregate)),
-            state=aggregate.dict(),
+            state=aggregate.model_dump(),
         )
 
 

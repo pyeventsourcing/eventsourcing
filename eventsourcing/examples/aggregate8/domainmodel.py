@@ -19,7 +19,7 @@ class DomainEvent(BaseModel):
     timestamp: datetime
 
     class Config:
-        allow_mutation = False
+        frozen = True
 
 
 class Aggregate(BaseAggregate):
