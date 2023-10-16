@@ -25,14 +25,14 @@ Its ``policy()`` function is coded to process the ``Page.Created`` and ``Page.Bo
 events of the ``ContentManagementApplication``. It also has a ``search()`` method that returns
 a list of page IDs.
 
-It that works in a similar way to the ``SearchableContentApplication`` class in
-:doc:`/topics/examples/searchable-content`, by setting variable keyword arguments
-``insert_pages`` and ``update_pages``. However, rather than populating variable
-keyword arguments in the ``save()`` method, it populates ``insert_pages`` and ``update_pages``
-within its ``policy()`` function. The ``insert_pages`` and ``update_pages`` arguments are set
+The ``SearchIndexApplication`` class in this example works in a similar way to the ``SearchableContentApplication``
+class in :doc:`/topics/examples/searchable-content`, by setting variable keyword arguments
+``insert_pages`` and ``update_pages`` on a the :class:`~eventsourcing.application.ProcessingEvent` object.
+However, rather than populating the variable keyword arguments in the ``save()`` method, it populates ``insert_pages``
+and ``update_pages`` within its ``policy()`` function. The ``insert_pages`` and ``update_pages`` arguments are set
 on the :class:`~eventsourcing.application.ProcessingEvent` object passed into the ``policy()``
-function, which carries an event notification ID that indicates the position
-in the application sequence of the domain event that is being processed.
+function, which carries an event notification ID that indicates the position in the application sequence of
+the domain event that is being processed.
 
 The application will be configured to run with a custom :class:`~eventsourcing.persistence.ProcessRecorder`
 so that search index records will be updated atomically with the inserting of a tracking record which
