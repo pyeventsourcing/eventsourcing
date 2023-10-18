@@ -182,12 +182,12 @@ in different ways. There are many possibilities for the orchestration of the app
 and for interprocess communication between the applications. One possibility is to use a single thread,
 and to pull and process events synchronously and sequentially. Another possibility is to use multiple
 threads in the same operating system process, with events processed concurrently and asynchronously.
-If the application objects are all constructed in the same operating system process, the notification
+If the application objects are all constructed in the same operating system process, their notification
 logs can be used directly.
 
 Another possibility is to use multiple operating system processes on the same machine, or alternatively
 on different machines in a network. When running a system with multiple operating system
-processes, their notification logs must be accessed remotely across the operating system
+processes, the notification logs must be accessed remotely across the operating system
 process boundary. There are many possible alternatives for inter-process communication,
 by which events are transported from one application to another.
 
