@@ -533,10 +533,12 @@ event is triggered when the "private" method ``_trick_added()`` is called by the
     assert copy == dog
 
 
-Exercise
-========
+Exercises
+=========
 
-Define a ``Todos`` aggregate, that has a given ``name`` and a list of ``items``.
+1. Replicate the code in this tutorial in your development environment.
+
+2. Define a ``Todos`` aggregate, that has a given ``name`` and a list of ``items``.
 Define a method ``add_item()`` that adds a new item to the list. Specify the name
 of the "created" event to be ``'Started'`` and the name of the subsequent event
 to be ``'ItemAdded'``. Copy the test below and make it pass.

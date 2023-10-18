@@ -402,13 +402,13 @@ projects <https://github.com/pyeventsourcing/cookiecutter-eventsourcing#readme>`
 Exercise
 ========
 
-Completing this exercise depends on:
+Completing this exercises in this tutorial depends on:
 
 * having a working Python installation,
 * :doc:`installing the eventsourcing library </topics/installing>`, and
 * knowing how to `write and run tests in Python <https://realpython.com/python-testing>`_.
 
-Copy the ``test_dog_school()`` function (see above) into a Python file, for example
+1. Copy the ``test_dog_school()`` function (see above) into a Python file, for example
 ``test_application.py``. Then run the test function and see that it fails. Then add
 the ``DogSchool`` application and the ``Dog`` aggregate code. Then run the test function
 again and see that it passes.
@@ -417,12 +417,12 @@ again and see that it passes.
 
     test_dog_school()
 
-When your code is working, refactor by moving the application and
+2. When your code is working, refactor by moving the application and
 aggregate classes to separate Python files, for example ``application.py``
 and ``domainmodel.py``. After completing your refactorings, run the test
 again to make sure your code still works.
 
-If you are feeling playful, you can use a debugger or add some print
+3. If you are feeling playful, you can use a debugger or add some print
 statements to step through what happens in the aggregate and application
 classes.
 

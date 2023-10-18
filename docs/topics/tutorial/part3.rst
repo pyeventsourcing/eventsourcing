@@ -588,10 +588,10 @@ In this example, stored events are both compressed and encrypted. In consequence
 we can expect the recorded values not to be visible in the database records.
 
 
-Exercise
-========
+Exercises
+=========
 
-Firstly, replicate the code in this tutorial in your development environment.
+1. Replicate the code in this tutorial in your development environment.
 
 * Copy the code snippets above.
 * Run the application code with the default "plain old Python object"
@@ -603,7 +603,7 @@ Firstly, replicate the code in this tutorial in your development environment.
   SQLite and PostgreSQL, and examine the database tables to
   observe the stored event records.
 
-Secondly, write an application class that uses the ``Todos`` aggregate
+2. Write an application class that uses the ``Todos`` aggregate
 class you created in the exercise at the end of :doc:`Part 2 </topics/tutorial/part2>`.
 Run your application class with default "plain old Python object" persistence module,
 and then with an SQLite database, and finally with a PostgreSQL database. Look at the
