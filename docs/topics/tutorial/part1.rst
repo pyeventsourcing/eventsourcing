@@ -430,7 +430,5 @@ classes.
 Next steps
 ==========
 
-* For more information about event-sourced aggregates, please
-  read :doc:`Part 2 </topics/tutorial/part2>` of this tutorial.
-* For more information about event-sourced applications, please
-  read :doc:`Part 3 </topics/tutorial/part3>` of this tutorial.
+* To continue this tutorial, please read :doc:`Part 2 </topics/tutorial/part2>`.
+* See also the :doc:`/topics/examples`.

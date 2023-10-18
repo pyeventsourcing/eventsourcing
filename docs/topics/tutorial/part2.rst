@@ -610,6 +610,7 @@ to be ``'ItemAdded'``. Copy the test below and make it pass.
 Next steps
 ==========
 
-* For more information about event-sourced aggregates, please read the :doc:`the domain module documentation </topics/domain>`.
-* For more information about event-sourced applications, please read
-  :doc:`Part 3 </topics/tutorial/part3>` of this tutorial.
+* To continue this tutorial, please read :doc:`Part 3 </topics/tutorial/part3>`.
+* For more information about event-sourced aggregates, please read the
+  :doc:`domain module documentation </topics/domain>`.
+* See also the :ref:`Example aggregates`.
