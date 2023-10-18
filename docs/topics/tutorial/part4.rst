@@ -192,8 +192,8 @@ to use the last recorded position in the downstream application to pull subseque
 upstream application. To demonstrate how this works, this library provides a
 :class:`~eventsourcing.system.SingleThreadedRunner` and a :class:`~eventsourcing.system.MultiThreadedRunner`.
 
-The :class:`~eventsourcing.system.SingleThreadedRunner` and a :class:`~eventsourcing.system.MultiThreadedRunner`
-implement the abstract :class:`~eventsourcing.system.Runner` class. These system runners are constructed
+The :class:`~eventsourcing.system.SingleThreadedRunner` and :class:`~eventsourcing.system.MultiThreadedRunner`
+classes implement the abstract :class:`~eventsourcing.system.Runner` class. These system runners are constructed
 with an instance of the :class:`~eventsourcing.system.System` class, and optionally an ``env`` dictionary.
 
 The runners have a :func:`~eventsourcing.system.Runner.start` method which constructs and connects the
@@ -275,6 +275,8 @@ We can run the system with the :class:`~eventsourcing.system.SingleThreadedRunne
 
     test(system, SingleThreadedRunner)
 
+When the events are processed synchronously, we do not need to ``wait`` for the results,
+because the events will have been processed before the application command returns.
 
 The applications will use the default POPO persistence module, because the environment variable
 ``PERSISTENCE_MODULE`` has not been set.
@@ -315,6 +317,9 @@ In the example below, the applications use in-memory SQLite databases.
     # Run the system tests.
     test(system, SingleThreadedRunner)
 
+When the events are processed synchronously, we do not need to ``wait`` for the results,
+because the events will have been processed before the application command returns.
+
 When running the system with the multi-threaded runner and SQLite databases, we need to be
 careful to use separate databases for each application. We could use a file-based
 database, but here we will use in-memory SQLite databases. Because we need SQLite's in-memory
@@ -335,10 +340,13 @@ variable names should be prefixed with the application name.
     test(system, MultiThreadedRunner, wait=0.2)
 
 
+When the events are processed asynchronously, we need to ``wait`` for the results.
+
 PostgreSQL Environment
 ======================
 
-We can also run the system with the library's PostgreSQL persistence module.
+We can also run the system with the library's PostgreSQL persistence module. Just for fun,
+we will also configure the system to compress and encrypt the domain events.
 
 .. code-block:: python
 
@@ -368,8 +376,9 @@ We can also run the system with the library's PostgreSQL persistence module.
 
     test(system, SingleThreadedRunner)
 
-We can use the same PostgreSQL database for different applications in a system,
-because the PostreSQL persistence module creates different tables for each application.
+
+Although we must use different SQLite databases for different applications, we can use the same PostgreSQL
+database, because the PostreSQL persistence module creates separate tables for each application.
 
 However, before running the test again with PostgreSQL, we need to reset the trick counts,
 because they are being stored in a durable database and so would simply accumulate. We can
@@ -391,11 +400,12 @@ do this by deleting the database tables for the system.
     drop_postgres_table(db, "counters_events")
     drop_postgres_table(db, "counters_tracking")
 
-After resetting the trick counts, we can run the system again with the multi-threaded runner.
+After resetting the recorded state of the system, we can run the system again with the multi-threaded runner.
 
 .. code-block:: python
 
     test(system, MultiThreadedRunner, wait=0.2)
+
 
 Exercise
 ========
