@@ -165,8 +165,8 @@ The system object builds a graph of the application classes, identifying "nodes"
 
 .. code-block:: python
 
-    assert list(system.nodes) == ['DogSchool', 'Counters'], list(system.nodes)
-    assert system.edges == [('DogSchool', 'Counters')], system.edges
+    assert list(system.nodes) == ['DogSchool', 'Counters']
+    assert system.edges == [('DogSchool', 'Counters')]
 
 
 When the system is run, the nodes will be instantiated as application objects, and the edges
