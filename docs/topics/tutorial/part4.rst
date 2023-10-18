@@ -86,8 +86,8 @@ policy function are collected by calling the process event object's
 :func:`~eventsourcing.application.ProcessingEvent.collect_events` method.
 
 The purpose of the process event object is to hold all the new domain events created by the policy function, along
-with a :class:`~eventsourcing.persistence.Tracking` object that indicates the position in the upstream sequence
-of the domain event that is processed. These factors will be recorded together atomically by the process
+with a :class:`~eventsourcing.persistence.Tracking` object that indicates a position in an application sequence
+of the domain event that is being processed. These factors will be recorded together atomically by the process
 application after the policy function returns. The tracking records are used to avoid dual writing in the
 consumption and processing of domain events, so that each domain event is processed exactly once.
 
