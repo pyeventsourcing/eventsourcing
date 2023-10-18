@@ -86,10 +86,10 @@ domain event notifications.
 The :class:`~eventsourcing.application.Application` class defines an object method
 :func:`~eventsourcing.application.Application.take_snapshot` which can
 be used for :ref:`snapshotting <Snapshotting>` existing aggregates. Snapshotting
-isn't necessary, but can help to reduce the time it takes to access aggregates with
-lots of domain events.
+isn't necessary, but can help to reduce the time it takes to access aggregates that
+would otherwise be reconstructed from a large number of recorded domain events.
 
-The :class:`~eventsourcing.application.Application` class has an ``env`` attribute
+The :class:`~eventsourcing.application.Application` class has an ``env`` attribute,
 which can be redefined on your application classes. Application objects also have
 an ``env`` attribute which is determined by a combination of the application class
 attribute, the operating system environment, and by an optional constructor argument.
