@@ -175,8 +175,8 @@ will be used to set up the applications to "lead" and "follow" each other. Exact
 upon the concrete implementation of a system runner.
 
 
-Runnning an event-driven system
-===============================
+Running an event-driven system
+==============================
 
 Just like it's possible to store events in different ways, it's possible to run an event-driven system
 in different ways. There are many possibilities for the orchestration of the applications in a system
