@@ -72,7 +72,7 @@ event-sourced domain model comprised of ``Counter`` aggregates.
 The ``Counter`` aggregate class has a ``name`` which will correspond to the name of a trick.
 It also has a ``count`` attribute, which is an integer value with an initial value of ``0``. It
 also has an ``increment()`` method, decorated with the :func:`@event<eventsourcing.domain.event>`
-decorator, which increments the value of its `count` attribute.
+decorator, which increments the value of its ``count`` attribute.
 
 When a ``Dog.TrickAdded`` event is processed by the ``policy()`` function of the ``Counters`` application,
 the name of the trick is used to get or create a ``Counter`` aggregate object. Then, the counter's
