@@ -51,15 +51,16 @@ Process applications
 
 Second, let's define an application which can pull and process the domain events
 of the ``DogSchool`` application from its notification log. The ``Counters`` class
-below extends the library's :class:`~eventsourcing.system.ProcessApplication` class.
+below is an event processing application. It extends the library's
+:class:`~eventsourcing.system.ProcessApplication` class.
 
 The most important thing that needs to be defined when processing domain events is
 a policy function.
 
 The policy function defines how individual domain events will be processed. A policy
-function has different responses for different types of domain events. Each response
-creates new changes to the state of the process application. These could be changes
-to an event-sourced domain model, or they could be updates to a non-event sourced
+function has different responses for different types of domain events. The policy function
+may create changes to the state of the event processing application. These could be
+changes to an event-sourced domain model, or they could be updates to a non-event sourced
 materialized view. In this example, we will make changes to an event-sourced domain
 model.
 
@@ -71,7 +72,7 @@ event-sourced domain model comprised of ``Counter`` aggregates.
 The ``Counter`` aggregate class has a ``name`` which will correspond to the name of a trick.
 It also has a `count` attribute, which is an integer value with an initial value of `0`. It
 also has an ``increment()`` method, decorated with the :func:`@event<eventsourcing.domain.event>`
-decorator, which increments the value of `count`.
+decorator, which increments the value of its `count` attribute.
 
 When a ``Dog.TrickAdded`` event is processed by the ``policy()`` function of the ``Counters`` application,
 the name of the trick is used to get or create a ``Counter`` aggregate object. Then, the counter's
