@@ -495,7 +495,7 @@ class SingleThreadedRunner(Runner, RecordingEventReceiver):
         to a list of prompted names.
 
         Then, unless this method has previously been called and not yet returned,
-        each the of the prompted names is resolved to a leader application, and its
+        each of the prompted names is resolved to a leader application, and its
         followers pull and process events from that application. This may lead to
         further names being added to the list of prompted names. This process
         continues until there are no more prompted names. In this way, a system
