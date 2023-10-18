@@ -216,12 +216,15 @@ with the PostgreSQL persistence module.
 
     def test(system, runner_class, wait=0, env=None):
 
+        # Start running the system.
         runner = runner_class(system, env=env)
         runner.start()
 
+        # Get the application objects.
         school = runner.get(DogSchool)
         counters = runner.get(Counters)
 
+        # Generate some events.
         dog_id1 = school.register_dog('Billy')
         dog_id2 = school.register_dog('Milly')
         dog_id3 = school.register_dog('Scrappy')
@@ -230,29 +233,34 @@ with the PostgreSQL persistence module.
         school.add_trick(dog_id2, 'roll over')
         school.add_trick(dog_id3, 'roll over')
 
+        # Wait in case events are processed asynchronously.
         sleep(wait)
 
+        # Check the results of processing the events.
         assert counters.get_count('roll over') == 3
         assert counters.get_count('fetch ball') == 0
         assert counters.get_count('play dead') == 0
 
+        # Generate more events.
         school.add_trick(dog_id1, 'fetch ball')
         school.add_trick(dog_id2, 'fetch ball')
 
+        # Check the results.
         sleep(wait)
-
         assert counters.get_count('roll over') == 3
         assert counters.get_count('fetch ball') == 2
         assert counters.get_count('play dead') == 0
 
+        # Generate more events.
         school.add_trick(dog_id1, 'play dead')
 
+        # Check the results.
         sleep(wait)
-
         assert counters.get_count('roll over') == 3
         assert counters.get_count('fetch ball') == 2
         assert counters.get_count('play dead') == 1
 
+        # Stop the runner.
         runner.stop()
 
 
@@ -274,7 +282,8 @@ The applications will use the default POPO persistence module, because the envir
 Multi-threaded runner
 =====================
 
-We can also run the system with the :class:`~eventsourcing.system.MultiThreadedRunner`.
+We can also run the system with the :class:`~eventsourcing.system.MultiThreadedRunner`. Because
+the events are processed asynchronously, we need to ``wait`` for the results.
 
 .. code-block:: python
 
@@ -282,12 +291,15 @@ We can also run the system with the :class:`~eventsourcing.system.MultiThreadedR
 
     test(system, MultiThreadedRunner, wait=0.1)
 
+Again, the applications will use the default POPO persistence module, because the environment variable
+``PERSISTENCE_MODULE`` has not been set.
+
 
 SQLite environment
 ==================
 
-We can also run the system after configuring the applications to use the library's SQLite persistence module.
-In the example below, the applications use an in-memory SQLite database.
+We can also run the system of applications with the library's SQLite persistence module.
+In the example below, the applications use in-memory SQLite databases.
 
 .. code-block:: python
 
@@ -308,9 +320,10 @@ careful to use separate databases for each application. We could use a file-base
 database, but here we will use in-memory SQLite databases. Because we need SQLite's in-memory
 databases to support multi-threading, we need to enable SQLite's shared cache. Because we
 need to enable the shared cache, and we need more than one database in the same operating
-system process, we also need to use named in-memory databases. In order to distinguish
-environment variables for different applications in a system, the environment variable names
-can be prefixed with the application name.
+system process, we also need to use named in-memory databases. The SQLite URI pattern
+`''file:{NAME}?mode=memory&cache=shared'` specifies a named in-memory database that has shared cache.
+In order to distinguish environment variables for different applications in a system, the environment
+variable names should be prefixed with the application name.
 
 .. code-block:: python
 
