@@ -5,9 +5,10 @@ Tutorial - Part 4 - Systems
 
 As we saw in :doc:`Part 3 </topics/tutorial/part1>`, we can use the library's
 :class:`~eventsourcing.application.Application` class to define event-sourced
-applications. In this part, we will create a second event-driven application which
-pulls and processes event notifications from the notification log of the ``DogSchool``
-application.
+applications. In this part, we will create two applications: the ``DogSchool``
+application that we discussed in Part 3, and a second application which can pull
+and process the domain events of the ``DogSchool`` application from its notification
+log.
 
 First, let's define the ``DogSchool`` application and the ``Dog`` aggregate.
 
@@ -48,24 +49,46 @@ First, let's define the ``DogSchool`` application and the ``Dog`` aggregate.
 Process applications
 ====================
 
-The most important thing that needs to be defined when processing events is a policy function.
-The policy function defines how individual events will be processed. The policy function creates
-changes to the state of the process application. A policy function has different responses for
-different types of events.
+Second, let's define an application which can pull and process the domain events
+of the ``DogSchool`` application from its notification log. The ``Counters`` class
+below extends the library's :class:`~eventsourcing.system.ProcessApplication` class.
 
-For example, we can define a policy that processes the ``Dog.TrickAdded`` events of the ``DogSchool``
-application, so that we can count the number of tricks that have been added.
+The most important thing that needs to be defined when processing domain events is
+a policy function.
 
-The ``Counters`` class below extends the ``ProcessApplication`` class by implementing a ``policy()``
-function. The event-sourced aggregate ``Counter`` has a method ``increment()`` which increments the
-count for a particular trick. When a ``Dog.TrickAdded`` event is processed, the ``increment()`` method
-is called.
+The policy function defines how individual domain events will be processed. A policy
+function has different responses for different types of domain events. Each response
+creates new changes to the state of the process application. These could be changes
+to an event-sourced domain model, or they could be updates to a non-event sourced
+materialized view. In this example, we will make changes to an event-sourced domain
+model.
 
-New events created in the policy function are collected by the ``process_event`` that is passed into
-the ``policy()`` function along with the ``domain_event``. This ensures that all new events created
-by a policy function in responding to an upstream domain event will be recorded atomically along with
-a tracking record that indicates the position of the event in the upstream sequence of the domain event
-that has been processed.
+In the example below, the ``Counters`` application counts the tricks added
+in the ``Dog`` aggregates. It has a ``policy()`` function that processes the
+``Dog.TrickAdded`` events of the ``DogSchool`` application. It makes changes to an
+event-sourced domain model comprised of ``Counter`` aggregates.
+
+The ``Counter`` aggregate class has a ``name`` which will correspond to the name of a trick.
+It also has a `count` attribute, which is an integer value with an initial value of `0`. It
+also has an ``increment()`` method, decorated with the :func:`@event<eventsourcing.domain.event>`
+decorator, which increments the value of `count`.
+
+When a ``Dog.TrickAdded`` event is processed by the ``policy()`` function of the ``Counters`` application,
+the name of the trick is used to get or create a ``Counter`` aggregate object. Then, the counter's
+``increment()`` method is called once. The new domain events are then collected on a "processing event"
+object before the policy function returns.
+
+The ``policy()`` function receives two arguments: ``domain_event`` and ``process_event``. The ``domain_event``
+argument is a domain event object that is to be processed. The ``process_event`` is an instance of the
+:class:`~eventsourcing.application.ProcessingEvent` class. New domain events created in the
+policy function are collected by calling the process event object's
+:func:`~eventsourcing.application.ProcessingEvent.collect_events` method.
+
+The purpose of the process event object is to hold all the new domain events created by the policy function, along
+with a :class:`~eventsourcing.persistence.Tracking` object that indicates the position in the upstream sequence
+of the domain event that is processed. These factors will be recorded together atomically by the process
+application after the policy function returns. The tracking records are used to avoid dual writing in the
+consumption and processing of domain events, so that each domain event is processed exactly once.
 
 .. code-block:: python
 
@@ -116,11 +139,13 @@ that has been processed.
 Defining an event-driven system
 ===============================
 
-Rather than manually constructing the applications and pulling and processing events, we can use
-the library's :class:`~eventsourcing.system.System` class to indicate which application is the
-"leader" and which is the "follower". In this way, just like the persistence infrastructure that
-each application will use can be defined when the applications are constructed, also the manner
-in which the events will be pulled and processed can be defined when the system is run.
+Just like an application can be defined independently of concrete persistence infrastructure, we can
+define which applications follow which other applications independently of the manner in which domain
+events are pulled and processed. For this purpose, we can use the library's
+:class:`~eventsourcing.system.System` class to specify a list of "pipes".
+
+In the example below, we define a system with one "pipe" that has the ``DogSchool`` application
+followed by the ``Counters`` application.
 
 .. code-block:: python
 
@@ -129,18 +154,35 @@ in which the events will be pulled and processed can be defined when the system 
     system = System(pipes=[[DogSchool, Counters]])
 
 
+The system object builds a graph of the application classes, identifying "nodes" and "edges".
+
+.. code-block:: python
+
+    assert list(system.nodes) == ["DogSchool", "Counters"], list(system.nodes)
+    assert system.edges == [("DogSchool", "Counters")], system.edges
+
+
+When the system is run, the nodes will be instantiated as application objects, and the edges
+will be used to set up the applications to "lead" and "follow" each other. Exactly how depends
+upon the concrete implementation of a system runner.
+
+
 Runnning an event-driven system
 ===============================
 
 Just like it's possible to store events in different ways, it's possible to run an event-driven system
 in different ways. There are many possibilities for the orchestration of the applications in a system
 and for interprocess communication between the applications. One possibility is to use a single thread,
-and pull and process events sequentially. Another possibility is to use multiple threads in the same
-operating system process, with events processed concurrently and asynchronously. Another possibility is
-to use multiple operating system processes on the same machine, or alternatively on different machines
-in a network. Furthermore, when running a system with multiple operating system processes, there are
-many possible alternatives for inter-process communication by which events are transported from one
-application to another.
+and to pull and process events synchronously and sequentially. Another possibility is to use multiple
+threads in the same operating system process, with events processed concurrently and asynchronously.
+If the application objects are all constructed in the same operating system process, the notification
+logs can be used directly.
+
+Another possibility is to use multiple operating system processes on the same machine, or alternatively
+on different machines in a network. When running a system with multiple operating system
+processes, there notification logs must be accessed remotely across the operating system
+process boundary. There are many possible alternatives for inter-process communication,
+by which events are transported from one application to another.
 
 The important thing, in all these cases, is to pull and process a sequence of events, and for new
 state in the downstream application to be recorded atomically along with a unique tracking record
