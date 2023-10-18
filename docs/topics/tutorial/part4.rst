@@ -196,17 +196,19 @@ The :class:`~eventsourcing.system.SingleThreadedRunner` and a :class:`~eventsour
 implement the abstract :class:`~eventsourcing.system.Runner` class. These system runners are constructed
 with an instance of the :class:`~eventsourcing.system.System` class, and optionally an ``env`` dictionary.
 
-The runners have a :func:`~eventsourcing.system.Runner.start`` method which constructs and connects the
-applications. The runners also have a :func:`~eventsourcing.system.Runner.get`` method, which returns an
+The runners have a :func:`~eventsourcing.system.Runner.start` method which constructs and connects the
+applications. The runners also have a :func:`~eventsourcing.system.Runner.get` method, which returns an
 application. When application command methods are called, new events will be propagated and processed,
 according to the system definition and the application policies. Application query methods can be used
 to obtain the resulting state of the system.
 
 The ``test()`` function below shows how the abstract runner interface can be used to operate the dog school
-trick counting system. We will call the ``test()`` function firstly with the
-:class:`~eventsourcing.system.SingleThreadedRunner` and then the :class:`~eventsourcing.system.MultiThreadedRunner`.
-The applications will use the POPO persistence module by default. We will then run the system with the
-library's SQLite persistence module, and then the PosgreSQL persistence module.
+trick counting system.
+
+We will run the ``test()`` function firstly with the :class:`~eventsourcing.system.SingleThreadedRunner` and
+then the :class:`~eventsourcing.system.MultiThreadedRunner`. The applications will use the POPO persistence
+module by default. We will then run the test again, with the library's SQLite persistence module, and then
+with the PostgreSQL persistence module.
 
 .. code-block:: python
 
