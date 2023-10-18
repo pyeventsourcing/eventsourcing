@@ -5,10 +5,12 @@ Tutorial - Part 4 - Systems
 
 As we saw in :doc:`Part 3 </topics/tutorial/part1>`, we can use the library's
 :class:`~eventsourcing.application.Application` class to define event-sourced
-applications. In this part, we will create two applications: the ``DogSchool``
-application that we discussed in Part 3, and a second application which can pull
-and process the domain events of the ``DogSchool`` application from its notification
-log.
+applications. Now let's explore event-driven systems.
+
+We will create two applications: the ``DogSchool`` application that we discussed in Part 3,
+and a second application which processes the domain events of the ``DogSchool``
+application. We will compose these two applications into a "system" and run the system
+with a "runner", with different combinations of runners and persistence modules.
 
 First, let's define the ``DogSchool`` application and the ``Dog`` aggregate.
 
