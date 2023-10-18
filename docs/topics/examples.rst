@@ -30,6 +30,7 @@ involves creating and updating a ``Dog`` aggregate, and taking a snapshot.
    examples/aggregate7
    examples/aggregate8
 
+.. _Example applications:
 
 Example applications
 ====================
@@ -42,6 +43,8 @@ Example applications
    examples/content-management
    examples/searchable-timestamps
    examples/searchable-content
+
+.. _Example systems:
 
 Example systems
 ===============
