@@ -14,6 +14,8 @@ First, let's define the ``DogSchool`` application and the ``Dog`` aggregate.
 
 .. code-block:: python
 
+    from uuid import uuid5, NAMESPACE_URL
+
     from eventsourcing.application import Application
     from eventsourcing.domain import Aggregate, event
 
@@ -24,13 +26,13 @@ First, let's define the ``DogSchool`` application and the ``Dog`` aggregate.
             self.save(dog)
             return dog.id
 
-        def add_trick(self, dog_id, trick):
-            dog = self.repository.get(dog_id)
+        def add_trick(self, name, trick):
+            dog = self.repository.get(Dog.create_id(name))
             dog.add_trick(trick=trick)
             self.save(dog)
 
-        def get_dog(self, dog_id):
-            dog = self.repository.get(dog_id)
+        def get_dog(self, name):
+            dog = self.repository.get(Dog.create_id(name))
             return {'name': dog.name, 'tricks': tuple(dog.tricks)}
 
 
@@ -39,6 +41,10 @@ First, let's define the ``DogSchool`` application and the ``Dog`` aggregate.
         def __init__(self, name):
             self.name = name
             self.tricks = []
+
+        @classmethod
+        def create_id(cls, name):
+            return uuid5(NAMESPACE_URL, f'/dogs/{name}')
 
         @event('TrickAdded')
         def add_trick(self, trick):
@@ -93,10 +99,10 @@ consumption and processing of domain events, so that each domain event is proces
 
 .. code-block:: python
 
-    from uuid import uuid5, NAMESPACE_URL
     from eventsourcing.application import AggregateNotFound
     from eventsourcing.system import ProcessApplication
     from eventsourcing.dispatch import singledispatchmethod
+
 
     class Counters(ProcessApplication):
         @singledispatchmethod
@@ -159,8 +165,8 @@ The system object builds a graph of the application classes, identifying "nodes"
 
 .. code-block:: python
 
-    assert list(system.nodes) == ["DogSchool", "Counters"], list(system.nodes)
-    assert system.edges == [("DogSchool", "Counters")], system.edges
+    assert list(system.nodes) == ['DogSchool', 'Counters'], list(system.nodes)
+    assert system.edges == [('DogSchool', 'Counters')], system.edges
 
 
 When the system is run, the nodes will be instantiated as application objects, and the edges
@@ -225,13 +231,13 @@ with the PostgreSQL persistence module.
         counters = runner.get(Counters)
 
         # Generate some events.
-        dog_id1 = school.register_dog('Billy')
-        dog_id2 = school.register_dog('Milly')
-        dog_id3 = school.register_dog('Scrappy')
+        school.register_dog('Billy')
+        school.register_dog('Milly')
+        school.register_dog('Scrappy')
 
-        school.add_trick(dog_id1, 'roll over')
-        school.add_trick(dog_id2, 'roll over')
-        school.add_trick(dog_id3, 'roll over')
+        school.add_trick('Billy', 'roll over')
+        school.add_trick('Milly', 'roll over')
+        school.add_trick('Scrappy', 'roll over')
 
         # Wait in case events are processed asynchronously.
         sleep(wait)
@@ -242,8 +248,8 @@ with the PostgreSQL persistence module.
         assert counters.get_count('play dead') == 0
 
         # Generate more events.
-        school.add_trick(dog_id1, 'fetch ball')
-        school.add_trick(dog_id2, 'fetch ball')
+        school.add_trick('Billy', 'fetch ball')
+        school.add_trick('Milly', 'fetch ball')
 
         # Check the results.
         sleep(wait)
@@ -252,7 +258,7 @@ with the PostgreSQL persistence module.
         assert counters.get_count('play dead') == 0
 
         # Generate more events.
-        school.add_trick(dog_id1, 'play dead')
+        school.add_trick('Billy', 'play dead')
 
         # Check the results.
         sleep(wait)
@@ -390,21 +396,30 @@ do this by deleting the database tables for the system.
     from eventsourcing.tests.postgres_utils import drop_postgres_table
 
     db = PostgresDatastore(
-        "eventsourcing",
-        "127.0.0.1",
-        "5432",
-        "eventsourcing",
-        "eventsourcing",
+        'eventsourcing',
+        '127.0.0.1',
+        '5432',
+        'eventsourcing',
+        'eventsourcing',
     )
-    drop_postgres_table(db, "dogschool_events")
-    drop_postgres_table(db, "counters_events")
-    drop_postgres_table(db, "counters_tracking")
+    drop_postgres_table(db, 'dogschool_events')
+    drop_postgres_table(db, 'counters_events')
+    drop_postgres_table(db, 'counters_tracking')
 
 After resetting the recorded state of the system, we can run the system again with the multi-threaded runner.
 
 .. code-block:: python
 
     test(system, MultiThreadedRunner, wait=0.2)
+
+
+When the state of the system is recorded in a durable database, we can access the
+state of the system's applications by directly constructing the application objects.
+
+.. code-block:: python
+
+    assert DogSchool().get_dog('Scrappy')['tricks'] == ('roll over',)
+    assert Counters().get_count('roll over') == 3
 
 
 Exercise
