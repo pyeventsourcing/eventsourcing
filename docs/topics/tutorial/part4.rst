@@ -441,8 +441,8 @@ Exercises
   observe the stored event records and the tracking records.
 
 2. Write a system that has a ``Game`` application with ``Player`` aggregates that
-have a ``score`` which can be updated, that is followed by a `HallOfFame` application that
-processes the score update events into an event-sourced `HighScoreTable` aggregate that keeps
+have a ``score`` which can be updated, that is followed by a ``HallOfFame`` application that
+processes the score update events into an event-sourced ``HighScoreTable`` aggregate that keeps
 a list of the top three scores.
 
 3. Write a system that processes events with "exactly once semantics" into
