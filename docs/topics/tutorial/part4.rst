@@ -24,7 +24,6 @@ First, let's define the ``DogSchool`` application and the ``Dog`` aggregate.
         def register_dog(self, name):
             dog = Dog(name)
             self.save(dog)
-            return dog.id
 
         def add_trick(self, name, trick):
             dog = self.repository.get(Dog.create_id(name))
@@ -348,7 +347,8 @@ variable names should be prefixed with the application name.
 
 When the events are processed asynchronously, we need to ``wait`` for the results.
 
-PostgreSQL Environment
+
+PostgreSQL environment
 ======================
 
 We can also run the system with the library's PostgreSQL persistence module. Just for fun,
@@ -422,10 +422,10 @@ state of the system's applications by directly constructing the application obje
     assert Counters().get_count('roll over') == 3
 
 
-Exercise
-========
+Exercises
+=========
 
-Firstly, replicate the code in this tutorial in your development environment.
+1. Replicate the code in this tutorial in your development environment.
 
 * Copy the code snippets above.
 * Run the code with the default "plain old Python object"
@@ -433,11 +433,21 @@ Firstly, replicate the code in this tutorial in your development environment.
 * Configure and run the system with an SQLite database.
 * Create a PostgreSQL database, and configure and run the
   system with a PostgreSQL database.
+* Configure the system to run the ``DogSchool`` application
+  with a PostgreSQL database and the ``Counters`` application
+  with a file-based SQLite database.
 * Connect to the databases with the command line clients for
   SQLite and PostgreSQL, and examine the database tables to
   observe the stored event records and the tracking records.
 
-Secondly, write an system that...
+2. Write a system that has a ``Game`` application with ``Player`` aggregates that
+have a ``score`` which can be updated, that is followed by a `HallOfFame` application that
+processes the score update events into an event-sourced `HighScoreTable` aggregate that keeps
+a list of the top three scores.
+
+3. Write a system that processes events with "exactly once semantics" into
+a non-event sourced materialized view.
+
 
 Next steps
 ==========
