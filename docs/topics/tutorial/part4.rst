@@ -141,7 +141,7 @@ Defining an event-driven system
 ===============================
 
 Just like an application can be defined independently of concrete persistence infrastructure, we can
-define which applications follow which other applications independently of the manner in which domain
+define which applications "follow" which other applications independently of the manner in which domain
 events are pulled and processed. For this purpose, we can use the library's
 :class:`~eventsourcing.system.System` class to specify a list of "pipes".
 
@@ -181,7 +181,7 @@ logs can be used directly.
 
 Another possibility is to use multiple operating system processes on the same machine, or alternatively
 on different machines in a network. When running a system with multiple operating system
-processes, there notification logs must be accessed remotely across the operating system
+processes, their notification logs must be accessed remotely across the operating system
 process boundary. There are many possible alternatives for inter-process communication,
 by which events are transported from one application to another.
 
