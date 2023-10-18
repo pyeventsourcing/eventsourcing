@@ -12,12 +12,12 @@ docs_requires = (
     + [
         "Sphinx==4.2.0",
         "sphinx_rtd_theme==1.3.0",
+        "orjson",
+        "pydantic",
     ]
 )
 
 dev_requires = docs_requires + [
-    "orjson",
-    "pydantic",
     "python-coveralls",
     "coverage",
     "black",
