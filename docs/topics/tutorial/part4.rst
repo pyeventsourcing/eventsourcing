@@ -332,7 +332,7 @@ database, but here we will use in-memory SQLite databases. Because we need SQLit
 databases to support multi-threading, we need to enable SQLite's shared cache. Because we
 need to enable the shared cache, and we need more than one database in the same operating
 system process, we also need to use named in-memory databases. The SQLite URI pattern
-``'file:{NAME}?mode=memory&cache=shared'`` specifies a named in-memory database that has shared cache.
+``'file:{NAME}?mode=memory&cache=shared'`` specifies a named in-memory database that has a shared cache.
 In order to distinguish environment variables for different applications in a system, the environment
 variable names should be prefixed with the application name.
 
