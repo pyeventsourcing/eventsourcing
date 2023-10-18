@@ -56,10 +56,9 @@ First, let's define the ``DogSchool`` application and the ``Dog`` aggregate.
 Process applications
 ====================
 
-Second, let's define an application which can pull and process the domain events
-of the ``DogSchool`` application from its notification log. The ``Counters`` class
-below is an event processing application. It extends the library's
-:class:`~eventsourcing.system.ProcessApplication` class.
+Second, let's define an application which counts tricks added in the ``Dog`` aggregates, by
+processing the domain events of the ``DogSchool`` application. The ``Counters`` class below is
+an event processing application. It extends the library's :class:`~eventsourcing.system.ProcessApplication` class.
 
 The most important thing that needs to be defined when processing domain events is
 a policy function.
