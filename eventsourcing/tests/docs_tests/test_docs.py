@@ -26,11 +26,24 @@ class TestDocs(TestCase):
             "eventsourcing",
         )
         drop_postgres_table(db, "dogschool_events")
+        drop_postgres_table(db, "counters_events")
+        drop_postgres_table(db, "counters_tracking")
 
     def tearDown(self) -> None:
         self.clean_env()
 
     def clean_env(self):
+        db = PostgresDatastore(
+            "eventsourcing",
+            "127.0.0.1",
+            "5432",
+            "eventsourcing",
+            "eventsourcing",
+        )
+        drop_postgres_table(db, "dogschool_events")
+        drop_postgres_table(db, "counters_events")
+        drop_postgres_table(db, "counters_tracking")
+
         keys = [
             "PERSISTENCE_MODULE",
             "IS_SNAPSHOTTING_ENABLED",
@@ -89,7 +102,7 @@ class TestDocs(TestCase):
             for name in filenames:
                 if name in skipped:
                     continue
-                if name.endswith(".rst"):
+                # if name.endswith(".rst"):
                     # if (
                     #     name.endswith("persistence.rst")
                     #     or name.endswith("domain.rst")
@@ -97,7 +110,7 @@ class TestDocs(TestCase):
                     #     or name.endswith("system.rst")
                     #     or name.endswith("examples.rst")
                     # ):
-                    # if name.endswith('quick_start.rst'):
+                if name.endswith('part4.rst'):
                     # if name.endswith('aggregates_in_ddd.rst'):
                     # if name.endswith('example_application.rst'):
                     # if name.endswith('everything.rst'):
