@@ -422,7 +422,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         # notification_id values in order, and by locking the table for writes,
         # it can be guaranteed. The EXCLUSIVE lock mode does not block
         # the ACCESS SHARE lock which is acquired during SELECT statements,
-        # so the table can be read concurrently. However INSERT normally
+        # so the table can be read concurrently. However, INSERT normally
         # just acquires ROW EXCLUSIVE locks, which risks interleaving of
         # many inserts in one transaction with many insert in another
         # transaction. Since one transaction will commit before another,

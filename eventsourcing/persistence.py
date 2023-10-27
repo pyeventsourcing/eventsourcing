@@ -1106,7 +1106,7 @@ class ConnectionPool(ABC, Generic[TConnection]):
         Returns connections to the pool, or closes connection
         if the pool is full.
 
-        Unlocks write lock after writer has returned., and
+        Unlocks write lock after writer has returned, and
         updates count of readers when readers are returned.
 
         Notifies waiters when connections have been returned,
