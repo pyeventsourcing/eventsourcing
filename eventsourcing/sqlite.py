@@ -1,6 +1,5 @@
 import sqlite3
 from contextlib import contextmanager
-from sqlite3 import Connection, Cursor
 from types import TracebackType
 from typing import Any, Iterator, List, Optional, Sequence, Type, Union
 from uuid import UUID
@@ -8,9 +7,9 @@ from uuid import UUID
 from eventsourcing.persistence import (
     AggregateRecorder,
     ApplicationRecorder,
-    Connection as BaseConnection,
+    Connection,
     ConnectionPool,
-    Cursor as BaseCursor,
+    Cursor,
     DatabaseError,
     DataError,
     InfrastructureFactory,
@@ -31,11 +30,11 @@ from eventsourcing.utils import Environment, strtobool
 SQLITE3_DEFAULT_LOCK_TIMEOUT = 5
 
 
-class SQLiteCursor(BaseCursor):
-    def __init__(self, sqlite_cursor: Cursor):
+class SQLiteCursor(Cursor):
+    def __init__(self, sqlite_cursor: sqlite3.Cursor):
         self.sqlite_cursor = sqlite_cursor
 
-    def __enter__(self, *args: Any, **kwargs: Any) -> Cursor:
+    def __enter__(self) -> sqlite3.Cursor:
         return self.sqlite_cursor
 
     def __exit__(self, *args: Any, **kwargs: Any) -> None:
@@ -58,8 +57,8 @@ class SQLiteCursor(BaseCursor):
         return self.sqlite_cursor.lastrowid
 
 
-class SQLiteConnection(BaseConnection[SQLiteCursor]):
-    def __init__(self, sqlite_conn: Connection, max_age: Optional[float]):
+class SQLiteConnection(Connection[SQLiteCursor]):
+    def __init__(self, sqlite_conn: sqlite3.Connection, max_age: Optional[float]):
         super().__init__(max_age=max_age)
         self._sqlite_conn = sqlite_conn
 

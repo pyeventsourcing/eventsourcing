@@ -13,14 +13,13 @@ from typing import (
     Tuple,
     Type,
     Union,
+    cast,
 )
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-import psycopg2
-import psycopg2.errors
-import psycopg2.extras
-from psycopg2.errorcodes import DUPLICATE_PREPARED_STATEMENT
-from psycopg2.extensions import connection, cursor
+import psycopg
+import psycopg.errors
+from psycopg.rows import DictRow, dict_row
 
 from eventsourcing.persistence import (
     AggregateRecorder,
@@ -45,25 +44,25 @@ from eventsourcing.persistence import (
 )
 from eventsourcing.utils import Environment, retry, strtobool
 
-psycopg2.extras.register_uuid()
+DUPLICATE_PREPARED_STATEMENT = "42P05"
 
 
 class PostgresCursor(Cursor):
-    def __init__(self, pg_cursor: cursor):
+    def __init__(self, pg_cursor: psycopg.ClientCursor[DictRow]):
         self.pg_cursor = pg_cursor
 
-    def __enter__(self, *args: Any, **kwargs: Any) -> "PostgresCursor":
-        self.pg_cursor.__enter__(*args, **kwargs)
+    def __enter__(self) -> "PostgresCursor":
+        self.pg_cursor.__enter__()
         return self
 
     def __exit__(self, *args: Any, **kwargs: Any) -> None:
         return self.pg_cursor.__exit__(*args, **kwargs)
 
-    def mogrify(self, statement: str, params: Any = None) -> bytes:
-        return self.pg_cursor.mogrify(statement, vars=params)
+    def mogrify(self, statement: str, params: Any = None) -> str:
+        return self.pg_cursor.mogrify(statement, params=params)
 
     def execute(self, statement: Union[str, bytes], params: Any = None) -> None:
-        self.pg_cursor.execute(query=statement, vars=params)
+        self.pg_cursor.execute(query=statement, params=params)
 
     def fetchall(self) -> Any:
         return self.pg_cursor.fetchall()
@@ -77,7 +76,11 @@ class PostgresCursor(Cursor):
 
 
 class PostgresConnection(Connection[PostgresCursor]):
-    def __init__(self, pg_conn: connection, max_age: Optional[float]):
+    def __init__(
+        self,
+        pg_conn: psycopg.Connection[psycopg.ClientCursor[DictRow]],
+        max_age: Optional[float],
+    ):
         super().__init__(max_age=max_age)
         self._pg_conn = pg_conn
         self.is_prepared: Set[str] = set()
@@ -92,7 +95,10 @@ class PostgresConnection(Connection[PostgresCursor]):
 
     def cursor(self) -> PostgresCursor:
         return PostgresCursor(
-            self._pg_conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+            cast(
+                psycopg.ClientCursor[DictRow],
+                self._pg_conn.cursor(row_factory=dict_row),
+            )
         )
 
     def rollback(self) -> None:
@@ -145,15 +151,19 @@ class PostgresConnectionPool(ConnectionPool[PostgresConnection]):
     def _create_connection(self) -> PostgresConnection:
         # Make a connection to a database.
         try:
-            pg_conn = psycopg2.connect(
-                dbname=self.dbname,
-                host=self.host,
-                port=self.port,
-                user=self.user,
-                password=self.password,
-                connect_timeout=self.connect_timeout,
+            pg_conn = cast(
+                psycopg.Connection[psycopg.ClientCursor[DictRow]],
+                psycopg.Connection.connect(
+                    dbname=self.dbname,
+                    host=self.host,
+                    port=self.port,
+                    user=self.user,
+                    password=self.password,
+                    connect_timeout=self.connect_timeout,
+                    cursor_factory=psycopg.ClientCursor[DictRow],
+                ),
             )
-        except psycopg2.OperationalError as e:
+        except psycopg.OperationalError as e:
             raise OperationalError(e) from e
         pg_conn.cursor().execute(
             f"SET idle_in_transaction_session_timeout = "
@@ -186,25 +196,25 @@ class PostgresTransaction:
                 self.conn.rollback()
             else:
                 self.conn.commit()
-        except psycopg2.InterfaceError as e:
+        except psycopg.InterfaceError as e:
             self.conn.close()
             raise InterfaceError(str(e)) from e
-        except psycopg2.DataError as e:
+        except psycopg.DataError as e:
             raise DataError(str(e)) from e
-        except psycopg2.OperationalError as e:
+        except psycopg.OperationalError as e:
             self.conn.close()
             raise OperationalError(str(e)) from e
-        except psycopg2.IntegrityError as e:
+        except psycopg.IntegrityError as e:
             raise IntegrityError(str(e)) from e
-        except psycopg2.InternalError as e:
+        except psycopg.InternalError as e:
             raise InternalError(str(e)) from e
-        except psycopg2.ProgrammingError as e:
+        except psycopg.ProgrammingError as e:
             raise ProgrammingError(str(e)) from e
-        except psycopg2.NotSupportedError as e:
+        except psycopg.NotSupportedError as e:
             raise NotSupportedError(str(e)) from e
-        except psycopg2.DatabaseError as e:
+        except psycopg.DatabaseError as e:
             raise DatabaseError(str(e)) from e
-        except psycopg2.Error as e:
+        except psycopg.Error as e:
             raise PersistenceError(str(e)) from e
 
 
@@ -259,11 +269,13 @@ class PostgresDatastore:
 
     def report_on_prepared_statements(
         self,
-    ) -> Tuple[List[List[Union[bool, str]]], List[str]]:
+    ) -> Tuple[List[Dict[str, Union[bool, str]]], List[str]]:
         with self.get_connection() as conn:
             with conn.cursor() as curs:
                 curs.execute("SELECT * from pg_prepared_statements")
-                return sorted(curs.fetchall()), sorted(conn.is_prepared)
+                return sorted(curs.fetchall(), key=lambda x: x["name"]), sorted(
+                    conn.is_prepared
+                )
 
     def close(self) -> None:
         self.pool.close()
@@ -405,7 +417,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
                     lock_timeout = self.datastore.lock_timeout
                     curs.execute(f"SET LOCAL lock_timeout = '{lock_timeout}s'")
                     curs.execute(f"PREPARE {statement_name_alias} AS " + statement)
-                except psycopg2.errors.lookup(DUPLICATE_PREPARED_STATEMENT):  # noqa
+                except psycopg.errors.lookup(DUPLICATE_PREPARED_STATEMENT):  # noqa
                     pass
                 conn.is_prepared.add(statement_name)
         return statement_name_alias
@@ -462,7 +474,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
                 )
             ]
             commands = [
-                b"; ".join(page)
+                "; ".join(page)
                 for page in chain([chain(lock_sqls, pages[0])], pages[1:])
             ]
 
@@ -639,8 +651,17 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
                 curs.execute(
                     f"EXECUTE {statement_alias}",
                 )
-                max_id = curs.fetchone()[0] or 0
+                fetchone = curs.fetchone()
+                max_id = fetchone["max"] or 0
         return max_id
+
+    def _prepare_insert_events(self, conn: PostgresConnection) -> None:
+        super()._prepare_insert_events(conn)
+        self._prepare(
+            conn,
+            self.max_notification_id_statement_name,
+            self.max_notification_id_statement,
+        )
 
     def _insert_events(
         self,
@@ -650,7 +671,15 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
     ) -> Optional[Sequence[int]]:
         super()._insert_events(c, stored_events, **kwargs)
         if stored_events:
-            last_notification_id = c.fetchone()[0]
+            statement_name_alias = self.get_statement_alias(
+                self.max_notification_id_statement_name
+            )
+
+            c.execute(
+                f"EXECUTE {statement_name_alias}",
+            )
+            fetchone = c.fetchone()
+            last_notification_id = fetchone["max"]
             notification_ids = list(
                 range(
                     last_notification_id - len(stored_events) + 1,
@@ -720,7 +749,8 @@ class PostgresProcessRecorder(PostgresApplicationRecorder, ProcessRecorder):
                     f"EXECUTE {statement_alias}(%s)",
                     (application_name,),
                 )
-                max_id = curs.fetchone()[0] or 0
+                fetchone = curs.fetchone()
+                max_id = fetchone["max"] or 0
         return max_id
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
@@ -736,7 +766,8 @@ class PostgresProcessRecorder(PostgresApplicationRecorder, ProcessRecorder):
                     f"EXECUTE {statement_alias}(%s, %s)",
                     (application_name, notification_id),
                 )
-                return bool(curs.fetchone()[0])
+                fetchone = curs.fetchone()
+                return bool(fetchone["count"])
 
     def _prepare_insert_events(self, conn: PostgresConnection) -> None:
         super()._prepare_insert_events(conn)
