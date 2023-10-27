@@ -546,8 +546,8 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
     ):
         super().__init__(datastore, events_table_name)
         self.insert_events_statement = (
-            f"INSERT INTO {self.events_table_name} VALUES ($1, $2, $3, $4) "
-            f"RETURNING notification_id"
+            f"INSERT INTO {self.events_table_name} VALUES ($1, $2, $3, $4)"
+            # f" RETURNING notification_id"  # psycopg3 execute() doesn't support this
         )
         self.max_notification_id_statement = (
             f"SELECT MAX(notification_id) FROM {self.events_table_name}"
