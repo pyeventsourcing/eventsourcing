@@ -252,6 +252,9 @@ class TestTransaction(TestCase):
 
 
 class TestPostgresDatastore(TestCase):
+    def test_is_pipeline_supported(self):
+        self.assertTrue(psycopg.Pipeline.is_supported())
+
     def test_has_connection_pool(self):
         datastore = PostgresDatastore(
             dbname="eventsourcing",
