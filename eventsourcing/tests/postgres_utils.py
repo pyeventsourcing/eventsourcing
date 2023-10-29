@@ -47,6 +47,6 @@ def drop_postgres_table(datastore: PostgresDatastore, table_name):
     statement = f"DROP TABLE {table_name};"
     try:
         with datastore.transaction(commit=True) as curs:
-            curs.execute(statement)
+            curs.execute(statement, prepare=False)
     except PersistenceError:
         pass

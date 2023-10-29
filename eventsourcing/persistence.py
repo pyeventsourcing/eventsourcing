@@ -15,6 +15,7 @@ from typing import (
     Generic,
     Iterator,
     List,
+    Mapping,
     Optional,
     Sequence,
     Type,
@@ -24,6 +25,8 @@ from typing import (
 )
 from uuid import UUID
 from warnings import warn
+
+from typing_extensions import TypeAlias
 
 from eventsourcing.domain import DomainEventProtocol, EventSourcingError
 from eventsourcing.utils import (
@@ -755,9 +758,14 @@ class Tracking:
     notification_id: int
 
 
+Params: TypeAlias = Union[Sequence[Any], Mapping[str, Any]]
+
+
 class Cursor(ABC):
     @abstractmethod
-    def execute(self, statement: Union[str, bytes], params: Any = None) -> None:
+    def execute(
+        self, statement: Union[str, bytes], params: Optional[Params] = None
+    ) -> None:
         """Executes given statement."""
 
     @abstractmethod

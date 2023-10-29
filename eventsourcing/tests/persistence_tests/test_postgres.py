@@ -1,5 +1,6 @@
 from threading import Event, Thread
 from time import sleep
+from typing import List
 from unittest import TestCase
 from unittest.mock import MagicMock, Mock
 from uuid import uuid4
@@ -71,13 +72,15 @@ class TestPostgresConnection(TestCase):
             connect_timeout=5,
         )
         conn = PostgresConnection(pg_conn=pg_conn, max_age=1)
-        with conn.transaction(commit=False) as curs:
-            self.assertIsInstance(curs, PostgresCursor)
-            curs.execute("SELECT 1")
-            self.assertEqual(curs.fetchall(), [{"?column?": 1}])
+        transaction: PostgresTransaction
+        with conn.transaction(commit=False) as transaction:
+            with transaction.cursor() as curs:
+                self.assertIsInstance(curs, PostgresCursor)
+                curs.execute("SELECT 1")
+                self.assertEqual(curs.fetchall(), [{"?column?": 1}])
 
         with self.assertRaises(ProgrammingError):
-            with conn.transaction(commit=False) as curs:
+            with conn.transaction(commit=False), conn.cursor() as curs:
                 curs.execute("BLAH")
 
 
@@ -284,20 +287,20 @@ class TestPostgresDatastore(TestCase):
             user="eventsourcing",
             password="eventsourcing",
         )
-        # By getting transaction from connection, we can do several transactions.
+        # We can do several transactions with a connection.
         with datastore.get_connection() as conn:
             # Transaction 1.
-            with conn.transaction(commit=False) as curs:
+            with conn.transaction(commit=False), conn.cursor() as curs:
                 curs.execute("SELECT 1")
                 self.assertEqual(curs.fetchall(), [{"?column?": 1}])
 
             # Transaction 2.
-            with conn.transaction(commit=True) as curs:
+            with conn.transaction(commit=True), conn.cursor() as curs:
                 curs.execute("SELECT 1")
                 self.assertEqual(curs.fetchall(), [{"?column?": 1}])
 
             # Transaction 3.
-            with conn.transaction(commit=False) as curs:
+            with conn.transaction(commit=True), conn.cursor() as curs:
                 curs.execute("SELECT 1")
                 self.assertEqual(curs.fetchall(), [{"?column?": 1}])
 
@@ -395,7 +398,7 @@ class TestPostgresDatastore(TestCase):
                 self.assertFalse(curs.closed)
                 sleep(2)
 
-    def test_report_on_prepared_statements(self):
+    def _test_report_on_prepared_statements(self):
         datastore = PostgresDatastore(
             dbname="eventsourcing",
             host="127.0.0.1",
@@ -463,16 +466,11 @@ class TestPostgresAggregateRecorder(SetupPostgresDatastore, AggregateRecorderTes
         super().drop_tables()
         drop_postgres_table(self.datastore, "stored_events")
 
-    def test_get_statement_name_alias(self):
-        # A statement name that is not too long is aliased to the same.
-        recorder = self.create_recorder(table_name="stored_events")
-        alias = recorder.get_statement_alias(recorder.insert_events_statement_name)
-        self.assertEqual(alias, recorder.insert_events_statement_name)
-
-        # A statement name that is too long is aliased to something else.
-        recorder = self.create_recorder(table_name=EVENTS_TABLE_NAME)
-        alias = recorder.get_statement_alias(recorder.insert_events_statement_name)
-        self.assertNotEqual(alias, recorder.insert_events_statement_name)
+    def test_create_table(self):
+        recorder = PostgresAggregateRecorder(
+            datastore=self.datastore, events_table_name="stored_events"
+        )
+        recorder.create_table()
 
     def test_insert_and_select(self):
         super().test_insert_and_select()
@@ -480,7 +478,7 @@ class TestPostgresAggregateRecorder(SetupPostgresDatastore, AggregateRecorderTes
     def test_performance(self):
         super().test_performance()
 
-    def test_report_on_prepared_statements(self):
+    def _test_report_on_prepared_statements(self):
         # Shouldn't be any prepared statements, because haven't done anything.
         recorder = self.create_recorder()
         self.datastore.pool.pool_size = 1
@@ -728,7 +726,7 @@ class TestPostgresAggregateRecorderErrors(SetupPostgresDatastore, TestCase):
         with self.assertRaises(ProgrammingError):
             recorder.select_events(originator_id=originator_id)
 
-    def test_duplicate_prepared_statement_error_is_ignored(self):
+    def _test_duplicate_prepared_statement_error_is_ignored(self):
         # Construct the recorder.
         recorder = self.create_recorder()
         self.datastore.pool.pool_size = 1
@@ -762,7 +760,9 @@ class TestPostgresAggregateRecorderErrors(SetupPostgresDatastore, TestCase):
 class TestPostgresApplicationRecorder(
     SetupPostgresDatastore, ApplicationRecorderTestCase
 ):
-    def create_recorder(self, table_name=EVENTS_TABLE_NAME):
+    def create_recorder(
+        self, table_name=EVENTS_TABLE_NAME
+    ) -> PostgresApplicationRecorder:
         if self.datastore.schema:
             table_name = f"{self.datastore.schema}.{table_name}"
         recorder = PostgresApplicationRecorder(
@@ -770,6 +770,9 @@ class TestPostgresApplicationRecorder(
         )
         recorder.create_table()
         return recorder
+
+    def test_insert_select(self) -> None:
+        super().test_insert_select()
 
     def test_concurrent_no_conflicts(self):
         super().test_concurrent_no_conflicts()
@@ -898,56 +901,9 @@ class TestPostgresApplicationRecorder(
         # Get max notification ID.
         recorder.max_notification_id()
 
-    def test_prepare_lock_timeout_actually_works(self):
-        self.datastore.lock_timeout = 1
-        recorder = self.create_recorder()
-
-        stored_event1 = StoredEvent(
-            originator_id=uuid4(),
-            originator_version=1,
-            topic="topic1",
-            state=b"state1",
-        )
-
-        table_lock_acquired = Event()
-        stalling_event = Event()
-        lock_timeout_happened = Event()
-
-        def insert1():
-            with self.datastore.get_connection() as conn:
-                recorder._prepare_insert_events(conn)
-                with conn.transaction(commit=True) as curs:
-                    recorder._insert_events(curs, [stored_event1])
-                    table_lock_acquired.set()
-                    stalling_event.wait(timeout=10)  # keep the lock
-
-        def insert2():
-            if not table_lock_acquired.wait(timeout=1):
-                return
-            try:
-                with self.datastore.get_connection() as conn:
-                    # This should timeout, because table is locked.
-                    recorder._prepare_insert_events(conn)
-            except Exception:
-                lock_timeout_happened.set()
-                stalling_event.set()
-
-        thread1 = Thread(target=insert1, daemon=True)
-        thread1.start()
-        thread2 = Thread(target=insert2, daemon=True)
-        thread2.start()
-
-        self.assertTrue(table_lock_acquired.wait(timeout=1))
-        lock_timeout_happened.wait(timeout=4)
-        stalling_event.set()
-        self.assertTrue(lock_timeout_happened.is_set())
-
-        thread1.join(timeout=5)
-        thread2.join(timeout=5)
-
     def test_insert_lock_timeout_actually_works(self):
         self.datastore.lock_timeout = 1
-        recorder = self.create_recorder()
+        recorder: PostgresApplicationRecorder = self.create_recorder()
 
         stored_event1 = StoredEvent(
             originator_id=uuid4(),
@@ -962,44 +918,43 @@ class TestPostgresApplicationRecorder(
             state=b"state1",
         )
 
-        has_2_prepared = Event()
         table_lock_acquired = Event()
-        stalling_event = Event()
-        lock_timeout_happened = Event()
+        test_ended = Event()
+        table_lock_timed_out = Event()
 
         def insert1():
             with self.datastore.get_connection() as conn:
-                # Wait until prepared, otherwise we can't test insert lock.
-                has_2_prepared.wait(timeout=10)
-                recorder._prepare_insert_events(conn)
-                with conn.transaction(commit=True) as curs:
-                    recorder._insert_events(curs, [stored_event1])
+                with conn.transaction(commit=True), conn.cursor() as curs:
+                    # Lock table.
+                    recorder._insert_stored_events(curs, [stored_event1])
                     table_lock_acquired.set()
-                    stalling_event.wait(timeout=10)  # keep the lock
+                    # Wait for other thread to timeout.
+                    test_ended.wait(timeout=5)  # keep the lock
 
         def insert2():
             try:
                 with self.datastore.get_connection() as conn:
-                    recorder._prepare_insert_events(conn)
-                    has_2_prepared.set()
-                    table_lock_acquired.wait(timeout=10)
-                    with conn.transaction(commit=True) as curs:
-                        recorder._insert_events(curs, [stored_event2])
-            except Exception:
-                lock_timeout_happened.set()
-                stalling_event.set()
+                    # Wait for other thread to lock table.
+                    table_lock_acquired.wait(timeout=5)
+                    # Expect to timeout.
+                    with conn.transaction(commit=True), conn.cursor() as curs:
+                        recorder._insert_stored_events(curs, [stored_event2])
+            except OperationalError as e:
+                if "lock timeout" in e.args[0]:
+                    table_lock_timed_out.set()
 
         thread1 = Thread(target=insert1, daemon=True)
         thread1.start()
         thread2 = Thread(target=insert2, daemon=True)
         thread2.start()
 
-        lock_timeout_happened.wait(timeout=4)
-        stalling_event.set()
-        self.assertTrue(lock_timeout_happened.is_set())
+        table_lock_timed_out.wait(timeout=4)
+        test_ended.set()
 
-        thread1.join(timeout=5)
-        thread2.join(timeout=5)
+        thread1.join(timeout=10)
+        thread2.join(timeout=10)
+
+        self.assertTrue(table_lock_timed_out.is_set())
 
 
 class TestPostgresApplicationRecorderWithSchema(
@@ -1037,6 +992,39 @@ class TestPostgresApplicationRecorderErrors(SetupPostgresDatastore, TestCase):
         with self.assertRaises(ProgrammingError):
             recorder.max_notification_id()
 
+    def test_fetch_ids_after_insert_events(self):
+        def make_events() -> List[StoredEvent]:
+            return [
+                StoredEvent(
+                    originator_id=uuid4(),
+                    originator_version=1,
+                    state=b"",
+                    topic="",
+                )
+            ]
+
+        #
+        # Check it actually works.
+        recorder = PostgresApplicationRecorder(
+            datastore=self.datastore, events_table_name=EVENTS_TABLE_NAME
+        )
+        recorder.create_table()
+        max_notification_id = recorder.max_notification_id()
+        notification_ids = recorder.insert_events(make_events())
+        self.assertEqual(len(notification_ids), 1)
+        self.assertEqual(max_notification_id + 1, notification_ids[0])
+
+        # Events but no lock table statments.
+        with self.assertRaises(ProgrammingError):
+            recorder = PostgresApplicationRecorder(
+                datastore=self.datastore, events_table_name=EVENTS_TABLE_NAME
+            )
+            recorder.create_table()
+            recorder.lock_table_statements = []
+            recorder.insert_events(make_events())
+
+        return
+
 
 TRACKING_TABLE_NAME = "n" * 42 + "notification_tracking"
 assert len(TRACKING_TABLE_NAME) == 63
@@ -1064,6 +1052,9 @@ class TestPostgresProcessRecorder(SetupPostgresDatastore, ProcessRecorderTestCas
         )
         recorder.create_table()
         return recorder
+
+    def test_insert_select(self):
+        super().test_insert_select()
 
     def test_performance(self):
         super().test_performance()
@@ -1144,7 +1135,7 @@ class TestPostgresProcessRecorder(SetupPostgresDatastore, ProcessRecorderTestCas
         self.assertEqual(notification_id, 1)
 
 
-class TestPostgresProcessRecorderWitSchema(WithSchema, TestPostgresProcessRecorder):
+class TestPostgresProcessRecorderWithSchema(WithSchema, TestPostgresProcessRecorder):
     pass
 
 

@@ -1,4 +1,4 @@
-from typing import Any, List, Optional, Sequence, Tuple
+from typing import Any, List, Sequence, Tuple
 from uuid import UUID
 
 from eventsourcing.examples.contentmanagement.application import PageNotFound
@@ -10,7 +10,6 @@ from eventsourcing.postgres import (
     Factory,
     PostgresAggregateRecorder,
     PostgresApplicationRecorder,
-    PostgresConnection,
     PostgresCursor,
 )
 
@@ -22,25 +21,20 @@ class PostgresSearchableContentRecorder(
     pages_table_name = "pages_projection_example"
     select_page_statement = (
         f"SELECT page_slug, page_title, page_body FROM {pages_table_name}"
-        f" WHERE page_id = $1"
+        f" WHERE page_id = %s"
     )
 
-    select_page_statement_name = f"select_{pages_table_name}".replace(".", "_")
-
-    insert_page_statement = f"INSERT INTO {pages_table_name} VALUES ($1, $2, $3, $4)"
-    insert_page_statement_name = f"insert_{pages_table_name}".replace(".", "_")
+    insert_page_statement = f"INSERT INTO {pages_table_name} VALUES (%s, %s, %s, %s)"
 
     update_page_statement = (
-        f"UPDATE {pages_table_name} "
-        f"SET page_slug = $1, page_title = $2, page_body = $3 WHERE page_id = $4"
+        f"UPDATE {pages_table_name}"
+        f" SET page_slug = %s, page_title = %s, page_body = %s WHERE page_id = %s"
     )
-    update_page_statement_name = f"update_{pages_table_name}".replace(".", "_")
 
     search_pages_statement = (
-        f"SELECT page_id FROM {pages_table_name} WHERE "
-        f"to_tsvector('english', page_body) @@ websearch_to_tsquery('english', $1)"
+        f"SELECT page_id FROM {pages_table_name} WHERE"
+        f" to_tsvector('english', page_body) @@ websearch_to_tsquery('english', %s)"
     )
-    search_pages_statement_name = f"search_{pages_table_name}".replace(".", "_")
 
     def construct_create_table_statements(self) -> List[str]:
         statements = super().construct_create_table_statements()
@@ -61,21 +55,15 @@ class PostgresSearchableContentRecorder(
         )
         return statements
 
-    def _prepare_insert_events(self, conn: PostgresConnection) -> None:
-        super()._prepare_insert_events(conn)
-        self._prepare(conn, self.insert_page_statement_name, self.insert_page_statement)
-        self._prepare(conn, self.update_page_statement_name, self.update_page_statement)
-
     def _insert_events(
         self,
         c: PostgresCursor,
         stored_events: List[StoredEvent],
         **kwargs: Any,
-    ) -> Optional[Sequence[int]]:
-        notification_ids = super()._insert_events(c, stored_events, **kwargs)
+    ) -> None:
         self._insert_pages(c, **kwargs)
         self._update_pages(c, **kwargs)
-        return notification_ids
+        super()._insert_events(c, stored_events, **kwargs)
 
     def _insert_pages(
         self,
@@ -83,19 +71,8 @@ class PostgresSearchableContentRecorder(
         insert_pages: Sequence[Tuple[UUID, str, str, str]] = (),
         **_: Any,
     ) -> None:
-        for page_id, page_slug, page_title, page_body in insert_pages:
-            statement_alias = self.statement_name_aliases[
-                self.insert_page_statement_name
-            ]
-            c.execute(
-                f"EXECUTE {statement_alias}(%s, %s, %s, %s)",
-                (
-                    page_id,
-                    page_slug,
-                    page_title,
-                    page_body,
-                ),
-            )
+        for params in insert_pages:
+            c.execute(self.insert_page_statement, params, prepare=True)
 
     def _update_pages(
         self,
@@ -104,52 +81,19 @@ class PostgresSearchableContentRecorder(
         **_: Any,
     ) -> None:
         for page_id, page_slug, page_title, page_body in update_pages:
-            statement_alias = self.statement_name_aliases[
-                self.update_page_statement_name
-            ]
-            c.execute(
-                f"EXECUTE {statement_alias}(%s, %s, %s, %s)",
-                (
-                    page_slug,
-                    page_title,
-                    page_body,
-                    page_id,
-                ),
-            )
+            params = (page_slug, page_title, page_body, page_id)
+            c.execute(self.update_page_statement, params, prepare=True)
 
     def search_pages(self, query: str) -> List[UUID]:
-        page_ids = []
-
-        with self.datastore.get_connection() as conn:
-            self._prepare(
-                conn,
-                self.search_pages_statement_name,
-                self.search_pages_statement,
-            )
-            with conn.transaction(commit=False) as curs:
-                statement_alias = self.statement_name_aliases[
-                    self.search_pages_statement_name
-                ]
-                curs.execute(f"EXECUTE {statement_alias}(%s)", [query])
-                for row in curs.fetchall():
-                    page_ids.append(row["page_id"])
-
-        return page_ids
+        with self.datastore.transaction(commit=False) as curs:
+            curs.execute(self.search_pages_statement, [query], prepare=True)
+            return [row["page_id"] for row in curs.fetchall()]
 
     def select_page(self, page_id: UUID) -> Tuple[str, str, str]:
-        with self.datastore.get_connection() as conn:
-            self._prepare(
-                conn,
-                self.select_page_statement_name,
-                self.select_page_statement,
-            )
-            with conn.transaction(commit=False) as curs:
-                statement_alias = self.statement_name_aliases[
-                    self.select_page_statement_name
-                ]
-                curs.execute(f"EXECUTE {statement_alias}(%s)", [str(page_id)])
-                for row in curs.fetchall():
-                    return row["page_slug"], row["page_title"], row["page_body"]
+        with self.datastore.transaction(commit=False) as curs:
+            curs.execute(self.select_page_statement, [str(page_id)], prepare=True)
+            for row in curs.fetchall():
+                return row["page_slug"], row["page_title"], row["page_body"]
         raise PageNotFound(f"Page ID {page_id} not found")
 
 

@@ -75,7 +75,6 @@ class AggregateRecorderTestCase(TestCase, ABC):
         assert stored_events[0].topic == "topic1"
 
         # Check get record conflict error if attempt to store it again.
-        stored_events = recorder.select_events(originator_id1)
         with self.assertRaises(IntegrityError):
             recorder.insert_events([stored_event1])
 
@@ -248,21 +247,19 @@ class ApplicationRecorderTestCase(TestCase, ABC):
             topic="topic2",
             state=b"state2",
         )
-        stored_event3 = StoredEvent(
-            originator_id=originator_id2,
-            originator_version=self.INITIAL_VERSION,
-            topic="topic3",
-            state=b"state3",
-        )
-
-        notification_ids = recorder.insert_events([])
-        self.assertEqual(notification_ids, [])
 
         notification_ids = recorder.insert_events([stored_event1, stored_event2])
         self.assertEqual(
             notification_ids, [max_notification_id + 1, max_notification_id + 2]
         )
 
+        # Store a third event.
+        stored_event3 = StoredEvent(
+            originator_id=originator_id2,
+            originator_version=self.INITIAL_VERSION,
+            topic="topic3",
+            state=b"state3",
+        )
         notification_ids = recorder.insert_events([stored_event3])
         self.assertEqual(notification_ids, [max_notification_id + 3])
 
