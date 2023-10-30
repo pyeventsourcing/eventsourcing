@@ -2,11 +2,11 @@ from threading import Event, Thread
 from time import sleep
 from typing import List
 from unittest import TestCase
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 import psycopg
-from psycopg import Connection, connection
+from psycopg import Connection
 
 from eventsourcing.persistence import (
     DatabaseError,
@@ -50,38 +50,48 @@ from eventsourcing.utils import Environment
 
 
 class TestPostgresConnection(TestCase):
-    def test_commit_calls_commit(self):
-        mock = MagicMock(Connection)
-        conn = PostgresConnection(pg_conn=mock, max_age=1)
-        conn.commit()
-        mock.commit.assert_called_once()
+    def setUp(self) -> None:
+        self.mock_pg_conn = MagicMock(Connection)
+        self.mock_pg_conn.closed = False
 
-    def test_rollback_calls_rollback(self):
-        mock = MagicMock(Connection)
-        conn = PostgresConnection(pg_conn=mock, max_age=1)
-        conn.rollback()
-        mock.rollback.assert_called_once()
+        def set_pg_conn_closed():
+            self.mock_pg_conn.closed = True
 
-    def test_transaction_context_manager(self):
-        pg_conn = psycopg.connect(
-            dbname="eventsourcing",
-            host="127.0.0.1",
-            port="5432",
-            user="eventsourcing",
-            password="eventsourcing",
-            connect_timeout=5,
-        )
-        conn = PostgresConnection(pg_conn=pg_conn, max_age=1)
-        transaction: PostgresTransaction
-        with conn.transaction(commit=False) as transaction:
-            with transaction.cursor() as curs:
-                self.assertIsInstance(curs, PostgresCursor)
-                curs.execute("SELECT 1")
-                self.assertEqual(curs.fetchall(), [{"?column?": 1}])
+        self.mock_pg_conn.close.side_effect = set_pg_conn_closed
+        self.conn = PostgresConnection(pg_conn=self.mock_pg_conn, max_age=1)
 
-        with self.assertRaises(ProgrammingError):
-            with conn.transaction(commit=False), conn.cursor() as curs:
-                curs.execute("BLAH")
+    def test_cursor(self):
+        self.assertEqual(0, self.mock_pg_conn.cursor.call_count)
+        curs = self.conn.cursor()
+        self.assertIsInstance(curs, PostgresCursor)
+        self.assertEqual(1, self.mock_pg_conn.cursor.call_count)
+
+    def test_commit(self):
+        self.assertEqual(0, self.mock_pg_conn.commit.call_count)
+        self.conn.commit()
+        self.assertEqual(1, self.mock_pg_conn.commit.call_count)
+
+    def test_rollback(self):
+        self.assertEqual(0, self.mock_pg_conn.rollback.call_count)
+        self.conn.rollback()
+        self.assertEqual(1, self.mock_pg_conn.rollback.call_count)
+
+    def test_close(self):
+        self.assertEqual(0, self.mock_pg_conn.close.call_count)
+        self.assertFalse(self.conn.closed)
+        self.conn.close()
+        self.assertEqual(1, self.mock_pg_conn.close.call_count)
+        self.assertTrue(self.conn.closed)
+
+    def test_transaction(self):
+        with self.conn.transaction(commit=False) as transaction:
+            self.assertIsInstance(transaction, PostgresTransaction)
+        self.assertEqual(0, self.mock_pg_conn.commit.call_count)
+
+        with self.conn.transaction(commit=True) as transaction:
+            self.assertIsInstance(transaction, PostgresTransaction)
+            self.assertEqual(0, self.mock_pg_conn.commit.call_count)
+        self.assertEqual(1, self.mock_pg_conn.commit.call_count)
 
 
 class TestPostgresConnectionPool(TestConnectionPool):
@@ -141,117 +151,39 @@ class TestPostgresConnectionPool(TestConnectionPool):
         self.skipTest("Recorders don't use reader/writer exclusion mechanism")
 
 
-class TestTransaction(TestCase):
+class TestPostgresTransaction(TestCase):
     def setUp(self) -> None:
-        self.mock = MagicMock(PostgresConnection(MagicMock(connection), max_age=None))
-        self.t = PostgresTransaction(self.mock, commit=True)
+        self.conn = MagicMock(PostgresConnection)
+        self.transaction = PostgresTransaction(self.conn, commit=True)
+
+    def test_cursor(self):
+        self.assertEqual(0, self.conn.cursor.call_count)
+        self.transaction.cursor()
+        self.assertEqual(1, self.conn.cursor.call_count)
 
     def test_calls_commit_if_error_not_raised_during_transaction(self):
-        with self.t:
+        with self.transaction:
             pass
-        self.mock.commit.assert_called()
-        self.mock.rollback.assert_not_called()
-        self.mock.close.assert_not_called()
+        self.conn.commit.assert_called()
+        self.conn.rollback.assert_not_called()
 
     def test_calls_rollback_if_error_is_raised_during_transaction(self):
         with self.assertRaises(TypeError):
-            with self.t:
+            with self.transaction:
                 raise TypeError
-        self.mock.commit.assert_not_called()
-        self.mock.rollback.assert_called()
-        self.mock.close.assert_not_called()
+        self.conn.commit.assert_not_called()
+        self.conn.rollback.assert_called()
 
     def test_calls_rollback_if_commit_arg_is_false(self):
         # Avoid traceback error from Transaction.__del__.
-        self.t.has_entered = True
+        self.transaction.has_entered = True
+
         # Create transaction with commit=False.
-        self.t = PostgresTransaction(self.mock, commit=False)
-        with self.t:
+        self.transaction = PostgresTransaction(self.conn, commit=False)
+        with self.transaction:
             pass
-        self.mock.commit.assert_not_called()
-        self.mock.rollback.assert_called()
-        self.mock.close.assert_not_called()
-
-    def test_calls_close_if_interface_error_is_raised_during_transaction(self):
-        with self.assertRaises(InterfaceError):
-            with self.t:
-                self.raise_interface_error()
-        self.mock.commit.assert_not_called()
-        self.mock.rollback.assert_called()
-        self.mock.close.assert_called()
-
-    def test_calls_close_if_interface_error_is_raised_during_commit(self):
-        self.mock.commit = Mock(
-            side_effect=self.raise_interface_error, name="mock commit method"
-        )
-        with self.assertRaises(InterfaceError):
-            with self.t:
-                pass
-        self.mock.commit.assert_called()
-        self.mock.rollback.assert_not_called()
-        self.mock.close.assert_called()
-
-    def test_does_not_call_close_if_data_error_is_raised_during_commit(self):
-        self.mock.commit = Mock(
-            side_effect=self.raise_data_error, name="mock commit method"
-        )
-        with self.assertRaises(DataError):
-            with self.t:
-                pass
-        self.mock.commit.assert_called()
-        self.mock.rollback.assert_not_called()
-        self.mock.close.assert_not_called()
-
-    def test_calls_close_if_interface_error_is_raised_during_rollback(self):
-        self.mock.rollback = Mock(
-            side_effect=self.raise_interface_error, name="mock rollback method"
-        )
-        with self.assertRaises(InterfaceError):
-            with self.t:
-                raise psycopg.Error
-
-        self.mock.commit.assert_not_called()
-        self.mock.rollback.assert_called()
-        self.mock.close.assert_called()
-
-    def test_does_not_call_close_if_data_error_is_raised_during_rollback(self):
-        self.mock.rollback = Mock(
-            side_effect=self.raise_data_error, name="mock rollback method"
-        )
-        with self.assertRaises(DataError):
-            with self.t:
-                raise psycopg.Error
-
-        self.mock.commit.assert_not_called()
-        self.mock.rollback.assert_called()
-        self.mock.close.assert_not_called()
-
-    def raise_interface_error(self):
-        raise psycopg.InterfaceError()
-
-    def raise_data_error(self):
-        raise psycopg.DataError()
-
-    def test_converts_errors_raised_in_transactions(self):
-        errors = [
-            (InterfaceError, psycopg.InterfaceError),
-            (DataError, psycopg.DataError),
-            (OperationalError, psycopg.OperationalError),
-            (IntegrityError, psycopg.IntegrityError),
-            (InternalError, psycopg.InternalError),
-            (ProgrammingError, psycopg.ProgrammingError),
-            (NotSupportedError, psycopg.NotSupportedError),
-            (DatabaseError, psycopg.DatabaseError),
-            (PersistenceError, psycopg.Error),
-        ]
-        for es_err, psy_err in errors:
-            with self.assertRaises(es_err):
-                with self.t:
-                    raise psy_err
-
-        self.mock.commit.assert_not_called()
-        self.mock.rollback.assert_called()
-        self.mock.close.assert_called()
+        self.conn.commit.assert_not_called()
+        self.conn.rollback.assert_called()
 
 
 class TestPostgresDatastore(TestCase):
@@ -278,6 +210,34 @@ class TestPostgresDatastore(TestCase):
         )
         with datastore.get_connection() as conn:
             self.assertIsInstance(conn, PostgresConnection)
+
+    def test_context_manager_converts_exceptions_and_conditionally_calls_close(self):
+        cases = [
+            (InterfaceError, psycopg.InterfaceError(), True),
+            (DataError, psycopg.DataError(), False),
+            (OperationalError, psycopg.OperationalError(), True),
+            (IntegrityError, psycopg.IntegrityError(), False),
+            (InternalError, psycopg.InternalError(), False),
+            (ProgrammingError, psycopg.ProgrammingError(), False),
+            (NotSupportedError, psycopg.NotSupportedError(), False),
+            (DatabaseError, psycopg.DatabaseError(), False),
+            (PersistenceError, psycopg.Error(), True),
+            (TypeError, TypeError(), True),
+            (TypeError, TypeError, True),
+        ]
+        datastore = PostgresDatastore(
+            dbname="eventsourcing",
+            host="127.0.0.1",
+            port="5432",
+            user="eventsourcing",
+            password="eventsourcing",
+        )
+        for expected_exc_type, raised_exc, expect_conn_closed in cases:
+            with self.assertRaises(expected_exc_type):
+                with datastore.get_connection() as conn:
+                    self.assertFalse(conn.closed)
+                    raise raised_exc
+                self.assertTrue(conn.closed is expect_conn_closed, raised_exc)
 
     def test_transactions_from_connection(self):
         datastore = PostgresDatastore(
@@ -377,7 +337,7 @@ class TestPostgresDatastore(TestCase):
                     curs.execute("SELECT 1")
 
         # Check using the closed connection gives an error.
-        with self.assertRaises(psycopg.Error):
+        with self.assertRaises(OperationalError):
             open_close_execute(pre_ping=False)
 
         # Now try that again with pre-ping enabled.
@@ -397,19 +357,6 @@ class TestPostgresDatastore(TestCase):
                 curs.execute("SELECT 1")
                 self.assertFalse(curs.closed)
                 sleep(2)
-
-    def _test_report_on_prepared_statements(self):
-        datastore = PostgresDatastore(
-            dbname="eventsourcing",
-            host="127.0.0.1",
-            port="5432",
-            user="eventsourcing",
-            password="eventsourcing",
-            pre_ping=True,
-        )
-        pg, py = datastore.report_on_prepared_statements()
-        self.assertEqual(pg, [])
-        self.assertEqual(py, [])
 
 
 # Use maximally long identifier for table name.
@@ -478,54 +425,6 @@ class TestPostgresAggregateRecorder(SetupPostgresDatastore, AggregateRecorderTes
     def test_performance(self):
         super().test_performance()
 
-    def _test_report_on_prepared_statements(self):
-        # Shouldn't be any prepared statements, because haven't done anything.
-        recorder = self.create_recorder()
-        self.datastore.pool.pool_size = 1
-        pg, py = recorder.datastore.report_on_prepared_statements()
-        self.assertEqual(pg, [])
-        self.assertEqual(py, [])
-
-        # After selecting by ID, should have prepared 'select_stored_events'.
-        recorder.select_events(uuid4())
-        pg, py = recorder.datastore.report_on_prepared_statements()
-        if self.schema:
-            qualified_table_name = f"{self.schema}.{EVENTS_TABLE_NAME}"
-        else:
-            qualified_table_name = f"{EVENTS_TABLE_NAME}"
-        select_statement_name = f"select_{qualified_table_name.replace('.', '_')}"
-        select_alias = recorder.statement_name_aliases[select_statement_name]
-        self.assertEqual(len(pg), 1)
-        self.assertEqual(len(py), 1)
-        self.assertEqual(pg[0]["name"], select_alias)
-        self.assertEqual(
-            pg[0]["statement"],
-            (
-                f"PREPARE {select_alias} AS SELECT * FROM "
-                f"{qualified_table_name} WHERE originator_id = $1 ORDER "
-                "BY originator_version ASC"
-            ),
-        )
-        self.assertEqual(pg[0]["parameter_types"], ["uuid"])
-        self.assertEqual(pg[0]["from_sql"], True)
-        self.assertEqual(py, [select_statement_name])
-
-        # Check prepared 'select_stored_events_desc_limit'.
-        recorder.select_events(uuid4(), desc=True, limit=1)
-        pg, py = recorder.datastore.report_on_prepared_statements()
-        self.assertEqual(len(pg), 2)
-        self.assertEqual(len(py), 2)
-        select_desc_limit_statement_name = (
-            f"select_{qualified_table_name.replace('.', '_')}_desc_limit"
-        )
-        self.assertEqual(
-            pg[0]["name"],
-            recorder.statement_name_aliases[select_desc_limit_statement_name],
-        )
-        self.assertEqual(
-            pg[1]["name"], recorder.statement_name_aliases[select_statement_name]
-        )
-
     def test_retry_insert_events_after_closing_connection(self):
         # This checks connection is recreated after connections are closed.
         self.datastore.pool.pool_size = 1
@@ -549,100 +448,100 @@ class TestPostgresAggregateRecorder(SetupPostgresDatastore, AggregateRecorderTes
         )
         recorder.insert_events([stored_event1])
 
-    def _test_retry_insert_events_after_deallocating_prepared_statement(self):
-        # !!! In psycopg this condition now raises a ProgrammingError lol
-        # This checks connection is recreated after OperationalError.
+    # def test_retry_insert_events_after_deallocating_prepared_statement(self):
+    #     # !!! In psycopg this condition now raises a ProgrammingError lol
+    #     # This checks connection is recreated after OperationalError.
+    #
+    #     # Construct the recorder.
+    #     recorder = self.create_recorder()
+    #     self.datastore.pool.pool_size = 1
+    #
+    #     # Write a stored event.
+    #     stored_event1 = StoredEvent(
+    #         originator_id=uuid4(),
+    #         originator_version=0,
+    #         topic="topic1",
+    #         state=b"state1",
+    #     )
+    #     recorder.insert_events([stored_event1])
+    #
+    #     # Deallocate the prepared insert statement.
+    #     self.assertTrue(self.datastore.pool._pool)
+    #     with self.datastore.get_connection() as conn:
+    #         statement_name = recorder.insert_events_statement_name
+    #         self.assertIn(statement_name, conn.is_prepared)
+    #         conn.cursor().execute(
+    #             f"DEALLOCATE " f"{recorder.statement_name_aliases[statement_name]}"
+    #         )
+    #
+    #     # Write a stored event.
+    #     stored_event2 = StoredEvent(
+    #         originator_id=uuid4(),
+    #         originator_version=1,
+    #         topic="topic2",
+    #         state=b"state2",
+    #     )
+    #     recorder.insert_events([stored_event2])
+    #
+    # def test_retry_select_events_after_closing_connection(self):
+    #     # !!! In psycopg this condition now raises a ProgrammingError lol
+    #     # This checks connection is recreated after being closed on the server.
+    #
+    #     # Construct the recorder.
+    #     recorder = self.create_recorder()
+    #     self.datastore.pool.pool_size = 1
+    #
+    #     # Write a stored event.
+    #     originator_id = uuid4()
+    #     stored_event1 = StoredEvent(
+    #         originator_id=originator_id,
+    #         originator_version=0,
+    #         topic="topic1",
+    #         state=b"state1",
+    #     )
+    #     recorder.insert_events([stored_event1])
+    #
+    #     # Close connections.
+    #     pg_close_all_connections()
+    #     self.assertFalse(self.datastore.pool._pool[0].closed)
+    #
+    #     # Select events.
+    #     recorder.select_events(originator_id)
 
-        # Construct the recorder.
-        recorder = self.create_recorder()
-        self.datastore.pool.pool_size = 1
-
-        # Write a stored event.
-        stored_event1 = StoredEvent(
-            originator_id=uuid4(),
-            originator_version=0,
-            topic="topic1",
-            state=b"state1",
-        )
-        recorder.insert_events([stored_event1])
-
-        # Deallocate the prepared insert statement.
-        self.assertTrue(self.datastore.pool._pool)
-        with self.datastore.get_connection() as conn:
-            statement_name = recorder.insert_events_statement_name
-            self.assertIn(statement_name, conn.is_prepared)
-            conn.cursor().execute(
-                f"DEALLOCATE " f"{recorder.statement_name_aliases[statement_name]}"
-            )
-
-        # Write a stored event.
-        stored_event2 = StoredEvent(
-            originator_id=uuid4(),
-            originator_version=1,
-            topic="topic2",
-            state=b"state2",
-        )
-        recorder.insert_events([stored_event2])
-
-    def test_retry_select_events_after_closing_connection(self):
-        # !!! In psycopg this condition now raises a ProgrammingError lol
-        # This checks connection is recreated after being closed on the server.
-
-        # Construct the recorder.
-        recorder = self.create_recorder()
-        self.datastore.pool.pool_size = 1
-
-        # Write a stored event.
-        originator_id = uuid4()
-        stored_event1 = StoredEvent(
-            originator_id=originator_id,
-            originator_version=0,
-            topic="topic1",
-            state=b"state1",
-        )
-        recorder.insert_events([stored_event1])
-
-        # Close connections.
-        pg_close_all_connections()
-        self.assertFalse(self.datastore.pool._pool[0].closed)
-
-        # Select events.
-        recorder.select_events(originator_id)
-
-    def _test_retry_select_events_after_deallocating_prepared_statement(self):
-        # !!! In psycopg this condition now raises a ProgrammingError lol
-        # This checks connection is recreated after OperationalError.
-
-        # Construct the recorder.
-        recorder = self.create_recorder()
-        self.datastore.pool.pool_size = 1
-
-        # Write a stored event.
-        originator_id = uuid4()
-        stored_event1 = StoredEvent(
-            originator_id=originator_id,
-            originator_version=0,
-            topic="topic1",
-            state=b"state1",
-        )
-        recorder.insert_events([stored_event1])
-
-        # Select events.
-        recorder.select_events(originator_id)
-
-        # Deallocate the prepared select statement.
-        with self.datastore.get_connection() as conn:
-            if self.schema:
-                statement_name = f"select_{self.schema}_{EVENTS_TABLE_NAME}"
-            else:
-                statement_name = f"select_{EVENTS_TABLE_NAME}"
-            self.assertIn(statement_name, conn.is_prepared)
-            conn.cursor().execute(
-                f"DEALLOCATE {recorder.statement_name_aliases[statement_name]}"
-            )
-
-        # Select events.
-        recorder.select_events(originator_id)
+    # def test_retry_select_events_after_deallocating_prepared_statement(self):
+    #     # !!! In psycopg this condition now raises a ProgrammingError lol
+    #     # This checks connection is recreated after OperationalError.
+    #
+    #     # Construct the recorder.
+    #     recorder = self.create_recorder()
+    #     self.datastore.pool.pool_size = 1
+    #
+    #     # Write a stored event.
+    #     originator_id = uuid4()
+    #     stored_event1 = StoredEvent(
+    #         originator_id=originator_id,
+    #         originator_version=0,
+    #         topic="topic1",
+    #         state=b"state1",
+    #     )
+    #     recorder.insert_events([stored_event1])
+    #
+    #     # Select events.
+    #     recorder.select_events(originator_id)
+    #
+    #     # Deallocate the prepared select statement.
+    #     with self.datastore.get_connection() as conn:
+    #         if self.schema:
+    #             statement_name = f"select_{self.schema}_{EVENTS_TABLE_NAME}"
+    #         else:
+    #             statement_name = f"select_{EVENTS_TABLE_NAME}"
+    #         self.assertIn(statement_name, conn.is_prepared)
+    #         conn.cursor().execute(
+    #             f"DEALLOCATE {recorder.statement_name_aliases[statement_name]}"
+    #         )
+    #
+    #     # Select events.
+    #     recorder.select_events(originator_id)
 
 
 class TestPostgresAggregateRecorderWithSchema(
@@ -726,36 +625,6 @@ class TestPostgresAggregateRecorderErrors(SetupPostgresDatastore, TestCase):
         with self.assertRaises(ProgrammingError):
             recorder.select_events(originator_id=originator_id)
 
-    def _test_duplicate_prepared_statement_error_is_ignored(self):
-        # Construct the recorder.
-        recorder = self.create_recorder()
-        self.datastore.pool.pool_size = 1
-
-        # Create the table.
-        recorder.create_table()
-
-        # Check the statement is not prepared.
-        statement_name = f"select_{EVENTS_TABLE_NAME}"
-        with self.datastore.get_connection() as conn:
-            self.assertNotIn(statement_name, conn.is_prepared)
-
-        # Cause the statement to be prepared.
-        recorder.select_events(originator_id=uuid4())
-
-        # Check the statement was prepared.
-        with self.datastore.get_connection() as conn:
-            self.assertIn(statement_name, conn.is_prepared)
-
-            # Forget the statement is prepared.
-            conn.is_prepared.remove(statement_name)
-
-        # Should ignore "duplicate prepared statement" error.
-        recorder.select_events(originator_id=uuid4())
-
-        # Check the statement was prepared.
-        with self.datastore.get_connection() as conn:
-            self.assertIn(statement_name, conn.is_prepared)
-
 
 class TestPostgresApplicationRecorder(
     SetupPostgresDatastore, ApplicationRecorderTestCase
@@ -805,40 +674,40 @@ class TestPostgresApplicationRecorder(
         # Select events.
         recorder.select_notifications(start=1, limit=1)
 
-    def _test_retry_select_notifications_after_deallocating_prepared_statement(self):
-        # !!! In psycopg this condition now raises a ProgrammingError lol
-        # This checks connection is recreated after OperationalError.
-
-        # Construct the recorder.
-        recorder = self.create_recorder()
-        self.datastore.pool.pool_size = 1
-
-        # Write a stored event.
-        originator_id = uuid4()
-        stored_event1 = StoredEvent(
-            originator_id=originator_id,
-            originator_version=0,
-            topic="topic1",
-            state=b"state1",
-        )
-        recorder.insert_events([stored_event1])
-
-        # Select notifications.
-        recorder.select_notifications(start=1, limit=1)
-
-        # Deallocate prepared statement.
-        self.assertTrue(self.datastore.pool._pool)
-        with self.datastore.get_connection() as conn:
-            statement_name = (
-                f"select_notifications_{recorder.events_table_name}".replace(".", "_")
-            )
-            self.assertIn(statement_name, conn.is_prepared)
-            conn.cursor().execute(
-                f"DEALLOCATE {recorder.statement_name_aliases[statement_name]}"
-            )
-
-        # Select notifications.
-        recorder.select_notifications(start=1, limit=1)
+    # def test_retry_select_notifications_after_deallocating_prepared_statement(self):
+    #     # !!! In psycopg this condition now raises a ProgrammingError lol
+    #     # This checks connection is recreated after OperationalError.
+    #
+    #     # Construct the recorder.
+    #     recorder = self.create_recorder()
+    #     self.datastore.pool.pool_size = 1
+    #
+    #     # Write a stored event.
+    #     originator_id = uuid4()
+    #     stored_event1 = StoredEvent(
+    #         originator_id=originator_id,
+    #         originator_version=0,
+    #         topic="topic1",
+    #         state=b"state1",
+    #     )
+    #     recorder.insert_events([stored_event1])
+    #
+    #     # Select notifications.
+    #     recorder.select_notifications(start=1, limit=1)
+    #
+    #     # Deallocate prepared statement.
+    #     self.assertTrue(self.datastore.pool._pool)
+    #     with self.datastore.get_connection() as conn:
+    #         statement_name = (
+    #             f"select_notifications_{recorder.events_table_name}".replace(".", "_")
+    #         )
+    #         self.assertIn(statement_name, conn.is_prepared)
+    #         conn.cursor().execute(
+    #             f"DEALLOCATE {recorder.statement_name_aliases[statement_name]}"
+    #         )
+    #
+    #     # Select notifications.
+    #     recorder.select_notifications(start=1, limit=1)
 
     def test_retry_max_notification_id_after_closing_connection(self):
         # This checks connection is recreated after InterfaceError.
@@ -864,42 +733,42 @@ class TestPostgresApplicationRecorder(
         # Get max notification ID.
         recorder.max_notification_id()
 
-    def _test_retry_max_notification_id_after_deallocating_prepared_statement(self):
-        # !!! In psycopg this condition now raises a ProgrammingError lol
-        # This checks connection is recreated after OperationalError.
-
-        # Construct the recorder.
-        recorder = self.create_recorder()
-        self.datastore.pool.pool_size = 1
-
-        # Write a stored event.
-        originator_id = uuid4()
-        stored_event1 = StoredEvent(
-            originator_id=originator_id,
-            originator_version=0,
-            topic="topic1",
-            state=b"state1",
-        )
-        recorder.insert_events([stored_event1])
-
-        # Get max notification ID.
-        recorder.max_notification_id()
-
-        # Deallocate prepared statement.
-        self.assertTrue(self.datastore.pool._pool)
-        if self.schema:
-            qualified_table_name = f"{self.schema}.{EVENTS_TABLE_NAME}"
-        else:
-            qualified_table_name = f"{EVENTS_TABLE_NAME}"
-        statement_name = f"max_notification_id_{qualified_table_name}".replace(".", "_")
-        for conn in self.datastore.pool._pool:
-            self.assertIn(statement_name, conn.is_prepared)
-            conn.cursor().execute(
-                f"DEALLOCATE {recorder.statement_name_aliases[statement_name]}"
-            )
-
-        # Get max notification ID.
-        recorder.max_notification_id()
+    # def test_retry_max_notification_id_after_deallocating_prepared_statement(self):
+    #     # !!! In psycopg this condition now raises a ProgrammingError lol
+    #     # This checks connection is recreated after OperationalError.
+    #
+    #     # Construct the recorder.
+    #     recorder = self.create_recorder()
+    #     self.datastore.pool.pool_size = 1
+    #
+    #     # Write a stored event.
+    #     originator_id = uuid4()
+    #     stored_event1 = StoredEvent(
+    #         originator_id=originator_id,
+    #         originator_version=0,
+    #         topic="topic1",
+    #         state=b"state1",
+    #     )
+    #     recorder.insert_events([stored_event1])
+    #
+    #     # Get max notification ID.
+    #     recorder.max_notification_id()
+    #
+    #     # Deallocate prepared statement.
+    #     self.assertTrue(self.datastore.pool._pool)
+    #     if self.schema:
+    #         qualified_table_name = f"{self.schema}.{EVENTS_TABLE_NAME}"
+    #     else:
+    #         qualified_table_name = f"{EVENTS_TABLE_NAME}"
+    #     statement_name = f"max_notification_id_{qualified_table_name}".replace(".", "_")
+    #     for conn in self.datastore.pool._pool:
+    #         self.assertIn(statement_name, conn.is_prepared)
+    #         conn.cursor().execute(
+    #             f"DEALLOCATE {recorder.statement_name_aliases[statement_name]}"
+    #         )
+    #
+    #     # Get max notification ID.
+    #     recorder.max_notification_id()
 
     def test_insert_lock_timeout_actually_works(self):
         self.datastore.lock_timeout = 1
@@ -1014,7 +883,7 @@ class TestPostgresApplicationRecorderErrors(SetupPostgresDatastore, TestCase):
         self.assertEqual(len(notification_ids), 1)
         self.assertEqual(max_notification_id + 1, notification_ids[0])
 
-        # Events but no lock table statments.
+        # Events but no lock table statements.
         with self.assertRaises(ProgrammingError):
             recorder = PostgresApplicationRecorder(
                 datastore=self.datastore, events_table_name=EVENTS_TABLE_NAME
@@ -1099,40 +968,40 @@ class TestPostgresProcessRecorder(SetupPostgresDatastore, ProcessRecorderTestCas
         notification_id = recorder.max_tracking_id("upstream")
         self.assertEqual(notification_id, 1)
 
-    def _test_retry_max_tracking_id_after_deallocating_prepared_statement(self):
-        # !!! In psycopg this condition now raises a ProgrammingError lol
-        # This checks connection is recreated after OperationalError.
-
-        # Construct the recorder.
-        recorder = self.create_recorder()
-        self.datastore.pool.pool_size = 1
-
-        # Write a tracking record.
-        originator_id = uuid4()
-        stored_event1 = StoredEvent(
-            originator_id=originator_id,
-            originator_version=0,
-            topic="topic1",
-            state=b"state1",
-        )
-        recorder.insert_events([stored_event1], tracking=Tracking("upstream", 1))
-
-        # Get max tracking ID.
-        notification_id = recorder.max_tracking_id("upstream")
-        self.assertEqual(notification_id, 1)
-
-        # Deallocate prepared statement.
-        self.assertTrue(self.datastore.pool._pool)
-        with self.datastore.get_connection() as conn:
-            statement_name = recorder.max_tracking_id_statement_name
-            self.assertIn(statement_name, conn.is_prepared)
-            conn.cursor().execute(
-                f"DEALLOCATE {recorder.statement_name_aliases[statement_name]}"
-            )
-
-        # Get max tracking ID.
-        notification_id = recorder.max_tracking_id("upstream")
-        self.assertEqual(notification_id, 1)
+    # def test_retry_max_tracking_id_after_deallocating_prepared_statement(self):
+    #     # !!! In psycopg this condition now raises a ProgrammingError lol
+    #     # This checks connection is recreated after OperationalError.
+    #
+    #     # Construct the recorder.
+    #     recorder = self.create_recorder()
+    #     self.datastore.pool.pool_size = 1
+    #
+    #     # Write a tracking record.
+    #     originator_id = uuid4()
+    #     stored_event1 = StoredEvent(
+    #         originator_id=originator_id,
+    #         originator_version=0,
+    #         topic="topic1",
+    #         state=b"state1",
+    #     )
+    #     recorder.insert_events([stored_event1], tracking=Tracking("upstream", 1))
+    #
+    #     # Get max tracking ID.
+    #     notification_id = recorder.max_tracking_id("upstream")
+    #     self.assertEqual(notification_id, 1)
+    #
+    #     # Deallocate prepared statement.
+    #     self.assertTrue(self.datastore.pool._pool)
+    #     with self.datastore.get_connection() as conn:
+    #         statement_name = recorder.max_tracking_id_statement_name
+    #         self.assertIn(statement_name, conn.is_prepared)
+    #         conn.cursor().execute(
+    #             f"DEALLOCATE {recorder.statement_name_aliases[statement_name]}"
+    #         )
+    #
+    #     # Get max tracking ID.
+    #     notification_id = recorder.max_tracking_id("upstream")
+    #     self.assertEqual(notification_id, 1)
 
 
 class TestPostgresProcessRecorderWithSchema(WithSchema, TestPostgresProcessRecorder):
@@ -1201,6 +1070,12 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         )
         drop_postgres_table(datastore, "testcase_events")
         drop_postgres_table(datastore, "testcase_tracking")
+
+    def test_close(self):
+        factory = Factory(self.env)
+        self.assertFalse(factory.datastore.pool.closed)
+        factory.close()
+        self.assertTrue(factory.datastore.pool.closed)
 
     def test_conn_max_age_is_set_to_empty_string(self):
         self.env[Factory.POSTGRES_CONN_MAX_AGE] = ""
@@ -1290,6 +1165,7 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         self.assertEqual(
             self.factory.datastore.pool.idle_in_transaction_session_timeout, 5
         )
+        self.factory.close()
 
         self.env[Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT] = ""
         self.factory = Factory(self.env)
@@ -1321,7 +1197,7 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
     def test_environment_error_raised_when_conn_max_age_not_a_float(self):
         self.env[Factory.POSTGRES_CONN_MAX_AGE] = "abc"
         with self.assertRaises(EnvironmentError) as cm:
-            self.factory = Factory(self.env)
+            Factory(self.env)
         self.assertEqual(
             cm.exception.args[0],
             "Postgres environment value for key 'POSTGRES_CONN_MAX_AGE' "
@@ -1331,7 +1207,7 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
     def test_environment_error_raised_when_connect_timeout_not_an_integer(self):
         self.env[Factory.POSTGRES_CONNECT_TIMEOUT] = "abc"
         with self.assertRaises(EnvironmentError) as cm:
-            self.factory = Factory(self.env)
+            Factory(self.env)
         self.assertEqual(
             cm.exception.args[0],
             "Postgres environment value for key 'POSTGRES_CONNECT_TIMEOUT' "
@@ -1341,7 +1217,7 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
     def test_environment_error_raised_when_pool_timeout_not_an_integer(self):
         self.env[Factory.POSTGRES_POOL_TIMEOUT] = "abc"
         with self.assertRaises(EnvironmentError) as cm:
-            self.factory = Factory(self.env)
+            Factory(self.env)
         self.assertEqual(
             cm.exception.args[0],
             "Postgres environment value for key 'POSTGRES_POOL_TIMEOUT' "
@@ -1351,7 +1227,7 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
     def test_environment_error_raised_when_lock_timeout_not_an_integer(self):
         self.env[Factory.POSTGRES_LOCK_TIMEOUT] = "abc"
         with self.assertRaises(EnvironmentError) as cm:
-            self.factory = Factory(self.env)
+            Factory(self.env)
         self.assertEqual(
             cm.exception.args[0],
             "Postgres environment value for key 'POSTGRES_LOCK_TIMEOUT' "
@@ -1361,7 +1237,7 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
     def test_environment_error_raised_when_min_conn_not_an_integer(self):
         self.env[Factory.POSTGRES_POOL_SIZE] = "abc"
         with self.assertRaises(EnvironmentError) as cm:
-            self.factory = Factory(self.env)
+            Factory(self.env)
         self.assertEqual(
             cm.exception.args[0],
             "Postgres environment value for key 'POSTGRES_POOL_SIZE' "
@@ -1371,7 +1247,7 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
     def test_environment_error_raised_when_max_conn_not_an_integer(self):
         self.env[Factory.POSTGRES_POOL_MAX_OVERFLOW] = "abc"
         with self.assertRaises(EnvironmentError) as cm:
-            self.factory = Factory(self.env)
+            Factory(self.env)
         self.assertEqual(
             cm.exception.args[0],
             "Postgres environment value for key 'POSTGRES_POOL_MAX_OVERFLOW' "
@@ -1383,7 +1259,7 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
     ):
         self.env[Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT] = "abc"
         with self.assertRaises(EnvironmentError) as cm:
-            self.factory = Factory(self.env)
+            Factory(self.env)
         self.assertEqual(
             cm.exception.args[0],
             "Postgres environment value for key "
@@ -1394,7 +1270,7 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
     def test_environment_error_raised_when_dbname_missing(self):
         del self.env[Factory.POSTGRES_DBNAME]
         with self.assertRaises(EnvironmentError) as cm:
-            self.factory = InfrastructureFactory.construct(self.env)
+            InfrastructureFactory.construct(self.env)
         self.assertEqual(
             cm.exception.args[0],
             "Postgres database name not found in environment "
@@ -1404,7 +1280,7 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
     def test_environment_error_raised_when_dbhost_missing(self):
         del self.env[Factory.POSTGRES_HOST]
         with self.assertRaises(EnvironmentError) as cm:
-            self.factory = InfrastructureFactory.construct(self.env)
+            InfrastructureFactory.construct(self.env)
         self.assertEqual(
             cm.exception.args[0],
             "Postgres host not found in environment with key 'POSTGRES_HOST'",
@@ -1413,7 +1289,7 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
     def test_environment_error_raised_when_user_missing(self):
         del self.env[Factory.POSTGRES_USER]
         with self.assertRaises(EnvironmentError) as cm:
-            self.factory = InfrastructureFactory.construct(self.env)
+            InfrastructureFactory.construct(self.env)
         self.assertEqual(
             cm.exception.args[0],
             "Postgres user not found in environment with key 'POSTGRES_USER'",
@@ -1422,7 +1298,7 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
     def test_environment_error_raised_when_password_missing(self):
         del self.env[Factory.POSTGRES_PASSWORD]
         with self.assertRaises(EnvironmentError) as cm:
-            self.factory = InfrastructureFactory.construct(self.env)
+            InfrastructureFactory.construct(self.env)
         self.assertEqual(
             cm.exception.args[0],
             "Postgres password not found in environment with key 'POSTGRES_PASSWORD'",

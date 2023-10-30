@@ -42,19 +42,22 @@ from eventsourcing.persistence import (
 )
 from eventsourcing.utils import Environment, retry, strtobool
 
-DUPLICATE_PREPARED_STATEMENT = "42P05"
-
 
 class PostgresCursor(Cursor):
-    def __init__(self, pg_cursor: psycopg.ClientCursor[DictRow]):
+    def __init__(self, pg_cursor: psycopg.Cursor[DictRow]):
         self.pg_cursor = pg_cursor
 
     def __enter__(self) -> "PostgresCursor":
         self.pg_cursor.__enter__()
         return self
 
-    def __exit__(self, *args: Any, **kwargs: Any) -> None:
-        return self.pg_cursor.__exit__(*args, **kwargs)
+    def __exit__(
+        self,
+        exc_type: Type[BaseException],
+        exc_val: BaseException,
+        exc_tb: Optional[TracebackType],
+    ) -> None:
+        return self.pg_cursor.__exit__(exc_type, exc_val, exc_tb)
 
     def execute(
         self,
@@ -91,32 +94,12 @@ class PostgresCursor(Cursor):
 class PostgresConnection(Connection[PostgresCursor]):
     def __init__(
         self,
-        pg_conn: psycopg.Connection[psycopg.ClientCursor[DictRow]],
+        pg_conn: psycopg.Connection[psycopg.Cursor[DictRow]],
         max_age: Optional[float],
     ):
         super().__init__(max_age=max_age)
         self._pg_conn = pg_conn
         self.is_prepared: Set[str] = set()
-
-    @contextmanager
-    def transaction(self, commit: bool) -> Iterator["PostgresTransaction"]:
-        # Context managed transaction.
-        with PostgresTransaction(self, commit) as transaction:
-            yield transaction
-
-    def cursor(self) -> PostgresCursor:
-        return PostgresCursor(
-            cast(
-                psycopg.ClientCursor[DictRow],
-                self._pg_conn.cursor(row_factory=dict_row),
-            )
-        )
-
-    def rollback(self) -> None:
-        self._pg_conn.rollback()
-
-    def commit(self) -> None:
-        self._pg_conn.commit()
 
     def _close(self) -> None:
         self._pg_conn.close()
@@ -125,6 +108,23 @@ class PostgresConnection(Connection[PostgresCursor]):
     @property
     def closed(self) -> bool:
         return bool(self._pg_conn.closed)
+
+    def commit(self) -> None:
+        self._pg_conn.commit()
+
+    def rollback(self) -> None:
+        self._pg_conn.rollback()
+
+    def cursor(self) -> PostgresCursor:
+        return PostgresCursor(
+            cast(
+                psycopg.Cursor[DictRow],
+                self._pg_conn.cursor(row_factory=dict_row),
+            )
+        )
+
+    def transaction(self, commit: bool) -> "PostgresTransaction":
+        return PostgresTransaction(self, commit)
 
 
 class PostgresConnectionPool(ConnectionPool[PostgresConnection]):
@@ -163,7 +163,7 @@ class PostgresConnectionPool(ConnectionPool[PostgresConnection]):
         # Make a connection to a database.
         try:
             pg_conn = cast(
-                psycopg.Connection[psycopg.ClientCursor[DictRow]],
+                psycopg.Connection[psycopg.Cursor[DictRow]],
                 psycopg.Connection.connect(
                     dbname=self.dbname,
                     host=self.host,
@@ -171,7 +171,6 @@ class PostgresConnectionPool(ConnectionPool[PostgresConnection]):
                     user=self.user,
                     password=self.password,
                     connect_timeout=self.connect_timeout,
-                    # cursor_factory=psycopg.ClientCursor[DictRow],
                 ),
             )
         except psycopg.OperationalError as e:
@@ -201,36 +200,14 @@ class PostgresTransaction:
         self,
         exc_type: Type[BaseException],
         exc_val: BaseException,
-        exc_tb: TracebackType,
+        exc_tb: Optional[TracebackType],
     ) -> None:
-        try:
-            if exc_val:
-                self.conn.rollback()
-                raise exc_val
-            elif not self.commit:
-                self.conn.rollback()
-            else:
-                self.conn.commit()
-        except psycopg.InterfaceError as e:
-            self.conn.close()
-            raise InterfaceError(str(e)) from e
-        except psycopg.DataError as e:
-            raise DataError(str(e)) from e
-        except psycopg.OperationalError as e:
-            self.conn.close()
-            raise OperationalError(str(e)) from e
-        except psycopg.IntegrityError as e:
-            raise IntegrityError(str(e)) from e
-        except psycopg.InternalError as e:
-            raise InternalError(str(e)) from e
-        except psycopg.ProgrammingError as e:
-            raise ProgrammingError(str(e)) from e
-        except psycopg.NotSupportedError as e:
-            raise NotSupportedError(str(e)) from e
-        except psycopg.DatabaseError as e:
-            raise DatabaseError(str(e)) from e
-        except psycopg.Error as e:
-            raise PersistenceError(str(e)) from e
+        if exc_val:
+            self.conn.rollback()
+        elif not self.commit:
+            self.conn.rollback()
+        else:
+            self.conn.commit()
 
     def cursor(self) -> PostgresCursor:
         return self.conn.cursor()
@@ -272,45 +249,48 @@ class PostgresDatastore:
         self.schema = schema.strip()
 
     @contextmanager
-    def transaction(self, commit: bool) -> Iterator[PostgresCursor]:
-        with self.get_connection() as conn:
-            with conn.transaction(commit) as transaction:
-                yield transaction.conn.cursor()
-
-    @contextmanager
-    def get_transaction(self, commit: bool) -> Iterator[PostgresTransaction]:
-        conn: PostgresConnection
-        with self.get_connection() as conn:
-            transaction = PostgresTransaction(conn, commit)
-            with transaction:
-                yield transaction
-
-    @contextmanager
     def get_connection(self) -> Iterator[PostgresConnection]:
         conn = self.pool.get_connection()
         try:
             yield conn
+        except psycopg.InterfaceError as e:
+            conn.close()
+            raise InterfaceError(str(e)) from e
+        except psycopg.OperationalError as e:
+            conn.close()
+            raise OperationalError(str(e)) from e
+        except psycopg.DataError as e:
+            raise DataError(str(e)) from e
+        except psycopg.IntegrityError as e:
+            raise IntegrityError(str(e)) from e
+        except psycopg.InternalError as e:
+            raise InternalError(str(e)) from e
+        except psycopg.ProgrammingError as e:
+            raise ProgrammingError(str(e)) from e
+        except psycopg.NotSupportedError as e:
+            raise NotSupportedError(str(e)) from e
+        except psycopg.DatabaseError as e:
+            raise DatabaseError(str(e)) from e
+        except psycopg.Error as e:
+            conn.close()
+            raise PersistenceError(str(e)) from e
+        except Exception:
+            conn.close()
+            raise
         finally:
             self.pool.put_connection(conn)
 
-    # def report_on_prepared_statements(
-    #     self,
-    # ) -> Tuple[List[Dict[str, Union[bool, str]]], List[str]]:
-    #     with self.get_connection() as conn:
-    #         with conn.cursor() as curs:
-    #             curs.execute("SELECT * from pg_prepared_statements")
-    #             return sorted(curs.fetchall(), key=lambda x: x["name"]), sorted(
-    #                 conn.is_prepared
-    #             )
+    @contextmanager
+    def transaction(self, commit: bool) -> Iterator[PostgresCursor]:
+        with self.get_connection() as conn:
+            with conn.transaction(commit) as transaction:
+                yield transaction.conn.cursor()
 
     def close(self) -> None:
         self.pool.close()
 
     def __del__(self) -> None:
         self.close()
-
-
-PG_IDENTIFIER_MAX_LEN = 63
 
 
 class PostgresAggregateRecorder(AggregateRecorder):
@@ -369,28 +349,38 @@ class PostgresAggregateRecorder(AggregateRecorder):
         with self.datastore.transaction(commit=True) as curs:
             for statement in self.create_table_statements:
                 curs.execute(statement, prepare=False)
-            pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
     def insert_events(
         self, stored_events: List[StoredEvent], **kwargs: Any
     ) -> Optional[Sequence[int]]:
-        transaction: PostgresTransaction
-        with self.datastore.get_transaction(commit=True) as transaction:
-            with transaction.conn._pg_conn.pipeline() as pipeline:
-                # Do other things first, so they can be pipelined too.
-                with transaction.conn.cursor() as curs:
-                    self._insert_events(curs, stored_events, **kwargs)
-                # And use a different cursor for the executemany() call.
-                with transaction.conn.cursor() as curs:
-                    self._insert_stored_events(curs, stored_events, **kwargs)
-                    # Sync now, so any uniqueness constraint violation causes an
-                    # IntegrityError to be raised here, rather an InternalError
-                    # being raised sometime later e.g. when commit() is called.
-                    pipeline.sync()
-                    return self._fetch_ids_after_insert_events(
-                        curs, stored_events, **kwargs
-                    )
+        conn: PostgresConnection
+        exc: Optional[Exception] = None
+        notification_ids: Optional[Sequence[int]] = None
+        with self.datastore.get_connection() as conn:
+            with conn.transaction(commit=True):
+                with conn._pg_conn.pipeline() as pipeline:
+                    # Do other things first, so they can be pipelined too.
+                    with conn.cursor() as curs:
+                        self._insert_events(curs, stored_events, **kwargs)
+                    # Then use a different cursor for the executemany() call.
+                    with conn.cursor() as curs:
+                        try:
+                            self._insert_stored_events(curs, stored_events, **kwargs)
+                            # Sync now, so any uniqueness constraint violation causes an
+                            # IntegrityError to be raised here, rather an InternalError
+                            # being raised sometime later e.g. when commit() is called.
+                            pipeline.sync()
+                            notification_ids = self._fetch_ids_after_insert_events(
+                                curs, stored_events, **kwargs
+                            )
+                        except Exception as e:
+                            # Avoid psycopg emitting a pipeline warning.
+                            exc = e
+                if exc:
+                    # Reraise exception after pipeline context manager has exited.
+                    raise exc
+        return notification_ids
 
     def _insert_events(
         self,
@@ -406,28 +396,9 @@ class PostgresAggregateRecorder(AggregateRecorder):
         stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> None:
-        # Acquire "EXCLUSIVE" table lock, to serialize inserts so that
-        # insertion of notification IDs is monotonic for notification log
-        # readers. We want concurrent transactions to commit inserted
-        # notification_id values in order, and by locking the table for writes,
-        # it can be guaranteed. The EXCLUSIVE lock mode does not block
-        # the ACCESS SHARE lock which is acquired during SELECT statements,
-        # so the table can be read concurrently. However, INSERT normally
-        # just acquires ROW EXCLUSIVE locks, which risks interleaving of
-        # many inserts in one transaction with many insert in another
-        # transaction. Since one transaction will commit before another,
-        # the possibility arises for readers that are tailing a notification
-        # log to miss items inserted later but with lower notification IDs.
-        # https://www.postgresql.org/docs/current/explicit-locking.html#LOCKING-TABLES
-        # https://www.postgresql.org/docs/9.1/sql-lock.html
-        # https://stackoverflow.com/questions/45866187/guarantee-monotonicity-of
-        # -postgresql-serial-column-values-by-commit-order
-
-        len_stored_events = len(stored_events)
-
         # Only do something if there is something to do.
-        if len_stored_events > 0:
-            self._lock_table_in_exclusive_mode(c)
+        if len(stored_events) > 0:
+            self._lock_table(c)
 
             # Insert events.
             c.executemany(
@@ -444,7 +415,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
                 returning="RETURNING" in self.insert_events_statement,
             )
 
-    def _lock_table_in_exclusive_mode(self, c: PostgresCursor) -> None:
+    def _lock_table(self, c: PostgresCursor) -> None:
         pass
 
     def _fetch_ids_after_insert_events(
@@ -585,7 +556,27 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
             max_id = fetchone["max"] or 0
         return max_id
 
-    def _lock_table_in_exclusive_mode(self, c: PostgresCursor) -> None:
+    def _lock_table(self, c: PostgresCursor) -> None:
+        # Acquire "EXCLUSIVE" table lock, to serialize transactions that insert
+        # stored events, so that readers don't pass over gaps that are filled in
+        # later. We want each transaction that will be issued with notifications
+        # IDs by the notification ID sequence to receive all its notification IDs
+        # and then commit, before another transaction is issued with any notification
+        # IDs. In other words, we want the insert order to be the same as the commit
+        # order. We can accomplish this by locking the table for writes. The
+        # EXCLUSIVE lock mode does not block SELECT statements, which acquire an
+        # ACCESS SHARE lock, so the stored events table can be read concurrently
+        # with writes and other reads. However, INSERT statements normally just
+        # acquires ROW EXCLUSIVE locks, which risks the interleaving (within the
+        # recorded sequence of notification IDs) of stored events from one transaction
+        # with those of another transaction. And since one transaction will always
+        # commit before another, the possibility arises when using ROW EXCLUSIVE locks
+        # for readers that are tailing a notification log to miss items inserted later
+        # but issued with lower notification IDs.
+        # https://www.postgresql.org/docs/current/explicit-locking.html#LOCKING-TABLES
+        # https://www.postgresql.org/docs/9.1/sql-lock.html
+        # https://stackoverflow.com/questions/45866187/guarantee-monotonicity-of
+        # -postgresql-serial-column-values-by-commit-order
         for lock_statement in self.lock_table_statements:
             c.execute(lock_statement, prepare=True)
 

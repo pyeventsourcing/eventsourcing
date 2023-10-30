@@ -26,8 +26,6 @@ from typing import (
 from uuid import UUID
 from warnings import warn
 
-from typing_extensions import TypeAlias
-
 from eventsourcing.domain import DomainEventProtocol, EventSourcingError
 from eventsourcing.utils import (
     Environment,
@@ -758,7 +756,7 @@ class Tracking:
     notification_id: int
 
 
-Params: TypeAlias = Union[Sequence[Any], Mapping[str, Any]]
+Params = Union[Sequence[Any], Mapping[str, Any]]
 
 
 class Cursor(ABC):
@@ -912,6 +910,10 @@ class ConnectionPool(ABC, Generic[TConnection]):
         self._num_writers: int = 0
         self._mutually_exclusive_read_write = mutually_exclusive_read_write
         self._closed = False
+
+    @property
+    def closed(self) -> bool:
+        return self._closed
 
     @property
     def num_in_use(self) -> int:

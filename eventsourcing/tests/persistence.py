@@ -73,6 +73,8 @@ class AggregateRecorderTestCase(TestCase, ABC):
         assert stored_events[0].originator_id == originator_id1
         assert stored_events[0].originator_version == self.INITIAL_VERSION
         assert stored_events[0].topic == "topic1"
+        assert stored_events[0].state == b"state1"
+        self.assertIsInstance(stored_events[0].state, bytes)
 
         # Check get record conflict error if attempt to store it again.
         with self.assertRaises(IntegrityError):
@@ -269,6 +271,10 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         # Check we got what was written.
         self.assertEqual(len(stored_events1), 2)
         self.assertEqual(len(stored_events2), 1)
+
+        # Check get record conflict error if attempt to store it again.
+        with self.assertRaises(IntegrityError):
+            recorder.insert_events([stored_event3])
 
         sleep(1)  # Added to make eventsourcing-axon tests work, perhaps not necessary.
         notifications = recorder.select_notifications(max_notification_id + 1, 3)
