@@ -873,7 +873,7 @@ class Application:
                         self.take_snapshot(
                             aggregate_id=event.originator_id,
                             version=event.originator_version,
-                            projector_func=projector_func,
+                            projector_func=projector_func,  # type: ignore[arg-type,unused-ignore]
                         )
 
     def take_snapshot(

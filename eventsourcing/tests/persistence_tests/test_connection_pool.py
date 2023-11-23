@@ -434,6 +434,8 @@ class TestConnectionPool(TestCase):
         # Can call close() twice.
         pool.close()
 
+        self.assertTrue(pool.closed)
+
     def test_fairness(self):
         pool_size = 1
         num_threads = 5

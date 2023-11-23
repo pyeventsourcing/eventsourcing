@@ -2,6 +2,9 @@ from datetime import datetime
 from typing import Any, List, Optional, Tuple, cast
 from uuid import UUID
 
+from psycopg import Cursor
+from psycopg.rows import DictRow
+
 from eventsourcing.domain import Aggregate
 from eventsourcing.examples.searchabletimestamps.persistence import (
     SearchableTimestampsRecorder,
@@ -10,7 +13,6 @@ from eventsourcing.persistence import ApplicationRecorder, StoredEvent
 from eventsourcing.postgres import (
     Factory,
     PostgresApplicationRecorder,
-    PostgresCursor,
     PostgresDatastore,
 )
 
@@ -53,7 +55,7 @@ class SearchableTimestampsApplicationRecorder(
 
     def _insert_events(
         self,
-        c: PostgresCursor,
+        c: Cursor[DictRow],
         stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> None:
@@ -63,7 +65,7 @@ class SearchableTimestampsApplicationRecorder(
         )
         for event_timestamp_data in event_timestamps_data:
             c.execute(
-                statement=self.insert_event_timestamp_statement,
+                query=self.insert_event_timestamp_statement,
                 params=event_timestamp_data,
                 prepare=True,
             )
@@ -74,7 +76,7 @@ class SearchableTimestampsApplicationRecorder(
     ) -> Optional[int]:
         with self.datastore.transaction(commit=False) as curs:
             curs.execute(
-                statement=self.select_event_timestamp_statement,
+                query=self.select_event_timestamp_statement,
                 params=(originator_id, timestamp),
                 prepare=True,
             )

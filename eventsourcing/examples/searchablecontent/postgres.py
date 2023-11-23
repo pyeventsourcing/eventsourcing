@@ -1,6 +1,9 @@
 from typing import Any, List, Sequence, Tuple
 from uuid import UUID
 
+from psycopg import Cursor
+from psycopg.rows import DictRow
+
 from eventsourcing.examples.contentmanagement.application import PageNotFound
 from eventsourcing.examples.searchablecontent.persistence import (
     SearchableContentRecorder,
@@ -10,7 +13,6 @@ from eventsourcing.postgres import (
     Factory,
     PostgresAggregateRecorder,
     PostgresApplicationRecorder,
-    PostgresCursor,
 )
 
 
@@ -57,7 +59,7 @@ class PostgresSearchableContentRecorder(
 
     def _insert_events(
         self,
-        c: PostgresCursor,
+        c: Cursor[DictRow],
         stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> None:
@@ -67,7 +69,7 @@ class PostgresSearchableContentRecorder(
 
     def _insert_pages(
         self,
-        c: PostgresCursor,
+        c: Cursor[DictRow],
         insert_pages: Sequence[Tuple[UUID, str, str, str]] = (),
         **_: Any,
     ) -> None:
@@ -76,7 +78,7 @@ class PostgresSearchableContentRecorder(
 
     def _update_pages(
         self,
-        c: PostgresCursor,
+        c: Cursor[DictRow],
         update_pages: Sequence[Tuple[UUID, str, str, str]] = (),
         **_: Any,
     ) -> None:
