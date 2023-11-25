@@ -251,6 +251,7 @@ class SetupPostgresDatastore(TestCase):
     def tearDown(self) -> None:
         super().tearDown()
         self.drop_tables()
+        self.datastore.close()
 
     def drop_tables(self):
         events_table_name = EVENTS_TABLE_NAME
