@@ -50,7 +50,7 @@ jobs:
 
     - name: Lint
       run: make lint
-      if: matrix.python_version != '3.7'
+      if: matrix.python-version != '3.7'
 
     - name: Test
       run: make test
