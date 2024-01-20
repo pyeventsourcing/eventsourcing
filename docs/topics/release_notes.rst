@@ -23,6 +23,18 @@ the underlying principles are the same, and so conversion of
 code and stored events is very possible.
 
 
+Version 9.2.22 (released 20 Jan 2024)
+-------------------------------------
+
+* Changed all modules to have "from __future__ import annotations" and adjusted
+  singledispatchmethod so that when forward refs cause method registration to fail,
+  the registration can be deferred until the method call is dispatched.
+* Improved support for Pydantic (compatibility with Pydantic v2).
+* Improved docs (fixed typos in Tutorial Part 2, content management system example,
+  better wording in module docs, added Tutorial Part 4, fixed docstrings).
+* Added checks for compatibility with Python 3.12.
+
+
 Version 9.2.21 (released 13 Oct 2023)
 -------------------------------------
 
