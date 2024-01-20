@@ -113,17 +113,17 @@ class Dog(Aggregate):
     def apply(self, event: DomainEvent) -> None:
         """Applies event to aggregate."""
 
-    @apply.register
+    @apply.register(Registered)
     def _(self, event: Registered) -> None:
         super().__init__(event)
         self.name = event.name
         self.tricks: List[str] = []
 
-    @apply.register
+    @apply.register(TrickAdded)
     def _(self, event: TrickAdded) -> None:
         self.tricks.append(event.trick)
         self.version = event.originator_version
 
-    @apply.register
+    @apply.register(Snapshot)
     def _(self, event: Snapshot) -> None:
         self.__dict__.update(event.state)

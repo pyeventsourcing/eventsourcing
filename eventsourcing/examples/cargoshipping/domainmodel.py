@@ -224,7 +224,7 @@ class Cargo(Aggregate):
         destination: Location
 
     @when.register
-    def _(self, event: DestinationChanged) -> None:
+    def _(self, event: Cargo.DestinationChanged) -> None:
         self._destination = event.destination
 
     def assign_route(self, itinerary: Itinerary) -> None:
@@ -234,7 +234,7 @@ class Cargo(Aggregate):
         route: Itinerary
 
     @when.register
-    def _(self, event: RouteAssigned) -> None:
+    def _(self, event: Cargo.RouteAssigned) -> None:
         self._route = event.route
         self._routing_status = "ROUTED"
         self._estimated_time_of_arrival = Cargo.Event.create_timestamp() + timedelta(
@@ -265,7 +265,7 @@ class Cargo(Aggregate):
         handling_activity: str
 
     @when.register
-    def _(self, event: HandlingEventRegistered) -> None:
+    def _(self, event: Cargo.HandlingEventRegistered) -> None:
         assert self.route is not None
         if event.handling_activity == HandlingActivity.RECEIVE:
             self._transport_status = "IN_PORT"
