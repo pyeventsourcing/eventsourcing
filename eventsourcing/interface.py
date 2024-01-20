@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 from abc import ABC, abstractmethod
 from base64 import b64decode, b64encode

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import sqlite3
 from contextlib import contextmanager
 from sqlite3 import Connection, Cursor

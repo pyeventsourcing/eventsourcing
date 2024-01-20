@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import zlib
 
 from eventsourcing.persistence import Compressor

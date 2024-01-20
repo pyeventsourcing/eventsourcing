@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any, Dict, Iterator, Optional, Union, cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 

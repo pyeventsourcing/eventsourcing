@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from eventsourcing.examples.contentmanagement.application import (
     ContentManagementApplication,
 )

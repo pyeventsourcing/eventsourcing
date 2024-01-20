@@ -2,6 +2,8 @@
 After Ed Blackburn's https://github.com/edblackburn/parking-lot/.
 """
 
+from __future__ import annotations
+
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
