@@ -38,9 +38,7 @@ class TestDogSchool(TestCase):
         with self.assertRaises(ProgrammingError) as cm:
             school.register_dog("Fido")
 
-        self.assertIn(
-            "set snapshotting_projectors on application class", cm.exception.args[0]
-        )
+        self.assertIn("Cannot take snapshot", cm.exception.args[0])
 
         # Set snapshotting_projectors.
         SubDogSchool.snapshotting_projectors = {Dog: project_dog}
