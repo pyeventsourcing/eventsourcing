@@ -496,9 +496,9 @@ command method ``add_trick()`` that calls a decorated "private" method ``_add_tr
             self.tricks.append(trick)
 
 
-Because the "public" command method ``trick_added()`` is not decorated with the
+Because the "public" command method ``add_trick()`` is not decorated with the
 :func:`@event<eventsourcing.domain.event>` decorator, it does not trigger an event when it is called. Instead, the
-event is triggered when the "private" method ``_trick_added()`` is called by the
+event is triggered when the "private" method ``_add_trick()`` is called by the
 "public" method.
 
 ..
