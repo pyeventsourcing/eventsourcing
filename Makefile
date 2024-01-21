@@ -7,7 +7,7 @@ DOTENV_FILE ?= dev/.env
 install:
 	@pip install -U pip
 	@pip install wheel
-	@pip install -e ".[dev]"
+	@pip install -U -e ".[dev]"
 
 .PHONY: docker-pull
 docker-pull:
