@@ -14,10 +14,13 @@ install-poetry:
 	curl -sSL $(POETRY_INSTALLER_URL) | python3
 	$(POETRY) --version
 
+.PHONY: install
+install:
+	$(POETRY) install --extras "crypto postgres_dev" --with docs -vv $(opts)
+
 .PHONY: install-packages
 install-packages:
-	$(POETRY) --version
-	$(POETRY) install --no-root --all-extras -vv $(opts)
+	$(POETRY) install --no-root --extras "crypto postgres_dev" --with docs -vv $(opts)
 
 .PHONY: update-packages
 update-packages:
