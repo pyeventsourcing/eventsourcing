@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import Any, List, Optional, Sequence, Tuple
 from typing import Any, List, Sequence, Tuple
 from uuid import UUID
 
@@ -33,12 +32,12 @@ class PostgresSearchableContentRecorder(
 
     update_page_statement = (
         f"UPDATE {pages_table_name}"
-        f" SET page_slug = %s, page_title = %s, page_body = %s WHERE page_id = %s"
+        " SET page_slug = %s, page_title = %s, page_body = %s WHERE page_id = %s"
     )
 
     search_pages_statement = (
         f"SELECT page_id FROM {pages_table_name} WHERE"
-        f" to_tsvector('english', page_body) @@ websearch_to_tsquery('english', %s)"
+        " to_tsvector('english', page_body) @@ websearch_to_tsquery('english', %s)"
     )
 
     def construct_create_table_statements(self) -> List[str]:
@@ -56,7 +55,7 @@ class PostgresSearchableContentRecorder(
         statements.append(
             f"CREATE INDEX IF NOT EXISTS {self.pages_table_name}_idx "
             f"ON {self.pages_table_name} "
-            f"USING GIN (to_tsvector('english', page_body))"
+            "USING GIN (to_tsvector('english', page_body))"
         )
         return statements
 
