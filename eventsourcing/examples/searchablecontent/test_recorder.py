@@ -20,9 +20,9 @@ class SearchableContentRecorderTestCase(TestCase):
     env: Dict[str, str] = {}
 
     def test_recorder(self) -> None:
-        # Just need to cover the case where select_page() raises PageNotFound.
         app = SearchableContentApplication(env=self.env)
 
+        # Need to cover the case where select_page() raises PageNotFound.
         recorder = cast(SearchableContentRecorder, app.recorder)
         with self.assertRaises(PageNotFound):
             recorder.select_page(uuid4())

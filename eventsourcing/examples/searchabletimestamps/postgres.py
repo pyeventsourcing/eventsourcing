@@ -1,6 +1,9 @@
 from datetime import datetime
-from typing import Any, List, Optional, Sequence, Tuple, cast
+from typing import Any, List, Optional, Tuple, cast
 from uuid import UUID
+
+from psycopg import Cursor
+from psycopg.rows import DictRow
 
 from eventsourcing.domain import Aggregate
 from eventsourcing.examples.searchabletimestamps.persistence import (
@@ -10,8 +13,6 @@ from eventsourcing.persistence import ApplicationRecorder, StoredEvent
 from eventsourcing.postgres import (
     Factory,
     PostgresApplicationRecorder,
-    PostgresConnection,
-    PostgresCursor,
     PostgresDatastore,
 )
 
@@ -29,21 +30,14 @@ class SearchableTimestampsApplicationRecorder(
         self.event_timestamps_table_name = event_timestamps_table_name
         super().__init__(datastore, events_table_name)
         self.insert_event_timestamp_statement = (
-            f"INSERT INTO {self.event_timestamps_table_name} VALUES ($1, $2, $3)"
-        )
-        self.insert_event_timestamp_statement_name = (
-            f"insert_{event_timestamps_table_name}".replace(".", "_")
+            f"INSERT INTO {self.event_timestamps_table_name} VALUES (%s, %s, %s)"
         )
         self.select_event_timestamp_statement = (
             f"SELECT originator_version FROM {self.event_timestamps_table_name} WHERE "
-            "originator_id = $1 AND "
-            "timestamp <= $2 "
+            f"originator_id = %s AND "
+            f"timestamp <= %s "
             "ORDER BY originator_version DESC "
             "LIMIT 1"
-        )
-
-        self.select_event_timestamp_statement_name = (
-            f"select_{event_timestamps_table_name}".replace(".", "_")
         )
 
     def construct_create_table_statements(self) -> List[str]:
@@ -59,53 +53,37 @@ class SearchableTimestampsApplicationRecorder(
         )
         return statements
 
-    def _prepare_insert_events(self, conn: PostgresConnection) -> None:
-        super()._prepare_insert_events(conn)
-        self._prepare(
-            conn,
-            self.insert_event_timestamp_statement_name,
-            self.insert_event_timestamp_statement,
-        )
-
     def _insert_events(
         self,
-        c: PostgresCursor,
+        c: Cursor[DictRow],
         stored_events: List[StoredEvent],
         **kwargs: Any,
-    ) -> Optional[Sequence[int]]:
-        notification_ids = super()._insert_events(c, stored_events, **kwargs)
-
+    ) -> None:
         # Insert event timestamps.
         event_timestamps_data = cast(
             List[Tuple[UUID, datetime, int]], kwargs.get("event_timestamps_data")
         )
         for event_timestamp_data in event_timestamps_data:
-            statement_alias = self.statement_name_aliases[
-                self.insert_event_timestamp_statement_name
-            ]
-            c.execute(f"EXECUTE {statement_alias}(%s, %s, %s)", event_timestamp_data)
-        return notification_ids
+            c.execute(
+                query=self.insert_event_timestamp_statement,
+                params=event_timestamp_data,
+                prepare=True,
+            )
+        super()._insert_events(c, stored_events, **kwargs)
 
     def get_version_at_timestamp(
         self, originator_id: UUID, timestamp: datetime
     ) -> Optional[int]:
-        with self.datastore.get_connection() as conn:
-            self._prepare(
-                conn,
-                self.select_event_timestamp_statement_name,
-                self.select_event_timestamp_statement,
+        with self.datastore.transaction(commit=False) as curs:
+            curs.execute(
+                query=self.select_event_timestamp_statement,
+                params=(originator_id, timestamp),
+                prepare=True,
             )
-            with conn.transaction(commit=False) as curs:
-                statement_alias = self.statement_name_aliases[
-                    self.select_event_timestamp_statement_name
-                ]
-                curs.execute(
-                    f"EXECUTE {statement_alias}(%s, %s)", [originator_id, timestamp]
-                )
-                for row in curs.fetchall():
-                    return row["originator_version"]
-                else:
-                    return Aggregate.INITIAL_VERSION - 1
+            for row in curs.fetchall():
+                return row["originator_version"]
+            else:
+                return Aggregate.INITIAL_VERSION - 1
 
 
 class SearchableTimestampsInfrastructureFactory(Factory):

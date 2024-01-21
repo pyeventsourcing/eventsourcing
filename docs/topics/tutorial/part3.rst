@@ -510,21 +510,23 @@ PostgreSQL environment
 
 We can also configure a "production" environment to use PostgreSQL.
 Using the library's :ref:`PostgresSQL persistence module <postgres-module>`
-will keep stored events in a PostgresSQL database.
+will keep stored events in a PostgresSQL database. This persistence module
+uses `Psycopg 3 <https://www.psycopg.org>`_.
 
-To use the library's PostgreSQL persistence module, either install the
-library with the ``postgres`` option, or install the ``psycopg2`` package
+To use the PostgreSQL persistence module, either install the
+library with the ``postgres`` option, or install ``psycopg[c]``
 directly.
 
 ::
 
     $ pip install eventsourcing[postgres]
 
-Please note, the library option ``postgres_dev`` will install the
-``psycopg2-binary`` which is much faster to install, but this option
-is not recommended for production use. The binary package is a
-practical choice for development and testing but in production
-it is advised to use the package built from sources.
+Please note, the library option ``postgres_dev`` will install Psycopg 3
+with the pre-built binary optimization option ``psycopg[binary]`` which is much
+faster to install than ``psycopg[c]``, but possibly less optimal. The binary
+package is a practical choice for development and testing, but in production
+it is advised to use ``psycopg[c]`` if you can meet the prerequistes for
+building the C extension.
 
 The example below also uses zlib and AES to compress and encrypt the
 stored events. To use the library's encryption functionality,

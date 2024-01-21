@@ -17,6 +17,7 @@ from typing import (
     Generic,
     Iterator,
     List,
+    Mapping,
     Optional,
     Sequence,
     Type,
@@ -757,9 +758,14 @@ class Tracking:
     notification_id: int
 
 
+Params = Union[Sequence[Any], Mapping[str, Any]]
+
+
 class Cursor(ABC):
     @abstractmethod
-    def execute(self, statement: Union[str, bytes], params: Any = None) -> None:
+    def execute(
+        self, statement: Union[str, bytes], params: Optional[Params] = None
+    ) -> None:
         """Executes given statement."""
 
     @abstractmethod
@@ -906,6 +912,10 @@ class ConnectionPool(ABC, Generic[TConnection]):
         self._num_writers: int = 0
         self._mutually_exclusive_read_write = mutually_exclusive_read_write
         self._closed = False
+
+    @property
+    def closed(self) -> bool:
+        return self._closed
 
     @property
     def num_in_use(self) -> int:

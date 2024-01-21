@@ -123,6 +123,7 @@ class TestConnectionPool(TestCase):
     ProgrammingError = ProgrammingError
     PersistenceError = PersistenceError
     allowed_connecting_time = 0
+    expected_result_from_select_1 = [[1]]
 
     def create_pool(
         self,
@@ -295,7 +296,7 @@ class TestConnectionPool(TestCase):
         with self.assertRaises(self.ProgrammingError):
             self.assertEqual(curs.fetchall(), None)
         curs.execute("SELECT 1")
-        self.assertEqual(curs.fetchall(), [[1]])
+        self.assertEqual(curs.fetchall(), self.expected_result_from_select_1)
 
         pool.put_connection(conn1)
         self.close_connection_on_server(conn1)
@@ -322,7 +323,7 @@ class TestConnectionPool(TestCase):
 
         curs = conn2.cursor()
         curs.execute("SELECT 1")
-        self.assertEqual(curs.fetchall(), [[1]])
+        self.assertEqual(curs.fetchall(), self.expected_result_from_select_1)
 
     def test_max_age(self):
         pool = self.create_pool(max_age=0.2)
@@ -432,6 +433,8 @@ class TestConnectionPool(TestCase):
 
         # Can call close() twice.
         pool.close()
+
+        self.assertTrue(pool.closed)
 
     def test_fairness(self):
         pool_size = 1

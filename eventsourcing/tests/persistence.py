@@ -73,9 +73,10 @@ class AggregateRecorderTestCase(TestCase, ABC):
         assert stored_events[0].originator_id == originator_id1
         assert stored_events[0].originator_version == self.INITIAL_VERSION
         assert stored_events[0].topic == "topic1"
+        assert stored_events[0].state == b"state1"
+        self.assertIsInstance(stored_events[0].state, bytes)
 
         # Check get record conflict error if attempt to store it again.
-        stored_events = recorder.select_events(originator_id1)
         with self.assertRaises(IntegrityError):
             recorder.insert_events([stored_event1])
 
@@ -248,21 +249,19 @@ class ApplicationRecorderTestCase(TestCase, ABC):
             topic="topic2",
             state=b"state2",
         )
-        stored_event3 = StoredEvent(
-            originator_id=originator_id2,
-            originator_version=self.INITIAL_VERSION,
-            topic="topic3",
-            state=b"state3",
-        )
-
-        notification_ids = recorder.insert_events([])
-        self.assertEqual(notification_ids, [])
 
         notification_ids = recorder.insert_events([stored_event1, stored_event2])
         self.assertEqual(
             notification_ids, [max_notification_id + 1, max_notification_id + 2]
         )
 
+        # Store a third event.
+        stored_event3 = StoredEvent(
+            originator_id=originator_id2,
+            originator_version=self.INITIAL_VERSION,
+            topic="topic3",
+            state=b"state3",
+        )
         notification_ids = recorder.insert_events([stored_event3])
         self.assertEqual(notification_ids, [max_notification_id + 3])
 
@@ -272,6 +271,10 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         # Check we got what was written.
         self.assertEqual(len(stored_events1), 2)
         self.assertEqual(len(stored_events2), 1)
+
+        # Check get record conflict error if attempt to store it again.
+        with self.assertRaises(IntegrityError):
+            recorder.insert_events([stored_event3])
 
         sleep(1)  # Added to make eventsourcing-axon tests work, perhaps not necessary.
         notifications = recorder.select_notifications(max_notification_id + 1, 3)

@@ -1,4 +1,4 @@
-import psycopg2
+import psycopg
 
 from eventsourcing.persistence import PersistenceError
 from eventsourcing.postgres import PostgresDatastore
@@ -13,15 +13,15 @@ def pg_close_all_connections(
 ):
     try:
         # For local development... probably.
-        pg_conn = psycopg2.connect(
+        pg_conn = psycopg.connect(
             dbname=name,
             host=host,
             port=port,
         )
-    except psycopg2.Error:
+    except psycopg.Error:
         # For GitHub actions.
         """CREATE ROLE postgres LOGIN SUPERUSER PASSWORD 'postgres';"""
-        pg_conn = psycopg2.connect(
+        pg_conn = psycopg.connect(
             dbname=name,
             host=host,
             port=port,
@@ -47,6 +47,6 @@ def drop_postgres_table(datastore: PostgresDatastore, table_name):
     statement = f"DROP TABLE {table_name}"
     try:
         with datastore.transaction(commit=True) as curs:
-            curs.execute(statement)
+            curs.execute(statement, prepare=False)
     except PersistenceError:
         pass
