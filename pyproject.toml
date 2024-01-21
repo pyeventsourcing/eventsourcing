@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "eventsourcing"
-version = "9.2.22"
+version = "9.3.0dev"
 
 description = "Event sourcing in Python"
 authors = [
