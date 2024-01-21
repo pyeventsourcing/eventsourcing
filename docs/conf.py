@@ -46,6 +46,8 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.doctest',
     'sphinx.ext.viewcode',
+    'sphinxcontrib.jquery',
+
 ]
 
 autodoc_default_options = {
