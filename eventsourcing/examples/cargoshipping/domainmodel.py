@@ -25,7 +25,7 @@ class Location(Enum):
     AUMEL = "AUMEL"
 
 
-class Leg(object):
+class Leg:
     """
     Leg of an itinerary.
     """
@@ -41,7 +41,7 @@ class Leg(object):
         self.voyage_number: str = voyage_number
 
 
-class Itinerary(object):
+class Itinerary:
     """
     An itinerary along which cargo is shipped.
     """
@@ -50,7 +50,7 @@ class Itinerary(object):
         self,
         origin: str,
         destination: str,
-        legs: Tuple[Leg, ...],
+        legs: tuple[Leg, ...],
     ):
         self.origin = origin
         self.destination = destination
@@ -132,11 +132,11 @@ class Cargo(Aggregate):
         self._transport_status: str = "NOT_RECEIVED"
         self._routing_status: str = "NOT_ROUTED"
         self._is_misdirected: bool = False
-        self._estimated_time_of_arrival: Optional[datetime] = None
+        self._estimated_time_of_arrival: datetime | None = None
         self._next_expected_activity: NextExpectedActivity = None
-        self._route: Optional[Itinerary] = None
-        self._last_known_location: Optional[Location] = None
-        self._current_voyage_number: Optional[str] = None
+        self._route: Itinerary | None = None
+        self._last_known_location: Location | None = None
+        self._current_voyage_number: str | None = None
 
     @property
     def origin(self) -> Location:
@@ -165,7 +165,7 @@ class Cargo(Aggregate):
     @property
     def estimated_time_of_arrival(
         self,
-    ) -> Optional[datetime]:
+    ) -> datetime | None:
         return self._estimated_time_of_arrival
 
     @property
@@ -173,15 +173,15 @@ class Cargo(Aggregate):
         return self._next_expected_activity
 
     @property
-    def route(self) -> Optional[Itinerary]:
+    def route(self) -> Itinerary | None:
         return self._route
 
     @property
-    def last_known_location(self) -> Optional[Location]:
+    def last_known_location(self) -> Location | None:
         return self._last_known_location
 
     @property
-    def current_voyage_number(self) -> Optional[str]:
+    def current_voyage_number(self) -> str | None:
         return self._current_voyage_number
 
     @classmethod
@@ -190,7 +190,7 @@ class Cargo(Aggregate):
         origin: Location,
         destination: Location,
         arrival_deadline: datetime,
-    ) -> "Cargo":
+    ) -> Cargo:
         return cls._create(
             event_class=cls.BookingStarted,
             id=uuid4(),
@@ -246,7 +246,7 @@ class Cargo(Aggregate):
     def register_handling_event(
         self,
         tracking_id: UUID,
-        voyage_number: Optional[str],
+        voyage_number: str | None,
         location: Location,
         handling_activity: HandlingActivity,
     ) -> None:
@@ -279,21 +279,22 @@ class Cargo(Aggregate):
             self._transport_status = "ONBOARD_CARRIER"
             self._current_voyage_number = event.voyage_number
             for leg in self.route.legs:
-                if leg.origin == event.location.value:
-                    if leg.voyage_number == event.voyage_number:
-                        self._next_expected_activity = (
-                            HandlingActivity.UNLOAD,
-                            Location[leg.destination],
-                            event.voyage_number,
-                        )
-                        break
-            else:
-                raise Exception(
-                    "Can't find leg with origin={} and voyage_number={}".format(
-                        event.location,
+                if (
+                    leg.origin == event.location.value
+                    and leg.voyage_number == event.voyage_number
+                ):
+                    self._next_expected_activity = (
+                        HandlingActivity.UNLOAD,
+                        Location[leg.destination],
                         event.voyage_number,
                     )
+                    break
+            else:
+                msg = "Can't find leg with origin={} and voyage_number={}".format(
+                    event.location,
+                    event.voyage_number,
                 )
+                raise Exception(msg)
 
         elif event.handling_activity == HandlingActivity.UNLOAD:
             self._current_voyage_number = None
@@ -325,6 +326,5 @@ class Cargo(Aggregate):
             self._transport_status = "CLAIMED"
 
         else:
-            raise Exception(
-                "Unsupported handling event: {}".format(event.handling_activity)
-            )
+            msg = f"Unsupported handling event: {event.handling_activity}"
+            raise Exception(msg)

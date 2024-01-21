@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-from typing import List, cast
-from uuid import UUID
+from typing import TYPE_CHECKING, ClassVar, cast
 
-from eventsourcing.application import ProcessingEvent
-from eventsourcing.domain import DomainEventProtocol
 from eventsourcing.examples.contentmanagement.domainmodel import Page
 from eventsourcing.examples.contentmanagement.utils import apply_patch
 from eventsourcing.examples.searchablecontent.persistence import (
@@ -12,9 +9,15 @@ from eventsourcing.examples.searchablecontent.persistence import (
 )
 from eventsourcing.system import ProcessApplication
 
+if TYPE_CHECKING:  # pragma: nocover
+    from uuid import UUID
+
+    from eventsourcing.application import ProcessingEvent
+    from eventsourcing.domain import DomainEventProtocol
+
 
 class SearchIndexApplication(ProcessApplication):
-    env = {
+    env: ClassVar[dict[str, str]] = {
         "COMPRESSOR_TOPIC": "gzip",
     }
 
@@ -42,6 +45,6 @@ class SearchIndexApplication(ProcessApplication):
                 page_body,
             )]
 
-    def search(self, query: str) -> List[UUID]:
+    def search(self, query: str) -> list[UUID]:
         recorder = cast(SearchableContentRecorder, self.recorder)
         return recorder.search_pages(query)

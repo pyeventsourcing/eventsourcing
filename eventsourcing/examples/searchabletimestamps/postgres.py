@@ -1,20 +1,24 @@
-from datetime import datetime
-from typing import Any, List, Optional, Tuple, cast
-from uuid import UUID
+from __future__ import annotations
 
-from psycopg import Cursor
-from psycopg.rows import DictRow
+from datetime import datetime
+from typing import TYPE_CHECKING, Any, List, Tuple, cast
+from uuid import UUID
 
 from eventsourcing.domain import Aggregate
 from eventsourcing.examples.searchabletimestamps.persistence import (
     SearchableTimestampsRecorder,
 )
-from eventsourcing.persistence import ApplicationRecorder, StoredEvent
 from eventsourcing.postgres import (
     Factory,
     PostgresApplicationRecorder,
     PostgresDatastore,
 )
+
+if TYPE_CHECKING:  # pragma: nocover
+    from psycopg import Cursor
+    from psycopg.rows import DictRow
+
+    from eventsourcing.persistence import ApplicationRecorder, StoredEvent
 
 
 class SearchableTimestampsApplicationRecorder(
@@ -40,7 +44,7 @@ class SearchableTimestampsApplicationRecorder(
             "LIMIT 1"
         )
 
-    def construct_create_table_statements(self) -> List[str]:
+    def construct_create_table_statements(self) -> list[str]:
         statements = super().construct_create_table_statements()
         statements.append(
             "CREATE TABLE IF NOT EXISTS "
@@ -56,7 +60,7 @@ class SearchableTimestampsApplicationRecorder(
     def _insert_events(
         self,
         c: Cursor[DictRow],
-        stored_events: List[StoredEvent],
+        stored_events: list[StoredEvent],
         **kwargs: Any,
     ) -> None:
         # Insert event timestamps.
@@ -73,7 +77,7 @@ class SearchableTimestampsApplicationRecorder(
 
     def get_version_at_timestamp(
         self, originator_id: UUID, timestamp: datetime
-    ) -> Optional[int]:
+    ) -> int | None:
         with self.datastore.transaction(commit=False) as curs:
             curs.execute(
                 query=self.select_event_timestamp_statement,
@@ -81,9 +85,11 @@ class SearchableTimestampsApplicationRecorder(
                 prepare=True,
             )
             for row in curs.fetchall():
-                return row["originator_version"]
+                version = row["originator_version"]
+                break
             else:
-                return Aggregate.INITIAL_VERSION - 1
+                version = Aggregate.INITIAL_VERSION - 1
+            return version
 
 
 class SearchableTimestampsInfrastructureFactory(Factory):

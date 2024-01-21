@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from eventsourcing.examples.contentmanagement.application import (
     ContentManagementApplication,
-    PageNotFound,
+    PageNotFoundError,
     SlugConflictError,
 )
 from eventsourcing.examples.contentmanagement.domainmodel import (
@@ -27,7 +27,7 @@ class TestContentManagement(TestCase):
         app = ContentManagementApplication()
 
         # Check the page doesn't exist.
-        with self.assertRaises(PageNotFound):
+        with self.assertRaises(PageNotFoundError):
             app.get_page_by_slug(slug="welcome")
 
         # Check the list of pages is empty.
@@ -58,7 +58,7 @@ class TestContentManagement(TestCase):
         app.update_slug(old_slug="welcome", new_slug="welcome-visitors")
 
         # Check the index was updated.
-        with self.assertRaises(PageNotFound):
+        with self.assertRaises(PageNotFoundError):
             app.get_page_by_slug(slug="welcome")
 
         # Check we can get the page by the new slug.

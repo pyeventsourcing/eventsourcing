@@ -7,11 +7,11 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import List, Type, cast
+from typing import cast
 from unittest import TestCase
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from eventsourcing.application import AggregateNotFound, Application
+from eventsourcing.application import AggregateNotFoundError, Application
 from eventsourcing.domain import Aggregate, triggers
 from eventsourcing.system import NotificationLogReader
 
@@ -23,7 +23,7 @@ class LicencePlate:
 
     def __post_init__(self) -> None:
         if not bool(self.regex.match(self.number)):
-            raise ValueError()
+            raise ValueError
 
 
 @dataclass
@@ -65,8 +65,8 @@ class Vehicle(Aggregate):
     @triggers(Registered)
     def __init__(self, licence_plate_number: str):
         self.licence_plate_number = licence_plate_number
-        self.bookings: List[Booking] = []
-        self.inspection_failures: List[datetime] = []
+        self.bookings: list[Booking] = []
+        self.inspection_failures: list[datetime] = []
 
     @triggers(Booked)
     def book(self, start: datetime, finish: datetime) -> None:
@@ -93,10 +93,10 @@ class Vehicle(Aggregate):
 
 
 class ParkingLot(Application):
-    def book(self, licence_plate: LicencePlate, product: Type[Product]) -> None:
+    def book(self, licence_plate: LicencePlate, product: type[Product]) -> None:
         try:
             vehicle = self.get_vehicle(licence_plate)
-        except AggregateNotFound:
+        except AggregateNotFoundError:
             vehicle = Vehicle(licence_plate.number)
         start = Vehicle.Event.create_timestamp()
         finish = product.calc_finish(start)

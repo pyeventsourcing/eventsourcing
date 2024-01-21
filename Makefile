@@ -27,11 +27,15 @@ update-packages:
 	$(POETRY) update -vv
 
 .PHONY: lint
-lint: lint-black lint-flake8 lint-isort lint-mypy #lint-dockerfile
+lint: lint-black lint-ruff lint-isort lint-mypy #lint-dockerfile
 
 .PHONY: lint-black
 lint-black:
 	$(POETRY) run black --check --diff eventsourcing
+
+.PHONY: lint-ruff
+lint-ruff:
+	$(POETRY) run ruff check eventsourcing
 
 .PHONY: lint-flake8
 lint-flake8:
@@ -52,7 +56,15 @@ lint-mypy:
 #
 
 .PHONY: fmt
-fmt: fmt-isort fmt-black
+fmt: fmt-ruff fmt-isort fmt-black
+
+.PHONY: fmt-ruff
+fmt-ruff:
+	$(POETRY) run ruff --fix eventsourcing
+
+.PHONY: fmt-ruff-unsafe
+fmt-ruff-unsafe:
+	$(POETRY) run ruff --fix --unsafe-fixes eventsourcing
 
 .PHONY: fmt-black
 fmt-black:
@@ -61,6 +73,7 @@ fmt-black:
 .PHONY: fmt-isort
 fmt-isort:
 	$(POETRY) run isort eventsourcing
+
 
 
 .PHONY: test

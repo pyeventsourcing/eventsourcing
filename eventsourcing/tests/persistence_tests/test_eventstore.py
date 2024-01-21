@@ -44,8 +44,8 @@ class TestEventStore(TestCase):
         recorder.create_table()
 
         # Get last event.
-        last_event = event_store.get(account.id, desc=True, limit=1)
-        assert list(last_event) == []
+        stored_events = event_store.get(account.id, desc=True, limit=1)
+        self.assertEqual(list(stored_events), [])
 
         # Store pending events.
         event_store.put(pending)
@@ -59,14 +59,14 @@ class TestEventStore(TestCase):
             copy = domain_event.mutate(copy)
 
         # Check copy has correct attribute values.
-        assert copy.id == account.id
-        assert copy.balance == Decimal("65.00")
+        self.assertEqual(copy.id, account.id)
+        self.assertEqual(copy.balance, Decimal("65.00"))
 
         # Get last event.
         events = event_store.get(account.id, desc=True, limit=1)
         events = list(events)
-        assert len(events) == 1
+        self.assertEqual(len(events), 1)
         last_event = events[0]
 
-        assert last_event.originator_id == account.id
+        self.assertEqual(last_event.originator_id, account.id)
         assert type(last_event) is BankAccount.TransactionAppended

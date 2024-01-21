@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import sys
 import traceback
@@ -8,15 +10,11 @@ from decimal import Decimal
 from threading import Event, get_ident
 from time import sleep
 from timeit import timeit
+from typing import ClassVar
 from unittest import TestCase
 from uuid import UUID, uuid4
 
-from eventsourcing.application import (
-    AggregateNotFound,
-    Application,
-    ProcessEvent,
-    ProcessingEvent,
-)
+from eventsourcing.application import AggregateNotFoundError, Application
 from eventsourcing.domain import Aggregate
 from eventsourcing.persistence import (
     InfrastructureFactory,
@@ -31,9 +29,9 @@ TIMEIT_FACTOR = int(os.environ.get("TEST_TIMEIT_FACTOR", default=10))
 
 
 class ExampleApplicationTestCase(TestCase):
-    timeit_number = TIMEIT_FACTOR
-    started_ats = {}
-    counts = {}
+    timeit_number: ClassVar[int] = TIMEIT_FACTOR
+    started_ats: ClassVar[dict[type[TestCase], datetime]] = {}
+    counts: ClassVar[dict[type[TestCase], int]] = {}
     expected_factory_topic: str
 
     def test_example_application(self):
@@ -137,7 +135,7 @@ class ExampleApplicationTestCase(TestCase):
     def test__get_performance_without_snapshotting_enabled(self):
         self._test_get_performance(is_snapshotting_enabled=False)
 
-    def _test_get_performance(self, is_snapshotting_enabled: bool):
+    def _test_get_performance(self, *, is_snapshotting_enabled: bool):
         app = BankAccounts(
             env={"IS_SNAPSHOTTING_ENABLED": "y" if is_snapshotting_enabled else "n"}
         )
@@ -201,7 +199,7 @@ class BankAccounts(Application):
     is_snapshotting_enabled = True
 
     def register_transcodings(self, transcoder: Transcoder) -> None:
-        super(BankAccounts, self).register_transcodings(transcoder)
+        super().register_transcodings(transcoder)
         transcoder.register(EmailAddressAsStr())
 
     def open_account(self, full_name, email_address):
@@ -224,8 +222,8 @@ class BankAccounts(Application):
     def get_account(self, account_id: UUID) -> BankAccount:
         try:
             aggregate = self.repository.get(account_id)
-        except AggregateNotFound:
-            raise self.AccountNotFoundError(account_id)
+        except AggregateNotFoundError:
+            raise self.AccountNotFoundError(account_id) from None
         else:
             assert isinstance(aggregate, BankAccount)
             return aggregate
@@ -496,7 +494,3 @@ class ApplicationTestCase(TestCase):
         self.assertEqual(
             "'log' is deprecated, use 'notifications' instead", w[-1].message.args[0]
         )
-
-    def test_process_event_class(self):
-        # Check the old 'ProcessEvent' class still works.
-        self.assertTrue(issubclass(ProcessEvent, ProcessingEvent))

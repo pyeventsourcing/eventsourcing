@@ -1,20 +1,29 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Iterator, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Dict, Iterator, Union, cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from eventsourcing.application import AggregateNotFound, Application, EventSourcedLog
+from eventsourcing.application import (
+    AggregateNotFoundError,
+    Application,
+    EventSourcedLog,
+)
 from eventsourcing.examples.contentmanagement.domainmodel import Index, Page, PageLogged
-from eventsourcing.utils import EnvType
+
+if TYPE_CHECKING:  # pragma: nocover
+    from eventsourcing.domain import MutableOrImmutableAggregate
+    from eventsourcing.utils import EnvType
 
 PageDetailsType = Dict[str, Union[str, Any]]
 
 
 class ContentManagementApplication(Application):
-    env = {"COMPRESSOR_TOPIC": "gzip"}
-    snapshotting_intervals = {Page: 5}
+    env: ClassVar[dict[str, str]] = {"COMPRESSOR_TOPIC": "gzip"}
+    snapshotting_intervals: ClassVar[dict[type[MutableOrImmutableAggregate], int]] = {
+        Page: 5
+    }
 
-    def __init__(self, env: Optional[EnvType] = None) -> None:
+    def __init__(self, env: EnvType | None = None) -> None:
         super().__init__(env)
         self.page_log: EventSourcedLog[PageLogged] = EventSourcedLog(
             self.events, uuid5(NAMESPACE_URL, "/page_log"), PageLogged
@@ -54,13 +63,13 @@ class ContentManagementApplication(Application):
         old_index.update_ref(None)
         try:
             new_index = self._get_index(new_slug)
-        except AggregateNotFound:
+        except AggregateNotFoundError:
             new_index = Index(new_slug, page.id)
         else:
             if new_index.ref is None:
                 new_index.update_ref(page.id)
             else:
-                raise SlugConflictError()
+                raise SlugConflictError
         self.save(page, old_index, new_index)
 
     def update_body(self, slug: str, body: str) -> None:
@@ -71,10 +80,10 @@ class ContentManagementApplication(Application):
     def _get_page_by_slug(self, slug: str) -> Page:
         try:
             index = self._get_index(slug)
-        except AggregateNotFound:
-            raise PageNotFound(slug)
+        except AggregateNotFoundError:
+            raise PageNotFoundError(slug) from None
         if index.ref is None:
-            raise PageNotFound(slug)
+            raise PageNotFoundError(slug)
         page_id = index.ref
         return self._get_page_by_id(page_id)
 
@@ -86,17 +95,18 @@ class ContentManagementApplication(Application):
 
     def get_pages(
         self,
-        gt: Optional[int] = None,
-        lte: Optional[int] = None,
+        *,
+        gt: int | None = None,
+        lte: int | None = None,
         desc: bool = False,
-        limit: Optional[int] = None,
+        limit: int | None = None,
     ) -> Iterator[PageDetailsType]:
-        for page_logged in self.page_log.get(gt, lte, desc, limit):
+        for page_logged in self.page_log.get(gt=gt, lte=lte, desc=desc, limit=limit):
             page = self._get_page_by_id(page_logged.page_id)
             yield self._details_from_page(page)
 
 
-class PageNotFound(Exception):
+class PageNotFoundError(Exception):
     """
     Raised when a page is not found.
     """

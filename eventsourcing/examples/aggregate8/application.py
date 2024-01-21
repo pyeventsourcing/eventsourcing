@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict
-from uuid import UUID
+from typing import TYPE_CHECKING, Any
 
 from eventsourcing.application import Application
 from eventsourcing.examples.aggregate8.domainmodel import Dog, Trick
@@ -9,7 +8,11 @@ from eventsourcing.examples.aggregate8.persistence import (
     OrjsonTranscoder,
     PydanticMapper,
 )
-from eventsourcing.persistence import Mapper, Transcoder
+
+if TYPE_CHECKING:  # pragma: nocover
+    from uuid import UUID
+
+    from eventsourcing.persistence import Mapper, Transcoder
 
 
 class DogSchool(Application):
@@ -25,11 +28,11 @@ class DogSchool(Application):
         dog.add_trick(Trick(name=trick))
         self.save(dog)
 
-    def get_dog(self, dog_id: UUID) -> Dict[str, Any]:
+    def get_dog(self, dog_id: UUID) -> dict[str, Any]:
         dog: Dog = self.repository.get(dog_id)
         return {
             "name": dog.name,
-            "tricks": tuple(dog.tricks),
+            "tricks": tuple([t.name for t in dog.tricks]),
             "created_on": dog.created_on,
             "modified_on": dog.modified_on,
         }

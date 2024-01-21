@@ -1,4 +1,6 @@
-from typing import List, cast
+from __future__ import annotations
+
+from typing import cast
 
 from eventsourcing.dispatch import singledispatchmethod
 from eventsourcing.domain import Aggregate
@@ -16,7 +18,7 @@ class Dog(Aggregate):
         trick: str
 
     @classmethod
-    def register(cls, name: str) -> "Dog":
+    def register(cls, name: str) -> Dog:
         return cls._create(cls.Registered, name=name)
 
     def add_trick(self, trick: str) -> None:
@@ -27,10 +29,10 @@ class Dog(Aggregate):
         """Applies event to aggregate."""
 
     @apply.register
-    def _(self, event: Registered) -> None:
+    def _(self, event: Dog.Registered) -> None:
         self.name = event.name
-        self.tricks: List[str] = []
+        self.tricks: list[str] = []
 
     @apply.register
-    def _(self, event: TrickAdded) -> None:
+    def _(self, event: Dog.TrickAdded) -> None:
         self.tricks.append(event.trick)

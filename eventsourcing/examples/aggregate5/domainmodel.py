@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Iterable, Optional, Tuple, Type, TypeVar
+from typing import Any, Iterable, TypeVar
 from uuid import UUID, uuid4
 
 from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain import Snapshot
+from eventsourcing.domain import Snapshot  # noqa: TCH001
 
 
 @dataclass(frozen=True)
@@ -32,7 +32,7 @@ class Aggregate:
 
     def trigger_event(
         self,
-        event_class: Type[DomainEvent],
+        event_class: type[DomainEvent],
         **kwargs: Any,
     ) -> DomainEvent:
         kwargs = kwargs.copy()
@@ -45,10 +45,10 @@ class Aggregate:
 
     @classmethod
     def projector(
-        cls: Type[TAggregate],
-        aggregate: Optional[TAggregate],
+        cls: type[TAggregate],
+        aggregate: TAggregate | None,
         events: Iterable[DomainEvent],
-    ) -> Optional[TAggregate]:
+    ) -> TAggregate | None:
         for event in events:
             aggregate = cls.mutate(event, aggregate)
         return aggregate
@@ -62,7 +62,7 @@ class Aggregate:
 @dataclass(frozen=True)
 class Dog(Aggregate):
     name: str
-    tricks: Tuple[str, ...]
+    tricks: tuple[str, ...]
 
     @dataclass(frozen=True)
     class Registered(DomainEvent):
@@ -73,7 +73,7 @@ class Dog(Aggregate):
         trick: str
 
     @staticmethod
-    def register(name: str) -> Tuple[Dog, DomainEvent]:
+    def register(name: str) -> tuple[Dog, DomainEvent]:
         event = Dog.Registered(
             originator_id=uuid4(),
             originator_version=1,
@@ -83,31 +83,31 @@ class Dog(Aggregate):
         dog = Dog.mutate(event, None)
         return dog, event
 
-    def add_trick(self, trick: str) -> Tuple[Dog, DomainEvent]:
+    def add_trick(self, trick: str) -> tuple[Dog, DomainEvent]:
         event = self.trigger_event(Dog.TrickAdded, trick=trick)
         dog = Dog.mutate(event, self)
         return dog, event
 
     @singledispatchmethod
     @classmethod
-    def mutate(cls, event: DomainEvent, aggregate: Optional[Dog]) -> Optional[Dog]:
+    def mutate(cls, event: DomainEvent, aggregate: Dog | None) -> Dog | None:
         """Mutates aggregate with event."""
 
     @mutate.register
     @classmethod
-    def _(cls, event: Dog.Registered, _: Optional[Dog]) -> Dog:
+    def _(cls, event: Dog.Registered, _: Dog | None) -> Dog:
         return Dog(
             id=event.originator_id,
             version=event.originator_version,
             created_on=event.timestamp,
             modified_on=event.timestamp,
             name=event.name,
-            tricks=tuple(),
+            tricks=(),
         )
 
     @mutate.register
     @classmethod
-    def _(cls, event: Dog.TrickAdded, aggregate: Optional[Dog]) -> Dog:
+    def _(cls, event: Dog.TrickAdded, aggregate: Dog | None) -> Dog:
         assert aggregate is not None
         return Dog(
             id=aggregate.id,
@@ -115,12 +115,12 @@ class Dog(Aggregate):
             created_on=aggregate.created_on,
             modified_on=event.timestamp,
             name=aggregate.name,
-            tricks=aggregate.tricks + (event.trick,),
+            tricks=(*aggregate.tricks, event.trick),
         )
 
     @mutate.register
     @classmethod
-    def _(cls, event: Snapshot, _: Optional[Dog]) -> Dog:
+    def _(cls, event: Snapshot, _: Dog | None) -> Dog:
         return Dog(
             id=event.state["id"],
             version=event.state["version"],

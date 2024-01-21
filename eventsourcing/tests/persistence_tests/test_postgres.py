@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import sys
 from threading import Event, Thread
 from time import sleep
-from typing import List
 from unittest import TestCase, skipIf
 from uuid import uuid4
 
@@ -56,7 +57,7 @@ class TestPostgresDatastore(TestCase):
             host="127.0.0.1",
             port="5432",
             user="eventsourcing",
-            password="eventsourcing",
+            password="eventsourcing",  # noqa: S106
         )
         self.assertIsInstance(datastore.pool, ConnectionPool)
 
@@ -66,7 +67,7 @@ class TestPostgresDatastore(TestCase):
             host="127.0.0.1",
             port="5432",
             user="eventsourcing",
-            password="eventsourcing",
+            password="eventsourcing",  # noqa: S106
         )
         conn: Connection
         with datastore.get_connection() as conn:
@@ -91,7 +92,7 @@ class TestPostgresDatastore(TestCase):
             host="127.0.0.1",
             port="5432",
             user="eventsourcing",
-            password="eventsourcing",
+            password="eventsourcing",  # noqa: S106
         )
         for expected_exc_type, raised_exc, expect_conn_closed in cases:
             with self.assertRaises(expected_exc_type):
@@ -107,7 +108,7 @@ class TestPostgresDatastore(TestCase):
             host="127.0.0.1",
             port="5432",
             user="eventsourcing",
-            password="eventsourcing",
+            password="eventsourcing",  # noqa: S106
         )
         # As a convenience, we can use the transaction() method.
         with datastore.transaction(commit=False) as curs:
@@ -120,24 +121,22 @@ class TestPostgresDatastore(TestCase):
             host="127.0.0.1",
             port="4321",  # wrong port
             user="eventsourcing",
-            password="eventsourcing",
+            password="eventsourcing",  # noqa: S106
             pool_open_timeout=2,
         )
-        with self.assertRaises(OperationalError):
-            with datastore.get_connection():
-                pass
+        with self.assertRaises(OperationalError), datastore.get_connection():
+            pass
 
         datastore = PostgresDatastore(
             dbname="eventsourcing",
             host="127.0.0.1",
             port="987654321",  # bad value
             user="eventsourcing",
-            password="eventsourcing",
+            password="eventsourcing",  # noqa: S106
             pool_open_timeout=2,
         )
-        with self.assertRaises(OperationalError):
-            with datastore.get_connection():
-                pass
+        with self.assertRaises(OperationalError), datastore.get_connection():
+            pass
 
     @skipIf(
         sys.version_info[:2] < (3, 8),
@@ -145,26 +144,22 @@ class TestPostgresDatastore(TestCase):
     )
     def test_pre_ping(self):
         # Define method to open and close a connection, and then execute a statement.
-        def open_close_execute(pre_ping: bool):
+        def open_close_execute(*, pre_ping: bool):
             datastore = PostgresDatastore(
                 dbname="eventsourcing",
                 host="127.0.0.1",
                 port="5432",
                 user="eventsourcing",
-                password="eventsourcing",
+                password="eventsourcing",  # noqa: S106
                 pool_size=1,
                 pre_ping=pre_ping,
             )
 
             # Create a connection.
             conn: Connection
-            with datastore.get_connection() as conn:
-                pass
-
-                # Check the connection works.
-                with conn.cursor() as curs:
-                    curs.execute("SELECT 1")
-                    self.assertEqual(curs.fetchall(), [{"?column?": 1}])
+            with datastore.get_connection() as conn, conn.cursor() as curs:
+                curs.execute("SELECT 1")
+                self.assertEqual(curs.fetchall(), [{"?column?": 1}])
 
             # Close all connections via separate connection.
             pg_close_all_connections()
@@ -194,25 +189,25 @@ class TestPostgresDatastore(TestCase):
             host="127.0.0.1",
             port="5432",
             user="eventsourcing",
-            password="eventsourcing",
+            password="eventsourcing",  # noqa: S106
             idle_in_transaction_session_timeout=1,
         )
 
         # Error on commit is raised.
-        with self.assertRaises(OperationalError):
-            with datastore.get_connection() as curs:
-                curs.execute("BEGIN")
-                curs.execute("SELECT 1")
-                self.assertFalse(curs.closed)
-                sleep(2)
+        with self.assertRaises(OperationalError), datastore.get_connection() as curs:
+            curs.execute("BEGIN")
+            curs.execute("SELECT 1")
+            self.assertFalse(curs.closed)
+            sleep(2)
 
         # Error on commit is raised.
-        with self.assertRaises(OperationalError):
-            with datastore.transaction(commit=True) as curs:
-                # curs.execute("BEGIN")
-                curs.execute("SELECT 1")
-                self.assertFalse(curs.closed)
-                sleep(2)
+        with self.assertRaises(OperationalError), datastore.transaction(
+            commit=True
+        ) as curs:
+            # curs.execute("BEGIN")
+            curs.execute("SELECT 1")
+            self.assertFalse(curs.closed)
+            sleep(2)
 
         # Force rollback. Error is ignored.
         with datastore.transaction(commit=False) as curs:
@@ -230,7 +225,17 @@ class TestPostgresDatastore(TestCase):
 
 # Use maximally long identifier for table name.
 EVENTS_TABLE_NAME = "s" * 50 + "stored_events"
-assert len(EVENTS_TABLE_NAME) == 63
+
+MAX_IDENTIFIER_LEN = 63
+
+
+def _check_identifier_is_max_len(identifier):
+    if len(identifier) != MAX_IDENTIFIER_LEN:
+        msg = "Expected length of name string to be max identifier length"
+        raise ValueError(msg)
+
+
+_check_identifier_is_max_len(EVENTS_TABLE_NAME)
 
 
 class SetupPostgresDatastore(TestCase):
@@ -495,14 +500,13 @@ class TestPostgresApplicationRecorder(
         table_lock_timed_out = Event()
 
         def insert1():
-            conn: Connection
-            with self.datastore.get_connection() as conn:
-                with conn.transaction(), conn.cursor() as curs:
-                    # Lock table.
-                    recorder._insert_stored_events(curs, [stored_event1])
-                    table_lock_acquired.set()
-                    # Wait for other thread to timeout.
-                    test_ended.wait(timeout=5)  # keep the lock
+            conn = self.datastore.get_connection()
+            with conn as conn, conn.transaction(), conn.cursor() as curs:
+                # Lock table.
+                recorder._insert_stored_events(curs, [stored_event1])
+                table_lock_acquired.set()
+                # Wait for other thread to timeout.
+                test_ended.wait(timeout=5)  # keep the lock
 
         def insert2():
             try:
@@ -567,7 +571,7 @@ class TestPostgresApplicationRecorderErrors(SetupPostgresDatastore, TestCase):
             recorder.max_notification_id()
 
     def test_fetch_ids_after_insert_events(self):
-        def make_events() -> List[StoredEvent]:
+        def make_events() -> list[StoredEvent]:
             return [
                 StoredEvent(
                     originator_id=uuid4(),
@@ -597,11 +601,9 @@ class TestPostgresApplicationRecorderErrors(SetupPostgresDatastore, TestCase):
             recorder.lock_table_statements = []
             recorder.insert_events(make_events())
 
-        return
-
 
 TRACKING_TABLE_NAME = "n" * 42 + "notification_tracking"
-assert len(TRACKING_TABLE_NAME) == 63
+_check_identifier_is_max_len(TRACKING_TABLE_NAME)
 
 
 class TestPostgresProcessRecorder(SetupPostgresDatastore, ProcessRecorderTestCase):
@@ -783,7 +785,7 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
         self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.pool.max_size, 12)
 
-    def test_pool_size_is_Set(self):
+    def test_pool_size_is_set(self):
         self.env[Factory.POSTGRES_POOL_SIZE] = "6"
         self.factory = Factory(self.env)
         self.assertEqual(self.factory.datastore.pool.min_size, 6)
@@ -921,7 +923,7 @@ class TestPostgresInfrastructureFactory(InfrastructureFactoryTestCase):
             "is invalid. If set, an integer or empty string is expected: 'abc'",
         )
 
-    def test_environment_error_raised_when_idle_in_transaction_session_timeout_not_an_integer(
+    def test_environment_error_raised_when_idle_in_transaction_session_timeout_not_int(
         self,
     ):
         self.env[Factory.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT] = "abc"

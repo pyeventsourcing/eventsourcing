@@ -1,18 +1,23 @@
-from datetime import datetime
-from typing import List, cast
-from uuid import UUID
+from __future__ import annotations
 
-from eventsourcing.application import ProcessingEvent
+from typing import TYPE_CHECKING, cast
+
 from eventsourcing.examples.cargoshipping.application import BookingApplication
 from eventsourcing.examples.cargoshipping.domainmodel import Cargo
 from eventsourcing.examples.searchabletimestamps.persistence import (
     SearchableTimestampsRecorder,
 )
-from eventsourcing.persistence import Recording
+
+if TYPE_CHECKING:  # pragma: nocover
+    from datetime import datetime
+    from uuid import UUID
+
+    from eventsourcing.application import ProcessingEvent
+    from eventsourcing.persistence import Recording
 
 
 class SearchableTimestampsApplication(BookingApplication):
-    def _record(self, processing_event: ProcessingEvent) -> List[Recording]:
+    def _record(self, processing_event: ProcessingEvent) -> list[Recording]:
         event_timestamps_data = [
             (e.originator_id, e.timestamp, e.originator_version)
             for e in processing_event.events

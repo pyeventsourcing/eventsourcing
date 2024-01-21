@@ -183,7 +183,7 @@ class TestAggregateCreation(TestCase):
         # Check the init method takes no args (except "self").
         init_params = inspect.signature(MyAggregate2.__init__).parameters
         self.assertEqual(len(init_params), 1)
-        self.assertEqual(list(init_params)[0], "self")
+        self.assertEqual(next(iter(init_params)), "self")
 
         #
         # Do it again with custom "created" event.
@@ -232,7 +232,7 @@ class TestAggregateCreation(TestCase):
         # Check the init method takes no args (except "self").
         init_params = inspect.signature(MyAggregate2.__init__).parameters
         self.assertEqual(len(init_params), 1)
-        self.assertEqual(list(init_params)[0], "self")
+        self.assertEqual(next(iter(init_params)), "self")
 
         #
         # Do it again with custom "created" event.
@@ -537,7 +537,7 @@ class TestAggregateCreation(TestCase):
     def test_raises_when_init_has_variable_positional_params(self):
         with self.assertRaises(TypeError) as cm:
 
-            class _(Aggregate):
+            class _(Aggregate):  # noqa: N801
                 def __init__(self, *values):
                     pass
 
@@ -548,7 +548,7 @@ class TestAggregateCreation(TestCase):
     def test_raises_when_init_has_variable_keyword_params(self):
         with self.assertRaises(TypeError) as cm:
 
-            class _(Aggregate):
+            class _(Aggregate):  # noqa: N801
                 def __init__(self, **values):
                     pass
 
@@ -804,7 +804,7 @@ class TestAggregateCreation(TestCase):
 
     def test_init_has_id_explicitly(self):
         class Index(Aggregate):
-            def __init__(self, id: UUID, name: str):
+            def __init__(self, id: UUID, name: str):  # noqa: A002
                 self._id = id
                 self.name = name
 
@@ -899,8 +899,8 @@ class TestSubsequentEvents(TestCase):
     #     self.assertTrue(msg.startswith("Unexpected value returned from "), msg)
     #     self.assertTrue(
     #         msg.endswith(
-    #             "MyAgg.ValueUpdated.apply(). Values returned from 'apply' methods are "
-    #             "discarded."
+    #             "MyAgg.ValueUpdated.apply(). Values returned from 'apply' methods are"
+    #             " discarded."
     #         ),
     #         msg,
     #     )
@@ -1108,10 +1108,10 @@ class TestBankAccount(TestCase):
         )
 
         # Check the created_on.
-        assert account.created_on == account.modified_on
+        self.assertEqual(account.created_on, account.modified_on)
 
         # Check the initial balance.
-        assert account.balance == 0
+        self.assertEqual(account.balance, 0)
 
         # Credit the account.
         account.append_transaction(Decimal("10.00"))
@@ -1120,19 +1120,19 @@ class TestBankAccount(TestCase):
         assert account.created_on < account.modified_on
 
         # Check the balance.
-        assert account.balance == Decimal("10.00")
+        self.assertEqual(account.balance, Decimal("10.00"))
 
         # Credit the account again.
         account.append_transaction(Decimal("10.00"))
 
         # Check the balance.
-        assert account.balance == Decimal("20.00")
+        self.assertEqual(account.balance, Decimal("20.00"))
 
         # Debit the account.
         account.append_transaction(Decimal("-15.00"))
 
         # Check the balance.
-        assert account.balance == Decimal("5.00")
+        self.assertEqual(account.balance, Decimal("5.00"))
 
         # Fail to debit account (insufficient funds).
         with self.assertRaises(InsufficientFundsError):
@@ -1145,7 +1145,7 @@ class TestBankAccount(TestCase):
         account.append_transaction(Decimal("-15.00"))
 
         # Check the balance.
-        assert account.balance == Decimal("-10.00")
+        self.assertEqual(account.balance, Decimal("-10.00"))
 
         # Close the account.
         account.close()
@@ -1156,4 +1156,4 @@ class TestBankAccount(TestCase):
 
         # Collect pending events.
         pending = account.collect_events()
-        assert len(pending) == 7
+        self.assertEqual(len(pending), 7)

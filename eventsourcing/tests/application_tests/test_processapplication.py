@@ -74,7 +74,7 @@ class TestProcessApplication(TestCase):
 
 class EmailProcess(ProcessApplication):
     def register_transcodings(self, transcoder: Transcoder) -> None:
-        super(EmailProcess, self).register_transcodings(transcoder)
+        super().register_transcodings(transcoder)
         transcoder.register(EmailAddressAsStr())
 
     @singledispatchmethod
@@ -94,7 +94,7 @@ class EmailProcess(ProcessApplication):
         notification = EmailNotification.create(
             to=domain_event.email_address,
             subject="Your New Account",
-            message="Dear {}, ...".format(domain_event.full_name),
+            message=f"Dear {domain_event.full_name}, ...",
         )
         processing_event.collect_events(notification)
 

@@ -23,7 +23,7 @@ class WithPostgres(TestCase):
         os.environ["POSTGRES_HOST"] = "127.0.0.1"
         os.environ["POSTGRES_PORT"] = "5432"
         os.environ["POSTGRES_USER"] = "eventsourcing"
-        os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
+        os.environ["POSTGRES_PASSWORD"] = "eventsourcing"  # noqa: S105
         os.environ["POSTGRES_SCHEMA"] = "public"
 
         db = PostgresDatastore(

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import List
-from uuid import UUID
+from datetime import datetime  # noqa: TCH003
+from uuid import UUID  # noqa: TCH003
 
 from pydantic import BaseModel, Extra
 
@@ -48,7 +47,7 @@ class Trick(BaseModel):
 
 class DogState(SnapshotState):
     name: str
-    tricks: List[Trick]
+    tricks: list[Trick]
 
 
 class Dog(Aggregate):
@@ -58,7 +57,7 @@ class Dog(Aggregate):
     @event("Registered")
     def __init__(self, name: str) -> None:
         self.name = name
-        self.tricks: List[Trick] = []
+        self.tricks: list[Trick] = []
 
     @event("TrickAdded")
     def add_trick(self, trick: Trick) -> None:

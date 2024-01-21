@@ -1,3 +1,4 @@
+import contextlib
 import os
 import sys
 from os.path import dirname, join
@@ -66,17 +67,15 @@ class TestDocs(TestCase):
             "AGGREGATE_CACHE_MAXSIZE",
         ]
         for key in keys:
-            try:
+            with contextlib.suppress(KeyError):
                 del os.environ[key]
-            except KeyError:
-                pass
 
     def test_readme(self):
         self._out = ""
 
         path = join(base_dir, "README.md")
         if not os.path.exists(path):
-            self.skipTest("Skipped test, README file not found: {}".format(path))
+            self.skipTest(f"Skipped test, README file not found: {path}")
 
         try:
             self.check_code_snippets_in_file(path)
@@ -97,7 +96,7 @@ class TestDocs(TestCase):
         docs_path = os.path.join(base_dir, "docs")
 
         if not os.path.exists(docs_path):
-            self.skipTest("Skipped test, docs folder not found: {}".format(docs_path))
+            self.skipTest(f"Skipped test, docs folder not found: {docs_path}")
 
         file_paths = []
         for dirpath, _, filenames in os.walk(docs_path):
@@ -137,7 +136,7 @@ class TestDocs(TestCase):
             # print("Testing code snippets in file: {}".format(path))
             try:
                 self.check_code_snippets_in_file(path)
-            except self.failureException as e:
+            except self.failureException as e:  # noqa: PERF203
                 failures.append(e)
                 failed.append(path)
                 print(str(e).strip("\n"))
@@ -150,7 +149,7 @@ class TestDocs(TestCase):
             finally:
                 self.clean_env()
 
-        print("{} failed, {} passed".format(len(failed), len(passed)))
+        print(f"{len(failed)} failed, {len(passed)} passed")
 
         if failures:
             raise failures[0]
@@ -238,18 +237,17 @@ class TestDocs(TestCase):
                 elif ":emphasize-lines:" in line:
                     line = ""
                 elif is_code:
-                    # Process line in code block.
-                    if is_rst:
-                        # Restructured code block normally indented with four spaces.
-                        if len(line.strip()):
-                            if not line.startswith("    "):
-                                self.fail(
-                                    "Code line needs 4-char indent: {}: {}".format(
-                                        repr(line), doc_path
-                                    )
+                    # Process line in code block. Restructured code block normally
+                    # indented with four spaces.
+                    if is_rst and len(line.strip()):
+                        if not line.startswith("    "):
+                            self.fail(
+                                "Code line needs 4-char indent: {}: {}".format(
+                                    repr(line), doc_path
                                 )
-                            # Strip four chars of indentation.
-                            line = line[4:]
+                            )
+                        # Strip four chars of indentation.
+                        line = line[4:]
 
                     if len(line.strip()):
                         num_code_lines_in_block += 1
@@ -260,7 +258,7 @@ class TestDocs(TestCase):
                 # if orig_line.strip():
                 last_line = orig_line
 
-        print("{} lines of code in {}".format(num_code_lines, doc_path))
+        print(f"{num_code_lines} lines of code in {doc_path}")
 
         source = "\n".join(lines) + "\n"
 
@@ -272,7 +270,7 @@ class TestDocs(TestCase):
 
         # Run the code and catch errors.
         p = Popen(
-            [sys.executable, temp_path],
+            [sys.executable, temp_path],  # noqa: S603
             stdout=PIPE,
             stderr=PIPE,
             env={"PYTHONPATH": base_dir},

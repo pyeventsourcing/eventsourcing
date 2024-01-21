@@ -1,18 +1,22 @@
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Any, List, Optional, Sequence, Tuple, cast
+from typing import TYPE_CHECKING, Any, List, Sequence, Tuple, cast
 from uuid import UUID
 
 from eventsourcing.domain import Aggregate
 from eventsourcing.examples.searchabletimestamps.persistence import (
     SearchableTimestampsRecorder,
 )
-from eventsourcing.persistence import ApplicationRecorder, StoredEvent
 from eventsourcing.sqlite import (
     Factory,
     SQLiteApplicationRecorder,
     SQLiteCursor,
     SQLiteDatastore,
 )
+
+if TYPE_CHECKING:  # pragma: nocover
+    from eventsourcing.persistence import ApplicationRecorder, StoredEvent
 
 
 class SearchableTimestampsApplicationRecorder(
@@ -37,7 +41,7 @@ class SearchableTimestampsApplicationRecorder(
             "LIMIT 1"
         )
 
-    def construct_create_table_statements(self) -> List[str]:
+    def construct_create_table_statements(self) -> list[str]:
         statements = super().construct_create_table_statements()
         statements.append(
             "CREATE TABLE IF NOT EXISTS "
@@ -53,9 +57,9 @@ class SearchableTimestampsApplicationRecorder(
     def _insert_events(
         self,
         c: SQLiteCursor,
-        stored_events: List[StoredEvent],
+        stored_events: list[StoredEvent],
         **kwargs: Any,
-    ) -> Optional[Sequence[int]]:
+    ) -> Sequence[int] | None:
         notification_ids = super()._insert_events(c, stored_events, **kwargs)
 
         # Insert event timestamps.
@@ -72,15 +76,17 @@ class SearchableTimestampsApplicationRecorder(
 
     def get_version_at_timestamp(
         self, originator_id: UUID, timestamp: datetime
-    ) -> Optional[int]:
+    ) -> int | None:
         with self.datastore.transaction(commit=False) as c:
             c.execute(
                 self.select_event_timestamp_statement, (originator_id.hex, timestamp)
             )
             for row in c.fetchall():
-                return row["originator_version"]
+                version = row["originator_version"]
+                break
             else:
-                return Aggregate.INITIAL_VERSION - 1
+                version = Aggregate.INITIAL_VERSION - 1
+            return version
 
 
 class SearchableTimestampsInfrastructureFactory(Factory):

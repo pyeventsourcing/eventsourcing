@@ -1,19 +1,21 @@
 from __future__ import annotations
 
-from typing import Any, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Sequence
 from uuid import UUID
 
-from eventsourcing.examples.contentmanagement.application import PageNotFound
+from eventsourcing.examples.contentmanagement.application import PageNotFoundError
 from eventsourcing.examples.searchablecontent.persistence import (
     SearchableContentRecorder,
 )
-from eventsourcing.persistence import StoredEvent
 from eventsourcing.sqlite import (
     Factory,
     SQLiteAggregateRecorder,
     SQLiteApplicationRecorder,
     SQLiteCursor,
 )
+
+if TYPE_CHECKING:  # pragma: nocover
+    from eventsourcing.persistence import StoredEvent
 
 
 class SQLiteSearchableContentRecorder(
@@ -34,7 +36,7 @@ class SQLiteSearchableContentRecorder(
         f"SELECT page_id FROM {pages_virtual_table_name} WHERE page_body MATCH ?"
     )
 
-    def construct_create_table_statements(self) -> List[str]:
+    def construct_create_table_statements(self) -> list[str]:
         statements = super().construct_create_table_statements()
         statements.append(
             "CREATE TABLE IF NOT EXISTS "
@@ -75,9 +77,9 @@ class SQLiteSearchableContentRecorder(
     def _insert_events(
         self,
         c: SQLiteCursor,
-        stored_events: List[StoredEvent],
+        stored_events: list[StoredEvent],
         **kwargs: Any,
-    ) -> Optional[Sequence[int]]:
+    ) -> Sequence[int] | None:
         notification_ids = super()._insert_events(c, stored_events, **kwargs)
         self._insert_pages(c, **kwargs)
         self._update_pages(c, **kwargs)
@@ -86,7 +88,7 @@ class SQLiteSearchableContentRecorder(
     def _insert_pages(
         self,
         c: SQLiteCursor,
-        insert_pages: Sequence[Tuple[UUID, str, str, str]] = (),
+        insert_pages: Sequence[tuple[UUID, str, str, str]] = (),
         **_: Any,
     ) -> None:
         for page_id, page_slug, page_title, page_body in insert_pages:
@@ -98,7 +100,7 @@ class SQLiteSearchableContentRecorder(
     def _update_pages(
         self,
         c: SQLiteCursor,
-        update_pages: Sequence[Tuple[UUID, str, str, str]] = (),
+        update_pages: Sequence[tuple[UUID, str, str, str]] = (),
         **_: Any,
     ) -> None:
         for page_id, page_slug, page_title, page_body in update_pages:
@@ -107,22 +109,18 @@ class SQLiteSearchableContentRecorder(
                 (page_slug, page_title, page_body, str(page_id)),
             )
 
-    def search_pages(self, query: str) -> List[UUID]:
-        page_slugs = []
-
+    def search_pages(self, query: str) -> list[UUID]:
         with self.datastore.transaction(commit=False) as c:
             c.execute(self.search_pages_statement, [query])
-            for row in c.fetchall():
-                page_slugs.append(UUID(row["page_id"]))
+            return [UUID(row["page_id"]) for row in c.fetchall()]
 
-        return page_slugs
-
-    def select_page(self, page_id: UUID) -> Tuple[str, str, str]:
+    def select_page(self, page_id: UUID) -> tuple[str, str, str]:
         with self.datastore.transaction(commit=False) as c:
             c.execute(self.select_page_statement, [str(page_id)])
             for row in c.fetchall():
                 return row["page_slug"], row["page_title"], row["page_body"]
-        raise PageNotFound(f"Page ID {page_id} not found")
+        msg = f"Page ID {page_id} not found"
+        raise PageNotFoundError(msg)
 
 
 class SearchableContentApplicationRecorder(

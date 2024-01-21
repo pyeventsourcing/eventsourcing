@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import json
 import threading
 from abc import abstractmethod
 from http.client import HTTPConnection
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Event, Thread
-from typing import Callable, List, Sequence
+from typing import Callable, ClassVar, Sequence
 from unittest.case import TestCase
 from uuid import UUID
 
@@ -87,14 +89,14 @@ class TestRemoteNotificationLog(TestCase):
                 client = BankAccountsJSONClient(
                     BankAccountsHTTPClient(server_address=server_address)
                 )
-                for _ in range(30):
-                    try:
+                try:
+                    for _ in range(30):
                         client.open_account("Alice", "alice@example.com")
-                        # print(threading.get_ident(), account_id1)
-                    except Exception as e:
-                        print(threading.get_ident(), "error:", e)
-                        self.has_errors = True
-                        raise
+                    # print(threading.get_ident(), account_id1)
+                except Exception as e:
+                    print(threading.get_ident(), "error:", e)
+                    self.has_errors = True
+                    raise
 
             thread1 = Thread(target=open_account)
             thread1.start()
@@ -161,10 +163,10 @@ class BankAccountsJSONClient:
 
 
 class HTTPApplicationServer(Thread):
-    prepare: List[Callable] = []
+    prepare: ClassVar[list[Callable]] = []
 
     def __init__(self, address, handler):
-        super(HTTPApplicationServer, self).__init__(daemon=True)
+        super().__init__(daemon=True)
         self.server = HTTPServer(
             server_address=address,
             RequestHandlerClass=handler,
@@ -187,7 +189,7 @@ class HTTPApplicationServer(Thread):
 
 
 class BankAccountsHTTPHandler(BaseHTTPRequestHandler):
-    def do_PUT(self):
+    def do_PUT(self):  # noqa: N802
         if self.path.startswith("/accounts/"):
             length = int(self.headers["Content-Length"])
             request_msg = self.rfile.read(length).decode("utf8")
@@ -198,7 +200,7 @@ class BankAccountsHTTPHandler(BaseHTTPRequestHandler):
             status = 404
         self.send(body, status)
 
-    def do_GET(self):
+    def do_GET(self):  # noqa: N802
         if self.path.startswith("/notifications/"):
             section_id = self.path.split("/")[-1]
             body = bank_accounts_service.get_log_section(section_id)
@@ -229,7 +231,7 @@ class BankAccountsHTTPClient(BankAccountsInterface):
         self.connection = HTTPConnection(*server_address)
 
     def get_log_section(self, section_id: str) -> str:
-        return self._request("GET", "/notifications/{}".format(section_id))
+        return self._request("GET", f"/notifications/{section_id}")
 
     def get_notifications(
         self, start: int, limit: int, topics: Sequence[str] = ()
@@ -250,5 +252,5 @@ bank_accounts_service: BankAccountsInterface
 
 @HTTPApplicationServer.before_first_request
 def init_bank_accounts() -> None:
-    global bank_accounts_service
+    global bank_accounts_service  # noqa: PLW0603
     bank_accounts_service = BankAccountsJSONService(BankAccounts())

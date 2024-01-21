@@ -8,21 +8,17 @@ from queue import Full, Queue
 from threading import Event, Lock, RLock, Thread
 from types import FrameType, ModuleType
 from typing import (
-    Dict,
+    ClassVar,
     Iterable,
     Iterator,
     List,
     Optional,
     Sequence,
-    Set,
     Tuple,
-    Type,
     Union,
     cast,
 )
 
-# For backwards compatibility of import statements...
-from eventsourcing.application import ProcessEvent  # noqa: F401
 from eventsourcing.application import (
     Application,
     NotificationLog,
@@ -54,13 +50,13 @@ class Follower(Application):
     new domain event notifications through its :func:`policy` method.
     """
 
-    follow_topics: Sequence[str] = []
+    follow_topics: ClassVar[Sequence[str]] = []
     pull_section_size = 10
 
-    def __init__(self, env: Optional[EnvType] = None) -> None:
+    def __init__(self, env: EnvType | None = None) -> None:
         super().__init__(env)
-        self.readers: Dict[str, NotificationLogReader] = {}
-        self.mappers: Dict[str, Mapper] = {}
+        self.readers: dict[str, NotificationLogReader] = {}
+        self.mappers: dict[str, Mapper] = {}
         self.recorder: ProcessRecorder
         self.is_threading_enabled = False
         self.processing_lock = RLock()
@@ -90,7 +86,7 @@ class Follower(Application):
 
     # @retry(IntegrityError, max_attempts=100)
     def pull_and_process(
-        self, leader_name: str, start: Optional[int] = None, stop: Optional[int] = None
+        self, leader_name: str, start: int | None = None, stop: int | None = None
     ) -> None:
         """
         Pull and process new domain event notifications.
@@ -107,8 +103,8 @@ class Follower(Application):
                 self.process_event(domain_event, tracking)
 
     def pull_notifications(
-        self, leader_name: str, start: int, stop: Optional[int] = None
-    ) -> Iterator[List[Notification]]:
+        self, leader_name: str, start: int, stop: int | None = None
+    ) -> Iterator[list[Notification]]:
         """
         Pulls batches of unseen :class:`~eventsourcing.persistence.Notification`
         objects from the notification log reader of the named application.
@@ -118,16 +114,15 @@ class Follower(Application):
         )
 
     def filter_received_notifications(
-        self, notifications: List[Notification]
-    ) -> List[Notification]:
+        self, notifications: list[Notification]
+    ) -> list[Notification]:
         if self.follow_topics:
             return [n for n in notifications if n.topic in self.follow_topics]
-        else:
-            return notifications
+        return notifications
 
     def convert_notifications(
         self, leader_name: str, notifications: Iterable[Notification]
-    ) -> List[ProcessingJob]:
+    ) -> list[ProcessingJob]:
         """
         Uses the given :class:`~eventsourcing.persistence.Mapper` to convert
         each received :class:`~eventsourcing.persistence.Notification`
@@ -226,9 +221,9 @@ class Leader(Application):
     domain event notifications to be pulled and processed.
     """
 
-    def __init__(self, env: Optional[EnvType] = None) -> None:
+    def __init__(self, env: EnvType | None = None) -> None:
         super().__init__(env)
-        self.followers: List[RecordingEventReceiver] = []
+        self.followers: list[RecordingEventReceiver] = []
 
     def lead(self, follower: RecordingEventReceiver) -> None:
         """
@@ -236,7 +231,7 @@ class Leader(Application):
         """
         self.followers.append(follower)
 
-    def _notify(self, recordings: List[Recording]) -> None:
+    def _notify(self, recordings: list[Recording]) -> None:
         """
         Calls :func:`receive_recording_event` on each follower
         whenever new events have just been saved.
@@ -269,11 +264,11 @@ class System:
     Defines a system of applications.
     """
 
-    __caller_modules: Dict[int, ModuleType] = {}
+    __caller_modules: ClassVar[dict[int, ModuleType]] = {}
 
     def __init__(
         self,
-        pipes: Iterable[Iterable[Type[Application]]],
+        pipes: Iterable[Iterable[type[Application]]],
     ):
         # Remember the caller frame's module, so that we might identify a topic.
         caller_frame = cast(FrameType, cast(FrameType, inspect.currentframe()).f_back)
@@ -281,8 +276,8 @@ class System:
         type(self).__caller_modules[id(self)] = module
 
         # Build nodes and edges.
-        self.edges: List[Tuple[str, str]] = list()
-        classes: Dict[str, Type[Application]] = {}
+        self.edges: list[tuple[str, str]] = []
+        classes: dict[str, type[Application]] = {}
         for pipe in pipes:
             follower_cls = None
             for cls in pipe:
@@ -296,14 +291,14 @@ class System:
                     if edge not in self.edges:
                         self.edges.append(edge)
 
-        self.nodes: Dict[str, str] = {}
+        self.nodes: dict[str, str] = {}
         for name in classes:
             topic = get_topic(classes[name])
             self.nodes[name] = topic
 
         # Identify leaders and followers.
-        self.follows: Dict[str, List[str]] = defaultdict(list)
-        self.leads: Dict[str, List[str]] = defaultdict(list)
+        self.follows: dict[str, list[str]] = defaultdict(list)
+        self.leads: dict[str, list[str]] = defaultdict(list)
         for edge in self.edges:
             self.leads[edge[0]].append(edge[1])
             self.follows[edge[1]].append(edge[0])
@@ -325,50 +320,45 @@ class System:
                 raise TypeError("Not a process application class: %s" % classes[name])
 
     @property
-    def leaders(self) -> List[str]:
+    def leaders(self) -> list[str]:
         return list(self.leads.keys())
 
     @property
-    def leaders_only(self) -> List[str]:
-        return [name for name in self.leads.keys() if name not in self.follows]
+    def leaders_only(self) -> list[str]:
+        return [name for name in self.leads if name not in self.follows]
 
     @property
-    def followers(self) -> List[str]:
+    def followers(self) -> list[str]:
         return list(self.follows.keys())
 
     @property
-    def processors(self) -> List[str]:
-        return [name for name in self.leads.keys() if name in self.follows]
+    def processors(self) -> list[str]:
+        return [name for name in self.leads if name in self.follows]
 
-    def get_app_cls(self, name: str) -> Type[Application]:
+    def get_app_cls(self, name: str) -> type[Application]:
         cls = resolve_topic(self.nodes[name])
         assert issubclass(cls, Application)
         return cls
 
-    def leader_cls(self, name: str) -> Type[Leader]:
+    def leader_cls(self, name: str) -> type[Leader]:
         cls = self.get_app_cls(name)
         if issubclass(cls, Leader):
             return cls
-        else:
-            cls = type(
-                cls.name,
-                (Leader, cls),
-                {},
-            )
-            assert issubclass(cls, Leader)
-            return cls
+        cls = type(cls.name, (Leader, cls), {})
+        assert issubclass(cls, Leader)
+        return cls
 
-    def follower_cls(self, name: str) -> Type[Follower]:
+    def follower_cls(self, name: str) -> type[Follower]:
         cls = self.get_app_cls(name)
         assert issubclass(cls, Follower)
         return cls
 
     @property
-    def topic(self) -> Optional[str]:
+    def topic(self) -> str | None:
         """
         Returns a topic to the system object, if constructed as a module attribute.
         """
-        topic: Optional[str] = None
+        topic: str | None = None
         module = System.__caller_modules[id(self)]
         for name, value in module.__dict__.items():
             if value is self:
@@ -382,7 +372,7 @@ class Runner(ABC):
     Abstract base class for system runners.
     """
 
-    def __init__(self, system: System, env: Optional[EnvType] = None):
+    def __init__(self, system: System, env: EnvType | None = None):
         self.system = system
         self.env = env
         self.is_started = False
@@ -393,7 +383,7 @@ class Runner(ABC):
         Starts the runner.
         """
         if self.is_started:
-            raise RunnerAlreadyStarted()
+            raise RunnerAlreadyStartedError
         self.is_started = True
 
     @abstractmethod
@@ -403,13 +393,13 @@ class Runner(ABC):
         """
 
     @abstractmethod
-    def get(self, cls: Type[TApplication]) -> TApplication:
+    def get(self, cls: type[TApplication]) -> TApplication:
         """
         Returns an application instance for given application class.
         """
 
 
-class RunnerAlreadyStarted(Exception):
+class RunnerAlreadyStartedError(Exception):
     """
     Raised when runner is already started.
     """
@@ -438,15 +428,15 @@ class SingleThreadedRunner(Runner, RecordingEventReceiver):
     Runs a :class:`System` in a single thread.
     """
 
-    def __init__(self, system: System, env: Optional[EnvType] = None):
+    def __init__(self, system: System, env: EnvType | None = None):
         """
         Initialises runner with the given :class:`System`.
         """
         super().__init__(system=system, env=env)
-        self.apps: Dict[str, Application] = {}
-        self._recording_events_received: List[RecordingEvent] = []
+        self.apps: dict[str, Application] = {}
+        self._recording_events_received: list[RecordingEvent] = []
         self._prompted_names_lock = Lock()
-        self._prompted_names: Set[str] = set()
+        self._prompted_names: set[str] = set()
         self._processing_lock = Lock()
 
         # Construct followers.
@@ -528,7 +518,7 @@ class SingleThreadedRunner(Runner, RecordingEventReceiver):
             app.close()
         self.apps.clear()
 
-    def get(self, cls: Type[TApplication]) -> TApplication:
+    def get(self, cls: type[TApplication]) -> TApplication:
         app = self.apps[cls.name]
         assert isinstance(app, cls)
         return app
@@ -539,16 +529,16 @@ class NewSingleThreadedRunner(Runner, RecordingEventReceiver):
     Runs a :class:`System` in a single thread.
     """
 
-    def __init__(self, system: System, env: Optional[EnvType] = None):
+    def __init__(self, system: System, env: EnvType | None = None):
         """
         Initialises runner with the given :class:`System`.
         """
         super().__init__(system=system, env=env)
-        self.apps: Dict[str, Application] = {}
-        self._recording_events_received: List[RecordingEvent] = []
+        self.apps: dict[str, Application] = {}
+        self._recording_events_received: list[RecordingEvent] = []
         self._recording_events_received_lock = Lock()
         self._processing_lock = Lock()
-        self._previous_max_notification_ids: Dict[str, int] = {}
+        self._previous_max_notification_ids: dict[str, int] = {}
 
         # Construct followers.
         for name in self.system.followers:
@@ -677,7 +667,7 @@ class NewSingleThreadedRunner(Runner, RecordingEventReceiver):
             app.close()
         self.apps.clear()
 
-    def get(self, cls: Type[TApplication]) -> TApplication:
+    def get(self, cls: type[TApplication]) -> TApplication:
         app = self.apps[cls.name]
         assert isinstance(app, cls)
         return app
@@ -689,13 +679,13 @@ class MultiThreadedRunner(Runner):
     for each :class:`Follower` in the system definition.
     """
 
-    def __init__(self, system: System, env: Optional[EnvType] = None):
+    def __init__(self, system: System, env: EnvType | None = None):
         """
         Initialises runner with the given :class:`System`.
         """
         super().__init__(system=system, env=env)
-        self.apps: Dict[str, Application] = {}
-        self.threads: Dict[str, MultiThreadedRunnerThread] = {}
+        self.apps: dict[str, Application] = {}
+        self.threads: dict[str, MultiThreadedRunnerThread] = {}
         self.has_errored = Event()
 
         # Construct followers.
@@ -753,7 +743,7 @@ class MultiThreadedRunner(Runner):
             thread = self.threads[follower.name]
             leader.lead(thread)
 
-    def watch_for_errors(self, timeout: Optional[float] = None) -> bool:
+    def watch_for_errors(self, timeout: float | None = None) -> bool:
         if self.has_errored.wait(timeout=timeout):
             self.stop()
         return self.has_errored.is_set()
@@ -774,7 +764,7 @@ class MultiThreadedRunner(Runner):
             if thread.error:
                 raise thread.error
 
-    def get(self, cls: Type[TApplication]) -> TApplication:
+    def get(self, cls: type[TApplication]) -> TApplication:
         app = self.apps[cls.name]
         assert isinstance(app, cls)
         return app
@@ -794,11 +784,11 @@ class MultiThreadedRunnerThread(RecordingEventReceiver, Thread):
         super().__init__(daemon=True)
         self.follower = follower
         self.has_errored = has_errored
-        self.error: Optional[Exception] = None
+        self.error: Exception | None = None
         self.is_stopping = Event()
         self.has_started = Event()
         self.is_prompted = Event()
-        self.prompted_names: List[str] = []
+        self.prompted_names: list[str] = []
         self.prompted_names_lock = Lock()
         self.is_running = Event()
 
@@ -852,18 +842,16 @@ class NewMultiThreadedRunner(Runner, RecordingEventReceiver):
     def __init__(
         self,
         system: System,
-        env: Optional[EnvType] = None,
+        env: EnvType | None = None,
     ):
         """
         Initialises runner with the given :class:`System`.
         """
         super().__init__(system=system, env=env)
-        self.apps: Dict[str, Application] = {}
-        self.pulling_threads: Dict[str, List[PullingThread]] = {}
-        self.processing_queues: Dict[str, "Queue[Optional[List[ProcessingJob]]]"] = {}
-        self.all_threads: List[
-            Union[PullingThread, ConvertingThread, ProcessingThread]
-        ] = []
+        self.apps: dict[str, Application] = {}
+        self.pulling_threads: dict[str, list[PullingThread]] = {}
+        self.processing_queues: dict[str, Queue[list[ProcessingJob] | None]] = {}
+        self.all_threads: list[PullingThread | ConvertingThread | ProcessingThread] = []
         self.has_errored = Event()
 
         # Construct followers.
@@ -902,7 +890,7 @@ class NewMultiThreadedRunner(Runner, RecordingEventReceiver):
         # Start the processing threads.
         for follower_name in self.system.followers:
             follower = cast(Follower, self.apps[follower_name])
-            processing_queue: Queue[Optional[List[ProcessingJob]]] = Queue(
+            processing_queue: Queue[list[ProcessingJob] | None] = Queue(
                 maxsize=self.QUEUE_MAX_SIZE
             )
             self.processing_queues[follower_name] = processing_queue
@@ -959,7 +947,7 @@ class NewMultiThreadedRunner(Runner, RecordingEventReceiver):
             assert isinstance(leader, Leader)
             leader.lead(self)
 
-    def watch_for_errors(self, timeout: Optional[float] = None) -> bool:
+    def watch_for_errors(self, timeout: float | None = None) -> bool:
         if self.has_errored.wait(timeout=timeout):
             self.stop()
         return self.has_errored.is_set()
@@ -979,7 +967,7 @@ class NewMultiThreadedRunner(Runner, RecordingEventReceiver):
             if thread.error:
                 raise thread.error
 
-    def get(self, cls: Type[TApplication]) -> TApplication:
+    def get(self, cls: type[TApplication]) -> TApplication:
         app = self.apps[cls.name]
         assert isinstance(app, cls)
         return app
@@ -1004,12 +992,12 @@ class PullingThread(Thread):
     ):
         super().__init__(daemon=True)
         self.overflow_event = Event()
-        self.recording_event_queue: Queue[Optional[RecordingEvent]] = Queue(maxsize=100)
+        self.recording_event_queue: Queue[RecordingEvent | None] = Queue(maxsize=100)
         self.converting_queue = converting_queue
         self.receive_lock = Lock()
         self.follower = follower
         self.leader_name = leader_name
-        self.error: Optional[Exception] = None
+        self.error: Exception | None = None
         self.has_errored = has_errored
         self.is_stopping = Event()
         self.has_started = Event()
@@ -1075,7 +1063,7 @@ class ConvertingThread(Thread):
     def __init__(
         self,
         converting_queue: Queue[ConvertingJob],
-        processing_queue: Queue[Optional[List[ProcessingJob]]],
+        processing_queue: Queue[list[ProcessingJob] | None],
         follower: Follower,
         leader_name: str,
         has_errored: Event,
@@ -1085,7 +1073,7 @@ class ConvertingThread(Thread):
         self.processing_queue = processing_queue
         self.follower = follower
         self.leader_name = leader_name
-        self.error: Optional[Exception] = None
+        self.error: Exception | None = None
         self.has_errored = has_errored
         self.is_stopping = Event()
         self.has_started = Event()
@@ -1145,14 +1133,14 @@ class ProcessingThread(Thread):
 
     def __init__(
         self,
-        processing_queue: Queue[Optional[List[ProcessingJob]]],
+        processing_queue: Queue[list[ProcessingJob] | None],
         follower: Follower,
         has_errored: Event,
     ):
         super().__init__(daemon=True)
         self.processing_queue = processing_queue
         self.follower = follower
-        self.error: Optional[Exception] = None
+        self.error: Exception | None = None
         self.has_errored = has_errored
         self.is_stopping = Event()
         self.has_started = Event()
@@ -1212,23 +1200,18 @@ class NotificationLogReader:
         event notifications in the notification log from the start position
         have been yielded.
         """
-        section_id = "{},{}".format(start, start + self.section_size - 1)
+        section_id = f"{start},{start + self.section_size - 1}"
         while True:
             section: Section = self.notification_log[section_id]
-            for item in section.items:
-                # Todo: Reintroduce if supporting
-                #  sections with regular alignment?
-                # if item.id < start:
-                #     continue
-                yield item
+            yield from section.items
             if section.next_id is None:
                 break
             else:
                 section_id = section.next_id
 
     def select(
-        self, *, start: int, stop: Optional[int] = None, topics: Sequence[str] = ()
-    ) -> Iterator[List[Notification]]:
+        self, *, start: int, stop: int | None = None, topics: Sequence[str] = ()
+    ) -> Iterator[list[Notification]]:
         """
         Returns a generator that yields lists of event notifications
         from the reader's notification log, starting from given start

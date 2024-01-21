@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import os
 from base64 import b64decode, b64encode
+from typing import TYPE_CHECKING
 
 from Crypto.Cipher import AES
 from Crypto.Cipher._mode_gcm import GcmMode
 from Crypto.Cipher.AES import key_size
 
 from eventsourcing.persistence import Cipher
-from eventsourcing.utils import Environment
+
+if TYPE_CHECKING:  # pragma: nocover
+    from eventsourcing.utils import Environment
 
 
 class AESCipher(Cipher):
@@ -33,9 +36,8 @@ class AESCipher(Cipher):
     @staticmethod
     def check_key_size(num_bytes: int) -> None:
         if num_bytes not in AESCipher.KEY_SIZES:
-            raise ValueError(
-                "Invalid key size: {} not in {}".format(num_bytes, AESCipher.KEY_SIZES)
-            )
+            msg = f"Invalid key size: {num_bytes} not in {AESCipher.KEY_SIZES}"
+            raise ValueError(msg)
 
     @staticmethod
     def random_bytes(num_bytes: int) -> bytes:
@@ -49,7 +51,8 @@ class AESCipher(Cipher):
         """
         cipher_key = environment.get(self.CIPHER_KEY)
         if not cipher_key:
-            raise EnvironmentError(f"'{self.CIPHER_KEY}' not in env")
+            msg = f"'{self.CIPHER_KEY}' not in env"
+            raise OSError(msg)
         key = b64decode(cipher_key.encode("utf8"))
         AESCipher.check_key_size(len(key))
         self.key = key
@@ -66,11 +69,8 @@ class AESCipher(Cipher):
         encrypted = result[0]
         tag = result[1]
 
-        # Combine with nonce.
-        ciphertext = nonce + tag + encrypted
-
         # Return ciphertext.
-        return ciphertext
+        return nonce + tag + encrypted
 
     def construct_cipher(self, nonce: bytes) -> GcmMode:
         cipher = AES.new(
@@ -87,11 +87,13 @@ class AESCipher(Cipher):
         # Split out the nonce, tag, and encrypted data.
         nonce = ciphertext[:12]
         if len(nonce) != 12:
-            raise ValueError("Damaged cipher text: invalid nonce length")
+            msg = "Damaged cipher text: invalid nonce length"
+            raise ValueError(msg)
 
         tag = ciphertext[12:28]
         if len(tag) != 16:
-            raise ValueError("Damaged cipher text: invalid tag length")
+            msg = "Damaged cipher text: invalid tag length"
+            raise ValueError(msg)
         encrypted = ciphertext[28:]
 
         # Construct AES cipher, with old nonce.
@@ -101,5 +103,6 @@ class AESCipher(Cipher):
         try:
             plaintext = cipher.decrypt_and_verify(encrypted, tag)
         except ValueError as e:
-            raise ValueError("Cipher text is damaged: {}".format(e))
+            msg = f"Cipher text is damaged: {e}"
+            raise ValueError(msg) from None
         return plaintext

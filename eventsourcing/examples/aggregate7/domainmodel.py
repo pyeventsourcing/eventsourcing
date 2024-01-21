@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from functools import singledispatch
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple, TypeVar
+from typing import Any, Callable, Iterable, Optional, TypeVar
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel
@@ -35,7 +35,7 @@ class Aggregate(BaseModel):
 
 class Snapshot(DomainEvent):
     topic: str
-    state: Dict[str, Any]
+    state: dict[str, Any]
 
     @classmethod
     def take(cls, aggregate: Aggregate) -> Snapshot:
@@ -54,10 +54,10 @@ MutatorFunction = Callable[..., Optional[TAggregate]]
 
 def aggregate_projector(
     mutator: MutatorFunction[TAggregate],
-) -> Callable[[Optional[TAggregate], Iterable[DomainEvent]], Optional[TAggregate]]:
+) -> Callable[[TAggregate | None, Iterable[DomainEvent]], TAggregate | None]:
     def project_aggregate(
-        aggregate: Optional[TAggregate], events: Iterable[DomainEvent]
-    ) -> Optional[TAggregate]:
+        aggregate: TAggregate | None, events: Iterable[DomainEvent]
+    ) -> TAggregate | None:
         for event in events:
             aggregate = mutator(event, aggregate)
         return aggregate
@@ -71,7 +71,7 @@ class Trick(BaseModel):
 
 class Dog(Aggregate):
     name: str
-    tricks: Tuple[Trick, ...]
+    tricks: tuple[Trick, ...]
 
 
 class DogRegistered(DomainEvent):
@@ -101,7 +101,7 @@ def add_trick(dog: Dog, trick: Trick) -> DomainEvent:
 
 
 @singledispatch
-def mutate_dog(event: DomainEvent, dog: Optional[Dog]) -> Optional[Dog]:
+def mutate_dog(_: DomainEvent, __: Dog | None) -> Dog | None:
     """Mutates aggregate with event."""
 
 
@@ -125,7 +125,7 @@ def _(event: TrickAdded, dog: Dog) -> Dog:
         created_on=dog.created_on,
         modified_on=event.timestamp,
         name=dog.name,
-        tricks=dog.tricks + (event.trick,),
+        tricks=(*dog.tricks, event.trick),
     )
 
 

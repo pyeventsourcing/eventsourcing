@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, Dict, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import orjson
 from pydantic import BaseModel
 
-from eventsourcing.domain import DomainEventProtocol
 from eventsourcing.persistence import (
     Mapper,
     ProgrammingError,
@@ -14,6 +13,9 @@ from eventsourcing.persistence import (
     Transcoding,
 )
 from eventsourcing.utils import get_topic, resolve_topic
+
+if TYPE_CHECKING:  # pragma: nocover
+    from eventsourcing.domain import DomainEventProtocol
 
 
 class PydanticMapper(Mapper):
@@ -38,7 +40,7 @@ class PydanticMapper(Mapper):
             stored_state = self.cipher.decrypt(stored_state)
         if self.compressor:
             stored_state = self.compressor.decompress(stored_state)
-        event_state: Dict[str, Any] = self.transcoder.decode(stored_state)
+        event_state: dict[str, Any] = self.transcoder.decode(stored_state)
         cls = resolve_topic(stored.topic)
         return cls(**event_state)
 
@@ -50,5 +52,6 @@ class OrjsonTranscoder(Transcoder):
     def decode(self, data: bytes) -> Any:
         return orjson.loads(data)
 
-    def register(self, transcoding: Transcoding) -> None:
-        raise ProgrammingError("Please use Pydantic BaseModel")  # pragma: no cover
+    def register(self, _: Transcoding) -> None:  # pragma: no cover
+        msg = "Please use Pydantic BaseModel"
+        raise ProgrammingError(msg)

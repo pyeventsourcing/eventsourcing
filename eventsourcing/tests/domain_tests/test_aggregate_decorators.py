@@ -1,5 +1,6 @@
+import contextlib
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest import TestCase
 
 from eventsourcing.application import Application
@@ -61,7 +62,7 @@ class TestAggregateDecorator(TestCase):
         self.assertIsInstance(agg, MyBase)
 
     def test_decorate_class_with_two_bases(self):
-        class MyAbstract(object):
+        class MyAbstract:
             "My base doc"
 
         class MyBase(MyAbstract):
@@ -509,7 +510,7 @@ class TestEventDecorator(TestCase):
     def test_raises_when_method_is_staticmethod(self):
         with self.assertRaises(TypeError) as cm:
 
-            class _(Aggregate):
+            class _(Aggregate):  # noqa: N801
                 @event
                 @staticmethod
                 def value_changed():
@@ -538,7 +539,7 @@ class TestEventDecorator(TestCase):
     def test_raises_when_method_is_classmethod(self):
         with self.assertRaises(TypeError) as cm:
 
-            class _(Aggregate):
+            class _(Aggregate):  # noqa: N801
                 @event
                 @classmethod
                 def value_changed(cls):
@@ -820,7 +821,7 @@ class TestEventDecorator(TestCase):
         with self.assertRaises(TypeError) as cm:
 
             @aggregate
-            class _:
+            class _:  # noqa: N801
                 @event("ValueChanged")
                 @property
                 def value(self):
@@ -890,7 +891,7 @@ class TestEventDecorator(TestCase):
     def test_raises_when_decorated_method_has_variable_args(self):
         with self.assertRaises(TypeError) as cm:
 
-            class _(Aggregate):
+            class _(Aggregate):  # noqa: N801
                 @event  # no event name
                 def method(self, *args):
                     pass
@@ -901,7 +902,7 @@ class TestEventDecorator(TestCase):
 
         with self.assertRaises(TypeError) as cm:
 
-            class _(Aggregate):
+            class _(Aggregate):  # noqa: N801
                 @event("EventName")  # has event name
                 def method(self, *args):
                     pass
@@ -913,7 +914,7 @@ class TestEventDecorator(TestCase):
     def test_raises_when_decorated_method_has_variable_kwargs(self):
         with self.assertRaises(TypeError) as cm:
 
-            class _(Aggregate):
+            class _(Aggregate):  # noqa: N801
                 @event  # no event name
                 def method(self, **kwargs):
                     pass
@@ -924,7 +925,7 @@ class TestEventDecorator(TestCase):
 
         with self.assertRaises(TypeError) as cm:
 
-            class _(Aggregate):
+            class _(Aggregate):  # noqa: N801
                 @event("EventName")  # has event name
                 def method(self, **kwargs):
                     pass
@@ -936,7 +937,7 @@ class TestEventDecorator(TestCase):
         # With property.
         with self.assertRaises(TypeError) as cm:
 
-            class _(Aggregate):
+            class _(Aggregate):  # noqa: N801
                 @property
                 def name(self):
                     return None
@@ -952,7 +953,7 @@ class TestEventDecorator(TestCase):
 
         with self.assertRaises(TypeError) as cm:
 
-            class _(Aggregate):
+            class _(Aggregate):  # noqa: N801
                 @property
                 def name(self):
                     return None
@@ -966,7 +967,7 @@ class TestEventDecorator(TestCase):
             cm.exception.args[0], "**kwargs not supported by decorator on name()"
         )
 
-    # Todo: Somehow deal with custom decorators?
+    # TODO: Somehow deal with custom decorators?
     # def test_custom_decorators(self):
     #
     #     def mydecorator(f):
@@ -1030,7 +1031,7 @@ class TestEventDecorator(TestCase):
     #                 pass
     #
     #     self.assertEqual(
-    #         cm.exception.args[0], "Confirmed event class has unexpected apply() method"
+    #         cm.exception.args[0], "event class has unexpected apply() method"
     #     )
 
     def test_raises_when_event_class_already_defined(self) -> None:
@@ -1107,16 +1108,14 @@ class TestEventDecorator(TestCase):
             @event("PickedUp")
             def pickup(self, at):
                 if self.confirmed_at is None:
-                    raise RuntimeError("Order is not confirmed")
-                else:
-                    self.pickedup_at = at
+                    msg = "Order is not confirmed"
+                    raise RuntimeError(msg)
+                self.pickedup_at = at
 
         order = Order("name")
         self.assertEqual(len(order.pending_events), 1)
-        try:
+        with contextlib.suppress(RuntimeError):
             order.pickup(AggregateEvent.create_timestamp())
-        except RuntimeError:
-            pass
         self.assertEqual(len(order.pending_events), 1)
 
     def test_aggregate_has_a_created_event_name_defined_with_event_decorator(self):
@@ -1209,7 +1208,7 @@ class TestEventDecorator(TestCase):
         # Different name.
         with self.assertRaises(TypeError) as cm:
 
-            class _(Aggregate):
+            class _(Aggregate):  # noqa: N801
                 class Started(AggregateCreated):
                     a: int
 
@@ -1230,7 +1229,7 @@ class TestEventDecorator(TestCase):
         # Same name.
         with self.assertRaises(TypeError) as cm:
 
-            class _(Aggregate):
+            class _(Aggregate):  # noqa: N801
                 class Started(AggregateCreated):
                     a: int
 
@@ -1251,7 +1250,7 @@ class TestEventDecorator(TestCase):
         # Different class.
         with self.assertRaises(TypeError) as cm:
 
-            class _(Aggregate):
+            class _(Aggregate):  # noqa: N801
                 class Started(AggregateCreated):
                     a: int
 
@@ -1272,7 +1271,7 @@ class TestEventDecorator(TestCase):
         # Same class.
         with self.assertRaises(TypeError) as cm:
 
-            class _(Aggregate):
+            class _(Aggregate):  # noqa: N801
                 class Started(AggregateCreated):
                     a: int
 
@@ -1294,7 +1293,7 @@ class TestEventDecorator(TestCase):
         # Different name.
         with self.assertRaises(TypeError) as cm:
 
-            class _(Aggregate, created_event_name="Opened"):
+            class _(Aggregate, created_event_name="Opened"):  # noqa: N801
                 class Started(AggregateCreated):
                     a: int
 
@@ -1313,7 +1312,7 @@ class TestEventDecorator(TestCase):
         # Same name.
         with self.assertRaises(TypeError) as cm:
 
-            class _(Aggregate, created_event_name="Opened"):
+            class _(Aggregate, created_event_name="Opened"):  # noqa: N801
                 class Started(AggregateCreated):
                     a: int
 
@@ -1332,7 +1331,7 @@ class TestEventDecorator(TestCase):
         # Different class.
         with self.assertRaises(TypeError) as cm:
 
-            class _(Aggregate, created_event_name="Opened"):
+            class _(Aggregate, created_event_name="Opened"):  # noqa: N801
                 class Started(AggregateCreated):
                     a: int
 
@@ -1351,7 +1350,7 @@ class TestEventDecorator(TestCase):
         # Same class.
         with self.assertRaises(TypeError) as cm:
 
-            class _(Aggregate, created_event_name="Opened"):
+            class _(Aggregate, created_event_name="Opened"):  # noqa: N801
                 class Started(AggregateCreated):
                     a: int
 
@@ -1371,7 +1370,7 @@ class TestEventDecorator(TestCase):
         # Different name.
         with self.assertRaises(TypeError) as cm:
 
-            class _(Aggregate):
+            class _(Aggregate):  # noqa: N801
                 @event
                 def __init__(self):
                     pass
@@ -1521,20 +1520,26 @@ class TestEventDecorator(TestCase):
         self.assertIsInstance(order1.modified_on, datetime)
         self.assertGreater(order1.modified_on, order1.created_on)
 
-        order2 = Order("order2", timestamp=datetime(year=2000, month=1, day=1))
+        order2 = Order(
+            "order2", timestamp=datetime(year=2000, month=1, day=1, tzinfo=timezone.utc)
+        )
         self.assertIsInstance(order2.created_on, datetime)
         self.assertEqual(order2.created_on.year, 2000)
         self.assertEqual(order2.created_on.month, 1)
         self.assertEqual(order2.created_on.day, 1)
 
-        order2.confirm(timestamp=datetime(year=2000, month=1, day=2))
+        order2.confirm(
+            timestamp=datetime(year=2000, month=1, day=2, tzinfo=timezone.utc)
+        )
         self.assertIsInstance(order2.created_on, datetime)
         self.assertEqual(order2.modified_on.year, 2000)
         self.assertEqual(order2.modified_on.month, 1)
         self.assertEqual(order2.modified_on.day, 2)
         self.assertEqual(order2.confirmed_at, order2.modified_on)
 
-        order2.picked_up(timestamp=datetime(year=2000, month=1, day=3))
+        order2.picked_up(
+            timestamp=datetime(year=2000, month=1, day=3, tzinfo=timezone.utc)
+        )
         self.assertIsInstance(order2.created_on, datetime)
         self.assertEqual(order2.modified_on.year, 2000)
         self.assertEqual(order2.modified_on.month, 1)
@@ -1561,7 +1566,8 @@ class TestOrder(TestCase):
                 if self.confirmed_at:
                     self._pickup(at)
                 else:
-                    raise Exception("Order is not confirmed")
+                    msg = "Order is not confirmed"
+                    raise Exception(msg)
 
             @event("Pickedup")
             def _pickup(self, at):

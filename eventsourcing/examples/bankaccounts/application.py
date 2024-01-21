@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from decimal import Decimal
-from uuid import UUID
+from typing import TYPE_CHECKING
 
-from eventsourcing.application import AggregateNotFound, Application
+from eventsourcing.application import AggregateNotFoundError, Application
 from eventsourcing.examples.bankaccounts.domainmodel import BankAccount
+
+if TYPE_CHECKING:  # pragma: nocover
+    from decimal import Decimal
+    from uuid import UUID
 
 
 class BankAccounts(Application):
@@ -19,8 +22,8 @@ class BankAccounts(Application):
     def get_account(self, account_id: UUID) -> BankAccount:
         try:
             return self.repository.get(account_id)
-        except AggregateNotFound:
-            raise AccountNotFoundError(account_id)
+        except AggregateNotFoundError:
+            raise AccountNotFoundError(account_id) from None
 
     def get_balance(self, account_id: UUID) -> Decimal:
         account = self.get_account(account_id)

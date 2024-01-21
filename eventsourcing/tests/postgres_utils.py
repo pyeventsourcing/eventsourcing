@@ -9,7 +9,7 @@ def pg_close_all_connections(
     host="127.0.0.1",
     port="5432",
     user="postgres",
-    password="postgres",
+    password="postgres",  # noqa: S107
 ):
     try:
         # For local development... probably.

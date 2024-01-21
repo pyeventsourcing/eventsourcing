@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict
+from typing import ClassVar
 from unittest import TestCase
 from uuid import uuid4
 
@@ -20,7 +20,7 @@ from eventsourcing.tests.postgres_utils import drop_postgres_table
 
 
 class ContentManagementSystemTestCase(TestCase):
-    env: Dict[str, str] = {}
+    env: ClassVar[dict[str, str]] = {}
 
     def test_system(self) -> None:
         runner = SingleThreadedRunner(system=ContentManagementSystem(), env=self.env)
@@ -132,14 +132,14 @@ class ContentManagementSystemTestCase(TestCase):
 
 
 class TestWithSQLite(ContentManagementSystemTestCase):
-    env = {
+    env: ClassVar[dict[str, str]] = {
         "PERSISTENCE_MODULE": "eventsourcing.examples.contentmanagementsystem.sqlite",
         "SQLITE_DBNAME": ":memory:",
     }
 
 
 class TestWithPostgres(ContentManagementSystemTestCase):
-    env = {
+    env: ClassVar[dict[str, str]] = {
         "PERSISTENCE_MODULE": "eventsourcing.examples.contentmanagementsystem.postgres",
         "POSTGRES_DBNAME": "eventsourcing",
         "POSTGRES_HOST": "127.0.0.1",

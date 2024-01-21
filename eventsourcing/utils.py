@@ -7,22 +7,21 @@ from inspect import isfunction
 from random import random
 from threading import Lock
 from time import sleep
-from types import FunctionType, WrapperDescriptorType
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
     Iterator,
-    List,
     Mapping,
-    Optional,
     Sequence,
-    Type,
     TypeVar,
-    Union,
     no_type_check,
     overload,
 )
+
+if TYPE_CHECKING:  # pragma: nocover
+    from types import FunctionType, WrapperDescriptorType
 
 
 class TopicError(Exception):
@@ -31,8 +30,8 @@ class TopicError(Exception):
     """
 
 
-_type_cache: Dict[type, str] = {}
-_topic_cache: Dict[str, Any] = {}
+_type_cache: dict[type, str] = {}
+_topic_cache: dict[str, Any] = {}
 _topic_cache_lock = Lock()
 
 
@@ -98,12 +97,12 @@ def resolve_topic(topic: str) -> Any:
                     msg = f"Failed to resolve topic '{topic}': {e}"
                     raise TopicError(msg) from e
         if attr_name:
-            for attr_name_part in attr_name.split("."):
-                try:
+            try:
+                for attr_name_part in attr_name.split("."):
                     obj = getattr(obj, attr_name_part)
-                except AttributeError as e:
-                    msg = f"Failed to resolve topic '{topic}': {e}"
-                    raise TopicError(msg) from e
+            except AttributeError as e:
+                msg = f"Failed to resolve topic '{topic}': {e}"
+                raise TopicError(msg) from e
         register_topic(topic, obj)
     return obj
 
@@ -125,10 +124,11 @@ def register_topic(topic: str, obj: Any) -> None:
             _topic_cache[topic] = obj
         else:
             if cached_obj != obj:
-                raise TopicError(
+                msg = (
                     f"Object {cached_obj} is already registered "
                     f"for topic '{topic}', so refusing to cache obj {obj}"
                 )
+                raise TopicError(msg)
 
 
 def clear_topic_cache() -> None:
@@ -136,7 +136,7 @@ def clear_topic_cache() -> None:
 
 
 def retry(
-    exc: Union[Type[Exception], Sequence[Type[Exception]]] = Exception,
+    exc: type[Exception] | Sequence[type[Exception]] = Exception,
     max_attempts: int = 1,
     wait: float = 0,
     stall: float = 0,
@@ -148,7 +148,6 @@ def retry(
     :param max_attempts: Maximum number of attempts to try.
     :param wait: Amount of time to wait before retrying after an exception.
     :param stall: Amount of time to wait before the first attempt.
-    :param verbose: If True, prints a message to STDOUT when retries occur.
     :return: Returns the value returned by decorated function.
     """
 
@@ -162,13 +161,13 @@ def retry(
             while True:
                 try:
                     return func(*args, **kwargs)
-                except exc as e:
+                except exc:  # noqa: PERF203
                     attempts += 1
                     if max_attempts is None or attempts < max_attempts:
-                        sleep(wait * (1 + 0.1 * (random() - 0.5)))
+                        sleep(wait * (1 + 0.1 * (random() - 0.5)))  # noqa: S311
                     else:
                         # Max retries exceeded.
-                        raise e
+                        raise
 
         return retry_decorator
 
@@ -181,23 +180,26 @@ def retry(
         exc = Exception
         # Wrap and return.
         return _retry(func=_func)
-    else:
-        # Check decorator args, and return _retry,
-        # to be called with the decorated function.
-        if isinstance(exc, (list, tuple)):
-            for _exc in exc:
-                if not (isinstance(_exc, type) and issubclass(_exc, Exception)):
-                    raise TypeError("not an exception class: {}".format(_exc))
-        else:
-            if not (isinstance(exc, type) and issubclass(exc, Exception)):
-                raise TypeError("not an exception class: {}".format(exc))
-        if not isinstance(max_attempts, int):
-            raise TypeError("'max_attempts' must be an int: {}".format(max_attempts))
-        if not isinstance(wait, (float, int)):
-            raise TypeError("'wait' must be a float: {}".format(max_attempts))
-        if not isinstance(stall, (float, int)):
-            raise TypeError("'stall' must be a float: {}".format(max_attempts))
-        return _retry
+    # Check decorator args, and return _retry,
+    # to be called with the decorated function.
+    if isinstance(exc, (list, tuple)):
+        for _exc in exc:
+            if not (isinstance(_exc, type) and issubclass(_exc, Exception)):
+                msg = f"not an exception class: {_exc}"
+                raise TypeError(msg)
+    elif not (isinstance(exc, type) and issubclass(exc, Exception)):
+        msg = f"not an exception class: {exc}"
+        raise TypeError(msg)
+    if not isinstance(max_attempts, int):
+        msg = f"'max_attempts' must be an int: {max_attempts}"
+        raise TypeError(msg)
+    if not isinstance(wait, (float, int)):
+        msg = f"'wait' must be a float: {max_attempts}"
+        raise TypeError(msg)
+    if not isinstance(stall, (float, int)):
+        msg = f"'stall' must be a float: {max_attempts}"
+        raise TypeError(msg)
+    return _retry
 
 
 def strtobool(val: str) -> bool:
@@ -208,28 +210,25 @@ def strtobool(val: str) -> bool:
     'val' is anything else.
     """
     if not isinstance(val, str):
-        raise TypeError(f"{val} is not a str")
+        msg = f"{val} is not a str"
+        raise TypeError(msg)
     val = val.lower()
     if val in ("y", "yes", "t", "true", "on", "1"):
         return True
-    elif val in ("n", "no", "f", "false", "off", "0"):
+    if val in ("n", "no", "f", "false", "off", "0"):
         return False
-    else:
-        raise ValueError("invalid truth value %r" % (val,))
+    msg = f"invalid truth value {val!r}"
+    raise ValueError(msg)
 
 
-def reversed_keys(d: Dict[Any, Any]) -> Iterator[Any]:
-    if sys.version_info >= (3, 8):  # pragma: no cover
-        return reversed(d.keys())
-    else:  # pragma: no cover
-        return reversed(list(d.keys()))
+def reversed_keys(d: dict[Any, Any]) -> Iterator[Any]:
+    return reversed(d.keys())
 
 
-def get_method_name(method: Union[FunctionType, WrapperDescriptorType]) -> str:
+def get_method_name(method: FunctionType | WrapperDescriptorType) -> str:
     if sys.version_info >= (3, 10):  # pragma: no cover
         return method.__qualname__
-    else:  # pragma: no cover
-        return method.__name__
+    return method.__name__  # pragma: no cover
 
 
 EnvType = Mapping[str, str]
@@ -237,28 +236,24 @@ T = TypeVar("T")
 
 
 class Environment(Dict[str, str]):
-    def __init__(self, name: str = "", env: Optional[EnvType] = None):
+    def __init__(self, name: str = "", env: EnvType | None = None):
         super().__init__(env or {})
         self.name = name
 
     @overload
-    def get(self, key: str) -> Optional[str]: ...  # pragma: no cover
+    def get(self, key: str) -> str | None: ...  # pragma: no cover
 
     @overload
-    def get(
-        self, key: str, default: Union[str, T]
-    ) -> Union[str, T]: ...  # pragma: no cover
+    def get(self, key: str, default: str | T) -> str | T: ...  # pragma: no cover
 
-    def get(
-        self, key: str, default: Optional[Union[str, T]] = None
-    ) -> Optional[Union[str, T]]:
+    def get(self, key: str, default: str | T | None = None) -> str | T | None:
         for _key in self.create_keys(key):
             value = super().get(_key, None)
             if value is not None:
                 return value
         return default
 
-    def create_keys(self, key: str) -> List[str]:
+    def create_keys(self, key: str) -> list[str]:
         keys = []
         if self.name:
             keys.append(self.name.upper() + "_" + key)

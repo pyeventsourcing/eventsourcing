@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from typing import ClassVar, Sequence
 from unittest.case import TestCase
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
@@ -170,7 +173,7 @@ class TestLeader(TestCase):
             def __init__(self):
                 self.num_received = 0
 
-            def receive_recording_event(self, recording_event: RecordingEvent) -> None:
+            def receive_recording_event(self, _: RecordingEvent) -> None:
                 self.num_received += 1
 
         # Test fixture is working.
@@ -214,7 +217,7 @@ class TestFollower(TestCase):
                     notification = UUID5EmailNotification(
                         to=domain_event.email_address,
                         subject="Your New Account",
-                        message="Dear {}, ...".format(domain_event.full_name),
+                        message=f"Dear {domain_event.full_name}, ...",
                     )
                     processing_event.collect_events(notification)
 
@@ -262,7 +265,7 @@ class TestFollower(TestCase):
 
     def test_filter_received_notifications(self):
         class MyFollower(Follower):
-            follow_topics = []
+            follow_topics: ClassVar[Sequence[str]] = []
 
             def policy(self, *args, **kwargs):
                 pass

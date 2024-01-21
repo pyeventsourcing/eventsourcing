@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, List, Optional, Tuple, Union, cast
-from uuid import UUID
+from typing import TYPE_CHECKING, Any, cast
 
-from eventsourcing.domain import DomainEventProtocol, MutableOrImmutableAggregate
 from eventsourcing.examples.contentmanagement.application import (
     ContentManagementApplication,
     PageDetailsType,
@@ -12,17 +10,22 @@ from eventsourcing.examples.contentmanagement.domainmodel import Page
 from eventsourcing.examples.searchablecontent.persistence import (
     SearchableContentRecorder,
 )
-from eventsourcing.persistence import Recording
+
+if TYPE_CHECKING:  # pragma: nocover
+    from uuid import UUID
+
+    from eventsourcing.domain import DomainEventProtocol, MutableOrImmutableAggregate
+    from eventsourcing.persistence import Recording
 
 
 class SearchableContentApplication(ContentManagementApplication):
     def save(
         self,
-        *objs: Optional[Union[MutableOrImmutableAggregate, DomainEventProtocol]],
+        *objs: MutableOrImmutableAggregate | DomainEventProtocol | None,
         **kwargs: Any,
-    ) -> List[Recording]:
-        insert_pages: List[Tuple[UUID, str, str, str]] = []
-        update_pages: List[Tuple[UUID, str, str, str]] = []
+    ) -> list[Recording]:
+        insert_pages: list[tuple[UUID, str, str, str]] = []
+        update_pages: list[tuple[UUID, str, str, str]] = []
         for obj in objs:
             if isinstance(obj, Page):
                 if obj.version == len(obj.pending_events):
@@ -33,7 +36,7 @@ class SearchableContentApplication(ContentManagementApplication):
         kwargs["update_pages"] = update_pages
         return super().save(*objs, **kwargs)
 
-    def search(self, query: str) -> List[PageDetailsType]:
+    def search(self, query: str) -> list[PageDetailsType]:
         pages = []
         recorder = cast(SearchableContentRecorder, self.recorder)
         for page_id in recorder.search_pages(query):

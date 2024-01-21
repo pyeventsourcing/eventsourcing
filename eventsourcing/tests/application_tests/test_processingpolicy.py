@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from eventsourcing.domain import Aggregate
 from eventsourcing.persistence import Tracking
-from eventsourcing.system import ProcessEvent, ProcessingEvent
+from eventsourcing.system import ProcessingEvent
 from eventsourcing.tests.domain import BankAccount
 
 
@@ -13,7 +13,7 @@ def policy(domain_event, processing_event: ProcessingEvent):
         notification = EmailNotification.create(
             to=domain_event.email_address,
             subject="Your New Account",
-            message="Dear {}".format(domain_event.full_name),
+            message=f"Dear {domain_event.full_name}",
         )
         processing_event.collect_events(notification)
 
@@ -23,7 +23,7 @@ def policy_legacy_save(domain_event, processing_event: ProcessingEvent):
         notification = EmailNotification.create(
             to=domain_event.email_address,
             subject="Your New Account",
-            message="Dear {}".format(domain_event.full_name),
+            message=f"Dear {domain_event.full_name}",
         )
         processing_event.save(notification)
 
@@ -50,39 +50,6 @@ class TestProcessingPolicy(TestCase):
         self.assertEqual(len(processing_event.events), 1)
         self.assertIsInstance(
             processing_event.events[0],
-            EmailNotification.Created,
-        )
-
-    def test_legacy_process_event(self):
-        # Open an account.
-        account = BankAccount.open(
-            full_name="Alice",
-            email_address="alice@example.com",
-        )
-        events = account.collect_events()
-        created_event = events[0]
-
-        # Verify deprecation warning.
-        with warnings.catch_warnings(record=True) as w:
-            process_event = ProcessEvent(
-                tracking=Tracking(
-                    application_name="upstream_app",
-                    notification_id=5,
-                )
-            )
-
-        self.assertEqual(1, len(w))
-        self.assertIs(w[-1].category, DeprecationWarning)
-        self.assertEqual(
-            "'ProcessEvent' is deprecated, use 'ProcessingEvent' instead",
-            w[-1].message.args[0],
-        )
-
-        policy(created_event, process_event)
-
-        self.assertEqual(len(process_event.events), 1)
-        self.assertIsInstance(
-            process_event.events[0],
             EmailNotification.Created,
         )
 

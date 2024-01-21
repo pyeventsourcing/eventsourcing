@@ -1,13 +1,22 @@
+from __future__ import annotations
+
 import os
 import shlex
 import subprocess
 from queue import Queue
 from threading import Event
 from time import sleep
-from typing import Generic, Iterable, List, Optional, Tuple, Type, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    ClassVar,
+    Generic,
+    Iterable,
+    Iterator,
+    Sequence,
+    TypeVar,
+)
 from unittest.case import TestCase
 from unittest.mock import MagicMock
-from uuid import UUID
 
 from eventsourcing.application import ProcessingEvent, RecordingEvent
 from eventsourcing.domain import Aggregate, AggregateEvent, event
@@ -25,7 +34,7 @@ from eventsourcing.system import (
     ProcessingJob,
     PullingThread,
     Runner,
-    RunnerAlreadyStarted,
+    RunnerAlreadyStartedError,
     SingleThreadedRunner,
     System,
 )
@@ -34,6 +43,9 @@ from eventsourcing.tests.application_tests.test_processapplication import EmailP
 from eventsourcing.tests.persistence import tmpfile_uris
 from eventsourcing.tests.postgres_utils import drop_postgres_table
 from eventsourcing.utils import clear_topic_cache, get_topic
+
+if TYPE_CHECKING:  # pragma: nocover
+    from uuid import UUID
 
 
 class EmailProcess2(EmailProcess):
@@ -44,18 +56,18 @@ TRunner = TypeVar("TRunner", bound=Runner)
 
 
 class RunnerTestCase(TestCase, Generic[TRunner]):
-    runner_class: Type[TRunner]
-    runner: Optional[TRunner]
+    runner_class: type[TRunner]
+    runner: TRunner | None
 
     def setUp(self) -> None:
-        self.runner: Optional[TRunner] = None
+        self.runner: TRunner | None = None
 
     def tearDown(self) -> None:
         if self.runner:
             try:
                 self.runner.stop()
             except Exception as e:
-                raise Exception("Runner errored: " + str(e))
+                raise Exception("Runner errored: " + str(e)) from e
 
     def start_runner(self, system):
         self.runner = self.runner_class(system)
@@ -93,7 +105,7 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
 
     def test_calling_start_twice_raises_error(self):
         self.start_runner(System(pipes=[[BankAccounts]]))
-        with self.assertRaises(RunnerAlreadyStarted):
+        with self.assertRaises(RunnerAlreadyStartedError):
             self.runner.start()
 
     def test_system_with_one_edge(self):
@@ -162,8 +174,8 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
         class Command(Aggregate):
             def __init__(self, text: str):
                 self.text = text
-                self.output: Optional[str] = None
-                self.error: Optional[str] = None
+                self.output: str | None = None
+                self.error: str | None = None
 
             @event
             def done(self, output: str, error: str):
@@ -195,7 +207,7 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
                     )
                     processing_event.collect_events(command)
 
-            def get_result(self, command_id: UUID) -> Tuple[str, str]:
+            def get_result(self, command_id: UUID) -> tuple[str, str]:
                 command = self.repository.get(command_id)
                 return command.output, command.error
 
@@ -207,7 +219,8 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
             ) -> None:
                 if isinstance(domain_event, Command.Created):
                     try:
-                        output = subprocess.check_output(shlex.split(domain_event.text))
+                        openargs = shlex.split(domain_event.text)
+                        output = subprocess.check_output(openargs)  # noqa: S603
                         error = ""
                     except Exception as e:
                         error = str(e)
@@ -285,7 +298,9 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
 
     def test_filters_notifications_by_follow_topics(self):
         class MyEmailProcess(EmailProcess):
-            follow_topics = [get_topic(AggregateEvent)]  # follow nothing
+            follow_topics: ClassVar[Sequence[str]] = [
+                get_topic(AggregateEvent)
+            ]  # follow nothing
 
         system = System(pipes=[[BankAccounts, MyEmailProcess]])
         self.runner = self.runner_class(system)
@@ -328,10 +343,10 @@ class SingleThreadedRunnerFollowersOrderingMixin:
         app_calls = []
 
         class NameLogger(EmailProcess):
-            def policy(self, domain_event, processing_event):
+            def policy(self, _, __):
                 app_calls.append(self.__class__.__name__)
 
-        def make_name_logger(n: int) -> Type:
+        def make_name_logger(n: int) -> type:
             return type(f"NameLogger{n}", (NameLogger,), {})
 
         # Construct system and runner.
@@ -499,16 +514,14 @@ class TestMultiThreadedRunner(RunnerTestCase[MultiThreadedRunner]):
             raise Exception("Runner errored: " + str(e)) from e
 
     class BrokenInitialisation(EmailProcess):
-        def __init__(self, *args, **kwargs):
-            raise ProgrammingError(
-                "Just testing error handling when initialisation is broken"
-            )
+        def __init__(self, *_, **__):
+            msg = "Just testing error handling when initialisation is broken"
+            raise ProgrammingError(msg)
 
     class BrokenProcessing(EmailProcess):
-        def process_event(self, domain_event, process_event):
-            raise ProgrammingError(
-                "Just testing error handling when processing is broken"
-            )
+        def process_event(self, _, __):
+            msg = "Just testing error handling when processing is broken"
+            raise ProgrammingError(msg)
 
     def test_stops_if_app_initialisation_is_broken(self):
         system = System(
@@ -716,7 +729,7 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
         os.environ["POSTGRES_HOST"] = "127.0.0.1"
         os.environ["POSTGRES_PORT"] = "5432"
         os.environ["POSTGRES_USER"] = "eventsourcing"
-        os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
+        os.environ["POSTGRES_PASSWORD"] = "eventsourcing"  # noqa: S105
 
         db = PostgresDatastore(
             os.getenv("POSTGRES_DBNAME"),
@@ -762,17 +775,17 @@ class TestNewMultiThreadedRunner(TestMultiThreadedRunner):
 
     class BrokenPulling(EmailProcess):
         def pull_notifications(
-            self, leader_name: str, start: int, stop: Optional[int] = None
-        ) -> Iterable[List[Notification]]:
-            raise ProgrammingError("Just testing error handling when pulling is broken")
+            self, leader_name: str, start: int, stop: int | None = None
+        ) -> Iterator[list[Notification]]:
+            msg = "Just testing error handling when pulling is broken"
+            raise ProgrammingError(msg)
 
     class BrokenConverting(EmailProcess):
         def convert_notifications(
             self, leader_name: str, notifications: Iterable[Notification]
-        ) -> List[ProcessingJob]:
-            raise ProgrammingError(
-                "Just testing error handling when converting is broken"
-            )
+        ) -> list[ProcessingJob]:
+            msg = "Just testing error handling when converting is broken"
+            raise ProgrammingError(msg)
 
     # This duplicates test method above.
     def test_ignores_recording_event_if_seen_subsequent(self):

@@ -10,21 +10,7 @@ from decimal import Decimal
 from threading import Condition, Event, Lock, Semaphore, Timer
 from time import time
 from types import ModuleType
-from typing import (
-    Any,
-    Deque,
-    Dict,
-    Generic,
-    Iterator,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Type,
-    TypeVar,
-    Union,
-    cast,
-)
+from typing import Any, Generic, Iterator, Mapping, Sequence, TypeVar, Union, cast
 from uuid import UUID
 from warnings import warn
 
@@ -61,8 +47,8 @@ class Transcoder(ABC):
     """
 
     def __init__(self) -> None:
-        self.types: Dict[type, Transcoding] = {}
-        self.names: Dict[str, Transcoding] = {}
+        self.types: dict[type, Transcoding] = {}
+        self.names: dict[str, Transcoding] = {}
 
     def register(self, transcoding: Transcoding) -> None:
         """
@@ -106,22 +92,23 @@ class JSONTranscoder(Transcoder):
         """
         return self.decoder.decode(data.decode("utf8"))
 
-    def _encode_obj(self, o: Any) -> Dict[str, Any]:
+    def _encode_obj(self, o: Any) -> dict[str, Any]:
         try:
             transcoding = self.types[type(o)]
         except KeyError:
-            raise TypeError(
+            msg = (
                 f"Object of type {type(o)} is not "
                 "serializable. Please define and register "
                 "a custom transcoding for this type."
-            ) from None
+            )
+            raise TypeError(msg) from None
         else:
             return {
                 "_type_": transcoding.name,
                 "_data_": transcoding.encode(o),
             }
 
-    def _decode_obj(self, d: Dict[str, Any]) -> Any:
+    def _decode_obj(self, d: dict[str, Any]) -> Any:
         if len(d) == 2:
             try:
                 _type_ = d["_type_"]
@@ -135,12 +122,13 @@ class JSONTranscoder(Transcoder):
                 else:
                     try:
                         transcoding = self.names[cast(str, _type_)]
-                    except KeyError:
-                        raise TypeError(
+                    except KeyError as e:
+                        msg = (
                             f"Data serialized with name '{cast(str, _type_)}' is not "
                             "deserializable. Please register a "
                             "custom transcoding for this type."
                         )
+                        raise TypeError(msg) from e
                     else:
                         return transcoding.decode(_data_)
         else:
@@ -267,8 +255,8 @@ class Mapper:
     def __init__(
         self,
         transcoder: Transcoder,
-        compressor: Optional[Compressor] = None,
-        cipher: Optional[Cipher] = None,
+        compressor: Compressor | None = None,
+        cipher: Cipher | None = None,
     ):
         self.transcoder = transcoder
         self.compressor = compressor
@@ -315,7 +303,7 @@ class Mapper:
             stored_state = self.cipher.decrypt(stored_state)
         if self.compressor:
             stored_state = self.compressor.decompress(stored_state)
-        event_state: Dict[str, Any] = self.transcoder.decode(stored_state)
+        event_state: dict[str, Any] = self.transcoder.decode(stored_state)
         event_state["originator_id"] = stored_event.originator_id
         event_state["originator_version"] = stored_event.originator_version
         cls = resolve_topic(stored_event.topic)
@@ -366,7 +354,7 @@ class DataError(DatabaseError):
 
 class OperationalError(DatabaseError):
     """
-    Exception raised for errors that are related to the database’s
+    Exception raised for errors that are related to the database's
     operation and not necessarily under the control of the programmer,
     e.g. an unexpected disconnect occurs, the data source name is not
     found, a transaction could not be processed, a memory allocation
@@ -414,8 +402,8 @@ class AggregateRecorder(ABC):
 
     @abstractmethod
     def insert_events(
-        self, stored_events: List[StoredEvent], **kwargs: Any
-    ) -> Optional[Sequence[int]]:
+        self, stored_events: list[StoredEvent], **kwargs: Any
+    ) -> Sequence[int] | None:
         """
         Writes stored events into database.
         """
@@ -424,11 +412,12 @@ class AggregateRecorder(ABC):
     def select_events(
         self,
         originator_id: UUID,
-        gt: Optional[int] = None,
-        lte: Optional[int] = None,
+        *,
+        gt: int | None = None,
+        lte: int | None = None,
         desc: bool = False,
-        limit: Optional[int] = None,
-    ) -> List[StoredEvent]:
+        limit: int | None = None,
+    ) -> list[StoredEvent]:
         """
         Reads stored events from database.
         """
@@ -459,9 +448,9 @@ class ApplicationRecorder(AggregateRecorder):
         self,
         start: int,
         limit: int,
-        stop: Optional[int] = None,
+        stop: int | None = None,
         topics: Sequence[str] = (),
-    ) -> List[Notification]:
+    ) -> list[Notification]:
         """
         Returns a list of event notifications
         from 'start', limited by 'limit' and
@@ -523,7 +512,7 @@ class EventStore:
 
     def put(
         self, domain_events: Sequence[DomainEventProtocol], **kwargs: Any
-    ) -> List[Recording]:
+    ) -> list[Recording]:
         """
         Stores domain events in aggregate sequence.
         """
@@ -550,10 +539,11 @@ class EventStore:
     def get(
         self,
         originator_id: UUID,
-        gt: Optional[int] = None,
-        lte: Optional[int] = None,
+        *,
+        gt: int | None = None,
+        lte: int | None = None,
         desc: bool = False,
-        limit: Optional[int] = None,
+        limit: int | None = None,
     ) -> Iterator[DomainEventProtocol]:
         """
         Retrieves domain events from aggregate sequence.
@@ -588,14 +578,14 @@ class InfrastructureFactory(ABC):
 
     @classmethod
     def construct(
-        cls: Type[TInfrastructureFactory], env: Environment
+        cls: type[TInfrastructureFactory], env: Environment
     ) -> TInfrastructureFactory:
         """
         Constructs concrete infrastructure factory for given
         named application. Reads and resolves persistence
         topic from environment variable 'PERSISTENCE_MODULE'.
         """
-        factory_cls: Type[InfrastructureFactory]
+        factory_cls: type[InfrastructureFactory]
         topic = (
             env.get(
                 cls.PERSISTENCE_MODULE,
@@ -612,37 +602,39 @@ class InfrastructureFactory(ABC):
             or "eventsourcing.popo"
         )
         try:
-            obj: Union[Type[InfrastructureFactory], ModuleType] = resolve_topic(topic)
+            obj: type[InfrastructureFactory] | ModuleType = resolve_topic(topic)
         except TopicError as e:
-            raise EnvironmentError(
+            msg = (
                 "Failed to resolve persistence module topic: "
                 f"'{topic}' from environment "
                 f"variable '{cls.PERSISTENCE_MODULE}'"
-            ) from e
+            )
+            raise OSError(msg) from e
 
         if isinstance(obj, ModuleType):
             # Find the factory in the module.
-            factory_classes: List[Type[InfrastructureFactory]] = []
-            for member in obj.__dict__.values():
+            factory_classes: list[type[InfrastructureFactory]] = [
+                member
+                for member in obj.__dict__.values()
                 if (
                     member is not InfrastructureFactory
                     and isinstance(member, type)
                     and issubclass(member, InfrastructureFactory)
-                ):
-                    factory_classes.append(member)
+                )
+            ]
             if len(factory_classes) == 1:
                 factory_cls = factory_classes[0]
             else:
-                raise AssertionError(
+                msg = (
                     f"Found {len(factory_classes)} infrastructure factory classes in"
                     f" '{topic}', expected 1."
                 )
+                raise AssertionError(msg)
         elif isinstance(obj, type) and issubclass(obj, InfrastructureFactory):
             factory_cls = obj
         else:
-            raise AssertionError(
-                f"Not an infrastructure factory class or module: {topic}"
-            )
+            msg = f"Not an infrastructure factory class or module: {topic}"
+            raise AssertionError(msg)
         return cast(TInfrastructureFactory, factory_cls(env=env))
 
     def __init__(self, env: Environment):
@@ -657,49 +649,49 @@ class InfrastructureFactory(ABC):
         """
         Constructs a transcoder.
         """
-        # Todo: Implement support for TRANSCODER_TOPIC.
+        # TODO: Implement support for TRANSCODER_TOPIC.
         return JSONTranscoder()
 
     def mapper(
-        self, transcoder: Transcoder, mapper_class: Type[Mapper] = Mapper
+        self, transcoder: Transcoder, mapper_class: type[Mapper] = Mapper
     ) -> Mapper:
         """
         Constructs a mapper.
         """
-        # Todo: Implement support for MAPPER_TOPIC.
+        # TODO: Implement support for MAPPER_TOPIC.
         return mapper_class(
             transcoder=transcoder,
             cipher=self.cipher(),
             compressor=self.compressor(),
         )
 
-    def cipher(self) -> Optional[Cipher]:
+    def cipher(self) -> Cipher | None:
         """
         Reads environment variables 'CIPHER_TOPIC'
         and 'CIPHER_KEY' to decide whether or not
         to construct a cipher.
         """
         cipher_topic = self.env.get(self.CIPHER_TOPIC)
-        cipher: Optional[Cipher] = None
+        cipher: Cipher | None = None
         default_cipher_topic = "eventsourcing.cipher:AESCipher"
         if self.env.get("CIPHER_KEY") and not cipher_topic:
             cipher_topic = default_cipher_topic
 
         if cipher_topic:
-            cipher_cls: Type[Cipher] = resolve_topic(cipher_topic)
+            cipher_cls: type[Cipher] = resolve_topic(cipher_topic)
             cipher = cipher_cls(self.env)
 
         return cipher
 
-    def compressor(self) -> Optional[Compressor]:
+    def compressor(self) -> Compressor | None:
         """
         Reads environment variable 'COMPRESSOR_TOPIC' to
         decide whether or not to construct a compressor.
         """
-        compressor: Optional[Compressor] = None
+        compressor: Compressor | None = None
         compressor_topic = self.env.get(self.COMPRESSOR_TOPIC)
         if compressor_topic:
-            compressor_cls: Union[Type[Compressor], Compressor] = resolve_topic(
+            compressor_cls: type[Compressor] | Compressor = resolve_topic(
                 compressor_topic
             )
             if isinstance(compressor_cls, type):
@@ -763,9 +755,7 @@ Params = Union[Sequence[Any], Mapping[str, Any]]
 
 class Cursor(ABC):
     @abstractmethod
-    def execute(
-        self, statement: Union[str, bytes], params: Optional[Params] = None
-    ) -> None:
+    def execute(self, statement: str | bytes, params: Params | None = None) -> None:
         """Executes given statement."""
 
     @abstractmethod
@@ -781,14 +771,14 @@ TCursor = TypeVar("TCursor", bound=Cursor)
 
 
 class Connection(ABC, Generic[TCursor]):
-    def __init__(self, max_age: Optional[float] = None) -> None:
+    def __init__(self, max_age: float | None = None) -> None:
         self._closed = False
         self._closing = Event()
         self._close_lock = Lock()
         self.in_use = Lock()
         self.in_use.acquire()
         if max_age is not None:
-            self._max_age_timer: Optional[Timer] = Timer(
+            self._max_age_timer: Timer | None = Timer(
                 interval=max_age,
                 function=self._close_when_not_in_use,
             )
@@ -796,7 +786,7 @@ class Connection(ABC, Generic[TCursor]):
             self._max_age_timer.start()
         else:
             self._max_age_timer = None
-        self.is_writer: Optional[bool] = None
+        self.is_writer: bool | None = None
 
     @property
     def closed(self) -> bool:
@@ -838,19 +828,19 @@ class Connection(ABC, Generic[TCursor]):
 TConnection = TypeVar("TConnection", bound=Connection[Any])
 
 
-class ConnectionPoolClosed(EventSourcingError):
+class ConnectionPoolClosedError(EventSourcingError):
     """
     Raised when using a connection pool that is already closed.
     """
 
 
-class ConnectionNotFromPool(EventSourcingError):
+class ConnectionNotFromPoolError(EventSourcingError):
     """
     Raised when putting a connection in the wrong pool.
     """
 
 
-class ConnectionUnavailable(OperationalError, TimeoutError):
+class ConnectionUnavailableError(OperationalError, TimeoutError):
     """
     Raised when a request to get a connection from a
     connection pool times out.
@@ -860,10 +850,11 @@ class ConnectionUnavailable(OperationalError, TimeoutError):
 class ConnectionPool(ABC, Generic[TConnection]):
     def __init__(
         self,
+        *,
         pool_size: int = 5,
         max_overflow: int = 10,
         pool_timeout: float = 30.0,
-        max_age: Optional[float] = None,
+        max_age: float | None = None,
         pre_ping: bool = False,
         mutually_exclusive_read_write: bool = False,
     ) -> None:
@@ -902,8 +893,8 @@ class ConnectionPool(ABC, Generic[TConnection]):
         self.pool_timeout = pool_timeout
         self.max_age = max_age
         self.pre_ping = pre_ping
-        self._pool: Deque[TConnection] = deque()
-        self._in_use: Dict[int, TConnection] = dict()
+        self._pool: deque[TConnection] = deque()
+        self._in_use: dict[int, TConnection] = {}
         self._get_semaphore = Semaphore()
         self._put_condition = Condition()
         self._no_readers = Condition()
@@ -950,7 +941,7 @@ class ConnectionPool(ABC, Generic[TConnection]):
         return self._num_in_use >= self.pool_size + self.max_overflow
 
     def get_connection(
-        self, timeout: Optional[float] = None, is_writer: Optional[bool] = None
+        self, timeout: float | None = None, is_writer: bool | None = None
     ) -> TConnection:
         """
         Issues connections, or raises ConnectionPoolExhausted error.
@@ -978,7 +969,7 @@ class ConnectionPool(ABC, Generic[TConnection]):
         """
         # Make sure we aren't dealing with a closed pool.
         if self._closed:
-            raise ConnectionPoolClosed
+            raise ConnectionPoolClosedError
 
         # Decide the timeout for getting a connection.
         timeout = self.pool_timeout if timeout is None else timeout
@@ -994,20 +985,16 @@ class ConnectionPool(ABC, Generic[TConnection]):
                     if not self._writer_lock.acquire(
                         timeout=self._time_remaining(timeout, started)
                     ):
-                        raise ConnectionUnavailable(
-                            "Timed out waiting for return of writer"
-                        )
+                        msg = "Timed out waiting for return of writer"
+                        raise ConnectionUnavailableError(msg)
                     if self._mutually_exclusive_read_write:
                         with self._no_readers:
-                            if self._num_readers > 0:
-                                # print("writer waiting")
-                                if not self._no_readers.wait(
-                                    timeout=self._time_remaining(timeout, started)
-                                ):
-                                    self._writer_lock.release()
-                                    raise ConnectionUnavailable(
-                                        "Timed out waiting for return of reader"
-                                    )
+                            if self._num_readers > 0 and not self._no_readers.wait(
+                                timeout=self._time_remaining(timeout, started)
+                            ):
+                                self._writer_lock.release()
+                                msg = "Timed out waiting for return of reader"
+                                raise ConnectionUnavailableError(msg)
                     self._num_writers += 1
 
                 # If connection is for reading, and writing excludes reading,
@@ -1017,9 +1004,8 @@ class ConnectionPool(ABC, Generic[TConnection]):
                         if not self._writer_lock.acquire(
                             timeout=self._time_remaining(timeout, started)
                         ):
-                            raise ConnectionUnavailable(
-                                "Timed out waiting for return of writer"
-                            )
+                            msg = "Timed out waiting for return of writer"
+                            raise ConnectionUnavailableError(msg)
                         self._writer_lock.release()
                     with self._no_readers:
                         self._num_readers += 1
@@ -1038,9 +1024,8 @@ class ConnectionPool(ABC, Generic[TConnection]):
                 self._get_semaphore.release()
         else:
             # Timed out waiting for semaphore.
-            raise ConnectionUnavailable(
-                "Timed out waiting for connection pool semaphore"
-            )
+            msg = "Timed out waiting for connection pool semaphore"
+            raise ConnectionUnavailableError(msg)
 
     def _get_connection(self, timeout: float = 0.0) -> TConnection:
         """
@@ -1070,18 +1055,15 @@ class ConnectionPool(ABC, Generic[TConnection]):
                         return self._get_connection(
                             timeout=self._time_remaining(timeout, started)
                         )
-                    else:
-                        # Timed out waiting for a connection to be returned.
-                        raise ConnectionUnavailable(
-                            "Timed out waiting for return of connection"
-                        ) from None
-                else:
-                    # Not fully used, so create a new connection.
-                    conn = self._create_connection()
-                    # print("created another connection")
+                    # Timed out waiting for a connection to be returned.
+                    msg = "Timed out waiting for return of connection"
+                    raise ConnectionUnavailableError(msg) from None
+                # Not fully used, so create a new connection.
+                conn = self._create_connection()
+                # print("created another connection")
 
-                    # Connection should be pre-locked for use (avoids timer race).
-                    assert conn.in_use.locked()
+                # Connection should be pre-locked for use (avoids timer race).
+                assert conn.in_use.locked()
 
             else:
                 # Got unused connection from pool, so lock for use.
@@ -1132,15 +1114,15 @@ class ConnectionPool(ABC, Generic[TConnection]):
         with self._put_condition:
             # Make sure we aren't dealing with a closed pool
             if self._closed:
-                raise ConnectionPoolClosed("Pool is closed")
+                msg = "Pool is closed"
+                raise ConnectionPoolClosedError(msg)
 
             # Make sure we are dealing with a connection from this pool.
             try:
                 del self._in_use[id(conn)]
             except KeyError:
-                raise ConnectionNotFromPool(
-                    "Connection not in use in this pool"
-                ) from None
+                msg = "Connection not in use in this pool"
+                raise ConnectionNotFromPoolError(msg) from None
 
             if not conn.closed:
                 # Put open connection in pool if not full.
@@ -1191,7 +1173,7 @@ class ConnectionPool(ABC, Generic[TConnection]):
             while True:
                 try:
                     conn = self._pool.popleft()
-                except IndexError:
+                except IndexError:  # noqa: PERF203
                     break
                 else:
                     conn.close()

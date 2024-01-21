@@ -10,7 +10,7 @@ from tempfile import NamedTemporaryFile
 from threading import Event, Thread, get_ident
 from time import sleep
 from timeit import timeit
-from typing import Any, Dict, List, Optional
+from typing import Any
 from unittest import TestCase
 from uuid import UUID, uuid4
 
@@ -70,10 +70,10 @@ class AggregateRecorderTestCase(TestCase, ABC):
         # Select stored events, expect list of one.
         stored_events = recorder.select_events(originator_id1)
         self.assertEqual(len(stored_events), 1)
-        assert stored_events[0].originator_id == originator_id1
-        assert stored_events[0].originator_version == self.INITIAL_VERSION
-        assert stored_events[0].topic == "topic1"
-        assert stored_events[0].state == b"state1"
+        self.assertEqual(stored_events[0].originator_id, originator_id1)
+        self.assertEqual(stored_events[0].originator_version, self.INITIAL_VERSION)
+        self.assertEqual(stored_events[0].topic, "topic1")
+        self.assertEqual(stored_events[0].state, b"state1")
         self.assertIsInstance(stored_events[0].state, bytes)
 
         # Check get record conflict error if attempt to store it again.
@@ -96,9 +96,11 @@ class AggregateRecorderTestCase(TestCase, ABC):
         # Check still only have one record.
         stored_events = recorder.select_events(originator_id1)
         self.assertEqual(len(stored_events), 1)
-        assert stored_events[0].originator_id == stored_event1.originator_id
-        assert stored_events[0].originator_version == stored_event1.originator_version
-        assert stored_events[0].topic == stored_event1.topic
+        self.assertEqual(stored_events[0].originator_id, stored_event1.originator_id)
+        self.assertEqual(
+            stored_events[0].originator_version, stored_event1.originator_version
+        )
+        self.assertEqual(stored_events[0].topic, stored_event1.topic)
 
         # Check can write two events together.
         stored_event3 = StoredEvent(
@@ -113,18 +115,18 @@ class AggregateRecorderTestCase(TestCase, ABC):
         # Check we got what was written.
         stored_events = recorder.select_events(originator_id1)
         self.assertEqual(len(stored_events), 3)
-        assert stored_events[0].originator_id == originator_id1
-        assert stored_events[0].originator_version == self.INITIAL_VERSION
-        assert stored_events[0].topic == "topic1"
+        self.assertEqual(stored_events[0].originator_id, originator_id1)
+        self.assertEqual(stored_events[0].originator_version, self.INITIAL_VERSION)
+        self.assertEqual(stored_events[0].topic, "topic1")
         self.assertEqual(stored_events[0].state, b"state1")
-        assert stored_events[1].originator_id == originator_id1
-        assert stored_events[1].originator_version == self.INITIAL_VERSION + 1
-        assert stored_events[1].topic == "topic2"
-        assert stored_events[1].state == b"state2"
-        assert stored_events[2].originator_id == originator_id1
-        assert stored_events[2].originator_version == self.INITIAL_VERSION + 2
-        assert stored_events[2].topic == "topic3"
-        assert stored_events[2].state == b"state3"
+        self.assertEqual(stored_events[1].originator_id, originator_id1)
+        self.assertEqual(stored_events[1].originator_version, self.INITIAL_VERSION + 1)
+        self.assertEqual(stored_events[1].topic, "topic2")
+        self.assertEqual(stored_events[1].state, b"state2")
+        self.assertEqual(stored_events[2].originator_id, originator_id1)
+        self.assertEqual(stored_events[2].originator_version, self.INITIAL_VERSION + 2)
+        self.assertEqual(stored_events[2].topic, "topic3")
+        self.assertEqual(stored_events[2].state, b"state3")
 
         # Check we can get the last one recorded (used to get last snapshot).
         stored_events = recorder.select_events(originator_id1, desc=True, limit=1)
@@ -389,11 +391,11 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         recorder = self.create_recorder()
 
         errors_happened = Event()
-        errors: List[Exception] = []
+        errors: list[Exception] = []
 
         counts = {}
-        threads: Dict[int, int] = {}
-        durations: Dict[int, float] = {}
+        threads: dict[int, int] = {}
+        durations: dict[int, float] = {}
 
         num_writers = 10
         num_writes_per_writer = 100
@@ -496,11 +498,11 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         errors_happened = Event()
 
         counts = {}
-        threads: Dict[int, int] = {}
-        durations: Dict[int, float] = {}
+        threads: dict[int, int] = {}
+        durations: dict[int, float] = {}
 
         # Match this to the batch page size in postgres insert for max throughput.
-        NUM_EVENTS = 500
+        num_events = 500
 
         started = datetime.now()
 
@@ -521,7 +523,7 @@ class ApplicationRecorderTestCase(TestCase, ABC):
                     topic="topic",
                     state=b"state",
                 )
-                for i in range(NUM_EVENTS)
+                for i in range(num_events)
             ]
 
             try:
@@ -537,11 +539,11 @@ class ApplicationRecorderTestCase(TestCase, ABC):
                 counts[thread_id] += 1
                 durations[thread_id] = duration
 
-        NUM_JOBS = 60
+        num_jobs = 60
 
         with ThreadPoolExecutor(max_workers=4) as executor:
             futures = []
-            for _ in range(NUM_JOBS):
+            for _ in range(num_jobs):
                 future = executor.submit(insert_events)
                 # future.add_done_callback(self.close_db_connection)
                 futures.append(future)
@@ -550,7 +552,7 @@ class ApplicationRecorderTestCase(TestCase, ABC):
 
         self.assertFalse(errors_happened.is_set(), "There were errors (see above)")
         ended = datetime.now()
-        rate = NUM_JOBS * NUM_EVENTS / (ended - started).total_seconds()
+        rate = num_jobs * num_events / (ended - started).total_seconds()
         print(f"Rate: {rate:.0f} inserts per second")
 
     def close_db_connection(self, *args: Any) -> None:
@@ -811,7 +813,7 @@ class NonInterleavingNotificationIDsBaseCase(ABC, TestCase):
 
 
 class InfrastructureFactoryTestCase(ABC, TestCase):
-    env: Optional[Environment] = None
+    env: Environment | None = None
 
     @abstractmethod
     def expected_factory_class(self):
@@ -1077,7 +1079,7 @@ class TranscoderTestCase(TestCase):
         self.transcoder = self.construct_transcoder()
 
     def construct_transcoder(self):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def test_str(self):
         obj = "a"
@@ -1154,7 +1156,7 @@ class TranscoderTestCase(TestCase):
         self.assertEqual(data, b'{"a":{"b":{"c":1}}}')
         self.assertEqual(obj, self.transcoder.decode(data))
 
-        # Todo: Int keys?
+        # TODO: Int keys?
         # obj = {1: "a"}
         # data = self.transcoder.encode(obj)
         # self.assertEqual(data, b'{1:{"a"}')

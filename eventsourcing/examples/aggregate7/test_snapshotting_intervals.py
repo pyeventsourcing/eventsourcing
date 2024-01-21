@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from typing import Tuple, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 from unittest import TestCase
-from uuid import UUID
 
-from eventsourcing.domain import ProgrammingError
+from eventsourcing.domain import MutableOrImmutableAggregate, ProgrammingError
 from eventsourcing.examples.aggregate7.application import DogSchool
 from eventsourcing.examples.aggregate7.domainmodel import (
     Dog,
@@ -14,9 +13,14 @@ from eventsourcing.examples.aggregate7.domainmodel import (
     register_dog,
 )
 
+if TYPE_CHECKING:  # pragma: nocover
+    from uuid import UUID
+
 
 class SubDogSchool(DogSchool):
-    snapshotting_intervals = {Dog: 1}
+    snapshotting_intervals: ClassVar[
+        dict[type[MutableOrImmutableAggregate], int] | None
+    ] = {Dog: 1}
 
     def register_dog(self, name: str) -> UUID:
         event = register_dog(name)
@@ -60,12 +64,4 @@ class TestDogSchool(TestCase):
         # Query application state.
         dog = school.get_dog(dog_id)
         self.assertEqual(dog["name"], "Fido")
-        self.assertEqualTricks(dog["tricks"], ("roll over", "play dead"))
-
-    def assertEqualTricks(
-        self, actual: Tuple[Trick, ...], expected: Tuple[str, ...]
-    ) -> None:
-        self.assertEqual(len(actual), len(expected))
-        for i, trick in enumerate(actual):
-            self.assertIsInstance(trick, Trick)
-            self.assertEqual(trick.name, expected[i])
+        self.assertEqual(dog["tricks"], ("roll over", "play dead"))

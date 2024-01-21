@@ -1,4 +1,6 @@
-from typing import Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest import TestCase
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
@@ -13,7 +15,9 @@ from eventsourcing.persistence import (
     UUIDAsHex,
 )
 from eventsourcing.popo import POPOAggregateRecorder
-from eventsourcing.utils import EnvType
+
+if TYPE_CHECKING:  # pragma: nocover
+    from eventsourcing.utils import EnvType
 
 
 class TestEventSourcedLog(TestCase):
@@ -85,7 +89,7 @@ class TestEventSourcedLog(TestCase):
             aggregate_id: UUID
 
         class MyApplication(Application):
-            def __init__(self, env: Optional[EnvType] = None) -> None:
+            def __init__(self, env: EnvType | None = None) -> None:
                 super().__init__(env=env)
                 self.aggregate_log = EventSourcedLog(
                     events=self.events,

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import singledispatch
-from typing import Callable, Iterable, Optional, Tuple, TypeVar, Union
+from typing import Callable, Iterable, Optional, TypeVar
 from uuid import UUID, uuid4
 
 from eventsourcing.domain import Snapshot
@@ -34,10 +34,10 @@ MutatorFunction = Callable[..., Optional[TAggregate]]
 
 def aggregate_projector(
     mutator: MutatorFunction[TAggregate],
-) -> Callable[[Optional[TAggregate], Iterable[DomainEvent]], Optional[TAggregate]]:
+) -> Callable[[TAggregate | None, Iterable[DomainEvent]], TAggregate | None]:
     def project_aggregate(
-        aggregate: Optional[TAggregate], events: Iterable[DomainEvent]
-    ) -> Optional[TAggregate]:
+        aggregate: TAggregate | None, events: Iterable[DomainEvent]
+    ) -> TAggregate | None:
         for event in events:
             aggregate = mutator(event, aggregate)
         return aggregate
@@ -48,7 +48,7 @@ def aggregate_projector(
 @dataclass(frozen=True)
 class Dog(Aggregate):
     name: str
-    tricks: Tuple[str, ...]
+    tricks: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -80,9 +80,7 @@ def add_trick(dog: Dog, trick: str) -> DomainEvent:
 
 
 @singledispatch
-def mutate_dog(
-    event: Union[DomainEvent, Snapshot], dog: Optional[Dog]
-) -> Optional[Dog]:
+def mutate_dog(_: DomainEvent | Snapshot, __: Dog | None) -> Dog | None:
     """Mutates aggregate with event."""
 
 
@@ -106,7 +104,7 @@ def _(event: TrickAdded, dog: Dog) -> Dog:
         created_on=dog.created_on,
         modified_on=event.timestamp,
         name=dog.name,
-        tricks=dog.tricks + (event.trick,),
+        tricks=(*dog.tricks, event.trick),
     )
 
 

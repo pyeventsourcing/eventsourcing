@@ -2,18 +2,18 @@ from __future__ import annotations
 
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import Optional, cast
+from typing import cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from eventsourcing.domain import Aggregate, DomainEvent, event
 from eventsourcing.examples.contentmanagement.utils import apply_patch, create_diff
 
-user_id_cvar: ContextVar[Optional[UUID]] = ContextVar("user_id", default=None)
+user_id_cvar: ContextVar[UUID | None] = ContextVar("user_id", default=None)
 
 
 class Page(Aggregate):
     class Event(Aggregate.Event):
-        user_id: Optional[UUID] = field(default_factory=user_id_cvar.get, init=False)
+        user_id: UUID | None = field(default_factory=user_id_cvar.get, init=False)
 
         def apply(self, aggregate: Aggregate) -> None:
             cast(Page, aggregate).modified_by = self.user_id
@@ -27,7 +27,7 @@ class Page(Aggregate):
         self.title = title
         self.slug = slug
         self.body = body
-        self.modified_by: Optional[UUID] = None
+        self.modified_by: UUID | None = None
 
     @event("SlugUpdated")
     def update_slug(self, slug: str) -> None:
@@ -51,7 +51,7 @@ class Page(Aggregate):
 @dataclass
 class Index(Aggregate):
     slug: str
-    ref: Optional[UUID]
+    ref: UUID | None
 
     class Event(Aggregate.Event):
         pass
@@ -61,7 +61,7 @@ class Index(Aggregate):
         return uuid5(NAMESPACE_URL, f"/slugs/{slug}")
 
     @event("RefChanged")
-    def update_ref(self, ref: Optional[UUID]) -> None:
+    def update_ref(self, ref: UUID | None) -> None:
         self.ref = ref
 
 

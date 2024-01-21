@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import contextlib
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, List, Optional, Type, TypeVar, cast
+from typing import Any, ClassVar, Iterable, TypeVar, cast
 from uuid import UUID, uuid4
 
 from eventsourcing.dispatch import singledispatchmethod
@@ -36,7 +37,7 @@ class Aggregate:
 
     def trigger_event(
         self,
-        event_class: Type[DomainEvent],
+        event_class: type[DomainEvent],
         **kwargs: Any,
     ) -> None:
         kwargs = kwargs.copy()
@@ -53,36 +54,34 @@ class Aggregate:
     def apply(self, event: DomainEvent) -> None:
         """Applies event to aggregate."""
 
-    def collect_events(self) -> List[DomainEvent]:
+    def collect_events(self) -> list[DomainEvent]:
         events, self.pending_events = self.pending_events, []
         return events
 
     @classmethod
     def projector(
-        cls: Type[TAggregate],
-        _: Optional[TAggregate],
+        cls: type[TAggregate],
+        _: TAggregate | None,
         events: Iterable[DomainEvent],
-    ) -> Optional[TAggregate]:
+    ) -> TAggregate | None:
         aggregate = object.__new__(cls)
         for event in events:
             aggregate.apply(event)
         return aggregate
 
     @property
-    def pending_events(self) -> List[DomainEvent]:
+    def pending_events(self) -> list[DomainEvent]:
         return type(self).__pending_events[id(self)]
 
     @pending_events.setter
-    def pending_events(self, pending_events: List[DomainEvent]) -> None:
+    def pending_events(self, pending_events: list[DomainEvent]) -> None:
         type(self).__pending_events[id(self)] = pending_events
 
-    __pending_events: Dict[int, List[DomainEvent]] = defaultdict(list)
+    __pending_events: ClassVar[dict[int, list[DomainEvent]]] = defaultdict(list)
 
     def __del__(self) -> None:
-        try:
+        with contextlib.suppress(KeyError):
             type(self).__pending_events.pop(id(self))
-        except KeyError:
-            pass
 
 
 class Dog(Aggregate):
@@ -95,7 +94,7 @@ class Dog(Aggregate):
         trick: str
 
     @classmethod
-    def register(cls, name: str) -> "Dog":
+    def register(cls, name: str) -> Dog:
         event = cls.Registered(
             originator_id=uuid4(),
             originator_version=1,
@@ -117,7 +116,7 @@ class Dog(Aggregate):
     def _(self, event: Registered) -> None:
         super().__init__(event)
         self.name = event.name
-        self.tricks: List[str] = []
+        self.tricks: list[str] = []
 
     @apply.register(TrickAdded)
     def _(self, event: TrickAdded) -> None:

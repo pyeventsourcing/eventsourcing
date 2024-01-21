@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import os
-from typing import Dict, cast
+from typing import ClassVar, cast
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.examples.contentmanagement.application import PageNotFound
+from eventsourcing.examples.contentmanagement.application import PageNotFoundError
 from eventsourcing.examples.searchablecontent.application import (
     SearchableContentApplication,
 )
@@ -17,26 +17,28 @@ from eventsourcing.tests.postgres_utils import drop_postgres_table
 
 
 class SearchableContentRecorderTestCase(TestCase):
-    env: Dict[str, str] = {}
+    env: ClassVar[dict[str, str]] = {}
 
     def test_recorder(self) -> None:
         app = SearchableContentApplication(env=self.env)
 
         # Need to cover the case where select_page() raises PageNotFound.
         recorder = cast(SearchableContentRecorder, app.recorder)
-        with self.assertRaises(PageNotFound):
+        with self.assertRaises(PageNotFoundError):
             recorder.select_page(uuid4())
 
 
 class TestWithSQLite(SearchableContentRecorderTestCase):
-    env = {
+    env: ClassVar[dict[str, str]] = {
         "PERSISTENCE_MODULE": "eventsourcing.examples.searchablecontent.sqlite",
         "SQLITE_DBNAME": ":memory:",
     }
 
 
 class TestWithPostgres(SearchableContentRecorderTestCase):
-    env = {"PERSISTENCE_MODULE": "eventsourcing.examples.searchablecontent.postgres"}
+    env: ClassVar[dict[str, str]] = {
+        "PERSISTENCE_MODULE": "eventsourcing.examples.searchablecontent.postgres"
+    }
 
     def setUp(self) -> None:
         super().setUp()
@@ -44,7 +46,7 @@ class TestWithPostgres(SearchableContentRecorderTestCase):
         os.environ["POSTGRES_HOST"] = "127.0.0.1"
         os.environ["POSTGRES_PORT"] = "5432"
         os.environ["POSTGRES_USER"] = "eventsourcing"
-        os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
+        os.environ["POSTGRES_PASSWORD"] = "eventsourcing"  # noqa: S105
         self.drop_tables()
 
     def tearDown(self) -> None:

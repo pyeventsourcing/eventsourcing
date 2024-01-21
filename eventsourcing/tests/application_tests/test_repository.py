@@ -3,7 +3,12 @@ from functools import reduce
 from unittest.case import TestCase
 from uuid import uuid4
 
-from eventsourcing.application import AggregateNotFound, Cache, LRUCache, Repository
+from eventsourcing.application import (
+    AggregateNotFoundError,
+    Cache,
+    LRUCache,
+    Repository,
+)
 from eventsourcing.domain import Aggregate, Snapshot
 from eventsourcing.persistence import (
     DatetimeAsISO,
@@ -40,10 +45,10 @@ class TestRepository(TestCase):
             mapper=Mapper(transcoder=transcoder),
             recorder=snapshot_recorder,
         )
-        repository = Repository(event_store, snapshot_store)
+        repository = Repository(event_store, snapshot_store=snapshot_store)
 
         # Check key error.
-        with self.assertRaises(AggregateNotFound):
+        with self.assertRaises(AggregateNotFoundError):
             repository.get(uuid4())
 
         # Open an account.
@@ -142,7 +147,7 @@ class TestRepository(TestCase):
         repository = Repository(event_store)
 
         # Check key error.
-        with self.assertRaises(AggregateNotFound):
+        with self.assertRaises(AggregateNotFoundError):
             repository.get(uuid4())
 
         # Open an account.
@@ -222,10 +227,10 @@ class TestRepository(TestCase):
             mapper=Mapper(transcoder=transcoder),
             recorder=snapshot_recorder,
         )
-        repository = Repository(event_store, snapshot_store)
+        repository = Repository(event_store, snapshot_store=snapshot_store)
 
         # Check key error.
-        with self.assertRaises(AggregateNotFound):
+        with self.assertRaises(AggregateNotFoundError):
             repository.get(uuid4())
 
         # Open an account.
@@ -438,7 +443,7 @@ class TestRepository(TestCase):
 
         aggregate.trigger_event(Aggregate.Event)
         event_store.put(aggregate.collect_events())
-        with self.assertRaises(AggregateNotFound):
+        with self.assertRaises(AggregateNotFoundError):
             repository.get(aggregate.id, projector_func=lambda _, __: None)
 
     def test_fastforward_lock(self):

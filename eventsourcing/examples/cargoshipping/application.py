@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any, Dict, List, Optional, cast
-from uuid import UUID
+from typing import TYPE_CHECKING, Any, cast
 
 from eventsourcing.application import Application
 from eventsourcing.examples.cargoshipping.domainmodel import (
@@ -14,6 +12,10 @@ from eventsourcing.examples.cargoshipping.domainmodel import (
     Location,
 )
 from eventsourcing.persistence import Transcoder, Transcoding
+
+if TYPE_CHECKING:  # pragma: nocover
+    from datetime import datetime
+    from uuid import UUID
 
 
 class LocationAsName(Transcoding):
@@ -44,10 +46,10 @@ class ItineraryAsDict(Transcoding):
     type = Itinerary
     name = "itinerary"
 
-    def encode(self, obj: Itinerary) -> Dict[str, Any]:
+    def encode(self, obj: Itinerary) -> dict[str, Any]:
         return obj.__dict__
 
-    def decode(self, data: Dict[str, Any]) -> Itinerary:
+    def decode(self, data: dict[str, Any]) -> Itinerary:
         assert isinstance(data, dict)
         return Itinerary(**data)
 
@@ -56,17 +58,17 @@ class LegAsDict(Transcoding):
     type = Leg
     name = "leg"
 
-    def encode(self, obj: Leg) -> Dict[str, Any]:
+    def encode(self, obj: Leg) -> dict[str, Any]:
         return obj.__dict__
 
-    def decode(self, data: Dict[str, Any]) -> Leg:
+    def decode(self, data: dict[str, Any]) -> Leg:
         assert isinstance(data, dict)
         return Leg(**data)
 
 
 class BookingApplication(Application):
     def register_transcodings(self, transcoder: Transcoder) -> None:
-        super(BookingApplication, self).register_transcodings(transcoder)
+        super().register_transcodings(transcoder)
         transcoder.register(LocationAsName())
         transcoder.register(HandlingActivityAsName())
         transcoder.register(ItineraryAsDict())
@@ -87,16 +89,15 @@ class BookingApplication(Application):
         cargo.change_destination(destination)
         self.save(cargo)
 
-    def request_possible_routes_for_cargo(self, tracking_id: UUID) -> List[Itinerary]:
+    def request_possible_routes_for_cargo(self, tracking_id: UUID) -> list[Itinerary]:
         cargo = self.get_cargo(tracking_id)
         from_location = (cargo.last_known_location or cargo.origin).value
         to_location = cargo.destination.value
         try:
             possible_routes = REGISTERED_ROUTES[(from_location, to_location)]
         except KeyError:
-            raise Exception(
-                "Can't find routes from {} to {}".format(from_location, to_location)
-            )
+            msg = f"Can't find routes from {from_location} to {to_location}"
+            raise ValueError(msg) from None
 
         return possible_routes
 
@@ -108,7 +109,7 @@ class BookingApplication(Application):
     def register_handling_event(
         self,
         tracking_id: UUID,
-        voyage_number: Optional[str],
+        voyage_number: str | None,
         location: Location,
         handing_activity: HandlingActivity,
     ) -> None:

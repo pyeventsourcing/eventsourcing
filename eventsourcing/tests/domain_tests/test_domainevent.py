@@ -57,9 +57,9 @@ class TestDomainEvent(TestCase):
             full_name="Alice",
         )
 
-        assert event3.full_name == "Alice"
+        self.assertEqual(event3.full_name, "Alice")
         assert isinstance(event3.originator_id, UUID)
-        assert event3.originator_version == 0
+        self.assertEqual(event3.originator_version, 0)
 
         # Define a 'full name updated' domain event.
         class FullNameUpdated(DomainEvent):
@@ -75,6 +75,6 @@ class TestDomainEvent(TestCase):
         )
 
         # Check the attribute values of the domain event.
-        assert event4.full_name == "Bob"
+        self.assertEqual(event4.full_name, "Bob")
         assert isinstance(event4.originator_id, UUID)
-        assert event4.originator_version == 1
+        self.assertEqual(event4.originator_version, 1)

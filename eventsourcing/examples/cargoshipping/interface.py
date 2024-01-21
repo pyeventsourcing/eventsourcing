@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Dict, Optional, Tuple, Union
 from uuid import UUID
 
-from eventsourcing.examples.cargoshipping.application import BookingApplication
 from eventsourcing.examples.cargoshipping.domainmodel import (
     HandlingActivity,
     Itinerary,
@@ -13,13 +12,16 @@ from eventsourcing.examples.cargoshipping.domainmodel import (
     Location,
 )
 
+if TYPE_CHECKING:  # pragma: nocover
+    from eventsourcing.examples.cargoshipping.application import BookingApplication
+
 NextExpectedActivityDetails = Optional[Tuple[str, ...]]
 CargoDetails = Dict[
     str, Optional[Union[str, bool, datetime, NextExpectedActivityDetails]]
 ]
 
 
-class BookingService(object):
+class BookingService:
     """
     Presents an application interface that uses
     simple types of object (str, bool, datetime).
@@ -60,11 +62,8 @@ class BookingService(object):
                 cargo.next_expected_activity[2],
             )
         else:
-            raise Exception(
-                "Invalid next expected activity: {}".format(
-                    cargo.next_expected_activity
-                )
-            )
+            msg = f"Invalid next expected activity: {cargo.next_expected_activity}"
+            raise Exception(msg)
 
         # Present 'last_known_location'.
         if cargo.last_known_location is None:
@@ -92,7 +91,7 @@ class BookingService(object):
 
     def request_possible_routes_for_cargo(
         self, tracking_id: str
-    ) -> List[ItineraryDetails]:
+    ) -> list[ItineraryDetails]:
         routes = self.app.request_possible_routes_for_cargo(UUID(tracking_id))
         return [self.dict_from_itinerary(route) for route in routes]
 
@@ -125,7 +124,7 @@ class BookingService(object):
     def register_handling_event(
         self,
         tracking_id: str,
-        voyage_number: Optional[str],
+        voyage_number: str | None,
         location: str,
         handling_activity: str,
     ) -> None:
@@ -139,6 +138,6 @@ class BookingService(object):
 
 # Stub function that picks an itinerary from a list of possible itineraries.
 def select_preferred_itinerary(
-    itineraries: List[ItineraryDetails],
+    itineraries: list[ItineraryDetails],
 ) -> ItineraryDetails:
     return itineraries[0]

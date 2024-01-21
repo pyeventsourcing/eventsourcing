@@ -51,9 +51,8 @@ class TestTransaction(TestCase):
         self.mock.rollback.assert_not_called()
 
     def test_calls_rollback_if_error_is_raised_during_transaction(self):
-        with self.assertRaises(TypeError):
-            with self.t:
-                raise TypeError
+        with self.assertRaises(TypeError), self.t:
+            raise TypeError
         self.mock.commit.assert_not_called()
         self.mock.rollback.assert_called()
 
@@ -70,9 +69,8 @@ class TestTransaction(TestCase):
             (PersistenceError, sqlite3.Error),
         ]
         for es_err, psy_err in errors:
-            with self.assertRaises(es_err):
-                with self.t:
-                    raise psy_err
+            with self.assertRaises(es_err), self.t:
+                raise psy_err
 
 
 class SQLiteConnectionPoolTestCase(TestConnectionPool):
@@ -130,9 +128,8 @@ class TestSqliteDatastore(TestCase):
 
     def test_connect_failure_raises_interface_error(self):
         datastore = SQLiteDatastore(None)
-        with self.assertRaises(InterfaceError):
-            with datastore.transaction(commit=False):
-                pass
+        with self.assertRaises(InterfaceError), datastore.transaction(commit=False):
+            pass
 
     def test_transaction(self):
         transaction = self.datastore.transaction(commit=False)

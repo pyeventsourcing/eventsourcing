@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 from contextlib import contextmanager
-from types import TracebackType
-from typing import Any, Iterator, List, Optional, Sequence, Type, Union
+from typing import TYPE_CHECKING, Any, Iterator, Sequence
 from uuid import UUID
 
 from eventsourcing.persistence import (
@@ -29,6 +28,9 @@ from eventsourcing.persistence import (
 )
 from eventsourcing.utils import Environment, strtobool
 
+if TYPE_CHECKING:  # pragma: nocover
+    from types import TracebackType
+
 SQLITE3_DEFAULT_LOCK_TIMEOUT = 5
 
 
@@ -39,7 +41,7 @@ class SQLiteCursor(Cursor):
     def __enter__(self) -> sqlite3.Cursor:
         return self.sqlite_cursor
 
-    def __exit__(self, *args: Any, **kwargs: Any) -> None:
+    def __exit__(self, *args: object, **kwargs: Any) -> None:
         self.sqlite_cursor.close()
 
     def execute(self, *args: Any, **kwargs: Any) -> None:
@@ -60,17 +62,15 @@ class SQLiteCursor(Cursor):
 
 
 class SQLiteConnection(Connection[SQLiteCursor]):
-    def __init__(self, sqlite_conn: sqlite3.Connection, max_age: Optional[float]):
+    def __init__(self, sqlite_conn: sqlite3.Connection, max_age: float | None):
         super().__init__(max_age=max_age)
         self._sqlite_conn = sqlite_conn
 
     @contextmanager
-    def transaction(self, commit: bool) -> Iterator[SQLiteCursor]:
-        # Context managed transaction.
-        with SQLiteTransaction(self, commit) as curs:
-            # Context managed cursor.
-            with curs:
-                yield curs
+    def transaction(self, *, commit: bool) -> Iterator[SQLiteCursor]:
+        # Context managed cursor, and context managed transaction.
+        with SQLiteTransaction(self, commit=commit) as curs, curs:
+            yield curs
 
     def cursor(self) -> SQLiteCursor:
         return SQLiteCursor(self._sqlite_conn.cursor())
@@ -87,7 +87,7 @@ class SQLiteConnection(Connection[SQLiteCursor]):
 
 
 class SQLiteTransaction:
-    def __init__(self, connection: SQLiteConnection, commit: bool = False):
+    def __init__(self, connection: SQLiteConnection, *, commit: bool = False):
         self.connection = connection
         self.commit = commit
 
@@ -100,9 +100,9 @@ class SQLiteTransaction:
 
     def __exit__(
         self,
-        exc_type: Type[BaseException],
-        exc_val: BaseException,
-        exc_tb: TracebackType,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
     ) -> None:
         try:
             if exc_val:
@@ -110,7 +110,7 @@ class SQLiteTransaction:
                 # if an exception occurs.
                 self.connection.rollback()
                 raise exc_val
-            elif not self.commit:
+            if not self.commit:
                 self.connection.rollback()
             else:
                 self.connection.commit()
@@ -137,12 +137,13 @@ class SQLiteTransaction:
 class SQLiteConnectionPool(ConnectionPool[SQLiteConnection]):
     def __init__(
         self,
+        *,
         db_name: str,
-        lock_timeout: Optional[int] = None,
+        lock_timeout: int | None = None,
         pool_size: int = 5,
         max_overflow: int = 10,
         pool_timeout: float = 5.0,
-        max_age: Optional[float] = None,
+        max_age: float | None = None,
         pre_ping: bool = False,
     ):
         self.db_name = db_name
@@ -175,20 +176,19 @@ class SQLiteConnectionPool(ConnectionPool[SQLiteConnection]):
                 timeout=self.lock_timeout or SQLITE3_DEFAULT_LOCK_TIMEOUT,
             )
         except (sqlite3.Error, TypeError) as e:
-            raise InterfaceError(e)
+            raise InterfaceError(e) from e
 
         # Use WAL (write-ahead log) mode if file-based database.
-        if not self.is_sqlite_memory_mode:
-            if not self.is_journal_mode_wal:
-                cursor = c.cursor()
-                cursor.execute("PRAGMA journal_mode;")
-                mode = cursor.fetchone()[0]
-                if mode.lower() == "wal":
-                    self.is_journal_mode_wal = True
-                else:
-                    cursor.execute("PRAGMA journal_mode=WAL;")
-                    self.is_journal_mode_wal = True
-                    self.journal_mode_was_changed_to_wal = True
+        if not self.is_sqlite_memory_mode and not self.is_journal_mode_wal:
+            cursor = c.cursor()
+            cursor.execute("PRAGMA journal_mode;")
+            mode = cursor.fetchone()[0]
+            if mode.lower() == "wal":
+                self.is_journal_mode_wal = True
+            else:
+                cursor.execute("PRAGMA journal_mode=WAL;")
+                self.is_journal_mode_wal = True
+                self.journal_mode_was_changed_to_wal = True
 
         # Set the row factory.
         c.row_factory = sqlite3.Row
@@ -201,11 +201,12 @@ class SQLiteDatastore:
     def __init__(
         self,
         db_name: str,
-        lock_timeout: Optional[int] = None,
+        *,
+        lock_timeout: int | None = None,
         pool_size: int = 5,
         max_overflow: int = 10,
         pool_timeout: float = 5.0,
-        max_age: Optional[float] = None,
+        max_age: float | None = None,
         pre_ping: bool = False,
     ):
         self.pool = SQLiteConnectionPool(
@@ -219,13 +220,13 @@ class SQLiteDatastore:
         )
 
     @contextmanager
-    def transaction(self, commit: bool) -> Iterator[SQLiteCursor]:
-        with self.get_connection(commit=commit) as conn:
-            with conn.transaction(commit) as curs:
-                yield curs
+    def transaction(self, *, commit: bool) -> Iterator[SQLiteCursor]:
+        connection = self.get_connection(commit=commit)
+        with connection as conn, conn.transaction(commit=commit) as curs:
+            yield curs
 
     @contextmanager
-    def get_connection(self, commit: bool) -> Iterator[SQLiteConnection]:
+    def get_connection(self, *, commit: bool) -> Iterator[SQLiteConnection]:
         # Using reader-writer interlocking is necessary for in-memory databases,
         # but also speeds up (and provides "fairness") to file-based databases.
         conn = self.pool.get_connection(is_writer=commit)
@@ -258,7 +259,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
             f"SELECT * FROM {self.events_table_name} WHERE originator_id=? "
         )
 
-    def construct_create_table_statements(self) -> List[str]:
+    def construct_create_table_statements(self) -> list[str]:
         statement = (
             "CREATE TABLE IF NOT EXISTS "
             f"{self.events_table_name} ("
@@ -276,41 +277,42 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         with self.datastore.transaction(commit=True) as c:
             for statement in self.create_table_statements:
                 c.execute(statement)
-            pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
 
     def insert_events(
-        self, stored_events: List[StoredEvent], **kwargs: Any
-    ) -> Optional[Sequence[int]]:
+        self, stored_events: list[StoredEvent], **kwargs: Any
+    ) -> Sequence[int] | None:
         with self.datastore.transaction(commit=True) as c:
             return self._insert_events(c, stored_events, **kwargs)
 
     def _insert_events(
         self,
         c: SQLiteCursor,
-        stored_events: List[StoredEvent],
-        **kwargs: Any,
-    ) -> Optional[Sequence[int]]:
-        params = []
-        for stored_event in stored_events:
-            params.append((
-                stored_event.originator_id.hex,
-                stored_event.originator_version,
-                stored_event.topic,
-                stored_event.state,
-            ))
+        stored_events: list[StoredEvent],
+        **_: Any,
+    ) -> Sequence[int] | None:
+        params = [
+            (
+                s.originator_id.hex,
+                s.originator_version,
+                s.topic,
+                s.state,
+            )
+            for s in stored_events
+        ]
         c.executemany(self.insert_events_statement, params)
         return None
 
     def select_events(
         self,
         originator_id: UUID,
-        gt: Optional[int] = None,
-        lte: Optional[int] = None,
+        *,
+        gt: int | None = None,
+        lte: int | None = None,
         desc: bool = False,
-        limit: Optional[int] = None,
-    ) -> List[StoredEvent]:
+        limit: int | None = None,
+    ) -> list[StoredEvent]:
         statement = self.select_events_statement
-        params: List[Any] = [originator_id.hex]
+        params: list[Any] = [originator_id.hex]
         if gt is not None:
             statement += "AND originator_version>? "
             params.append(gt)
@@ -325,20 +327,17 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         if limit is not None:
             statement += "LIMIT ? "
             params.append(limit)
-        stored_events = []
         with self.datastore.transaction(commit=False) as c:
             c.execute(statement, params)
-            for row in c.fetchall():
-                stored_events.append(
-                    StoredEvent(
-                        originator_id=UUID(row["originator_id"]),
-                        originator_version=row["originator_version"],
-                        topic=row["topic"],
-                        state=row["state"],
-                    )
+            return [
+                StoredEvent(
+                    originator_id=UUID(row["originator_id"]),
+                    originator_version=row["originator_version"],
+                    topic=row["topic"],
+                    state=row["state"],
                 )
-            pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
-        return stored_events
+                for row in c.fetchall()
+            ]
 
 
 class SQLiteApplicationRecorder(
@@ -355,7 +354,7 @@ class SQLiteApplicationRecorder(
             f"SELECT MAX(rowid) FROM {self.events_table_name}"
         )
 
-    def construct_create_table_statements(self) -> List[str]:
+    def construct_create_table_statements(self) -> list[str]:
         statement = (
             "CREATE TABLE IF NOT EXISTS "
             f"{self.events_table_name} ("
@@ -371,9 +370,9 @@ class SQLiteApplicationRecorder(
     def _insert_events(
         self,
         c: SQLiteCursor,
-        stored_events: List[StoredEvent],
-        **kwargs: Any,
-    ) -> Optional[Sequence[int]]:
+        stored_events: list[StoredEvent],
+        **_: Any,
+    ) -> Sequence[int] | None:
         returning = []
         for stored_event in stored_events:
             c.execute(
@@ -392,16 +391,14 @@ class SQLiteApplicationRecorder(
         self,
         start: int,
         limit: int,
-        stop: Optional[int] = None,
+        stop: int | None = None,
         topics: Sequence[str] = (),
-    ) -> List[Notification]:
+    ) -> list[Notification]:
         """
         Returns a list of event notifications
         from 'start', limited by 'limit'.
         """
-        notifications = []
-
-        params: List[Union[int, str]] = [start]
+        params: list[int | str] = [start]
         statement = f"SELECT rowid, * FROM {self.events_table_name} WHERE rowid>=? "
 
         if stop is not None:
@@ -417,19 +414,16 @@ class SQLiteApplicationRecorder(
 
         with self.datastore.transaction(commit=False) as c:
             c.execute(statement, params)
-
-            for row in c.fetchall():
-                notifications.append(
-                    Notification(
-                        id=row["rowid"],
-                        originator_id=UUID(row["originator_id"]),
-                        originator_version=row["originator_version"],
-                        topic=row["topic"],
-                        state=row["state"],
-                    )
+            return [
+                Notification(
+                    id=row["rowid"],
+                    originator_id=UUID(row["originator_id"]),
+                    originator_version=row["originator_version"],
+                    topic=row["topic"],
+                    state=row["state"],
                 )
-            pass  # for Coverage 5.5 bug with CPython 3.10.0rc1
-        return notifications
+                for row in c.fetchall()
+            ]
 
     def max_notification_id(self) -> int:
         """
@@ -462,7 +456,7 @@ class SQLiteProcessRecorder(
             "application_name=? AND notification_id=?"
         )
 
-    def construct_create_table_statements(self) -> List[str]:
+    def construct_create_table_statements(self) -> list[str]:
         statements = super().construct_create_table_statements()
         statements.append(
             "CREATE TABLE IF NOT EXISTS tracking ("
@@ -478,8 +472,7 @@ class SQLiteProcessRecorder(
         params = [application_name]
         with self.datastore.transaction(commit=False) as c:
             c.execute(self.select_max_tracking_id_statement, params)
-            max_id = c.fetchone()[0] or 0
-        return max_id
+            return c.fetchone()[0] or 0
 
     def has_tracking_id(self, application_name: str, notification_id: int) -> bool:
         params = [application_name, notification_id]
@@ -490,11 +483,11 @@ class SQLiteProcessRecorder(
     def _insert_events(
         self,
         c: SQLiteCursor,
-        stored_events: List[StoredEvent],
+        stored_events: list[StoredEvent],
         **kwargs: Any,
-    ) -> Optional[Sequence[int]]:
+    ) -> Sequence[int] | None:
         returning = super()._insert_events(c, stored_events, **kwargs)
-        tracking: Optional[Tracking] = kwargs.get("tracking", None)
+        tracking: Tracking | None = kwargs.get("tracking", None)
         if tracking is not None:
             c.execute(
                 self.insert_tracking_statement,
@@ -519,27 +512,29 @@ class Factory(InfrastructureFactory):
         super().__init__(env)
         db_name = self.env.get(self.SQLITE_DBNAME)
         if not db_name:
-            raise EnvironmentError(
+            msg = (
                 "SQLite database name not found "
                 "in environment with keys: "
                 f"{', '.join(self.env.create_keys(self.SQLITE_DBNAME))}"
             )
+            raise OSError(msg)
 
         lock_timeout_str = (
             self.env.get(self.SQLITE_LOCK_TIMEOUT) or ""
         ).strip() or None
 
-        lock_timeout: Optional[int] = None
+        lock_timeout: int | None = None
         if lock_timeout_str is not None:
             try:
                 lock_timeout = int(lock_timeout_str)
             except ValueError:
-                raise EnvironmentError(
+                msg = (
                     "SQLite environment value for key "
                     f"'{self.SQLITE_LOCK_TIMEOUT}' is invalid. "
                     "If set, an int or empty string is expected: "
                     f"'{lock_timeout_str}'"
                 )
+                raise OSError(msg) from None
 
         self.datastore = SQLiteDatastore(db_name=db_name, lock_timeout=lock_timeout)
 

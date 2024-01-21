@@ -7,28 +7,20 @@ from dataclasses import dataclass
 from itertools import chain
 from threading import Event, Lock
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
+    ClassVar,
     Generic,
     Iterable,
     Iterator,
-    List,
     Optional,
     Sequence,
-    Tuple,
-    Type,
     TypeVar,
-    Union,
     cast,
 )
-from uuid import UUID
 from warnings import warn
 
-# For backwards compatibility of import statements...
-from eventsourcing.domain import LogEvent  # noqa: F401
-from eventsourcing.domain import TLogEvent  # noqa: F401
-from eventsourcing.domain import create_utc_datetime_now  # noqa: F401
 from eventsourcing.domain import (
     Aggregate,
     CanMutateProtocol,
@@ -41,6 +33,7 @@ from eventsourcing.domain import (
     SnapshotProtocol,
     TDomainEvent,
     TMutableOrImmutableAggregate,
+    create_utc_datetime_now,
 )
 from eventsourcing.persistence import (
     ApplicationRecorder,
@@ -57,6 +50,9 @@ from eventsourcing.persistence import (
 )
 from eventsourcing.utils import Environment, EnvType, strtobool
 
+if TYPE_CHECKING:  # pragma: nocover
+    from uuid import UUID
+
 ProjectorFunction = Callable[
     [Optional[TMutableOrImmutableAggregate], Iterable[TDomainEvent]],
     Optional[TMutableOrImmutableAggregate],
@@ -69,9 +65,9 @@ MutatorFunction = Callable[
 
 
 def project_aggregate(
-    aggregate: Optional[TMutableOrImmutableAggregate],
+    aggregate: TMutableOrImmutableAggregate | None,
     domain_events: Iterable[DomainEventProtocol],
-) -> Optional[TMutableOrImmutableAggregate]:
+) -> TMutableOrImmutableAggregate | None:
     """
     Projector function for aggregate projections, which works
     by successively calling aggregate mutator function mutate()
@@ -89,15 +85,14 @@ T = TypeVar("T")
 
 class Cache(Generic[S, T]):
     def __init__(self) -> None:
-        self.cache: Dict[S, Any] = {}
+        self.cache: dict[S, Any] = {}
 
-    def get(self, key: S, evict: bool = False) -> T:
+    def get(self, key: S, *, evict: bool = False) -> T:
         if evict:
             return self.cache.pop(key)
-        else:
-            return self.cache[key]
+        return self.cache[key]
 
-    def put(self, key: S, value: T) -> Optional[T]:
+    def put(self, key: S, value: T) -> T | None:
         if value is not None:
             self.cache[key] = value
         return None
@@ -121,7 +116,7 @@ class LRUCache(Cache[S, T]):
         self.maxsize = maxsize
         self.full = False
         self.lock = Lock()  # because linkedlist updates aren't threadsafe
-        self.root: List[Any] = []  # root of the circular doubly linked list
+        self.root: list[Any] = []  # root of the circular doubly linked list
         self.clear()
 
     def clear(self) -> None:
@@ -132,7 +127,7 @@ class LRUCache(Cache[S, T]):
             None,
         ]  # initialize by pointing to self
 
-    def get(self, key: S, evict: bool = False) -> T:
+    def get(self, key: S, *, evict: bool = False) -> T:
         with self.lock:
             link = self.cache.get(key)
             if link is not None:
@@ -153,10 +148,9 @@ class LRUCache(Cache[S, T]):
                     self.full = self.cache.__len__() >= self.maxsize
 
                 return result
-            else:
-                raise KeyError
+            raise KeyError
 
-    def put(self, key: S, value: T) -> Optional[Any]:
+    def put(self, key: S, value: T) -> Any | None:
         evicted_key = None
         evicted_value = None
         with self.lock:
@@ -215,8 +209,9 @@ class Repository:
     def __init__(
         self,
         event_store: EventStore,
-        snapshot_store: Optional[EventStore] = None,
-        cache_maxsize: Optional[int] = None,
+        *,
+        snapshot_store: EventStore | None = None,
+        cache_maxsize: int | None = None,
         fastforward: bool = True,
         fastforward_skipping: bool = False,
         deepcopy_from_cache: bool = True,
@@ -233,7 +228,7 @@ class Repository:
         self.snapshot_store = snapshot_store
 
         if cache_maxsize is None:
-            self.cache: Optional[Cache[UUID, MutableOrImmutableAggregate]] = None
+            self.cache: Cache[UUID, MutableOrImmutableAggregate] | None = None
         elif cache_maxsize <= 0:
             self.cache = Cache()
         else:
@@ -247,12 +242,13 @@ class Repository:
         self._fastforward_locks_cache: LRUCache[UUID, Lock] = LRUCache(
             maxsize=self.FASTFORWARD_LOCKS_CACHE_MAXSIZE
         )
-        self._fastforward_locks_inuse: Dict[UUID, Tuple[Lock, int]] = {}
+        self._fastforward_locks_inuse: dict[UUID, tuple[Lock, int]] = {}
 
     def get(
         self,
         aggregate_id: UUID,
-        version: Optional[int] = None,
+        *,
+        version: int | None = None,
         projector_func: ProjectorFunction[
             TMutableOrImmutableAggregate, TDomainEvent
         ] = project_aggregate,
@@ -291,9 +287,8 @@ class Repository:
                                     aggregate, cast(Iterable[TDomainEvent], new_events)
                                 )
                                 if _aggregate is None:
-                                    raise AggregateNotFound(aggregate_id)
-                                else:
-                                    aggregate = _aggregate
+                                    raise AggregateNotFoundError(aggregate_id)
+                                aggregate = _aggregate
                             finally:
                                 fastforward_lock.release()
                     finally:
@@ -312,10 +307,10 @@ class Repository:
     def _reconstruct_aggregate(
         self,
         aggregate_id: UUID,
-        version: Optional[int],
+        version: int | None,
         projector_func: ProjectorFunction[TMutableOrImmutableAggregate, TDomainEvent],
     ) -> TMutableOrImmutableAggregate:
-        gt: Optional[int] = None
+        gt: int | None = None
 
         if self.snapshot_store is not None:
             # Try to get a snapshot.
@@ -340,7 +335,7 @@ class Repository:
         )
 
         # Reconstruct the aggregate from its events.
-        initial: Optional[TMutableOrImmutableAggregate] = None
+        initial: TMutableOrImmutableAggregate | None = None
         aggregate = projector_func(
             initial,
             chain(
@@ -351,10 +346,9 @@ class Repository:
 
         # Raise exception if "not found".
         if aggregate is None:
-            raise AggregateNotFound((aggregate_id, version))
-        else:
-            # Return the aggregate.
-            return aggregate
+            raise AggregateNotFoundError((aggregate_id, version))
+        # Return the aggregate.
+        return aggregate
 
     def _use_fastforward_lock(self, aggregate_id: UUID) -> Lock:
         with self._fastforward_locks_lock:
@@ -388,7 +382,7 @@ class Repository:
         """
         try:
             self.get(aggregate_id=item)
-        except AggregateNotFound:
+        except AggregateNotFoundError:
             return False
         else:
             return True
@@ -414,9 +408,9 @@ class Section:
     :param Optional[str] next_id: section ID of the following section
     """
 
-    id: Optional[str]
-    items: List[Notification]
-    next_id: Optional[str]
+    id: str | None
+    items: list[Notification]
+    next_id: str | None
 
 
 class NotificationLog(ABC):
@@ -437,9 +431,9 @@ class NotificationLog(ABC):
         self,
         start: int,
         limit: int,
-        stop: Optional[int] = None,
+        stop: int | None = None,
         topics: Sequence[str] = (),
-    ) -> List[Notification]:
+    ) -> list[Notification]:
         """
         Returns a selection of
         :class:`~eventsourcing.persistence.Notification` objects
@@ -497,8 +491,8 @@ class LocalNotificationLog(NotificationLog):
         notifications = self.select(start, limit)
 
         # Get next section ID.
-        actual_section_id: Optional[str]
-        next_id: Optional[str]
+        actual_section_id: str | None
+        next_id: str | None
         if len(notifications):
             last_notification_id = notifications[-1].id
             actual_section_id = self.format_section_id(
@@ -525,25 +519,26 @@ class LocalNotificationLog(NotificationLog):
         self,
         start: int,
         limit: int,
-        stop: Optional[int] = None,
+        stop: int | None = None,
         topics: Sequence[str] = (),
-    ) -> List[Notification]:
+    ) -> list[Notification]:
         """
         Returns a selection of
         :class:`~eventsourcing.persistence.Notification` objects
         from the notification log.
         """
         if limit > self.section_size:
-            raise ValueError(
+            msg = (
                 f"Requested limit {limit} greater than section size {self.section_size}"
             )
+            raise ValueError(msg)
         return self.recorder.select_notifications(
             start=start, limit=limit, stop=stop, topics=topics
         )
 
     @staticmethod
     def format_section_id(first_id: int, last_id: int) -> str:
-        return "{},{}".format(first_id, last_id)
+        return f"{first_id},{last_id}"
 
 
 class ProcessingEvent:
@@ -554,18 +549,18 @@ class ProcessingEvent:
     new domain events that result from processing that notification.
     """
 
-    def __init__(self, tracking: Optional[Tracking] = None):
+    def __init__(self, tracking: Tracking | None = None):
         """
         Initialises the process event with the given tracking object.
         """
         self.tracking = tracking
-        self.events: List[DomainEventProtocol] = []
-        self.aggregates: Dict[UUID, MutableOrImmutableAggregate] = {}
-        self.saved_kwargs: Dict[Any, Any] = {}
+        self.events: list[DomainEventProtocol] = []
+        self.aggregates: dict[UUID, MutableOrImmutableAggregate] = {}
+        self.saved_kwargs: dict[Any, Any] = {}
 
     def collect_events(
         self,
-        *objs: Optional[Union[MutableOrImmutableAggregate, DomainEventProtocol]],
+        *objs: MutableOrImmutableAggregate | DomainEventProtocol | None,
         **kwargs: Any,
     ) -> None:
         """
@@ -574,7 +569,7 @@ class ProcessingEvent:
         for obj in objs:
             if obj is None:
                 continue
-            elif isinstance(obj, DomainEventProtocol):
+            if isinstance(obj, DomainEventProtocol):
                 self.events.append(obj)
             else:
                 if isinstance(obj, CollectEventsProtocol):
@@ -586,7 +581,7 @@ class ProcessingEvent:
 
     def save(
         self,
-        *aggregates: Optional[Union[MutableOrImmutableAggregate, DomainEventProtocol]],
+        *aggregates: MutableOrImmutableAggregate | DomainEventProtocol | None,
         **kwargs: Any,
     ) -> None:
         warn(
@@ -598,31 +593,12 @@ class ProcessingEvent:
         self.collect_events(*aggregates, **kwargs)
 
 
-class ProcessEvent(ProcessingEvent):
-    """Deprecated, use :class:`ProcessingEvent` instead.
-
-    Keeps together a :class:`~eventsourcing.persistence.Tracking`
-    object, which represents the position of a domain event notification
-    in the notification log of a particular application, and the
-    new domain events that result from processing that notification.
-    """
-
-    def __init__(self, tracking: Optional[Tracking] = None):
-        warn(
-            "'ProcessEvent' is deprecated, use 'ProcessingEvent' instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-        super().__init__(tracking)
-
-
 class RecordingEvent:
     def __init__(
         self,
         application_name: str,
-        recordings: List[Recording],
-        previous_max_notification_id: Optional[int],
+        recordings: list[Recording],
+        previous_max_notification_id: int | None,
     ):
         self.application_name = application_name
         self.recordings = recordings
@@ -635,15 +611,15 @@ class Application:
     """
 
     name = "Application"
-    env: EnvType = {}
+    env: ClassVar[dict[str, str]] = {}
     is_snapshotting_enabled: bool = False
-    snapshotting_intervals: Optional[Dict[Type[MutableOrImmutableAggregate], int]] = (
-        None
-    )
-    snapshotting_projectors: Optional[
-        Dict[Type[MutableOrImmutableAggregate], ProjectorFunction[Any, Any]]
+    snapshotting_intervals: ClassVar[
+        dict[type[MutableOrImmutableAggregate], int] | None
     ] = None
-    snapshot_class: Type[SnapshotProtocol] = Snapshot
+    snapshotting_projectors: (
+        dict[type[MutableOrImmutableAggregate], ProjectorFunction[Any, Any]] | None
+    ) = None
+    snapshot_class: type[SnapshotProtocol] = Snapshot
     log_section_size = 10
     notify_topics: Sequence[str] = []
 
@@ -656,7 +632,7 @@ class Application:
         if "name" not in cls.__dict__:
             cls.name = cls.__name__
 
-    def __init__(self, env: Optional[EnvType] = None) -> None:
+    def __init__(self, env: EnvType | None = None) -> None:
         """
         Initialises an application with an
         :class:`~eventsourcing.persistence.InfrastructureFactory`,
@@ -666,18 +642,18 @@ class Application:
         a :class:`~eventsourcing.application.Repository`, and
         a :class:`~eventsourcing.application.LocalNotificationLog`.
         """
-        self.env = self.construct_env(self.name, env)
+        self.env = self.construct_env(self.name, env)  # type: ignore[misc]
         self.factory = self.construct_factory(self.env)
         self.mapper = self.construct_mapper()
         self.recorder = self.construct_recorder()
         self.events = self.construct_event_store()
-        self.snapshots: Optional[EventStore] = None
+        self.snapshots: EventStore | None = None
         if self.factory.is_snapshotting_enabled():
             self.snapshots = self.construct_snapshot_store()
         self._repository = self.construct_repository()
         self._notification_log = self.construct_notification_log()
         self.closing = Event()
-        self.previous_max_notification_id: Optional[int] = (
+        self.previous_max_notification_id: int | None = (
             self.recorder.max_notification_id()
         )
 
@@ -706,7 +682,7 @@ class Application:
         )
         return self._notification_log
 
-    def construct_env(self, name: str, env: Optional[EnvType] = None) -> Environment:
+    def construct_env(self, name: str, env: EnvType | None = None) -> Environment:
         """
         Constructs environment from which application will be configured.
         """
@@ -785,10 +761,7 @@ class Application:
         Constructs a :class:`Repository` for use by the application.
         """
         cache_maxsize_envvar = self.env.get(self.AGGREGATE_CACHE_MAXSIZE)
-        if cache_maxsize_envvar:
-            cache_maxsize = int(cache_maxsize_envvar)
-        else:
-            cache_maxsize = None
+        cache_maxsize = int(cache_maxsize_envvar) if cache_maxsize_envvar else None
         return Repository(
             event_store=self.events,
             snapshot_store=self.snapshots,
@@ -810,9 +783,9 @@ class Application:
 
     def save(
         self,
-        *objs: Optional[Union[MutableOrImmutableAggregate, DomainEventProtocol]],
+        *objs: MutableOrImmutableAggregate | DomainEventProtocol | None,
         **kwargs: Any,
-    ) -> List[Recording]:
+    ) -> list[Recording]:
         """
         Collects pending events from given aggregates and
         puts them in the application's event store.
@@ -825,7 +798,7 @@ class Application:
         self.notify(processing_event.events)  # Deprecated.
         return recordings
 
-    def _record(self, processing_event: ProcessingEvent) -> List[Recording]:
+    def _record(self, processing_event: ProcessingEvent) -> list[Recording]:
         """
         Records given process event in the application's recorder.
         """
@@ -848,41 +821,39 @@ class Application:
                 except KeyError:
                     continue
                 interval = self.snapshotting_intervals.get(type(aggregate))
-                if interval is not None:
-                    if event.originator_version % interval == 0:
-                        if (
-                            self.snapshotting_projectors
-                            and type(aggregate) in self.snapshotting_projectors
-                        ):
-                            projector_func = self.snapshotting_projectors[
-                                type(aggregate)
-                            ]
-                        else:
-                            projector_func = project_aggregate
-                        if projector_func is project_aggregate and not isinstance(
-                            event, CanMutateProtocol
-                        ):
-                            raise ProgrammingError(
-                                f"Cannot take snapshot for {type(aggregate)} with "
-                                "default project_aggregate() function, because its "
-                                f"domain event {type(event)} does not implement "
-                                "the 'can mutate' protocol (see CanMutateProtocol)."
-                                f" Please define application class {type(self)}"
-                                " with class variable 'snapshotting_projectors', "
-                                f"to be a dict that has {type(aggregate)} as a key "
-                                "with the aggregate projector function for "
-                                f"{type(aggregate)} as the value for that key."
-                            )
-                        self.take_snapshot(
-                            aggregate_id=event.originator_id,
-                            version=event.originator_version,
-                            projector_func=projector_func,  # type: ignore[arg-type,unused-ignore]
+                if interval is not None and event.originator_version % interval == 0:
+                    if (
+                        self.snapshotting_projectors
+                        and type(aggregate) in self.snapshotting_projectors
+                    ):
+                        projector_func = self.snapshotting_projectors[type(aggregate)]
+                    else:
+                        projector_func = project_aggregate
+                    if projector_func is project_aggregate and not isinstance(
+                        event, CanMutateProtocol
+                    ):
+                        msg = (
+                            f"Cannot take snapshot for {type(aggregate)} with "
+                            "default project_aggregate() function, because its "
+                            f"domain event {type(event)} does not implement "
+                            "the 'can mutate' protocol (see CanMutateProtocol)."
+                            f" Please define application class {type(self)}"
+                            " with class variable 'snapshotting_projectors', "
+                            f"to be a dict that has {type(aggregate)} as a key "
+                            "with the aggregate projector function for "
+                            f"{type(aggregate)} as the value for that key."
                         )
+                        raise ProgrammingError(msg)
+                    self.take_snapshot(
+                        aggregate_id=event.originator_id,
+                        version=event.originator_version,
+                        projector_func=projector_func,  # type: ignore[arg-type,unused-ignore]
+                    )
 
     def take_snapshot(
         self,
         aggregate_id: UUID,
-        version: Optional[int] = None,
+        version: int | None = None,
         projector_func: ProjectorFunction[
             TMutableOrImmutableAggregate, TDomainEvent
         ] = project_aggregate,
@@ -892,24 +863,22 @@ class Application:
         and puts the snapshot in the snapshot store.
         """
         if self.snapshots is None:
-            raise AssertionError(
+            msg = (
                 "Can't take snapshot without snapshots store. Please "
                 "set environment variable IS_SNAPSHOTTING_ENABLED to "
                 "a true value (e.g. 'y'), or set 'is_snapshotting_enabled' "
                 "on application class, or set 'snapshotting_intervals' on "
                 "application class."
             )
-        else:
-            aggregate = self.repository.get(
-                aggregate_id, version=version, projector_func=projector_func
-            )
-            snapshot_class = getattr(
-                type(aggregate), "Snapshot", type(self).snapshot_class
-            )
-            snapshot = snapshot_class.take(aggregate)
-            self.snapshots.put([snapshot])
+            raise AssertionError(msg)
+        aggregate = self.repository.get(
+            aggregate_id, version=version, projector_func=projector_func
+        )
+        snapshot_class = getattr(type(aggregate), "Snapshot", type(self).snapshot_class)
+        snapshot = snapshot_class.take(aggregate)
+        self.snapshots.put([snapshot])
 
-    def notify(self, new_events: List[DomainEventProtocol]) -> None:
+    def notify(self, new_events: list[DomainEventProtocol]) -> None:
         """
         Deprecated.
 
@@ -919,7 +888,7 @@ class Application:
         need to take action when new domain events have been saved.
         """
 
-    def _notify(self, recordings: List[Recording]) -> None:
+    def _notify(self, recordings: list[Recording]) -> None:
         """
         Called after new aggregate events have been saved. This
         method on this class doesn't actually do anything,
@@ -935,7 +904,7 @@ class Application:
 TApplication = TypeVar("TApplication", bound=Application)
 
 
-class AggregateNotFound(EventSourcingError):
+class AggregateNotFoundError(EventSourcingError):
     """
     Raised when an :class:`~eventsourcing.domain.Aggregate`
     object is not found in a :class:`Repository`.
@@ -961,15 +930,15 @@ class EventSourcedLog(Generic[TDomainEvent]):
         self,
         events: EventStore,
         originator_id: UUID,
-        logged_cls: Type[TDomainEvent],  # Todo: Rename to 'event_class' in v10.
+        logged_cls: type[TDomainEvent],  # TODO: Rename to 'event_class' in v10.
     ):
         self.events = events
         self.originator_id = originator_id
-        self.logged_cls = logged_cls  # Todo: Rename to 'event_class' in v10.
+        self.logged_cls = logged_cls  # TODO: Rename to 'event_class' in v10.
 
     def trigger_event(
         self,
-        next_originator_version: Optional[int] = None,
+        next_originator_version: int | None = None,
         **kwargs: Any,
     ) -> TDomainEvent:
         """
@@ -983,8 +952,8 @@ class EventSourcedLog(Generic[TDomainEvent]):
 
     def _trigger_event(
         self,
-        logged_cls: Optional[Type[T]],
-        next_originator_version: Optional[int] = None,
+        logged_cls: type[T] | None,
+        next_originator_version: int | None = None,
         **kwargs: Any,
     ) -> T:
         """
@@ -997,15 +966,14 @@ class EventSourcedLog(Generic[TDomainEvent]):
             else:
                 next_originator_version = last_logged.originator_version + 1
 
-        logged_event = logged_cls(  # type: ignore
+        return logged_cls(  # type: ignore
             originator_id=self.originator_id,
             originator_version=next_originator_version,
             timestamp=create_utc_datetime_now(),
             **kwargs,
         )
-        return logged_event
 
-    def get_first(self) -> Optional[TDomainEvent]:
+    def get_first(self) -> TDomainEvent | None:
         """
         Selects the first logged event.
         """
@@ -1014,7 +982,7 @@ class EventSourcedLog(Generic[TDomainEvent]):
         except StopIteration:
             return None
 
-    def get_last(self) -> Optional[TDomainEvent]:
+    def get_last(self) -> TDomainEvent | None:
         """
         Selects the last logged event.
         """
@@ -1025,10 +993,11 @@ class EventSourcedLog(Generic[TDomainEvent]):
 
     def get(
         self,
-        gt: Optional[int] = None,
-        lte: Optional[int] = None,
+        *,
+        gt: int | None = None,
+        lte: int | None = None,
         desc: bool = False,
-        limit: Optional[int] = None,
+        limit: int | None = None,
     ) -> Iterator[TDomainEvent]:
         """
         Selects a range of logged events with limit,

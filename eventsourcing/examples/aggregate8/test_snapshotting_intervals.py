@@ -1,13 +1,19 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, ClassVar
 from unittest import TestCase
 
 from eventsourcing.examples.aggregate8.application import DogSchool
-from eventsourcing.examples.aggregate8.domainmodel import Dog, Trick
+from eventsourcing.examples.aggregate8.domainmodel import Dog
+
+if TYPE_CHECKING:  # pragma: nocover
+    from eventsourcing.domain import MutableOrImmutableAggregate
 
 
 class SubDogSchool(DogSchool):
-    snapshotting_intervals = {Dog: 1}
+    snapshotting_intervals: ClassVar[
+        dict[type[MutableOrImmutableAggregate], int] | None
+    ] = {Dog: 1}
 
 
 class TestDogSchool(TestCase):
@@ -28,5 +34,5 @@ class TestDogSchool(TestCase):
 
         # Query application state.
         dog = school.get_dog(dog_id)
-        assert dog["name"] == "Fido"
-        assert dog["tricks"] == (Trick(name="roll over"), Trick(name="play dead"))
+        self.assertEqual(dog["name"], "Fido")
+        self.assertEqual(dog["tricks"], ("roll over", "play dead"))

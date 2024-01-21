@@ -21,6 +21,6 @@ def run(cmd: str, a: str, b: str) -> str:
             a_file.write(a)
         with open(b_path, "w") as b_file:
             b_file.write(b)
-        os.system(cmd % (a_path, b_path, c_path))
-        with open(c_path, "r") as c_file:
+        os.system(cmd % (a_path, b_path, c_path))  # noqa: S605
+        with open(c_path) as c_file:
             return c_file.read()

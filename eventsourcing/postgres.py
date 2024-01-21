@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import logging
-import sys
 from contextlib import contextmanager
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Union
-from uuid import UUID
+from typing import TYPE_CHECKING, Any, Iterator, Sequence
 
 import psycopg
 import psycopg.errors
@@ -32,6 +30,9 @@ from eventsourcing.persistence import (
 )
 from eventsourcing.utils import Environment, retry, strtobool
 
+if TYPE_CHECKING:  # pragma: nocover
+    from uuid import UUID
+
 logging.getLogger("psycopg.pool").setLevel(logging.CRITICAL)
 logging.getLogger("psycopg").setLevel(logging.CRITICAL)
 
@@ -44,6 +45,7 @@ class PostgresDatastore:
         port: str,
         user: str,
         password: str,
+        *,
         connect_timeout: int = 5,
         idle_in_transaction_session_timeout: int = 0,
         pool_size: int = 2,
@@ -53,18 +55,14 @@ class PostgresDatastore:
         pre_ping: bool = False,
         lock_timeout: int = 0,
         schema: str = "",
-        pool_open_timeout: Optional[int] = None,
+        pool_open_timeout: int | None = None,
     ):
         self.idle_in_transaction_session_timeout = idle_in_transaction_session_timeout
         self.pre_ping = pre_ping
         self.pool_open_timeout = pool_open_timeout
 
-        if sys.version_info[:2] >= (3, 8):  # pragma: no cover
-            check = ConnectionPool.check_connection if pre_ping else None
-            kwargs: Dict[str, Any] = {"check": check}
-        else:  # pragma: no cover
-            # The 'check' argument and the check_connection() method aren't supported.
-            kwargs: Dict[str, Any] = {}
+        check = ConnectionPool.check_connection if pre_ping else None
+        kwargs: dict[str, Any] = {"check": check}
         self.pool = ConnectionPool(
             connection_class=Connection[DictRow],
             kwargs={
@@ -129,11 +127,10 @@ class PostgresDatastore:
             raise
 
     @contextmanager
-    def transaction(self, commit: bool = False) -> Iterator[Cursor[DictRow]]:
+    def transaction(self, *, commit: bool = False) -> Iterator[Cursor[DictRow]]:
         conn: Connection[DictRow]
-        with self.get_connection() as conn:
-            with conn.transaction(force_rollback=not commit):
-                yield conn.cursor()
+        with self.get_connection() as conn, conn.transaction(force_rollback=not commit):
+            yield conn.cursor()
 
     def close(self) -> None:
         self.pool.close()
@@ -168,7 +165,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         self.select_events_statement = (
             f"SELECT * FROM {self.events_table_name} WHERE originator_id = %s"
         )
-        self.lock_table_statements: List[str] = []
+        self.lock_table_statements: list[str] = []
 
     @staticmethod
     def check_table_name_length(table_name: str, schema_name: str) -> None:
@@ -178,9 +175,10 @@ class PostgresAggregateRecorder(AggregateRecorder):
         else:
             unqualified_table_name = table_name
         if len(unqualified_table_name) > 63:
-            raise ProgrammingError(f"Table name too long: {unqualified_table_name}")
+            msg = f"Table name too long: {unqualified_table_name}"
+            raise ProgrammingError(msg)
 
-    def construct_create_table_statements(self) -> List[str]:
+    def construct_create_table_statements(self) -> list[str]:
         statement = (
             "CREATE TABLE IF NOT EXISTS "
             f"{self.events_table_name} ("
@@ -201,31 +199,30 @@ class PostgresAggregateRecorder(AggregateRecorder):
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
     def insert_events(
-        self, stored_events: List[StoredEvent], **kwargs: Any
-    ) -> Optional[Sequence[int]]:
+        self, stored_events: list[StoredEvent], **kwargs: Any
+    ) -> Sequence[int] | None:
         conn: Connection[DictRow]
-        exc: Optional[Exception] = None
-        notification_ids: Optional[Sequence[int]] = None
+        exc: Exception | None = None
+        notification_ids: Sequence[int] | None = None
         with self.datastore.get_connection() as conn:
-            with conn.pipeline() as pipeline:
-                with conn.transaction():
-                    # Do other things first, so they can be pipelined too.
-                    with conn.cursor() as curs:
-                        self._insert_events(curs, stored_events, **kwargs)
-                    # Then use a different cursor for the executemany() call.
-                    with conn.cursor() as curs:
-                        try:
-                            self._insert_stored_events(curs, stored_events, **kwargs)
-                            # Sync now, so any uniqueness constraint violation causes an
-                            # IntegrityError to be raised here, rather an InternalError
-                            # being raised sometime later e.g. when commit() is called.
-                            pipeline.sync()
-                            notification_ids = self._fetch_ids_after_insert_events(
-                                curs, stored_events, **kwargs
-                            )
-                        except Exception as e:
-                            # Avoid psycopg emitting a pipeline warning.
-                            exc = e
+            with conn.pipeline() as pipeline, conn.transaction():
+                # Do other things first, so they can be pipelined too.
+                with conn.cursor() as curs:
+                    self._insert_events(curs, stored_events, **kwargs)
+                # Then use a different cursor for the executemany() call.
+                with conn.cursor() as curs:
+                    try:
+                        self._insert_stored_events(curs, stored_events, **kwargs)
+                        # Sync now, so any uniqueness constraint violation causes an
+                        # IntegrityError to be raised here, rather an InternalError
+                        # being raised sometime later e.g. when commit() is called.
+                        pipeline.sync()
+                        notification_ids = self._fetch_ids_after_insert_events(
+                            curs, stored_events, **kwargs
+                        )
+                    except Exception as e:
+                        # Avoid psycopg emitting a pipeline warning.
+                        exc = e
             if exc:
                 # Reraise exception after pipeline context manager has exited.
                 raise exc
@@ -234,7 +231,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
     def _insert_events(
         self,
         c: Cursor[DictRow],
-        stored_events: List[StoredEvent],
+        stored_events: list[StoredEvent],
         **kwargs: Any,
     ) -> None:
         pass
@@ -242,8 +239,8 @@ class PostgresAggregateRecorder(AggregateRecorder):
     def _insert_stored_events(
         self,
         c: Cursor[DictRow],
-        stored_events: List[StoredEvent],
-        **kwargs: Any,
+        stored_events: list[StoredEvent],
+        **_: Any,
     ) -> None:
         # Only do something if there is something to do.
         if len(stored_events) > 0:
@@ -270,22 +267,23 @@ class PostgresAggregateRecorder(AggregateRecorder):
     def _fetch_ids_after_insert_events(
         self,
         c: Cursor[DictRow],
-        stored_events: List[StoredEvent],
+        stored_events: list[StoredEvent],
         **kwargs: Any,
-    ) -> Optional[Sequence[int]]:
+    ) -> Sequence[int] | None:
         return None
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
     def select_events(
         self,
         originator_id: UUID,
-        gt: Optional[int] = None,
-        lte: Optional[int] = None,
+        *,
+        gt: int | None = None,
+        lte: int | None = None,
         desc: bool = False,
-        limit: Optional[int] = None,
-    ) -> List[StoredEvent]:
+        limit: int | None = None,
+    ) -> list[StoredEvent]:
         statement = self.select_events_statement
-        params: List[Any] = [originator_id]
+        params: list[Any] = [originator_id]
         if gt is not None:
             params.append(gt)
             statement += " AND originator_version > %s"
@@ -301,21 +299,17 @@ class PostgresAggregateRecorder(AggregateRecorder):
             params.append(limit)
             statement += " LIMIT %s"
 
-        stored_events = []
-
-        with self.datastore.get_connection() as conn:
-            with conn.cursor() as curs:
-                curs.execute(statement, params, prepare=True)
-                for row in curs.fetchall():
-                    stored_events.append(
-                        StoredEvent(
-                            originator_id=row["originator_id"],
-                            originator_version=row["originator_version"],
-                            topic=row["topic"],
-                            state=bytes(row["state"]),
-                        )
-                    )
-        return stored_events
+        with self.datastore.get_connection() as conn, conn.cursor() as curs:
+            curs.execute(statement, params, prepare=True)
+            return [
+                StoredEvent(
+                    originator_id=row["originator_id"],
+                    originator_version=row["originator_version"],
+                    topic=row["topic"],
+                    state=bytes(row["state"]),
+                )
+                for row in curs.fetchall()
+            ]
 
 
 class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder):
@@ -334,8 +328,8 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
             f"LOCK TABLE {self.events_table_name} IN EXCLUSIVE MODE",
         ]
 
-    def construct_create_table_statements(self) -> List[str]:
-        statements = [
+    def construct_create_table_statements(self) -> list[str]:
+        return [
             (
                 "CREATE TABLE IF NOT EXISTS "
                 f"{self.events_table_name} ("
@@ -354,22 +348,21 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
                 f"ON {self.events_table_name} (notification_id ASC);"
             ),
         ]
-        return statements
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
     def select_notifications(
         self,
         start: int,
         limit: int,
-        stop: Optional[int] = None,
+        stop: int | None = None,
         topics: Sequence[str] = (),
-    ) -> List[Notification]:
+    ) -> list[Notification]:
         """
         Returns a list of event notifications
         from 'start', limited by 'limit'.
         """
 
-        params: List[Union[int, str, Sequence[str]]] = [start]
+        params: list[int | str | Sequence[str]] = [start]
         statement = f"SELECT * FROM {self.events_table_name} WHERE notification_id>=%s"
 
         if stop is not None:
@@ -383,22 +376,19 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
         params.append(limit)
         statement += " ORDER BY notification_id LIMIT %s"
 
-        notifications = []
-        conn: Connection[DictRow]
-        with self.datastore.get_connection() as conn:
-            with conn.cursor() as curs:
-                curs.execute(statement, params, prepare=True)
-                for row in curs.fetchall():
-                    notifications.append(
-                        Notification(
-                            id=row["notification_id"],
-                            originator_id=row["originator_id"],
-                            originator_version=row["originator_version"],
-                            topic=row["topic"],
-                            state=bytes(row["state"]),
-                        )
-                    )
-        return notifications
+        connection = self.datastore.get_connection()
+        with connection as conn, conn.cursor() as curs:
+            curs.execute(statement, params, prepare=True)
+            return [
+                Notification(
+                    id=row["notification_id"],
+                    originator_id=row["originator_id"],
+                    originator_version=row["originator_version"],
+                    topic=row["topic"],
+                    state=bytes(row["state"]),
+                )
+                for row in curs.fetchall()
+            ]
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
     def max_notification_id(self) -> int:
@@ -406,13 +396,11 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
         Returns the maximum notification ID.
         """
         conn: Connection[DictRow]
-        with self.datastore.get_connection() as conn:
-            with conn.cursor() as curs:
-                curs.execute(self.max_notification_id_statement)
-                fetchone = curs.fetchone()
-                assert fetchone is not None
-                max_id = fetchone["max"] or 0
-        return max_id
+        with self.datastore.get_connection() as conn, conn.cursor() as curs:
+            curs.execute(self.max_notification_id_statement)
+            fetchone = curs.fetchone()
+            assert fetchone is not None
+            return fetchone["max"] or 0
 
     def _lock_table(self, c: Cursor[DictRow]) -> None:
         # Acquire "EXCLUSIVE" table lock, to serialize transactions that insert
@@ -441,10 +429,10 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
     def _fetch_ids_after_insert_events(
         self,
         c: Cursor[DictRow],
-        stored_events: List[StoredEvent],
+        stored_events: list[StoredEvent],
         **kwargs: Any,
-    ) -> Optional[Sequence[int]]:
-        notification_ids: List[int] = []
+    ) -> Sequence[int] | None:
+        notification_ids: list[int] = []
         len_events = len(stored_events)
         if len_events:
             if (
@@ -457,7 +445,8 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
                     assert row is not None
                     notification_ids.append(row["notification_id"])
             if len(notification_ids) != len(stored_events):
-                raise ProgrammingError("Couldn't get all notification IDs")
+                msg = "Couldn't get all notification IDs"
+                raise ProgrammingError(msg)
         return notification_ids
 
 
@@ -485,7 +474,7 @@ class PostgresProcessRecorder(PostgresApplicationRecorder, ProcessRecorder):
             "WHERE application_name=%s AND notification_id=%s"
         )
 
-    def construct_create_table_statements(self) -> List[str]:
+    def construct_create_table_statements(self) -> list[str]:
         statements = super().construct_create_table_statements()
         statements.append(
             "CREATE TABLE IF NOT EXISTS "
@@ -499,39 +488,36 @@ class PostgresProcessRecorder(PostgresApplicationRecorder, ProcessRecorder):
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
     def max_tracking_id(self, application_name: str) -> int:
-        with self.datastore.get_connection() as conn:
-            with conn.cursor() as curs:
-                curs.execute(
-                    query=self.max_tracking_id_statement,
-                    params=(application_name,),
-                    prepare=True,
-                )
-                fetchone = curs.fetchone()
-                assert fetchone is not None
-                max_id = fetchone["max"] or 0
-        return max_id
+        with self.datastore.get_connection() as conn, conn.cursor() as curs:
+            curs.execute(
+                query=self.max_tracking_id_statement,
+                params=(application_name,),
+                prepare=True,
+            )
+            fetchone = curs.fetchone()
+            assert fetchone is not None
+            return fetchone["max"] or 0
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
     def has_tracking_id(self, application_name: str, notification_id: int) -> bool:
         conn: Connection[DictRow]
-        with self.datastore.get_connection() as conn:
-            with conn.cursor() as curs:
-                curs.execute(
-                    query=self.count_tracking_id_statement,
-                    params=(application_name, notification_id),
-                    prepare=True,
-                )
-                fetchone = curs.fetchone()
-                assert fetchone is not None
-                return bool(fetchone["count"])
+        with self.datastore.get_connection() as conn, conn.cursor() as curs:
+            curs.execute(
+                query=self.count_tracking_id_statement,
+                params=(application_name, notification_id),
+                prepare=True,
+            )
+            fetchone = curs.fetchone()
+            assert fetchone is not None
+            return bool(fetchone["count"])
 
     def _insert_events(
         self,
         c: Cursor[DictRow],
-        stored_events: List[StoredEvent],
+        stored_events: list[StoredEvent],
         **kwargs: Any,
     ) -> None:
-        tracking: Optional[Tracking] = kwargs.get("tracking", None)
+        tracking: Tracking | None = kwargs.get("tracking", None)
         if tracking is not None:
             c.execute(
                 query=self.insert_tracking_statement,
@@ -549,7 +535,7 @@ class Factory(InfrastructureFactory):
     POSTGRES_HOST = "POSTGRES_HOST"
     POSTGRES_PORT = "POSTGRES_PORT"
     POSTGRES_USER = "POSTGRES_USER"
-    POSTGRES_PASSWORD = "POSTGRES_PASSWORD"
+    POSTGRES_PASSWORD = "POSTGRES_PASSWORD"  # noqa: S105
     POSTGRES_CONNECT_TIMEOUT = "POSTGRES_CONNECT_TIMEOUT"
     POSTGRES_CONN_MAX_AGE = "POSTGRES_CONN_MAX_AGE"
     POSTGRES_PRE_PING = "POSTGRES_PRE_PING"
@@ -571,54 +557,55 @@ class Factory(InfrastructureFactory):
         super().__init__(env)
         dbname = self.env.get(self.POSTGRES_DBNAME)
         if dbname is None:
-            raise EnvironmentError(
+            msg = (
                 "Postgres database name not found "
                 "in environment with key "
                 f"'{self.POSTGRES_DBNAME}'"
             )
+            raise OSError(msg)
 
         host = self.env.get(self.POSTGRES_HOST)
         if host is None:
-            raise EnvironmentError(
+            msg = (
                 "Postgres host not found "
                 "in environment with key "
                 f"'{self.POSTGRES_HOST}'"
             )
+            raise OSError(msg)
 
         port = self.env.get(self.POSTGRES_PORT) or "5432"
 
         user = self.env.get(self.POSTGRES_USER)
         if user is None:
-            raise EnvironmentError(
+            msg = (
                 "Postgres user not found "
                 "in environment with key "
                 f"'{self.POSTGRES_USER}'"
             )
+            raise OSError(msg)
 
         password = self.env.get(self.POSTGRES_PASSWORD)
         if password is None:
-            raise EnvironmentError(
+            msg = (
                 "Postgres password not found "
                 "in environment with key "
                 f"'{self.POSTGRES_PASSWORD}'"
             )
+            raise OSError(msg)
 
-        connect_timeout: Optional[int]
+        connect_timeout = 5
         connect_timeout_str = self.env.get(self.POSTGRES_CONNECT_TIMEOUT)
-        if connect_timeout_str is None:
-            connect_timeout = 5
-        elif connect_timeout_str == "":
-            connect_timeout = 5
-        else:
+        if connect_timeout_str:
             try:
                 connect_timeout = int(connect_timeout_str)
             except ValueError:
-                raise EnvironmentError(
+                msg = (
                     "Postgres environment value for key "
                     f"'{self.POSTGRES_CONNECT_TIMEOUT}' is invalid. "
                     "If set, an integer or empty string is expected: "
                     f"'{connect_timeout_str}'"
                 )
+                raise OSError(msg) from None
 
         idle_in_transaction_session_timeout_str = (
             self.env.get(self.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT) or "5"
@@ -629,81 +616,69 @@ class Factory(InfrastructureFactory):
                 idle_in_transaction_session_timeout_str
             )
         except ValueError:
-            raise EnvironmentError(
+            msg = (
                 "Postgres environment value for key "
                 f"'{self.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT}' is invalid. "
                 "If set, an integer or empty string is expected: "
                 f"'{idle_in_transaction_session_timeout_str}'"
             )
+            raise OSError(msg) from None
 
-        pool_size: Optional[int]
+        pool_size = 5
         pool_size_str = self.env.get(self.POSTGRES_POOL_SIZE)
-        if pool_size_str is None:
-            pool_size = 5
-        elif pool_size_str == "":
-            pool_size = 5
-        else:
+        if pool_size_str:
             try:
                 pool_size = int(pool_size_str)
             except ValueError:
-                raise EnvironmentError(
+                msg = (
                     "Postgres environment value for key "
                     f"'{self.POSTGRES_POOL_SIZE}' is invalid. "
                     "If set, an integer or empty string is expected: "
                     f"'{pool_size_str}'"
                 )
+                raise OSError(msg) from None
 
-        pool_max_overflow: Optional[int]
+        pool_max_overflow = 10
         pool_max_overflow_str = self.env.get(self.POSTGRES_POOL_MAX_OVERFLOW)
-        if pool_max_overflow_str is None:
-            pool_max_overflow = 10
-        elif pool_max_overflow_str == "":
-            pool_max_overflow = 10
-        else:
+        if pool_max_overflow_str:
             try:
                 pool_max_overflow = int(pool_max_overflow_str)
             except ValueError:
-                raise EnvironmentError(
+                msg = (
                     "Postgres environment value for key "
                     f"'{self.POSTGRES_POOL_MAX_OVERFLOW}' is invalid. "
                     "If set, an integer or empty string is expected: "
                     f"'{pool_max_overflow_str}'"
                 )
+                raise OSError(msg) from None
 
-        pool_timeout: Optional[float]
+        pool_timeout = 30.0
         pool_timeout_str = self.env.get(self.POSTGRES_POOL_TIMEOUT)
-        if pool_timeout_str is None:
-            pool_timeout = 30
-        elif pool_timeout_str == "":
-            pool_timeout = 30
-        else:
+        if pool_timeout_str:
             try:
                 pool_timeout = float(pool_timeout_str)
             except ValueError:
-                raise EnvironmentError(
+                msg = (
                     "Postgres environment value for key "
                     f"'{self.POSTGRES_POOL_TIMEOUT}' is invalid. "
                     "If set, a float or empty string is expected: "
                     f"'{pool_timeout_str}'"
                 )
+                raise OSError(msg) from None
 
-        conn_max_age: Optional[float]
-        DEFAULT_POSTGRES_CONN_MAX_AGE = 60 * 60.0
+        conn_max_age = 60 * 60.0
         conn_max_age_str = self.env.get(self.POSTGRES_CONN_MAX_AGE)
-        if conn_max_age_str is None:
-            conn_max_age = DEFAULT_POSTGRES_CONN_MAX_AGE
-        elif conn_max_age_str == "":
-            conn_max_age = DEFAULT_POSTGRES_CONN_MAX_AGE
-        else:
+        if conn_max_age_str:
             try:
                 conn_max_age = float(conn_max_age_str)
             except ValueError:
-                raise EnvironmentError(
+                msg = (
                     "Postgres environment value for key "
                     f"'{self.POSTGRES_CONN_MAX_AGE}' is invalid. "
                     "If set, a float or empty string is expected: "
                     f"'{conn_max_age_str}'"
                 )
+                raise OSError(msg) from None
 
         pre_ping = strtobool(self.env.get(self.POSTGRES_PRE_PING) or "no")
 
@@ -712,12 +687,13 @@ class Factory(InfrastructureFactory):
         try:
             lock_timeout = int(lock_timeout_str)
         except ValueError:
-            raise EnvironmentError(
+            msg = (
                 "Postgres environment value for key "
                 f"'{self.POSTGRES_LOCK_TIMEOUT}' is invalid. "
                 "If set, an integer or empty string is expected: "
                 f"'{lock_timeout_str}'"
             )
+            raise OSError(msg) from None
 
         schema = self.env.get(self.POSTGRES_SCHEMA) or ""
 

@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Any, Dict, Union, cast
+from typing import TYPE_CHECKING, Any, cast
 from unittest import TestCase
 
 from eventsourcing.application import Application
 from eventsourcing.domain import Aggregate, Snapshot, event
 from eventsourcing.persistence import Transcoding
+
+if TYPE_CHECKING:  # pragma: nocover
+    from datetime import datetime
 
 
 class Status(Enum):
@@ -36,7 +38,7 @@ class Invoice(Aggregate):
         number: str,
         amount: Decimal,
         issued_to: Person,
-        timestamp: Union[datetime, Any] = None,
+        timestamp: datetime | Any = None,
     ):
         self._number = number
         self._amount = amount
@@ -65,15 +67,13 @@ class Invoice(Aggregate):
     amount = property(_get_amount, _set_amount)
 
     @event("Issued")
-    def issue(self, issued_by: str, timestamp: Union[datetime, Any] = None) -> None:
+    def issue(self, issued_by: str, timestamp: datetime | Any = None) -> None:
         self.issued_by = issued_by
         self.issued_on = timestamp
         self.status = Status.ISSUED
 
     @event("Sent")
-    def send(
-        self, sent_via: SendMethod, timestamp: Union[datetime, Any] = None
-    ) -> None:
+    def send(self, sent_via: SendMethod, timestamp: datetime | Any = None) -> None:
         self.sent_via = sent_via
         self.sent_at = timestamp
         self.status = Status.SENT
@@ -83,10 +83,10 @@ class PersonAsDict(Transcoding):
     name = "person_as_dict"
     type = Person
 
-    def encode(self, obj: Person) -> Dict[str, Any]:
+    def encode(self, obj: Person) -> dict[str, Any]:
         return obj.__dict__
 
-    def decode(self, data: Dict[str, Any]) -> Person:
+    def decode(self, data: dict[str, Any]) -> Person:
         return Person(**data)
 
 

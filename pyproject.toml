@@ -106,6 +106,7 @@ isort = "*"
 mypy = "*"
 python-coveralls = "*"
 psycopg = { version = "<=3.9.99999", extras = ["binary", "pool"] }
+ruff = "^0.1.14"
 
 
 [build-system]
@@ -177,3 +178,88 @@ combine_as_imports = true
 skip = ".eggs,.pip-cache,.poetry,venv,.venv,dist"
 profile = "black"
 sections = "FUTURE,STDLIB,THIRDPARTY,FIRSTPARTY,LOCALFOLDER"
+
+[tool.ruff]
+# Same as Black.
+line-length = 88
+indent-width = 4
+
+# Assume Python 3.8
+target-version = "py38"
+
+[tool.ruff.lint]
+# Todo: "D"
+#select = ["E", "F", "W", "I", "N", "UP"]
+select = [
+    "ALL",
+#    "RUF012",
+]
+ignore = [
+    "ANN",
+    "D",
+    "PT",
+    "ERA",
+    "COM812",
+    "T201",
+    "FIX",
+    "S608",
+    "B027",
+    "ARG002",
+    "I001",
+
+    "TRY",
+    "BLE",
+    "SLF",
+    "C901",
+    "SLF",
+    "TD",
+    "PTH",
+    "PTH",
+    "DTZ005",
+    "PLR0915",
+    "PLR0912",
+    "SLOT",
+    "S101",
+    "FBT002",
+    "PLR0913",
+    "PGH003",  # Use specific rule codes when ignoring type issues
+    "PLR2004", # Magic value used in comparison
+
+]
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
+
+# Enable auto-formatting of code examples in docstrings. Markdown,
+# reStructuredText code/literal blocks and doctests are all supported.
+#
+# This is currently disabled by default, but it is planned for this
+# to be opt-out in the future.
+docstring-code-format = false
+
+# Set the line length limit used when formatting code snippets in
+# docstrings.
+#
+# This only has an effect when the `docstring-code-format` setting is
+# enabled.
+docstring-code-line-length = "dynamic"
+
+[tool.ruff.pydocstyle]
+convention = "google"

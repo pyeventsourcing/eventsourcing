@@ -79,7 +79,7 @@ Now let's define an analytics application...
 
 .. code-block:: python
 
-    from eventsourcing.application import AggregateNotFound
+    from eventsourcing.application import AggregateNotFoundError
     from eventsourcing.system import ProcessApplication
     from eventsourcing.dispatch import singledispatchmethod
 
@@ -94,7 +94,7 @@ Now let's define an analytics application...
             try:
                 counter_id = Counter.create_id(trick)
                 counter = self.repository.get(counter_id)
-            except AggregateNotFound:
+            except AggregateNotFoundError:
                 counter = Counter(trick)
             counter.increment()
             process_event.collect_events(counter)
@@ -103,7 +103,7 @@ Now let's define an analytics application...
             counter_id = Counter.create_id(trick)
             try:
                 counter = self.repository.get(counter_id)
-            except AggregateNotFound:
+            except AggregateNotFoundError:
                 return 0
             return counter.count
 

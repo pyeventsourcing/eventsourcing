@@ -25,7 +25,7 @@ class BankAccount(Aggregate):
         self.is_closed = False
 
     @classmethod
-    def open(cls, full_name: str, email_address: str) -> "BankAccount":
+    def open(cls, full_name: str, email_address: str) -> BankAccount:
         """
         Creates new bank account object.
         """

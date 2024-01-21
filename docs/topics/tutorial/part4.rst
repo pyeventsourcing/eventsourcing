@@ -99,7 +99,7 @@ consumption and processing of domain events, so that each domain event is proces
 
 .. code-block:: python
 
-    from eventsourcing.application import AggregateNotFound
+    from eventsourcing.application import AggregateNotFoundError
     from eventsourcing.system import ProcessApplication
     from eventsourcing.dispatch import singledispatchmethod
 
@@ -115,7 +115,7 @@ consumption and processing of domain events, so that each domain event is proces
             try:
                 counter_id = Counter.create_id(trick)
                 counter = self.repository.get(counter_id)
-            except AggregateNotFound:
+            except AggregateNotFoundError:
                 counter = Counter(trick)
             counter.increment()
             process_event.collect_events(counter)
@@ -124,7 +124,7 @@ consumption and processing of domain events, so that each domain event is proces
             counter_id = Counter.create_id(trick)
             try:
                 counter = self.repository.get(counter_id)
-            except AggregateNotFound:
+            except AggregateNotFoundError:
                 return 0
             return counter.count
 

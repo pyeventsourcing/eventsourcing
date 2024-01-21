@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import os
 from datetime import timedelta
 from time import sleep
-from typing import Dict
+from typing import ClassVar
 from unittest import TestCase
 
-from eventsourcing.application import AggregateNotFound
+from eventsourcing.application import AggregateNotFoundError
 from eventsourcing.domain import create_utc_datetime_now
 from eventsourcing.examples.cargoshipping.domainmodel import Location
 from eventsourcing.examples.searchabletimestamps.application import (
@@ -15,7 +17,7 @@ from eventsourcing.tests.postgres_utils import drop_postgres_table
 
 
 class SearchableTimestampsTestCase(TestCase):
-    env: Dict[str, str]
+    env: ClassVar[dict[str, str]]
 
     def test(self) -> None:
         # Construct application.
@@ -38,7 +40,7 @@ class SearchableTimestampsTestCase(TestCase):
         sleep(1e-5)
 
         # View the state of the cargo tracking at particular times.
-        with self.assertRaises(AggregateNotFound):
+        with self.assertRaises(AggregateNotFoundError):
             app.get_cargo_at_timestamp(tracking_id, timestamp0)
 
         cargo_at_timestamp1 = app.get_cargo_at_timestamp(tracking_id, timestamp1)
@@ -49,14 +51,16 @@ class SearchableTimestampsTestCase(TestCase):
 
 
 class WithSQLite(SearchableTimestampsTestCase):
-    env = {
+    env: ClassVar[dict[str, str]] = {
         "PERSISTENCE_MODULE": "eventsourcing.examples.searchabletimestamps.sqlite",
         "SQLITE_DBNAME": ":memory:",
     }
 
 
 class WithPostgreSQL(SearchableTimestampsTestCase):
-    env = {"PERSISTENCE_MODULE": "eventsourcing.examples.searchabletimestamps.postgres"}
+    env: ClassVar[dict[str, str]] = {
+        "PERSISTENCE_MODULE": "eventsourcing.examples.searchabletimestamps.postgres"
+    }
 
     def setUp(self) -> None:
         super().setUp()
@@ -64,7 +68,7 @@ class WithPostgreSQL(SearchableTimestampsTestCase):
         os.environ["POSTGRES_HOST"] = "127.0.0.1"
         os.environ["POSTGRES_PORT"] = "5432"
         os.environ["POSTGRES_USER"] = "eventsourcing"
-        os.environ["POSTGRES_PASSWORD"] = "eventsourcing"
+        os.environ["POSTGRES_PASSWORD"] = "eventsourcing"  # noqa: S105
         self.drop_tables()
 
     def tearDown(self) -> None:
