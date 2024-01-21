@@ -2622,7 +2622,7 @@ See the examples below.
 
 
     # Current topics resolve.
-    assert get_topic(MyAggregate) == "__main__:MyAggregate"
+    assert get_topic(MyAggregate) == "__main__:MyAggregate", get_topic(MyAggregate)
     assert resolve_topic("__main__:MyAggregate") == MyAggregate
     assert resolve_topic("__main__:MyAggregate.Started") == MyAggregate.Started
 

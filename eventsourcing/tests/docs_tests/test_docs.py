@@ -9,6 +9,7 @@ import eventsourcing
 from eventsourcing.postgres import PostgresDatastore
 from eventsourcing.tests.persistence import tmpfile_uris
 from eventsourcing.tests.postgres_utils import drop_postgres_table
+from eventsourcing.utils import clear_topic_cache
 
 base_dir = dirname(dirname(os.path.abspath(eventsourcing.__file__)))
 
@@ -33,6 +34,7 @@ class TestDocs(TestCase):
         self.clean_env()
 
     def clean_env(self):
+        clear_topic_cache()
         db = PostgresDatastore(
             "eventsourcing",
             "127.0.0.1",
@@ -260,14 +262,16 @@ class TestDocs(TestCase):
 
         print("{} lines of code in {}".format(num_code_lines, doc_path))
 
+        source = "\n".join(lines) + "\n"
+
         # Write the code into a temp file.
         tempfile = NamedTemporaryFile("w+")
         temp_path = tempfile.name
-        tempfile.writelines("\n".join(lines) + "\n")
+        tempfile.writelines(source)
         tempfile.flush()
 
         # Run the code and catch errors.
-        p = Popen([sys.executable, temp_path], stdout=PIPE, stderr=PIPE)
+        p = Popen([sys.executable, temp_path], stdout=PIPE, stderr=PIPE, env={"PYTHONPATH": base_dir})
         out, err = p.communicate()
         out = out.decode("utf8")
         err = err.decode("utf8")

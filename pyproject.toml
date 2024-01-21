@@ -1,0 +1,206 @@
+[tool.poetry]
+name = "eventsourcing"
+version = "9.2.22"
+
+description = "Event sourcing in Python"
+authors = [
+    "John Bywater <john.bywater@appropriatesoftware.net>",
+]
+license = "BSD 3-Clause"
+classifiers = [
+#    "Development Status :: 3 - Alpha",
+#    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+#    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+readme = "README.md"
+homepage = "https://github.com/pyeventsourcing/eventsourcing"
+repository = "https://github.com/pyeventsourcing/eventsourcing"
+include = ["eventsourcing/py.typed"]
+packages = [
+    { include = "eventsourcing" },
+    { include = "eventsourcing/tests" },
+]
+keywords=[
+    "event sourcing",
+    "event store",
+    "domain driven design",
+    "domain-driven design",
+    "ddd",
+    "cqrs",
+    "cqs",
+]
+
+[tool.poetry.dependencies]
+python = ">=3.8,<4.0"
+typing_extensions = "*"
+"backports.zoneinfo" = { version = "*", python =  "<3.9" }
+
+pycryptodome = { version = "<=3.16.99999", optional = true }
+
+psycopg2 = { version = "<=2.9.99999", optional = true }
+psycopg2-binary = { version = "<=2.9.99999", optional = true }
+
+Sphinx = { version = "4.2.0", optional = true }
+docutils = { version = "0.17.1", optional = true }
+sphinx_rtd_theme = { version = "1.3.0", optional = true }
+sphinxcontrib-applehelp = { version = "1.0.4", optional = true }
+sphinxcontrib-devhelp = { version = "1.0.2", optional = true }
+sphinxcontrib-htmlhelp = { version = "2.0.1", optional = true }
+sphinxcontrib-jquery = { version = "4.1", optional = true }
+sphinxcontrib-qthelp = { version = "1.0.3", optional = true }
+sphinxcontrib-serializinghtml = { version = "1.1.5", optional = true }
+Jinja2 = { version = "3.1.2", optional = true }
+Pygments = { version = "2.16.1", optional = true }
+snowballstemmer = { version = "2.2.0", optional = true }
+alabaster = { version = "0.7.13", optional = true }
+Babel = { version = "2.13.0", optional = true }
+imagesize = { version = "1.4.1", optional = true }
+requests = { version = "2.31.0", optional = true }
+packaging = { version = "23.2", optional = true }
+MarkupSafe = { version = "2.1.3", optional = true }
+charset_normalizer = { version = "3.3.0", optional = true }
+idna = { version = "3.4", optional = true }
+urllib3 = { version = "2.0.7", optional = true }
+certifi = { version = "2023.7.22", optional = true }
+
+pydantic = { version = "2.4.2", optional = true }
+pydantic-core = { version = "2.10.1", optional = true }
+annotated-types = { version = "0.6.0", optional = true }
+typing-extensions = { version = "4.8.0", optional = true }
+
+orjson = { version = "3.9.9", optional = true }
+
+[tool.poetry.extras]
+crypto = ["pycryptodome"]
+postgres = ["psycopg2"]
+postgres_dev = ["psycopg2-binary"]
+docs = [
+    "Sphinx",
+    "docutils",
+    "sphinx_rtd_theme",
+    "sphinxcontrib-applehelp",
+    "sphinxcontrib-devhelp",
+    "sphinxcontrib-htmlhelp",
+    "sphinxcontrib-jquery",
+    "sphinxcontrib-qthelp",
+    "sphinxcontrib-serializinghtml",
+    "Jinja2",
+    "Pygments",
+    "snowballstemmer",
+    "alabaster",
+    "Babel",
+    "imagesize",
+    "requests",
+    "packaging",
+    "MarkupSafe",
+    "charset_normalizer",
+    "idna",
+    "urllib3",
+    "certifi",
+    "pydantic",
+    "pydantic-core",
+    "annotated-types",
+    "typing-extensions",
+    "orjson",
+]
+dev = ["dev_requires"]
+
+
+
+[tool.poetry.group.dev.dependencies]
+black = { version = "*", allow-prereleases = true }
+coverage = "^7.2.7"
+flake8 = "*"
+flake8-broken-line = "*"
+flake8-bugbear = "*"
+flake8-coding = "*"
+flake8-isort = "*"
+flake8-tidy-imports = "*"
+isort = "*"
+mypy = "*"
+python-coveralls = "*"
+
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+target-version = ["py38"]
+include = '\.pyi?$'
+preview = true
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.pip-cache
+  | \.poetry
+  | \.venv
+  | \.vscode
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.coverage.run]
+branch = true
+omit = [
+    "esdbclient/protos/*"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+  # Have to re-enable the standard pragma
+  "pragma: no cover",
+#  # Don't complain about missing debug-only code:
+#  "def __repr__",
+#  "if self.debug",
+#  # Don't complain about some magic methods:
+#  "def __str__",
+#  # Don't complain if tests don't hit defensive assertion code:
+#  "raise AssertionError",
+#  "raise NotImplementedError",
+#  # Don't complain if non-runnable code isn't run:
+#  "if 0:",
+#  "if __name__ == .__main__.:",
+#  # Don't complain about empty realizations
+#  "pass",
+#  # Don't complain about abstract methods
+#  "@abc.abstractmethod"
+]
+#ignore_errors = true
+#precision = 2
+
+[tool.isort]
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+line_length = 88
+combine_as_imports = true
+#;default_section = LOCALFOLDER
+#;known_first_party = eventsourcing
+#;known_standard_library = dataclasses
+#;known_third_party = django
+#;not_skip = __init__.py
+skip = ".eggs,.pip-cache,.poetry,venv,.venv,dist"
+profile = "black"
+sections = "FUTURE,STDLIB,THIRDPARTY,FIRSTPARTY,LOCALFOLDER"
