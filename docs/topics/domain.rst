@@ -390,7 +390,7 @@ It defines an :py:attr:`~eventsourcing.domain.AggregateCreated.originator_topic`
 which is a Python :class:`str`. The value of the :py:attr:`~eventsourcing.domain.AggregateCreated.originator_topic`
 attribute will be a :ref:`topic <Topics>` that describes the path to an aggregate class.
 
-It inherits from the :func:`~eventsourcing.domain.CanInitAggregate` class, and uses its
+It inherits from the :class:`~eventsourcing.domain.CanInitAggregate` class, and uses its
 :func:`~eventsourcing.domain.CanInitAggregate.mutate` method, which can construct the initial
 state of an aggregate. This method's ``aggregate`` argument is expected to be ``None``. This
 method resolves the :py:attr:`~eventsourcing.domain.AggregateCreated.originator_topic` attribute
