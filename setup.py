@@ -46,7 +46,7 @@ docs_requires = (
         "pydantic-core==2.10.1",
         "annotated-types==0.5.0",
         # "typing-extensions==4.8.0",
-        "orjson==3.9.9",
+        "orjson==3.9.7",
     ]
 )
 
