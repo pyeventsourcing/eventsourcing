@@ -44,7 +44,7 @@ docs_requires = (
         "certifi==2023.7.22",
         "pydantic==2.4.2",
         "pydantic-core==2.10.1",
-        "annotated-types==0.6.0",
+        "annotated-types==0.5.0",
         "typing-extensions==4.8.0",
         "orjson==3.9.9",
     ]
