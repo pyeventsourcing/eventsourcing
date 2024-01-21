@@ -46,7 +46,7 @@ jobs:
         PGPASSWORD=postgres psql eventsourcing -c "CREATE SCHEMA myschema AUTHORIZATION eventsourcing" -U postgres -h localhost
 
     - name: Install
-      run: make install
+      run: make install-packages
 
     - name: Lint
       run: make lint
