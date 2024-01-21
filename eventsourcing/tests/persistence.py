@@ -1288,11 +1288,9 @@ class TranscoderTestCase(TestCase):
 
         self.assertEqual(
             cm.exception.args[0],
-            (
-                "Object of type <class 'eventsourcing.tests.persistence."
-                "MyClass'> is not serializable. Please define "
-                "and register a custom transcoding for this type."
-            ),
+            "Object of type <class 'eventsourcing.tests.persistence."
+            "MyClass'> is not serializable. Please define "
+            "and register a custom transcoding for this type.",
         )
 
         # Expect a TypeError when encoding because transcoding not registered (nested).
@@ -1301,11 +1299,9 @@ class TranscoderTestCase(TestCase):
 
         self.assertEqual(
             cm.exception.args[0],
-            (
-                "Object of type <class 'eventsourcing.tests.persistence."
-                "MyClass'> is not serializable. Please define "
-                "and register a custom transcoding for this type."
-            ),
+            "Object of type <class 'eventsourcing.tests.persistence."
+            "MyClass'> is not serializable. Please define "
+            "and register a custom transcoding for this type.",
         )
 
         # Check we get a TypeError when decoding because transcodings aren't registered.
@@ -1316,8 +1312,6 @@ class TranscoderTestCase(TestCase):
 
         self.assertEqual(
             cm.exception.args[0],
-            (
-                "Data serialized with name 'custom_type3_as_dict' is not "
-                "deserializable. Please register a custom transcoding for this type."
-            ),
+            "Data serialized with name 'custom_type3_as_dict' is not "
+            "deserializable. Please register a custom transcoding for this type.",
         )

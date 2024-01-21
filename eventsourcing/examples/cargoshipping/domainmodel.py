@@ -289,8 +289,7 @@ class Cargo(Aggregate):
                         break
             else:
                 raise Exception(
-                    "Can't find leg with origin={} and "
-                    "voyage_number={}".format(
+                    "Can't find leg with origin={} and voyage_number={}".format(
                         event.location,
                         event.voyage_number,
                     )

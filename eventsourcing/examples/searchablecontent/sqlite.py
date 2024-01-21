@@ -22,16 +22,16 @@ class SQLiteSearchableContentRecorder(
     pages_table_name = "pages_projection_example"
     pages_virtual_table_name = pages_table_name + "_fts"
     select_page_statement = (
-        f"SELECT page_slug, page_title, page_body FROM "
+        "SELECT page_slug, page_title, page_body FROM "
         f"{pages_table_name} WHERE page_id = ?"
     )
     insert_page_statement = f"INSERT INTO {pages_table_name} VALUES (?, ?, ?, ?)"
     update_page_statement = (
         f"UPDATE {pages_table_name} "
-        f"SET page_slug = ?, page_title = ?, page_body = ? WHERE page_id = ?"
+        "SET page_slug = ?, page_title = ?, page_body = ? WHERE page_id = ?"
     )
     search_pages_statement = (
-        f"SELECT page_id FROM {pages_virtual_table_name} WHERE " f"page_body MATCH ?"
+        f"SELECT page_id FROM {pages_virtual_table_name} WHERE page_body MATCH ?"
     )
 
     def construct_create_table_statements(self) -> List[str]:
@@ -51,24 +51,24 @@ class SQLiteSearchableContentRecorder(
             f"page_id, page_body, content='{self.pages_table_name}')"
         )
         statements.append(
-            f"CREATE TRIGGER projection_ai AFTER INSERT ON "
+            "CREATE TRIGGER projection_ai AFTER INSERT ON "
             f"{self.pages_table_name} BEGIN "
             f"INSERT INTO {self.pages_virtual_table_name} "
-            f"(rowid, page_id, page_body) "
-            f"VALUES (new.rowid, new.page_id, new.page_body); "
-            f"END"
+            "(rowid, page_id, page_body) "
+            "VALUES (new.rowid, new.page_id, new.page_body); "
+            "END"
         )
         statements.append(
-            f"CREATE TRIGGER projection_au AFTER UPDATE ON "
+            "CREATE TRIGGER projection_au AFTER UPDATE ON "
             f"{self.pages_table_name} "
-            f"BEGIN "
+            "BEGIN "
             f"INSERT INTO {self.pages_virtual_table_name} "
             f"({self.pages_virtual_table_name}, rowid, page_id, page_body) "
-            f"VALUES ('delete', old.rowid, old.page_id, old.page_body);"
+            "VALUES ('delete', old.rowid, old.page_id, old.page_body);"
             f"INSERT INTO {self.pages_virtual_table_name} "
-            f"(rowid, page_id, page_body) "
-            f"VALUES (new.rowid, new.page_id, new.page_body); "
-            f"END"
+            "(rowid, page_id, page_body) "
+            "VALUES (new.rowid, new.page_id, new.page_body); "
+            "END"
         )
         return statements
 

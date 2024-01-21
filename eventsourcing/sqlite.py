@@ -256,7 +256,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
             f"INSERT INTO {self.events_table_name} VALUES (?,?,?,?)"
         )
         self.select_events_statement = (
-            "SELECT * " f"FROM {self.events_table_name} " "WHERE originator_id=? "
+            f"SELECT * FROM {self.events_table_name} WHERE originator_id=? "
         )
 
     def construct_create_table_statements(self) -> List[str]:
@@ -293,14 +293,12 @@ class SQLiteAggregateRecorder(AggregateRecorder):
     ) -> Optional[Sequence[int]]:
         params = []
         for stored_event in stored_events:
-            params.append(
-                (
-                    stored_event.originator_id.hex,
-                    stored_event.originator_version,
-                    stored_event.topic,
-                    stored_event.state,
-                )
-            )
+            params.append((
+                stored_event.originator_id.hex,
+                stored_event.originator_version,
+                stored_event.topic,
+                stored_event.state,
+            ))
         c.executemany(self.insert_events_statement, params)
         return None
 
@@ -405,7 +403,7 @@ class SQLiteApplicationRecorder(
         notifications = []
 
         params: List[Union[int, str]] = [start]
-        statement = f"SELECT rowid, * FROM {self.events_table_name} " "WHERE rowid>=? "
+        statement = f"SELECT rowid, * FROM {self.events_table_name} WHERE rowid>=? "
 
         if stop is not None:
             params.append(stop)
@@ -538,9 +536,9 @@ class Factory(InfrastructureFactory):
                 lock_timeout = int(lock_timeout_str)
             except ValueError:
                 raise EnvironmentError(
-                    f"SQLite environment value for key "
+                    "SQLite environment value for key "
                     f"'{self.SQLITE_LOCK_TIMEOUT}' is invalid. "
-                    f"If set, an int or empty string is expected: "
+                    "If set, an int or empty string is expected: "
                     f"'{lock_timeout_str}'"
                 )
 

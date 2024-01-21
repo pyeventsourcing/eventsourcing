@@ -24,7 +24,7 @@ class PostgresSearchableContentRecorder(
     pages_table_name = "pages_projection_example"
     select_page_statement = (
         f"SELECT page_slug, page_title, page_body FROM {pages_table_name}"
-        f" WHERE page_id = $1"
+        " WHERE page_id = $1"
     )
 
     select_page_statement_name = f"select_{pages_table_name}".replace(".", "_")
@@ -34,13 +34,13 @@ class PostgresSearchableContentRecorder(
 
     update_page_statement = (
         f"UPDATE {pages_table_name} "
-        f"SET page_slug = $1, page_title = $2, page_body = $3 WHERE page_id = $4"
+        "SET page_slug = $1, page_title = $2, page_body = $3 WHERE page_id = $4"
     )
     update_page_statement_name = f"update_{pages_table_name}".replace(".", "_")
 
     search_pages_statement = (
         f"SELECT page_id FROM {pages_table_name} WHERE "
-        f"to_tsvector('english', page_body) @@ websearch_to_tsquery('english', $1)"
+        "to_tsvector('english', page_body) @@ websearch_to_tsquery('english', $1)"
     )
     search_pages_statement_name = f"search_{pages_table_name}".replace(".", "_")
 
@@ -59,7 +59,7 @@ class PostgresSearchableContentRecorder(
         statements.append(
             f"CREATE INDEX IF NOT EXISTS {self.pages_table_name}_idx "
             f"ON {self.pages_table_name} "
-            f"USING GIN (to_tsvector('english', page_body))"
+            "USING GIN (to_tsvector('english', page_body))"
         )
         return statements
 

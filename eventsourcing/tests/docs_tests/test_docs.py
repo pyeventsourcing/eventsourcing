@@ -271,7 +271,12 @@ class TestDocs(TestCase):
         tempfile.flush()
 
         # Run the code and catch errors.
-        p = Popen([sys.executable, temp_path], stdout=PIPE, stderr=PIPE, env={"PYTHONPATH": base_dir})
+        p = Popen(
+            [sys.executable, temp_path],
+            stdout=PIPE,
+            stderr=PIPE,
+            env={"PYTHONPATH": base_dir},
+        )
         out, err = p.communicate()
         out = out.decode("utf8")
         err = err.decode("utf8")

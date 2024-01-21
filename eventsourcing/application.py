@@ -637,9 +637,9 @@ class Application:
     name = "Application"
     env: EnvType = {}
     is_snapshotting_enabled: bool = False
-    snapshotting_intervals: Optional[
-        Dict[Type[MutableOrImmutableAggregate], int]
-    ] = None
+    snapshotting_intervals: Optional[Dict[Type[MutableOrImmutableAggregate], int]] = (
+        None
+    )
     snapshotting_projectors: Optional[
         Dict[Type[MutableOrImmutableAggregate], ProjectorFunction[Any, Any]]
     ] = None
@@ -677,9 +677,9 @@ class Application:
         self._repository = self.construct_repository()
         self._notification_log = self.construct_notification_log()
         self.closing = Event()
-        self.previous_max_notification_id: Optional[
-            int
-        ] = self.recorder.max_notification_id()
+        self.previous_max_notification_id: Optional[int] = (
+            self.recorder.max_notification_id()
+        )
 
     @property
     def repository(self) -> Repository:
@@ -863,17 +863,15 @@ class Application:
                             event, CanMutateProtocol
                         ):
                             raise ProgrammingError(
-                                (
-                                    f"Cannot take snapshot for {type(aggregate)} with "
-                                    "default project_aggregate() function, because its "
-                                    f"domain event {type(event)} does not implement "
-                                    "the 'can mutate' protocol (see CanMutateProtocol)."
-                                    f" Please define application class {type(self)}"
-                                    " with class variable 'snapshotting_projectors', "
-                                    f"to be a dict that has {type(aggregate)} as a key "
-                                    "with the aggregate projector function for "
-                                    f"{type(aggregate)} as the value for that key."
-                                )
+                                f"Cannot take snapshot for {type(aggregate)} with "
+                                "default project_aggregate() function, because its "
+                                f"domain event {type(event)} does not implement "
+                                "the 'can mutate' protocol (see CanMutateProtocol)."
+                                f" Please define application class {type(self)}"
+                                " with class variable 'snapshotting_projectors', "
+                                f"to be a dict that has {type(aggregate)} as a key "
+                                "with the aggregate projector function for "
+                                f"{type(aggregate)} as the value for that key."
                             )
                         self.take_snapshot(
                             aggregate_id=event.originator_id,

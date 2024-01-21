@@ -498,11 +498,9 @@ class TestPostgresAggregateRecorder(SetupPostgresDatastore, AggregateRecorderTes
         self.assertEqual(pg[0][0], select_alias)
         self.assertEqual(
             pg[0][1],
-            (
-                f"PREPARE {select_alias} AS SELECT * FROM "
-                f"{qualified_table_name} WHERE originator_id = $1 ORDER "
-                "BY originator_version ASC"
-            ),
+            f"PREPARE {select_alias} AS SELECT * FROM "
+            f"{qualified_table_name} WHERE originator_id = $1 ORDER "
+            "BY originator_version ASC",
         )
         self.assertEqual(pg[0][3], "{uuid}")
         self.assertEqual(pg[0][4], True)
@@ -569,7 +567,7 @@ class TestPostgresAggregateRecorder(SetupPostgresDatastore, AggregateRecorderTes
             statement_name = recorder.insert_events_statement_name
             self.assertIn(statement_name, conn.is_prepared)
             conn.cursor().execute(
-                f"DEALLOCATE " f"{recorder.statement_name_aliases[statement_name]}"
+                f"DEALLOCATE {recorder.statement_name_aliases[statement_name]}"
             )
 
         # Write a stored event.

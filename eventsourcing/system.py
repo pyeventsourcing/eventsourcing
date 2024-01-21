@@ -665,9 +665,9 @@ class NewSingleThreadedRunner(Runner, RecordingEventReceiver):
                                     ),
                                 )
 
-                        self._previous_max_notification_ids[
-                            leader_name
-                        ] = recording_event.recordings[-1].notification.id
+                        self._previous_max_notification_ids[leader_name] = (
+                            recording_event.recordings[-1].notification.id
+                        )
 
             finally:
                 self._processing_lock.release()
