@@ -25,7 +25,7 @@ docs_requires = (
         "sphinx_rtd_theme==1.3.0",
         "sphinxcontrib-applehelp==1.0.2",
         "sphinxcontrib-devhelp==1.0.2",
-        "sphinxcontrib-htmlhelp==2.0.1",
+        "sphinxcontrib-htmlhelp==2.0.0",
         "sphinxcontrib-jquery==4.1",
         "sphinxcontrib-qthelp==1.0.3",
         "sphinxcontrib-serializinghtml==1.1.5",
