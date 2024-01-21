@@ -86,8 +86,8 @@ jobs:
       run: |
         pip install -U pip
         pip install wheel
-        python setup.py sdist
-        pip install dist/*
+        make build
+        pip install dist/*.whl
         rm -r dist
         mv eventsourcing/tests eventsourcing_tests
         rm -r eventsourcing
