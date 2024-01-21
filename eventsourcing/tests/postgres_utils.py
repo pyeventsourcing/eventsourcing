@@ -44,7 +44,7 @@ def pg_close_all_connections(
 
 
 def drop_postgres_table(datastore: PostgresDatastore, table_name):
-    statement = f"DROP TABLE {table_name};"
+    statement = f"DROP TABLE {table_name}"
     try:
         with datastore.transaction(commit=True) as curs:
             curs.execute(statement)

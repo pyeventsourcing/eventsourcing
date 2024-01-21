@@ -2,7 +2,7 @@
 exclude = .git,__pycache__,.eggs,*.egg,.pip-cache,.poetry,.venv,dist,*_pb2.py,*_pb2_grpc.py
 max-line-length = 88
 select = C,E,F,W,B,B950
-ignore = C101, E203, E266, E501, W503, B027, E704, E231
+ignore = C101, E203, E266, E501, W503, B027, E704, E231, E702,
 
 
 # ignore = E203,E266,E501,W503,B907,E231

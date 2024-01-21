@@ -567,7 +567,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
             (
                 "CREATE UNIQUE INDEX IF NOT EXISTS "
                 f"{self.notification_id_index_name}"
-                f"ON {self.events_table_name} (notification_id ASC);"
+                f"ON {self.events_table_name} (notification_id ASC)"
             ),
         ]
         return statements

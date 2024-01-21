@@ -49,7 +49,7 @@ class AESCipher(Cipher):
         """
         cipher_key = environment.get(self.CIPHER_KEY)
         if not cipher_key:
-            raise EnvironmentError(f"'{self.CIPHER_KEY}' not set in env")
+            raise EnvironmentError(f"'{self.CIPHER_KEY}' not in env")
         key = b64decode(cipher_key.encode("utf8"))
         AESCipher.check_key_size(len(key))
         self.key = key
