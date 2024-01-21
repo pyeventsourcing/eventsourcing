@@ -16,9 +16,6 @@ import sys
 sys.path.append(str(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 
-from eventsourcing import __version__
-
-
 
 # -- Project information -----------------------------------------------------
 
@@ -31,6 +28,11 @@ author = 'John Bywater'
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
+
+from importlib.metadata import version
+
+__version__ = version(project)
+
 # The short X.Y version.
 version = __version__
 # The full version, including alpha/beta/rc tags.
