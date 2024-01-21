@@ -133,10 +133,8 @@ class TestAggregateCreation(TestCase):
         method_name = get_method_name(BrokenAggregate.Created.__init__)
 
         self.assertEqual(
-            (
-                f"Unable to construct 'Created' event: "
-                f"{method_name}() got an unexpected keyword argument 'name'"
-            ),
+            "Unable to construct 'Created' event: "
+            f"{method_name}() got an unexpected keyword argument 'name'",
             cm.exception.args[0],
         )
 
@@ -352,7 +350,7 @@ class TestAggregateCreation(TestCase):
         self.assertEqual(
             cm.exception.args[0],
             f"{get_method_name(MyAgg.__init__)}() missing 1 required "
-            f"keyword-only argument: 'value'",
+            "keyword-only argument: 'value'",
         )
 
     def test_raises_when_init_missing_required_positional_and_keyword_only_arg(self):
@@ -791,7 +789,7 @@ class TestAggregateCreation(TestCase):
             self.assertEqual(
                 cm.exception.args[0],
                 f"{get_method_name(cls.__init__)}() missing 2 "
-                f"required positional arguments: 'id' and 'name'",
+                "required positional arguments: 'id' and 'name'",
             )
 
             # Just check it works if used properly.
@@ -994,7 +992,7 @@ class TestSubsequentEvents(TestCase):
             "version=1, "
             f"created_on={a.created_on!r}, "
             f"modified_on={a.modified_on!r}, "
-            f"a=1"
+            "a=1"
             ")"
         )
         self.assertEqual(expect, repr(a))
@@ -1006,8 +1004,8 @@ class TestSubsequentEvents(TestCase):
             "version=2, "
             f"created_on={a.created_on!r}, "
             f"modified_on={a.modified_on!r}, "
-            f"a=1, "
-            f"b=2"
+            "a=1, "
+            "b=2"
             ")"
         )
         self.assertEqual(expect, repr(a))
@@ -1028,7 +1026,7 @@ class TestSubsequentEvents(TestCase):
             "version=1, "
             f"created_on={a.created_on!r}, "
             f"modified_on={a.modified_on!r}, "
-            f"a=1"
+            "a=1"
             ")"
         )
         self.assertEqual(expect, repr(a))
@@ -1040,8 +1038,8 @@ class TestSubsequentEvents(TestCase):
             "version=2, "
             f"created_on={a.created_on!r}, "
             f"modified_on={a.modified_on!r}, "
-            f"a=1, "
-            f"b=2"
+            "a=1, "
+            "b=2"
             ")"
         )
         self.assertEqual(expect, repr(a))

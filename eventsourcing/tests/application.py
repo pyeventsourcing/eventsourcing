@@ -270,10 +270,8 @@ class ApplicationTestCase(TestCase):
             Application(env={"PERSISTENCE_MODULE": "eventsourcing.application"})
         self.assertEqual(
             cm.exception.args[0],
-            (
-                "Found 0 infrastructure factory classes in "
-                "'eventsourcing.application', expected 1."
-            ),
+            "Found 0 infrastructure factory classes in "
+            "'eventsourcing.application', expected 1.",
         )
 
         with self.assertRaises(AssertionError) as cm:
@@ -282,10 +280,8 @@ class ApplicationTestCase(TestCase):
             )
         self.assertEqual(
             cm.exception.args[0],
-            (
-                "Not an infrastructure factory class or module: "
-                "eventsourcing.application:Application"
-            ),
+            "Not an infrastructure factory class or module: "
+            "eventsourcing.application:Application",
         )
 
     def test_save_returns_recording_event(self):
@@ -318,13 +314,11 @@ class ApplicationTestCase(TestCase):
             app.take_snapshot(uuid4())
         self.assertEqual(
             cm.exception.args[0],
-            (
-                "Can't take snapshot without snapshots store. Please "
-                "set environment variable IS_SNAPSHOTTING_ENABLED to "
-                "a true value (e.g. 'y'), or set 'is_snapshotting_enabled' "
-                "on application class, or set 'snapshotting_intervals' on "
-                "application class."
-            ),
+            "Can't take snapshot without snapshots store. Please "
+            "set environment variable IS_SNAPSHOTTING_ENABLED to "
+            "a true value (e.g. 'y'), or set 'is_snapshotting_enabled' "
+            "on application class, or set 'snapshotting_intervals' on "
+            "application class.",
         )
 
     def test_application_with_cached_aggregates_and_fastforward(self):

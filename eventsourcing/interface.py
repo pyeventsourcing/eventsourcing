@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 from abc import ABC, abstractmethod
 from base64 import b64decode, b64encode
@@ -48,22 +50,20 @@ class NotificationLogJSONService(NotificationLogInterface, Generic[TApplication]
         from a notification log.
         """
         section = self.app.notification_log[section_id]
-        return json.dumps(
-            {
-                "id": section.id,
-                "next_id": section.next_id,
-                "items": [
-                    {
-                        "id": item.id,
-                        "originator_id": item.originator_id.hex,
-                        "originator_version": item.originator_version,
-                        "topic": item.topic,
-                        "state": b64encode(item.state).decode("utf8"),
-                    }
-                    for item in section.items
-                ],
-            }
-        )
+        return json.dumps({
+            "id": section.id,
+            "next_id": section.next_id,
+            "items": [
+                {
+                    "id": item.id,
+                    "originator_id": item.originator_id.hex,
+                    "originator_version": item.originator_version,
+                    "topic": item.topic,
+                    "state": b64encode(item.state).decode("utf8"),
+                }
+                for item in section.items
+            ],
+        })
 
     def get_notifications(
         self, start: int, limit: int, topics: Sequence[str] = ()
@@ -71,18 +71,16 @@ class NotificationLogJSONService(NotificationLogInterface, Generic[TApplication]
         notifications = self.app.notification_log.select(
             start=start, limit=limit, topics=topics
         )
-        return json.dumps(
-            [
-                {
-                    "id": notification.id,
-                    "originator_id": notification.originator_id.hex,
-                    "originator_version": notification.originator_version,
-                    "topic": notification.topic,
-                    "state": b64encode(notification.state).decode("utf8"),
-                }
-                for notification in notifications
-            ]
-        )
+        return json.dumps([
+            {
+                "id": notification.id,
+                "originator_id": notification.originator_id.hex,
+                "originator_version": notification.originator_version,
+                "topic": notification.topic,
+                "state": b64encode(notification.state).decode("utf8"),
+            }
+            for notification in notifications
+        ])
 
 
 class NotificationLogJSONClient(NotificationLog):

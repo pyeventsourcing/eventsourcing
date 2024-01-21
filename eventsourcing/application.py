@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 from abc import ABC, abstractmethod
 from copy import deepcopy
@@ -635,9 +637,9 @@ class Application:
     name = "Application"
     env: EnvType = {}
     is_snapshotting_enabled: bool = False
-    snapshotting_intervals: Optional[
-        Dict[Type[MutableOrImmutableAggregate], int]
-    ] = None
+    snapshotting_intervals: Optional[Dict[Type[MutableOrImmutableAggregate], int]] = (
+        None
+    )
     snapshotting_projectors: Optional[
         Dict[Type[MutableOrImmutableAggregate], ProjectorFunction[Any, Any]]
     ] = None
@@ -672,12 +674,28 @@ class Application:
         self.snapshots: Optional[EventStore] = None
         if self.factory.is_snapshotting_enabled():
             self.snapshots = self.construct_snapshot_store()
-        self.repository = self.construct_repository()
-        self.notification_log = self.construct_notification_log()
+        self._repository = self.construct_repository()
+        self._notification_log = self.construct_notification_log()
         self.closing = Event()
-        self.previous_max_notification_id: Optional[
-            int
-        ] = self.recorder.max_notification_id()
+        self.previous_max_notification_id: Optional[int] = (
+            self.recorder.max_notification_id()
+        )
+
+    @property
+    def repository(self) -> Repository:
+        """
+        An application's repository reconstructs aggregates from stored events.
+        """
+        return self._repository
+
+    @property
+    def notification_log(self) -> LocalNotificationLog:
+        """
+        An application's notification log presents all the aggregate events
+        of an application in the order they were recorded as a sequence of event
+        notifications.
+        """
+        return self._notification_log
 
     @property
     def log(self) -> LocalNotificationLog:
@@ -686,7 +704,7 @@ class Application:
             DeprecationWarning,
             stacklevel=2,
         )
-        return self.notification_log
+        return self._notification_log
 
     def construct_env(self, name: str, env: Optional[EnvType] = None) -> Environment:
         """
@@ -832,9 +850,6 @@ class Application:
                 interval = self.snapshotting_intervals.get(type(aggregate))
                 if interval is not None:
                     if event.originator_version % interval == 0:
-                        projector_func: ProjectorFunction[
-                            MutableOrImmutableAggregate, DomainEventProtocol
-                        ]
                         if (
                             self.snapshotting_projectors
                             and type(aggregate) in self.snapshotting_projectors
@@ -844,15 +859,19 @@ class Application:
                             ]
                         else:
                             projector_func = project_aggregate
-                        if (
-                            not isinstance(event, CanMutateProtocol)
-                            and projector_func is project_aggregate
+                        if projector_func is project_aggregate and not isinstance(
+                            event, CanMutateProtocol
                         ):
                             raise ProgrammingError(
-                                (
-                                    "Aggregate projector function not found. Please set "
-                                    "snapshotting_projectors on application class."
-                                )
+                                f"Cannot take snapshot for {type(aggregate)} with "
+                                "default project_aggregate() function, because its "
+                                f"domain event {type(event)} does not implement "
+                                "the 'can mutate' protocol (see CanMutateProtocol)."
+                                f" Please define application class {type(self)}"
+                                " with class variable 'snapshotting_projectors', "
+                                f"to be a dict that has {type(aggregate)} as a key "
+                                "with the aggregate projector function for "
+                                f"{type(aggregate)} as the value for that key."
                             )
                         self.take_snapshot(
                             aggregate_id=event.originator_id,
@@ -884,7 +903,10 @@ class Application:
             aggregate = self.repository.get(
                 aggregate_id, version=version, projector_func=projector_func
             )
-            snapshot = type(self).snapshot_class.take(aggregate)
+            snapshot_class = getattr(
+                type(aggregate), "Snapshot", type(self).snapshot_class
+            )
+            snapshot = snapshot_class.take(aggregate)
             self.snapshots.put([snapshot])
 
     def notify(self, new_events: List[DomainEventProtocol]) -> None:

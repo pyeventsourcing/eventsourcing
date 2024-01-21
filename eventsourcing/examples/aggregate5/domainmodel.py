@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Iterable, Optional, Tuple, Type, TypeVar
@@ -71,25 +73,29 @@ class Dog(Aggregate):
         trick: str
 
     @staticmethod
-    def register(name: str) -> DomainEvent:
-        return Dog.Registered(
+    def register(name: str) -> Tuple[Dog, DomainEvent]:
+        event = Dog.Registered(
             originator_id=uuid4(),
             originator_version=1,
             timestamp=DomainEvent.create_timestamp(),
             name=name,
         )
+        dog = Dog.mutate(event, None)
+        return dog, event
 
-    def add_trick(self, trick: str) -> DomainEvent:
-        return self.trigger_event(Dog.TrickAdded, trick=trick)
+    def add_trick(self, trick: str) -> Tuple[Dog, DomainEvent]:
+        event = self.trigger_event(Dog.TrickAdded, trick=trick)
+        dog = Dog.mutate(event, self)
+        return dog, event
 
     @singledispatchmethod
     @classmethod
-    def mutate(cls, event: DomainEvent, aggregate: Optional["Dog"]) -> Optional["Dog"]:
+    def mutate(cls, event: DomainEvent, aggregate: Optional[Dog]) -> Optional[Dog]:
         """Mutates aggregate with event."""
 
     @mutate.register
     @classmethod
-    def _(cls, event: Registered, _: Optional["Dog"]) -> "Dog":
+    def _(cls, event: Dog.Registered, _: Optional[Dog]) -> Dog:
         return Dog(
             id=event.originator_id,
             version=event.originator_version,
@@ -101,7 +107,7 @@ class Dog(Aggregate):
 
     @mutate.register
     @classmethod
-    def _(cls, event: TrickAdded, aggregate: Optional["Dog"]) -> "Dog":
+    def _(cls, event: Dog.TrickAdded, aggregate: Optional[Dog]) -> Dog:
         assert aggregate is not None
         return Dog(
             id=aggregate.id,
@@ -114,7 +120,7 @@ class Dog(Aggregate):
 
     @mutate.register
     @classmethod
-    def _(cls, event: Snapshot, _: Optional["Dog"]) -> "Dog":
+    def _(cls, event: Snapshot, _: Optional[Dog]) -> Dog:
         return Dog(
             id=event.state["id"],
             version=event.state["version"],

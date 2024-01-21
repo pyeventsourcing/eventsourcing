@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 from typing import Dict
 from unittest import TestCase
@@ -11,7 +13,7 @@ from eventsourcing.postgres import PostgresDatastore
 from eventsourcing.tests.postgres_utils import drop_postgres_table
 
 
-class SearchableContentTestCase(TestCase):
+class SearchableContentApplicationTestCase(TestCase):
     env: Dict[str, str] = {}
 
     def test_app(self) -> None:
@@ -68,14 +70,14 @@ class SearchableContentTestCase(TestCase):
         self.assertEqual(["animals", "plants"], sorted(p["slug"] for p in pages))
 
 
-class TestWithSQLite(SearchableContentTestCase):
+class TestWithSQLite(SearchableContentApplicationTestCase):
     env = {
         "PERSISTENCE_MODULE": "eventsourcing.examples.searchablecontent.sqlite",
         "SQLITE_DBNAME": ":memory:",
     }
 
 
-class TestWithPostgres(SearchableContentTestCase):
+class TestWithPostgres(SearchableContentApplicationTestCase):
     env = {"PERSISTENCE_MODULE": "eventsourcing.examples.searchablecontent.postgres"}
 
     def setUp(self) -> None:
@@ -100,8 +102,8 @@ class TestWithPostgres(SearchableContentTestCase):
             os.environ["POSTGRES_PASSWORD"],
         )
         drop_postgres_table(db, "public.searchablecontentapplication_events")
-        drop_postgres_table(db, "public.searchablecontentapplication_page_bodies")
+        drop_postgres_table(db, "public.pages_projection_example")
         db.close()
 
 
-del SearchableContentTestCase
+del SearchableContentApplicationTestCase

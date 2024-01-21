@@ -191,8 +191,7 @@ class TestTopics(TestCase):
         with self.assertRaises(TopicError) as cm:
             resolve_topic("oldmodule:Aggregate")
         expected_msg = (
-            "Failed to resolve topic 'oldmodule:Aggregate': "
-            "No module named 'oldmodule'"
+            "Failed to resolve topic 'oldmodule:Aggregate': No module named 'oldmodule'"
         )
         self.assertEqual(expected_msg, cm.exception.args[0])
 

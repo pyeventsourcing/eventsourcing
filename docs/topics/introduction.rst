@@ -34,8 +34,8 @@ The "live coding" video below shows how to do event sourcing with Python in less
 Synopsis
 ========
 
-Use the library's :class:`~eventsourcing.domain.Aggregate` class and the :func:`@event<eventsourcing.domain.event>` decorator to define
-event-sourced aggregates.
+Use the library's :class:`~eventsourcing.domain.Aggregate` class and the
+:func:`@event<eventsourcing.domain.event>` decorator to define event-sourced aggregates.
 
 .. code-block:: python
 
@@ -52,12 +52,37 @@ event-sourced aggregates.
         def add_trick(self, trick):
             self.tricks.append(trick)
 
-Aggregate events will be triggered when decorated
-methods are called, and the decorated method bodies will be used to mutate
-the state of the aggregate.
+The :func:`@event<eventsourcing.domain.event>` decorator can be used on "public" or
+"private" methods.
+
+Call the aggregate class to create a new aggregate. Call the decorated methods to evolve
+aggregate state.
+
+.. code-block:: python
+
+    dog = Dog('Fido')
+    dog.add_trick('roll over')
+
+New aggregate events will be triggered when decorated methods are called. The decorated method bodies are used to
+mutate the state of the aggregate, immediately after the decorated methods are called, and later when reconstructing
+aggregates from stored events. New aggregate events can be collected from aggregates using the
+:func:`~eventsourcing.domain.Aggregate.collect_events` method.
+
+.. code-block:: python
+
+    new_events = dog.collect_events()
+    assert len(new_events) == 2
+
 
 Use the library's :class:`~eventsourcing.application.Application` class to define event-sourced applications.
-Add command and query methods that use event-sourced aggregates.
+Application objects combine the aggregates of a domain model with persistence infrastructure that stores aggregate
+events.
+
+Add application command methods that create and evolve aggregate state. Add application query methods that present
+current state. The application's :func:`~eventsourcing.application.Application.save` method collects new events
+from aggregates and records them in an event store. The :func:`~eventsourcing.application.Repository.get`
+method of the application's :attr:`~eventsourcing.application.Application.repository` reconstructs aggregates
+from previously recorded events.
 
 .. code-block:: python
 
@@ -70,20 +95,15 @@ Add command and query methods that use event-sourced aggregates.
             self.save(dog)
             return dog.id
 
+        def get_dog(self, dog_id):
+            dog = self.repository.get(dog_id)
+            return {'name': dog.name, 'tricks': tuple(dog.tricks)}
+
         def add_trick(self, dog_id, trick):
             dog = self.repository.get(dog_id)
             dog.add_trick(trick)
             self.save(dog)
 
-        def get_dog(self, dog_id):
-            dog = self.repository.get(dog_id)
-            return {'name': dog.name, 'tricks': tuple(dog.tricks)}
-
-
-An application combines domain model aggregates persistence infrastructure.
-Aggregate events are collected and stored by the appliation :func:`~eventsourcing.application.Application.save`
-method. Aggregate events are retrieved and used to reconstruct aggregates
-by the repository :func:`~eventsourcing.application.Repository.get` method.
 
 Construct an application object by calling the application class.
 
@@ -114,7 +134,8 @@ Access the state of the application by calling the application's query methods.
     assert dog_details['name'] == 'Fido'
     assert dog_details['tricks'] == ('roll over', 'fetch ball')
 
-Select event notifications from the application's notification log.
+Propagate the state of an application with the :func:`~eventsourcing.application.NotificationLog.select` method of the
+:attr:`~eventsourcing.application.Application.notification_log`.
 
 .. code-block:: python
 
@@ -126,6 +147,9 @@ Select event notifications from the application's notification log.
     assert notifications[1].id == 2
     assert notifications[2].id == 3
 
+An application's notification log presents all the aggregate events of an application in the order they were recorded
+as a sequence of event notifications. In this way, the state of the application can be propagated and processed in a
+reliable way.
 
 Please read the :doc:`Tutorial </topics/tutorial>` for more information.
 

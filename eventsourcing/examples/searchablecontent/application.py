@@ -1,4 +1,7 @@
-from typing import Any, Dict, List, Optional, Union, cast
+from __future__ import annotations
+
+from typing import Any, List, Optional, Tuple, Union, cast
+from uuid import UUID
 
 from eventsourcing.domain import DomainEventProtocol, MutableOrImmutableAggregate
 from eventsourcing.examples.contentmanagement.application import (
@@ -18,22 +21,22 @@ class SearchableContentApplication(ContentManagementApplication):
         *objs: Optional[Union[MutableOrImmutableAggregate, DomainEventProtocol]],
         **kwargs: Any,
     ) -> List[Recording]:
-        insert_page_bodies: Dict[str, str] = {}
-        update_page_bodies: Dict[str, str] = {}
+        insert_pages: List[Tuple[UUID, str, str, str]] = []
+        update_pages: List[Tuple[UUID, str, str, str]] = []
         for obj in objs:
             if isinstance(obj, Page):
                 if obj.version == len(obj.pending_events):
-                    insert_page_bodies[obj.slug] = obj.body
+                    insert_pages.append((obj.id, obj.slug, obj.title, obj.body))
                 else:
-                    update_page_bodies[obj.slug] = obj.body
-        kwargs["insert_page_bodies"] = insert_page_bodies
-        kwargs["update_page_bodies"] = update_page_bodies
+                    update_pages.append((obj.id, obj.slug, obj.title, obj.body))
+        kwargs["insert_pages"] = insert_pages
+        kwargs["update_pages"] = update_pages
         return super().save(*objs, **kwargs)
 
     def search(self, query: str) -> List[PageDetailsType]:
         pages = []
         recorder = cast(SearchableContentRecorder, self.recorder)
-        for slug in recorder.search_page_bodies(query):
-            page = self.get_page_details(slug)
+        for page_id in recorder.search_pages(query):
+            page = self.get_page_by_id(page_id)
             pages.append(page)
         return pages

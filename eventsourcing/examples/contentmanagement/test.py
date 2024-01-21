@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import cast
 from unittest import TestCase
 from uuid import uuid4
@@ -26,7 +28,7 @@ class TestContentManagement(TestCase):
 
         # Check the page doesn't exist.
         with self.assertRaises(PageNotFound):
-            app.get_page_details(slug="welcome")
+            app.get_page_by_slug(slug="welcome")
 
         # Check the list of pages is empty.
         pages = list(app.get_pages())
@@ -36,7 +38,7 @@ class TestContentManagement(TestCase):
         app.create_page(title="Welcome", slug="welcome")
 
         # Present page identified by the given slug.
-        page = app.get_page_details(slug="welcome")
+        page = app.get_page_by_slug(slug="welcome")
 
         # Check we got a dict that has the given title and slug.
         self.assertEqual(page["title"], "Welcome")
@@ -48,7 +50,7 @@ class TestContentManagement(TestCase):
         app.update_title(slug="welcome", title="Welcome Visitors")
 
         # Check the title was updated.
-        page = app.get_page_details(slug="welcome")
+        page = app.get_page_by_slug(slug="welcome")
         self.assertEqual(page["title"], "Welcome Visitors")
         self.assertEqual(page["modified_by"], user_id)
 
@@ -57,10 +59,10 @@ class TestContentManagement(TestCase):
 
         # Check the index was updated.
         with self.assertRaises(PageNotFound):
-            app.get_page_details(slug="welcome")
+            app.get_page_by_slug(slug="welcome")
 
         # Check we can get the page by the new slug.
-        page = app.get_page_details(slug="welcome-visitors")
+        page = app.get_page_by_slug(slug="welcome-visitors")
         self.assertEqual(page["title"], "Welcome Visitors")
         self.assertEqual(page["slug"], "welcome-visitors")
 
@@ -68,14 +70,14 @@ class TestContentManagement(TestCase):
         app.update_body(slug="welcome-visitors", body="Welcome to my wiki")
 
         # Check the body was updated.
-        page = app.get_page_details(slug="welcome-visitors")
+        page = app.get_page_by_slug(slug="welcome-visitors")
         self.assertEqual(page["body"], "Welcome to my wiki")
 
         # Update the body.
         app.update_body(slug="welcome-visitors", body="Welcome to this wiki")
 
         # Check the body was updated.
-        page = app.get_page_details(slug="welcome-visitors")
+        page = app.get_page_by_slug(slug="welcome-visitors")
         self.assertEqual(page["body"], "Welcome to this wiki")
 
         # Update the body.
@@ -89,7 +91,7 @@ This is a wiki about...
         )
 
         # Check the body was updated.
-        page = app.get_page_details(slug="welcome-visitors")
+        page = app.get_page_by_slug(slug="welcome-visitors")
         self.assertEqual(
             page["body"],
             """
@@ -120,7 +122,7 @@ This is a wiki about us!
         )
 
         # Check 'modified_by' changed.
-        page = app.get_page_details(slug="welcome-visitors")
+        page = app.get_page_by_slug(slug="welcome-visitors")
         self.assertEqual(page["title"], "Welcome Visitors")
         self.assertEqual(page["modified_by"], user_id)
 
@@ -173,6 +175,6 @@ This is a wiki about us!
         # that was previously being used.
         app.update_slug("welcome-visitors", "welcome")
 
-        page = app.get_page_details(slug="welcome")
+        page = app.get_page_by_slug(slug="welcome")
         self.assertEqual(page["title"], "Welcome Visitors")
         self.assertEqual(page["modified_by"], user_id)

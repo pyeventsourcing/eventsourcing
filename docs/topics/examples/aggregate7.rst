@@ -21,7 +21,11 @@ that have been deserialised by orjson.
 One advantage of using Pydantic here is that any custom value objects
 will be automatically reconstructed without needing to define the
 transcoding classes that would be needed when using the library's
-default ``JSONTranscoder``.
+default ``JSONTranscoder``. This is demonstrated in the example below
+with the ``Trick`` class, which is used in both aggregate events and
+aggregate state, and which is reconstructed from serialised string
+values, representing only the name of the trick, from both recorded
+aggregate events and from recorded snapshots.
 
 
 Domain model

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from contextlib import contextmanager
 from itertools import chain
 from threading import Lock
@@ -156,7 +158,7 @@ class PostgresConnectionPool(ConnectionPool[PostgresConnection]):
         except psycopg2.OperationalError as e:
             raise OperationalError(e) from e
         pg_conn.cursor().execute(
-            f"SET idle_in_transaction_session_timeout = "
+            "SET idle_in_transaction_session_timeout = "
             f"'{self.idle_in_transaction_session_timeout}s'"
         )
         return PostgresConnection(pg_conn, max_age=self.max_age)
@@ -422,7 +424,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         # notification_id values in order, and by locking the table for writes,
         # it can be guaranteed. The EXCLUSIVE lock mode does not block
         # the ACCESS SHARE lock which is acquired during SELECT statements,
-        # so the table can be read concurrently. However INSERT normally
+        # so the table can be read concurrently. However, INSERT normally
         # just acquires ROW EXCLUSIVE locks, which risks interleaving of
         # many inserts in one transaction with many insert in another
         # transaction. Since one transaction will commit before another,
@@ -535,7 +537,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
         super().__init__(datastore, events_table_name)
         self.insert_events_statement = (
             f"INSERT INTO {self.events_table_name} VALUES ($1, $2, $3, $4) "
-            f"RETURNING notification_id"
+            "RETURNING notification_id"
         )
         self.max_notification_id_statement = (
             f"SELECT MAX(notification_id) FROM {self.events_table_name}"
@@ -550,19 +552,23 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
 
     def construct_create_table_statements(self) -> List[str]:
         statements = [
-            "CREATE TABLE IF NOT EXISTS "
-            f"{self.events_table_name} ("
-            "originator_id uuid NOT NULL, "
-            "originator_version bigint NOT NULL, "
-            "topic text, "
-            "state bytea, "
-            "notification_id bigserial, "
-            "PRIMARY KEY "
-            "(originator_id, originator_version)) "
-            "WITH (autovacuum_enabled=false)",
-            f"CREATE UNIQUE INDEX IF NOT EXISTS "
-            f"{self.notification_id_index_name}"
-            f"ON {self.events_table_name} (notification_id ASC);",
+            (
+                "CREATE TABLE IF NOT EXISTS "
+                f"{self.events_table_name} ("
+                "originator_id uuid NOT NULL, "
+                "originator_version bigint NOT NULL, "
+                "topic text, "
+                "state bytea, "
+                "notification_id bigserial, "
+                "PRIMARY KEY "
+                "(originator_id, originator_version)) "
+                "WITH (autovacuum_enabled=false)"
+            ),
+            (
+                "CREATE UNIQUE INDEX IF NOT EXISTS "
+                f"{self.notification_id_index_name}"
+                f"ON {self.events_table_name} (notification_id ASC);"
+            ),
         ]
         return statements
 
@@ -580,9 +586,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
         """
 
         params: List[Union[int, str, Sequence[str]]] = [start]
-        statement = (
-            "SELECT * " f"FROM {self.events_table_name} " "WHERE notification_id>=$1 "
-        )
+        statement = f"SELECT * FROM {self.events_table_name} WHERE notification_id>=$1 "
         statement_name = f"select_notifications_{self.events_table_name}".replace(
             ".", "_"
         )
@@ -598,7 +602,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
             statement_name += "_topics"
 
         params.append(limit)
-        statement += "ORDER BY notification_id " f"LIMIT ${len(params)}"
+        statement += f"ORDER BY notification_id LIMIT ${len(params)}"
 
         notifications = []
         with self.datastore.get_connection() as conn:
@@ -785,6 +789,10 @@ class Factory(InfrastructureFactory):
     POSTGRES_SCHEMA = "POSTGRES_SCHEMA"
     CREATE_TABLE = "CREATE_TABLE"
 
+    aggregate_recorder_class = PostgresAggregateRecorder
+    application_recorder_class = PostgresApplicationRecorder
+    process_recorder_class = PostgresProcessRecorder
+
     def __init__(self, env: Environment):
         super().__init__(env)
         dbname = self.env.get(self.POSTGRES_DBNAME)
@@ -832,9 +840,9 @@ class Factory(InfrastructureFactory):
                 connect_timeout = int(connect_timeout_str)
             except ValueError:
                 raise EnvironmentError(
-                    f"Postgres environment value for key "
+                    "Postgres environment value for key "
                     f"'{self.POSTGRES_CONNECT_TIMEOUT}' is invalid. "
-                    f"If set, an integer or empty string is expected: "
+                    "If set, an integer or empty string is expected: "
                     f"'{connect_timeout_str}'"
                 )
 
@@ -848,9 +856,9 @@ class Factory(InfrastructureFactory):
             )
         except ValueError:
             raise EnvironmentError(
-                f"Postgres environment value for key "
+                "Postgres environment value for key "
                 f"'{self.POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT}' is invalid. "
-                f"If set, an integer or empty string is expected: "
+                "If set, an integer or empty string is expected: "
                 f"'{idle_in_transaction_session_timeout_str}'"
             )
 
@@ -865,9 +873,9 @@ class Factory(InfrastructureFactory):
                 pool_size = int(pool_size_str)
             except ValueError:
                 raise EnvironmentError(
-                    f"Postgres environment value for key "
+                    "Postgres environment value for key "
                     f"'{self.POSTGRES_POOL_SIZE}' is invalid. "
-                    f"If set, an integer or empty string is expected: "
+                    "If set, an integer or empty string is expected: "
                     f"'{pool_size_str}'"
                 )
 
@@ -882,9 +890,9 @@ class Factory(InfrastructureFactory):
                 pool_max_overflow = int(pool_max_overflow_str)
             except ValueError:
                 raise EnvironmentError(
-                    f"Postgres environment value for key "
+                    "Postgres environment value for key "
                     f"'{self.POSTGRES_POOL_MAX_OVERFLOW}' is invalid. "
-                    f"If set, an integer or empty string is expected: "
+                    "If set, an integer or empty string is expected: "
                     f"'{pool_max_overflow_str}'"
                 )
 
@@ -899,9 +907,9 @@ class Factory(InfrastructureFactory):
                 pool_timeout = float(pool_timeout_str)
             except ValueError:
                 raise EnvironmentError(
-                    f"Postgres environment value for key "
+                    "Postgres environment value for key "
                     f"'{self.POSTGRES_POOL_TIMEOUT}' is invalid. "
-                    f"If set, a float or empty string is expected: "
+                    "If set, a float or empty string is expected: "
                     f"'{pool_timeout_str}'"
                 )
 
@@ -916,9 +924,9 @@ class Factory(InfrastructureFactory):
                 conn_max_age = float(conn_max_age_str)
             except ValueError:
                 raise EnvironmentError(
-                    f"Postgres environment value for key "
+                    "Postgres environment value for key "
                     f"'{self.POSTGRES_CONN_MAX_AGE}' is invalid. "
-                    f"If set, a float or empty string is expected: "
+                    "If set, a float or empty string is expected: "
                     f"'{conn_max_age_str}'"
                 )
 
@@ -930,9 +938,9 @@ class Factory(InfrastructureFactory):
             lock_timeout = int(lock_timeout_str)
         except ValueError:
             raise EnvironmentError(
-                f"Postgres environment value for key "
+                "Postgres environment value for key "
                 f"'{self.POSTGRES_LOCK_TIMEOUT}' is invalid. "
-                f"If set, an integer or empty string is expected: "
+                "If set, an integer or empty string is expected: "
                 f"'{lock_timeout_str}'"
             )
 
@@ -960,7 +968,7 @@ class Factory(InfrastructureFactory):
         events_table_name = prefix + "_" + purpose
         if self.datastore.schema:
             events_table_name = f"{self.datastore.schema}.{events_table_name}"
-        recorder = PostgresAggregateRecorder(
+        recorder = type(self).aggregate_recorder_class(
             datastore=self.datastore,
             events_table_name=events_table_name,
         )
@@ -973,7 +981,7 @@ class Factory(InfrastructureFactory):
         events_table_name = prefix + "_events"
         if self.datastore.schema:
             events_table_name = f"{self.datastore.schema}.{events_table_name}"
-        recorder = PostgresApplicationRecorder(
+        recorder = type(self).application_recorder_class(
             datastore=self.datastore,
             events_table_name=events_table_name,
         )
@@ -989,7 +997,7 @@ class Factory(InfrastructureFactory):
         if self.datastore.schema:
             events_table_name = f"{self.datastore.schema}.{events_table_name}"
             tracking_table_name = f"{self.datastore.schema}.{tracking_table_name}"
-        recorder = PostgresProcessRecorder(
+        recorder = type(self).process_recorder_class(
             datastore=self.datastore,
             events_table_name=events_table_name,
             tracking_table_name=tracking_table_name,

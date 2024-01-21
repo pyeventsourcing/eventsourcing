@@ -801,7 +801,7 @@ def _spec_coerce_args_to_kwargs(
     for name in kwargs_keys:
         if name not in required_keyword_only and name not in positional_names:
             raise TypeError(
-                f"{method_name}() got an unexpected " f"keyword argument '{name}'"
+                f"{method_name}() got an unexpected keyword argument '{name}'"
             )
     if len_args > len(positional_names):
         msg = (
@@ -843,7 +843,7 @@ def _spec_coerce_args_to_kwargs(
         missing_names = [f"'{name}'" for name in missing_keyword_only_arguments]
         msg = (
             f"{method_name}() missing {len(missing_names)} "
-            f"required keyword-only argument"
+            "required keyword-only argument"
             f"{'' if len(missing_names) == 1 else 's'}: "
         )
         _raise_missing_names_type_error(missing_names, msg)
@@ -1130,7 +1130,7 @@ class MetaAggregate(type, Generic[TAggregate]):
                         method_name = event_decorator.decorated_method.__name__
                         raise TypeError(
                             f"@event under {method_name}() property setter requires "
-                            f"event class name"
+                            "event class name"
                         )
 
             if event_decorator is not None:
@@ -1556,7 +1556,7 @@ TCanSnapshotAggregate = TypeVar("TCanSnapshotAggregate", bound="CanSnapshotAggre
 
 class CanSnapshotAggregate(HasOriginatorIDVersion, CanCreateTimestamp):
     topic: str
-    state: Dict[str, Any]
+    state: Any
 
     @classmethod
     def take(

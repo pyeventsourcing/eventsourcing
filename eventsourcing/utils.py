@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import importlib
 import sys
 from functools import wraps
@@ -240,12 +242,12 @@ class Environment(Dict[str, str]):
         self.name = name
 
     @overload
-    def get(self, key: str) -> Optional[str]:
-        ...  # pragma: no cover
+    def get(self, key: str) -> Optional[str]: ...  # pragma: no cover
 
     @overload
-    def get(self, key: str, default: Union[str, T]) -> Union[str, T]:
-        ...  # pragma: no cover
+    def get(
+        self, key: str, default: Union[str, T]
+    ) -> Union[str, T]: ...  # pragma: no cover
 
     def get(
         self, key: str, default: Optional[Union[str, T]] = None

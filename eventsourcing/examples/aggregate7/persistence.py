@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any, Dict, cast
 
 import orjson
@@ -17,7 +19,7 @@ from eventsourcing.utils import get_topic, resolve_topic
 class PydanticMapper(Mapper):
     def to_stored_event(self, domain_event: DomainEventProtocol) -> StoredEvent:
         topic = get_topic(domain_event.__class__)
-        event_state = cast(BaseModel, domain_event).dict()
+        event_state = cast(BaseModel, domain_event).model_dump()
         stored_state = self.transcoder.encode(event_state)
         if self.compressor:
             stored_state = self.compressor.compress(stored_state)

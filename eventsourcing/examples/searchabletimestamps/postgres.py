@@ -36,8 +36,8 @@ class SearchableTimestampsApplicationRecorder(
         )
         self.select_event_timestamp_statement = (
             f"SELECT originator_version FROM {self.event_timestamps_table_name} WHERE "
-            f"originator_id = $1 AND "
-            f"timestamp <= $2 "
+            "originator_id = $1 AND "
+            "timestamp <= $2 "
             "ORDER BY originator_version DESC "
             "LIMIT 1"
         )

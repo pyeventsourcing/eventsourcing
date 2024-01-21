@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import sqlite3
 from contextlib import contextmanager
 from sqlite3 import Connection, Cursor
@@ -254,7 +256,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
             f"INSERT INTO {self.events_table_name} VALUES (?,?,?,?)"
         )
         self.select_events_statement = (
-            "SELECT * " f"FROM {self.events_table_name} " "WHERE originator_id=? "
+            f"SELECT * FROM {self.events_table_name} WHERE originator_id=? "
         )
 
     def construct_create_table_statements(self) -> List[str]:
@@ -291,14 +293,12 @@ class SQLiteAggregateRecorder(AggregateRecorder):
     ) -> Optional[Sequence[int]]:
         params = []
         for stored_event in stored_events:
-            params.append(
-                (
-                    stored_event.originator_id.hex,
-                    stored_event.originator_version,
-                    stored_event.topic,
-                    stored_event.state,
-                )
-            )
+            params.append((
+                stored_event.originator_id.hex,
+                stored_event.originator_version,
+                stored_event.topic,
+                stored_event.state,
+            ))
         c.executemany(self.insert_events_statement, params)
         return None
 
@@ -403,7 +403,7 @@ class SQLiteApplicationRecorder(
         notifications = []
 
         params: List[Union[int, str]] = [start]
-        statement = f"SELECT rowid, * FROM {self.events_table_name} " "WHERE rowid>=? "
+        statement = f"SELECT rowid, * FROM {self.events_table_name} WHERE rowid>=? "
 
         if stop is not None:
             params.append(stop)
@@ -512,6 +512,10 @@ class Factory(InfrastructureFactory):
     SQLITE_LOCK_TIMEOUT = "SQLITE_LOCK_TIMEOUT"
     CREATE_TABLE = "CREATE_TABLE"
 
+    aggregate_recorder_class = SQLiteAggregateRecorder
+    application_recorder_class = SQLiteApplicationRecorder
+    process_recorder_class = SQLiteProcessRecorder
+
     def __init__(self, env: Environment):
         super().__init__(env)
         db_name = self.env.get(self.SQLITE_DBNAME)
@@ -532,9 +536,9 @@ class Factory(InfrastructureFactory):
                 lock_timeout = int(lock_timeout_str)
             except ValueError:
                 raise EnvironmentError(
-                    f"SQLite environment value for key "
+                    "SQLite environment value for key "
                     f"'{self.SQLITE_LOCK_TIMEOUT}' is invalid. "
-                    f"If set, an int or empty string is expected: "
+                    "If set, an int or empty string is expected: "
                     f"'{lock_timeout_str}'"
                 )
 
@@ -542,7 +546,7 @@ class Factory(InfrastructureFactory):
 
     def aggregate_recorder(self, purpose: str = "events") -> AggregateRecorder:
         events_table_name = "stored_" + purpose
-        recorder = SQLiteAggregateRecorder(
+        recorder = self.aggregate_recorder_class(
             datastore=self.datastore,
             events_table_name=events_table_name,
         )
@@ -551,13 +555,13 @@ class Factory(InfrastructureFactory):
         return recorder
 
     def application_recorder(self) -> ApplicationRecorder:
-        recorder = SQLiteApplicationRecorder(datastore=self.datastore)
+        recorder = self.application_recorder_class(datastore=self.datastore)
         if self.env_create_table():
             recorder.create_table()
         return recorder
 
     def process_recorder(self) -> ProcessRecorder:
-        recorder = SQLiteProcessRecorder(datastore=self.datastore)
+        recorder = self.process_recorder_class(datastore=self.datastore)
         if self.env_create_table():
             recorder.create_table()
         return recorder

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections import defaultdict
 from threading import Lock
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Set

@@ -465,13 +465,10 @@ class SingleThreadedRunner(Runner, RecordingEventReceiver):
 
     def start(self) -> None:
         """
-        Starts the runner.
-        The applications are constructed, and setup to lead and follow
-        each other, according to the system definition.
-        The followers are setup to follow the applications they follow
-        (have a notification log reader with the notification log of the
-        leader), and their leaders are setup to lead the runner itself
-        (send prompts).
+        Starts the runner. The applications mentioned in the system definition
+        are constructed. The followers are set up to follow the applications
+        they are defined as following in the system definition. And the leaders
+        are set up to lead the runner itself.
         """
 
         super().start()
@@ -486,7 +483,7 @@ class SingleThreadedRunner(Runner, RecordingEventReceiver):
             assert isinstance(follower, Follower)
             follower.follow(leader_name, leader.notification_log)
 
-        # Setup leaders to notify followers.
+        # Setup leaders to lead this runner.
         for name in self.system.leaders:
             leader = cast(Leader, self.apps[name])
             assert isinstance(leader, Leader)
@@ -494,12 +491,15 @@ class SingleThreadedRunner(Runner, RecordingEventReceiver):
 
     def receive_recording_event(self, recording_event: RecordingEvent) -> None:
         """
-        Receives recording event by appending it to list of received recording
-        events.
+        Receives recording event by appending the name of the leader
+        to a list of prompted names.
 
-        Unless this method has previously been called and not yet returned, it
-        will then attempt to make the followers process all received recording
-        events, until there are none remaining.
+        Then, unless this method has previously been called and not yet returned,
+        each of the prompted names is resolved to a leader application, and its
+        followers pull and process events from that application. This may lead to
+        further names being added to the list of prompted names. This process
+        continues until there are no more prompted names. In this way, a system
+        of applications will process all events in a single thread.
         """
         leader_name = recording_event.application_name
         with self._prompted_names_lock:
@@ -665,9 +665,9 @@ class NewSingleThreadedRunner(Runner, RecordingEventReceiver):
                                     ),
                                 )
 
-                        self._previous_max_notification_ids[
-                            leader_name
-                        ] = recording_event.recordings[-1].notification.id
+                        self._previous_max_notification_ids[leader_name] = (
+                            recording_event.recordings[-1].notification.id
+                        )
 
             finally:
                 self._processing_lock.release()

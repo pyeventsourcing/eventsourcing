@@ -152,12 +152,10 @@ class BankAccountsJSONClient:
         self.log = NotificationLogJSONClient(interface)
 
     def open_account(self, full_name, email_address) -> UUID:
-        body = json.dumps(
-            {
-                "full_name": full_name,
-                "email_address": email_address,
-            }
-        )
+        body = json.dumps({
+            "full_name": full_name,
+            "email_address": email_address,
+        })
         body = self.interface.open_account(body)
         return UUID(json.loads(body)["account_id"])
 

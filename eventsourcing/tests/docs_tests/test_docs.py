@@ -9,6 +9,7 @@ import eventsourcing
 from eventsourcing.postgres import PostgresDatastore
 from eventsourcing.tests.persistence import tmpfile_uris
 from eventsourcing.tests.postgres_utils import drop_postgres_table
+from eventsourcing.utils import clear_topic_cache
 
 base_dir = dirname(dirname(os.path.abspath(eventsourcing.__file__)))
 
@@ -26,11 +27,25 @@ class TestDocs(TestCase):
             "eventsourcing",
         )
         drop_postgres_table(db, "dogschool_events")
+        drop_postgres_table(db, "counters_events")
+        drop_postgres_table(db, "counters_tracking")
 
     def tearDown(self) -> None:
         self.clean_env()
 
     def clean_env(self):
+        clear_topic_cache()
+        db = PostgresDatastore(
+            "eventsourcing",
+            "127.0.0.1",
+            "5432",
+            "eventsourcing",
+            "eventsourcing",
+        )
+        drop_postgres_table(db, "dogschool_events")
+        drop_postgres_table(db, "counters_events")
+        drop_postgres_table(db, "counters_tracking")
+
         keys = [
             "PERSISTENCE_MODULE",
             "IS_SNAPSHOTTING_ENABLED",
@@ -97,7 +112,7 @@ class TestDocs(TestCase):
                     #     or name.endswith("system.rst")
                     #     or name.endswith("examples.rst")
                     # ):
-                    # if name.endswith('quick_start.rst'):
+                    # if name.endswith('part4.rst'):
                     # if name.endswith('aggregates_in_ddd.rst'):
                     # if name.endswith('example_application.rst'):
                     # if name.endswith('everything.rst'):
@@ -247,14 +262,21 @@ class TestDocs(TestCase):
 
         print("{} lines of code in {}".format(num_code_lines, doc_path))
 
+        source = "\n".join(lines) + "\n"
+
         # Write the code into a temp file.
         tempfile = NamedTemporaryFile("w+")
         temp_path = tempfile.name
-        tempfile.writelines("\n".join(lines) + "\n")
+        tempfile.writelines(source)
         tempfile.flush()
 
         # Run the code and catch errors.
-        p = Popen([sys.executable, temp_path], stdout=PIPE, stderr=PIPE)
+        p = Popen(
+            [sys.executable, temp_path],
+            stdout=PIPE,
+            stderr=PIPE,
+            env={"PYTHONPATH": base_dir},
+        )
         out, err = p.communicate()
         out = out.decode("utf8")
         err = err.decode("utf8")

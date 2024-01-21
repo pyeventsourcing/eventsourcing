@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 from unittest import TestCase
 
 from eventsourcing.examples.aggregate8.application import DogSchool
-from eventsourcing.examples.aggregate8.domainmodel import Dog
+from eventsourcing.examples.aggregate8.domainmodel import Dog, Trick
 
 
 class SubDogSchool(DogSchool):
@@ -27,4 +29,4 @@ class TestDogSchool(TestCase):
         # Query application state.
         dog = school.get_dog(dog_id)
         assert dog["name"] == "Fido"
-        assert dog["tricks"] == ("roll over", "play dead")
+        assert dog["tricks"] == (Trick(name="roll over"), Trick(name="play dead"))

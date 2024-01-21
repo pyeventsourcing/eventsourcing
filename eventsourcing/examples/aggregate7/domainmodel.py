@@ -16,7 +16,7 @@ class DomainEvent(BaseModel):
     timestamp: datetime
 
     class Config:
-        allow_mutation = False
+        frozen = True
 
 
 def create_timestamp() -> datetime:
@@ -30,15 +30,12 @@ class Aggregate(BaseModel):
     modified_on: datetime
 
     class Config:
-        allow_mutation = False
+        frozen = True
 
 
 class Snapshot(DomainEvent):
     topic: str
     state: Dict[str, Any]
-
-    class Config:
-        allow_mutation = False
 
     @classmethod
     def take(cls, aggregate: Aggregate) -> Snapshot:
@@ -47,7 +44,7 @@ class Snapshot(DomainEvent):
             originator_version=aggregate.version,
             timestamp=create_timestamp(),
             topic=get_topic(type(aggregate)),
-            state=aggregate.dict(),
+            state=aggregate.model_dump(),
         )
 
 
@@ -68,9 +65,13 @@ def aggregate_projector(
     return project_aggregate
 
 
+class Trick(BaseModel):
+    name: str
+
+
 class Dog(Aggregate):
     name: str
-    tricks: Tuple[str, ...]
+    tricks: Tuple[Trick, ...]
 
 
 class DogRegistered(DomainEvent):
@@ -78,7 +79,7 @@ class DogRegistered(DomainEvent):
 
 
 class TrickAdded(DomainEvent):
-    trick: str
+    trick: Trick
 
 
 def register_dog(name: str) -> DomainEvent:
@@ -90,7 +91,7 @@ def register_dog(name: str) -> DomainEvent:
     )
 
 
-def add_trick(dog: Dog, trick: str) -> DomainEvent:
+def add_trick(dog: Dog, trick: Trick) -> DomainEvent:
     return TrickAdded(
         originator_id=dog.id,
         originator_version=dog.version + 1,

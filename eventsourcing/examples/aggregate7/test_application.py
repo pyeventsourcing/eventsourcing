@@ -1,7 +1,10 @@
+from __future__ import annotations
+
+from typing import Tuple
 from unittest import TestCase
 
 from eventsourcing.examples.aggregate7.application import DogSchool
-from eventsourcing.examples.aggregate7.domainmodel import project_dog
+from eventsourcing.examples.aggregate7.domainmodel import Trick, project_dog
 
 
 class TestDogSchool(TestCase):
@@ -16,8 +19,8 @@ class TestDogSchool(TestCase):
 
         # Query application state.
         dog = school.get_dog(dog_id)
-        assert dog["name"] == "Fido"
-        assert dog["tricks"] == ("roll over", "play dead")
+        self.assertEqual(dog["name"], "Fido")
+        self.assertEqualTricks(dog["tricks"], ("roll over", "play dead"))
 
         # Select notifications.
         notifications = school.notification_log.select(start=1, limit=10)
@@ -26,11 +29,19 @@ class TestDogSchool(TestCase):
         # Take snapshot.
         school.take_snapshot(dog_id, version=3, projector_func=project_dog)
         dog = school.get_dog(dog_id)
-        assert dog["name"] == "Fido"
-        assert dog["tricks"] == ("roll over", "play dead")
+        self.assertEqual(dog["name"], "Fido")
+        self.assertEqualTricks(dog["tricks"], ("roll over", "play dead"))
 
         # Continue with snapshotted aggregate.
         school.add_trick(dog_id, "fetch ball")
         dog = school.get_dog(dog_id)
-        assert dog["name"] == "Fido"
-        assert dog["tricks"] == ("roll over", "play dead", "fetch ball")
+        self.assertEqual(dog["name"], "Fido")
+        self.assertEqualTricks(dog["tricks"], ("roll over", "play dead", "fetch ball"))
+
+    def assertEqualTricks(
+        self, actual: Tuple[Trick, ...], expected: Tuple[str, ...]
+    ) -> None:
+        self.assertEqual(len(actual), len(expected))
+        for i, trick in enumerate(actual):
+            self.assertIsInstance(trick, Trick)
+            self.assertEqual(trick.name, expected[i])

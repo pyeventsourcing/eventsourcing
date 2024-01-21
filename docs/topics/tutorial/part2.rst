@@ -496,9 +496,9 @@ command method ``add_trick()`` that calls a decorated "private" method ``_add_tr
             self.tricks.append(trick)
 
 
-Because the "public" command method ``trick_added()`` is not decorated with the
+Because the "public" command method ``add_trick()`` is not decorated with the
 :func:`@event<eventsourcing.domain.event>` decorator, it does not trigger an event when it is called. Instead, the
-event is triggered when the "private" method ``_trick_added()`` is called by the
+event is triggered when the "private" method ``_add_trick()`` is called by the
 "public" method.
 
 ..
@@ -533,10 +533,12 @@ event is triggered when the "private" method ``_trick_added()`` is called by the
     assert copy == dog
 
 
-Exercise
-========
+Exercises
+=========
 
-Define a ``Todos`` aggregate, that has a given ``name`` and a list of ``items``.
+1. Replicate the code in this tutorial in your development environment.
+
+2. Define a ``Todos`` aggregate, that has a given ``name`` and a list of ``items``.
 Define a method ``add_item()`` that adds a new item to the list. Specify the name
 of the "created" event to be ``'Started'`` and the name of the subsequent event
 to be ``'ItemAdded'``. Copy the test below and make it pass.
@@ -610,6 +612,7 @@ to be ``'ItemAdded'``. Copy the test below and make it pass.
 Next steps
 ==========
 
-* For more information about event-sourced aggregates, please read the :doc:`the domain module documentation </topics/domain>`.
-* For more information about event-sourced applications, please read
-  :doc:`Part 3 </topics/tutorial/part3>` of this tutorial.
+* To continue this tutorial, please read :doc:`Part 3 </topics/tutorial/part3>`.
+* For more information about event-sourced aggregates, please read the
+  :doc:`domain module documentation </topics/domain>`.
+* See also the :ref:`Example aggregates`.
