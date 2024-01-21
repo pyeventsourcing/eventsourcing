@@ -16,11 +16,11 @@ install-poetry:
 
 .PHONY: install
 install:
-	$(POETRY) install --extras "crypto postgres_dev" --with docs -vv $(opts)
+	$(POETRY) install --extras "crypto postgres_dev docs" -vv $(opts)
 
 .PHONY: install-packages
 install-packages:
-	$(POETRY) install --no-root --extras "crypto postgres_dev" --with docs -vv $(opts)
+	$(POETRY) install --no-root --extras "crypto postgres_dev docs" -vv $(opts)
 
 .PHONY: update-packages
 update-packages:

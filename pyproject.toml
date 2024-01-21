@@ -52,21 +52,16 @@ pycryptodome = { version = "<=3.16.99999", optional = true }
 psycopg2 = { version = "<=2.9.99999", optional = true }
 psycopg2-binary = { version = "<=2.9.99999", optional = true }
 
+Sphinx = { version = "*", optional = true }
+sphinx_rtd_theme = { version = "*", optional = true }
+pydantic = { version = "*", optional = true }
+orjson = { version = "*", optional = true }
 
 [tool.poetry.extras]
 crypto = ["pycryptodome"]
 postgres = ["psycopg2"]
 postgres_dev = ["psycopg2-binary"]
-
-
-[tool.poetry.group.docs]
-optional = true
-
-[tool.poetry.group.docs.dependencies]
-Sphinx = "*"
-sphinx_rtd_theme = "*"
-pydantic = "*"
-orjson = "*"
+docs = ["Sphinx", "sphinx_rtd_theme", "pydantic", "orjson"]
 
 
 #Sphinx = { version = "*"}
