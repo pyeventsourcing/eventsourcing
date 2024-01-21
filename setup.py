@@ -20,11 +20,10 @@ docs_requires = (
         # "sphinxcontrib_qthelp==1.0.6",
         # "docutils==0.20.1",
         # # "sphinxcontrib-serializinghtml==1.1.4",
-
         "Sphinx==4.2.0",
         "docutils==0.17.1",
         "sphinx_rtd_theme==1.3.0",
-        "sphinxcontrib-applehelp==1.0.4",
+        "sphinxcontrib-applehelp==1.0.2",
         "sphinxcontrib-devhelp==1.0.2",
         "sphinxcontrib-htmlhelp==2.0.1",
         "sphinxcontrib-jquery==4.1",
@@ -43,15 +42,12 @@ docs_requires = (
         "idna==3.4",
         "urllib3==2.0.7",
         "certifi==2023.7.22",
-
         "pydantic==2.4.2",
         "pydantic-core==2.10.1",
         "annotated-types==0.6.0",
         "typing-extensions==4.8.0",
-
         "orjson==3.9.9",
     ]
-
 )
 
 dev_requires = docs_requires + [
