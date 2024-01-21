@@ -9,16 +9,17 @@ build:
   os: ubuntu-22.04
   tools:
     python: "3.11"
-    # You can also specify other tool versions:
-    # nodejs: "20"
-    # rust: "1.70"
-    # golang: "1.20"
   jobs:
-    post_create_environment:
-      # Install poetry
-      # https://python-poetry.org/docs/#installing-manually
-      - make install-poetry
-      # Tell poetry to not use a virtual environment
+    pre_create_environment:
+      # Select Python version (keep in sync with other versions):
+      - asdf install python 3.11.5
+      - asdf global python 3.11.5
+      - python -m pip install --upgrade --no-cache-dir virtualenv
+
+      # Install poetry:
+      - asdf plugin add poetry
+      - asdf install poetry 1.5.1
+      - asdf global poetry 1.5.1
       - poetry config virtualenvs.create false
     post_install:
       # Install dependencies with 'docs' dependency group
