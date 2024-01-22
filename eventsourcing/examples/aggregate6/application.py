@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Dict
 
 from eventsourcing.application import Application
 from eventsourcing.examples.aggregate6.domainmodel import (
@@ -25,6 +25,6 @@ class DogSchool(Application):
         dog = self.repository.get(dog_id, projector_func=project_dog)
         self.save(add_trick(dog, trick))
 
-    def get_dog(self, dog_id: UUID) -> dict[str, Any]:
+    def get_dog(self, dog_id: UUID) -> Dict[str, Any]:
         dog = self.repository.get(dog_id, projector_func=project_dog)
         return {"name": dog.name, "tricks": dog.tricks}

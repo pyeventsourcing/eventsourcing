@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from functools import singledispatch
-from typing import Any, Callable, Iterable, Optional, TypeVar
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, TypeVar
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel
@@ -35,7 +35,7 @@ class Aggregate(BaseModel):
 
 class Snapshot(DomainEvent):
     topic: str
-    state: dict[str, Any]
+    state: Dict[str, Any]
 
     @classmethod
     def take(cls, aggregate: Aggregate) -> Snapshot:
@@ -71,7 +71,7 @@ class Trick(BaseModel):
 
 class Dog(Aggregate):
     name: str
-    tricks: tuple[Trick, ...]
+    tricks: Tuple[Trick, ...]
 
 
 class DogRegistered(DomainEvent):

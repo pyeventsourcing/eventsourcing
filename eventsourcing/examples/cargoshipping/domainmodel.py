@@ -50,7 +50,7 @@ class Itinerary:
         self,
         origin: str,
         destination: str,
-        legs: tuple[Leg, ...],
+        legs: Tuple[Leg, ...],
     ):
         self.origin = origin
         self.destination = destination

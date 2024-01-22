@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from abc import ABC, abstractmethod
 from base64 import b64decode, b64encode
-from typing import Generic, Sequence
+from typing import Generic, List, Sequence
 from uuid import UUID
 
 from eventsourcing.application import NotificationLog, Section, TApplication
@@ -123,7 +123,7 @@ class NotificationLogJSONClient(NotificationLog):
         limit: int,
         _: int | None = None,
         topics: Sequence[str] = (),
-    ) -> list[Notification]:
+    ) -> List[Notification]:
         """
         Returns a selection of
         :class:`~eventsourcing.persistence.Notification` objects

@@ -41,7 +41,7 @@ class SearchableTimestampsApplicationRecorder(
             "LIMIT 1"
         )
 
-    def construct_create_table_statements(self) -> list[str]:
+    def construct_create_table_statements(self) -> List[str]:
         statements = super().construct_create_table_statements()
         statements.append(
             "CREATE TABLE IF NOT EXISTS "
@@ -57,7 +57,7 @@ class SearchableTimestampsApplicationRecorder(
     def _insert_events(
         self,
         c: SQLiteCursor,
-        stored_events: list[StoredEvent],
+        stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> Sequence[int] | None:
         notification_ids = super()._insert_events(c, stored_events, **kwargs)

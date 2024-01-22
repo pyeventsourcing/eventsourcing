@@ -12,7 +12,10 @@ from typing import (
     Generic,
     Iterable,
     Iterator,
+    List,
     Sequence,
+    Tuple,
+    Type,
     TypeVar,
 )
 from unittest.case import TestCase
@@ -56,7 +59,7 @@ TRunner = TypeVar("TRunner", bound=Runner)
 
 
 class RunnerTestCase(TestCase, Generic[TRunner]):
-    runner_class: type[TRunner]
+    runner_class: Type[TRunner]
     runner: TRunner | None
 
     def setUp(self) -> None:
@@ -207,7 +210,7 @@ class RunnerTestCase(TestCase, Generic[TRunner]):
                     )
                     processing_event.collect_events(command)
 
-            def get_result(self, command_id: UUID) -> tuple[str, str]:
+            def get_result(self, command_id: UUID) -> Tuple[str, str]:
                 command = self.repository.get(command_id)
                 return command.output, command.error
 
@@ -776,14 +779,14 @@ class TestNewMultiThreadedRunner(TestMultiThreadedRunner):
     class BrokenPulling(EmailProcess):
         def pull_notifications(
             self, leader_name: str, start: int, stop: int | None = None
-        ) -> Iterator[list[Notification]]:
+        ) -> Iterator[List[Notification]]:
             msg = "Just testing error handling when pulling is broken"
             raise ProgrammingError(msg)
 
     class BrokenConverting(EmailProcess):
         def convert_notifications(
             self, leader_name: str, notifications: Iterable[Notification]
-        ) -> list[ProcessingJob]:
+        ) -> List[ProcessingJob]:
             msg = "Just testing error handling when converting is broken"
             raise ProgrammingError(msg)
 

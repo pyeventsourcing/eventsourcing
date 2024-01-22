@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, List, Tuple, cast
 
 from eventsourcing.examples.contentmanagement.application import (
     ContentManagementApplication,
@@ -23,9 +23,9 @@ class SearchableContentApplication(ContentManagementApplication):
         self,
         *objs: MutableOrImmutableAggregate | DomainEventProtocol | None,
         **kwargs: Any,
-    ) -> list[Recording]:
-        insert_pages: list[tuple[UUID, str, str, str]] = []
-        update_pages: list[tuple[UUID, str, str, str]] = []
+    ) -> List[Recording]:
+        insert_pages: List[Tuple[UUID, str, str, str]] = []
+        update_pages: List[Tuple[UUID, str, str, str]] = []
         for obj in objs:
             if isinstance(obj, Page):
                 if obj.version == len(obj.pending_events):
@@ -36,7 +36,7 @@ class SearchableContentApplication(ContentManagementApplication):
         kwargs["update_pages"] = update_pages
         return super().save(*objs, **kwargs)
 
-    def search(self, query: str) -> list[PageDetailsType]:
+    def search(self, query: str) -> List[PageDetailsType]:
         pages = []
         recorder = cast(SearchableContentRecorder, self.recorder)
         for page_id in recorder.search_pages(query):

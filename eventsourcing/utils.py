@@ -13,8 +13,10 @@ from typing import (
     Callable,
     Dict,
     Iterator,
+    List,
     Mapping,
     Sequence,
+    Type,
     TypeVar,
     no_type_check,
     overload,
@@ -30,8 +32,8 @@ class TopicError(Exception):
     """
 
 
-_type_cache: dict[type, str] = {}
-_topic_cache: dict[str, Any] = {}
+_type_cache: Dict[type, str] = {}
+_topic_cache: Dict[str, Any] = {}
 _topic_cache_lock = Lock()
 
 
@@ -136,7 +138,7 @@ def clear_topic_cache() -> None:
 
 
 def retry(
-    exc: type[Exception] | Sequence[type[Exception]] = Exception,
+    exc: Type[Exception] | Sequence[Type[Exception]] = Exception,
     max_attempts: int = 1,
     wait: float = 0,
     stall: float = 0,
@@ -221,7 +223,7 @@ def strtobool(val: str) -> bool:
     raise ValueError(msg)
 
 
-def reversed_keys(d: dict[Any, Any]) -> Iterator[Any]:
+def reversed_keys(d: Dict[Any, Any]) -> Iterator[Any]:
     return reversed(d.keys())
 
 
@@ -253,7 +255,7 @@ class Environment(Dict[str, str]):
                 return value
         return default
 
-    def create_keys(self, key: str) -> list[str]:
+    def create_keys(self, key: str) -> List[str]:
         keys = []
         if self.name:
             keys.append(self.name.upper() + "_" + key)

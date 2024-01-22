@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Iterator, Sequence
+from typing import TYPE_CHECKING, Any, Iterator, List, Sequence, Type
 from uuid import UUID
 
 from eventsourcing.persistence import (
@@ -100,7 +100,7 @@ class SQLiteTransaction:
 
     def __exit__(
         self,
-        exc_type: type[BaseException] | None,
+        exc_type: Type[BaseException] | None,
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
@@ -259,7 +259,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
             f"SELECT * FROM {self.events_table_name} WHERE originator_id=? "
         )
 
-    def construct_create_table_statements(self) -> list[str]:
+    def construct_create_table_statements(self) -> List[str]:
         statement = (
             "CREATE TABLE IF NOT EXISTS "
             f"{self.events_table_name} ("
@@ -279,7 +279,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
                 c.execute(statement)
 
     def insert_events(
-        self, stored_events: list[StoredEvent], **kwargs: Any
+        self, stored_events: List[StoredEvent], **kwargs: Any
     ) -> Sequence[int] | None:
         with self.datastore.transaction(commit=True) as c:
             return self._insert_events(c, stored_events, **kwargs)
@@ -287,7 +287,7 @@ class SQLiteAggregateRecorder(AggregateRecorder):
     def _insert_events(
         self,
         c: SQLiteCursor,
-        stored_events: list[StoredEvent],
+        stored_events: List[StoredEvent],
         **_: Any,
     ) -> Sequence[int] | None:
         params = [
@@ -310,9 +310,9 @@ class SQLiteAggregateRecorder(AggregateRecorder):
         lte: int | None = None,
         desc: bool = False,
         limit: int | None = None,
-    ) -> list[StoredEvent]:
+    ) -> List[StoredEvent]:
         statement = self.select_events_statement
-        params: list[Any] = [originator_id.hex]
+        params: List[Any] = [originator_id.hex]
         if gt is not None:
             statement += "AND originator_version>? "
             params.append(gt)
@@ -354,7 +354,7 @@ class SQLiteApplicationRecorder(
             f"SELECT MAX(rowid) FROM {self.events_table_name}"
         )
 
-    def construct_create_table_statements(self) -> list[str]:
+    def construct_create_table_statements(self) -> List[str]:
         statement = (
             "CREATE TABLE IF NOT EXISTS "
             f"{self.events_table_name} ("
@@ -370,7 +370,7 @@ class SQLiteApplicationRecorder(
     def _insert_events(
         self,
         c: SQLiteCursor,
-        stored_events: list[StoredEvent],
+        stored_events: List[StoredEvent],
         **_: Any,
     ) -> Sequence[int] | None:
         returning = []
@@ -393,12 +393,12 @@ class SQLiteApplicationRecorder(
         limit: int,
         stop: int | None = None,
         topics: Sequence[str] = (),
-    ) -> list[Notification]:
+    ) -> List[Notification]:
         """
         Returns a list of event notifications
         from 'start', limited by 'limit'.
         """
-        params: list[int | str] = [start]
+        params: List[int | str] = [start]
         statement = f"SELECT rowid, * FROM {self.events_table_name} WHERE rowid>=? "
 
         if stop is not None:
@@ -456,7 +456,7 @@ class SQLiteProcessRecorder(
             "application_name=? AND notification_id=?"
         )
 
-    def construct_create_table_statements(self) -> list[str]:
+    def construct_create_table_statements(self) -> List[str]:
         statements = super().construct_create_table_statements()
         statements.append(
             "CREATE TABLE IF NOT EXISTS tracking ("
@@ -483,7 +483,7 @@ class SQLiteProcessRecorder(
     def _insert_events(
         self,
         c: SQLiteCursor,
-        stored_events: list[StoredEvent],
+        stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> Sequence[int] | None:
         returning = super()._insert_events(c, stored_events, **kwargs)

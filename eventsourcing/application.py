@@ -11,11 +11,15 @@ from typing import (
     Any,
     Callable,
     ClassVar,
+    Dict,
     Generic,
     Iterable,
     Iterator,
+    List,
     Optional,
     Sequence,
+    Tuple,
+    Type,
     TypeVar,
     cast,
 )
@@ -85,7 +89,7 @@ T = TypeVar("T")
 
 class Cache(Generic[S, T]):
     def __init__(self) -> None:
-        self.cache: dict[S, Any] = {}
+        self.cache: Dict[S, Any] = {}
 
     def get(self, key: S, *, evict: bool = False) -> T:
         if evict:
@@ -116,7 +120,7 @@ class LRUCache(Cache[S, T]):
         self.maxsize = maxsize
         self.full = False
         self.lock = Lock()  # because linkedlist updates aren't threadsafe
-        self.root: list[Any] = []  # root of the circular doubly linked list
+        self.root: List[Any] = []  # root of the circular doubly linked list
         self.clear()
 
     def clear(self) -> None:
@@ -242,7 +246,7 @@ class Repository:
         self._fastforward_locks_cache: LRUCache[UUID, Lock] = LRUCache(
             maxsize=self.FASTFORWARD_LOCKS_CACHE_MAXSIZE
         )
-        self._fastforward_locks_inuse: dict[UUID, tuple[Lock, int]] = {}
+        self._fastforward_locks_inuse: Dict[UUID, Tuple[Lock, int]] = {}
 
     def get(
         self,
@@ -409,7 +413,7 @@ class Section:
     """
 
     id: str | None
-    items: list[Notification]
+    items: List[Notification]
     next_id: str | None
 
 
@@ -433,7 +437,7 @@ class NotificationLog(ABC):
         limit: int,
         stop: int | None = None,
         topics: Sequence[str] = (),
-    ) -> list[Notification]:
+    ) -> List[Notification]:
         """
         Returns a selection of
         :class:`~eventsourcing.persistence.Notification` objects
@@ -521,7 +525,7 @@ class LocalNotificationLog(NotificationLog):
         limit: int,
         stop: int | None = None,
         topics: Sequence[str] = (),
-    ) -> list[Notification]:
+    ) -> List[Notification]:
         """
         Returns a selection of
         :class:`~eventsourcing.persistence.Notification` objects
@@ -554,9 +558,9 @@ class ProcessingEvent:
         Initialises the process event with the given tracking object.
         """
         self.tracking = tracking
-        self.events: list[DomainEventProtocol] = []
-        self.aggregates: dict[UUID, MutableOrImmutableAggregate] = {}
-        self.saved_kwargs: dict[Any, Any] = {}
+        self.events: List[DomainEventProtocol] = []
+        self.aggregates: Dict[UUID, MutableOrImmutableAggregate] = {}
+        self.saved_kwargs: Dict[Any, Any] = {}
 
     def collect_events(
         self,
@@ -597,7 +601,7 @@ class RecordingEvent:
     def __init__(
         self,
         application_name: str,
-        recordings: list[Recording],
+        recordings: List[Recording],
         previous_max_notification_id: int | None,
     ):
         self.application_name = application_name
@@ -611,15 +615,15 @@ class Application:
     """
 
     name = "Application"
-    env: ClassVar[dict[str, str]] = {}
+    env: ClassVar[Dict[str, str]] = {}
     is_snapshotting_enabled: bool = False
     snapshotting_intervals: ClassVar[
-        dict[type[MutableOrImmutableAggregate], int] | None
+        Dict[Type[MutableOrImmutableAggregate], int] | None
     ] = None
     snapshotting_projectors: (
-        dict[type[MutableOrImmutableAggregate], ProjectorFunction[Any, Any]] | None
+        Dict[Type[MutableOrImmutableAggregate], ProjectorFunction[Any, Any]] | None
     ) = None
-    snapshot_class: type[SnapshotProtocol] = Snapshot
+    snapshot_class: Type[SnapshotProtocol] = Snapshot
     log_section_size = 10
     notify_topics: Sequence[str] = []
 
@@ -785,7 +789,7 @@ class Application:
         self,
         *objs: MutableOrImmutableAggregate | DomainEventProtocol | None,
         **kwargs: Any,
-    ) -> list[Recording]:
+    ) -> List[Recording]:
         """
         Collects pending events from given aggregates and
         puts them in the application's event store.
@@ -798,7 +802,7 @@ class Application:
         self.notify(processing_event.events)  # Deprecated.
         return recordings
 
-    def _record(self, processing_event: ProcessingEvent) -> list[Recording]:
+    def _record(self, processing_event: ProcessingEvent) -> List[Recording]:
         """
         Records given process event in the application's recorder.
         """
@@ -878,7 +882,7 @@ class Application:
         snapshot = snapshot_class.take(aggregate)
         self.snapshots.put([snapshot])
 
-    def notify(self, new_events: list[DomainEventProtocol]) -> None:
+    def notify(self, new_events: List[DomainEventProtocol]) -> None:
         """
         Deprecated.
 
@@ -888,7 +892,7 @@ class Application:
         need to take action when new domain events have been saved.
         """
 
-    def _notify(self, recordings: list[Recording]) -> None:
+    def _notify(self, recordings: List[Recording]) -> None:
         """
         Called after new aggregate events have been saved. This
         method on this class doesn't actually do anything,
@@ -930,7 +934,7 @@ class EventSourcedLog(Generic[TDomainEvent]):
         self,
         events: EventStore,
         originator_id: UUID,
-        logged_cls: type[TDomainEvent],  # TODO: Rename to 'event_class' in v10.
+        logged_cls: Type[TDomainEvent],  # TODO: Rename to 'event_class' in v10.
     ):
         self.events = events
         self.originator_id = originator_id
@@ -952,7 +956,7 @@ class EventSourcedLog(Generic[TDomainEvent]):
 
     def _trigger_event(
         self,
-        logged_cls: type[T] | None,
+        logged_cls: Type[T] | None,
         next_originator_version: int | None = None,
         **kwargs: Any,
     ) -> T:

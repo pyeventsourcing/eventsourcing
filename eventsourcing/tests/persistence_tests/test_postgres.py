@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 from threading import Event, Thread
 from time import sleep
+from typing import List
 from unittest import TestCase, skipIf
 from uuid import uuid4
 
@@ -571,7 +572,7 @@ class TestPostgresApplicationRecorderErrors(SetupPostgresDatastore, TestCase):
             recorder.max_notification_id()
 
     def test_fetch_ids_after_insert_events(self):
-        def make_events() -> list[StoredEvent]:
+        def make_events() -> List[StoredEvent]:
             return [
                 StoredEvent(
                     originator_id=uuid4(),

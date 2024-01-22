@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import List, cast
 
 from eventsourcing.dispatch import singledispatchmethod
 from eventsourcing.domain import Aggregate
@@ -31,7 +31,7 @@ class Dog(Aggregate):
     @apply.register
     def _(self, event: Dog.Registered) -> None:
         self.name = event.name
-        self.tricks: list[str] = []
+        self.tricks: List[str] = []
 
     @apply.register
     def _(self, event: Dog.TrickAdded) -> None:

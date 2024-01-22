@@ -6,7 +6,7 @@ from abc import abstractmethod
 from http.client import HTTPConnection
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Event, Thread
-from typing import Callable, ClassVar, Sequence
+from typing import Callable, ClassVar, List, Sequence
 from unittest.case import TestCase
 from uuid import UUID
 
@@ -163,7 +163,7 @@ class BankAccountsJSONClient:
 
 
 class HTTPApplicationServer(Thread):
-    prepare: ClassVar[list[Callable]] = []
+    prepare: ClassVar[List[Callable]] = []
 
     def __init__(self, address, handler):
         super().__init__(daemon=True)

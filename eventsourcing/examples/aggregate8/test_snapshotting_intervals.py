@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Dict, Type
 from unittest import TestCase
 
 from eventsourcing.examples.aggregate8.application import DogSchool
@@ -12,7 +12,7 @@ if TYPE_CHECKING:  # pragma: nocover
 
 class SubDogSchool(DogSchool):
     snapshotting_intervals: ClassVar[
-        dict[type[MutableOrImmutableAggregate], int] | None
+        Dict[Type[MutableOrImmutableAggregate], int] | None
     ] = {Dog: 1}
 
 

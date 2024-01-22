@@ -10,7 +10,7 @@ from decimal import Decimal
 from threading import Event, get_ident
 from time import sleep
 from timeit import timeit
-from typing import ClassVar
+from typing import ClassVar, Dict, Type
 from unittest import TestCase
 from uuid import UUID, uuid4
 
@@ -30,8 +30,8 @@ TIMEIT_FACTOR = int(os.environ.get("TEST_TIMEIT_FACTOR", default=10))
 
 class ExampleApplicationTestCase(TestCase):
     timeit_number: ClassVar[int] = TIMEIT_FACTOR
-    started_ats: ClassVar[dict[type[TestCase], datetime]] = {}
-    counts: ClassVar[dict[type[TestCase], int]] = {}
+    started_ats: ClassVar[Dict[Type[TestCase], datetime]] = {}
+    counts: ClassVar[Dict[Type[TestCase], int]] = {}
     expected_factory_topic: str
 
     def test_example_application(self):

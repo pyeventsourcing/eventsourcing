@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, List, Sequence, Tuple
 
 from eventsourcing.examples.contentmanagement.application import PageNotFoundError
 from eventsourcing.examples.searchablecontent.persistence import (
@@ -43,7 +43,7 @@ class PostgresSearchableContentRecorder(
         " to_tsvector('english', page_body) @@ websearch_to_tsquery('english', %s)"
     )
 
-    def construct_create_table_statements(self) -> list[str]:
+    def construct_create_table_statements(self) -> List[str]:
         statements = super().construct_create_table_statements()
         statements.append(
             "CREATE TABLE IF NOT EXISTS "
@@ -65,7 +65,7 @@ class PostgresSearchableContentRecorder(
     def _insert_events(
         self,
         c: Cursor[DictRow],
-        stored_events: list[StoredEvent],
+        stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> None:
         self._insert_pages(c, **kwargs)
@@ -75,7 +75,7 @@ class PostgresSearchableContentRecorder(
     def _insert_pages(
         self,
         c: Cursor[DictRow],
-        insert_pages: Sequence[tuple[UUID, str, str, str]] = (),
+        insert_pages: Sequence[Tuple[UUID, str, str, str]] = (),
         **_: Any,
     ) -> None:
         for params in insert_pages:
@@ -84,19 +84,19 @@ class PostgresSearchableContentRecorder(
     def _update_pages(
         self,
         c: Cursor[DictRow],
-        update_pages: Sequence[tuple[UUID, str, str, str]] = (),
+        update_pages: Sequence[Tuple[UUID, str, str, str]] = (),
         **_: Any,
     ) -> None:
         for page_id, page_slug, page_title, page_body in update_pages:
             params = (page_slug, page_title, page_body, page_id)
             c.execute(self.update_page_statement, params, prepare=True)
 
-    def search_pages(self, query: str) -> list[UUID]:
+    def search_pages(self, query: str) -> List[UUID]:
         with self.datastore.transaction(commit=False) as curs:
             curs.execute(self.search_pages_statement, [query], prepare=True)
             return [row["page_id"] for row in curs.fetchall()]
 
-    def select_page(self, page_id: UUID) -> tuple[str, str, str]:
+    def select_page(self, page_id: UUID) -> Tuple[str, str, str]:
         with self.datastore.transaction(commit=False) as curs:
             curs.execute(self.select_page_statement, [str(page_id)], prepare=True)
             for row in curs.fetchall():

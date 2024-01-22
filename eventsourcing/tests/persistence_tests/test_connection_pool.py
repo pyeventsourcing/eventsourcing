@@ -4,7 +4,7 @@ import contextlib
 import sys
 from threading import Event, Lock, Thread
 from time import sleep, time
-from typing import Any, ClassVar
+from typing import Any, ClassVar, List
 from unittest import TestCase
 
 from eventsourcing.persistence import (
@@ -51,7 +51,7 @@ class DummyCursor(Cursor):
 class DummyConnection(Connection):
     def __init__(self, max_age: float | None = None):
         super().__init__(max_age=max_age)
-        self._cursors: list[DummyCursor] = []
+        self._cursors: List[DummyCursor] = []
         self._closed_on_server = False
 
     def commit(self):
@@ -128,7 +128,7 @@ class TestConnectionPool(TestCase):
     ProgrammingError = ProgrammingError
     PersistenceError = PersistenceError
     allowed_connecting_time = 0
-    expected_result_from_select_1: ClassVar[list[list[int]]] = [[1]]
+    expected_result_from_select_1: ClassVar[List[List[int]]] = [[1]]
 
     def create_pool(
         self,

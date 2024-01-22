@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import ClassVar
+from typing import ClassVar, Dict
 from unittest import TestCase
 from uuid import uuid4
 
@@ -14,7 +14,7 @@ from eventsourcing.tests.postgres_utils import drop_postgres_table
 
 
 class SearchableContentApplicationTestCase(TestCase):
-    env: ClassVar[dict[str, str]] = {}
+    env: ClassVar[Dict[str, str]] = {}
 
     def test_app(self) -> None:
         app = SearchableContentApplication(env=self.env)
@@ -71,14 +71,14 @@ class SearchableContentApplicationTestCase(TestCase):
 
 
 class TestWithSQLite(SearchableContentApplicationTestCase):
-    env: ClassVar[dict[str, str]] = {
+    env: ClassVar[Dict[str, str]] = {
         "PERSISTENCE_MODULE": "eventsourcing.examples.searchablecontent.sqlite",
         "SQLITE_DBNAME": ":memory:",
     }
 
 
 class TestWithPostgres(SearchableContentApplicationTestCase):
-    env: ClassVar[dict[str, str]] = {
+    env: ClassVar[Dict[str, str]] = {
         "PERSISTENCE_MODULE": "eventsourcing.examples.searchablecontent.postgres"
     }
 

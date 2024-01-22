@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from datetime import timedelta
 from time import sleep
-from typing import ClassVar
+from typing import ClassVar, Dict
 from unittest import TestCase
 
 from eventsourcing.application import AggregateNotFoundError
@@ -17,7 +17,7 @@ from eventsourcing.tests.postgres_utils import drop_postgres_table
 
 
 class SearchableTimestampsTestCase(TestCase):
-    env: ClassVar[dict[str, str]]
+    env: ClassVar[Dict[str, str]]
 
     def test(self) -> None:
         # Construct application.
@@ -51,14 +51,14 @@ class SearchableTimestampsTestCase(TestCase):
 
 
 class WithSQLite(SearchableTimestampsTestCase):
-    env: ClassVar[dict[str, str]] = {
+    env: ClassVar[Dict[str, str]] = {
         "PERSISTENCE_MODULE": "eventsourcing.examples.searchabletimestamps.sqlite",
         "SQLITE_DBNAME": ":memory:",
     }
 
 
 class WithPostgreSQL(SearchableTimestampsTestCase):
-    env: ClassVar[dict[str, str]] = {
+    env: ClassVar[Dict[str, str]] = {
         "PERSISTENCE_MODULE": "eventsourcing.examples.searchabletimestamps.postgres"
     }
 

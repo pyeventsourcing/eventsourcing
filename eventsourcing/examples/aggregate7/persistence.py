@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Dict, cast
 
 import orjson
 from pydantic import BaseModel
@@ -40,7 +40,7 @@ class PydanticMapper(Mapper):
             stored_state = self.cipher.decrypt(stored_state)
         if self.compressor:
             stored_state = self.compressor.decompress(stored_state)
-        event_state: dict[str, Any] = self.transcoder.decode(stored_state)
+        event_state: Dict[str, Any] = self.transcoder.decode(stored_state)
         cls = resolve_topic(stored.topic)
         return cls(**event_state)
 

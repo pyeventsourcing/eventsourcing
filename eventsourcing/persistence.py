@@ -10,7 +10,19 @@ from decimal import Decimal
 from threading import Condition, Event, Lock, Semaphore, Timer
 from time import time
 from types import ModuleType
-from typing import Any, Generic, Iterator, Mapping, Sequence, TypeVar, Union, cast
+from typing import (
+    Any,
+    Dict,
+    Generic,
+    Iterator,
+    List,
+    Mapping,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 from uuid import UUID
 from warnings import warn
 
@@ -47,8 +59,8 @@ class Transcoder(ABC):
     """
 
     def __init__(self) -> None:
-        self.types: dict[type, Transcoding] = {}
-        self.names: dict[str, Transcoding] = {}
+        self.types: Dict[type, Transcoding] = {}
+        self.names: Dict[str, Transcoding] = {}
 
     def register(self, transcoding: Transcoding) -> None:
         """
@@ -92,7 +104,7 @@ class JSONTranscoder(Transcoder):
         """
         return self.decoder.decode(data.decode("utf8"))
 
-    def _encode_obj(self, o: Any) -> dict[str, Any]:
+    def _encode_obj(self, o: Any) -> Dict[str, Any]:
         try:
             transcoding = self.types[type(o)]
         except KeyError:
@@ -108,7 +120,7 @@ class JSONTranscoder(Transcoder):
                 "_data_": transcoding.encode(o),
             }
 
-    def _decode_obj(self, d: dict[str, Any]) -> Any:
+    def _decode_obj(self, d: Dict[str, Any]) -> Any:
         if len(d) == 2:
             try:
                 _type_ = d["_type_"]
@@ -303,7 +315,7 @@ class Mapper:
             stored_state = self.cipher.decrypt(stored_state)
         if self.compressor:
             stored_state = self.compressor.decompress(stored_state)
-        event_state: dict[str, Any] = self.transcoder.decode(stored_state)
+        event_state: Dict[str, Any] = self.transcoder.decode(stored_state)
         event_state["originator_id"] = stored_event.originator_id
         event_state["originator_version"] = stored_event.originator_version
         cls = resolve_topic(stored_event.topic)
@@ -402,7 +414,7 @@ class AggregateRecorder(ABC):
 
     @abstractmethod
     def insert_events(
-        self, stored_events: list[StoredEvent], **kwargs: Any
+        self, stored_events: List[StoredEvent], **kwargs: Any
     ) -> Sequence[int] | None:
         """
         Writes stored events into database.
@@ -417,7 +429,7 @@ class AggregateRecorder(ABC):
         lte: int | None = None,
         desc: bool = False,
         limit: int | None = None,
-    ) -> list[StoredEvent]:
+    ) -> List[StoredEvent]:
         """
         Reads stored events from database.
         """
@@ -450,7 +462,7 @@ class ApplicationRecorder(AggregateRecorder):
         limit: int,
         stop: int | None = None,
         topics: Sequence[str] = (),
-    ) -> list[Notification]:
+    ) -> List[Notification]:
         """
         Returns a list of event notifications
         from 'start', limited by 'limit' and
@@ -512,7 +524,7 @@ class EventStore:
 
     def put(
         self, domain_events: Sequence[DomainEventProtocol], **kwargs: Any
-    ) -> list[Recording]:
+    ) -> List[Recording]:
         """
         Stores domain events in aggregate sequence.
         """
@@ -578,14 +590,14 @@ class InfrastructureFactory(ABC):
 
     @classmethod
     def construct(
-        cls: type[TInfrastructureFactory], env: Environment
+        cls: Type[TInfrastructureFactory], env: Environment
     ) -> TInfrastructureFactory:
         """
         Constructs concrete infrastructure factory for given
         named application. Reads and resolves persistence
         topic from environment variable 'PERSISTENCE_MODULE'.
         """
-        factory_cls: type[InfrastructureFactory]
+        factory_cls: Type[InfrastructureFactory]
         topic = (
             env.get(
                 cls.PERSISTENCE_MODULE,
@@ -602,7 +614,7 @@ class InfrastructureFactory(ABC):
             or "eventsourcing.popo"
         )
         try:
-            obj: type[InfrastructureFactory] | ModuleType = resolve_topic(topic)
+            obj: Type[InfrastructureFactory] | ModuleType = resolve_topic(topic)
         except TopicError as e:
             msg = (
                 "Failed to resolve persistence module topic: "
@@ -613,7 +625,7 @@ class InfrastructureFactory(ABC):
 
         if isinstance(obj, ModuleType):
             # Find the factory in the module.
-            factory_classes: list[type[InfrastructureFactory]] = [
+            factory_classes: List[Type[InfrastructureFactory]] = [
                 member
                 for member in obj.__dict__.values()
                 if (
@@ -653,7 +665,7 @@ class InfrastructureFactory(ABC):
         return JSONTranscoder()
 
     def mapper(
-        self, transcoder: Transcoder, mapper_class: type[Mapper] = Mapper
+        self, transcoder: Transcoder, mapper_class: Type[Mapper] = Mapper
     ) -> Mapper:
         """
         Constructs a mapper.
@@ -678,7 +690,7 @@ class InfrastructureFactory(ABC):
             cipher_topic = default_cipher_topic
 
         if cipher_topic:
-            cipher_cls: type[Cipher] = resolve_topic(cipher_topic)
+            cipher_cls: Type[Cipher] = resolve_topic(cipher_topic)
             cipher = cipher_cls(self.env)
 
         return cipher
@@ -691,7 +703,7 @@ class InfrastructureFactory(ABC):
         compressor: Compressor | None = None
         compressor_topic = self.env.get(self.COMPRESSOR_TOPIC)
         if compressor_topic:
-            compressor_cls: type[Compressor] | Compressor = resolve_topic(
+            compressor_cls: Type[Compressor] | Compressor = resolve_topic(
                 compressor_topic
             )
             if isinstance(compressor_cls, type):
@@ -894,7 +906,7 @@ class ConnectionPool(ABC, Generic[TConnection]):
         self.max_age = max_age
         self.pre_ping = pre_ping
         self._pool: deque[TConnection] = deque()
-        self._in_use: dict[int, TConnection] = {}
+        self._in_use: Dict[int, TConnection] = {}
         self._get_semaphore = Semaphore()
         self._put_condition = Condition()
         self._no_readers = Condition()

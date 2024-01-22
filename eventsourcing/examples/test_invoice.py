@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Dict, cast
 from unittest import TestCase
 
 from eventsourcing.application import Application
@@ -83,10 +83,10 @@ class PersonAsDict(Transcoding):
     name = "person_as_dict"
     type = Person
 
-    def encode(self, obj: Person) -> dict[str, Any]:
+    def encode(self, obj: Person) -> Dict[str, Any]:
         return obj.__dict__
 
-    def decode(self, data: dict[str, Any]) -> Person:
+    def decode(self, data: Dict[str, Any]) -> Person:
         return Person(**data)
 
 

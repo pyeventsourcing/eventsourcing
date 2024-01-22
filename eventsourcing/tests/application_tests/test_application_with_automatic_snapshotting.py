@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import ClassVar
+from typing import ClassVar, Dict, Type
 from unittest import TestCase
 
 from eventsourcing.domain import Aggregate, MutableOrImmutableAggregate
@@ -12,7 +12,7 @@ from eventsourcing.tests.domain import BankAccount
 class BankAccountsWithAutomaticSnapshotting(BankAccounts):
     is_snapshotting_enabled = False
     snapshotting_intervals: ClassVar[
-        dict[type[MutableOrImmutableAggregate], int] | None
+        Dict[Type[MutableOrImmutableAggregate], int] | None
     ] = {BankAccount: 5}
 
 

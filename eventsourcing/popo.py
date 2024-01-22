@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Sequence
 
 from eventsourcing.persistence import (
     AggregateRecorder,
@@ -22,24 +22,24 @@ if TYPE_CHECKING:  # pragma: nocover
 
 class POPOAggregateRecorder(AggregateRecorder):
     def __init__(self) -> None:
-        self._stored_events: list[StoredEvent] = []
-        self._stored_events_index: dict[UUID, dict[int, int]] = defaultdict(dict)
+        self._stored_events: List[StoredEvent] = []
+        self._stored_events_index: Dict[UUID, Dict[int, int]] = defaultdict(dict)
         self._database_lock = Lock()
 
     def insert_events(
-        self, stored_events: list[StoredEvent], **kwargs: Any
+        self, stored_events: List[StoredEvent], **kwargs: Any
     ) -> Sequence[int] | None:
         self._insert_events(stored_events, **kwargs)
         return None
 
     def _insert_events(
-        self, stored_events: list[StoredEvent], **kwargs: Any
+        self, stored_events: List[StoredEvent], **kwargs: Any
     ) -> Sequence[int] | None:
         with self._database_lock:
             self._assert_uniqueness(stored_events, **kwargs)
             return self._update_table(stored_events, **kwargs)
 
-    def _assert_uniqueness(self, stored_events: list[StoredEvent], **_: Any) -> None:
+    def _assert_uniqueness(self, stored_events: List[StoredEvent], **_: Any) -> None:
         new = set()
         for s in stored_events:
             # Check events don't already exist.
@@ -53,7 +53,7 @@ class POPOAggregateRecorder(AggregateRecorder):
             raise IntegrityError(msg)
 
     def _update_table(
-        self, stored_events: list[StoredEvent], **_: Any
+        self, stored_events: List[StoredEvent], **_: Any
     ) -> Sequence[int] | None:
         notification_ids = []
         for s in stored_events:
@@ -72,7 +72,7 @@ class POPOAggregateRecorder(AggregateRecorder):
         lte: int | None = None,
         desc: bool = False,
         limit: int | None = None,
-    ) -> list[StoredEvent]:
+    ) -> List[StoredEvent]:
         with self._database_lock:
             results = []
 
@@ -93,7 +93,7 @@ class POPOAggregateRecorder(AggregateRecorder):
 
 class POPOApplicationRecorder(ApplicationRecorder, POPOAggregateRecorder):
     def insert_events(
-        self, stored_events: list[StoredEvent], **kwargs: Any
+        self, stored_events: List[StoredEvent], **kwargs: Any
     ) -> Sequence[int] | None:
         return self._insert_events(stored_events, **kwargs)
 
@@ -103,7 +103,7 @@ class POPOApplicationRecorder(ApplicationRecorder, POPOAggregateRecorder):
         limit: int,
         stop: int | None = None,
         topics: Sequence[str] = (),
-    ) -> list[Notification]:
+    ) -> List[Notification]:
         with self._database_lock:
             results = []
             start = max(start, 1)  # Don't use negative indexes!
@@ -138,11 +138,11 @@ class POPOApplicationRecorder(ApplicationRecorder, POPOAggregateRecorder):
 class POPOProcessRecorder(ProcessRecorder, POPOApplicationRecorder):
     def __init__(self) -> None:
         super().__init__()
-        self._tracking_table: dict[str, set[int]] = defaultdict(set)
-        self._max_tracking_ids: dict[str, int] = defaultdict(lambda: 0)
+        self._tracking_table: Dict[str, set[int]] = defaultdict(set)
+        self._max_tracking_ids: Dict[str, int] = defaultdict(lambda: 0)
 
     def _assert_uniqueness(
-        self, stored_events: list[StoredEvent], **kwargs: Any
+        self, stored_events: List[StoredEvent], **kwargs: Any
     ) -> None:
         super()._assert_uniqueness(stored_events, **kwargs)
         t: Tracking | None = kwargs.get("tracking", None)
@@ -154,7 +154,7 @@ class POPOProcessRecorder(ProcessRecorder, POPOApplicationRecorder):
             raise IntegrityError(msg)
 
     def _update_table(
-        self, stored_events: list[StoredEvent], **kwargs: Any
+        self, stored_events: List[StoredEvent], **kwargs: Any
     ) -> Sequence[int] | None:
         notification_ids = super()._update_table(stored_events, **kwargs)
         t: Tracking | None = kwargs.get("tracking", None)

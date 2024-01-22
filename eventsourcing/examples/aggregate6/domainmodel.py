@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import singledispatch
-from typing import Callable, Iterable, Optional, TypeVar
+from typing import Callable, Iterable, Optional, Tuple, TypeVar
 from uuid import UUID, uuid4
 
 from eventsourcing.domain import Snapshot
@@ -48,7 +48,7 @@ def aggregate_projector(
 @dataclass(frozen=True)
 class Dog(Aggregate):
     name: str
-    tricks: tuple[str, ...]
+    tricks: Tuple[str, ...]
 
 
 @dataclass(frozen=True)

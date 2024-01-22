@@ -10,7 +10,7 @@ from tempfile import NamedTemporaryFile
 from threading import Event, Thread, get_ident
 from time import sleep
 from timeit import timeit
-from typing import Any
+from typing import Any, Dict, List
 from unittest import TestCase
 from uuid import UUID, uuid4
 
@@ -391,11 +391,11 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         recorder = self.create_recorder()
 
         errors_happened = Event()
-        errors: list[Exception] = []
+        errors: List[Exception] = []
 
         counts = {}
-        threads: dict[int, int] = {}
-        durations: dict[int, float] = {}
+        threads: Dict[int, int] = {}
+        durations: Dict[int, float] = {}
 
         num_writers = 10
         num_writes_per_writer = 100
@@ -498,8 +498,8 @@ class ApplicationRecorderTestCase(TestCase, ABC):
         errors_happened = Event()
 
         counts = {}
-        threads: dict[int, int] = {}
-        durations: dict[int, float] = {}
+        threads: Dict[int, int] = {}
+        durations: Dict[int, float] = {}
 
         # Match this to the batch page size in postgres insert for max throughput.
         num_events = 500

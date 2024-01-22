@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Iterator, Sequence
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Sequence
 
 import psycopg
 import psycopg.errors
@@ -62,7 +62,7 @@ class PostgresDatastore:
         self.pool_open_timeout = pool_open_timeout
 
         check = ConnectionPool.check_connection if pre_ping else None
-        kwargs: dict[str, Any] = {"check": check}
+        kwargs: Dict[str, Any] = {"check": check}
         self.pool = ConnectionPool(
             connection_class=Connection[DictRow],
             kwargs={
@@ -165,7 +165,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
         self.select_events_statement = (
             f"SELECT * FROM {self.events_table_name} WHERE originator_id = %s"
         )
-        self.lock_table_statements: list[str] = []
+        self.lock_table_statements: List[str] = []
 
     @staticmethod
     def check_table_name_length(table_name: str, schema_name: str) -> None:
@@ -178,7 +178,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
             msg = f"Table name too long: {unqualified_table_name}"
             raise ProgrammingError(msg)
 
-    def construct_create_table_statements(self) -> list[str]:
+    def construct_create_table_statements(self) -> List[str]:
         statement = (
             "CREATE TABLE IF NOT EXISTS "
             f"{self.events_table_name} ("
@@ -199,7 +199,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
     def insert_events(
-        self, stored_events: list[StoredEvent], **kwargs: Any
+        self, stored_events: List[StoredEvent], **kwargs: Any
     ) -> Sequence[int] | None:
         conn: Connection[DictRow]
         exc: Exception | None = None
@@ -231,7 +231,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
     def _insert_events(
         self,
         c: Cursor[DictRow],
-        stored_events: list[StoredEvent],
+        stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> None:
         pass
@@ -239,7 +239,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
     def _insert_stored_events(
         self,
         c: Cursor[DictRow],
-        stored_events: list[StoredEvent],
+        stored_events: List[StoredEvent],
         **_: Any,
     ) -> None:
         # Only do something if there is something to do.
@@ -267,7 +267,7 @@ class PostgresAggregateRecorder(AggregateRecorder):
     def _fetch_ids_after_insert_events(
         self,
         c: Cursor[DictRow],
-        stored_events: list[StoredEvent],
+        stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> Sequence[int] | None:
         return None
@@ -281,9 +281,9 @@ class PostgresAggregateRecorder(AggregateRecorder):
         lte: int | None = None,
         desc: bool = False,
         limit: int | None = None,
-    ) -> list[StoredEvent]:
+    ) -> List[StoredEvent]:
         statement = self.select_events_statement
-        params: list[Any] = [originator_id]
+        params: List[Any] = [originator_id]
         if gt is not None:
             params.append(gt)
             statement += " AND originator_version > %s"
@@ -328,7 +328,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
             f"LOCK TABLE {self.events_table_name} IN EXCLUSIVE MODE",
         ]
 
-    def construct_create_table_statements(self) -> list[str]:
+    def construct_create_table_statements(self) -> List[str]:
         return [
             (
                 "CREATE TABLE IF NOT EXISTS "
@@ -356,13 +356,13 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
         limit: int,
         stop: int | None = None,
         topics: Sequence[str] = (),
-    ) -> list[Notification]:
+    ) -> List[Notification]:
         """
         Returns a list of event notifications
         from 'start', limited by 'limit'.
         """
 
-        params: list[int | str | Sequence[str]] = [start]
+        params: List[int | str | Sequence[str]] = [start]
         statement = f"SELECT * FROM {self.events_table_name} WHERE notification_id>=%s"
 
         if stop is not None:
@@ -429,10 +429,10 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
     def _fetch_ids_after_insert_events(
         self,
         c: Cursor[DictRow],
-        stored_events: list[StoredEvent],
+        stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> Sequence[int] | None:
-        notification_ids: list[int] = []
+        notification_ids: List[int] = []
         len_events = len(stored_events)
         if len_events:
             if (
@@ -474,7 +474,7 @@ class PostgresProcessRecorder(PostgresApplicationRecorder, ProcessRecorder):
             "WHERE application_name=%s AND notification_id=%s"
         )
 
-    def construct_create_table_statements(self) -> list[str]:
+    def construct_create_table_statements(self) -> List[str]:
         statements = super().construct_create_table_statements()
         statements.append(
             "CREATE TABLE IF NOT EXISTS "
@@ -514,7 +514,7 @@ class PostgresProcessRecorder(PostgresApplicationRecorder, ProcessRecorder):
     def _insert_events(
         self,
         c: Cursor[DictRow],
-        stored_events: list[StoredEvent],
+        stored_events: List[StoredEvent],
         **kwargs: Any,
     ) -> None:
         tracking: Tracking | None = kwargs.get("tracking", None)

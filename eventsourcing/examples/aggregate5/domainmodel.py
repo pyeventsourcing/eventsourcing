@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Iterable, TypeVar
+from typing import Any, Iterable, Tuple, Type, TypeVar
 from uuid import UUID, uuid4
 
 from eventsourcing.dispatch import singledispatchmethod
@@ -32,7 +32,7 @@ class Aggregate:
 
     def trigger_event(
         self,
-        event_class: type[DomainEvent],
+        event_class: Type[DomainEvent],
         **kwargs: Any,
     ) -> DomainEvent:
         kwargs = kwargs.copy()
@@ -45,7 +45,7 @@ class Aggregate:
 
     @classmethod
     def projector(
-        cls: type[TAggregate],
+        cls: Type[TAggregate],
         aggregate: TAggregate | None,
         events: Iterable[DomainEvent],
     ) -> TAggregate | None:
@@ -62,7 +62,7 @@ class Aggregate:
 @dataclass(frozen=True)
 class Dog(Aggregate):
     name: str
-    tricks: tuple[str, ...]
+    tricks: Tuple[str, ...]
 
     @dataclass(frozen=True)
     class Registered(DomainEvent):
@@ -73,7 +73,7 @@ class Dog(Aggregate):
         trick: str
 
     @staticmethod
-    def register(name: str) -> tuple[Dog, DomainEvent]:
+    def register(name: str) -> Tuple[Dog, DomainEvent]:
         event = Dog.Registered(
             originator_id=uuid4(),
             originator_version=1,
@@ -83,7 +83,7 @@ class Dog(Aggregate):
         dog = Dog.mutate(event, None)
         return dog, event
 
-    def add_trick(self, trick: str) -> tuple[Dog, DomainEvent]:
+    def add_trick(self, trick: str) -> Tuple[Dog, DomainEvent]:
         event = self.trigger_event(Dog.TrickAdded, trick=trick)
         dog = Dog.mutate(event, self)
         return dog, event

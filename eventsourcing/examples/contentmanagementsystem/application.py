@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, cast
+from typing import TYPE_CHECKING, ClassVar, Dict, List, cast
 
 from eventsourcing.examples.contentmanagement.domainmodel import Page
 from eventsourcing.examples.contentmanagement.utils import apply_patch
@@ -17,7 +17,7 @@ if TYPE_CHECKING:  # pragma: nocover
 
 
 class SearchIndexApplication(ProcessApplication):
-    env: ClassVar[dict[str, str]] = {
+    env: ClassVar[Dict[str, str]] = {
         "COMPRESSOR_TOPIC": "gzip",
     }
 
@@ -45,6 +45,6 @@ class SearchIndexApplication(ProcessApplication):
                 page_body,
             )]
 
-    def search(self, query: str) -> list[UUID]:
+    def search(self, query: str) -> List[UUID]:
         recorder = cast(SearchableContentRecorder, self.recorder)
         return recorder.search_pages(query)

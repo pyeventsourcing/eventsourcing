@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, cast
+from typing import TYPE_CHECKING, ClassVar, Dict, Type, cast
 from unittest import TestCase
 
 from eventsourcing.domain import MutableOrImmutableAggregate, ProgrammingError
@@ -19,7 +19,7 @@ if TYPE_CHECKING:  # pragma: nocover
 
 class SubDogSchool(DogSchool):
     snapshotting_intervals: ClassVar[
-        dict[type[MutableOrImmutableAggregate], int] | None
+        Dict[Type[MutableOrImmutableAggregate], int] | None
     ] = {Dog: 1}
 
     def register_dog(self, name: str) -> UUID:

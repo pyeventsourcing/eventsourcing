@@ -7,7 +7,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import cast
+from typing import List, Type, cast
 from unittest import TestCase
 from uuid import NAMESPACE_URL, UUID, uuid5
 
@@ -65,8 +65,8 @@ class Vehicle(Aggregate):
     @triggers(Registered)
     def __init__(self, licence_plate_number: str):
         self.licence_plate_number = licence_plate_number
-        self.bookings: list[Booking] = []
-        self.inspection_failures: list[datetime] = []
+        self.bookings: List[Booking] = []
+        self.inspection_failures: List[datetime] = []
 
     @triggers(Booked)
     def book(self, start: datetime, finish: datetime) -> None:
@@ -93,7 +93,7 @@ class Vehicle(Aggregate):
 
 
 class ParkingLot(Application):
-    def book(self, licence_plate: LicencePlate, product: type[Product]) -> None:
+    def book(self, licence_plate: LicencePlate, product: Type[Product]) -> None:
         try:
             vehicle = self.get_vehicle(licence_plate)
         except AggregateNotFoundError:

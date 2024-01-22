@@ -4,7 +4,7 @@ import contextlib
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, ClassVar, Iterable, TypeVar, cast
+from typing import Any, ClassVar, Dict, Iterable, List, Type, TypeVar, cast
 from uuid import UUID, uuid4
 
 from eventsourcing.dispatch import singledispatchmethod
@@ -37,7 +37,7 @@ class Aggregate:
 
     def trigger_event(
         self,
-        event_class: type[DomainEvent],
+        event_class: Type[DomainEvent],
         **kwargs: Any,
     ) -> None:
         kwargs = kwargs.copy()
@@ -54,13 +54,13 @@ class Aggregate:
     def apply(self, event: DomainEvent) -> None:
         """Applies event to aggregate."""
 
-    def collect_events(self) -> list[DomainEvent]:
+    def collect_events(self) -> List[DomainEvent]:
         events, self.pending_events = self.pending_events, []
         return events
 
     @classmethod
     def projector(
-        cls: type[TAggregate],
+        cls: Type[TAggregate],
         _: TAggregate | None,
         events: Iterable[DomainEvent],
     ) -> TAggregate | None:
@@ -70,14 +70,14 @@ class Aggregate:
         return aggregate
 
     @property
-    def pending_events(self) -> list[DomainEvent]:
+    def pending_events(self) -> List[DomainEvent]:
         return type(self).__pending_events[id(self)]
 
     @pending_events.setter
-    def pending_events(self, pending_events: list[DomainEvent]) -> None:
+    def pending_events(self, pending_events: List[DomainEvent]) -> None:
         type(self).__pending_events[id(self)] = pending_events
 
-    __pending_events: ClassVar[dict[int, list[DomainEvent]]] = defaultdict(list)
+    __pending_events: ClassVar[Dict[int, List[DomainEvent]]] = defaultdict(list)
 
     def __del__(self) -> None:
         with contextlib.suppress(KeyError):
@@ -116,7 +116,7 @@ class Dog(Aggregate):
     def _(self, event: Registered) -> None:
         super().__init__(event)
         self.name = event.name
-        self.tricks: list[str] = []
+        self.tricks: List[str] = []
 
     @apply.register(TrickAdded)
     def _(self, event: TrickAdded) -> None:

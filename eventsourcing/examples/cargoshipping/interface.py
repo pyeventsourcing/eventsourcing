@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Dict, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 from uuid import UUID
 
 from eventsourcing.examples.cargoshipping.domainmodel import (
@@ -91,7 +91,7 @@ class BookingService:
 
     def request_possible_routes_for_cargo(
         self, tracking_id: str
-    ) -> list[ItineraryDetails]:
+    ) -> List[ItineraryDetails]:
         routes = self.app.request_possible_routes_for_cargo(UUID(tracking_id))
         return [self.dict_from_itinerary(route) for route in routes]
 
@@ -138,6 +138,6 @@ class BookingService:
 
 # Stub function that picks an itinerary from a list of possible itineraries.
 def select_preferred_itinerary(
-    itineraries: list[ItineraryDetails],
+    itineraries: List[ItineraryDetails],
 ) -> ItineraryDetails:
     return itineraries[0]

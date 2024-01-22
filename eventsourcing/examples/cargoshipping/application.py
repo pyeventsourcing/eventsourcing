@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Dict, List, cast
 
 from eventsourcing.application import Application
 from eventsourcing.examples.cargoshipping.domainmodel import (
@@ -46,10 +46,10 @@ class ItineraryAsDict(Transcoding):
     type = Itinerary
     name = "itinerary"
 
-    def encode(self, obj: Itinerary) -> dict[str, Any]:
+    def encode(self, obj: Itinerary) -> Dict[str, Any]:
         return obj.__dict__
 
-    def decode(self, data: dict[str, Any]) -> Itinerary:
+    def decode(self, data: Dict[str, Any]) -> Itinerary:
         assert isinstance(data, dict)
         return Itinerary(**data)
 
@@ -58,10 +58,10 @@ class LegAsDict(Transcoding):
     type = Leg
     name = "leg"
 
-    def encode(self, obj: Leg) -> dict[str, Any]:
+    def encode(self, obj: Leg) -> Dict[str, Any]:
         return obj.__dict__
 
-    def decode(self, data: dict[str, Any]) -> Leg:
+    def decode(self, data: Dict[str, Any]) -> Leg:
         assert isinstance(data, dict)
         return Leg(**data)
 
@@ -89,7 +89,7 @@ class BookingApplication(Application):
         cargo.change_destination(destination)
         self.save(cargo)
 
-    def request_possible_routes_for_cargo(self, tracking_id: UUID) -> list[Itinerary]:
+    def request_possible_routes_for_cargo(self, tracking_id: UUID) -> List[Itinerary]:
         cargo = self.get_cargo(tracking_id)
         from_location = (cargo.last_known_location or cargo.origin).value
         to_location = cargo.destination.value
