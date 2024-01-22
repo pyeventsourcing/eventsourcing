@@ -115,10 +115,10 @@ an aggregate. The originator version number of the event determines
 its position in its sequence.
 
 An **event notification** is a stored event that also has a notification ID.
-The notification ID identifies the position of a the event in this sequence.
+The notification ID identifies the position of the event in an application sequence.
 
 An **application sequence** is a sequence of event notifications
-for an application.
+for an application. It includes all stored events of all aggregate sequences.
 
 A **tracking** object indicates the position of an event notification in
 an application sequence.
