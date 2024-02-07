@@ -29,6 +29,19 @@ class Aggregate:
     created_on: datetime
     modified_on: datetime
 
+    def hold_event(self, event: DomainEvent) -> None:
+        all_pending_events[id(self)].append(event)
+
+    def collect_events(self) -> List[DomainEvent]:
+        try:
+            return all_pending_events.pop(id(self))
+        except KeyError:  # pragma: no cover
+            return []
+
+    def __del__(self) -> None:
+        with contextlib.suppress(KeyError):
+            all_pending_events.pop(id(self))
+
 
 TAggregate = TypeVar("TAggregate", bound=Aggregate)
 MutatorFunction = Callable[..., Optional[TAggregate]]
@@ -54,19 +67,6 @@ all_pending_events: Dict[int, List[DomainEvent]] = defaultdict(list)
 class Dog(Aggregate):
     name: str
     tricks: Tuple[str, ...]
-
-    def __del__(self) -> None:
-        with contextlib.suppress(KeyError):
-            all_pending_events.pop(id(self))
-
-    def hold_event(self, event: DomainEvent) -> None:
-        all_pending_events[id(self)].append(event)
-
-    def collect_events(self) -> List[DomainEvent]:
-        try:
-            return all_pending_events.pop(id(self))
-        except KeyError:  # pragma: no cover
-            return []
 
 
 @dataclass(frozen=True)

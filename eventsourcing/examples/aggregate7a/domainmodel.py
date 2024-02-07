@@ -34,6 +34,19 @@ class Aggregate(BaseModel):
     class Config:
         frozen = True
 
+    def hold_event(self, event: DomainEvent) -> None:
+        all_pending_events[id(self)].append(event)
+
+    def collect_events(self) -> List[DomainEvent]:
+        try:
+            return all_pending_events.pop(id(self))
+        except KeyError:  # pragma: no cover
+            return []
+
+    def __del__(self) -> None:
+        with contextlib.suppress(KeyError):
+            all_pending_events.pop(id(self))
+
 
 class Snapshot(DomainEvent):
     topic: str
@@ -77,19 +90,6 @@ all_pending_events: Dict[int, List[DomainEvent]] = defaultdict(list)
 class Dog(Aggregate):
     name: str
     tricks: Tuple[Trick, ...]
-
-    def __del__(self) -> None:
-        with contextlib.suppress(KeyError):
-            all_pending_events.pop(id(self))
-
-    def hold_event(self, event: DomainEvent) -> None:
-        all_pending_events[id(self)].append(event)
-
-    def collect_events(self) -> List[DomainEvent]:
-        try:
-            return all_pending_events.pop(id(self))
-        except KeyError:  # pragma: no cover
-            return []
 
 
 class DogRegistered(DomainEvent):
