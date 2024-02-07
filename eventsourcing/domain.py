@@ -272,31 +272,34 @@ class CanInitAggregate(CanMutateAggregate):
         # Resolve originator topic.
         aggregate_class: Type[TAggregate] = resolve_topic(self.originator_topic)
 
-        # Construct and return aggregate object.
+        # Construct an aggregate object (a "shell" of the correct object type).
         agg = aggregate_class.__new__(aggregate_class)
 
-        # Separate the base class keywords arguments.
+        # Pick out event attributes for the aggregate base class init method.
         base_kwargs = _filter_kwargs_for_method_params(
             self.__dict__, type(agg).__base_init__
         )
 
-        # Call the base class init method.
+        # Call the base class init method (so we don't need to always write
+        # a call to super().__init__() in every aggregate __init__() method).
         agg.__base_init__(**base_kwargs)
 
-        # Select values that aren't mentioned in the method signature.
+        # Pick out event attributes for aggregate subclass class init method.
         init_kwargs = _filter_kwargs_for_method_params(
             self.__dict__, type(agg).__init__
         )
 
-        # Provide the id, if the init method expects it.
+        # Provide the aggregate id, if the aggregate subclass init method expects it.
         if aggregate_class in _init_mentions_id:
             init_kwargs["id"] = self.__dict__["originator_id"]
 
-        # Call the aggregate class init method.
+        # Call the aggregate subclass class init method.
         agg.__init__(**init_kwargs)  # type: ignore
 
+        # Call the event apply method (alternative to using __init__())
         self.apply(agg)
 
+        # Return the constructed and initialised aggregate object.
         return agg
 
 

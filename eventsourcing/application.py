@@ -620,9 +620,9 @@ class Application:
     snapshotting_intervals: ClassVar[
         Dict[Type[MutableOrImmutableAggregate], int] | None
     ] = None
-    snapshotting_projectors: (
+    snapshotting_projectors: ClassVar[
         Dict[Type[MutableOrImmutableAggregate], ProjectorFunction[Any, Any]] | None
-    ) = None
+    ] = None
     snapshot_class: Type[SnapshotProtocol] = Snapshot
     log_section_size = 10
     notify_topics: Sequence[str] = []
