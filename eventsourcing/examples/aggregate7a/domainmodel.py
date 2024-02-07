@@ -86,7 +86,10 @@ class Dog(Aggregate):
         all_pending_events[id(self)].append(event)
 
     def collect_events(self) -> List[DomainEvent]:
-        return all_pending_events.pop(id(self))
+        try:
+            return all_pending_events.pop(id(self))
+        except KeyError:  # pragma: no cover
+            return []
 
 
 class DogRegistered(DomainEvent):
