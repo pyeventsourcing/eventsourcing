@@ -399,6 +399,7 @@ class CommandMethodDecorator:
         self,
         event_spec: EventSpecType | None,
         decorated_obj: DecoratedObjType,
+        explicit_topic: str | None = None,
     ):
         self.is_name_inferred_from_method = False
         self.given_event_cls: Type[CanMutateAggregate] | None = None
@@ -407,6 +408,7 @@ class CommandMethodDecorator:
         self.is_property_setter = False
         self.property_setter_arg_name: str | None = None
         self.decorated_method: FunctionType | WrapperDescriptorType
+        self.explicit_topic: str | None = explicit_topic
 
         # Event name has been specified.
         if isinstance(event_spec, str):
@@ -537,7 +539,9 @@ class CommandMethodDecorator:
 
 
 @overload
-def event(arg: TDecoratedObjType) -> TDecoratedObjType:
+def event(
+    arg: TDecoratedObjType, explicit_topic: str | None = None
+) -> TDecoratedObjType:
     """
     Signature for calling ``@event`` decorator with decorated method.
     """
@@ -545,7 +549,7 @@ def event(arg: TDecoratedObjType) -> TDecoratedObjType:
 
 @overload
 def event(
-    arg: EventSpecType,
+    arg: EventSpecType, explicit_topic: str | None = None
 ) -> Callable[[TDecoratedObjType], TDecoratedObjType]:
     """
     Signature for calling ``@event`` decorator with event specification.
@@ -554,7 +558,7 @@ def event(
 
 @overload
 def event(
-    arg: None = None,
+    arg: None = None, explicit_topic: str | None = None
 ) -> Callable[[TDecoratedObjType], TDecoratedObjType]:
     """
     Signature for calling ``@event`` decorator without event specification.
@@ -563,6 +567,7 @@ def event(
 
 def event(
     arg: EventSpecType | TDecoratedObjType | None = None,
+    explicit_topic: str | None = None,
 ) -> TDecoratedObjType | Callable[[TDecoratedObjType], TDecoratedObjType]:
     """
     Event-triggering decorator for aggregate command methods and property setters.
@@ -618,6 +623,7 @@ def event(
         command_method_decorator = CommandMethodDecorator(
             event_spec=None,
             decorated_obj=arg,
+            explicit_topic=explicit_topic,
         )
         return cast(
             Callable[[TDecoratedObjType], TDecoratedObjType], command_method_decorator
@@ -637,6 +643,7 @@ def event(
             command_method_decorator = CommandMethodDecorator(
                 event_spec=event_spec,
                 decorated_obj=decorated_obj,
+                explicit_topic=explicit_topic,
             )
             return cast(TDecoratedObjType, command_method_decorator)
 
@@ -971,11 +978,13 @@ class MetaAggregate(type, Generic[TAggregate]):
         # Identify or define the aggregate's "created" event class.
 
         # Is the init method decorated with a CommandMethodDecorator?
+        explicit_created_event_topic: str | None = None
         if isinstance(cls.__dict__.get("__init__"), CommandMethodDecorator):
             init_decorator: CommandMethodDecorator = cls.__dict__["__init__"]
 
             # Set the original method on the class (un-decorate __init__).
             cls.__init__ = init_decorator.decorated_method  # type: ignore
+            explicit_created_event_topic = init_decorator.explicit_topic
 
             # Disallow using both 'created_event_name' and decorator on __init__.
             if created_event_name:
@@ -1076,6 +1085,7 @@ class MetaAggregate(type, Generic[TAggregate]):
                     created_event_name,
                     bases,
                     init_method,
+                    explicit_topic=explicit_created_event_topic,
                 ),
             )
             # Set the event class as an attribute of the aggregate class.
@@ -1158,6 +1168,7 @@ class MetaAggregate(type, Generic[TAggregate]):
                         event_decorator.event_cls_name,
                         (cls.DecoratedEvent, base_event_cls),
                         event_decorator.decorated_method,
+                        explicit_topic=event_decorator.explicit_topic,
                     )
 
                 # Cache the decorated method for the event class to use.
@@ -1206,6 +1217,7 @@ class MetaAggregate(type, Generic[TAggregate]):
         name: str,
         bases: Tuple[Type[CanMutateAggregate], ...],
         apply_method: CommandMethod | None,
+        explicit_topic: str | None = None,
     ) -> Type[CanMutateAggregate]:
         # Define annotations for the event class (specs the init method).
         annotations = {}
@@ -1228,6 +1240,8 @@ class MetaAggregate(type, Generic[TAggregate]):
             "__module__": cls.__module__,
             "__qualname__": event_cls_qualname,
         }
+        if explicit_topic:
+            event_cls_dict["EXPLICIT_TOPIC"] = explicit_topic
 
         # Create the event class object.
         return cast(Type[CanMutateAggregate], type(name, bases, event_cls_dict))
@@ -1273,7 +1287,17 @@ class MetaAggregate(type, Generic[TAggregate]):
         return uuid4()
 
 
-class Aggregate(metaclass=MetaAggregate):
+class WithTopicRegistryDetails:
+    EXPLICIT_TOPIC: str | None = None
+    _LEGACY_TOPICS: set[str] = set()
+
+    @classmethod
+    def get_topics_for_registration(cls) -> set[str]:
+        current_topic = {cls.EXPLICIT_TOPIC} if cls.EXPLICIT_TOPIC else set()
+        return current_topic | cls._LEGACY_TOPICS
+
+
+class Aggregate(WithTopicRegistryDetails, metaclass=MetaAggregate):
     """
     Base class for aggregate roots.
 
@@ -1378,7 +1402,7 @@ class Aggregate(metaclass=MetaAggregate):
         """
         return self._pending_events
 
-    class Event(AggregateEvent):
+    class Event(AggregateEvent, WithTopicRegistryDetails):
         pass
 
     class Created(Event, AggregateCreated):
