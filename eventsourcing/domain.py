@@ -10,6 +10,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    ClassVar,
     Dict,
     Generic,
     Iterable,
@@ -1288,8 +1289,8 @@ class MetaAggregate(type, Generic[TAggregate]):
 
 
 class WithTopicRegistryDetails:
-    EXPLICIT_TOPIC: str | None = None
-    _LEGACY_TOPICS: set[str] = set()
+    EXPLICIT_TOPIC: ClassVar[str | None] = None
+    _LEGACY_TOPICS: ClassVar[set[str]] = set()
 
     @classmethod
     def get_topics_for_registration(cls) -> set[str]:
