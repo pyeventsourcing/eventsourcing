@@ -47,8 +47,8 @@ def get_topic(cls: type) -> str:
     try:
         return _type_cache[cls]
     except KeyError:
-        explicit_topic = getattr(cls, "EXPLICIT_TOPIC", None)
-        topic = explicit_topic or f"{cls.__module__}:{cls.__qualname__}"
+        class_topic = getattr(cls, "class_topic", None)
+        topic = class_topic or f"{cls.__module__}:{cls.__qualname__}"
         register_topic(topic, cls)
         _type_cache[cls] = topic
         return topic
