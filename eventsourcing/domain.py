@@ -616,6 +616,30 @@ def event(
             def set_name(self, name: str):
                 aggregate.name = self.name
 
+    The event decorator can also be used to set the class_topic of the event.
+
+    .. code-block:: python
+
+        class MyAggregate(Aggregate):
+            @event("NameChanged", class_topic="NameChanged")
+            def set_name(self, name: str):
+                self.name = name
+
+    ...is equivalent to...
+
+    .. code-block:: python
+
+        class MyAggregate(Aggregate):
+
+            class NameChanged(Aggregate.Event):
+                class_topic = "NameChanged"
+
+            @event(NameChanged)
+            def set_name(self, name: str):
+                self.name = name
+
+    However, if an event class is provided to the decorator, any class_topic
+    argument provided to the decorator will be ignored.
 
     """
     if isinstance(arg, (FunctionType, property)):
@@ -635,6 +659,9 @@ def event(
         and issubclass(arg, CanMutateAggregate)
     ):
         event_spec = arg
+
+        if isinstance(event_spec, type) and issubclass(event_spec, CanMutateAggregate):
+            class_topic = None
 
         def create_command_method_decorator(
             decorated_obj: TDecoratedObjType,
@@ -1287,6 +1314,17 @@ class MetaAggregate(type, Generic[TAggregate]):
 
 
 class WithTopicRegistryDetails:
+    """
+    Mixin used in Aggregate and AggregateEvent classes.
+
+    Works with utils.get_topic to allow explicit topic definition
+    using class_topic.
+
+    Allows setting of a _legacy_topics set for backwards compatibility.
+    Currently must register the events manually using utils.register_topic.
+    get_topics_for_registration makes this slightly easier.
+    """
+
     class_topic: ClassVar[str | None] = None
     _legacy_topics: ClassVar[set[str]] = set()
 
