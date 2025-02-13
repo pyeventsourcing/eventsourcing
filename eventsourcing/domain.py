@@ -1288,12 +1288,12 @@ class MetaAggregate(type, Generic[TAggregate]):
 
 class WithTopicRegistryDetails:
     class_topic: ClassVar[str | None] = None
-    _LEGACY_TOPICS: ClassVar[set[str]] = set()
+    _legacy_topics: ClassVar[set[str]] = set()
 
     @classmethod
     def get_topics_for_registration(cls) -> set[str]:
         current_topic = {cls.class_topic} if cls.class_topic else set()
-        return current_topic | cls._LEGACY_TOPICS
+        return current_topic | cls._legacy_topics
 
 
 class Aggregate(WithTopicRegistryDetails, metaclass=MetaAggregate):

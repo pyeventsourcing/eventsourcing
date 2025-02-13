@@ -15,7 +15,7 @@ class TestWithTopicRegistryDetails(TestCase):
     def test_get_topics_for_registration_empty(self):
         class MyClass(WithTopicRegistryDetails):
             class_topic = None
-            _LEGACY_TOPICS: ClassVar[set] = set()
+            _legacy_topics: ClassVar[set] = set()
 
         self.assertEqual(set(), MyClass.get_topics_for_registration())
 
@@ -32,7 +32,7 @@ class TestWithTopicRegistryDetails(TestCase):
 
         class MyClass(WithTopicRegistryDetails):
             class_topic = None
-            _LEGACY_TOPICS = test_legacy_topic
+            _legacy_topics = test_legacy_topic
 
         self.assertEqual(test_legacy_topic, MyClass.get_topics_for_registration())
 
@@ -44,7 +44,7 @@ class TestWithTopicRegistryDetails(TestCase):
 
         class MyClass(WithTopicRegistryDetails):
             class_topic = test_class_topic
-            _LEGACY_TOPICS = test_legacy_topic
+            _legacy_topics = test_legacy_topic
 
         self.assertEqual(
             {test_class_topic, test_legacy_topic1, test_legacy_topic2},
