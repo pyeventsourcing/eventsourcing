@@ -1546,6 +1546,111 @@ class TestEventDecorator(TestCase):
         self.assertEqual(order2.modified_on.day, 3)
         self.assertEqual(order2.pickedup_at, order2.modified_on)
 
+    def test_explicit_topic_set_from_decorator_using_string(self):
+        EXPECTED_CREATED_TOPIC = "ExpectedExplicitCreatedTopic"
+        EXPECTED_UPDATED_TOPIC = "ExpectedExplicitUpdatedTopic"
+
+        class MyAggregate(Aggregate):
+            @event("MyAggregateCreated", explicit_topic=EXPECTED_CREATED_TOPIC)
+            def __init__(self):
+                pass
+
+            @event("MyAggregateUpdated", explicit_topic=EXPECTED_UPDATED_TOPIC)
+            def update(self):
+                pass
+
+        self.assertEqual(
+            MyAggregate.MyAggregateCreated.EXPLICIT_TOPIC, EXPECTED_CREATED_TOPIC
+        )
+        self.assertEqual(
+            MyAggregate.MyAggregateUpdated.EXPLICIT_TOPIC, EXPECTED_UPDATED_TOPIC
+        )
+
+    def test_explicit_topic_not_set_from_decorator_using_class(self):
+        EXPECTED_EXPLICIT_TOPIC = None
+
+        class MyAggregate(Aggregate):
+
+            class MyAggregateCreated(Aggregate.Created):
+                pass
+
+            @event(MyAggregateCreated, explicit_topic="ExplicitCreatedTopic")
+            def __init__(self):
+                pass
+
+            class MyAggregateUpdated(Aggregate.Event):
+                pass
+
+            @event(MyAggregateUpdated, explicit_topic="ExplicitUpdatedTopic")
+            def update(self):
+                pass
+
+        self.assertEqual(
+            MyAggregate.MyAggregateCreated.EXPLICIT_TOPIC, EXPECTED_EXPLICIT_TOPIC
+        )
+        self.assertEqual(
+            MyAggregate.MyAggregateUpdated.EXPLICIT_TOPIC, EXPECTED_EXPLICIT_TOPIC
+        )
+
+    def test_explicit_topic_set_from_decorator_with_no_event_spec(self):
+        EXPECTED_EXPLICIT_TOPIC = "ExpectedExplicitTopic"
+
+        class MyAggregate(Aggregate):
+
+            @event(explicit_topic=EXPECTED_EXPLICIT_TOPIC)
+            def update(self):
+                pass
+
+        self.assertEqual(MyAggregate.Update.EXPLICIT_TOPIC, EXPECTED_EXPLICIT_TOPIC)
+
+    def test_explicit_topic_set_from_decorator_on_property_setter(self):
+        EXPECTED_EXPLICIT_CHANGED_TOPIC = "ExpectedExplicitChangedTopic"
+
+        class MyAggregate(Aggregate):
+            @property
+            def value(self):
+                return self._value
+
+            @value.setter
+            @event("Changed", explicit_topic=EXPECTED_EXPLICIT_CHANGED_TOPIC)
+            def value(self, x):
+                self._value = x
+
+        self.assertEqual(
+            MyAggregate.Changed.EXPLICIT_TOPIC, EXPECTED_EXPLICIT_CHANGED_TOPIC
+        )
+
+    def test_decorator_without_explicit_topic_doesnt_override_class_explicit_topic(
+        self,
+    ):
+        EXPECTED_EXPLICIT_CREATED_TOPIC = "ExpectedExplicitCreatedTopic"
+        EXPECTED_EXPLICIT_UPDATED_TOPIC = "ExpectedExplicitUpdatedTopic"
+
+        class MyAggregate(Aggregate):
+
+            class MyAggregateCreated(Aggregate.Created):
+                EXPLICIT_TOPIC = EXPECTED_EXPLICIT_CREATED_TOPIC
+
+            class MyAggregateUpdated(Aggregate.Event):
+                EXPLICIT_TOPIC = EXPECTED_EXPLICIT_UPDATED_TOPIC
+
+            @event(MyAggregateCreated)
+            def __init__(self):
+                pass
+
+            @event(MyAggregateUpdated)
+            def update(self):
+                pass
+
+        self.assertEqual(
+            MyAggregate.MyAggregateCreated.EXPLICIT_TOPIC,
+            EXPECTED_EXPLICIT_CREATED_TOPIC,
+        )
+        self.assertEqual(
+            MyAggregate.MyAggregateUpdated.EXPLICIT_TOPIC,
+            EXPECTED_EXPLICIT_UPDATED_TOPIC,
+        )
+
 
 class TestOrder(TestCase):
     def test(self) -> None:
