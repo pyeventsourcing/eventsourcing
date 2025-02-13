@@ -155,13 +155,13 @@ class TestTopics(TestCase):
         self.assertEqual("eventsourcing.domain:Aggregate", get_topic(Aggregate))
 
     def test_get_topic_with_explicit_topic(self):
-        EXPLICIT_AGGREGATE_TOPIC = "ExplicitAggregateTopic"
+        explicit_aggregate_topic = "ExplicitAggregateTopic"
 
         class AggregateWithExplicitTopic(Aggregate):
-            EXPLICIT_TOPIC = EXPLICIT_AGGREGATE_TOPIC
+            EXPLICIT_TOPIC = explicit_aggregate_topic
 
         self.assertEqual(
-            EXPLICIT_AGGREGATE_TOPIC, get_topic(AggregateWithExplicitTopic)
+            explicit_aggregate_topic, get_topic(AggregateWithExplicitTopic)
         )
 
     def test_resolve_topic(self):
