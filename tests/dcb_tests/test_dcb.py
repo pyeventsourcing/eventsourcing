@@ -98,7 +98,7 @@ class TestDCBObjects(TestCase):
         self.assertEqual(3, sequenced_event.position)
 
 
-class DCBEventStoreTestCase(TestCase):
+class DCBRecorderTestCase(TestCase):
 
     def _test_event_store(self, eventstore: DCBRecorder) -> None:
         # Read all, expect no results.
@@ -568,7 +568,7 @@ class DCBEventStoreTestCase(TestCase):
         self.assertEqual(13, head)
 
 
-class TestInMemoryDCBEventStore(DCBEventStoreTestCase):
+class TestInMemoryDCBRecorder(DCBRecorderTestCase):
     def test_in_memory_event_store(self) -> None:
         self._test_event_store(InMemoryDCBRecorder())
 
@@ -593,7 +593,7 @@ class WithPostgres(TestCase):
         drop_tables()
 
 
-class TestPostgresDCBEventStoreTS(DCBEventStoreTestCase, WithPostgres):
+class TestPostgresDCBRecorderTS(DCBRecorderTestCase, WithPostgres):
     postgres_dcb_eventstore_class = PostgresDCBRecorderTS
 
     def test_postgres_event_store(self) -> None:
@@ -647,7 +647,7 @@ class TestPostgresDCBEventStoreTS(DCBEventStoreTestCase, WithPostgres):
         )
 
 
-class TestPostgresDCBEventStoreTT(DCBEventStoreTestCase, WithPostgres):
+class TestPostgresDCBRecorderTT(DCBRecorderTestCase, WithPostgres):
     postgres_dcb_eventstore_class = PostgresDCBRecorderTT
 
     def test_postgres_event_store(self) -> None:
@@ -795,7 +795,7 @@ class ConcurrentAppendTestCase(TestCase):
         ]
 
 
-class TestPostgresDCBEventStoreTSCommitOrderVsInsertOrder(
+class TestPostgresDCBRecorderStoreTSCommitOrderVsInsertOrder(
     ConcurrentAppendTestCase, WithPostgres
 ):
     postgres_dcb_eventstore_class = PostgresDCBRecorderTS
@@ -807,7 +807,7 @@ class TestPostgresDCBEventStoreTSCommitOrderVsInsertOrder(
         self._test_fail_condition_is_effective(self.eventstore)
 
 
-class TestPostgresDCBEventStoreTTCommitOrderVsInsertOrder(
+class TestPostgresDCBRecorderTTCommitOrderVsInsertOrder(
     ConcurrentAppendTestCase, WithPostgres
 ):
     postgres_dcb_eventstore_class = PostgresDCBRecorderTT
