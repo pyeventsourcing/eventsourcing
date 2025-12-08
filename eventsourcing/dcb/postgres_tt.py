@@ -9,10 +9,12 @@ from eventsourcing.dcb.api import (
     DCBEvent,
     DCBQuery,
     DCBQueryItem,
+    DCBReadResponse,
     DCBRecorder,
     DCBSequencedEvent,
 )
 from eventsourcing.dcb.persistence import DCBInfrastructureFactory
+from eventsourcing.dcb.popo import SimpleDCBReadResponse
 from eventsourcing.persistence import IntegrityError, ProgrammingError
 from eventsourcing.postgres import (
     PostgresDatastore,
@@ -30,29 +32,24 @@ if TYPE_CHECKING:
 
 DB_TYPE_NAME_DCB_EVENT_TT = "dcb_event_tt"
 
-DB_TYPE_DCB_EVENT = SQL(
-    """
+DB_TYPE_DCB_EVENT = SQL("""
 CREATE TYPE {schema}.{event_type} AS (
     type text,
     data bytea,
     tags text[]
 )
-"""
-)
+""")
 
 DB_TYPE_NAME_DCB_QUERY_ITEM_TT = "dcb_query_item_tt"
 
-DB_TYPE_DCB_QUERY_ITEM = SQL(
-    """
+DB_TYPE_DCB_QUERY_ITEM = SQL("""
 CREATE TYPE {schema}.{query_item_type} AS (
     types text[],
     tags text[]
 )
-"""
-)
+""")
 
-DB_TABLE_DCB_EVENTS = SQL(
-    """
+DB_TABLE_DCB_EVENTS = SQL("""
 CREATE TABLE IF NOT EXISTS {schema}.{events_table} (
     id bigserial,
     type text NOT NULL ,
@@ -65,18 +62,14 @@ CREATE TABLE IF NOT EXISTS {schema}.{events_table} (
   autovacuum_analyze_threshold = 1000,      -- Triggers ANALYZE more often
   autovacuum_analyze_scale_factor = 0.01    -- Triggers after 1% new rows
 )
-"""
-)
+""")
 
-DB_INDEX_UNIQUE_ID_COVER_TYPE = SQL(
-    """
+DB_INDEX_UNIQUE_ID_COVER_TYPE = SQL("""
 CREATE UNIQUE INDEX IF NOT EXISTS {id_cover_type_index} ON
 {schema}.{events_table} (id) INCLUDE (type)
-"""
-)
+""")
 
-DB_TABLE_DCB_TAGS = SQL(
-    """
+DB_TABLE_DCB_TAGS = SQL("""
 CREATE TABLE IF NOT EXISTS {schema}.{tags_table} (
     tag text,
     main_id bigint REFERENCES {events_table} (id)
@@ -87,43 +80,33 @@ CREATE TABLE IF NOT EXISTS {schema}.{tags_table} (
     autovacuum_analyze_threshold = 1000,      -- Triggers ANALYZE more often
     autovacuum_analyze_scale_factor = 0.01    -- Triggers after 1% new rows
 )
-"""
-)
+""")
 
-DB_INDEX_TAG_MAIN_ID = SQL(
-    """
+DB_INDEX_TAG_MAIN_ID = SQL("""
 CREATE INDEX IF NOT EXISTS {tag_main_id_index} ON
 {schema}.{tags_table} (tag, main_id)
-"""
-)
+""")
 
-SQL_SELECT_ALL = SQL(
-    """
+SQL_SELECT_ALL = SQL("""
 SELECT * FROM {schema}.{events_table}
 WHERE id > COALESCE(%(after)s, 0)
 ORDER BY id ASC
 LIMIT COALESCE(%(limit)s, 9223372036854775807)
-"""
-)
+""")
 
-SQL_SELECT_EVENTS_BY_TYPE = SQL(
-    """
+SQL_SELECT_EVENTS_BY_TYPE = SQL("""
 SELECT * FROM {schema}.{events_table}
 WHERE type = %(event_type)s
 AND id > COALESCE(%(after)s, 0)
 ORDER BY id ASC
 LIMIT COALESCE(%(limit)s, 9223372036854775807)
-"""
-)
+""")
 
-SQL_SELECT_MAX_ID = SQL(
-    """
+SQL_SELECT_MAX_ID = SQL("""
 SELECT MAX(id) FROM {schema}.{events_table}
-"""
-)
+""")
 
-SQL_SELECT_BY_TAGS = SQL(
-    """
+SQL_SELECT_BY_TAGS = SQL("""
 WITH query_items AS (
     SELECT * FROM unnest(
         %(query_items)s::{schema}.{query_item_type}[]
@@ -145,7 +128,7 @@ matched_groups AS (
     SELECT
         main_id,
         ordinality,
-    COUNT(DISTINCT tag) AS matched_tag_count,
+        COUNT(DISTINCT tag) AS matched_tag_count,
         array_length(required_tags, 1) AS required_tag_count,
         allowed_types
     FROM initial_matches
@@ -174,11 +157,9 @@ SELECT *
 FROM {schema}.{events_table}  m
 WHERE m.id IN (SELECT id FROM filtered_ids)
 ORDER BY m.id ASC;
-"""
-)
+""")
 
-SQL_UNCONDITIONAL_APPEND = SQL(
-    """
+SQL_UNCONDITIONAL_APPEND = SQL("""
 WITH input AS (
       SELECT * FROM unnest(%(events)s::{event_type}[])
 ),
@@ -201,17 +182,13 @@ tag_insert AS (
     FROM expanded_tags
 )
 SELECT id FROM inserted
-"""
-)
+""")
 
-SQL_CONDITIONAL_APPEND = SQL(
-    """
+SQL_CONDITIONAL_APPEND = SQL("""
 SELECT * FROM {schema}.{conditional_append}(%(query_items)s, %(after)s, %(events)s)
-"""
-)
+""")
 DB_FUNCTION_NAME_DCB_CONDITIONAL_APPEND_TT = "dcb_conditional_append_tt"
-DB_FUNCTION_CONDITIONAL_APPEND = SQL(
-    """
+DB_FUNCTION_CONDITIONAL_APPEND = SQL("""
 CREATE OR REPLACE FUNCTION {schema}.{conditional_append}(
     query_items {schema}.{query_item_type}[],
     after_id bigint,
@@ -301,8 +278,7 @@ BEGIN
     RETURN;
 END
 $$;
-"""
-)
+""")
 
 
 SQL_SET_LOCAL_LOCK_TIMEOUT = SQL("SET LOCAL lock_timeout = '{lock_timeout}s'")
@@ -386,15 +362,17 @@ class PostgresDCBRecorderTT(DCBRecorder, PostgresRecorder):
         *,
         after: int | None = None,
         limit: int | None = None,
-    ) -> tuple[Sequence[DCBSequencedEvent], int | None]:
+    ) -> DCBReadResponse:
         with self.datastore.cursor() as curs:
-            return self._read(
+            events, head = self._read(
                 curs=curs,
                 query=query,
                 after=after,
                 limit=limit,
                 return_head=True,
             )
+            # TODO: Actually return an iterator from _read()!
+            return SimpleDCBReadResponse(events=iter(events), head=head)
 
     def _read(
         self,
@@ -523,7 +501,7 @@ class PostgresDCBRecorderTT(DCBRecorder, PostgresRecorder):
             curs.execute(self.sql_lock_table)
 
             # Check the append condition.
-            failed, head = self._read(
+            failed, _ = self._read(
                 curs=curs,
                 query=condition.fail_if_events_match,
                 after=condition.after,

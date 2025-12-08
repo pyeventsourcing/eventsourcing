@@ -1402,6 +1402,9 @@ class CustomType1:
     def __eq__(self, other: object) -> bool:
         return type(self) is type(other) and self.__dict__ == other.__dict__
 
+    def __hash__(self) -> int:
+        raise NotImplementedError
+
 
 class CustomType2:
     def __init__(self, value: CustomType1):
@@ -1410,12 +1413,15 @@ class CustomType2:
     def __eq__(self, other: object) -> bool:
         return type(self) is type(other) and self.__dict__ == other.__dict__
 
+    def __hash__(self) -> int:
+        raise NotImplementedError
+
 
 _KT = TypeVar("_KT")
 _VT = TypeVar("_VT")
 
 
-class Mydict(dict[_KT, _VT]):
+class Mydict(dict[_KT, _VT]):  # noqa: PLW1641
     def __repr__(self) -> str:
         return f"{type(self).__name__}({super().__repr__()})"
 
@@ -1426,7 +1432,7 @@ class Mydict(dict[_KT, _VT]):
 _T = TypeVar("_T")
 
 
-class MyList(list[_T]):
+class MyList(list[_T]):  # noqa: PLW1641
     def __repr__(self) -> str:
         return f"{type(self).__name__}({super().__repr__()})"
 
@@ -1443,6 +1449,9 @@ class MyStr(str):
     def __eq__(self, other: object) -> bool:
         return type(self) is type(other) and super().__eq__(other)
 
+    def __hash__(self) -> int:
+        return hash(str(self))
+
 
 class MyInt(int):
     def __repr__(self) -> str:
@@ -1450,6 +1459,9 @@ class MyInt(int):
 
     def __eq__(self, other: object) -> bool:
         return type(self) is type(other) and super().__eq__(other)
+
+    def __hash__(self) -> int:
+        return int(self)
 
 
 class MyClass:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from examples.cargoshipping.domainmodel import (
@@ -15,10 +15,8 @@ from examples.cargoshipping.domainmodel import (
 if TYPE_CHECKING:
     from examples.cargoshipping.application import BookingApplication
 
-NextExpectedActivityDetails = Optional[tuple[str, ...]]
-CargoDetails = dict[
-    str, Optional[Union[str, bool, datetime, NextExpectedActivityDetails]]
-]
+NextExpectedActivityDetails = tuple[str, ...] | None
+CargoDetails = dict[str, str | bool | datetime | NextExpectedActivityDetails | None]
 
 
 class BookingService:

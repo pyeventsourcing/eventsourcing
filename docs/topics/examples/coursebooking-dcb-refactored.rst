@@ -47,7 +47,7 @@ The application uses a domain model that defines :class:`~examples.coursebooking
 and :class:`~examples.coursebookingdcbrefactored.application.Course` as "enduring objects".
 
 The base class :class:`~eventsourcing.dcb.domain.EnduringObject` works in a similar way to an event-sourced aggregate.
-Each instance has a unique a continuity ID. Each can have command methods that trigger events. Their command methods
+Each instance has a unique continuity ID. Each can have command methods that trigger events. Their command methods
 can be decorated with the library's :ref:`event decorator <Event decorator>`. Calling such commands generates new events.
 
 The main difference between "event-sourced aggregates" and "enduring objects" in this code is that "enduring objects"

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Optional, Union, cast
+from typing import cast
 from uuid import UUID, uuid4
 
 from eventsourcing.dispatch import singledispatchmethod
@@ -61,9 +61,9 @@ class HandlingActivity(Enum):
 # Custom static types.
 LegDetails = dict[str, str]
 
-ItineraryDetails = dict[str, Union[str, list[LegDetails]]]
+ItineraryDetails = dict[str, str | list[LegDetails] | None]
 
-NextExpectedActivity = Optional[tuple[HandlingActivity, Location, str]]
+NextExpectedActivity = tuple[HandlingActivity, Location, str] | None
 
 
 # Some routes from one location to another.

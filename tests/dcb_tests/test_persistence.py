@@ -26,10 +26,8 @@ class TestEventStore(TestCase):
             mapper=MsgspecStructMapper(), recorder=InMemoryDCBRecorder()
         )
         event_store.get()  # no args
-        event_store.get(with_last_position=True)  # no args
-        event_store.get(with_positions=True)  # no args
         with self.assertRaises(ProgrammingError):
-            event_store.put()  # no cb, no after
+            event_store.put([])  # no cb, no after
 
 
 class TestInMemoryDCBRecorder(TestCase):

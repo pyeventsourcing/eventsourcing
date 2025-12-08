@@ -1,4 +1,3 @@
-# ruff: noqa: T201
 from __future__ import annotations
 
 import locale
@@ -47,6 +46,7 @@ SPEEDRUN_DB_PASSWORD = "eventsourcing"  # noqa: S105
 
 NUM_COURSES = 1
 NUM_STUDENTS = 1
+READING_ONLY = False
 
 
 def inf_range() -> Iterator[int]:
@@ -156,18 +156,21 @@ SQL_SELECT_COUNT_ROWS = SQL("SELECT COUNT(*) FROM {schema}.{table_name}")
 def count_events(app: EnrolmentInterface) -> int:
     if isinstance(app, EnrolmentWithAggregates):
         recorder: Any = app.recorder
-        assert isinstance(recorder, PostgresApplicationRecorder)
-        datastore = recorder.datastore
-        statement = SQL_SELECT_COUNT_ROWS.format(
-            schema=Identifier(datastore.schema),
-            table_name=Identifier(recorder.events_table_name),
-        )
-        with datastore.get_connection() as conn:
-            result = conn.execute(statement).fetchone()
-            count = result["count"] if result is not None else 0
+        if isinstance(recorder, PostgresApplicationRecorder):
+            datastore = recorder.datastore
+            statement = SQL_SELECT_COUNT_ROWS.format(
+                schema=Identifier(datastore.schema),
+                table_name=Identifier(recorder.events_table_name),
+            )
+            with datastore.get_connection() as conn:
+                result = conn.execute(statement).fetchone()
+                count = result["count"] if result is not None else 0
+        else:
+            msg = f"TODO implement counting rows for app type: {type(app)}"
+            raise NotImplementedError(msg)
 
     elif isinstance(
-        app, (EnrolmentWithDCBRefactored, EnrolmentWithDCB, EnrolmentWithDCBSlices)
+        app, (EnrolmentWithDCB, EnrolmentWithDCBRefactored, EnrolmentWithDCBSlices)
     ):
         recorder = app.recorder
         if isinstance(recorder, (PostgresDCBRecorderTS, PostgresDCBRecorderTT)):
@@ -337,8 +340,7 @@ if __name__ == "__main__":
     with cls(env=env) as app:
 
         started_event_count = count_events(app)
-        print(f" Events in database at start:  {started_event_count:n} events")
-        print()
+        print(f" Events in database at start:  {started_event_count:,d} events")
         print()
 
         if speedrun_duration is not None:
@@ -358,12 +360,14 @@ if __name__ == "__main__":
         for i in inf_range():
             if interrupted:
                 print()
+                total_timedelta = datetime_now_with_tzinfo() - started_script
+                total_seconds = total_timedelta.total_seconds()
                 finished_event_count = count_events(app)
-                print()
+                num_new = finished_event_count - started_event_count
                 print(
                     f" Events in database at end:  "
-                    f"{finished_event_count:n} events  "
-                    f"({(finished_event_count - started_event_count):n} new)"
+                    f"{finished_event_count:,d} events  "
+                    f"({num_new :,d} new, {int(num_new / total_seconds):n}/s)"
                 )
                 print()
                 # print(" Interrupted, stopping...")
@@ -417,10 +421,11 @@ if __name__ == "__main__":
             if speedrun_duration is not None and total_seconds > speedrun_duration:
                 print()
                 finished_event_count = count_events(app)
+                num_new = finished_event_count - started_event_count
                 print(
                     f" Events in database at end:  "
-                    f"{finished_event_count:n} events  "
-                    f"({finished_event_count - started_event_count:n} new)"
+                    f"{finished_event_count:,d} events  "
+                    f"({num_new :,d} new, {int(num_new / total_seconds):n}/s)"
                 )
                 print()
                 break

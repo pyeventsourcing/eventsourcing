@@ -26,8 +26,6 @@ _enduring_object_init_classes: dict[type[Any], type[Initialises]] = {}
 
 
 class Mutates(AbstractDCBEvent):
-    tags: list[str]
-
     def _as_dict(self) -> dict[str, Any]:
         raise NotImplementedError  # pragma: no cover
 
@@ -46,12 +44,11 @@ class Initialises(Mutates):
     def mutate(self, obj: TPerspective | None) -> TPerspective | None:
         kwargs = self._as_dict()
         originator_topic = resolve_topic(kwargs.pop("originator_topic"))
-        enduring_object_cls = cast(type[EnduringObject], originator_topic)
+        enduring_object_cls = cast(type[EnduringObject[Any]], originator_topic)
         enduring_object_id = kwargs.pop(self.id_attr_name(enduring_object_cls))
-        kwargs.pop("tags")
         try:
             enduring_object = type.__call__(enduring_object_cls, **kwargs)
-        except TypeError as e:
+        except TypeError as e:  # pragma: no cover
             msg = (
                 f"{type(self).__qualname__} cannot __init__ "
                 f"{enduring_object_cls.__qualname__} "
@@ -63,12 +60,21 @@ class Initialises(Mutates):
         return enduring_object
 
     @classmethod
-    def id_attr_name(cls, enduring_object_class: type[EnduringObject[Any]]) -> str:
-        return f"{enduring_object_class.__name__.lower()}_id"
+    def id_attr_name(cls, enduring_object_class: type[EnduringObject[Any, TID]]) -> TID:
+        return cast(TID, f"{enduring_object_class.__name__.lower()}_id")
+
+
+TMutates = TypeVar("TMutates", bound=Mutates)
+
+
+class Tagged(Generic[TMutates]):
+    def __init__(self, tags: list[str], mutates: TMutates) -> None:
+        self.tags = tags
+        self.mutates = mutates
 
 
 class DecoratedFuncCaller(Mutates, AbstractDecoratedFuncCaller):
-    def apply(self, obj: Perspective) -> None:
+    def apply(self, obj: Perspective[Mutates]) -> None:
         """Applies event by calling method decorated by @event."""
 
         # Identify the function that was decorated.
@@ -104,20 +110,20 @@ class MetaPerspective(type):
     pass
 
 
-class Perspective(metaclass=MetaPerspective):
-    def __new__(cls, *_: Any, **__: Any) -> Self:
+class Perspective(Generic[TMutates], metaclass=MetaPerspective):
+    def __new__(cls, *args: Any, **kwargs: Any) -> Self:
         perspective = super().__new__(cls)
-        perspective.__base_init__()
+        perspective.__base_init__(*args, **kwargs)
         return perspective
 
-    def __base_init__(self) -> None:
+    def __base_init__(self, *_: Any, **__: Any) -> None:
         self.last_known_position: int | None = None
-        self.new_decisions: list[Mutates] = []
+        self.new_decisions: list[Tagged[TMutates]] = []
 
-    def append(self, *new_decisions: Mutates) -> None:
+    def append(self, *new_decisions: Tagged[TMutates]) -> None:
         self.new_decisions.extend(new_decisions)
 
-    def collect_events(self) -> Sequence[Mutates]:
+    def collect_events(self) -> Sequence[Tagged[TMutates]]:
         collected, self.new_decisions = self.new_decisions, []
         return collected
 
@@ -126,7 +132,7 @@ class Perspective(metaclass=MetaPerspective):
         raise NotImplementedError  # pragma: no cover
 
 
-TPerspective = TypeVar("TPerspective", bound=Perspective)
+TPerspective = TypeVar("TPerspective", bound=Perspective[Any])
 
 
 given_event_class_mapping: dict[type[Mutates], type[DecoratedFuncCaller]] = {}
@@ -256,19 +262,18 @@ class MetaEnduringObject(MetaSupportsEventDecorator):
             )
             raise ProgrammingError(msg) from None
 
-        return cast(
-            T,
-            cls._create(
-                decision_cls=init_enduring_object_class,
-                **kwargs,
-            ),
+        return cls._create(
+            decision_cls=init_enduring_object_class,
+            **kwargs,
         )
 
 
 TID = TypeVar("TID", bound=str, default=str)
 
 
-class EnduringObject(Perspective, Generic[TID], metaclass=MetaEnduringObject):
+class EnduringObject(
+    Perspective[TMutates], Generic[TMutates, TID], metaclass=MetaEnduringObject
+):
     id: TID
 
     @classmethod
@@ -283,18 +288,21 @@ class EnduringObject(Perspective, Generic[TID], metaclass=MetaEnduringObject):
         initial_kwargs: dict[str, Any] = {
             id_attr_name: enduring_object_id,
             "originator_topic": get_topic(cls),
-            "tags": [enduring_object_id],
         }
         initial_kwargs.update(kwargs)
         try:
-            initialised = decision_cls(**initial_kwargs)
+
+            initialised = Tagged[TMutates](
+                tags=[enduring_object_id],
+                mutates=cast(type[TMutates], decision_cls)(**initial_kwargs),
+            )
         except TypeError as e:
             msg = (
                 f"Unable to construct {decision_cls.__qualname__} event "
                 f"with kwargs {initial_kwargs}: {e}"
             )
             raise TypeError(msg) from e
-        enduring_object = cast(Self, initialised.mutate(None))
+        enduring_object = cast(Self, initialised.mutates.mutate(None))
         assert enduring_object is not None
         enduring_object.new_decisions += (initialised,)
         return enduring_object
@@ -318,44 +326,50 @@ class EnduringObject(Perspective, Generic[TID], metaclass=MetaEnduringObject):
         **kwargs: Any,
     ) -> None:
         tags = [self.id, *tags]
-        kwargs["tags"] = tags
         assert issubclass(decision_cls, DecoratedFuncCaller), decision_cls
-        decision = decision_cls(**kwargs)
-        decision.mutate(self)
-        self.new_decisions += (decision,)
+        decision = Tagged[DecoratedFuncCaller](
+            tags=tags,
+            mutates=decision_cls(**kwargs),
+        )
+        decision.mutates.mutate(self)
+        self.new_decisions += (cast(Tagged[TMutates], decision),)
 
 
-class Group(Perspective):
+class Group(Perspective[TMutates]):
+    def __base_init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__base_init__(*args, **kwargs)
+        self._enduring_objects = [a for a in args if isinstance(a, EnduringObject)]
+
     @property
     def cb(self) -> list[Selector]:
         return [
             Selector(tags=cb.tags)
-            for cbs in [
-                o.cb for o in self.__dict__.values() if isinstance(o, EnduringObject)
-            ]
+            for cbs in [o.cb for o in self._enduring_objects]
             for cb in cbs
         ]
 
     def trigger_event(
         self,
-        decision_cls: type[Mutates],
+        decision_cls: type[TMutates],
         *,
         tags: Sequence[str] = (),
         **kwargs: Any,
     ) -> None:
         objs = self.enduring_objects
         tags = [o.id for o in objs] + list(tags)
-        kwargs["tags"] = tags
-        decision = decision_cls(**kwargs)
+        decision = Tagged[TMutates](
+            tags=tags,
+            mutates=decision_cls(**kwargs),
+        )
         for o in objs:
-            decision.mutate(o)
+            decision.mutates.mutate(o)
         self.new_decisions += (decision,)
 
     @property
-    def enduring_objects(self) -> Sequence[EnduringObject]:
+    def enduring_objects(self) -> Sequence[EnduringObject[TMutates]]:
         return [o for o in self.__dict__.values() if isinstance(o, EnduringObject)]
 
-    def collect_events(self) -> Sequence[Mutates]:
+    def collect_events(self) -> Sequence[Tagged[TMutates]]:
         group_events = list(super().collect_events())
         for o in self.enduring_objects:
             group_events.extend(o.collect_events())
@@ -372,10 +386,12 @@ class MetaSlice(MetaSupportsEventDecorator):
     pass
 
 
-class Slice(Perspective, metaclass=MetaSlice):
+class Slice(Perspective[TMutates], metaclass=MetaSlice):
+    do_projection = True
+
     def execute(self) -> None:
         pass
 
 
-TSlice = TypeVar("TSlice", bound=Slice)
-TGroup = TypeVar("TGroup", bound=Group)
+TSlice = TypeVar("TSlice", bound=Slice[Any])
+TGroup = TypeVar("TGroup", bound=Group[Any])

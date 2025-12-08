@@ -724,9 +724,9 @@ class TestBaseAggregate(TestCase):
         # Issue #295 on GitHub.
         # https://github.com/pyeventsourcing/eventsourcing/issues/295
 
-        from pydantic import BaseModel
+        from pydantic import BaseModel  # noqa: PLC0415
 
-        from eventsourcing.domain import (
+        from eventsourcing.domain import (  # noqa: PLC0415
             BaseAggregate,
             CanInitAggregate,
             CanMutateAggregate,
@@ -777,7 +777,7 @@ class TestBaseAggregate(TestCase):
         # Issue #295 on GitHub.
         # https://github.com/pyeventsourcing/eventsourcing/issues/295
 
-        from eventsourcing.domain import (
+        from eventsourcing.domain import (  # noqa: PLC0415
             BaseAggregate,
             CanInitAggregate,
             CanMutateAggregate,

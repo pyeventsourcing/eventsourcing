@@ -54,7 +54,7 @@ class TestSubmitCart(unittest.TestCase):
                 product_id=product_id,
                 name="",
                 description="",
-                price=Decimal("1"),
+                price=Decimal(1),
             ),
             RemovedItemFromCart(
                 originator_id=cart_id,
@@ -81,7 +81,7 @@ class TestSubmitCart(unittest.TestCase):
                 product_id=uuid4(),
                 name="",
                 description="",
-                price=Decimal("1"),
+                price=Decimal(1),
             ),
             ClearedCart(
                 originator_id=cart_id,
@@ -108,7 +108,7 @@ class TestSubmitCart(unittest.TestCase):
                 product_id=product_id,
                 name="",
                 description="",
-                price=Decimal("100"),
+                price=Decimal(100),
             ),
         )
         with self.assertRaises(InsufficientInventoryError):
@@ -122,7 +122,7 @@ class TestSubmitCart(unittest.TestCase):
             product_id=product_id,
             name="",
             description="",
-            price=Decimal("100"),
+            price=Decimal(100),
         ).execute()
         AdjustProductInventory(
             product_id=product_id,
@@ -139,7 +139,7 @@ class TestSubmitCart(unittest.TestCase):
                 product_id=product_id,
                 name="",
                 description="",
-                price=Decimal("100"),
+                price=Decimal(100),
             ),
         )
         new_events = cmd.handle(cart_events)
@@ -157,7 +157,7 @@ class TestSubmitCart(unittest.TestCase):
             product_id=product_id,
             name="",
             description="",
-            price=Decimal("100"),
+            price=Decimal(100),
         ).execute()
         AdjustProductInventory(
             product_id=product_id,
@@ -173,7 +173,7 @@ class TestSubmitCart(unittest.TestCase):
                 product_id=product_id,
                 name="",
                 description="",
-                price=Decimal("100"),
+                price=Decimal(100),
             ),
             AddedItemToCart(
                 originator_id=cart_id,
@@ -181,7 +181,7 @@ class TestSubmitCart(unittest.TestCase):
                 product_id=product_id,
                 name="",
                 description="",
-                price=Decimal("100"),
+                price=Decimal(100),
             ),
         )
         with self.assertRaises(InsufficientInventoryError):
@@ -195,7 +195,7 @@ class TestSubmitCart(unittest.TestCase):
             product_id=product_id,
             name="",
             description="",
-            price=Decimal("100"),
+            price=Decimal(100),
         ).execute()
         AdjustProductInventory(
             product_id=product_id,
@@ -212,7 +212,7 @@ class TestSubmitCart(unittest.TestCase):
                 product_id=product_id,
                 name="",
                 description="",
-                price=Decimal("100"),
+                price=Decimal(100),
             ),
             AddedItemToCart(
                 originator_id=cart_id,
@@ -220,7 +220,7 @@ class TestSubmitCart(unittest.TestCase):
                 product_id=product_id,
                 name="",
                 description="",
-                price=Decimal("100"),
+                price=Decimal(100),
             ),
         )
         new_events = cmd.handle(cart_events)

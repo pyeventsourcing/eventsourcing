@@ -5,7 +5,7 @@
 # if there's something I don't understand... probably there is. Anyway, I switched to
 # using a union in the code, and that does what I wanted.
 
-from typing import Generic, Protocol, TypeVar, Union
+from typing import Generic, Protocol, TypeVar
 from uuid import UUID
 
 # Case 1.
@@ -42,8 +42,8 @@ class B(A[T]):
 
 # Case 2.
 
-S_co = TypeVar("S_co", bound=Union[UUID, str], covariant=True)
-S = TypeVar("S", bound=Union[UUID, str])
+S_co = TypeVar("S_co", bound=UUID | str, covariant=True)
+S = TypeVar("S", bound=UUID | str)
 
 
 class Q(Protocol[S_co]):

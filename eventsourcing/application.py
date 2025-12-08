@@ -3,7 +3,7 @@ from __future__ import annotations
 import contextlib
 import os
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
 from itertools import chain
@@ -11,10 +11,8 @@ from threading import Event, Lock
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
     Generic,
-    Optional,
     TypeVar,
     cast,
 )
@@ -57,13 +55,13 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
 ProjectorFunction = Callable[
-    [Optional[TMutableOrImmutableAggregate], Iterable[TDomainEvent]],
-    Optional[TMutableOrImmutableAggregate],
+    [TMutableOrImmutableAggregate | None, Iterable[TDomainEvent]],
+    TMutableOrImmutableAggregate | None,
 ]
 
 MutatorFunction = Callable[
-    [TDomainEvent, Optional[TMutableOrImmutableAggregate]],
-    Optional[TMutableOrImmutableAggregate],
+    [TDomainEvent, TMutableOrImmutableAggregate | None],
+    TMutableOrImmutableAggregate | None,
 ]
 
 
@@ -163,7 +161,7 @@ class LRUCache(Cache[S, T]):
                 # Set value.
                 link[self.RESULT] = value
                 # Move the link to the front of the circular queue.
-                link_prev, link_next, _key, result = link
+                link_prev, link_next, _key, _ = link
                 link_prev[self.NEXT] = link_next
                 link_next[self.PREV] = link_prev
                 last = self.root[self.PREV]

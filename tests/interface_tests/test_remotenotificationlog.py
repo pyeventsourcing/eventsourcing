@@ -6,7 +6,7 @@ from abc import abstractmethod
 from http.client import HTTPConnection
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Event, Thread
-from typing import TYPE_CHECKING, Any, Callable, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 from unittest.case import TestCase
 from uuid import UUID
 
@@ -18,7 +18,7 @@ from eventsourcing.interface import (
 from eventsourcing.tests.application import BankAccounts
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
 
 class TestRemoteNotificationLog(TestCase):
@@ -194,7 +194,7 @@ class HTTPApplicationServer(Thread):
 
 
 class BankAccountsHTTPHandler(BaseHTTPRequestHandler):
-    def do_PUT(self) -> None:  # noqa: N802
+    def do_PUT(self) -> None:
         if self.path.startswith("/accounts/"):
             length = int(self.headers["Content-Length"])
             request_msg = self.rfile.read(length).decode("utf8")
@@ -205,7 +205,7 @@ class BankAccountsHTTPHandler(BaseHTTPRequestHandler):
             status = 404
         self.send(body, status)
 
-    def do_GET(self) -> None:  # noqa: N802
+    def do_GET(self) -> None:
         if self.path.startswith("/notifications/"):
             section_id = self.path.split("/")[-1]
             body = bank_accounts_service.get_log_section(section_id)

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import functools
-from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast, overload
 
 _T = TypeVar("_T")
 _S = TypeVar("_S")
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
 
     class _singledispatchmethod(functools.singledispatchmethod[_T]):  # noqa: N801
         pass

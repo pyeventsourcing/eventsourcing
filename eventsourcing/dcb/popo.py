@@ -7,6 +7,7 @@ from eventsourcing.dcb.api import (
     DCBAppendCondition,
     DCBEvent,
     DCBQuery,
+    DCBReadResponse,
     DCBRecorder,
     DCBSequencedEvent,
 )
@@ -30,7 +31,7 @@ class InMemoryDCBRecorder(DCBRecorder, POPORecorder):
         *,
         after: int | None = None,
         limit: int | None = None,
-    ) -> tuple[Sequence[DCBSequencedEvent], int | None]:
+    ) -> DCBReadResponse:
         query = query or DCBQuery()
         with self._database_lock:
             events_generator = (
@@ -56,7 +57,8 @@ class InMemoryDCBRecorder(DCBRecorder, POPORecorder):
                 head = self.events[-1].position if self.events else None
             else:
                 head = events[-1].position if events else None
-            return events, head
+            # TODO: Change the previous few lines to actually be an iterator.
+            return SimpleDCBReadResponse(iter(events), head)
 
     def append(
         self, events: Sequence[DCBEvent], condition: DCBAppendCondition | None = None
@@ -66,12 +68,16 @@ class InMemoryDCBRecorder(DCBRecorder, POPORecorder):
             raise ProgrammingError(msg)
         with self._database_lock:
             if condition is not None:
-                matched, head = self.read(
+                read_response = self.read(
                     query=condition.fail_if_events_match,
                     after=condition.after,
                     limit=1,
                 )
-                if matched:
+                try:
+                    next(read_response)
+                except StopIteration:
+                    pass
+                else:
                     raise IntegrityError(condition)
             self.events.extend(
                 DCBSequencedEvent(
@@ -87,6 +93,42 @@ class InMemoryDCBRecorder(DCBRecorder, POPORecorder):
         while True:
             yield position
             position += 1
+
+
+class SimpleDCBReadResponse(DCBReadResponse):
+    def __init__(self, events: Iterator[DCBSequencedEvent], head: int | None = None):
+        self.events = events
+        self._head_was_given = head is not None
+        self._head = head
+
+    @property
+    def head(self) -> int | None:
+        return self._head
+
+    def __next__(self) -> DCBSequencedEvent:
+        event = next(self.events)
+        if not self._head_was_given:  # pragma: no cover
+            self._head = event.position
+        return event
+
+    # def next_batch(self) -> list[DCBSequencedEvent]:
+    #     """
+    #     Returns a batch of events as a list.
+    #     Updates the head position similar to __next__.
+    #     """
+    #     result = []
+    #     max_batch_size = 100
+    #
+    #     # Get up to max_batch_size events from the iterator
+    #     try:
+    #         for _ in range(max_batch_size):
+    #             event = next(self.events)
+    #             if not self._head_was_given:
+    #                 self._head = event.position
+    #             result.append(event)
+    #     except StopIteration:
+    #         pass
+    #     return result
 
 
 class InMemoryDCBFactory(POPOFactory, DCBInfrastructureFactory[POPOTrackingRecorder]):

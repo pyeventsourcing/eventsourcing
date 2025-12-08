@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar, Union
+from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from eventsourcing.application import (
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from eventsourcing.domain import MutableOrImmutableAggregate
     from eventsourcing.utils import EnvType
 
-PageDetailsType = dict[str, Union[str, Any]]
+PageDetailsType = dict[str, str | Any]
 
 
 class ContentManagement(Application[UUID]):

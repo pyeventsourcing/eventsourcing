@@ -27,7 +27,7 @@ class TestGetCartItems(TestCase):
                 product_id=product_id,
                 name="name",
                 description="description",
-                price=Decimal("1"),
+                price=Decimal(1),
             ),
         )
         cart_items = GetCartItems.projection(cart_events)
@@ -35,7 +35,7 @@ class TestGetCartItems(TestCase):
         self.assertEqual(cart_items[0].product_id, product_id)
         self.assertEqual(cart_items[0].name, "name")
         self.assertEqual(cart_items[0].description, "description")
-        self.assertEqual(cart_items[0].price, Decimal("1"))
+        self.assertEqual(cart_items[0].price, Decimal(1))
 
     def test_cart_added_item_and_removed_item(self) -> None:
         cart_id: UUID = uuid4()
@@ -47,7 +47,7 @@ class TestGetCartItems(TestCase):
                 product_id=product_id,
                 name="name",
                 description="description",
-                price=Decimal("1"),
+                price=Decimal(1),
             ),
             RemovedItemFromCart(
                 originator_id=cart_id,
@@ -68,7 +68,7 @@ class TestGetCartItems(TestCase):
                 product_id=product_id,
                 name="name",
                 description="description",
-                price=Decimal("1"),
+                price=Decimal(1),
             ),
             AddedItemToCart(
                 originator_id=cart_id,
@@ -76,7 +76,7 @@ class TestGetCartItems(TestCase):
                 product_id=product_id,
                 name="name",
                 description="description",
-                price=Decimal("1"),
+                price=Decimal(1),
             ),
             RemovedItemFromCart(
                 originator_id=cart_id,
@@ -102,7 +102,7 @@ class TestGetCartItems(TestCase):
                 product_id=product_id,
                 name="name",
                 description="description",
-                price=Decimal("1"),
+                price=Decimal(1),
             ),
             ClearedCart(
                 originator_id=cart_id,

@@ -8,7 +8,7 @@ from uuid import UUID  # noqa: TC003
 from examples.aggregate7.immutablemodel import Immutable
 
 if TYPE_CHECKING:
-    from typing_extensions import TypeAlias
+    from typing import TypeAlias
 
 
 class DomainEvent(Immutable):

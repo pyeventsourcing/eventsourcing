@@ -4,7 +4,7 @@ import json
 import typing
 from abc import ABC, abstractmethod
 from collections import deque
-from collections.abc import Hashable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Hashable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -13,7 +13,7 @@ from queue import Queue
 from threading import Condition, Event, Lock, Semaphore, Thread, Timer
 from time import monotonic, sleep, time
 from types import GenericAlias, ModuleType, TracebackType
-from typing import Any, Callable, Generic, Union, cast
+from typing import Any, Generic, cast
 from uuid import UUID
 
 from typing_extensions import Self, TypeVar
@@ -615,7 +615,9 @@ class EventStore(Generic[TAggregateID]):
         notification_ids = self.recorder.insert_events(stored_events, **kwargs)
         if notification_ids:
             assert len(notification_ids) == len(stored_events)
-            for d, s, n_id in zip(domain_events, stored_events, notification_ids):
+            for d, s, n_id in zip(
+                domain_events, stored_events, notification_ids, strict=True
+            ):
                 recordings.append(
                     Recording(
                         d,
@@ -748,6 +750,7 @@ class InfrastructureFactory(ABC, Generic[TTrackingRecorder]):
     def __init__(self, env: Environment | EnvType | None):
         """Initialises infrastructure factory object with given application name."""
         self.env = env if isinstance(env, Environment) else Environment(env=env)
+        self._is_entered = False
 
     def transcoder(
         self,
@@ -856,6 +859,7 @@ class InfrastructureFactory(ABC, Generic[TTrackingRecorder]):
         return strtobool(self.env.get(self.IS_SNAPSHOTTING_ENABLED, "no"))
 
     def __enter__(self) -> Self:
+        self._is_entered = True
         return self
 
     def __exit__(
@@ -864,7 +868,7 @@ class InfrastructureFactory(ABC, Generic[TTrackingRecorder]):
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
-        pass
+        self._is_entered = False
 
     def close(self) -> None:
         """Closes any database connections, and anything else that needs closing."""
@@ -880,7 +884,7 @@ class Tracking:
     notification_id: int
 
 
-Params = Union[Sequence[Any], Mapping[str, Any]]
+Params = Sequence[Any] | Mapping[str, Any]
 
 
 class Cursor(ABC):
@@ -1061,7 +1065,7 @@ class ConnectionPool(ABC, Generic[TConnection]):
         return self._num_in_use >= self.pool_size + self.max_overflow
 
     def get_connection(
-        self, timeout: float | None = None, is_writer: bool | None = None
+        self, timeout: float | None = None, *, is_writer: bool | None = None
     ) -> TConnection:
         """Issues connections, or raises ConnectionPoolExhausted error.
         Provides "fairness" on attempts to get connections, meaning that

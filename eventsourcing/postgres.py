@@ -5,7 +5,7 @@ import logging
 from asyncio import CancelledError
 from contextlib import contextmanager
 from threading import Thread
-from typing import TYPE_CHECKING, Any, Callable, Literal, NamedTuple, cast
+from typing import TYPE_CHECKING, Any, Generic, Literal, NamedTuple, cast
 
 import psycopg
 import psycopg.errors
@@ -16,6 +16,13 @@ from psycopg.generators import notifies
 from psycopg.rows import DictRow, dict_row
 from psycopg.sql import SQL, Composed, Identifier
 from psycopg.types.composite import CompositeInfo, register_composite
+from psycopg_pool.abc import (
+    CT,
+    ConnectFailedCB,
+    ConnectionCB,
+    ConninfoParam,
+    KwargsParam,
+)
 from typing_extensions import TypeVar
 
 from eventsourcing.persistence import (
@@ -42,7 +49,7 @@ from eventsourcing.persistence import (
 from eventsourcing.utils import Environment, EnvType, resolve_topic, retry, strtobool
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Sequence
+    from collections.abc import Callable, Iterator, Sequence
     from types import TracebackType
     from uuid import UUID
 
@@ -69,18 +76,55 @@ class PgStoredEvent(NamedTuple):
     state: bytes
 
 
-class ConnectionPool(psycopg_pool.ConnectionPool[Any]):
-    def __init__(
+class ConnectionPool(psycopg_pool.ConnectionPool[CT], Generic[CT]):
+    def __init__(  # noqa: PLR0913
         self,
-        *args: Any,
+        conninfo: ConninfoParam = "",
+        *,
+        connection_class: type[CT] = cast(type[CT], Connection),  # noqa: B008
+        kwargs: KwargsParam | None = None,
+        min_size: int = 4,
+        max_size: int | None = None,
+        open: bool | None = None,  # noqa: A002
+        configure: ConnectionCB[CT] | None = None,
+        check: ConnectionCB[CT] | None = None,
+        reset: ConnectionCB[CT] | None = None,
+        name: str | None = None,
+        close_returns: bool = False,
+        timeout: float = 30.0,
+        max_waiting: int = 0,
+        max_lifetime: float = 60 * 60.0,
+        max_idle: float = 10 * 60.0,
+        reconnect_timeout: float = 5 * 60.0,
+        reconnect_failed: ConnectFailedCB | None = None,
+        num_workers: int = 3,
         get_password_func: Callable[[], str] | None = None,
-        **kwargs: Any,
     ) -> None:
         self.get_password_func = get_password_func
-        super().__init__(*args, **kwargs)
+        super().__init__(
+            conninfo,
+            connection_class=connection_class,
+            kwargs=kwargs,
+            min_size=min_size,
+            max_size=max_size,
+            open=open,
+            configure=configure,
+            check=check,
+            reset=reset,
+            name=name,
+            close_returns=close_returns,
+            timeout=timeout,
+            max_waiting=max_waiting,
+            max_lifetime=max_lifetime,
+            max_idle=max_idle,
+            reconnect_timeout=reconnect_timeout,
+            reconnect_failed=reconnect_failed,
+            num_workers=num_workers,
+        )
 
-    def _connect(self, timeout: float | None = None) -> Connection[Any]:
+    def _connect(self, timeout: float | None = None) -> CT:
         if self.get_password_func:
+            assert isinstance(self.kwargs, dict)
             self.kwargs["password"] = self.get_password_func()
         return super()._connect(timeout=timeout)
 
@@ -147,7 +191,7 @@ class PostgresDatastore:
             timeout=connect_timeout,
             max_waiting=max_waiting,
             max_lifetime=conn_max_age,
-            check=check,
+            check=check,  # pyright: ignore [reportArgumentType]
         )
 
     def after_connect_func(self) -> Callable[[Connection[Any]], None]:

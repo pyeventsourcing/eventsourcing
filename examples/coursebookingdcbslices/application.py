@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from eventsourcing.dcb.application import (
@@ -10,6 +10,7 @@ from eventsourcing.dcb.application import (
 from eventsourcing.dcb.domain import (
     Selector,
     Slice,
+    Tagged,
     TSlice,
 )
 from eventsourcing.dcb.msgspecstruct import Decision, MsgspecStructMapper
@@ -48,10 +49,12 @@ class StudentRegistered(Decision):
 
 
 class StudentNameUpdated(Decision):
+    student_id: StudentID
     name: str
 
 
 class StudentMaxCoursesUpdated(Decision):
+    student_id: StudentID
     max_courses: int
 
 
@@ -62,14 +65,16 @@ class CourseRegistered(Decision):
 
 
 class CourseNameUpdated(Decision):
+    course_id: CourseID
     name: str
 
 
 class CoursePlacesUpdated(Decision):
+    course_id: CourseID
     places: int
 
 
-class RegisterStudent(Slice):
+class RegisterStudent(Slice[Decision]):
     def __init__(self, name: str, max_courses: int):
         self.student_id = StudentID(f"student-{uuid4()}")
         self.name = name
@@ -81,16 +86,18 @@ class RegisterStudent(Slice):
 
     def execute(self) -> None:
         self.append(
-            StudentRegistered(
-                student_id=self.student_id,
-                name=self.name,
-                max_courses=self.max_courses,
+            Tagged(
                 tags=[self.student_id],
+                mutates=StudentRegistered(
+                    student_id=self.student_id,
+                    name=self.name,
+                    max_courses=self.max_courses,
+                ),
             )
         )
 
 
-class UpdateStudentName(Slice):
+class UpdateStudentName(Slice[Decision]):
     def __init__(self, student_id: StudentID, name: str) -> None:
         self.id = student_id
         self.name = name
@@ -106,10 +113,15 @@ class UpdateStudentName(Slice):
 
     def execute(self) -> None:
         assert self.student_was_registered
-        self.append(StudentNameUpdated(tags=[self.id], name=self.name))
+        self.append(
+            Tagged(
+                tags=[self.id],
+                mutates=StudentNameUpdated(student_id=self.id, name=self.name),
+            )
+        )
 
 
-class UpdateMaxCourses(Slice):
+class UpdateMaxCourses(Slice[Decision]):
     def __init__(self, student_id: StudentID, max_courses: int) -> None:
         self.student_was_registered: bool = False
         self.id = student_id
@@ -129,11 +141,16 @@ class UpdateMaxCourses(Slice):
     def execute(self) -> None:
         assert self.student_was_registered
         self.append(
-            StudentMaxCoursesUpdated(tags=[self.id], max_courses=self.max_courses)
+            Tagged(
+                tags=[self.id],
+                mutates=StudentMaxCoursesUpdated(
+                    student_id=self.id, max_courses=self.max_courses
+                ),
+            )
         )
 
 
-class RegisterCourse(Slice):
+class RegisterCourse(Slice[Decision]):
     def __init__(self, name: str, places: int):
         self.course_id = CourseID(f"course-{uuid4()}")
         self.name = name
@@ -145,16 +162,18 @@ class RegisterCourse(Slice):
 
     def execute(self) -> None:
         self.append(
-            CourseRegistered(
-                course_id=self.course_id,
-                name=self.name,
-                places=self.places,
+            Tagged(
                 tags=[self.course_id],
+                mutates=CourseRegistered(
+                    course_id=self.course_id,
+                    name=self.name,
+                    places=self.places,
+                ),
             )
         )
 
 
-class UpdateCourseName(Slice):
+class UpdateCourseName(Slice[Decision]):
     def __init__(self, course_id: CourseID, name: str) -> None:
         self.id = course_id
         self.name = name
@@ -170,10 +189,15 @@ class UpdateCourseName(Slice):
 
     def execute(self) -> None:
         assert self.course_was_registered
-        self.append(CourseNameUpdated(tags=[self.id], name=self.name))
+        self.append(
+            Tagged(
+                tags=[self.id],
+                mutates=CourseNameUpdated(course_id=self.id, name=self.name),
+            )
+        )
 
 
-class UpdatePlaces(Slice):
+class UpdatePlaces(Slice[Decision]):
     def __init__(self, course_id: CourseID, places: int) -> None:
         self.id = course_id
         self.places = places
@@ -189,10 +213,15 @@ class UpdatePlaces(Slice):
 
     def execute(self) -> None:
         assert self.course_was_registered
-        self.append(CoursePlacesUpdated(tags=[self.id], places=self.places))
+        self.append(
+            Tagged(
+                tags=[self.id],
+                mutates=CoursePlacesUpdated(course_id=self.id, places=self.places),
+            )
+        )
 
 
-class StudentJoinsCourse(Slice):
+class StudentJoinsCourse(Slice[Decision]):
     def __init__(self, student_id: StudentID, course_id: CourseID) -> None:
         self.student_id = student_id
         self.course_id = course_id
@@ -260,25 +289,27 @@ class StudentJoinsCourse(Slice):
 
     def execute(self) -> None:
         if not self.course_was_registered:
-            raise CourseNotFoundError
+            raise CourseNotFoundError(self.course_id)
         if not self.student_was_registered:
-            raise StudentNotFoundError
+            raise StudentNotFoundError(self.student_id)
         if len(self.students_on_course) >= self.course_places:
-            raise FullyBookedError
+            raise FullyBookedError(self.course_id)
         if len(self.courses_for_student) >= self.student_max_courses:
-            raise TooManyCoursesError
+            raise TooManyCoursesError(self.student_id)
         if self.student_id in self.students_on_course:
-            raise AlreadyJoinedError
+            raise AlreadyJoinedError((self.student_id, self.course_id))
         self.append(
-            StudentJoinedCourse(
+            Tagged(
                 tags=[self.student_id, self.course_id],
-                student_id=self.student_id,
-                course_id=self.course_id,
+                mutates=StudentJoinedCourse(
+                    student_id=self.student_id,
+                    course_id=self.course_id,
+                ),
             )
         )
 
 
-class StudentLeavesCourse(Slice):
+class StudentLeavesCourse(Slice[Decision]):
     def __init__(self, student_id: StudentID, course_id: CourseID) -> None:
         self.student_id = student_id
         self.course_id = course_id
@@ -330,15 +361,17 @@ class StudentLeavesCourse(Slice):
         if self.student_id not in self.students_on_course:
             raise NotAlreadyJoinedError
         self.append(
-            StudentLeftCourse(
+            Tagged(
                 tags=[self.student_id, self.course_id],
-                student_id=self.student_id,
-                course_id=self.course_id,
+                mutates=StudentLeftCourse(
+                    student_id=self.student_id,
+                    course_id=self.course_id,
+                ),
             )
         )
 
 
-class StudentsIDs(Slice):
+class StudentsIDs(Slice[Decision]):
     def __init__(self, course_id: CourseID) -> None:
         self.course_id = course_id
         self.student_ids: list[StudentID] = []
@@ -356,7 +389,7 @@ class StudentsIDs(Slice):
         self.student_ids.remove(student_id)
 
 
-class StudentNames(Slice):
+class StudentNames(Slice[Decision]):
     def __init__(self, student_ids: list[StudentID]) -> None:
         self.student_id_names: dict[StudentID, str | None] = dict.fromkeys(
             student_ids, None
@@ -374,17 +407,15 @@ class StudentNames(Slice):
         self.student_id_names[student_id] = name
 
     @event(StudentNameUpdated)
-    def _(self, tags: Sequence[str], name: str) -> None:
-        for tag in tags:
-            if tag in self.student_id_names:
-                self.student_id_names[cast(StudentID, tag)] = name
+    def _(self, student_id: StudentID, name: str) -> None:
+        self.student_id_names[student_id] = name
 
     @property
     def names(self) -> list[str]:
         return [n for n in self.student_id_names.values() if n]
 
 
-class CourseIDs(Slice):
+class CourseIDs(Slice[Decision]):
     def __init__(self, student_id: StudentID) -> None:
         self.student_id = student_id
         self.course_ids: list[CourseID] = []
@@ -402,7 +433,7 @@ class CourseIDs(Slice):
         self.course_ids.remove(course_id)
 
 
-class CourseNames(Slice):
+class CourseNames(Slice[Decision]):
     def __init__(self, course_ids: list[CourseID]) -> None:
         self.course_id_names: dict[CourseID, str | None] = dict.fromkeys(
             course_ids, None
@@ -420,17 +451,15 @@ class CourseNames(Slice):
         self.course_id_names[course_id] = name
 
     @event(CourseNameUpdated)
-    def _(self, tags: Sequence[str], name: str) -> None:
-        for tag in tags:
-            if tag in self.course_id_names:
-                self.course_id_names[cast(CourseID, tag)] = name
+    def _(self, course_id: CourseID, name: str) -> None:
+        self.course_id_names[course_id] = name
 
     @property
     def names(self) -> list[str]:
         return [n for n in self.course_id_names.values() if n]
 
 
-class Student(Slice):
+class Student(Slice[Decision]):
     def __init__(self, student_id: StudentID) -> None:
         self.student_was_registered: bool = False
         self.id = student_id
@@ -465,7 +494,7 @@ class Student(Slice):
         self.course_ids.remove(course_id)
 
 
-class Course(Slice):
+class Course(Slice[Decision]):
     def __init__(self, course_id: CourseID) -> None:
         self.course_was_registered: bool = False
         self.id = course_id
@@ -540,7 +569,8 @@ class EnrolmentWithDCBSlices(DCBApplication, EnrolmentInterface):
         return self.do(Course(course_id=course_id))
 
     def do(self, s: TSlice) -> TSlice:
-        s = self.repository.project_perspective(s)
+        if s.do_projection:
+            s = self.repository.project_perspective(s)
         s.execute()
         if s.new_decisions:
             self.repository.save(s)

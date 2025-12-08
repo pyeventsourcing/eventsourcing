@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import contextlib
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import singledispatch
-from typing import TYPE_CHECKING, Callable, Optional, TypeVar
+from typing import TYPE_CHECKING, TypeVar
 from uuid import UUID, uuid4
 
 from eventsourcing.domain import Snapshot, datetime_now_with_tzinfo
@@ -43,7 +44,7 @@ class Aggregate:
 
 
 TAggregate = TypeVar("TAggregate", bound=Aggregate)
-MutatorFunction = Callable[..., Optional[TAggregate]]
+MutatorFunction = Callable[..., TAggregate | None]
 
 
 def aggregate_projector(

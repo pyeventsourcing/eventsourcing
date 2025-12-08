@@ -38,7 +38,7 @@ class TestRemoveItemFromCart(unittest.TestCase):
                 product_id=product_id,
                 name="",
                 description="",
-                price=Decimal("1"),
+                price=Decimal(1),
             ),
         )
         cmd = RemoveItemFromCart(
@@ -59,7 +59,7 @@ class TestRemoveItemFromCart(unittest.TestCase):
                 product_id=product_id,
                 name="",
                 description="",
-                price=Decimal("1"),
+                price=Decimal(1),
             ),
             RemovedItemFromCart(
                 originator_id=cart_id,
@@ -84,7 +84,7 @@ class TestRemoveItemFromCart(unittest.TestCase):
                 product_id=product_id,
                 name="",
                 description="",
-                price=Decimal("1"),
+                price=Decimal(1),
             ),
             ClearedCart(
                 originator_id=cart_id,

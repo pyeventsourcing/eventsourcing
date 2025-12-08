@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import contextlib
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import datetime
 from functools import singledispatch
-from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict
@@ -62,7 +63,7 @@ class Snapshot(DomainEvent):
 
 
 TAggregate = TypeVar("TAggregate", bound=Aggregate)
-MutatorFunction = Callable[..., Optional[TAggregate]]
+MutatorFunction = Callable[..., TAggregate | None]
 
 
 def aggregate_projector(

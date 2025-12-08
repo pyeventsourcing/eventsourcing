@@ -7,6 +7,7 @@ import inspect
 import os
 from abc import ABCMeta
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
 from functools import cache
@@ -14,13 +15,10 @@ from types import FunctionType, WrapperDescriptorType
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
     Generic,
-    Optional,
     Protocol,
     TypeVar,
-    Union,
     cast,
     get_args,
     get_origin,
@@ -86,8 +84,8 @@ def patch_dataclasses_process_class() -> None:
 patch_dataclasses_process_class()
 
 
-TAggregateID = TypeVar("TAggregateID", bound=Union[UUID, str])
-TAggregateID_co = TypeVar("TAggregateID_co", bound=Union[UUID, str], covariant=True)
+TAggregateID = TypeVar("TAggregateID", bound=UUID | str)
+TAggregateID_co = TypeVar("TAggregateID_co", bound=UUID | str, covariant=True)
 
 
 @runtime_checkable
@@ -166,10 +164,9 @@ class ImmutableAggregateProtocol(Protocol[TAggregateID_co]):
         raise NotImplementedError  # pragma: no cover
 
 
-MutableOrImmutableAggregate = Union[
-    ImmutableAggregateProtocol[TAggregateID],
-    MutableAggregateProtocol[TAggregateID],
-]
+MutableOrImmutableAggregate = (
+    ImmutableAggregateProtocol[TAggregateID] | MutableAggregateProtocol[TAggregateID]
+)
 """Type alias defining a union of mutable and immutable aggregate protocols."""
 
 
@@ -246,7 +243,7 @@ class HasOriginatorIDVersion(Generic[TAggregateID]):
     originator_version: int
     """Integer identifying the version of the aggregate when the event occurred."""
 
-    originator_id_type: ClassVar[Optional[type[Union[UUID, str]]]] = None  # noqa: UP007
+    originator_id_type: ClassVar[type[UUID | str] | None] = None
 
     def __init_subclass__(cls) -> None:
         cls.find_originator_id_type(HasOriginatorIDVersion)
@@ -477,12 +474,10 @@ class AbstractDCBEvent:
 
 
 if TYPE_CHECKING:
-    EventSpecType = Union[  # noqa: PYI055
-        str, type[CanMutateAggregate[Any]], type[AbstractDCBEvent]
-    ]
+    EventSpecType = str | type[CanMutateAggregate[Any] | AbstractDCBEvent]
 
 CallableType = Callable[..., None]
-DecoratableType = Union[CallableType, property]
+DecoratableType = CallableType | property
 TDecoratableType = TypeVar("TDecoratableType", bound=DecoratableType)
 
 
@@ -1042,7 +1037,7 @@ _create_id_param_names: dict[type[BaseAggregate[Any]], list[str]] = defaultdict(
 ENVVAR_DISABLE_REDEFINITION_CHECK = "EVENTSOURCING_DISABLE_REDEFINITION_CHECK"
 
 
-class MetaAggregate(EventsourcingType, Generic[TAggregate], ABCMeta):
+class MetaAggregate(EventsourcingType, ABCMeta, Generic[TAggregate]):
     """Metaclass for aggregate classes."""
 
     def _define_event_class(
@@ -1772,6 +1767,9 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
                             f"already registered for {resolve_topic(explicit_topic)}"
                         )
                         raise ProgrammingError(msg) from None
+
+    def __hash__(self) -> int:
+        raise NotImplementedError  # pragma: no cover
 
 
 def _check_explicit_topic_is_registered(event_class: type[object]) -> None:

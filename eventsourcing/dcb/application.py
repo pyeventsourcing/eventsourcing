@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic
 
 from eventsourcing.dcb.domain import (
     EnduringObject,
@@ -9,6 +9,7 @@ from eventsourcing.dcb.domain import (
     Perspective,
     Selector,
     TGroup,
+    TMutates,
     TPerspective,
 )
 from eventsourcing.dcb.persistence import (
@@ -63,50 +64,53 @@ class DCBApplication:
         self.factory.__exit__(exc_type, exc_val, exc_tb)
 
 
-class DCBRepository:
-    def __init__(self, eventstore: DCBEventStore):
+class DCBRepository(Generic[TMutates]):
+    def __init__(self, eventstore: DCBEventStore[TMutates]):
         self.eventstore = eventstore
 
-    def save(self, obj: Perspective) -> int:
-        new_events = obj.collect_events()
+    def save(self, p: Perspective[TMutates]) -> int:
         return self.eventstore.put(
-            *new_events, cb=obj.cb, after=obj.last_known_position
+            events=p.collect_events(),
+            cb=p.cb,
+            after=p.last_known_position,
         )
 
     def get(
         self,
         enduring_object_id: str,
-    ) -> EnduringObject:
+    ) -> EnduringObject[TMutates]:
         cb = [Selector(tags=[enduring_object_id])]
-        events, head = self.eventstore.get(*cb, with_last_position=True)
-        obj: EnduringObject | None = None
+        events = self.eventstore.get(*cb)
+        obj: EnduringObject[TMutates] | None = None
         for event in events:
-            obj = event.mutate(obj)
+            obj = event.mutates.mutate(obj)
         if obj is None:
             raise NotFoundError
-        obj.last_known_position = head
+        obj.last_known_position = events.head
         return obj
 
     def get_many(
         self,
         *enduring_object_ids: str,
-    ) -> list[EnduringObject | None]:
+    ) -> list[EnduringObject[TMutates] | None]:
         cb = [
             Selector(tags=[enduring_object_id])
             for enduring_object_id in enduring_object_ids
         ]
-        events, head = self.eventstore.get(cb, with_last_position=True)
-        objs: dict[str, EnduringObject | None] = dict.fromkeys(enduring_object_ids)
+        events = self.eventstore.get(cb)
+        objs: dict[str, EnduringObject[TMutates] | None] = dict.fromkeys(
+            enduring_object_ids
+        )
         for event in events:
             for tag in event.tags:
                 obj = objs.get(tag)
-                if not isinstance(event, Initialises) and not obj:
+                if not isinstance(event.mutates, Initialises) and not obj:
                     continue
-                obj = event.mutate(obj)
+                obj = event.mutates.mutate(obj)
                 objs[tag] = obj
         for obj in objs.values():
             if obj is not None:
-                obj.last_known_position = head
+                obj.last_known_position = events.head
         return list(objs.values())
 
     def get_group(self, cls: type[TGroup], *enduring_object_ids: str) -> TGroup:
@@ -123,8 +127,8 @@ class DCBRepository:
         return perspective
 
     def project_perspective(self, p: TPerspective) -> TPerspective:
-        events, head = self.eventstore.get(p.cb, with_last_position=True)
+        events = self.eventstore.get(p.cb)
         for event in events:
-            event.mutate(p)
-        p.last_known_position = head
+            event.mutates.mutate(p)
+        p.last_known_position = events.head
         return p

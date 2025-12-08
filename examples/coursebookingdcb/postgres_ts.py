@@ -9,10 +9,12 @@ from eventsourcing.dcb.api import (
     DCBEvent,
     DCBQuery,
     DCBQueryItem,
+    DCBReadResponse,
     DCBRecorder,
     DCBSequencedEvent,
 )
 from eventsourcing.dcb.persistence import DCBInfrastructureFactory
+from eventsourcing.dcb.popo import SimpleDCBReadResponse
 from eventsourcing.persistence import IntegrityError, ProgrammingError
 from eventsourcing.postgres import (
     PostgresDatastore,
@@ -27,19 +29,16 @@ if TYPE_CHECKING:
 
 PG_TYPE_NAME_DCB_EVENT_TS = "dcb_event"
 
-PG_TYPE_DCB_EVENT = SQL(
-    """
+PG_TYPE_DCB_EVENT = SQL("""
 CREATE TYPE {schema}.{type_name} AS (
     type text,
     data bytea,
     tags text[],
     text_vector tsvector
 )
-"""
-)
+""")
 
-PG_TABLE_DCB_EVENTS = SQL(
-    """
+PG_TABLE_DCB_EVENTS = SQL("""
 CREATE TABLE IF NOT EXISTS {schema}.{table_name} (
     sequence_position bigserial PRIMARY KEY,
     type text NOT NULL ,
@@ -53,26 +52,20 @@ CREATE TABLE IF NOT EXISTS {schema}.{table_name} (
   autovacuum_analyze_threshold = 1000,      -- Triggers ANALYZE more often
   autovacuum_analyze_scale_factor = 0.01    -- Triggers after 1% new rows
 )
-"""
-)
+""")
 
-PG_TABLE_INDEX_DCB_EVENT_TEXT_VECTOR = SQL(
-    """
+PG_TABLE_INDEX_DCB_EVENT_TEXT_VECTOR = SQL("""
 CREATE INDEX IF NOT EXISTS {index_name}
 ON {schema}.{table} USING GIN (text_vector)
-"""
-)
+""")
 
 PG_FUNCTION_NAME_DCB_SELECT_EVENTS_TS = "dcb_select_events"
 
-SQL_STATEMENT_DCB_SELECT_EVENTS = SQL(
-    """
+SQL_STATEMENT_DCB_SELECT_EVENTS = SQL("""
 SELECT * FROM {select_events}((%s), (%s), (%s))
-"""
-)
+""")
 
-PG_FUNCTION_DCB_SELECT_EVENTS = SQL(
-    """
+PG_FUNCTION_DCB_SELECT_EVENTS = SQL("""
 CREATE OR REPLACE FUNCTION {select_events}(
     text_query tsquery,
     after bigint,
@@ -131,13 +124,11 @@ BEGIN
     END IF;
 END;
 $BODY$;
-"""
-)
+""")
 
 PG_FUNCTION_NAME_DCB_CHECK_APPEND_CONDITION_TS = "dcb_check_append_condition"
 
-PG_FUNCTION_DCB_CHECK_APPEND_CONDITION = SQL(
-    """
+PG_FUNCTION_DCB_CHECK_APPEND_CONDITION = SQL("""
 CREATE OR REPLACE FUNCTION {check_append_condition}(
     text_query tsquery,
     after bigint
@@ -181,13 +172,11 @@ BEGIN
     RETURN append_condition_failed;
 END;
 $BODY$;
-"""
-)
+""")
 
 PG_FUNCTION_NAME_DCB_INSERT_EVENTS_TS = "dcb_insert_events"
 
-PG_FUNCTION_DCB_INSERT_EVENTS = SQL(
-    """
+PG_FUNCTION_DCB_INSERT_EVENTS = SQL("""
 CREATE OR REPLACE FUNCTION {insert_events}(
     events {schema}.{event_type}[]
 )
@@ -204,19 +193,15 @@ BEGIN
     RETURNING t.sequence_position;
 END;
 $BODY$
-"""
-)
+""")
 
 PG_PROCEDURE_NAME_DCB_APPEND_EVENTS_TS = "dcb_append_events"
 
-SQL_STATEMENT_CALL_DCB_APPEND_EVENTS = SQL(
-    """
+SQL_STATEMENT_CALL_DCB_APPEND_EVENTS = SQL("""
 CALL {append_events}((%s), (%s), (%s))
-"""
-)
+""")
 
-PG_PROCEDURE_DCB_APPEND_EVENTS = SQL(
-    """
+PG_PROCEDURE_DCB_APPEND_EVENTS = SQL("""
 CREATE OR REPLACE PROCEDURE {append_events} (
     in events {schema}.{event_type}[],
     in text_query tsquery,
@@ -247,8 +232,7 @@ BEGIN
     RETURN;
 END;
 $BODY$
-"""
-)
+""")
 
 
 class PostgresDCBRecorderTS(DCBRecorder, PostgresRecorder):
@@ -326,7 +310,7 @@ class PostgresDCBRecorderTS(DCBRecorder, PostgresRecorder):
         *,
         after: int | None = None,
         limit: int | None = None,
-    ) -> tuple[Sequence[DCBSequencedEvent], int | None]:
+    ) -> DCBReadResponse:
         # Prepare arguments and invoke pg function.
         if not query or not query.items:
             text_query = ""
@@ -356,7 +340,7 @@ class PostgresDCBRecorderTS(DCBRecorder, PostgresRecorder):
             else:
                 head = events[-1].position if events else None
 
-            return events, head
+            return SimpleDCBReadResponse(iter(events), head)
 
     def append(
         self, events: Sequence[DCBEvent], condition: DCBAppendCondition | None = None

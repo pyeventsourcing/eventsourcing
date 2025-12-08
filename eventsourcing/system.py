@@ -8,7 +8,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 from queue import Full, Queue
 from types import FrameType, ModuleType
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, cast
 
 from eventsourcing.application import (
     Application,
@@ -53,7 +53,7 @@ class RecordingEvent(Generic[TAggregateID]):
         self.previous_max_notification_id = previous_max_notification_id
 
 
-ConvertingJob = Optional[Union[RecordingEvent[TAggregateID], Sequence[Notification]]]
+ConvertingJob = RecordingEvent[TAggregateID] | Sequence[Notification] | None
 
 
 class Follower(EventSourcedProjection[TAggregateID]):
@@ -160,7 +160,7 @@ class Follower(EventSourcedProjection[TAggregateID]):
         return processing_jobs
 
 
-class RecordingEventReceiver(Generic[TAggregateID], ABC):
+class RecordingEventReceiver(ABC, Generic[TAggregateID]):
     """Abstract base class for objects that may receive recording events."""
 
     @abstractmethod
@@ -333,7 +333,7 @@ class System:
         return topic
 
 
-class Runner(Generic[TAggregateID], ABC):
+class Runner(ABC, Generic[TAggregateID]):
     """Abstract base class for system runners."""
 
     def __init__(self, system: System, env: EnvType | None = None):

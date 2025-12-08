@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime  # noqa: TC003
-from typing import TYPE_CHECKING, Callable, Optional, TypeVar
+from typing import TYPE_CHECKING, TypeVar
 from uuid import UUID  # noqa: TC003
 
 import msgspec
@@ -47,7 +48,7 @@ class Snapshot(DomainEvent, frozen=True):
 
 TAggregate = TypeVar("TAggregate", bound=Aggregate)
 
-MutatorFunction = Callable[..., Optional[TAggregate]]
+MutatorFunction = Callable[..., TAggregate | None]
 
 
 def aggregate_projector(

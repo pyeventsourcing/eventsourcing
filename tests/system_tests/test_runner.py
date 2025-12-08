@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from queue import Queue
 from threading import Event
 from time import sleep
-from typing import TYPE_CHECKING, Any, Generic, Union, cast
+from typing import TYPE_CHECKING, Any, Generic, cast
 from unittest.case import TestCase
 from unittest.mock import MagicMock
 from uuid import UUID
@@ -58,9 +58,7 @@ class EmailProcess2(EmailProcess):
 TRunner = TypeVar(
     "TRunner",
     bound=Runner[Any],
-    default=Union[
-        SingleThreadedRunner[TAggregateID], NewSingleThreadedRunner[TAggregateID]
-    ],
+    default=SingleThreadedRunner[TAggregateID] | NewSingleThreadedRunner[TAggregateID],
 )
 
 
@@ -517,7 +515,7 @@ class TestPullingThread(TestCase):
 
 class TestMultiThreadedRunner(
     TestSingleThreadedRunner[
-        UUID, Union[MultiThreadedRunner[UUID], NewMultiThreadedRunner[UUID]]
+        UUID, MultiThreadedRunner[UUID] | NewMultiThreadedRunner[UUID]
     ]
 ):
     def construct_runner(

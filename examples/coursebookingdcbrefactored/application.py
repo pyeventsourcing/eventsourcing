@@ -43,7 +43,7 @@ class StudentLeftCourse(Decision):
     course_id: CourseID
 
 
-class Student(EnduringObject[StudentID]):
+class Student(EnduringObject[Decision, StudentID]):
     class Registered(InitialDecision):
         student_id: StudentID
         name: str
@@ -79,7 +79,7 @@ class Student(EnduringObject[StudentID]):
         self.course_ids.remove(course_id)
 
 
-class Course(EnduringObject[CourseID]):
+class Course(EnduringObject[Decision, CourseID]):
     class Registered(InitialDecision):
         course_id: CourseID
         name: str
@@ -119,7 +119,7 @@ class Course(EnduringObject[CourseID]):
         self.student_ids.remove(student_id)
 
 
-class StudentAndCourse(Group):
+class StudentAndCourse(Group[Decision]):
     def __init__(
         self,
         student: Student | None,

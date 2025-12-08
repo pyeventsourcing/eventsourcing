@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -38,6 +39,24 @@ class DCBSequencedEvent:
     position: int
 
 
+class DCBReadResponse(Iterator[DCBSequencedEvent], ABC):
+    @property
+    @abstractmethod
+    def head(self) -> int | None:
+        pass  # pragma: no cover
+
+    @abstractmethod
+    def __next__(self) -> DCBSequencedEvent:
+        pass  # pragma: no cover
+
+    # @abstractmethod
+    # def next_batch(self) -> list[DCBSequencedEvent]:
+    #     """
+    #     Returns a batch of events as a list.
+    #     Updates the head position similar to __next__.
+    #     """
+
+
 class DCBRecorder(ABC):
 
     @abstractmethod
@@ -47,7 +66,7 @@ class DCBRecorder(ABC):
         *,
         after: int | None = None,
         limit: int | None = None,
-    ) -> tuple[Sequence[DCBSequencedEvent], int | None]:
+    ) -> DCBReadResponse:
         """
         Returns all events, unless 'after' is given then only those with position
         greater than 'after', and unless any query items are given, then only those
