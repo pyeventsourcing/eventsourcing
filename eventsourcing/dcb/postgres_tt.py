@@ -17,8 +17,8 @@ from eventsourcing.dcb.persistence import DCBInfrastructureFactory
 from eventsourcing.dcb.popo import SimpleDCBReadResponse
 from eventsourcing.persistence import IntegrityError, ProgrammingError
 from eventsourcing.postgres import (
+    BasePostgresFactory,
     PostgresDatastore,
-    PostgresFactory,
     PostgresRecorder,
     PostgresTrackingRecorder,
 )
@@ -601,7 +601,7 @@ class PsycopgDCBQueryItem(NamedTuple):
 
 
 class PostgresTTDCBFactory(
-    PostgresFactory,
+    BasePostgresFactory[PostgresTrackingRecorder],
     DCBInfrastructureFactory[PostgresTrackingRecorder],
 ):
     def dcb_event_store(self) -> DCBRecorder:

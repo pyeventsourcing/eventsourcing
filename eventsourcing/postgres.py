@@ -28,6 +28,7 @@ from typing_extensions import TypeVar
 from eventsourcing.persistence import (
     AggregateRecorder,
     ApplicationRecorder,
+    BaseInfrastructureFactory,
     DatabaseError,
     DataError,
     InfrastructureFactory,
@@ -45,6 +46,7 @@ from eventsourcing.persistence import (
     Subscription,
     Tracking,
     TrackingRecorder,
+    TTrackingRecorder,
 )
 from eventsourcing.utils import Environment, EnvType, resolve_topic, retry, strtobool
 
@@ -1109,7 +1111,7 @@ class PostgresProcessRecorder(
         super()._insert_events(curs, stored_events, **kwargs)
 
 
-class PostgresFactory(InfrastructureFactory[PostgresTrackingRecorder]):
+class BasePostgresFactory(BaseInfrastructureFactory[TTrackingRecorder]):
     POSTGRES_DBNAME = "POSTGRES_DBNAME"
     POSTGRES_HOST = "POSTGRES_HOST"
     POSTGRES_PORT = "POSTGRES_PORT"
@@ -1131,11 +1133,6 @@ class PostgresFactory(InfrastructureFactory[PostgresTrackingRecorder]):
     ORIGINATOR_ID_TYPE = "ORIGINATOR_ID_TYPE"
     POSTGRES_ENABLE_DB_FUNCTIONS = "POSTGRES_ENABLE_DB_FUNCTIONS"
     CREATE_TABLE = "CREATE_TABLE"
-
-    aggregate_recorder_class = PostgresAggregateRecorder
-    application_recorder_class = PostgresApplicationRecorder
-    tracking_recorder_class = PostgresTrackingRecorder
-    process_recorder_class = PostgresProcessRecorder
 
     def __init__(self, env: Environment | EnvType | None):
         super().__init__(env)
@@ -1334,6 +1331,32 @@ class PostgresFactory(InfrastructureFactory[PostgresTrackingRecorder]):
     def env_create_table(self) -> bool:
         return strtobool(self.env.get(self.CREATE_TABLE) or "yes")
 
+    def __enter__(self) -> Self:
+        self.datastore.__enter__()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        self.datastore.__exit__(exc_type, exc_val, exc_tb)
+
+    def close(self) -> None:
+        with contextlib.suppress(AttributeError):
+            self.datastore.close()
+
+
+class PostgresFactory(
+    BasePostgresFactory[PostgresTrackingRecorder],
+    InfrastructureFactory[PostgresTrackingRecorder],
+):
+    aggregate_recorder_class = PostgresAggregateRecorder
+    application_recorder_class = PostgresApplicationRecorder
+    tracking_recorder_class = PostgresTrackingRecorder
+    process_recorder_class = PostgresProcessRecorder
+
     def aggregate_recorder(self, purpose: str = "events") -> AggregateRecorder:
         prefix = self.env.name.lower() or "stored"
         events_table_name = prefix + "_" + purpose
@@ -1411,22 +1434,6 @@ class PostgresFactory(InfrastructureFactory[PostgresTrackingRecorder]):
         if self.env_create_table():
             recorder.create_table()
         return recorder
-
-    def __enter__(self) -> Self:
-        self.datastore.__enter__()
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        self.datastore.__exit__(exc_type, exc_val, exc_tb)
-
-    def close(self) -> None:
-        with contextlib.suppress(AttributeError):
-            self.datastore.close()
 
 
 Factory = PostgresFactory

@@ -663,18 +663,33 @@ class InfrastructureFactoryError(EventSourcingError):
     """Raised when an infrastructure factory cannot be created."""
 
 
-class InfrastructureFactory(ABC, Generic[TTrackingRecorder]):
+class BaseInfrastructureFactory(ABC, Generic[TTrackingRecorder]):
     """Abstract base class for infrastructure factories."""
 
     PERSISTENCE_MODULE = "PERSISTENCE_MODULE"
     TRANSCODER_TOPIC = "TRANSCODER_TOPIC"
-    MAPPER_TOPIC = "MAPPER_TOPIC"
     CIPHER_TOPIC = "CIPHER_TOPIC"
     COMPRESSOR_TOPIC = "COMPRESSOR_TOPIC"
-    IS_SNAPSHOTTING_ENABLED = "IS_SNAPSHOTTING_ENABLED"
-    APPLICATION_RECORDER_TOPIC = "APPLICATION_RECORDER_TOPIC"
-    TRACKING_RECORDER_TOPIC = "TRACKING_RECORDER_TOPIC"
-    PROCESS_RECORDER_TOPIC = "PROCESS_RECORDER_TOPIC"
+
+    def __init__(self, env: Environment | EnvType | None):
+        """Initialises infrastructure factory object with given application name."""
+        self.env = env if isinstance(env, Environment) else Environment(env=env)
+        self._is_entered = False
+
+    def __enter__(self) -> Self:
+        self._is_entered = True
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        self._is_entered = False
+
+    def close(self) -> None:
+        """Closes any database connections, and anything else that needs closing."""
 
     @classmethod
     def construct(
@@ -747,11 +762,6 @@ class InfrastructureFactory(ABC, Generic[TTrackingRecorder]):
             raise InfrastructureFactoryError(msg)
         return factory_cls(env=env)
 
-    def __init__(self, env: Environment | EnvType | None):
-        """Initialises infrastructure factory object with given application name."""
-        self.env = env if isinstance(env, Environment) else Environment(env=env)
-        self._is_entered = False
-
     def transcoder(
         self,
     ) -> Transcoder:
@@ -762,32 +772,6 @@ class InfrastructureFactory(ABC, Generic[TTrackingRecorder]):
         else:
             transcoder_class = JSONTranscoder
         return transcoder_class()
-
-    def mapper(
-        self,
-        transcoder: Transcoder | None = None,
-        mapper_class: type[Mapper[TAggregateID]] | None = None,
-    ) -> Mapper[TAggregateID]:
-        """Constructs a mapper."""
-        # Resolve MAPPER_TOPIC if no given class.
-        if mapper_class is None:
-            mapper_topic = self.env.get(self.MAPPER_TOPIC)
-            mapper_class = (
-                resolve_topic(mapper_topic) if mapper_topic else Mapper[TAggregateID]
-            )
-
-        # Check we have a mapper class.
-        assert mapper_class is not None
-        origin_mapper_class = typing.get_origin(mapper_class) or mapper_class
-        assert isinstance(origin_mapper_class, type), mapper_class
-        assert issubclass(origin_mapper_class, Mapper), mapper_class
-
-        # Construct and return a mapper.
-        return mapper_class(
-            transcoder=transcoder or self.transcoder(),
-            cipher=self.cipher(),
-            compressor=self.compressor(),
-        )
 
     def cipher(self) -> Cipher | None:
         """Reads environment variables 'CIPHER_TOPIC'
@@ -821,6 +805,42 @@ class InfrastructureFactory(ABC, Generic[TTrackingRecorder]):
             else:
                 compressor = compressor_cls
         return compressor
+
+
+class InfrastructureFactory(BaseInfrastructureFactory[TTrackingRecorder]):
+    """Abstract base class for Application factories."""
+
+    MAPPER_TOPIC = "MAPPER_TOPIC"
+    IS_SNAPSHOTTING_ENABLED = "IS_SNAPSHOTTING_ENABLED"
+    APPLICATION_RECORDER_TOPIC = "APPLICATION_RECORDER_TOPIC"
+    TRACKING_RECORDER_TOPIC = "TRACKING_RECORDER_TOPIC"
+    PROCESS_RECORDER_TOPIC = "PROCESS_RECORDER_TOPIC"
+
+    def mapper(
+        self,
+        transcoder: Transcoder | None = None,
+        mapper_class: type[Mapper[TAggregateID]] | None = None,
+    ) -> Mapper[TAggregateID]:
+        """Constructs a mapper."""
+        # Resolve MAPPER_TOPIC if no given class.
+        if mapper_class is None:
+            mapper_topic = self.env.get(self.MAPPER_TOPIC)
+            mapper_class = (
+                resolve_topic(mapper_topic) if mapper_topic else Mapper[TAggregateID]
+            )
+
+        # Check we have a mapper class.
+        assert mapper_class is not None
+        origin_mapper_class = typing.get_origin(mapper_class) or mapper_class
+        assert isinstance(origin_mapper_class, type), mapper_class
+        assert issubclass(origin_mapper_class, Mapper), mapper_class
+
+        # Construct and return a mapper.
+        return mapper_class(
+            transcoder=transcoder or self.transcoder(),
+            cipher=self.cipher(),
+            compressor=self.compressor(),
+        )
 
     def event_store(
         self,
@@ -857,21 +877,6 @@ class InfrastructureFactory(ABC, Generic[TTrackingRecorder]):
         Snapshotting is not enabled by default.
         """
         return strtobool(self.env.get(self.IS_SNAPSHOTTING_ENABLED, "no"))
-
-    def __enter__(self) -> Self:
-        self._is_entered = True
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        self._is_entered = False
-
-    def close(self) -> None:
-        """Closes any database connections, and anything else that needs closing."""
 
 
 @dataclass(frozen=True)

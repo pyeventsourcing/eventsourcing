@@ -17,7 +17,7 @@ from eventsourcing.dcb.domain import (
     Tagged,
     TMutates,
 )
-from eventsourcing.persistence import InfrastructureFactory, TTrackingRecorder
+from eventsourcing.persistence import BaseInfrastructureFactory, TTrackingRecorder
 from eventsourcing.utils import get_topic
 
 if TYPE_CHECKING:
@@ -105,7 +105,7 @@ class NotFoundError(Exception):
     pass
 
 
-class DCBInfrastructureFactory(InfrastructureFactory[TTrackingRecorder], ABC):
+class DCBInfrastructureFactory(BaseInfrastructureFactory[TTrackingRecorder], ABC):
     @abstractmethod
     def dcb_event_store(self) -> DCBRecorder:
         pass  # pragma: no cover

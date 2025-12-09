@@ -629,7 +629,7 @@ class ApplicationRecorderTestCase(
         rate = num_jobs * num_events_per_job / (ended - started).total_seconds()
         print(f"Rate: {rate:.0f} inserts per second")
 
-    def optional_test_insert_subscribe(self) -> None:
+    def optional_test_insert_subscribe(self, initial_position: int = 0) -> None:
 
         recorder = self.create_recorder()
 
@@ -655,7 +655,9 @@ class ApplicationRecorderTestCase(
 
         notification_ids = recorder.insert_events([stored_event1, stored_event2])
         if self.EXPECT_CONTIGUOUS_NOTIFICATION_IDS:
-            self.assertEqual(notification_ids, [1, 2])
+            self.assertEqual(
+                notification_ids, [1 + initial_position, 2 + initial_position]
+            )
 
         # Get the max notification ID.
         max_notification_id2 = recorder.max_notification_id()
@@ -698,8 +700,8 @@ class ApplicationRecorderTestCase(
                 stored_event2.originator_version, notifications[1].originator_version
             )
             if self.EXPECT_CONTIGUOUS_NOTIFICATION_IDS:
-                self.assertEqual(1, notifications[0].id)
-                self.assertEqual(2, notifications[1].id)
+                self.assertEqual(1 + initial_position, notifications[0].id)
+                self.assertEqual(2 + initial_position, notifications[1].id)
 
             # Store a third event.
             stored_event3 = StoredEvent(
@@ -710,7 +712,7 @@ class ApplicationRecorderTestCase(
             )
             notification_ids = recorder.insert_events([stored_event3])
             if self.EXPECT_CONTIGUOUS_NOTIFICATION_IDS:
-                self.assertEqual(notification_ids, [3])
+                self.assertEqual(notification_ids, [3 + initial_position])
 
             # Receive events from the subscription.
             for notification in subscription:
@@ -726,7 +728,7 @@ class ApplicationRecorderTestCase(
                 stored_event3.originator_version, notifications[2].originator_version
             )
             if self.EXPECT_CONTIGUOUS_NOTIFICATION_IDS:
-                self.assertEqual(3, notifications[2].id)
+                self.assertEqual(3 + initial_position, notifications[2].id)
 
         # Start a subscription with int value for 'start'.
         with recorder.subscribe(gt=max_notification_id2) as subscription:
@@ -744,7 +746,7 @@ class ApplicationRecorderTestCase(
             )
 
         # Start a subscription, call stop() during iteration.
-        with recorder.subscribe(gt=None) as subscription:
+        with recorder.subscribe(gt=initial_position) as subscription:
 
             # Receive events from the subscription.
             for i, _ in enumerate(subscription):
