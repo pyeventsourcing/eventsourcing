@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import threading
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, Generic
+from queue import Queue
+from typing import TYPE_CHECKING, Any, Generic
 
 from eventsourcing.dcb.api import (
     DCBAppendCondition,
@@ -11,6 +13,8 @@ from eventsourcing.dcb.api import (
     DCBQueryItem,
     DCBReadResponse,
     DCBRecorder,
+    DCBSequencedEvent,
+    DCBSubscription,
 )
 from eventsourcing.dcb.domain import (
     Selector,
@@ -109,3 +113,76 @@ class DCBInfrastructureFactory(BaseInfrastructureFactory[TTrackingRecorder], ABC
     @abstractmethod
     def dcb_event_store(self) -> DCBRecorder:
         pass  # pragma: no cover
+
+
+class DCBListenNotifySubscription(DCBSubscription):
+    def __init__(
+        self,
+        recorder: DCBRecorder,
+        query: DCBQuery | None = None,
+        after: int | None = None,
+    ) -> None:
+        super().__init__(recorder=recorder, query=query, after=after)
+        self.select_limit = 500
+        self._events: Sequence[DCBSequencedEvent] = []
+        self._events_index: int = 0
+        self._events_queue: Queue[Sequence[DCBSequencedEvent]] = Queue(maxsize=10)
+        self._has_been_notified = threading.Event()
+        self._thread_error: BaseException | None = None
+        self._pull_thread = threading.Thread(target=self._loop_on_pull)
+        self._pull_thread.start()
+
+    def __exit__(self, *args: object, **kwargs: Any) -> None:
+        super().__exit__(*args, **kwargs)
+        self._pull_thread.join()
+
+    def stop(self) -> None:
+        """Stops the subscription."""
+        super().stop()
+        self._events_queue.put([])
+        self._has_been_notified.set()
+
+    def __next__(self) -> DCBSequencedEvent:
+        # If necessary, get a new list of events from the recorder.
+        if self._events_index == len(self._events) and not self._has_been_stopped:
+            self._events = self._events_queue.get()
+            self._events_index = 0
+
+        # Stop the iteration if necessary, maybe raise thread error.
+        if self._has_been_stopped or not self._events:
+            if self._thread_error is not None:
+                raise self._thread_error
+            raise StopIteration
+
+        # Return a notification from previously obtained list.
+        notification = self._events[self._events_index]
+        self._events_index += 1
+        return notification
+
+    def _loop_on_pull(self) -> None:
+        try:
+            self._pull()  # Already recorded events.
+            while not self._has_been_stopped:
+                self._has_been_notified.wait()
+                self._pull()  # Newly recorded events.
+        except BaseException as e:  # pragma: no cover
+            if self._thread_error is None:
+                self._thread_error = e
+            self.stop()
+
+    def _pull(self) -> None:
+        while not self._has_been_stopped:
+            self._has_been_notified.clear()
+            events = list(
+                self._recorder.read(
+                    query=self._query,
+                    after=self._last_position,
+                    limit=self.select_limit,
+                )
+            )
+            if len(events) > 0:
+                # print("Putting", len(events), "events into queue")
+                self._events_queue.put(events)
+                self._last_position = events[-1].position
+            if len(events) < self.select_limit:
+                break

@@ -10,6 +10,7 @@ from eventsourcing.dcb.api import (
     DCBReadResponse,
     DCBRecorder,
     DCBSequencedEvent,
+    DCBSubscription,
 )
 from eventsourcing.dcb.persistence import DCBInfrastructureFactory
 from eventsourcing.persistence import IntegrityError, ProgrammingError
@@ -93,6 +94,14 @@ class InMemoryDCBRecorder(DCBRecorder, POPORecorder):
         while True:
             yield position
             position += 1
+
+    def subscribe(
+        self,
+        query: DCBQuery | None = None,
+        *,
+        after: int | None = None,
+    ) -> DCBSubscription:
+        raise NotImplementedError  # pragma: no cover
 
 
 class SimpleDCBReadResponse(DCBReadResponse):

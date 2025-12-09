@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import threading
 from unittest import TestCase
 from uuid import uuid4
 
@@ -10,13 +11,15 @@ from eventsourcing.dcb.api import (
     DCBQuery,
     DCBQueryItem,
     DCBRecorder,
+    DCBSequencedEvent,
+    DCBSubscription,
 )
 from eventsourcing.persistence import IntegrityError
 
 
 class DCBRecorderTestCase(TestCase):
 
-    def _test_dcb_recorder(
+    def _test_append_read(
         self, recorder: DCBRecorder, initial_position: int = 0
     ) -> None:
         # Read all, expect no results.
@@ -562,3 +565,43 @@ class DCBRecorderTestCase(TestCase):
         #         ),
         #     )
         # print("Conflict detected:", datetime.datetime.now() - started)
+
+    def _test_append_subscribe(
+        self, recorder: DCBRecorder, initial_position: int = 0
+    ) -> None:
+        # Append one event.
+        event1 = DCBEvent(type="type1", data=b"data1", tags=["tagX"])
+        position1 = recorder.append(events=[event1])
+        self.assertEqual(1 + initial_position, position1)
+
+        # Start subscription.
+        with recorder.subscribe(after=initial_position) as subscription:
+            self.assertEqual(position1, next(subscription).position)
+
+            thread = EnsureSubscriptionBlockAndReceive(subscription)
+            thread.has_blocked.wait()
+            self.assertFalse(thread.has_received.wait(timeout=0.5))
+
+            # Append one more event.
+            event2 = DCBEvent(type="type1", data=b"data1", tags=["tagX"])
+            position2 = recorder.append(events=[event2])
+            self.assertEqual(2 + initial_position, position2)
+
+            self.assertTrue(thread.has_received.wait(timeout=1))
+            assert thread.received_event is not None  # for mypy
+            self.assertEqual(position2, thread.received_event.position)
+
+
+class EnsureSubscriptionBlockAndReceive(threading.Thread):
+    def __init__(self, subscription: DCBSubscription):
+        super().__init__()
+        self.subscription = subscription
+        self.has_blocked = threading.Event()
+        self.has_received = threading.Event()
+        self.received_event: DCBSequencedEvent | None = None
+        self.start()
+
+    def run(self) -> None:
+        self.has_blocked.set()
+        self.received_event = next(self.subscription)
+        self.has_received.set()

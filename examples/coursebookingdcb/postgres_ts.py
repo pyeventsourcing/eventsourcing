@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple, TypedDict
+import threading
+from typing import TYPE_CHECKING, Any, NamedTuple, TypedDict
 
+from psycopg.generators import notifies
 from psycopg.sql import SQL, Identifier
 
 from eventsourcing.dcb.api import (
@@ -12,11 +14,16 @@ from eventsourcing.dcb.api import (
     DCBReadResponse,
     DCBRecorder,
     DCBSequencedEvent,
+    DCBSubscription,
 )
-from eventsourcing.dcb.persistence import DCBInfrastructureFactory
+from eventsourcing.dcb.persistence import (
+    DCBInfrastructureFactory,
+    DCBListenNotifySubscription,
+)
 from eventsourcing.dcb.popo import SimpleDCBReadResponse
 from eventsourcing.persistence import IntegrityError, ProgrammingError
 from eventsourcing.postgres import (
+    NO_TRACEBACK,
     BasePostgresFactory,
     PostgresDatastore,
     PostgresRecorder,
@@ -25,6 +32,8 @@ from eventsourcing.postgres import (
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from psycopg import Connection
 
 
 PG_TYPE_NAME_DCB_EVENT_TS = "dcb_event"
@@ -342,6 +351,18 @@ class PostgresDCBRecorderTS(DCBRecorder, PostgresRecorder):
 
             return SimpleDCBReadResponse(iter(events), head)
 
+    def subscribe(
+        self,
+        query: DCBQuery | None = None,
+        *,
+        after: int | None = None,
+    ) -> DCBSubscription:
+        return PostgresDCBSubscription(
+            recorder=self,
+            query=query,
+            after=after,
+        )
+
     def append(
         self, events: Sequence[DCBEvent], condition: DCBAppendCondition | None = None
     ) -> int:
@@ -430,6 +451,51 @@ class PostgresDCBRecorderTS(DCBRecorder, PostgresRecorder):
         return self.datastore.psycopg_python_types[PG_TYPE_NAME_DCB_EVENT_TS](
             type, data, tags, self.construct_text_vector(type, tags)
         )
+
+
+class PostgresDCBSubscription(DCBListenNotifySubscription):
+    def __init__(
+        self,
+        recorder: DCBRecorder,
+        query: DCBQuery | None = None,
+        after: int | None = None,
+    ) -> None:
+        super().__init__(recorder=recorder, query=query, after=after)
+        self._has_listen_connection = threading.Event()
+        self._listen_connection: Connection[dict[str, Any]] | None = None
+        self._listen_thread = threading.Thread(target=self._listen, daemon=True)
+        self._listen_thread.start()
+
+    def __exit__(self, *args: object, **kwargs: Any) -> None:
+        super().__exit__(*args, **kwargs)
+        self._listen_thread.join()
+
+    def _listen(self) -> None:
+        recorder = self._recorder
+        assert isinstance(recorder, PostgresDCBRecorderTS)
+        try:
+            with recorder.datastore.get_connection() as conn:
+                self._listen_connection = conn
+                self._has_listen_connection.set()
+                conn.execute(
+                    SQL("LISTEN {0}").format(Identifier(recorder.pg_channel_name))
+                )
+                while not self._has_been_stopped and not self._thread_error:
+                    # This block simplifies psycopg's conn.notifies(), because
+                    # we aren't interested in the actual notify messages, and
+                    # also we want to stop consuming notify messages when the
+                    # subscription has an error or is otherwise stopped.
+                    with conn.lock:
+                        try:
+                            if conn.wait(notifies(conn.pgconn), interval=1):
+                                self._has_been_notified.set()
+                        except NO_TRACEBACK as ex:  # pragma: no cover
+                            raise ex.with_traceback(None) from None
+
+        except BaseException as e:
+            if self._thread_error is None:
+                self._thread_error = e
+            self.stop()
 
 
 class PgDCBEvent(NamedTuple):

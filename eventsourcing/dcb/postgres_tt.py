@@ -12,6 +12,7 @@ from eventsourcing.dcb.api import (
     DCBReadResponse,
     DCBRecorder,
     DCBSequencedEvent,
+    DCBSubscription,
 )
 from eventsourcing.dcb.persistence import DCBInfrastructureFactory
 from eventsourcing.dcb.popo import SimpleDCBReadResponse
@@ -454,6 +455,14 @@ class PostgresDCBRecorderTT(DCBRecorder, PostgresRecorder):
             head = max(head or 0, *[e.position for e in events])
 
         return events, head
+
+    def subscribe(
+        self,
+        query: DCBQuery | None = None,
+        *,
+        after: int | None = None,
+    ) -> DCBSubscription:
+        raise NotImplementedError  # pragma: no cover
 
     def append(
         self, events: Sequence[DCBEvent], condition: DCBAppendCondition | None = None
