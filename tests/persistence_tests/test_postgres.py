@@ -792,7 +792,7 @@ class TestPostgresApplicationRecorder(
 
         thread_pool.shutdown()
 
-    def test_concurrent_no_conflicts(self) -> None:
+    def test_concurrent_no_conflicts(self, initial_position: int = 0) -> None:
         self.datastore.pool.open()
         self.datastore.pool.resize(12, 12)
         super().test_concurrent_no_conflicts()

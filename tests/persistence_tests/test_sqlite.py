@@ -249,7 +249,7 @@ class TestSQLiteApplicationRecorder(
     def test_insert_select(self) -> None:
         super().test_insert_select()
 
-    def test_concurrent_no_conflicts(self) -> None:
+    def test_concurrent_no_conflicts(self, initial_position: int = 0) -> None:
         self.uris = tmpfile_uris()
         self.db_uri = next(self.uris)
         super().test_concurrent_no_conflicts()

@@ -469,7 +469,7 @@ class ApplicationRecorderTestCase(
             f"{number / duration:.0f} inserts per second",
         )
 
-    def test_concurrent_no_conflicts(self) -> None:
+    def test_concurrent_no_conflicts(self, initial_position: int = 0) -> None:
         print(self)
 
         recorder = self.create_recorder()
@@ -533,7 +533,9 @@ class ApplicationRecorderTestCase(
         def read_continuously() -> None:
             while not stop_reading.is_set():
                 try:
-                    recorder.select_notifications(0, 10)
+                    recorder.select_notifications(
+                        start=initial_position, limit=10, inclusive_of_start=False
+                    )
                 except Exception as e:  # pragma: no cover
                     errors.append(e)
                     return
@@ -663,14 +665,14 @@ class ApplicationRecorderTestCase(
         max_notification_id2 = recorder.max_notification_id()
 
         # Start a subscription with default value for 'start'.
-        with recorder.subscribe() as subscription:
+        with recorder.subscribe(gt=initial_position) as subscription:
 
             # Receive events from the subscription.
             for _ in subscription:
                 break
 
         # Start a subscription with None value for 'start'.
-        with recorder.subscribe(gt=None) as subscription:
+        with recorder.subscribe(gt=initial_position) as subscription:
 
             # Receive events from the subscription.
             for _ in subscription:
