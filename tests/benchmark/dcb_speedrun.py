@@ -12,6 +12,7 @@ from psycopg.sql import SQL, Identifier
 from eventsourcing.dcb.popo import InMemoryDCBRecorder
 from eventsourcing.dcb.postgres_tt import (
     DB_FUNCTION_NAME_DCB_CONDITIONAL_APPEND_TT,
+    DB_FUNCTION_NAME_DCB_UNCONDITIONAL_APPEND_TT,
     PostgresDCBRecorderTT,
 )
 from eventsourcing.domain import datetime_now_with_tzinfo
@@ -285,6 +286,7 @@ if __name__ == "__main__":
                 PG_FUNCTION_NAME_DCB_INSERT_EVENTS_TS,
                 PG_FUNCTION_NAME_DCB_SELECT_EVENTS_TS,
                 PG_PROCEDURE_NAME_DCB_APPEND_EVENTS_TS,
+                DB_FUNCTION_NAME_DCB_UNCONDITIONAL_APPEND_TT,
                 DB_FUNCTION_NAME_DCB_CONDITIONAL_APPEND_TT,
             ]
             for function_name in function_names:

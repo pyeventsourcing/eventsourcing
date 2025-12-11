@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple
+import threading
+from typing import TYPE_CHECKING, NamedTuple, Any
 
+from psycopg.generators import notifies
 from psycopg.sql import SQL, Composed, Identifier
 
 from eventsourcing.dcb.api import (
@@ -14,20 +16,21 @@ from eventsourcing.dcb.api import (
     DCBSequencedEvent,
     DCBSubscription,
 )
-from eventsourcing.dcb.persistence import DCBInfrastructureFactory
+from eventsourcing.dcb.persistence import DCBInfrastructureFactory, \
+    DCBListenNotifySubscription
 from eventsourcing.dcb.popo import SimpleDCBReadResponse
 from eventsourcing.persistence import IntegrityError, ProgrammingError
 from eventsourcing.postgres import (
     BasePostgresFactory,
     PostgresDatastore,
     PostgresRecorder,
-    PostgresTrackingRecorder,
+    PostgresTrackingRecorder, NO_TRACEBACK,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from psycopg import Cursor
+    from psycopg import Cursor, Connection
     from psycopg.abc import Params
     from psycopg.rows import DictRow
 
@@ -160,29 +163,42 @@ WHERE m.id IN (SELECT id FROM filtered_ids)
 ORDER BY m.id ASC;
 """)
 
+
 SQL_UNCONDITIONAL_APPEND = SQL("""
-WITH input AS (
-      SELECT * FROM unnest(%(events)s::{event_type}[])
-),
-inserted AS (
-    INSERT INTO {schema}.{events_table} (type, data, tags)
-    SELECT i.type, i.data, i.tags
-    FROM input i
-    RETURNING id, tags
-),
-expanded_tags AS (
-    SELECT
-        ins.id AS main_id,
-        tag
-    FROM inserted ins,
-       unnest(ins.tags) AS tag
-),
-tag_insert AS (
-    INSERT INTO {schema}.{tags_table} (tag, main_id)
-    SELECT tag, main_id
-    FROM expanded_tags
-)
-SELECT id FROM inserted
+SELECT * FROM {schema}.{unconditional_append}(%(events)s)
+""")
+DB_FUNCTION_NAME_DCB_UNCONDITIONAL_APPEND_TT = "dcb_unconditional_append_tt"
+DB_FUNCTION_UNCONDITIONAL_APPEND = SQL("""
+CREATE OR REPLACE FUNCTION {schema}.{unconditional_append}(
+    new_events {schema}.{event_type}[]
+) RETURNS SETOF bigint
+LANGUAGE plpgsql AS $$
+BEGIN
+    RETURN QUERY
+    WITH new_data AS (
+        SELECT * FROM unnest(new_events)
+    ),
+    inserted AS (
+        INSERT INTO {schema}.{events_table} (type, data, tags)
+        SELECT type, data, tags
+        FROM new_data
+        RETURNING id, tags
+    ),
+    expanded_tags AS (
+        SELECT ins.id AS main_id, tag
+        FROM inserted ins,
+             unnest(ins.tags) AS tag
+    ),
+    tag_insert AS (
+        INSERT INTO {schema}.{tags_table} (tag, main_id)
+        SELECT tag, main_id
+        FROM expanded_tags
+    )
+    SELECT MAX(id) FROM inserted;
+    NOTIFY {channel};
+
+END
+$$;
 """)
 
 SQL_CONDITIONAL_APPEND = SQL("""
@@ -272,7 +288,9 @@ BEGIN
             SELECT tag, main_id
             FROM expanded_tags
         )
-        SELECT id FROM inserted;
+        SELECT MAX(id) FROM inserted;
+        NOTIFY {channel};
+
     END IF;
 
     -- If conflict exists, return empty result
@@ -299,6 +317,7 @@ class PostgresDCBRecorderTT(DCBRecorder, PostgresRecorder):
         super().__init__(datastore)
         # Define identifiers.
         self.events_table_name = events_table_name + "_tt_main"
+        self.channel_name = self.events_table_name.replace(".", "_")
         self.tags_table_name = events_table_name + "_tt_tag"
         self.index_name_id_cover_type = self.events_table_name + "_idx_id_type"
         self.index_name_tag_main_id = self.tags_table_name + "_idx_tag_main_id"
@@ -320,11 +339,15 @@ class PostgresDCBRecorderTT(DCBRecorder, PostgresRecorder):
         self.sql_kwargs = {
             "schema": Identifier(self.datastore.schema),
             "events_table": Identifier(self.events_table_name),
+            "channel": Identifier(self.channel_name),
             "tags_table": Identifier(self.tags_table_name),
             "event_type": Identifier(DB_TYPE_NAME_DCB_EVENT_TT),
             "query_item_type": Identifier(DB_TYPE_NAME_DCB_QUERY_ITEM_TT),
             "id_cover_type_index": Identifier(self.index_name_id_cover_type),
             "tag_main_id_index": Identifier(self.index_name_tag_main_id),
+            "unconditional_append": Identifier(
+                DB_FUNCTION_NAME_DCB_UNCONDITIONAL_APPEND_TT
+            ),
             "conditional_append": Identifier(
                 DB_FUNCTION_NAME_DCB_CONDITIONAL_APPEND_TT
             ),
@@ -340,6 +363,7 @@ class PostgresDCBRecorderTT(DCBRecorder, PostgresRecorder):
                 self.format(DB_INDEX_UNIQUE_ID_COVER_TYPE),
                 self.format(DB_TABLE_DCB_TAGS),
                 self.format(DB_INDEX_TAG_MAIN_ID),
+                self.format(DB_FUNCTION_UNCONDITIONAL_APPEND),
                 self.format(DB_FUNCTION_CONDITIONAL_APPEND),
             ]
         )
@@ -462,7 +486,12 @@ class PostgresDCBRecorderTT(DCBRecorder, PostgresRecorder):
         *,
         after: int | None = None,
     ) -> DCBSubscription:
-        raise NotImplementedError  # pragma: no cover
+        return PostgresDCBSubscription(
+            recorder=self,
+            query=query,
+            after=after,
+        )
+
 
     def append(
         self, events: Sequence[DCBEvent], condition: DCBAppendCondition | None = None
@@ -534,9 +563,11 @@ class PostgresDCBRecorderTT(DCBRecorder, PostgresRecorder):
             },
             explain=False,
         )
-        rows = curs.fetchall()
-        assert len(rows) > 0
-        return max(row["id"] for row in rows)
+        row = curs.fetchone()
+        if row is None:
+            raise IntegrityError
+
+        return row[DB_FUNCTION_NAME_DCB_UNCONDITIONAL_APPEND_TT]
 
     def construct_psycopg_dcb_events(
         self, dcb_events: Sequence[DCBEvent]
@@ -607,6 +638,51 @@ class PsycopgDCBEvent(NamedTuple):
 class PsycopgDCBQueryItem(NamedTuple):
     types: list[str]
     tags: list[str]
+
+
+class PostgresDCBSubscription(DCBListenNotifySubscription):
+    def __init__(
+        self,
+        recorder: DCBRecorder,
+        query: DCBQuery | None = None,
+        after: int | None = None,
+    ) -> None:
+        super().__init__(recorder=recorder, query=query, after=after)
+        self._has_listen_connection = threading.Event()
+        self._listen_connection: Connection[dict[str, Any]] | None = None
+        self._listen_thread = threading.Thread(target=self._listen, daemon=True)
+        self._listen_thread.start()
+
+    def __exit__(self, *args: object, **kwargs: Any) -> None:
+        super().__exit__(*args, **kwargs)
+        self._listen_thread.join()
+
+    def _listen(self) -> None:
+        recorder = self._recorder
+        assert isinstance(recorder, PostgresDCBRecorderTT)
+        try:
+            with recorder.datastore.get_connection() as conn:
+                self._listen_connection = conn
+                self._has_listen_connection.set()
+                conn.execute(
+                    SQL("LISTEN {0}").format(Identifier(recorder.channel_name))
+                )
+                while not self._has_been_stopped and not self._thread_error:
+                    # This block simplifies psycopg's conn.notifies(), because
+                    # we aren't interested in the actual notify messages, and
+                    # also we want to stop consuming notify messages when the
+                    # subscription has an error or is otherwise stopped.
+                    with conn.lock:
+                        try:
+                            if conn.wait(notifies(conn.pgconn), interval=1):
+                                self._has_been_notified.set()
+                        except NO_TRACEBACK as ex:  # pragma: no cover
+                            raise ex.with_traceback(None) from None
+
+        except BaseException as e:
+            if self._thread_error is None:
+                self._thread_error = e
+            self.stop()
 
 
 class PostgresTTDCBFactory(

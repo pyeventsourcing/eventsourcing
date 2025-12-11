@@ -5,6 +5,7 @@ from psycopg.sql import SQL, Identifier
 
 from eventsourcing.dcb.postgres_tt import (
     DB_FUNCTION_NAME_DCB_CONDITIONAL_APPEND_TT,
+    DB_FUNCTION_NAME_DCB_UNCONDITIONAL_APPEND_TT,
     DB_TYPE_NAME_DCB_EVENT_TT,
     DB_TYPE_NAME_DCB_QUERY_ITEM_TT,
 )
@@ -104,6 +105,7 @@ def drop_tables() -> None:
                 PG_FUNCTION_NAME_DCB_INSERT_EVENTS_TS,
                 PG_FUNCTION_NAME_DCB_SELECT_EVENTS_TS,
                 PG_FUNCTION_NAME_DCB_CHECK_APPEND_CONDITION_TS,
+                DB_FUNCTION_NAME_DCB_UNCONDITIONAL_APPEND_TT,
                 DB_FUNCTION_NAME_DCB_CONDITIONAL_APPEND_TT,
             ]
             for name in functions:

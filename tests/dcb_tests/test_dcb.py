@@ -175,39 +175,9 @@ class WithPostgres(TestCase):
 
 class TestPostgresDCBRecorderTS(DCBRecorderTestCase, WithPostgres):
     postgres_dcb_recorder_class = PostgresDCBRecorderTS
-    pool_size = 2  # +1 for the subscription listen thread
 
     def test_append_read(self) -> None:
         self._test_append_read(self.recorder)
-
-    def test_append_subscribe(self) -> None:
-        self._test_append_subscribe(self.recorder)
-
-        # Also check subscription loop when select_limit is reached in pull loop.
-        event = DCBEvent(type="type1", data=b"data1", tags=["tagX"])
-        initial_position = self.recorder.append([event])
-        with self.recorder.subscribe(after=initial_position) as subscription:
-            cast(DCBListenNotifySubscription, subscription).select_limit = 3
-            self.recorder.append(events=([event] * 10))
-            for _ in range(10):
-                next(subscription)
-
-        # Also check subscription loop when selecting zero in pull loop.
-        subscribe = self.recorder.subscribe(after=initial_position)
-        with subscribe:
-            sleep(1)
-
-        # Also check calling __next__ after stop().
-        with self.assertRaises(StopIteration):
-            subscription.__next__()
-
-        # Also check calling __next__ after stop() after an error.
-        subscription.stop()
-        error = ValueError()
-        cast(DCBListenNotifySubscription, subscription)._thread_error = error
-        with self.assertRaises(ValueError) as cm:
-            subscription.__next__()
-        self.assertEqual(error, cm.exception)
 
     def test_pg_type_dcb_event(self) -> None:
         # Check "dcb_event" type.
@@ -259,9 +229,39 @@ class TestPostgresDCBRecorderTS(DCBRecorderTestCase, WithPostgres):
 
 class TestPostgresDCBRecorderTT(DCBRecorderTestCase, WithPostgres):
     postgres_dcb_recorder_class = PostgresDCBRecorderTT
+    pool_size = 2  # +1 for the subscription listen thread
 
     def test_postgres_event_store(self) -> None:
         self._test_append_read(self.recorder)
+
+    def test_append_subscribe(self) -> None:
+        self._test_append_subscribe(self.recorder)
+
+        # Also check subscription loop when select_limit is reached in pull loop.
+        event = DCBEvent(type="type1", data=b"data1", tags=["tagX"])
+        initial_position = self.recorder.append([event])
+        with self.recorder.subscribe(after=initial_position) as subscription:
+            cast(DCBListenNotifySubscription, subscription).select_limit = 3
+            self.recorder.append(events=([event] * 10))
+            for _ in range(10):
+                next(subscription)
+
+        # Also check subscription loop when selecting zero in pull loop.
+        subscribe = self.recorder.subscribe(after=initial_position)
+        with subscribe:
+            sleep(1)
+
+        # Also check calling __next__ after stop().
+        with self.assertRaises(StopIteration):
+            subscription.__next__()
+
+        # Also check calling __next__ after stop() after an error.
+        subscription.stop()
+        error = ValueError()
+        cast(DCBListenNotifySubscription, subscription)._thread_error = error
+        with self.assertRaises(ValueError) as cm:
+            subscription.__next__()
+        self.assertEqual(error, cm.exception)
 
 
 class TestDCBPostgresFactory(TestCase):

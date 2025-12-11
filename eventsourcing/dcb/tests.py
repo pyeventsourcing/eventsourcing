@@ -114,8 +114,8 @@ class DCBRecorderTestCase(TestCase):
             items=[DCBQueryItem(types=["type2"], tags=["tagX"])]
         )
         read_response = recorder.read(query_type2_tag_x, after=initial_position)
-        self.assertEqual(0, len(result))
         result = list(read_response)
+        self.assertEqual(0, len(result))
         self.assertEqual(1 + initial_position, read_response.head)
 
         # Append two more events.
