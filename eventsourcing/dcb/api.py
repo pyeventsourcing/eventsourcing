@@ -80,6 +80,14 @@ class DCBRecorder(ABC):
         """
 
     @abstractmethod
+    def append(
+        self, events: Sequence[DCBEvent], condition: DCBAppendCondition | None = None
+    ) -> int:
+        """
+        Appends given events to the event store, unless the condition fails.
+        """
+
+    @abstractmethod
     def subscribe(
         self,
         query: DCBQuery | None = None,
@@ -93,14 +101,6 @@ class DCBRecorder(ABC):
         is in the item types or there are no item types, and if all the item tags are
         in the event tags. The subscription will block when the last recorded event
         is received, and then continue when new events are recorded.
-        """
-
-    @abstractmethod
-    def append(
-        self, events: Sequence[DCBEvent], condition: DCBAppendCondition | None = None
-    ) -> int:
-        """
-        Appends given events to the event store, unless the condition fails.
         """
 
 

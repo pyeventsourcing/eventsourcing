@@ -1,31 +1,32 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from unittest import TestLoader, TestSuite
-
 from eventsourcing.persistence import IntegrityError
-from examples.coursebooking.application import (
-    EnrolmentWithAggregates,
-)
+from eventsourcing.tests.postgres_utils import drop_tables
+from examples.coursebooking.application import EnrolmentWithAggregates
 from examples.coursebooking.test_enrolment import EnrolmentTestCase
-
-if TYPE_CHECKING:
-    from examples.coursebooking.interface import EnrolmentInterface
 
 
 class TestEnrolmentWithAggregates(EnrolmentTestCase):
-    def construct_app(self) -> EnrolmentInterface:
-        return EnrolmentWithAggregates(self.env)
+    def test_enrolment_in_memory(self):
+        self.assert_implementation(EnrolmentWithAggregates())
 
     def test_enrolment_with_postgres(self) -> None:
-        self.env["PERSISTENCE_MODULE"] = "eventsourcing.postgres"
-        super().test_enrolment_with_postgres()
+        env = {
+            "PERSISTENCE_MODULE": "eventsourcing.postgres",
+            "POSTGRES_DBNAME": "eventsourcing",
+            "POSTGRES_HOST": "127.0.0.1",
+            "POSTGRES_PORT": "5432",
+            "POSTGRES_USER": "eventsourcing",
+            "POSTGRES_PASSWORD": "eventsourcing",  # noqa: S105
+        }
+        try:
+            app = EnrolmentWithAggregates(env)
+            self.assert_implementation(app)
+        finally:
+            drop_tables()
 
-
-class TestEnrolmentConsistency(TestEnrolmentWithAggregates):
-    def test_enrolment(self) -> None:
-        # Construct application object.
-        app = self.construct_app()
+    def test_consistency_boundary(self) -> None:
+        app = EnrolmentWithAggregates()
 
         # Register courses.
         french = app.register_course("French", places=5)
@@ -53,12 +54,12 @@ class TestEnrolmentConsistency(TestEnrolmentWithAggregates):
         self.assertNotIn("French", app.list_courses_for_student(sara))
 
 
-test_cases = (TestEnrolmentWithAggregates, TestEnrolmentConsistency)
-
-
-def load_tests(loader: TestLoader, _: TestSuite, __: str | None) -> TestSuite:
-    suite = TestSuite()
-    for test_class in test_cases:
-        tests = loader.loadTestsFromTestCase(test_class)
-        suite.addTests(tests)
-    return suite
+# test_cases = (TestEnrolmentWithAggregates, TestEnrolmentConsistency)
+#
+#
+# def load_tests(loader: TestLoader, _: TestSuite, __: str | None) -> TestSuite:
+#     suite = TestSuite()
+#     for test_class in test_cases:
+#         tests = loader.loadTestsFromTestCase(test_class)
+#         suite.addTests(tests)
+#     return suite

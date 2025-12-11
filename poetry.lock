@@ -566,6 +566,22 @@ files = [
 ]
 
 [[package]]
+name = "eventsourcing-umadb"
+version = "0.1"
+description = "Python package for eventsourcing with UmaDB"
+optional = false
+python-versions = ">=3.10"
+groups = ["dev"]
+files = [
+    {file = "eventsourcing_umadb-0.1-py3-none-any.whl", hash = "sha256:0dc39f9994d3834c6b320da22640ec48c6a0caba552d2c55db9ef7a1c1547f6f"},
+    {file = "eventsourcing_umadb-0.1.tar.gz", hash = "sha256:fc121cf92965f74ff27fdada87695e95985de08f548b706087c1bb3cea7c2855"},
+]
+
+[package.dependencies]
+eventsourcing = ">=9.5.0a2"
+umadb = ">=0.1.30"
+
+[[package]]
 name = "exceptiongroup"
 version = "1.3.1"
 description = "Backport of PEP 654 (exception groups)"
@@ -1522,14 +1538,14 @@ typing-extensions = ">=4.14.1"
 
 [[package]]
 name = "pygal"
-version = "3.0.5"
+version = "3.1.0"
 description = "A Python svg graph plotting library"
 optional = false
 python-versions = ">=3.8"
 groups = ["docs"]
 files = [
-    {file = "pygal-3.0.5-py3-none-any.whl", hash = "sha256:a3268a5667b470c8fbbb0eca7e987561a7321caeba589d40e4c1bc16dbe71393"},
-    {file = "pygal-3.0.5.tar.gz", hash = "sha256:c0a0f34e5bc1c01975c2bfb8342ad521e293ad42e525699dd00c4d7a52c14b71"},
+    {file = "pygal-3.1.0-py3-none-any.whl", hash = "sha256:4e923490f3490c90c481f4535fa3adcda20ff374257ab9d8ae897f91b632c0bb"},
+    {file = "pygal-3.1.0.tar.gz", hash = "sha256:fbdee7351a7423e7907fb8a9c3b77305f6b5678cb2e6fd0db36a8825e42955ec"},
 ]
 
 [package.dependencies]
@@ -2002,6 +2018,25 @@ files = [
 ]
 
 [[package]]
+name = "umadb"
+version = "0.1.30"
+description = "Python client for UmaDB event store"
+optional = false
+python-versions = ">=3.10"
+groups = ["dev"]
+files = [
+    {file = "umadb-0.1.30-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:433da8de689fe779247c98c1607596260c3510eb34e0b74957da366c2fcbda88"},
+    {file = "umadb-0.1.30-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:734e964394f4510b76c2014f3ea08b278dff43414612c2ba873b54c0c1b91b2e"},
+    {file = "umadb-0.1.30-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:4b0335a38ab735953ab730a2e7fd7550c1b503a5cce4dffa139d825df05f5b85"},
+    {file = "umadb-0.1.30-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:85033f783010f8bc87142a3b5ca8b46df969fe28ae5b8eb12e6223b9d931ba0c"},
+    {file = "umadb-0.1.30-cp310-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:4543b63b7e779d0290975bf5488629cb59b4e263549d06fcb51c36e9963a4a22"},
+    {file = "umadb-0.1.30-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:bbd134c1ef6db613c67da3cfd7e11c68424d9b7d8406aec13291ca8e8efbdac1"},
+    {file = "umadb-0.1.30-cp310-abi3-win32.whl", hash = "sha256:4ba797cb736fbe538ace1e36b5c2076b8dd929116421b4eae2be4570e3454125"},
+    {file = "umadb-0.1.30-cp310-abi3-win_amd64.whl", hash = "sha256:187cadf7d10f3f9ef01d1ebb83ec246c2a5772de2ff3f119fae84f15c16356ad"},
+    {file = "umadb-0.1.30.tar.gz", hash = "sha256:719f3c7066e2b394bea909a5d0fb6fcbc45970c38eca9be3b8462ef75bbcf750"},
+]
+
+[[package]]
 name = "urllib3"
 version = "2.6.1"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
@@ -2047,4 +2082,4 @@ postgres = ["psycopg"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10.0"
-content-hash = "27d45946b93e6493d237386aa55d513dec15fc66b4034fc3e1c2350f07629465"
+content-hash = "8b6016de3c9f3892cf36600e263a510cf8a11004bb2f638370210766c95160f1"

@@ -17,94 +17,70 @@ from examples.coursebooking.interface import (
 
 
 class EnrolmentTestCase(TestCase):
-    def setUp(self) -> None:
-        self.env: dict[str, str] = {}
+    def assert_implementation(self, app: EnrolmentInterface) -> None:
+        # Register courses.
+        dcb = app.register_course("Dynamic Consistency Boundaries", places=5)
+        maths = app.register_course("Maths", places=5)
+        biology = app.register_course("Biology", places=5)
+        french = app.register_course("French", places=5)
+        spanish = app.register_course("Spanish", places=5)
 
-    def construct_app(self) -> EnrolmentInterface:
-        raise NotImplementedError
+        # Register students.
+        sara = app.register_student("Sara", max_courses=3)
+        mollie = app.register_student("Mollie", max_courses=3)
+        allard = app.register_student("Allard", max_courses=3)
+        grace = app.register_student("Grace", max_courses=3)
+        bastian = app.register_student("Bastian", max_courses=3)
+        greg = app.register_student("Greg", max_courses=3)
+        katherine = app.register_student("Katherine", max_courses=3)
 
-    def test_enrolment(self) -> None:
-        # Construct and enter application object.
-        with self.construct_app() as app:
+        # Enrol students for "Dynamic Consistency Boundaries" course.
+        app.join_course(sara, dcb)
+        app.join_course(mollie, dcb)
+        app.join_course(allard, dcb)
+        app.join_course(grace, dcb)
+        app.join_course(bastian, dcb)
 
-            # Register courses.
-            dcb = app.register_course("Dynamic Consistency Boundaries", places=5)
-            maths = app.register_course("Maths", places=5)
-            biology = app.register_course("Biology", places=5)
-            french = app.register_course("French", places=5)
-            spanish = app.register_course("Spanish", places=5)
+        # Greg can't join because the course is full.
+        with self.assertRaises(FullyBookedError):
+            app.join_course(greg, dcb)
 
-            # Register students.
-            sara = app.register_student("Sara", max_courses=3)
-            mollie = app.register_student("Mollie", max_courses=3)
-            allard = app.register_student("Allard", max_courses=3)
-            grace = app.register_student("Grace", max_courses=3)
-            bastian = app.register_student("Bastian", max_courses=3)
-            greg = app.register_student("Greg", max_courses=3)
-            katherine = app.register_student("Katherine", max_courses=3)
+        # Greg joins other courses instead.
+        app.join_course(greg, french)
+        app.join_course(greg, spanish)
+        app.join_course(greg, maths)
 
-            # Fill 'Dynamic Consistency Boundaries' course.
-            app.join_course(sara, dcb)
-            app.join_course(mollie, dcb)
-            app.join_course(allard, dcb)
-            app.join_course(grace, dcb)
-            app.join_course(bastian, dcb)
+        # Greg has enough to do already.
+        with self.assertRaises(TooManyCoursesError):
+            app.join_course(greg, biology)
 
-            # Greg can't join because the course is full.
-            with self.assertRaises(FullyBookedError):
-                app.join_course(greg, dcb)
+        # Katherine also does "French".
+        app.join_course(katherine, french)
 
-            # Greg joins other courses instead.
-            app.join_course(greg, french)
-            app.join_course(greg, spanish)
-            app.join_course(greg, maths)
-
-            # Greg has enough to do already.
-            with self.assertRaises(TooManyCoursesError):
-                app.join_course(greg, biology)
-
-            # Katherine also does French.
+        # Katherine already does "French".
+        with self.assertRaises(AlreadyJoinedError):
             app.join_course(katherine, french)
 
-            # Katherine already does French.
-            with self.assertRaises(AlreadyJoinedError):
-                app.join_course(katherine, french)
+        # Course not found.
+        with self.assertRaises(CourseNotFoundError):
+            app.join_course(grace, CourseID("not-a-course"))
 
-            # Course not found.
-            with self.assertRaises(CourseNotFoundError):
-                app.join_course(grace, CourseID("not-a-course"))
+        # Student not found.
+        with self.assertRaises(StudentNotFoundError):
+            app.join_course(StudentID("not-a-student"), dcb)
 
-            # Student not found.
-            with self.assertRaises(StudentNotFoundError):
-                app.join_course(StudentID("not-a-student"), dcb)
+        # List students for "Dynamic Consistency Boundaries" course.
+        students = app.list_students_for_course(dcb)
+        self.assertEqual(students, ["Sara", "Mollie", "Allard", "Grace", "Bastian"])
 
-            # List students for Dynamic Consistency Boundaries.
-            students = app.list_students_for_course(dcb)
-            self.assertEqual(students, ["Sara", "Mollie", "Allard", "Grace", "Bastian"])
+        # List students for "French" course.
+        students = app.list_students_for_course(french)
+        self.assertEqual(students, ["Greg", "Katherine"])
 
-            # List students for French.
-            students = app.list_students_for_course(french)
-            self.assertEqual(students, ["Greg", "Katherine"])
+        # List Sara's courses.
+        courses = app.list_courses_for_student(sara)
+        self.assertEqual(courses, ["Dynamic Consistency Boundaries"])
 
-            # List courses for Sara.
-            courses = app.list_courses_for_student(sara)
-            self.assertEqual(courses, ["Dynamic Consistency Boundaries"])
-
-            # List courses for Greg.
-            courses = app.list_courses_for_student(greg)
-            self.assertEqual(courses, ["French", "Spanish", "Maths"])
-
-    def test_enrolment_with_postgres(self) -> None:
-        self.env["POSTGRES_DBNAME"] = "eventsourcing"
-        self.env["POSTGRES_HOST"] = "127.0.0.1"
-        self.env["POSTGRES_PORT"] = "5432"
-        self.env["POSTGRES_USER"] = "eventsourcing"
-        self.env["POSTGRES_PASSWORD"] = "eventsourcing"  # noqa: S105
-        try:
-            self.test_enrolment()
-        finally:
-            drop_tables()
-
-
-def load_tests(*_: Any, **__: Any) -> TestSuite:
-    return TestSuite()
+        # List Greg's courses.
+        courses = app.list_courses_for_student(greg)
+        self.assertEqual(courses, ["French", "Spanish", "Maths"])

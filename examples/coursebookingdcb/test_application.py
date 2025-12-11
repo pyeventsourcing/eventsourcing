@@ -1,25 +1,27 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
+from eventsourcing.tests.postgres_utils import drop_tables
 from examples.coursebooking.test_enrolment import EnrolmentTestCase
 from examples.coursebookingdcb.application import EnrolmentWithDCB
 
-if TYPE_CHECKING:
-    from examples.coursebooking.interface import EnrolmentInterface
-
 
 class TestEnrolmentWithDCB(EnrolmentTestCase):
-    def setUp(self) -> None:
-        super().setUp()
-        self.env["PERSISTENCE_MODULE"] = "eventsourcing.dcb.popo"
-
-    def construct_app(self) -> EnrolmentInterface:
-        return EnrolmentWithDCB(self.env)
+    def test_enrolment_in_memory(self):
+        env = {"PERSISTENCE_MODULE": "eventsourcing.dcb.popo"}
+        self.assert_implementation(EnrolmentWithDCB(env))
 
     def test_enrolment_with_postgres(self) -> None:
-        self.env["PERSISTENCE_MODULE"] = "examples.coursebookingdcb.postgres_ts"
-        super().test_enrolment_with_postgres()
-
+        env = {
+            "PERSISTENCE_MODULE": "examples.coursebookingdcb.postgres_ts",
+            "POSTGRES_DBNAME": "eventsourcing",
+            "POSTGRES_HOST": "127.0.0.1",
+            "POSTGRES_PORT": "5432",
+            "POSTGRES_USER": "eventsourcing",
+            "POSTGRES_PASSWORD": "eventsourcing",  # noqa: S105
+        }
+        try:
+            self.assert_implementation(EnrolmentWithDCB(env))
+        finally:
+            drop_tables()
 
 del EnrolmentTestCase

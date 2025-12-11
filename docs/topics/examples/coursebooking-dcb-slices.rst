@@ -1,7 +1,7 @@
 .. _DCB example 4:
 
-DCB 4 - Enrolment - slices
-==========================
+Vertical Slices with DCB
+========================
 
 This example is another attempt at the "course subscriptions" challenge. This time we show another
 variation of the higher-level, more refactored style that we used in the

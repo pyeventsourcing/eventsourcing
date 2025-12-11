@@ -6,6 +6,7 @@ import subprocess
 import sys
 from typing import TYPE_CHECKING, Any, cast
 
+from eventsourcing_umadb.recorders import UmaDBDCBRecorder
 from psycopg.sql import SQL, Identifier
 
 from eventsourcing.dcb.popo import InMemoryDCBRecorder
@@ -15,6 +16,7 @@ from eventsourcing.dcb.postgres_tt import (
 )
 from eventsourcing.domain import datetime_now_with_tzinfo
 from eventsourcing.persistence import ProgrammingError
+from eventsourcing.popo import POPOApplicationRecorder
 from eventsourcing.postgres import PostgresApplicationRecorder, PostgresDatastore
 from examples.coursebooking.application import EnrolmentWithAggregates
 from examples.coursebookingdcb.application import EnrolmentWithDCB
@@ -38,14 +40,14 @@ if TYPE_CHECKING:
     from examples.coursebooking.interface import EnrolmentInterface
 
 env = {}
-# SPEEDRUN_DB_NAME = "course_subscriptions_speedrun"
-SPEEDRUN_DB_NAME = "course_subscriptions_speedrun_tt"
+SPEEDRUN_DB_NAME = "course_subscriptions_speedrun"
+# SPEEDRUN_DB_NAME = "course_subscriptions_speedrun_tt_new"
 # SPEEDRUN_DB_NAME = "course_subscriptions_speedrun_tt3"
 SPEEDRUN_DB_USER = "eventsourcing"
 SPEEDRUN_DB_PASSWORD = "eventsourcing"  # noqa: S105
 
-NUM_COURSES = 1
-NUM_STUDENTS = 1
+NUM_COURSES = 10
+NUM_STUDENTS = 10
 READING_ONLY = False
 
 
@@ -58,7 +60,8 @@ def inf_range() -> Iterator[int]:
 
 config: dict[str, tuple[type[EnrolmentInterface], int, dict[str, str]]] = {
     "dcb-pg-ts": (
-        EnrolmentWithDCBRefactored,
+        EnrolmentWithDCB,
+        # EnrolmentWithDCBRefactored,
         10,
         {
             "PERSISTENCE_MODULE": "examples.coursebookingdcb.postgres_ts",
@@ -73,8 +76,8 @@ config: dict[str, tuple[type[EnrolmentInterface], int, dict[str, str]]] = {
         },
     ),
     "dcb-pg-tt": (
-        EnrolmentWithDCBRefactored,
-        # EnrolmentWithDCBSlices,
+        EnrolmentWithDCB,
+        # EnrolmentWithDCBRefactored,
         10,
         {
             "PERSISTENCE_MODULE": "eventsourcing.dcb.postgres_tt",
@@ -101,6 +104,23 @@ config: dict[str, tuple[type[EnrolmentInterface], int, dict[str, str]]] = {
             "POSTGRES_POOL_SIZE": "1",
             "POSTGRES_MAX_OVERFLOW": "0",
             "POSTGRES_MAX_WAITING": "0",
+        },
+    ),
+    "dcb-umadb": (
+        EnrolmentWithDCB,
+        # EnrolmentWithDCBRefactored,
+        10,
+        {
+            "PERSISTENCE_MODULE": "eventsourcing_umadb",
+            "UMADB_URI": "http://127.0.0.1:50051",
+        },
+    ),
+    "dcb-umadb-slices": (
+        EnrolmentWithDCBSlices,
+        10,
+        {
+            "PERSISTENCE_MODULE": "eventsourcing_umadb",
+            "UMADB_URI": "http://127.0.0.1:50051",
         },
     ),
     "dcb-mem": (
@@ -165,8 +185,10 @@ def count_events(app: EnrolmentInterface) -> int:
             with datastore.get_connection() as conn:
                 result = conn.execute(statement).fetchone()
                 count = result["count"] if result is not None else 0
+        elif isinstance(recorder, POPOApplicationRecorder):
+            return recorder.max_notification_id() or 0
         else:
-            msg = f"TODO implement counting rows for app type: {type(app)}"
+            msg = f"TODO implement counting rows for recorder: {type(recorder)}"
             raise NotImplementedError(msg)
 
     elif isinstance(
@@ -182,6 +204,8 @@ def count_events(app: EnrolmentInterface) -> int:
             with datastore.get_connection() as conn:
                 result = conn.execute(statement).fetchone()
                 count = result["count"] if result is not None else 0
+        elif isinstance(recorder, UmaDBDCBRecorder):
+            count = recorder.umadb.head() or 0
         else:
             assert isinstance(recorder, InMemoryDCBRecorder)
             count = len(recorder.events)
@@ -197,6 +221,8 @@ if __name__ == "__main__":
         "dcb-pg-ts",
         "dcb-pg-tt",
         "dcb-pg-tt-slices",
+        "dcb-umadb",
+        "dcb-umadb-slices",
         "dcb-mem",
         "agg-pg",
         "agg-mem",
@@ -329,10 +355,7 @@ if __name__ == "__main__":
     print()
     print(f" Running '{mode}' mode: {cls.__name__}")
     for key, value in env.items():
-        if "password" in key.lower():
-            print(f"     {key}: <redacted>")
-        else:
-            print(f"     {key}: {value}")
+        print(f"     {key}: {value}")
     print()
     # print(f"Reporting interval: every {reporting_interval} iterations...")
     # print()
