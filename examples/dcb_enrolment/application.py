@@ -4,9 +4,9 @@ from typing import ClassVar
 
 from eventsourcing.application import AggregateNotFoundError, Application
 from eventsourcing.utils import get_topic
-from examples.aggregate9.msgspecstructs import MsgspecMapper
-from examples.coursebooking.domainmodel import Course, Student
-from examples.coursebooking.interface import (
+from examples.aggregate9.msgpack import MessagePackMapper
+from examples.dcb_enrolment.domainmodel import Course, Student
+from examples.dcb_enrolment.interface import (
     CourseID,
     CourseNotFoundError,
     EnrolmentInterface,
@@ -17,7 +17,7 @@ from examples.coursebooking.interface import (
 
 class EnrolmentWithAggregates(Application[str], EnrolmentInterface):
     env: ClassVar[dict[str, str]] = {
-        "MAPPER_TOPIC": get_topic(MsgspecMapper),
+        "MAPPER_TOPIC": get_topic(MessagePackMapper),
         "ORIGINATOR_ID_TYPE": "text",
     }
 

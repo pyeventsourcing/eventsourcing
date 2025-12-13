@@ -53,21 +53,21 @@ The benchmarks were done with pytest-benchmark.
      - 296 (0.21x)
 
 
-Msgspec mapper
---------------
+MessagePack mapper
+------------------
 
-The :class:`~examples.aggregate9.msgspecstructs.MsgspecMapper` class is a :ref:`mapper<Mapper>` that supports
+The :class:`~examples.aggregate9.msgpack.MessagePackMapper` class is a :ref:`mapper<Mapper>` that supports
 msgspec structs. It is responsible for converting domain model objects to Python bytes objects, and for
 reconstructing model objects from Python bytes objects.
 
-.. literalinclude:: ../../../examples/aggregate9/msgspecstructs.py
-    :pyobject: MsgspecMapper
+.. literalinclude:: ../../../examples/aggregate9/msgpack.py
+    :pyobject: MessagePackMapper
 
-The :class:`~examples.aggregate9.msgspecstructs.MsgspecApplication` class is a
+The :class:`~examples.aggregate9.msgpack.MsgspecApplication` class is a
 subclass of the library's :class:`~eventsourcing.application.Application` class
-which is configured to use :class:`~examples.aggregate9.msgspecstructs.MsgspecMapper`.
+which is configured to use :class:`~examples.aggregate9.msgpack.MessagePackMapper`.
 
-.. literalinclude:: ../../../examples/aggregate9/msgspecstructs.py
+.. literalinclude:: ../../../examples/aggregate9/msgpack.py
     :pyobject: MsgspecApplication
 
 
@@ -91,7 +91,7 @@ Application
 -----------
 
 The :class:`~examples.aggregate9.application.DogSchool` application in this example uses the
-:class:`~examples.aggregate9.msgspecstructs.MsgspecApplication`. It must receive the new events that are returned
+:class:`~examples.aggregate9.msgpack.MsgspecApplication`. It must receive the new events that are returned
 by the aggregate command methods, and pass them to its :func:`~eventsourcing.application.Application.save`
 method. The aggregate projector function must also be supplied when reconstructing an aggregate from the
 repository, and when taking snapshots.
@@ -119,7 +119,7 @@ Code reference
     :members:
     :undoc-members:
 
-.. automodule:: examples.aggregate9.msgspecstructs
+.. automodule:: examples.aggregate9.msgpack
     :show-inheritance:
     :member-order: bysource
     :members:

@@ -4,7 +4,7 @@ from typing import cast
 from unittest import TestCase
 
 from eventsourcing.dcb.domain import Selector, Tagged
-from examples.coursebookingdcbrefactored.application import Course, Student
+from examples.dcb_enrolment_with_enduring_objects.application import Course, Student
 
 
 class TestEnduringObjects(TestCase):
@@ -21,19 +21,19 @@ class TestEnduringObjects(TestCase):
         self.assertEqual(3, student.max_courses)
 
         # Collect events.
-        new_events = student.collect_events()
+        new_events = student.collect_new_decisions()
         self.assertEqual(len(new_events), 1)
 
         # Check the event type and attributes.
         new_event1 = cast(Tagged[Student.Registered], new_events[0])
-        self.assertIsInstance(new_event1.mutates, Student.Registered)
-        self.assertEqual(new_event1.mutates.student_id, student.id)
+        self.assertIsInstance(new_event1.decision, Student.Registered)
+        self.assertEqual(new_event1.decision.student_id, student.id)
 
         # Check the event has tags.
         self.assertTrue(student.id in new_event1.tags)
 
         # Check init event can reconstruct enduring object.
-        copy1 = cast(Student, new_event1.mutates.mutate(None))
+        copy1 = cast(Student, new_event1.decision.mutate(None))
         self.assertEqual(copy1.id, student.id)
         self.assertEqual(copy1.name, student.name)
         self.assertEqual(copy1.max_courses, student.max_courses)
@@ -46,19 +46,19 @@ class TestEnduringObjects(TestCase):
         self.assertEqual(student.name, "Maxine")
 
         # Collect events.
-        new_events = student.collect_events()
+        new_events = student.collect_new_decisions()
         self.assertEqual(len(new_events), 1)
 
         # Check the event type and attributes.
         new_event2 = cast(Tagged[Student.NameUpdated], new_events[0])
-        self.assertIsInstance(new_event2.mutates, Student.NameUpdated)
-        self.assertEqual(new_event2.mutates.name, "Maxine")
+        self.assertIsInstance(new_event2.decision, Student.NameUpdated)
+        self.assertEqual(new_event2.decision.name, "Maxine")
 
         # Check the event has tags.
         self.assertTrue(student.id in new_event2.tags)
 
         # Check event can evolve enduring object.
-        copy2 = cast(Student, new_event2.mutates.mutate(copy1))
+        copy2 = cast(Student, new_event2.decision.mutate(copy1))
         self.assertEqual(copy2.id, student.id)
         self.assertEqual(copy2.name, student.name)
         self.assertEqual(copy2.max_courses, student.max_courses)
@@ -76,20 +76,20 @@ class TestEnduringObjects(TestCase):
         self.assertEqual(4, course.places)
 
         # Collect events.
-        new_events = course.collect_events()
+        new_events = course.collect_new_decisions()
         self.assertEqual(len(new_events), 1)
 
         # Check the event type and attributes.
         new_event = cast(Tagged[Course.Registered], new_events[0])
-        self.assertIsInstance(new_event.mutates, Course.Registered)
-        self.assertEqual(new_event.mutates.course_id, course.id)
+        self.assertIsInstance(new_event.decision, Course.Registered)
+        self.assertEqual(new_event.decision.course_id, course.id)
 
         # Check the event has tags.
         self.assertTrue(1, len(new_event.tags))
         self.assertTrue(course.id in new_event.tags)
 
         # Check init event can reconstruct enduring object.
-        copy = cast(Course, new_event.mutates.mutate(None))
+        copy = cast(Course, new_event.decision.mutate(None))
         self.assertEqual(copy.id, course.id)
         self.assertEqual(copy.name, course.name)
         self.assertEqual(copy.places, course.places)

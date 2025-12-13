@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from eventsourcing.persistence import IntegrityError
 from eventsourcing.tests.postgres_utils import drop_tables
-from examples.coursebooking.application import EnrolmentWithAggregates
-from examples.coursebooking.test_enrolment import EnrolmentTestCase
+from examples.dcb_enrolment.application import EnrolmentWithAggregates
+from examples.dcb_enrolment.test_enrolment import EnrolmentTestCase
 
 
 class TestEnrolmentWithAggregates(EnrolmentTestCase):
-    def test_enrolment_in_memory(self):
+    def test_enrolment_in_memory(self) -> None:
         self.assert_implementation(EnrolmentWithAggregates())
 
     def test_enrolment_with_postgres(self) -> None:
@@ -17,7 +17,7 @@ class TestEnrolmentWithAggregates(EnrolmentTestCase):
             "POSTGRES_HOST": "127.0.0.1",
             "POSTGRES_PORT": "5432",
             "POSTGRES_USER": "eventsourcing",
-            "POSTGRES_PASSWORD": "eventsourcing",  # noqa: S105
+            "POSTGRES_PASSWORD": "eventsourcing",
         }
         try:
             app = EnrolmentWithAggregates(env)

@@ -50,6 +50,7 @@ from eventsourcing.persistence import (
 from eventsourcing.utils import Environment, EnvType, strtobool
 
 if TYPE_CHECKING:
+    from types import TracebackType
     from uuid import UUID
 
     from typing_extensions import Self
@@ -880,8 +881,14 @@ class Application(Generic[TAggregateID]):
         self.factory.__enter__()
         return self
 
-    def __exit__(self, *args: object, **kwargs: Any) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         self.close()
+        self.factory.__exit__(exc_type, exc_val, exc_tb)
 
     def __del__(self) -> None:
         with contextlib.suppress(AttributeError):

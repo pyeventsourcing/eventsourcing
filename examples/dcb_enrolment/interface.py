@@ -3,7 +3,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import NewType
 
-
 StudentID = NewType("StudentID", str)
 
 CourseID = NewType("CourseID", str)
@@ -64,10 +63,12 @@ class FullyBookedError(Exception):
     Raised when a course already has a maximum number of enrolled students.
     """
 
+
 class NotAlreadyJoinedError(Exception):
     """
     Raised when a student is not already enrolled on a course.
     """
+
 
 class AlreadyJoinedError(Exception):
     """

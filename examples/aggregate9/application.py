@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 from examples.aggregate9.domainmodel import Trick, add_trick, project_dog, register_dog
 from examples.aggregate9.immutablemodel import Snapshot
-from examples.aggregate9.msgspecstructs import MsgspecApplication
+from examples.aggregate9.msgpack import MsgspecApplication
 
 if TYPE_CHECKING:
     from uuid import UUID

@@ -10,7 +10,7 @@ from eventsourcing.dcb.postgres_tt import (
     DB_TYPE_NAME_DCB_QUERY_ITEM_TT,
 )
 from eventsourcing.postgres import PostgresDatastore
-from examples.coursebookingdcb.postgres_ts import (
+from examples.dcb_enrolment_with_basic_objects.postgres_ts import (
     PG_FUNCTION_NAME_DCB_CHECK_APPEND_CONDITION_TS,
     PG_FUNCTION_NAME_DCB_INSERT_EVENTS_TS,
     PG_FUNCTION_NAME_DCB_SELECT_EVENTS_TS,

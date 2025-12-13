@@ -35,7 +35,7 @@ Application
 -----------
 
 The :class:`~examples.aggregate10.application.DogSchool` application in this example uses the
-:class:`~examples.aggregate9.msgspecstructs.MsgspecApplication` class
+:class:`~examples.aggregate9.msgpack.MsgspecApplication` class
 from :doc:`example 9 </topics/examples/aggregate9>`.
 
 .. literalinclude:: ../../../examples/aggregate10/application.py

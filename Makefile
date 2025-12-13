@@ -242,3 +242,13 @@ docs-pdf:
 # .PHONY: ramdisk
 # ramdisk:
 # 	diskutil erasevolume HFS+ 'RAM Disk' `hdiutil attach -nobrowse -nomount ram://204800`
+
+.PHONY: start-umadb
+start-umadb:
+	docker run --rm -d --name my-umadb -p 50051:50051 umadb/umadb:latest
+	sleep 1
+
+
+.PHONY: stop-umadb
+stop-umadb:
+	docker stop my-umadb

@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from eventsourcing.dcb.api import DCBAppendCondition, DCBEvent, DCBQuery, DCBQueryItem
 from eventsourcing.dcb.application import DCBApplication
-from examples.coursebooking.interface import (
+from examples.dcb_enrolment.interface import (
     AlreadyJoinedError,
     CourseID,
     CourseNotFoundError,

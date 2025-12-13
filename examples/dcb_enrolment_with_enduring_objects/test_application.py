@@ -1,20 +1,23 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from eventsourcing.domain import ProgrammingError
 from eventsourcing.persistence import IntegrityError
 from eventsourcing.tests.postgres_utils import drop_tables
-from examples.coursebooking.interface import EnrolmentInterface
-from examples.coursebooking.test_enrolment import EnrolmentTestCase
-from examples.coursebookingdcbrefactored.application import (
-    EnrolmentWithDCBRefactored,
+from examples.dcb_enrolment.test_enrolment import EnrolmentTestCase
+from examples.dcb_enrolment_with_enduring_objects.application import (
+    EnrolmentWithEnduringObjects,
     StudentAndCourse,
 )
 
+if TYPE_CHECKING:
+    from examples.dcb_enrolment.interface import EnrolmentInterface
 
-class TestEnrolmentWithDCBRefactored(EnrolmentTestCase):
-    def test_enrolment_in_memory(self):
-        env = {"PERSISTENCE_MODULE": "eventsourcing.dcb.popo"}
-        self.assert_implementation(EnrolmentWithDCBRefactored(env))
+
+class TestEnrolmentWithEnduringObjects(EnrolmentTestCase):
+    def test_enrolment_in_memory(self) -> None:
+        self.assert_implementation(EnrolmentWithEnduringObjects())
 
     def test_enrolment_with_postgres(self) -> None:
         env = {
@@ -23,17 +26,24 @@ class TestEnrolmentWithDCBRefactored(EnrolmentTestCase):
             "POSTGRES_HOST": "127.0.0.1",
             "POSTGRES_PORT": "5432",
             "POSTGRES_USER": "eventsourcing",
-            "POSTGRES_PASSWORD": "eventsourcing",  # noqa: S105
+            "POSTGRES_PASSWORD": "eventsourcing",
         }
         try:
-            self.assert_implementation(EnrolmentWithDCBRefactored(env))
+            self.assert_implementation(EnrolmentWithEnduringObjects(env))
         finally:
             drop_tables()
+
+    def test_enrolment_with_umadb(self) -> None:
+        env = {
+            "PERSISTENCE_MODULE": "eventsourcing_umadb",
+            "UMADB_URI": "http://127.0.0.1:50051",
+        }
+        self.assert_implementation(EnrolmentWithEnduringObjects(env))
 
     def assert_implementation(self, app: EnrolmentInterface) -> None:
         super().assert_implementation(app)
 
-        assert isinstance(app, EnrolmentWithDCBRefactored)
+        assert isinstance(app, EnrolmentWithEnduringObjects)
         # Register student.
         student_id = app.register_student(name="Max", max_courses=4)
 

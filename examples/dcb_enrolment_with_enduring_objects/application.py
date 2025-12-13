@@ -10,14 +10,14 @@ from eventsourcing.dcb.domain import (
     EnduringObject,
     Group,
 )
-from eventsourcing.dcb.msgspecstruct import (
+from eventsourcing.dcb.msgpack import (
     Decision,
     InitialDecision,
-    MsgspecStructMapper,
+    MessagePackMapper,
 )
 from eventsourcing.domain import event
 from eventsourcing.utils import get_topic
-from examples.coursebooking.interface import (
+from examples.dcb_enrolment.interface import (
     AlreadyJoinedError,
     CourseID,
     CourseNotFoundError,
@@ -149,8 +149,11 @@ class StudentAndCourse(Group[Decision]):
         )
 
 
-class EnrolmentWithDCBRefactored(DCBApplication, EnrolmentInterface):
-    env: Mapping[str, str] = {"MAPPER_TOPIC": get_topic(MsgspecStructMapper)}
+class EnrolmentWithEnduringObjects(DCBApplication, EnrolmentInterface):
+    env: Mapping[str, str] = {
+        "MAPPER_TOPIC": get_topic(MessagePackMapper),
+        **DCBApplication.env,
+    }
 
     def register_student(self, name: str, max_courses: int) -> StudentID:
         student = Student(name=name, max_courses=max_courses)

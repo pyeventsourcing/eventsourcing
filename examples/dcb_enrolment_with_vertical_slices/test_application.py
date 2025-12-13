@@ -3,11 +3,14 @@ from __future__ import annotations
 from eventsourcing.domain import ProgrammingError
 from eventsourcing.persistence import IntegrityError
 from eventsourcing.tests.postgres_utils import drop_tables
-from examples.coursebooking.interface import FullyBookedError, TooManyCoursesError, \
-    EnrolmentInterface
-from examples.coursebooking.test_enrolment import EnrolmentTestCase
-from examples.coursebookingdcbslices.application import (
-    EnrolmentWithDCBSlices,
+from examples.dcb_enrolment.interface import (
+    EnrolmentInterface,
+    FullyBookedError,
+    TooManyCoursesError,
+)
+from examples.dcb_enrolment.test_enrolment import EnrolmentTestCase
+from examples.dcb_enrolment_with_vertical_slices.application import (
+    EnrolmentWithVerticalSlices,
     StudentJoinsCourse,
     StudentLeavesCourse,
     UpdateMaxCourses,
@@ -15,10 +18,9 @@ from examples.coursebookingdcbslices.application import (
 )
 
 
-class TestEnrolmentWithDCBSlices(EnrolmentTestCase):
-    def test_enrolment_in_memory(self):
-        env = {"PERSISTENCE_MODULE": "eventsourcing.dcb.popo"}
-        self.assert_implementation(EnrolmentWithDCBSlices(env))
+class TestEnrolmentWithVerticalSlices(EnrolmentTestCase):
+    def test_enrolment_in_memory(self) -> None:
+        self.assert_implementation(EnrolmentWithVerticalSlices())
 
     def test_enrolment_with_postgres(self) -> None:
         env = {
@@ -27,17 +29,24 @@ class TestEnrolmentWithDCBSlices(EnrolmentTestCase):
             "POSTGRES_HOST": "127.0.0.1",
             "POSTGRES_PORT": "5432",
             "POSTGRES_USER": "eventsourcing",
-            "POSTGRES_PASSWORD": "eventsourcing",  # noqa: S105
+            "POSTGRES_PASSWORD": "eventsourcing",
         }
         try:
-            self.assert_implementation(EnrolmentWithDCBSlices(env))
+            self.assert_implementation(EnrolmentWithVerticalSlices(env))
         finally:
             drop_tables()
+
+    def test_enrolment_with_umadb(self) -> None:
+        env = {
+            "PERSISTENCE_MODULE": "eventsourcing_umadb",
+            "UMADB_URI": "http://127.0.0.1:50051",
+        }
+        self.assert_implementation(EnrolmentWithVerticalSlices(env))
 
     def assert_implementation(self, app: EnrolmentInterface) -> None:
         super().assert_implementation(app)
 
-        assert isinstance(app, EnrolmentWithDCBSlices)
+        assert isinstance(app, EnrolmentWithVerticalSlices)
         # Register student.
         student_id = app.register_student(name="Max", max_courses=4)
 

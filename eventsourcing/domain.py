@@ -235,7 +235,11 @@ class CanCreateTimestamp:
 TAggregate = TypeVar("TAggregate", bound="BaseAggregate[Any]")
 
 
-class HasOriginatorIDVersion(Generic[TAggregateID]):
+class AbstractDecision:
+    pass
+
+
+class HasOriginatorIDVersion(AbstractDecision, Generic[TAggregateID]):
     """Declares ``originator_id`` and ``originator_version`` attributes."""
 
     originator_id: TAggregateID
@@ -469,12 +473,8 @@ def _spec_filter_kwargs_for_method_params(method: Callable[..., Any]) -> set[str
     return set(method_signature.parameters)
 
 
-class AbstractDCBEvent:
-    pass
-
-
 if TYPE_CHECKING:
-    EventSpecType = str | type[CanMutateAggregate[Any] | AbstractDCBEvent]
+    EventSpecType = str | type[AbstractDecision]
 
 CallableType = Callable[..., None]
 DecoratableType = CallableType | property
@@ -490,7 +490,7 @@ class CommandMethodDecorator:
     ):
         self.is_name_inferred_from_method = False
         self.given_event_cls: (
-            type[CanMutateAggregate[Any] | AbstractDCBEvent] | None
+            type[CanMutateAggregate[Any] | AbstractDecision] | None
         ) = None
         self.event_cls_name: str | None = None
         self.decorated_property: property | None = None
@@ -508,7 +508,7 @@ class CommandMethodDecorator:
 
         # Event class has been specified.
         elif isinstance(event_spec, type) and issubclass(
-            event_spec, (CanMutateAggregate, AbstractDCBEvent)
+            event_spec, (CanMutateAggregate, AbstractDecision)
         ):
             # Guard against associating more than one method body with any given class.
             if (
@@ -657,7 +657,7 @@ def event(arg: TDecoratableType, /) -> TDecoratableType:
 
 @overload
 def event(
-    arg: type[CanMutateAggregate[Any] | AbstractDCBEvent], /
+    arg: type[CanMutateAggregate[Any] | AbstractDecision], /
 ) -> Callable[[TDecoratableType], TDecoratableType]:
     """Signature for calling ``@event`` decorator with event class."""
 
@@ -740,7 +740,7 @@ def event(
         or isinstance(arg, str)
         or (
             isinstance(arg, type)
-            and issubclass(arg, (CanMutateAggregate, AbstractDCBEvent))
+            and issubclass(arg, (CanMutateAggregate, AbstractDecision))
         )
     ):
         event_spec = arg

@@ -19,7 +19,7 @@ from eventsourcing.dcb.api import (
 from eventsourcing.dcb.domain import (
     Selector,
     Tagged,
-    TMutates,
+    TDecision,
 )
 from eventsourcing.persistence import BaseInfrastructureFactory, TTrackingRecorder
 from eventsourcing.utils import get_topic
@@ -28,24 +28,24 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-class DCBMapper(ABC, Generic[TMutates]):
+class DCBMapper(ABC, Generic[TDecision]):
     @abstractmethod
-    def to_dcb_event(self, event: Tagged[TMutates]) -> DCBEvent:
+    def to_dcb_event(self, event: Tagged[TDecision]) -> DCBEvent:
         raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
-    def to_domain_event(self, event: DCBEvent) -> Tagged[TMutates]:
+    def to_domain_event(self, event: DCBEvent) -> Tagged[TDecision]:
         raise NotImplementedError  # pragma: no cover
 
 
-class DCBEventStore(Generic[TMutates]):
-    def __init__(self, mapper: DCBMapper[TMutates], recorder: DCBRecorder):
+class DCBEventStore(Generic[TDecision]):
+    def __init__(self, mapper: DCBMapper[TDecision], recorder: DCBRecorder):
         self.mapper = mapper
         self.recorder = recorder
 
-    def put(
+    def append(
         self,
-        events: Sequence[Tagged[TMutates]],
+        events: Sequence[Tagged[TDecision]],
         cb: Selector | Sequence[Selector] | None = None,
         after: int | None = None,
     ) -> int:
@@ -62,18 +62,18 @@ class DCBEventStore(Generic[TMutates]):
             condition=condition,
         )
 
-    def get(
+    def read(
         self,
         cb: Selector | Sequence[Selector] | None = None,
         *,
         after: int | None = None,
-    ) -> DCBEventStoreGetResponse[TMutates]:
+    ) -> DCBEventStoreReadResponse[TDecision]:
         query = self._cb_to_dcb_query(cb)
         read_response = self.recorder.read(
             query=query,
             after=after,
         )
-        return DCBEventStoreGetResponse(read_response, self.mapper)
+        return DCBEventStoreReadResponse(read_response, self.mapper)
 
     @staticmethod
     def _cb_to_dcb_query(
@@ -91,8 +91,10 @@ class DCBEventStore(Generic[TMutates]):
         )
 
 
-class DCBEventStoreGetResponse(Iterator[Tagged[TMutates]]):
-    def __init__(self, dcb_read_response: DCBReadResponse, mapper: DCBMapper[TMutates]):
+class DCBEventStoreReadResponse(Iterator[Tagged[TDecision]]):
+    def __init__(
+        self, dcb_read_response: DCBReadResponse, mapper: DCBMapper[TDecision]
+    ):
         self._dcb_read_response = dcb_read_response
         self._mapper = mapper
 
@@ -100,7 +102,7 @@ class DCBEventStoreGetResponse(Iterator[Tagged[TMutates]]):
     def head(self) -> int | None:
         return self._dcb_read_response.head
 
-    def __next__(self) -> Tagged[TMutates]:
+    def __next__(self) -> Tagged[TDecision]:
         dcb_sequenced_event = self._dcb_read_response.__next__()
         return self._mapper.to_domain_event(dcb_sequenced_event.event)
 

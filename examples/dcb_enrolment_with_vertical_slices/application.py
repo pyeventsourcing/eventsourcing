@@ -13,10 +13,10 @@ from eventsourcing.dcb.domain import (
     Tagged,
     TSlice,
 )
-from eventsourcing.dcb.msgspecstruct import Decision, MsgspecStructMapper
+from eventsourcing.dcb.msgpack import Decision, MessagePackMapper
 from eventsourcing.domain import event
 from eventsourcing.utils import get_topic
-from examples.coursebooking.interface import (
+from examples.dcb_enrolment.interface import (
     AlreadyJoinedError,
     CourseID,
     CourseNotFoundError,
@@ -85,10 +85,10 @@ class RegisterStudent(Slice[Decision]):
         return Selector(types=[StudentRegistered], tags=[self.student_id])
 
     def execute(self) -> None:
-        self.append(
+        self.append_new_decision(
             Tagged(
                 tags=[self.student_id],
-                mutates=StudentRegistered(
+                decision=StudentRegistered(
                     student_id=self.student_id,
                     name=self.name,
                     max_courses=self.max_courses,
@@ -113,10 +113,10 @@ class UpdateStudentName(Slice[Decision]):
 
     def execute(self) -> None:
         assert self.student_was_registered
-        self.append(
+        self.append_new_decision(
             Tagged(
                 tags=[self.id],
-                mutates=StudentNameUpdated(student_id=self.id, name=self.name),
+                decision=StudentNameUpdated(student_id=self.id, name=self.name),
             )
         )
 
@@ -140,10 +140,10 @@ class UpdateMaxCourses(Slice[Decision]):
 
     def execute(self) -> None:
         assert self.student_was_registered
-        self.append(
+        self.append_new_decision(
             Tagged(
                 tags=[self.id],
-                mutates=StudentMaxCoursesUpdated(
+                decision=StudentMaxCoursesUpdated(
                     student_id=self.id, max_courses=self.max_courses
                 ),
             )
@@ -161,10 +161,10 @@ class RegisterCourse(Slice[Decision]):
         return Selector(types=[CourseRegistered], tags=[self.course_id])
 
     def execute(self) -> None:
-        self.append(
+        self.append_new_decision(
             Tagged(
                 tags=[self.course_id],
-                mutates=CourseRegistered(
+                decision=CourseRegistered(
                     course_id=self.course_id,
                     name=self.name,
                     places=self.places,
@@ -189,10 +189,10 @@ class UpdateCourseName(Slice[Decision]):
 
     def execute(self) -> None:
         assert self.course_was_registered
-        self.append(
+        self.append_new_decision(
             Tagged(
                 tags=[self.id],
-                mutates=CourseNameUpdated(course_id=self.id, name=self.name),
+                decision=CourseNameUpdated(course_id=self.id, name=self.name),
             )
         )
 
@@ -213,10 +213,10 @@ class UpdatePlaces(Slice[Decision]):
 
     def execute(self) -> None:
         assert self.course_was_registered
-        self.append(
+        self.append_new_decision(
             Tagged(
                 tags=[self.id],
-                mutates=CoursePlacesUpdated(course_id=self.id, places=self.places),
+                decision=CoursePlacesUpdated(course_id=self.id, places=self.places),
             )
         )
 
@@ -298,10 +298,10 @@ class StudentJoinsCourse(Slice[Decision]):
             raise TooManyCoursesError(self.student_id)
         if self.student_id in self.students_on_course:
             raise AlreadyJoinedError((self.student_id, self.course_id))
-        self.append(
+        self.append_new_decision(
             Tagged(
                 tags=[self.student_id, self.course_id],
-                mutates=StudentJoinedCourse(
+                decision=StudentJoinedCourse(
                     student_id=self.student_id,
                     course_id=self.course_id,
                 ),
@@ -360,10 +360,10 @@ class StudentLeavesCourse(Slice[Decision]):
             raise StudentNotFoundError
         if self.student_id not in self.students_on_course:
             raise NotAlreadyJoinedError
-        self.append(
+        self.append_new_decision(
             Tagged(
                 tags=[self.student_id, self.course_id],
-                mutates=StudentLeftCourse(
+                decision=StudentLeftCourse(
                     student_id=self.student_id,
                     course_id=self.course_id,
                 ),
@@ -529,8 +529,11 @@ class Course(Slice[Decision]):
         self.student_ids.remove(student_id)
 
 
-class EnrolmentWithDCBSlices(DCBApplication, EnrolmentInterface):
-    env: Mapping[str, str] = {"MAPPER_TOPIC": get_topic(MsgspecStructMapper)}
+class EnrolmentWithVerticalSlices(DCBApplication, EnrolmentInterface):
+    env: Mapping[str, str] = {
+        "MAPPER_TOPIC": get_topic(MessagePackMapper),
+        **DCBApplication.env,
+    }
 
     def register_student(self, name: str, max_courses: int) -> StudentID:
         return self.do(RegisterStudent(name, max_courses)).student_id

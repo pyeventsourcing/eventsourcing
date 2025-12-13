@@ -62,7 +62,6 @@ class DCBReadResponse(Iterator[DCBSequencedEvent], ABC):
 
 
 class DCBRecorder(ABC):
-
     @abstractmethod
     def read(
         self,

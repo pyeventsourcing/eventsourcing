@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import threading
-from typing import TYPE_CHECKING, NamedTuple, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from psycopg.generators import notifies
 from psycopg.sql import SQL, Composed, Identifier
@@ -16,21 +16,24 @@ from eventsourcing.dcb.api import (
     DCBSequencedEvent,
     DCBSubscription,
 )
-from eventsourcing.dcb.persistence import DCBInfrastructureFactory, \
-    DCBListenNotifySubscription
+from eventsourcing.dcb.persistence import (
+    DCBInfrastructureFactory,
+    DCBListenNotifySubscription,
+)
 from eventsourcing.dcb.popo import SimpleDCBReadResponse
-from eventsourcing.persistence import IntegrityError, ProgrammingError
+from eventsourcing.persistence import IntegrityError, InternalError, ProgrammingError
 from eventsourcing.postgres import (
+    NO_TRACEBACK,
     BasePostgresFactory,
     PostgresDatastore,
     PostgresRecorder,
-    PostgresTrackingRecorder, NO_TRACEBACK,
+    PostgresTrackingRecorder,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from psycopg import Cursor, Connection
+    from psycopg import Connection, Cursor
     from psycopg.abc import Params
     from psycopg.rows import DictRow
 
@@ -492,7 +495,6 @@ class PostgresDCBRecorderTT(DCBRecorder, PostgresRecorder):
             after=after,
         )
 
-
     def append(
         self, events: Sequence[DCBEvent], condition: DCBAppendCondition | None = None
     ) -> int:
@@ -564,8 +566,9 @@ class PostgresDCBRecorderTT(DCBRecorder, PostgresRecorder):
             explain=False,
         )
         row = curs.fetchone()
-        if row is None:
-            raise IntegrityError
+        if row is None:  # pragma: no cover
+            msg = "Shouldn't get here"
+            raise InternalError(msg)
 
         return row[DB_FUNCTION_NAME_DCB_UNCONDITIONAL_APPEND_TT]
 
@@ -679,7 +682,7 @@ class PostgresDCBSubscription(DCBListenNotifySubscription):
                         except NO_TRACEBACK as ex:  # pragma: no cover
                             raise ex.with_traceback(None) from None
 
-        except BaseException as e:
+        except BaseException as e:  # pragma: no cover
             if self._thread_error is None:
                 self._thread_error = e
             self.stop()

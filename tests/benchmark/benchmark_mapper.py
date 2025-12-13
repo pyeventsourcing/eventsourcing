@@ -19,7 +19,7 @@ from eventsourcing.persistence import (
     UUIDAsHex,
 )
 from examples.aggregate7.orjsonpydantic import OrjsonTranscoder, PydanticMapper
-from examples.aggregate9.msgspecstructs import MsgspecMapper, NullTranscoder
+from examples.aggregate9.msgpack import MessagePackMapper, NullTranscoder
 
 if TYPE_CHECKING:
     from pytest_benchmark.fixture import BenchmarkFixture
@@ -163,7 +163,7 @@ def test_encode_with_msgspec(benchmark: BenchmarkFixture) -> None:
         d=Decimal("0.12345"),
     )
 
-    mapper = MsgspecMapper(transcoder=NullTranscoder())
+    mapper = MessagePackMapper(transcoder=NullTranscoder())
 
     def func() -> None:
         mapper.to_stored_event(obj)
@@ -189,7 +189,7 @@ def test_decode_with_msgspec(benchmark: BenchmarkFixture) -> None:
         d=Decimal("0.12345"),
     )
 
-    mapper = MsgspecMapper(transcoder=NullTranscoder())
+    mapper = MessagePackMapper(transcoder=NullTranscoder())
 
     stored_event = mapper.to_stored_event(obj)
 

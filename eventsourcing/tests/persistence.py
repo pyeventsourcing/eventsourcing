@@ -1217,7 +1217,7 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
     def tearDown(self) -> None:
         self.factory.close()
 
-    def test_createmapper(self) -> None:
+    def test_mapper(self) -> None:
         # Want to construct:
         #  - application recorder
         #  - snapshot recorder
@@ -1253,7 +1253,7 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
         self.assertIsNone(mapper.cipher)
         self.assertIsNone(mapper.compressor)
 
-    def test_createmapper_with_compressor(self) -> None:
+    def test_mapper_with_compressor(self) -> None:
         # Create mapper with compressor class as topic.
         self.env[self.factory.COMPRESSOR_TOPIC] = get_topic(ZlibCompressor)
         mapper: Mapper[UUID] = self.factory.mapper(transcoder=self.transcoder)
@@ -1268,7 +1268,7 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
         self.assertEqual(mapper.compressor, zlib)
         self.assertIsNone(mapper.cipher)
 
-    def test_createmapper_with_cipher(self) -> None:
+    def test_mapper_with_cipher(self) -> None:
         # Check cipher needs a key.
         self.env[self.factory.CIPHER_TOPIC] = get_topic(AESCipher)
 
@@ -1287,7 +1287,7 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
         self.assertIsNotNone(mapper.cipher)
         self.assertIsNone(mapper.compressor)
 
-    def test_createmapper_with_cipher_and_compressor(
+    def test_mapper_with_cipher_and_compressor(
         self,
     ) -> None:
         # Create mapper with cipher and compressor.

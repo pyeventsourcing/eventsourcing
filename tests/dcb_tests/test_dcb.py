@@ -26,7 +26,7 @@ from eventsourcing.persistence import IntegrityError, ProgrammingError
 from eventsourcing.postgres import PostgresDatastore, PostgresRecorder
 from eventsourcing.tests.postgres_utils import drop_tables
 from eventsourcing.utils import Environment
-from examples.coursebookingdcb.postgres_ts import (
+from examples.dcb_enrolment_with_basic_objects.postgres_ts import (
     PostgresDCBRecorderTS,
     PostgresTSDCBFactory,
 )

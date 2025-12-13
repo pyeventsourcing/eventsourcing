@@ -70,15 +70,14 @@ Example systems
 
 .. _Dynamic consistency boundaries:
 
-Dynamic consistency boundaries
-==============================
+DCB examples
+============
 
 .. toctree::
    :maxdepth: 2
 
-   examples/coursebooking
-   examples/coursebooking-dcb
-   examples/coursebooking-dcb-postgres-tt
-   examples/coursebooking-dcb-umadb
-   examples/coursebooking-dcb-refactored
-   examples/coursebooking-dcb-slices
+   examples/dcb-enrolment-introduction
+   examples/dcb-enrolment-with-basic-objects
+   examples/dcb-enrolment-with-enduring-objects
+   examples/dcb-enrolment-with-vertical-slices
+   examples/dcb-enrolment-speedrun

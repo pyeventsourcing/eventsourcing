@@ -13,7 +13,7 @@ from eventsourcing.domain import (
     CanMutateAggregate,
     event,
 )
-from examples.coursebooking.interface import (
+from examples.dcb_enrolment.interface import (
     AlreadyJoinedError,
     CourseID,
     FullyBookedError,

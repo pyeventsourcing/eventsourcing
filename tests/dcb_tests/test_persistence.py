@@ -2,7 +2,7 @@ from unittest import TestCase
 
 from eventsourcing.dcb.api import DCBAppendCondition, DCBEvent, DCBQuery, DCBQueryItem
 from eventsourcing.dcb.application import DCBRepository
-from eventsourcing.dcb.msgspecstruct import MsgspecStructMapper
+from eventsourcing.dcb.msgpack import MessagePackMapper
 from eventsourcing.dcb.persistence import DCBEventStore, NotFoundError
 from eventsourcing.dcb.popo import InMemoryDCBRecorder
 from eventsourcing.dcb.postgres_tt import PostgresDCBRecorderTT, PostgresTTDCBFactory
@@ -14,7 +14,7 @@ from eventsourcing.tests.postgres_utils import drop_tables
 class TestRepository(TestCase):
     def test_repository(self) -> None:
         repo = DCBRepository(
-            DCBEventStore(mapper=MsgspecStructMapper(), recorder=InMemoryDCBRecorder())
+            DCBEventStore(mapper=MessagePackMapper(), recorder=InMemoryDCBRecorder())
         )
         with self.assertRaises(NotFoundError):
             repo.get("not-an-object")
@@ -23,11 +23,11 @@ class TestRepository(TestCase):
 class TestEventStore(TestCase):
     def test_event_store(self) -> None:
         event_store = DCBEventStore(
-            mapper=MsgspecStructMapper(), recorder=InMemoryDCBRecorder()
+            mapper=MessagePackMapper(), recorder=InMemoryDCBRecorder()
         )
-        event_store.get()  # no args
+        event_store.read()  # no args
         with self.assertRaises(ProgrammingError):
-            event_store.put([])  # no cb, no after
+            event_store.append([])  # no cb, no after
 
 
 class TestInMemoryDCBRecorder(TestCase):

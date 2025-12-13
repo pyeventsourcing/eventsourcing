@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
-from unittest import TestCase, TestSuite
+from unittest import TestCase
 
-from eventsourcing.tests.postgres_utils import drop_tables
-from examples.coursebooking.interface import (
+from examples.dcb_enrolment.interface import (
     AlreadyJoinedError,
     CourseID,
     CourseNotFoundError,

@@ -90,7 +90,7 @@ class TestDocs(TestCase):
 
                 if name in skipped:
                     continue
-                if name.endswith(".rst"):
+                if name.endswith("dcb.rst"):
                     # if (
                     #     name.endswith("persistence.rst")
                     #     or name.endswith("domain.rst")

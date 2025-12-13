@@ -5,11 +5,11 @@ from typing import TYPE_CHECKING, Any, Generic
 
 from eventsourcing.dcb.domain import (
     EnduringObject,
-    Initialises,
+    InitialDecision,
     Perspective,
     Selector,
+    TDecision,
     TGroup,
-    TMutates,
     TPerspective,
 )
 from eventsourcing.dcb.persistence import (
@@ -64,13 +64,13 @@ class DCBApplication:
         self.factory.__exit__(exc_type, exc_val, exc_tb)
 
 
-class DCBRepository(Generic[TMutates]):
-    def __init__(self, eventstore: DCBEventStore[TMutates]):
+class DCBRepository(Generic[TDecision]):
+    def __init__(self, eventstore: DCBEventStore[TDecision]):
         self.eventstore = eventstore
 
-    def save(self, p: Perspective[TMutates]) -> int:
-        return self.eventstore.put(
-            events=p.collect_events(),
+    def save(self, p: Perspective[TDecision]) -> int:
+        return self.eventstore.append(
+            events=p.collect_new_decisions(),
             cb=p.cb,
             after=p.last_known_position,
         )
@@ -78,12 +78,12 @@ class DCBRepository(Generic[TMutates]):
     def get(
         self,
         enduring_object_id: str,
-    ) -> EnduringObject[TMutates]:
+    ) -> EnduringObject[TDecision]:
         cb = [Selector(tags=[enduring_object_id])]
-        events = self.eventstore.get(*cb)
-        obj: EnduringObject[TMutates] | None = None
+        events = self.eventstore.read(*cb)
+        obj: EnduringObject[TDecision] | None = None
         for event in events:
-            obj = event.mutates.mutate(obj)
+            obj = event.decision.mutate(obj)
         if obj is None:
             raise NotFoundError
         obj.last_known_position = events.head
@@ -92,21 +92,21 @@ class DCBRepository(Generic[TMutates]):
     def get_many(
         self,
         *enduring_object_ids: str,
-    ) -> list[EnduringObject[TMutates] | None]:
+    ) -> list[EnduringObject[TDecision] | None]:
         cb = [
             Selector(tags=[enduring_object_id])
             for enduring_object_id in enduring_object_ids
         ]
-        events = self.eventstore.get(cb)
-        objs: dict[str, EnduringObject[TMutates] | None] = dict.fromkeys(
+        events = self.eventstore.read(cb)
+        objs: dict[str, EnduringObject[TDecision] | None] = dict.fromkeys(
             enduring_object_ids
         )
         for event in events:
             for tag in event.tags:
                 obj = objs.get(tag)
-                if not isinstance(event.mutates, Initialises) and not obj:
+                if not isinstance(event.decision, InitialDecision) and not obj:
                     continue
-                obj = event.mutates.mutate(obj)
+                obj = event.decision.mutate(obj)
                 objs[tag] = obj
         for obj in objs.values():
             if obj is not None:
@@ -127,8 +127,8 @@ class DCBRepository(Generic[TMutates]):
         return perspective
 
     def project_perspective(self, p: TPerspective) -> TPerspective:
-        events = self.eventstore.get(p.cb)
+        events = self.eventstore.read(p.cb)
         for event in events:
-            event.mutates.mutate(p)
+            event.decision.mutate(p)
         p.last_known_position = events.head
         return p

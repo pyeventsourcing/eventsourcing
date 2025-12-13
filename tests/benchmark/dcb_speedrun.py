@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING, Any, cast
 from eventsourcing_umadb.recorders import UmaDBDCBRecorder
 from psycopg.sql import SQL, Identifier
 
+from eventsourcing.application import Application
+from eventsourcing.dcb.application import DCBApplication
 from eventsourcing.dcb.popo import InMemoryDCBRecorder
 from eventsourcing.dcb.postgres_tt import (
     DB_FUNCTION_NAME_DCB_CONDITIONAL_APPEND_TT,
@@ -19,26 +21,28 @@ from eventsourcing.domain import datetime_now_with_tzinfo
 from eventsourcing.persistence import ProgrammingError
 from eventsourcing.popo import POPOApplicationRecorder
 from eventsourcing.postgres import PostgresApplicationRecorder, PostgresDatastore
-from examples.coursebooking.application import EnrolmentWithAggregates
-from examples.coursebookingdcb.application import EnrolmentWithDCB
-from examples.coursebookingdcb.postgres_ts import (
+from examples.dcb_enrolment.application import EnrolmentWithAggregates
+from examples.dcb_enrolment_with_basic_objects.application import EnrolmentWithDCB
+from examples.dcb_enrolment_with_basic_objects.postgres_ts import (
     PG_FUNCTION_NAME_DCB_CHECK_APPEND_CONDITION_TS,
     PG_FUNCTION_NAME_DCB_INSERT_EVENTS_TS,
     PG_FUNCTION_NAME_DCB_SELECT_EVENTS_TS,
     PG_PROCEDURE_NAME_DCB_APPEND_EVENTS_TS,
     PostgresDCBRecorderTS,
 )
-from examples.coursebookingdcbrefactored.application import (
-    EnrolmentWithDCBRefactored,
+from examples.dcb_enrolment_with_enduring_objects.application import (
+    EnrolmentWithEnduringObjects,
 )
-from examples.coursebookingdcbslices.application import EnrolmentWithDCBSlices
+from examples.dcb_enrolment_with_vertical_slices.application import (
+    EnrolmentWithVerticalSlices,
+)
 
 locale.setlocale(locale.LC_ALL, "")
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from examples.coursebooking.interface import EnrolmentInterface
+    from examples.dcb_enrolment.interface import EnrolmentInterface
 
 env = {}
 SPEEDRUN_DB_NAME = "course_subscriptions_speedrun"
@@ -62,7 +66,7 @@ def inf_range() -> Iterator[int]:
 config: dict[str, tuple[type[EnrolmentInterface], int, dict[str, str]]] = {
     "dcb-pg-ts": (
         EnrolmentWithDCB,
-        # EnrolmentWithDCBRefactored,
+        # EnrolmentWithEnduringObjects,
         10,
         {
             "PERSISTENCE_MODULE": "examples.coursebookingdcb.postgres_ts",
@@ -78,7 +82,7 @@ config: dict[str, tuple[type[EnrolmentInterface], int, dict[str, str]]] = {
     ),
     "dcb-pg-tt": (
         EnrolmentWithDCB,
-        # EnrolmentWithDCBRefactored,
+        # EnrolmentWithEnduringObjects,
         10,
         {
             "PERSISTENCE_MODULE": "eventsourcing.dcb.postgres_tt",
@@ -93,7 +97,7 @@ config: dict[str, tuple[type[EnrolmentInterface], int, dict[str, str]]] = {
         },
     ),
     "dcb-pg-tt-slices": (
-        EnrolmentWithDCBSlices,
+        EnrolmentWithVerticalSlices,
         10,
         {
             "PERSISTENCE_MODULE": "eventsourcing.dcb.postgres_tt",
@@ -109,7 +113,7 @@ config: dict[str, tuple[type[EnrolmentInterface], int, dict[str, str]]] = {
     ),
     "dcb-umadb": (
         EnrolmentWithDCB,
-        # EnrolmentWithDCBRefactored,
+        # EnrolmentWithEnduringObjects,
         10,
         {
             "PERSISTENCE_MODULE": "eventsourcing_umadb",
@@ -117,7 +121,7 @@ config: dict[str, tuple[type[EnrolmentInterface], int, dict[str, str]]] = {
         },
     ),
     "dcb-umadb-slices": (
-        EnrolmentWithDCBSlices,
+        EnrolmentWithVerticalSlices,
         10,
         {
             "PERSISTENCE_MODULE": "eventsourcing_umadb",
@@ -125,7 +129,7 @@ config: dict[str, tuple[type[EnrolmentInterface], int, dict[str, str]]] = {
         },
     ),
     "dcb-mem": (
-        EnrolmentWithDCBRefactored,
+        EnrolmentWithEnduringObjects,
         100,
         {
             "PERSISTENCE_MODULE": "eventsourcing.dcb.popo",
@@ -193,7 +197,8 @@ def count_events(app: EnrolmentInterface) -> int:
             raise NotImplementedError(msg)
 
     elif isinstance(
-        app, (EnrolmentWithDCB, EnrolmentWithDCBRefactored, EnrolmentWithDCBSlices)
+        app,
+        (EnrolmentWithDCB, EnrolmentWithEnduringObjects, EnrolmentWithVerticalSlices),
     ):
         recorder = app.recorder
         if isinstance(recorder, (PostgresDCBRecorderTS, PostgresDCBRecorderTT)):
@@ -362,6 +367,7 @@ if __name__ == "__main__":
     # print(f"Reporting interval: every {reporting_interval} iterations...")
     # print()
 
+    assert issubclass(cls, Application | DCBApplication)
     with cls(env=env) as app:
 
         started_event_count = count_events(app)

@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from eventsourcing.domain import DomainEventProtocol
 
 
-class MsgspecMapper(Mapper[UUID]):
+class MessagePackMapper(Mapper[UUID]):
     def to_stored_event(self, domain_event: DomainEventProtocol[UUID]) -> StoredEvent:
         topic = get_topic(domain_event.__class__)
         stored_state = msgspec.json.encode(domain_event)
@@ -50,6 +50,6 @@ class NullTranscoder(Transcoder):
 
 class MsgspecApplication(Application[UUID]):
     env: ClassVar[dict[str, str]] = {
-        "MAPPER_TOPIC": get_topic(MsgspecMapper),
+        "MAPPER_TOPIC": get_topic(MessagePackMapper),
         "TRANSCODER_TOPIC": get_topic(NullTranscoder),
     }

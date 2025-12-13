@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from eventsourcing.dcb.domain import Tagged
-from eventsourcing.dcb.msgspecstruct import Decision, MsgspecStructMapper
+from eventsourcing.dcb.msgpack import Decision, MessagePackMapper
 
 # TODO: Actually test the event store independently of the example application.
 
@@ -13,11 +13,11 @@ class StudentRegistered(Decision):
 
 class TestMapper(TestCase):
     def test_mapper(self) -> None:
-        mapper = MsgspecStructMapper()
+        mapper = MessagePackMapper()
 
         event = Tagged[StudentRegistered](
             tags=["student-1"],
-            mutates=StudentRegistered(
+            decision=StudentRegistered(
                 name="Sara",
                 max_courses=2,
             ),
@@ -30,8 +30,8 @@ class TestMapper(TestCase):
 
         copy = mapper.to_domain_event(dcb_event)
         assert isinstance(copy, Tagged)  # for mypy
-        assert isinstance(copy.mutates, StudentRegistered)  # for mypy
+        assert isinstance(copy.decision, StudentRegistered)  # for mypy
 
         self.assertEqual(copy.tags, event.tags)
-        self.assertEqual(copy.mutates.name, event.mutates.name)
-        self.assertEqual(copy.mutates.max_courses, event.mutates.max_courses)
+        self.assertEqual(copy.decision.name, event.decision.name)
+        self.assertEqual(copy.decision.max_courses, event.decision.max_courses)
