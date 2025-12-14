@@ -8,10 +8,13 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
 from threading import Event, Thread
 from traceback import format_exc
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast, get_origin
 from warnings import warn
 
 from eventsourcing.application import Application, ProcessingEvent
+from eventsourcing.dcb.api import DCBQuery, DCBQueryItem
+from eventsourcing.dcb.application import DCBApplication
+from eventsourcing.dcb.domain import Decision, Tagged
 from eventsourcing.dispatch import singledispatchmethod
 from eventsourcing.domain import DomainEventProtocol, TAggregateID
 from eventsourcing.persistence import (
@@ -89,6 +92,65 @@ class ApplicationSubscription(
             self.stop()
 
 
+class DCBApplicationSubscription(Iterator[tuple[Tagged[Decision], Tracking]]):
+    """An iterator that yields all tagged decisions recorded in an application
+    sequence that have sequence numbers greater than a given value. The iterator
+    will block when all tagged decisions have been yielded, and then
+    continue when new ones are recorded. Tagged decisions are returned along
+    with tracking objects that identify the position in the application sequence.
+    """
+
+    def __init__(
+        self,
+        app: DCBApplication,
+        gt: int | None = None,
+        topics: Sequence[str] = (),
+    ):
+        """
+        Starts a subscription to application's recorder.
+        """
+        self.name = app.name
+        self.recorder = app.recorder
+        self.mapper = app.mapper
+        self.subscription = self.recorder.subscribe(
+            query=DCBQuery(items=[DCBQueryItem(types=list(topics))]),
+            after=gt,
+        )
+
+    def stop(self) -> None:
+        """Stops the subscription to the application's recorder."""
+        self.subscription.stop()
+
+    def __enter__(self) -> Self:
+        """Calls __enter__ on the stored event subscription."""
+        self.subscription.__enter__()
+        return self
+
+    def __exit__(self, *args: object, **kwargs: Any) -> None:
+        """Calls __exit__ on the stored event subscription."""
+        self.subscription.__exit__(*args, **kwargs)
+
+    def __iter__(self) -> Self:
+        return self
+
+    def __next__(self) -> tuple[Tagged[Decision], Tracking]:
+        """Returns the next stored event from subscription to the application's
+        recorder. Constructs a tracking object that identifies the position of
+        the event in the application sequence. Constructs a domain event object
+        from the stored event object using the application's mapper. Returns a
+        tuple of the domain event object and the tracking object.
+        """
+        sequenced_event = next(self.subscription)
+        tracking = Tracking(self.name, sequenced_event.position)
+        tagged_decision = self.mapper.to_domain_event(sequenced_event.event)
+        return tagged_decision, tracking
+
+    def __del__(self) -> None:
+        """Stops the stored event subscription."""
+        with contextlib.suppress(AttributeError):
+            self.stop()
+
+
 class Projection(ABC, Generic[TTrackingRecorder]):
     name: str = ""
     """
@@ -118,9 +180,7 @@ class Projection(ABC, Generic[TTrackingRecorder]):
 
     @singledispatchmethod
     @abstractmethod
-    def process_event(
-        self, domain_event: DomainEventProtocol[TAggregateID], tracking: Tracking
-    ) -> None:
+    def process_event(self, domain_event: Any, tracking: Tracking) -> None:
         """Process a domain event and track it."""
 
 
@@ -186,7 +246,7 @@ class EventSourcedProjection(Application[TAggregateID], ABC):
         """
 
 
-TApplication = TypeVar("TApplication", bound=Application[Any])
+TApplication = TypeVar("TApplication")
 TEventSourcedProjection = TypeVar(
     "TEventSourcedProjection", bound=EventSourcedProjection[Any]
 )
@@ -206,17 +266,37 @@ class BaseProjectionRunner(Generic[TApplication]):
         self._is_interrupted = Event()
         self._has_called_stop = False
 
-        # Construct the application.
-        self.app: TApplication = application_class(env)
-
         self._tracking_recorder = tracking_recorder
 
-        # Subscribe to the application.
-        self._subscription = ApplicationSubscription(
-            app=self.app,
-            gt=self._tracking_recorder.max_tracking_id(self.app.name),
-            topics=topics,
-        )
+        # Construct and subscribe to the application.
+        self._subscription: ApplicationSubscription[Any] | DCBApplicationSubscription
+        # Do this for pyright (with the cast to TApplication below).
+        app: Any
+        # get_origin() because issubclass doesn't work with generic alias, and
+        # then 'or' with the class in case get_origin() returns None.
+        if issubclass(get_origin(application_class) or application_class, Application):
+            # cast() because that call to issubclass() doesn't narrow the type.
+            app = cast(type[Application[Any]], application_class)(env)
+            self.app_name = app.name
+            self._subscription = ApplicationSubscription(
+                app=app,
+                gt=self._tracking_recorder.max_tracking_id(app.name),
+                topics=topics,
+            )
+        elif issubclass(application_class, DCBApplication):
+            app = application_class(env)
+            self.app = app
+            self.app_name = app.name
+            self._subscription = DCBApplicationSubscription(
+                app=app,
+                gt=self._tracking_recorder.max_tracking_id(app.name),
+                topics=topics,
+            )
+        else:  # pragma: no cover
+            msg = f"Unsupported application type: {application_class}"
+            raise TypeError(msg)
+
+        self.app = cast(TApplication, app)
 
         # Start a thread to stop the subscription when the runner is interrupted.
         self._thread_error: BaseException | None = None
@@ -284,9 +364,8 @@ class BaseProjectionRunner(Generic[TApplication]):
     ) -> None:
         """Iterates over the subscription and calls process_event()."""
         try:
-            with subscription:
-                for domain_event, tracking in subscription:
-                    projection.process_event(domain_event, tracking)
+            for domain_event, tracking in subscription:
+                projection.process_event(domain_event, tracking)
         except BaseException as e:
             _runner = runner()  # get reference from weakref
             if _runner is not None:
@@ -312,7 +391,7 @@ class BaseProjectionRunner(Generic[TApplication]):
         ):
             error = self._thread_error
             self._thread_error = None
-            raise error
+            raise error from None
 
     def wait(self, notification_id: int | None, timeout: float = 1.0) -> None:
         """Blocks until timeout, or until the materialised view has recorded a tracking
@@ -320,21 +399,22 @@ class BaseProjectionRunner(Generic[TApplication]):
         """
         try:
             self._tracking_recorder.wait(
-                application_name=self.app.name,
+                application_name=self.app_name,
                 notification_id=notification_id,
                 timeout=timeout,
                 interrupt=self._is_interrupted,
             )
-        except WaitInterruptedError:
+        except WaitInterruptedError as e:
             if self._thread_error:
                 error = self._thread_error
                 self._thread_error = None
                 raise error from None
             if self._has_called_stop:
                 return
-            raise
+            raise e from None
 
     def __enter__(self) -> Self:
+        self._subscription.__enter__()
         return self
 
     def __exit__(
@@ -346,7 +426,10 @@ class BaseProjectionRunner(Generic[TApplication]):
         """Calls stop() and waits for the event-processing thread to exit."""
         self.stop()
         self._stop_thread.join()
+        self._subscription.__exit__(exc_type, exc_val, exc_tb)
         self._processing_thread.join()
+        # TODO: Improve typing of application classes and type annotation for self.app
+        self.app.close()  # pyright: ignore [reportAttributeAccessIssue]
         if self._thread_error:
             error = self._thread_error
             self._thread_error = None

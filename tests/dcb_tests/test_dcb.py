@@ -18,9 +18,8 @@ from eventsourcing.dcb.api import (
     DCBSequencedEvent,
     DCBSubscription,
 )
-from eventsourcing.dcb.persistence import DCBListenNotifySubscription
 from eventsourcing.dcb.popo import InMemoryDCBRecorder
-from eventsourcing.dcb.postgres_tt import PostgresDCBRecorderTT
+from eventsourcing.dcb.postgres_tt import PostgresDCBRecorderTT, PostgresDCBSubscription
 from eventsourcing.dcb.tests import DCBRecorderTestCase
 from eventsourcing.persistence import IntegrityError, ProgrammingError
 from eventsourcing.postgres import PostgresDatastore, PostgresRecorder
@@ -107,7 +106,7 @@ class TestDCBSubscription(TestCase):
 
             def subscribe(
                 self, query: DCBQuery | None = None, *, after: int | None = None
-            ) -> DCBSubscription:
+            ) -> DCBSubscription[MyRecorder]:
                 raise NotImplementedError
 
             def append(
@@ -126,7 +125,7 @@ class TestDCBSubscription(TestCase):
             ) -> DCBReadResponse:
                 raise NotImplementedError
 
-        class MySubscription(DCBSubscription):
+        class MySubscription(DCBSubscription[MyRecorder]):
             def __next__(self) -> DCBSequencedEvent:
                 raise NotImplementedError
 
@@ -147,8 +146,11 @@ class TestDCBSubscription(TestCase):
 
 
 class TestInMemoryDCBRecorder(DCBRecorderTestCase):
-    def test_in_memory_event_store(self) -> None:
+    def test_append_read(self) -> None:
         self._test_append_read(InMemoryDCBRecorder())
+
+    def test_append_subscribe(self) -> None:
+        self._test_append_subscribe(InMemoryDCBRecorder())
 
 
 class WithPostgres(TestCase):
@@ -241,7 +243,8 @@ class TestPostgresDCBRecorderTT(DCBRecorderTestCase, WithPostgres):
         event = DCBEvent(type="type1", data=b"data1", tags=["tagX"])
         initial_position = self.recorder.append([event])
         with self.recorder.subscribe(after=initial_position) as subscription:
-            cast(DCBListenNotifySubscription, subscription).select_limit = 3
+            assert isinstance(subscription, PostgresDCBSubscription)
+            subscription.select_limit = 3
             self.recorder.append(events=([event] * 10))
             for _ in range(10):
                 next(subscription)
@@ -258,7 +261,7 @@ class TestPostgresDCBRecorderTT(DCBRecorderTestCase, WithPostgres):
         # Also check calling __next__ after stop() after an error.
         subscription.stop()
         error = ValueError()
-        cast(DCBListenNotifySubscription, subscription)._thread_error = error
+        subscription._thread_error = error
         with self.assertRaises(ValueError) as cm:
             subscription.__next__()
         self.assertEqual(error, cm.exception)
@@ -280,7 +283,7 @@ class TestDCBPostgresFactory(TestCase):
                 },
             )
         )
-        recorder = factory.dcb_event_store()
+        recorder = factory.dcb_recorder()
         self.assertIsInstance(recorder, PostgresRecorder)
 
 

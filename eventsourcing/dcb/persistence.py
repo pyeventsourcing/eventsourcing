@@ -15,6 +15,7 @@ from eventsourcing.dcb.api import (
     DCBRecorder,
     DCBSequencedEvent,
     DCBSubscription,
+    TDCBRecorder_co,
 )
 from eventsourcing.dcb.domain import (
     Selector,
@@ -49,6 +50,8 @@ class DCBEventStore(Generic[TDecision]):
         cb: Selector | Sequence[Selector] | None = None,
         after: int | None = None,
     ) -> int:
+        if len(events) == 0:
+            return 0
         if not cb and not after:
             condition = None
         else:
@@ -113,14 +116,14 @@ class NotFoundError(Exception):
 
 class DCBInfrastructureFactory(BaseInfrastructureFactory[TTrackingRecorder], ABC):
     @abstractmethod
-    def dcb_event_store(self) -> DCBRecorder:
+    def dcb_recorder(self) -> DCBRecorder:
         pass  # pragma: no cover
 
 
-class DCBListenNotifySubscription(DCBSubscription):
+class DCBListenNotifySubscription(DCBSubscription[TDCBRecorder_co]):
     def __init__(
         self,
-        recorder: DCBRecorder,
+        recorder: TDCBRecorder_co,
         query: DCBQuery | None = None,
         after: int | None = None,
     ) -> None:

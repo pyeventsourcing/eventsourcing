@@ -1370,8 +1370,10 @@ class ListenNotifySubscription(Subscription[TApplicationRecorder_co]):
         self._pull_thread.start()
 
     def __exit__(self, *args: object, **kwargs: Any) -> None:
-        super().__exit__(*args, **kwargs)
-        self._pull_thread.join()
+        try:
+            super().__exit__(*args, **kwargs)
+        finally:
+            self._pull_thread.join()
 
     def stop(self) -> None:
         """Stops the subscription."""

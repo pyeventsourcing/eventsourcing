@@ -19,7 +19,7 @@ from eventsourcing.projection import (
 )
 from eventsourcing.utils import get_topic
 from tests.projection_tests.test_projection import (
-    EventCountersProjection,
+    AggregateEventCountersProjection,
     POPOEventCounters,
     SpannerThrown,
     SpannerThrownError,
@@ -34,7 +34,7 @@ class TestProjectionRunner(TestCase):
     def test_runner(self) -> None:
         runner = ProjectionRunner(
             application_class=Application,
-            projection_class=EventCountersProjection,
+            projection_class=AggregateEventCountersProjection,
             view_class=POPOEventCounters,
             env={},
         )
@@ -75,7 +75,7 @@ class TestProjectionRunner(TestCase):
 
         runner = ProjectionRunner(
             application_class=Application,
-            projection_class=EventCountersProjection,
+            projection_class=AggregateEventCountersProjection,
             view_class=POPOEventCounters,
             env={},
         )
@@ -89,12 +89,14 @@ class TestProjectionRunner(TestCase):
         self.assertTrue(runner.is_interrupted.is_set())
 
     def test_runner_with_topics(self) -> None:
-        class EventCountersProjectionWithTopics(EventCountersProjection):
+        class AggregateEventCountersProjectionWithTopics(
+            AggregateEventCountersProjection
+        ):
             topics = (get_topic(Aggregate.Event),)
 
         runner = ProjectionRunner(
             application_class=Application,
-            projection_class=EventCountersProjectionWithTopics,
+            projection_class=AggregateEventCountersProjectionWithTopics,
             view_class=POPOEventCounters,
         )
 
@@ -114,7 +116,7 @@ class TestProjectionRunner(TestCase):
         # Call stop() before run_forever().
         runner = ProjectionRunner(
             application_class=Application,
-            projection_class=EventCountersProjection,
+            projection_class=AggregateEventCountersProjection,
             view_class=POPOEventCounters,
         )
         runner.stop()
@@ -123,7 +125,7 @@ class TestProjectionRunner(TestCase):
         # Call stop() before wait().
         runner = ProjectionRunner(
             application_class=Application,
-            projection_class=EventCountersProjection,
+            projection_class=AggregateEventCountersProjection,
             view_class=POPOEventCounters,
         )
         runner.stop()
@@ -160,7 +162,7 @@ class TestProjectionRunner(TestCase):
         # Call stop() after run_forever().
         runner = ProjectionRunner(
             application_class=Application,
-            projection_class=EventCountersProjection,
+            projection_class=AggregateEventCountersProjection,
             view_class=POPOEventCounters,
         )
         thread = threading.Thread(target=call_runforever, args=(runner,))
@@ -175,7 +177,7 @@ class TestProjectionRunner(TestCase):
         # Call stop() after wait().
         ProjectionRunner(
             application_class=Application,
-            projection_class=EventCountersProjection,
+            projection_class=AggregateEventCountersProjection,
             view_class=POPOEventCounters,
         )
         thread = threading.Thread(target=call_wait, args=(runner,))
@@ -190,7 +192,7 @@ class TestProjectionRunner(TestCase):
     def test_enter_returns_runner(self) -> None:
         with ProjectionRunner(
             application_class=Application,
-            projection_class=EventCountersProjection,
+            projection_class=AggregateEventCountersProjection,
             view_class=POPOEventCounters,
         ) as runner:
             self.assertIsInstance(runner, ProjectionRunner)
@@ -198,7 +200,7 @@ class TestProjectionRunner(TestCase):
     def test_exit_stops_runner(self) -> None:
         runner = ProjectionRunner(
             application_class=Application,
-            projection_class=EventCountersProjection,
+            projection_class=AggregateEventCountersProjection,
             view_class=POPOEventCounters,
         )
         self.assertFalse(runner.is_interrupted.is_set())
@@ -214,7 +216,7 @@ class TestProjectionRunner(TestCase):
             self.assertRaises(TestError),
             ProjectionRunner(
                 application_class=Application,
-                projection_class=EventCountersProjection,
+                projection_class=AggregateEventCountersProjection,
                 view_class=POPOEventCounters,
             ),
         ):

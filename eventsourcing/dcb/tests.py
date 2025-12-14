@@ -13,6 +13,7 @@ from eventsourcing.dcb.api import (
     DCBRecorder,
     DCBSequencedEvent,
     DCBSubscription,
+    TDCBRecorder_co,
 )
 from eventsourcing.persistence import IntegrityError
 
@@ -593,7 +594,7 @@ class DCBRecorderTestCase(TestCase):
 
 
 class EnsureSubscriptionBlockAndReceive(threading.Thread):
-    def __init__(self, subscription: DCBSubscription):
+    def __init__(self, subscription: DCBSubscription[TDCBRecorder_co]):
         super().__init__()
         self.subscription = subscription
         self.has_blocked = threading.Event()

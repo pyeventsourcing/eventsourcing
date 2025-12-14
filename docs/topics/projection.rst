@@ -27,6 +27,10 @@ Application subscriptions
 
 This module provides an :class:`~eventsourcing.projection.ApplicationSubscription` class, which can
 be used to "subscribe" to the domain events of an application.
+Please note, the :class:`~eventsourcing.popo.POPOApplicationRecorder` and
+:class:`~eventsourcing.postgres.PostgresApplicationRecorder` classes implement the
+required :func:`~eventsourcing.persistence.ApplicationRecorder.subscribe`
+method, but the :class:`~eventsourcing.sqlite.SQLiteApplicationRecorder` class does not.
 
 Application subscription objects are iterators that return domain events from an application sequence.
 Each domain event is accompanied by a tracking object that identifies the position of the
@@ -99,10 +103,48 @@ method which can be used to stop the subscription to the application recorder in
             subscription.stop()  # ...so we can continue with the examples
 
 
-Please note, the :class:`~eventsourcing.popo.POPOApplicationRecorder` and
-:class:`~eventsourcing.postgres.PostgresApplicationRecorder` classes implement the
-required :func:`~eventsourcing.persistence.ApplicationRecorder.subscribe`
-method, but the :class:`~eventsourcing.sqlite.SQLiteApplicationRecorder` class does not.
+The :class:`~eventsourcing.projection.DCBApplicationSubscription` class is the equivalent for
+:ref:`DCB applications <DCB application>`. It returns :ref:`tagged decisions <DCB Tagged>`.
+Please note, the :ref:`DCB recorders <DCB recorders>` :class:`~eventsourcing.dcb.popo.InMemoryDCBRecorder`,
+:class:`~eventsourcing.dcb.postgres_tt.PostgresDCBRecorderTT` and the ``eventsourcing_umadb`` extension
+all implement the required :func:`~eventsourcing.dcb.api.DCBRecorder.subscribe` method.
+
+.. code-block:: python
+
+    from uuid import UUID
+
+    from eventsourcing.dcb.application import DCBApplication
+    from eventsourcing.dcb.domain import Perspective, Tagged
+    from eventsourcing.dcb.msgpack import Decision, InitialDecision, MessagePackMapper
+    from eventsourcing.projection import DCBApplicationSubscription
+    from eventsourcing.utils import get_topic
+
+
+    # Define a perspective.
+    class MyPerspective(Perspective[Decision]):
+        @property
+        def cb(self) -> Selector | Sequence[Selector]:
+            return []
+
+
+    # Construct an application object.
+    app = DCBApplication(env={"MAPPER_TOPIC": get_topic(MessagePackMapper)})
+
+    # Record an event.
+    perspective = MyPerspective()
+    perspective.append_new_decision(
+        Tagged([], InitialDecision(originator_topic=""))
+    )
+    app.repository.save(perspective)
+
+    # Position in application sequence from which to subscribe.
+    max_tracking_id = 0
+
+    with DCBApplicationSubscription(app, gt=max_tracking_id, topics=()) as subscription:
+        for tagged_event, tracking in subscription:
+            # Process the event and record new state with tracking information.
+            subscription.stop()  # ...so we can continue with the examples
+
 
 .. _Projection:
 
@@ -150,7 +192,7 @@ The example below shows how a projection can be defined.
     from eventsourcing.projection import Projection
     from eventsourcing.utils import get_topic
 
-    class MyProjection(Projection["MyMaterialisedViewInterface"]):
+    class AggregateEventProjection(Projection["MyMaterialisedViewInterface"]):
         name = "myprojection"
         topics = (get_topic(Aggregate.Event), )
 
@@ -160,6 +202,35 @@ The example below shows how a projection can be defined.
 
         @process_event.register
         def _(self, domain_event: Aggregate.Event, tracking: Tracking) -> None:
+            self.view.my_command(tracking)
+
+
+For projections that work with :ref:`DCB applications <DCB application>`, you will need to define the dispatching
+to work with :ref:`tagged decisions <DCB tagged>`. That is, because the ``process_event()`` method will receive
+:class:`~eventsourcing.dcb.domain.Tagged` objects, and because `singledispatchmethod` dispatches on the type of
+the first argument, you will need to forward ``tagged.decision`` and define handlers for different
+types of :class:`~eventsourcing.dcb.domain.Decision`.
+
+.. code-block:: python
+
+    from eventsourcing.dcb.domain import Tagged
+    from eventsourcing.dcb.msgpack import Decision, InitialDecision
+
+
+    class TaggedDecisionProjection(Projection["MyMaterialisedViewInterface"]):
+        name = "myprojection"
+        topics = (get_topic(Decision), )
+
+        @singledispatchmethod
+        def process_event(self, tagged: Tagged[Decision], tracking: Tracking) -> None:
+            self.process_decision(tagged.decision, tracking)
+
+        @singledispatchmethod
+        def process_decision(self, _: Decision, tracking: Tracking) -> None:
+            pass
+
+        @process_decision.register
+        def process_initial_decision(self, _: InitialDecision, tracking: Tracking) -> None:
             self.view.my_command(tracking)
 
 
@@ -193,6 +264,7 @@ The example below indicates how the projection's materialised view can be define
     class MyPostgresMaterialisedView(MyMaterialisedViewInterface, PostgresTrackingRecorder):
         def my_command(self, tracking: Tracking) -> None:
             ...
+
 
 .. _Projection runner:
 
@@ -249,7 +321,7 @@ signal after 1s.
     with ProjectionRunner(
         application_class=Application,
         view_class=MyPOPOMaterialisedView,
-        projection_class=MyProjection,
+        projection_class=AggregateEventProjection,
         env={},
     ) as projection_runner:
 
@@ -270,6 +342,37 @@ presented to a user will appear to be stale by not reflecting their recent work,
 returned from calls to the event-sourced application's :func:`~eventsourcing.application.Application.save`
 method can be used by the user interface to :func:`~eventsourcing.persistence.TrackingRecorder.wait` until
 the "read model" has been updated.
+
+The projection runner supports :ref:`DCB application classes <DCB application>`.
+
+.. code-block:: python
+
+    import os, signal, threading, time
+
+    from eventsourcing.projection import ProjectionRunner
+
+    # For demonstration purposes, interrupt process with SIGINT after 1s.
+    def sleep_then_kill() -> None:
+        time.sleep(1)
+        os.kill(os.getpid(), signal.SIGINT)
+
+    threading.Thread(target=sleep_then_kill).start()
+
+    # Run projection as a context manager.
+    with ProjectionRunner(
+        application_class=DCBApplication,
+        view_class=MyPOPOMaterialisedView,
+        projection_class=TaggedDecisionProjection,
+        env={"MAPPER_TOPIC": get_topic(MessagePackMapper)},
+    ) as projection_runner:
+
+        # Register signal handler.
+        signal.signal(signal.SIGINT, lambda *args: projection_runner.stop())
+
+        # Run until interrupted.
+        projection_runner.run_forever()
+
+
 
 See :doc:`Tutorial - Part 4 </topics/tutorial/part4>` for more guidance and examples.
 
@@ -301,6 +404,8 @@ to increment a ``Counter`` aggregate.
 
 .. literalinclude:: ../../tests/projection_tests/test_event_sourced_projection.py
     :pyobject: Counter
+
+This library does does not yet support projections event-soured with :ref:`DCB applications <DCB application>`.
 
 
 .. _Event-sourced projection runner:
@@ -362,6 +467,8 @@ currently support application subscriptions.
         assert runner.projection.get_count(Aggregate.Created) == 4
         assert runner.projection.get_count(Aggregate.Event) == 1
 
+
+The event-sourced projection runner does not yet support projections event-soured with :ref:`DCB applications <DCB application>`.
 
 Code reference
 ==============

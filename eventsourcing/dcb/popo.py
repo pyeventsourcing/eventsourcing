@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
@@ -10,14 +11,17 @@ from eventsourcing.dcb.api import (
     DCBReadResponse,
     DCBRecorder,
     DCBSequencedEvent,
-    DCBSubscription,
 )
-from eventsourcing.dcb.persistence import DCBInfrastructureFactory
+from eventsourcing.dcb.persistence import (
+    DCBInfrastructureFactory,
+    DCBListenNotifySubscription,
+)
 from eventsourcing.persistence import IntegrityError, ProgrammingError
 from eventsourcing.popo import POPOFactory, POPORecorder, POPOTrackingRecorder
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
+    from threading import Event
 
 
 class InMemoryDCBRecorder(DCBRecorder, POPORecorder):
@@ -25,6 +29,7 @@ class InMemoryDCBRecorder(DCBRecorder, POPORecorder):
         super().__init__()
         self.events: list[DCBSequencedEvent] = []
         self.position_sequence = self._position_sequence_generator()
+        self._listeners: set[Event] = set()
 
     def read(
         self,
@@ -87,6 +92,7 @@ class InMemoryDCBRecorder(DCBRecorder, POPORecorder):
                 )
                 for event in events
             )
+            self._notify_listeners()
             return self.events[-1].position
 
     def _position_sequence_generator(self) -> Iterator[int]:
@@ -100,8 +106,34 @@ class InMemoryDCBRecorder(DCBRecorder, POPORecorder):
         query: DCBQuery | None = None,
         *,
         after: int | None = None,
-    ) -> DCBSubscription:
-        raise NotImplementedError  # pragma: no cover
+    ) -> InMemorySubscription:
+        return InMemorySubscription(self, query=query, after=after)
+
+    def listen(self, event: Event) -> None:
+        self._listeners.add(event)
+
+    def unlisten(self, event: Event) -> None:
+        with contextlib.suppress(KeyError):
+            self._listeners.remove(event)
+
+    def _notify_listeners(self) -> None:
+        for listener in self._listeners:
+            listener.set()
+
+
+class InMemorySubscription(DCBListenNotifySubscription[InMemoryDCBRecorder]):
+    def __init__(
+        self,
+        recorder: InMemoryDCBRecorder,
+        query: DCBQuery | None = None,
+        after: int | None = None,
+    ) -> None:
+        super().__init__(recorder=recorder, query=query, after=after)
+        self._recorder.listen(self._has_been_notified)
+
+    def stop(self) -> None:
+        super().stop()
+        self._recorder.unlisten(self._has_been_notified)
 
 
 class SimpleDCBReadResponse(DCBReadResponse):
@@ -142,5 +174,5 @@ class SimpleDCBReadResponse(DCBReadResponse):
 
 class InMemoryDCBFactory(POPOFactory, DCBInfrastructureFactory[POPOTrackingRecorder]):
 
-    def dcb_event_store(self) -> DCBRecorder:
+    def dcb_recorder(self) -> DCBRecorder:
         return InMemoryDCBRecorder()

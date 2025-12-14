@@ -205,13 +205,13 @@ is not capable of reconstructing.
 Example projection
 ==================
 
-For example, the ``EventCountersProjection`` class, shown below, processes events of an event-sourced application by
+For example, the ``AggregateEventCountersProjection`` class, shown below, processes events of an event-sourced application by
 calling methods of a concrete instance of ``EventCountersInterface``. It inherits the :class:`~eventsourcing.projection.Projection`
 class, setting the type argument as ``EventCountersInterface`` class. It sets the :py:attr:`~eventsourcing.projection.Projection.name`
 attribute as ``'eventcounters'``. It sets the :py:attr:`~eventsourcing.projection.Projection.topics` attribute
 to mention the topics of the domain events processed by this projection.
 
-The ``EventCountersProjection`` class implements the :func:`~eventsourcing.projection.Projection.process_event`
+The ``AggregateEventCountersProjection`` class implements the :func:`~eventsourcing.projection.Projection.process_event`
 by calling the ``incr_created_event_counter()`` and ``incr_subsequent_event_counter()`` methods of ``EventCountersInterface``
 available on :data:`~eventsourcing.projection.Projection.view`.
 
@@ -224,7 +224,7 @@ progress along an application sequence can be recorded, for example if large gap
 subscription returning checkpoints.
 
 .. literalinclude:: ../../../tests/projection_tests/test_projection.py
-    :pyobject: EventCountersProjection
+    :pyobject: AggregateEventCountersProjection
 
 
 Runners
@@ -272,11 +272,11 @@ to wait until an event has been processed by the projection before calling a que
 Counting events in memory
 =========================
 
-For example, the ``TestEventCountersProjection`` class, shown below, tests the ``EventCountersProjection``
+For example, the ``TestAggregateEventCountersProjection`` class, shown below, tests the ``AggregateEventCountersProjection``
 projection class with the ``POPOEventCounters`` class.
 
 .. literalinclude:: ../../../tests/projection_tests/test_projection.py
-    :pyobject: TestEventCountersProjection
+    :pyobject: TestAggregateEventCountersProjection
 
 The method ``test_event_counters_projection()`` constructs a runner, and from the runner gets references
 to an event-sourced application "write model" and a materialised view "read model".
@@ -286,7 +286,7 @@ instance of the application object and of the materialised view object as the pr
 for generating events and for getting the counted numbers of events.
 
 Events are generated in the event-sourced application "write model". The "created" and subsequent events are
-processed, by updating the materialised view "read model", according to the logic of the ``EventCountersProjection``
+processed, by updating the materialised view "read model", according to the logic of the ``AggregateEventCountersProjection``
 projection. The counted numbers of each kind of event are obtained from the "read model". The materialised view is
 "eventually consistent" because the event processing is asynchronous, and so the
 :func:`~eventsourcing.persistence.TrackingRecorder.wait` method is used to wait for the events to be
@@ -302,8 +302,8 @@ method will time out.
 Counting events in PostgreSQL
 =============================
 
-The ``TestEventCountersProjectionWithPostgres`` class extends ``TestEventCountersProjection`` and runs
-``EventCountersProjection`` with the ``PostgresEventCounters`` class.
+The ``TestAggregateEventCountersProjectionWithPostgres`` class extends ``TestAggregateEventCountersProjection`` and runs
+``AggregateEventCountersProjection`` with the ``PostgresEventCounters`` class.
 Because this test case uses a durable database for both the event-sourced application and the materialised view,
 any instance of the application can be used to write events, and any instance of the materialised view can be used to
 obtain the counted numbers of events. If a durable database is used in production, the event-sourced
@@ -318,7 +318,7 @@ caused by the ``SpannerThrown`` event. The event-sourced application and the mat
 databases. But in this example they are configured more simply to use different tables in the same database.
 
 .. literalinclude:: ../../../tests/projection_tests/test_projection.py
-    :pyobject: TestEventCountersProjectionWithPostgres
+    :pyobject: TestAggregateEventCountersProjectionWithPostgres
 
 
 Exercises

@@ -29,6 +29,9 @@ from eventsourcing.postgres import (
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from typing_extensions import Self
+
+
 PG_TYPE_NAME_DCB_EVENT_TS = "dcb_event"
 
 PG_TYPE_DCB_EVENT = SQL("""
@@ -349,7 +352,7 @@ class PostgresDCBRecorderTS(DCBRecorder, PostgresRecorder):
         query: DCBQuery | None = None,
         *,
         after: int | None = None,
-    ) -> DCBSubscription:
+    ) -> DCBSubscription[Self]:
         raise NotImplementedError  # pragma: no cover
 
     def append(
@@ -460,7 +463,7 @@ class PostgresTSDCBFactory(
     BasePostgresFactory[PostgresTrackingRecorder],
     DCBInfrastructureFactory[PostgresTrackingRecorder],
 ):
-    def dcb_event_store(self) -> DCBRecorder:
+    def dcb_recorder(self) -> DCBRecorder:
         prefix = self.env.name.lower() or "dcb"
 
         dcb_table_name = prefix + "_events"

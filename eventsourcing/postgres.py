@@ -827,8 +827,10 @@ class PostgresSubscription(ListenNotifySubscription[PostgresApplicationRecorder]
         self._listen_thread.start()
 
     def __exit__(self, *args: object, **kwargs: Any) -> None:
-        super().__exit__(*args, **kwargs)
-        self._listen_thread.join()
+        try:
+            super().__exit__(*args, **kwargs)
+        finally:
+            self._listen_thread.join()
 
     def _listen(self) -> None:
         try:

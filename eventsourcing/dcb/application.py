@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any, Generic
+from typing import TYPE_CHECKING, Any, Generic, cast
 
 from eventsourcing.dcb.domain import (
     EnduringObject,
@@ -15,6 +15,7 @@ from eventsourcing.dcb.domain import (
 from eventsourcing.dcb.persistence import (
     DCBEventStore,
     DCBInfrastructureFactory,
+    DCBMapper,
     NotFoundError,
 )
 from eventsourcing.utils import Environment, EnvType, resolve_topic
@@ -37,10 +38,15 @@ class DCBApplication:
     def __init__(self, env: EnvType | None = None):
         self.env = self.construct_env(self.name, env)
         self.factory = DCBInfrastructureFactory.construct(self.env)
-        self.recorder = self.factory.dcb_event_store()
+        self.recorder = self.factory.dcb_recorder()
         if "MAPPER_TOPIC" in self.env:
-            mapper = resolve_topic(self.env["MAPPER_TOPIC"])()
-            self.events = DCBEventStore(mapper, self.recorder)
+            # Only need a mapper, event store, and repository
+            # if we are using the higher-level abstractions.
+            self.mapper = cast(
+                DCBMapper[Any], resolve_topic(self.env["MAPPER_TOPIC"])()
+            )
+            assert isinstance(self.mapper, DCBMapper)
+            self.events = DCBEventStore(self.mapper, self.recorder)
             self.repository = DCBRepository(self.events)
 
     def construct_env(self, name: str, env: EnvType | None = None) -> Environment:
@@ -50,6 +56,9 @@ class DCBApplication:
         if env is not None:
             _env.update(env)
         return Environment(name, _env)
+
+    def close(self) -> None:
+        self.factory.close()
 
     def __enter__(self) -> Self:
         self.factory.__enter__()
@@ -61,6 +70,7 @@ class DCBApplication:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
+        self.close()
         self.factory.__exit__(exc_type, exc_val, exc_tb)
 
 

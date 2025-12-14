@@ -14,7 +14,6 @@ from eventsourcing.dcb.api import (
     DCBReadResponse,
     DCBRecorder,
     DCBSequencedEvent,
-    DCBSubscription,
 )
 from eventsourcing.dcb.persistence import (
     DCBInfrastructureFactory,
@@ -488,7 +487,7 @@ class PostgresDCBRecorderTT(DCBRecorder, PostgresRecorder):
         query: DCBQuery | None = None,
         *,
         after: int | None = None,
-    ) -> DCBSubscription:
+    ) -> PostgresDCBSubscription:
         return PostgresDCBSubscription(
             recorder=self,
             query=query,
@@ -643,10 +642,10 @@ class PsycopgDCBQueryItem(NamedTuple):
     tags: list[str]
 
 
-class PostgresDCBSubscription(DCBListenNotifySubscription):
+class PostgresDCBSubscription(DCBListenNotifySubscription[PostgresDCBRecorderTT]):
     def __init__(
         self,
-        recorder: DCBRecorder,
+        recorder: PostgresDCBRecorderTT,
         query: DCBQuery | None = None,
         after: int | None = None,
     ) -> None:
@@ -692,7 +691,7 @@ class PostgresTTDCBFactory(
     BasePostgresFactory[PostgresTrackingRecorder],
     DCBInfrastructureFactory[PostgresTrackingRecorder],
 ):
-    def dcb_event_store(self) -> DCBRecorder:
+    def dcb_recorder(self) -> DCBRecorder:
         prefix = self.env.name.lower() or "dcb"
 
         dcb_table_name = prefix + "_events"

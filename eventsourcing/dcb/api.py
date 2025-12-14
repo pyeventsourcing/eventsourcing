@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from eventsourcing.persistence import ProgrammingError
 
@@ -92,7 +92,7 @@ class DCBRecorder(ABC):
         query: DCBQuery | None = None,
         *,
         after: int | None = None,
-    ) -> DCBSubscription:
+    ) -> DCBSubscription[Self]:
         """
         Returns all events, unless 'after' is given then only those with position
         greater than 'after', and unless any query items are given, then only those
@@ -103,10 +103,13 @@ class DCBRecorder(ABC):
         """
 
 
-class DCBSubscription(Iterator[DCBSequencedEvent]):
+TDCBRecorder_co = TypeVar("TDCBRecorder_co", bound=DCBRecorder, covariant=True)
+
+
+class DCBSubscription(Iterator[DCBSequencedEvent], Generic[TDCBRecorder_co]):
     def __init__(
         self,
-        recorder: DCBRecorder,
+        recorder: TDCBRecorder_co,
         query: DCBQuery | None = None,
         after: int | None = None,
     ) -> None:

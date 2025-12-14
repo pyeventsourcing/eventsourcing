@@ -26,8 +26,7 @@ class TestEventStore(TestCase):
             mapper=MessagePackMapper(), recorder=InMemoryDCBRecorder()
         )
         event_store.read()  # no args
-        with self.assertRaises(ProgrammingError):
-            event_store.append([])  # no cb, no after
+        self.assertEqual(0, event_store.append([]))  # no events
 
 
 class TestInMemoryDCBRecorder(TestCase):
@@ -95,6 +94,6 @@ class TestPostgresTTDCBFactory(TestCase):
 
         # create table is false
         factory.env["CREATE_TABLE"] = "f"
-        recorder = factory.dcb_event_store()
+        recorder = factory.dcb_recorder()
         with self.assertRaises(ProgrammingError):
             recorder.read()

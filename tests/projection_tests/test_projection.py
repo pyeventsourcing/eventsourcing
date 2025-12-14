@@ -1,15 +1,19 @@
 from __future__ import annotations
 
+import sys
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, cast
-from unittest import TestCase
+from typing import TYPE_CHECKING, Any, ClassVar, cast
+from unittest import TestCase, skipIf
 from uuid import UUID
 
 from psycopg.sql import SQL, Identifier
 
 from eventsourcing.application import Application
+from eventsourcing.dcb.application import DCBApplication
+from eventsourcing.dcb.domain import Perspective, Selector, Tagged
+from eventsourcing.dcb.msgpack import Decision, InitialDecision, MessagePackMapper
 from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain import Aggregate, DomainEventProtocol, TAggregateID
+from eventsourcing.domain import Aggregate
 from eventsourcing.persistence import (
     InfrastructureFactory,
     IntegrityError,
@@ -25,6 +29,9 @@ from eventsourcing.postgres import (
 from eventsourcing.projection import Projection, ProjectionRunner
 from eventsourcing.tests.postgres_utils import drop_tables
 from eventsourcing.utils import Environment, get_topic
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 class EventCountersInterface(TrackingRecorder):
@@ -110,11 +117,6 @@ class EventCountersViewTestCase(TestCase):
             view.wait("upstream", 4, timeout=0.5)
 
 
-class TestPOPOEventCounters(EventCountersViewTestCase):
-    def construct_event_counters_view(self) -> EventCountersInterface:
-        return POPOEventCounters()
-
-
 class POPOEventCounters(POPOTrackingRecorder, EventCountersInterface):
     def __init__(self) -> None:
         super().__init__()
@@ -140,6 +142,11 @@ class POPOEventCounters(POPOTrackingRecorder, EventCountersInterface):
             self._subsequent_event_counter += 1
 
 
+class TestPOPOEventCounters(EventCountersViewTestCase):
+    def construct_event_counters_view(self) -> EventCountersInterface:
+        return POPOEventCounters()
+
+
 class TestPostgresEventCounters(EventCountersViewTestCase):
     def setUp(self) -> None:
         self.factory = cast(
@@ -163,6 +170,7 @@ class TestPostgresEventCounters(EventCountersViewTestCase):
         return self.factory.tracking_recorder(PostgresEventCounters)
 
     def tearDown(self) -> None:
+        self.factory.close()
         drop_tables()
 
 
@@ -244,11 +252,17 @@ class SpannerThrown(Aggregate.Event):
     pass
 
 
+class DCBSpannerThrown(Decision):
+    # Avoid segmentation violation with Python 3.13
+    # and MsgStruct instances with zero attributes.
+    a: str
+
+
 class SpannerThrownError(Exception):
     pass
 
 
-class EventCountersProjection(Projection[EventCountersInterface]):
+class AggregateEventCountersProjection(Projection[EventCountersInterface]):
     name = "eventcounters"
     topics: tuple[str, ...] = (
         get_topic(Aggregate.Created),
@@ -257,13 +271,11 @@ class EventCountersProjection(Projection[EventCountersInterface]):
     )
 
     @singledispatchmethod
-    def process_event(
-        self, _: DomainEventProtocol[TAggregateID], tracking: Tracking
-    ) -> None:
+    def process_event(self, _: Aggregate.Event, tracking: Tracking) -> None:
         self.view.insert_tracking(tracking)
 
     @process_event.register
-    def aggregate_created(self, event: Aggregate.Created, tracking: Tracking) -> None:
+    def aggregate_created(self, _: Aggregate.Created, tracking: Tracking) -> None:
         self.view.incr_created_event_counter(tracking)
 
     @process_event.register
@@ -276,18 +288,49 @@ class EventCountersProjection(Projection[EventCountersInterface]):
         raise SpannerThrownError(msg)
 
 
-class TestEventCountersProjection(TestCase, ABC):
+class TaggedDecisionCountersProjection(Projection[EventCountersInterface]):
+    name = "eventcounters"
+    topics: tuple[str, ...] = (
+        get_topic(InitialDecision),
+        get_topic(Decision),
+        get_topic(DCBSpannerThrown),
+    )
+
+    @singledispatchmethod
+    def process_event(self, tagged: Tagged[Decision], tracking: Tracking) -> None:
+        self.process_decision(tagged.decision, tracking)
+
+    @singledispatchmethod
+    def process_decision(self, _: Decision, tracking: Tracking) -> None:
+        self.view.insert_tracking(tracking)
+
+    @process_decision.register
+    def _(self, _: InitialDecision, tracking: Tracking) -> None:
+        self.view.incr_created_event_counter(tracking)
+
+    @process_decision.register
+    def _(self, _: Decision, tracking: Tracking) -> None:
+        self.view.incr_subsequent_event_counter(tracking)
+
+    @process_decision.register
+    def _(self, _: DCBSpannerThrown, __: Tracking) -> None:
+        msg = "This is a deliberate bug"
+        raise SpannerThrownError(msg)
+
+
+class TestAggregateEventCountersProjection(TestCase, ABC):
     view_class: type[EventCountersInterface] = POPOEventCounters
     env: ClassVar[dict[str, str]] = {}
 
     def test_event_counters_projection(self) -> None:
         # Construct runner with application, projection, and recorder.
-        with ProjectionRunner(
+        runner = ProjectionRunner(
             application_class=Application[UUID],
-            projection_class=EventCountersProjection,
+            projection_class=AggregateEventCountersProjection,
             view_class=self.view_class,
             env=self.env,
-        ) as runner:
+        )
+        with runner:
 
             # Get "read" and "write" model instances from the runner.
             write_model = runner.app
@@ -329,7 +372,7 @@ class TestEventCountersProjection(TestCase, ABC):
         # Construct runner with application, projection, and recorder.
         with ProjectionRunner(
             application_class=Application[UUID],
-            projection_class=EventCountersProjection,
+            projection_class=AggregateEventCountersProjection,
             view_class=self.view_class,
             env=self.env,
         ) as runner:
@@ -343,7 +386,7 @@ class TestEventCountersProjection(TestCase, ABC):
 
             # Projection runner terminates with projection error.
             with self.assertRaises(SpannerThrownError):
-                runner.run_forever()
+                runner.run_forever(timeout=5)
 
             # Wait times out (event has not been processed).
             with self.assertRaises(TimeoutError):
@@ -353,7 +396,104 @@ class TestEventCountersProjection(TestCase, ABC):
                 )
 
 
-class TestEventCountersProjectionWithPostgres(TestEventCountersProjection):
+class MyPerspective(Perspective[Decision]):
+    @property
+    def cb(self) -> Selector | Sequence[Selector]:
+        return []
+
+
+# TODO: Figure out actually what is causing segmentation violations with Python3.13.
+#  - is happening in this test when whole test suite is run, but not when run alone
+#  - was happening when run alone when DCBSpannerThrown has no attributes
+#  - maybe something to do with deepcopy() in InMemoryRecorder?
+@skipIf(sys.version_info[0:2] == (3, 13), "Weird occasional segmentation violation")
+class TestTaggedDecisionCountersProjection(TestCase, ABC):
+    view_class: type[EventCountersInterface] = POPOEventCounters
+    env: ClassVar[dict[str, str]] = {"MAPPER_TOPIC": get_topic(MessagePackMapper)}
+
+    def test_event_counters_projection(self) -> None:
+
+        # Construct runner with application, projection, and recorder.
+        with ProjectionRunner(
+            application_class=DCBApplication,
+            projection_class=TaggedDecisionCountersProjection,
+            view_class=self.view_class,
+            env=self.env,
+        ) as runner:
+
+            # Get "read" and "write" model instances from the runner.
+            write_model = runner.app
+            read_model = runner.projection.view
+
+            # Write some events.
+            perspective = MyPerspective()
+            perspective.append_new_decision(
+                Tagged([], InitialDecision(originator_topic=""))
+            )
+            perspective.append_new_decision(Tagged([], Decision()))
+            perspective.append_new_decision(Tagged([], Decision()))
+            position = write_model.repository.save(perspective)
+
+            # Wait for the events to be processed.
+            read_model.wait(
+                application_name=write_model.name,
+                notification_id=position,
+            )
+
+            # Query the read model.
+            self.assertEqual(read_model.get_created_event_counter(), 1)
+            self.assertEqual(read_model.get_subsequent_event_counter(), 2)
+
+            # Write some more events.
+            perspective = MyPerspective()
+            perspective.append_new_decision(
+                Tagged([], InitialDecision(originator_topic=""))
+            )
+            perspective.append_new_decision(Tagged([], Decision()))
+            perspective.append_new_decision(Tagged([], Decision()))
+            position = write_model.repository.save(perspective)
+
+            # Wait for the events to be processed.
+            read_model.wait(
+                application_name=write_model.name,
+                notification_id=position,
+            )
+
+            # Query the read model.
+            self.assertEqual(read_model.get_created_event_counter(), 2)
+            self.assertEqual(read_model.get_subsequent_event_counter(), 4)
+
+    def test_run_forever_raises_projection_error(self) -> None:
+        # Construct runner with application, projection, and recorder.
+        with ProjectionRunner(
+            application_class=DCBApplication,
+            projection_class=TaggedDecisionCountersProjection,
+            view_class=self.view_class,
+            env=self.env,
+        ) as runner:
+            write_model = runner.app
+            read_model = runner.projection.view
+
+            # Write some events.
+            perspective = MyPerspective()
+            perspective.append_new_decision(Tagged([], DCBSpannerThrown(a="")))
+            position = write_model.repository.save(perspective)
+
+            # Projection runner terminates with projection error.
+            with self.assertRaises(SpannerThrownError):
+                runner.run_forever(timeout=5)
+
+            # Wait times out (event has not been processed).
+            with self.assertRaises(TimeoutError):
+                read_model.wait(
+                    application_name=write_model.name,
+                    notification_id=position,
+                )
+
+
+class TestAggregateEventCountersProjectionWithPostgres(
+    TestAggregateEventCountersProjection
+):
     view_class = PostgresEventCounters
     env: ClassVar[dict[str, str]] = {
         "APPLICATION_PERSISTENCE_MODULE": "eventsourcing.postgres",
@@ -376,7 +516,7 @@ class TestEventCountersProjectionWithPostgres(TestEventCountersProjection):
         # Resume....
         with ProjectionRunner(
             application_class=Application[UUID],
-            projection_class=EventCountersProjection,
+            projection_class=AggregateEventCountersProjection,
             view_class=self.view_class,
             env=self.env,
         ):
@@ -388,7 +528,9 @@ class TestEventCountersProjectionWithPostgres(TestEventCountersProjection):
             read_model = (
                 InfrastructureFactory[EventCountersInterface]
                 .construct(
-                    env=Environment(name=EventCountersProjection.name, env=self.env)
+                    env=Environment(
+                        name=AggregateEventCountersProjection.name, env=self.env
+                    )
                 )
                 .tracking_recorder(self.view_class)
             )
@@ -431,7 +573,7 @@ class TestEventCountersProjectionWithPostgres(TestEventCountersProjection):
         # Resume...
         with ProjectionRunner(
             application_class=Application[UUID],
-            projection_class=EventCountersProjection,
+            projection_class=AggregateEventCountersProjection,
             view_class=self.view_class,
             env=self.env,
         ) as runner:
@@ -441,7 +583,9 @@ class TestEventCountersProjectionWithPostgres(TestEventCountersProjection):
 
             # Construct separate instance of "read model".
             read_model = InfrastructureFactory.construct(
-                env=Environment(name=EventCountersProjection.name, env=self.env)
+                env=Environment(
+                    name=AggregateEventCountersProjection.name, env=self.env
+                )
             ).tracking_recorder(self.view_class)
 
             # Still terminates with projection error.
