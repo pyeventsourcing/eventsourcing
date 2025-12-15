@@ -336,14 +336,13 @@ See the :doc:`speedrun example for a comparative report and analysis of the perf
 UmaDB DCB recorder
 ------------------
 
-To optimise the design of the :ref:`Postgres DCB recorder` further, we decided to port the idea to Rust.
-The result is `UmaDB <https://umadb.io>`_ — a specialist event store for DCB.
-The implementation of UmaDB follows the CoW MVCC design of `LMDB <https://en.wikipedia.org/wiki/Lightning_Memory-Mapped_Database>`_.
-
-The `Python package <https://pypi.org/project/eventsourcing-umadb/>`_ ``eventsourcing_umadb`` also implements :class:`~eventsourcing.dcb.api.DCBRecorder` by
-adapting the official `Python client for UmaDB <https://pypi.org/project/umadb/>`_.
+UmaDB is a `specialist event store for DCB <https://umadb.io>`_. The `Python package <https://pypi.org/project/eventsourcing-umadb/>`_
+``eventsourcing_umadb`` implements :class:`~eventsourcing.dcb.api.DCBRecorder` by adapting the `Python client for UmaDB <https://pypi.org/project/umadb/>`_.
 
 It can be used by a DCB application by setting the ``PERSISTENCE_MODULE`` environment variable to ``"eventsourcing_umadb"``.
+
+UmaDB uses the same idea as the :ref:`Postgres DCB recorder` of filtering first by tags.
+UmaDB is written in Rust and follows the CoW MVCC design of `LMDB <https://en.wikipedia.org/wiki/Lightning_Memory-Mapped_Database>`_.
 
 See the :doc:`speedrun example for a comparative report and analysis of the performance </topics/examples/dcb-enrolment-speedrun>`.
 
