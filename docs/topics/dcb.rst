@@ -7,7 +7,7 @@ From version `9.5`, this library supports dynamic consistency boundaries (DCB) b
 * an :ref:`implementation <DCB Objects>` in Python of the basic objects defined in the `DCB specification <https://dcb.events/specification/>`_
 * :ref:`DCB event stores <DCB recorders>` that work in-memory, in PostgreSQL, and with UmaDB
 * some :ref:`higher-level abstractions <Higher-level abstractions>` to make working with DCB easier
-* support in the :mod:`projections module </topics/projection> for eventually-consistent materialised views of DCB applications
+* support in the :doc:`projections module </topics/projection>` for eventually-consistent views of :ref:`DCB applications <DCB application>`
 
 .. _Introduction to DCB:
 
@@ -1012,7 +1012,7 @@ Application
 -----------
 
 An application object brings together a stand-alone domain model and supportive persistence infrastructure,
-and introduces some conveniences that make it easier to support user interface commands and queries.
+and implements commands and queries that support user interfaces.
 
 Just like the library's original :ref:`application class <Application objects>`,
 :class:`~eventsourcing.dcb.application.DCBApplication` selects and constructs a
