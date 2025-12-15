@@ -682,7 +682,7 @@ Enduring object
 ---------------
 
 The generic base class :class:`~eventsourcing.dcb.domain.EnduringObject` extends the :ref:`perspective <Perspective>` class
-and is is very similar to :ref:`event-sourced aggregates <Aggregates>`. Each instance has a unique continuity ID,
+and is is very similar to :doc:`event-sourced aggregates </topics/tutorial/part2>`. Each instance has a unique continuity ID,
 which is used generate a consistency boundary for selecting and appending tagged decisions, and to tag new
 decisions.
 
@@ -703,6 +703,9 @@ base class can be used to collect uncommitted new decisions.
             student_id: str
             name: str
             max_courses: int
+
+        class NameUpdated(Decision):
+            name: str
 
         @event(Registered)
         def __init__(self, name: str, max_courses: int) -> None:
@@ -749,6 +752,7 @@ that including all events in the consistency boundary, regardless of whether the
 any particular operation, increases contention unnecessarily. Along with this goes the accumulation of functionality
 under one class, tending towards large units of code that are hard to understand.
 See :ref:`slices <Slice>` for an alternative higher-level abstraction.
+
 
 .. _Group:
 
@@ -841,37 +845,33 @@ The example below shows a slice for updating a student's name.
     class UpdateStudentName(Slice[Decision]):
         def __init__(self, student_id: StudentID, name: str) -> None:
             self.student_id = student_id
-            self.name = name
+            self.new_name = name
+            self.name = ""
             self.student_was_registered: bool = False
 
         @property
         def cb(self) -> Selector:
             return Selector(
-                types=[Student.Registered, StudentNameUpdated],
+                types=[Student.Registered, Student.NameUpdated],
                 tags=[self.student_id],
             )
 
         @event(Student.Registered)
-        def _(self) -> None:
+        def _(self, name: str) -> None:
+            self.name = name
             self.student_was_registered = True
+
+        @event(Student.NameUpdated)
+        def _(self, name: str) -> None:
+            self.name = name
 
         def execute(self) -> None:
             assert self.student_was_registered
             self.trigger_event(
-                StudentNameUpdated,
+                Student.NameUpdated,
                 tags=[self.student_id],
-                name=self.name,
+                name=self.new_name,
             )
-
-
-    class StudentNameUpdated(Decision):
-        name: str
-
-The advantage of using enduring objects is the conceptual unity of having everything together in one place.
-However, this aligns enduring objects with the central criticism of event-sourced aggregates that motivates DCB:
-that including all events in the consistency boundary, regardless of whether they are actually required for
-any particular operation, increases contention unnecessarily, and accumulates functionality that should perhaps
-be more separated. See :ref:`slices <Slice>` for an alternative higher-level abstraction.
 
 See the :doc:`DCB examples </topics/examples/dcb-enrolment-with-vertical-slices>` for a more complete set of examples.
 
@@ -986,11 +986,17 @@ state before calling its :ref:`execute <slice>` method.
 .. code-block:: python
 
     update_student_name = UpdateStudentName(student_id=student.id, name="Sara P")
-
+    assert update_student_name.name == ""
     assert update_student_name.student_was_registered is False
+
     repository.advance(update_student_name)
+    assert update_student_name.name == "Sara"
     assert update_student_name.student_was_registered is True
+
     update_student_name.execute()
+    assert update_student_name.name == "Sara P"
+    assert update_student_name.student_was_registered is True
+
     new_decisions = update_student_name.collect_new_decisions()
 
 .. _DCB application:
@@ -1056,7 +1062,7 @@ The example below shows how to write command and query methods using :ref:`endur
     assert "Sara" in app.list_students_for_course(course_id)
     assert "History" in app.list_courses_for_student(student_id)
 
-See the :doc:`DCB examples </topics/examples/dcb-enrolment-with-enduring-objects>` for a more complete example.
+See :ref:`read the examples pages <Dynamic consistency boundaries>` for a more examples of DCB.
 
 
 Code reference
