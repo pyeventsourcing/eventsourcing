@@ -2,8 +2,8 @@
 Installation
 ============
 
-This version of the library is compatible with Python versions 3.9,
-3.10, 3.11, 3.12, and 3.13.
+This version of the library is compatible with Python versions 3.10,
+3.11, 3.12, 3.13, and 3.14.
 
 This package depends only on modules from the Python Standard Library,
 except for ``typing_extensions`` and the extra install options described below.
@@ -34,14 +34,14 @@ it is recommended to specify the major and minor version numbers, use dependency
 the dependency forward in a controlled way. Please note, it is recommended to test all updates in
 your CI.
 
-As an example, the expression ``eventsourcing>=9.5.0dev0,==9.5.*`` would install the latest version of
-the 9.4 series, allowing future bug fixes released with point version increments, whilst avoiding
+As an example, the expression ``eventsourcing~=9.5.0b1`` would install the latest version of
+the 9.5 series, allowing future bug fixes released with point version increments, whilst avoiding
 any changes introduced by major and minor version increments that might break your code. You can use
 this expression in a ``pip install`` command.
 
 ::
 
-    $ pip install "eventsourcing>=9.5.0dev0,==9.5.*"
+    $ pip install "eventsourcing~=9.5.0b1"
 
 You can use the same expression in ``requirements.txt`` files, in ``setup.py`` files, and
 in ``pyproject.toml`` files.
@@ -52,9 +52,9 @@ file, you can specify the dependency on this library in the following way.
 ::
 
     [project]
-    requires-python = ">=3.9.2"
+    requires-python = ">=3.10"
     dependencies = [
-        "eventsourcing>=9.5.0dev0,==9.5.*",
+        "eventsourcing~=9.5.0b1",
     ]
 
 
@@ -163,7 +163,7 @@ or open the project in an IDE. You should see a Makefile.
 
 If you don't already have the required version of Poetry installed, running
 ``make install-poetry`` will install it with pipx, using a suffix to indicate
-the version e.g. ``poetry@2.1.2``.
+the version e.g. ``poetry@2.2.1``.
 
 ::
 

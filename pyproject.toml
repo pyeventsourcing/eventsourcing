@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "eventsourcing"
-version = "9.5.0a3"
+version = "9.5.0b1"
 description = "Event sourcing in Python"
 license = "BSD-3-Clause"
 readme = "README.md"
@@ -13,8 +13,8 @@ authors = [
     { "name" = "John Bywater", "email" = "john.bywater@appropriatesoftware.net" },
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
-#    "Development Status :: 4 - Beta",
+#    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
 #    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Intended Audience :: Education",
@@ -26,7 +26,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
@@ -160,7 +160,7 @@ sections = "FUTURE,STDLIB,THIRDPARTY,FIRSTPARTY,LOCALFOLDER"
 line-length = 88
 #indent-width = 4
 
-# Assume Python 3.9
+# Assume Python 3.10
 target-version = "py310"
 
 [tool.ruff.lint]
