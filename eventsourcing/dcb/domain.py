@@ -349,12 +349,14 @@ class Selector:
 
 
 class MetaSlice(MetaSupportsEventDecorator):
-    pass
+    def __init__(
+        cls, name: str, bases: tuple[type, ...], namespace: dict[str, Any]
+    ) -> None:
+        super().__init__(name, bases, namespace)
+        cls.do_projection = len(cls.projected_types) != 0
 
 
 class Slice(Perspective[TDecision], metaclass=MetaSlice):
-    do_projection = True
-
     def execute(self) -> None:
         pass
 

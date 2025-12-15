@@ -713,6 +713,10 @@ base class can be used to collect uncommitted new decisions.
             self.max_courses = max_courses
             self.course_ids: list[str] = []
 
+        @event(NameUpdated)
+        def _(self, name: str) -> None:
+            self.name = name
+
         @event(StudentJoinedCourse)
         def _(self, course_id: str) -> None:
             self.course_ids.append(course_id)
@@ -747,10 +751,10 @@ base class can be used to collect uncommitted new decisions.
 See the :doc:`DCB examples </topics/examples/dcb-enrolment-with-enduring-objects>` for a more complete example.
 
 The advantage of enduring objects is the conceptual unity of having everything together in one place.
-However, this aligns enduring objects with the central criticism of event-sourced aggregates that motivates DCB:
+However, this aligns enduring objects with the central criticism of event-sourced aggregates motivating DCB:
 that including all events in the consistency boundary, regardless of whether they are actually required for
-any particular operation, increases contention unnecessarily. Along with this goes the accumulation of functionality
-under one class, tending towards large units of code that are hard to understand.
+any particular operation, increases contention unnecessarily. Following this comes the accumulation of all
+commands and queries in a single class, tending towards large units of code that are hard to understand.
 See :ref:`slices <Slice>` for an alternative higher-level abstraction.
 
 
@@ -836,7 +840,11 @@ subsequently collected using the :func:`~eventsourcing.dcb.domain.Perspective.ap
 :func:`~eventsourcing.dcb.domain.Perspective.collect_new_decisions` methods defined by the perspective
 base class.
 
-The example below shows a slice for updating a student's name.
+The example below shows a slice for updating a student's name. You can see that it uses the decision classes
+defined above on the enduring object ``Student``. This shows that it is possible to start with enduring objects
+and rework your code to use slices. Similarly, with a little care, it is possible to start with slices and
+rework your code to use enduring objects. Indeed, it is possible to have some parts of your domain model
+defined with enduring objects and groups, and other parts defined using slices.
 
 .. code-block:: python
 
@@ -879,8 +887,6 @@ The advantage of using slices is that individual use cases can be implemented wi
 entirely independent of each other. However, this comes at the cost of some repetition of business logic,
 increasing the volume of code, which tends to increase the chances of introducing coding errors. See
 :ref:`enduring objects <Enduring object>` for an alternative higher-level abstraction.
-
-
 
 .. _DCB Repository:
 
@@ -1014,12 +1020,16 @@ This means we can define a DCB application independently of persistence infrastr
 in different ways at different times.
 
 The :class:`~eventsourcing.dcb.application.DCBApplication` class also supports the higher-level
-abstractions described above, in particular by having a :ref:`repository <DCB repository>`. But it
-is also possible to use the :ref:`basic DCB objects <DCB objects>` directly, and to extend
+abstractions described above. It has a :ref:`repository <DCB repository>` to support working
+with perspectives. It also has a method :func:`~eventsourcing.dcb.application.DCBApplication.do`
+which supports working with :ref:`slices <Slice>`.
+
+It is also possible to use the :ref:`basic DCB objects <DCB objects>` directly, and to extend
 :class:`~eventsourcing.dcb.application.DCBApplication` to support any higher-level style you may
 wish to invent.
 
-The example below shows how to write command and query methods using :ref:`enduring objects <enduring object>` and :ref:`groups <group>`.
+The example below shows how to write command and query methods using :ref:`enduring objects <enduring object>`,
+:ref:`groups <group>`, and :ref:`slices <slice>`.
 
 .. code-block:: python
 
@@ -1031,6 +1041,9 @@ The example below shows how to write command and query methods using :ref:`endur
             student = Student(name=name, max_courses=5)
             self.repository.save(student)
             return student.id
+
+        def update_student_name(self, student_id: str, name: str) -> None:
+            self.do(UpdateStudentName(student_id, name))
 
         def register_course(self, name: str) -> str:
             course = Course(name=name, max_students=30)
@@ -1051,18 +1064,27 @@ The example below shows how to write command and query methods using :ref:`endur
             return [s.name for s in self.repository.get_many(*course.student_ids)]
 
 
+    # Construct app to use MessagePack and in-memory persistence.
     app = CourseSubscriptions(env={
         "PERSISTENCE_MODULE": "eventsourcing.dcb.popo",
         "MAPPER_TOPIC": "eventsourcing.dcb.msgpack:MessagePackMapper",
     })
+
+    # Construct enduring objects.
     student_id = app.register_student("Sara")
     course_id = app.register_course("History")
+
+    # Update the student name using a vertical slice.
+    app.update_student_name(student_id, "Sara P")
+
+    # Enrol the student on the course using a group.
     app.enrol_student_on_course(student_id, course_id)
 
-    assert "Sara" in app.list_students_for_course(course_id)
+    # Query for student and course names.
+    assert "Sara P" in app.list_students_for_course(course_id)
     assert "History" in app.list_courses_for_student(student_id)
 
-See :ref:`read the examples pages <Dynamic consistency boundaries>` for a more examples of DCB.
+See :ref:`read the examples pages <Dynamic consistency boundaries>` for more discussion and examples of DCB.
 
 
 Code reference

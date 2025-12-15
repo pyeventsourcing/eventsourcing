@@ -11,6 +11,7 @@ from eventsourcing.dcb.domain import (
     TDecision,
     TGroup,
     TPerspective,
+    TSlice,
 )
 from eventsourcing.dcb.persistence import (
     DCBEventStore,
@@ -56,6 +57,17 @@ class DCBApplication:
         if env is not None:
             _env.update(env)
         return Environment(name, _env)
+
+    def do(self, s: TSlice) -> TSlice:
+        """
+        Advances and executes a slice, then saves new decisions.
+        """
+        if type(s).do_projection:
+            s = self.repository.advance(s)
+        s.execute()
+        if s.new_decisions:
+            self.repository.save(s)
+        return s
 
     def close(self) -> None:
         self.factory.close()

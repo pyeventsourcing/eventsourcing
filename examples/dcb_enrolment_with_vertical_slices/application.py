@@ -11,7 +11,6 @@ from eventsourcing.dcb.domain import (
     Selector,
     Slice,
     Tagged,
-    TSlice,
 )
 from eventsourcing.dcb.msgpack import Decision, MessagePackMapper
 from eventsourcing.domain import event
@@ -570,14 +569,6 @@ class EnrolmentWithVerticalSlices(DCBApplication, EnrolmentInterface):
 
     def get_course(self, course_id: CourseID) -> Course:
         return self.do(Course(course_id=course_id))
-
-    def do(self, s: TSlice) -> TSlice:
-        if s.do_projection:
-            s = self.repository.advance(s)
-        s.execute()
-        if s.new_decisions:
-            self.repository.save(s)
-        return s
 
 
 DecisionTypes = Sequence[type[Decision]]
