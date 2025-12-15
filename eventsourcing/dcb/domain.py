@@ -270,7 +270,7 @@ class EnduringObject(
         initial_kwargs.update(kwargs)
         try:
 
-            initialised = Tagged[TDecision](
+            initial_tagged_decision = Tagged[TDecision](
                 tags=[enduring_object_id],
                 decision=cast(type[TDecision], decision_cls)(**initial_kwargs),
             )
@@ -280,9 +280,9 @@ class EnduringObject(
                 f"with kwargs {initial_kwargs}: {e}"
             )
             raise TypeError(msg) from e
-        enduring_object = cast(Self, initialised.decision.mutate(None))
+        enduring_object = cast(Self, initial_tagged_decision.decision.mutate(None))
         assert enduring_object is not None
-        enduring_object.new_decisions += (initialised,)
+        enduring_object.new_decisions += (initial_tagged_decision,)
         return enduring_object
 
     @classmethod

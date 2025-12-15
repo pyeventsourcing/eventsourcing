@@ -289,7 +289,7 @@ class TestGroup(TestCase):
 
 
 class TestSlice(TestCase):
-    def test(self) -> None:
+    def test_slice(self) -> None:
         @dataclass
         class Created(Decision):
             a: str
@@ -360,3 +360,107 @@ class TestSlice(TestCase):
 
         self.assertEqual("2", update.a)
         self.assertEqual("2", update.new_a)
+
+
+class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
+    def test(self) -> None:
+        # Define an enduring object that can update "a".
+        class MyObject(EnduringObject[Decision, str]):
+            @dataclass
+            class Created(InitialDecision):
+                originator_topic: str
+                myobject_id: str
+                a: str
+
+            @dataclass
+            class Updated(Decision):
+                a: str
+
+            def __init__(self, a: str) -> None:
+                self.a = a
+
+            @event(Updated)
+            def set_a(self, a: str) -> None:
+                self.a = a
+
+        # Define a slice that will just update "a".
+        class Update(Slice[Decision]):
+            def __init__(self, obj_id: str, a: str):
+                self.obj_id = obj_id
+                self.a = ""
+                self.new_a = a
+
+            @property
+            def cb(self) -> Selector | Sequence[Selector]:
+                return Selector(types=type(self).projected_types, tags=[self.obj_id])
+
+            @event(MyObject.Created)
+            def _(self, a: str) -> None:
+                self.a = a
+
+            @event(MyObject.Updated)
+            def _(self, a: str) -> None:
+                self.a = a
+
+            def execute(self) -> None:
+                self.trigger_event(
+                    MyObject.Updated,
+                    tags=[self.obj_id],
+                    a=self.new_a,
+                )
+
+        # Construct an enduring object and update "a".
+        obj = MyObject(a="1")
+        self.assertIsInstance(obj, MyObject)
+        self.assertEqual(obj.a, "1")
+        obj.set_a(a="2")
+        self.assertEqual(obj.a, "2")
+        new = list(obj.collect_new_decisions())
+
+        # Construct a slice and update "a".
+        update = Update(obj.id, a="3")
+        for tagged in new:
+            tagged.decision.mutate(update)
+        update.execute()
+        self.assertEqual("3", update.a)
+        new.extend(update.collect_new_decisions())
+
+        # Reconstruct enduring object from all new events.
+        copy1 = None
+        for tagged in new:
+            copy1 = tagged.decision.mutate(copy1)
+
+        self.assertIsInstance(copy1, MyObject)
+        assert isinstance(copy1, MyObject)  # for mypy
+        self.assertEqual("3", copy1.a)
+
+        # Define a slice that creates an enduring object.
+        class Create(Slice[Decision]):
+            def __init__(self, obj_id: str, a: str):
+                self.obj_id = obj_id
+                self.a = a
+
+            @property
+            def cb(self) -> Selector | Sequence[Selector]:
+                return Selector(types=[MyObject.Created], tags=[self.obj_id])
+
+            def execute(self) -> None:
+                self.trigger_event(
+                    MyObject.Created,
+                    tags=[self.obj_id],
+                    originator_topic=get_topic(MyObject),
+                    myobject_id=self.obj_id,
+                    a=self.a,
+                )
+
+        create = Create(obj_id="obj:123", a="1")
+        create.execute()
+        new = list(create.collect_new_decisions())
+
+        copy2 = None
+        for tagged in new:
+            copy2 = tagged.decision.mutate(copy2)
+
+        self.assertIsInstance(copy2, MyObject)
+        assert isinstance(copy2, MyObject)  # for mypy
+        self.assertEqual("1", copy2.a)
