@@ -881,10 +881,10 @@ the processing of event notifications from an application sequence.
 
 The :func:`~eventsourcing.persistence.TrackingRecorder.has_tracking_id` method defines a method signature for
 discovering whether an event notification has been successfully processed, and can be used by user interfaces
-to poll for an eventually consistent materialised view of the state of an event-sourced application to be updated.
+to poll for an eventually-consistent materialised view of the state of an event-sourced application to be updated.
 
 The :func:`~eventsourcing.persistence.TrackingRecorder.wait` method defines a method for waiting until a tracking
-object has been recorded, and can be used by user interfaces to wait for an eventually consistent materialised
+object has been recorded, and can be used by user interfaces to wait for an eventually-consistent materialised
 view of the state of an event-sourced application to be updated. It calls
 :func:`~eventsourcing.persistence.TrackingRecorder.has_tracking_id` with exponential backoff until
 the given timeout (seconds), optionally interrupted by the setting of a given event.

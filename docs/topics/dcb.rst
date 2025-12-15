@@ -7,6 +7,7 @@ From version `9.5`, this library supports dynamic consistency boundaries (DCB) b
 * an :ref:`implementation <DCB Objects>` in Python of the basic objects defined in the `DCB specification <https://dcb.events/specification/>`_
 * :ref:`DCB event stores <DCB recorders>` that work in-memory, in PostgreSQL, and with UmaDB
 * some :ref:`higher-level abstractions <Higher-level abstractions>` to make working with DCB easier
+* support in the :mod:`projections module </topics/projection> for eventually-consistent materialised views of DCB applications
 
 .. _Introduction to DCB:
 
