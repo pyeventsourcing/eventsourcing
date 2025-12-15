@@ -107,20 +107,20 @@ class DCBRepository(Generic[TDecision]):
             Selector(tags=[enduring_object_id])
             for enduring_object_id in enduring_object_ids
         ]
-        events = self.eventstore.read(cb)
+        tagged_decisions = self.eventstore.read(cb)
         objs: dict[str, EnduringObject[TDecision] | None] = dict.fromkeys(
             enduring_object_ids
         )
-        for event in events:
-            for tag in event.tags:
+        for tagged in tagged_decisions:
+            for tag in tagged.tags:
                 obj = objs.get(tag)
-                if not isinstance(event.decision, InitialDecision) and not obj:
+                if not isinstance(tagged.decision, InitialDecision) and not obj:
                     continue
-                obj = event.decision.mutate(obj)
+                obj = tagged.decision.mutate(obj)
                 objs[tag] = obj
         for obj in objs.values():
             if obj is not None:
-                obj.last_known_position = events.head
+                obj.last_known_position = tagged_decisions.head
         return list(objs.values())
 
     def get_group(self, cls: type[TGroup], *enduring_object_ids: str) -> TGroup:
@@ -136,8 +136,8 @@ class DCBRepository(Generic[TDecision]):
         )
         return perspective
 
-    def project_perspective(self, p: TPerspective) -> TPerspective:
-        events = self.eventstore.read(p.cb)
+    def advance(self, p: TPerspective) -> TPerspective:
+        events = self.eventstore.read(p.cb, after=p.last_known_position)
         for event in events:
             event.decision.mutate(p)
         p.last_known_position = events.head

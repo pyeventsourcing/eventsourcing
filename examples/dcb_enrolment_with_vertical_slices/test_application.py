@@ -114,7 +114,7 @@ class TestEnrolmentWithVerticalSlices(EnrolmentTestCase):
 
         # Check leaving a course doesn't conflict with concurrent name changes.
         leave = StudentLeavesCourse(student_id, course_id)
-        app.repository.project_perspective(leave)
+        app.repository.advance(leave)
         leave.execute()
         app.update_student_name(student_id, "Mollie")
         app.update_course_name(course_id, "Bio-science")
@@ -122,7 +122,7 @@ class TestEnrolmentWithVerticalSlices(EnrolmentTestCase):
 
         # Check leaving a course doesn't conflict with concurrent name changes.
         join = StudentJoinsCourse(student_id, course_id)
-        app.repository.project_perspective(join)
+        app.repository.advance(join)
         join.execute()
         app.update_student_name(student_id, "Millie")
         app.update_course_name(course_id, "Biological-science")
@@ -130,7 +130,7 @@ class TestEnrolmentWithVerticalSlices(EnrolmentTestCase):
 
         # Check leaving doesn't conflict with updating max_courses and places.
         leave = StudentLeavesCourse(student_id, course_id)
-        app.repository.project_perspective(leave)
+        app.repository.advance(leave)
         leave.execute()
         app.update_max_courses(student_id, 31)
         app.update_places(course_id, 28)
@@ -138,7 +138,7 @@ class TestEnrolmentWithVerticalSlices(EnrolmentTestCase):
 
         # Check joining does conflict with updating max_courses and places.
         join = StudentJoinsCourse(student_id, course_id)
-        app.repository.project_perspective(join)
+        app.repository.advance(join)
         join.execute()
         app.update_max_courses(student_id, 39)
         app.update_places(course_id, 43)
@@ -147,13 +147,13 @@ class TestEnrolmentWithVerticalSlices(EnrolmentTestCase):
 
         # Check updating max_courses doesn't conflict with updating name.
         rename = UpdateStudentName(student_id, "Maddy")
-        app.repository.project_perspective(rename)
+        app.repository.advance(rename)
         rename.execute()
         app.update_max_courses(student_id, 101)
         app.repository.save(rename)
 
         max_courses = UpdateMaxCourses(student_id, 50)
-        app.repository.project_perspective(max_courses)
+        app.repository.advance(max_courses)
         max_courses.execute()
         app.update_student_name(student_id, "Mandy")
         app.repository.save(max_courses)

@@ -573,7 +573,7 @@ class EnrolmentWithVerticalSlices(DCBApplication, EnrolmentInterface):
 
     def do(self, s: TSlice) -> TSlice:
         if s.do_projection:
-            s = self.repository.project_perspective(s)
+            s = self.repository.advance(s)
         s.execute()
         if s.new_decisions:
             self.repository.save(s)
