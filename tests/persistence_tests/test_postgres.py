@@ -1127,6 +1127,26 @@ class TestPostgresTrackingRecorder(SetupPostgresDatastore, TrackingRecorderTestC
         self.assertEqual(1, recorder.tracking_migration_previous)
         self.assertEqual(1, recorder.tracking_migration_current)
 
+    def test_max_tracking_id_raises_programming_error_when_table_not_created(
+        self,
+    ) -> None:
+        # Construct the recorder.
+        recorder = self.create_recorder(create_table=False)
+
+        # Select notifications without creating table.
+        with self.assertRaises(ProgrammingError):
+            recorder.max_tracking_id(application_name="test")
+
+    def test_insert_tracking_raises_programming_error_when_table_not_created(
+        self,
+    ) -> None:
+        # Construct the recorder.
+        recorder = self.create_recorder(create_table=False)
+
+        # Select notifications without creating table.
+        with self.assertRaises(ProgrammingError):
+            recorder.insert_tracking(tracking=Tracking("test", 10))
+
 
 class TestPostgresProcessRecorder(SetupPostgresDatastore, ProcessRecorderTestCase):
     def create_recorder(self) -> ProcessRecorder:
