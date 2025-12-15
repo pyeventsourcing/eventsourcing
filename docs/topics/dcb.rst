@@ -681,23 +681,16 @@ to an internal list, and for collecting all new tagged decisions.
 Enduring object
 ---------------
 
-The generic base class :class:`~eventsourcing.dcb.domain.EnduringObject` is is very similar to event-sourced
-aggregates. It extends the :ref:`perspective <Perspective>` class.
-
-Each instance has a unique continuity ID, which is used to tag new decisions. It is also used to generate
-a consistency boundary for selecting and appending tagged decisions.
+The generic base class :class:`~eventsourcing.dcb.domain.EnduringObject` extends the :ref:`perspective <Perspective>` class
+and is is very similar to :ref:`event-sourced aggregates <Aggregates>`. Each instance has a unique continuity ID,
+which is used generate a consistency boundary for selecting and appending tagged decisions, and to tag new
+decisions.
 
 Enduring objects can have command methods decorated with the library's :ref:`event decorator <Event decorator>`.
 Calling a decorated command methods will generate a new tagged decision. The command method bodies contribute to
 defining a projection of tagged events into the current state of the enduring object. The
 :func:`~eventsourcing.dcb.domain.Perspective.collect_new_decisions` methods defined by the perspective
 base class can be used to collect uncommitted new decisions.
-
-The advantage of using enduring objects is the conceptual unity of having everything together in one place.
-This, however, aligns enduring objects with the criticism of event-sourced aggregates that motivates DCB:
-that all events are included in the consistency boundary, regardless of whether they are actually required for
-any particular operation, increasing contention unnecessarily, and accumulating functionality that should perhaps
-be more separated.
 
 .. code-block:: python
 
@@ -748,6 +741,14 @@ be more separated.
         max_students=30,
     )
 
+See the :doc:`DCB examples </topics/examples/dcb-enrolment-with-enduring-objects>` for a more complete example.
+
+The advantage of enduring objects is the conceptual unity of having everything together in one place.
+However, this aligns enduring objects with the central criticism of event-sourced aggregates that motivates DCB:
+that including all events in the consistency boundary, regardless of whether they are actually required for
+any particular operation, increases contention unnecessarily. Along with this goes the accumulation of functionality
+under one class, tending towards large units of code that are hard to understand.
+See :ref:`slices <Slice>` for an alternative higher-level abstraction.
 
 .. _Group:
 
@@ -796,6 +797,11 @@ reconstructed.
     assert student.id in course.student_ids
     assert course.id in student.course_ids
 
+Using groups to trigger cross-cutting events demonstrates the "one fact magic" of DCB. However, because
+the consistency boundary for a group is the union of the consistency boundaries for the members of a
+group, the criticism of :ref:`enduring objects <Enduring object>` applies even more to groups: that
+including all events in the consistency boundary, regardless of whether they are actually required for
+any particular operation, increases contention unnecessarily.
 
 .. _Slice:
 
@@ -804,7 +810,7 @@ Slice
 
 The class :class:`~eventsourcing.dcb.domain.Slice` is designed to support "vertical slice architecture" with DCB.
 It extends the :class:`~eventsourcing.dcb.domain.Perspective`. The idea of "vertical slices" is that individual
-use cases can be implemented with pieces of code that are entirely independently.
+use cases can be implemented with pieces of code that are entirely independent of each other.
 The four important aspects of any :class:`~eventsourcing.dcb.domain.Slice` are:
 
 * its constructor parameters;
@@ -851,19 +857,29 @@ The example below shows a slice for updating a student's name.
 
         def execute(self) -> None:
             assert self.student_was_registered
-            self.append_new_decision(
-                Tagged(
-                    tags=[self.student_id],
-                    decision=StudentNameUpdated(name=self.name),
-                )
+            self.trigger_event(
+                StudentNameUpdated,
+                tags=[self.student_id],
+                name=self.name,
             )
 
 
     class StudentNameUpdated(Decision):
         name: str
 
+The advantage of using enduring objects is the conceptual unity of having everything together in one place.
+However, this aligns enduring objects with the central criticism of event-sourced aggregates that motivates DCB:
+that including all events in the consistency boundary, regardless of whether they are actually required for
+any particular operation, increases contention unnecessarily, and accumulates functionality that should perhaps
+be more separated. See :ref:`slices <Slice>` for an alternative higher-level abstraction.
 
 See the :doc:`DCB examples </topics/examples/dcb-enrolment-with-vertical-slices>` for a more complete set of examples.
+
+The advantage of using slices is that individual use cases can be implemented with pieces of code that are
+entirely independent of each other. However, this comes at the cost of some repetition of business logic,
+increasing the volume of code, which tends to increase the chances of introducing coding errors. See
+:ref:`enduring objects <Enduring object>` for an alternative higher-level abstraction.
+
 
 
 .. _DCB Repository:

@@ -1,16 +1,14 @@
 from __future__ import annotations
 
-import sys
 from abc import ABC, ABCMeta, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, cast
+from typing import TYPE_CHECKING, Any, Generic, ParamSpec, cast
 from uuid import uuid4
 
 from typing_extensions import Self, TypeVar
 
 from eventsourcing.domain import (
     AbstractDecision,
-    AbstractDecoratedFuncCaller,
     CallableType,
     ProgrammingError,
     all_func_decorators,
@@ -20,8 +18,7 @@ from eventsourcing.domain import (
 from eventsourcing.utils import construct_topic, get_topic, resolve_topic
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-    from types import ModuleType
+    from collections.abc import Callable, Sequence
 
 _enduring_object_init_classes: dict[type[Any], type[InitialDecision]] = {}
 
@@ -32,6 +29,29 @@ class Decision(AbstractDecision):
 
     def mutate(self, obj: TPerspective | None) -> TPerspective | None:
         assert obj is not None
+
+        # Identify the function that was decorated.
+        try:
+            decorated_func = decorated_funcs[(type(obj), type(self))]
+        except KeyError:
+            pass
+        else:
+            # Select event attributes mentioned in function signature.
+            self_dict = self.as_dict()
+            kwargs = filter_kwargs_for_method_params(self_dict, decorated_func)
+
+            # Call the original method with event attribute values.
+            decorated_method = decorated_func.__get__(obj, type(obj))
+            try:
+                decorated_method(**kwargs)
+            except TypeError as e:  # pragma: no cover
+                # TODO: Write a test that does this...
+                msg = (
+                    f"Failed to apply {type(self).__qualname__} to "
+                    f"{type(obj).__qualname__} with kwargs {kwargs}: {e}"
+                )
+                raise TypeError(msg) from e
+
         self.apply(obj)
         return obj
 
@@ -43,6 +63,30 @@ class InitialDecision(Decision):
     originator_topic: str
 
     def mutate(self, obj: TPerspective | None) -> TPerspective | None:
+        # Identify the function that was decorated.
+        if obj is not None:
+            try:
+                decorated_func = decorated_funcs[(type(obj), type(self))]
+            except KeyError:  # pragma: no cover
+                pass
+            else:
+                # Select event attributes mentioned in function signature.
+                self_dict = self.as_dict()
+                kwargs = filter_kwargs_for_method_params(self_dict, decorated_func)
+
+                # Call the original method with event attribute values.
+                decorated_method = decorated_func.__get__(obj, type(obj))
+                try:
+                    decorated_method(**kwargs)
+                except TypeError as e:  # pragma: no cover
+                    # TODO: Write a test that does this...
+                    msg = (
+                        f"Failed to apply {type(self).__qualname__} to "
+                        f"{type(obj).__qualname__} with kwargs {kwargs}: {e}"
+                    )
+                    raise TypeError(msg) from e
+                return obj
+
         kwargs = self.as_dict()
         originator_type = resolve_topic(kwargs.pop("originator_topic"))
         if issubclass(originator_type, EnduringObject):
@@ -79,37 +123,8 @@ class Tagged(Generic[TDecision]):
         self.decision = decision
 
 
-class DecoratedFuncCaller(Decision, AbstractDecoratedFuncCaller):
-    def apply(self, obj: Perspective[Decision]) -> None:
-        """Applies event by calling method decorated by @event."""
-
-        # Identify the function that was decorated.
-        try:
-            decorated_func = decorated_funcs[(type(obj), type(self))]
-        except KeyError:
-            return
-
-        # Select event attributes mentioned in function signature.
-        self_dict = self.as_dict()
-        kwargs = filter_kwargs_for_method_params(self_dict, decorated_func)
-
-        # Call the original method with event attribute values.
-        decorated_method = decorated_func.__get__(obj, type(obj))
-        try:
-            decorated_method(**kwargs)
-        except TypeError as e:  # pragma: no cover
-            # TODO: Write a test that does this...
-            msg = (
-                f"Failed to apply {type(self).__qualname__} to "
-                f"{type(obj).__qualname__} with kwargs {kwargs}: {e}"
-            )
-            raise TypeError(msg) from e
-
-        # Call super method, just in case.
-        super().apply(obj)
-
-
 T = TypeVar("T")
+P = ParamSpec("P")
 
 
 class MetaPerspective(ABCMeta):
@@ -138,11 +153,24 @@ class Perspective(ABC, Generic[TDecision], metaclass=MetaPerspective):
     def cb(self) -> Selector | Sequence[Selector]:
         raise NotImplementedError  # pragma: no cover
 
+    def trigger_event(
+        self,
+        decision_cls: Callable[P, TDecision],
+        tags: Sequence[str] = (),
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> None:
+        tagged = Tagged[TDecision](
+            tags=list(tags),
+            decision=decision_cls(*args, **kwargs),
+        )
+        tagged.decision.mutate(self)
+        self.append_new_decision(tagged)
+
 
 TPerspective = TypeVar("TPerspective", bound=Perspective[Any])
 
 
-given_event_class_mapping: dict[type[Decision], type[DecoratedFuncCaller]] = {}
 decorated_funcs: dict[tuple[MetaPerspective, type[Decision]], CallableType] = {}
 
 
@@ -173,71 +201,14 @@ class MetaSupportsEventDecorator(MetaPerspective):
             # Make sure given event class is a Decision subclass.
             assert issubclass(given, Decision)
 
-            # Decorator should not have an original event class that has already
-            # been subclassed, unless it's mentioned twice in the same projection,
-            # which should be caught as an error. Because it will have either
-            # already been subclassed and replaced, or never been seen before.
-            assert given not in given_event_class_mapping
-
-            # Maybe redefine given event class as subclass of 'DecoratedFuncCaller'.
-            if not issubclass(given, DecoratedFuncCaller):
-                # Define a subclass of the given event class.
-                func_caller = cls._insert_decorator_func_caller(given, topic_prefix)
-
-                # Remember which subclass for given event class.
-                given_event_class_mapping[given] = func_caller
-
-            else:
-                # Check we subclassed this class.
-                assert given in given_event_class_mapping.values()
-                func_caller = given
-
             # If command method, remember which event class to trigger.
             if not construct_topic(decorator.decorated_func).endswith("._"):
-                decorated_func_callers[decorator] = func_caller
+                decorated_func_callers[decorator] = given
 
             # Remember which decorated func to call.
-            decorated_funcs[(cls, func_caller)] = decorator.decorated_func
+            decorated_funcs[(cls, given)] = decorator.decorated_func
 
-            cls.projected_types.append(func_caller)
-
-    def _insert_decorator_func_caller(
-        cls, given_event_class: type[Decision], topic_prefix: str
-    ) -> type[DecoratedFuncCaller]:
-        # Identify the context in which the given class is defined.
-        context: ModuleType | type
-        if "." not in given_event_class.__qualname__:
-            # Looks like a non-nested class.
-            context = sys.modules[given_event_class.__module__]
-        elif construct_topic(given_event_class).startswith(topic_prefix):
-            # Nested in this class.
-            context = cls
-        else:  # pragma: no cover
-            # Nested in another class...
-            # TODO: Write a test that does this....
-            msg = f"Decorating {cls} with {given_event_class} is not supported"
-            raise ProgrammingError(msg)
-
-        # Check the context actually has the given event class.
-        assert getattr(context, given_event_class.__name__) is given_event_class
-
-        # Define subclass.
-        func_caller = cast(
-            type[DecoratedFuncCaller],
-            type(
-                given_event_class.__name__,
-                (DecoratedFuncCaller, given_event_class),
-                {
-                    "__module__": cls.__module__,
-                    "__qualname__": given_event_class.__qualname__,
-                },
-            ),
-        )
-
-        # Replace the given event class in the context.
-        setattr(context, given_event_class.__name__, func_caller)
-
-        return func_caller
+            cls.projected_types.append(given)
 
 
 class MetaEnduringObject(MetaSupportsEventDecorator):
@@ -327,19 +298,13 @@ class EnduringObject(
 
     def trigger_event(
         self,
-        decision_cls: type[Decision],
-        *,
+        decision_cls: Callable[P, TDecision],
         tags: Sequence[str] = (),
-        **kwargs: Any,
+        *args: P.args,
+        **kwargs: P.kwargs,
     ) -> None:
         tags = [self.id, *tags]
-        assert issubclass(decision_cls, DecoratedFuncCaller), decision_cls
-        decision = Tagged[DecoratedFuncCaller](
-            tags=tags,
-            decision=decision_cls(**kwargs),
-        )
-        decision.decision.mutate(self)
-        self.new_decisions += (cast(Tagged[TDecision], decision),)
+        super().trigger_event(decision_cls, tags, *args, **kwargs)
 
 
 class Group(Perspective[TDecision]):
@@ -357,30 +322,24 @@ class Group(Perspective[TDecision]):
 
     def trigger_event(
         self,
-        decision_cls: type[TDecision],
-        *,
+        decision_cls: Callable[P, TDecision],
         tags: Sequence[str] = (),
-        **kwargs: Any,
+        *args: P.args,
+        **kwargs: P.kwargs,
     ) -> None:
         objs = self.enduring_objects
         tags = [o.id for o in objs] + list(tags)
         decision = Tagged[TDecision](
             tags=tags,
-            decision=decision_cls(**kwargs),
+            decision=decision_cls(*args, **kwargs),
         )
         for o in objs:
             decision.decision.mutate(o)
-        self.new_decisions += (decision,)
+        self.append_new_decision(decision)
 
     @property
     def enduring_objects(self) -> Sequence[EnduringObject[TDecision]]:
         return [o for o in self.__dict__.values() if isinstance(o, EnduringObject)]
-
-    def collect_new_decisions(self) -> Sequence[Tagged[TDecision]]:
-        group_events = list(super().collect_new_decisions())
-        for o in self.enduring_objects:
-            group_events.extend(o.collect_new_decisions())
-        return group_events
 
 
 @dataclass

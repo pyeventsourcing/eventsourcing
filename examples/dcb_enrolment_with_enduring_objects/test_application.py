@@ -87,7 +87,7 @@ class TestEnrolmentWithEnduringObjects(EnrolmentTestCase):
         # Can operate on enduring objects in group.
         group = app.repository.get_group(StudentAndCourse, student_id, course_id)
         group.student.update_max_courses(100)
-        app.repository.save(group)
+        app.repository.save(group.student)
         student = app.get_student(student_id)
         self.assertEqual(100, student.max_courses)
 

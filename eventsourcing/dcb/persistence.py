@@ -52,14 +52,14 @@ class DCBEventStore(Generic[TDecision]):
     ) -> int:
         if len(events) == 0:
             return 0
-        if not cb and not after:
-            condition = None
-        else:
-            query = self._cb_to_dcb_query(cb)
-            condition = DCBAppendCondition(
-                fail_if_events_match=query,
+        condition = (
+            None
+            if not cb and not after
+            else DCBAppendCondition(
+                fail_if_events_match=self._cb_to_dcb_query(cb),
                 after=after,
             )
+        )
         return self.recorder.append(
             events=[self.mapper.to_dcb_event(e) for e in events],
             condition=condition,

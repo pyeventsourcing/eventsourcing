@@ -834,7 +834,6 @@ class BoundCommandMethodDecorator:
             )
             raise KeyError(msg) from e
         kwargs = filter_kwargs_for_method_params(kwargs, event_cls)
-        assert issubclass(event_cls, AbstractDecoratedFuncCaller), event_cls
         self.obj.trigger_event(event_cls, **kwargs)
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:
@@ -870,9 +869,7 @@ _given_event_classes = set[type]()
 _created_event_classes: dict[type, list[type[CanInitAggregate[Any]]]] = {}
 
 # This remembers which event class to trigger when a decorated method is called.
-decorated_func_callers: dict[
-    CommandMethodDecorator, type[AbstractDecoratedFuncCaller]
-] = {}
+decorated_func_callers: dict[CommandMethodDecorator, type[AbstractDecision]] = {}
 
 # This remembers which decorated func a decorated func caller should call.
 decorated_funcs: dict[type, CallableType] = {}
