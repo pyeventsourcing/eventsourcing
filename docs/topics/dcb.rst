@@ -791,6 +791,10 @@ reconstructed.
             self.course = course
 
         def student_joins_course(self) -> None:
+            # Enforce business rules.
+            assert len(self.student.course_ids) < self.student.max_courses
+            assert len(self.course.student_ids) < self.course.max_students
+            assert self.student.id not in self.course.student_ids
             # The DCB magic: one event for "one fact".
             self.trigger_event(
                 StudentJoinedCourse,

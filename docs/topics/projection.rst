@@ -114,7 +114,7 @@ all implement the required :func:`~eventsourcing.dcb.api.DCBRecorder.subscribe` 
     from uuid import UUID
 
     from eventsourcing.dcb.application import DCBApplication
-    from eventsourcing.dcb.domain import Perspective, Tagged
+    from eventsourcing.dcb.domain import Perspective, Selector, Tagged
     from eventsourcing.dcb.msgpack import Decision, InitialDecision, MessagePackMapper
     from eventsourcing.projection import DCBApplicationSubscription
     from eventsourcing.utils import get_topic
