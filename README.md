@@ -125,28 +125,31 @@ See the [documentation](https://eventsourcing.readthedocs.io/) for more informat
 
 ## Features
 
-**Aggregates and applications** — base classes for event-sourced aggregates
-and applications. Suggests how to structure an event-sourced application. All
-classes are fully type-hinted to guide developers in using the library.
-
-**Flexible event store** — flexible persistence of aggregate events. Combines
+**Flexible event store** — flexible persistence of domain events. Combines
 an event mapper and an event recorder in ways that can be easily extended.
-Mapper uses a transcoder that can be easily extended to support custom
-model object types. Recorders supporting different databases can be easily
+Mapper uses a transcoder that can be easily substituted or extended to support
+custom model object types. Recorders supporting different databases can be easily
 substituted and configured with environment variables.
+
+**Domain models and applications** — base classes for event-sourced domain models
+and applications. Suggests how to structure an event-sourced application. This
+library supports event-sourced aggregates and dynamic consistency boundaries.
 
 **Application-level encryption and compression** — encrypts and decrypts events inside the
 application. This means data will be encrypted in transit across a network ("on the wire")
 and at disk level including backups ("at rest"), which is a legal requirement in some
 jurisdictions when dealing with personally identifiable information (PII) for example
-the EU's GDPR. Compression reduces the size of stored aggregate events and snapshots, usually
+the EU's GDPR. Compression reduces the size of stored domain events and snapshots, usually
 by around 25% to 50% of the original size. Compression reduces the size of data
 in the database and decreases transit time across a network.
 
-**Snapshotting** — reduces access-time for aggregates that have many events.
+**Snapshotting** — reduces access-time for aggregates with many domain events.
 
-**Versioning** - allows changes to be introduced after an application
-has been deployed. Both aggregate events and aggregate snapshots can be versioned.
+**Versioning** - allows domain model changes to be introduced after an application
+has been deployed. Both domain events and aggregate classes can be versioned.
+The recorded state of an older version can be upcast to be compatible with a new
+version. Stored events and snapshots are upcast from older versions
+to new versions before the event or aggregate object is reconstructed.
 
 **Optimistic concurrency control** — ensures a distributed or horizontally scaled
 application doesn't become inconsistent due to concurrent method execution. Leverages
@@ -155,7 +158,7 @@ optimistic concurrency controls in adapted database management systems.
 **Notifications and projections** — reliable propagation of application
 events with pull-based notifications allows the application state to be
 projected accurately into replicas, indexes, view models, and other applications.
-Supports materialized views and CQRS.
+Supports materialised views and CQRS.
 
 **Event-driven systems** — reliable event processing. Event-driven systems
 can be defined independently of particular persistence infrastructure and mode of
@@ -167,6 +170,7 @@ All code is annotated with type hints.
 
 **Worked examples** — includes examples showing how to develop aggregates, applications
 and systems.
+
 
 
 ## Extensions

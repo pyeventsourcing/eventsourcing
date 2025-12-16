@@ -161,12 +161,13 @@ Features
 
 **Flexible event store** — flexible persistence of domain events. Combines
 an event mapper and an event recorder in ways that can be easily extended.
-Mapper uses a transcoder that can be easily extended to support custom
-model object types. Recorders supporting different databases can be easily
+Mapper uses a transcoder that can be easily substituted or extended to support
+custom model object types. Recorders supporting different databases can be easily
 substituted and configured with environment variables.
 
-**Domain models and applications** — base classes for domain model aggregates
-and applications. Suggests how to structure an event-sourced application.
+**Domain models and applications** — base classes for event-sourced domain models
+and applications. Suggests how to structure an event-sourced application. This
+library supports event-sourced aggregates and dynamic consistency boundaries.
 
 **Application-level encryption and compression** — encrypts and decrypts events inside the
 application. This means data will be encrypted in transit across a network ("on the wire")
@@ -203,7 +204,6 @@ All code is annotated with type hints.
 
 **Worked examples** — includes examples showing how to develop aggregates, applications
 and systems.
-
 
 ..
     **Hash chaining** — Sequences of events can be hash-chained, and the entire sequence
