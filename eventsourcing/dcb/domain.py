@@ -148,9 +148,8 @@ class Perspective(ABC, Generic[TDecision], metaclass=MetaPerspective):
         collected, self.new_decisions = self.new_decisions, []
         return collected
 
-    @property
     @abstractmethod
-    def cb(self) -> Selector | Sequence[Selector]:
+    def consistency_boundary(self) -> Selector | Sequence[Selector]:
         raise NotImplementedError  # pragma: no cover
 
     def trigger_event(
@@ -292,8 +291,7 @@ class EnduringObject(
     def __post_init__(self) -> None:
         pass
 
-    @property
-    def cb(self) -> list[Selector]:
+    def consistency_boundary(self) -> list[Selector]:
         return [Selector(tags=[self.id])]
 
     def trigger_event(
@@ -312,11 +310,10 @@ class Group(Perspective[TDecision]):
         super().__base_init__(*args, **kwargs)
         self._enduring_objects = [a for a in args if isinstance(a, EnduringObject)]
 
-    @property
-    def cb(self) -> list[Selector]:
+    def consistency_boundary(self) -> list[Selector]:
         return [
             Selector(tags=cb.tags)
-            for cbs in [o.cb for o in self._enduring_objects]
+            for cbs in [o.consistency_boundary() for o in self._enduring_objects]
             for cb in cbs
         ]
 
@@ -327,7 +324,7 @@ class Group(Perspective[TDecision]):
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> None:
-        objs = self.enduring_objects
+        objs = self._enduring_objects
         tags = [o.id for o in objs] + list(tags)
         decision = Tagged[TDecision](
             tags=tags,
@@ -336,10 +333,6 @@ class Group(Perspective[TDecision]):
         for o in objs:
             decision.decision.mutate(o)
         self.append_new_decision(decision)
-
-    @property
-    def enduring_objects(self) -> Sequence[EnduringObject[TDecision]]:
-        return [o for o in self.__dict__.values() if isinstance(o, EnduringObject)]
 
 
 @dataclass

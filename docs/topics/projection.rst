@@ -122,8 +122,7 @@ all implement the required :func:`~eventsourcing.dcb.api.DCBRecorder.subscribe` 
 
     # Define a perspective.
     class MyPerspective(Perspective[Decision]):
-        @property
-        def cb(self) -> Selector | Sequence[Selector]:
+        def consistency_boundary(self) -> Selector | Sequence[Selector]:
             return []
 
 

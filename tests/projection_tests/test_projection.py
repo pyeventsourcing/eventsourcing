@@ -397,8 +397,7 @@ class TestAggregateEventCountersProjection(TestCase, ABC):
 
 
 class MyPerspective(Perspective[Decision]):
-    @property
-    def cb(self) -> Selector | Sequence[Selector]:
+    def consistency_boundary(self) -> Selector | Sequence[Selector]:
         return []
 
 

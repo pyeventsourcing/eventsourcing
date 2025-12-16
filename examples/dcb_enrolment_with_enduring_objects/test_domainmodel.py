@@ -39,7 +39,7 @@ class TestEnduringObjects(TestCase):
         self.assertEqual(copy1.max_courses, student.max_courses)
 
         # Check the enduring object's consistency boundary.
-        self.assertEqual(student.cb, [Selector(tags=[student.id])])
+        self.assertEqual(student.consistency_boundary(), [Selector(tags=[student.id])])
 
         # Check the name can be changed.
         student.update_name(name="Maxine")
@@ -95,4 +95,4 @@ class TestEnduringObjects(TestCase):
         self.assertEqual(copy.places, course.places)
 
         # Check the enduring object's consistency boundary.
-        self.assertEqual(course.cb, [Selector(tags=[course.id])])
+        self.assertEqual(course.consistency_boundary(), [Selector(tags=[course.id])])

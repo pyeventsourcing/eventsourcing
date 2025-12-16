@@ -605,14 +605,14 @@ A :class:`~eventsourcing.dcb.persistence.DCBEventStore` encapsulates both a :ref
 It has methods for reading and appending tagged decisions.
 
 The :func:`~eventsourcing.dcb.persistence.DCBEventStore.read` method returns an iterator of matching
-tagged events. The optional ``cb`` argument represents a consistency boundary for selecting events.
-It can be either a list of selectors, or an individual selector. The optional ``after`` argument represents
-a sequence number after which events will be read.
+tagged events. The optional ``cb`` parameter is a consistency boundary for selecting events.
+The argument can be either a list of selectors, or an individual selector. The optional ``after`` parameter
+is a sequence number after which events will be read.
 
-The :func:`~eventsourcing.dcb.persistence.DCBEventStore.append` method has an ``events`` argument, which
-should be a list of tagged decisions. The optional ``cb`` argument is optional. It represents a consistency boundary
-for detecting conflicting events. It can be either a list of selectors, or an individual selector.
-The optional ``after`` represents a sequence number after which conflicting events will be detected.
+The :func:`~eventsourcing.dcb.persistence.DCBEventStore.append` method has an ``events`` parameter, which
+is a list of tagged decisions. The optional ``cb`` parameter is a consistency boundary
+for detecting conflicting events. The argument can be either a list of selectors, or an individual selector.
+The optional ``after`` parameter represents a sequence number after which conflicting events will be detected.
 
 .. code-block:: python
 
@@ -655,15 +655,14 @@ to an internal list, and for collecting all new tagged decisions.
     from eventsourcing.dcb.domain import Perspective
 
     class MyPerspective(Perspective):
-        @property
-        def cb(self) -> list[Selector]:
+        def consistency_boundary(self) -> list[Selector]:
             return [Selector(tags=["tag1"]), Selector(tags=["tag2"])]
 
 
     my_perspective = MyPerspective()
 
-    # Consistency boundary.
-    my_perspective.cb
+    # Get consistency boundary.
+    cb = my_perspective.consistency_boundary()
 
     # Append new decision.
     my_perspective.append_new_decision(
@@ -683,13 +682,12 @@ Enduring object
 
 The generic base class :class:`~eventsourcing.dcb.domain.EnduringObject` extends the :ref:`perspective <Perspective>` class
 and is is very similar to :doc:`event-sourced aggregates </topics/tutorial/part2>`. Each instance has a unique continuity ID,
-which is used generate a consistency boundary for selecting and appending tagged decisions, and to tag new
-decisions.
+which is used generate a consistency boundary and to tag new decisions.
 
 Enduring objects can have command methods decorated with the library's :ref:`event decorator <Event decorator>`.
 Calling a decorated command methods will generate a new tagged decision. The command method bodies contribute to
 defining a projection of tagged events into the current state of the enduring object. The
-:func:`~eventsourcing.dcb.domain.Perspective.collect_new_decisions` methods defined by the perspective
+:func:`~eventsourcing.dcb.domain.Perspective.collect_new_decisions` method defined by the perspective
 base class can be used to collect uncommitted new decisions.
 
 .. code-block:: python
@@ -821,8 +819,9 @@ Slice
 -----
 
 The class :class:`~eventsourcing.dcb.domain.Slice` is designed to support "vertical slice architecture" with DCB.
-It extends the :class:`~eventsourcing.dcb.domain.Perspective`. The idea of "vertical slices" is that individual
+It extends the :class:`~eventsourcing.dcb.domain.Perspective` class. The idea of "vertical slices" is that individual
 use cases can be implemented with pieces of code that are entirely independent of each other.
+
 The four important aspects of any :class:`~eventsourcing.dcb.domain.Slice` are:
 
 * its constructor parameters;
@@ -830,8 +829,8 @@ The four important aspects of any :class:`~eventsourcing.dcb.domain.Slice` are:
 * its projection of tagged decisions into its current state; and
 * its "action" or decision making method.
 
-We can define the **consistency boundary** for a slice by implementing the perspective property
-:data:`~eventsourcing.dcb.domain.Perspective.cb`, with some of the constructor arguments
+We can define the **consistency boundary** for a slice by implementing the perspective method
+:data:`~eventsourcing.dcb.domain.Perspective.consistency_boundary`, with some of the constructor arguments
 used to construct :ref:`selectors <DCB Selector>`.
 
 We can define the **projection** of selected
@@ -855,16 +854,15 @@ defined with enduring objects and groups, and other parts defined using slices.
     from eventsourcing.dcb.domain import Slice
 
     class UpdateStudentName(Slice[Decision]):
-        def __init__(self, student_id: StudentID, name: str) -> None:
+        def __init__(self, student_id: StudentID, new_name: str) -> None:
             self.student_id = student_id
-            self.new_name = name
+            self.new_name = new_name
             self.name = ""
             self.student_was_registered: bool = False
 
-        @property
-        def cb(self) -> Selector:
+        def consistency_boundary(self) -> Selector:
             return Selector(
-                types=[Student.Registered, Student.NameUpdated],
+                types=self.projected_types,
                 tags=[self.student_id],
             )
 
@@ -995,7 +993,7 @@ state before calling its :ref:`execute <slice>` method.
 
 .. code-block:: python
 
-    update_student_name = UpdateStudentName(student_id=student.id, name="Sara P")
+    update_student_name = UpdateStudentName(student_id=student.id, new_name="Sara P")
     assert update_student_name.name == ""
     assert update_student_name.student_was_registered is False
 
@@ -1046,8 +1044,8 @@ The example below shows how to write command and query methods using :ref:`endur
             self.repository.save(student)
             return student.id
 
-        def update_student_name(self, student_id: str, name: str) -> None:
-            self.do(UpdateStudentName(student_id, name))
+        def update_student_name(self, student_id: str, new_name: str) -> None:
+            self.do(UpdateStudentName(student_id, new_name))
 
         def register_course(self, name: str) -> str:
             course = Course(name=name, max_students=30)

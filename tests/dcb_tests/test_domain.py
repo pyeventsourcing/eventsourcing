@@ -303,8 +303,7 @@ class TestSlice(TestCase):
                 self.obj_id = obj_id
                 self.a = a
 
-            @property
-            def cb(self) -> Selector | Sequence[Selector]:
+            def consistency_boundary(self) -> Selector | Sequence[Selector]:
                 return Selector(types=type(self).projected_types, tags=[self.obj_id])
 
             def execute(self) -> None:
@@ -318,8 +317,7 @@ class TestSlice(TestCase):
                 self.a = ""
                 self.new_a = a
 
-            @property
-            def cb(self) -> Selector | Sequence[Selector]:
+            def consistency_boundary(self) -> Selector | Sequence[Selector]:
                 return Selector(types=type(self).projected_types, tags=[self.obj_id])
 
             @event(Created)
@@ -390,8 +388,7 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
                 self.a = ""
                 self.new_a = a
 
-            @property
-            def cb(self) -> Selector | Sequence[Selector]:
+            def consistency_boundary(self) -> Selector | Sequence[Selector]:
                 return Selector(types=type(self).projected_types, tags=[self.obj_id])
 
             @event(MyObject.Created)
@@ -440,8 +437,7 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
                 self.obj_id = obj_id
                 self.a = a
 
-            @property
-            def cb(self) -> Selector | Sequence[Selector]:
+            def consistency_boundary(self) -> Selector | Sequence[Selector]:
                 return Selector(types=[MyObject.Created], tags=[self.obj_id])
 
             def execute(self) -> None:
