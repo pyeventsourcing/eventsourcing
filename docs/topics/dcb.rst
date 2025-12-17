@@ -1082,7 +1082,7 @@ The example below shows how to write command and query methods using :ref:`endur
     assert "Sara P" in app.list_students_for_course(course_id)
     assert "History" in app.list_courses_for_student(student_id)
 
-See :ref:`read the examples pages <Dynamic Consistency Boundaries>` for more discussion and examples of DCB.
+Read :ref:`the examples pages <Dynamic Consistency Boundaries>` for more discussion and examples of DCB.
 
 
 Code reference
