@@ -819,7 +819,7 @@ Slice
 The class :class:`~eventsourcing.dcb.domain.Slice` is designed to support "vertical slice architecture" with DCB.
 It extends the :class:`~eventsourcing.dcb.domain.Perspective` class. The idea of "vertical slices" is that individual
 use cases can be implemented with pieces of code that are entirely independent of each other.
-Slices can implement command and query use cases.
+Slices can support both command and query use cases.
 
 The three important aspects of a slice are:
 
@@ -829,8 +829,8 @@ The three important aspects of a slice are:
 
 * **Command Action** — Implement an :func:`~eventsourcing.dcb.domain.Slice.execute` method to make new decisions.
 
-The consistency boundary for a slice will be used to select tagged decisions for the slice's decision model projection, if it has one.
-The consistency boundary will also be used to select conflicting events when new tagged decisions are appended to an event store, if any are generated.
+The consistency boundary for a slice can be used both to select events for the slice's projection, if it has one,
+and to select conflicting events when appending any new events to an event store.
 
 The example below shows a slice for updating a student's name. The decision classes involved in the projection
 are used in the :func:`~eventsourcing.dcb.domain.Perspective.consistency_boundary`, in this case by using the
