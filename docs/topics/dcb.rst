@@ -872,7 +872,7 @@ automatically collects all decision classes mentioned in the slice's :func:`@eve
 See the :doc:`DCB examples </topics/examples/dcb-enrolment-with-vertical-slices>` for a more complete set of examples.
 
 The advantage of using slices is that individual use cases can be implemented with pieces of code that are
-entirely independent of each other, and with consistency boundaries that include only what it necessary. However,
+entirely independent of each other, and with consistency boundaries that include only what is necessary. However,
 this may come at the cost of some repetition of business logic, increasing the volume of code, which tends to
 increase the chances of introducing coding errors. See :ref:`enduring objects <Enduring object>` for an alternative
 higher-level abstraction.
