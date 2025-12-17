@@ -832,10 +832,9 @@ The three important aspects of a slice are:
 The consistency boundary for a slice can be used both to select events for the slice's projection, if it has one,
 and to select conflicting events when appending any new events to an event store.
 
-The example below shows a slice for updating a student's name. The decision classes involved in the projection
-are used in the :func:`~eventsourcing.dcb.domain.Perspective.consistency_boundary`, in this case by using the
-:data:`projected_types` attribute which automatically collects all decision classes mentioned in the slice's
-:func:`@event <eventsourcing.domain.event>` decorators.
+The example below shows a slice for updating a student's name. The :func:`~eventsourcing.dcb.domain.Perspective.consistency_boundary`
+involves decision classes mentioned in the projection, in this case by using the :data:`projected_types` attribute which
+automatically collects all decision classes mentioned in the slice's :func:`@event <eventsourcing.domain.event>` decorators.
 
 .. code-block:: python
 
@@ -872,11 +871,6 @@ are used in the :func:`~eventsourcing.dcb.domain.Perspective.consistency_boundar
                 name=self.new_name,
             )
 
-You can see that it uses the decision classes defined above on the enduring object ``Student``. This shows that
-it is possible to start with enduring objects and rework your code to use slices. Similarly, with a little care,
-it is possible to start with slices and rework your code to use enduring objects. Indeed, it is possible to have
-some parts of your domain model defined with enduring objects and groups, and other parts defined using slices.
-
 See the :doc:`DCB examples </topics/examples/dcb-enrolment-with-vertical-slices>` for a more complete set of examples.
 
 The advantage of using slices is that individual use cases can be implemented with pieces of code that are
@@ -885,16 +879,27 @@ this may come at the cost of some repetition of business logic, increasing the v
 increase the chances of introducing coding errors. See :ref:`enduring objects <Enduring object>` for an alternative
 higher-level abstraction.
 
+Mixing styles
+-------------
+
+The decision classes used in the ``UpdateStudentName`` slice are those defined above on the ``Student`` enduring
+object. In these examples, the decision classes are defined as nested classes, but defining them as module-level
+classes would work just as well.
+
+This shows that it is possible to develop a domain model with enduring objects and rework your code to use slices.
+Similarly, with a little care, it is possible to start with slices and rework your code to use enduring objects.
+
+Indeed, it is possible to have some parts of your domain model defined with
+enduring objects and groups, and other parts defined using slices. This is demonstrated in the
+:ref:`example application <DCB application>` below.
+
+
 .. _DCB Repository:
 
 Repository
 ----------
 
-The class :class:`~eventsourcing.dcb.application.DCBRepository` supports
-working with :ref:`perspectives <perspective>` by making it easy to reconstruct perspectives,
-and to collect and append new decisions.
-
-A repository is constructed with a :class:`~eventsourcing.dcb.persistence.DCBEventStore`.
+The :class:`~eventsourcing.dcb.application.DCBRepository` class supports :ref:`perspectives <perspective>`. A repository is constructed with an :ref:`event store <DCB event store>`.
 
 .. code-block:: python
 
@@ -907,9 +912,7 @@ A repository is constructed with a :class:`~eventsourcing.dcb.persistence.DCBEve
         ),
     )
 
-The :func:`~eventsourcing.dcb.application.DCBRepository.save` method appends new decisions collected
-from a perspective. It derives an :ref:`append condition <DCB append condition>` from the perspective's
-consistency boundary and its "last known position".
+The :func:`~eventsourcing.dcb.application.DCBRepository.save` method collects and appends new decisions.
 
 ..
     #include-when-testing
@@ -973,6 +976,7 @@ for a given group class and sequence of continuity IDs.
 
     group = repository.get_group(StudentAndCourse, student.id, course.id)
     group.student_joins_course()
+
     repository.save(group)
 
     # Check the student has joined the course.
@@ -1000,7 +1004,7 @@ state before calling its :ref:`execute <slice>` method.
     assert update_student_name.name == "Sara P"
     assert update_student_name.student_was_registered is True
 
-    new_decisions = update_student_name.collect_new_decisions()
+    repository.save(update_student_name)
 
 .. _DCB application:
 
