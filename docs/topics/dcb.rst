@@ -827,7 +827,7 @@ The three important aspects of a slice are:
 
 * **Projection** — Use the :ref:`event decorator <Event decorator>` to define how selected :ref:`decisions <DCB decision>` evolve state.
 
-* **Command Action** — Implement an :func:`~eventsourcing.dcb.domain.Slice.execute` method to make new decisions.
+* **Command Action** — Implement :func:`~eventsourcing.dcb.domain.Slice.execute` to generate new :ref:`decisions <DCB decision>`.
 
 The consistency boundary for a slice can be used both to select events for the slice's projection, if it has one,
 and to select conflicting events when appending any new events to an event store.
