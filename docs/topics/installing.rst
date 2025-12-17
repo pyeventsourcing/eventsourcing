@@ -34,14 +34,14 @@ it is recommended to specify the major and minor version numbers, use dependency
 the dependency forward in a controlled way. Please note, it is recommended to test all updates in
 your CI.
 
-As an example, the expression ``eventsourcing~=9.5.0b1`` would install the latest version of
+As an example, the expression ``eventsourcing~=9.5.0b2`` would install the latest version of
 the 9.5 series, allowing future bug fixes released with point version increments, whilst avoiding
 any changes introduced by major and minor version increments that might break your code. You can use
 this expression in a ``pip install`` command.
 
 ::
 
-    $ pip install "eventsourcing~=9.5.0b1"
+    $ pip install "eventsourcing~=9.5.0b2"
 
 You can use the same expression in ``requirements.txt`` files, in ``setup.py`` files, and
 in ``pyproject.toml`` files.
@@ -54,7 +54,7 @@ file, you can specify the dependency on this library in the following way.
     [project]
     requires-python = ">=3.10"
     dependencies = [
-        "eventsourcing~=9.5.0b1",
+        "eventsourcing~=9.5.0b2",
     ]
 
 
