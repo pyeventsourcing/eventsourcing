@@ -307,27 +307,25 @@ This is our third attempt to implement the complex DCB query logic in PostgreSQL
 array columns and array operators. The second attempt used text search. Both of these first two attempts
 gave poor results. The third attempt, explained below, gives much better results.
 
-The general idea motivating this third design is the observation that tags follow from individual enduring
-objects in the real world, and therefore typically to have high cardinality, and therefore to be highly
-selective in queries. On the other hand, event types are expected to follow from types of software object
-classes, and therefore to have low cardinality. Mixing these up in a select statement can cause the query
-planner to find sub-optimal solution.
+The general idea is that tags tend to follow from individual enduring objects in the real world, whereas
+event type strings follow from software object classes in a domain model. Therefore tags tend to have
+high cardinality, whereas type strings tend to have low cardinality. Therefore tags tend to be highly
+selective in queries, whereas type strings do not. Mixing these up in an SQL select statement causes
+the PostgreSQL query planner to find sub-optimal solutions.
 
-The design for this implementation focuses on selecting by tags first, using a B-tree index on a secondary
-table of tags, and then filtering by position and type. The sequence positions on the main table are also indexed
-with a B-tree that "covers" the type column. In this way, recorded events can be selected by tag and filtered by
-type, and ordered and limited, for a set of DCB query items, using only B-tree indexes, without touching the
-main table of recorded events.
+This implementation uses an secondary table of tags indexed with a B-tree. Queries select tags first, and then
+filter by position and type. The sequence positions on the main table are also indexed with a B-tree that
+"covers" the type column. In this way, recorded events can be selected by tag, filtered by type, ordered and limited,
+using only B-tree indexes, without touching the main table of recorded events.
 
-Conditional append operations use a stored procedure with a "fail condition" CTE and an "unconditional append" CTE
-insert statement. Having a stored procedure with two separate CTE statements allows each part of the function
-to be planned separately. Executing these two statements in a stored procedure means conditional append operations
-can be performed efficiently with one round-trip. The Python code passes lists of DCB query items and lists of DCB
-events as composite arrays of custom types. A multi-clause CTE statement is also used to select events for read
-operations. This is executed as a prepared statement.
+Conditional append operations use separate multi-clause "fail condition" and "unconditional append" CTE statements.
+Having two separate statements in a PL/pgSQL function means each can be planned separately, whilst conditional append
+operations can be performed efficiently with one client-server round-trip. The function parameters include lists
+of DCB query items and DCB events, defined as composite arrays of custom types. A multi-clause CTE statement is also
+used to select events for read operations. These functions are executed as prepared statements.
 
-Logging execution times directly from the database shows that the database typically executes the
-stored procedure for conditional appends in 100-200 μs with millions of recorded events.
+Logging execution times directly from the database shows that the database typically executes conditional appends
+in 100-200 μs with millions of recorded events.
 
 See the :doc:`speedrun example for a comparative report and analysis of the performance </topics/examples/dcb-enrolment-speedrun>`.
 
@@ -829,11 +827,10 @@ The three important aspects of a slice are:
 
 * **Projection** — Use :func:`@event <eventsourcing.domain.event>` to define how selected :ref:`decisions <DCB decision>` evolve state.
 
-* **Command Action** — Optionally implement an :func:`~eventsourcing.dcb.domain.Slice.execute` method.
+* **Command Action** — Implement an :func:`~eventsourcing.dcb.domain.Slice.execute` method to make new decisions.
 
-The consistency boundary for a slice can be used both to select tagged decisions for the slice's decision model projection (if it has one),
-and to select conflicting events when new tagged decisions are appended to an event store (if any are generated).
-New tagged decisions can be accumulated in an :func:`~eventsourcing.dcb.domain.Slice.execute` method by calling :func:`~eventsourcing.dcb.domain.Perspective.append_new_decision`.
+The consistency boundary for a slice will be used to select tagged decisions for the slice's decision model projection, if it has one.
+The consistency boundary will also be used to select conflicting events when new tagged decisions are appended to an event store, if any are generated.
 
 The example below shows a slice for updating a student's name. The decision classes involved in the projection
 are used in the :func:`~eventsourcing.dcb.domain.Perspective.consistency_boundary`, in this case by using the
@@ -1022,11 +1019,10 @@ in different ways at different times.
 The :class:`~eventsourcing.dcb.application.DCBApplication` class also supports the higher-level
 abstractions described above. It has a :ref:`repository <DCB repository>` to support working
 with perspectives. It also has a method :func:`~eventsourcing.dcb.application.DCBApplication.do`
-which supports working with :ref:`slices <Slice>`.
+which supports working with :ref:`slices <Slice>` by advancing and executing a slice, then saving new decisions.
 
-It is also possible to use the :ref:`basic DCB objects <DCB objects>` directly, and to extend
-:class:`~eventsourcing.dcb.application.DCBApplication` to support any higher-level style you may
-wish to invent.
+It is also possible to use the :ref:`basic DCB objects <DCB objects>` directly with an application, and to extend
+:class:`~eventsourcing.dcb.application.DCBApplication` to support any other higher-level style you may wish to invent.
 
 The example below shows how to write command and query methods using :ref:`enduring objects <enduring object>`,
 :ref:`groups <group>`, and :ref:`slices <slice>`.
