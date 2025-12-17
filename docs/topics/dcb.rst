@@ -662,12 +662,10 @@ to an internal list, and for collecting all new tagged decisions.
     # Get consistency boundary.
     cb = my_perspective.consistency_boundary()
 
-    # Append new decision.
-    my_perspective.append_new_decision(
-        Tagged(
-            tags=["tag1", "tag2"],
-            decision=Decision(),
-        ),
+    # Generate new tagged decisions.
+    my_perspective.trigger_event(
+        Decision,
+        tags=["tag1", "tag2"],
     )
 
     # Collect new decisions.
