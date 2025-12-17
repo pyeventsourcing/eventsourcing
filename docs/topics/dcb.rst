@@ -2,19 +2,19 @@
 :mod:`~eventsourcing.dcb` --- Dynamic consistency boundaries
 ============================================================
 
-From version `9.5`, this library supports dynamic consistency boundaries (DCB) by providing:
+From version 9.5, this library supports Dynamic Consistency Boundaries (DCB) by providing:
 
-* an :ref:`implementation <DCB Objects>` in Python of the basic objects defined in the `DCB specification <https://dcb.events/specification/>`_
-* :ref:`DCB event stores <DCB recorders>` that work in-memory, in PostgreSQL, and with UmaDB
+* an :ref:`implementation <DCB Objects>` in Python of the basic objects defined in the `specification <https://dcb.events/specification/>`_
+* a range of :ref:`event stores <DCB recorders>` that work in memory, with PostgreSQL, and with UmaDB
 * some :ref:`higher-level abstractions <Higher-level abstractions>` to make working with DCB easier
-* support in the :doc:`projections module </topics/projection>` for eventually-consistent views of :ref:`DCB applications <DCB application>`
+* support in the :doc:`projections module </topics/projection>` for eventually-consistent materialized views
 
 .. _Introduction to DCB:
 
 Introduction to DCB
 ===================
 
-Dynamic consistency boundaries (DCB) is a new variant of event sourcing presented in a
+Dynamic Consistency Boundaries is a significant variant of event sourcing presented in a
 `humorously provocative way <https://sara.event-thinking.io/2023/04/kill-aggregate-chapter-1-I-am-here-to-kill-the-aggregate.html>`_
 as "killing the aggregate".
 
@@ -825,7 +825,7 @@ The three important aspects of a slice are:
 
 * **Consistency Boundary** — Implement :func:`~eventsourcing.dcb.domain.Perspective.consistency_boundary` to return :ref:`selectors <DCB Selector>`.
 
-* **Projection** — Use :func:`@event <eventsourcing.domain.event>` to define how selected :ref:`decisions <DCB decision>` evolve state.
+* **Projection** — Use the :ref:`event decorator <Event decorator>` to define how selected :ref:`decisions <DCB decision>` evolve state.
 
 * **Command Action** — Implement an :func:`~eventsourcing.dcb.domain.Slice.execute` method to make new decisions.
 
@@ -1080,7 +1080,7 @@ The example below shows how to write command and query methods using :ref:`endur
     assert "Sara P" in app.list_students_for_course(course_id)
     assert "History" in app.list_courses_for_student(student_id)
 
-See :ref:`read the examples pages <Dynamic consistency boundaries>` for more discussion and examples of DCB.
+See :ref:`read the examples pages <Dynamic Consistency Boundaries>` for more discussion and examples of DCB.
 
 
 Code reference
