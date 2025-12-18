@@ -82,8 +82,8 @@ A sustained effort has been made here to implement support for DCB is a way that
 first, an attempt was made to use GIN indexes in PostgreSQL, with both array operators and then with text vectors and
 then with full text search techniques. Many others have tried this too, in different ways. It is commonly experienced
 to be slow with any significant volume of recorded events. In consequence, an alternative implementation in PostgreSQL
-was developed that uses B+trees with a separate table for tags. This was much faster, especially when coded with common
-table expressions. Finally, the idea of using B+ trees with CTEs in PostgreSQL was distilled into a specialist DCB event
+was developed that uses B-trees with a separate table for tags. This was much faster, especially when coded with common
+table expressions. Finally, the idea of using B-trees with CTEs in PostgreSQL was distilled into a specialist DCB event
 store written in Rust, now called `UmaDB <https://umadb.io>`_.
 
 Furthermore, we have searched for a high-level abstraction with which domain logic can be more easily expressed. Ideas
