@@ -27,7 +27,7 @@ events, an :ref:`application sequence <Overview>` in the terminology of this lib
 Events
 ~~~~~~
 
-Each event in DCB has one "type" string, some "data", and any number of "tag" strings.
+Each event in DCB has one "type" string, some binary "data", and any number of "tag" strings.
 Recorded events also have an assigned "position" in the sequence, and for this reason are referred to as
 "sequenced events". These objects correspond to the :ref:`stored event <Stored event objects>` and
 :ref:`notification <Notification objects>` objects previously defined in this library.
@@ -334,13 +334,13 @@ See the :doc:`speedrun example for a comparative report and analysis of the perf
 UmaDB DCB recorder
 ------------------
 
-UmaDB is a `specialist event store for DCB <https://umadb.io>`_. The `Python package <https://pypi.org/project/eventsourcing-umadb/>`_
+UmaDB is a `specialist event store for DCB <https://umadb.io>`_ written in Rust. The `Python package <https://pypi.org/project/eventsourcing-umadb/>`_
 ``eventsourcing_umadb`` implements :class:`~eventsourcing.dcb.api.DCBRecorder` by adapting the `Python client for UmaDB <https://pypi.org/project/umadb/>`_.
 
 It can be used by a DCB application by setting the ``PERSISTENCE_MODULE`` environment variable to ``"eventsourcing_umadb"``.
 
 UmaDB uses the same idea as the :ref:`Postgres DCB recorder` of filtering first by tags.
-UmaDB is written in Rust and follows the CoW MVCC design of `LMDB <https://en.wikipedia.org/wiki/Lightning_Memory-Mapped_Database>`_.
+UmaDB follows the copy-on-write MVCC design of `LMDB <https://en.wikipedia.org/wiki/Lightning_Memory-Mapped_Database>`_.
 
 See the :doc:`speedrun example for a comparative report and analysis of the performance </topics/examples/dcb-enrolment-speedrun>`.
 
