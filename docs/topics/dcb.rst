@@ -35,8 +35,8 @@ Recorded events also have an assigned "position" in the sequence, and for this r
 Reading
 ~~~~~~~
 
-When reading events from a DCB event store, a reader can supply a DCB "query". A DCB query has
-zero, one, or many DCB "query items". Each query item may have zero, one, or many "types", and zero, one, or many
+When :ref:`reading <DCB recorders>` events from a DCB event store, a reader can supply a "query". A :ref:`DCB query <DCB query>` has
+zero, one, or many "query items". Each :ref:`query item <DCB query item>` may have zero, one, or many "types", and zero, one, or many
 "tags". Optionally, the reader can also specify a position in the sequence of recorded events after which events
 should be selected.
 
@@ -52,9 +52,9 @@ after the specified position.
 Writing
 ~~~~~~~
 
-When writing new events to a DCB event store, a writer can supply an "append condition" to ensure consistency
-of recorded state. An append condition can include a query to select conflicting events, and a position after
-which the query should be applied.
+When :ref:`writing <DCB recorders>` new events to a DCB event store, a writer can supply an "append condition" to
+ensure consistency of recorded state. An :ref:`append condition <DCB append condition>` can include a query to
+select conflicting events, and a position after which the query should be applied.
 
 If the append condition fails, because conflicting events have been recorded, then an "integrity error" is raised
 by the event store and the new events are not recorded. Otherwise, if the append condition does not fail, then all
@@ -72,23 +72,24 @@ boundary" for the command.
 Discussion
 ----------
 
-The multi-dimensional possibilities offered by combining a set of different query items is impressive. However,
+The multi-dimensional and cross-cutting possibilities offered by combining query items is impressive. However,
 this presents a technical challenge when implementing support for DCB applications. Firstly, the selections of
 events have to be correct for all possible sets of query items. But then also, it will be a technical challenge
 to achieve performance times for DCB applications that is comparable to that enjoyed by "traditional" event-sourced
 aggregates.
 
-A sustained effort has been made here to implement support for DCB is a way that is both correct and performant. At
-first, an attempt was made to use GIN indexes in PostgreSQL, with both array operators and then with text vectors and
+A sustained effort has been made here to :ref:`implement persistence <DCB recorders>` for DCB applications is a way that is both correct
+and performant. At first, an attempt was made to use GIN indexes in PostgreSQL, with both array operators and then with text vectors and
 then with full text search techniques. Many others have tried this too, in different ways. It is commonly experienced
 to be slow with any significant volume of recorded events. In consequence, an alternative implementation in PostgreSQL
 was developed that uses B-trees with a separate table for tags. This was much faster, especially when coded with common
 table expressions. Finally, the idea of using B-trees with CTEs in PostgreSQL was distilled into a specialist DCB event
 store written in Rust, now called `UmaDB <https://umadb.io>`_.
 
-Furthermore, we have searched for a high-level abstraction with which domain logic can be more easily expressed. Ideas
-developed in this library for serialisation, mapping, and declarative syntax have been applied, along with ideas for
-implementing business logic with "vertical slices".
+Furthermore, we have searched for :ref:`higher-level abstractions <Higher-level abstractions>` with which domain logic
+can be more easily expressed, and have developed an application layer that can support such domain models. Ideas
+previously developed in this library for serialisation, mapping, and declarative syntax, have been applied along
+with ideas for implementing business logic with :ref:`vertical slices <slice>`.
 
 .. _DCB Objects:
 
