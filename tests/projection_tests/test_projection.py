@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import Any, ClassVar, cast
 from unittest import TestCase, skipIf
 from uuid import UUID
 
@@ -10,7 +10,7 @@ from psycopg.sql import SQL, Identifier
 
 from eventsourcing.application import Application
 from eventsourcing.dcb.application import DCBApplication
-from eventsourcing.dcb.domain import Perspective, Selector, Tagged
+from eventsourcing.dcb.domain import EnduringObject, Tagged
 from eventsourcing.dcb.msgpack import Decision, InitialDecision, MessagePackMapper
 from eventsourcing.dispatch import singledispatchmethod
 from eventsourcing.domain import Aggregate
@@ -29,9 +29,6 @@ from eventsourcing.postgres import (
 from eventsourcing.projection import Projection, ProjectionRunner
 from eventsourcing.tests.postgres_utils import drop_tables
 from eventsourcing.utils import Environment, get_topic
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
 
 
 class EventCountersInterface(TrackingRecorder):
@@ -288,10 +285,16 @@ class AggregateEventCountersProjection(Projection[EventCountersInterface]):
         raise SpannerThrownError(msg)
 
 
+# Define a perspective.
+class Thing(EnduringObject[Decision, str]):
+    class Created(InitialDecision):
+        thing_id: str
+
+
 class TaggedDecisionCountersProjection(Projection[EventCountersInterface]):
     name = "eventcounters"
     topics: tuple[str, ...] = (
-        get_topic(InitialDecision),
+        get_topic(Thing.Created),
         get_topic(Decision),
         get_topic(DCBSpannerThrown),
     )
@@ -396,11 +399,6 @@ class TestAggregateEventCountersProjection(TestCase, ABC):
                 )
 
 
-class MyPerspective(Perspective[Decision]):
-    def consistency_boundary(self) -> Selector | Sequence[Selector]:
-        return []
-
-
 # TODO: Figure out actually what is causing segmentation violations with Python3.13.
 #  - is happening in this test when whole test suite is run, but not when run alone
 #  - was happening when run alone when DCBSpannerThrown has no attributes
@@ -425,12 +423,10 @@ class TestTaggedDecisionCountersProjection(TestCase, ABC):
             read_model = runner.projection.view
 
             # Write some events.
-            perspective = MyPerspective()
-            perspective.append_new_decision(
-                Tagged([], InitialDecision(originator_topic=""))
-            )
-            perspective.append_new_decision(Tagged([], Decision()))
-            perspective.append_new_decision(Tagged([], Decision()))
+            perspective = Thing()
+            perspective.trigger_event(Decision)
+            perspective.trigger_event(Decision)
+            self.assertEqual(3, len(perspective.new_decisions))
             position = write_model.repository.save(perspective)
 
             # Wait for the events to be processed.
@@ -444,12 +440,9 @@ class TestTaggedDecisionCountersProjection(TestCase, ABC):
             self.assertEqual(read_model.get_subsequent_event_counter(), 2)
 
             # Write some more events.
-            perspective = MyPerspective()
-            perspective.append_new_decision(
-                Tagged([], InitialDecision(originator_topic=""))
-            )
-            perspective.append_new_decision(Tagged([], Decision()))
-            perspective.append_new_decision(Tagged([], Decision()))
+            perspective = Thing()
+            perspective.trigger_event(Decision)
+            perspective.trigger_event(Decision)
             position = write_model.repository.save(perspective)
 
             # Wait for the events to be processed.
@@ -474,8 +467,8 @@ class TestTaggedDecisionCountersProjection(TestCase, ABC):
             read_model = runner.projection.view
 
             # Write some events.
-            perspective = MyPerspective()
-            perspective.append_new_decision(Tagged([], DCBSpannerThrown(a="")))
+            perspective = Thing()
+            perspective.trigger_event(DCBSpannerThrown, a="")
             position = write_model.repository.save(perspective)
 
             # Projection runner terminates with projection error.

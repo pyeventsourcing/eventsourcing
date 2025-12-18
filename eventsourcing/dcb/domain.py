@@ -132,21 +132,14 @@ class MetaPerspective(ABCMeta):
 
 
 class Perspective(ABC, Generic[TDecision], metaclass=MetaPerspective):
-    def __new__(cls, *args: Any, **kwargs: Any) -> Self:
-        perspective = super().__new__(cls)
-        perspective.__base_init__(*args, **kwargs)
-        return perspective
+    last_known_position: int | None
+    new_decisions: list[Tagged[TDecision]]
 
-    def __base_init__(self, *_: Any, **__: Any) -> None:
-        self.last_known_position: int | None = None
-        self.new_decisions: list[Tagged[TDecision]] = []
-
-    def append_new_decision(self, *new_decisions: Tagged[TDecision]) -> None:
-        self.new_decisions.extend(new_decisions)
-
-    def collect_new_decisions(self) -> Sequence[Tagged[TDecision]]:
-        collected, self.new_decisions = self.new_decisions, []
-        return collected
+    def __new__(cls, *_: Any, **__: Any) -> Self:
+        self = super().__new__(cls)
+        self.last_known_position = None
+        self.new_decisions = []
+        return self
 
     @abstractmethod
     def consistency_boundary(self) -> Selector | Sequence[Selector]:
@@ -159,12 +152,22 @@ class Perspective(ABC, Generic[TDecision], metaclass=MetaPerspective):
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> None:
+        """
+        Constructs new tagged decision and appends to list of uncommitted events.
+        """
         tagged = Tagged[TDecision](
             tags=list(tags),
             decision=decision_cls(*args, **kwargs),
         )
         tagged.decision.mutate(self)
-        self.append_new_decision(tagged)
+        self.new_decisions.append(tagged)
+
+    def collect_events(self) -> Sequence[Tagged[TDecision]]:
+        """
+        Drains list of triggered events.
+        """
+        collected, self.new_decisions = self.new_decisions, []
+        return collected
 
 
 TPerspective = TypeVar("TPerspective", bound=Perspective[Any])
@@ -200,8 +203,13 @@ class MetaSupportsEventDecorator(MetaPerspective):
             # Make sure given event class is a Decision subclass.
             assert issubclass(given, Decision)
 
-            # If command method, remember which event class to trigger.
-            if not construct_topic(decorator.decorated_func).endswith("._"):
+            if (
+                issubclass(given, InitialDecision)
+                and decorator.decorated_func.__name__ == "__init__"
+            ):
+                _enduring_object_init_classes[cls] = given
+                # If command method, remember which event class to trigger.
+            elif not construct_topic(decorator.decorated_func).endswith("._"):
                 decorated_func_callers[decorator] = given
 
             # Remember which decorated func to call.
@@ -269,7 +277,7 @@ class EnduringObject(
         initial_kwargs.update(kwargs)
         try:
 
-            initial_tagged_decision = Tagged[TDecision](
+            tagged = Tagged[TDecision](
                 tags=[enduring_object_id],
                 decision=cast(type[TDecision], decision_cls)(**initial_kwargs),
             )
@@ -279,10 +287,10 @@ class EnduringObject(
                 f"with kwargs {initial_kwargs}: {e}"
             )
             raise TypeError(msg) from e
-        enduring_object = cast(Self, initial_tagged_decision.decision.mutate(None))
-        assert enduring_object is not None
-        enduring_object.new_decisions += (initial_tagged_decision,)
-        return enduring_object
+        self = cast(Self, tagged.decision.mutate(None))
+        assert self is not None
+        self.new_decisions.append(tagged)
+        return self
 
     @classmethod
     def _create_id(cls) -> TID:
@@ -306,9 +314,12 @@ class EnduringObject(
 
 
 class Group(Perspective[TDecision]):
-    def __base_init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__base_init__(*args, **kwargs)
+    _enduring_objects: list[EnduringObject[TDecision]]
+
+    def __new__(cls, *args: Any, **kwargs: Any) -> Self:
+        self = super().__new__(cls, *args, **kwargs)
         self._enduring_objects = [a for a in args if isinstance(a, EnduringObject)]
+        return self
 
     def consistency_boundary(self) -> list[Selector]:
         return [
@@ -326,13 +337,13 @@ class Group(Perspective[TDecision]):
     ) -> None:
         objs = self._enduring_objects
         tags = [o.id for o in objs] + list(tags)
-        decision = Tagged[TDecision](
+        tagged = Tagged[TDecision](
             tags=tags,
             decision=decision_cls(*args, **kwargs),
         )
         for o in objs:
-            decision.decision.mutate(o)
-        self.append_new_decision(decision)
+            tagged.decision.mutate(o)
+        self.new_decisions.append(tagged)
 
 
 @dataclass

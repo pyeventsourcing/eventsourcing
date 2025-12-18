@@ -92,7 +92,7 @@ class DCBRepository(Generic[TDecision]):
 
     def save(self, p: Perspective[TDecision]) -> int:
         return self.eventstore.append(
-            events=p.collect_new_decisions(),
+            events=p.collect_events(),
             cb=p.consistency_boundary(),
             after=p.last_known_position,
         )

@@ -26,7 +26,7 @@ class TestEnduringObject(TestCase):
         obj = MyObject()
         self.assertIsInstance(obj, MyObject)
 
-        new = obj.collect_new_decisions()
+        new = obj.collect_events()
         self.assertEqual(1, len(new))
         self.assertIsInstance(new[0], Tagged)
         self.assertIsInstance(new[0].decision, MyObject.Created)
@@ -65,7 +65,7 @@ class TestEnduringObject(TestCase):
         obj.set_a(a="a")
 
         self.assertEqual(obj.a, "a")
-        new = obj.collect_new_decisions()
+        new = obj.collect_events()
         self.assertEqual(2, len(new))
 
         self.assertIsInstance(new[0], Tagged)
@@ -107,7 +107,7 @@ class TestEnduringObject(TestCase):
         obj.set_a(a="a")
 
         self.assertEqual(obj.a, "a")
-        new = obj.collect_new_decisions()
+        new = obj.collect_events()
         self.assertEqual(2, len(new))
 
         self.assertIsInstance(new[0], Tagged)
@@ -123,19 +123,21 @@ class TestEnduringObject(TestCase):
         # TODO: Maybe define __eq__
         self.assertEqual(copy.__dict__, obj.__dict__)
 
-    @skip("Not supported yet")
     def test_enduring_object_with_nonnested_initial_decision(self) -> None:
+        @dataclass
         class Created(InitialDecision):
             originator_topic: str
             myobject_id: str
+            a: str
 
         class MyObject(EnduringObject[Decision]):
             @event(Created)
-            def __init__(self) -> None:
-                pass
+            def __init__(self, a: str) -> None:
+                self.a = a
 
-        my_obj = MyObject()
+        my_obj = MyObject(a="a")
         self.assertIsInstance(my_obj, MyObject)
+        self.assertEqual(my_obj.a, "a")
 
     @skip("Not supported yet")
     def test_subclass_of_enduring_object_with_nested_initial_decision(self) -> None:
@@ -267,9 +269,9 @@ class TestGroup(TestCase):
         self.assertEqual("3", group.obj1.a)
         self.assertEqual("3", group.obj2.a)
 
-        new1 = obj1.collect_new_decisions()
-        new2 = obj2.collect_new_decisions()
-        new_both = group.collect_new_decisions()
+        new1 = obj1.collect_events()
+        new2 = obj2.collect_events()
+        new_both = group.collect_events()
 
         copy1 = None
         for tagged in list(new1) + list(new_both):
@@ -307,8 +309,10 @@ class TestSlice(TestCase):
                 return Selector(types=type(self).projected_types, tags=[self.obj_id])
 
             def execute(self) -> None:
-                self.append_new_decision(
-                    Tagged(tags=[self.obj_id], decision=Created(a=self.a))
+                self.trigger_event(
+                    Created,
+                    tags=[self.obj_id],
+                    a=self.a,
                 )
 
         class Update(Slice[Decision]):
@@ -338,7 +342,7 @@ class TestSlice(TestCase):
         obj_id = "obj1"
         create = Create(obj_id=obj_id, a="1")
         create.execute()
-        new = create.collect_new_decisions()
+        new = create.collect_events()
 
         update = Update(obj_id=obj_id, a="2")
         for tagged in new:
@@ -351,7 +355,7 @@ class TestSlice(TestCase):
         self.assertEqual("2", update.a)
         self.assertEqual("2", update.new_a)
 
-        new = update.collect_new_decisions()
+        new = update.collect_events()
 
         for tagged in new:
             tagged.decision.mutate(update)
@@ -412,7 +416,7 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
         self.assertEqual(obj.a, "1")
         obj.set_a(a="2")
         self.assertEqual(obj.a, "2")
-        new = list(obj.collect_new_decisions())
+        new = list(obj.collect_events())
 
         # Construct a slice and update "a".
         update = Update(obj.id, a="3")
@@ -420,7 +424,7 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
             tagged.decision.mutate(update)
         update.execute()
         self.assertEqual("3", update.a)
-        new.extend(update.collect_new_decisions())
+        new.extend(update.collect_events())
 
         # Reconstruct enduring object from all new events.
         copy1 = None
@@ -451,7 +455,7 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
 
         create = Create(obj_id="obj:123", a="1")
         create.execute()
-        new = list(create.collect_new_decisions())
+        new = list(create.collect_events())
 
         copy2 = None
         for tagged in new:

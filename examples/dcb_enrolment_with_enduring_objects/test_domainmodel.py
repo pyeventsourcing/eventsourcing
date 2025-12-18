@@ -21,7 +21,7 @@ class TestEnduringObjects(TestCase):
         self.assertEqual(3, student.max_courses)
 
         # Collect events.
-        new_events = student.collect_new_decisions()
+        new_events = student.collect_events()
         self.assertEqual(len(new_events), 1)
 
         # Check the event type and attributes.
@@ -46,7 +46,7 @@ class TestEnduringObjects(TestCase):
         self.assertEqual(student.name, "Maxine")
 
         # Collect events.
-        new_events = student.collect_new_decisions()
+        new_events = student.collect_events()
         self.assertEqual(len(new_events), 1)
 
         # Check the event type and attributes.
@@ -76,7 +76,7 @@ class TestEnduringObjects(TestCase):
         self.assertEqual(4, course.places)
 
         # Collect events.
-        new_events = course.collect_new_decisions()
+        new_events = course.collect_events()
         self.assertEqual(len(new_events), 1)
 
         # Check the event type and attributes.

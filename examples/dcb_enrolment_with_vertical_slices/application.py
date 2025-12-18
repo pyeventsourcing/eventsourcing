@@ -10,7 +10,6 @@ from eventsourcing.dcb.application import (
 from eventsourcing.dcb.domain import (
     Selector,
     Slice,
-    Tagged,
 )
 from eventsourcing.dcb.msgpack import Decision, MessagePackMapper
 from eventsourcing.domain import event
@@ -83,15 +82,12 @@ class RegisterStudent(Slice[Decision]):
         return Selector(types=[StudentRegistered], tags=[self.student_id])
 
     def execute(self) -> None:
-        self.append_new_decision(
-            Tagged(
-                tags=[self.student_id],
-                decision=StudentRegistered(
-                    student_id=self.student_id,
-                    name=self.name,
-                    max_courses=self.max_courses,
-                ),
-            )
+        self.trigger_event(
+            StudentRegistered,
+            tags=[self.student_id],
+            student_id=self.student_id,
+            name=self.name,
+            max_courses=self.max_courses,
         )
 
 
@@ -110,11 +106,11 @@ class UpdateStudentName(Slice[Decision]):
 
     def execute(self) -> None:
         assert self.student_was_registered
-        self.append_new_decision(
-            Tagged(
-                tags=[self.id],
-                decision=StudentNameUpdated(student_id=self.id, name=self.name),
-            )
+        self.trigger_event(
+            StudentNameUpdated,
+            tags=[self.id],
+            student_id=self.id,
+            name=self.name,
         )
 
 
@@ -136,13 +132,11 @@ class UpdateMaxCourses(Slice[Decision]):
 
     def execute(self) -> None:
         assert self.student_was_registered
-        self.append_new_decision(
-            Tagged(
-                tags=[self.id],
-                decision=StudentMaxCoursesUpdated(
-                    student_id=self.id, max_courses=self.max_courses
-                ),
-            )
+        self.trigger_event(
+            StudentMaxCoursesUpdated,
+            tags=[self.id],
+            student_id=self.id,
+            max_courses=self.max_courses,
         )
 
 
@@ -156,15 +150,12 @@ class RegisterCourse(Slice[Decision]):
         return Selector(types=[CourseRegistered], tags=[self.course_id])
 
     def execute(self) -> None:
-        self.append_new_decision(
-            Tagged(
-                tags=[self.course_id],
-                decision=CourseRegistered(
-                    course_id=self.course_id,
-                    name=self.name,
-                    places=self.places,
-                ),
-            )
+        self.trigger_event(
+            CourseRegistered,
+            tags=[self.course_id],
+            course_id=self.course_id,
+            name=self.name,
+            places=self.places,
         )
 
 
@@ -183,11 +174,11 @@ class UpdateCourseName(Slice[Decision]):
 
     def execute(self) -> None:
         assert self.course_was_registered
-        self.append_new_decision(
-            Tagged(
-                tags=[self.id],
-                decision=CourseNameUpdated(course_id=self.id, name=self.name),
-            )
+        self.trigger_event(
+            CourseNameUpdated,
+            tags=[self.id],
+            course_id=self.id,
+            name=self.name,
         )
 
 
@@ -206,11 +197,11 @@ class UpdatePlaces(Slice[Decision]):
 
     def execute(self) -> None:
         assert self.course_was_registered
-        self.append_new_decision(
-            Tagged(
-                tags=[self.id],
-                decision=CoursePlacesUpdated(course_id=self.id, places=self.places),
-            )
+        self.trigger_event(
+            CoursePlacesUpdated,
+            tags=[self.id],
+            course_id=self.id,
+            places=self.places,
         )
 
 
@@ -290,14 +281,11 @@ class StudentJoinsCourse(Slice[Decision]):
             raise TooManyCoursesError(self.student_id)
         if self.student_id in self.students_on_course:
             raise AlreadyJoinedError((self.student_id, self.course_id))
-        self.append_new_decision(
-            Tagged(
-                tags=[self.student_id, self.course_id],
-                decision=StudentJoinedCourse(
-                    student_id=self.student_id,
-                    course_id=self.course_id,
-                ),
-            )
+        self.trigger_event(
+            StudentJoinedCourse,
+            tags=[self.student_id, self.course_id],
+            student_id=self.student_id,
+            course_id=self.course_id,
         )
 
 
@@ -351,14 +339,11 @@ class StudentLeavesCourse(Slice[Decision]):
             raise StudentNotFoundError
         if self.student_id not in self.students_on_course:
             raise NotAlreadyJoinedError
-        self.append_new_decision(
-            Tagged(
-                tags=[self.student_id, self.course_id],
-                decision=StudentLeftCourse(
-                    student_id=self.student_id,
-                    course_id=self.course_id,
-                ),
-            )
+        self.trigger_event(
+            StudentLeftCourse,
+            tags=[self.student_id, self.course_id],
+            student_id=self.student_id,
+            course_id=self.course_id,
         )
 
 

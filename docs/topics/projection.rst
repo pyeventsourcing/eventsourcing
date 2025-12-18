@@ -111,29 +111,28 @@ all implement the required :func:`~eventsourcing.dcb.api.DCBRecorder.subscribe` 
 
 .. code-block:: python
 
+    from dataclasses import dataclass
     from uuid import UUID
 
     from eventsourcing.dcb.application import DCBApplication
-    from eventsourcing.dcb.domain import Perspective, Selector, Tagged
+    from eventsourcing.dcb.domain import EnduringObject
     from eventsourcing.dcb.msgpack import Decision, InitialDecision, MessagePackMapper
+    from eventsourcing.domain import event
     from eventsourcing.projection import DCBApplicationSubscription
     from eventsourcing.utils import get_topic
 
 
     # Define a perspective.
-    class MyPerspective(Perspective[Decision]):
-        def consistency_boundary(self) -> Selector | Sequence[Selector]:
-            return []
+    class Thing(EnduringObject[Decision, str]):
+        class Created(InitialDecision):
+            thing_id: str
 
 
     # Construct an application object.
     app = DCBApplication(env={"MAPPER_TOPIC": get_topic(MessagePackMapper)})
 
     # Record an event.
-    perspective = MyPerspective()
-    perspective.append_new_decision(
-        Tagged([], InitialDecision(originator_topic=""))
-    )
+    perspective = Thing()
     app.repository.save(perspective)
 
     # Position in application sequence from which to subscribe.

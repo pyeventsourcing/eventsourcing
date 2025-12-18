@@ -513,7 +513,7 @@ for example by using JSON, Pydantic, MessagePack, or Protobuf.
                 tags=event.tags,
             )
 
-        def to_domain_event(self, event: DCBEvent) -> Tagged[TDecision]:
+        def to_domain_event(self, event: DCBEvent) -> Tagged[Decision]:
             return Tagged(
                 tags=event.tags,
                 decision = self.registered_types[event.type](**json.loads(event.data))
@@ -643,10 +643,18 @@ The optional ``after`` parameter represents a sequence number after which confli
 Perspective
 -----------
 
-The class :class:`~eventsourcing.dcb.domain.Perspective` is an base class for different
-kinds of decision models. It defines an interface for defining consistency boundaries,
-for keeping track of a "last known position", and has methods for appending new decisions
-to an internal list, and for collecting all new tagged decisions.
+The :class:`~eventsourcing.dcb.domain.Perspective` class is an abstract base class for different
+kinds of decision models. It defines an abstract method :func:`~eventsourcing.dcb.domain.Perspective.consistency_boundary`
+that must be implemented by subclasses to return a :ref:`selector <DCB Selector>` or a sequence of selectors. It also
+defines a :data:`~eventsourcing.dcb.domain.Perspective.last_known_position` attribute for keeping track of the last
+known sequence number when a perspective is reconstructed from sequenced events. The consistency boundary of a perspective
+is used as a :ref:`query <DCB query>` when reading events that will be used to reconstruct the perspective. The consistency boundary and
+the last known position is used as an :ref:`append condition <DCB append condition>` when appending new events.
+
+The :class:`~eventsourcing.dcb.domain.Perspective` class also provides
+:func:`~eventsourcing.dcb.domain.Perspective.trigger_event` for creating and appending new tagged decisions
+to an internal list, and :func:`~eventsourcing.dcb.domain.Perspective.collect_events` for collecting
+all new tagged decisions.
 
 .. code-block:: python
 
@@ -657,10 +665,15 @@ to an internal list, and for collecting all new tagged decisions.
             return [Selector(tags=["tag1"]), Selector(tags=["tag2"])]
 
 
+    # Construct a perspective.
     my_perspective = MyPerspective()
 
     # Get consistency boundary.
     cb = my_perspective.consistency_boundary()
+
+    # Update "last known position", usually after selecting tagged
+    # decisions and updating the state of the perspective.
+    cb = 1234
 
     # Generate new tagged decisions.
     my_perspective.trigger_event(
@@ -668,23 +681,33 @@ to an internal list, and for collecting all new tagged decisions.
         tags=["tag1", "tag2"],
     )
 
-    # Collect new decisions.
-    new_decisions = my_perspective.collect_new_decisions()
+    # Collect new decisions, usually before append them into an event
+    # store using the consistency boundary and the last known position.
+    new_decisions = my_perspective.collect_events()
 
 .. _Enduring object:
 
 Enduring object
 ---------------
 
-The generic base class :class:`~eventsourcing.dcb.domain.EnduringObject` extends the :ref:`perspective <Perspective>` class
-and is is very similar to :doc:`event-sourced aggregates </topics/tutorial/part2>`. Each instance has a unique continuity ID,
-which is used generate a consistency boundary and to tag new decisions.
+The generic base class :class:`~eventsourcing.dcb.domain.EnduringObject` extends the :ref:`perspective <Perspective>` class,
+and is similar to :doc:`event-sourced aggregates </topics/tutorial/part2>`. Each instance has a unique continuity ID,
+which is stored in the :data:`~eventsourcing.dcb.domain.EnduringObject.id` attribute. The continuity ID is used as a tag
+in its consistency boundary, and to tag new decisions.
 
 Enduring objects can have command methods decorated with the library's :ref:`event decorator <Event decorator>`.
-Calling a decorated command methods will generate a new tagged decision. The command method bodies contribute to
-defining a projection of tagged events into the current state of the enduring object. The
-:func:`~eventsourcing.dcb.domain.Perspective.collect_new_decisions` method defined by the perspective
-base class can be used to collect uncommitted new decisions.
+Calling a decorated command method will generate a new tagged decision. The command method body contribute to
+defining a projection of tagged events into the current state of the enduring object.
+
+Enduring object subclasses must be associated with an :class:`~eventsourcing.dcb.domain.InitialDecision` class
+whose attributes match the arguments of its initializer ``__init__()`` method. This association can be made
+either by defining a subclass of :class:`~eventsourcing.dcb.domain.InitialDecision` as a nested class on
+the enduring object subclass, or by mentioning a subclass of :class:`~eventsourcing.dcb.domain.InitialDecision`
+in an event decorator in the ``__init__()`` method.
+
+Enduring object instances can be created by calling the subclass. The examples below show a student and course
+modelled as enduring objects. The ``StudentJoinedCourse`` decision class, defined in the :ref:`mapper example <DCB mapper>`
+above, is included in the projection of both enduring objects, setting up the :ref:`group example <Group>` in the next section.
 
 .. code-block:: python
 
@@ -708,7 +731,7 @@ base class can be used to collect uncommitted new decisions.
             self.course_ids: list[str] = []
 
         @event(NameUpdated)
-        def _(self, name: str) -> None:
+        def update_name(self, name: str) -> None:
             self.name = name
 
         @event(StudentJoinedCourse)
@@ -737,6 +760,15 @@ base class can be used to collect uncommitted new decisions.
         max_courses=5,
     )
 
+    assert student.name == "Sara"
+
+    student.update_name("Sara P")
+
+    assert student.name == "Sara P"
+
+    tagged_decisions = student.collect_events()
+    assert len(tagged_decisions) == 2
+
     course = Course(
         name="History",
         max_students=30,
@@ -757,18 +789,18 @@ See :ref:`slices <Slice>` for an alternative higher-level abstraction.
 Group
 -----
 
-The :class:`~eventsourcing.dcb.domain.Group` class is a base class for cross-cutting decision-making across
-many enduring objects. A group defines a consistency boundary that is the union of the consistency boundaries
-of the enduring objects in the group.
+The :class:`~eventsourcing.dcb.domain.Group` class extends the :ref:`perspective <Perspective>` class, and supports
+cross-cutting decision-making across many enduring objects. The consistency boundary of a group is the union
+of the consistency boundaries of the enduring objects in the group.
 
 A group is constructed with already existing enduring objects. Its command methods can trigger new tagged
-decisions, using the :func:`~eventsourcing.dcb.domain.Group.trigger_event` method. They will be immediately
-applied to all the enduring objects in the group. If an enduring object's projection includes that decision,
-its state will be evolved.
+decisions, using the :func:`~eventsourcing.dcb.domain.Group.trigger_event` method. Decisions created by
+a group will be tagged with all the continuity IDs of the enduring objects in the group. If an enduring
+object's projection includes that decision, its state will be evolved accordingly.
 
-Tagged decisions triggered by a group will each be tagged with all the continuity IDs of the enduring objects
-in the group. Because of this, they will also be included whenever the enduring objects is subsequently
-reconstructed.
+The example below uses the :ref:`student and course enduring objects <Enduring object>` in a group that
+triggers a ``StudentJoinedCourse`` event in the ``student_joins_course()`` method that applies to both
+the student and the course. Similarly, a ``student_leaves_course()`` method could be implemented for this group.
 
 .. code-block:: python
 
@@ -803,9 +835,9 @@ reconstructed.
     assert student.id in course.student_ids
     assert course.id in student.course_ids
 
-Using groups to trigger cross-cutting events demonstrates the "one fact magic" of DCB. However, because
-the consistency boundary for a group is the union of the consistency boundaries for the members of a
-group, the criticism of :ref:`enduring objects <Enduring object>` applies even more to groups: that
+Using groups to trigger cross-cutting events like this demonstrates the "one fact magic" of DCB. However,
+because the consistency boundary for a group is the union of the consistency boundaries for the members of
+a group, the criticism of :ref:`enduring objects <Enduring object>` applies even more to groups: that
 including all events in the consistency boundary, regardless of whether they are actually required for
 any particular operation, increases contention unnecessarily.
 
@@ -814,24 +846,24 @@ any particular operation, increases contention unnecessarily.
 Slice
 -----
 
-The class :class:`~eventsourcing.dcb.domain.Slice` is designed to support "vertical slice architecture" with DCB.
-It extends the :class:`~eventsourcing.dcb.domain.Perspective` class. The idea of "vertical slices" is that individual
+The :class:`~eventsourcing.dcb.domain.Slice` class  extends the :ref:`perspective <Perspective>` class, and
+is designed to support "vertical slice architecture" with DCB. The idea of "vertical slices" is that individual
 use cases can be implemented with pieces of code that are entirely independent of each other.
 Slices can support both command and query use cases.
 
 The three important aspects of a slice are:
 
-* **Consistency Boundary** — Implement :func:`~eventsourcing.dcb.domain.Perspective.consistency_boundary` to return :ref:`selectors <DCB Selector>`.
+* **Consistency Boundary** — implement :func:`~eventsourcing.dcb.domain.Perspective.consistency_boundary` to return :ref:`selectors <DCB Selector>`.
 
-* **Projection** — Use the :ref:`event decorator <Event decorator>` to define how selected :ref:`decisions <DCB decision>` evolve state.
+* **Projection** — use the :ref:`event decorator <Event decorator>` to define how selected :ref:`decisions <DCB decision>` evolve state.
 
-* **Command Action** — Implement :func:`~eventsourcing.dcb.domain.Slice.execute` to generate new :ref:`decisions <DCB decision>`.
+* **Command Action** — implement :func:`~eventsourcing.dcb.domain.Slice.execute` to generate new :ref:`decisions <DCB decision>`.
 
 The consistency boundary for a slice can be used both to select events for the slice's projection, if it has one,
 and to select conflicting events when appending any new events to an event store.
 
 The example below shows a slice for updating a student's name. The :func:`~eventsourcing.dcb.domain.Perspective.consistency_boundary`
-involves decision classes mentioned in the projection, in this case by using the :data:`projected_types` attribute which
+involves decision classes mentioned in the projection by using the :data:`projected_types` attribute, which
 automatically collects all decision classes mentioned in the slice's :func:`@event <eventsourcing.domain.event>` decorators.
 
 .. code-block:: python
@@ -888,7 +920,7 @@ This shows that it is possible to develop a domain model with enduring objects a
 Similarly, with a little care, it is possible to start with slices and rework your code to use enduring objects.
 
 Indeed, it is possible to have some parts of your domain model defined with
-enduring objects and groups, and other parts defined using slices. This is demonstrated in the
+enduring objects, and groups, and to have other parts defined using slices. This is demonstrated in the
 :ref:`example application <DCB application>` below.
 
 
@@ -968,7 +1000,7 @@ for a given sequence of continuity IDs.
 
 
 The :func:`~eventsourcing.dcb.application.DCBRepository.get_group` method constructs a :ref:`group <group>`
-for a given group class and sequence of continuity IDs.
+and its enduring object for a given sequence of continuity IDs.
 
 .. code-block:: python
 
