@@ -101,7 +101,6 @@ class InitialDecision(Decision):
                 )
                 raise TypeError(msg) from e
             enduring_object.id = enduring_object_id
-            enduring_object.__post_init__()
             return enduring_object
         msg = f"Originator type not subclass of EnduringObject: {originator_type}"
         raise TypeError(msg)
@@ -295,9 +294,6 @@ class EnduringObject(
     @classmethod
     def _create_id(cls) -> TID:
         return cast(TID, f"{cls.__name__.lower()}-{uuid4()}")
-
-    def __post_init__(self) -> None:
-        pass
 
     def consistency_boundary(self) -> list[Selector]:
         return [Selector(tags=[self.id])]
