@@ -35,7 +35,7 @@ Recorded events also have an assigned "position" in the sequence, and for this r
 Reading
 ~~~~~~~
 
-When :ref:`reading <DCB recorders>` events from a DCB event store, a reader can supply a "query". A :ref:`DCB query <DCB query>` has
+When :ref:`reading <DCB recorders>` events from a DCB event store, a reader can supply a "query". A :ref:`query <DCB query>` has
 zero, one, or many "query items". Each :ref:`query item <DCB query item>` may have zero, one, or many "types", and zero, one, or many
 "tags". Optionally, the reader can also specify a position in the sequence of recorded events after which events
 should be selected.
