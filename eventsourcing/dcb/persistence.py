@@ -54,7 +54,7 @@ class DCBEventStore(Generic[TDecision]):
             return 0
         condition = (
             None
-            if not cb and not after
+            if cb is None and after is None
             else DCBAppendCondition(
                 fail_if_events_match=self._cb_to_dcb_query(cb),
                 after=after,

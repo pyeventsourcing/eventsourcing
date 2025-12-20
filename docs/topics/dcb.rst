@@ -35,18 +35,15 @@ Recorded events have an assigned "position" in the sequence, and are called
 Reading
 ~~~~~~~
 
-When :ref:`reading <DCB recorders>` events from a DCB event store, a reader can supply a "query". A :ref:`query <DCB query>`
-can have any number of "query items". Each :ref:`query item <DCB query item>` can have any number of "types" and "tags".
-A reader may also specify a sequence position after which events are selected.
+When :ref:`reading <DCB recorders>` events from a DCB event store, a reader can supply a "query"
+for selecting events. If no query is provided, or the query does not have any query items, then all events
+will be selected. A reader may also specify a sequence position after which to select events.
 
-An event is selected by the query if matched by any of the query items. An event is matched
-if the event's type is mentioned in the query item's types, or if the query item has zero types,
-and if all query item's tags are mentioned in the event's tags.
-
-In this way, a query item with more types will be more inclusive, and a query item with more tags will be more
-restrictive. Each query item will tend to add events to the set of events selected by the query. However, if a
-query has zero query items, or no query is provided when reading, then all events will be selected, optionally
-after the specified position.
+A :ref:`query <DCB query>` can have any number of "query items". Each :ref:`query item <DCB query item>`
+can have any number of "types" and "tags". An event is selected by a query if matched by any of the query items.
+An event is matched if the event's type is mentioned in the query item's types, or if the query item has
+zero types, and if all query item's tags are mentioned in the event's tags. In this way, a query item
+with more types is more inclusive, and a query item with more tags is more restrictive.
 
 Writing
 ~~~~~~~
@@ -60,9 +57,9 @@ and the new events are not recorded. Otherwise, all the new events are recorded.
 event is assigned a new position in the application sequence, and thereby becomes a
 "sequenced event".
 
-A command method will usually read a selection of recorded events, and then project the events into a
+A command method will usually read a selection of sequenced events, and then project the events into a
 "decision model" with which new events will be generated. When a command method writes
-new events, the same query used for reading can also be used as the append condition query, and the highest
+new events, the same query that was used for reading can also be used in the append condition. The highest
 "last known position" at the time of reading can be used as the append condition position.
 
 The command method's query, used both when reading and writing, therefore defines the "dynamic consistency
