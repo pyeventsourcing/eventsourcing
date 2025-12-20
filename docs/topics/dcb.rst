@@ -28,21 +28,20 @@ Events
 ~~~~~~
 
 Each event in DCB has one "type" string, some binary "data", and any number of "tag" strings.
-Recorded events also have an assigned "position" in the sequence, and for this reason are referred to as
+Recorded events have an assigned "position" in the sequence, and are called
 "sequenced events". These objects correspond to the :ref:`stored event <Stored event objects>` and
 :ref:`notification <Notification objects>` objects previously defined in this library.
 
 Reading
 ~~~~~~~
 
-When :ref:`reading <DCB recorders>` events from a DCB event store, a reader can supply a "query". A :ref:`query <DCB query>` has
-zero, one, or many "query items". Each :ref:`query item <DCB query item>` may have zero, one, or many "types", and zero, one, or many
-"tags". Optionally, the reader can also specify a position in the sequence of recorded events after which events
-should be selected.
+When :ref:`reading <DCB recorders>` events from a DCB event store, a reader can supply a "query". A :ref:`query <DCB query>`
+can have any number of "query items". Each :ref:`query item <DCB query item>` can have any number of "types" and "tags".
+A reader may also specify a sequence position after which events are selected.
 
-An event is selected by the query if it is matched by any of the query items. An event is matched by a query item
-if either the event's type is mentioned in the query item's collection of types, or if the query item has zero types,
-but then only if the event's tags are a superset of the query item's tags.
+An event is selected by the query if matched by any of the query items. An event is matched
+if the event's type is mentioned in the query item's types, or if the query item has zero types,
+and if all query item's tags are mentioned in the event's tags.
 
 In this way, a query item with more types will be more inclusive, and a query item with more tags will be more
 restrictive. Each query item will tend to add events to the set of events selected by the query. However, if a
@@ -57,16 +56,16 @@ ensure consistency of recorded state. An :ref:`append condition <DCB append cond
 select conflicting events, and a position after which the query should be applied.
 
 If the append condition fails, because conflicting events have been recorded, then an "integrity error" is raised
-by the event store and the new events are not recorded. Otherwise, if the append condition does not fail, then all
-the new events are recorded. Each recorded event is assigned a monotonically increasing position in the application
-sequence, and thereby becomes a "sequenced event".
+and the new events are not recorded. Otherwise, all the new events are recorded. Each recorded
+event is assigned a new position in the application sequence, and thereby becomes a
+"sequenced event".
 
 A command method will usually read a selection of recorded events, and then project the events into a
-"decision model", from which one or many new events will be generated. When a command method writes
-new events, the same query used for reading can also be used the append condition query, and the highest
+"decision model" with which new events will be generated. When a command method writes
+new events, the same query used for reading can also be used as the append condition query, and the highest
 "last known position" at the time of reading can be used as the append condition position.
 
-The command method's query, that is used both when reading a writing, therefore defines the "dynamic consistency
+The command method's query, used both when reading and writing, therefore defines the "dynamic consistency
 boundary" for the command.
 
 Discussion
@@ -109,8 +108,8 @@ DCB Query Item
 --------------
 
 A :class:`~eventsourcing.dcb.api.DCBQueryItem` defines a criterion for matching events.
-A query item will match an event if: one of its types matches the event's type or the
-query item's types attribute is empty; and if all of its tags match one of the event's tags
+A query item will match an event if one of its types matches the event's type or the
+query item's types attribute is empty, and if all of its tags match one of the event's tags
 or the query item's tags attribute is empty.
 
 .. code-block:: python
