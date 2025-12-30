@@ -24,8 +24,8 @@ with previous major versions. However the underlying principles are the
 same, and so conversion of code and stored events is very possible.
 
 
-Version 9.5.0 (released TBD)
-----------------------------
+Version 9.5.0 (released 30 December 2025)
+-----------------------------------------
 
 * Added support for Dynamic Consistency Boundaries (DCB)
 
