@@ -310,7 +310,7 @@ high cardinality, whereas type strings tend to have low cardinality. Therefore t
 selective in queries, whereas type strings do not. Mixing these up in an SQL select statement causes
 the PostgreSQL query planner to find sub-optimal solutions.
 
-This implementation uses an secondary table of tags indexed with a B-tree. Queries select tags first, and then
+This implementation uses a secondary table of tags indexed with a B-tree. Queries select tags first, and then
 filter by position and type. The sequence positions on the main table are also indexed with a B-tree that
 "covers" the type column. In this way, recorded events can be selected by tag, filtered by type, ordered and limited,
 using only B-tree indexes, without touching the main table of recorded events.
@@ -348,7 +348,7 @@ Higher-level Abstractions
 
 The following sections describe higher-level abstractions for event sourcing with DCB.
 
-The refactored higher-level code shown below introduces the notion "enduring object" which is quite
+The higher-level abstractions shown below introduces the notion "enduring object" which is quite
 like "event-sourced aggregate" but with some important differences, the notion
 "group", which is a collection of many enduring objects that can also make decisions which affect
 the whole group, and the notion "slice" which can be used with "vertical slice architecture".
@@ -442,7 +442,7 @@ The examples below define decision types as Python data classes.
 
 Additionally, the class :class:`~eventsourcing.dcb.domain.InitialDecision` can be used to represent the first
 decision in a modelled set of decisions that have serial order (a sequence). It extends :class:`~eventsourcing.dcb.domain.Decision`
-with an "originator topic" type hint that may be implemented to represent the type thing to which the sequence
+with an "originator topic" type hint that may be implemented to represent the type of thing to which the sequence
 belongs. All the members of such a sequence of decisions are likely each to be tagged with a common tag,
 and perhaps also other tags for cross-cutting decisions or other classifications. The common tag in this case
 is likely to represent the continuity ID of the thing to which the whole sequence belongs.
@@ -566,7 +566,7 @@ Selector
 --------
 
 A :class:`~eventsourcing.dcb.domain.Selector` defines a criterion for a consistency boundary
-in a domain model, in terms of :ref:`decisions <DCB decision>` types and tag strings. It corresponds to the
+in a domain model, in terms of :ref:`decision types <DCB decision>` and tag strings. It corresponds to the
 lower-level :ref:`query item <DCB query item>`.
 
 .. code-block:: python
@@ -663,24 +663,27 @@ all new tagged decisions.
 
 
     # Construct a perspective.
-    my_perspective = MyPerspective()
+    perspective = MyPerspective()
 
     # Get consistency boundary.
-    cb = my_perspective.consistency_boundary()
+    cb = perspective.consistency_boundary()
 
     # Update "last known position", usually after selecting tagged
     # decisions and updating the state of the perspective.
-    cb = 1234
+    perspective.last_known_position = 1234
 
     # Generate new tagged decisions.
-    my_perspective.trigger_event(
+    perspective.trigger_event(
         Decision,
         tags=["tag1", "tag2"],
     )
 
     # Collect new decisions, usually before append them into an event
     # store using the consistency boundary and the last known position.
-    new_decisions = my_perspective.collect_events()
+    new_decisions = perspective.collect_events()
+
+    # Append new decisions, using the same consistency boundary and the
+    # "last known position" when the perspective was reconstructed....
 
 .. _Enduring object:
 
@@ -693,8 +696,8 @@ which is stored in the :data:`~eventsourcing.dcb.domain.EnduringObject.id` attri
 in its consistency boundary, and to tag new decisions.
 
 Enduring objects can have command methods decorated with the library's :ref:`event decorator <Event decorator>`.
-Calling a decorated command method will generate a new tagged decision. The command method body contribute to
-defining a projection of tagged events into the current state of the enduring object.
+Calling a decorated command method will generate a new tagged decision. The method body will be used to
+project tagged events into the current state of the enduring object.
 
 Enduring object subclasses must be associated with an :class:`~eventsourcing.dcb.domain.InitialDecision` class
 whose attributes match the arguments of its initializer ``__init__()`` method. This association can be made
@@ -702,9 +705,12 @@ either by defining a subclass of :class:`~eventsourcing.dcb.domain.InitialDecisi
 the enduring object subclass, or by mentioning a subclass of :class:`~eventsourcing.dcb.domain.InitialDecision`
 in an event decorator in the ``__init__()`` method.
 
-Enduring object instances can be created by calling the subclass. The examples below show a student and course
-modelled as enduring objects. The ``StudentJoinedCourse`` decision class, defined in the :ref:`mapper example <DCB mapper>`
-above, is included in the projection of both enduring objects, setting up the :ref:`group example <Group>` in the next section.
+Enduring object instances can be created by calling the subclass. This will trigger a new "initial decision",
+that will be used to construct the enduring object instance. The "initial decision" can be collected from
+the enduring object instance by calling :func:`~eventsourcing.dcb.domain.Perspective.collect_events`. The
+examples below show a student and course modelled as enduring objects. The ``StudentJoinedCourse`` decision class,
+defined in the :ref:`mapper example <DCB mapper>` above, is included in the projection of both enduring objects,
+in preparation for the :ref:`group example <Group>` in the next section.
 
 .. code-block:: python
 
@@ -752,24 +758,30 @@ above, is included in the projection of both enduring objects, setting up the :r
             self.student_ids.append(student_id)
 
 
+    # Create a new student.
     student = Student(
         name="Sara",
         max_courses=5,
     )
-
     assert student.name == "Sara"
+    assert student.max_courses == 5
 
+    # Update the student name.
     student.update_name("Sara P")
-
     assert student.name == "Sara P"
 
+    # Collect new events.
     tagged_decisions = student.collect_events()
     assert len(tagged_decisions) == 2
 
+    # Create a new course...
     course = Course(
         name="History",
         max_students=30,
     )
+    assert course.name == "History"
+    assert course.max_students == 30
+
 
 See the :doc:`DCB examples </topics/examples/dcb-enrolment-with-enduring-objects>` for a more complete example.
 
@@ -791,7 +803,7 @@ cross-cutting decision-making across many enduring objects. The consistency boun
 of the consistency boundaries of the enduring objects in the group.
 
 A group is constructed with already existing enduring objects. Its command methods can trigger new tagged
-decisions, using the :func:`~eventsourcing.dcb.domain.Group.trigger_event` method. Decisions created by
+decisions, using the group's :func:`~eventsourcing.dcb.domain.Group.trigger_event` method. Decisions created by
 a group will be tagged with all the continuity IDs of the enduring objects in the group. If an enduring
 object's projection includes that decision, its state will be evolved accordingly.
 
@@ -836,7 +848,9 @@ Using groups to trigger cross-cutting events like this demonstrates the "one fac
 because the consistency boundary for a group is the union of the consistency boundaries for the members of
 a group, the criticism of :ref:`enduring objects <Enduring object>` applies even more to groups: that
 including all events in the consistency boundary, regardless of whether they are actually required for
-any particular operation, increases contention unnecessarily.
+any particular operation, increases contention unnecessarily. This corresponds exactly to recording new
+events from more than one aggregate in the same transaction. The difference with groups is that one event
+can affect many enduring objects.
 
 .. _Slice:
 
@@ -926,7 +940,10 @@ enduring objects, and groups, and to have other parts defined using slices. This
 Repository
 ----------
 
-The :class:`~eventsourcing.dcb.application.DCBRepository` class supports :ref:`perspectives <perspective>`. A repository is constructed with an :ref:`event store <DCB event store>`.
+The :class:`~eventsourcing.dcb.application.DCBRepository` class is provided to support working with
+:ref:`perspectives <perspective>` of different kinds.
+
+A repository is constructed with an :ref:`event store <DCB event store>`.
 
 .. code-block:: python
 
