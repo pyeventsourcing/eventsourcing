@@ -68,7 +68,7 @@ pydantic = { version = "*"}
 orjson = { version = "*"}
 msgspec = { version = "*"}
 pytest = { version = "*"}
-eventsourcing-umadb = { version = ">=0.2", allow-prereleases = true }
+eventsourcing-umadb = { version = ">=0.3.1", allow-prereleases = true }
 
 [tool.poetry.group.docs.dependencies]
 Sphinx = { version = "*"}
