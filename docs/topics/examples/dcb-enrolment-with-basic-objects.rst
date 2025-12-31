@@ -24,7 +24,7 @@ without any extra abstractions.
 Test case
 ---------
 
-The ::ref:`enrolment test case <Enrolment test case>` is extended for
+The :ref:`enrolment test case <Enrolment test case>` is extended for
 :class:`~examples.dcb_enrolment_with_basic_objects.application.EnrolmentWithDCB`.
 
 .. literalinclude:: ../../../examples/dcb_enrolment_with_basic_objects/test_application.py
