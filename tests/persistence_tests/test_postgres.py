@@ -792,6 +792,34 @@ class TestPostgresApplicationRecorder(
 
         thread_pool.shutdown()
 
+    def test_subscribe_terminate_connection_on_server(self) -> None:
+        recorder = self.create_recorder()
+        with recorder.subscribe() as subscription:
+            assert isinstance(subscription, PostgresSubscription)
+
+            # Close the LISTEN connection from the server.
+            pg_close_all_connections()
+
+            # Check the pull thread has ended.
+            subscription._pull_thread.join(timeout=1)
+            self.assertFalse(subscription._pull_thread.is_alive())
+
+            # Check the listen thread has ended.
+            subscription._listen_thread.join(timeout=1)
+            self.assertFalse(subscription._listen_thread.is_alive())
+
+            # Check the subscription has an operational error.
+            self.assertIsInstance(subscription._thread_error, OperationalError)
+            self.assertIn(
+                "server closed the connection", str(subscription._thread_error)
+            )
+
+            # Check the subscription iterator exits with the operational error.
+            with self.assertRaises(OperationalError) as cm:
+                for _ in subscription:
+                    pass
+            self.assertIn("server closed the connection", str(cm.exception))
+
     def test_concurrent_no_conflicts(self, initial_position: int = 0) -> None:
         self.datastore.pool.open()
         self.datastore.pool.resize(12, 12)
