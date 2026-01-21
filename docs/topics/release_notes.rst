@@ -24,6 +24,14 @@ with previous major versions. However the underlying principles are the
 same, and so conversion of code and stored events is very possible.
 
 
+Version 9.5.1 (released 21 January 2026)
+-----------------------------------------
+
+* Fixed ListenNotifySubscription.stop() "queue full" bug. Previously, stop() poisoned the queue
+  of pulled notifications, calling Queue.put() which blocked when the queue is full, inhibiting
+  the expected behaviour. Now, stop() calls Queue.shutdown(), which unblocks any blocked calls
+  to get() and put(), allowing everything to end and exit.
+
 Version 9.5.0 (released 30 December 2025)
 -----------------------------------------
 
