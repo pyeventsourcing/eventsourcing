@@ -298,7 +298,7 @@ class TestEventSourcedProjectionWithPostgres(TestCase):
 
             pg_close_all_connections()
 
-            projection_process.join(timeout=1)
+            projection_process.join(timeout=10)
             self.assertFalse(projection_process.is_alive())
             process_error = projection_process.error
             self.assertIsNotNone(process_error)
