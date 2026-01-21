@@ -500,3 +500,17 @@ class EventSourcedProjectionRunner(
             topics=self.projection.topics,
             env=env,
         )
+
+    def __enter__(self) -> Self:
+        cm = super().__enter__()
+        self.projection.__enter__()
+        return cm
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        self.projection.__exit__(exc_type, exc_val, exc_tb)
+        return super().__exit__(exc_type, exc_val, exc_tb)
