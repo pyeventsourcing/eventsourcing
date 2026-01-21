@@ -59,7 +59,7 @@ class AggregateSnapshot(DomainEvent, CanSnapshotAggregate[UUID], frozen=True):
         aggregate_state["_version"] = self.originator_version
         aggregate_state["_pending_events"] = []
         aggregate = object.__new__(cls)
-        aggregate.__dict__.update(aggregate_state)
+        object.__setattr__(aggregate, "__dict__", aggregate_state)
         return aggregate
 
 

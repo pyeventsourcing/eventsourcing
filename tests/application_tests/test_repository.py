@@ -85,7 +85,7 @@ class TestRepository(TestCase):
             originator_version=account.version,
             timestamp=Snapshot.create_timestamp(),
             topic=get_topic(type(account)),
-            state=account.__dict__,
+            state=vars(account),
         )
         snapshot_store.put([snapshot])
 
@@ -271,7 +271,7 @@ class TestRepository(TestCase):
             originator_version=account.version,
             timestamp=Snapshot.create_timestamp(),
             topic=get_topic(type(account)),
-            state=account.__dict__,
+            state=vars(account),
         )
         snapshot_store.put([snapshot])
 

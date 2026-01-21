@@ -387,7 +387,7 @@ class Mapper(Generic[TAggregateID]):
     ) -> StoredEvent:
         """Converts the given domain event to a :class:`StoredEvent` object."""
         topic = get_topic(domain_event.__class__)
-        event_state = domain_event.__dict__.copy()
+        event_state = dict(vars(domain_event))
         originator_id = event_state.pop("originator_id")
         originator_version = event_state.pop("originator_version")
         class_version = getattr(type(domain_event), "class_version", 1)
@@ -440,7 +440,7 @@ class Mapper(Generic[TAggregateID]):
             from_version += 1
 
         domain_event = object.__new__(cls)
-        domain_event.__dict__.update(event_state)
+        object.__setattr__(domain_event, "__dict__", event_state)
         return domain_event
 
 

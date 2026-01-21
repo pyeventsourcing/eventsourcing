@@ -339,7 +339,7 @@ class CanMutateAggregate(HasOriginatorIDVersion[TAggregateID], CanCreateTimestam
         """
 
     def _as_dict(self) -> dict[str, Any]:
-        return self.__dict__
+        return vars(self)
 
 
 class CanInitAggregate(CanMutateAggregate[TAggregateID]):
@@ -1839,7 +1839,7 @@ class CanSnapshotAggregate(HasOriginatorIDVersion[TAggregateID], CanCreateTimest
         aggregate: MutableOrImmutableAggregate[TAggregateID],
     ) -> Self:
         """Creates a snapshot of the given :class:`Aggregate` object."""
-        aggregate_state = dict(aggregate.__dict__)
+        aggregate_state = dict(vars(aggregate))
         class_version = getattr(type(aggregate), "class_version", 1)
         if class_version > 1:
             aggregate_state["class_version"] = class_version
@@ -1871,7 +1871,7 @@ class CanSnapshotAggregate(HasOriginatorIDVersion[TAggregateID], CanCreateTimest
         aggregate_state["_version"] = self.originator_version
         aggregate_state["_pending_events"] = []
         aggregate = object.__new__(cls)
-        aggregate.__dict__.update(aggregate_state)
+        object.__setattr__(aggregate, "__dict__", aggregate_state)
         return aggregate
 
 
