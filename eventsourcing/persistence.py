@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import queue
+import sys
 import typing
 from abc import ABC, abstractmethod
 from collections import deque
@@ -9,7 +11,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from functools import lru_cache
-from queue import Queue
 from threading import Condition, Event, Lock, Semaphore, Thread, Timer
 from time import monotonic, sleep, time
 from types import GenericAlias, ModuleType, TracebackType
@@ -32,6 +33,144 @@ from eventsourcing.utils import (
     resolve_topic,
     strtobool,
 )
+
+# Backport Queue shutdown feature - remove when dropping support for Python 3.12.
+_T = TypeVar("_T")
+if sys.version_info[0:1] < (3, 13):  # pragma: no cover
+
+    class ShutDown(Exception):  # noqa: N818
+        """Raised when put/get with shut-down queue."""
+
+    class Queue(queue.Queue[_T]):  # pyright: ignore[reportRedeclaration]
+        def __init__(self, maxsize: int = 0):
+            super().__init__(maxsize)
+            # Queue shutdown state
+            self.is_shutdown = False
+
+        def put(
+            self,
+            item: _T,
+            block: bool = True,  # noqa: FBT001,FBT002
+            timeout: float | None = None,
+        ) -> None:
+            """Put an item into the queue.
+
+            If optional args 'block' is true and 'timeout' is None (the default),
+            block if necessary until a free slot is available. If 'timeout' is
+            a non-negative number, it blocks at most 'timeout' seconds and raises
+            the Full exception if no free slot was available within that time.
+            Otherwise ('block' is false), put an item on the queue if a free slot
+            is immediately available, else raise the Full exception ('timeout'
+            is ignored in that case).
+
+            Raises ShutDown if the queue has been shut down.
+            """
+            with self.not_full:
+                if self.is_shutdown:
+                    raise ShutDown
+                if self.maxsize > 0:
+                    if not block:
+                        if self._qsize() >= self.maxsize:
+                            raise queue.Full
+                    elif timeout is None:
+                        while self._qsize() >= self.maxsize:
+                            self.not_full.wait()
+                            if self.is_shutdown:
+                                raise ShutDown
+                    elif timeout < 0:
+                        msg = "'timeout' must be a non-negative number"
+                        raise ValueError(msg)
+                    else:
+                        endtime = time() + timeout
+                        while self._qsize() >= self.maxsize:
+                            remaining = endtime - time()
+                            if remaining <= 0.0:
+                                raise queue.Full
+                            self.not_full.wait(remaining)
+                            if self.is_shutdown:
+                                raise ShutDown
+                self._put(item)
+                self.unfinished_tasks += 1
+                self.not_empty.notify()
+
+        def get(
+            self,
+            block: bool = True,  # noqa: FBT001,FBT002
+            timeout: float | None = None,
+        ) -> _T:
+            """Remove and return an item from the queue.
+
+            If optional args 'block' is true and 'timeout' is None (the default),
+            block if necessary until an item is available. If 'timeout' is
+            a non-negative number, it blocks at most 'timeout' seconds and raises
+            the Empty exception if no item was available within that time.
+            Otherwise ('block' is false), return an item if one is immediately
+            available, else raise the Empty exception ('timeout' is ignored
+            in that case).
+
+            Raises ShutDown if the queue has been shut down and is empty,
+            or if the queue has been shut down immediately.
+            """
+            with self.not_empty:
+                if self.is_shutdown and not self._qsize():
+                    raise ShutDown
+                if not block:
+                    if not self._qsize():
+                        raise queue.Empty
+                elif timeout is None:
+                    while not self._qsize():
+                        self.not_empty.wait()
+                        if self.is_shutdown and not self._qsize():
+                            raise ShutDown
+                elif timeout < 0:
+                    msg = "'timeout' must be a non-negative number"
+                    raise ValueError(msg)
+                else:
+                    endtime = time() + timeout
+                    while not self._qsize():
+                        remaining = endtime - time()
+                        if remaining <= 0.0:
+                            raise queue.Empty
+                        self.not_empty.wait(remaining)
+                        if self.is_shutdown and not self._qsize():
+                            raise ShutDown
+                item = self._get()
+                self.not_full.notify()
+                return item
+
+        def shutdown(
+            self,
+            immediate: bool = False,  # noqa: FBT001,FBT002
+        ) -> None:
+            """Shut-down the queue, making queue gets and puts raise ShutDown.
+
+            By default, gets will only raise once the queue is empty. Set
+            'immediate' to True to make gets raise immediately instead.
+
+            All blocked callers of put() and get() will be unblocked. If
+            'immediate', a task is marked as done for each item remaining in
+            the queue, which may unblock callers of join().
+            """
+            with self.mutex:
+                self.is_shutdown = True
+                if immediate:
+                    while self._qsize():
+                        self._get()
+                        if self.unfinished_tasks > 0:
+                            self.unfinished_tasks -= 1
+                    # release all blocked threads in `join()`
+                    self.all_tasks_done.notify_all()
+                # All getters need to re-check queue-empty to raise ShutDown
+                self.not_empty.notify_all()
+                self.not_full.notify_all()
+
+else:  # pragma: no cover
+
+    class Queue(queue.Queue[_T]):  # type: ignore[no-redef]
+        pass
+
+    class Shutdown(queue.ShutDown):  # type: ignore[name-defined]
+        pass
 
 
 class Transcoding(ABC):
@@ -1378,7 +1517,9 @@ class ListenNotifySubscription(Subscription[TApplicationRecorder_co]):
     def stop(self) -> None:
         """Stops the subscription."""
         super().stop()
-        self._notifications_queue.put([])
+        self._notifications_queue.shutdown(  # pyright: ignore[reportAttributeAccessIssue]
+            immediate=True
+        )
         self._has_been_notified.set()
 
     def __next__(self) -> Notification:
@@ -1387,11 +1528,17 @@ class ListenNotifySubscription(Subscription[TApplicationRecorder_co]):
             self._notifications_index == len(self._notifications)
             and not self._has_been_stopped
         ):
-            self._notifications = self._notifications_queue.get()
-            self._notifications_index = 0
+            try:
+                self._notifications = self._notifications_queue.get()
+            except ShutDown:
+                pass
+            else:
+                self._notifications_queue.task_done()
+                self._notifications_index = 0
 
-        # Stop the iteration if necessary, maybe raise thread error.
-        if self._has_been_stopped or not self._notifications:
+        # Stop the iteration if subscription has been stopped.
+        if self._has_been_stopped:
+            # Maybe raise thread error.
             if self._thread_error is not None:
                 raise self._thread_error
             raise StopIteration
@@ -1422,8 +1569,11 @@ class ListenNotifySubscription(Subscription[TApplicationRecorder_co]):
                 inclusive_of_start=False,
             )
             if len(notifications) > 0:
-                # print("Putting", len(notifications), "notifications into queue")
-                self._notifications_queue.put(notifications)
-                self._last_notification_id = notifications[-1].id
+                try:
+                    self._notifications_queue.put(notifications)
+                except ShutDown:
+                    break
+                else:
+                    self._last_notification_id = notifications[-1].id
             if len(notifications) < self._select_limit:
                 break

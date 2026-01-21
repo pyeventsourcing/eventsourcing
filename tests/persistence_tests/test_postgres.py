@@ -820,6 +820,87 @@ class TestPostgresApplicationRecorder(
                     pass
             self.assertIn("server closed the connection", str(cm.exception))
 
+    def test_stop_subscription_when_notification_queue_is_full(self) -> None:
+        self.datastore.pool.open()
+        self.datastore.pool.resize(2, 2)
+        recorder = self.create_recorder()
+
+        with recorder.subscribe() as subscription:
+            assert isinstance(subscription, PostgresSubscription)
+
+            # Fill up the notifications queue.
+            batch_size = subscription._select_limit = 5
+            num_batches = subscription._notifications_queue.maxsize + 1
+            for _ in range(num_batches):
+                events = []
+                for _ in range(batch_size):
+                    stored_event = StoredEvent(
+                        originator_id=self.new_originator_id(),
+                        originator_version=self.INITIAL_VERSION,
+                        topic="topic1",
+                        state=b"state1",
+                    )
+                    events.append(stored_event)
+                recorder.insert_events(events)
+
+            # Wait for notifications queue to be full.
+            while not subscription._notifications_queue.full():
+                sleep(0.001)
+
+            # Pull thread now blocked on putting notifications on the queue...
+            self.assertGreater(
+                recorder.max_notification_id(), subscription._last_notification_id
+            )
+
+            # Stop the subscription.
+            subscription.stop()
+
+            # Check __next__ handles queue.Shutdown exception from Queue.get().
+            count_notifications = 0
+            for _ in subscription:
+                count_notifications += 1
+
+            self.assertEqual(0, count_notifications)
+
+    def test_stop_subscription_when_notification_queue_is_empty(self) -> None:
+        self.datastore.pool.open()
+        self.datastore.pool.resize(2, 2)
+        recorder = self.create_recorder()
+
+        with recorder.subscribe() as subscription:
+            assert isinstance(subscription, PostgresSubscription)
+
+            errors = []
+            started_iterating = Event()
+
+            def iterate_subscription() -> None:
+                try:
+                    started_iterating.set()
+                    for _ in subscription:
+                        pass
+                except BaseException as e:
+                    errors.append(e)
+
+            # Start iterating the subscription.
+            thread = Thread(target=iterate_subscription)
+            thread.start()
+
+            # Wait for the thread to start running.
+            self.assertTrue(started_iterating.wait(timeout=5))
+
+            # Wait for __next__ to get past the _has_been_stopped condition.
+            sleep(0.1)
+
+            # Stop the subscription.
+            subscription.stop()
+
+            # Wait for the subscription iteration to end.
+            thread.join(timeout=5)
+            self.assertFalse(thread.is_alive())
+
+            # Check __next__ handles the ShutDown exception from Queue.get()
+            self.assertEqual(0, len(errors))
+
     def test_concurrent_no_conflicts(self, initial_position: int = 0) -> None:
         self.datastore.pool.open()
         self.datastore.pool.resize(12, 12)
