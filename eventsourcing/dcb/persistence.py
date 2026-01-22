@@ -3,7 +3,6 @@ from __future__ import annotations
 import threading
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
-from queue import Queue
 from typing import TYPE_CHECKING, Any, Generic
 
 from eventsourcing.dcb.api import (
@@ -22,7 +21,12 @@ from eventsourcing.dcb.domain import (
     Tagged,
     TDecision,
 )
-from eventsourcing.persistence import BaseInfrastructureFactory, TTrackingRecorder
+from eventsourcing.persistence import (
+    BaseInfrastructureFactory,
+    Queue,
+    ShutDown,
+    TTrackingRecorder,
+)
 from eventsourcing.utils import get_topic
 
 if TYPE_CHECKING:
@@ -144,25 +148,33 @@ class DCBListenNotifySubscription(DCBSubscription[TDCBRecorder_co]):
     def stop(self) -> None:
         """Stops the subscription."""
         super().stop()
-        self._events_queue.put([])
+        self._events_queue.shutdown(  # pyright: ignore[reportAttributeAccessIssue]
+            immediate=True
+        )
         self._has_been_notified.set()
 
     def __next__(self) -> DCBSequencedEvent:
         # If necessary, get a new list of events from the recorder.
         if self._events_index == len(self._events) and not self._has_been_stopped:
-            self._events = self._events_queue.get()
-            self._events_index = 0
+            try:
+                self._events = self._events_queue.get()
+            except ShutDown:
+                pass
+            else:
+                self._events_queue.task_done()
+                self._events_index = 0
 
-        # Stop the iteration if necessary, maybe raise thread error.
-        if self._has_been_stopped or not self._events:
+        # Stop the iteration if subscription has been stopped.
+        if self._has_been_stopped:
+            # Maybe raise thread error.
             if self._thread_error is not None:
                 raise self._thread_error
             raise StopIteration
 
-        # Return a notification from previously obtained list.
-        notification = self._events[self._events_index]
+        # Return an event from previously obtained list.
+        event = self._events[self._events_index]
         self._events_index += 1
-        return notification
+        return event
 
     def _loop_on_pull(self) -> None:
         try:
@@ -186,8 +198,11 @@ class DCBListenNotifySubscription(DCBSubscription[TDCBRecorder_co]):
                 )
             )
             if len(events) > 0:
-                # print("Putting", len(events), "events into queue")
-                self._events_queue.put(events)
+                try:
+                    self._events_queue.put(events)
+                except ShutDown:  # pragma: no cover
+                    # TODO: Cover this with a test...
+                    break
                 self._last_position = events[-1].position
             if len(events) < self.select_limit:
                 break

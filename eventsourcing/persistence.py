@@ -36,9 +36,9 @@ from eventsourcing.utils import (
 
 # Backport Queue shutdown feature - remove when dropping support for Python 3.12.
 _T = TypeVar("_T")
-if sys.version_info[0:1] < (3, 13):  # pragma: no cover
+if sys.version_info[0:2] < (3, 13):  # pragma: no cover
 
-    class ShutDown(Exception):  # noqa: N818
+    class ShutDown(Exception):  # noqa: N818  # pyright: ignore[reportRedeclaration]
         """Raised when put/get with shut-down queue."""
 
     class Queue(queue.Queue[_T]):  # pyright: ignore[reportRedeclaration]
@@ -165,12 +165,8 @@ if sys.version_info[0:1] < (3, 13):  # pragma: no cover
                 self.not_full.notify_all()
 
 else:  # pragma: no cover
-
-    class Queue(queue.Queue[_T]):  # type: ignore[no-redef]
-        pass
-
-    class Shutdown(queue.ShutDown):  # type: ignore[name-defined]
-        pass
+    Queue = queue.Queue  # pyright: ignore[reportAssignmentType]
+    ShutDown = queue.ShutDown  # pyright: ignore[reportAttributeAccessIssue]
 
 
 class Transcoding(ABC):
@@ -1573,7 +1569,6 @@ class ListenNotifySubscription(Subscription[TApplicationRecorder_co]):
                     self._notifications_queue.put(notifications)
                 except ShutDown:
                     break
-                else:
-                    self._last_notification_id = notifications[-1].id
+                self._last_notification_id = notifications[-1].id
             if len(notifications) < self._select_limit:
                 break
