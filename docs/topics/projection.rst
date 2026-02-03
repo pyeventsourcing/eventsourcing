@@ -397,10 +397,10 @@ the event that has been processed in its application sequence.
 In the example below, the ``Counters`` application defines its ``policy()`` method
 to increment a ``Counter`` aggregate.
 
-.. literalinclude:: ../../tests/projection_tests/test_event_sourced_projection.py
+.. literalinclude:: ../../eventsourcing/tests/projection.py
     :pyobject: Counters
 
-.. literalinclude:: ../../tests/projection_tests/test_event_sourced_projection.py
+.. literalinclude:: ../../eventsourcing/tests/projection.py
     :pyobject: Counter
 
 This library does does not yet support projections event-soured with :ref:`DCB applications <DCB application>`.
