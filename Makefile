@@ -137,6 +137,7 @@ benchmark-dcb:
 
 .PHONY: build
 build:
+	find . -name ".DS_Store" -delete
 	$(POETRY) build
 # 	$(POETRY) build -f sdist    # build source distribution only
 
