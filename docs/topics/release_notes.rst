@@ -24,6 +24,12 @@ with previous major versions. However the underlying principles are the
 same, and so conversion of code and stored events is very possible.
 
 
+Version 9.5.3 (released 6 February 2026)
+----------------------------------------
+
+* Factored out common functionalities from test_projection.py and test_event_sourced_projection.py
+  so that they can be reused in tests for third-party libraries.
+
 Version 9.5.2 (released 22 January 2026)
 -----------------------------------------
 
