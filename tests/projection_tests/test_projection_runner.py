@@ -17,12 +17,14 @@ from eventsourcing.projection import (
     Projection,
     ProjectionRunner,
 )
-from eventsourcing.utils import get_topic
-from tests.projection_tests.test_projection import (
+from eventsourcing.tests.projection import (
     AggregateEventCountersProjection,
-    POPOEventCounters,
     SpannerThrown,
     SpannerThrownError,
+)
+from eventsourcing.utils import get_topic
+from tests.projection_tests.test_projection_with_popo import (
+    POPOEventCounters,
 )
 
 if TYPE_CHECKING:
