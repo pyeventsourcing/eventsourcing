@@ -198,6 +198,9 @@ class Transcoder(ABC):
 
 class TranscodingNotRegisteredError(EventSourcingError, TypeError):
     """Raised when a transcoding isn't registered with JSONTranscoder."""
+    def __init__(self, *args, missing: type, **kwargs) -> None:
+        self.missing = missing
+        super().__init__(*args, **kwargs)
 
 
 class JSONTranscoder(Transcoder):
@@ -235,7 +238,7 @@ class JSONTranscoder(Transcoder):
                 "serializable. Please define and register "
                 "a custom transcoding for this type."
             )
-            raise TranscodingNotRegisteredError(msg) from None
+            raise TranscodingNotRegisteredError(msg, missing=type(o)) from None
         else:
             return {
                 "_type_": transcoding.name,
@@ -262,7 +265,7 @@ class JSONTranscoder(Transcoder):
                             "deserializable. Please register a "
                             "custom transcoding for this type."
                         )
-                        raise TranscodingNotRegisteredError(msg) from e
+                        raise TranscodingNotRegisteredError(msg, missing=resolve_topic(_type_)) from e
                     else:
                         return transcoding.decode(_data_)
         else:
