@@ -58,10 +58,13 @@ def pg_close_all_connections(
 
 
 def drop_tables() -> None:
-
-    for schema in ["public", "myschema"]:
+    for dbname, schema in [
+        ("eventsourcing", "public"),
+        ("eventsourcing", "myschema"),
+        ("eventsourcing_nopublic", "myschema"),
+    ]:
         datastore = PostgresDatastore(
-            dbname=os.environ.get("POSTGRES_DBNAME", "eventsourcing"),
+            dbname=os.environ.get("POSTGRES_DBNAME", dbname),
             host=os.environ.get("POSTGRES_HOST", "127.0.0.1"),
             port=os.environ.get("POSTGRES_PORT", "5432"),
             user=os.environ.get("POSTGRES_USER", "eventsourcing"),

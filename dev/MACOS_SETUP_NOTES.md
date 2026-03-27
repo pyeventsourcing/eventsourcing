@@ -20,16 +20,23 @@ host    all             all             ::1/128                 md5
 
 $ brew services start postgresql
 
-- use psql with the postgres database and your user to create roles for postgres and eventsourcing and database for eventsourcing
+- create roles for 'postgres' and 'eventsourcing', and create databases 'eventsourcing' and 'eventsourcing_nopublic'
 $ psql postgres
 postgres=> CREATE ROLE postgres LOGIN SUPERUSER PASSWORD 'postgres';
 postgres=> CREATE USER eventsourcing WITH PASSWORD 'eventsourcing';
 postgres=> CREATE DATABASE eventsourcing;
 postgres=> ALTER DATABASE eventsourcing OWNER TO eventsourcing;
+postgres=> CREATE DATABASE eventsourcing_nopublic;
+postgres=> ALTER DATABASE eventsourcing_nopublic OWNER TO eventsourcing;
 
-- use psql with the eventsourcing user to create schema in eventsourcing database
-$ psql -U eventsourcing
+- create 'myschema' schema in eventsourcing database
+$ psql eventsourcing
 eventsourcing=> CREATE SCHEMA myschema AUTHORIZATION eventsourcing;
+
+- create 'myschema' schema and drop 'public' schema in eventsourcing_nopublic database
+$ psql eventsourcing_nopublic
+eventsourcing_nopublic=> CREATE SCHEMA myschema AUTHORIZATION eventsourcing;
+eventsourcing_nopublic=> DROP SCHEMA public;
 
 
 To build PDF docs (make docs-pdf), download and install MacTeX from https://www.tug.org/mactex/mactex-download.html

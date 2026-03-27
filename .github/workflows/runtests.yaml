@@ -43,9 +43,13 @@ jobs:
     - name: Setup database
       run: |
         PGPASSWORD=postgres psql -c 'CREATE DATABASE eventsourcing;' -U postgres -h localhost
+        PGPASSWORD=postgres psql -c 'CREATE DATABASE eventsourcing_nopublic;' -U postgres -h localhost
         PGPASSWORD=postgres psql -c "CREATE USER eventsourcing WITH PASSWORD 'eventsourcing';" -U postgres -h localhost
         PGPASSWORD=postgres psql -c "ALTER DATABASE eventsourcing OWNER TO eventsourcing;" -U postgres -h localhost
+        PGPASSWORD=postgres psql -c "ALTER DATABASE eventsourcing_nopublic OWNER TO eventsourcing;" -U postgres -h localhost
         PGPASSWORD=postgres psql eventsourcing -c "CREATE SCHEMA myschema AUTHORIZATION eventsourcing" -U postgres -h localhost
+        PGPASSWORD=postgres psql eventsourcing_nopublic -c "CREATE SCHEMA myschema AUTHORIZATION eventsourcing" -U postgres -h localhost
+        PGPASSWORD=postgres psql eventsourcing_nopublic -c "DROP SCHEMA public;" -U postgres -h localhost
 
     - name: Start UmaDB
       run: make start-umadb

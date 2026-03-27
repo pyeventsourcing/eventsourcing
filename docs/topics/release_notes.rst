@@ -24,6 +24,13 @@ with previous major versions. However the underlying principles are the
 same, and so conversion of code and stored events is very possible.
 
 
+Version 9.5.4 (released 27 March 2026)
+--------------------------------------
+
+* Qualified Postgres DB function names ('es_insert_events_uuid' and 'es_insert_events_uuid')
+  with schema name, which fixes "no schema has been selected to create in" issue when public
+  schema is inaccessible and environment variable POSTGRES_SCHEMA is set.
+
 Version 9.5.3 (released 6 February 2026)
 ----------------------------------------
 

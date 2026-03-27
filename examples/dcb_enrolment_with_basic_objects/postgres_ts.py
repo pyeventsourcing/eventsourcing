@@ -67,11 +67,11 @@ ON {schema}.{table} USING GIN (text_vector)
 PG_FUNCTION_NAME_DCB_SELECT_EVENTS_TS = "dcb_select_events"
 
 SQL_STATEMENT_DCB_SELECT_EVENTS = SQL("""
-SELECT * FROM {select_events}((%s), (%s), (%s))
+SELECT * FROM {schema}.{select_events}((%s), (%s), (%s))
 """)
 
 PG_FUNCTION_DCB_SELECT_EVENTS = SQL("""
-CREATE OR REPLACE FUNCTION {select_events}(
+CREATE OR REPLACE FUNCTION {schema}.{select_events}(
     text_query tsquery,
     after bigint,
     max_results bigint DEFAULT NULL
@@ -134,7 +134,7 @@ $BODY$;
 PG_FUNCTION_NAME_DCB_CHECK_APPEND_CONDITION_TS = "dcb_check_append_condition"
 
 PG_FUNCTION_DCB_CHECK_APPEND_CONDITION = SQL("""
-CREATE OR REPLACE FUNCTION {check_append_condition}(
+CREATE OR REPLACE FUNCTION {schema}.{check_append_condition}(
     text_query tsquery,
     after bigint
 )
@@ -182,7 +182,7 @@ $BODY$;
 PG_FUNCTION_NAME_DCB_INSERT_EVENTS_TS = "dcb_insert_events"
 
 PG_FUNCTION_DCB_INSERT_EVENTS = SQL("""
-CREATE OR REPLACE FUNCTION {insert_events}(
+CREATE OR REPLACE FUNCTION {schema}.{insert_events}(
     events {schema}.{event_type}[]
 )
 RETURNS TABLE (
@@ -203,7 +203,7 @@ $BODY$
 PG_PROCEDURE_NAME_DCB_APPEND_EVENTS_TS = "dcb_append_events"
 
 SQL_STATEMENT_CALL_DCB_APPEND_EVENTS = SQL("""
-CALL {append_events}((%s), (%s), (%s))
+CALL {schema}.{append_events}((%s), (%s), (%s))
 """)
 
 PG_PROCEDURE_DCB_APPEND_EVENTS = SQL("""
@@ -222,13 +222,13 @@ BEGIN
     IF (after < 0) THEN
         append_condition_failed = FALSE;
     ELSE
-        SELECT {check_append_condition}(
+        SELECT {schema}.{check_append_condition}(
             text_query, after
         ) INTO append_condition_failed;
     END IF;
     IF NOT append_condition_failed THEN
         SELECT MAX(sequence_position)
-        FROM {insert_events}(events)
+        FROM {schema}.{insert_events}(events)
         INTO after;
         NOTIFY {channel};
     ELSE
@@ -257,9 +257,11 @@ class PostgresDCBRecorderTS(DCBRecorder, PostgresRecorder):
         self.datastore.register_type_adapters()
 
         self.sql_statement_select_events = SQL_STATEMENT_DCB_SELECT_EVENTS.format(
-            select_events=Identifier(PG_FUNCTION_NAME_DCB_SELECT_EVENTS_TS)
+            schema=Identifier(self.datastore.schema),
+            select_events=Identifier(PG_FUNCTION_NAME_DCB_SELECT_EVENTS_TS),
         )
         self.sql_call_append_events = SQL_STATEMENT_CALL_DCB_APPEND_EVENTS.format(
+            schema=Identifier(self.datastore.schema),
             append_events=Identifier(PG_PROCEDURE_NAME_DCB_APPEND_EVENTS_TS),
         )
         self.sql_create_statements.extend(

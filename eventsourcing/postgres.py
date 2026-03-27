@@ -589,11 +589,15 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
             f"es_insert_events_{self.datastore.originator_id_type}"
         )
         self.sql_invoke_pg_function_insert_events = SQL(
-            "SELECT * FROM {insert_events}((%s))"
-        ).format(insert_events=Identifier(self.pg_function_name_insert_events))
+            "SELECT * FROM {schema}.{insert_events}((%s))"
+        ).format(
+            schema=Identifier(self.datastore.schema),
+            insert_events=Identifier(self.pg_function_name_insert_events),
+        )
 
         self.sql_create_pg_function_insert_events = SQL(
-            "CREATE OR REPLACE FUNCTION {insert_events}(events {schema}.{event}[]) "
+            "CREATE OR REPLACE FUNCTION "
+            "{schema}.{insert_events}(events {schema}.{event}[]) "
             "RETURNS SETOF bigint "
             "LANGUAGE plpgsql "
             "AS "
