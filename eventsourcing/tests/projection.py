@@ -241,13 +241,12 @@ class AggregateEventCountersProjectionTestCase(TestCase, ABC):
 
     def test_event_counters_projection(self) -> None:
         # Construct runner with application, projection, and recorder.
-        runner = ProjectionRunner(
+        with ProjectionRunner(
             application_class=Application[UUID],
             projection_class=AggregateEventCountersProjection,
             view_class=self.view_class,
             env=self.env,
-        )
-        with runner:
+        ) as runner:
 
             # Get "read" and "write" model instances from the runner.
             write_model = runner.app
