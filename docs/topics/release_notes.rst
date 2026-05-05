@@ -24,6 +24,11 @@ with previous major versions. However the underlying principles are the
 same, and so conversion of code and stored events is very possible.
 
 
+Version 9.5.5 (released 5 May 2026)
+-----------------------------------
+
+* Fixed Tutorial Part 4 (missing inline code examples) and improved discussion.
+
 Version 9.5.4 (released 27 March 2026)
 --------------------------------------
 
