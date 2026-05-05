@@ -17,7 +17,6 @@ from eventsourcing.persistence import (
 )
 from eventsourcing.postgres import (
     PostgresDatastore,
-    PostgresFactory,
     PostgresTrackingRecorder,
 )
 from eventsourcing.projection import (
@@ -27,14 +26,14 @@ from eventsourcing.tests.postgres_utils import drop_tables
 from eventsourcing.tests.projection import (
     AggregateEventCountersProjection,
     AggregateEventCountersProjectionTestCase,
-    EventCountersInterface,
+    EventCountersView,
     EventCountersViewTestCase,
     SpannerThrownError,
 )
 from eventsourcing.utils import Environment
 
 
-class PostgresEventCounters(PostgresTrackingRecorder, EventCountersInterface):
+class PostgresEventCounters(PostgresTrackingRecorder, EventCountersView):
     _created_event_counter_name = "CREATED_EVENTS"
     _subsequent_event_counter_name = "SUBSEQUENT_EVENTS"
 
@@ -108,7 +107,7 @@ class PostgresEventCounters(PostgresTrackingRecorder, EventCountersInterface):
             )
 
 
-class TestEventCountersViewWithPostgres(EventCountersViewTestCase):
+class TestPostgresEventCounters(EventCountersViewTestCase):
     expected_factory_topic = "eventsourcing.postgres:PostgresFactory"
     env: ClassVar[dict[str, str]] = {
         "PERSISTENCE_MODULE": "eventsourcing.postgres",
@@ -121,13 +120,13 @@ class TestEventCountersViewWithPostgres(EventCountersViewTestCase):
     }
 
     def setUp(self) -> None:
-        self.factory = PostgresFactory(self.env)
+        self.factory = InfrastructureFactory[EventCountersView].construct(self.env)
 
     def tearDown(self) -> None:
         self.factory.close()
         drop_tables()
 
-    def construct_event_counters_view(self) -> EventCountersInterface:
+    def construct_event_counters_view(self) -> EventCountersView:
         return self.factory.tracking_recorder(PostgresEventCounters)
 
 
@@ -174,7 +173,7 @@ class TestAggregateEventCountersProjectionWithPostgres(
 
             # Construct separate instance of "read model".
             read_model = (
-                InfrastructureFactory[EventCountersInterface]
+                InfrastructureFactory[EventCountersView]
                 .construct(
                     env=Environment(
                         name=AggregateEventCountersProjection.name, env=self.env

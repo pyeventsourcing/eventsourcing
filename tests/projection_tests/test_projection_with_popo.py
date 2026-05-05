@@ -8,7 +8,7 @@ from eventsourcing.dcb.msgpack import MessagePackMapper
 from eventsourcing.popo import POPOTrackingRecorder
 from eventsourcing.tests.projection import (
     AggregateEventCountersProjectionTestCase,
-    EventCountersInterface,
+    EventCountersView,
     EventCountersViewTestCase,
     TaggedDecisionCountersProjectionTestCase,
 )
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from eventsourcing.persistence import Tracking
 
 
-class POPOEventCounters(POPOTrackingRecorder, EventCountersInterface):
+class POPOEventCounters(POPOTrackingRecorder, EventCountersView):
     def __init__(self) -> None:
         super().__init__()
         self._created_event_counter = 0
@@ -43,15 +43,15 @@ class POPOEventCounters(POPOTrackingRecorder, EventCountersInterface):
             self._subsequent_event_counter += 1
 
 
-class TestEventCountersWithPOPO(EventCountersViewTestCase):
-    def construct_event_counters_view(self) -> EventCountersInterface:
+class TestPOPOEventCounters(EventCountersViewTestCase):
+    def construct_event_counters_view(self) -> EventCountersView:
         return POPOEventCounters()
 
 
 class TestAggregateEventCountersProjectionWithPOPO(
     AggregateEventCountersProjectionTestCase
 ):
-    view_class: type[EventCountersInterface] = POPOEventCounters
+    view_class: type[EventCountersView] = POPOEventCounters
 
 
 # TODO: Figure out actually what is causing segmentation violations with Python3.13.
@@ -64,7 +64,7 @@ class TestTaggedDecisionCountersProjectionWithPOPO(
 ):
 
     env: ClassVar[dict[str, str]] = {"MAPPER_TOPIC": get_topic(MessagePackMapper)}
-    view_class: type[EventCountersInterface] = POPOEventCounters
+    view_class: type[EventCountersView] = POPOEventCounters
 
 
 del TaggedDecisionCountersProjectionTestCase

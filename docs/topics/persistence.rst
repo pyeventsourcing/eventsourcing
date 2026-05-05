@@ -1845,8 +1845,9 @@ Code reference
     :show-inheritance:
     :member-order: bysource
     :members:
-    :special-members:
-    :exclude-members: __weakref__, __dict__
+    :undoc-members:
+    :special-members: __init__
+    :private-members: _insert_tracking
 
 .. automodule:: eventsourcing.sqlite
     :show-inheritance:

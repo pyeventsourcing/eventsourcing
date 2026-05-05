@@ -5,6 +5,8 @@ from typing import ClassVar
 from unittest import TestCase
 from uuid import NAMESPACE_URL, UUID, uuid5
 
+from typing_extensions import deprecated
+
 from eventsourcing.application import (
     AggregateNotFoundError,
     Application,
@@ -43,7 +45,7 @@ class Counter(Aggregate):
         self.count += 1
 
 
-class EventCountersInterface(TrackingRecorder):
+class EventCountersView(TrackingRecorder):
     @abstractmethod
     def get_created_event_counter(self) -> int:
         pass
@@ -59,6 +61,11 @@ class EventCountersInterface(TrackingRecorder):
     @abstractmethod
     def incr_subsequent_event_counter(self, tracking: Tracking) -> None:
         pass
+
+
+@deprecated("Use EventCountersView instead")
+class EventCountersInterface(EventCountersView, ABC):
+    pass
 
 
 class Counters(EventSourcedProjection[UUID]):
@@ -88,7 +95,7 @@ class Counters(EventSourcedProjection[UUID]):
 
 
 class EventCountersViewTestCase(TestCase):
-    def construct_event_counters_view(self) -> EventCountersInterface:
+    def construct_event_counters_view(self) -> EventCountersView:
         raise NotImplementedError
 
     def test(self) -> None:
@@ -172,7 +179,7 @@ class Thing(EnduringObject[Decision, str]):
         thing_id: str
 
 
-class TaggedDecisionCountersProjection(Projection[EventCountersInterface]):
+class TaggedDecisionCountersProjection(Projection[EventCountersView]):
     name = "eventcounters"
     topics: tuple[str, ...] = (
         get_topic(Thing.Created),
@@ -202,7 +209,7 @@ class TaggedDecisionCountersProjection(Projection[EventCountersInterface]):
         raise SpannerThrownError(msg)
 
 
-class AggregateEventCountersProjection(Projection[EventCountersInterface]):
+class AggregateEventCountersProjection(Projection[EventCountersView]):
     name = "eventcounters"
     topics: tuple[str, ...] = (
         get_topic(Aggregate.Created),
@@ -229,7 +236,7 @@ class AggregateEventCountersProjection(Projection[EventCountersInterface]):
 
 
 class AggregateEventCountersProjectionTestCase(TestCase, ABC):
-    view_class: type[EventCountersInterface]
+    view_class: type[EventCountersView]
     env: ClassVar[dict[str, str]] = {}
 
     def test_event_counters_projection(self) -> None:
@@ -307,7 +314,7 @@ class AggregateEventCountersProjectionTestCase(TestCase, ABC):
 
 
 class TaggedDecisionCountersProjectionTestCase(TestCase, ABC):
-    view_class: type[EventCountersInterface]
+    view_class: type[EventCountersView]
     env: ClassVar[dict[str, str]]
 
     def test_event_counters_projection(self) -> None:

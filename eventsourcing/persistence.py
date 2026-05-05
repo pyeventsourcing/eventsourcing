@@ -829,7 +829,7 @@ class BaseInfrastructureFactory(ABC, Generic[TTrackingRecorder]):
     @classmethod
     def construct(
         cls: type[Self],
-        env: Environment | None = None,
+        env: Environment | EnvType | None = None,
     ) -> Self:
         """Constructs concrete infrastructure factory for given
         named application. Reads and resolves persistence
@@ -838,6 +838,8 @@ class BaseInfrastructureFactory(ABC, Generic[TTrackingRecorder]):
         factory_cls: type[Self]
         if env is None:
             env = Environment()
+        elif not isinstance(env, Environment):
+            env = Environment(env=env)
         topic = (
             env.get(
                 cls.PERSISTENCE_MODULE,
