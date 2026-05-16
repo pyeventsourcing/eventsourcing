@@ -53,10 +53,10 @@ from eventsourcing.utils import Environment, EnvType, resolve_topic, retry, strt
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Sequence
     from types import TracebackType
+    from typing import Self
     from uuid import UUID
 
     from psycopg.abc import Query
-    from typing_extensions import Self
 
 
 logging.getLogger("psycopg.pool").setLevel(logging.ERROR)

@@ -24,8 +24,7 @@ from eventsourcing.utils import Environment, EnvType, resolve_topic
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from types import TracebackType
-
-    from typing_extensions import Self
+    from typing import Self
 
 
 class DCBApplication:

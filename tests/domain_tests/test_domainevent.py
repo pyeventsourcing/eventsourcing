@@ -1,6 +1,6 @@
 import warnings
 from dataclasses import _DataclassParams, dataclass  # type: ignore[attr-defined]
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from time import sleep
 from unittest.case import TestCase
 from uuid import UUID, uuid4
@@ -35,11 +35,11 @@ class TestDomainEvent(TestCase):
         self.assertIsInstance(DomainEvent, MetaDomainEvent)
 
     def test_create_timestamp(self) -> None:
-        before = datetime.now(tz=timezone.utc)
+        before = datetime.now(tz=UTC)
         sleep(1e-5)
         timestamp = DomainEvent.create_timestamp()
         sleep(1e-5)
-        after = datetime.now(tz=timezone.utc)
+        after = datetime.now(tz=UTC)
         self.assertGreater(timestamp, before)
         self.assertGreater(after, timestamp)
 
@@ -99,14 +99,14 @@ class TestDatetimeNowWithTzinfo(TestCase):
         # Check datetime_now_with_tzinfo() returns a datetime with tzinfo.
         timestamp = datetime_now_with_tzinfo()
         self.assertIsInstance(timestamp, datetime)
-        self.assertEqual(timestamp.tzinfo, timezone.utc)
+        self.assertEqual(timestamp.tzinfo, UTC)
 
         orig_tzinfo = eventsourcing.domain.TZINFO
         alt_tzinfo = timezone(offset=timedelta(hours=1), name="AltTimeZone")
         eventsourcing.domain.TZINFO = alt_tzinfo
         try:
             timestamp = datetime_now_with_tzinfo()
-            self.assertNotEqual(timestamp.tzinfo, timezone.utc)
+            self.assertNotEqual(timestamp.tzinfo, UTC)
             self.assertEqual(timestamp.tzinfo, alt_tzinfo)
         finally:
             eventsourcing.domain.TZINFO = orig_tzinfo
@@ -116,7 +116,7 @@ class TestDatetimeNowWithTzinfo(TestCase):
             timestamp = create_utc_datetime_now()
 
         self.assertIsInstance(timestamp, datetime)
-        self.assertEqual(timestamp.tzinfo, timezone.utc)
+        self.assertEqual(timestamp.tzinfo, UTC)
 
         self.assertEqual(len(w), 1)
         self.assertIs(w[-1].category, DeprecationWarning)

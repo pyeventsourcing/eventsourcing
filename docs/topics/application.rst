@@ -626,7 +626,7 @@ aggregate classes ``Page`` and ``Index`` are defined in that section.
     # include-when-testing
 ..
     from dataclasses import dataclass
-    from typing_extensions import Self
+    from typing import Self
     from uuid import uuid5, NAMESPACE_URL
 
     from eventsourcing.domain import Aggregate, AggregateEvent, AggregateCreated

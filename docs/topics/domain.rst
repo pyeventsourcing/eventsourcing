@@ -982,7 +982,7 @@ In the example below, the ``Dog`` aggregate is defined as a subclass of the :cla
 
 .. code-block:: python
 
-    from typing_extensions import Self
+    from typing import Self
 
     class Dog(Aggregate):
         def __init__(self) -> None:
