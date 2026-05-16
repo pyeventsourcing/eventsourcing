@@ -8,7 +8,13 @@ from random import random
 from threading import Lock
 from time import sleep
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, TypeVar, no_type_check, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    TypeVar,
+    no_type_check,
+    overload,
+)
 
 if TYPE_CHECKING:
     from types import FunctionType, WrapperDescriptorType
@@ -151,7 +157,7 @@ def retry(
             while True:
                 try:
                     return func(*args, **kwargs)
-                except exc:  # noqa: PERF203
+                except exc:
                     attempts += 1
                     if max_attempts is None or attempts < max_attempts:
                         sleep(wait * (1 + 0.1 * (random() - 0.5)))  # noqa: S311

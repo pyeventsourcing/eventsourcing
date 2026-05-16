@@ -34,8 +34,7 @@ from eventsourcing.utils import EnvType, get_topic, resolve_topic
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
-
-    from typing_extensions import Self
+    from typing import Self
 
 
 ProcessingJob = tuple[DomainEventProtocol[TAggregateID], Tracking]

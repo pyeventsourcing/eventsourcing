@@ -2,7 +2,7 @@
 Installation
 ============
 
-This version of the library is compatible with Python versions 3.10,
+This version of the library is compatible with Python versions 3.11,
 3.11, 3.12, 3.13, and 3.14.
 
 This package depends only on modules from the Python Standard Library,
@@ -52,7 +52,7 @@ file, you can specify the dependency on this library in the following way.
 ::
 
     [project]
-    requires-python = ">=3.10"
+    requires-python = ">=3.11"
     dependencies = [
         "eventsourcing~=9.5.5",
     ]

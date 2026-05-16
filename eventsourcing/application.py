@@ -51,9 +51,8 @@ from eventsourcing.utils import Environment, EnvType, strtobool
 
 if TYPE_CHECKING:
     from types import TracebackType
+    from typing import Self
     from uuid import UUID
-
-    from typing_extensions import Self
 
 ProjectorFunction = Callable[
     [TMutableOrImmutableAggregate | None, Iterable[TDomainEvent]],

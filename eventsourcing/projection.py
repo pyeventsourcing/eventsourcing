@@ -30,8 +30,7 @@ from eventsourcing.utils import Environment, EnvType
 
 if TYPE_CHECKING:
     from types import TracebackType
-
-    from typing_extensions import Self
+    from typing import Self
 
 
 class ApplicationSubscription(

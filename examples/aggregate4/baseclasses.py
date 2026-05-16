@@ -10,9 +10,8 @@ from eventsourcing.utils import get_topic
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from datetime import datetime
+    from typing import Self
     from uuid import UUID
-
-    from typing_extensions import Self
 
 TAggregate = TypeVar("TAggregate", bound="Aggregate")
 

@@ -28,8 +28,7 @@ from eventsourcing.postgres import (
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-
-    from typing_extensions import Self
+    from typing import Self
 
 
 PG_TYPE_NAME_DCB_EVENT_TS = "dcb_event"

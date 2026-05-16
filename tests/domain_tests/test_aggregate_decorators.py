@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import contextlib
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from unittest import TestCase
 from uuid import NAMESPACE_URL, UUID, uuid5
@@ -1461,25 +1461,21 @@ class TestEventDecorator(TestCase):
         self.assertGreater(order1.modified_on, order1.created_on)
 
         order2 = Order(
-            "order2", timestamp=datetime(year=2000, month=1, day=1, tzinfo=timezone.utc)
+            "order2", timestamp=datetime(year=2000, month=1, day=1, tzinfo=UTC)
         )
         self.assertIsInstance(order2.created_on, datetime)
         self.assertEqual(order2.created_on.year, 2000)
         self.assertEqual(order2.created_on.month, 1)
         self.assertEqual(order2.created_on.day, 1)
 
-        order2.confirm(
-            timestamp=datetime(year=2000, month=1, day=2, tzinfo=timezone.utc)
-        )
+        order2.confirm(timestamp=datetime(year=2000, month=1, day=2, tzinfo=UTC))
         self.assertIsInstance(order2.created_on, datetime)
         self.assertEqual(order2.modified_on.year, 2000)
         self.assertEqual(order2.modified_on.month, 1)
         self.assertEqual(order2.modified_on.day, 2)
         self.assertEqual(order2.confirmed_at, order2.modified_on)
 
-        order2.picked_up(
-            timestamp=datetime(year=2000, month=1, day=3, tzinfo=timezone.utc)
-        )
+        order2.picked_up(timestamp=datetime(year=2000, month=1, day=3, tzinfo=UTC))
         self.assertIsInstance(order2.created_on, datetime)
         self.assertEqual(order2.modified_on.year, 2000)
         self.assertEqual(order2.modified_on.month, 1)

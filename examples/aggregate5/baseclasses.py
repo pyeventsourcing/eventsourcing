@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from eventsourcing.dispatch import singledispatchmethod
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from typing import Self
     from uuid import UUID
-
-    from typing_extensions import Self
 
 
 @dataclass(frozen=True)
@@ -21,7 +20,7 @@ class DomainEvent:
 
     @staticmethod
     def create_timestamp() -> datetime:
-        return datetime.now(tz=timezone.utc)
+        return datetime.now(tz=UTC)
 
 
 TAggregate = TypeVar("TAggregate", bound="Aggregate")

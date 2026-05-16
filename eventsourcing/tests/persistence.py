@@ -41,8 +41,7 @@ from eventsourcing.utils import Environment, get_topic
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
-
-    from typing_extensions import Never
+    from typing import Never
 
 
 class RecorderTestCase(TestCase, ABC):
