@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import datetime  # noqa: TC003
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING
 from uuid import UUID  # noqa: TC003
 
 import msgspec
+from msgspec import field
+from typing_extensions import TypeVar
 
-from eventsourcing.domain import datetime_now_with_tzinfo
+from eventsourcing.domain import datetime_now_with_tzinfo, get_metadata_from_context
 from eventsourcing.utils import get_topic
 
 if TYPE_CHECKING:
@@ -18,10 +20,11 @@ class Immutable(msgspec.Struct, frozen=True):
     pass
 
 
-class DomainEvent(Immutable, frozen=True):
+class DomainEvent(Immutable, frozen=True, kw_only=True):
     originator_id: UUID
     originator_version: int
-    timestamp: datetime
+    timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
+    metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
 
 
 class Aggregate(Immutable, frozen=True):
@@ -40,7 +43,6 @@ class Snapshot(DomainEvent, frozen=True):
         return Snapshot(
             originator_id=aggregate.id,
             originator_version=aggregate.version,
-            timestamp=datetime_now_with_tzinfo(),
             topic=get_topic(type(aggregate)),
             state=msgspec.json.encode(aggregate),
         )

@@ -13,6 +13,7 @@ from eventsourcing.domain import (
     AggregateCreated,
     AggregateEvent,
     aggregate,
+    datetime_now_with_tzinfo,
     event,
     triggers,
 )
@@ -1040,7 +1041,7 @@ class TestEventDecorator(TestCase):
         order = Order()
 
         order.confirm(  # pyright: ignore [reportAttributeAccessIssue]
-            AggregateEvent.create_timestamp()
+            datetime_now_with_tzinfo()
         )
         self.assertIsInstance(
             order.confirmed_at,  # pyright: ignore [reportAttributeAccessIssue]
@@ -1178,7 +1179,7 @@ class TestEventDecorator(TestCase):
         order = Order("name")
         self.assertEqual(len(order.pending_events), 1)
         with contextlib.suppress(RuntimeError):
-            order.pickup(AggregateEvent.create_timestamp())
+            order.pickup(datetime_now_with_tzinfo())
         self.assertEqual(len(order.pending_events), 1)
 
     def test_aggregate_has_a_created_event_name_defined_with_event_decorator(
@@ -1258,7 +1259,7 @@ class TestEventDecorator(TestCase):
             errmsg,
         )
         self.assertTrue(
-            errmsg.endswith("__init__() missing 1 required positional argument: 'a'"),
+            errmsg.endswith("__init__() missing 1 required keyword-only argument: 'a'"),
             errmsg,
         )
 
@@ -1516,17 +1517,17 @@ class TestOrder(TestCase):
         self.assertEqual(order.name, "my order")
 
         with self.assertRaises(OrderConfirmedError) as cm:
-            order.pickup(AggregateEvent.create_timestamp())
+            order.pickup(datetime_now_with_tzinfo())
         self.assertEqual(cm.exception.args[0], "Order is not confirmed")
 
         self.assertEqual(order.confirmed_at, None)
         self.assertEqual(order.pickedup_at, None)
 
-        order.confirm(AggregateEvent.create_timestamp())
+        order.confirm(datetime_now_with_tzinfo())
         self.assertIsInstance(order.confirmed_at, datetime)
         self.assertEqual(order.pickedup_at, None)
 
-        order.pickup(AggregateEvent.create_timestamp())
+        order.pickup(datetime_now_with_tzinfo())
         self.assertIsInstance(order.confirmed_at, datetime)
         self.assertIsInstance(order.pickedup_at, datetime)
 

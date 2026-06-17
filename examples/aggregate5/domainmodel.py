@@ -26,7 +26,6 @@ class Dog(Aggregate):
         event = Dog.Registered(
             originator_id=uuid4(),
             originator_version=1,
-            timestamp=DomainEvent.create_timestamp(),
             name=name,
         )
         dog = Dog.mutate(event, None)
@@ -37,7 +36,7 @@ class Dog(Aggregate):
         dog = Dog.mutate(event, self)
         return dog, event
 
-    @singledispatchmethod["Dog"]
+    @singledispatchmethod
     @staticmethod
     def mutate(event: DomainEvent, aggregate: Dog | None) -> Dog:  # noqa: ARG004
         """Mutates aggregate with event."""

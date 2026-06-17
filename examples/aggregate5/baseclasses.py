@@ -1,26 +1,24 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import UTC, datetime
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from eventsourcing.dispatch import singledispatchmethod
+from eventsourcing.domain import datetime_now_with_tzinfo, get_metadata_from_context
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from datetime import datetime
     from typing import Self
     from uuid import UUID
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class DomainEvent:
     originator_id: UUID
     originator_version: int
-    timestamp: datetime
-
-    @staticmethod
-    def create_timestamp() -> datetime:
-        return datetime.now(tz=UTC)
+    timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
+    metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
 
 
 TAggregate = TypeVar("TAggregate", bound="Aggregate")
@@ -42,7 +40,6 @@ class Aggregate:
         kwargs.update(
             originator_id=self.id,
             originator_version=self.version + 1,
-            timestamp=event_class.create_timestamp(),
         )
         return event_class(**kwargs)
 
@@ -70,6 +67,5 @@ class Aggregate:
             return Aggregate.Snapshot(
                 originator_id=aggregate.id,
                 originator_version=aggregate.version,
-                timestamp=DomainEvent.create_timestamp(),
                 state=aggregate.__dict__,
             )

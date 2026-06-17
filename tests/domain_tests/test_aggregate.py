@@ -16,6 +16,7 @@ from eventsourcing.domain import (
     BaseAggregate,
     OriginatorIDError,
     OriginatorVersionError,
+    datetime_now_with_tzinfo,
 )
 from eventsourcing.tests.domain import (
     AccountClosedError,
@@ -126,13 +127,13 @@ class TestMetaAggregate(TestCase):
 class TestAggregateCreation(TestCase):
     def test_call_class_method_create(self) -> None:
         # Check the _create() method creates a new aggregate.
-        before_created = Aggregate.Event.create_timestamp()
+        before_created = datetime_now_with_tzinfo()
         aggregate_id = uuid4()
         a = Aggregate._create(
             event_class=AggregateCreated,
             id=aggregate_id,
         )
-        after_created = Aggregate.Event.create_timestamp()
+        after_created = datetime_now_with_tzinfo()
         self.assertIsInstance(a, Aggregate)
         self.assertEqual(a.id, aggregate_id)
         self.assertEqual(a.version, 1)
@@ -171,9 +172,9 @@ class TestAggregateCreation(TestCase):
         )
 
     def test_call_base_class(self) -> None:
-        before_created = Aggregate.Event.create_timestamp()
+        before_created = datetime_now_with_tzinfo()
         a = Aggregate()
-        after_created = Aggregate.Event.create_timestamp()
+        after_created = datetime_now_with_tzinfo()
         self.assertIsInstance(a, Aggregate)
         self.assertIsInstance(a.id, UUID)
         self.assertIsInstance(a.version, int)
@@ -901,7 +902,6 @@ class TestSubsequentEvents(TestCase):
         event = AggregateEvent(
             originator_id=a.id,
             originator_version=a.version,  # NB not +1.
-            timestamp=AggregateEvent.create_timestamp(),
         )
         # Check raises "VersionError".
         with self.assertRaises(OriginatorVersionError):
@@ -914,7 +914,6 @@ class TestSubsequentEvents(TestCase):
         event = AggregateEvent(
             originator_id=uuid4(),
             originator_version=a.version + 1,
-            timestamp=AggregateEvent.create_timestamp(),
         )
         # Check raises "VersionError".
         with self.assertRaises(OriginatorIDError):
@@ -939,7 +938,7 @@ class TestSubsequentEvents(TestCase):
         )
         self.assertTrue(
             cm.exception.args[0].endswith(
-                "__init__() missing 1 required positional argument: 'a'"
+                "__init__() missing 1 required keyword-only argument: 'a'"
             ),
             cm.exception.args[0],
         )

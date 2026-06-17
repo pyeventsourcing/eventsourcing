@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, ClassVar
 from unittest import TestCase
@@ -16,6 +16,8 @@ from eventsourcing.domain import (
     MetaDomainEvent,
     MutableOrImmutableAggregate,
     Snapshot,
+    datetime_now_with_tzinfo,
+    get_metadata_from_context,
 )
 from eventsourcing.tests.application import BankAccounts
 from eventsourcing.tests.domain import BankAccount
@@ -144,12 +146,13 @@ class TestApplicationWithAutomaticSnapshotting(TestCase):
         class DomainEvent(metaclass=MetaDomainEvent):
             originator_id: str
             originator_version: int
-            timestamp: datetime
+            timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
+            metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
 
             def __post_init__(self) -> None:
                 assert isinstance(self.originator_id, str), "Not a string"
 
-        @dataclass(frozen=True)
+        @dataclass(frozen=True, kw_only=True)
         class StrSnapshot(DomainEvent, CanSnapshotAggregate[str]):
             topic: str
             state: dict[str, Any]

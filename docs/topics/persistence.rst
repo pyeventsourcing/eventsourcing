@@ -535,7 +535,6 @@ objects.
     domain_event = MyDomainEvent(
         originator_id=id1,
         originator_version=1,
-        timestamp=MyDomainEvent.create_timestamp(),
         obj=obj1,
     )
 

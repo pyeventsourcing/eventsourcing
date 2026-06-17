@@ -258,27 +258,19 @@ The :class:`~eventsourcing.domain.DomainEvent` class can be instantiated directl
     domain_event = DomainEvent(
         originator_id=originator_id,
         originator_version=2,
-        timestamp=datetime(2022, 2, 2),
     )
     assert domain_event.originator_id == originator_id
     assert domain_event.originator_version == 2
-    assert domain_event.timestamp == datetime(2022, 2, 2)
+    assert isinstance(domain_event.timestamp, datetime)
+    assert domain_event.metadata == {}
 
 
-The :class:`~eventsourcing.domain.DomainEvent` class also has a static method
-:func:`~eventsourcing.domain.DomainEvent.create_timestamp` which returns a
+The :py:attr:`~eventsourcing.domain.DomainEvent.timestamp` value is a
 new timezone-aware Python :class:`~datetime.datetime` for the current date and time.
-This method is used in various places in the library to
-create the :py:attr:`~eventsourcing.domain.DomainEvent.timestamp` value of new domain event objects.
-
-.. code-block:: python
-
-    timestamp = DomainEvent.create_timestamp()
-
-    assert isinstance(timestamp, datetime)
 
 The timestamps have no consequences for the operation of this library, and
 are included to give an approximate indication of when a domain event occurred.
+
 Domain event objects are ordered in their sequence by their
 :py:attr:`~eventsourcing.domain.DomainEvent.originator_version`, and not by their
 :py:attr:`~eventsourcing.domain.DomainEvent.timestamp`. The reason for ordering a sequence of events by
@@ -288,7 +280,8 @@ version numbers can form a gapless sequence, that excludes the possibility
 for inserting new items anywhere other than at the end of the sequence, and
 that we can progress along by counting. Timestamps are far more likely to have
 such gaps, and anyway can suffer from clock skews, for example if the timestamps
-of different events are created on different machines.
+of different events are created on different machines, and even clock regressions
+when the system clock is adjusted backwards.
 
 
 .. _Aggregate events:
@@ -320,11 +313,9 @@ The :class:`~eventsourcing.domain.AggregateEvent` class can be instantiated dire
     aggregate_event = AggregateEvent(
         originator_id=originator_id,
         originator_version=2,
-        timestamp=datetime(2022, 2, 2),
     )
     assert aggregate_event.originator_id == originator_id
     assert aggregate_event.originator_version == 2
-    assert aggregate_event.timestamp == datetime(2022, 2, 2)
 
 
 The :class:`~eventsourcing.domain.AggregateEvent` class extends
@@ -382,7 +373,6 @@ results in a new aggregate object.
         originator_topic="eventsourcing.domain:Aggregate",
         originator_id=originator_id,
         originator_version=1,
-        timestamp=datetime(2011, 1, 1),
     )
 
     a = created_event.mutate(None)
@@ -392,8 +382,6 @@ results in a new aggregate object.
     assert a.__class__.__module__ == "eventsourcing.domain"
     assert a.id == originator_id
     assert a.version == 1
-    assert a.created_on == datetime(2011, 1, 1)
-    assert a.modified_on == datetime(2011, 1, 1)
 
 
 The values of the attributes of the aggregate object follow from the values of the event object's
@@ -484,20 +472,15 @@ The modified aggregate is then returned to the caller.
     subsequent_event = AggregateEvent(
         originator_id=originator_id,
         originator_version=2,
-        timestamp=datetime(2022, 2, 2),
     )
 
     assert a.id == originator_id
     assert a.version == 1
-    assert a.created_on == datetime(2011, 1, 1)
-    assert a.modified_on == datetime(2011, 1, 1)
 
     a = subsequent_event.mutate(a)
 
     assert a.id == originator_id
     assert a.version == 2
-    assert a.created_on == datetime(2011, 1, 1)
-    assert a.modified_on == datetime(2022, 2, 2)
 
 
 The :func:`~eventsourcing.domain.CanMutateAggregate.apply` method has
@@ -519,14 +502,12 @@ how a particular event evolves the state of a particular aggregate.
     my_event = MyEvent(
         originator_id=originator_id,
         originator_version=3,
-        timestamp=datetime(2033, 3, 3),
         full_name="Eric Idle"
     )
 
 
     a = my_event.mutate(a)
     assert a.version == 3
-    assert a.modified_on == datetime(2033, 3, 3)
     assert a.full_name == "Eric Idle"
 
 
@@ -542,17 +523,14 @@ the current state of an aggregate.
     a = created_event.mutate(None)
     assert a.id == originator_id
     assert a.version == 1
-    assert a.modified_on == datetime(2011, 1, 1)
 
     a = subsequent_event.mutate(a)
     assert a.id == originator_id
     assert a.version == 2
-    assert a.modified_on == datetime(2022, 2, 2)
 
     a = my_event.mutate(a)
     assert a.id == originator_id
     assert a.version == 3
-    assert a.modified_on == datetime(2033, 3, 3)
     assert a.full_name == "Eric Idle"
 
 
@@ -589,7 +567,6 @@ an aggregate projector by iterating over a sequence of events and calling
 
     assert a.id == originator_id
     assert a.version == 3
-    assert a.modified_on == datetime(2033, 3, 3)
     assert a.full_name == "Eric Idle"
 
 
@@ -635,7 +612,6 @@ of events is then used to reconstruct the "current state" of the aggregate. The 
     discarded_event = AggregateDiscarded(
         originator_id=originator_id,
         originator_version=4,
-        timestamp=datetime(2044, 4, 4),
     )
 
 

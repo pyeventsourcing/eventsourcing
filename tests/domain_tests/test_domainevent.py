@@ -37,7 +37,7 @@ class TestDomainEvent(TestCase):
     def test_create_timestamp(self) -> None:
         before = datetime.now(tz=UTC)
         sleep(1e-5)
-        timestamp = DomainEvent.create_timestamp()
+        timestamp = datetime_now_with_tzinfo()
         sleep(1e-5)
         after = datetime.now(tz=UTC)
         self.assertGreater(timestamp, before)
@@ -46,19 +46,18 @@ class TestDomainEvent(TestCase):
     def test_domain_event_instance(self) -> None:
         originator_id = uuid4()
         originator_version = 101
-        timestamp = DomainEvent.create_timestamp()
         a = DomainEvent(
             originator_id=originator_id,
             originator_version=originator_version,
-            timestamp=timestamp,
         )
         self.assertEqual(a.originator_id, originator_id)
         self.assertEqual(a.originator_version, originator_version)
-        self.assertEqual(a.timestamp, timestamp)
+        self.assertIsInstance(a.timestamp, datetime)
+        self.assertEqual(a.metadata, {})
 
     def test_examples(self) -> None:
         # Define an 'account opened' domain event.
-        @dataclass(frozen=True)
+        @dataclass(frozen=True, kw_only=True)
         class AccountOpened(DomainEvent):
             full_name: str
 
@@ -66,7 +65,6 @@ class TestDomainEvent(TestCase):
         event3 = AccountOpened(
             originator_id=uuid4(),
             originator_version=0,
-            timestamp=AccountOpened.create_timestamp(),
             full_name="Alice",
         )
 
@@ -75,16 +73,14 @@ class TestDomainEvent(TestCase):
         self.assertEqual(event3.originator_version, 0)
 
         # Define a 'full name updated' domain event.
-        @dataclass(frozen=True)
+        @dataclass(frozen=True, kw_only=True)
         class FullNameUpdated(DomainEvent):
             full_name: str
-            timestamp: datetime
 
         # Create a 'full name updated' domain event.
         event4 = FullNameUpdated(
             originator_id=event3.originator_id,
             originator_version=1,
-            timestamp=FullNameUpdated.create_timestamp(),
             full_name="Bob",
         )
 

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain import datetime_now_with_tzinfo
+from eventsourcing.domain import datetime_now_with_tzinfo, get_metadata_from_context
 from eventsourcing.utils import get_topic
 
 if TYPE_CHECKING:
@@ -16,11 +16,12 @@ if TYPE_CHECKING:
 TAggregate = TypeVar("TAggregate", bound="Aggregate")
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class DomainEvent:
     originator_version: int
     originator_id: UUID
-    timestamp: datetime
+    timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
+    metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
 
 
 @dataclass
@@ -46,7 +47,6 @@ class Aggregate:
             return Aggregate.Snapshot(
                 originator_id=aggregate.id,
                 originator_version=aggregate.version,
-                timestamp=datetime_now_with_tzinfo(),
                 topic=get_topic(type(aggregate)),
                 state=aggregate_state,
             )
@@ -60,7 +60,6 @@ class Aggregate:
         kwargs.update(
             originator_id=self.id,
             originator_version=self.version + 1,
-            timestamp=datetime_now_with_tzinfo(),
         )
         new_event = event_class(**kwargs)
         self.apply_event(new_event)

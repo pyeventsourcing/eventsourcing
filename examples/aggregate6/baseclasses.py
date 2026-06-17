@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from eventsourcing.domain import datetime_now_with_tzinfo
+from eventsourcing.domain import datetime_now_with_tzinfo, get_metadata_from_context
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -12,11 +12,12 @@ if TYPE_CHECKING:
     from uuid import UUID
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class DomainEvent:
     originator_id: UUID
     originator_version: int
-    timestamp: datetime
+    timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
+    metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
 
 
 @dataclass(frozen=True)
@@ -36,7 +37,6 @@ class Snapshot(DomainEvent):
         return Snapshot(
             originator_id=aggregate.id,
             originator_version=aggregate.version,
-            timestamp=datetime_now_with_tzinfo(),
             state=aggregate.__dict__,
         )
 

@@ -1,14 +1,17 @@
 import unittest
 from decimal import Decimal
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from examples.shopvertical.events import (
     AddedItemToCart,
     AddedProductToShop,
     AdjustedProductInventory,
-    DomainEvent,
 )
 from examples.shopvertical.slices.list_products_in_shop.query import ListProductsInShop
+
+if TYPE_CHECKING:
+    from examples.aggregate7.immutablemodel import DomainEvent
 
 
 class TestListProductsInShop(unittest.TestCase):

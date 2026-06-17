@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+from typing_extensions import TypeVar
 
-from eventsourcing.domain import datetime_now_with_tzinfo
+from eventsourcing.domain import datetime_now_with_tzinfo, get_metadata_from_context
 from eventsourcing.utils import get_topic
 
 if TYPE_CHECKING:
@@ -21,7 +22,8 @@ class Immutable(BaseModel):
 class DomainEvent(Immutable):
     originator_id: UUID
     originator_version: int
-    timestamp: datetime
+    timestamp: datetime = Field(default_factory=datetime_now_with_tzinfo)
+    metadata: dict[str, str] = Field(default_factory=get_metadata_from_context)
 
 
 class Aggregate(Immutable):
@@ -40,7 +42,6 @@ class Snapshot(DomainEvent):
         return Snapshot(
             originator_id=aggregate.id,
             originator_version=aggregate.version,
-            timestamp=datetime_now_with_tzinfo(),
             topic=get_topic(type(aggregate)),
             state=aggregate.model_dump(),
         )

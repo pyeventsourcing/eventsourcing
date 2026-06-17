@@ -1,12 +1,15 @@
 import unittest
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
-from examples.shopvertical.events import ClearedCart, DomainEvent, SubmittedCart
+from examples.shopvertical.events import ClearedCart, SubmittedCart
 from examples.shopvertical.exceptions import CartAlreadySubmittedError
 from examples.shopvertical.slices.clear_cart.cmd import (
     ClearCart,
 )
+
+if TYPE_CHECKING:
+    from examples.aggregate7.immutablemodel import DomainEvent
 
 
 class TestClearCart(unittest.TestCase):

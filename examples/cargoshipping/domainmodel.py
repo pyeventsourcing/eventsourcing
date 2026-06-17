@@ -6,7 +6,7 @@ from typing import cast
 from uuid import UUID, uuid4
 
 from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain import Aggregate
+from eventsourcing.domain import Aggregate, datetime_now_with_tzinfo
 
 
 class Location(Enum):
@@ -228,7 +228,7 @@ class Cargo(Aggregate):
     def _(self, event: Cargo.RouteAssigned) -> None:
         self._route = event.route
         self._routing_status = "ROUTED"
-        self._estimated_time_of_arrival = Cargo.Event.create_timestamp() + timedelta(
+        self._estimated_time_of_arrival = datetime_now_with_tzinfo() + timedelta(
             weeks=1
         )
         self._next_expected_activity = (HandlingActivity.RECEIVE, self.origin, "")

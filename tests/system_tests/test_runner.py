@@ -63,7 +63,7 @@ TRunner = TypeVar(
 
 
 class Command(Aggregate):
-    @dataclass(frozen=True)
+    @dataclass(frozen=True, kw_only=True)
     class Created(Aggregate.Created):
         text: str
 
@@ -79,7 +79,7 @@ class Command(Aggregate):
 
 
 class Result(Aggregate):
-    @dataclass(frozen=True)
+    @dataclass(frozen=True, kw_only=True)
     class Created(Aggregate.Created):
         command_id: UUID
         output: str

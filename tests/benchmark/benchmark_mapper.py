@@ -10,7 +10,6 @@ import pytest
 import eventsourcing.domain
 import examples.aggregate7.immutablemodel
 import examples.aggregate9.immutablemodel
-from eventsourcing.domain import datetime_now_with_tzinfo
 from eventsourcing.persistence import (
     DataclassMapper,
     DatetimeAsISO,
@@ -27,7 +26,7 @@ if TYPE_CHECKING:
 
 @pytest.mark.benchmark(group="mapper-encode")
 def test_encode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
-    @dataclass(frozen=True)
+    @dataclass(frozen=True, kw_only=True)
     class MyObj(eventsourcing.domain.DomainEvent):
         a: int
         b: str
@@ -37,7 +36,6 @@ def test_encode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
     obj = MyObj(
         originator_id=uuid4(),
         originator_version=1,
-        timestamp=datetime_now_with_tzinfo(),
         a=1,
         b="abc" * 10,
         c=0.12345,
@@ -58,7 +56,7 @@ def test_encode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
 
 @pytest.mark.benchmark(group="mapper-decode")
 def test_decode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
-    @dataclass(frozen=True)
+    @dataclass(frozen=True, kw_only=True)
     class MyObj(eventsourcing.domain.DomainEvent):
         a: int
         b: str
@@ -68,7 +66,6 @@ def test_decode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
     obj = MyObj(
         originator_id=uuid4(),
         originator_version=1,
-        timestamp=datetime_now_with_tzinfo(),
         a=1,
         b="abc" * 10,
         c=0.12345,
@@ -100,7 +97,6 @@ def test_encode_with_orjsonpydantic(benchmark: BenchmarkFixture) -> None:
     obj = MyObj(
         originator_id=uuid4(),
         originator_version=1,
-        timestamp=datetime_now_with_tzinfo(),
         a=1,
         b="abc" * 10,
         c=0.12345,
@@ -127,7 +123,6 @@ def test_decode_with_orjsonpydantic(benchmark: BenchmarkFixture) -> None:
     obj = MyObj(
         originator_id=uuid4(),
         originator_version=1,
-        timestamp=datetime_now_with_tzinfo(),
         a=1,
         b="abc" * 10,
         c=0.12345,
@@ -156,7 +151,6 @@ def test_encode_with_msgspec(benchmark: BenchmarkFixture) -> None:
     obj = MyObj(
         originator_id=uuid4(),
         originator_version=1,
-        timestamp=datetime_now_with_tzinfo(),
         a=1,
         b="abc" * 10,
         c=0.12345,
@@ -182,7 +176,6 @@ def test_decode_with_msgspec(benchmark: BenchmarkFixture) -> None:
     obj = MyObj(
         originator_id=uuid4(),
         originator_version=1,
-        timestamp=datetime_now_with_tzinfo(),
         a=1,
         b="abc" * 10,
         c=0.12345,

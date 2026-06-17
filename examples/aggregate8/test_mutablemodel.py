@@ -41,7 +41,6 @@ class TestSnapshotState(TestCase):
         snapshot = MySnapshot(
             originator_id=uuid4(),
             originator_version=1,
-            timestamp=datetime_now_with_tzinfo(),
             topic="",
             state=MySnapshotState(
                 a="a",

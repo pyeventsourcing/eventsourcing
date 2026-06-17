@@ -10,7 +10,7 @@ from unittest import TestCase
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from eventsourcing.application import AggregateNotFoundError, Application
-from eventsourcing.domain import Aggregate, triggers
+from eventsourcing.domain import Aggregate, datetime_now_with_tzinfo, triggers
 from eventsourcing.system import NotificationLogReader
 
 
@@ -96,7 +96,7 @@ class ParkingLot(Application[UUID]):
             vehicle = self.get_vehicle(licence_plate)
         except AggregateNotFoundError:
             vehicle = Vehicle(licence_plate.number)
-        start = Vehicle.Event.create_timestamp()
+        start = datetime_now_with_tzinfo()
         finish = product.calc_finish(start)
         vehicle.book(start=start, finish=finish)
         self.save(vehicle)
@@ -155,7 +155,7 @@ class TestParkingLot(TestCase):
         booking2 = vehicle.bookings[-1]
 
         # Inspect whilst has booking.
-        app.inspect(licence_plate, Vehicle.Event.create_timestamp())
+        app.inspect(licence_plate, datetime_now_with_tzinfo())
 
         # Check vehicle state.
         vehicle = app.get_vehicle(licence_plate)
@@ -163,7 +163,7 @@ class TestParkingLot(TestCase):
         self.assertEqual(len(vehicle.inspection_failures), 0)
 
         # Inspect after bookings expired.
-        inspected_on = Vehicle.Event.create_timestamp() + timedelta(days=10)
+        inspected_on = datetime_now_with_tzinfo() + timedelta(days=10)
         app.inspect(licence_plate, inspected_on)
 
         # Check vehicle state.

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from eventsourcing.domain import (
@@ -10,7 +10,9 @@ from eventsourcing.domain import (
     CanMutateAggregate,
     CanSnapshotAggregate,
     MetaDomainEvent,
+    datetime_now_with_tzinfo,
     event,
+    get_metadata_from_context,
 )
 
 if TYPE_CHECKING:
@@ -21,7 +23,8 @@ if TYPE_CHECKING:
 class DomainEvent(metaclass=MetaDomainEvent):
     originator_id: str
     originator_version: int
-    timestamp: datetime
+    timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
+    metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
 
     def __post_init__(self) -> None:
         if not isinstance(self.originator_id, str):
@@ -33,7 +36,7 @@ class DomainEvent(metaclass=MetaDomainEvent):
             raise TypeError(msg)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Snapshot(DomainEvent, CanSnapshotAggregate[str]):
     topic: str
     state: dict[str, Any]
@@ -44,7 +47,7 @@ class Aggregate(BaseAggregate[str]):
     class Event(DomainEvent, CanMutateAggregate[str]):
         pass
 
-    @dataclass(frozen=True)
+    @dataclass(frozen=True, kw_only=True)
     class Created(Event, CanInitAggregate[str]):
         originator_topic: str
 

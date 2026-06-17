@@ -5,7 +5,6 @@ from uuid import uuid4
 
 import msgspec.json
 
-from eventsourcing.domain import datetime_now_with_tzinfo
 from examples.aggregate9.immutablemodel import (
     Aggregate,
     DomainEvent,
@@ -36,7 +35,6 @@ def register_dog(name: str) -> DomainEvent:
     return DogRegistered(
         originator_id=uuid4(),
         originator_version=1,
-        timestamp=datetime_now_with_tzinfo(),
         name=name,
     )
 
@@ -45,7 +43,6 @@ def add_trick(dog: Dog, trick: Trick) -> DomainEvent:
     return TrickAdded(
         originator_id=dog.id,
         originator_version=dog.version + 1,
-        timestamp=datetime_now_with_tzinfo(),
         trick=trick,
     )
 

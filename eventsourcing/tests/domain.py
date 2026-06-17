@@ -54,7 +54,7 @@ class BankAccount(Aggregate):
         if self.balance + amount < -self.overdraft_limit:
             raise InsufficientFundsError({"account_id": self.id})
 
-    @dataclass(frozen=True)
+    @dataclass(frozen=True, kw_only=True)
     class TransactionAppended(AggregateEvent):
         """Domain event for when transaction
         is appended to bank account.

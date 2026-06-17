@@ -3,12 +3,16 @@ from __future__ import annotations
 import contextlib
 from collections import defaultdict
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import singledispatch
 from typing import TYPE_CHECKING, TypeVar
 from uuid import UUID, uuid4
 
-from eventsourcing.domain import Snapshot, datetime_now_with_tzinfo
+from eventsourcing.domain import (
+    Snapshot,
+    datetime_now_with_tzinfo,
+    get_metadata_from_context,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -19,7 +23,8 @@ if TYPE_CHECKING:
 class DomainEvent:
     originator_id: UUID
     originator_version: int
-    timestamp: datetime
+    timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
+    metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
 
 
 @dataclass(frozen=True)
@@ -69,12 +74,12 @@ class Dog(Aggregate):
     tricks: tuple[str, ...]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class DogRegistered(DomainEvent):
     name: str
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class TrickAdded(DomainEvent):
     trick: str
 
@@ -83,7 +88,6 @@ def register_dog(name: str) -> Dog:
     event = DogRegistered(
         originator_id=uuid4(),
         originator_version=1,
-        timestamp=datetime_now_with_tzinfo(),
         name=name,
     )
     dog = mutate_dog(event, None)
@@ -96,7 +100,6 @@ def add_trick(dog: Dog, trick: str) -> Dog:
     event = TrickAdded(
         originator_id=dog.id,
         originator_version=dog.version + 1,
-        timestamp=datetime_now_with_tzinfo(),
         trick=trick,
     )
     dog_ = mutate_dog(event, dog)

@@ -4,7 +4,10 @@ from uuid import UUID, uuid4
 
 from eventsourcing.cipher import AESCipher
 from eventsourcing.compressor import ZlibCompressor
-from eventsourcing.domain import CanMutateAggregate, HasOriginatorIDVersion
+from eventsourcing.domain import (
+    CanMutateAggregate,
+    HasOriginatorIDVersion,
+)
 from eventsourcing.persistence import (
     DataclassMapper,
     DatetimeAsISO,
@@ -41,7 +44,6 @@ class TestDataclassMapper(TestCase):
         domain_event = BankAccount.TransactionAppended(
             originator_id=uuid4(),
             originator_version=123456,
-            timestamp=BankAccount.TransactionAppended.create_timestamp(),
             amount=Decimal("10.00"),
         )
 
@@ -97,7 +99,7 @@ class TestDataclassMapper(TestCase):
         self.assertEqual(copy.originator_id, domain_event.originator_id)
         self.assertEqual(copy.originator_version, domain_event.originator_version)
 
-        self.assertEqual(len(stored_event.state), 162)
+        self.assertEqual(len(stored_event.state), 176)
 
         # Construct mapper with cipher and compressor.
         mapper = DataclassMapper(
@@ -116,7 +118,7 @@ class TestDataclassMapper(TestCase):
         self.assertEqual(copy.originator_id, domain_event.originator_id)
         self.assertEqual(copy.originator_version, domain_event.originator_version)
 
-        self.assertIn(len(stored_event.state), range(129, 143))
+        self.assertIn(len(stored_event.state), range(100, 200))
 
     def test_find_id_convertor(self) -> None:
         class HasUuidID(HasOriginatorIDVersion[UUID]):

@@ -5,15 +5,10 @@ from decimal import Decimal  # noqa: TC003
 from typing import TYPE_CHECKING
 from uuid import UUID  # noqa: TC003
 
-from examples.aggregate7.immutablemodel import Immutable
+from examples.aggregate7.immutablemodel import DomainEvent
 
 if TYPE_CHECKING:
     from typing import TypeAlias
-
-
-class DomainEvent(Immutable):
-    originator_id: UUID
-    originator_version: int
 
 
 DomainEvents: TypeAlias = Sequence[DomainEvent]

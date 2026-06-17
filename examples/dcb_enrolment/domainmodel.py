@@ -5,13 +5,16 @@ from typing import Any
 from uuid import uuid4
 
 import msgspec
+from msgspec import field
 from typing_extensions import TypeVar
 
 from eventsourcing.domain import (
     BaseAggregate,
     CanInitAggregate,
     CanMutateAggregate,
+    datetime_now_with_tzinfo,
     event,
+    get_metadata_from_context,
 )
 from examples.dcb_enrolment.interface import (
     AlreadyJoinedError,
@@ -22,10 +25,11 @@ from examples.dcb_enrolment.interface import (
 )
 
 
-class DomainEvent(msgspec.Struct, frozen=True):
+class DomainEvent(msgspec.Struct, frozen=True, kw_only=True):
     originator_id: str
     originator_version: int
-    timestamp: datetime
+    timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
+    metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
 
 
 class MsgspecStringIDEvent(DomainEvent, CanMutateAggregate[str], frozen=True):

@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import contextlib
+import contextvars
 import dataclasses
 import importlib
 import inspect
 import os
 from abc import ABCMeta
 from collections import defaultdict
-from collections.abc import Callable
-from dataclasses import dataclass
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass, field
 from datetime import datetime, tzinfo
 from functools import cache
 from types import FunctionType, WrapperDescriptorType
@@ -110,6 +112,11 @@ class DomainEventProtocol(Protocol[TAggregateID_co]):
     @property
     def originator_version(self) -> int:
         """Integer identifying the version of the aggregate when the event occurred."""
+        raise NotImplementedError  # pragma: no cover
+
+    @property
+    def metadata(self) -> dict[str, str]:
+        """Event metadata."""
         raise NotImplementedError  # pragma: no cover
 
 
@@ -221,17 +228,6 @@ def create_utc_datetime_now() -> datetime:
     return datetime_now_with_tzinfo()
 
 
-class CanCreateTimestamp:
-    """Provides a create_timestamp() method to subclasses."""
-
-    @staticmethod
-    def create_timestamp() -> datetime:
-        """Constructs a timezone-aware :class:`datetime` object
-        representing when an event occurred.
-        """
-        return datetime_now_with_tzinfo()
-
-
 TAggregate = TypeVar("TAggregate", bound="BaseAggregate[Any]")
 
 
@@ -273,7 +269,7 @@ class HasOriginatorIDVersion(AbstractDecision, Generic[TAggregateID]):
                     raise TypeError(msg)
 
 
-class CanMutateAggregate(HasOriginatorIDVersion[TAggregateID], CanCreateTimestamp):
+class CanMutateAggregate(HasOriginatorIDVersion[TAggregateID]):
     """Implements a :py:func:`~eventsourcing.domain.CanMutateAggregate.mutate`
     method that evolves the state of an aggregate.
     """
@@ -281,6 +277,9 @@ class CanMutateAggregate(HasOriginatorIDVersion[TAggregateID], CanCreateTimestam
     # TODO: Move this to a HasTimestamp? Why is it here??
     timestamp: datetime
     """Timezone-aware :class:`datetime` object representing when an event occurred."""
+    # TODO: Move this to a HasMetadata? Why is it here??
+    metadata: dict[str, str]
+    """Event metadata."""
 
     def __init_subclass__(cls) -> None:
         cls.find_originator_id_type(CanMutateAggregate)
@@ -404,21 +403,48 @@ class MetaDomainEvent(EventsourcingType):
         event_cls = cast(
             "type[TDomainEvent]", super().__new__(cls, name, bases, cls_dict)
         )
-        event_cls = dataclasses.dataclass(frozen=True)(event_cls)
+        event_cls = dataclasses.dataclass(frozen=True, kw_only=True)(event_cls)
         event_cls.__signature__ = inspect.signature(event_cls.__init__)  # type: ignore[attr-defined]
         return event_cls
 
 
-@dataclass(frozen=True)
-class DomainEvent(CanCreateTimestamp, metaclass=MetaDomainEvent):
+_ctx_event_metadata: contextvars.ContextVar[dict[str, str] | None] = (
+    contextvars.ContextVar("ctx_event_metadata", default=None)
+)
+
+
+def get_metadata_from_context() -> dict[str, str]:
+    current = _ctx_event_metadata.get()
+    return current.copy() if current is not None else {}
+
+
+@contextmanager
+def set_metadata_in_context(metadata: dict[str, str]) -> Iterator[None]:
+    token: contextvars.Token[dict[str, str] | None] | None = None
+    try:
+        existing = _ctx_event_metadata.get() or {}
+        merged_metadata = {**existing, **metadata}
+        token = _ctx_event_metadata.set(merged_metadata)
+        yield
+    finally:
+        if token is not None:
+            _ctx_event_metadata.reset(token)
+        else:
+            pass  # pragma: no cover
+
+
+@dataclass(frozen=True, kw_only=True)
+class DomainEvent(metaclass=MetaDomainEvent):
     """Frozen data class representing domain model events."""
 
     originator_id: UUID
     """UUID identifying an aggregate to which the event belongs."""
     originator_version: int
     """Integer identifying the version of the aggregate when the event occurred."""
-    timestamp: datetime
+    timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
     """Timezone-aware :class:`datetime` object representing when an event occurred."""
+    metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
+    """Domain event metadata."""
 
     def __post_init__(self) -> None:
         if not isinstance(self.originator_id, UUID):
@@ -430,6 +456,7 @@ class DomainEvent(CanCreateTimestamp, metaclass=MetaDomainEvent):
             raise TypeError(msg)
 
 
+@dataclass(frozen=True)
 class AggregateEvent(CanMutateAggregate[UUID], DomainEvent):
     """Frozen data class representing aggregate events.
 
@@ -437,7 +464,7 @@ class AggregateEvent(CanMutateAggregate[UUID], DomainEvent):
     """
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class AggregateCreated(CanInitAggregate[UUID], AggregateEvent):
     """Frozen data class representing the initial creation of an aggregate."""
 
@@ -1170,8 +1197,9 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
             originator_id=originator_id,
             originator_version=cls.INITIAL_VERSION,
         )
-        if kwargs.get("timestamp") is None:
-            kwargs["timestamp"] = event_class.create_timestamp()
+
+        if "timestamp" in kwargs and kwargs["timestamp"] is None:
+            kwargs["timestamp"] = datetime_now_with_tzinfo()
 
         try:
             created_event = event_class(**kwargs)
@@ -1260,8 +1288,8 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
             originator_id=self.id,
             originator_version=next_version,
         )
-        if kwargs.get("timestamp") is None:
-            kwargs["timestamp"] = event_class.create_timestamp()
+        if "timestamp" in kwargs and kwargs["timestamp"] is None:
+            kwargs["timestamp"] = datetime_now_with_tzinfo()
 
         try:
             new_event = event_class(**kwargs)
@@ -1803,6 +1831,7 @@ class OriginatorVersionError(EventSourcingError):
     """
 
 
+@runtime_checkable
 class SnapshotProtocol(DomainEventProtocol[TAggregateID_co], Protocol):
     @property
     def state(self) -> Any:
@@ -1815,23 +1844,13 @@ class SnapshotProtocol(DomainEventProtocol[TAggregateID_co], Protocol):
         """Snapshots have a 'take()' class method."""
 
 
-class CanSnapshotAggregate(HasOriginatorIDVersion[TAggregateID], CanCreateTimestamp):
+class CanSnapshotAggregate(HasOriginatorIDVersion[TAggregateID]):
     topic: str
     state: Any
 
     def __init_subclass__(cls) -> None:
         cls.find_originator_id_type(CanSnapshotAggregate)
         super().__init_subclass__()
-
-    # def __init__(
-    #     self,
-    #     originator_id: UUID,
-    #     originator_version: int,
-    #     timestamp: datetime,
-    #     topic: str,
-    #     state: Any,
-    # ) -> None:
-    #     raise NotImplementedError  # pragma: no cover
 
     @classmethod
     def take(
@@ -1850,7 +1869,6 @@ class CanSnapshotAggregate(HasOriginatorIDVersion[TAggregateID], CanCreateTimest
         return cls(
             originator_id=aggregate.id,  # type: ignore[call-arg]
             originator_version=aggregate.version,  # pyright: ignore[reportCallIssue]
-            timestamp=cls.create_timestamp(),  # pyright: ignore[reportCallIssue]
             topic=get_topic(type(aggregate)),  # pyright: ignore[reportCallIssue]
             state=aggregate_state,  # pyright: ignore[reportCallIssue]
         )
@@ -1875,7 +1893,7 @@ class CanSnapshotAggregate(HasOriginatorIDVersion[TAggregateID], CanCreateTimest
         return aggregate
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Snapshot(CanSnapshotAggregate[UUID], DomainEvent):
     """Snapshots represent the state of an aggregate at a particular
     version.

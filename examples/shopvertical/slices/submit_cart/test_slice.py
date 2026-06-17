@@ -1,13 +1,12 @@
 import unittest
 from decimal import Decimal
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
 from examples.shopvertical.common import reset_application
 from examples.shopvertical.events import (
     AddedItemToCart,
     ClearedCart,
-    DomainEvent,
     RemovedItemFromCart,
     SubmittedCart,
 )
@@ -22,6 +21,9 @@ from examples.shopvertical.slices.adjust_product_inventory.cmd import (
 from examples.shopvertical.slices.submit_cart.cmd import (
     SubmitCart,
 )
+
+if TYPE_CHECKING:
+    from examples.aggregate7.immutablemodel import DomainEvent
 
 
 class TestSubmitCart(unittest.TestCase):

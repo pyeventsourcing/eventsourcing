@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 from collections import defaultdict
 from collections.abc import Callable
+from dataclasses import field
 from datetime import datetime
 from functools import singledispatch
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -10,7 +11,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict
 
-from eventsourcing.domain import datetime_now_with_tzinfo
+from eventsourcing.domain import datetime_now_with_tzinfo, get_metadata_from_context
 from eventsourcing.utils import get_topic
 
 if TYPE_CHECKING:
@@ -22,7 +23,8 @@ class DomainEvent(BaseModel):
 
     originator_id: UUID
     originator_version: int
-    timestamp: datetime
+    timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
+    metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
 
 
 class Aggregate(BaseModel):
@@ -56,7 +58,6 @@ class Snapshot(DomainEvent):
         return Snapshot(
             originator_id=aggregate.id,
             originator_version=aggregate.version,
-            timestamp=datetime_now_with_tzinfo(),
             topic=get_topic(type(aggregate)),
             state=aggregate.model_dump(),
         )
@@ -103,7 +104,6 @@ def register_dog(name: str) -> Dog:
     event = DogRegistered(
         originator_id=uuid4(),
         originator_version=1,
-        timestamp=datetime_now_with_tzinfo(),
         name=name,
     )
     dog = mutate_dog(event, None)
@@ -116,7 +116,6 @@ def add_trick(dog: Dog, trick: str) -> Dog:
     event = TrickAdded(
         originator_id=dog.id,
         originator_version=dog.version + 1,
-        timestamp=datetime_now_with_tzinfo(),
         trick=Trick(name=trick),
     )
     dog_ = mutate_dog(event, dog)

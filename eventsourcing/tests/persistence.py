@@ -1316,7 +1316,6 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
         domain_event = DomainEvent(
             originator_id=uuid4(),
             originator_version=1,
-            timestamp=DomainEvent.create_timestamp(),
         )
         stored_event = mapper1.to_stored_event(domain_event)
         copy = mapper1.to_domain_event(stored_event)

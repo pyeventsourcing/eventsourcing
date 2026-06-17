@@ -1,14 +1,17 @@
 from decimal import Decimal
+from typing import TYPE_CHECKING
 from unittest import TestCase
 from uuid import UUID, uuid4
 
 from examples.shopvertical.events import (
     AddedItemToCart,
     ClearedCart,
-    DomainEvent,
     RemovedItemFromCart,
 )
 from examples.shopvertical.slices.get_cart_items.query import GetCartItems
+
+if TYPE_CHECKING:
+    from examples.aggregate7.immutablemodel import DomainEvent
 
 
 class TestGetCartItems(TestCase):

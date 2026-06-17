@@ -5,7 +5,7 @@ from typing import Any, ClassVar
 from unittest import TestCase
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from eventsourcing.domain import (
     BaseAggregate,
@@ -13,6 +13,8 @@ from eventsourcing.domain import (
     CanMutateAggregate,
     MetaAggregate,
     ProgrammingError,
+    datetime_now_with_tzinfo,
+    get_metadata_from_context,
 )
 from eventsourcing.utils import (
     clear_topic_cache,
@@ -28,7 +30,8 @@ class Immutable(BaseModel):
 class DomainEvent(Immutable):
     originator_id: UUID
     originator_version: int
-    timestamp: datetime
+    timestamp: datetime = Field(default_factory=datetime_now_with_tzinfo)
+    metadata: dict[str, str] = Field(default_factory=get_metadata_from_context)
 
 
 # Making the aggregate uncallable has nothing to do with explicit topics.

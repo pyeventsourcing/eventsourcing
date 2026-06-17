@@ -10,7 +10,6 @@ from eventsourcing.domain import (
     CanInitAggregate,
     CanMutateAggregate,
     CanSnapshotAggregate,
-    datetime_now_with_tzinfo,
 )
 from eventsourcing.utils import get_topic, resolve_topic
 from examples.aggregate9.immutablemodel import DomainEvent, Immutable
@@ -41,7 +40,6 @@ class AggregateSnapshot(DomainEvent, CanSnapshotAggregate[UUID], frozen=True):
         return cls(
             originator_id=aggregate.id,
             originator_version=aggregate.version,
-            timestamp=datetime_now_with_tzinfo(),
             topic=get_topic(type(aggregate)),
             state=snapshot_state,
         )

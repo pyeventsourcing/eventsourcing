@@ -14,8 +14,10 @@ from functools import lru_cache
 from threading import Condition, Event, Lock, Semaphore, Thread, Timer
 from time import monotonic, sleep, time
 from types import GenericAlias, ModuleType, TracebackType
-from typing import Any, Generic, Self, TypeVar, cast
+from typing import Any, Generic, Self, cast
 from uuid import UUID
+
+from typing_extensions import TypeVar
 
 from eventsourcing.domain import (
     DomainEventProtocol,
@@ -308,7 +310,7 @@ class DatetimeAsISO(Transcoding):
         return datetime.fromisoformat(data)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class StoredEvent:
     """Frozen dataclass that represents :class:`~eventsourcing.domain.DomainEvent`
     objects, such as aggregate :class:`~eventsourcing.domain.Aggregate.Event`
@@ -323,6 +325,10 @@ class StoredEvent:
     """Topic of a domain event object class."""
     state: bytes
     """Serialised state of a domain event object."""
+    metadata: bytes = b""
+    """Serialised metadata."""
+    event_id: UUID | None = None
+    """Event ID."""
 
 
 class Compressor(ABC):
@@ -610,7 +616,7 @@ class AggregateRecorder(Recorder, ABC):
         """Reads stored events from database."""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Notification(StoredEvent):
     """Frozen dataclass that represents domain event notifications."""
 
