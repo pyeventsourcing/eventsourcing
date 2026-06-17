@@ -398,14 +398,14 @@ of the :class:`~eventsourcing.domain.CanInitAggregate` class, which constructs t
 state of an aggregate. This method's ``aggregate`` argument is expected to be ``None``. This
 method resolves the :py:attr:`~eventsourcing.domain.AggregateCreated.originator_topic` attribute
 to an :class:`~eventsourcing.domain.Aggregate` class, and then constructs an instance
-from the class. It then calls :func:`~eventsourcing.domain.Aggregate.__base_init__`
+from the class. It then calls :func:`~eventsourcing.domain.BaseAggregate.__base_init__`
 on the newly constructed :class:`~eventsourcing.domain.Aggregate` instance.
 
 So that we avoid the "boiler plate" of all aggregate subclasses mentioning
 the same list of common attributes as arguments in the signatures of their
 ``__init__`` methods, and so that we avoid these ``__init__`` methods always
 having to call their super class ``__init__`` method with these common arguments,
-the method :func:`~eventsourcing.domain.Aggregate.__base_init__` is defined to expect
+the method :func:`~eventsourcing.domain.BaseAggregate.__base_init__` is defined to expect
 those common attribute values as its arguments.
 
 The :func:`~eventsourcing.domain.CanInitAggregate.mutate` method uses the values of the
@@ -413,14 +413,14 @@ event attributes :py:attr:`~eventsourcing.domain.DomainEvent.originator_id`,
 :py:attr:`~eventsourcing.domain.DomainEvent.originator_version`, and
 :py:attr:`~eventsourcing.domain.DomainEvent.timestamp` as the values of these arguments.
 
-The :func:`~eventsourcing.domain.Aggregate.__base_init__` method then initialises
+The :func:`~eventsourcing.domain.BaseAggregate.__base_init__` method then initialises
 the aggregate's
-:py:obj:`~eventsourcing.domain.Aggregate.id`,
-:py:obj:`~eventsourcing.domain.Aggregate.version`,
-:py:obj:`~eventsourcing.domain.Aggregate.created_on` and
-:py:obj:`~eventsourcing.domain.Aggregate.modified_on` attributes using these values.
+:py:obj:`~eventsourcing.domain.BaseAggregate.id`,
+:py:obj:`~eventsourcing.domain.BaseAggregate.version`,
+:py:obj:`~eventsourcing.domain.BaseAggregate.created_on` and
+:py:obj:`~eventsourcing.domain.BaseAggregate.modified_on` attributes using these values.
 
-After calling :func:`~eventsourcing.domain.Aggregate.__base_init__`,
+After calling :func:`~eventsourcing.domain.BaseAggregate.__base_init__`,
 the :func:`~eventsourcing.domain.CanInitAggregate.mutate` method then calls
 the aggregate's ``__init__`` method with any remaining event object attributes,
 and then returns the newly constructed aggregate object to the caller. The aggregate's

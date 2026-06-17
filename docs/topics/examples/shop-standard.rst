@@ -36,7 +36,7 @@ Exceptions
 Test
 ----
 
-.. literalinclude:: ../../../examples/shopstandard/test.py
+.. literalinclude:: ../../../examples/shopstandard/test_shopstandard.py
     :pyobject: TestShop
 
 Code reference

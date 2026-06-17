@@ -138,7 +138,7 @@ in various ways. It sets a user ID in :data:`~examples.contentmanagement.domainm
 variable before application methods are called. At the end, all the page events are checked to make sure
 they all have the user ID that was set in the context variable.
 
-.. literalinclude:: ../../../examples/contentmanagement/test.py
+.. literalinclude:: ../../../examples/contentmanagement/test_contentmanagement.py
     :pyobject: TestContentManagement
 
 

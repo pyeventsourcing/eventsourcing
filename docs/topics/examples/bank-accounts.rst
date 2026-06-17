@@ -40,7 +40,7 @@ might be used, the test runs through a scenario that
 exercises all the methods of the application in one
 test method.
 
-.. literalinclude:: ../../../examples/bankaccounts/test.py
+.. literalinclude:: ../../../examples/bankaccounts/test_bankaccounts.py
 
 
 Code reference

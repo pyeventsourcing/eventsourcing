@@ -82,7 +82,7 @@ handling events as it is shipped around the world, recovering by
 assigning a new route after the cargo was unloaded in the wrong place,
 until finally the cargo is claimed at its correct destination.
 
-.. literalinclude:: ../../../examples/cargoshipping/test.py
+.. literalinclude:: ../../../examples/cargoshipping/test_cargoshipping.py
 
 
 Code reference
