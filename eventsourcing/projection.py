@@ -16,7 +16,11 @@ from eventsourcing.dcb.api import DCBQuery, DCBQueryItem
 from eventsourcing.dcb.application import DCBApplication
 from eventsourcing.dcb.domain import Decision, Tagged
 from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain import DomainEventProtocol, TAggregateID
+from eventsourcing.domain import (
+    DomainEventProtocol,
+    TAggregateID,
+    null_metadata_in_context,
+)
 from eventsourcing.persistence import (
     InfrastructureFactory,
     Mapper,
@@ -82,7 +86,8 @@ class ApplicationSubscription(
         """
         notification = next(self.subscription)
         tracking = Tracking(self.name, notification.id)
-        domain_event = self.mapper.to_domain_event(notification)
+        with null_metadata_in_context():
+            domain_event = self.mapper.to_domain_event(notification)
         return domain_event, tracking
 
     def __del__(self) -> None:
@@ -141,7 +146,8 @@ class DCBApplicationSubscription(Iterator[tuple[Tagged[Decision], Tracking]]):
         """
         sequenced_event = next(self.subscription)
         tracking = Tracking(self.name, sequenced_event.position)
-        tagged_decision = self.mapper.to_domain_event(sequenced_event.event)
+        with null_metadata_in_context():
+            tagged_decision = self.mapper.to_domain_event(sequenced_event.event)
         return tagged_decision, tracking
 
     def __del__(self) -> None:

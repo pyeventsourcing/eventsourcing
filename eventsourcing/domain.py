@@ -414,17 +414,39 @@ _ctx_event_metadata: contextvars.ContextVar[dict[str, str] | None] = (
 
 
 def get_metadata_from_context() -> dict[str, str]:
+    """
+    Copies metadata dict from context variable. Used to initialise event attribute.
+    """
     current = _ctx_event_metadata.get()
     return current.copy() if current is not None else {}
 
 
 @contextmanager
-def set_metadata_in_context(metadata: dict[str, str]) -> Iterator[None]:
+def put_metadata_in_context(metadata: dict[str, str]) -> Iterator[None]:
+    """
+    Updates metadata dict in context variable. Use this in your request handlers.
+    """
     token: contextvars.Token[dict[str, str] | None] | None = None
     try:
         existing = _ctx_event_metadata.get() or {}
         merged_metadata = {**existing, **metadata}
         token = _ctx_event_metadata.set(merged_metadata)
+        yield
+    finally:
+        if token is not None:
+            _ctx_event_metadata.reset(token)
+        else:
+            pass  # pragma: no cover
+
+
+@contextmanager
+def null_metadata_in_context() -> Iterator[None]:
+    """
+    Masks metadata with an empty dict. Used when reconstructing domain events.
+    """
+    token: contextvars.Token[dict[str, str] | None] | None = None
+    try:
+        token = _ctx_event_metadata.set({})
         yield
     finally:
         if token is not None:
@@ -441,9 +463,11 @@ class DomainEvent(metaclass=MetaDomainEvent):
     """UUID identifying an aggregate to which the event belongs."""
     originator_version: int
     """Integer identifying the version of the aggregate when the event occurred."""
-    timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
+    timestamp: datetime = field(default_factory=datetime_now_with_tzinfo, kw_only=True)
     """Timezone-aware :class:`datetime` object representing when an event occurred."""
-    metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
+    metadata: dict[str, str] = field(
+        default_factory=get_metadata_from_context, kw_only=True
+    )
     """Domain event metadata."""
 
     def __post_init__(self) -> None:

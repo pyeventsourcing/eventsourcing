@@ -21,6 +21,7 @@ from eventsourcing.domain import (
     DomainEventProtocol,
     MutableOrImmutableAggregate,
     TAggregateID,
+    null_metadata_in_context,
 )
 from eventsourcing.persistence import (
     Mapper,
@@ -147,15 +148,16 @@ class Follower(EventSourcedProjection[TAggregateID]):
         """
         mapper = self.mappers[leader_name]
         processing_jobs = []
-        for notification in notifications:
-            domain_event: DomainEventProtocol[TAggregateID] = mapper.to_domain_event(
-                notification
-            )
-            tracking = Tracking(
-                application_name=leader_name,
-                notification_id=notification.id,
-            )
-            processing_jobs.append((domain_event, tracking))
+        with null_metadata_in_context():
+            for notification in notifications:
+                domain_event: DomainEventProtocol[TAggregateID] = (
+                    mapper.to_domain_event(notification)
+                )
+                tracking = Tracking(
+                    application_name=leader_name,
+                    notification_id=notification.id,
+                )
+                processing_jobs.append((domain_event, tracking))
         return processing_jobs
 
 

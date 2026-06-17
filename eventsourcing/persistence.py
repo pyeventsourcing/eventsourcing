@@ -24,6 +24,7 @@ from eventsourcing.domain import (
     EventSourcingError,
     HasOriginatorIDVersion,
     TAggregateID,
+    null_metadata_in_context,
 )
 from eventsourcing.utils import (
     Environment,
@@ -457,9 +458,7 @@ class DataclassMapper(Mapper[TAggregateID]):
             getattr(cls, f"upcast_v{from_version}_v{from_version + 1}")(event_state)
             from_version += 1
 
-        domain_event = object.__new__(cls)
-        object.__setattr__(domain_event, "__dict__", event_state)
-        return domain_event
+        return cls(**event_state)
 
 
 @lru_cache
@@ -799,16 +798,17 @@ class EventStore(Generic[TAggregateID]):
         limit: int | None = None,
     ) -> Iterator[DomainEventProtocol[TAggregateID]]:
         """Retrieves domain events from aggregate sequence."""
-        return map(
-            self.mapper.to_domain_event,
-            self.recorder.select_events(
-                originator_id=originator_id,
-                gt=gt,
-                lte=lte,
-                desc=desc,
-                limit=limit,
-            ),
-        )
+        with null_metadata_in_context():
+            return map(
+                self.mapper.to_domain_event,
+                self.recorder.select_events(
+                    originator_id=originator_id,
+                    gt=gt,
+                    lte=lte,
+                    desc=desc,
+                    limit=limit,
+                ),
+            )
 
 
 TTrackingRecorder = TypeVar(

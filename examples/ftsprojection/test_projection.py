@@ -4,11 +4,11 @@ import unittest
 from typing import ClassVar
 from uuid import uuid4
 
+from eventsourcing.domain import put_metadata_in_context
 from eventsourcing.postgres import PostgresDatastore
 from eventsourcing.projection import ProjectionRunner
 from eventsourcing.tests.postgres_utils import drop_tables
 from examples.contentmanagement.application import ContentManagement
-from examples.contentmanagement.domainmodel import user_id_cvar
 from examples.ftsprojection.projection import FtsProjection, PostgresFtsView
 
 
@@ -47,13 +47,13 @@ class TestFtsProjection(unittest.TestCase):
 
         # Create some content in the write model.
         user_id = uuid4()
-        user_id_cvar.set(user_id)
-        write_model.create_page(title="Animals", slug="animals")
-        write_model.update_body(slug="animals", body="cat dog zebra")
-        write_model.create_page(title="Plants", slug="plants")
-        notification_id = write_model.update_body(
-            slug="plants", body="bluebell rose jasmine"
-        )
+        with put_metadata_in_context({"user_id": str(user_id)}):
+            write_model.create_page(title="Animals", slug="animals")
+            write_model.update_body(slug="animals", body="cat dog zebra")
+            write_model.create_page(title="Plants", slug="plants")
+            notification_id = write_model.update_body(
+                slug="plants", body="bluebell rose jasmine"
+            )
 
         # Wait for the content to be processed (should time out).
         with self.assertRaises(TimeoutError):
@@ -105,10 +105,11 @@ class TestFtsProjection(unittest.TestCase):
         self.assertEqual({"animals", "plants"}, {p.slug for p in pages})
 
         # Create some more content.
-        write_model.create_page(title="Minerals", slug="minerals")
-        notification_id = write_model.update_body(
-            slug="minerals", body="iron zinc calcium"
-        )
+        with put_metadata_in_context({"user_id": str(user_id)}):
+            write_model.create_page(title="Minerals", slug="minerals")
+            notification_id = write_model.update_body(
+                slug="minerals", body="iron zinc calcium"
+            )
 
         # Wait for content to be processed (projection continues processing).
         read_model.wait(write_model.name, notification_id)

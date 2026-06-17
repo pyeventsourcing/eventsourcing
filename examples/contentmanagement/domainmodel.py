@@ -1,17 +1,11 @@
 from __future__ import annotations
 
-from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from eventsourcing.domain import Aggregate, DomainEvent, event
 from examples.contentmanagement.utils import apply_diff, create_diff
-
-user_id_cvar: ContextVar[UUID | None] = ContextVar("user_id", default=None)
-"""
-Context variable holding a user ID for the current thread.
-"""
 
 
 @dataclass
@@ -29,13 +23,14 @@ class Page(Aggregate):
     """The ID of the user who last modified the page."""
 
     class Event(Aggregate.Event):
-        user_id: UUID | None = field(default_factory=user_id_cvar.get, init=False)
-
         def apply(self, aggregate: Aggregate) -> None:
             """Sets the aggregate's `modified_by` attribute to the
-            value of the event's `user_id` attribute.
+            value of the event's metadata `user_id` value.
             """
-            cast("Page", aggregate).modified_by = self.user_id
+            cast("Page", aggregate).modified_by = self.get_user_id()
+
+        def get_user_id(self) -> UUID:
+            return UUID(self.metadata["user_id"])
 
     @event("SlugUpdated")
     def update_slug(self, slug: str) -> None:

@@ -244,7 +244,26 @@ which is a Python :class:`int`, which represents its position in that sequence.
 
 It has a :py:attr:`~eventsourcing.domain.DomainEvent.timestamp` attribute,
 which is a Python :class:`~datetime.datetime` that represents the date and
-time when the event occurred.
+time when the event occurred. By default, it is initialised by calling
+:func:`~eventsourcing.domain.datetime_now_with_tzinfo`, which returns a
+new timezone-aware Python :class:`~datetime.datetime` for the current date and time.
+
+It has a :py:attr:`~eventsourcing.domain.DomainEvent.metadata` attribute,
+which is a Python :class:`dict` that contains arbitrary `str` keys and `str` values.
+By default, it is initialised by calling
+:func:`~eventsourcing.domain.get_metadata_from_context`, which returns a thread-local
+context variable that can built up using the context manager :func:`~eventsourcing.domain.put_metadata_in_context`.
+
+Domain event objects are ordered in their originator's sequence by their
+:py:attr:`~eventsourcing.domain.DomainEvent.originator_version`, and not by their
+:py:attr:`~eventsourcing.domain.DomainEvent.timestamp`, because the integer
+version numbers form a gapless sequence, that excludes the possibility
+for inserting new items mid-sequence. Timestamps are far more likely to have
+such gaps, and anyway can suffer from clock skews, for example if the timestamps
+of different events are created on different machines, and even clock regressions
+when the system clock is adjusted backwards.
+The :py:attr:`~eventsourcing.domain.DomainEvent.timestamp` values have no consequences for the operation of
+this library, and are included to give an approximate indication of when a domain event occurred.
 
 The :class:`~eventsourcing.domain.DomainEvent` class can be instantiated directly.
 
@@ -265,23 +284,30 @@ The :class:`~eventsourcing.domain.DomainEvent` class can be instantiated directl
     assert domain_event.metadata == {}
 
 
-The :py:attr:`~eventsourcing.domain.DomainEvent.timestamp` value is a
-new timezone-aware Python :class:`~datetime.datetime` for the current date and time.
+The example below shows that setting contextual metadata with :func:`~eventsourcing.domain.put_metadata_in_context`
+causes event metadata to be set. The idea is to use :func:`~eventsourcing.domain.put_metadata_in_context`
+in request handlers before executing commands, and in event-processing components
+before executing policies.
 
-The timestamps have no consequences for the operation of this library, and
-are included to give an approximate indication of when a domain event occurred.
+.. code-block:: python
 
-Domain event objects are ordered in their sequence by their
-:py:attr:`~eventsourcing.domain.DomainEvent.originator_version`, and not by their
-:py:attr:`~eventsourcing.domain.DomainEvent.timestamp`. The reason for ordering a sequence of events by
-:py:attr:`~eventsourcing.domain.DomainEvent.originator_version` and not
-:py:attr:`~eventsourcing.domain.DomainEvent.timestamp` is that the integer
-version numbers can form a gapless sequence, that excludes the possibility
-for inserting new items anywhere other than at the end of the sequence, and
-that we can progress along by counting. Timestamps are far more likely to have
-such gaps, and anyway can suffer from clock skews, for example if the timestamps
-of different events are created on different machines, and even clock regressions
-when the system clock is adjusted backwards.
+    from eventsourcing.domain import put_metadata_in_context
+
+    example_metadata = {
+        "user_id": "user-1",
+        "correlation_id": "12345",
+        "causation_id": "67890",
+    }
+
+    with put_metadata_in_context(example_metadata):
+        domain_event = DomainEvent(
+            originator_id=originator_id,
+            originator_version=2,
+        )
+
+    assert domain_event.metadata["user_id"] == "user-1"
+    assert domain_event.metadata["correlation_id"] == "12345"
+    assert domain_event.metadata["causation_id"] == "67890"
 
 
 .. _Aggregate events:
@@ -316,6 +342,8 @@ The :class:`~eventsourcing.domain.AggregateEvent` class can be instantiated dire
     )
     assert aggregate_event.originator_id == originator_id
     assert aggregate_event.originator_version == 2
+    assert isinstance(aggregate_event.timestamp, datetime)
+    assert aggregate_event.metadata == {}
 
 
 The :class:`~eventsourcing.domain.AggregateEvent` class extends

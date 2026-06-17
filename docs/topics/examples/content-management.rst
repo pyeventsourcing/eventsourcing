@@ -9,11 +9,9 @@ This example also involves :ref:`event-sourced logs <event-sourced-log>`,
 automatic :ref:`snapshotting <automatic-snapshotting>`, and the use of the declarative
 syntax for domain models with :ref:`non-trivial command methods <non-trivial-command-methods>`.
 
-This example also shows how to use a thread-specific context variable to set the value
-of a common event attribute without cluttering all the command methods with the same
-argument. In this example the ID of the user is recorded on each event, but the same
-technique can be used to set correlation and causation IDs on all events in a domain
-model.
+This example also shows how to set event metadata. In this example, the ID of a user is recorded
+in the metadata of each event. The same technique can be used to set correlation IDs and causation
+IDs.
 
 Domain model
 ------------
@@ -30,18 +28,12 @@ inherit from its :class:`~examples.contentmanagement.domainmodel.Page.Event` cla
 :class:`~examples.contentmanagement.domainmodel.Page.Event` class defines a
 :func:`~examples.contentmanagement.domainmodel.Page.Event.apply` method that sets the
 aggregate's :data:`~examples.contentmanagement.domainmodel.Page.modified_by` attribute
-to the value of the events's :data:`~examples.contentmanagement.domainmodel.Page.Event.user_id` attribute.
+to the value of the event metadata's ``"user_id"`` value. Event metadata is obtained
+when events are triggered, by using :func:`~eventsourcing.domain.get_metadata_from_context`,
+and supplied whilst application commands are executed, by using :func:`~eventsourcing.domain.put_metadata_in_context`.
 
 .. literalinclude:: ../../../examples/contentmanagement/domainmodel.py
     :pyobject: Page
-
-The :data:`~examples.contentmanagement.domainmodel.Page.Event.user_id` attribute is defined
-as a dataclass field that is not included in ``__init__`` methods (``init=False``),
-and so it does not need to be matched by parameters in the aggregate command method signatures.
-Instead, the data class field gets the event attribute value from a Python context variable
-(``default_factory=user_id_cvar.get``). That is why none of the command method signatures
-need to mention this as one of their arguments, but still all the aggregate events will carry
-the ID of the user that executed the command.
 
 The :func:`~examples.contentmanagement.domainmodel.Page.update_body` command method is a
 :ref:`non-trivial command methods <non-trivial-command-methods>`, in that is does some work
@@ -103,12 +95,6 @@ the IDs of the :class:`~examples.contentmanagement.domainmodel.Page` aggregates 
 the page ID in a sequence of stored events, and then selecting from this sequence when presenting a list
 of pages.
 
-Please note, although all the :class:`~examples.contentmanagement.domainmodel.Page` aggregate events
-have a :data:`~examples.contentmanagement.domainmodel.Page.Event.user_id` attribute,
-none of the aggregate or application command methods mention a ``user_id`` argument. Instead the value
-can be set in a context variable by callers of the application command methods, for example in an
-interface or presentation layer after a user request has been authenticated (see the test case below).
-
 The application also demonstrates the automatic snapshotting of aggregates at regular intervals. In
 this case, the class attribute :data:`~examples.contentmanagement.application.ContentManagement.snapshotting_intervals`
 specifies that a page will be snapshotted every 5 events.
@@ -134,9 +120,10 @@ Test case
 ---------
 
 The :class:`~examples.contentmanagement.test.TestContentManagement` test case creates and updates pages
-in various ways. It sets a user ID in :data:`~examples.contentmanagement.domainmodel.user_id_cvar` context
-variable before application methods are called. At the end, all the page events are checked to make sure
-they all have the user ID that was set in the context variable.
+in various ways. It sets a user ID in the metadata context variable using the context manager
+:func:`~eventsourcing.domain.put_metadata_in_context` before application methods are called.
+At the end, all the page events are checked to make sure they all have the user ID that was
+set in the context variable.
 
 .. literalinclude:: ../../../examples/contentmanagement/test_contentmanagement.py
     :pyobject: TestContentManagement

@@ -4,9 +4,9 @@ from typing import ClassVar
 from unittest import TestCase
 from uuid import uuid4
 
+from eventsourcing.domain import put_metadata_in_context
 from eventsourcing.tests.postgres_utils import drop_tables
 from eventsourcing.utils import get_topic
-from examples.contentmanagement.domainmodel import user_id_cvar
 from examples.ftscontentmanagement.application import FtsContentManagement
 from examples.ftscontentmanagement.postgres import PostgresFtsApplicationRecorder
 from examples.ftscontentmanagement.sqlite import SQLiteFtsApplicationRecorder
@@ -21,12 +21,11 @@ class FtsContentManagementTestCase(TestCase):
 
         # Set user_id context variable.
         user_id = uuid4()
-        user_id_cvar.set(user_id)
-
         # Create empty pages.
-        app.create_page(title="Animals", slug="animals")
-        app.create_page(title="Plants", slug="plants")
-        app.create_page(title="Minerals", slug="minerals")
+        with put_metadata_in_context({"user_id": str(user_id)}):
+            app.create_page(title="Animals", slug="animals")
+            app.create_page(title="Plants", slug="plants")
+            app.create_page(title="Minerals", slug="minerals")
 
         # Search, expect no results.
         self.assertEqual(0, len(app.search("dog")))
@@ -34,9 +33,10 @@ class FtsContentManagementTestCase(TestCase):
         self.assertEqual(0, len(app.search("zinc")))
 
         # Update the pages.
-        app.update_body(slug="animals", body="cat dog zebra")
-        app.update_body(slug="plants", body="bluebell rose jasmine")
-        app.update_body(slug="minerals", body="iron zinc calcium")
+        with put_metadata_in_context({"user_id": str(user_id)}):
+            app.update_body(slug="animals", body="cat dog zebra")
+            app.update_body(slug="plants", body="bluebell rose jasmine")
+            app.update_body(slug="minerals", body="iron zinc calcium")
 
         # Search for single words, expect results.
         pages = app.search("dog")

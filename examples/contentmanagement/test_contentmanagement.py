@@ -4,13 +4,14 @@ from typing import cast
 from unittest import TestCase
 from uuid import uuid4
 
+from eventsourcing.domain import put_metadata_in_context
 from eventsourcing.system import NotificationLogReader
 from examples.contentmanagement.application import (
     ContentManagement,
     PageNotFoundError,
     SlugConflictError,
 )
-from examples.contentmanagement.domainmodel import Page, Slug, user_id_cvar
+from examples.contentmanagement.domainmodel import Page, Slug
 
 
 class TestContentManagement(TestCase):
@@ -28,8 +29,8 @@ class TestContentManagement(TestCase):
 
         # Create a page.
         user_id1 = uuid4()
-        user_id_cvar.set(user_id1)
-        app.create_page(title="Welcome", slug="welcome")
+        with put_metadata_in_context({"user_id": str(user_id1)}):
+            app.create_page(title="Welcome", slug="welcome")
 
         # Present page identified by the given slug.
         page = app.get_page_by_slug(slug="welcome")
@@ -42,8 +43,8 @@ class TestContentManagement(TestCase):
 
         # Update the title.
         user_id2 = uuid4()
-        user_id_cvar.set(user_id2)
-        app.update_title(slug="welcome", title="Welcome Visitors")
+        with put_metadata_in_context({"user_id": str(user_id2)}):
+            app.update_title(slug="welcome", title="Welcome Visitors")
 
         # Check the title was updated.
         page = app.get_page_by_slug(slug="welcome")
@@ -54,8 +55,8 @@ class TestContentManagement(TestCase):
 
         # Update the slug.
         user_id3 = uuid4()
-        user_id_cvar.set(user_id3)
-        app.update_slug(old_slug="welcome", new_slug="welcome-visitors")
+        with put_metadata_in_context({"user_id": str(user_id3)}):
+            app.update_slug(old_slug="welcome", new_slug="welcome-visitors")
 
         # Check the slug was updated.
         with self.assertRaises(PageNotFoundError):
@@ -70,8 +71,8 @@ class TestContentManagement(TestCase):
 
         # Update the body.
         user_id4 = uuid4()
-        user_id_cvar.set(user_id4)
-        app.update_body(slug="welcome-visitors", body="Welcome to my wiki!")
+        with put_metadata_in_context({"user_id": str(user_id4)}):
+            app.update_body(slug="welcome-visitors", body="Welcome to my wiki!")
 
         # Check the body was updated.
         page = app.get_page_by_slug(slug="welcome-visitors")
@@ -94,15 +95,15 @@ class TestContentManagement(TestCase):
 
         # Update the body (should trigger a snapshot).
         user_id5 = uuid4()
-        user_id_cvar.set(user_id5)
-        app.update_body(
-            slug="welcome-visitors",
-            body="""
+        with put_metadata_in_context({"user_id": str(user_id5)}):
+            app.update_body(
+                slug="welcome-visitors",
+                body="""
 Welcome to this wiki!
 
 This is a wiki about...
 """,
-        )
+            )
 
         # Check we are on version 5.
         page_aggregate_v5: Page = app.repository.get(page_id)
@@ -130,26 +131,33 @@ This is a wiki about...
         for notification in NotificationLogReader(app.notification_log).read(start=1):
             domain_event = app.mapper.to_domain_event(notification)
             if isinstance(domain_event, Page.Event):
-                self.assertEqual(domain_event.user_id, next(user_ids))
+                self.assertEqual(domain_event.get_user_id(), next(user_ids))
 
         # Create some more pages.
-        app.create_page("Page 2", "page-2")
-        app.create_page("Page 3", "page-3")
-        app.create_page("Page 4", "page-4")
-        app.create_page("Page 5", "page-5")
+        user_id6 = uuid4()
+        with put_metadata_in_context({"user_id": str(user_id6)}):
+            app.create_page("Page 2", "page-2")
+            app.create_page("Page 3", "page-3")
+            app.create_page("Page 4", "page-4")
+            app.create_page("Page 5", "page-5")
 
         # List all the pages.
         pages = list(app.get_pages(desc=True))
         self.assertEqual(pages[0]["title"], "Page 5")
         self.assertEqual(pages[0]["slug"], "page-5")
+        self.assertEqual(pages[0]["modified_by"], user_id6)
         self.assertEqual(pages[1]["title"], "Page 4")
         self.assertEqual(pages[1]["slug"], "page-4")
+        self.assertEqual(pages[1]["modified_by"], user_id6)
         self.assertEqual(pages[2]["title"], "Page 3")
         self.assertEqual(pages[2]["slug"], "page-3")
+        self.assertEqual(pages[2]["modified_by"], user_id6)
         self.assertEqual(pages[3]["title"], "Page 2")
         self.assertEqual(pages[3]["slug"], "page-2")
+        self.assertEqual(pages[3]["modified_by"], user_id6)
         self.assertEqual(pages[4]["title"], "Welcome Visitors")
         self.assertEqual(pages[4]["slug"], "welcome-visitors")
+        self.assertEqual(pages[4]["modified_by"], user_id5)
 
         pages = list(app.get_pages(desc=True, limit=3))
         self.assertEqual(len(pages), 3)
@@ -170,7 +178,10 @@ This is a wiki about...
         # Check we can't change the slug of a page to one
         # that is being used by another page.
         app.get_page_by_slug(slug="page-3")
-        with self.assertRaises(SlugConflictError):
+        with (
+            self.assertRaises(SlugConflictError),
+            put_metadata_in_context({"user_id": str(user_id6)}),
+        ):
             app.update_slug("page-2", "page-3")
 
         # Check we can change the slug of a page to one
@@ -181,7 +192,9 @@ This is a wiki about...
         slug: Slug = app.repository.get(Slug.create_id("welcome"))
         self.assertIsNone(slug.page_id)
 
-        app.update_slug("welcome-visitors", "welcome")
+        with put_metadata_in_context({"user_id": str(user_id6)}):
+            app.update_slug("welcome-visitors", "welcome")
 
         page = app.get_page_by_slug(slug="welcome")
         self.assertEqual(page["title"], "Welcome Visitors")
+        self.assertEqual(page["modified_by"], user_id6)

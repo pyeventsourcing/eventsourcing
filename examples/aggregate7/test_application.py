@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from unittest import TestCase
 
-from eventsourcing.domain import set_metadata_in_context
+from eventsourcing.domain import put_metadata_in_context
 from examples.aggregate7.application import DogSchool
 from examples.aggregate7.domainmodel import project_dog
 
@@ -14,7 +14,7 @@ class TestDogSchool(TestCase):
         school = DogSchool()
 
         # Evolve application state.
-        with set_metadata_in_context({"user_id": "user-1"}):
+        with put_metadata_in_context({"user_id": "user-1"}):
             dog_id = school.register_dog("Fido")
             school.add_trick(dog_id, "roll over")
             school.add_trick(dog_id, "play dead")
@@ -31,7 +31,7 @@ class TestDogSchool(TestCase):
         assert len(notifications) == 3
 
         # Take snapshot.
-        with set_metadata_in_context({"user_id": "admin-1"}):
+        with put_metadata_in_context({"user_id": "admin-1"}):
             school.take_snapshot(dog_id, version=3, projector_func=project_dog)
         dog = school.get_dog(dog_id)
         self.assertEqual(dog["name"], "Fido")
@@ -40,7 +40,7 @@ class TestDogSchool(TestCase):
         self.assertIsInstance(dog["modified_on"], datetime)
 
         # Continue with snapshotted aggregate.
-        with set_metadata_in_context({"user_id": "user-1"}):
+        with put_metadata_in_context({"user_id": "user-1"}):
             school.add_trick(dog_id, "fetch ball")
         dog = school.get_dog(dog_id)
         self.assertEqual(dog["name"], "Fido")
