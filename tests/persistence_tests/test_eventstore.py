@@ -4,11 +4,11 @@ from uuid import UUID
 
 from eventsourcing.domain import CanMutateProtocol
 from eventsourcing.persistence import (
+    DataclassMapper,
     DatetimeAsISO,
     DecimalAsStr,
     EventStore,
     JSONTranscoder,
-    Mapper,
     UUIDAsHex,
 )
 from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatastore
@@ -40,7 +40,7 @@ class TestEventStore(TestCase):
         transcoder.register(EmailAddressAsStr())
         recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_store = EventStore[UUID](
-            mapper=Mapper(transcoder),
+            mapper=DataclassMapper(transcoder),
             recorder=recorder,
         )
         recorder.create_table()

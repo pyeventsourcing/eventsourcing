@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from abc import ABC, ABCMeta, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, ParamSpec, Self, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Generic, ParamSpec, Self, cast
 from uuid import uuid4
+
+from typing_extensions import TypeVar
 
 from eventsourcing.domain import (
     AbstractDecision,

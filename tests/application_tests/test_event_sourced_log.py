@@ -7,11 +7,11 @@ from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 from eventsourcing.application import Application, EventSourcedLog
 from eventsourcing.domain import Aggregate, DomainEvent
 from eventsourcing.persistence import (
+    DataclassMapper,
     DatetimeAsISO,
     DecimalAsStr,
     EventStore,
     JSONTranscoder,
-    Mapper,
     UUIDAsHex,
 )
 from eventsourcing.popo import POPOAggregateRecorder
@@ -32,7 +32,7 @@ class TestEventSourcedLog(TestCase):
 
         event_recorder = POPOAggregateRecorder()
         event_store = EventStore[UUID](
-            mapper=Mapper(transcoder=transcoder),
+            mapper=DataclassMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
 
@@ -128,7 +128,7 @@ class TestEventSourcedLog(TestCase):
 
         event_recorder = POPOAggregateRecorder()
         event_store = EventStore[UUID](
-            mapper=Mapper(transcoder=transcoder),
+            mapper=DataclassMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
 

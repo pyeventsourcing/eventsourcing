@@ -18,7 +18,6 @@ from typing import (
     ClassVar,
     Generic,
     Protocol,
-    TypeVar,
     cast,
     get_args,
     get_origin,
@@ -27,6 +26,8 @@ from typing import (
 )
 from uuid import UUID, uuid4
 from warnings import warn
+
+from typing_extensions import TypeVar
 
 from eventsourcing.utils import (
     TopicError,

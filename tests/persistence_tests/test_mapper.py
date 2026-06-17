@@ -6,10 +6,10 @@ from eventsourcing.cipher import AESCipher
 from eventsourcing.compressor import ZlibCompressor
 from eventsourcing.domain import CanMutateAggregate, HasOriginatorIDVersion
 from eventsourcing.persistence import (
+    DataclassMapper,
     DatetimeAsISO,
     DecimalAsStr,
     JSONTranscoder,
-    Mapper,
     MapperDeserialisationError,
     TranscodingNotRegisteredError,
     UUIDAsHex,
@@ -21,7 +21,7 @@ from eventsourcing.tests.domain import BankAccount
 from eventsourcing.utils import Environment, get_topic
 
 
-class TestMapper(TestCase):
+class TestDataclassMapper(TestCase):
     def test_basic_operations(self) -> None:
         # Construct transcoder.
         transcoder = JSONTranscoder()
@@ -46,7 +46,7 @@ class TestMapper(TestCase):
         )
 
         # Construct mapper with transcoder.
-        mapper = Mapper[UUID](transcoder=transcoder)
+        mapper = DataclassMapper[UUID](transcoder=transcoder)
 
         # Map to stored event.
         stored_event = mapper.to_stored_event(domain_event)
@@ -63,7 +63,7 @@ class TestMapper(TestCase):
         self.assertEqual(copy, domain_event)
 
         # Construct mapper with less capable transcoder.
-        mapper = Mapper(
+        mapper = DataclassMapper(
             transcoder=JSONTranscoder(),
             cipher=cipher,
         )
@@ -82,7 +82,7 @@ class TestMapper(TestCase):
             mapper.to_stored_event(domain_event)
 
         # Construct mapper with cipher.
-        mapper = Mapper(transcoder=transcoder, cipher=cipher)
+        mapper = DataclassMapper(transcoder=transcoder, cipher=cipher)
 
         # Map to stored event.
         stored_event = mapper.to_stored_event(domain_event)
@@ -100,7 +100,7 @@ class TestMapper(TestCase):
         self.assertEqual(len(stored_event.state), 162)
 
         # Construct mapper with cipher and compressor.
-        mapper = Mapper(
+        mapper = DataclassMapper(
             transcoder=transcoder,
             cipher=cipher,
             compressor=compressor,

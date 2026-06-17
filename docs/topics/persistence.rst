@@ -511,16 +511,17 @@ A mapper maps between domain event objects and stored event objects. It brings
 together a :ref:`transcoder<Transcoder>`, and optionally a :ref:`cipher<Encryption>`
 and a :ref:`compressor<Compression>`. It is used by an :ref:`event store<Store>`.
 
-The library's :class:`~eventsourcing.persistence.Mapper` class
+The library's :class:`~eventsourcing.persistence.DataclassMapper` class implements
+the abstract base class :class:`~eventsourcing.persistence.Mapper` and
 must be constructed with a :ref:`transcoder<Transcoder>` object.
 
 .. code-block:: python
 
-    from eventsourcing.persistence import Mapper
+    from eventsourcing.persistence import DataclassMapper
 
-    mapper = Mapper[UUID](transcoder=transcoder)
+    mapper = DataclassMapper[UUID](transcoder=transcoder)
 
-The :class:`~eventsourcing.persistence.Mapper` class defines a :func:`~eventsourcing.persistence.Mapper.to_stored_event`
+The :class:`~eventsourcing.persistence.DataclassMapper` class defines a :func:`~eventsourcing.persistence.DataclassMapper.to_stored_event`
 method, which converts :class:`~eventsourcing.domain.DomainEvent` objects to :class:`~eventsourcing.persistence.StoredEvent`
 objects.
 
@@ -542,7 +543,7 @@ objects.
     assert isinstance(stored_event, StoredEvent)
 
 
-The :class:`~eventsourcing.persistence.Mapper` class defines a :func:`~eventsourcing.persistence.Mapper.to_domain_event`
+The :class:`~eventsourcing.persistence.DataclassMapper` class defines a :func:`~eventsourcing.persistence.DataclassMapper.to_domain_event`
 method, which converts :class:`~eventsourcing.persistence.StoredEvent` objects to :class:`~eventsourcing.domain.DomainEvent`
 objects.
 
@@ -556,7 +557,7 @@ objects.
 Compression
 ===========
 
-The :class:`~eventsourcing.persistence.Mapper` class has an optional constructor argument, ``compressor``,
+The :class:`~eventsourcing.persistence.DataclassMapper` class has an optional constructor argument, ``compressor``,
 which accepts :class:`~eventsourcing.compressor.Compressor` objects. A compressor will compress and decompress
 the state of stored events, and can be used to reduce the size of stored events, reducing the transport time
 between an application and its database, and reducing the size of the database files.
@@ -572,7 +573,7 @@ Python's :mod:`zlib` module.
 
     compressor = ZlibCompressor()
 
-    mapper = Mapper(
+    mapper = DataclassMapper(
         transcoder=transcoder,
         compressor=compressor,
     )
@@ -596,7 +597,7 @@ If you want to use another compression strategy, then implement the
 Encryption
 ==========
 
-The :class:`~eventsourcing.persistence.Mapper` class has an optional constructor argument, ``cipher``,
+The :class:`~eventsourcing.persistence.DataclassMapper` class has an optional constructor argument, ``cipher``,
 which accepts :class:`~eventsourcing.persistence.Cipher` objects. A cipher will encrypt and decrypt the state
 of stored events within an event-sourced application, inhibiting disclosure of sensitive information in
 case of unauthorised access to an application's database files and backups, or network interception.
@@ -638,7 +639,7 @@ decrypt stored events as that which was used to encrypt stored events.
     environment["CIPHER_KEY"] = key
     cipher = AESCipher(environment)
 
-    mapper = Mapper(
+    mapper = DataclassMapper(
         transcoder=transcoder,
         cipher=cipher,
     )
@@ -666,7 +667,7 @@ Stored events can be both compressed and encrypted.
 
 .. code-block:: python
 
-    mapper = Mapper(
+    mapper = DataclassMapper(
         transcoder=transcoder,
         cipher=cipher,
         compressor=compressor,

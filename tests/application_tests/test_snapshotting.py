@@ -5,11 +5,11 @@ from uuid import UUID
 
 from eventsourcing.domain import Snapshot
 from eventsourcing.persistence import (
+    DataclassMapper,
     DatetimeAsISO,
     DecimalAsStr,
     EventStore,
     JSONTranscoder,
-    Mapper,
     UUIDAsHex,
 )
 from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatastore
@@ -41,7 +41,7 @@ class TestSnapshotting(TestCase):
             events_table_name="snapshots",
         )
         snapshot_store = EventStore[UUID](
-            mapper=Mapper(transcoder=transcoder),
+            mapper=DataclassMapper(transcoder=transcoder),
             recorder=recorder,
         )
         recorder.create_table()

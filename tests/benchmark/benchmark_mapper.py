@@ -12,10 +12,10 @@ import examples.aggregate7.immutablemodel
 import examples.aggregate9.immutablemodel
 from eventsourcing.domain import datetime_now_with_tzinfo
 from eventsourcing.persistence import (
+    DataclassMapper,
     DatetimeAsISO,
     DecimalAsStr,
     JSONTranscoder,
-    Mapper,
     UUIDAsHex,
 )
 from examples.aggregate7.orjsonpydantic import OrjsonTranscoder, PydanticMapper
@@ -48,7 +48,7 @@ def test_encode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
     transcoder.register(UUIDAsHex())
     transcoder.register(DatetimeAsISO())
     transcoder.register(DecimalAsStr())
-    mapper = Mapper[UUID](transcoder=transcoder)
+    mapper = DataclassMapper[UUID](transcoder=transcoder)
 
     def func() -> None:
         mapper.to_stored_event(obj)
@@ -79,7 +79,7 @@ def test_decode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
     transcoder.register(UUIDAsHex())
     transcoder.register(DatetimeAsISO())
     transcoder.register(DecimalAsStr())
-    mapper = Mapper[UUID](transcoder=transcoder)
+    mapper = DataclassMapper[UUID](transcoder=transcoder)
 
     stored_event = mapper.to_stored_event(obj)
 

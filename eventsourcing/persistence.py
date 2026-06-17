@@ -360,10 +360,10 @@ class MapperDeserialisationError(EventSourcingError, ValueError):
 TAggregateIDType = TypeVar("TAggregateIDType", type[UUID], type[str])
 
 
-class Mapper(Generic[TAggregateID]):
-    """Converts between domain event objects and :class:`StoredEvent` objects.
-
-    Uses a :class:`Transcoder`, and optionally a cryptographic cipher and compressor.
+class Mapper(ABC, Generic[TAggregateID]):
+    """
+    Abstract base class for converting between domain event
+    objects and :class:`StoredEvent` objects.
     """
 
     def __init__(
@@ -376,10 +376,28 @@ class Mapper(Generic[TAggregateID]):
         self.compressor = compressor
         self.cipher = cipher
 
+    @abstractmethod
     def to_stored_event(
         self, domain_event: DomainEventProtocol[TAggregateID]
     ) -> StoredEvent:
         """Converts the given domain event to a :class:`StoredEvent` object."""
+
+    @abstractmethod
+    def to_domain_event(
+        self, stored_event: StoredEvent
+    ) -> DomainEventProtocol[TAggregateID]:
+        """Converts the given :class:`StoredEvent` to a domain event object."""
+
+
+class DataclassMapper(Mapper[TAggregateID]):
+    """Converts between dataclass domain event objects and :class:`StoredEvent` objects.
+
+    Uses a :class:`Transcoder`, and optionally a cryptographic cipher and compressor.
+    """
+
+    def to_stored_event(
+        self, domain_event: DomainEventProtocol[TAggregateID]
+    ) -> StoredEvent:
         topic = get_topic(domain_event.__class__)
         event_state = dict(vars(domain_event))
         originator_id = event_state.pop("originator_id")
@@ -961,7 +979,9 @@ class InfrastructureFactory(BaseInfrastructureFactory[TTrackingRecorder]):
         if mapper_class is None:
             mapper_topic = self.env.get(self.MAPPER_TOPIC)
             mapper_class = (
-                resolve_topic(mapper_topic) if mapper_topic else Mapper[TAggregateID]
+                resolve_topic(mapper_topic)
+                if mapper_topic
+                else DataclassMapper[TAggregateID]
             )
 
         # Check we have a mapper class.

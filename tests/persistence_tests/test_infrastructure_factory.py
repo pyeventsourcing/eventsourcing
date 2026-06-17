@@ -4,6 +4,7 @@ from uuid import UUID
 import eventsourcing.popo
 from eventsourcing.persistence import (
     ApplicationRecorder,
+    DataclassMapper,
     EventStore,
     InfrastructureFactory,
     InfrastructureFactoryError,
@@ -74,18 +75,20 @@ class TestInfrastructureFactory(TestCase):
 
     def test_construct_mapper(self) -> None:
         # No environment variables.
-        factory = InfrastructureFactory.construct()
+        factory: InfrastructureFactory = InfrastructureFactory.construct()
         mapper: Mapper[UUID] = factory.mapper()
-        self.assertIsInstance(mapper, Mapper)
+        self.assertIsInstance(mapper, DataclassMapper)
         self.assertIsInstance(mapper.transcoder, JSONTranscoder)
 
         # MAPPER_TOPIC set to Mapper.
-        env = Environment(env={InfrastructureFactory.MAPPER_TOPIC: get_topic(Mapper)})
+        env = Environment(
+            env={InfrastructureFactory.MAPPER_TOPIC: get_topic(DataclassMapper)}
+        )
         factory = InfrastructureFactory.construct(env)
         mapper = factory.mapper()
-        self.assertIsInstance(mapper, Mapper)
+        self.assertIsInstance(mapper, DataclassMapper)
 
-        class MyMapper(Mapper[UUID]):
+        class MyMapper(DataclassMapper[UUID]):
             pass
 
         # MAPPER_TOPIC set to MyMapper.
@@ -112,10 +115,10 @@ class TestInfrastructureFactory(TestCase):
         self.assertIsInstance(mapper, MyMapper)
 
     def test_construct_event_store(self) -> None:
-        factory = InfrastructureFactory.construct()
+        factory: InfrastructureFactory = InfrastructureFactory.construct()
         event_store: EventStore[UUID] = factory.event_store()
         self.assertIsInstance(event_store, EventStore)
-        self.assertIsInstance(event_store.mapper, Mapper)
+        self.assertIsInstance(event_store.mapper, DataclassMapper)
         self.assertIsInstance(event_store.recorder, ApplicationRecorder)
 
         my_mapper: Mapper[UUID] = factory.mapper()
