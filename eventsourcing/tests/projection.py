@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import ClassVar
 from unittest import TestCase
-from uuid import NAMESPACE_URL, UUID, uuid5
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from typing_extensions import deprecated
 
@@ -16,7 +16,12 @@ from eventsourcing.dcb.application import DCBApplication
 from eventsourcing.dcb.domain import EnduringObject, Tagged
 from eventsourcing.dcb.msgpack import Decision, InitialDecision
 from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain import Aggregate, DomainEventProtocol, event
+from eventsourcing.domain import (
+    Aggregate,
+    DomainEventProtocol,
+    event,
+    put_metadata_in_context,
+)
 from eventsourcing.persistence import (
     IntegrityError,
     Tracking,
@@ -398,24 +403,65 @@ class EventSourcedProjectionTestCase(TestCase):
         with EventSourcedProjectionRunner(
             application_class=Application, projection_class=Counters, env=self.env
         ) as runner:
-            recordings = runner.app.save(Aggregate())
+            app_max_id = runner.app.recorder.max_notification_id()
+            projection_max_id = runner.projection.recorder.max_notification_id()
+
+            def fresh_metadata() -> dict[str, str]:
+                correlation_id = uuid4()
+                return {
+                    "correlation_id": str(correlation_id),
+                    "causation_id": str(correlation_id),
+                }
+
+            with put_metadata_in_context(fresh_metadata()):
+                recordings = runner.app.save(Aggregate())
             runner.wait(recordings[-1].notification.id)
             self.assertEqual(1, runner.projection.get_count(Aggregate.Created))
             self.assertEqual(0, runner.projection.get_count(Aggregate.Event))
 
-            recordings = runner.app.save(Aggregate())
+            with put_metadata_in_context(fresh_metadata()):
+                recordings = runner.app.save(Aggregate())
             runner.wait(recordings[-1].notification.id)
             self.assertEqual(2, runner.projection.get_count(Aggregate.Created))
             self.assertEqual(0, runner.projection.get_count(Aggregate.Event))
 
-            recordings = runner.app.save(Aggregate())
+            with put_metadata_in_context(fresh_metadata()):
+                recordings = runner.app.save(Aggregate())
             runner.wait(recordings[-1].notification.id)
             self.assertEqual(3, runner.projection.get_count(Aggregate.Created))
             self.assertEqual(0, runner.projection.get_count(Aggregate.Event))
 
-            aggregate = Aggregate()
-            aggregate.trigger_event(Aggregate.Event)
+            with put_metadata_in_context(fresh_metadata()):
+                aggregate = Aggregate()
+                aggregate.trigger_event(Aggregate.Event)
             recordings = runner.app.save(aggregate)
             runner.wait(recordings[-1].notification.id)
             self.assertEqual(4, runner.projection.get_count(Aggregate.Created))
             self.assertEqual(1, runner.projection.get_count(Aggregate.Event))
+
+            # Check the correlation and causation IDs.
+            original_events: dict[str, DomainEventProtocol[UUID]] = {}
+            for notification in runner.app.notification_log.select(
+                start=app_max_id,
+                limit=10,
+                inclusive_of_start=False,
+            ):
+                domain_event = runner.projection.mapper.to_domain_event(notification)
+                self.assertEqual(
+                    domain_event.metadata["correlation_id"],
+                    domain_event.metadata["causation_id"],
+                )
+                original_events[str(domain_event.event_id)] = domain_event
+
+            for notification in runner.projection.notification_log.select(
+                start=projection_max_id,
+                limit=10,
+                inclusive_of_start=False,
+            ):
+                domain_event = runner.projection.mapper.to_domain_event(notification)
+                self.assertIn(domain_event.metadata["causation_id"], original_events)
+                causal_event = original_events[domain_event.metadata["causation_id"]]
+                self.assertEqual(
+                    causal_event.metadata["correlation_id"],
+                    domain_event.metadata["correlation_id"],
+                )

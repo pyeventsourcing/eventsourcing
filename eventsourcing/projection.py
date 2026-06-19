@@ -20,6 +20,7 @@ from eventsourcing.domain import (
     DomainEventProtocol,
     TAggregateID,
     null_metadata_in_context,
+    put_metadata_in_context,
 )
 from eventsourcing.persistence import (
     InfrastructureFactory,
@@ -227,7 +228,12 @@ class EventSourcedProjection(Application[TAggregateID], ABC):
         :py:func:`~eventsourcing.application.Application._notify`.
         """
         processing_event = ProcessingEvent[TAggregateID](tracking=tracking)
-        self.policy(domain_event, processing_event)
+        metadata = {}
+        with contextlib.suppress(KeyError):
+            metadata["correlation_id"] = domain_event.metadata["correlation_id"]
+            metadata["causation_id"] = str(domain_event.event_id)
+        with put_metadata_in_context(metadata):
+            self.policy(domain_event, processing_event)
         recordings = self._record(processing_event)
         self._take_snapshots(processing_event)
         self.notify(processing_event.events)

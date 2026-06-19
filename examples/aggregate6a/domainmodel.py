@@ -19,12 +19,13 @@ if TYPE_CHECKING:
     from datetime import datetime
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class DomainEvent:
     originator_id: UUID
     originator_version: int
     timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
     metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
+    event_id: UUID = field(default_factory=uuid4)
 
 
 @dataclass(frozen=True)

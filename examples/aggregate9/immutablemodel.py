@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import datetime  # noqa: TC003
 from typing import TYPE_CHECKING
-from uuid import UUID  # noqa: TC003
+from uuid import UUID, uuid4
 
 import msgspec
 from msgspec import field
@@ -25,6 +25,7 @@ class DomainEvent(Immutable, frozen=True, kw_only=True):
     originator_version: int
     timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
     metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
+    event_id: UUID = field(default_factory=uuid4)
 
 
 class Aggregate(Immutable, frozen=True):

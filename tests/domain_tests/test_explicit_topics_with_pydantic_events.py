@@ -32,6 +32,7 @@ class DomainEvent(Immutable):
     originator_version: int
     timestamp: datetime = Field(default_factory=datetime_now_with_tzinfo)
     metadata: dict[str, str] = Field(default_factory=get_metadata_from_context)
+    event_id: UUID = Field(default_factory=uuid4)
 
 
 # Making the aggregate uncallable has nothing to do with explicit topics.

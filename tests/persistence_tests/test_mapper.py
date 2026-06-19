@@ -1,3 +1,4 @@
+import json
 from decimal import Decimal
 from unittest.case import TestCase
 from uuid import UUID, uuid4
@@ -6,7 +7,9 @@ from eventsourcing.cipher import AESCipher
 from eventsourcing.compressor import ZlibCompressor
 from eventsourcing.domain import (
     CanMutateAggregate,
+    DomainEvent,
     HasOriginatorIDVersion,
+    put_metadata_in_context,
 )
 from eventsourcing.persistence import (
     DataclassMapper,
@@ -14,6 +17,7 @@ from eventsourcing.persistence import (
     DecimalAsStr,
     JSONTranscoder,
     MapperDeserialisationError,
+    StoredEvent,
     TranscodingNotRegisteredError,
     UUIDAsHex,
     find_id_convertor,
@@ -99,7 +103,7 @@ class TestDataclassMapper(TestCase):
         self.assertEqual(copy.originator_id, domain_event.originator_id)
         self.assertEqual(copy.originator_version, domain_event.originator_version)
 
-        self.assertEqual(len(stored_event.state), 176)
+        self.assertEqual(len(stored_event.state), 253)
 
         # Construct mapper with cipher and compressor.
         mapper = DataclassMapper(
@@ -135,30 +139,32 @@ class TestDataclassMapper(TestCase):
 
         self.assertIs(find_id_convertor(HasStringID, str), pass_through_convertor)
 
-        # Check raises if no type arg have been provided.
-        with self.assertRaises(TypeError) as cm:
-            self.assertIs(
-                find_id_convertor(HasOriginatorIDVersion, str), pass_through_convertor
-            )
-
-        self.assertIn("originator_id_type cannot be None", str(cm.exception))
-
-        # Check raises if no type arg has been provided.
-        with self.assertRaises(TypeError) as cm:
-            self.assertIs(
-                find_id_convertor(CanMutateAggregate, str), pass_through_convertor
-            )
-
-        self.assertIn("originator_id_type cannot be None", str(cm.exception))
-
-        # Check raises if no type arg has been provided.
-        class HasNoneID(HasOriginatorIDVersion):  # type: ignore[type-arg]
-            pass
-
-        with self.assertRaises(TypeError) as cm:
-            self.assertIs(find_id_convertor(HasNoneID, str), pass_through_convertor)
-
-        self.assertIn("originator_id_type cannot be None", str(cm.exception))
+        # Note: these commented codes becaue TAggregateID now has a default (UUID):
+        #
+        # # Check raises if no type arg have been provided.
+        # with self.assertRaises(TypeError) as cm:
+        #     self.assertIs(
+        #         find_id_convertor(HasOriginatorIDVersion, str), pass_through_convertor
+        #     )
+        #
+        # self.assertIn("originator_id_type cannot be None", str(cm.exception))
+        #
+        # # Check raises if no type arg has been provided.
+        # with self.assertRaises(TypeError) as cm:
+        #     self.assertIs(
+        #         find_id_convertor(CanMutateAggregate, str), pass_through_convertor
+        #     )
+        #
+        # self.assertIn("originator_id_type cannot be None", str(cm.exception))
+        #
+        # # Check raises if no type arg has been provided.
+        # class HasNoneID(HasOriginatorIDVersion):
+        #     pass
+        #
+        # with self.assertRaises(TypeError) as cm:
+        #     self.assertIs(find_id_convertor(HasNoneID, str), pass_through_convertor)
+        #
+        # self.assertIn("originator_id_type cannot be None", str(cm.exception))
 
         # Check UUID annotation.
         class HasAnnotationUUID:
@@ -206,6 +212,126 @@ class TestDataclassMapper(TestCase):
         self.assertIsInstance(pass_through_convertor(""), str)
         self.assertIsInstance(pass_through_convertor(uuid4()), UUID)
         self.assertIsInstance(str_to_uuid_convertor(str(uuid4())), UUID)
+
+    def test_default_to_database_generated_event_id(self) -> None:
+        # Construct mapper with transcoder.
+        transcoder = JSONTranscoder()
+        transcoder.register(UUIDAsHex())
+        transcoder.register(DecimalAsStr())
+        transcoder.register(DatetimeAsISO())
+        mapper = DataclassMapper[UUID](transcoder=transcoder)
+
+        # Create a domain event.
+        domain_event = BankAccount.TransactionAppended(
+            originator_id=uuid4(),
+            originator_version=123456,
+            amount=Decimal("10.00"),
+        )
+
+        # Map to stored event.
+        stored_event = mapper.to_stored_event(domain_event)
+
+        # Remove `event_id` from serialised state.
+        modified_state = json.loads(stored_event.state.decode())
+        modified_state.pop("event_id")
+
+        # Set `event_id` on StoredEvent (as if database-generated).
+        event_id = uuid4()
+        modified_stored_event = StoredEvent(
+            originator_id=stored_event.originator_id,
+            originator_version=stored_event.originator_version,
+            topic=stored_event.topic,
+            state=json.dumps(modified_state).encode(),
+            event_id=event_id,
+        )
+
+        # Map to domain event.
+        copy = mapper.to_domain_event(modified_stored_event)
+
+        # Check copy has correct values.
+        self.assertEqual(copy.event_id, event_id)
+        assert isinstance(copy, BankAccount.TransactionAppended)
+        self.assertEqual(copy.originator_id, domain_event.originator_id)
+        self.assertEqual(copy.originator_version, domain_event.originator_version)
+        self.assertEqual(copy.timestamp, domain_event.timestamp)
+        self.assertEqual(copy.amount, domain_event.amount)
+
+    def test_supplement_domain_event_metadata_from_stored_event_metadata(self) -> None:
+        # Construct mapper with transcoder.
+        transcoder = JSONTranscoder()
+        transcoder.register(UUIDAsHex())
+        transcoder.register(DecimalAsStr())
+        transcoder.register(DatetimeAsISO())
+        mapper = DataclassMapper[UUID](transcoder=transcoder)
+
+        # Create a domain event.
+        with put_metadata_in_context({"user_id": "user-1"}):
+            domain_event = BankAccount.TransactionAppended(
+                originator_id=uuid4(),
+                originator_version=123456,
+                amount=Decimal("10.00"),
+            )
+
+        self.assertEqual(domain_event.metadata["user_id"], "user-1")
+
+        # Map to stored event.
+        stored_event = mapper.to_stored_event(domain_event)
+
+        # Check the stored event has the metadata.
+        metadata = json.loads(stored_event.metadata)
+        self.assertEqual(metadata["user_id"], "user-1")
+
+        # Adjust the metadata.
+        metadata = json.dumps(
+            {
+                "user_id": "user-2",
+                "correlation_id": "12345",
+                "causation_id": "67890",
+            }
+        ).encode()
+
+        modified_stored_event = StoredEvent(
+            originator_id=stored_event.originator_id,
+            originator_version=stored_event.originator_version,
+            topic=stored_event.topic,
+            state=stored_event.state,
+            metadata=metadata,
+            event_id=stored_event.event_id,
+        )
+
+        # Map to domain event.
+        copy = mapper.to_domain_event(modified_stored_event)
+
+        # Check copy has correct values.
+        self.assertEqual(copy.metadata["user_id"], "user-1")
+        self.assertEqual(copy.metadata["correlation_id"], "12345")
+        self.assertEqual(copy.metadata["causation_id"], "67890")
+        assert isinstance(copy, BankAccount.TransactionAppended)
+        self.assertEqual(copy.originator_id, domain_event.originator_id)
+        self.assertEqual(copy.originator_version, domain_event.originator_version)
+        self.assertEqual(copy.timestamp, domain_event.timestamp)
+        self.assertEqual(copy.amount, domain_event.amount)
+
+    def test_raises_type_error_if_originator_id_type_is_none(self) -> None:
+        # Construct mapper with transcoder.
+        transcoder = JSONTranscoder()
+        transcoder.register(UUIDAsHex())
+        transcoder.register(DecimalAsStr())
+        transcoder.register(DatetimeAsISO())
+        mapper = DataclassMapper[UUID](transcoder=transcoder)
+
+        # Define a subclass of HasOriginatorIDVersion and set
+        # `originator_id_type` to None.
+        class Sub(DomainEvent, CanMutateAggregate):
+            originator_id_type = None
+
+        self.assertIsNone(Sub.originator_id_type)
+
+        domain_event = Sub(originator_id=uuid4(), originator_version=1)
+
+        stored_event = mapper.to_stored_event(domain_event)
+        with self.assertRaises(TypeError):
+            mapper.to_domain_event(stored_event)
 
 
 # TODO: Move the upcasting tests in here.

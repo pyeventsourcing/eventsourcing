@@ -34,6 +34,9 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
     def tearDown(self) -> None:
         drop_tables()
 
+    def test_event_sourced_projection(self) -> None:
+        super().test_event_sourced_projection()
+
     def test_server_closes_connections_before_run_forever(self) -> None:
         with EventSourcedProjectionRunner(
             application_class=Application,

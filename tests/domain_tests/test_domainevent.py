@@ -5,6 +5,8 @@ from time import sleep
 from unittest.case import TestCase
 from uuid import UUID, uuid4
 
+from typing_extensions import TypeVar
+
 import eventsourcing.domain
 from eventsourcing.domain import (
     CanInitAggregate,
@@ -15,6 +17,7 @@ from eventsourcing.domain import (
     MetaDomainEvent,
     create_utc_datetime_now,
     datetime_now_with_tzinfo,
+    event_id_from_originator_id_and_version,
 )
 
 
@@ -54,6 +57,29 @@ class TestDomainEvent(TestCase):
         self.assertEqual(a.originator_version, originator_version)
         self.assertIsInstance(a.timestamp, datetime)
         self.assertEqual(a.metadata, {})
+
+    def test_event_id_as_given(self) -> None:
+        originator_id = uuid4()
+        originator_version = 101
+        event_id = uuid4()
+        e = DomainEvent(
+            originator_id=originator_id,
+            originator_version=originator_version,
+            event_id=event_id,
+        )
+        self.assertEqual(e.event_id, event_id)
+
+    def test_event_id_deterministic_fallback(self) -> None:
+        originator_id = uuid4()
+        originator_version = 101
+        expected_event_id = event_id_from_originator_id_and_version(
+            originator_id, originator_version
+        )
+        e = DomainEvent(
+            originator_id=originator_id,
+            originator_version=originator_version,
+        )
+        self.assertEqual(e.event_id, expected_event_id)
 
     def test_examples(self) -> None:
         # Define an 'account opened' domain event.

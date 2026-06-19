@@ -50,6 +50,22 @@ class RecorderTestCase(TestCase, ABC):
     def new_originator_id(self) -> UUID | str:
         return uuid4()
 
+    def assert_events_eq(
+        self,
+        events1: Sequence[StoredEvent],
+        events2: Sequence[StoredEvent],
+    ) -> None:
+        self.assertEqual(len(events1), len(events2))
+        for i in range(len(events1)):
+            self.assert_event_eq(events1[i], events2[i])
+
+    def assert_event_eq(self, event1: StoredEvent, event2: StoredEvent) -> None:
+        self.assertEqual(event1.originator_id, event2.originator_id)
+        self.assertEqual(event1.originator_version, event2.originator_version)
+        self.assertEqual(event1.topic, event2.topic)
+        self.assertEqual(event1.state, event2.state)
+        self.assertEqual(event1.metadata, event2.metadata)
+
 
 class AggregateRecorderTestCase(RecorderTestCase, ABC):
     @abstractmethod
@@ -66,130 +82,95 @@ class AggregateRecorderTestCase(RecorderTestCase, ABC):
 
         # Select stored events, expect empty list.
         originator_id1 = self.new_originator_id()
-        self.assertEqual(
+        self.assert_events_eq(
             recorder.select_events(originator_id1, desc=True, limit=1),
             [],
         )
 
         # Write a stored event.
-        stored_event1 = StoredEvent(
+        event1 = StoredEvent(
             originator_id=originator_id1,
             originator_version=self.INITIAL_VERSION,
             topic="topic1",
             state=b"state1",
         )
-        notification_ids = recorder.insert_events([stored_event1])
+        notification_ids = recorder.insert_events([event1])
         self.assertEqual(notification_ids, None)
 
         # Select stored events, expect list of one.
-        stored_events = recorder.select_events(originator_id1)
-        self.assertEqual(len(stored_events), 1)
-        self.assertEqual(stored_events[0].originator_id, originator_id1)
-        self.assertEqual(stored_events[0].originator_version, self.INITIAL_VERSION)
-        self.assertEqual(stored_events[0].topic, "topic1")
-        self.assertEqual(stored_events[0].state, b"state1")
-        self.assertIsInstance(stored_events[0].state, bytes)
+        self.assert_events_eq(recorder.select_events(originator_id1), [event1])
 
         # Check get record conflict error if attempt to store it again.
         with self.assertRaises(IntegrityError):
-            recorder.insert_events([stored_event1])
+            recorder.insert_events([event1])
 
         # Check writing of events is atomic.
-        stored_event2 = StoredEvent(
+        event2 = StoredEvent(
             originator_id=originator_id1,
             originator_version=self.INITIAL_VERSION + 1,
             topic="topic2",
             state=b"state2",
         )
         with self.assertRaises(IntegrityError):
-            recorder.insert_events([stored_event1, stored_event2])
+            recorder.insert_events([event1, event2])
 
         with self.assertRaises(IntegrityError):
-            recorder.insert_events([stored_event2, stored_event2])
+            recorder.insert_events([event2, event2])
 
         # Check still only have one record.
-        stored_events = recorder.select_events(originator_id1)
-        self.assertEqual(len(stored_events), 1)
-        self.assertEqual(stored_events[0].originator_id, stored_event1.originator_id)
-        self.assertEqual(
-            stored_events[0].originator_version, stored_event1.originator_version
-        )
-        self.assertEqual(stored_events[0].topic, stored_event1.topic)
+        self.assert_events_eq(recorder.select_events(originator_id1), [event1])
 
         # Check can write two events together.
-        stored_event3 = StoredEvent(
+        event3 = StoredEvent(
             originator_id=originator_id1,
             originator_version=self.INITIAL_VERSION + 2,
             topic="topic3",
             state=b"state3",
         )
-        notification_ids = recorder.insert_events([stored_event2, stored_event3])
+        notification_ids = recorder.insert_events([event2, event3])
         self.assertEqual(notification_ids, None)
 
         # Check we got what was written.
-        stored_events = recorder.select_events(originator_id1)
-        self.assertEqual(len(stored_events), 3)
-        self.assertEqual(stored_events[0].originator_id, originator_id1)
-        self.assertEqual(stored_events[0].originator_version, self.INITIAL_VERSION)
-        self.assertEqual(stored_events[0].topic, "topic1")
-        self.assertEqual(stored_events[0].state, b"state1")
-        self.assertEqual(stored_events[1].originator_id, originator_id1)
-        self.assertEqual(stored_events[1].originator_version, self.INITIAL_VERSION + 1)
-        self.assertEqual(stored_events[1].topic, "topic2")
-        self.assertEqual(stored_events[1].state, b"state2")
-        self.assertEqual(stored_events[2].originator_id, originator_id1)
-        self.assertEqual(stored_events[2].originator_version, self.INITIAL_VERSION + 2)
-        self.assertEqual(stored_events[2].topic, "topic3")
-        self.assertEqual(stored_events[2].state, b"state3")
+        self.assert_events_eq(
+            recorder.select_events(originator_id1),
+            [event1, event2, event3],
+        )
 
         # Check we can get the last one recorded (used to get last snapshot).
-        stored_events = recorder.select_events(originator_id1, desc=True, limit=1)
-        self.assertEqual(len(stored_events), 1)
-        self.assertEqual(
-            stored_events[0],
-            stored_event3,
+        self.assert_events_eq(
+            recorder.select_events(originator_id1, desc=True, limit=1),
+            [event3],
         )
 
         # Check we can get the last one before a particular version.
-        stored_events = recorder.select_events(
-            originator_id1, lte=self.INITIAL_VERSION + 1, desc=True, limit=1
-        )
-        self.assertEqual(len(stored_events), 1)
-        self.assertEqual(
-            stored_events[0],
-            stored_event2,
+        self.assert_events_eq(
+            recorder.select_events(
+                originator_id1, lte=self.INITIAL_VERSION + 1, desc=True, limit=1
+            ),
+            [event2],
         )
 
         # Check we can get events between versions (historical state with snapshot).
-        stored_events = recorder.select_events(
-            originator_id1, gt=self.INITIAL_VERSION, lte=self.INITIAL_VERSION + 1
-        )
-        self.assertEqual(len(stored_events), 1)
-        self.assertEqual(
-            stored_events[0],
-            stored_event2,
+        self.assert_events_eq(
+            recorder.select_events(
+                originator_id1, gt=self.INITIAL_VERSION, lte=self.INITIAL_VERSION + 1
+            ),
+            [event2],
         )
 
         # Check aggregate sequences are distinguished.
         originator_id2 = self.new_originator_id()
-        self.assertEqual(
-            recorder.select_events(originator_id2),
-            [],
-        )
+        self.assertEqual(recorder.select_events(originator_id2), [])
 
         # Write a stored event in a different sequence.
-        stored_event4 = StoredEvent(
+        event4 = StoredEvent(
             originator_id=originator_id2,
             originator_version=0,
             topic="topic4",
             state=b"state4",
         )
-        recorder.insert_events([stored_event4])
-        stored_events = recorder.select_events(originator_id2)
-        self.assertEqual(
-            stored_events,
-            [stored_event4],
-        )
+        recorder.insert_events([event4])
+        self.assert_events_eq(recorder.select_events(originator_id2), [event4])
 
     def test_performance(self) -> None:
         # Construct the recorder.
@@ -198,13 +179,13 @@ class AggregateRecorderTestCase(RecorderTestCase, ABC):
         def insert() -> None:
             originator_id = self.new_originator_id()
 
-            stored_event = StoredEvent(
+            event = StoredEvent(
                 originator_id=originator_id,
                 originator_version=self.INITIAL_VERSION,
                 topic="topic1",
                 state=b"state1",
             )
-            recorder.insert_events([stored_event])
+            recorder.insert_events([event])
 
         # Warm up.
         number = 10
@@ -250,42 +231,42 @@ class ApplicationRecorderTestCase(
         originator_id1 = self.new_originator_id()
         originator_id2 = self.new_originator_id()
 
-        stored_event1 = StoredEvent(
+        event1 = StoredEvent(
             originator_id=originator_id1,
             originator_version=self.INITIAL_VERSION,
             topic="topic1",
             state=b"state1",
         )
-        stored_event2 = StoredEvent(
+        event2 = StoredEvent(
             originator_id=originator_id1,
             originator_version=self.INITIAL_VERSION + 1,
             topic="topic2",
             state=b"state2",
         )
 
-        notification_ids = recorder.insert_events([stored_event1, stored_event2])
+        notification_ids = recorder.insert_events([event1, event2])
         self.assertEqual(notification_ids, [1, 2])
 
         # Store a third event.
-        stored_event3 = StoredEvent(
+        event3 = StoredEvent(
             originator_id=originator_id2,
             originator_version=self.INITIAL_VERSION,
             topic="topic3",
             state=b"state3",
         )
-        notification_ids = recorder.insert_events([stored_event3])
+        notification_ids = recorder.insert_events([event3])
         self.assertEqual(notification_ids, [3])
 
-        stored_events1 = recorder.select_events(originator_id1)
-        stored_events2 = recorder.select_events(originator_id2)
+        events1 = recorder.select_events(originator_id1)
+        events2 = recorder.select_events(originator_id2)
 
         # Check we got what was written.
-        self.assertEqual(len(stored_events1), 2)
-        self.assertEqual(len(stored_events2), 1)
+        self.assertEqual(len(events1), 2)
+        self.assertEqual(len(events2), 1)
 
         # Check get record conflict error if attempt to store it again.
         with self.assertRaises(IntegrityError):
-            recorder.insert_events([stored_event3])
+            recorder.insert_events([event3])
 
         # sleep(1)  # Added to make eventsourcing-axon tests work.
         notifications = recorder.select_notifications(start=None, limit=10)
@@ -448,13 +429,13 @@ class ApplicationRecorderTestCase(
         def insert() -> None:
             originator_id = self.new_originator_id()
 
-            stored_event = StoredEvent(
+            event = StoredEvent(
                 originator_id=originator_id,
                 originator_version=self.INITIAL_VERSION,
                 topic="topic1",
                 state=b"state1",
             )
-            recorder.insert_events([stored_event])
+            recorder.insert_events([event])
 
         # Warm up.
         number = 10
@@ -499,7 +480,7 @@ class ApplicationRecorderTestCase(
             # count = counts[thread_id]
 
             originator_id = self.new_originator_id()
-            stored_events = [
+            events = [
                 StoredEvent(
                     originator_id=originator_id,
                     originator_version=i,
@@ -511,7 +492,7 @@ class ApplicationRecorderTestCase(
             started = datetime_now_with_tzinfo()
             # print(f"Thread {thread_num} write beginning #{count + 1}")
             try:
-                recorder.insert_events(stored_events)
+                recorder.insert_events(events)
 
             except Exception as e:  # pragma: no cover
                 if errors:
@@ -588,7 +569,7 @@ class ApplicationRecorderTestCase(
 
         def insert_events() -> None:
             originator_id = self.new_originator_id()
-            stored_events = [
+            events = [
                 StoredEvent(
                     originator_id=originator_id,
                     originator_version=i,
@@ -599,7 +580,7 @@ class ApplicationRecorderTestCase(
             ]
 
             try:
-                recorder.insert_events(stored_events)
+                recorder.insert_events(events)
 
             except Exception:  # pragma: no cover
                 errors_happened.set()
@@ -641,20 +622,20 @@ class ApplicationRecorderTestCase(
         originator_id1 = self.new_originator_id()
         originator_id2 = self.new_originator_id()
 
-        stored_event1 = StoredEvent(
+        event1 = StoredEvent(
             originator_id=originator_id1,
             originator_version=self.INITIAL_VERSION,
             topic="topic1",
             state=b"state1",
         )
-        stored_event2 = StoredEvent(
+        event2 = StoredEvent(
             originator_id=originator_id1,
             originator_version=self.INITIAL_VERSION + 1,
             topic="topic2",
             state=b"state2",
         )
 
-        notification_ids = recorder.insert_events([stored_event1, stored_event2])
+        notification_ids = recorder.insert_events([event1, event2])
         if self.EXPECT_CONTIGUOUS_NOTIFICATION_IDS:
             self.assertEqual(
                 notification_ids, [1 + initial_position, 2 + initial_position]
@@ -688,30 +669,26 @@ class ApplicationRecorderTestCase(
                     break
 
             # Check the events we received are the ones that were written.
+            self.assertEqual(event1.originator_id, notifications[0].originator_id)
             self.assertEqual(
-                stored_event1.originator_id, notifications[0].originator_id
+                event1.originator_version, notifications[0].originator_version
             )
+            self.assertEqual(event2.originator_id, notifications[1].originator_id)
             self.assertEqual(
-                stored_event1.originator_version, notifications[0].originator_version
-            )
-            self.assertEqual(
-                stored_event2.originator_id, notifications[1].originator_id
-            )
-            self.assertEqual(
-                stored_event2.originator_version, notifications[1].originator_version
+                event2.originator_version, notifications[1].originator_version
             )
             if self.EXPECT_CONTIGUOUS_NOTIFICATION_IDS:
                 self.assertEqual(1 + initial_position, notifications[0].id)
                 self.assertEqual(2 + initial_position, notifications[1].id)
 
             # Store a third event.
-            stored_event3 = StoredEvent(
+            event3 = StoredEvent(
                 originator_id=originator_id2,
                 originator_version=self.INITIAL_VERSION,
                 topic="topic3",
                 state=b"state3",
             )
-            notification_ids = recorder.insert_events([stored_event3])
+            notification_ids = recorder.insert_events([event3])
             if self.EXPECT_CONTIGUOUS_NOTIFICATION_IDS:
                 self.assertEqual(notification_ids, [3 + initial_position])
 
@@ -722,11 +699,9 @@ class ApplicationRecorderTestCase(
                     break
 
             # Check the events we received are the ones that were written.
+            self.assertEqual(event3.originator_id, notifications[2].originator_id)
             self.assertEqual(
-                stored_event3.originator_id, notifications[2].originator_id
-            )
-            self.assertEqual(
-                stored_event3.originator_version, notifications[2].originator_version
+                event3.originator_version, notifications[2].originator_version
             )
             if self.EXPECT_CONTIGUOUS_NOTIFICATION_IDS:
                 self.assertEqual(3 + initial_position, notifications[2].id)
@@ -742,9 +717,7 @@ class ApplicationRecorderTestCase(
                     break
 
             # Check the events we received are the ones that were written.
-            self.assertEqual(
-                stored_event3.originator_id, notifications[0].originator_id
-            )
+            self.assertEqual(event3.originator_id, notifications[0].originator_id)
 
         # Start a subscription, call stop() during iteration.
         with recorder.subscribe(gt=initial_position) as subscription:
@@ -779,9 +752,8 @@ class ApplicationRecorderTestCase(
             for notification in subscription:
                 self.assertEqual(notification.topic, "topic3")
                 if (
-                    notification.originator_id == stored_event3.originator_id
-                    and notification.originator_version
-                    == stored_event3.originator_version
+                    notification.originator_id == event3.originator_id
+                    and notification.originator_version == event3.originator_version
                 ):
                     break
 
@@ -886,25 +858,25 @@ class ProcessRecorderTestCase(RecorderTestCase, ABC):
         originator_id1 = self.new_originator_id()
         originator_id2 = self.new_originator_id()
 
-        stored_event1 = StoredEvent(
+        event1 = StoredEvent(
             originator_id=originator_id1,
             originator_version=1,
             topic="topic1",
             state=b"state1",
         )
-        stored_event2 = StoredEvent(
+        event2 = StoredEvent(
             originator_id=originator_id1,
             originator_version=2,
             topic="topic2",
             state=b"state2",
         )
-        stored_event3 = StoredEvent(
+        event3 = StoredEvent(
             originator_id=originator_id2,
             originator_version=1,
             topic="topic3",
             state=b"state3",
         )
-        stored_event4 = StoredEvent(
+        event4 = StoredEvent(
             originator_id=originator_id2,
             originator_version=2,
             topic="topic4",
@@ -922,8 +894,8 @@ class ProcessRecorderTestCase(RecorderTestCase, ABC):
         # Insert two events with tracking info.
         recorder.insert_events(
             stored_events=[
-                stored_event1,
-                stored_event2,
+                event1,
+                event2,
             ],
             tracking=tracking1,
         )
@@ -931,7 +903,7 @@ class ProcessRecorderTestCase(RecorderTestCase, ABC):
         # Check get record conflict error if attempt to store same event again.
         with self.assertRaises(IntegrityError):
             recorder.insert_events(
-                stored_events=[stored_event2],
+                stored_events=[event2],
                 tracking=tracking2,
             )
 
@@ -944,7 +916,7 @@ class ProcessRecorderTestCase(RecorderTestCase, ABC):
         # Check can't insert third event with same tracking info.
         with self.assertRaises(IntegrityError):
             recorder.insert_events(
-                stored_events=[stored_event3],
+                stored_events=[event3],
                 tracking=tracking1,
             )
 
@@ -956,7 +928,7 @@ class ProcessRecorderTestCase(RecorderTestCase, ABC):
 
         # Insert third event with different tracking info.
         recorder.insert_events(
-            stored_events=[stored_event3],
+            stored_events=[event3],
             tracking=tracking2,
         )
 
@@ -968,7 +940,7 @@ class ProcessRecorderTestCase(RecorderTestCase, ABC):
 
         # Insert fourth event without tracking info.
         recorder.insert_events(
-            stored_events=[stored_event4],
+            stored_events=[event4],
         )
 
         # Get current position.
@@ -1065,7 +1037,7 @@ class ProcessRecorderTestCase(RecorderTestCase, ABC):
         def insert_events() -> None:
             originator_id = self.new_originator_id()
 
-            stored_event = StoredEvent(
+            event = StoredEvent(
                 originator_id=originator_id,
                 originator_version=0,
                 topic="topic1",
@@ -1078,7 +1050,7 @@ class ProcessRecorderTestCase(RecorderTestCase, ABC):
 
             recorder.insert_events(
                 stored_events=[
-                    stored_event,
+                    event,
                 ],
                 tracking=tracking1,
             )

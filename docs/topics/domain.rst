@@ -249,10 +249,18 @@ time when the event occurred. By default, it is initialised by calling
 new timezone-aware Python :class:`~datetime.datetime` for the current date and time.
 
 It has a :py:attr:`~eventsourcing.domain.DomainEvent.metadata` attribute,
-which is a Python :class:`dict` that contains arbitrary `str` keys and `str` values.
+which is a Python :class:`dict` that contains arbitrary :class:`str` keys and values.
 By default, it is initialised by calling
-:func:`~eventsourcing.domain.get_metadata_from_context`, which returns a thread-local
-context variable that can built up using the context manager :func:`~eventsourcing.domain.put_metadata_in_context`.
+:func:`~eventsourcing.domain.get_metadata_from_context`. You can use
+:func:`~eventsourcing.domain.put_metadata_in_context` as a context manager in request
+handlers to build up the thread-local metadata context variable that will be automatically
+reset after a command has executed.
+
+It has an :py:attr:`~eventsourcing.domain.DomainEvent.event_id` attribute,
+which is a Python :class:`UUID`. By default, it is initialised as a "null" UUID value,
+so that missing event IDs for legacy data can be identified and replaced with version 5
+UUIDs generated from the originator ID and version values. New events should be supplied
+with a new version 4 UUID when constructed for the first time.
 
 Domain event objects are ordered in their originator's sequence by their
 :py:attr:`~eventsourcing.domain.DomainEvent.originator_version`, and not by their
@@ -277,37 +285,12 @@ The :class:`~eventsourcing.domain.DomainEvent` class can be instantiated directl
     domain_event = DomainEvent(
         originator_id=originator_id,
         originator_version=2,
+        event_id=uuid4(),
     )
     assert domain_event.originator_id == originator_id
     assert domain_event.originator_version == 2
     assert isinstance(domain_event.timestamp, datetime)
     assert domain_event.metadata == {}
-
-
-The example below shows that setting contextual metadata with :func:`~eventsourcing.domain.put_metadata_in_context`
-causes event metadata to be set. The idea is to use :func:`~eventsourcing.domain.put_metadata_in_context`
-in request handlers before executing commands, and in event-processing components
-before executing policies.
-
-.. code-block:: python
-
-    from eventsourcing.domain import put_metadata_in_context
-
-    example_metadata = {
-        "user_id": "user-1",
-        "correlation_id": "12345",
-        "causation_id": "67890",
-    }
-
-    with put_metadata_in_context(example_metadata):
-        domain_event = DomainEvent(
-            originator_id=originator_id,
-            originator_version=2,
-        )
-
-    assert domain_event.metadata["user_id"] == "user-1"
-    assert domain_event.metadata["correlation_id"] == "12345"
-    assert domain_event.metadata["causation_id"] == "67890"
 
 
 .. _Aggregate events:
@@ -339,6 +322,7 @@ The :class:`~eventsourcing.domain.AggregateEvent` class can be instantiated dire
     aggregate_event = AggregateEvent(
         originator_id=originator_id,
         originator_version=2,
+        event_id=uuid4(),
     )
     assert aggregate_event.originator_id == originator_id
     assert aggregate_event.originator_version == 2
@@ -401,6 +385,7 @@ results in a new aggregate object.
         originator_topic="eventsourcing.domain:Aggregate",
         originator_id=originator_id,
         originator_version=1,
+        event_id=uuid4(),
     )
 
     a = created_event.mutate(None)
@@ -500,6 +485,7 @@ The modified aggregate is then returned to the caller.
     subsequent_event = AggregateEvent(
         originator_id=originator_id,
         originator_version=2,
+        event_id=uuid4(),
     )
 
     assert a.id == originator_id
@@ -530,6 +516,7 @@ how a particular event evolves the state of a particular aggregate.
     my_event = MyEvent(
         originator_id=originator_id,
         originator_version=3,
+        event_id=uuid4(),
         full_name="Eric Idle"
     )
 
@@ -640,6 +627,7 @@ of events is then used to reconstruct the "current state" of the aggregate. The 
     discarded_event = AggregateDiscarded(
         originator_id=originator_id,
         originator_version=4,
+        event_id=uuid4(),
     )
 
 
@@ -755,16 +743,13 @@ This value will be used to uniquely identify the new aggregate in the domain mod
 As we have seen :ref:`above <Domain events>`, the arguments needed when constructing any
 domain event are :py:attr:`~eventsourcing.domain.DomainEvent.originator_id`,
 :py:attr:`~eventsourcing.domain.DomainEvent.originator_version`, and
-:py:attr:`~eventsourcing.domain.DomainEvent.timestamp`.
+:py:attr:`~eventsourcing.domain.DomainEvent.event_id`.
 An :class:`~eventsourcing.domain.AggregateCreated`
 object also needs an :py:attr:`~eventsourcing.domain.AggregateCreated.originator_topic`.
 By default, the :py:attr:`~eventsourcing.domain.DomainEvent.originator_version` value
 will be set to ``1``. The event's :py:attr:`~eventsourcing.domain.AggregateCreated.originator_topic`
 value will be derived from the aggregate class itself, using the library's
-:func:`~eventsourcing.utils.get_topic` function. The event's
-:py:attr:`~eventsourcing.domain.DomainEvent.timestamp` will be generated by calling
-:func:`~eventsourcing.domain.DomainEvent.create_timestamp` to create a timezone-aware
-Python :class:`~datetime.datetime` object.
+:func:`~eventsourcing.utils.get_topic` function.
 
 "Created" event subclasses may define further attributes that will need to be supplied as
 constructor arguments. For this reason, the :func:`~eventsourcing.domain.Aggregate._create`
@@ -792,7 +777,7 @@ Aggregate object attributes
 ---------------------------
 
 Having been created, the new aggregate object has a new ID, which is presented
-by its :py:obj:`~eventsourcing.domain.Aggregate.id` property. The ID is a ``UUID``,
+by its :py:obj:`~eventsourcing.domain.Aggregate.id` property. The ID is a :class:`UUID`,
 either the value passed to the :func:`~eventsourcing.domain.Aggregate._create` method
 with the ``id`` argument, or that which is created by the aggregate class's
 :func:`~eventsourcing.domain.MetaAggregate.create_id` method.
@@ -899,15 +884,11 @@ that matches the ``trick`` attribute on the ``TrickAdded`` event class.
 As discussed :ref:`above <Domain events>`, the arguments needed when constructing any
 domain event are :py:attr:`~eventsourcing.domain.DomainEvent.originator_id`,
 :py:attr:`~eventsourcing.domain.DomainEvent.originator_version`, and
-:py:attr:`~eventsourcing.domain.DomainEvent.timestamp`.
+:py:attr:`~eventsourcing.domain.DomainEvent.event_id`.
 The :func:`~eventsourcing.domain.Aggregate.trigger_event` method uses the :py:attr:`~eventsourcing.domain.Aggregate.id` attribute
 of the aggregate as the :py:attr:`~eventsourcing.domain.DomainEvent.originator_id` of the new
 aggregate event. The :py:attr:`~eventsourcing.domain.DomainEvent.originator_version` of the
 new aggregate event is calculated by adding ``1`` to the current aggregate :py:attr:`~eventsourcing.domain.Aggregate.version`.
-It calls :func:`~eventsourcing.domain.DomainEvent.create_timestamp` on the event
-class to create a timezone-aware Python :class:`~datetime.datetime` object that is
-used as the :py:attr:`~eventsourcing.domain.DomainEvent.timestamp` value of the
-aggregate event.
 
 After creating the aggregate event object, the :func:`~eventsourcing.domain.Aggregate.trigger_event` method
 will "mutate" the aggregate with the event. That is to say, the state of the aggregate will
@@ -2513,18 +2494,120 @@ class rather than using the ``@aggregate`` decorator so that full the
     pending_events = order.collect_events()
     assert isinstance(pending_events[0], Order.Started)
 
+.. _Event metadata:
+
+Event metadata
+==============
+
+Event metadata is essential for traceability, explainability, and auditability.
+
+The library function :func:`~eventsourcing.domain.get_metadata_from_context` can
+be used to obtain thread-local contextual metadata when constructing events, and the library's
+:ref:`domain events <Domain events>` use it for this purpose.
+
+You can use :func:`~eventsourcing.domain.put_metadata_in_context` to build up the
+thread-local contextual metadata, for example in request handlers and event processing components.
+It can be used as a context manager, ensuring the thread-local context variable is always reset correctly.
+
+The example below shows how contextual metadata can be built-up, obtained, and reset.
+
+.. code-block:: python
+
+    from eventsourcing.domain import (
+        get_metadata_from_context,
+        put_metadata_in_context,
+    )
+
+    # No context opened yet.
+    assert get_metadata_from_context() == {}
+
+    # Open outer-context.
+    with put_metadata_in_context({"a": "b"}):
+
+        # Metadata in outer-context.
+        assert get_metadata_from_context() == {"a": "b"}
+
+        # Open inner-context.
+        with put_metadata_in_context({"c": "d"}):
+
+            # Metadata in inner-context.
+            assert get_metadata_from_context() == {"a": "b", "c": "d"}
+
+        # After inner-context closed.
+        assert get_metadata_from_context() == {"a": "b"}
+
+    # After outer-context closed.
+    assert get_metadata_from_context() == {}
+
+
+The example below shows that setting contextual metadata with
+:func:`~eventsourcing.domain.put_metadata_in_context` causes
+event metadata to be set when a :class:`~eventsourcing.domain.DomainEvent`
+is constructed. The idea is to use :func:`~eventsourcing.domain.put_metadata_in_context`
+in request handlers before application commands, and in event-processing
+components before executing policies.
+
+.. code-block:: python
+
+    example_metadata = {
+        "user_id": "user-1",
+        "correlation_id": "12345",
+        "causation_id": "67890",
+    }
+
+    with put_metadata_in_context(example_metadata):
+        domain_event = DomainEvent(
+            originator_id=originator_id,
+            originator_version=2,
+            event_id=uuid4(),
+        )
+
+    assert get_metadata_from_context() == {}
+
+    assert domain_event.metadata["user_id"] == "user-1"
+    assert domain_event.metadata["correlation_id"] == "12345"
+    assert domain_event.metadata["causation_id"] == "67890"
+
+Similarly, the example below shows that setting contextual metadata with
+:func:`~eventsourcing.domain.put_metadata_in_context` causes
+event metadata to be set when :class:`~eventsourcing.domain.DomainEvent`
+objects are constructed by aggregates. The idea is to use
+:func:`~eventsourcing.domain.put_metadata_in_context`
+in request handlers before application commands, and in event-processing
+components before executing policies.
+
+.. code-block:: python
+
+    example_metadata = {
+        "user_id": "user-1",
+        "correlation_id": "12345",
+        "causation_id": "67890",
+    }
+
+    with put_metadata_in_context(example_metadata):
+        aggregate = Aggregate()
+
+    assert get_metadata_from_context() == {}
+
+    domain_events = aggregate.collect_events()
+    assert len(domain_events) == 1
+    domain_event = domain_events[0]
+
+    assert domain_event.metadata["user_id"] == "user-1"
+    assert domain_event.metadata["correlation_id"] == "12345"
+    assert domain_event.metadata["causation_id"] == "67890"
+
 
 Timestamp timezones
 ===================
 
-The timestamp values mentioned above are timezone-aware Python :class:`datetime`
-objects, created when :func:`eventsourcing.domain.DomainEvent.create_timestamp` calls
-:func:`datetime.now`. By default, the timezone is set to UTC, as defined by :data:`timezone.utc`
-in Python's :data:`datetime` module. It is generally recommended to store date-times as
-timezone-aware values with UTC as the timezone, and then localize the values in the
-interface to the application, according to the local timezone of a particular user.
-You can localize date-time values by calling :data:`astimezone()` on a
-:class:`datetime` object, passing in a :class:`tzinfo` object.
+Event objects :data:`~eventsourcing.domain.DomainEvent.timestamp` values are generated as timezone-aware
+Python :class:`datetime`, by calling :func:`~eventsourcing.domain.datetime_now_with_tzinfo`. This function
+can be used to generate other timestamp values, perhaps for event attributes in your domain model. By default,
+the timezone is set to UTC, as defined by :data:`timezone.utc` in Python's :data:`datetime` module. It is generally
+recommended to store date-times as timezone-aware values with UTC as the timezone, and then localize the values
+in the interface to the application, according to the local timezone of a particular user. You can localize
+date-time values by calling :data:`astimezone()` on a :class:`datetime` object, passing in a :class:`tzinfo` object.
 
 .. code-block:: python
 

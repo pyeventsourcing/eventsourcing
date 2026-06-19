@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime  # noqa: TC003
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import msgspec
 from msgspec import field
@@ -30,6 +30,10 @@ class DomainEvent(msgspec.Struct, frozen=True, kw_only=True):
     originator_version: int
     timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
     metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
+    event_id: UUID = field(default_factory=uuid4)
+    # TODO: Maybe use the NIL_UUID and construct version 5
+    #  UUID, like eventsourcing.domain.DomainEvent. At least
+    #  align this with UmaDB event IDs.
 
 
 class MsgspecStringIDEvent(DomainEvent, CanMutateAggregate[str], frozen=True):

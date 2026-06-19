@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any
+from uuid import uuid4
+
+from typing_extensions import TypeVar
 
 from eventsourcing.domain import datetime_now_with_tzinfo, get_metadata_from_context
 
@@ -18,6 +21,7 @@ class DomainEvent:
     originator_version: int
     timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
     metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
+    event_id: UUID = field(default_factory=uuid4)
 
 
 @dataclass(frozen=True)

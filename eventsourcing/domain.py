@@ -55,6 +55,24 @@ object so that all your domain model event timestamps are located in that timezo
 domain and convert to local timezones when presenting values in user interfaces.
 """
 
+NIL_UUID = UUID("00000000-0000-0000-0000-000000000000")
+"""
+Offical Nil UUID sentinel, used to detect missing event IDs in legacy databases.
+"""
+
+LEGACY_NAMESPACE = uuid5(NAMESPACE_DNS, "eventsourcing.python.library")
+
+
+def event_id_from_originator_id_and_version(
+    originator_id: UUID | str,
+    originator_version: int,
+) -> UUID:
+    """
+    Generates a deterministic event ID from originator ID and version.
+    """
+    fallback_str = f"{originator_id}:{originator_version}"
+    return uuid5(LEGACY_NAMESPACE, fallback_str)
+
 
 class EventsourcingType(type):
     """Base type for event sourcing domain model types (aggregates and events)."""
@@ -117,6 +135,11 @@ class DomainEventProtocol(Protocol[TAggregateID_co]):
     @property
     def metadata(self) -> dict[str, str]:
         """Event metadata."""
+        raise NotImplementedError  # pragma: no cover
+
+    @property
+    def event_id(self) -> UUID:
+        """Event identifier."""
         raise NotImplementedError  # pragma: no cover
 
 
@@ -280,10 +303,8 @@ class CanMutateAggregate(HasOriginatorIDVersion[TAggregateID]):
     # TODO: Move this to a HasMetadata? Why is it here??
     metadata: dict[str, str]
     """Event metadata."""
-
-    def __init_subclass__(cls) -> None:
-        cls.find_originator_id_type(CanMutateAggregate)
-        super().__init_subclass__()
+    event_id: UUID
+    """Event identifier."""
 
     def mutate(self, aggregate: TAggregate | None) -> TAggregate | None:
         """Validates and adjusts the attributes of the given ``aggregate``
@@ -463,12 +484,12 @@ class DomainEvent(metaclass=MetaDomainEvent):
     """UUID identifying an aggregate to which the event belongs."""
     originator_version: int
     """Integer identifying the version of the aggregate when the event occurred."""
-    timestamp: datetime = field(default_factory=datetime_now_with_tzinfo, kw_only=True)
+    timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
     """Timezone-aware :class:`datetime` object representing when an event occurred."""
-    metadata: dict[str, str] = field(
-        default_factory=get_metadata_from_context, kw_only=True
-    )
+    metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
     """Domain event metadata."""
+    event_id: UUID = NIL_UUID
+    """Domain event identifier."""
 
     def __post_init__(self) -> None:
         if not isinstance(self.originator_id, UUID):
@@ -478,6 +499,13 @@ class DomainEvent(metaclass=MetaDomainEvent):
                 f"{self.originator_id!r}"
             )
             raise TypeError(msg)
+        # Support legacy databases by constructing a version 5 UUID.
+        if self.event_id == NIL_UUID:
+            deterministic_id = event_id_from_originator_id_and_version(
+                self.originator_id,
+                self.originator_version,
+            )
+            object.__setattr__(self, "event_id", deterministic_id)
 
 
 @dataclass(frozen=True)
@@ -1219,6 +1247,7 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
         kwargs.update(
             originator_topic=get_topic(cls),
             originator_id=originator_id,
+            event_id=uuid4(),
             originator_version=cls.INITIAL_VERSION,
         )
 
@@ -1311,6 +1340,7 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
         kwargs.update(
             originator_id=self.id,
             originator_version=next_version,
+            event_id=uuid4(),
         )
         if "timestamp" in kwargs and kwargs["timestamp"] is None:
             kwargs["timestamp"] = datetime_now_with_tzinfo()

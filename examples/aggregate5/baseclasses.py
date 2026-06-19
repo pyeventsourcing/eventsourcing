@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeVar
+from uuid import uuid4
 
 from eventsourcing.dispatch import singledispatchmethod
 from eventsourcing.domain import datetime_now_with_tzinfo, get_metadata_from_context
@@ -19,6 +20,7 @@ class DomainEvent:
     originator_version: int
     timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
     metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
+    event_id: UUID = field(default_factory=uuid4)
 
 
 TAggregate = TypeVar("TAggregate", bound="Aggregate")

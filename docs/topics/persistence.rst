@@ -1194,7 +1194,8 @@ a method to create a database table for stored events.
 
     # Select stored events from an aggregate sequence.
     recorded_events = aggregate_recorder.select_events(stored_event.originator_id)
-    assert recorded_events[0] == stored_event, (recorded_events[0], stored_event)
+    assert recorded_events[0].originator_id == stored_event.originator_id
+
 
 
 The :class:`~eventsourcing.postgres.PostgresApplicationRecorder` class
@@ -1227,7 +1228,8 @@ by extending :class:`~eventsourcing.postgres.PostgresAggregateRecorder`.
 
     # Select stored events from an aggregate sequence.
     recorded_events = application_recorder.select_events(stored_event.originator_id)
-    assert recorded_events[0] == stored_event
+    assert recorded_events[0].originator_id == stored_event.originator_id
+    assert recorded_events[0].originator_version == stored_event.originator_version
 
     # Select notifications from the application sequence.
     notifications = application_recorder.select_notifications(start=1, limit=10)
@@ -1304,7 +1306,7 @@ by combining and extending :class:`~eventsourcing.postgres.PostgresApplicationRe
 
     # Select stored events from an aggregate sequence.
     recorded_events = process_recorder.select_events(stored_event.originator_id)
-    assert recorded_events[0] == stored_event
+    assert recorded_events[0].originator_id == stored_event.originator_id
 
     # Select notifications from the application sequence.
     notifications = process_recorder.select_notifications(start=1, limit=10)

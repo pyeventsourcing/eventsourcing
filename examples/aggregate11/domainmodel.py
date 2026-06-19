@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
+from uuid import UUID, uuid4
 
 from eventsourcing.domain import (
     BaseAggregate,
@@ -19,12 +20,13 @@ if TYPE_CHECKING:
     from datetime import datetime
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class DomainEvent(metaclass=MetaDomainEvent):
     originator_id: str
     originator_version: int
     timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
     metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
+    event_id: UUID = field(default_factory=uuid4)
 
     def __post_init__(self) -> None:
         if not isinstance(self.originator_id, str):

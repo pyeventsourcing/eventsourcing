@@ -148,6 +148,7 @@ class TestApplicationWithAutomaticSnapshotting(TestCase):
             originator_version: int
             timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
             metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
+            event_id: UUID = field(default_factory=uuid4)
 
             def __post_init__(self) -> None:
                 assert isinstance(self.originator_id, str), "Not a string"

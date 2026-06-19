@@ -326,10 +326,10 @@ class StoredEvent:
     """Topic of a domain event object class."""
     state: bytes
     """Serialised state of a domain event object."""
-    metadata: bytes = b""
+    metadata: bytes = b"{}"
     """Serialised metadata."""
     event_id: UUID | None = None
-    """Event ID."""
+    """Optional event ID."""
 
 
 class Compressor(ABC):
@@ -422,6 +422,8 @@ class DataclassMapper(Mapper[TAggregateID]):
             originator_version=originator_version,
             topic=topic,
             state=stored_state,
+            metadata=self.transcoder.encode(domain_event.metadata),
+            event_id=domain_event.event_id,
         )
 
     def to_domain_event(
@@ -452,6 +454,19 @@ class DataclassMapper(Mapper[TAggregateID]):
         # print("ID of convertor:", id(convertor))
         event_state["originator_id"] = id_convertor(stored_event.originator_id)
         event_state["originator_version"] = stored_event.originator_version
+
+        # Support legacy data by supplementing domain event metadata
+        # from separately stored event metadata.
+        # TODO: Also maybe store metadata separately from domain event as config option?
+        stored_metadata = self.transcoder.decode(stored_event.metadata)
+        event_metadata = event_state.get("metadata")
+        if isinstance(stored_metadata, dict) and isinstance(event_metadata, dict):
+            for key, value in stored_metadata.items():
+                if key not in event_metadata:
+                    event_metadata[key] = value
+
+        if "event_id" not in event_state and stored_event.event_id:
+            event_state["event_id"] = stored_event.event_id
         class_version = getattr(cls, "class_version", 1)
         from_version = event_state.pop("class_version", 1)
         while from_version < class_version:
