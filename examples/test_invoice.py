@@ -5,7 +5,6 @@ from decimal import Decimal
 from enum import Enum
 from typing import TYPE_CHECKING, Any, cast
 from unittest import TestCase
-from uuid import UUID
 
 from eventsourcing.application import Application
 from eventsourcing.domain import Aggregate, Snapshot, event
@@ -113,7 +112,7 @@ class StatusAsStr(Transcoding):
         return getattr(Status, data)
 
 
-class InvoicingApplication(Application[UUID]):
+class InvoicingApplication(Application):
     def register_transcodings(self, transcoder: JSONTranscoder) -> None:
         super().register_transcodings(transcoder)
         transcoder.register(PersonAsDict())
@@ -155,9 +154,7 @@ class TestInvoice(TestCase):
         self.assertEqual(invoice.sent_via, SendMethod.EMAIL)
         self.assertEqual(invoice.status, Status.SENT)
 
-        app: Application[UUID] = InvoicingApplication(
-            env={"IS_SNAPSHOTTING_ENABLED": "y"}
-        )
+        app = InvoicingApplication(env={"IS_SNAPSHOTTING_ENABLED": "y"})
 
         app.save(invoice)
 

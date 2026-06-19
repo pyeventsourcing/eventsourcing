@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import ClassVar
 from unittest import TestCase
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from eventsourcing.domain import put_metadata_in_context
 from eventsourcing.system import SingleThreadedRunner
@@ -19,7 +19,7 @@ class ContentManagementSystemTestCase(TestCase):
     env: ClassVar[dict[str, str]] = {}
 
     def test_system(self) -> None:
-        with SingleThreadedRunner[UUID](
+        with SingleThreadedRunner(
             system=ContentManagementSystem(), env=self.env
         ) as runner:
 

@@ -1,6 +1,6 @@
 import json
 from unittest import TestCase
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from eventsourcing.application import Application
 from eventsourcing.domain import (
@@ -50,7 +50,7 @@ class TestEventMetadata(TestCase):
         self.assertEqual(event.metadata, {})
 
     def test_application_sets_metadata_when_getting_events(self) -> None:
-        app = Application[UUID]()
+        app = Application()
         # Metadata is set when events are triggered.
         with put_metadata_in_context({"user_id": "user-1"}):
             agg = Aggregate()

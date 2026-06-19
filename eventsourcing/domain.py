@@ -21,12 +21,10 @@ from typing import (
     Generic,
     Protocol,
     cast,
-    get_args,
-    get_origin,
     overload,
     runtime_checkable,
 )
-from uuid import UUID, uuid4
+from uuid import NAMESPACE_DNS, UUID, uuid4, uuid5
 from warnings import warn
 
 from typing_extensions import TypeVar
@@ -36,6 +34,7 @@ from eventsourcing.utils import (
     get_method_name,
     get_topic,
     register_topic,
+    resolve_multi_generic_target,
     resolve_topic,
 )
 
@@ -104,8 +103,10 @@ def patch_dataclasses_process_class() -> None:
 patch_dataclasses_process_class()
 
 
-TAggregateID = TypeVar("TAggregateID", bound=UUID | str)
-TAggregateID_co = TypeVar("TAggregateID_co", bound=UUID | str, covariant=True)
+TAggregateID = TypeVar("TAggregateID", bound=UUID | str, default=UUID)
+TAggregateID_co = TypeVar(
+    "TAggregateID_co", bound=UUID | str, covariant=True, default=UUID
+)
 
 
 @runtime_checkable
@@ -266,30 +267,22 @@ class HasOriginatorIDVersion(AbstractDecision, Generic[TAggregateID]):
     originator_version: int
     """Integer identifying the version of the aggregate when the event occurred."""
 
-    originator_id_type: ClassVar[type[UUID | str] | None] = None
+    originator_id_type: ClassVar[type[UUID | str] | None] = UUID
 
-    def __init_subclass__(cls) -> None:
-        cls.find_originator_id_type(HasOriginatorIDVersion)
-        super().__init_subclass__()
-
-    @classmethod
-    def find_originator_id_type(cls: type, generic_cls: type) -> None:
-        """Store the type argument of TAggregateID on the subclass."""
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
         if "originator_id_type" not in cls.__dict__:
-            for orig_base in cls.__orig_bases__:  # type: ignore[attr-defined]
-                if "originator_id_type" in orig_base.__dict__:
-                    cls.originator_id_type = orig_base.__dict__["originator_id_type"]  # type: ignore[attr-defined]
-                elif get_origin(orig_base) is generic_cls:
-                    originator_id_type = get_args(orig_base)[0]
-                    if originator_id_type in (UUID, str):
-                        cls.originator_id_type = originator_id_type  # type: ignore[attr-defined]
-                        break
-                    if originator_id_type is Any:
-                        continue
-                    if isinstance(originator_id_type, TypeVar):
-                        continue
-                    msg = f"Aggregate ID type arg cannot be {originator_id_type}"
-                    raise TypeError(msg)
+            type_args = resolve_multi_generic_target(cls, HasOriginatorIDVersion)
+            assert len(type_args) == 1, type_args
+            originator_id_type = type_args[0]
+            if originator_id_type in (UUID, str, None):
+                cls.originator_id_type = originator_id_type
+            elif originator_id_type is Any:
+                # This for DecoratedFuncCaller.
+                pass
+            else:
+                msg = f"Aggregate ID type arg cannot be {originator_id_type}"
+                raise TypeError(msg)
 
 
 class CanMutateAggregate(HasOriginatorIDVersion[TAggregateID]):
@@ -369,10 +362,6 @@ class CanInitAggregate(CanMutateAggregate[TAggregateID]):
 
     originator_topic: str
     """String describing the path to an aggregate class."""
-
-    def __init_subclass__(cls) -> None:
-        cls.find_originator_id_type(CanInitAggregate)
-        super().__init_subclass__()
 
     def mutate(self, aggregate: TAggregate | None) -> TAggregate | None:
         """Constructs an aggregate instance according to the attributes of an event.
@@ -509,7 +498,7 @@ class DomainEvent(metaclass=MetaDomainEvent):
 
 
 @dataclass(frozen=True)
-class AggregateEvent(CanMutateAggregate[UUID], DomainEvent):
+class AggregateEvent(CanMutateAggregate, DomainEvent):
     """Frozen data class representing aggregate events.
 
     Subclasses represent original decisions made by domain model aggregates.
@@ -517,7 +506,7 @@ class AggregateEvent(CanMutateAggregate[UUID], DomainEvent):
 
 
 @dataclass(frozen=True, kw_only=True)
-class AggregateCreated(CanInitAggregate[UUID], AggregateEvent):
+class AggregateCreated(CanInitAggregate, AggregateEvent):
     """Frozen data class representing the initial creation of an aggregate."""
 
     originator_topic: str
@@ -1902,10 +1891,6 @@ class CanSnapshotAggregate(HasOriginatorIDVersion[TAggregateID]):
     topic: str
     state: Any
 
-    def __init_subclass__(cls) -> None:
-        cls.find_originator_id_type(CanSnapshotAggregate)
-        super().__init_subclass__()
-
     @classmethod
     def take(
         cls,
@@ -1948,7 +1933,7 @@ class CanSnapshotAggregate(HasOriginatorIDVersion[TAggregateID]):
 
 
 @dataclass(frozen=True, kw_only=True)
-class Snapshot(CanSnapshotAggregate[UUID], DomainEvent):
+class Snapshot(CanSnapshotAggregate, DomainEvent):
     """Snapshots represent the state of an aggregate at a particular
     version.
 
@@ -1965,7 +1950,7 @@ class Snapshot(CanSnapshotAggregate[UUID], DomainEvent):
     state: dict[str, Any]
 
 
-class Aggregate(BaseAggregate[UUID]):
+class Aggregate(BaseAggregate):
     @staticmethod
     def create_id(*_: Any, **__: Any) -> UUID:
         """Returns a new aggregate ID."""

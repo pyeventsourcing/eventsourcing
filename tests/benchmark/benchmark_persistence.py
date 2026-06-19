@@ -279,7 +279,7 @@ def test_app_save(env: str, num_events: int, benchmark: BenchmarkFixture) -> Non
     if "text" in env:
         pytest.skip("Skipping test (text IDs not supported by test)")
 
-    app = Application[UUID](env=envs[env])
+    app = Application(env=envs[env])
 
     clear_topic_cache()
 
@@ -297,7 +297,7 @@ def test_app_save(env: str, num_events: int, benchmark: BenchmarkFixture) -> Non
             agg.subsequent(a=i + 1)
         return (app, agg), {}
 
-    def func(app: Application[UUID], agg: Aggregate) -> None:
+    def func(app: Application, agg: Aggregate) -> None:
         app.save(agg)
 
     try:
@@ -322,7 +322,7 @@ def test_app_command(env: str, num_events: int, benchmark: BenchmarkFixture) -> 
         def subsequent(self, a: int) -> None:
             self.a = a
 
-    class MyApplication(Application[UUID]):
+    class MyApplication(Application):
         def command(self) -> None:
             agg = A(a=0)
             for i in range(num_events - 1):
@@ -357,7 +357,7 @@ def test_repository_get(env: str, num_events: int, benchmark: BenchmarkFixture) 
         def subsequent(self, a: int) -> None:
             self.a = a
 
-    app = Application[UUID](env=envs[env])
+    app = Application(env=envs[env])
     agg = A(a=0)
     for i in range(num_events - 1):
         agg.subsequent(a=i + 1)

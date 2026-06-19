@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import os
 from decimal import Decimal
-from typing import Any, ClassVar, cast
+from typing import Any, ClassVar
 from unittest import TestCase
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from eventsourcing.application import Application
 from eventsourcing.domain import Aggregate, AggregateEvent
@@ -47,8 +47,8 @@ class TestUpcasting(TestCase):
         if topic_v3_created in _topic_cache:
             del _topic_cache[topic_v3_created]
 
-    def construct_application(self) -> Application[UUID]:
-        return Application[UUID](env=self.env)
+    def construct_application(self) -> Application:
+        return Application(env=self.env)
 
     def test_upcast_created_event_from_v1(self) -> None:
         app = self.construct_application()
@@ -450,8 +450,8 @@ class TestUpcasting(TestCase):
         class DUpdated(AggregateEvent):
             d: Decimal
 
-            def apply(self, aggregate: Aggregate) -> None:
-                cast("TestUpcasting.UpcastFixtureV4", aggregate).d = self.d
+            def apply(self, aggregate: TestUpcasting.UpcastFixtureV4) -> None:
+                aggregate.d = self.d
 
         class_version = 4
 

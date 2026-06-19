@@ -88,7 +88,7 @@ method which can be used to stop the subscription to the application recorder in
     from eventsourcing.projection import ApplicationSubscription
 
     # Construct an application object.
-    app = Application[UUID]()
+    app = Application()
 
     # Record an event.
     aggregate = Aggregate()
@@ -195,7 +195,7 @@ The example below shows how a projection can be defined.
         topics = (get_topic(Aggregate.Event), )
 
         @singledispatchmethod
-        def process_event(self, domain_event: DomainEventProtocol[UUID], tracking: Tracking) -> None:
+        def process_event(self, domain_event: DomainEventProtocol, tracking: Tracking) -> None:
             pass
 
         @process_event.register
@@ -205,7 +205,7 @@ The example below shows how a projection can be defined.
 
 For projections that work with :ref:`DCB applications <DCB application>`, you will need to define the dispatching
 to work with :ref:`tagged decisions <DCB tagged>`. That is, because the ``process_event()`` method will receive
-:class:`~eventsourcing.dcb.domain.Tagged` objects, and because `singledispatchmethod` dispatches on the type of
+:class:`~eventsourcing.dcb.domain.Tagged` objects, and because :func:`~eventsourcing.dispatch.singledispatchmethod` dispatches on the type of
 the first argument, you will need to forward ``tagged.decision`` and define handlers for different
 types of :class:`~eventsourcing.dcb.domain.Decision`.
 

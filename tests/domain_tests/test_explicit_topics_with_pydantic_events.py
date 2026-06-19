@@ -42,18 +42,18 @@ class UncallableMetaAggregate(MetaAggregate[Any]):
         raise ProgrammingError(msg)
 
 
-class CreatedEvent(DomainEvent, CanInitAggregate[UUID]):
+class CreatedEvent(DomainEvent, CanInitAggregate):
     originator_topic: str
 
 
-class Aggregate(BaseAggregate[UUID], metaclass=UncallableMetaAggregate):
+class Aggregate(BaseAggregate, metaclass=UncallableMetaAggregate):
     TOPIC = "PydanticAggregate"
 
     @staticmethod
     def create_id() -> UUID:
         return uuid4()
 
-    class Event(DomainEvent, CanMutateAggregate[UUID]):
+    class Event(DomainEvent, CanMutateAggregate):
         pass
 
 

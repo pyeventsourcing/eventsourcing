@@ -7,15 +7,13 @@ from examples.aggregate10.application import DogSchool
 from examples.aggregate10.domainmodel import Dog
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from eventsourcing.domain import MutableOrImmutableAggregate
 
 
 class SubDogSchool(DogSchool):
-    snapshotting_intervals: ClassVar[
-        dict[type[MutableOrImmutableAggregate[UUID]], int]
-    ] = {Dog: 1}
+    snapshotting_intervals: ClassVar[dict[type[MutableOrImmutableAggregate], int]] = {
+        Dog: 1
+    }
 
 
 class TestDogSchool(TestCase):

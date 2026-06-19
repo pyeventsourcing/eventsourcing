@@ -172,12 +172,12 @@ class TestSystem(TestCase):
 class TestLeader(TestCase):
     def test(self) -> None:
         # Define fixture that receives prompts.
-        class FollowerFixture(RecordingEventReceiver[UUID]):
+        class FollowerFixture(RecordingEventReceiver):
             def __init__(self) -> None:
                 self.num_received = 0
 
             def receive_recording_event(
-                self, new_recording_event: RecordingEvent[UUID]
+                self, new_recording_event: RecordingEvent
             ) -> None:
                 self.num_received += 1
 
@@ -187,7 +187,7 @@ class TestLeader(TestCase):
         self.assertEqual(follower.num_received, 1)
 
         # Construct leader.
-        leader = Leader[UUID]()
+        leader = Leader()
         leader.lead(follower)
 
         # Check follower receives a prompt when there are new events.
@@ -220,8 +220,8 @@ class TestFollower(TestCase):
             @singledispatchmethod
             def policy(
                 self,
-                domain_event: DomainEventProtocol[UUID],
-                processing_event: ProcessingEvent[UUID],
+                domain_event: DomainEventProtocol,
+                processing_event: ProcessingEvent,
             ) -> None:
                 if isinstance(domain_event, BankAccount.Opened):
                     notification = UUID5EmailNotification(
@@ -275,7 +275,7 @@ class TestFollower(TestCase):
             email_process.process_event(aggregate_event, tracking)
 
     def test_filter_received_notifications(self) -> None:
-        class MyFollower(Follower[UUID]):
+        class MyFollower(Follower):
             topics: Sequence[str] = ()
 
             @singledispatchmethod

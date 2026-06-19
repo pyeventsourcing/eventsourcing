@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
-from uuid import UUID
 
 from eventsourcing.application import Application
 from eventsourcing.persistence import JSONTranscoder, Transcoding
@@ -16,6 +15,7 @@ from examples.cargoshipping.domainmodel import (
 
 if TYPE_CHECKING:
     from datetime import datetime
+    from uuid import UUID
 
 
 class LocationAsName(Transcoding):
@@ -66,7 +66,7 @@ class LegAsDict(Transcoding):
         return Leg(**data)
 
 
-class BookingApplication(Application[UUID]):
+class BookingApplication(Application):
     def register_transcodings(self, transcoder: JSONTranscoder) -> None:
         super().register_transcodings(transcoder)
         transcoder.register(LocationAsName())

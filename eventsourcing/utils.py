@@ -11,10 +11,13 @@ from types import ModuleType
 from typing import (
     TYPE_CHECKING,
     Any,
-    TypeVar,
+    get_args,
+    get_origin,
     no_type_check,
     overload,
 )
+
+from typing_extensions import TypeVar, get_original_bases
 
 if TYPE_CHECKING:
     from types import FunctionType, WrapperDescriptorType
@@ -261,3 +264,73 @@ class Environment(dict[str, str]):
             keys.append(self.name.upper() + "_" + key)
         keys.append(key)
         return keys
+
+
+def resolve_multi_generic_target(cls: type, target_base: type) -> tuple[Any, ...]:
+    """
+    Finds type arguments for `target_base` of given `cls`.
+    """
+    target_params = getattr(target_base, "__parameters__", ())
+    if not target_params:
+        return ()
+
+    # Map each class in the MRO to a dictionary of its own resolved type parameters
+    # eg. {IntermediateApp: {~T: <class 'str'>}, Application: {~TAggID: <class 'str'>}}
+    resolved_params: dict[type, dict[Any, Any]] = {cls: {}}
+
+    for ancestor in cls.__mro__:
+        if ancestor not in resolved_params:
+            # Only get here with a "sneaky" mro.
+            resolved_params[ancestor] = {}
+
+        # The context dictionary of the current class we are looking at
+        current_context = resolved_params[ancestor]
+
+        orig_bases = get_original_bases(ancestor)
+
+        for base in orig_bases:
+            origin = get_origin(base)
+            if origin is None:
+                # Unparameterized inheritance (e.g., class Child(Parent): ...)
+                origin = base
+                args = ()
+            else:
+                args = get_args(base)
+
+            ancestor_params = getattr(origin, "__parameters__", ())
+
+            if origin not in resolved_params:
+                resolved_params[origin] = {}
+
+            # Evaluate what the child is passing to the parent
+            # Note: zip with `strict=True` raises when base is typing.Generic.
+            arg: Any
+            for param, arg in zip(ancestor_params, args, strict=False):
+                # If the argument is a TypeVar, resolve it using the child's context
+                if isinstance(arg, TypeVar) and arg in current_context:
+                    resolved_arg = current_context[arg]
+                else:
+                    resolved_arg = arg
+
+                # Store exactly what this specific parent class received
+                resolved_params[origin][param] = resolved_arg
+
+    final_output = []
+
+    # Look specifically at what was passed into the target_base
+    target_context = resolved_params.get(target_base, {})
+
+    for param in target_params:
+        # Get the resolved value if it exists, otherwise fall back to the param itself
+        resolved_val = target_context.get(param, param)
+
+        if isinstance(resolved_val, TypeVar):
+            # Only evaluate the default of the CURRENTLY bound TypeVar
+            if hasattr(resolved_val, "has_default") and resolved_val.has_default():
+                final_output.append(resolved_val.__default__)
+            else:
+                final_output.append(None)  # It's an unresolved TypeVar with no default
+        else:
+            final_output.append(resolved_val)
+
+    return tuple(final_output)

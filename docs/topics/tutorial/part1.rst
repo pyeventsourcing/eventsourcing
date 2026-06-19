@@ -265,7 +265,7 @@ the ``Dog`` class, let's define a ``DogSchool`` application.
 
     from typing import Any
 
-    class DogSchool(Application[UUID]):
+    class DogSchool(Application):
         def register_dog(self, name: str) -> UUID:
             dog = Dog(name)
             self.save(dog)

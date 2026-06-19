@@ -1,6 +1,5 @@
 from decimal import Decimal
 from unittest.case import TestCase
-from uuid import UUID
 
 from eventsourcing.domain import CanMutateProtocol
 from eventsourcing.persistence import (
@@ -39,7 +38,7 @@ class TestEventStore(TestCase):
         transcoder.register(DatetimeAsISO())
         transcoder.register(EmailAddressAsStr())
         recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
-        event_store = EventStore[UUID](
+        event_store = EventStore(
             mapper=DataclassMapper(transcoder),
             recorder=recorder,
         )

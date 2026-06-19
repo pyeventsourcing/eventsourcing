@@ -5,7 +5,7 @@ import inspect
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, cast
+from typing import Any
 from unittest import TestCase
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
@@ -794,7 +794,7 @@ class TestAggregateCreation(TestCase):
         )
 
     def test_uses_defined_created_event_when_given_name_matches(self) -> None:
-        class Order(BaseAggregate[UUID], created_event_name="Started"):
+        class Order(BaseAggregate, created_event_name="Started"):
             def __init__(self, name: str) -> None:
                 self.name = name
                 self.confirmed_at = None
@@ -1077,8 +1077,8 @@ class TestSubsequentEvents(TestCase):
             class ValueAssigned(AggregateEvent):
                 b: int
 
-                def apply(self, aggregate: Aggregate) -> None:
-                    cast("MyAggregate2", aggregate).b = self.b  # type: ignore[attr-defined]
+                def apply(self, aggregate: MyAggregate2) -> None:
+                    aggregate.b = self.b  # type: ignore[attr-defined]
 
         a2 = MyAggregate2(a=1)
         expect = (

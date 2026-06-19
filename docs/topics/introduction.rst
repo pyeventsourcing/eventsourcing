@@ -92,7 +92,7 @@ from previously recorded events.
     from eventsourcing.application import Application
 
 
-    class DogSchool(Application[UUID]):
+    class DogSchool(Application):
         def register_dog(self, name: str) -> UUID:
             dog = Dog(name)
             self.save(dog)

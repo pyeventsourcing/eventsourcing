@@ -1,5 +1,7 @@
-from typing import cast
+from typing import Generic, cast
 from unittest import TestCase
+
+from typing_extensions import TypeVar
 
 import eventsourcing
 import eventsourcing.domain
@@ -9,6 +11,7 @@ from eventsourcing.utils import (
     clear_topic_cache,
     get_topic,
     register_topic,
+    resolve_multi_generic_target,
     resolve_topic,
     retry,
     strtobool,
@@ -230,3 +233,37 @@ class TestTopics(TestCase):
 
     def tearDown(self) -> None:
         clear_topic_cache()
+
+
+class TestResolveMultiGenericTargets(TestCase):
+    def test_plain_class(self) -> None:
+        class A:
+            pass
+
+        class B(A):
+            pass
+
+        type_args = resolve_multi_generic_target(B, A)
+        self.assertEqual(type_args, ())
+
+    def test_sneaky_mro(self) -> None:
+        class Base(Generic[_T]):
+            pass
+
+        class SneakyBase:
+            """A class injected into the MRO, but not inherited from directly."""
+
+        class CustomMROMeta(type):
+            def mro(cls) -> list[type]:
+                # Standard Python behavior would just return type.mro(cls)
+                # We manually inject SneakyBase right before `object`
+                return [cls, SneakyBase, object]
+
+        class Sneaky(Base[int], metaclass=CustomMROMeta):
+            pass
+
+        type_args = resolve_multi_generic_target(Sneaky, Base)
+        self.assertEqual(type_args, (int,))
+
+
+_T = TypeVar("_T")

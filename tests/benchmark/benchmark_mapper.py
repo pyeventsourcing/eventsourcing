@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 
@@ -46,7 +46,7 @@ def test_encode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
     transcoder.register(UUIDAsHex())
     transcoder.register(DatetimeAsISO())
     transcoder.register(DecimalAsStr())
-    mapper = DataclassMapper[UUID](transcoder=transcoder)
+    mapper = DataclassMapper(transcoder=transcoder)
 
     def func() -> None:
         mapper.to_stored_event(obj)
@@ -76,7 +76,7 @@ def test_decode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
     transcoder.register(UUIDAsHex())
     transcoder.register(DatetimeAsISO())
     transcoder.register(DecimalAsStr())
-    mapper = DataclassMapper[UUID](transcoder=transcoder)
+    mapper = DataclassMapper(transcoder=transcoder)
 
     stored_event = mapper.to_stored_event(obj)
 

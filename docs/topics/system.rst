@@ -54,7 +54,7 @@ Now let's define an application...
     from eventsourcing.application import Application
 
 
-    class DogSchool(Application[UUID]):
+    class DogSchool(Application):
         def register_dog(self, name: str) -> UUID:
             dog = Dog(name)
             self.save(dog)
@@ -96,13 +96,13 @@ Now let's define an analytics application...
     from eventsourcing.system import ProcessApplication
     from eventsourcing.dispatch import singledispatchmethod
 
-    class Counters(ProcessApplication[UUID]):
+    class Counters(ProcessApplication):
         @singledispatchmethod
-        def policy(self, domain_event: Any, processing_event: ProcessingEvent[UUID]) -> None:
+        def policy(self, domain_event: Any, processing_event) -> None:
             """Default policy"""
 
         @policy.register
-        def _(self, domain_event: Dog.TrickAdded, processing_event: ProcessingEvent[UUID]) -> None:
+        def _(self, domain_event: Dog.TrickAdded, processing_event) -> None:
             trick = domain_event.trick
             try:
                 counter_id = Counter.create_id(trick)
@@ -133,7 +133,7 @@ Single-threaded runner
 
     from eventsourcing.system import SingleThreadedRunner, Runner
 
-    runner: Runner[UUID] = SingleThreadedRunner(system)
+    runner = SingleThreadedRunner(system)
     runner.start()
 
     school = runner.get(DogSchool)

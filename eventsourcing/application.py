@@ -16,6 +16,7 @@ from typing import (
     TypeVar,
     cast,
 )
+from uuid import UUID
 from warnings import warn
 
 from eventsourcing.domain import (
@@ -47,12 +48,16 @@ from eventsourcing.persistence import (
     Transcoder,
     UUIDAsHex,
 )
-from eventsourcing.utils import Environment, EnvType, strtobool
+from eventsourcing.utils import (
+    Environment,
+    EnvType,
+    resolve_multi_generic_target,
+    strtobool,
+)
 
 if TYPE_CHECKING:
     from types import TracebackType
     from typing import Self
-    from uuid import UUID
 
 ProjectorFunction = Callable[
     [TMutableOrImmutableAggregate | None, Iterable[TDomainEvent]],
@@ -623,9 +628,24 @@ class Application(Generic[TAggregateID]):
     AGGREGATE_CACHE_FASTFORWARD_SKIPPING = "AGGREGATE_CACHE_FASTFORWARD_SKIPPING"
     DEEPCOPY_FROM_AGGREGATE_CACHE = "DEEPCOPY_FROM_AGGREGATE_CACHE"
 
+    aggregate_id_type: ClassVar[type[UUID | str]] = UUID
+
     def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
         if "name" not in cls.__dict__:
             cls.name = cls.__name__
+        if "aggregate_id_type" not in cls.__dict__:
+            application_type_args = resolve_multi_generic_target(cls, Application)
+            assert len(application_type_args) == 1, application_type_args
+            aggregate_id_type = application_type_args[0]
+            if aggregate_id_type in [UUID, str]:
+                cls.aggregate_id_type = aggregate_id_type
+            else:
+                msg = (
+                    f"Invalid type argument for Application[TAggregateID]:"
+                    f" {aggregate_id_type}"
+                )
+                raise TypeError(msg)
 
     def __init__(self, env: EnvType | None = None) -> None:
         """Initialises an application with an
@@ -672,10 +692,33 @@ class Application(Generic[TAggregateID]):
 
     def construct_env(self, name: str, env: EnvType | None = None) -> Environment:
         """Constructs environment from which application will be configured."""
-        _env = dict(type(self).env)
+        # Construct a dict to gather environment variables.
+        _env = {}
+
+        # Set the 'is snapshotting enabled' environment variable.
         if type(self).is_snapshotting_enabled or type(self).snapshotting_intervals:
             _env["IS_SNAPSHOTTING_ENABLED"] = "y"
+
+        # Set the 'originator id type' environment variable.
+        try:
+            _env["ORIGINATOR_ID_TYPE"] = {
+                UUID: "uuid",
+                str: "text",
+            }[type(self).aggregate_id_type]
+        except KeyError:
+            msg = (
+                f"Invalid type argument for Application[TAggregateID]:"
+                f" {type(self).aggregate_id_type}"
+            )
+            raise TypeError(msg) from None
+
+        # Override with the defined environment variables.
+        _env.update(type(self).env)
+
+        # Override with the OS environment variables.
         _env.update(os.environ)
+
+        # Override with the given environment variables.
         if env is not None:
             _env.update(env)
         return Environment(name, _env)

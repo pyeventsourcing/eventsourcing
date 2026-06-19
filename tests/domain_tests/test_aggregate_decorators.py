@@ -1048,7 +1048,7 @@ class TestEventDecorator(TestCase):
             datetime,
         )
 
-        app: Application[UUID] = Application()
+        app = Application()
         app.save(order)  # type: ignore[arg-type]
 
         copy: Order = app.repository.get(order.id)  # type: ignore[attr-defined]

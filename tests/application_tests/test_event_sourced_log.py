@@ -31,7 +31,7 @@ class TestEventSourcedLog(TestCase):
         transcoder.register(DatetimeAsISO())
 
         event_recorder = POPOAggregateRecorder()
-        event_store = EventStore[UUID](
+        event_store = EventStore(
             mapper=DataclassMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
@@ -88,7 +88,7 @@ class TestEventSourcedLog(TestCase):
         class LoggedID(DomainEvent):
             aggregate_id: UUID
 
-        class MyApplication(Application[UUID]):
+        class MyApplication(Application):
             def __init__(self, env: EnvType | None = None) -> None:
                 super().__init__(env=env)
                 self.aggregate_log = EventSourcedLog(
@@ -127,7 +127,7 @@ class TestEventSourcedLog(TestCase):
         transcoder.register(DatetimeAsISO())
 
         event_recorder = POPOAggregateRecorder()
-        event_store = EventStore[UUID](
+        event_store = EventStore(
             mapper=DataclassMapper(transcoder=transcoder),
             recorder=event_recorder,
         )

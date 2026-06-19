@@ -142,7 +142,7 @@ as the :ref:`simple example <Aggregate simple example>` in the domain module doc
     from eventsourcing.application import Application
 
 
-    class DogSchool(Application[UUID]):
+    class DogSchool(Application):
         def register_dog(self) -> UUID:
             dog = Dog.create()
             self.save(dog)
@@ -570,7 +570,7 @@ method once for each of your custom transcodings.
             return date.fromisoformat(d)
 
 
-    class ApplicationWithDates(Application[UUID]):
+    class ApplicationWithDates(Application):
         def register_transcodings(self, transcoder: JSONTranscoder) -> None:
             super().register_transcodings(transcoder)
             transcoder.register(DateAsISO())
@@ -695,7 +695,7 @@ and the pages can be retrieved by the new name.
 
 .. code-block:: python
 
-    class Wiki(Application[UUID]):
+    class Wiki(Application):
         def create_page(self, name: str, body: str) -> None:
             page = Page.create(name, body)
             index = Index.create(page)
@@ -835,7 +835,7 @@ discovered. The aggregate IDs are then accessed in pages of a fixed size.
         aggregate_id: UUID
 
 
-    class ApplicationWithAggregateLog(Application[UUID]):
+    class ApplicationWithAggregateLog(Application):
         def __init__(self, env: EnvType | None = None) -> None:
             super().__init__(env=env)
             self.aggregate_log = EventSourcedLog(
@@ -926,7 +926,7 @@ can use all three ways for configuring an application in combination.
     import os
 
     # Configure by setting class attribute.
-    class MyApplication(Application[UUID]):
+    class MyApplication(Application):
         env = {"SETTING_A": "1", "SETTING_B": "1", "SETTING_C": "1"}
 
     # Configure by setting operating system environment.
@@ -1191,7 +1191,7 @@ setting the boolean attribute 'is_snapshotting_enabled' on the application class
 
 .. code-block:: python
 
-    class SnapshottingApplication(Application[UUID]):
+    class SnapshottingApplication(Application):
         is_snapshotting_enabled = True
 
     snapshotting = SnapshottingApplication()

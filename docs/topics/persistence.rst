@@ -174,9 +174,9 @@ is a Python frozen data class.
     from eventsourcing.persistence import StoredEvent
 
 A :class:`~eventsourcing.persistence.StoredEvent` has an :class:`~eventsourcing.persistence.StoredEvent.originator_id`
-attribute which is a :data:`UUID` that identifies the aggregate sequence to
+attribute which is a :class:`UUID` that identifies the aggregate sequence to
 which the domain event belongs. It has an :class:`~eventsourcing.persistence.StoredEvent.originator_version` attribute which
-is a Python :data:`int` that identifies the position of the domain event in that
+is a Python :class:`int` that identifies the position of the domain event in that
 sequence.
 
 A stored event object also has a :class:`~eventsourcing.persistence.StoredEvent.state` attribute which is a Python
@@ -519,7 +519,7 @@ must be constructed with a :ref:`transcoder<Transcoder>` object.
 
     from eventsourcing.persistence import DataclassMapper
 
-    mapper = DataclassMapper[UUID](transcoder=transcoder)
+    mapper = DataclassMapper(transcoder=transcoder)
 
 The :class:`~eventsourcing.persistence.DataclassMapper` class defines a :func:`~eventsourcing.persistence.DataclassMapper.to_stored_event`
 method, which converts :class:`~eventsourcing.domain.DomainEvent` objects to :class:`~eventsourcing.persistence.StoredEvent`
@@ -1374,7 +1374,7 @@ in the order in which they were created.
 
     application_recorder = POPOApplicationRecorder()
 
-    event_store = EventStore[UUID](
+    event_store = EventStore(
         mapper=mapper,
         recorder=application_recorder,
     )

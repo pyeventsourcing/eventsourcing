@@ -52,7 +52,7 @@ class TestDataclassMapper(TestCase):
         )
 
         # Construct mapper with transcoder.
-        mapper = DataclassMapper[UUID](transcoder=transcoder)
+        mapper = DataclassMapper(transcoder=transcoder)
 
         # Map to stored event.
         stored_event = mapper.to_stored_event(domain_event)
@@ -125,7 +125,7 @@ class TestDataclassMapper(TestCase):
         self.assertIn(len(stored_event.state), range(100, 200))
 
     def test_find_id_convertor(self) -> None:
-        class HasUuidID(HasOriginatorIDVersion[UUID]):
+        class HasUuidID(HasOriginatorIDVersion):
             pass
 
         self.assertIs(find_id_convertor(HasUuidID, UUID), pass_through_convertor)
@@ -219,7 +219,7 @@ class TestDataclassMapper(TestCase):
         transcoder.register(UUIDAsHex())
         transcoder.register(DecimalAsStr())
         transcoder.register(DatetimeAsISO())
-        mapper = DataclassMapper[UUID](transcoder=transcoder)
+        mapper = DataclassMapper(transcoder=transcoder)
 
         # Create a domain event.
         domain_event = BankAccount.TransactionAppended(
@@ -262,7 +262,7 @@ class TestDataclassMapper(TestCase):
         transcoder.register(UUIDAsHex())
         transcoder.register(DecimalAsStr())
         transcoder.register(DatetimeAsISO())
-        mapper = DataclassMapper[UUID](transcoder=transcoder)
+        mapper = DataclassMapper(transcoder=transcoder)
 
         # Create a domain event.
         with put_metadata_in_context({"user_id": "user-1"}):
@@ -318,7 +318,7 @@ class TestDataclassMapper(TestCase):
         transcoder.register(UUIDAsHex())
         transcoder.register(DecimalAsStr())
         transcoder.register(DatetimeAsISO())
-        mapper = DataclassMapper[UUID](transcoder=transcoder)
+        mapper = DataclassMapper(transcoder=transcoder)
 
         # Define a subclass of HasOriginatorIDVersion and set
         # `originator_id_type` to None.

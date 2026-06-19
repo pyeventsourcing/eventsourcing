@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from uuid import UUID
 
 from eventsourcing.application import AggregateNotFoundError, Application
 from examples.bankaccounts.domainmodel import BankAccount
 
 if TYPE_CHECKING:
     from decimal import Decimal
+    from uuid import UUID
 
 
-class BankAccounts(Application[UUID]):
+class BankAccounts(Application):
     def open_account(self, full_name: str, email_address: str) -> UUID:
         account = BankAccount(
             full_name=full_name,

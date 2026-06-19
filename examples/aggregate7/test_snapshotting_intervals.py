@@ -20,9 +20,9 @@ if TYPE_CHECKING:
 
 
 class SubDogSchool(DogSchool):
-    snapshotting_intervals: ClassVar[
-        dict[type[MutableOrImmutableAggregate[UUID]], int]
-    ] = {Dog: 1}
+    snapshotting_intervals: ClassVar[dict[type[MutableOrImmutableAggregate], int]] = {
+        Dog: 1
+    }
 
     def register_dog(self, name: str) -> UUID:
         event = register_dog(name)

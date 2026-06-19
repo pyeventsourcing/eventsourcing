@@ -1,6 +1,5 @@
 from typing import Any
 from unittest.case import TestCase
-from uuid import UUID
 
 from eventsourcing.application import ProcessingEvent
 from eventsourcing.dispatch import singledispatchmethod
@@ -73,7 +72,7 @@ class TestProcessApplication(TestCase):
         self.assertEqual(email_process.recorder.max_tracking_id(BankAccounts.name), 2)
 
 
-class EmailProcess(ProcessApplication[UUID]):
+class EmailProcess(ProcessApplication):
     def register_transcodings(self, transcoder: JSONTranscoder) -> None:
         super().register_transcodings(transcoder)
         transcoder.register(EmailAddressAsStr())
@@ -81,8 +80,8 @@ class EmailProcess(ProcessApplication[UUID]):
     @singledispatchmethod
     def policy(
         self,
-        domain_event: DomainEventProtocol[UUID],
-        processing_event: ProcessingEvent[UUID],
+        domain_event: DomainEventProtocol,
+        processing_event: ProcessingEvent,
     ) -> None:
         """Default policy"""
 
@@ -90,7 +89,7 @@ class EmailProcess(ProcessApplication[UUID]):
     def _(
         self,
         domain_event: BankAccount.Opened,
-        processing_event: ProcessingEvent[UUID],
+        processing_event: ProcessingEvent,
     ) -> None:
         notification = EmailNotification.create(
             to=domain_event.email_address,

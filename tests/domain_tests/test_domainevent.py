@@ -151,9 +151,10 @@ class TestDatetimeNowWithTzinfo(TestCase):
         )
 
 
-class TestOriginatorID(TestCase):
+class TestOriginatorIDTypeDetection(TestCase):
     def test_hasoriginatoridversion(self) -> None:
-        self.assertIsNone(HasOriginatorIDVersion.originator_id_type)
+        # self.assertIsNone(HasOriginatorIDVersion.originator_id_type)
+        self.assertIs(HasOriginatorIDVersion.originator_id_type, UUID)
 
         # class DomainEvent(HasOriginatorIDVersion[str]):
         #     pass
@@ -170,19 +171,19 @@ class TestOriginatorID(TestCase):
     #     # raise Exception(type(alias))
 
     def test_uuid(self) -> None:
-        class DomainEvent(CanMutateAggregate[UUID]):
+        class DomainEvent(CanMutateAggregate):
             pass
 
         class CustomDomainEvent(DomainEvent):
             pass
 
-        class CreatedEvent(CanInitAggregate[UUID]):
+        class CreatedEvent(CanInitAggregate):
             pass
 
         class CustomCreatedEvent(CreatedEvent):
             pass
 
-        class Snapshot(CanSnapshotAggregate[UUID]):
+        class Snapshot(CanSnapshotAggregate):
             pass
 
         self.assertIs(DomainEvent.originator_id_type, UUID)
@@ -216,9 +217,18 @@ class TestOriginatorID(TestCase):
     def test_int(self) -> None:
         with self.assertRaises(TypeError) as cm:
 
-            class DomainEvent(CanMutateAggregate[int]):  # type: ignore[type-var]
+            class _DomainEvent(CanMutateAggregate[int]):  # type: ignore[type-var]
                 pass
 
         self.assertIn(
             "Aggregate ID type arg cannot be <class 'int'>", str(cm.exception)
         )
+
+    def test_typevar(self) -> None:
+        class Sub(HasOriginatorIDVersion[_T]):  # type: ignore[type-var]
+            pass
+
+        self.assertIsNone(Sub.originator_id_type)
+
+
+_T = TypeVar("_T")

@@ -364,9 +364,6 @@ class MapperDeserialisationError(EventSourcingError, ValueError):
     """Raised when deserialization fails in a Mapper."""
 
 
-TAggregateIDType = TypeVar("TAggregateIDType", type[UUID], type[str])
-
-
 class Mapper(ABC, Generic[TAggregateID]):
     """
     Abstract base class for converting between domain event

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import cast
 from uuid import UUID, uuid4
 
 from eventsourcing.dispatch import singledispatchmethod
@@ -198,8 +197,8 @@ class Cargo(Aggregate):
         arrival_deadline: datetime
 
     class Event(Aggregate.Event):
-        def apply(self, aggregate: Aggregate) -> None:
-            cast("Cargo", aggregate).when(self)
+        def apply(self, aggregate: Cargo) -> None:
+            aggregate.when(self)
 
     @singledispatchmethod
     def when(self, event: Event) -> None:

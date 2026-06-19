@@ -150,7 +150,7 @@ class TestBaseAggregate(TestCase):
     def test_raises_programming_error_if_name_already_defined(self) -> None:
         with self.assertRaises(ProgrammingError) as cm:
 
-            class X(BaseAggregate[UUID]):
+            class X(BaseAggregate):
                 pass
 
         self.assertTrue(
@@ -160,7 +160,7 @@ class TestBaseAggregate(TestCase):
         self.assertIn("already defined", str(cm.exception))
 
     def test_cant_identify_suitable_base_class_for_created_event_class(self) -> None:
-        class A(BaseAggregate[UUID]):
+        class A(BaseAggregate):
             @staticmethod
             def create_id() -> UUID:
                 return uuid4()
@@ -228,7 +228,7 @@ class TestBaseAggregate(TestCase):
     def test_annotations_mention_id_has_default(self) -> None:
         with self.assertRaises(ProgrammingError) as cm:
 
-            class A(BaseAggregate[UUID]):
+            class A(BaseAggregate):
                 id: UUID = field(  # pyright: ignore [reportIncompatibleMethodOverride]
                     default_factory=uuid4,
                 )
@@ -342,7 +342,7 @@ class TestBaseAggregate(TestCase):
     def test_init_has_event_decorator_without_name_or_class(self) -> None:
         with self.assertRaises(TypeError) as cm:
 
-            class A(BaseAggregate[UUID]):
+            class A(BaseAggregate):
                 @event
                 def __init__(self) -> None:
                     pass
@@ -355,7 +355,7 @@ class TestBaseAggregate(TestCase):
     def test_base_event_class_not_defined(self) -> None:
         with self.assertRaises(TypeError) as cm:
 
-            class A(BaseAggregate[UUID]):
+            class A(BaseAggregate):
                 class SubsequentEvent(AggregateEvent):
                     pass
 
@@ -364,7 +364,7 @@ class TestBaseAggregate(TestCase):
     def test_init_has_event_decorator_with_class_wrong_type(self) -> None:
         with self.assertRaises(TypeError) as cm:
 
-            class A(BaseAggregate[UUID]):
+            class A(BaseAggregate):
                 class Event(AggregateEvent):
                     pass
 
@@ -380,7 +380,7 @@ class TestBaseAggregate(TestCase):
         )
 
     def test_raises_not_implemented_error_if_create_id_not_implemented(self) -> None:
-        class A(BaseAggregate[UUID]):
+        class A(BaseAggregate):
             class Event(AggregateEvent):
                 pass
 
@@ -398,7 +398,7 @@ class TestBaseAggregate(TestCase):
     def test_init_has_event_decorator_with_class_correct_type_mismatched_attrs(
         self,
     ) -> None:
-        class A(BaseAggregate[UUID]):
+        class A(BaseAggregate):
             @staticmethod
             def create_id() -> UUID:
                 return uuid4()
@@ -423,7 +423,7 @@ class TestBaseAggregate(TestCase):
         )
 
     def test_init_has_event_decorator_with_class_matched_attrs_wrong_call(self) -> None:
-        class A(BaseAggregate[UUID]):
+        class A(BaseAggregate):
             @staticmethod
             def create_id() -> UUID:
                 return uuid4()
@@ -453,7 +453,7 @@ class TestBaseAggregate(TestCase):
         self,
     ) -> None:
 
-        class A(BaseAggregate[UUID]):
+        class A(BaseAggregate):
             @staticmethod
             def create_id() -> UUID:
                 return uuid4()
@@ -478,7 +478,7 @@ class TestBaseAggregate(TestCase):
         class Started(AggregateCreated):
             name: str
 
-        class A(BaseAggregate[UUID]):
+        class A(BaseAggregate):
             @staticmethod
             def create_id() -> UUID:
                 return uuid4()
@@ -551,7 +551,7 @@ class TestBaseAggregate(TestCase):
         # This is not okay.
         with self.assertRaises(TypeError) as cm:
 
-            class A1(BaseAggregate[UUID], created_event_name="Began"):
+            class A1(BaseAggregate, created_event_name="Began"):
                 @staticmethod
                 def create_id() -> UUID:
                     return uuid4()
@@ -572,7 +572,7 @@ class TestBaseAggregate(TestCase):
         )
 
         # This is okay.
-        class A2(BaseAggregate[UUID], created_event_name="Started"):
+        class A2(BaseAggregate, created_event_name="Started"):
             @staticmethod
             def create_id() -> UUID:
                 return uuid4()
@@ -595,7 +595,7 @@ class TestBaseAggregate(TestCase):
         self.assertIsInstance(a.pending_events[0], A2.Started)
 
     def test_created_event_name_matches_defined_class(self) -> None:
-        class A(BaseAggregate[UUID], created_event_name="Started"):
+        class A(BaseAggregate, created_event_name="Started"):
             @staticmethod
             def create_id() -> UUID:
                 return uuid4()
@@ -616,18 +616,18 @@ class TestBaseAggregate(TestCase):
     def test_created_event_name_without_create_event_base_class(self) -> None:
         with self.assertRaises(TypeError):
 
-            class A1(BaseAggregate[UUID], created_event_name="Started"):
+            class A1(BaseAggregate, created_event_name="Started"):
                 pass
 
         with self.assertRaises(TypeError):
 
-            class A2(BaseAggregate[UUID]):
+            class A2(BaseAggregate):
                 @event("Started")
                 def __init__(self) -> None:
                     pass
 
     def test_decorator_event_name_matches_defined_class(self) -> None:
-        class A(BaseAggregate[UUID]):
+        class A(BaseAggregate):
             @staticmethod
             def create_id() -> UUID:
                 return uuid4()
@@ -648,7 +648,7 @@ class TestBaseAggregate(TestCase):
 
     def test_named_created_event_class_inherits_from_super_class_synonym(self) -> None:
         # This is basically what the library's Aggregate class does.
-        class A(BaseAggregate[UUID]):
+        class A(BaseAggregate):
             @staticmethod
             def create_id() -> UUID:
                 return uuid4()
@@ -693,7 +693,7 @@ class TestBaseAggregate(TestCase):
     def test_original_subclass_relations_are_respected_issue_295(self) -> None:
         # Issue #295 on GitHub.
         # https://github.com/pyeventsourcing/eventsourcing/issues/295
-        class A(BaseAggregate[UUID]):
+        class A(BaseAggregate):
             class Event(AggregateEvent):
                 pass
 
@@ -737,11 +737,11 @@ class TestBaseAggregate(TestCase):
             originator_version: int
             timestamp: datetime
 
-        class A(BaseAggregate[UUID]):
-            class Event(DomainEvent, CanMutateAggregate[UUID]):
+        class A(BaseAggregate):
+            class Event(DomainEvent, CanMutateAggregate):
                 pass
 
-            class Created(Event, CanInitAggregate[UUID]):
+            class Created(Event, CanInitAggregate):
                 originator_topic: str
 
         class Shared(BaseModel):
@@ -789,13 +789,13 @@ class TestBaseAggregate(TestCase):
             originator_version: int
             timestamp: datetime
 
-        class A(BaseAggregate[UUID]):
+        class A(BaseAggregate):
             @dataclass(frozen=True)
-            class Event(DomainEvent, CanMutateAggregate[UUID]):
+            class Event(DomainEvent, CanMutateAggregate):
                 pass
 
             @dataclass(frozen=True)
-            class Created(Event, CanInitAggregate[UUID]):
+            class Created(Event, CanInitAggregate):
                 originator_topic: str
 
         @dataclass(frozen=True)

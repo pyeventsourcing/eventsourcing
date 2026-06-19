@@ -28,9 +28,9 @@ if TYPE_CHECKING:
 
 class BankAccountsWithAutomaticSnapshotting(BankAccounts):
     is_snapshotting_enabled = False
-    snapshotting_intervals: ClassVar[
-        dict[type[MutableOrImmutableAggregate[UUID]], int]
-    ] = {BankAccount: 5}
+    snapshotting_intervals: ClassVar[dict[type[MutableOrImmutableAggregate], int]] = {
+        BankAccount: 5
+    }
 
 
 class TestApplicationWithAutomaticSnapshotting(TestCase):
@@ -73,7 +73,7 @@ class TestApplicationWithAutomaticSnapshotting(TestCase):
         self.assertEqual(len(snapshots), 0)
 
     def test_raises_when_snapshot_not_defined(self) -> None:
-        class MyAggregate1(BaseAggregate[UUID]):
+        class MyAggregate1(BaseAggregate):
             class Event(AggregateEvent):
                 pass
 
@@ -87,7 +87,7 @@ class TestApplicationWithAutomaticSnapshotting(TestCase):
         env = {"IS_SNAPSHOTTING_ENABLED": "y"}
 
         a1 = MyAggregate1()
-        app = Application[UUID](env=env)
+        app = Application(env=env)
         app.save(a1)
 
         with self.assertRaises(AssertionError) as cm1:
@@ -99,7 +99,7 @@ class TestApplicationWithAutomaticSnapshotting(TestCase):
         )
 
         # This is okay.
-        class MyApplication1(Application[UUID]):
+        class MyApplication1(Application):
             snapshot_class = Snapshot
 
         app1 = MyApplication1(env=env)
@@ -116,7 +116,7 @@ class TestApplicationWithAutomaticSnapshotting(TestCase):
         app.take_snapshot(a2.id)
 
         # This is not okay - int does not implement snapshot protocol.
-        class MyApplication2(Application[UUID]):
+        class MyApplication2(Application):
             snapshot_class = int  # type: ignore[assignment]
 
         app2 = MyApplication2(env=env)

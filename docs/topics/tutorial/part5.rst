@@ -27,7 +27,7 @@ First, let's define the ``DogSchool`` application and the ``Dog`` aggregate.
     from eventsourcing.domain import Aggregate, event
 
 
-    class DogSchool(Application[UUID]):
+    class DogSchool(Application):
         def register_dog(self, name: str) -> None:
             dog = Dog(name)
             self.save(dog)
@@ -118,13 +118,13 @@ consumption and processing of domain events, so that each domain event is proces
     from eventsourcing.system import ProcessApplication
 
 
-    class Counters(ProcessApplication[UUID]):
+    class Counters(ProcessApplication):
         @singledispatchmethod
-        def policy(self, domain_event: DomainEventProtocol[UUID], processing_event: ProcessingEvent[UUID]) -> None:
+        def policy(self, domain_event: DomainEventProtocol, processing_event: ProcessingEvent) -> None:
             """Default policy"""
 
         @policy.register
-        def _(self, domain_event: Dog.TrickAdded, processing_event: ProcessingEvent[UUID]) -> None:
+        def _(self, domain_event: Dog.TrickAdded, processing_event: ProcessingEvent) -> None:
             trick = domain_event.trick
             try:
                 counter_id = Counter.create_id(trick)
@@ -238,7 +238,7 @@ with the PostgreSQL persistence module.
     from eventsourcing.utils import EnvType
 
 
-    def test(system: System, runner_class: type[Runner[UUID]], wait: float = 0.0, env: EnvType | None = None) -> None:
+    def test(system: System, runner_class: type[Runner], wait: float = 0.0, env: EnvType | None = None) -> None:
 
         # Start running the system.
         runner = runner_class(system, env=env)

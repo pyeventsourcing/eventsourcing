@@ -1,5 +1,4 @@
 from unittest import TestCase
-from uuid import UUID
 
 from eventsourcing.application import Application
 from eventsourcing.domain import Aggregate
@@ -10,7 +9,7 @@ from eventsourcing.utils import get_topic
 
 class TestApplicationSubscription(TestCase):
     def test(self) -> None:
-        app = Application[UUID]()
+        app = Application()
 
         max_notification_id = app.recorder.max_notification_id()
 

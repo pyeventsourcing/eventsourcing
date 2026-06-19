@@ -2836,7 +2836,7 @@ that their topics will be registered and so can be resolved,
     from eventsourcing.domain import BaseAggregate
 
 
-    class ServiceContract(BaseAggregate[UUID]):
+    class ServiceContract(BaseAggregate):
         TOPIC = "ServiceContract"
 
         class Event(AggregateEvent):
@@ -3055,7 +3055,7 @@ version ``3``.
         class DUpdated(Aggregate.Event):
             d: bool
 
-            def apply(self, aggregate: Aggregate):
+            def apply(self, aggregate: EnergyPolicy):
                 aggregate.d = self.d
 
         class_version = 4
@@ -3275,6 +3275,7 @@ Code reference
     :member-order: bysource
     :members:
     :special-members: __base_init__
+    :private-members: _create
 
 .. automodule:: eventsourcing.utils
     :show-inheritance:

@@ -73,12 +73,12 @@ class EventCountersInterface(EventCountersView, ABC):
     pass
 
 
-class Counters(EventSourcedProjection[UUID]):
+class Counters(EventSourcedProjection):
     @singledispatchmethod
     def policy(
         self,
-        domain_event: DomainEventProtocol[UUID],
-        processing_event: ProcessingEvent[UUID],
+        domain_event: DomainEventProtocol,
+        processing_event: ProcessingEvent,
     ) -> None:
         topic = get_topic(type(domain_event))
         try:
@@ -89,7 +89,7 @@ class Counters(EventSourcedProjection[UUID]):
         counter.increment()
         processing_event.collect_events(counter)
 
-    def get_count(self, domain_event_class: type[DomainEventProtocol[UUID]]) -> int:
+    def get_count(self, domain_event_class: type[DomainEventProtocol]) -> int:
         topic = get_topic(domain_event_class)
         counter_id = Counter.create_id(topic)
         try:
@@ -247,7 +247,7 @@ class AggregateEventCountersProjectionTestCase(TestCase, ABC):
     def test_event_counters_projection(self) -> None:
         # Construct runner with application, projection, and recorder.
         with ProjectionRunner(
-            application_class=Application[UUID],
+            application_class=Application,
             projection_class=AggregateEventCountersProjection,
             view_class=self.view_class,
             env=self.env,
@@ -292,7 +292,7 @@ class AggregateEventCountersProjectionTestCase(TestCase, ABC):
     def test_run_forever_raises_projection_error(self) -> None:
         # Construct runner with application, projection, and recorder.
         with ProjectionRunner(
-            application_class=Application[UUID],
+            application_class=Application,
             projection_class=AggregateEventCountersProjection,
             view_class=self.view_class,
             env=self.env,
@@ -440,7 +440,7 @@ class EventSourcedProjectionTestCase(TestCase):
             self.assertEqual(1, runner.projection.get_count(Aggregate.Event))
 
             # Check the correlation and causation IDs.
-            original_events: dict[str, DomainEventProtocol[UUID]] = {}
+            original_events: dict[str, DomainEventProtocol] = {}
             for notification in runner.app.notification_log.select(
                 start=app_max_id,
                 limit=10,

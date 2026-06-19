@@ -194,7 +194,7 @@ class TestSingleThreadedRunner(TestCase, Generic[TAggregateID, TRunner]):
             self.assertEqual(len(section.items), 10)
 
     def test_system_with_processing_loop(self) -> None:
-        class Commands(ProcessApplication[UUID]):
+        class Commands(ProcessApplication):
             def create_command(self, text: str) -> UUID:
                 command = Command(text=text)
                 self.save(command)
@@ -212,7 +212,7 @@ class TestSingleThreadedRunner(TestCase, Generic[TAggregateID, TRunner]):
             def result_created(
                 self,
                 domain_event: Result.Created,
-                processing_event: ProcessingEvent[UUID],
+                processing_event: ProcessingEvent,
             ) -> None:
                 command: Command = self.repository.get(domain_event.command_id)
                 command.done(
@@ -225,12 +225,12 @@ class TestSingleThreadedRunner(TestCase, Generic[TAggregateID, TRunner]):
                 command: Command = self.repository.get(command_id)
                 return command.output, command.error
 
-        class Results(ProcessApplication[UUID]):
+        class Results(ProcessApplication):
             @singledispatchmethod
             def policy(
                 self,
-                domain_event: DomainEventProtocol[UUID],
-                processing_event: ProcessingEvent[UUID],
+                domain_event: DomainEventProtocol,
+                processing_event: ProcessingEvent,
             ) -> None:
                 pass
 
@@ -238,7 +238,7 @@ class TestSingleThreadedRunner(TestCase, Generic[TAggregateID, TRunner]):
             def _(
                 self,
                 domain_event: Command.Created,
-                processing_event: ProcessingEvent[UUID],
+                processing_event: ProcessingEvent,
             ) -> None:
                 try:
                     openargs = shlex.split(domain_event.text)
@@ -398,13 +398,11 @@ class TestSingleThreadedRunner(TestCase, Generic[TAggregateID, TRunner]):
 #     runner_class = SingleThreadedRunner
 #
 #
-class TestNewSingleThreadedRunner(
-    TestSingleThreadedRunner[UUID, NewSingleThreadedRunner[UUID]]
-):
+class TestNewSingleThreadedRunner(TestSingleThreadedRunner):
 
     def construct_runner(
         self, system: System, env: EnvType | None = None
-    ) -> NewSingleThreadedRunner[UUID]:
+    ) -> NewSingleThreadedRunner:
         return NewSingleThreadedRunner(system=system, env=env)
 
     def test_ignores_recording_event_if_seen_subsequent(self) -> None:
@@ -448,7 +446,7 @@ class TestNewSingleThreadedRunner(
 
 class TestPullingThread(TestCase):
     def test_receive_recording_event_does_not_block(self) -> None:
-        thread = PullingThread[UUID](
+        thread = PullingThread(
             converting_queue=Queue(),
             follower=MagicMock(),
             leader_name="BankAccounts",
@@ -476,7 +474,7 @@ class TestPullingThread(TestCase):
         self.assertTrue(thread.overflow_event.is_set())
 
     def test_stops_because_stopping_event_is_set(self) -> None:
-        thread = PullingThread[UUID](
+        thread = PullingThread(
             converting_queue=Queue(),
             follower=MagicMock(),
             leader_name="BankAccounts",
@@ -499,7 +497,7 @@ class TestPullingThread(TestCase):
         self.assertEqual(thread.recording_event_queue.qsize(), 2)
 
     def test_stops_because_recording_event_queue_was_poisoned(self) -> None:
-        thread = PullingThread[UUID](
+        thread = PullingThread(
             converting_queue=Queue(),
             follower=MagicMock(),
             leader_name="BankAccounts",
@@ -514,13 +512,11 @@ class TestPullingThread(TestCase):
 
 
 class TestMultiThreadedRunner(
-    TestSingleThreadedRunner[
-        UUID, MultiThreadedRunner[UUID] | NewMultiThreadedRunner[UUID]
-    ]
+    TestSingleThreadedRunner[UUID, MultiThreadedRunner | NewMultiThreadedRunner]
 ):
     def construct_runner(
         self, system: System, env: EnvType | None = None
-    ) -> MultiThreadedRunner[UUID] | NewMultiThreadedRunner[UUID]:
+    ) -> MultiThreadedRunner | NewMultiThreadedRunner:
         return MultiThreadedRunner(system=system, env=env)
 
     def test_ignores_recording_event_if_seen_subsequent(self) -> None:
@@ -787,7 +783,7 @@ class TestNewMultiThreadedRunner(TestMultiThreadedRunner):
 
     def construct_runner(
         self, system: System, env: EnvType | None = None
-    ) -> NewMultiThreadedRunner[UUID]:
+    ) -> NewMultiThreadedRunner:
         return NewMultiThreadedRunner(system=system, env=env)
 
     class BrokenPulling(EmailProcess):
@@ -805,7 +801,7 @@ class TestNewMultiThreadedRunner(TestMultiThreadedRunner):
     class BrokenConverting(EmailProcess):
         def convert_notifications(
             self, leader_name: str, notifications: Iterable[Notification]
-        ) -> list[ProcessingJob[UUID]]:
+        ) -> list[ProcessingJob]:
             msg = "Just testing error handling when converting is broken"
             raise ProgrammingError(msg)
 

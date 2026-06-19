@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import Any, ClassVar
-from uuid import UUID
 
 from psycopg.sql import SQL, Identifier
 
@@ -162,14 +161,14 @@ class TestAggregateEventCountersProjectionWithPostgres(
 
         # Resume....
         with ProjectionRunner(
-            application_class=Application[UUID],
+            application_class=Application,
             projection_class=AggregateEventCountersProjection,
             view_class=self.view_class,
             env=self.env,
         ):
 
             # Construct separate instance of "write model".
-            write_model = Application[UUID](self.env)
+            write_model = Application(self.env)
 
             # Construct separate instance of "read model".
             read_model = (
@@ -219,14 +218,14 @@ class TestAggregateEventCountersProjectionWithPostgres(
 
         # Resume...
         with ProjectionRunner(
-            application_class=Application[UUID],
+            application_class=Application,
             projection_class=AggregateEventCountersProjection,
             view_class=self.view_class,
             env=self.env,
         ) as runner:
 
             # Construct separate instance of "write model".
-            write_model = Application[UUID](self.env)
+            write_model = Application(self.env)
 
             # Construct separate instance of "read model".
             read_model = InfrastructureFactory.construct(

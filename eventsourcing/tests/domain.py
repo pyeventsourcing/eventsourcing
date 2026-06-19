@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import cast
 from uuid import uuid4
 
 from eventsourcing.domain import Aggregate, AggregateCreated, AggregateEvent
@@ -62,9 +61,9 @@ class BankAccount(Aggregate):
 
         amount: Decimal
 
-        def apply(self, aggregate: Aggregate) -> None:
+        def apply(self, aggregate: BankAccount) -> None:
             """Increments the account balance."""
-            cast("BankAccount", aggregate).balance += self.amount
+            aggregate.balance += self.amount
 
     def set_overdraft_limit(self, overdraft_limit: Decimal) -> None:
         """Sets the overdraft limit."""
@@ -83,8 +82,8 @@ class BankAccount(Aggregate):
 
         overdraft_limit: Decimal
 
-        def apply(self, aggregate: Aggregate) -> None:
-            cast("BankAccount", aggregate).overdraft_limit = self.overdraft_limit
+        def apply(self, aggregate: BankAccount) -> None:
+            aggregate.overdraft_limit = self.overdraft_limit
 
     def close(self) -> None:
         """Closes the bank account."""
@@ -93,8 +92,8 @@ class BankAccount(Aggregate):
     class Closed(AggregateEvent):
         """Domain event for when account is closed."""
 
-        def apply(self, aggregate: Aggregate) -> None:
-            cast("BankAccount", aggregate).is_closed = True
+        def apply(self, aggregate: BankAccount) -> None:
+            aggregate.is_closed = True
 
 
 class AccountClosedError(Exception):

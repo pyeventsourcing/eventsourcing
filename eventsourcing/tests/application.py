@@ -114,7 +114,7 @@ class EmailAddressAsStr(Transcoding):
         return EmailAddress(data)
 
 
-class BankAccounts(Application[UUID]):
+class BankAccounts(Application):
     is_snapshotting_enabled = True
 
     def register_transcodings(self, transcoder: JSONTranscoder) -> None:
@@ -155,23 +155,23 @@ class ApplicationTestCase(TestCase):
     def test_name(self) -> None:
         self.assertEqual(Application.name, "Application")
 
-        class MyApplication1(Application[UUID]):
+        class MyApplication1(Application):
             pass
 
         self.assertEqual(MyApplication1.name, "MyApplication1")
 
-        class MyApplication2(Application[UUID]):
+        class MyApplication2(Application):
             name = "MyBoundedContext"
 
         self.assertEqual(MyApplication2.name, "MyBoundedContext")
 
     def test_as_context_manager(self) -> None:
-        with Application[UUID]():
+        with Application():
             pass
 
     def test_resolve_persistence_topics(self) -> None:
         # None specified.
-        app = Application[UUID]()
+        app = Application()
         self.assertIsInstance(app.factory, InfrastructureFactory)
 
         # Legacy 'INFRASTRUCTURE_FACTORY'.
@@ -207,7 +207,7 @@ class ApplicationTestCase(TestCase):
         )
 
     def test_save_returns_recording_event(self) -> None:
-        app = Application[UUID]()
+        app = Application()
 
         recordings = app.save()
         self.assertEqual(recordings, [])
@@ -231,7 +231,7 @@ class ApplicationTestCase(TestCase):
     def test_take_snapshot_raises_assertion_error_if_snapshotting_not_enabled(
         self,
     ) -> None:
-        app = Application[UUID]()
+        app = Application()
         with self.assertRaises(AssertionError) as cm:
             app.take_snapshot(uuid4())
         self.assertEqual(
@@ -244,7 +244,7 @@ class ApplicationTestCase(TestCase):
         )
 
     def test_application_with_cached_aggregates_and_fastforward(self) -> None:
-        app = Application[UUID](env={"AGGREGATE_CACHE_MAXSIZE": "10"})
+        app = Application(env={"AGGREGATE_CACHE_MAXSIZE": "10"})
 
         aggregate = Aggregate()
         app.save(aggregate)
@@ -283,7 +283,7 @@ class ApplicationTestCase(TestCase):
         )
 
     def _check_aggregate_fastforwarding_during_contention(self, env: EnvType) -> None:
-        app = Application[UUID](env=env)
+        app = Application(env=env)
 
         self.assertEqual(len(app.repository._fastforward_locks_inuse), 0)
 

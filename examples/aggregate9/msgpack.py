@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar
-from uuid import UUID
 
 import msgspec
 
@@ -13,8 +12,8 @@ if TYPE_CHECKING:
     from eventsourcing.domain import DomainEventProtocol
 
 
-class MessagePackMapper(Mapper[UUID]):
-    def to_stored_event(self, domain_event: DomainEventProtocol[UUID]) -> StoredEvent:
+class MessagePackMapper(Mapper):
+    def to_stored_event(self, domain_event: DomainEventProtocol) -> StoredEvent:
         topic = get_topic(domain_event.__class__)
         stored_state = msgspec.json.encode(domain_event)
         if self.compressor:
@@ -28,7 +27,7 @@ class MessagePackMapper(Mapper[UUID]):
             state=stored_state,
         )
 
-    def to_domain_event(self, stored_event: StoredEvent) -> DomainEventProtocol[UUID]:
+    def to_domain_event(self, stored_event: StoredEvent) -> DomainEventProtocol:
         stored_state = stored_event.state
         if self.cipher:
             stored_state = self.cipher.decrypt(stored_state)
@@ -48,7 +47,7 @@ class NullTranscoder(Transcoder):
         return None
 
 
-class MsgspecApplication(Application[UUID]):
+class MsgspecApplication(Application):
     env: ClassVar[dict[str, str]] = {
         "MAPPER_TOPIC": get_topic(MessagePackMapper),
         "TRANSCODER_TOPIC": get_topic(NullTranscoder),

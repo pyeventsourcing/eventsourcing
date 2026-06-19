@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-from typing import Any
-from uuid import UUID
+from typing import TYPE_CHECKING, Any
 
 from eventsourcing.application import Application
 from examples.aggregate3.domainmodel import Dog
 
+if TYPE_CHECKING:
+    from uuid import UUID
 
-class DogSchool(Application[UUID]):
+
+class DogSchool(Application):
     is_snapshotting_enabled = True
 
     def register_dog(self, name: str) -> UUID:

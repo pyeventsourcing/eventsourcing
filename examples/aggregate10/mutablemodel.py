@@ -23,12 +23,12 @@ class SnapshotState(Immutable, frozen=True):
     modified_on: datetime
 
 
-class AggregateSnapshot(DomainEvent, CanSnapshotAggregate[UUID], frozen=True):
+class AggregateSnapshot(DomainEvent, CanSnapshotAggregate, frozen=True):
     topic: str
     state: Any
 
     @classmethod
-    def take(cls, aggregate: MutableOrImmutableAggregate[UUID]) -> AggregateSnapshot:
+    def take(cls, aggregate: MutableOrImmutableAggregate) -> AggregateSnapshot:
         type_of_snapshot_state = typing.get_type_hints(cls)["state"]
         aggregate_state = dict(aggregate.__dict__)
         aggregate_state.pop("_id")
@@ -61,12 +61,12 @@ class AggregateSnapshot(DomainEvent, CanSnapshotAggregate[UUID], frozen=True):
         return aggregate
 
 
-class AggregateEvent(DomainEvent, CanMutateAggregate[UUID], frozen=True):
+class AggregateEvent(DomainEvent, CanMutateAggregate, frozen=True):
     def _as_dict(self) -> dict[str, Any]:
         return {key: getattr(self, key) for key in self.__struct_fields__}
 
 
-class Aggregate(BaseAggregate[UUID]):
+class Aggregate(BaseAggregate):
     @classmethod
     def create_id(cls, *_: Any, **__: Any) -> UUID:
         return uuid4()
@@ -74,5 +74,5 @@ class Aggregate(BaseAggregate[UUID]):
     class Event(AggregateEvent, frozen=True):
         pass
 
-    class Created(Event, CanInitAggregate[UUID], frozen=True):
+    class Created(Event, CanInitAggregate, frozen=True):
         originator_topic: str

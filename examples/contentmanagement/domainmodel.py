@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from eventsourcing.domain import Aggregate, DomainEvent, event
@@ -23,11 +22,11 @@ class Page(Aggregate):
     """The ID of the user who last modified the page."""
 
     class Event(Aggregate.Event):
-        def apply(self, aggregate: Aggregate) -> None:
+        def apply(self, aggregate: Page) -> None:
             """Sets the aggregate's `modified_by` attribute to the
             value of the event's metadata `user_id` value.
             """
-            cast("Page", aggregate).modified_by = self.get_user_id()
+            aggregate.modified_by = self.get_user_id()
 
         def get_user_id(self) -> UUID:
             return UUID(self.metadata["user_id"])

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar, cast
-from uuid import UUID
 
 import orjson
 from pydantic import BaseModel
@@ -14,8 +13,8 @@ if TYPE_CHECKING:
     from eventsourcing.domain import DomainEventProtocol
 
 
-class PydanticMapper(Mapper[UUID]):
-    def to_stored_event(self, domain_event: DomainEventProtocol[UUID]) -> StoredEvent:
+class PydanticMapper(Mapper):
+    def to_stored_event(self, domain_event: DomainEventProtocol) -> StoredEvent:
         topic = get_topic(domain_event.__class__)
         event_state = cast(BaseModel, domain_event).model_dump(mode="json")
         stored_state = self.transcoder.encode(event_state)
@@ -30,7 +29,7 @@ class PydanticMapper(Mapper[UUID]):
             state=stored_state,
         )
 
-    def to_domain_event(self, stored_event: StoredEvent) -> DomainEventProtocol[UUID]:
+    def to_domain_event(self, stored_event: StoredEvent) -> DomainEventProtocol:
         stored_state = stored_event.state
         if self.cipher:
             stored_state = self.cipher.decrypt(stored_state)
@@ -49,7 +48,7 @@ class OrjsonTranscoder(Transcoder):
         return orjson.loads(data)
 
 
-class PydanticApplication(Application[UUID]):
+class PydanticApplication(Application):
     env: ClassVar[dict[str, str]] = {
         "TRANSCODER_TOPIC": get_topic(OrjsonTranscoder),
         "MAPPER_TOPIC": get_topic(PydanticMapper),

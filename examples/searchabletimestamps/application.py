@@ -20,7 +20,7 @@ class CargoNotFoundError(AggregateNotFoundError):
 
 
 class SearchableTimestampsApplication(BookingApplication):
-    def _record(self, processing_event: ProcessingEvent[UUID]) -> list[Recording[UUID]]:
+    def _record(self, processing_event: ProcessingEvent) -> list[Recording]:
         event_timestamps_data = [
             (e.originator_id, e.timestamp, e.originator_version)
             for e in processing_event.events

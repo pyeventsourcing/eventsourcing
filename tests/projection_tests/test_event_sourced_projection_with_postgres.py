@@ -5,7 +5,6 @@ import multiprocessing.synchronize
 import traceback
 from threading import Thread
 from typing import TYPE_CHECKING, Any, ClassVar
-from uuid import UUID
 
 from eventsourcing.application import Application
 from eventsourcing.domain import Aggregate
@@ -86,7 +85,7 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
             self.assertIn("server closed the connection", str(errors[0]))
 
     def test_server_closes_connections_with_projection_in_thread(self) -> None:
-        app = Application[UUID](env=self.env)
+        app = Application(env=self.env)
         projection = Counters(env=self.env)
 
         errors = []
@@ -173,7 +172,7 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
         projection_stopped = multiprocessing.Event()
 
         with (
-            Application[UUID](env=self.env) as app,
+            Application(env=self.env) as app,
             Counters(env=self.env) as projection,
         ):
 

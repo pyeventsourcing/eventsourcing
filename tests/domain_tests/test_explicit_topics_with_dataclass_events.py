@@ -18,7 +18,7 @@ from eventsourcing.utils import (
 )
 
 
-class Aggregate(BaseAggregate[UUID]):
+class Aggregate(BaseAggregate):
     TOPIC = "Aggregate"
 
     @staticmethod

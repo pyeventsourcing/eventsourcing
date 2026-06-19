@@ -19,11 +19,11 @@ if TYPE_CHECKING:
 PageDetailsType = dict[str, str | Any]
 
 
-class ContentManagement(Application[UUID]):
+class ContentManagement(Application):
     env: ClassVar[dict[str, str]] = {"CONTENTMANAGEMENT_COMPRESSOR_TOPIC": "gzip"}
-    snapshotting_intervals: ClassVar[
-        dict[type[MutableOrImmutableAggregate[UUID]], int]
-    ] = {Page: 5}
+    snapshotting_intervals: ClassVar[dict[type[MutableOrImmutableAggregate], int]] = {
+        Page: 5
+    }
 
     def __init__(self, env: EnvType | None = None) -> None:
         super().__init__(env)

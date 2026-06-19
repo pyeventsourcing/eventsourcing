@@ -23,7 +23,7 @@ the state. These methods depend on the ``Dog`` aggregate class.
     from eventsourcing.domain import Aggregate, event
 
 
-    class DogSchool(Application[UUID]):
+    class DogSchool(Application):
         def register_dog(self, name: str) -> UUID:
             dog = Dog(name)
             self.save(dog)

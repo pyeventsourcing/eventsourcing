@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from unittest.case import TestCase
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from eventsourcing.application import ProcessingEvent
 from eventsourcing.domain import Aggregate, DomainEventProtocol
@@ -11,7 +11,7 @@ from eventsourcing.tests.domain import BankAccount
 
 
 def policy(
-    domain_event: DomainEventProtocol[UUID], processing_event: ProcessingEvent[UUID]
+    domain_event: DomainEventProtocol, processing_event: ProcessingEvent
 ) -> None:
     if isinstance(domain_event, BankAccount.Opened):
         notification = EmailNotification.create(
@@ -23,7 +23,7 @@ def policy(
 
 
 def policy_legacy_save(
-    domain_event: DomainEventProtocol[UUID], processing_event: ProcessingEvent[UUID]
+    domain_event: DomainEventProtocol, processing_event: ProcessingEvent
 ) -> None:
     if isinstance(domain_event, BankAccount.Opened):
         notification = EmailNotification.create(
@@ -44,7 +44,7 @@ class TestProcessingPolicy(TestCase):
         events = account.collect_events()
         created_event = events[0]
 
-        processing_event = ProcessingEvent[UUID](
+        processing_event = ProcessingEvent(
             tracking=Tracking(
                 application_name="upstream_app",
                 notification_id=5,
@@ -68,7 +68,7 @@ class TestProcessingPolicy(TestCase):
         events = account.collect_events()
         created_event = events[0]
 
-        processing_event = ProcessingEvent[UUID](
+        processing_event = ProcessingEvent(
             tracking=Tracking(
                 application_name="upstream_app",
                 notification_id=5,

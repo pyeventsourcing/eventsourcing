@@ -27,7 +27,7 @@ class SnapshotState(Immutable):
         super().__init__(**kwargs)
 
 
-class AggregateSnapshot(DomainEvent, CanSnapshotAggregate[UUID]):
+class AggregateSnapshot(DomainEvent, CanSnapshotAggregate):
     topic: str
     state: Any
 
@@ -47,14 +47,14 @@ class AggregateSnapshot(DomainEvent, CanSnapshotAggregate[UUID]):
             raise TypeError(msg) from e
 
 
-class Aggregate(BaseAggregate[UUID]):
+class Aggregate(BaseAggregate):
     @staticmethod
     def create_id(*_: Any, **__: Any) -> UUID:
         """Returns a new aggregate ID."""
         return uuid4()
 
-    class Event(DomainEvent, CanMutateAggregate[UUID]):
+    class Event(DomainEvent, CanMutateAggregate):
         pass
 
-    class Created(Event, CanInitAggregate[UUID]):
+    class Created(Event, CanInitAggregate):
         originator_topic: str

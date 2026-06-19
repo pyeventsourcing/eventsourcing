@@ -90,7 +90,7 @@ class Vehicle(Aggregate):
         return uuid5(NAMESPACE_URL, f"/licence_plate_numbers/{licence_plate_number}")
 
 
-class ParkingLot(Application[UUID]):
+class ParkingLot(Application):
     def book(self, licence_plate: LicencePlate, product: type[Product]) -> None:
         try:
             vehicle = self.get_vehicle(licence_plate)

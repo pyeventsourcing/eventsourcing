@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar, cast
-from uuid import UUID
 
 from eventsourcing.dispatch import singledispatchmethod
 from eventsourcing.system import ProcessApplication
@@ -10,11 +9,13 @@ from examples.contentmanagement.utils import apply_diff
 from examples.ftscontentmanagement.persistence import FtsRecorder, PageInfo
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from eventsourcing.application import ProcessingEvent
     from eventsourcing.domain import DomainEventProtocol
 
 
-class FtsProcess(ProcessApplication[UUID]):
+class FtsProcess(ProcessApplication):
     env: ClassVar[dict[str, str]] = {
         "COMPRESSOR_TOPIC": "gzip",
     }
@@ -22,8 +23,8 @@ class FtsProcess(ProcessApplication[UUID]):
     @singledispatchmethod
     def policy(
         self,
-        domain_event: DomainEventProtocol[UUID],
-        processing_event: ProcessingEvent[UUID],
+        domain_event: DomainEventProtocol,
+        processing_event: ProcessingEvent,
     ) -> None:
         if isinstance(domain_event, Page.Created):
             processing_event.collect_events(
