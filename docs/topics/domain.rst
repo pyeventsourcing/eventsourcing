@@ -650,17 +650,28 @@ has been discarded.
 Aggregate base class
 --------------------
 
-This library's :class:`~eventsourcing.domain.Aggregate` class is a base class for
-event-sourced aggregates. It can be used to develop event-sourced aggregates.
+The :class:`~eventsourcing.domain.BaseAggregate` class is a generic base class for
+event-sourced aggregates. It can be used to derive event-sourced aggregate classes
+that use either :class:`str` or :class:`UUID` aggregate IDs.
+
+.. code-block:: python
+
+    from eventsourcing.domain import BaseAggregate
+
+
+The :class:`~eventsourcing.domain.Aggregate` class is a base class for event-sourced
+aggregates that uses :class:`UUID` aggregate IDs. It can be used to derive event-sourced
+aggregate classes that use :class:`UUID` IDs. See example :doc:`/topics/examples/aggregate11`
+for an example of using strings for aggregate IDs.
 
 .. code-block:: python
 
     from eventsourcing.domain import Aggregate
 
 
-For convenience, the
-:class:`~eventsourcing.domain.Aggregate` class has a nested :class:`Aggregate.Event <eventsourcing.domain.Aggregate.Event>` class.
-It is defined as a subclass of :class:`~eventsourcing.domain.AggregateEvent`.
+For convenience, the :class:`~eventsourcing.domain.Aggregate` class has a nested
+:class:`Aggregate.Event <eventsourcing.domain.Aggregate.Event>` class, which is defined
+as a subclass of :class:`~eventsourcing.domain.AggregateEvent`.
 
 .. code-block:: python
 
@@ -677,17 +688,17 @@ It is defined as a subclass of :class:`~eventsourcing.domain.AggregateCreated`  
     assert issubclass(Aggregate.Created, Aggregate.Event)
 
 
-This :class:`~eventsourcing.domain.Aggregate` class has three methods, which can be used
-by subclasses:
+This :class:`~eventsourcing.domain.BaseAggregate` class provides three methods that
+can be used by subclasses:
 
-* the "private" class method :func:`~eventsourcing.domain.Aggregate._create`
-  will create new aggregate objects;
+* the "private" class method :func:`~eventsourcing.domain.BaseAggregate._create`
+  will create new event-sourced aggregate objects by triggering a "created" event;
 
-* the object method :func:`~eventsourcing.domain.Aggregate.trigger_event`
+* the object method :func:`~eventsourcing.domain.BaseAggregate.trigger_event`
   can be used to trigger subsequent events; and
 
 * the object method :func:`~eventsourcing.domain.BaseAggregate.collect_events`
-  returns new events that have just been triggered.
+  returns new events that have been triggered.
 
 These methods are explained below, with a :ref:`simple example <Aggregate simple example>`
 that shows how it works.
