@@ -312,6 +312,27 @@ class TestDataclassMapper(TestCase):
         self.assertEqual(copy.timestamp, domain_event.timestamp)
         self.assertEqual(copy.amount, domain_event.amount)
 
+        # Check this is resiliant to non-JSON values.
+        modified_stored_event = StoredEvent(
+            originator_id=stored_event.originator_id,
+            originator_version=stored_event.originator_version,
+            topic=stored_event.topic,
+            state=stored_event.state,
+            metadata=b"",
+            event_id=stored_event.event_id,
+        )
+
+        # Map to domain event.
+        copy = mapper.to_domain_event(modified_stored_event)
+
+        # Check copy has correct values.
+        self.assertEqual(copy.metadata["user_id"], "user-1")
+        assert isinstance(copy, BankAccount.TransactionAppended)
+        self.assertEqual(copy.originator_id, domain_event.originator_id)
+        self.assertEqual(copy.originator_version, domain_event.originator_version)
+        self.assertEqual(copy.timestamp, domain_event.timestamp)
+        self.assertEqual(copy.amount, domain_event.amount)
+
     def test_raises_type_error_if_originator_id_type_is_none(self) -> None:
         # Construct mapper with transcoder.
         transcoder = JSONTranscoder()

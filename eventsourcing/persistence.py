@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from functools import lru_cache
+from json import JSONDecodeError
 from threading import Condition, Event, Lock, Semaphore, Thread, Timer
 from time import monotonic, sleep, time
 from types import GenericAlias, ModuleType, TracebackType
@@ -455,12 +456,16 @@ class DataclassMapper(Mapper[TAggregateID]):
         # Support legacy data by supplementing domain event metadata
         # from separately stored event metadata.
         # TODO: Also maybe store metadata separately from domain event as config option?
-        stored_metadata = self.transcoder.decode(stored_event.metadata)
-        event_metadata = event_state.get("metadata")
-        if isinstance(stored_metadata, dict) and isinstance(event_metadata, dict):
-            for key, value in stored_metadata.items():
-                if key not in event_metadata:
-                    event_metadata[key] = value
+        try:
+            stored_metadata = self.transcoder.decode(stored_event.metadata)
+        except JSONDecodeError:
+            pass
+        else:
+            event_metadata = event_state.get("metadata")
+            if isinstance(stored_metadata, dict) and isinstance(event_metadata, dict):
+                for key, value in stored_metadata.items():
+                    if key not in event_metadata:
+                        event_metadata[key] = value
 
         if "event_id" not in event_state and stored_event.event_id:
             event_state["event_id"] = stored_event.event_id
