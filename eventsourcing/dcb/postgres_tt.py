@@ -42,7 +42,8 @@ DB_TYPE_DCB_EVENT = SQL("""
 CREATE TYPE {schema}.{event_type} AS (
     type text,
     data bytea,
-    tags text[]
+    tags text[],
+    uuid text
 )
 """)
 
@@ -58,9 +59,10 @@ CREATE TYPE {schema}.{query_item_type} AS (
 DB_TABLE_DCB_EVENTS = SQL("""
 CREATE TABLE IF NOT EXISTS {schema}.{events_table} (
     id bigserial,
-    type text NOT NULL ,
+    type text NOT NULL,
     data bytea,
-    tags text[] NOT NULL
+    tags text[] NOT NULL,
+    uuid text NOT NULL
 ) WITH (
   autovacuum_enabled = true,
   autovacuum_vacuum_threshold = 100000000,  -- Effectively disables VACUUM
@@ -181,8 +183,8 @@ BEGIN
         SELECT * FROM unnest(new_events)
     ),
     inserted AS (
-        INSERT INTO {schema}.{events_table} (type, data, tags)
-        SELECT type, data, tags
+        INSERT INTO {schema}.{events_table} (type, data, tags, uuid)
+        SELECT type, data, tags, uuid
         FROM new_data
         RETURNING id, tags
     ),
@@ -275,8 +277,8 @@ BEGIN
             SELECT * FROM unnest(new_events)
         ),
         inserted AS (
-            INSERT INTO {schema}.{events_table} (type, data, tags)
-            SELECT type, data, tags
+            INSERT INTO {schema}.{events_table} (type, data, tags, uuid)
+            SELECT type, data, tags, uuid
             FROM new_data
             RETURNING id, tags
         ),
@@ -470,6 +472,7 @@ class PostgresDCBRecorderTT(DCBRecorder, PostgresRecorder):
                     type=row["type"],
                     data=row["data"],
                     tags=row["tags"],
+                    uuid=row["uuid"],
                 ),
                 position=row["id"],
             )
@@ -579,6 +582,7 @@ class PostgresDCBRecorderTT(DCBRecorder, PostgresRecorder):
                 type=e.type,
                 data=e.data,
                 tags=e.tags,
+                uuid=e.uuid,
             )
             for e in dcb_events
         ]

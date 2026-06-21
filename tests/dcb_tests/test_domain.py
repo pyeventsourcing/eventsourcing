@@ -2,11 +2,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from unittest import TestCase, skip
 
+from eventsourcing.dcb.dataclasses import Decision, InitialDecision
 from eventsourcing.dcb.domain import (
-    Decision,
     EnduringObject,
     Group,
-    InitialDecision,
     Selector,
     Slice,
     Tagged,
@@ -43,7 +42,6 @@ class TestEnduringObject(TestCase):
         class MyObject(EnduringObject[Decision]):
             @dataclass
             class Created(InitialDecision):
-                originator_topic: str
                 myobject_id: str
                 a: str
 

@@ -463,7 +463,8 @@ Tagged
 ------
 
 The generic class :class:`~eventsourcing.dcb.domain.Tagged` encapsulates a
-:class:`~eventsourcing.dcb.domain.Decision`, along with some tag strings.
+:class:`~eventsourcing.dcb.domain.Decision`, along with some tag strings,
+and a unique identifier for the decision.
 It corresponds to the "typed and tagged" lower-level :ref:`DCB event <DCB Event>` type.
 
 .. literalinclude:: ../../eventsourcing/dcb/domain.py
@@ -508,12 +509,14 @@ for example by using `json`, Pydantic, `msgspec`, or Protobuf.
                 type=type(event.decision).__qualname__,
                 data=json.dumps(event.decision.as_dict()),
                 tags=event.tags,
+                uuid=event.uuid,
             )
 
         def to_domain_event(self, event: DCBEvent) -> Tagged[Decision]:
             return Tagged(
                 tags=event.tags,
-                decision = self.registered_types[event.type](**json.loads(event.data))
+                decision=self.registered_types[event.type](**json.loads(event.data)),
+                uuid=event.uuid,
             )
 
 

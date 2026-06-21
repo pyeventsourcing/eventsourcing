@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, ABCMeta, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Generic, ParamSpec, Self, cast
 from uuid import uuid4
 
@@ -23,9 +23,12 @@ if TYPE_CHECKING:
 _enduring_object_init_classes: dict[type[Any], type[InitialDecision]] = {}
 
 
-class Decision(AbstractDecision):
+class Decision(AbstractDecision, ABC):
+    metadata: dict[str, str]
+
+    @abstractmethod
     def as_dict(self) -> dict[str, Any]:
-        return self.__dict__.copy()
+        pass  # pragma: no cover
 
     def mutate(self, obj: TPerspective | None) -> TPerspective | None:
         assert obj is not None
@@ -91,6 +94,7 @@ class InitialDecision(Decision):
         originator_type = resolve_topic(kwargs.pop("originator_topic"))
         if issubclass(originator_type, EnduringObject):
             enduring_object_id = kwargs.pop(self.id_attr_name(originator_type))
+            kwargs = filter_kwargs_for_method_params(kwargs, originator_type.__init__)
             try:
                 enduring_object = type.__call__(originator_type, **kwargs)
             except TypeError as e:  # pragma: no cover
@@ -116,10 +120,11 @@ A type variable representing any subclass of :class:`Decision`.
 """
 
 
+@dataclass
 class Tagged(Generic[TDecision]):
-    def __init__(self, tags: list[str], decision: TDecision) -> None:
-        self.tags = tags
-        self.decision = decision
+    tags: list[str]
+    decision: TDecision
+    uuid: str = field(default_factory=lambda: str(uuid4()))
 
 
 T = TypeVar("T")
