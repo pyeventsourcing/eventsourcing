@@ -493,7 +493,7 @@ instances and the lower-level :class:`~eventsourcing.dcb.api.DCBEvent` instances
     :pyobject: DCBMapper
 
 Concrete subclasses will implement or invoke some kind of serialization and deserialization functionality,
-for example by using JSON, Pydantic, MessagePack, or Protobuf.
+for example by using `json`, Pydantic, `msgspec`, or Protobuf.
 
 .. code-block:: python
 
