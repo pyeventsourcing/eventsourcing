@@ -403,14 +403,14 @@ It represents the general notion of giving form to the settled production of new
 in a domain model. Concrete subclasses will each define a name and a collection of attributes,
 and will be somehow serializable and deserializable. Abstract subclasses may involve some kind
 of declarative syntax that supports automatic serialisation, such as we see with Pydantic and
-MessagePack.
+`msgspec`.
 
 The examples below define decision types as Python data classes.
 
 .. code-block:: python
 
     from dataclasses import dataclass
-    from eventsourcing.dcb.domain import Decision
+    from eventsourcing.dcb.dataclasses import Decision
 
 
     @dataclass
