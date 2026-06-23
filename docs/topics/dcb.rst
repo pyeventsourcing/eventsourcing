@@ -921,17 +921,6 @@ this may come at the cost of some repetition of business logic, increasing the v
 increase the chances of introducing coding errors. See :ref:`enduring objects <Enduring object>` for an alternative
 higher-level abstraction.
 
-Mixing styles
--------------
-
-The decision classes used in the ``UpdateStudentName`` slice are the same as those use for the ``Student`` enduring
-object.
-
-This shows that it is possible to develop a domain model with enduring objects and later rework your code to use
-slices. Similarly, it is possible to start with slices and rework your code to use enduring objects.
-
-Indeed, it is possible to have some parts of your domain model defined with enduring objects, and groups, and to
-have other parts defined using slices. This is demonstrated in the :ref:`example application <DCB application>` below.
 
 .. _DCB Repository:
 
@@ -1049,6 +1038,18 @@ state before calling its :ref:`execute <slice>` method.
     assert update_student_name.student_was_registered is True
 
     repository.save(update_student_name)
+
+Mixing styles
+-------------
+
+As we have seen, the decision classes used in the ``UpdateStudentName`` slice are the same as those used for
+the ``Student`` enduring object. This means it is possible to develop a domain model with enduring objects, and
+then later rework your code to use slices. Similarly, it is possible to start with slices and rework your code
+to use enduring objects.
+
+Indeed, it is possible to have some parts of your domain model defined with enduring objects, and groups, and to
+have other parts defined using slices. This is demonstrated in the :ref:`example application <DCB application>` below.
+
 
 .. _DCB application:
 
