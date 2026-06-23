@@ -1177,6 +1177,13 @@ Code reference
     :undoc-members:
     :special-members: __init__
 
+.. automodule:: eventsourcing.dcb.dataclasses
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :undoc-members:
+    :special-members: __init__
+
 .. automodule:: eventsourcing.dcb.msgpack
     :show-inheritance:
     :member-order: bysource
