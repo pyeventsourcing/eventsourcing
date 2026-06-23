@@ -153,7 +153,8 @@ class DCBApplicationSubscription(Iterator[tuple[Tagged[Decision], Tracking]]):
 
     def __del__(self) -> None:
         """Stops the stored event subscription."""
-        with contextlib.suppress(AttributeError):
+        # Seems this doesn't get called with Python 3.13, hence 'no cover':
+        with contextlib.suppress(AttributeError):  # pragma: no cover
             self.stop()
 
 
