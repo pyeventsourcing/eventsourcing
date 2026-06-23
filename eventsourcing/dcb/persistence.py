@@ -21,6 +21,7 @@ from eventsourcing.dcb.domain import (
     Tagged,
     TDecision,
 )
+from eventsourcing.domain import null_metadata_in_context
 from eventsourcing.persistence import (
     BaseInfrastructureFactory,
     Queue,
@@ -109,7 +110,8 @@ class DCBEventStoreReadResponse(Iterator[Tagged[TDecision]]):
 
     def __next__(self) -> Tagged[TDecision]:
         dcb_sequenced_event = self._dcb_read_response.__next__()
-        return self._mapper.to_domain_event(dcb_sequenced_event.event)
+        with null_metadata_in_context():
+            return self._mapper.to_domain_event(dcb_sequenced_event.event)
 
 
 class NotFoundError(Exception):
