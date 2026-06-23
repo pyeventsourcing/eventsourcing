@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, cast
+from uuid import uuid4
 
 from eventsourcing.dcb.application import (
     DCBApplication,
@@ -12,7 +13,6 @@ from eventsourcing.dcb.domain import (
 )
 from eventsourcing.dcb.msgpack import (
     Decision,
-    InitialDecision,
     MessagePackMapper,
 )
 from eventsourcing.domain import event
@@ -44,7 +44,7 @@ class StudentLeftCourse(Decision):
 
 
 class Student(EnduringObject[Decision, StudentID]):
-    class Registered(InitialDecision):
+    class Registered(Decision):
         student_id: StudentID
         name: str
         max_courses: int
@@ -55,7 +55,9 @@ class Student(EnduringObject[Decision, StudentID]):
     class MaxCoursesUpdated(Decision):
         max_courses: int
 
-    def __init__(self, name: str, max_courses: int) -> None:
+    @event(Registered)
+    def __init__(self, student_id: StudentID, name: str, max_courses: int) -> None:
+        self.id = student_id
         self.name = name
         self.max_courses = max_courses
         self.course_ids: list[CourseID] = []
@@ -80,7 +82,7 @@ class Student(EnduringObject[Decision, StudentID]):
 
 
 class Course(EnduringObject[Decision, CourseID]):
-    class Registered(InitialDecision):
+    class Registered(Decision):
         course_id: CourseID
         name: str
         places: int
@@ -91,7 +93,9 @@ class Course(EnduringObject[Decision, CourseID]):
     class PlacesUpdated(Decision):
         places: int
 
-    def __init__(self, name: str, places: int) -> None:
+    @event(Registered)
+    def __init__(self, course_id: CourseID, name: str, places: int) -> None:
+        self.id = course_id
         self.name = name
         self.places = places
         self.student_ids: list[StudentID] = []
@@ -156,12 +160,14 @@ class EnrolmentWithEnduringObjects(DCBApplication, EnrolmentInterface):
     }
 
     def register_student(self, name: str, max_courses: int) -> StudentID:
-        student = Student(name=name, max_courses=max_courses)
+        student = Student(
+            student_id=StudentID(str(uuid4())), name=name, max_courses=max_courses
+        )
         self.repository.save(student)
         return student.id
 
     def register_course(self, name: str, places: int) -> CourseID:
-        course = Course(name=name, places=places)
+        course = Course(course_id=CourseID(str(uuid4())), name=name, places=places)
         self.repository.save(course)
         return course.id
 
@@ -177,12 +183,12 @@ class EnrolmentWithEnduringObjects(DCBApplication, EnrolmentInterface):
 
     def list_students_for_course(self, course_id: CourseID) -> list[str]:
         course = self.get_course(course_id)
-        students = self.repository.get_many(*course.student_ids)
+        students = self.repository.get_many(course.student_ids, cls=Student)
         return [cast(Student, c).name for c in students if c is not None]
 
     def list_courses_for_student(self, student_id: StudentID) -> list[str]:
         student = self.get_student(student_id)
-        courses = self.repository.get_many(*student.course_ids)
+        courses = self.repository.get_many(student.course_ids, cls=Course)
         return [cast(Course, c).name for c in courses if c is not None]
 
     def update_student_name(self, student_id: StudentID, name: str) -> None:
@@ -206,10 +212,10 @@ class EnrolmentWithEnduringObjects(DCBApplication, EnrolmentInterface):
         self.repository.save(course)
 
     def get_student(self, student_id: StudentID) -> Student:
-        return cast(Student, self.repository.get(student_id))
+        return self.repository.get(student_id, Student)
 
     def get_course(self, course_id: CourseID) -> Course:
-        return cast(Course, self.repository.get(course_id))
+        return self.repository.get(course_id, Course)
 
 
 DecisionTypes = Sequence[type[Decision]]

@@ -566,6 +566,7 @@ class CommandMethodDecorator:
         self.property_setter_arg_name: str | None = None
         self.decorated_func: CallableType
         self.event_topic = event_topic
+        self.avoid_delegating_to_init_method = False
 
         # Event name has been specified.
         if isinstance(event_spec, str):
@@ -693,7 +694,10 @@ class CommandMethodDecorator:
             return self.decorated_property.__get__(instance, owner)
 
         # If we are decorating an __init__ method, then delegate to the __init__ method.
-        if self.decorated_func.__name__ == "__init__":
+        if (
+            self.decorated_func.__name__ == "__init__"
+            and not self.avoid_delegating_to_init_method
+        ):
             return self.decorated_func.__get__(instance, owner)
 
         # Return a "bound" command method decorator if we have an instance.

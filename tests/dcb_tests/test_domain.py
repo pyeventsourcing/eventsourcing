@@ -1,8 +1,8 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from unittest import TestCase, skip
+from unittest import TestCase
 
-from eventsourcing.dcb.dataclasses import Decision, InitialDecision
+from eventsourcing.dcb.dataclasses import Decision
 from eventsourcing.dcb.domain import (
     EnduringObject,
     Group,
@@ -11,195 +11,87 @@ from eventsourcing.dcb.domain import (
     Tagged,
 )
 from eventsourcing.domain import ProgrammingError, event
-from eventsourcing.utils import get_topic
 
 
 class TestEnduringObject(TestCase):
-    def test_enduring_object_with_nested_initial_decision(self) -> None:
-        class MyObject(EnduringObject[Decision]):
-            @dataclass
-            class Created(InitialDecision):
-                originator_topic: str
-                myobject_id: str
+    def test_raises_if_missing_init_method(self) -> None:
+        with self.assertRaises(ProgrammingError) as cm:
 
-        obj = MyObject()
-        self.assertIsInstance(obj, MyObject)
+            class Obj(EnduringObject):
+                pass
 
-        new = obj.collect_events()
-        self.assertEqual(1, len(new))
-        self.assertIsInstance(new[0], Tagged)
-        self.assertIsInstance(new[0].decision, MyObject.Created)
+        self.assertIn("has no __init__ method", str(cm.exception))
 
-        copy = None
-        for tagged in new:
-            copy = tagged.decision.mutate(copy)
+    def test_raises_if_init_method_not_decorated(self) -> None:
+        with self.assertRaises(ProgrammingError) as cm:
 
-        assert isinstance(copy, MyObject)
-        # TODO: Maybe define __eq__
-        self.assertEqual(copy.__dict__, obj.__dict__)
+            class Obj(EnduringObject):
+                def __init__(self) -> None:
+                    pass
 
-    def test_enduring_object_with_decorated_command_method_nested(self) -> None:
-        class MyObject(EnduringObject[Decision]):
-            @dataclass
-            class Created(InitialDecision):
-                myobject_id: str
-                a: str
+        self.assertIn("is not decorated with @event decorator", str(cm.exception))
 
-            @dataclass
-            class Updated(Decision):
-                a: str
+    def test_can_create_enduring_object(self) -> None:
+        @dataclass
+        class ObjCreated(Decision):
+            obj_id: str
 
-            def __init__(self, a: str) -> None:
-                self.a = a
+        class Obj(EnduringObject):
+            @event(ObjCreated)
+            def __init__(self, obj_id: str):
+                self.id = obj_id
 
-            @event(Updated)
+        my_obj = Obj(obj_id="blah")
+        self.assertEqual(my_obj.id, "blah")
+
+        pending = my_obj.collect_events()
+        self.assertEqual(len(pending), 1)
+        tagged = pending[0]
+        self.assertIsInstance(tagged, Tagged)
+        self.assertIsInstance(tagged.decision, ObjCreated)
+        self.assertEqual(tagged.decision.obj_id, "blah")
+
+        copy = Obj.__new__(Obj)
+        copy = tagged.decision.mutate(copy)
+        self.assertEqual(copy.id, "blah")
+
+    def test_enduring_object_with_decorated_command(self) -> None:
+        @dataclass
+        class ObjCreated(Decision):
+            obj_id: str
+
+        @dataclass
+        class ObjUpdated(Decision):
+            a: str
+
+        class Obj(EnduringObject):
+            @event(ObjCreated)
+            def __init__(self, obj_id: str):
+                self.id = obj_id
+                self.a = ""
+
+            @event(ObjUpdated)
             def set_a(self, a: str) -> None:
                 self.a = a
 
-        obj = MyObject(a="")
-        self.assertIsInstance(obj, MyObject)
-        self.assertEqual(obj.a, "")
-
-        obj.set_a(a="a")
-
-        self.assertEqual(obj.a, "a")
-        new = obj.collect_events()
-        self.assertEqual(2, len(new))
-
-        self.assertIsInstance(new[0], Tagged)
-        self.assertIsInstance(new[0].decision, MyObject.Created)
-        self.assertIsInstance(new[1], Tagged)
-        self.assertIsInstance(new[1].decision, MyObject.Updated)
-
-        copy = None
-        for tagged in new:
-            copy = tagged.decision.mutate(copy)
-
-        assert isinstance(copy, MyObject)
-        # TODO: Maybe define __eq__
-        self.assertEqual(copy.__dict__, obj.__dict__)
-
-    def test_enduring_object_with_decorated_command_method_non_nested(self) -> None:
-        @dataclass
-        class MyObjectUpdated(Decision):
-            a: str
-
-        class MyObject(EnduringObject[Decision]):
-            @dataclass
-            class Created(InitialDecision):
-                originator_topic: str
-                myobject_id: str
-                a: str
-
-            def __init__(self, a: str) -> None:
-                self.a = a
-
-            @event(MyObjectUpdated)
-            def set_a(self, a: str) -> None:
-                self.a = a
-
-        obj = MyObject(a="")
-        self.assertIsInstance(obj, MyObject)
-        self.assertEqual(obj.a, "")
-
-        obj.set_a(a="a")
-
-        self.assertEqual(obj.a, "a")
-        new = obj.collect_events()
-        self.assertEqual(2, len(new))
-
-        self.assertIsInstance(new[0], Tagged)
-        self.assertIsInstance(new[0].decision, MyObject.Created)
-        self.assertIsInstance(new[1], Tagged)
-        self.assertIsInstance(new[1].decision, MyObjectUpdated)
-
-        copy = None
-        for tagged in new:
-            copy = tagged.decision.mutate(copy)
-
-        assert isinstance(copy, MyObject)
-        # TODO: Maybe define __eq__
-        self.assertEqual(copy.__dict__, obj.__dict__)
-
-    def test_enduring_object_with_nonnested_initial_decision(self) -> None:
-        @dataclass
-        class Created(InitialDecision):
-            originator_topic: str
-            myobject_id: str
-            a: str
-
-        class MyObject(EnduringObject[Decision]):
-            @event(Created)
-            def __init__(self, a: str) -> None:
-                self.a = a
-
-        my_obj = MyObject(a="a")
-        self.assertIsInstance(my_obj, MyObject)
+        my_obj = Obj(obj_id="blah")
+        self.assertEqual(my_obj.id, "blah")
+        self.assertEqual(my_obj.a, "")
+        my_obj.set_a(a="a")
         self.assertEqual(my_obj.a, "a")
 
-    @skip("Not supported yet")
-    def test_subclass_of_enduring_object_with_nested_initial_decision(self) -> None:
-        class MyObject(EnduringObject[Decision]):
-            @dataclass
-            class Created(InitialDecision):
-                originator_topic: str
-                myobject_id: str
+        pending = my_obj.collect_events()
+        self.assertEqual(len(pending), 2)
+        tagged = pending[1]
+        self.assertIsInstance(tagged, Tagged)
+        self.assertIsInstance(tagged.decision, ObjUpdated)
+        self.assertEqual(tagged.decision.a, "a")
 
-        class MySubclass(MyObject):
-            pass
-
-        my_obj = MySubclass()
-        self.assertIsInstance(my_obj, MyObject)
-
-    def test_subclass_requires_nested_initialiser(self) -> None:
-        class MyObj(EnduringObject[Decision]):
-            pass
-
-        with self.assertRaisesRegex(ProgrammingError, "Please define"):
-            MyObj()
-
-    def test_subclass_initialiser_attributes_must_match(self) -> None:
-        class MyObj(EnduringObject[Decision]):
-            def __init__(self, a: str) -> None:
-                self.a = a
-
-            class Created(InitialDecision):
-                pass
-
-        with self.assertRaisesRegex(
-            TypeError, f"Unable to construct {MyObj.Created.__qualname__}"
-        ):
-            MyObj(a="a")
-
-    def test_nice_error_when_initialiser_cannot_construct_enduring_object(self) -> None:
-        class MyObj(EnduringObject[Decision]):
-            def __init__(self) -> None:
-                pass
-
-            class Created(InitialDecision):
-                def __init__(
-                    self, myobj_id: str, originator_topic: str, tags: list[str], a: str
-                ) -> None:
-                    self.myobj_id = myobj_id
-                    self.originator_topic = originator_topic
-                    self.a = a
-
-        with self.assertRaisesRegex(TypeError, "Unable to construct"):
-            MyObj(a="a")  # type: ignore[call-arg]
-
-    def test_initial_decision_mutate_raises_type_error(self) -> None:
-
-        @dataclass
-        class MyInitialDecision(InitialDecision):
-            originator_topic: str
-
-        decision = MyInitialDecision(originator_topic=get_topic(type(self)))
-        with self.assertRaises(TypeError) as cm:
-            decision.mutate(None)
-
-        self.assertTrue(
-            "Originator type not subclass of EnduringObject" in str(cm.exception)
-        )
+        copy = Obj.__new__(Obj)
+        copy = pending[0].decision.mutate(copy)
+        copy = pending[1].decision.mutate(copy)
+        self.assertEqual(copy.id, "blah")
+        self.assertEqual(my_obj.a, "a")
 
 
 class TestGroup(TestCase):
@@ -212,18 +104,19 @@ class TestGroup(TestCase):
         class BothUpdated(Decision):
             a: str
 
-        class MyObject1(EnduringObject[Decision]):
+        class Obj1(EnduringObject):
             @dataclass
-            class Created(InitialDecision):
-                originator_topic: str
-                myobject1_id: str
+            class Created(Decision):
+                obj1_id: str
                 a: str
 
             @dataclass
             class Updated(Decision):
                 a: str
 
-            def __init__(self, a: str) -> None:
+            @event(Created)
+            def __init__(self, obj1_id: str, a: str) -> None:
+                self.id = obj1_id
                 self.a = a
 
             @event(Updated)
@@ -234,14 +127,15 @@ class TestGroup(TestCase):
             def _(self, a: str) -> None:
                 self.a = a
 
-        class MyObject2(EnduringObject[Decision]):
+        class Obj2(EnduringObject):
             @dataclass
-            class Created(InitialDecision):
-                originator_topic: str
-                myobject2_id: str
+            class Created(Decision):
+                obj2_id: str
                 a: str
 
-            def __init__(self, a: str) -> None:
+            @event(Created)
+            def __init__(self, obj2_id: str, a: str) -> None:
+                self.id = obj2_id
                 self.a = a
 
             @event(Updated)
@@ -252,16 +146,16 @@ class TestGroup(TestCase):
             def _(self, a: str) -> None:
                 self.a = a
 
-        class MyGroup(Group[Decision]):
-            def __init__(self, obj1: MyObject1, obj2: MyObject2) -> None:
+        class MyGroup(Group):
+            def __init__(self, obj1: Obj1, obj2: Obj2) -> None:
                 self.obj1 = obj1
                 self.obj2 = obj2
 
             def update_both(self, a: str) -> None:
                 self.trigger_event(BothUpdated, a=a)
 
-        obj1 = MyObject1(a="1")
-        obj2 = MyObject2(a="2")
+        obj1 = Obj1(obj1_id="obj1", a="1")
+        obj2 = Obj2(obj2_id="obj1", a="2")
         group = MyGroup(obj1, obj2)
         group.update_both(a="3")
         self.assertEqual("3", group.obj1.a)
@@ -271,20 +165,20 @@ class TestGroup(TestCase):
         new2 = obj2.collect_events()
         new_both = group.collect_events()
 
-        copy1 = None
+        copy1 = Obj1.__new__(Obj1)
         for tagged in list(new1) + list(new_both):
             copy1 = tagged.decision.mutate(copy1)
 
-        self.assertIsInstance(copy1, MyObject1)
-        assert isinstance(copy1, MyObject1)  # for mypy
+        self.assertIsInstance(copy1, Obj1)
+        assert isinstance(copy1, Obj1)  # for mypy
         self.assertEqual("3", copy1.a)
 
-        copy2 = None
+        copy2 = Obj2.__new__(Obj2)
         for tagged in list(new2) + list(new_both):
             copy2 = tagged.decision.mutate(copy2)
 
-        self.assertIsInstance(copy2, MyObject2)
-        assert isinstance(copy2, MyObject2)  # for mypy
+        self.assertIsInstance(copy2, Obj2)
+        assert isinstance(copy2, Obj2)  # for mypy
         self.assertEqual("3", copy2.a)
 
 
@@ -298,7 +192,7 @@ class TestSlice(TestCase):
         class Updated(Decision):
             a: str
 
-        class Create(Slice[Decision]):
+        class Create(Slice):
             def __init__(self, obj_id: str, a: str) -> None:
                 self.obj_id = obj_id
                 self.a = a
@@ -313,7 +207,7 @@ class TestSlice(TestCase):
                     a=self.a,
                 )
 
-        class Update(Slice[Decision]):
+        class Update(Slice):
             def __init__(self, obj_id: str, a: str):
                 self.obj_id = obj_id
                 self.a = ""
@@ -367,8 +261,7 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
         # Define an enduring object that can update "a".
         class MyObject(EnduringObject[Decision, str]):
             @dataclass
-            class Created(InitialDecision):
-                originator_topic: str
+            class Created(Decision):
                 myobject_id: str
                 a: str
 
@@ -376,7 +269,9 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
             class Updated(Decision):
                 a: str
 
-            def __init__(self, a: str) -> None:
+            @event(Created)
+            def __init__(self, myobject_id: str, a: str) -> None:
+                self.id = myobject_id
                 self.a = a
 
             @event(Updated)
@@ -384,7 +279,7 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
                 self.a = a
 
         # Define a slice that will just update "a".
-        class Update(Slice[Decision]):
+        class Update(Slice):
             def __init__(self, obj_id: str, a: str):
                 self.obj_id = obj_id
                 self.a = ""
@@ -409,7 +304,7 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
                 )
 
         # Construct an enduring object and update "a".
-        obj = MyObject(a="1")
+        obj = MyObject(myobject_id="obj1", a="1")
         self.assertIsInstance(obj, MyObject)
         self.assertEqual(obj.a, "1")
         obj.set_a(a="2")
@@ -425,7 +320,7 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
         new.extend(update.collect_events())
 
         # Reconstruct enduring object from all new events.
-        copy1 = None
+        copy1 = MyObject.__new__(MyObject)
         for tagged in new:
             copy1 = tagged.decision.mutate(copy1)
 
@@ -434,7 +329,7 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
         self.assertEqual("3", copy1.a)
 
         # Define a slice that creates an enduring object.
-        class Create(Slice[Decision]):
+        class Create(Slice):
             def __init__(self, obj_id: str, a: str):
                 self.obj_id = obj_id
                 self.a = a
@@ -446,7 +341,6 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
                 self.trigger_event(
                     MyObject.Created,
                     tags=[self.obj_id],
-                    originator_topic=get_topic(MyObject),
                     myobject_id=self.obj_id,
                     a=self.a,
                 )
@@ -455,7 +349,7 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
         create.execute()
         new = list(create.collect_events())
 
-        copy2 = None
+        copy2 = MyObject.__new__(MyObject)
         for tagged in new:
             copy2 = tagged.decision.mutate(copy2)
 

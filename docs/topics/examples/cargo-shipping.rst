@@ -106,7 +106,7 @@ Code reference
     :members:
     :undoc-members:
 
-.. automodule:: examples.cargoshipping.test
+.. automodule:: examples.cargoshipping.test_cargoshipping
     :show-inheritance:
     :member-order: bysource
     :members:

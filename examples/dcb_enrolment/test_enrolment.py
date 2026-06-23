@@ -61,7 +61,8 @@ class EnrolmentTestCase(TestCase):
 
         # Course not found.
         with self.assertRaises(CourseNotFoundError):
-            app.join_course(grace, CourseID("not-a-course"))
+            course_id = CourseID("not-a-course")
+            app.join_course(grace, course_id)
 
         # Student not found.
         with self.assertRaises(StudentNotFoundError):

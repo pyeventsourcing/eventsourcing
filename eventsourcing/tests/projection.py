@@ -14,7 +14,7 @@ from eventsourcing.application import (
 )
 from eventsourcing.dcb.application import DCBApplication
 from eventsourcing.dcb.domain import EnduringObject, Tagged
-from eventsourcing.dcb.msgpack import Decision, InitialDecision
+from eventsourcing.dcb.msgpack import Decision
 from eventsourcing.dispatch import singledispatchmethod
 from eventsourcing.domain import (
     Aggregate,
@@ -180,8 +180,12 @@ class DCBSpannerThrown(Decision):
 
 # Define a perspective.
 class Thing(EnduringObject[Decision, str]):
-    class Created(InitialDecision):
+    class Created(Decision):
         thing_id: str
+
+    @event(Created)
+    def __init__(self, thing_id: str) -> None:
+        self.id = thing_id
 
 
 class TaggedDecisionCountersProjection(Projection[EventCountersView]):
@@ -201,7 +205,7 @@ class TaggedDecisionCountersProjection(Projection[EventCountersView]):
         self.view.insert_tracking(tracking)
 
     @process_decision.register
-    def _(self, _: InitialDecision, tracking: Tracking) -> None:
+    def _(self, _: Thing.Created, tracking: Tracking) -> None:
         self.view.incr_created_event_counter(tracking)
 
     @process_decision.register
@@ -336,7 +340,7 @@ class TaggedDecisionCountersProjectionTestCase(TestCase, ABC):
             read_model = runner.projection.view
 
             # Write some events.
-            perspective = Thing()
+            perspective = Thing(thing_id=str("thing-" + str(uuid4())))
             perspective.trigger_event(Decision)
             perspective.trigger_event(Decision)
             self.assertEqual(3, len(perspective.new_decisions))
@@ -353,7 +357,7 @@ class TaggedDecisionCountersProjectionTestCase(TestCase, ABC):
             self.assertEqual(read_model.get_subsequent_event_counter(), 2)
 
             # Write some more events.
-            perspective = Thing()
+            perspective = Thing(thing_id=str("thing-" + str(uuid4())))
             perspective.trigger_event(Decision)
             perspective.trigger_event(Decision)
             position = write_model.repository.save(perspective)
@@ -380,7 +384,7 @@ class TaggedDecisionCountersProjectionTestCase(TestCase, ABC):
             read_model = runner.projection.view
 
             # Write some events.
-            perspective = Thing()
+            perspective = Thing(thing_id=str("thing-" + str(uuid4())))
             perspective.trigger_event(DCBSpannerThrown, a="")
             position = write_model.repository.save(perspective)
 

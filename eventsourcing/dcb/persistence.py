@@ -3,7 +3,7 @@ from __future__ import annotations
 import threading
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, Any, Generic
+from typing import TYPE_CHECKING, Any
 
 from eventsourcing.dcb.api import (
     DCBAppendCondition,
@@ -33,18 +33,18 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-class DCBMapper(ABC, Generic[TDecision]):
+class DCBMapper(ABC):
     @abstractmethod
-    def to_dcb_event(self, event: Tagged[TDecision]) -> DCBEvent:
+    def to_dcb_event(self, event: Tagged[Any]) -> DCBEvent:
         raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
-    def to_domain_event(self, event: DCBEvent) -> Tagged[TDecision]:
+    def to_domain_event(self, event: DCBEvent) -> Tagged[Any]:
         raise NotImplementedError  # pragma: no cover
 
 
-class DCBEventStore(Generic[TDecision]):
-    def __init__(self, mapper: DCBMapper[TDecision], recorder: DCBRecorder):
+class DCBEventStore:
+    def __init__(self, mapper: DCBMapper, recorder: DCBRecorder):
         self.mapper = mapper
         self.recorder = recorder
 
@@ -99,9 +99,7 @@ class DCBEventStore(Generic[TDecision]):
 
 
 class DCBEventStoreReadResponse(Iterator[Tagged[TDecision]]):
-    def __init__(
-        self, dcb_read_response: DCBReadResponse, mapper: DCBMapper[TDecision]
-    ):
+    def __init__(self, dcb_read_response: DCBReadResponse, mapper: DCBMapper):
         self._dcb_read_response = dcb_read_response
         self._mapper = mapper
 

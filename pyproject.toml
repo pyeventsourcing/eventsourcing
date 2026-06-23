@@ -104,11 +104,11 @@ source = [
 relative_files = true
 omit = [
     "eventsourcing/tests/*",
-    "eventsourcing/examples/bankaccounts/test.py",
+    "eventsourcing/examples/bankaccounts/test_bankaccounts.py",
     "eventsourcing/examples/cargoshipping/domainmodel.py",
     "eventsourcing/examples/cargoshipping/application.py",
     "eventsourcing/examples/cargoshipping/interface.py",
-    "eventsourcing/examples/cargoshipping/test.py",
+    "eventsourcing/examples/cargoshipping/test_cargoshipping.py",
     "eventsourcing/dispatch.py",
 ]
 

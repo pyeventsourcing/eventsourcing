@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import types
+import typing
 from abc import ABC, ABCMeta, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Generic, ParamSpec, Self, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, Self
 from uuid import uuid4
 
 from typing_extensions import TypeVar
@@ -10,17 +12,16 @@ from typing_extensions import TypeVar
 from eventsourcing.domain import (
     AbstractDecision,
     CallableType,
+    CommandMethodDecorator,
     ProgrammingError,
     all_func_decorators,
     decorated_func_callers,
     filter_kwargs_for_method_params,
 )
-from eventsourcing.utils import construct_topic, get_topic, resolve_topic
+from eventsourcing.utils import construct_topic
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
-
-_enduring_object_init_classes: dict[type[Any], type[InitialDecision]] = {}
 
 
 class Decision(AbstractDecision, ABC):
@@ -62,59 +63,7 @@ class Decision(AbstractDecision, ABC):
         pass
 
 
-class InitialDecision(Decision):
-    originator_topic: str
-
-    def mutate(self, obj: TPerspective | None) -> TPerspective | None:
-        # Identify the function that was decorated.
-        if obj is not None:
-            try:
-                decorated_func = decorated_funcs[(type(obj), type(self))]
-            except KeyError:  # pragma: no cover
-                pass
-            else:
-                # Select event attributes mentioned in function signature.
-                self_dict = self.as_dict()
-                kwargs = filter_kwargs_for_method_params(self_dict, decorated_func)
-
-                # Call the original method with event attribute values.
-                decorated_method = decorated_func.__get__(obj, type(obj))
-                try:
-                    decorated_method(**kwargs)
-                except TypeError as e:  # pragma: no cover
-                    # TODO: Write a test that does this...
-                    msg = (
-                        f"Failed to apply {type(self).__qualname__} to "
-                        f"{type(obj).__qualname__} with kwargs {kwargs}: {e}"
-                    )
-                    raise TypeError(msg) from e
-                return obj
-
-        kwargs = self.as_dict()
-        originator_type = resolve_topic(kwargs.pop("originator_topic"))
-        if issubclass(originator_type, EnduringObject):
-            enduring_object_id = kwargs.pop(self.id_attr_name(originator_type))
-            kwargs = filter_kwargs_for_method_params(kwargs, originator_type.__init__)
-            try:
-                enduring_object = type.__call__(originator_type, **kwargs)
-            except TypeError as e:  # pragma: no cover
-                msg = (
-                    f"{type(self).__qualname__} cannot __init__ "
-                    f"{originator_type.__qualname__} "
-                    f"with kwargs {kwargs}: {e}"
-                )
-                raise TypeError(msg) from e
-            enduring_object.id = enduring_object_id
-            return enduring_object
-        msg = f"Originator type not subclass of EnduringObject: {originator_type}"
-        raise TypeError(msg)
-
-    @classmethod
-    def id_attr_name(cls, enduring_object_class: type[EnduringObject[Any, TID]]) -> TID:
-        return cast(TID, f"{enduring_object_class.__name__.lower()}_id")
-
-
-TDecision = TypeVar("TDecision", bound=Decision)
+TDecision = TypeVar("TDecision", bound=Decision, default=Decision)
 """
 A type variable representing any subclass of :class:`Decision`.
 """
@@ -166,7 +115,7 @@ class Perspective(ABC, Generic[TDecision], metaclass=MetaPerspective):
         tagged.decision.mutate(self)
         self.new_decisions.append(tagged)
 
-    def collect_events(self) -> Sequence[Tagged[TDecision]]:
+    def collect_events(self) -> Sequence[Tagged[Any]]:
         """
         Drains list of triggered events.
         """
@@ -207,14 +156,7 @@ class MetaSupportsEventDecorator(MetaPerspective):
             # Make sure given event class is a Decision subclass.
             assert issubclass(given, Decision)
 
-            if (
-                issubclass(given, InitialDecision)
-                and decorator.decorated_func.__name__ == "__init__"
-            ):
-                _enduring_object_init_classes[cls] = given
-                # If command method, remember which event class to trigger.
-            elif not construct_topic(decorator.decorated_func).endswith("._"):
-                decorated_func_callers[decorator] = given
+            decorated_func_callers[decorator] = given
 
             # Remember which decorated func to call.
             decorated_funcs[(cls, given)] = decorator.decorated_func
@@ -227,11 +169,20 @@ class MetaEnduringObject(MetaSupportsEventDecorator):
         cls, name: str, bases: tuple[type, ...], namespace: dict[str, Any]
     ) -> None:
         super().__init__(name, bases, namespace)
-        # Find and remember the "InitialDecision" class.
-        for item in cls.__dict__.values():
-            if isinstance(item, type) and issubclass(item, InitialDecision):
-                _enduring_object_init_classes[cls] = item
-                break
+        # Check a subclasse of EnduringObject has an __init__ method.
+        if Perspective not in bases:
+            try:
+                init_method = namespace["__init__"]
+            except KeyError:
+                msg = f"Enduring object class {cls} has no __init__ method"
+                raise ProgrammingError(msg) from None
+            if not isinstance(init_method, CommandMethodDecorator):
+                msg = (
+                    f"Enduring object class {cls} __init__ method "
+                    f"is not decorated with @event decorator"
+                )
+                raise ProgrammingError(msg) from None
+            init_method.avoid_delegating_to_init_method = True
 
     def __call__(cls: type[T], **kwargs: Any) -> T:
         # TODO: For convenience, make this error out in the same way
@@ -241,20 +192,8 @@ class MetaEnduringObject(MetaSupportsEventDecorator):
         #  just like we do for event-sourced aggregates.
 
         assert issubclass(cls, EnduringObject)
-        try:
-            init_enduring_object_class = _enduring_object_init_classes[cls]
-        except KeyError:
-            msg = (
-                f"Enduring object class {cls.__name__} has no "
-                f"InitialDecision class. Please define a subclass of "
-                f"InitialDecision as a nested class on {cls.__name__}."
-            )
-            raise ProgrammingError(msg) from None
 
-        return cls._create(
-            decision_cls=init_enduring_object_class,
-            **kwargs,
-        )
+        return cls._create(**kwargs)
 
 
 TID = TypeVar("TID", bound=str, default=str)
@@ -266,39 +205,15 @@ class EnduringObject(
     id: TID
 
     @classmethod
-    def _create(
-        cls: type[Self], decision_cls: type[InitialDecision], **kwargs: Any
-    ) -> Self:
-        enduring_object_id = cls._create_id()
-        id_attr_name = decision_cls.id_attr_name(cls)
-        assert id_attr_name not in kwargs
-        assert "originator_topic" not in kwargs
-        assert "tags" not in kwargs
-        initial_kwargs: dict[str, Any] = {
-            id_attr_name: enduring_object_id,
-            "originator_topic": get_topic(cls),
-        }
-        initial_kwargs.update(kwargs)
-        try:
-
-            tagged = Tagged[TDecision](
-                tags=[enduring_object_id],
-                decision=cast(type[TDecision], decision_cls)(**initial_kwargs),
-            )
-        except TypeError as e:
-            msg = (
-                f"Unable to construct {decision_cls.__qualname__} event "
-                f"with kwargs {initial_kwargs}: {e}"
-            )
-            raise TypeError(msg) from e
-        self = cast(Self, tagged.decision.mutate(None))
-        assert self is not None
-        self.new_decisions.append(tagged)
-        return self
-
-    @classmethod
-    def _create_id(cls) -> TID:
-        return cast(TID, f"{cls.__name__.lower()}-{uuid4()}")
+    def _create(cls: type[Self], **kwargs: Any) -> Self:
+        obj = cls.__new__(cls, **kwargs)
+        # TODO: Maybe find a better way to do this, but it seems we need
+        #  to set the `id` attribute for the call the `trigger_event()`?
+        obj.id = next(iter(kwargs.values()))  # assume ID is first arg
+        # Calling __init__ should trigger an event that
+        # calls the original decorated __init__ method.
+        obj.__init__(**kwargs)  # type: ignore[misc]
+        return obj
 
     def consistency_boundary(self) -> list[Selector]:
         return [Selector(tags=[self.id])]
@@ -315,7 +230,35 @@ class EnduringObject(
 
 
 class Group(Perspective[TDecision]):
-    _enduring_objects: list[EnduringObject[TDecision]]
+    _enduring_objects: list[EnduringObject]
+    classes: ClassVar[Sequence[type[EnduringObject[Any, Any]]]]
+
+    def __init_subclass__(cls) -> None:
+        super().__init_subclass__()
+        # 1. Get all the type hints from the __init__ method
+        hints = typing.get_type_hints(cls.__init__)
+
+        extracted_classes: list[type[EnduringObject[Any]]] = []
+
+        for param_name, hint in hints.items():
+            # Ignore the return type and 'self' (if it happens to be annotated)
+            if param_name in ("return", "self"):
+                continue
+
+            # 2. Extract arguments from the Union
+            # (e.g., Student | None becomes (Student, NoneType))
+            args = typing.get_args(hint)
+
+            if args:
+                # Filter out NoneType to just get the actual class
+                extracted_classes.extend(
+                    arg for arg in args if arg is not types.NoneType
+                )
+            else:
+                # If it wasn't a Union/Optional, just append the hint directly
+                extracted_classes.append(hint)
+        assert all(issubclass(cls, EnduringObject) for cls in extracted_classes)
+        cls.classes = extracted_classes
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Self:
         self = super().__new__(cls, *args, **kwargs)

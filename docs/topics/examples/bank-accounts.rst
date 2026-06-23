@@ -58,7 +58,7 @@ Code reference
     :members:
     :undoc-members:
 
-.. automodule:: examples.bankaccounts.test
+.. automodule:: examples.bankaccounts.test_bankaccounts
     :show-inheritance:
     :member-order: bysource
     :members:

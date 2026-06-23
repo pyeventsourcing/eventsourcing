@@ -7,7 +7,9 @@ from eventsourcing.persistence import IntegrityError
 from eventsourcing.tests.postgres_utils import drop_tables
 from examples.dcb_enrolment.test_enrolment import EnrolmentTestCase
 from examples.dcb_enrolment_with_enduring_objects.application import (
+    Course,
     EnrolmentWithEnduringObjects,
+    Student,
     StudentAndCourse,
 )
 
@@ -106,9 +108,13 @@ class TestEnrolmentWithEnduringObjects(EnrolmentTestCase):
             app.repository.save(group)
 
         # Check get_many() preserves order.
-        objs = app.repository.get_many(course_id, student_id)
+        objs = app.repository.get_many(
+            (course_id, student_id), classes=(Course, Student)
+        )
         self.assertEqual([course_id, student_id], [o.id for o in objs if o])
-        objs = app.repository.get_many(student_id, course_id)
+        objs = app.repository.get_many(
+            (student_id, course_id), classes=(Student, Course)
+        )
         self.assertEqual([student_id, course_id], [o.id for o in objs if o])
 
         # Can't call non-command underscore methods.

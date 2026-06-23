@@ -36,8 +36,8 @@ class Decision(
 TDecision = TypeVar("TDecision", bound=Decision)
 
 
-class MessagePackMapper(persistence.DCBMapper[Decision]):
-    def to_dcb_event(self, event: domain.Tagged[TDecision]) -> api.DCBEvent:
+class MessagePackMapper(persistence.DCBMapper):
+    def to_dcb_event(self, event: domain.Tagged[Any]) -> api.DCBEvent:
         return api.DCBEvent(
             type=get_topic(type(event.decision)),
             data=msgspec.msgpack.encode(event.decision),
@@ -45,7 +45,7 @@ class MessagePackMapper(persistence.DCBMapper[Decision]):
             uuid=event.uuid,
         )
 
-    def to_domain_event(self, event: api.DCBEvent) -> domain.Tagged[Decision]:
+    def to_domain_event(self, event: api.DCBEvent) -> domain.Tagged[Any]:
         return domain.Tagged(
             tags=event.tags,
             decision=msgspec.msgpack.decode(
@@ -54,7 +54,3 @@ class MessagePackMapper(persistence.DCBMapper[Decision]):
             ),
             uuid=event.uuid,
         )
-
-
-class InitialDecision(Decision, domain.InitialDecision):
-    originator_topic: str

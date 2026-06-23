@@ -1,10 +1,12 @@
-from typing import cast
+from __future__ import annotations
+
 from unittest import TestCase
+from uuid import uuid4
 
 from eventsourcing.dcb.application import DCBApplication
 from eventsourcing.dcb.domain import EnduringObject
-from eventsourcing.dcb.msgpack import InitialDecision, MessagePackMapper
-from eventsourcing.domain import put_metadata_in_context
+from eventsourcing.dcb.msgpack import Decision, MessagePackMapper
+from eventsourcing.domain import event, put_metadata_in_context
 from eventsourcing.utils import get_topic
 
 
@@ -33,16 +35,20 @@ class TestDCBApplication(TestCase):
 
     def test_respects_metadata(self) -> None:
         class MyEnduringObject(EnduringObject):
-            class Created(InitialDecision):
+            class Created(Decision):
                 myenduringobject_id: str
 
-            def __init__(self, metadata: dict[str, str] | None = None):
-                assert metadata is not None
-                self.created_by = metadata["user_id"]
+                def apply(self, obj: MyEnduringObject) -> None:
+                    obj.created_by = self.metadata["user_id"]
+
+            @event(Created)
+            def __init__(self, myenduringobject_id: str):
+                self.id = myenduringobject_id
+                self.created_by = ""
 
         with DCBApplication(env={"MAPPER_TOPIC": get_topic(MessagePackMapper)}) as app:
             with put_metadata_in_context({"user_id": "user-1"}):
-                obj = MyEnduringObject()
+                obj = MyEnduringObject(myenduringobject_id=str(uuid4()))
 
             # Check the metadata arrived in the object.
             self.assertEqual(obj.created_by, "user-1")
@@ -51,7 +57,7 @@ class TestDCBApplication(TestCase):
             app.repository.save(obj)
 
             # Check the metadata arrives in the reconstructed object.
-            copy = cast(MyEnduringObject, app.repository.get(obj.id))
+            copy = app.repository.get(obj.id, MyEnduringObject)
             self.assertEqual(copy.created_by, "user-1")
 
             # Check the events have IDs.

@@ -11,8 +11,3 @@ class Decision(domain.Decision):
 
     def as_dict(self) -> dict[str, Any]:
         return self.__dict__.copy()
-
-
-@dataclass
-class InitialDecision(domain.InitialDecision, Decision):
-    originator_topic: str

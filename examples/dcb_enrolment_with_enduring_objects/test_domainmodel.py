@@ -2,15 +2,19 @@ from __future__ import annotations
 
 from typing import cast
 from unittest import TestCase
+from uuid import uuid4
 
 from eventsourcing.dcb.domain import Selector, Tagged
+from examples.dcb_enrolment.interface import CourseID, StudentID
 from examples.dcb_enrolment_with_enduring_objects.application import Course, Student
 
 
 class TestEnduringObjects(TestCase):
     def test_student(self) -> None:
         # Construct a student by calling the class.
-        student = Student(name="Max", max_courses=3)
+        student = Student(
+            student_id=StudentID("student-" + str(uuid4())), name="Max", max_courses=3
+        )
 
         # Check student id.
         self.assertTrue(student.id.startswith("student-"), student.id)
@@ -32,8 +36,9 @@ class TestEnduringObjects(TestCase):
         # Check the event has tags.
         self.assertTrue(student.id in new_event1.tags)
 
-        # Check init event can reconstruct enduring object.
-        copy1 = cast(Student, new_event1.decision.mutate(None))
+        # Reconstruct enduring object.
+        copy1 = Student.__new__(Student)
+        copy1 = cast(Student, new_event1.decision.mutate(copy1))
         self.assertEqual(copy1.id, student.id)
         self.assertEqual(copy1.name, student.name)
         self.assertEqual(copy1.max_courses, student.max_courses)
@@ -65,7 +70,9 @@ class TestEnduringObjects(TestCase):
 
     def test_course(self) -> None:
         # Construct a course by by calling the class.
-        course = Course(name="Biology", places=4)
+        course = Course(
+            course_id=CourseID("course-" + str(uuid4())), name="Biology", places=4
+        )
 
         # Check course id.
         self.assertTrue(course.id.startswith("course-"), course.id)
@@ -88,8 +95,9 @@ class TestEnduringObjects(TestCase):
         self.assertTrue(1, len(new_event.tags))
         self.assertTrue(course.id in new_event.tags)
 
-        # Check init event can reconstruct enduring object.
-        copy = cast(Course, new_event.decision.mutate(None))
+        # Reconstruct enduring object.
+        copy = Course.__new__(Course)
+        copy = cast(Course, new_event.decision.mutate(copy))
         self.assertEqual(copy.id, course.id)
         self.assertEqual(copy.name, course.name)
         self.assertEqual(copy.places, course.places)

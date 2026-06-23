@@ -119,7 +119,7 @@ tools ``diff`` and ``patch``.
 Test case
 ---------
 
-The :class:`~examples.contentmanagement.test.TestContentManagement` test case creates and updates pages
+The :class:`~examples.contentmanagement.test_contentmanagement.TestContentManagement` test case creates and updates pages
 in various ways. It sets a user ID in the metadata context variable using the context manager
 :func:`~eventsourcing.domain.put_metadata_in_context` before application methods are called.
 At the end, all the page events are checked to make sure they all have the user ID that was
@@ -151,7 +151,7 @@ Code reference
     :members:
     :undoc-members:
 
-.. automodule:: examples.contentmanagement.test
+.. automodule:: examples.contentmanagement.test_contentmanagement
     :show-inheritance:
     :member-order: bysource
     :members:

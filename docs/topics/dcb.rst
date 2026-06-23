@@ -440,13 +440,6 @@ The examples below define decision types as Python data classes.
     )
 
 
-Additionally, the class :class:`~eventsourcing.dcb.domain.InitialDecision` can be used to represent the first
-decision in a modelled set of decisions that have serial order (a sequence). It extends :class:`~eventsourcing.dcb.domain.Decision`
-with an "originator topic" type hint that may be implemented to represent the type of thing to which the sequence
-belongs. All the members of such a sequence of decisions are likely each to be tagged with a common tag,
-and perhaps also other tags for cross-cutting decisions or other classifications. The common tag in this case
-is likely to represent the continuity ID of the thing to which the whole sequence belongs.
-
 .. _DCB TDecision:
 
 TDecision
@@ -464,8 +457,8 @@ Tagged
 
 The generic class :class:`~eventsourcing.dcb.domain.Tagged` encapsulates a
 :class:`~eventsourcing.dcb.domain.Decision`, along with some tag strings,
-and a unique identifier for the decision.
-It corresponds to the "typed and tagged" lower-level :ref:`DCB event <DCB Event>` type.
+and a unique identifier for the decision. It corresponds to the "typed and tagged"
+lower-level :ref:`DCB event <DCB Event>` type, and so also has a `uuid` field.
 
 .. literalinclude:: ../../eventsourcing/dcb/domain.py
     :pyobject: Tagged
@@ -498,13 +491,14 @@ for example by using `json`, Pydantic, `msgspec`, or Protobuf.
 
 .. code-block:: python
 
+    from typing import Any
     import json
 
-    class JSONMapper(DCBMapper[Decision]):
+    class JSONMapper(DCBMapper):
         def __init__(self, registered_types: list[type[Decision]]) -> None:
             self.registered_types = {t.__qualname__: t for t in registered_types}
 
-        def to_dcb_event(self, event: Tagged[Decision]) -> DCBEvent:
+        def to_dcb_event(self, event: Tagged[Any]) -> DCBEvent:
             return DCBEvent(
                 type=type(event.decision).__qualname__,
                 data=json.dumps(event.decision.as_dict()),
@@ -512,7 +506,7 @@ for example by using `json`, Pydantic, `msgspec`, or Protobuf.
                 uuid=event.uuid,
             )
 
-        def to_domain_event(self, event: DCBEvent) -> Tagged[Decision]:
+        def to_domain_event(self, event: DCBEvent) -> Tagged[Any]:
             return Tagged(
                 tags=event.tags,
                 decision=self.registered_types[event.type](**json.loads(event.data)),
@@ -541,7 +535,7 @@ To use this module, you will need to install the `Python msgspec package <https:
 
 .. code-block:: python
 
-    from eventsourcing.dcb.msgpack import Decision, MessagePackMapper, InitialDecision
+    from eventsourcing.dcb.msgpack import Decision, MessagePackMapper
 
 
     class StudentJoinedCourse(Decision):
@@ -695,48 +689,47 @@ Enduring object
 
 The generic base class :class:`~eventsourcing.dcb.domain.EnduringObject` extends the :ref:`perspective <Perspective>` class,
 and is similar to :doc:`event-sourced aggregates </topics/tutorial/part2>`. Each instance has a unique continuity ID,
-which is stored in the :data:`~eventsourcing.dcb.domain.EnduringObject.id` attribute. The continuity ID is used as a tag
+which should be stored in the :data:`~eventsourcing.dcb.domain.EnduringObject.id` attribute. The continuity ID is used as a tag
 in its consistency boundary, and to tag new decisions.
 
-Enduring objects can have command methods decorated with the library's :ref:`event decorator <Event decorator>`.
-Calling a decorated command method will generate a new tagged decision. The method body will be used to
-project tagged events into the current state of the enduring object.
+The ``__init__`` method and the command methods of enduring objects must be decorated with the library's
+:ref:`event decorator <Event decorator>`, so that calling the class or a decorated command method
+will generate a new tagged decision. The method body will be used to project tagged events into the
+current state of the enduring object.
 
-Enduring object subclasses must be associated with an :class:`~eventsourcing.dcb.domain.InitialDecision` class
-whose attributes match the arguments of its initializer ``__init__()`` method. This association can be made
-either by defining a subclass of :class:`~eventsourcing.dcb.domain.InitialDecision` as a nested class on
-the enduring object subclass, or by mentioning a subclass of :class:`~eventsourcing.dcb.domain.InitialDecision`
-in an event decorator in the ``__init__()`` method.
-
-Enduring object instances can be created by calling the subclass. This will trigger a new "initial decision",
-that will be used to construct the enduring object instance. The "initial decision" can be collected from
-the enduring object instance by calling :func:`~eventsourcing.dcb.domain.Perspective.collect_events`. The
-examples below show a student and course modelled as enduring objects. The ``StudentJoinedCourse`` decision class,
+The generated "tagged decision" objects can be collected from the enduring object by calling
+:func:`~eventsourcing.dcb.domain.Perspective.collect_events`. The examples below show a student
+and course modelled as enduring objects. The ``StudentJoinedCourse`` decision class,
 defined in the :ref:`mapper example <DCB mapper>` above, is included in the projection of both enduring objects,
 in preparation for the :ref:`group example <Group>` in the next section.
 
 .. code-block:: python
 
+    from uuid import uuid4
+
     from eventsourcing.domain import event
     from eventsourcing.dcb.domain import EnduringObject
 
 
+    class StudentRegistered(Decision):
+        student_id: str
+        name: str
+        max_courses: int
+
+
+    class StudentNameUpdated(Decision):
+        name: str
+
+
     class Student(EnduringObject[Decision, str]):
-        class Registered(InitialDecision):
-            student_id: str
-            name: str
-            max_courses: int
-
-        class NameUpdated(Decision):
-            name: str
-
-        @event(Registered)
-        def __init__(self, name: str, max_courses: int) -> None:
+        @event(StudentRegistered)
+        def __init__(self, student_id: str, name: str, max_courses: int) -> None:
+            self.id = student_id
             self.name = name
             self.max_courses = max_courses
             self.course_ids: list[str] = []
 
-        @event(NameUpdated)
+        @event(StudentNameUpdated)
         def update_name(self, name: str) -> None:
             self.name = name
 
@@ -745,13 +738,16 @@ in preparation for the :ref:`group example <Group>` in the next section.
             self.course_ids.append(course_id)
 
 
-    class Course(EnduringObject[Decision, str]):
-        class Registered(InitialDecision):
-            course_id: str
-            name: str
-            max_students: int
+    class CourseRegistered(Decision):
+        course_id: str
+        name: str
+        max_students: int
 
-        def __init__(self, name: str, max_students: int) -> None:
+
+    class Course(EnduringObject[Decision, str]):
+        @event(CourseRegistered)
+        def __init__(self, course_id: str, name: str, max_students: int) -> None:
+            self.id = course_id
             self.name = name
             self.max_students = max_students
             self.student_ids: list[str] = []
@@ -763,6 +759,7 @@ in preparation for the :ref:`group example <Group>` in the next section.
 
     # Create a new student.
     student = Student(
+        student_id=f"student-{uuid4()}",
         name="Sara",
         max_courses=5,
     )
@@ -779,6 +776,7 @@ in preparation for the :ref:`group example <Group>` in the next section.
 
     # Create a new course...
     course = Course(
+        course_id=f"course-{uuid4()}",
         name="History",
         max_students=30,
     )
@@ -790,8 +788,8 @@ See the :doc:`DCB examples </topics/examples/dcb-enrolment-with-enduring-objects
 
 The advantage of enduring objects is the conceptual unity of having everything together in one place.
 However, this aligns enduring objects with the central criticism of event-sourced aggregates motivating DCB:
-that including all events in the consistency boundary, regardless of whether they are actually required for
-any particular operation, increases contention unnecessarily. Following this comes the accumulation of all
+that including all events in a consistency boundary, regardless of whether they are actually required for
+any particular operation, may increase contention unnecessarily. Following this comes the accumulation of all
 commands and queries in a single class, tending towards large units of code that are hard to understand.
 See :ref:`slices <Slice>` for an alternative higher-level abstraction.
 
@@ -897,12 +895,12 @@ automatically collects all decision classes mentioned in the slice's :func:`@eve
                 tags=[self.student_id],
             )
 
-        @event(Student.Registered)
+        @event(StudentRegistered)
         def _(self, name: str) -> None:
             self.name = name
             self.student_was_registered = True
 
-        @event(Student.NameUpdated)
+        @event(StudentNameUpdated)
         def _(self, name: str) -> None:
             self.name = name
 
@@ -910,7 +908,7 @@ automatically collects all decision classes mentioned in the slice's :func:`@eve
             assert self.student_was_registered
             assert self.name != self.new_name
             self.trigger_event(
-                Student.NameUpdated,
+                StudentNameUpdated,
                 tags=[self.student_id],
                 name=self.new_name,
             )
@@ -926,17 +924,14 @@ higher-level abstraction.
 Mixing styles
 -------------
 
-The decision classes used in the ``UpdateStudentName`` slice are those defined above on the ``Student`` enduring
-object. In these examples, the decision classes are defined as nested classes, but defining them as module-level
-classes would work just as well.
+The decision classes used in the ``UpdateStudentName`` slice are the same as those use for the ``Student`` enduring
+object.
 
-This shows that it is possible to develop a domain model with enduring objects and rework your code to use slices.
-Similarly, with a little care, it is possible to start with slices and rework your code to use enduring objects.
+This shows that it is possible to develop a domain model with enduring objects and later rework your code to use
+slices. Similarly, it is possible to start with slices and rework your code to use enduring objects.
 
-Indeed, it is possible to have some parts of your domain model defined with
-enduring objects, and groups, and to have other parts defined using slices. This is demonstrated in the
-:ref:`example application <DCB application>` below.
-
+Indeed, it is possible to have some parts of your domain model defined with enduring objects, and groups, and to
+have other parts defined using slices. This is demonstrated in the :ref:`example application <DCB application>` below.
 
 .. _DCB Repository:
 
@@ -970,11 +965,13 @@ The :func:`~eventsourcing.dcb.application.DCBRepository.save` method collects an
 .. code-block:: python
 
     student = Student(
+        student_id=f"student-{uuid4()}",
         name="Sara",
         max_courses=5,
     )
 
     course = Course(
+        course_id=f"course-{uuid4()}",
         name="History",
         max_students=30,
     )
@@ -988,8 +985,8 @@ for a given continuity ID.
 
 .. code-block:: python
 
-    student = repository.get(student.id)
-    course = repository.get(course.id)
+    student = repository.get(student.id, Student)
+    course = repository.get(course.id, Course)
 
     assert student.name == "Sara"
     assert student.max_courses == 5
@@ -1005,7 +1002,7 @@ for a given sequence of continuity IDs.
 
 .. code-block:: python
 
-    student, course = repository.get_many(student.id, course.id)
+    student, course = repository.get_many((student.id, course.id), classes=(Student, Course))
 
     assert student.name == "Sara"
     assert student.max_courses == 5
@@ -1027,8 +1024,8 @@ and its enduring object for a given sequence of continuity IDs.
     repository.save(group)
 
     # Check the student has joined the course.
-    student = repository.get(student.id)
-    course = repository.get(course.id)
+    student = repository.get(student.id, Student)
+    course = repository.get(course.id, Course)
     assert course.id in student.course_ids
     assert student.id in course.student_ids
 
@@ -1085,7 +1082,7 @@ The example below shows how to write command and query methods using :ref:`endur
 
     class CourseSubscriptions(DCBApplication):
         def register_student(self, name: str) -> str:
-            student = Student(name=name, max_courses=5)
+            student = Student(student_id=f"student-{uuid4()}", name=name, max_courses=5)
             self.repository.save(student)
             return student.id
 
@@ -1093,7 +1090,7 @@ The example below shows how to write command and query methods using :ref:`endur
             self.do(UpdateStudentName(student_id, new_name))
 
         def register_course(self, name: str) -> str:
-            course = Course(name=name, max_students=30)
+            course = Course(course_id=f"course-{uuid4()}", name=name, max_students=30)
             self.repository.save(course)
             return course.id
 
@@ -1103,12 +1100,12 @@ The example below shows how to write command and query methods using :ref:`endur
             self.repository.save(group)
 
         def list_courses_for_student(self, student_id: str) -> list[str]:
-            student: Student = self.repository.get(student_id)
-            return [c.name for c in self.repository.get_many(*student.course_ids)]
+            student = self.repository.get(student_id, Student)
+            return [c.name for c in self.repository.get_many(student.course_ids, cls=Course)]
 
         def list_students_for_course(self, course_id: str) -> list[str]:
-            course: Course = self.repository.get(course_id)
-            return [s.name for s in self.repository.get_many(*course.student_ids)]
+            course = self.repository.get(course_id, Course)
+            return [s.name for s in self.repository.get_many(course.student_ids, cls=Student)]
 
 
     # Construct app to use MessagePack and in-memory persistence.

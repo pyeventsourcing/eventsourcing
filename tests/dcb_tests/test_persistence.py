@@ -3,7 +3,7 @@ from uuid import uuid4
 
 from eventsourcing.dcb.api import DCBAppendCondition, DCBEvent, DCBQuery, DCBQueryItem
 from eventsourcing.dcb.application import DCBRepository
-from eventsourcing.dcb.domain import Tagged
+from eventsourcing.dcb.domain import EnduringObject, Tagged
 from eventsourcing.dcb.msgpack import Decision, MessagePackMapper
 from eventsourcing.dcb.persistence import DCBEventStore, NotFoundError
 from eventsourcing.dcb.popo import InMemoryDCBRecorder
@@ -19,7 +19,7 @@ class TestRepository(TestCase):
             DCBEventStore(mapper=MessagePackMapper(), recorder=InMemoryDCBRecorder())
         )
         with self.assertRaises(NotFoundError):
-            repo.get("not-an-object")
+            repo.get("not-an-object", EnduringObject)
 
 
 class TestDCBMapper(TestCase):

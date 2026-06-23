@@ -112,11 +112,11 @@ all implement the required :func:`~eventsourcing.dcb.api.DCBRecorder.subscribe` 
 .. code-block:: python
 
     from dataclasses import dataclass
-    from uuid import UUID
+    from uuid import UUID, uuid4
 
     from eventsourcing.dcb.application import DCBApplication
     from eventsourcing.dcb.domain import EnduringObject
-    from eventsourcing.dcb.msgpack import Decision, InitialDecision, MessagePackMapper
+    from eventsourcing.dcb.msgpack import Decision, MessagePackMapper
     from eventsourcing.domain import event
     from eventsourcing.projection import DCBApplicationSubscription
     from eventsourcing.utils import get_topic
@@ -124,15 +124,19 @@ all implement the required :func:`~eventsourcing.dcb.api.DCBRecorder.subscribe` 
 
     # Define a perspective.
     class Thing(EnduringObject[Decision, str]):
-        class Created(InitialDecision):
+        class Created(Decision):
             thing_id: str
+
+        @event(Created)
+        def __init__(self, thing_id: str) -> None:
+            self.thing_id = thing_id
 
 
     # Construct an application object.
     app = DCBApplication(env={"MAPPER_TOPIC": get_topic(MessagePackMapper)})
 
     # Record an event.
-    perspective = Thing()
+    perspective = Thing(thing_id=str(uuid4()))
     app.repository.save(perspective)
 
     # Position in application sequence from which to subscribe.
@@ -212,7 +216,7 @@ types of :class:`~eventsourcing.dcb.domain.Decision`.
 .. code-block:: python
 
     from eventsourcing.dcb.domain import Tagged
-    from eventsourcing.dcb.msgpack import Decision, InitialDecision
+    from eventsourcing.dcb.msgpack import Decision
 
 
     class TaggedDecisionProjection(Projection["MyMaterialisedViewInterface"]):
@@ -228,7 +232,7 @@ types of :class:`~eventsourcing.dcb.domain.Decision`.
             pass
 
         @process_decision.register
-        def process_initial_decision(self, _: InitialDecision, tracking: Tracking) -> None:
+        def process_initial_decision(self, _: Thing.Created, tracking: Tracking) -> None:
             self.view.my_command(tracking)
 
 
