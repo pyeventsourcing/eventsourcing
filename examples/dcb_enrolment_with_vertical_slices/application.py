@@ -116,14 +116,14 @@ class UpdateStudentName(Slice[Decision]):
 
 class UpdateMaxCourses(Slice[Decision]):
     def __init__(self, student_id: StudentID, max_courses: int) -> None:
-        self.student_was_registered: bool = False
-        self.id = student_id
+        self.student_id = student_id
         self.max_courses = max_courses
+        self.student_was_registered: bool = False
 
     def consistency_boundary(self) -> Selector:
         return Selector(
             types=[StudentRegistered, StudentMaxCoursesUpdated],
-            tags=[self.id],
+            tags=[self.student_id],
         )
 
     @event(StudentRegistered)
@@ -134,17 +134,17 @@ class UpdateMaxCourses(Slice[Decision]):
         assert self.student_was_registered
         self.trigger_event(
             StudentMaxCoursesUpdated,
-            tags=[self.id],
-            student_id=self.id,
+            tags=[self.student_id],
+            student_id=self.student_id,
             max_courses=self.max_courses,
         )
 
 
 class RegisterCourse(Slice[Decision]):
     def __init__(self, name: str, places: int):
-        self.course_id = CourseID(f"course-{uuid4()}")
         self.name = name
         self.places = places
+        self.course_id = CourseID(f"course-{uuid4()}")
 
     def consistency_boundary(self) -> Selector:
         return Selector(types=[CourseRegistered], tags=[self.course_id])
@@ -161,12 +161,14 @@ class RegisterCourse(Slice[Decision]):
 
 class UpdateCourseName(Slice[Decision]):
     def __init__(self, course_id: CourseID, name: str) -> None:
-        self.id = course_id
+        self.course_id = course_id
         self.name = name
         self.course_was_registered: bool = False
 
     def consistency_boundary(self) -> Selector:
-        return Selector(types=[CourseRegistered, CourseNameUpdated], tags=[self.id])
+        return Selector(
+            types=[CourseRegistered, CourseNameUpdated], tags=[self.course_id]
+        )
 
     @event(CourseRegistered)
     def _(self) -> None:
@@ -176,20 +178,22 @@ class UpdateCourseName(Slice[Decision]):
         assert self.course_was_registered
         self.trigger_event(
             CourseNameUpdated,
-            tags=[self.id],
-            course_id=self.id,
+            tags=[self.course_id],
+            course_id=self.course_id,
             name=self.name,
         )
 
 
 class UpdatePlaces(Slice[Decision]):
     def __init__(self, course_id: CourseID, places: int) -> None:
-        self.id = course_id
+        self.course_id = course_id
         self.places = places
         self.course_was_registered: bool = False
 
     def consistency_boundary(self) -> Selector:
-        return Selector(types=[CourseRegistered, CoursePlacesUpdated], tags=[self.id])
+        return Selector(
+            types=[CourseRegistered, CoursePlacesUpdated], tags=[self.course_id]
+        )
 
     @event(CourseRegistered)
     def _(self) -> None:
@@ -199,8 +203,8 @@ class UpdatePlaces(Slice[Decision]):
         assert self.course_was_registered
         self.trigger_event(
             CoursePlacesUpdated,
-            tags=[self.id],
-            course_id=self.id,
+            tags=[self.course_id],
+            course_id=self.course_id,
             places=self.places,
         )
 
@@ -433,14 +437,14 @@ class CourseNames(Slice[Decision]):
 
 class Student(Slice[Decision]):
     def __init__(self, student_id: StudentID) -> None:
+        self.student_id = student_id
         self.student_was_registered: bool = False
-        self.id = student_id
         self.name: str = ""
         self.max_courses: int = 0
         self.course_ids: list[CourseID] = []
 
     def consistency_boundary(self) -> Selector:
-        return Selector(tags=[self.id])
+        return Selector(tags=[self.student_id])
 
     @event(StudentRegistered)
     def _(self, name: str, max_courses: int) -> None:
@@ -467,14 +471,14 @@ class Student(Slice[Decision]):
 
 class Course(Slice[Decision]):
     def __init__(self, course_id: CourseID) -> None:
+        self.course_id = course_id
         self.course_was_registered: bool = False
-        self.id = course_id
         self.name: str = ""
         self.places = 0
         self.student_ids: list[StudentID] = []
 
     def consistency_boundary(self) -> Selector:
-        return Selector(tags=[self.id])
+        return Selector(tags=[self.course_id])
 
     @event(CourseRegistered)
     def _(self, name: str, places: int) -> None:
