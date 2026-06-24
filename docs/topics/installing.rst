@@ -6,7 +6,8 @@ This version of the library is compatible with Python versions 3.11,
 3.11, 3.12, 3.13, and 3.14.
 
 This package depends only on modules from the Python Standard Library,
-except for ``typing_extensions`` and the extra install options described below.
+except for ``typing_extensions`` and the optional extra install options
+described below.
 
 
 Pip install
@@ -123,12 +124,21 @@ environment to enable encryption.
     $ pip install "eventsourcing[crypto]"
 
 
-Options can be combined, so that if you want to store encrypted events in PostgreSQL,
-then install with both the ``postgres`` and the ``cryptography`` options.
+If you want to use the library's Pydantic domain model classes,
+then you can install with the ``pydantic`` option. This simply installs
+`Pydantic <https://pydantic.dev/docs/validation/latest/get-started>`_.
 
 ::
 
-    $ pip install "eventsourcing[postgres,cryptography]"
+    $ pip install "eventsourcing[pydantic]"
+
+
+Options can be combined, so that if you want to store encrypted Pydantic events in PostgreSQL,
+then install with the ``cryptography``, ``pydantic`` and ``postgres`` options.
+
+::
+
+    $ pip install "eventsourcing[cryptography,postgres,pydantic]"
 
 
 .. _Template:

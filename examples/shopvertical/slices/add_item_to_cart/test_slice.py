@@ -15,7 +15,7 @@ from examples.shopvertical.slices.add_item_to_cart.cmd import (
 )
 
 if TYPE_CHECKING:
-    from examples.aggregate7.immutablemodel import DomainEvent
+    from eventsourcing.pydantic.immutablemodel import DomainEvent
 
 
 class TestAddItemToCart(unittest.TestCase):

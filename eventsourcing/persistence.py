@@ -198,6 +198,16 @@ class Transcoder(ABC):
         """Decodes obj from bytes."""
 
 
+class NullTranscoder(Transcoder):
+    """Null transcoder."""
+
+    def encode(self, obj: Any) -> bytes:
+        raise ProgrammingError
+
+    def decode(self, data: bytes) -> Any:
+        raise ProgrammingError
+
+
 class TranscodingNotRegisteredError(EventSourcingError, TypeError):
     """Raised when a transcoding isn't registered with JSONTranscoder."""
 

@@ -6,8 +6,8 @@ from uuid import UUID
 
 from eventsourcing.application import AggregateNotFoundError
 from eventsourcing.persistence import IntegrityError
+from eventsourcing.pydantic.application import PydanticApplication
 from eventsourcing.utils import get_topic
-from examples.aggregate7.orjsonpydantic import PydanticApplication
 from examples.shopstandard.domain import Cart, CartItem, Product, ProductDetails
 from examples.shopstandard.exceptions import (
     InsufficientInventoryError,

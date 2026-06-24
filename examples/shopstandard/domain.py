@@ -4,8 +4,8 @@ from decimal import Decimal  # noqa: TC003
 from uuid import UUID  # noqa: TC003
 
 from eventsourcing.domain import event
-from examples.aggregate7.immutablemodel import Immutable
-from examples.aggregate8.mutablemodel import Aggregate
+from eventsourcing.pydantic.immutablemodel import Immutable
+from eventsourcing.pydantic.mutablemodel import Aggregate
 from examples.shopstandard.exceptions import (
     CartAlreadySubmittedError,
     CartFullError,

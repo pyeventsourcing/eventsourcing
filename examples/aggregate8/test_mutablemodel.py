@@ -4,7 +4,7 @@ from uuid import uuid4
 from pydantic import ValidationError
 
 from eventsourcing.domain import datetime_now_with_tzinfo
-from examples.aggregate8.mutablemodel import AggregateSnapshot, SnapshotState
+from eventsourcing.pydantic.mutablemodel import AggregateSnapshot, SnapshotState
 
 
 class TestSnapshotState(TestCase):

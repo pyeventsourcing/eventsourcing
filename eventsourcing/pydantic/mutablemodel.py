@@ -13,7 +13,7 @@ from eventsourcing.domain import (
     CanMutateAggregate,
     CanSnapshotAggregate,
 )
-from examples.aggregate7.immutablemodel import DomainEvent, Immutable
+from eventsourcing.pydantic.immutablemodel import DomainEvent, Immutable
 
 datetime_adapter = TypeAdapter(datetime)
 

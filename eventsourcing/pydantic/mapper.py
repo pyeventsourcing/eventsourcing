@@ -2,23 +2,22 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import msgspec
-
-from eventsourcing.application import Application
 from eventsourcing.domain import TAggregateID
-from eventsourcing.persistence import Mapper, NullTranscoder, StoredEvent
+from eventsourcing.persistence import Mapper, StoredEvent
+from eventsourcing.pydantic.immutablemodel import DomainEvent
 from eventsourcing.utils import get_topic, resolve_topic
 
 if TYPE_CHECKING:
     from eventsourcing.domain import DomainEventProtocol
 
 
-class MessagePackMapper(Mapper[TAggregateID]):
+class PydanticMapper(Mapper[TAggregateID]):
     def to_stored_event(
         self, domain_event: DomainEventProtocol[TAggregateID]
     ) -> StoredEvent:
         topic = get_topic(domain_event.__class__)
-        stored_state = msgspec.json.encode(domain_event)
+        assert isinstance(domain_event, DomainEvent)
+        stored_state = domain_event.model_dump_json().encode()
         if self.compressor:
             stored_state = self.compressor.compress(stored_state)
         if self.cipher:
@@ -39,13 +38,5 @@ class MessagePackMapper(Mapper[TAggregateID]):
         if self.compressor:
             stored_state = self.compressor.decompress(stored_state)
         cls = resolve_topic(stored_event.topic)
-        return msgspec.json.decode(stored_state, type=cls)
-
-
-class MsgspecApplication(Application[TAggregateID]):
-    def construct_mapper(self) -> Mapper[TAggregateID]:
-        return MessagePackMapper(
-            transcoder=NullTranscoder(),
-            cipher=self.factory.cipher(),
-            compressor=self.factory.compressor(),
-        )
+        assert issubclass(cls, DomainEvent)
+        return cls.model_validate_json(stored_state.decode())

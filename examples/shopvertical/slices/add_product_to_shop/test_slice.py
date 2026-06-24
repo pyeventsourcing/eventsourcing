@@ -10,7 +10,7 @@ from examples.shopvertical.exceptions import ProductAlreadyInShopError
 from examples.shopvertical.slices.add_product_to_shop.cmd import AddProductToShop
 
 if TYPE_CHECKING:
-    from examples.aggregate7.immutablemodel import DomainEvent
+    from eventsourcing.pydantic.immutablemodel import DomainEvent
 
 
 class TestAddProductToShop(TestCase):

@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
+from uuid import UUID
 
+from eventsourcing.pydantic.application import PydanticApplication
+from eventsourcing.pydantic.immutablemodel import Snapshot
 from examples.aggregate7.domainmodel import Trick, add_trick, project_dog, register_dog
-from examples.aggregate7.immutablemodel import Snapshot
-from examples.aggregate7.orjsonpydantic import PydanticApplication
-
-if TYPE_CHECKING:
-    from uuid import UUID
 
 
 class DogSchool(PydanticApplication):
     is_snapshotting_enabled = True
-    snapshot_class = Snapshot
+    snapshot_class = Snapshot[UUID]
 
     def register_dog(self, name: str) -> UUID:
         event = register_dog(name)

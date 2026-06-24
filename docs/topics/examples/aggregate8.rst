@@ -1,7 +1,7 @@
 .. _Aggregate example 8:
 
-Aggregate 8 - Pydantic with declarative syntax
-==============================================
+Aggregate 8 - Pydantic mutable
+==============================
 
 This example shows how to use Pydantic with the library's declarative syntax.
 
@@ -15,18 +15,28 @@ used in the domain model will be automatically serialised and deserialised, with
 define custom :ref:`transcoding<Transcodings>` classes.
 
 
-Pydantic model for mutable aggregate
-------------------------------------
+.. _Pydantic mutable model:
 
-The code below shows how to define base classes for mutable aggregates that use Pydantic.
+Pydantic mutable model
+----------------------
 
-.. literalinclude:: ../../../examples/aggregate8/mutablemodel.py
+The library's :mod:`eventsourcing.pydantic.mutablemodel` defines base classes for aggregates that can
+use the library's :ref:`declarative syntax for mutable aggregates <Declarative syntax>`.
+
+.. literalinclude:: ../../../eventsourcing/pydantic/mutablemodel.py
+    :pyobject: Aggregate
+
+.. literalinclude:: ../../../eventsourcing/pydantic/mutablemodel.py
+    :pyobject: AggregateSnapshot
+
+.. literalinclude:: ../../../eventsourcing/pydantic/mutablemodel.py
+    :pyobject: SnapshotState
 
 
 Domain model
 ------------
 
-The code below shows how to define a mutable aggregate with the library's declarative syntax, using the Pydantic module for mutable aggregates
+The code below shows how to define a mutable aggregate with the library's declarative syntax, using the :ref:`Pydantic mutable model`.
 
 .. literalinclude:: ../../../examples/aggregate8/domainmodel.py
 
@@ -34,9 +44,8 @@ The code below shows how to define a mutable aggregate with the library's declar
 Application
 -----------
 
-The :class:`~examples.aggregate8.application.DogSchool` application in this example uses the
-:class:`~examples.aggregate7.orjsonpydantic.PydanticApplication` class
-from :doc:`example 7 </topics/examples/aggregate7>`.
+The :class:`~examples.aggregate8.application.DogSchool` application in this example uses the library's
+:class:`~eventsourcing.pydantic.application.PydanticApplication` class.
 
 .. literalinclude:: ../../../examples/aggregate8/application.py
 
@@ -53,7 +62,7 @@ The :class:`~examples.aggregate8.test_application.TestDogSchool` test case shows
 Code reference
 --------------
 
-.. automodule:: examples.aggregate8.mutablemodel
+.. automodule:: eventsourcing.pydantic.mutablemodel
     :show-inheritance:
     :member-order: bysource
     :members:

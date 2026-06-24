@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 from eventsourcing.domain import event
-from examples.aggregate7.immutablemodel import Immutable
-from examples.aggregate8.mutablemodel import Aggregate, AggregateSnapshot, SnapshotState
+from eventsourcing.pydantic.immutablemodel import Immutable
+from eventsourcing.pydantic.mutablemodel import (
+    Aggregate,
+    AggregateSnapshot,
+    SnapshotState,
+)
 
 
 class Trick(Immutable):

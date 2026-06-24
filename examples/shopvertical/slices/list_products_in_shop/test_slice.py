@@ -11,7 +11,7 @@ from examples.shopvertical.events import (
 from examples.shopvertical.slices.list_products_in_shop.query import ListProductsInShop
 
 if TYPE_CHECKING:
-    from examples.aggregate7.immutablemodel import DomainEvent
+    from eventsourcing.pydantic.immutablemodel import DomainEvent
 
 
 class TestListProductsInShop(unittest.TestCase):

@@ -535,7 +535,7 @@ types of object, then you will need to define and register custom :ref:`transcod
 so that these types of objects can be serialised and deserialised.
 
 An alternative to defining transcodings for all your custom model value object and entity types is to
-use Pydantic with orjson. See :doc:`example 7  </topics/examples/aggregate7>` and
+use Pydantic. See :doc:`example 7  </topics/examples/aggregate7>` and
 :doc:`example 8  </topics/examples/aggregate8>` for details.
 
 The application method :func:`~eventsourcing.application.Application.register_transcodings`

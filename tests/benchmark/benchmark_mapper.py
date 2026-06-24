@@ -8,17 +8,18 @@ from uuid import uuid4
 import pytest
 
 import eventsourcing.domain
-import examples.aggregate7.immutablemodel
+import eventsourcing.pydantic.immutablemodel
 import examples.aggregate9.immutablemodel
 from eventsourcing.persistence import (
     DataclassMapper,
     DatetimeAsISO,
     DecimalAsStr,
     JSONTranscoder,
+    NullTranscoder,
     UUIDAsHex,
 )
-from examples.aggregate7.orjsonpydantic import OrjsonTranscoder, PydanticMapper
-from examples.aggregate9.msgpack import MessagePackMapper, NullTranscoder
+from eventsourcing.pydantic.mapper import PydanticMapper
+from examples.aggregate9.msgpack import MessagePackMapper
 
 if TYPE_CHECKING:
     from pytest_benchmark.fixture import BenchmarkFixture
@@ -87,8 +88,8 @@ def test_decode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
 
 
 @pytest.mark.benchmark(group="mapper-encode")
-def test_encode_with_orjsonpydantic(benchmark: BenchmarkFixture) -> None:
-    class MyObj(examples.aggregate7.immutablemodel.DomainEvent):
+def test_encode_with_pydantic(benchmark: BenchmarkFixture) -> None:
+    class MyObj(eventsourcing.pydantic.immutablemodel.DomainEvent):
         a: int
         b: str
         c: float
@@ -103,8 +104,7 @@ def test_encode_with_orjsonpydantic(benchmark: BenchmarkFixture) -> None:
         d=Decimal("0.12345"),
     )
 
-    transcoder = OrjsonTranscoder()
-    mapper = PydanticMapper(transcoder=transcoder)
+    mapper = PydanticMapper(transcoder=(NullTranscoder()))
 
     def func() -> None:
         mapper.to_stored_event(obj)
@@ -113,8 +113,8 @@ def test_encode_with_orjsonpydantic(benchmark: BenchmarkFixture) -> None:
 
 
 @pytest.mark.benchmark(group="mapper-decode")
-def test_decode_with_orjsonpydantic(benchmark: BenchmarkFixture) -> None:
-    class MyObj(examples.aggregate7.immutablemodel.DomainEvent):
+def test_decode_with_pydantic(benchmark: BenchmarkFixture) -> None:
+    class MyObj(eventsourcing.pydantic.immutablemodel.DomainEvent):
         a: int
         b: str
         c: float
@@ -129,8 +129,8 @@ def test_decode_with_orjsonpydantic(benchmark: BenchmarkFixture) -> None:
         d=Decimal("0.12345"),
     )
 
-    transcoder = OrjsonTranscoder()
-    mapper = PydanticMapper(transcoder=transcoder)
+    # Not actually needed
+    mapper = PydanticMapper(transcoder=(NullTranscoder()))
 
     stored_event = mapper.to_stored_event(obj)
 

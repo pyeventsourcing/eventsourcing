@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from functools import singledispatch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
-from examples.aggregate7.immutablemodel import (
+from eventsourcing.pydantic.immutablemodel import (
     Aggregate,
     DomainEvent,
     Immutable,
@@ -16,20 +16,20 @@ class Trick(Immutable):
     name: str
 
 
-class Dog(Aggregate):
+class Dog(Aggregate[UUID]):
     name: str
     tricks: tuple[Trick, ...]
 
 
-class DogRegistered(DomainEvent):
+class DogRegistered(DomainEvent[UUID]):
     name: str
 
 
-class TrickAdded(DomainEvent):
+class TrickAdded(DomainEvent[UUID]):
     trick: Trick
 
 
-def register_dog(name: str) -> DomainEvent:
+def register_dog(name: str) -> DomainEvent[UUID]:
     return DogRegistered(
         originator_id=uuid4(),
         originator_version=1,

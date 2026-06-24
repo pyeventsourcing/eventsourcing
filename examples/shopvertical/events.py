@@ -5,7 +5,7 @@ from decimal import Decimal  # noqa: TC003
 from typing import TYPE_CHECKING
 from uuid import UUID  # noqa: TC003
 
-from examples.aggregate7.immutablemodel import DomainEvent
+from eventsourcing.pydantic.immutablemodel import DomainEvent
 
 if TYPE_CHECKING:
     from typing import TypeAlias

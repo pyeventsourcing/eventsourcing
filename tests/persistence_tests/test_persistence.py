@@ -6,8 +6,18 @@ from eventsourcing.persistence import (
     ApplicationRecorder,
     ListenNotifySubscription,
     Notification,
+    NullTranscoder,
     ProgrammingError,
 )
+
+
+class TestNullTranscoder(TestCase):
+    def test(self) -> None:
+        t = NullTranscoder()
+        with self.assertRaises(ProgrammingError):
+            t.encode(None)
+        with self.assertRaises(ProgrammingError):
+            t.decode(b"")
 
 
 class TestListNotifySubscriptionSubscription(TestCase):

@@ -11,7 +11,7 @@ from examples.shopvertical.events import (
 from examples.shopvertical.slices.get_cart_items.query import GetCartItems
 
 if TYPE_CHECKING:
-    from examples.aggregate7.immutablemodel import DomainEvent
+    from eventsourcing.pydantic.immutablemodel import DomainEvent
 
 
 class TestGetCartItems(TestCase):

@@ -192,7 +192,7 @@ docker-logs:
 # .PHONY: updatetools
 # updatetools:
 # 	pip install -U pip
-# 	pip install -U black mypy flake8 flake8-bugbear isort python-coveralls coverage orjson pydantic
+# 	pip install -U black mypy flake8 flake8-bugbear isort python-coveralls coverage pydantic
 #
 
 .PHONY: docs

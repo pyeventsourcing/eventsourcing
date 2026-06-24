@@ -9,7 +9,7 @@ from examples.shopvertical.slices.clear_cart.cmd import (
 )
 
 if TYPE_CHECKING:
-    from examples.aggregate7.immutablemodel import DomainEvent
+    from eventsourcing.pydantic.immutablemodel import DomainEvent
 
 
 class TestClearCart(unittest.TestCase):

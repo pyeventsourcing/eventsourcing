@@ -46,6 +46,7 @@ dependencies = [
 crypto = ["pycryptodome>=3.22"]
 cryptography = ["cryptography>=46.0.5"]
 postgres = ["psycopg[pool]>=3.2"]
+pydantic = ["pydantic>=2.13.4"]
 
 [project.urls]
 homepage = "https://github.com/pyeventsourcing/eventsourcing"
@@ -64,7 +65,6 @@ ruff = "*"
 psycopg-binary = "*"
 pyright = "*"
 pydantic = { version = "*"}
-orjson = { version = "*"}
 msgspec = { version = "*"}
 pytest = { version = "*"}
 eventsourcing-umadb = { version = ">=0.3.1", allow-prereleases = true }

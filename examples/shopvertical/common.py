@@ -3,8 +3,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, cast
 
-from examples.aggregate7.immutablemodel import Immutable
-from examples.aggregate7.orjsonpydantic import PydanticApplication
+from eventsourcing.pydantic.application import PydanticApplication
+from eventsourcing.pydantic.immutablemodel import Immutable
 from examples.shopvertical.events import DomainEvents
 
 if TYPE_CHECKING:

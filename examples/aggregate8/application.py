@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from examples.aggregate7.orjsonpydantic import PydanticApplication
+from eventsourcing.pydantic.application import PydanticApplication
 from examples.aggregate8.domainmodel import Dog, Trick
 
 if TYPE_CHECKING:

@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from decimal import Decimal
 from uuid import UUID
 
-from examples.aggregate7.immutablemodel import Immutable
+from eventsourcing.pydantic.immutablemodel import Immutable
 from examples.shopvertical.common import Query, get_events
 from examples.shopvertical.events import (
     AddedItemToCart,
