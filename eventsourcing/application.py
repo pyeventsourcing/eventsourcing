@@ -646,6 +646,9 @@ class Application(Generic[TAggregateID]):
                     f" {aggregate_id_type}"
                 )
                 raise TypeError(msg)
+        if cls.snapshot_class is not None and not isinstance(cls.snapshot_class, type):
+            msg = f"The 'snapshot_class' of {cls} is not a class: {cls.snapshot_class}"
+            raise ProgrammingError(msg)
 
     def __init__(self, env: EnvType | None = None) -> None:
         """Initialises an application with an
