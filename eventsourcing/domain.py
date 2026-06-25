@@ -304,9 +304,6 @@ class HasOriginatorIDVersion(AbstractDecision, Generic[TAggregateID]):
             originator_id_type = type_args[0]
             if originator_id_type in (UUID, str, None):
                 cls.originator_id_type = originator_id_type
-            elif originator_id_type is Any:
-                # This for DecoratedFuncCaller.
-                pass
             else:
                 msg = f"Aggregate ID type arg cannot be {originator_id_type}"
                 raise TypeError(msg)
@@ -1425,9 +1422,10 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
         assert len(type_args) == 1, type_args
         originator_id_type = type_args[0]
 
-        def validate_id_type(id_type: Any, must_match: Any = None) -> bool:
-            if id_type and must_match:
-                return id_type is must_match
+        def validate_id_type(id_type: Any) -> bool:
+        # def validate_id_type(id_type: Any, must_match: Any = None) -> bool:
+            # if id_type and must_match:
+            #     return id_type is must_match
             # Check the originator ID type is acceptable.
             actual_id_type = id_type
             # - unwrap any NewType objects.
