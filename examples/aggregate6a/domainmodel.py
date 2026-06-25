@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import contextlib
 from collections import defaultdict
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import singledispatch
 from typing import TYPE_CHECKING, TypeVar
 from uuid import UUID, uuid4
 
 from eventsourcing.domain import (
+    MutatorFunction,
+    ProjectorFunction,
     Snapshot,
+    TDomainEvent,
     datetime_now_with_tzinfo,
     get_metadata_from_context,
 )
@@ -50,14 +52,13 @@ class Aggregate:
 
 
 TAggregate = TypeVar("TAggregate", bound=Aggregate)
-MutatorFunction = Callable[..., TAggregate | None]
 
 
 def aggregate_projector(
-    mutator: MutatorFunction[TAggregate],
-) -> Callable[[TAggregate | None, Iterable[DomainEvent]], TAggregate | None]:
+    mutator: MutatorFunction[TDomainEvent, TAggregate],
+) -> ProjectorFunction[TAggregate, TDomainEvent]:
     def project_aggregate(
-        aggregate: TAggregate | None, events: Iterable[DomainEvent]
+        aggregate: TAggregate | None, events: Iterable[TDomainEvent]
     ) -> TAggregate | None:
         for event in events:
             aggregate = mutator(event, aggregate)

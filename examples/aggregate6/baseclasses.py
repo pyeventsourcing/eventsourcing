@@ -1,13 +1,16 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 from uuid import uuid4
 
-from typing_extensions import TypeVar
-
-from eventsourcing.domain import datetime_now_with_tzinfo, get_metadata_from_context
+from eventsourcing.domain import (
+    MutatorFunction,
+    ProjectorFunction,
+    TDomainEvent,
+    datetime_now_with_tzinfo,
+    get_metadata_from_context,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -46,14 +49,13 @@ class Snapshot(DomainEvent):
 
 
 TAggregate = TypeVar("TAggregate", bound=Aggregate)
-MutatorFunction = Callable[..., TAggregate | None]
 
 
 def aggregate_projector(
-    mutator: MutatorFunction[TAggregate],
-) -> Callable[[TAggregate | None, Iterable[DomainEvent]], TAggregate | None]:
+    mutator: MutatorFunction[TDomainEvent, TAggregate],
+) -> ProjectorFunction[TAggregate, TDomainEvent]:
     def project_aggregate(
-        aggregate: TAggregate | None, events: Iterable[DomainEvent]
+        aggregate: TAggregate | None, events: Iterable[TDomainEvent]
     ) -> TAggregate | None:
         for event in events:
             aggregate = mutator(event, aggregate)

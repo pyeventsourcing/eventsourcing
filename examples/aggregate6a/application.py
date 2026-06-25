@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from eventsourcing.application import Application, ProjectorFunction
-from eventsourcing.domain import Snapshot
+from eventsourcing.application import Application
+from eventsourcing.domain import ProjectorFunction, Snapshot
 from examples.aggregate6a.domainmodel import Dog, add_trick, project_dog, register_dog
 
 if TYPE_CHECKING:

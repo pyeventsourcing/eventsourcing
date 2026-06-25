@@ -6,9 +6,11 @@ import dataclasses
 import importlib
 import inspect
 import os
+import types
+import typing
 from abc import ABCMeta
 from collections import defaultdict
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, tzinfo
@@ -39,7 +41,7 @@ from eventsourcing.utils import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Sequence
     from typing import Self
 
 
@@ -205,6 +207,31 @@ TMutableOrImmutableAggregate = TypeVar(
     "TMutableOrImmutableAggregate", bound=MutableOrImmutableAggregate[Any]
 )
 """Type variable bound by the union of mutable and immutable aggregate protocols."""
+
+
+ProjectorFunction = Callable[
+    [TMutableOrImmutableAggregate | None, Iterable[TDomainEvent]],
+    TMutableOrImmutableAggregate | None,
+]
+
+MutatorFunction = Callable[
+    [TDomainEvent, TMutableOrImmutableAggregate | None],
+    TMutableOrImmutableAggregate | None,
+]
+
+
+def project_aggregate(
+    aggregate: TMutableOrImmutableAggregate | None,
+    domain_events: Iterable[DomainEventProtocol[Any]],
+) -> TMutableOrImmutableAggregate | None:
+    """Projector function for aggregate projections, which works
+    by successively calling aggregate mutator function mutate()
+    on each of the given list of domain events in turn.
+    """
+    for domain_event in domain_events:
+        assert isinstance(domain_event, CanMutateProtocol)
+        aggregate = domain_event.mutate(aggregate)
+    return aggregate
 
 
 @runtime_checkable
@@ -916,8 +943,10 @@ class AbstractDecoratedFuncCaller:
     pass
 
 
-class DecoratedFuncCaller(CanMutateAggregate[Any], AbstractDecoratedFuncCaller):
-    def apply(self, aggregate: BaseAggregate[Any]) -> None:
+class DecoratedFuncCaller(
+    CanMutateAggregate[TAggregateID], AbstractDecoratedFuncCaller
+):
+    def apply(self, aggregate: BaseAggregate[TAggregateID]) -> None:
         """Applies event to aggregate by calling method decorated by @event."""
         # Identify the function that was decorated.
         decorated_func = decorated_funcs[type(self)]
@@ -1120,10 +1149,18 @@ class MetaAggregate(EventsourcingType, ABCMeta, Generic[TAggregate]):
         annotations = {}
         if apply_method is not None:
             method_signature = inspect.signature(apply_method)
-            supers = {
-                s for b in bases for s in b.__mro__ if hasattr(s, "__annotations__")
-            }
-            super_annotations = {a for s in supers for a in s.__annotations__}
+            super_annotations = {}
+
+            for b in reversed(bases):
+                actual_base = typing.get_origin(b) or b
+                # Fallback to a tuple of just the base if __mro__ is somehow missing
+                mro = getattr(actual_base, "__mro__", (actual_base,))
+
+                for mro_cls in reversed(mro):
+                    # Safely get the annotations dict for this specific class in the
+                    # chain and update our running dictionary.
+                    super_annotations.update(inspect.get_annotations(mro_cls))
+
             for param_name, param in list(method_signature.parameters.items())[1:]:
                 # Don't define 'id' on a "created" class.
                 if param_name == "id" and apply_method.__name__ == "__init__":
@@ -1140,8 +1177,11 @@ class MetaAggregate(EventsourcingType, ABCMeta, Generic[TAggregate]):
         if event_topic:
             event_cls_dict["TOPIC"] = event_topic
 
+        def populate_namespace(ns: dict[str, Any]) -> None:
+            ns.update(event_cls_dict)
+
         # Create the event class object.
-        _new_class = type(name, bases, event_cls_dict)
+        _new_class = types.new_class(name, bases, exec_body=populate_namespace)
         return cast("type[CanMutateAggregate[Any]]", _new_class)
 
     def __call__(
@@ -1193,6 +1233,8 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
     """Base class for aggregates."""
 
     INITIAL_VERSION: int = 1
+
+    originator_id_type: ClassVar[type[UUID | str] | None] = UUID
 
     @staticmethod
     def create_id(*_: Any, **__: Any) -> TAggregateID:
@@ -1376,6 +1418,17 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
         Initialises aggregate subclass by defining __init__ method and event classes.
         """
         super().__init_subclass__()
+
+        # Find the type arg for TAggregateID.
+        if "originator_id_type" not in cls.__dict__:
+            type_args = resolve_multi_generic_target(cls, BaseAggregate)
+            assert len(type_args) == 1, type_args
+            originator_id_type = type_args[0]
+            if originator_id_type in (UUID, str, None):
+                cls.originator_id_type = originator_id_type
+            else:
+                msg = f"Aggregate ID type arg cannot be {originator_id_type}"
+                raise TypeError(msg)
 
         # Ensure we aren't defining another instance of the same class,
         # because annotations can get confused when using singledispatchmethod
@@ -1734,9 +1787,15 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
                     )
                     # TODO: Check if this subclassing means we can avoid some of
                     #  the subclassing of events above? Maybe do this first?
+                    originator_id_type = (
+                        given_subclass.originator_id_type or cls.originator_id_type
+                    )
                     event_cls = cls._define_event_class(
                         event_decorator.given_event_cls.__name__,
-                        (DecoratedFuncCaller, given_subclass),
+                        (
+                            DecoratedFuncCaller[originator_id_type],  # type: ignore[valid-type]
+                            given_subclass,
+                        ),
                         None,
                     )
 
@@ -1755,9 +1814,15 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
                         raise base_event_class_not_defined_error
 
                     # Define event class from signature of original method.
+                    originator_id_type = (
+                        base_event_cls.originator_id_type or cls.originator_id_type
+                    )
                     event_cls = cls._define_event_class(
                         event_decorator.event_cls_name,
-                        (DecoratedFuncCaller, base_event_cls),
+                        (
+                            DecoratedFuncCaller[originator_id_type],  # type: ignore[valid-type]
+                            base_event_cls,
+                        ),
                         event_decorator.decorated_func,
                         event_topic=event_decorator.event_topic,
                     )

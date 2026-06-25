@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Generic
 from uuid import UUID, uuid4
@@ -9,7 +8,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import TypeVar
 
 from eventsourcing.domain import (
+    MutatorFunction,
+    ProjectorFunction,
     TAggregateID,
+    TDomainEvent,
     datetime_now_with_tzinfo,
     get_metadata_from_context,
 )
@@ -54,16 +56,12 @@ class Snapshot(DomainEvent[TAggregateID]):
 
 TAggregate = TypeVar("TAggregate", bound=Aggregate[Any])
 
-MutatorFunction = Callable[..., TAggregate | None]
-
 
 def aggregate_projector(
-    mutator: MutatorFunction[TAggregate],
-) -> Callable[
-    [TAggregate | None, Iterable[DomainEvent[TAggregateID]]], TAggregate | None
-]:
+    mutator: MutatorFunction[TDomainEvent, TAggregate],
+) -> ProjectorFunction[TAggregate, TDomainEvent]:
     def project_aggregate(
-        aggregate: TAggregate | None, events: Iterable[DomainEvent[TAggregateID]]
+        aggregate: TAggregate | None, events: Iterable[TDomainEvent]
     ) -> TAggregate | None:
         for event in events:
             aggregate = mutator(event, aggregate)

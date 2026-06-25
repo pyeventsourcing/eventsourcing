@@ -10,8 +10,12 @@ from eventsourcing.domain import (
     CanInitAggregate,
     CanMutateAggregate,
     CanSnapshotAggregate,
+    TAggregateID,
 )
-from eventsourcing.msgspec.immutablemodel import DomainEvent, Immutable
+from eventsourcing.msgspec.immutablemodel import (
+    DomainEvent,
+    Immutable,
+)
 from eventsourcing.utils import get_topic, resolve_topic
 
 if TYPE_CHECKING:
@@ -61,18 +65,31 @@ class AggregateSnapshot(DomainEvent, CanSnapshotAggregate):
         return aggregate
 
 
-class AggregateEvent(DomainEvent, CanMutateAggregate):
+class AggregateEvent(DomainEvent[TAggregateID], CanMutateAggregate[TAggregateID]):
+    # class AggregateEvent(DomainEventY):
     def _as_dict(self) -> dict[str, Any]:
         return {key: getattr(self, key) for key in self.__struct_fields__}
 
 
-class Aggregate(BaseAggregate):
+class Aggregate(BaseAggregate[UUID]):
     @classmethod
     def create_id(cls, *_: Any, **__: Any) -> UUID:
         return uuid4()
 
-    class Event(AggregateEvent):
+    class Event(AggregateEvent[UUID]):
         pass
 
-    class Created(Event, CanInitAggregate):
+    class Created(Event, CanInitAggregate[UUID]):
+        originator_topic: str
+
+
+class AggregateStrID(BaseAggregate[str]):
+    @classmethod
+    def create_id(cls, *_: Any, **__: Any) -> str:
+        return str(uuid4())
+
+    class Event(AggregateEvent[str]):
+        pass
+
+    class Created(Event, CanInitAggregate[str]):
         originator_topic: str

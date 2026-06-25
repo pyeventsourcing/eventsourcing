@@ -3,13 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from eventsourcing.msgspec.application import MsgspecApplication
-from eventsourcing.msgspec.immutablemodel import SnapshotUuidID
-from examples.aggregate9.domainmodel import (
-    Trick,
-    add_trick,
-    project_dog,
-    register_dog,
-)
+from examples.aggregate10_str_ids.domainmodel import Dog, Trick
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -17,21 +11,20 @@ if TYPE_CHECKING:
 
 class DogSchool(MsgspecApplication):
     is_snapshotting_enabled = True
-    snapshot_class = SnapshotUuidID
 
     def register_dog(self, name: str) -> UUID:
-        event = register_dog(name)
-        self.save(event)
-        return event.originator_id
+        dog = Dog(name)
+        self.save(dog)
+        return dog.id
 
     def add_trick(self, dog_id: UUID, trick: str) -> None:
-        dog = self.repository.get(dog_id, projector_func=project_dog)
-        self.save(add_trick(dog, Trick(name=trick)))
+        dog: Dog = self.repository.get(dog_id)
+        dog.add_trick(Trick(name=trick))
+        self.save(dog)
 
     def get_dog(self, dog_id: UUID) -> dict[str, Any]:
-        dog = self.repository.get(dog_id, projector_func=project_dog)
+        dog: Dog = self.repository.get(dog_id)
         return {
-            "id": dog.id,
             "name": dog.name,
             "tricks": tuple([t.name for t in dog.tricks]),
             "created_on": dog.created_on,

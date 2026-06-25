@@ -173,6 +173,7 @@ ignore = [
     "PT",  # Pytest linting.
     "ERA",  # Commented out code.
     "COM812",  # Trailing comma missing
+    "ISC001",  # Implicit string concatenation (conflicts with formatter)
     "FIX",  # Line contains TODO, consider resolving the issue
     "ARG002",  # Unused method argument
     "BLE",  # Do not catch blind exception

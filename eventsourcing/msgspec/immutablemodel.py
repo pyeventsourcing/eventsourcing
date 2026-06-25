@@ -1,14 +1,17 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from datetime import datetime  # noqa: TC003
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar
 from uuid import UUID, uuid4
 
 import msgspec
 from msgspec import field
 
 from eventsourcing.domain import (
+    MutatorFunction,
+    ProjectorFunction,
+    TAggregateID,
+    TDomainEvent,
     datetime_now_with_tzinfo,
     get_metadata_from_context,
 )
@@ -38,27 +41,27 @@ class Immutable(msgspec.Struct, metaclass=ImmutableMeta):
     pass
 
 
-class DomainEvent(Immutable, kw_only=True):
-    originator_id: UUID
+class DomainEvent(Immutable, Generic[TAggregateID], kw_only=True):
+    originator_id: TAggregateID
     originator_version: int
     timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
     metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
     event_id: UUID = field(default_factory=uuid4)
 
 
-class Aggregate(Immutable):
-    id: UUID
+class Aggregate(Immutable, Generic[TAggregateID]):
+    id: TAggregateID
     version: int
     created_on: datetime
     modified_on: datetime
 
 
-class Snapshot(DomainEvent):
+class _Snapshot(DomainEvent[TAggregateID]):
     topic: str
     state: bytes
 
     @classmethod
-    def take(cls, aggregate: Aggregate) -> Snapshot:
+    def take(cls, aggregate: Aggregate[TAggregateID]) -> Self:
         return cls(
             originator_id=aggregate.id,
             originator_version=aggregate.version,
@@ -67,16 +70,22 @@ class Snapshot(DomainEvent):
         )
 
 
-TAggregate = TypeVar("TAggregate", bound=Aggregate)
+class SnapshotUuidID(_Snapshot[UUID]):
+    pass
 
-MutatorFunction = Callable[..., TAggregate | None]
+
+class SnapshotStrID(_Snapshot[str]):
+    pass
+
+
+TAggregate = TypeVar("TAggregate", bound=Aggregate[Any])
 
 
 def aggregate_projector(
-    mutator: MutatorFunction[TAggregate],
-) -> Callable[[TAggregate | None, Iterable[DomainEvent]], TAggregate | None]:
+    mutator: MutatorFunction[TDomainEvent, TAggregate],
+) -> ProjectorFunction[TAggregate, TDomainEvent]:
     def project_aggregate(
-        aggregate: TAggregate | None, events: Iterable[DomainEvent]
+        aggregate: TAggregate | None, events: Iterable[TDomainEvent]
     ) -> TAggregate | None:
         for event in events:
             aggregate = mutator(event, aggregate)

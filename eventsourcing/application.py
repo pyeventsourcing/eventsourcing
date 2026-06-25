@@ -3,7 +3,6 @@ from __future__ import annotations
 import contextlib
 import os
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Iterator, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
 from itertools import chain
@@ -27,12 +26,14 @@ from eventsourcing.domain import (
     DomainEventProtocol,
     EventSourcingError,
     MutableOrImmutableAggregate,
+    ProjectorFunction,
     SDomainEvent,
     SnapshotProtocol,
     TAggregateID,
     TDomainEvent,
     TMutableOrImmutableAggregate,
     datetime_now_with_tzinfo,
+    project_aggregate,
 )
 from eventsourcing.persistence import (
     ApplicationRecorder,
@@ -56,36 +57,13 @@ from eventsourcing.utils import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Iterator, Sequence
     from types import TracebackType
     from typing import Self
-
-ProjectorFunction = Callable[
-    [TMutableOrImmutableAggregate | None, Iterable[TDomainEvent]],
-    TMutableOrImmutableAggregate | None,
-]
-
-MutatorFunction = Callable[
-    [TDomainEvent, TMutableOrImmutableAggregate | None],
-    TMutableOrImmutableAggregate | None,
-]
 
 
 class ProgrammingError(Exception):
     pass
-
-
-def project_aggregate(
-    aggregate: TMutableOrImmutableAggregate | None,
-    domain_events: Iterable[DomainEventProtocol[Any]],
-) -> TMutableOrImmutableAggregate | None:
-    """Projector function for aggregate projections, which works
-    by successively calling aggregate mutator function mutate()
-    on each of the given list of domain events in turn.
-    """
-    for domain_event in domain_events:
-        assert isinstance(domain_event, CanMutateProtocol)
-        aggregate = domain_event.mutate(aggregate)
-    return aggregate
 
 
 S = TypeVar("S")

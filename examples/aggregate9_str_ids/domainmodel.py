@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import singledispatch
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import msgspec.json
 
@@ -9,7 +9,7 @@ from eventsourcing.msgspec.immutablemodel import (
     Aggregate,
     DomainEvent,
     Immutable,
-    SnapshotUuidID,
+    SnapshotStrID,
     aggregate_projector,
 )
 
@@ -18,28 +18,28 @@ class Trick(Immutable):
     name: str
 
 
-class Dog(Aggregate[UUID]):
+class Dog(Aggregate[str]):
     name: str
     tricks: tuple[Trick, ...]
 
 
-class DogRegistered(DomainEvent[UUID]):
+class DogRegistered(DomainEvent[str]):
     name: str
 
 
-class TrickAdded(DomainEvent[UUID]):
+class TrickAdded(DomainEvent[str]):
     trick: Trick
 
 
-def register_dog(name: str) -> DomainEvent[UUID]:
+def register_dog(name: str) -> DomainEvent[str]:
     return DogRegistered(
-        originator_id=uuid4(),
+        originator_id=f"dog-{uuid4()}",
         originator_version=1,
         name=name,
     )
 
 
-def add_trick(dog: Dog, trick: Trick) -> DomainEvent[UUID]:
+def add_trick(dog: Dog, trick: Trick) -> DomainEvent[str]:
     return TrickAdded(
         originator_id=dog.id,
         originator_version=dog.version + 1,
@@ -48,7 +48,7 @@ def add_trick(dog: Dog, trick: Trick) -> DomainEvent[UUID]:
 
 
 @singledispatch
-def mutate_dog(_: DomainEvent, __: Dog | None) -> Dog | None:
+def mutate_dog(_: DomainEvent[str], __: Dog | None) -> Dog | None:
     """Mutates aggregate with event."""
 
 
@@ -77,7 +77,7 @@ def _(event: TrickAdded, dog: Dog) -> Dog:
 
 
 @mutate_dog.register
-def _(event: SnapshotUuidID, _: None) -> Dog:
+def _(event: SnapshotStrID, _: None) -> Dog:
     return msgspec.json.decode(event.state, type=Dog)
 
 
