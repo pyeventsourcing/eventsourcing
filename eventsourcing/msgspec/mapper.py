@@ -41,11 +41,10 @@ class MsgspecMapper(Mapper[TAggregateID]):
         cls = resolve_topic(stored_event.topic)
         try:
             return msgspec.json.decode(stored_state, type=cls)
-        except Exception as e:
+        except TypeError as e:
             msg = (
-                f"Failed to decode msgspec struct: {cls} with {stored_event}: {e}."
-                f"\nClass signature: {inspect.signature(cls)}"
-                f"\noriginator_id_type: {cls.originator_id_type}"
-                f"\nMRO: \n" + "\n  - ".join(str(c) for c in cls.__mro__)
+                f"Failed to decode msgspec struct: {cls}. "
+                f"Does the class signature have a type variable? "
+                f"Signature: {inspect.signature(cls)}"
             )
             raise type(e)(msg) from e
