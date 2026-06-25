@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from examples.aggregate9.msgpack import MsgspecApplication
+from eventsourcing.msgspec.application import MsgspecApplication
 from examples.aggregate10.domainmodel import Dog, Trick
 
 if TYPE_CHECKING:

@@ -8,8 +8,9 @@ from uuid import uuid4
 import pytest
 
 import eventsourcing.domain
+import eventsourcing.msgspec.immutablemodel
 import eventsourcing.pydantic.immutablemodel
-import examples.aggregate9.immutablemodel
+from eventsourcing.msgspec.mapper import MsgspecMapper
 from eventsourcing.persistence import (
     DataclassMapper,
     DatetimeAsISO,
@@ -19,7 +20,6 @@ from eventsourcing.persistence import (
     UUIDAsHex,
 )
 from eventsourcing.pydantic.mapper import PydanticMapper
-from examples.aggregate9.msgpack import MessagePackMapper
 
 if TYPE_CHECKING:
     from pytest_benchmark.fixture import BenchmarkFixture
@@ -142,7 +142,7 @@ def test_decode_with_pydantic(benchmark: BenchmarkFixture) -> None:
 
 @pytest.mark.benchmark(group="mapper-encode")
 def test_encode_with_msgspec(benchmark: BenchmarkFixture) -> None:
-    class MyObj(examples.aggregate9.immutablemodel.DomainEvent, frozen=True):
+    class MyObj(eventsourcing.msgspec.immutablemodel.DomainEvent):
         a: int
         b: str
         c: float
@@ -157,7 +157,7 @@ def test_encode_with_msgspec(benchmark: BenchmarkFixture) -> None:
         d=Decimal("0.12345"),
     )
 
-    mapper = MessagePackMapper(transcoder=NullTranscoder())
+    mapper = MsgspecMapper(transcoder=NullTranscoder())
 
     def func() -> None:
         mapper.to_stored_event(obj)
@@ -167,7 +167,7 @@ def test_encode_with_msgspec(benchmark: BenchmarkFixture) -> None:
 
 @pytest.mark.benchmark(group="mapper-decode")
 def test_decode_with_msgspec(benchmark: BenchmarkFixture) -> None:
-    class MyObj(examples.aggregate9.immutablemodel.DomainEvent, frozen=True):
+    class MyObj(eventsourcing.msgspec.immutablemodel.DomainEvent):
         a: int
         b: str
         c: float
@@ -182,7 +182,7 @@ def test_decode_with_msgspec(benchmark: BenchmarkFixture) -> None:
         d=Decimal("0.12345"),
     )
 
-    mapper = MessagePackMapper(transcoder=NullTranscoder())
+    mapper = MsgspecMapper(transcoder=NullTranscoder())
 
     stored_event = mapper.to_stored_event(obj)
 

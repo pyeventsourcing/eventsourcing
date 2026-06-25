@@ -3,13 +3,15 @@
 Aggregate 9 - msgspec structs
 =============================
 
-This example shows how to use msgspec structs to define immutable aggregate and event classes.
+This example shows how to use `msgspec <https://msgspec.dev>`_ to define immutable aggregate and event classes.
 
 Like with Pydantic, the main advantage of using msgspec here is that any custom value objects
 used in the domain model will be automatically serialised and deserialised, without needing
-also to define custom :ref:`transcoding<Transcodings>` classes. This is demonstrated in the
-example below with the :class:`~examples.aggregate9.domainmodel.Trick` class, which is used
-in both aggregate events and aggregate state, and which is reconstructed from serialised string
+to define :ref:`custom transcoding classes<Transcodings>`.
+Msgspec is also quite a lot faster at serialisation and deserialisation than Pydantic.
+
+This is demonstrated in the example below with the :class:`~examples.aggregate9.domainmodel.Trick` class,
+which is used in both aggregate events and aggregate state, and which is reconstructed from serialised string
 values, representing only the name of the trick, from both recorded aggregate events and from
 recorded snapshots.
 
@@ -53,36 +55,63 @@ The benchmarks were done with pytest-benchmark.
      - 296 (0.21x)
 
 
-MessagePack mapper
-------------------
+.. _Msgspec immutable model:
 
-The :class:`~examples.aggregate9.msgpack.MessagePackMapper` class is a :ref:`mapper<Mapper>` that supports
-msgspec structs. It is responsible for converting domain model objects to Python bytes objects, and for
-reconstructing model objects from Python bytes objects.
+Msgspec immutable model
+------------------------
 
-.. literalinclude:: ../../../examples/aggregate9/msgpack.py
-    :pyobject: MessagePackMapper
+The library's :mod:`eventsourcing.msgspec.immutablemodel` module defines base classes for immutable domain events
+and aggregates that use ``msgspec``.
 
-The :class:`~examples.aggregate9.msgpack.MsgspecApplication` class is a
-subclass of the library's :class:`~eventsourcing.application.Application` class
-which is configured to use :class:`~examples.aggregate9.msgpack.MessagePackMapper`.
+.. literalinclude:: ../../../eventsourcing/msgspec/immutablemodel.py
+    :pyobject: Immutable
 
-.. literalinclude:: ../../../examples/aggregate9/msgpack.py
+.. literalinclude:: ../../../eventsourcing/msgspec/immutablemodel.py
+    :pyobject: DomainEvent
+
+.. literalinclude:: ../../../eventsourcing/msgspec/immutablemodel.py
+    :pyobject: Aggregate
+
+.. literalinclude:: ../../../eventsourcing/msgspec/immutablemodel.py
+    :pyobject: Snapshot
+
+Also included is a generic function for building an immutable aggregate projector function from an immutable
+aggregate mutator function.
+
+.. literalinclude:: ../../../eventsourcing/msgspec/immutablemodel.py
+    :pyobject: aggregate_projector
+
+
+.. _Msgspec mapper:
+
+Msgspec mapper
+--------------
+
+The :class:`~eventsourcing.msgspec.mapper.MsgspecMapper` class is a
+:ref:`mapper<Mapper>` that supports msgspec. It is responsible for serialising and
+deserialising :ref:`Msgspec immutable model` objects.
+
+.. literalinclude:: ../../../eventsourcing/msgspec/mapper.py
+    :pyobject: MsgspecMapper
+
+.. _Msgspec application:
+
+Msgspec application
+-------------------
+
+The :class:`~eventsourcing.msgspec.application.MsgspecApplication` class
+is configured to use the :ref:`msgspec mapper <Msgspec mapper>`. It is a subclass of the
+library's :class:`~eventsourcing.application.Application` class.
+
+.. literalinclude:: ../../../eventsourcing/msgspec/application.py
     :pyobject: MsgspecApplication
-
-
-Msgspec model for immutable aggregate
--------------------------------------
-
-The code below shows how to define base classes for immutable aggregates that use msgspec structs.
-
-.. literalinclude:: ../../../examples/aggregate9/immutablemodel.py
 
 
 Domain model
 ------------
 
-The code below shows how to define an immutable aggregate in a functional style, using the msgspec module for immutable aggregates
+The code below shows how to define an immutable :class:`~examples.aggregate9.domainmodel.Dog` aggregate in
+a functional style, using the :ref:`msgspec immutable model <Msgspec immutable model>`.
 
 .. literalinclude:: ../../../examples/aggregate9/domainmodel.py
 
@@ -91,7 +120,7 @@ Application
 -----------
 
 The :class:`~examples.aggregate9.application.DogSchool` application in this example uses the
-:class:`~examples.aggregate9.msgpack.MsgspecApplication`. It must receive the new events that are returned
+:ref:`msgspec application class <Msgspec application>`. It must receive the new events that are returned
 by the aggregate command methods, and pass them to its :func:`~eventsourcing.application.Application.save`
 method. The aggregate projector function must also be supplied when reconstructing an aggregate from the
 repository, and when taking snapshots.
@@ -113,13 +142,19 @@ The :class:`~examples.aggregate9.test_application.TestDogSchool` test case shows
 Code reference
 --------------
 
-.. automodule:: examples.aggregate9.immutablemodel
+.. automodule:: eventsourcing.msgspec.immutablemodel
     :show-inheritance:
     :member-order: bysource
     :members:
     :undoc-members:
 
-.. automodule:: examples.aggregate9.msgpack
+.. automodule:: eventsourcing.msgspec.mapper
+    :show-inheritance:
+    :member-order: bysource
+    :members:
+    :undoc-members:
+
+.. automodule:: eventsourcing.msgspec.application
     :show-inheritance:
     :member-order: bysource
     :members:

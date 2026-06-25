@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from examples.aggregate9.domainmodel import Trick, add_trick, project_dog, register_dog
-from examples.aggregate9.immutablemodel import Snapshot
-from examples.aggregate9.msgpack import MsgspecApplication
+from eventsourcing.msgspec.application import MsgspecApplication
+from eventsourcing.msgspec.immutablemodel import SnapshotUuidID
+from examples.aggregate9.domainmodel import (
+    Trick,
+    add_trick,
+    project_dog,
+    register_dog,
+)
 
 if TYPE_CHECKING:
     from uuid import UUID

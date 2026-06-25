@@ -3,7 +3,8 @@
 Aggregate 8 - Pydantic mutable
 ==============================
 
-This example shows how to use Pydantic with the library's declarative syntax.
+This example shows how to use `Pydantic <https://pydantic.dev/docs/validation/latest/get-started>`_
+with the library's :ref:`declarative syntax for mutable aggregates <Declarative syntax>`.
 
 Similar to :doc:`example 1  </topics/examples/aggregate1>`, aggregates are expressed
 using the library's declarative syntax. This is the most concise way of defining an
@@ -21,7 +22,7 @@ Pydantic mutable model
 ----------------------
 
 The library's :mod:`eventsourcing.pydantic.mutablemodel` defines base classes for aggregates that can
-use the library's :ref:`declarative syntax for mutable aggregates <Declarative syntax>`.
+use the library's :ref:`declarative syntax <Declarative syntax>`.
 
 .. literalinclude:: ../../../eventsourcing/pydantic/mutablemodel.py
     :pyobject: Aggregate
@@ -36,7 +37,8 @@ use the library's :ref:`declarative syntax for mutable aggregates <Declarative s
 Domain model
 ------------
 
-The code below shows how to define a mutable aggregate with the library's declarative syntax, using the :ref:`Pydantic mutable model`.
+The code below shows how to define a mutable aggregate with the library's declarative syntax,
+using the :ref:`Pydantic mutable model`.
 
 .. literalinclude:: ../../../examples/aggregate8/domainmodel.py
 
@@ -44,8 +46,8 @@ The code below shows how to define a mutable aggregate with the library's declar
 Application
 -----------
 
-The :class:`~examples.aggregate8.application.DogSchool` application in this example uses the library's
-:class:`~eventsourcing.pydantic.application.PydanticApplication` class.
+The :class:`~examples.aggregate8.application.DogSchool` application in this example uses the
+:ref:`Pydantic application class <Pydantic application>`.
 
 .. literalinclude:: ../../../examples/aggregate8/application.py
 

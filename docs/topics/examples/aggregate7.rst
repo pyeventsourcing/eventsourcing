@@ -3,15 +3,16 @@
 Aggregate 7 - Pydantic immutable
 ================================
 
-This example shows how to use Pydantic to define immutable aggregate and event classes.
+This example shows how to use `Pydantic <https://pydantic.dev/docs/validation/latest/get-started>`_
+to define immutable aggregate and event classes.
 
 The main advantage of using Pydantic is that any custom value objects
 used in the domain model will be automatically serialised and deserialised,
-without needing also to define custom :ref:`transcoding<Transcodings>` classes.
+without needing to define :ref:`custom transcoding classes<Transcodings>`.
 Pydantic is also quite a lot faster at serialisation and deserialisation than
 the Python Standard Library's :mod:`json` package.
 
-This approach is demonstrated with the :class:`~examples.aggregate7.domainmodel.Trick` class,
+This is demonstrated with the :class:`~examples.aggregate7.domainmodel.Trick` class,
 which is used in both aggregate events and aggregate state, and which is reconstructed from serialised string
 values, representing only the name of the trick, from both recorded aggregate events and from recorded snapshots.
 

@@ -11,19 +11,19 @@ from eventsourcing.domain import (
     CanMutateAggregate,
     CanSnapshotAggregate,
 )
+from eventsourcing.msgspec.immutablemodel import DomainEvent, Immutable
 from eventsourcing.utils import get_topic, resolve_topic
-from examples.aggregate9.immutablemodel import DomainEvent, Immutable
 
 if TYPE_CHECKING:
     from eventsourcing.domain import MutableOrImmutableAggregate
 
 
-class SnapshotState(Immutable, frozen=True):
+class SnapshotState(Immutable):
     created_on: datetime
     modified_on: datetime
 
 
-class AggregateSnapshot(DomainEvent, CanSnapshotAggregate, frozen=True):
+class AggregateSnapshot(DomainEvent, CanSnapshotAggregate):
     topic: str
     state: Any
 
@@ -61,7 +61,7 @@ class AggregateSnapshot(DomainEvent, CanSnapshotAggregate, frozen=True):
         return aggregate
 
 
-class AggregateEvent(DomainEvent, CanMutateAggregate, frozen=True):
+class AggregateEvent(DomainEvent, CanMutateAggregate):
     def _as_dict(self) -> dict[str, Any]:
         return {key: getattr(self, key) for key in self.__struct_fields__}
 
@@ -71,8 +71,8 @@ class Aggregate(BaseAggregate):
     def create_id(cls, *_: Any, **__: Any) -> UUID:
         return uuid4()
 
-    class Event(AggregateEvent, frozen=True):
+    class Event(AggregateEvent):
         pass
 
-    class Created(Event, CanInitAggregate, frozen=True):
+    class Created(Event, CanInitAggregate):
         originator_topic: str

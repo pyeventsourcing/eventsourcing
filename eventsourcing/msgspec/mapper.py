@@ -4,16 +4,15 @@ from typing import TYPE_CHECKING
 
 import msgspec
 
-from eventsourcing.application import Application
 from eventsourcing.domain import TAggregateID
-from eventsourcing.persistence import Mapper, NullTranscoder, StoredEvent
+from eventsourcing.persistence import Mapper, StoredEvent
 from eventsourcing.utils import get_topic, resolve_topic
 
 if TYPE_CHECKING:
     from eventsourcing.domain import DomainEventProtocol
 
 
-class MessagePackMapper(Mapper[TAggregateID]):
+class MsgspecMapper(Mapper[TAggregateID]):
     def to_stored_event(
         self, domain_event: DomainEventProtocol[TAggregateID]
     ) -> StoredEvent:
@@ -39,13 +38,8 @@ class MessagePackMapper(Mapper[TAggregateID]):
         if self.compressor:
             stored_state = self.compressor.decompress(stored_state)
         cls = resolve_topic(stored_event.topic)
-        return msgspec.json.decode(stored_state, type=cls)
-
-
-class MsgspecApplication(Application[TAggregateID]):
-    def construct_mapper(self) -> Mapper[TAggregateID]:
-        return MessagePackMapper(
-            transcoder=NullTranscoder(),
-            cipher=self.factory.cipher(),
-            compressor=self.factory.compressor(),
-        )
+        try:
+            return msgspec.json.decode(stored_state, type=cls)
+        except Exception as e:
+            msg = f"Failed to decode msgspec struct: {cls} with {stored_event}: {e}"
+            raise type(e)(msg) from e

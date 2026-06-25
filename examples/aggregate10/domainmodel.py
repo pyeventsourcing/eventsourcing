@@ -1,25 +1,25 @@
 from __future__ import annotations
 
 from eventsourcing.domain import event
-from examples.aggregate9.immutablemodel import Immutable
-from examples.aggregate10.mutablemodel import (
+from eventsourcing.msgspec.immutablemodel import Immutable
+from eventsourcing.msgspec.mutablemodel import (
     Aggregate,
     AggregateSnapshot,
     SnapshotState,
 )
 
 
-class Trick(Immutable, frozen=True):
+class Trick(Immutable):
     name: str
 
 
-class DogSnapshotState(SnapshotState, frozen=True):
+class DogSnapshotState(SnapshotState):
     name: str
     tricks: list[Trick]
 
 
 class Dog(Aggregate):
-    class Snapshot(AggregateSnapshot, frozen=True):
+    class Snapshot(AggregateSnapshot):
         state: DogSnapshotState
 
     @event("Registered")

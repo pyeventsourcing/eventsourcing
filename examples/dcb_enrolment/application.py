@@ -17,7 +17,7 @@ from examples.dcb_enrolment.interface import (
 
 class EnrolmentWithAggregates(Application[str], EnrolmentInterface):
     env: ClassVar[dict[str, str]] = {
-        "MAPPER_TOPIC": get_topic(MessagePackMapper),
+        "MAPPER_TOPIC": get_topic(MsgspecMapper),
         "ORIGINATOR_ID_TYPE": "text",
     }
 

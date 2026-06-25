@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import msgspec.json
 
-from examples.aggregate9.immutablemodel import (
+from eventsourcing.msgspec.immutablemodel import (
     Aggregate,
     DomainEvent,
     Immutable,
