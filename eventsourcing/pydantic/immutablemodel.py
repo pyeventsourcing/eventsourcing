@@ -52,16 +52,18 @@ class Snapshot(DomainEvent[TAggregateID]):
         )
 
 
-TAggregate = TypeVar("TAggregate", bound=Aggregate)
+TAggregate = TypeVar("TAggregate", bound=Aggregate[Any])
 
 MutatorFunction = Callable[..., TAggregate | None]
 
 
 def aggregate_projector(
     mutator: MutatorFunction[TAggregate],
-) -> Callable[[TAggregate | None, Iterable[DomainEvent]], TAggregate | None]:
+) -> Callable[
+    [TAggregate | None, Iterable[DomainEvent[TAggregateID]]], TAggregate | None
+]:
     def project_aggregate(
-        aggregate: TAggregate | None, events: Iterable[DomainEvent]
+        aggregate: TAggregate | None, events: Iterable[DomainEvent[TAggregateID]]
     ) -> TAggregate | None:
         for event in events:
             aggregate = mutator(event, aggregate)
