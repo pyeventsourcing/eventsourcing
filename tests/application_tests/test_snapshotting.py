@@ -2,6 +2,7 @@ from decimal import Decimal
 from typing import cast
 from unittest import TestCase
 
+from eventsourcing.application import Application, ProgrammingError
 from eventsourcing.domain import Snapshot
 from eventsourcing.persistence import (
     DataclassMapper,
@@ -17,7 +18,15 @@ from eventsourcing.tests.domain import BankAccount
 
 
 class TestSnapshotting(TestCase):
-    def test(self) -> None:
+    def test_snapshot_class_is_a_class(self) -> None:
+        with self.assertRaises(ProgrammingError) as cm:
+
+            class MyApp(Application):
+                snapshot_class = dict[str, str]  # pyright: ignore[reportAssignmentType]
+
+        self.assertIn("is not a class: dict[str, str]", str(cm.exception))
+
+    def test_snapshotting(self) -> None:
         # Open an account.
         account = BankAccount.open(
             full_name="Alice",
