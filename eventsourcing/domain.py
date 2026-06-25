@@ -1998,9 +1998,9 @@ class CanSnapshotAggregate(HasOriginatorIDVersion[TAggregateID]):
             state=aggregate_state,  # pyright: ignore[reportCallIssue]
         )
 
-    def mutate(self, _: None) -> BaseAggregate[TAggregateID]:
+    def mutate(self, aggregate: TAggregate | None) -> TAggregate | None:
         """Reconstructs the snapshotted :class:`Aggregate` object."""
-        cls = cast(type[BaseAggregate[TAggregateID]], resolve_topic(self.topic))
+        cls = cast(type[TAggregate], resolve_topic(self.topic))
         aggregate_state = dict(self.state)
         from_version = aggregate_state.pop("class_version", 1)
         class_version = getattr(cls, "class_version", 1)

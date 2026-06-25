@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Generic, TypeVar
+from typing import Generic, TypeVar
 from unittest import TestCase
 from uuid import UUID, uuid4
 
@@ -22,7 +22,7 @@ X = int  # pyright: ignore [reportAssignmentType]
 
 try:
 
-    class X(BaseAggregate[Any]):  # type: ignore[no-redef]
+    class X(BaseAggregate):  # type: ignore[no-redef]
         pass
 
 except ProgrammingError:
@@ -683,7 +683,7 @@ class TestBaseAggregate(TestCase):
 
         with self.assertRaises(TypeError) as cm:
 
-            class A(BaseAggregate[Any]):
+            class A(BaseAggregate):
                 @event("Commanded")
                 def command(self) -> None:
                     pass

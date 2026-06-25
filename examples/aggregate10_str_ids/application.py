@@ -1,28 +1,25 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from eventsourcing.msgspec.application import MsgspecApplication
 from examples.aggregate10_str_ids.domainmodel import Dog, Trick
 
-if TYPE_CHECKING:
-    from uuid import UUID
 
-
-class DogSchool(MsgspecApplication):
+class DogSchool(MsgspecApplication[str]):
     is_snapshotting_enabled = True
 
-    def register_dog(self, name: str) -> UUID:
+    def register_dog(self, name: str) -> str:
         dog = Dog(name)
         self.save(dog)
         return dog.id
 
-    def add_trick(self, dog_id: UUID, trick: str) -> None:
+    def add_trick(self, dog_id: str, trick: str) -> None:
         dog: Dog = self.repository.get(dog_id)
         dog.add_trick(Trick(name=trick))
         self.save(dog)
 
-    def get_dog(self, dog_id: UUID) -> dict[str, Any]:
+    def get_dog(self, dog_id: str) -> dict[str, Any]:
         dog: Dog = self.repository.get(dog_id)
         return {
             "name": dog.name,

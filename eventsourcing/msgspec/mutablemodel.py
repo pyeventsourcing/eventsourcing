@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import typing
 from datetime import datetime  # noqa: TC003
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, Self, cast
 from uuid import UUID, uuid4
 
 from eventsourcing.domain import (
@@ -10,6 +10,8 @@ from eventsourcing.domain import (
     CanInitAggregate,
     CanMutateAggregate,
     CanSnapshotAggregate,
+    MutableOrImmutableAggregate,
+    TAggregate,
     TAggregateID,
 )
 from eventsourcing.msgspec.immutablemodel import (
@@ -18,21 +20,18 @@ from eventsourcing.msgspec.immutablemodel import (
 )
 from eventsourcing.utils import get_topic, resolve_topic
 
-if TYPE_CHECKING:
-    from eventsourcing.domain import MutableOrImmutableAggregate
-
 
 class SnapshotState(Immutable):
     created_on: datetime
     modified_on: datetime
 
 
-class AggregateSnapshot(DomainEvent, CanSnapshotAggregate):
+class AggregateSnapshot(DomainEvent[TAggregateID], CanSnapshotAggregate[TAggregateID]):
     topic: str
     state: Any
 
     @classmethod
-    def take(cls, aggregate: MutableOrImmutableAggregate) -> AggregateSnapshot:
+    def take(cls, aggregate: MutableOrImmutableAggregate[TAggregateID]) -> Self:
         type_of_snapshot_state = typing.get_type_hints(cls)["state"]
         aggregate_state = dict(aggregate.__dict__)
         aggregate_state.pop("_id")
@@ -48,9 +47,9 @@ class AggregateSnapshot(DomainEvent, CanSnapshotAggregate):
             state=snapshot_state,
         )
 
-    def mutate(self, _: None) -> Aggregate:
+    def mutate(self, aggregate: TAggregate | None) -> TAggregate | None:
         """Reconstructs the snapshotted :class:`Aggregate` object."""
-        cls = cast("type[Aggregate]", resolve_topic(self.topic))
+        cls = cast("type[TAggregate]", resolve_topic(self.topic))
         aggregate_state: dict[str, Any] = {
             key: getattr(self.state, key) for key in type(self.state).__struct_fields__
         }
@@ -82,6 +81,9 @@ class Aggregate(BaseAggregate[UUID]):
     class Created(Event, CanInitAggregate[UUID]):
         originator_topic: str
 
+    class Snapshot(Event, AggregateSnapshot[UUID]):
+        pass
+
 
 class AggregateStrID(BaseAggregate[str]):
     @classmethod
@@ -93,3 +95,6 @@ class AggregateStrID(BaseAggregate[str]):
 
     class Created(Event, CanInitAggregate[str]):
         originator_topic: str
+
+    class Snapshot(Event, AggregateSnapshot[str]):
+        pass
