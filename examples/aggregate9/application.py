@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from eventsourcing.msgspec.application import MsgspecApplication
-from eventsourcing.msgspec.immutablemodel import SnapshotUuidID
+from eventsourcing.msgspec.immutablemodel import Snapshot
 from examples.aggregate9.domainmodel import (
     Trick,
     add_trick,
