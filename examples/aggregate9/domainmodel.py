@@ -14,20 +14,20 @@ from eventsourcing.msgspec.immutablemodel import (
 )
 
 
-class Trick(Immutable, frozen=True):
+class Trick(Immutable):
     name: str
 
 
-class Dog(Aggregate, frozen=True):
+class Dog(Aggregate):
     name: str
     tricks: tuple[Trick, ...]
 
 
-class DogRegistered(DomainEvent, frozen=True):
+class DogRegistered(DomainEvent):
     name: str
 
 
-class TrickAdded(DomainEvent, frozen=True):
+class TrickAdded(DomainEvent):
     trick: Trick
 
 

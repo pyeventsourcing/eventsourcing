@@ -38,7 +38,7 @@ class Immutable(msgspec.Struct, metaclass=ImmutableMeta):
     pass
 
 
-class DomainEvent(Immutable, frozen=True, kw_only=True):
+class DomainEvent(Immutable, kw_only=True):
     originator_id: UUID
     originator_version: int
     timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
@@ -46,7 +46,7 @@ class DomainEvent(Immutable, frozen=True, kw_only=True):
     event_id: UUID = field(default_factory=uuid4)
 
 
-class Aggregate(Immutable, frozen=True):
+class Aggregate(Immutable):
     id: UUID
     version: int
     created_on: datetime
