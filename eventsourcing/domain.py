@@ -1420,15 +1420,32 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
         super().__init_subclass__()
 
         # Find the type arg for TAggregateID.
-        if "originator_id_type" not in cls.__dict__:
-            type_args = resolve_multi_generic_target(cls, BaseAggregate)
-            assert len(type_args) == 1, type_args
-            originator_id_type = type_args[0]
-            if originator_id_type in (UUID, str, None):
-                cls.originator_id_type = originator_id_type
-            else:
-                msg = f"Aggregate ID type arg cannot be {originator_id_type}"
-                raise TypeError(msg)
+        assert "originator_id_type" not in cls.__dict__
+        type_args = resolve_multi_generic_target(cls, BaseAggregate)
+        assert len(type_args) == 1, type_args
+        originator_id_type = type_args[0]
+
+        def validate_id_type(id_type: Any, must_match: Any = None) -> bool:
+            if id_type and must_match:
+                return id_type is must_match
+            # Check the originator ID type is acceptable.
+            actual_id_type = id_type
+            # - unwrap any NewType objects.
+            while type(actual_id_type) is typing.NewType:
+                actual_id_type = actual_id_type.__supertype__
+            # - accept None, UUID, or str types.
+            return actual_id_type is None or (
+                isinstance(actual_id_type, type)
+                and (
+                    issubclass(actual_id_type, UUID) or issubclass(actual_id_type, str)
+                )
+            )
+
+        if not validate_id_type(originator_id_type):
+            msg = f"Aggregate ID type arg cannot be {originator_id_type}"
+            raise TypeError(msg)
+
+        cls.originator_id_type = originator_id_type
 
         # Ensure we aren't defining another instance of the same class,
         # because annotations can get confused when using singledispatchmethod

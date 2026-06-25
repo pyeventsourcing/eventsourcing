@@ -879,6 +879,41 @@ class TestAggregateCreation(TestCase):
         index = Index(name=name, id=index_id)
         self.assertEqual(index.id, index_id)
 
+    def test_raises_when_originator_id_type_invalid(self) -> None:
+        with self.assertRaises(TypeError) as cm:
+
+            class A(BaseAggregate[int]):  # type: ignore[type-var]
+                pass
+
+        self.assertEqual(
+            "Aggregate ID type arg cannot be <class 'int'>",
+            str(cm.exception),
+        )
+
+    # def test_raises_when_originator_id_types_mismatch(self) -> None:
+    #     @dataclass(frozen=True, kw_only=True)
+    #     class DomainEventStrID(metaclass=MetaDomainEvent):
+    #         """Frozen data class representing domain model events."""
+    #
+    #         originator_id: str
+    #         originator_version: int
+    #         timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
+    #         metadata: dict[str, str] = field(
+    #             default_factory=get_metadata_from_context
+    #         )
+    #         event_id: UUID = NIL_UUID
+    #
+    #     with self.assertRaises(TypeError) as cm:
+    #         class A(BaseAggregate[UUID]):
+    #             @dataclass(frozen=True)
+    #             class Event(CanMutateAggregate[str], DomainEventStrID):
+    #                 pass
+    #
+    #     self.assertEqual(
+    #         "Aggregate ID type arg cannot be <class 'int'>",
+    #         str(cm.exception),
+    #     )
+
 
 class TestSubsequentEvents(TestCase):
     def test_trigger_event(self) -> None:
