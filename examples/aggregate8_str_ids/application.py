@@ -1,0 +1,29 @@
+from __future__ import annotations
+
+from typing import Any
+
+from eventsourcing.pydantic.application import PydanticApplication
+from examples.aggregate8_str_ids.domainmodel import Dog, Trick
+
+
+class DogSchool(PydanticApplication[str]):
+    is_snapshotting_enabled = True
+
+    def register_dog(self, name: str) -> str:
+        dog = Dog(name)
+        self.save(dog)
+        return dog.id
+
+    def add_trick(self, dog_id: str, trick: str) -> None:
+        dog: Dog = self.repository.get(dog_id)
+        dog.add_trick(Trick(name=trick))
+        self.save(dog)
+
+    def get_dog(self, dog_id: str) -> dict[str, Any]:
+        dog: Dog = self.repository.get(dog_id)
+        return {
+            "name": dog.name,
+            "tricks": tuple([t.name for t in dog.tricks]),
+            "created_on": dog.created_on,
+            "modified_on": dog.modified_on,
+        }

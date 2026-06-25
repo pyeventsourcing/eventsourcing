@@ -12,6 +12,7 @@ from eventsourcing.domain import (
     CanInitAggregate,
     CanMutateAggregate,
     CanSnapshotAggregate,
+    TAggregateID,
 )
 from eventsourcing.pydantic.immutablemodel import DomainEvent, Immutable
 
@@ -27,7 +28,7 @@ class SnapshotState(Immutable):
         super().__init__(**kwargs)
 
 
-class AggregateSnapshot(DomainEvent, CanSnapshotAggregate):
+class AggregateSnapshot(DomainEvent[TAggregateID], CanSnapshotAggregate[TAggregateID]):
     topic: str
     state: Any
 
@@ -57,4 +58,17 @@ class Aggregate(BaseAggregate):
         pass
 
     class Created(Event, CanInitAggregate):
+        originator_topic: str
+
+
+class AggregateStrID(BaseAggregate[str]):
+    @classmethod
+    def create_id(cls, *_: Any, **__: Any) -> str:
+        """Returns a new aggregate ID."""
+        return f"{cls.__name__.lower()}-{uuid4()}"
+
+    class Event(DomainEvent[str], CanMutateAggregate[str]):
+        pass
+
+    class Created(Event, CanInitAggregate[str]):
         originator_topic: str
