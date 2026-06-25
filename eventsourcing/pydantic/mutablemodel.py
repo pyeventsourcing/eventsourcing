@@ -32,20 +32,21 @@ class AggregateSnapshot(DomainEvent[TAggregateID], CanSnapshotAggregate[TAggrega
     topic: str
     state: Any
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:
-        super().__init_subclass__(**kwargs)
-        type_of_snapshot_state = typing.get_type_hints(cls)["state"]
-        try:
-            assert issubclass(
-                type_of_snapshot_state, SnapshotState
-            ), type_of_snapshot_state
-        except (TypeError, AssertionError) as e:
-            msg = (
-                f"Subclass of {SnapshotState}"
-                f" is required as the annotated type of 'state' on "
-                f"{cls}, got: {type_of_snapshot_state}"
-            )
-            raise TypeError(msg) from e
+    # TODO: Maybe check this when instantiating?
+    # def __init_subclass__(cls, **kwargs: Any) -> None:
+    #     super().__init_subclass__(**kwargs)
+    #     type_of_snapshot_state = typing.get_type_hints(cls)["state"]
+    #     try:
+    #         assert issubclass(
+    #             type_of_snapshot_state, SnapshotState
+    #         ), type_of_snapshot_state
+    #     except (TypeError, AssertionError) as e:
+    #         msg = (
+    #             f"Subclass of {SnapshotState}"
+    #             f" is required as the annotated type of 'state' on "
+    #             f"{cls}, got: {type_of_snapshot_state}"
+    #         )
+    #         raise TypeError(msg) from e
 
 
 class Aggregate(BaseAggregate):
