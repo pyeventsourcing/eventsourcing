@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import ClassVar
 
 from eventsourcing.application import AggregateNotFoundError, Application
+from eventsourcing.msgspec.mapper import MsgspecMapper
 from eventsourcing.utils import get_topic
-from examples.aggregate9.msgpack import MessagePackMapper
 from examples.dcb_enrolment.domainmodel import Course, Student
 from examples.dcb_enrolment.interface import (
     CourseID,
