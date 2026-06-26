@@ -14,9 +14,12 @@ from eventsourcing.domain import (
     AggregateCreated,
     AggregateEvent,
     BaseAggregate,
+    CanInitAggregate,
+    CanMutateAggregate,
     OriginatorIDError,
     OriginatorVersionError,
     datetime_now_with_tzinfo,
+    event,
 )
 from eventsourcing.tests.domain import (
     AccountClosedError,
@@ -889,6 +892,105 @@ class TestAggregateCreation(TestCase):
             "Aggregate ID type arg cannot be <class 'int'>",
             str(cm.exception),
         )
+
+    def test_raises_when_base_event_class_type_invalid(self) -> None:
+        with self.assertRaises(TypeError) as cm:
+
+            class A(BaseAggregate):
+                class Event:
+                    pass
+
+        self.assertIn("Expected 'Event' on", str(cm.exception))
+        self.assertIn("to derive from CanMutateAggregate", str(cm.exception))
+
+    def test_raises_when_base_event_class_originator_id_type_invalid_str(self) -> None:
+        with self.assertRaises(TypeError) as cm:
+
+            class A(BaseAggregate[UUID]):
+                class Event(CanMutateAggregate[str]):
+                    pass
+
+        self.assertIn("Aggregate ID type arg of 'Event' class", str(cm.exception))
+        self.assertIn("cannot be <class 'str'>", str(cm.exception))
+        self.assertIn("expected <class 'uuid.UUID'>", str(cm.exception))
+
+    def test_raises_when_base_event_class_originator_id_type_invalid_uuid(self) -> None:
+        with self.assertRaises(TypeError) as cm:
+
+            class A(BaseAggregate[str]):
+                class Event(CanMutateAggregate[UUID]):
+                    pass
+
+        self.assertIn("Aggregate ID type arg of 'Event' class", str(cm.exception))
+        self.assertIn("cannot be <class 'uuid.UUID'>", str(cm.exception))
+        self.assertIn("expected <class 'str'>", str(cm.exception))
+
+    def test_raises_when_event_class_originator_id_type_invalid_str(self) -> None:
+        with self.assertRaises(TypeError) as cm:
+
+            class A(BaseAggregate[UUID]):
+                class Event(CanMutateAggregate[UUID]):
+                    pass
+
+                class Something(CanMutateAggregate[str]):
+                    pass
+
+        self.assertIn("Aggregate ID type arg of 'Something' class", str(cm.exception))
+        self.assertIn("cannot be <class 'str'>", str(cm.exception))
+        self.assertIn("expected <class 'uuid.UUID'>", str(cm.exception))
+
+    def test_raises_when_event_class_originator_id_type_invalid_uuid(self) -> None:
+        with self.assertRaises(TypeError) as cm:
+
+            class A(BaseAggregate[str]):
+                class Event(CanMutateAggregate[str]):
+                    pass
+
+                class Something(CanMutateAggregate[UUID]):
+                    pass
+
+        self.assertIn("Aggregate ID type arg of 'Something' class", str(cm.exception))
+        self.assertIn("cannot be <class 'uuid.UUID'>", str(cm.exception))
+        self.assertIn("expected <class 'str'>", str(cm.exception))
+
+    def test_raises_when_init_event_class_originator_id_type_invalid(self) -> None:
+        class Started(CanInitAggregate[str]):
+            pass
+
+        with self.assertRaises(TypeError) as cm:
+
+            class A(BaseAggregate):
+                @event(Started)
+                def __init__(self) -> None:
+                    pass
+
+        self.assertIn("Aggregate ID type arg of", str(cm.exception))
+        self.assertIn("<locals>.Started'>", str(cm.exception))
+        self.assertIn("cannot be <class 'str'>", str(cm.exception))
+        self.assertIn("expected <class 'uuid.UUID'>", str(cm.exception))
+
+    def test_raises_when_method_event_class_originator_id_type_invalid(self) -> None:
+        class Started(CanInitAggregate[UUID]):
+            pass
+
+        class Something(CanMutateAggregate[str]):
+            pass
+
+        with self.assertRaises(TypeError) as cm:
+
+            class A(BaseAggregate):
+                @event(Started)
+                def __init__(self) -> None:
+                    pass
+
+                @event(Something)
+                def a(self) -> None:
+                    pass
+
+        self.assertIn("Aggregate ID type arg of", str(cm.exception))
+        self.assertIn("<locals>.Something'>", str(cm.exception))
+        self.assertIn("cannot be <class 'str'>", str(cm.exception))
+        self.assertIn("expected <class 'uuid.UUID'>", str(cm.exception))
 
     # def test_raises_when_originator_id_types_mismatch(self) -> None:
     #     @dataclass(frozen=True, kw_only=True)

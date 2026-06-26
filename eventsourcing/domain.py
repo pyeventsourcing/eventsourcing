@@ -21,6 +21,7 @@ from typing import (
     Any,
     ClassVar,
     Generic,
+    NewType,
     Protocol,
     cast,
     overload,
@@ -1422,21 +1423,22 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
         assert len(type_args) == 1, type_args
         originator_id_type = type_args[0]
 
-        def validate_id_type(id_type: Any) -> bool:
-        # def validate_id_type(id_type: Any, must_match: Any = None) -> bool:
-            # if id_type and must_match:
-            #     return id_type is must_match
+        def unwrap_new_type(id_type: Any) -> type:
+            while True:
+                if isinstance(id_type, type):
+                    return id_type
+                assert isinstance(id_type, NewType)
+                id_type = id_type.__supertype__
+
+        def validate_id_type(id_type: Any, must_match: Any = None) -> bool:
+            if id_type and must_match:
+                return unwrap_new_type(id_type) is unwrap_new_type(must_match)
             # Check the originator ID type is acceptable.
-            actual_id_type = id_type
-            # - unwrap any NewType objects.
-            while type(actual_id_type) is typing.NewType:
-                actual_id_type = actual_id_type.__supertype__
             # - accept None, UUID, or str types.
-            return actual_id_type is None or (
-                isinstance(actual_id_type, type)
-                and (
-                    issubclass(actual_id_type, UUID) or issubclass(actual_id_type, str)
-                )
+            id_type = unwrap_new_type(id_type)
+            return id_type is None or (
+                isinstance(id_type, type)
+                and (issubclass(id_type, UUID) or issubclass(id_type, str))
             )
 
         if not validate_id_type(originator_id_type):
@@ -1510,10 +1512,32 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
 
         try:
             base_event_cls = cls.__dict__[base_event_name]
+
+            # Check the base event class is the right sort of thing.
+            if not isinstance(base_event_cls, type) or not issubclass(
+                base_event_cls, CanMutateAggregate
+            ):
+                msg = (
+                    f"Expected '{base_event_name}' on {cls.__module__}."
+                    f"{cls.__qualname__} to derive from CanMutateAggregate, got "
+                    f"{base_event_cls} instead"
+                )
+                raise TypeError(msg)
+            if not validate_id_type(
+                originator_id_type, base_event_cls.originator_id_type
+            ):
+                msg = (
+                    f"Aggregate ID type arg of '{base_event_name}' class"
+                    f" {base_event_cls} cannot be {base_event_cls.originator_id_type}, "
+                    f"expected {originator_id_type}"
+                )
+                raise TypeError(msg)
+
         except KeyError:
             try:
                 super_base_event_cls = getattr(cls, base_event_name)
             except AttributeError:
+                # Defer raising an error until we know we need a base event class.
                 pass
             else:
                 base_event_cls = cls._define_event_class(
@@ -1558,6 +1582,14 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
             # Check we have a base event class.
             if base_event_cls is None:
                 raise base_event_class_not_defined_error
+
+            # Check the event class is the right sort of thing.
+            if not validate_id_type(originator_id_type, value.originator_id_type):
+                msg = (
+                    f"Aggregate ID type arg of '{name}' class {value} cannot be "
+                    f"{value.originator_id_type}, expected {originator_id_type}"
+                )
+                raise TypeError(msg)
 
             # Redefine events that aren't already subclass of the base event class.
             if not issubclass(value, base_event_cls):
@@ -1621,11 +1653,25 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
                     )
                     raise TypeError(msg)
 
-                # Check given event class can init aggregate.
-                if not issubclass(init_decorator.given_event_cls, CanInitAggregate):
+                # Check the event class is the right sort of thing.
+                #  - check given event class can init aggregate.
+                if not isinstance(
+                    init_decorator.given_event_cls, type
+                ) or not issubclass(init_decorator.given_event_cls, CanInitAggregate):
                     msg = (
-                        f"class '{init_decorator.given_event_cls.__name__}' "
-                        f'not a "created" event class'
+                        f"class '{init_decorator.given_event_cls}' "
+                        f"does not derive from CanInitAggregate"
+                    )
+                    raise TypeError(msg)
+                #  - check given event class has the correct originator ID type.
+                if not validate_id_type(
+                    originator_id_type,
+                    init_decorator.given_event_cls.originator_id_type,
+                ):
+                    msg = (
+                        f"Aggregate ID type arg of {init_decorator.given_event_cls} "
+                        f"cannot be {init_decorator.given_event_cls.originator_id_type}"
+                        f" expected {originator_id_type}"
                     )
                     raise TypeError(msg)
 
@@ -1787,7 +1833,25 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
 
             if event_decorator is not None:
                 if event_decorator.given_event_cls:
-                    # Check this is not a "created" event class.
+                    # Check the event class is the right sort of thing.
+                    # - this is already checked by the event decorator
+                    assert issubclass(
+                        event_decorator.given_event_cls, CanMutateAggregate
+                    ), event_decorator.given_event_cls
+                    if not validate_id_type(
+                        originator_id_type,
+                        event_decorator.given_event_cls.originator_id_type,
+                    ):
+                        msg = (
+                            f"Aggregate ID type arg of "
+                            f"{event_decorator.given_event_cls} "
+                            f"cannot be "
+                            f"{event_decorator.given_event_cls.originator_id_type} "
+                            f"expected {originator_id_type}"
+                        )
+                        raise TypeError(msg)
+
+                    #  - check this is not a "created" event class.
                     if issubclass(event_decorator.given_event_cls, CanInitAggregate):
                         msg = (
                             f"{event_decorator.given_event_cls} "

@@ -375,9 +375,8 @@ class TestBaseAggregate(TestCase):
                 def __init__(self, name: str = "bar") -> None:
                     self.name = name
 
-        self.assertEqual(
-            str(cm.exception), "class 'Started' not a \"created\" event class"
-        )
+        self.assertIn("<locals>.A.Started", str(cm.exception))
+        self.assertIn("does not derive from CanInitAggregate", str(cm.exception))
 
     def test_raises_not_implemented_error_if_create_id_not_implemented(self) -> None:
         class A(BaseAggregate):
