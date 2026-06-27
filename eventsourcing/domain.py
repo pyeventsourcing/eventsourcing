@@ -300,22 +300,19 @@ def _get_originator_type_id(
     cls: type[HasOriginatorIDVersion[Any] | BaseAggregate[Any]] | GenericAlias,
 ) -> type[UUID | str] | None:
     # TODO: Replace this with custom generic alias that does this work.
-    origin = typing.get_origin(cls)
-    args = typing.get_args(cls)
-    # if origin is None or not args:
-    #     return cls.originator_id_type
+    origin = safe_get_origin(cls)
+    args = safe_get_args(cls)
+
     target_param_idx = None
-    origin_params = getattr(origin, "__parameters__", ())
+    origin_params = safe_get_params(origin) if origin else ()
     for idx, param in enumerate(origin_params):
         if idx < len(args) and param == TAggregateID:
             target_param_idx = idx
             break
+
     if target_param_idx is not None:
         return args[target_param_idx]
-    try:
-        return cls.originator_id_type
-    except AttributeError:
-        raise
+    return cls.originator_id_type
 
 
 TAggregate = TypeVar("TAggregate", bound="BaseAggregate[Any]")
@@ -338,37 +335,62 @@ class HasOriginatorIDVersion(AbstractDecision, Generic[TAggregateID]):
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
 
+        # 1. BYPASS TRANSIENT GENERIC PROXIES
+        # Pydantic (and some other dynamic generic systems) generates concrete wrapper
+        # classes at runtime. Because `__init_subclass__` fires before Pydantic finishes
+        # attaching its metadata, we check the class name. Normal Python syntax forbids
+        # brackets in class names, so if they exist, this is a transient wrapper.
+        if "[" in cls.__name__:
+            return
+
+        # Pydantic dynamically creates wrapper classes for its parameterized generics.
+        # We exit early so we don't run user-level validation on transient wrappers.
+        if "__pydantic_generic_metadata__" in cls.__dict__:
+            return
+
         # Look at the immediate bases of the new class being created
         orig_bases = safe_get_original_bases(cls)
 
-        for base in orig_bases:
-            if isinstance(base, type) and safe_get_params(base):
-                msg = (
-                    f"Class '{cls.__qualname__}' must provide type arguments "
-                    f"for generic base class '{base.__qualname__}' "
-                    f"(e.g., {base.__name__}[YourType])."
-                )
-                raise TypeError(msg)
+        # # 2. STRICT GENERICS CHECK
+        # for base in orig_bases:
+        #     if isinstance(base, type):
+        #         params = safe_get_params(base)
+        #
+        #         # We only care that our framework's required TypeVar was supplied.
+        #         # Other frameworks (like Pydantic) are free to leave their own
+        #         # variables (like TSharedPydantic) open.
+        #         if TAggregateID in params:
+        #             msg = (
+        #                 f"Class '{cls.__qualname__}' must provide the TAggregateID type argument "
+        #                 f"for generic base class '{base.__qualname__}' "
+        #                 f"(e.g., {base.__name__}[YourType])."
+        #             )
+        #             raise TypeError(msg)
 
-        # Enforce consistent originator_id_type.
-        base_origintor_id_types: list[
-            tuple[type[HasOriginatorIDVersion[Any]], UUID | str]
-        ] = [
-            (
-                cast(type[HasOriginatorIDVersion[Any]], base),
-                _get_originator_type_id(base),
+        # 3. ORIGINATOR ID CONSISTENCY CHECK
+        collected_id_types: set[Any] = set()
+
+        for base in orig_bases:
+            if _is_hasoriginatoridversion_subclass(safe_get_origin(base) or base):
+                id_type = _get_originator_type_id(base)
+
+                # Only collect concrete types (e.g., UUID, str)
+                if id_type is not None and not isinstance(id_type, TypeVar):
+                    collected_id_types.add((base, id_type))
+
+        if len({x[1] for x in collected_id_types}) > 1:
+            msg = (
+                f"Conflicting originator ID types detected in bases of "
+                f"'{cls.__qualname__}': {collected_id_types}"
             )
-            for base in orig_bases
-            if _is_hasoriginatoridversion_subclass(safe_get_origin(base) or base)
-        ]
-        if len({b[1] for b in base_origintor_id_types}) != 1:
-            msg = f"Mismatched originator ID types in bases: {base_origintor_id_types}"
             raise TypeError(msg)
 
+        # 4. RESOLVE AND ASSIGN ID TYPE
         if "originator_id_type" not in cls.__dict__:
             type_args = resolve_multi_generic_target(cls, HasOriginatorIDVersion)
             assert len(type_args) == 1, type_args
             originator_id_type = type_args[0]
+
             if originator_id_type in (UUID, str, None):
                 cls.originator_id_type = originator_id_type
             else:
@@ -1259,6 +1281,25 @@ ENVVAR_DISABLE_REDEFINITION_CHECK = "EVENTSOURCING_DISABLE_REDEFINITION_CHECK"
 class MetaAggregate(EventsourcingType, ABCMeta, Generic[TAggregate]):
     """Metaclass for aggregate classes."""
 
+    def _decide_event_class_bases(
+        cls,
+        required_bases: list[type[CanMutateAggregate[TAggregateID]]],
+        redefined_bases: list[type[CanMutateAggregate[TAggregateID]]],
+        base_event_cls: type[CanMutateAggregate[TAggregateID]],
+    ) -> tuple[type, ...]:
+        included = list(required_bases)
+        included.extend(
+            redefined_base
+            for redefined_base in redefined_bases
+            if issubclass(
+                safe_get_origin(redefined_base) or redefined_base,
+                safe_get_origin(base_event_cls) or base_event_cls,
+            )
+        )
+        if len(included) == len(required_bases):
+            included.append(base_event_cls)
+        return tuple(_fill_and_validate_id_type(cls, i) for i in included)
+
     def _define_event_class(
         cls,
         name: str,
@@ -1374,16 +1415,20 @@ def _fill_id_type(
     cls: type["BaseAggregate[Any]"],
     event_cls: Any,  # Relaxed to accept type | GenericAlias
 ) -> Any:
+    if cls.__name__ == "B":
+        pass
     # 1. Extract the raw origin class to perform structural checks safely
     origin = safe_get_origin(event_cls)
-    if origin is None:
+    is_already_alias = origin is not None
+
+    if not is_already_alias:
         origin = event_cls
 
-    assert isinstance(
-        origin, type
-    ), f"Expected type or generic alias, got {type(event_cls)}"
+    assert isinstance(origin, type), (
+        f"Expected type or generic alias, got {type(event_cls)}"
+    )
 
-    # 2. Extract remaining open parameters (handles both raw classes and generic aliases safely)
+    # 2. Extract remaining open parameters
     params = safe_get_params(event_cls)
     if not params:
         return event_cls
@@ -1391,13 +1436,34 @@ def _fill_id_type(
     # 3. Swap TAggregateID for the concrete type, leave others as unresolved TypeVars
     args = [cls.originator_id_type if p == TAggregateID else p for p in params]
 
-    # 4. Optimization: If TAggregateID wasn't in the parameters, nothing changed. Return early.
-    if tuple(args) == tuple(params):
+    # 4. Optimization & Normalization
+    if tuple(args) == tuple(params) and is_already_alias:
+        # It came in as a GenericAlias, it can leave as one safely.
         return event_cls
+        # If it came in as a raw class, we fall through to subscript it
+        # to make it an "open" generic alias (e.g., Something -> Something[T])
 
     # 5. Subscript the class or alias with the new arguments
     callable_event_cls: Any = event_cls
-    return callable_event_cls[*args]
+    if "B.Something" in event_cls.__qualname__:
+        print(f"Event class before subscripting:, {event_cls}")
+        print(f"Args: {args}")
+    subscripted = callable_event_cls[*args]
+    if "B.Something" in event_cls.__qualname__:
+        print(f"Event class after subscripting:, {subscripted}")
+
+    # 6. PYDANTIC DEDUPLICATION OVERRIDE
+    # If Pydantic optimized the evaluation and returned the raw class unmodified,
+    # force it into a standard Python GenericAlias. This ensures `types.new_class`
+    # populates `__orig_bases__` correctly and satisfies our strict checking engine!
+    if subscripted is event_cls:
+        subscripted = types.GenericAlias(event_cls, tuple(args))
+
+        if "B.Something" in event_cls.__qualname__:
+            print(f"Event class after force subscripting:, {subscripted}")
+
+    return subscripted
+
 
 
 def _validate_id_type(
@@ -2126,27 +2192,25 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
                 if decorator.given_event_cls:
                     assert decorator.given_event_cls is value, "Need to fix this more"
                     # Define a decorated function caller.
+                    event_class_bases = cls._decide_event_class_bases(
+                        [DecoratedFuncCaller, decorator.given_event_cls],
+                        redefined_bases,
+                        base_event_cls,
+                    )
                     event_class = cls._define_event_class(
                         decorator.given_event_cls.__name__,
-                        (
-                            _fill_id_type(cls, DecoratedFuncCaller),
-                            _fill_id_type(cls, decorator.given_event_cls),
-                            *redefined_bases,
-                            _fill_id_type(cls, base_event_cls),
-                        ),
+                        event_class_bases,
                         None,
                     )
                 else:
                     # Define event class from signature of original method.
                     assert decorator.event_cls_name
+                    event_class_bases = cls._decide_event_class_bases(
+                        [DecoratedFuncCaller, value], redefined_bases, base_event_cls
+                    )
                     event_class = cls._define_event_class(
                         decorator.event_cls_name,
-                        (
-                            _fill_id_type(cls, DecoratedFuncCaller),
-                            _fill_id_type(cls, value),
-                            *redefined_bases,
-                            _fill_id_type(cls, base_event_cls),
-                        ),
+                        event_class_bases,
                         decorator.decorated_func,
                         event_topic=decorator.event_topic,
                     )
@@ -2172,15 +2236,14 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
                     continue
 
                 if value is created_event_class:
+                    event_class_bases = cls._decide_event_class_bases(
+                        [created_event_class], redefined_bases, base_event_cls
+                    )
                     event_class = cast(
                         type[CanInitAggregate[TAggregateID]],
                         cls._define_event_class(
                             created_event_class.__name__,
-                            (
-                                _fill_id_type(cls, created_event_class),
-                                *redefined_bases,
-                                _fill_id_type(cls, base_event_cls),
-                            ),
+                            event_class_bases,
                             None,
                             event_topic=created_event_topic,
                         ),
@@ -2189,15 +2252,14 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
 
                 elif name == created_event_name:
                     assert base_created_event_cls
+                    event_class_bases = cls._decide_event_class_bases(
+                        [base_created_event_cls], redefined_bases, base_event_cls
+                    )
                     event_class = cast(
                         type[CanInitAggregate[TAggregateID]],
                         cls._define_event_class(
                             created_event_name,
-                            (
-                                _fill_id_type(cls, base_event_cls),
-                                _fill_id_type(cls, base_created_event_cls),
-                                *[_fill_id_type(cls, t) for t in redefined_bases],
-                            ),
+                            event_class_bases,
                             init_method,
                             event_topic=created_event_topic,
                         ),
@@ -2208,10 +2270,8 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
                     # Decide base classes of redefined event class: it must be
                     # a subclass of the original class, all redefined classes that
                     # were in its bases, and the aggregate's base event class.
-                    event_class_bases = (
-                        _fill_and_validate_id_type(cls, base_event_cls),
-                        _fill_and_validate_id_type(cls, value),
-                        *[_fill_and_validate_id_type(cls, r) for r in redefined_bases],
+                    event_class_bases = cls._decide_event_class_bases(
+                        [value], redefined_bases, base_event_cls
                     )
 
                     # Define event class.

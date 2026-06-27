@@ -246,7 +246,10 @@ class TestOriginatorIDTypeDetection(TestCase):
             class C(A, B):
                 pass
 
-        self.assertIn("Mismatched originator ID types in bases", str(cm.exception))
+        self.assertIn(
+            "Conflicting originator ID types detected in bases of",
+            str(cm.exception),
+        )
 
 
 _T = TypeVar("_T")
