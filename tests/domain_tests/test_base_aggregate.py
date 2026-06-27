@@ -705,6 +705,12 @@ class TestBaseAggregate(TestCase):
         # doesn't have its own base event class, so Something and Scheduled
         # are redefined. Unless the hierarchy is preserved, after the class
         # is defined, B.Scheduled will not be a subclass of B.Something.
+
+        # This 'X' just makes sure we are picking up the synonymous B.Created class.
+        # TODO: Move this aspect to a separate class...
+        class X(AggregateEvent):
+            pass
+
         class B(A):
             class Something(A.Event):
                 pass
@@ -712,10 +718,58 @@ class TestBaseAggregate(TestCase):
             class Scheduled(Something):
                 pass
 
+            class Created(Something, X):
+                pass
+
             self.assertTrue(issubclass(Scheduled, Something))
+            self.assertTrue(issubclass(Created, X))
+            self.assertTrue(issubclass(Created, Something))
 
         # Redefined classes should respect original hierarchy.
         self.assertTrue(issubclass(B.Scheduled, B.Something))
+        self.assertTrue(issubclass(B.Created, X))
+        self.assertTrue(issubclass(B.Created, B.Something))
+
+    def test_original_subclass_relations_are_respected_with_decorators(self) -> None:
+        # Issue #295 on GitHub.
+        # https://github.com/pyeventsourcing/eventsourcing/issues/295
+        class A(BaseAggregate):
+            class Event(AggregateEvent):
+                pass
+
+            class Created(Event, AggregateCreated):
+                pass
+
+        # Basically, when we redefine an event in B, it must inherit from
+        # the original class, from any redefined event classes on B that are
+        # in its bases, and from B's base event class. In this example, B
+        # doesn't have its own base event class, so Something and Scheduled
+        # are redefined. Unless the hierarchy is preserved, after the class
+        # is defined, B.Scheduled will not be a subclass of B.Something.
+        class B(A):
+            class Something(A.Event):
+                pass
+
+            class Scheduled(Something):
+                pass
+
+            class Created(A.Created, Something):
+                pass
+
+            @event(Something)
+            def meth1(self) -> None:
+                pass
+
+            @event(Scheduled)
+            def meth2(self) -> None:
+                pass
+
+            self.assertTrue(issubclass(Scheduled, Something))
+            self.assertTrue(issubclass(Created, Something))
+
+        # Redefined classes should respect original hierarchy.
+        self.assertTrue(issubclass(B.Scheduled, B.Something))
+        self.assertTrue(issubclass(B.Created, B.Something))
 
     def test_original_subclass_relations_are_respected_with_pydantic_generics(
         self,
@@ -819,11 +873,16 @@ class TestBaseAggregate(TestCase):
             class Scheduled(Else):
                 pass
 
+            class Created(A.Created, Something[ExtendedShared]):
+                pass
+
             self.assertTrue(issubclass(Else, Something))
             self.assertTrue(issubclass(Scheduled, Else))
             self.assertTrue(issubclass(Scheduled, Something))
+            self.assertTrue(issubclass(Created, Something))
 
         # Redefined classes should respect original hierarchy.
         self.assertTrue(issubclass(B.Else, B.Something))
         self.assertTrue(issubclass(B.Scheduled, B.Else))
         self.assertTrue(issubclass(B.Scheduled, B.Something))
+        self.assertTrue(issubclass(B.Created, B.Something))

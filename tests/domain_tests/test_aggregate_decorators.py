@@ -1103,7 +1103,6 @@ class TestEventDecorator(TestCase):
         # that are applied using the decorated method.
         with self.assertRaises(TypeError) as cm:
 
-            @aggregate
             class Order(Aggregate):
                 class Confirmed(AggregateEvent):
                     at: datetime
@@ -1121,7 +1120,7 @@ class TestEventDecorator(TestCase):
         # declared on two decorators.
         with self.assertRaises(TypeError) as cm:
 
-            @aggregate
+            # @aggregate
             class Order(Aggregate):
                 @triggers("Confirmed")
                 def confirm1(self, at: datetime) -> None:
@@ -1290,6 +1289,10 @@ class TestEventDecorator(TestCase):
             f"{method_name}() missing 1 required positional argument: 'a'",
             cm.exception.args[0],
         )
+
+        # agg = MyAggregate2(a=1)
+        # self.assertEqual(agg.a, 1)
+        # return
 
         with self.assertRaises(TypeError) as cm:
             MyAggregate2(a=1)
@@ -1482,6 +1485,16 @@ class TestEventDecorator(TestCase):
         self.assertEqual(order2.modified_on.month, 1)
         self.assertEqual(order2.modified_on.day, 3)
         self.assertEqual(order2.pickedup_at, order2.modified_on)
+
+    def test_raises_when_decorated_mentions_non_nested_class(self) -> None:
+        with self.assertRaises(TypeError):
+            class Something(AggregateEvent):
+                pass
+
+            class Order(Aggregate):
+                @event(Something)
+                def do(self) -> None:
+                    pass
 
 
 class TestOrder(TestCase):

@@ -155,6 +155,10 @@ class TestOriginatorIDTypeDetection(TestCase):
     def test_hasoriginatoridversion(self) -> None:
         # self.assertIsNone(HasOriginatorIDVersion.originator_id_type)
         self.assertIs(HasOriginatorIDVersion.originator_id_type, UUID)
+        self.assertIs(HasOriginatorIDVersion[UUID].originator_id_type, UUID)
+        # TODO: This doesn't include the type arg... and using a
+        #  WrappedGenericAlias derails the construction of event classes.
+        # self.assertIs(HasOriginatorIDVersion[str].originator_id_type, str)
 
         # class DomainEvent(HasOriginatorIDVersion[str]):
         #     pass
