@@ -14,7 +14,7 @@ from typing import (
     get_args,
     get_origin,
     no_type_check,
-    overload,
+    overload, NewType,
 )
 
 from typing_extensions import TypeVar, get_original_bases
@@ -266,12 +266,19 @@ class Environment(dict[str, str]):
         return keys
 
 
-def resolve_multi_generic_target(cls: type, target_base: type) -> tuple[Any, ...]:
+def resolve_multi_generic_target(
+    cls: type, target_base: type, verbose: bool = False
+) -> tuple[Any, ...]:
     """
     Finds type arguments for `target_base` of given `cls`.
     """
-    target_params = getattr(target_base, "__parameters__", ())
+    if verbose:
+        print(f"Resolving multi generic target {cls}...")
+
+    target_params = safe_get_params(target_base)
     if not target_params:
+        if verbose:
+            print(f"Resolved {()} for {cls}")
         return ()
 
     # Map each class in the MRO to a dictionary of its own resolved type parameters
@@ -286,18 +293,20 @@ def resolve_multi_generic_target(cls: type, target_base: type) -> tuple[Any, ...
         # The context dictionary of the current class we are looking at
         current_context = resolved_params[ancestor]
 
-        orig_bases = get_original_bases(ancestor)
+        orig_bases = safe_get_original_bases(ancestor)
 
         for base in orig_bases:
-            origin = get_origin(base)
+            origin = safe_get_origin(base)
             if origin is None:
                 # Unparameterized inheritance (e.g., class Child(Parent): ...)
                 origin = base
                 args = ()
             else:
-                args = get_args(base)
+                args = safe_get_args(base)
+            if verbose:
+                print(f" - Args {args} for base {base}")
 
-            ancestor_params = getattr(origin, "__parameters__", ())
+            ancestor_params = safe_get_params(origin)
 
             if origin not in resolved_params:
                 resolved_params[origin] = {}
@@ -333,4 +342,73 @@ def resolve_multi_generic_target(cls: type, target_base: type) -> tuple[Any, ...
         else:
             final_output.append(resolved_val)
 
+    if verbose:
+        print(f"Resolved {final_output} for {cls}")
     return tuple(final_output)
+
+
+def safe_get_origin(tp: Any) -> Any:
+    """Pydantic-aware version of typing.get_origin."""
+    # Check if it's a parameterized Pydantic model class
+    metadata = getattr(tp, "__pydantic_generic_metadata__", None)
+    if metadata and isinstance(metadata, dict):
+        return metadata.get("origin")
+    return get_origin(tp)
+
+
+def safe_get_args(tp: Any) -> tuple[Any, ...]:
+    """Pydantic-aware version of typing.get_args."""
+    metadata = getattr(tp, "__pydantic_generic_metadata__", None)
+    if metadata and isinstance(metadata, dict):
+        return metadata.get("args", ())
+    return get_args(tp)
+
+
+def safe_get_params(tp: Any) -> tuple[Any, ...]:
+    """Pydantic-aware version of fetching __parameters__."""
+    metadata = getattr(tp, "__pydantic_generic_metadata__", None)
+    if metadata and isinstance(metadata, dict):
+        return metadata.get("parameters", ())
+
+    # Fallback to standard Python generic parameters
+    return getattr(tp, "__parameters__", ())
+
+
+def safe_get_original_bases(cls: type) -> tuple[Any, ...]:
+    """
+    Pydantic-aware version of get_original_bases.
+    Repairs mangled __orig_bases__ by pulling concrete Pydantic generic
+    models back out of the standard __bases__ tuple.
+    """
+    # 1. Start with Python's standard resolution
+    orig_bases = get_original_bases(cls)
+
+    # 2. If the lengths differ, complex __mro_entries__ unpacking occurred
+    # (e.g. TypedDict or NamedTuple). It is safer to return as-is.
+    if len(orig_bases) != len(cls.__bases__):
+        return orig_bases
+
+    repaired_bases = []
+
+    # 3. Zip them together. Their relative order is identical.
+    for orig_b, real_b in zip(orig_bases, cls.__bases__, strict=False):
+        # If the actual base is a parameterized Pydantic model, it holds the truth.
+        # It carries __pydantic_generic_metadata__ which our safe_get_args needs.
+        if hasattr(real_b, "__pydantic_generic_metadata__"):
+            repaired_bases.append(real_b)
+
+        # Otherwise, it's a standard Python generic alias (like Generic[T]),
+        # so we must use the orig_b to preserve the type arguments.
+        else:
+            repaired_bases.append(orig_b)
+
+    return tuple(repaired_bases)
+
+_T = TypeVar("_T")
+
+def unwrap_new_type(id_type: type[_T]) -> type[_T]:
+    while True:
+        if isinstance(id_type, type):
+            return id_type
+        assert isinstance(id_type, NewType), id_type
+        id_type = id_type.__supertype__

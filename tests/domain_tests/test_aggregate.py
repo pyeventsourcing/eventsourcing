@@ -5,7 +5,7 @@ import inspect
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, get_type_hints
+from typing import Any
 from unittest import TestCase
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
@@ -13,6 +13,8 @@ from eventsourcing.domain import (
     Aggregate,
     AggregateCreated,
     AggregateEvent,
+    AggregateStrID,
+    AggregateUuidID,
     BaseAggregate,
     CanInitAggregate,
     CanMutateAggregate,
@@ -20,16 +22,15 @@ from eventsourcing.domain import (
     OriginatorVersionError,
     datetime_now_with_tzinfo,
     event,
-    AggregateUuidID,
-    AggregateStrID,
 )
 from eventsourcing.tests.domain import (
     AccountClosedError,
     BankAccount,
     InsufficientFundsError,
 )
-from eventsourcing.utils import get_method_name, resolve_topic, get_topic, \
-    clear_topic_cache
+from eventsourcing.utils import (
+    get_method_name,
+)
 
 
 class TestMetaAggregate(TestCase):
@@ -947,7 +948,7 @@ class TestAggregateCreation(TestCase):
 
         with self.assertRaises(TypeError) as cm:
 
-            class A(BaseAggregate[UUID]):
+            class B(BaseAggregate[UUID]):
                 class Event(CanMutateAggregate[UUID]):
                     pass
 
@@ -955,8 +956,8 @@ class TestAggregateCreation(TestCase):
                     pass
 
         self.assertIn("Invalid originator ID type:", str(cm.exception))
-        self.assertIn("A.Something'> has <class 'str'>", str(cm.exception))
-        self.assertIn("<locals>.A'> expects <class 'uuid.UUID'>", str(cm.exception))
+        self.assertIn("B.Something'> has <class 'str'>", str(cm.exception))
+        self.assertIn("<locals>.B'> expects <class 'uuid.UUID'>", str(cm.exception))
 
     def test_raises_when_event_class_originator_id_type_invalid_uuid(self) -> None:
         with self.assertRaises(TypeError) as cm:
@@ -990,6 +991,7 @@ class TestAggregateCreation(TestCase):
             class A(BaseAggregate):
                 class Event(AggregateEvent):
                     pass
+
                 @event(Started)
                 def __init__(self) -> None:
                     pass
@@ -1389,10 +1391,12 @@ class TestAggregateUuidID(TestCase):
         agg = AggregateUuidID()
         self.assertIsInstance(agg.id, UUID)
 
+
 class TestAggregateStrID(TestCase):
     def test_direct_use(self) -> None:
         agg = AggregateStrID()
         self.assertIsInstance(agg.id, str, agg.id)
+
 
 class TestBankAccount(TestCase):
     def test_subclass_bank_account(self) -> None:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 from pydantic import ConfigDict, TypeAdapter
@@ -13,7 +13,9 @@ from eventsourcing.domain import (
     CanSnapshotAggregate,
     TAggregateID,
 )
+import eventsourcing.domain
 from eventsourcing.pydantic.immutablemodel import DomainEvent, Immutable
+from eventsourcing.utils import unwrap_new_type
 
 datetime_adapter = TypeAdapter(datetime)
 
@@ -48,6 +50,14 @@ class AggregateSnapshot(DomainEvent[TAggregateID], CanSnapshotAggregate[TAggrega
     #         raise TypeError(msg) from e
 
 
+class AggregateSnapshotUuidID(AggregateSnapshot[UUID]):
+    pass
+
+
+class AggregateSnapshotStrID(AggregateSnapshot[str]):
+    pass
+
+
 class Aggregate(BaseAggregate):
     @staticmethod
     def create_id(*_: Any, **__: Any) -> UUID:
@@ -58,6 +68,41 @@ class Aggregate(BaseAggregate):
         pass
 
     class Created(Event, CanInitAggregate):
+        originator_topic: str
+
+class GenericAggregate(BaseAggregate[TAggregateID]):
+    @classmethod
+    def create_id(cls, *_: Any, **__: Any) -> TAggregateID:
+        """Returns a new aggregate ID."""
+        assert cls.originator_id_type is not None
+        new_id = uuid4()
+        if issubclass(unwrap_new_type(cls.originator_id_type), UUID):
+            return cast(TAggregateID, new_id)
+        if issubclass(unwrap_new_type(cls.originator_id_type), str):
+            return cast(TAggregateID, str(new_id))
+        msg = f"The originator_id_type of {cls} apparently isn't a UUID or str"
+        raise TypeError(msg)
+
+    class Event(DomainEvent[TAggregateID], CanMutateAggregate[TAggregateID]):
+        pass
+
+    class Created(Event, CanInitAggregate[TAggregateID]):
+        originator_topic: str
+
+    class Snapshot(AggregateSnapshot[TAggregateID]):
+        pass
+
+
+class AggregateUuidID(BaseAggregate[UUID]):
+    @staticmethod
+    def create_id(*_: Any, **__: Any) -> UUID:
+        """Returns a new aggregate ID."""
+        return uuid4()
+
+    class Event(DomainEvent[UUID], CanMutateAggregate[UUID]):
+        pass
+
+    class Created(Event, CanInitAggregate[UUID]):
         originator_topic: str
 
 
@@ -72,3 +117,6 @@ class AggregateStrID(BaseAggregate[str]):
 
     class Created(Event, CanInitAggregate[str]):
         originator_topic: str
+
+    class Snapshot(Event, AggregateSnapshot[str]):
+        pass

@@ -64,13 +64,21 @@ class AggregateSnapshot(DomainEvent[TAggregateID], CanSnapshotAggregate[TAggrega
         return aggregate
 
 
+class AggregateSnapshotUuidID(AggregateSnapshot[UUID]):
+    pass
+
+
+class AggregateSnapshotStrID(AggregateSnapshot[str]):
+    pass
+
+
 class AggregateEvent(DomainEvent[TAggregateID], CanMutateAggregate[TAggregateID]):
     # class AggregateEvent(DomainEventY):
     def _as_dict(self) -> dict[str, Any]:
         return {key: getattr(self, key) for key in self.__struct_fields__}
 
 
-class Aggregate(BaseAggregate[UUID]):
+class AggregateUuidID(BaseAggregate[UUID]):
     @classmethod
     def create_id(cls, *_: Any, **__: Any) -> UUID:
         return uuid4()

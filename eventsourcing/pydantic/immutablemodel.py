@@ -54,6 +54,14 @@ class Snapshot(DomainEvent[TAggregateID]):
         )
 
 
+class SnapshotUuidID(Snapshot[UUID]):
+    pass
+
+
+class SnapshotStrID(Snapshot[str]):
+    pass
+
+
 TAggregate = TypeVar("TAggregate", bound=Aggregate[Any])
 
 

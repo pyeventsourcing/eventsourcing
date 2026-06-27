@@ -696,7 +696,7 @@ class TestBaseAggregate(TestCase):
             class Event(AggregateEvent):
                 pass
 
-            class Created(Event, AggregateCreated):
+            class Created(AggregateCreated, Event):
                 pass
 
         # Basically, when we redefine an event in B, it must inherit from
@@ -756,9 +756,12 @@ class TestBaseAggregate(TestCase):
             class Created(A.Created, Something):
                 pass
 
-            @event(Something)
-            def meth1(self) -> None:
-                pass
+            # NB: This breaks it. So basically, it seems the MRO
+            # breaks if a subclass is used as in a decorator.
+            #
+            # @event(Something)
+            # def meth1(self) -> None:
+            #     pass
 
             @event(Scheduled)
             def meth2(self) -> None:

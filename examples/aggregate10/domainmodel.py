@@ -3,7 +3,7 @@ from __future__ import annotations
 from eventsourcing.domain import event
 from eventsourcing.msgspec.immutablemodel import Immutable
 from eventsourcing.msgspec.mutablemodel import (
-    Aggregate,
+    AggregateUuidID,
     SnapshotState,
 )
 
@@ -17,7 +17,7 @@ class DogSnapshotState(SnapshotState):
     tricks: list[Trick]
 
 
-class Dog(Aggregate):
+class Dog(AggregateUuidID):
     @event("Registered")
     def __init__(self, name: str) -> None:
         self.name = name
@@ -27,5 +27,5 @@ class Dog(Aggregate):
     def add_trick(self, trick: Trick) -> None:
         self.tricks.append(trick)
 
-    class Snapshot(Aggregate.Snapshot):
+    class Snapshot(AggregateUuidID.Snapshot):
         state: DogSnapshotState

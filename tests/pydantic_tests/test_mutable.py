@@ -4,43 +4,31 @@ from unittest import TestCase
 from uuid import UUID, uuid4
 
 from eventsourcing.domain import datetime_now_with_tzinfo, event
-from eventsourcing.msgspec import mutablemodel
-from eventsourcing.msgspec.mapper import MsgspecMapper
-from eventsourcing.msgspec.mutablemodel import (
+from eventsourcing.persistence import NullTranscoder
+from eventsourcing.pydantic import mutablemodel
+from eventsourcing.pydantic.mapper import PydanticMapper
+from eventsourcing.pydantic.mutablemodel import (
+    Aggregate,
+    AggregateSnapshot,
     AggregateSnapshotStrID,
     AggregateSnapshotUuidID,
     AggregateStrID,
     AggregateUuidID,
 )
-from eventsourcing.persistence import NullTranscoder
 from eventsourcing.utils import get_topic
 
 
-class TestOrigintorIDTypes(TestCase):
-    def test(self) -> None:
-        self.assertIs(AggregateUuidID.originator_id_type, UUID)
-        self.assertIs(AggregateUuidID.Event.originator_id_type, UUID)
-        self.assertIs(AggregateUuidID.Created.originator_id_type, UUID)
-        self.assertIs(AggregateSnapshotUuidID.originator_id_type, UUID)
-        self.assertIs(AggregateSnapshotUuidID.originator_id_type, UUID)
-        self.assertIs(AggregateStrID.originator_id_type, str)
-        self.assertIs(AggregateStrID.Event.originator_id_type, str)
-        self.assertIs(AggregateStrID.Created.originator_id_type, str)
-        self.assertIs(AggregateSnapshotStrID.originator_id_type, str)
-        self.assertIs(AggregateSnapshotStrID.originator_id_type, str)
-
-
-class MutableAggregateWithUuidIDAndEventClasses(mutablemodel.AggregateUuidID):
+class MutableAggregateWithUuidIDAndEventClasses(mutablemodel.Aggregate):
     # class Snapshot(AggregateSnapshot):
     #     state: DogSnapshotState
 
-    class Started(mutablemodel.AggregateUuidID.Created):
+    class Started(mutablemodel.Aggregate.Created):
         a: int
 
-    class Reset(mutablemodel.AggregateUuidID.Event):
+    class Reset(mutablemodel.Aggregate.Event):
         a: int
 
-    class Unused(mutablemodel.AggregateUuidID.Event):
+    class Unused(mutablemodel.Aggregate.Event):
         a: int
 
     @event(Started)
@@ -52,7 +40,7 @@ class MutableAggregateWithUuidIDAndEventClasses(mutablemodel.AggregateUuidID):
         self.a = a
 
 
-class MutableAggregateWithUuidIDAndEventNames(mutablemodel.AggregateUuidID):
+class MutableAggregateWithUuidIDAndEventNames(mutablemodel.Aggregate):
     # class Snapshot(AggregateSnapshot):
     #     state: DogSnapshotState
 
@@ -100,9 +88,24 @@ class MutableAggregateWithStrIDAndEventNames(mutablemodel.AggregateStrID):
         self.a = a
 
 
+class TestOrigintorIDTypes(TestCase):
+    def test(self) -> None:
+        self.assertIs(AggregateUuidID.originator_id_type, UUID)
+        self.assertIs(AggregateUuidID.Event.originator_id_type, UUID)
+        self.assertIs(AggregateUuidID.Created.originator_id_type, UUID)
+        self.assertIs(AggregateSnapshotUuidID.originator_id_type, UUID)
+        self.assertIs(AggregateSnapshotUuidID.originator_id_type, UUID)
+        self.assertIs(AggregateStrID.originator_id_type, str)
+        self.assertIs(AggregateStrID.Event.originator_id_type, str)
+        self.assertIs(AggregateStrID.Created.originator_id_type, str)
+        self.assertIs(AggregateSnapshotStrID.originator_id_type, str)
+        self.assertIs(AggregateSnapshotStrID.originator_id_type, str)
+        self.assertIs(AggregateStrID.Snapshot.originator_id_type, str)
+
+
 class TestMutableAggregateWithUuidIDAndEventClasses(TestCase):
     def setUp(self) -> None:
-        self.mapper = MsgspecMapper(NullTranscoder())
+        self.mapper = PydanticMapper(NullTranscoder())
 
     def test_event(self) -> None:
         event = MutableAggregateWithUuidIDAndEventClasses.Event(
@@ -186,10 +189,23 @@ class TestMutableAggregateWithUuidIDAndEventClasses(TestCase):
             self.assertEqual(collected.originator_id, agg.id)
             self.assertIs(collected.originator_id_type, UUID)
 
+    def test_snapshot(self) -> None:
+        agg = MutableAggregateWithUuidIDAndEventClasses(a=1)
+        snap = AggregateSnapshotUuidID.take(agg)
+        self.assertEqual(snap.originator_id, agg.id)
+        self.assertEqual(snap.originator_version, agg.version)
+        self.assertEqual(snap.state["a"], agg.a)
+
+        copy: MutableAggregateWithUuidIDAndEventClasses = snap.mutate(None)
+        self.assertIsInstance(copy, MutableAggregateWithUuidIDAndEventClasses)
+        self.assertEqual(copy.id, agg.id)
+        self.assertEqual(copy.version, agg.version)
+        self.assertEqual(copy.a, agg.a)
+
 
 class TestMutableAggregateWithUuidIDAndEventNames(TestCase):
     def setUp(self) -> None:
-        self.mapper = MsgspecMapper(NullTranscoder())
+        self.mapper = PydanticMapper(NullTranscoder())
 
     def test_event(self) -> None:
         event = MutableAggregateWithUuidIDAndEventNames.Event(
@@ -218,7 +234,7 @@ class TestMutableAggregateWithUuidIDAndEventNames(TestCase):
         stored = self.mapper.to_stored_event(event)
         copy = self.mapper.to_domain_event(stored)
         assert isinstance(copy, MutableAggregateWithUuidIDAndEventNames.Started)  # type: ignore[attr-defined]
-        assert isinstance(copy, AggregateUuidID.Event)
+        assert isinstance(copy, Aggregate.Event)
         self.assertEqual(copy.originator_id, event.originator_id)
         self.assertIsInstance(copy.originator_id, UUID)
         self.assertEqual(copy.originator_version, event.originator_version)
@@ -237,7 +253,7 @@ class TestMutableAggregateWithUuidIDAndEventNames(TestCase):
         stored = self.mapper.to_stored_event(event)
         copy = self.mapper.to_domain_event(stored)
         assert isinstance(copy, MutableAggregateWithUuidIDAndEventNames.Reset)  # type: ignore[attr-defined]
-        assert isinstance(copy, AggregateUuidID.Event)
+        assert isinstance(copy, Aggregate.Event)
         self.assertEqual(copy.originator_id, event.originator_id)
         self.assertIsInstance(copy.originator_id, UUID)
         self.assertEqual(copy.originator_version, event.originator_version)
@@ -257,10 +273,23 @@ class TestMutableAggregateWithUuidIDAndEventNames(TestCase):
             self.assertEqual(collected.originator_id, agg.id)
             self.assertIs(collected.originator_id_type, UUID)
 
+    def test_snapshot(self) -> None:
+        agg = MutableAggregateWithUuidIDAndEventNames(a=1)
+        snap = AggregateSnapshotUuidID.take(agg)
+        self.assertEqual(snap.originator_id, agg.id)
+        self.assertEqual(snap.originator_version, agg.version)
+        self.assertEqual(snap.state["a"], agg.a)
+
+        copy: MutableAggregateWithUuidIDAndEventNames = snap.mutate(None)
+        self.assertIsInstance(copy, MutableAggregateWithUuidIDAndEventNames)
+        self.assertEqual(copy.id, agg.id)
+        self.assertEqual(copy.version, agg.version)
+        self.assertEqual(copy.a, agg.a)
+
 
 class TestMutableAggregateWithStrIDAndEventClasses(TestCase):
     def setUp(self) -> None:
-        self.mapper = MsgspecMapper[str](NullTranscoder())
+        self.mapper = PydanticMapper[str](NullTranscoder())
 
     def test_event(self) -> None:
         event = MutableAggregateWithStrIDAndEventClasses.Event(
@@ -344,10 +373,23 @@ class TestMutableAggregateWithStrIDAndEventClasses(TestCase):
             self.assertEqual(collected.originator_id, agg.id)
             self.assertIs(collected.originator_id_type, str)
 
+    def test_snapshot(self) -> None:
+        agg = MutableAggregateWithStrIDAndEventClasses(a=1)
+        snap = AggregateSnapshotStrID.take(agg)
+        self.assertEqual(snap.originator_id, agg.id)
+        self.assertEqual(snap.originator_version, agg.version)
+        self.assertEqual(snap.state["a"], agg.a)
+
+        copy: MutableAggregateWithStrIDAndEventClasses = snap.mutate(None)
+        self.assertIsInstance(copy, MutableAggregateWithStrIDAndEventClasses)
+        self.assertEqual(copy.id, agg.id)
+        self.assertEqual(copy.version, agg.version)
+        self.assertEqual(copy.a, agg.a)
+
 
 class TestMutableAggregateWithStrIDAndEventNames(TestCase):
     def setUp(self) -> None:
-        self.mapper = MsgspecMapper[str](NullTranscoder())
+        self.mapper = PydanticMapper[str](NullTranscoder())
 
     def test_event(self) -> None:
         event = MutableAggregateWithStrIDAndEventNames.Event(
@@ -414,3 +456,16 @@ class TestMutableAggregateWithStrIDAndEventNames(TestCase):
             self.assertEqual(collected.originator_id, agg.id)
             self.assertEqual(collected.originator_id, agg.id)
             self.assertIs(collected.originator_id_type, str)
+
+    def test_snapshot(self) -> None:
+        agg = MutableAggregateWithStrIDAndEventNames(a=1)
+        snap = AggregateSnapshotStrID.take(agg)
+        self.assertEqual(snap.originator_id, agg.id)
+        self.assertEqual(snap.originator_version, agg.version)
+        self.assertEqual(snap.state["a"], agg.a)
+
+        copy: MutableAggregateWithStrIDAndEventNames = snap.mutate(None)
+        self.assertIsInstance(copy, MutableAggregateWithStrIDAndEventNames)
+        self.assertEqual(copy.id, agg.id)
+        self.assertEqual(copy.version, agg.version)
+        self.assertEqual(copy.a, agg.a)

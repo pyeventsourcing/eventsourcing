@@ -1488,6 +1488,7 @@ class TestEventDecorator(TestCase):
 
     def test_raises_when_decorated_mentions_non_nested_class(self) -> None:
         with self.assertRaises(TypeError):
+
             class Something(AggregateEvent):
                 pass
 

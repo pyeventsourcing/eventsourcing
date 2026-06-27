@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from eventsourcing.domain import event
-from eventsourcing.pydantic.immutablemodel import Immutable
+from eventsourcing.pydantic.immutablemodel import Immutable, SnapshotStrID
 from eventsourcing.pydantic.mutablemodel import (
     AggregateSnapshot,
+    AggregateSnapshotStrID,
     AggregateStrID,
     SnapshotState,
 )
@@ -19,7 +20,7 @@ class DogSnapshotState(SnapshotState):
 
 
 class Dog(AggregateStrID):
-    class Snapshot(AggregateSnapshot[str]):
+    class Snapshot(AggregateSnapshotStrID):
         state: DogSnapshotState
 
     @event("Registered")
