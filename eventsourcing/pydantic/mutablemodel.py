@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 
 from pydantic import ConfigDict, TypeAdapter
 
+import eventsourcing.domain
 from eventsourcing.domain import (
     BaseAggregate,
     CanInitAggregate,
@@ -13,7 +14,6 @@ from eventsourcing.domain import (
     CanSnapshotAggregate,
     TAggregateID,
 )
-import eventsourcing.domain
 from eventsourcing.pydantic.immutablemodel import DomainEvent, Immutable
 from eventsourcing.utils import unwrap_new_type
 
@@ -70,6 +70,7 @@ class Aggregate(BaseAggregate):
     class Created(Event, CanInitAggregate):
         originator_topic: str
 
+
 class GenericAggregate(BaseAggregate[TAggregateID]):
     @classmethod
     def create_id(cls, *_: Any, **__: Any) -> TAggregateID:
@@ -86,7 +87,7 @@ class GenericAggregate(BaseAggregate[TAggregateID]):
     class Event(DomainEvent[TAggregateID], CanMutateAggregate[TAggregateID]):
         pass
 
-    class Created(Event, CanInitAggregate[TAggregateID]):
+    class Created(Event[TAggregateID], CanInitAggregate[TAggregateID]):
         originator_topic: str
 
     class Snapshot(AggregateSnapshot[TAggregateID]):

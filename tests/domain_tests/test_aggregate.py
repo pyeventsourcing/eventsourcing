@@ -939,13 +939,6 @@ class TestAggregateCreation(TestCase):
         self.assertIn("A'> expects <class 'str'>", str(cm.exception))
 
     def test_raises_when_event_class_originator_id_type_invalid_str(self) -> None:
-        class A(BaseAggregate[UUID]):
-            class Event(CanMutateAggregate[UUID]):
-                pass
-
-            class Something(Event, CanMutateAggregate[str]):
-                pass
-
         with self.assertRaises(TypeError) as cm:
 
             class B(BaseAggregate[UUID]):
@@ -1012,14 +1005,6 @@ class TestAggregateCreation(TestCase):
                     pass
 
                 class Something(CanMutateAggregate[str]):
-                    pass
-
-                @event(Started)
-                def __init__(self) -> None:
-                    pass
-
-                @event(Something)
-                def a(self) -> None:
                     pass
 
         self.assertIn("Invalid originator ID type:", str(cm.exception))

@@ -6,6 +6,8 @@ from typing import Generic, TypeVar
 from unittest import TestCase
 from uuid import UUID, uuid4
 
+from pydantic import BaseModel
+
 from eventsourcing.domain import (
     Aggregate,
     AggregateCreated,
@@ -30,6 +32,21 @@ except ProgrammingError:
 else:
     msg = "eventsourcing.module isn't checking for redefined names"
     raise AssertionError(msg)
+
+
+class SharedPydantic(BaseModel):
+    system_id: str
+
+
+TSharedPydantic = TypeVar("TSharedPydantic", bound=SharedPydantic)
+
+
+@dataclass(frozen=True)
+class SharedDataclass:
+    system_id: str
+
+
+TSharedDataclass = TypeVar("TSharedDataclass", bound=SharedDataclass)
 
 
 class TestBaseAggregate(TestCase):
@@ -780,8 +797,6 @@ class TestBaseAggregate(TestCase):
         # Issue #295 on GitHub.
         # https://github.com/pyeventsourcing/eventsourcing/issues/295
 
-        from pydantic import BaseModel  # noqa: PLC0415
-
         from eventsourcing.domain import (  # noqa: PLC0415
             BaseAggregate,
             CanInitAggregate,
@@ -794,23 +809,18 @@ class TestBaseAggregate(TestCase):
             timestamp: datetime
 
         class A(BaseAggregate):
-            class Event(DomainEvent, CanMutateAggregate):
+            class Event(DomainEvent, CanMutateAggregate[UUID]):
                 pass
 
-            class Created(Event, CanInitAggregate):
+            class Created(Event, CanInitAggregate[UUID]):
                 originator_topic: str
 
-        class Shared(BaseModel):
-            system_id: str
-
-        class ExtendedShared(Shared):
+        class ExtendedShared(SharedPydantic):
             task_id: str
 
-        SharedId = TypeVar("SharedId", bound=Shared)
-
         class B(A):
-            class Something(A.Event, Generic[SharedId]):
-                shared_id: SharedId
+            class Something(A.Event, Generic[TSharedPydantic]):
+                shared_id: TSharedPydantic
 
             class Else(Something[ExtendedShared]):
                 pass
@@ -847,27 +857,21 @@ class TestBaseAggregate(TestCase):
 
         class A(BaseAggregate):
             @dataclass(frozen=True)
-            class Event(DomainEvent, CanMutateAggregate):
+            class Event(DomainEvent, CanMutateAggregate[UUID]):
                 pass
 
             @dataclass(frozen=True)
-            class Created(Event, CanInitAggregate):
+            class Created(Event, CanInitAggregate[UUID]):
                 originator_topic: str
 
         @dataclass(frozen=True)
-        class Shared:
-            system_id: str
-
-        @dataclass(frozen=True)
-        class ExtendedShared(Shared):
+        class ExtendedShared(SharedDataclass):
             task_id: str
-
-        SharedId = TypeVar("SharedId", bound=Shared)
 
         class B(A):
             @dataclass(frozen=True)
-            class Something(A.Event, Generic[SharedId]):
-                shared_id: SharedId
+            class Something(A.Event, Generic[TSharedDataclass]):
+                shared_id: TSharedDataclass
 
             @dataclass(frozen=True)
             class Else(Something[ExtendedShared]):

@@ -125,7 +125,7 @@ class TestDataclassMapper(TestCase):
         self.assertIn(len(stored_event.state), range(100, 200))
 
     def test_find_id_convertor(self) -> None:
-        class HasUuidID(HasOriginatorIDVersion):
+        class HasUuidID(HasOriginatorIDVersion[UUID]):
             pass
 
         self.assertIs(find_id_convertor(HasUuidID, UUID), pass_through_convertor)
@@ -343,7 +343,7 @@ class TestDataclassMapper(TestCase):
 
         # Define a subclass of HasOriginatorIDVersion and set
         # `originator_id_type` to None.
-        class Sub(DomainEvent, CanMutateAggregate):
+        class Sub(DomainEvent, CanMutateAggregate[UUID]):
             originator_id_type = None
 
         self.assertIsNone(Sub.originator_id_type)

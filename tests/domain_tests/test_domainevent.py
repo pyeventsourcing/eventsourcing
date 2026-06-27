@@ -175,19 +175,19 @@ class TestOriginatorIDTypeDetection(TestCase):
     #     # raise Exception(type(alias))
 
     def test_uuid(self) -> None:
-        class DomainEvent(CanMutateAggregate):
+        class DomainEvent(CanMutateAggregate[UUID]):
             pass
 
         class CustomDomainEvent(DomainEvent):
             pass
 
-        class CreatedEvent(CanInitAggregate):
+        class CreatedEvent(CanInitAggregate[UUID]):
             pass
 
         class CustomCreatedEvent(CreatedEvent):
             pass
 
-        class Snapshot(CanSnapshotAggregate):
+        class Snapshot(CanSnapshotAggregate[UUID]):
             pass
 
         self.assertIs(DomainEvent.originator_id_type, UUID)
@@ -233,6 +233,20 @@ class TestOriginatorIDTypeDetection(TestCase):
             pass
 
         self.assertIsNone(Sub.originator_id_type)
+
+    def test_detect_mismatch(self) -> None:
+        class A(HasOriginatorIDVersion[UUID]):
+            pass
+
+        class B(HasOriginatorIDVersion[str]):
+            pass
+
+        with self.assertRaises(TypeError) as cm:
+
+            class C(A, B):
+                pass
+
+        self.assertIn("Mismatched originator ID types in bases", str(cm.exception))
 
 
 _T = TypeVar("_T")

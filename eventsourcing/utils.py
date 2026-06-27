@@ -11,10 +11,11 @@ from types import ModuleType
 from typing import (
     TYPE_CHECKING,
     Any,
+    NewType,
     get_args,
     get_origin,
     no_type_check,
-    overload, NewType,
+    overload,
 )
 
 from typing_extensions import TypeVar, get_original_bases
@@ -404,7 +405,9 @@ def safe_get_original_bases(cls: type) -> tuple[Any, ...]:
 
     return tuple(repaired_bases)
 
+
 _T = TypeVar("_T")
+
 
 def unwrap_new_type(id_type: type[_T]) -> type[_T]:
     while True:

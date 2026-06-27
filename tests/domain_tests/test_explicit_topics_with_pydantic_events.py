@@ -42,7 +42,7 @@ class UncallableMetaAggregate(MetaAggregate[Any]):
         raise ProgrammingError(msg)
 
 
-class CreatedEvent(DomainEvent, CanInitAggregate):
+class CreatedEvent(DomainEvent, CanInitAggregate[UUID]):
     originator_topic: str
 
 
@@ -53,7 +53,7 @@ class Aggregate(BaseAggregate, metaclass=UncallableMetaAggregate):
     def create_id() -> UUID:
         return uuid4()
 
-    class Event(DomainEvent, CanMutateAggregate):
+    class Event(DomainEvent, CanMutateAggregate[UUID]):
         pass
 
 

@@ -37,7 +37,12 @@ from eventsourcing.utils import (
     get_topic,
     register_topic,
     resolve_multi_generic_target,
-    resolve_topic, unwrap_new_type,
+    resolve_topic,
+    safe_get_args,
+    safe_get_origin,
+    safe_get_original_bases,
+    safe_get_params,
+    unwrap_new_type,
 )
 
 if TYPE_CHECKING:
@@ -279,6 +284,40 @@ def create_utc_datetime_now() -> datetime:
     return datetime_now_with_tzinfo()
 
 
+def _is_hasoriginatoridversion_subclass(obj: Any) -> bool:
+    return isinstance(obj, type) and issubclass(obj, HasOriginatorIDVersion)
+
+
+def _is_canmutateaggregate_subclass(obj: Any) -> bool:
+    return isinstance(obj, type) and issubclass(obj, CanMutateAggregate)
+
+
+def _is_caninitaggregate_subclass(obj: Any) -> bool:
+    return isinstance(obj, type) and issubclass(obj, CanInitAggregate)
+
+
+def _get_originator_type_id(
+    cls: type[HasOriginatorIDVersion[Any] | BaseAggregate[Any]] | GenericAlias,
+) -> type[UUID | str] | None:
+    # TODO: Replace this with custom generic alias that does this work.
+    origin = typing.get_origin(cls)
+    args = typing.get_args(cls)
+    # if origin is None or not args:
+    #     return cls.originator_id_type
+    target_param_idx = None
+    origin_params = getattr(origin, "__parameters__", ())
+    for idx, param in enumerate(origin_params):
+        if idx < len(args) and param == TAggregateID:
+            target_param_idx = idx
+            break
+    if target_param_idx is not None:
+        return args[target_param_idx]
+    try:
+        return cls.originator_id_type
+    except AttributeError:
+        raise
+
+
 TAggregate = TypeVar("TAggregate", bound="BaseAggregate[Any]")
 
 
@@ -298,6 +337,34 @@ class HasOriginatorIDVersion(AbstractDecision, Generic[TAggregateID]):
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
+
+        # Look at the immediate bases of the new class being created
+        orig_bases = safe_get_original_bases(cls)
+
+        for base in orig_bases:
+            if isinstance(base, type) and safe_get_params(base):
+                msg = (
+                    f"Class '{cls.__qualname__}' must provide type arguments "
+                    f"for generic base class '{base.__qualname__}' "
+                    f"(e.g., {base.__name__}[YourType])."
+                )
+                raise TypeError(msg)
+
+        # Enforce consistent originator_id_type.
+        base_origintor_id_types: list[
+            tuple[type[HasOriginatorIDVersion[Any]], UUID | str]
+        ] = [
+            (
+                cast(type[HasOriginatorIDVersion[Any]], base),
+                _get_originator_type_id(base),
+            )
+            for base in orig_bases
+            if _is_hasoriginatoridversion_subclass(safe_get_origin(base) or base)
+        ]
+        if len({b[1] for b in base_origintor_id_types}) != 1:
+            msg = f"Mismatched originator ID types in bases: {base_origintor_id_types}"
+            raise TypeError(msg)
+
         if "originator_id_type" not in cls.__dict__:
             type_args = resolve_multi_generic_target(cls, HasOriginatorIDVersion)
             assert len(type_args) == 1, type_args
@@ -559,7 +626,7 @@ class GenericDomainEvent(
 
 
 @dataclass(frozen=True)
-class AggregateEvent(CanMutateAggregate, DomainEvent):
+class AggregateEvent(CanMutateAggregate[UUID], DomainEvent):
     """Frozen data class representing aggregate events.
 
     Subclasses represent original decisions made by domain model aggregates.
@@ -577,7 +644,7 @@ class GenericAggregateEvent(
 
 
 @dataclass(frozen=True, kw_only=True)
-class AggregateCreated(CanInitAggregate, AggregateEvent):
+class AggregateCreated(CanInitAggregate[UUID], AggregateEvent):
     """Frozen data class representing the initial creation of an aggregate."""
 
     originator_topic: str
@@ -1200,6 +1267,11 @@ class MetaAggregate(EventsourcingType, ABCMeta, Generic[TAggregate]):
         event_topic: str | None = None,
     ) -> type[CanMutateAggregate[Any]]:
         # Define annotations for the event class (specs the init method).
+        if (
+            name == "Reset"
+            and "MutableAggregateWithUuidIDAndEventClasses" == cls.__name__
+        ):
+            pass
         annotations = {}
         if apply_method is not None:
             method_signature = inspect.signature(apply_method)
@@ -1295,40 +1367,37 @@ def _fill_and_validate_id_type(
 ) -> type | GenericAlias:
     filled_event_cls = _fill_id_type(cls, event_cls)
     _validate_id_type(cls, filled_event_cls)
-    return event_cls
+    return filled_event_cls
 
 
 def _fill_id_type(
-    cls: type[BaseAggregate[Any]],
-    event_cls: type[HasOriginatorIDVersion[Any]],
-) -> type | GenericAlias:
-    # This always get an aggregate class and an event class,
-    # and the event class may or may not be a generic class.
-    assert isinstance(event_cls, type)
-    # Experimental: if event_cls has one type param that
-    # is a TAggregateID, then its a generic event class begging for
-    # a type argument, so supply the aggregate's originator_type_id.
-    assert _is_hasoriginatoridversion_subclass(event_cls), event_cls
-    params = getattr(event_cls, "__parameters__", ())
-    if len(params) == 0:
-        return event_cls
-    if True:
-        args = [cls.originator_id_type if p == TAggregateID else p for p in params]
-        generic_alias = event_cls[*args]  # type: ignore[index]
-    else:
-        if len(params) > 1:
-            # TODO: Come back to this...
-            # msg = f"Too many type parameters to fill for generic {event_cls}"
-            # raise TypeError(msg)
-            return event_cls
-        if params[0] != TAggregateID:
-            # TODO: Come back to this...
-            # msg = f"Type parameter for generic {event_cls} is not TAggregateID"
-            # raise TypeError(msg)
-            return event_cls
-        generic_alias = event_cls[cls.originator_id_type]
+    cls: type["BaseAggregate[Any]"],
+    event_cls: Any,  # Relaxed to accept type | GenericAlias
+) -> Any:
+    # 1. Extract the raw origin class to perform structural checks safely
+    origin = safe_get_origin(event_cls)
+    if origin is None:
+        origin = event_cls
 
-    return generic_alias
+    assert isinstance(
+        origin, type
+    ), f"Expected type or generic alias, got {type(event_cls)}"
+
+    # 2. Extract remaining open parameters (handles both raw classes and generic aliases safely)
+    params = safe_get_params(event_cls)
+    if not params:
+        return event_cls
+
+    # 3. Swap TAggregateID for the concrete type, leave others as unresolved TypeVars
+    args = [cls.originator_id_type if p == TAggregateID else p for p in params]
+
+    # 4. Optimization: If TAggregateID wasn't in the parameters, nothing changed. Return early.
+    if tuple(args) == tuple(params):
+        return event_cls
+
+    # 5. Subscript the class or alias with the new arguments
+    callable_event_cls: Any = event_cls
+    return callable_event_cls[*args]
 
 
 def _validate_id_type(
@@ -1358,36 +1427,6 @@ def _is_valid_id_type(id_type: Any, must_match: Any = None) -> bool:
     )
 
 
-def _get_originator_type_id(
-    cls: type[HasOriginatorIDVersion[Any] | BaseAggregate[Any]] | GenericAlias,
-) -> type[UUID | str] | None:
-    origin = typing.get_origin(cls)
-    args = typing.get_args(cls)
-    # if origin is None or not args:
-    #     return cls.originator_id_type
-    target_param_idx = None
-    origin_params = getattr(origin, "__parameters__", ())
-    for idx, param in enumerate(origin_params):
-        if idx < len(args) and param == TAggregateID:
-            target_param_idx = idx
-            break
-    if target_param_idx is not None:
-        return args[target_param_idx]
-    return cls.originator_id_type
-
-
-def _is_hasoriginatoridversion_subclass(obj: Any) -> bool:
-    return isinstance(obj, type) and issubclass(obj, HasOriginatorIDVersion)
-
-
-def _is_canmutateaggregate_subclass(obj: Any) -> bool:
-    return isinstance(obj, type) and issubclass(obj, CanMutateAggregate)
-
-
-def _is_caninitaggregate_subclass(obj: Any) -> bool:
-    return isinstance(obj, type) and issubclass(obj, CanInitAggregate)
-
-
 def diagnose_mro_conflict(name: str, bases: Iterable[Any]) -> str:
     """
     Analyzes a collection of base classes to
@@ -1401,8 +1440,10 @@ def diagnose_mro_conflict(name: str, bases: Iterable[Any]) -> str:
     ]
 
     lines: list[str] = []
-    base_names = [b.__name__ for b in resolved_bases]
-    lines.append(f"🔍 Analyzing MRO consistency for bases of {name}: {base_names}\n")
+    lines.append(f"🔍 Analyzing MRO consistency for bases of {name}:")
+    lines.extend(
+        f"   - {resolved_base.__qualname__}" for resolved_base in resolved_bases
+    )
 
     # 1. Gather all individual MRO sequences that must be merged
     sequences: list[list[type]] = [list(base.__mro__) for base in resolved_bases]
@@ -1478,7 +1519,7 @@ def diagnose_mro_conflict(name: str, bases: Iterable[Any]) -> str:
             u = conflict_loop[i]
             v = conflict_loop[i + 1]
             reason = reasons.get((u, v), "Inferred hierarchy constraint")
-            lines.append(f"  👉 {u.__name__} must precede {v.__name__}")
+            lines.append(f"  👉 {u.__qualname__} must precede {v.__qualname__}")
             lines.append(f"     Reason: {reason}\n")
 
         lines.append("💡 HOW TO FIX IT:")
@@ -2036,8 +2077,6 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
         # Ensure events visible on this class are subclasses of the base event class,
         # and subclasses of any of their base event classes that we have redefined.
         for name, value in all_visible_event_classes.items():
-            if value.__name__ == "Something":
-                pass
             # Don't subclass the base event class again.
             if name == base_event_name:
                 continue
@@ -2055,16 +2094,32 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
             # TODO: Probably need to fix this ***DEFINITELY REVIEW THIS***
             # Identify base classes that were redefined, to preserve hierarchy.
             redefined_bases = []
-            for base in value.__bases__:
-                if base in redefined_event_classes:
-                    redefined_bases.append(redefined_event_classes[base])
-                elif "__pydantic_generic_metadata__" in base.__dict__:
-                    pydantic_metadata = base.__dict__["__pydantic_generic_metadata__"]
-                    for i, key in enumerate(pydantic_metadata):
-                        if key == "origin":
-                            origin = base.__bases__[i]
-                            if origin in redefined_event_classes:
-                                redefined_bases.append(redefined_event_classes[origin])
+
+            # 1. Iterate over the safe bases that preserve type arguments
+            for base in safe_get_original_bases(value):
+                origin = safe_get_origin(base)
+                args = safe_get_args(base)
+
+                # 2. Determine which raw class to look for in the registry
+                search_target = origin if origin is not None else base
+
+                if search_target in redefined_event_classes:
+                    redefined_class = redefined_event_classes[search_target]
+
+                    # 3. If the original base had type arguments, re-apply them to the new class!
+                    if args:
+                        # If there's only one argument, unpack it to avoid tuple-nesting issues,
+                        # otherwise pass the tuple of arguments.
+                        redefined_class = (
+                            redefined_class[args[0]]
+                            if len(args) == 1
+                            else redefined_class[args]
+                        )
+
+                    redefined_bases.append(redefined_class)
+                # else:
+                #     # If it isn't in the registry, keep the base exactly as it was
+                #     redefined_bases.append(base)
 
             if name in decorators_needing_function_callers:
                 decorator = decorators_needing_function_callers.pop(name)
@@ -2139,9 +2194,9 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
                         cls._define_event_class(
                             created_event_name,
                             (
-                                _fill_id_type(cls, base_created_event_cls),
-                                *redefined_bases,
                                 _fill_id_type(cls, base_event_cls),
+                                _fill_id_type(cls, base_created_event_cls),
+                                *[_fill_id_type(cls, t) for t in redefined_bases],
                             ),
                             init_method,
                             event_topic=created_event_topic,
@@ -2154,9 +2209,9 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
                     # a subclass of the original class, all redefined classes that
                     # were in its bases, and the aggregate's base event class.
                     event_class_bases = (
-                        _fill_and_validate_id_type(cls, value),
-                        *redefined_bases,
                         _fill_and_validate_id_type(cls, base_event_cls),
+                        _fill_and_validate_id_type(cls, value),
+                        *[_fill_and_validate_id_type(cls, r) for r in redefined_bases],
                     )
 
                     # Define event class.
@@ -2415,7 +2470,7 @@ class CanSnapshotAggregate(HasOriginatorIDVersion[TAggregateID]):
 
 
 @dataclass(frozen=True, kw_only=True)
-class Snapshot(CanSnapshotAggregate, DomainEvent):
+class Snapshot(CanSnapshotAggregate[UUID], DomainEvent):
     """Snapshots represent the state of an aggregate at a particular
     version.
 
@@ -2464,7 +2519,8 @@ class Aggregate(BaseAggregate):
     class Created(Event, AggregateCreated):
         pass
 
-    Snapshot = Snapshot
+    class Snapshot(Snapshot):
+        pass
 
 
 class GenericAggregate(BaseAggregate[TAggregateID]):
@@ -2483,7 +2539,7 @@ class GenericAggregate(BaseAggregate[TAggregateID]):
     class Event(GenericAggregateEvent[TAggregateID]):
         pass
 
-    class Created(Event[TAggregateID], GenericAggregateCreated[TAggregateID]):
+    class Created(GenericAggregateCreated[TAggregateID], Event[TAggregateID]):
         pass
 
     # class Snapshot(Event[TAggregateID], GenericSnapshot[TAggregateID]):

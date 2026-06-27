@@ -11,6 +11,7 @@ from eventsourcing.msgspec.mutablemodel import (
     AggregateSnapshotUuidID,
     AggregateStrID,
     AggregateUuidID,
+    GenericAggregate,
 )
 from eventsourcing.persistence import NullTranscoder
 from eventsourcing.utils import get_topic
@@ -18,29 +19,55 @@ from eventsourcing.utils import get_topic
 
 class TestOrigintorIDTypes(TestCase):
     def test(self) -> None:
+        self.assertIs(AggregateSnapshotUuidID.originator_id_type, UUID)
+        self.assertIs(AggregateSnapshotUuidID.originator_id_type, UUID)
+        self.assertIs(AggregateSnapshotStrID.originator_id_type, str)
+        self.assertIs(AggregateSnapshotStrID.originator_id_type, str)
         self.assertIs(AggregateUuidID.originator_id_type, UUID)
         self.assertIs(AggregateUuidID.Event.originator_id_type, UUID)
         self.assertIs(AggregateUuidID.Created.originator_id_type, UUID)
-        self.assertIs(AggregateSnapshotUuidID.originator_id_type, UUID)
-        self.assertIs(AggregateSnapshotUuidID.originator_id_type, UUID)
+        self.assertIs(AggregateUuidID.Snapshot.originator_id_type, UUID)
         self.assertIs(AggregateStrID.originator_id_type, str)
         self.assertIs(AggregateStrID.Event.originator_id_type, str)
         self.assertIs(AggregateStrID.Created.originator_id_type, str)
-        self.assertIs(AggregateSnapshotStrID.originator_id_type, str)
-        self.assertIs(AggregateSnapshotStrID.originator_id_type, str)
+        self.assertIs(AggregateStrID.Snapshot.originator_id_type, str)
+        self.assertIs(GenericAggregate.originator_id_type, UUID)
+        self.assertIs(GenericAggregate.Event.originator_id_type, UUID)
+        self.assertIs(GenericAggregate.Created.originator_id_type, UUID)
+        self.assertIs(GenericAggregate.Snapshot.originator_id_type, UUID)
+
+        class WithStrID(GenericAggregate[str]):
+            pass
+
+        self.assertIs(WithStrID.originator_id_type, str)
+        self.assertIs(WithStrID.Event.originator_id_type, str)
+        self.assertIs(WithStrID.Created.originator_id_type, str)
+        self.assertIs(WithStrID.Snapshot.originator_id_type, str)
+
+        # TODO: Implement the custom generic alias for BaseAggreate.
+        #  - this works (class default) but [str] doesn't (still class default)
+        # self.assertIs(GenericAggregate[UUID].originator_id_type, UUID)
+        # self.assertIs(GenericAggregate[UUID].Event[UUID].originator_id_type, UUID)
+        # self.assertIs(GenericAggregate[UUID].Created[UUID].originator_id_type, UUID)
+        # self.assertIs(GenericAggregate[UUID].Snapshot[UUID].originator_id_type, UUID)
+        # self.assertIs(GenericAggregate[str].originator_id_type, str)
+        # self.assertIs(GenericAggregate[str].Event[str].originator_id_type, str)
+        # self.assertIs(GenericAggregate[str].Created[str].originator_id_type, str)
 
 
-class MutableAggregateWithUuidIDAndEventClasses(mutablemodel.AggregateUuidID):
+class MutableAggregateWithUuidIDAndEventClasses(GenericAggregate[UUID]):
     # class Snapshot(AggregateSnapshot):
     #     state: DogSnapshotState
+    class Event(GenericAggregate.Event[UUID]):
+        pass
 
-    class Started(mutablemodel.AggregateUuidID.Created):
+    class Started(Event, GenericAggregate.Created[UUID]):
         a: int
 
-    class Reset(mutablemodel.AggregateUuidID.Event):
+    class Reset(Event):
         a: int
 
-    class Unused(mutablemodel.AggregateUuidID.Event):
+    class Unused(Event):
         a: int
 
     @event(Started)

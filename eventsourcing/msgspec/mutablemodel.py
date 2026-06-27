@@ -18,7 +18,7 @@ from eventsourcing.msgspec.immutablemodel import (
     DomainEvent,
     Immutable,
 )
-from eventsourcing.utils import get_topic, resolve_topic
+from eventsourcing.utils import get_topic, resolve_topic, unwrap_new_type
 
 
 class SnapshotState(Immutable):
@@ -76,6 +76,29 @@ class AggregateEvent(DomainEvent[TAggregateID], CanMutateAggregate[TAggregateID]
     # class AggregateEvent(DomainEventY):
     def _as_dict(self) -> dict[str, Any]:
         return {key: getattr(self, key) for key in self.__struct_fields__}
+
+
+class GenericAggregate(BaseAggregate[TAggregateID]):
+    @classmethod
+    def create_id(cls, *_: Any, **__: Any) -> TAggregateID:
+        """Returns a new aggregate ID."""
+        assert cls.originator_id_type is not None
+        new_id = uuid4()
+        if issubclass(unwrap_new_type(cls.originator_id_type), UUID):
+            return cast(TAggregateID, new_id)
+        if issubclass(unwrap_new_type(cls.originator_id_type), str):
+            return cast(TAggregateID, str(new_id))
+        msg = f"The originator_id_type of {cls} apparently isn't a UUID or str"
+        raise TypeError(msg)
+
+    class Event(AggregateEvent[TAggregateID]):
+        pass
+
+    class Created(Event[TAggregateID], CanInitAggregate[TAggregateID]):
+        originator_topic: str
+
+    class Snapshot(Event[TAggregateID], AggregateSnapshot[TAggregateID]):
+        pass
 
 
 class AggregateUuidID(BaseAggregate[UUID]):
