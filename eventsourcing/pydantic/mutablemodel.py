@@ -6,7 +6,6 @@ from uuid import UUID, uuid4
 
 from pydantic import ConfigDict, TypeAdapter
 
-import eventsourcing.domain
 from eventsourcing.domain import (
     BaseAggregate,
     CanInitAggregate,

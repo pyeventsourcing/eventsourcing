@@ -268,18 +268,18 @@ class Environment(dict[str, str]):
 
 
 def resolve_multi_generic_target(
-    cls: type, target_base: type, verbose: bool = False
+    cls: type, target_base: type, *, _verbose: bool = False
 ) -> tuple[Any, ...]:
     """
     Finds type arguments for `target_base` of given `cls`.
     """
-    if verbose:
-        print(f"Resolving multi generic target {cls}...")
+    # if verbose:
+    #     print(f"Resolving multi generic target {cls}...")
 
     target_params = safe_get_params(target_base)
     if not target_params:
-        if verbose:
-            print(f"Resolved {()} for {cls}")
+        # if verbose:
+        #     print(f"Resolved {()} for {cls}")
         return ()
 
     # Map each class in the MRO to a dictionary of its own resolved type parameters
@@ -304,8 +304,8 @@ def resolve_multi_generic_target(
                 args = ()
             else:
                 args = safe_get_args(base)
-            if verbose:
-                print(f" - Args {args} for base {base}")
+            # if verbose:
+            #     print(f" - Args {args} for base {base}")
 
             ancestor_params = safe_get_params(origin)
 
@@ -343,8 +343,8 @@ def resolve_multi_generic_target(
         else:
             final_output.append(resolved_val)
 
-    if verbose:
-        print(f"Resolved {final_output} for {cls}")
+    # if verbose:
+    #     print(f"Resolved {final_output} for {cls}")
     return tuple(final_output)
 
 

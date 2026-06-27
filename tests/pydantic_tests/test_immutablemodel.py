@@ -3,12 +3,9 @@ from __future__ import annotations
 from unittest import TestCase
 from uuid import UUID, uuid4
 
-import pydantic
-
 from eventsourcing.domain import datetime_now_with_tzinfo
 from eventsourcing.persistence import NullTranscoder
 from eventsourcing.pydantic import immutablemodel
-from eventsourcing.pydantic.immutablemodel import SnapshotUuidID
 from eventsourcing.pydantic.mapper import PydanticMapper
 
 STRING_LIKE = {str, bytes, bytearray, memoryview}

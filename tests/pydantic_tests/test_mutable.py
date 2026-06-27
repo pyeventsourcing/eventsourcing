@@ -9,7 +9,6 @@ from eventsourcing.pydantic import mutablemodel
 from eventsourcing.pydantic.mapper import PydanticMapper
 from eventsourcing.pydantic.mutablemodel import (
     Aggregate,
-    AggregateSnapshot,
     AggregateSnapshotStrID,
     AggregateSnapshotUuidID,
     AggregateStrID,
@@ -196,7 +195,8 @@ class TestMutableAggregateWithUuidIDAndEventClasses(TestCase):
         self.assertEqual(snap.originator_version, agg.version)
         self.assertEqual(snap.state["a"], agg.a)
 
-        copy: MutableAggregateWithUuidIDAndEventClasses = snap.mutate(None)
+        copy = snap.mutate(None)
+        assert copy is not None
         self.assertIsInstance(copy, MutableAggregateWithUuidIDAndEventClasses)
         self.assertEqual(copy.id, agg.id)
         self.assertEqual(copy.version, agg.version)
@@ -280,7 +280,8 @@ class TestMutableAggregateWithUuidIDAndEventNames(TestCase):
         self.assertEqual(snap.originator_version, agg.version)
         self.assertEqual(snap.state["a"], agg.a)
 
-        copy: MutableAggregateWithUuidIDAndEventNames = snap.mutate(None)
+        copy = snap.mutate(None)
+        assert copy is not None
         self.assertIsInstance(copy, MutableAggregateWithUuidIDAndEventNames)
         self.assertEqual(copy.id, agg.id)
         self.assertEqual(copy.version, agg.version)
@@ -380,7 +381,8 @@ class TestMutableAggregateWithStrIDAndEventClasses(TestCase):
         self.assertEqual(snap.originator_version, agg.version)
         self.assertEqual(snap.state["a"], agg.a)
 
-        copy: MutableAggregateWithStrIDAndEventClasses = snap.mutate(None)
+        copy = snap.mutate(None)
+        assert copy is not None
         self.assertIsInstance(copy, MutableAggregateWithStrIDAndEventClasses)
         self.assertEqual(copy.id, agg.id)
         self.assertEqual(copy.version, agg.version)
@@ -464,7 +466,8 @@ class TestMutableAggregateWithStrIDAndEventNames(TestCase):
         self.assertEqual(snap.originator_version, agg.version)
         self.assertEqual(snap.state["a"], agg.a)
 
-        copy: MutableAggregateWithStrIDAndEventNames = snap.mutate(None)
+        copy = snap.mutate(None)
+        assert copy is not None
         self.assertIsInstance(copy, MutableAggregateWithStrIDAndEventNames)
         self.assertEqual(copy.id, agg.id)
         self.assertEqual(copy.version, agg.version)

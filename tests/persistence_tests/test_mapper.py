@@ -344,7 +344,7 @@ class TestDataclassMapper(TestCase):
         # Define a subclass of HasOriginatorIDVersion and set
         # `originator_id_type` to None.
         class Sub(DomainEvent, CanMutateAggregate[UUID]):
-            originator_id_type = None
+            originator_id_type = None  # type: ignore[assignment]
 
         self.assertIsNone(Sub.originator_id_type)
 

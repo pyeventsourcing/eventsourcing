@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from eventsourcing.domain import event
-from eventsourcing.pydantic.immutablemodel import Immutable, SnapshotStrID
+from eventsourcing.pydantic.immutablemodel import Immutable
 from eventsourcing.pydantic.mutablemodel import (
-    AggregateSnapshot,
     AggregateSnapshotStrID,
     AggregateStrID,
     SnapshotState,

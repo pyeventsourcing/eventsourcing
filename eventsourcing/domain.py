@@ -335,39 +335,10 @@ class HasOriginatorIDVersion(AbstractDecision, Generic[TAggregateID]):
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
 
-        # 1. BYPASS TRANSIENT GENERIC PROXIES
-        # Pydantic (and some other dynamic generic systems) generates concrete wrapper
-        # classes at runtime. Because `__init_subclass__` fires before Pydantic finishes
-        # attaching its metadata, we check the class name. Normal Python syntax forbids
-        # brackets in class names, so if they exist, this is a transient wrapper.
-        if "[" in cls.__name__:
-            return
-
-        # Pydantic dynamically creates wrapper classes for its parameterized generics.
-        # We exit early so we don't run user-level validation on transient wrappers.
-        if "__pydantic_generic_metadata__" in cls.__dict__:
-            return
-
         # Look at the immediate bases of the new class being created
         orig_bases = safe_get_original_bases(cls)
 
-        # # 2. STRICT GENERICS CHECK
-        # for base in orig_bases:
-        #     if isinstance(base, type):
-        #         params = safe_get_params(base)
-        #
-        #         # We only care that our framework's required TypeVar was supplied.
-        #         # Other frameworks (like Pydantic) are free to leave their own
-        #         # variables (like TSharedPydantic) open.
-        #         if TAggregateID in params:
-        #             msg = (
-        #                 f"Class '{cls.__qualname__}' must provide the TAggregateID type argument "
-        #                 f"for generic base class '{base.__qualname__}' "
-        #                 f"(e.g., {base.__name__}[YourType])."
-        #             )
-        #             raise TypeError(msg)
-
-        # 3. ORIGINATOR ID CONSISTENCY CHECK
+        # 1. ORIGINATOR ID CONSISTENCY CHECK
         collected_id_types: set[Any] = set()
 
         for base in orig_bases:
@@ -385,7 +356,7 @@ class HasOriginatorIDVersion(AbstractDecision, Generic[TAggregateID]):
             )
             raise TypeError(msg)
 
-        # 4. RESOLVE AND ASSIGN ID TYPE
+        # 2. RESOLVE AND ASSIGN ID TYPE
         if "originator_id_type" not in cls.__dict__:
             type_args = resolve_multi_generic_target(cls, HasOriginatorIDVersion)
             assert len(type_args) == 1, type_args
@@ -1281,82 +1252,6 @@ ENVVAR_DISABLE_REDEFINITION_CHECK = "EVENTSOURCING_DISABLE_REDEFINITION_CHECK"
 class MetaAggregate(EventsourcingType, ABCMeta, Generic[TAggregate]):
     """Metaclass for aggregate classes."""
 
-    def _decide_event_class_bases(
-        cls,
-        required_bases: list[type[CanMutateAggregate[TAggregateID]]],
-        redefined_bases: list[type[CanMutateAggregate[TAggregateID]]],
-        base_event_cls: type[CanMutateAggregate[TAggregateID]],
-    ) -> tuple[type, ...]:
-        included = list(required_bases)
-        included.extend(
-            redefined_base
-            for redefined_base in redefined_bases
-            if issubclass(
-                safe_get_origin(redefined_base) or redefined_base,
-                safe_get_origin(base_event_cls) or base_event_cls,
-            )
-        )
-        if len(included) == len(required_bases):
-            included.append(base_event_cls)
-        return tuple(_fill_and_validate_id_type(cls, i) for i in included)
-
-    def _define_event_class(
-        cls,
-        name: str,
-        bases: tuple[type[CanMutateAggregate[Any]] | GenericAlias, ...],
-        apply_method: CallableType | None,
-        event_topic: str | None = None,
-    ) -> type[CanMutateAggregate[Any]]:
-        # Define annotations for the event class (specs the init method).
-        if (
-            name == "Reset"
-            and "MutableAggregateWithUuidIDAndEventClasses" == cls.__name__
-        ):
-            pass
-        annotations = {}
-        if apply_method is not None:
-            method_signature = inspect.signature(apply_method)
-            super_annotations = {}
-
-            for b in reversed(bases):
-                actual_base = typing.get_origin(b) or b
-                # Fallback to a tuple of just the base if __mro__ is somehow missing
-                mro = getattr(actual_base, "__mro__", (actual_base,))
-
-                for mro_cls in reversed(mro):
-                    # Safely get the annotations dict for this specific class in the
-                    # chain and update our running dictionary.
-                    super_annotations.update(inspect.get_annotations(mro_cls))
-
-            for param_name, param in list(method_signature.parameters.items())[1:]:
-                # Don't define 'id' on a "created" class.
-                if param_name == "id" and apply_method.__name__ == "__init__":
-                    continue
-                # Don't override super class annotations, unless no default on param.
-                if param_name not in super_annotations or param.default == param.empty:
-                    annotations[param_name] = param.annotation or "typing.Any"
-        event_cls_qualname = f"{cls.__qualname__}.{name}"
-        event_cls_dict = {
-            "__annotations__": annotations,
-            "__module__": cls.__module__,
-            "__qualname__": event_cls_qualname,
-        }
-        if event_topic:
-            event_cls_dict["TOPIC"] = event_topic
-
-        def populate_namespace(ns: dict[str, Any]) -> None:
-            ns.update(event_cls_dict)
-
-        # Create the event class object.
-        try:
-            _new_class = types.new_class(name, bases, exec_body=populate_namespace)
-        except TypeError as e:
-            if "Cannot create a consistent method resolution" in str(e):
-                msg = diagnose_mro_conflict(name, bases)
-                raise TypeError(msg) from e
-            raise
-        return cast("type[CanMutateAggregate[Any]]", _new_class)
-
     def __call__(
         cls: MetaAggregate[TAggregate], *args: Any, **kwargs: Any
     ) -> TAggregate:
@@ -1412,7 +1307,7 @@ def _fill_and_validate_id_type(
 
 
 def _fill_id_type(
-    cls: type["BaseAggregate[Any]"],
+    cls: type[BaseAggregate[Any]],
     event_cls: Any,  # Relaxed to accept type | GenericAlias
 ) -> Any:
     if cls.__name__ == "B":
@@ -1424,9 +1319,9 @@ def _fill_id_type(
     if not is_already_alias:
         origin = event_cls
 
-    assert isinstance(origin, type), (
-        f"Expected type or generic alias, got {type(event_cls)}"
-    )
+    assert isinstance(
+        origin, type
+    ), f"Expected type or generic alias, got {type(event_cls)}"
 
     # 2. Extract remaining open parameters
     params = safe_get_params(event_cls)
@@ -1445,25 +1340,7 @@ def _fill_id_type(
 
     # 5. Subscript the class or alias with the new arguments
     callable_event_cls: Any = event_cls
-    if "B.Something" in event_cls.__qualname__:
-        print(f"Event class before subscripting:, {event_cls}")
-        print(f"Args: {args}")
-    subscripted = callable_event_cls[*args]
-    if "B.Something" in event_cls.__qualname__:
-        print(f"Event class after subscripting:, {subscripted}")
-
-    # 6. PYDANTIC DEDUPLICATION OVERRIDE
-    # If Pydantic optimized the evaluation and returned the raw class unmodified,
-    # force it into a standard Python GenericAlias. This ensures `types.new_class`
-    # populates `__orig_bases__` correctly and satisfies our strict checking engine!
-    if subscripted is event_cls:
-        subscripted = types.GenericAlias(event_cls, tuple(args))
-
-        if "B.Something" in event_cls.__qualname__:
-            print(f"Event class after force subscripting:, {subscripted}")
-
-    return subscripted
-
+    return callable_event_cls[*args]
 
 
 def _validate_id_type(
@@ -2172,10 +2049,11 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
                 if search_target in redefined_event_classes:
                     redefined_class = redefined_event_classes[search_target]
 
-                    # 3. If the original base had type arguments, re-apply them to the new class!
+                    # 3. If the original base had type arguments,
+                    #    re-apply them to the new class!
                     if args:
-                        # If there's only one argument, unpack it to avoid tuple-nesting issues,
-                        # otherwise pass the tuple of arguments.
+                        # If there's only one argument, unpack it to avoid tuple-
+                        # nesting issues, otherwise pass the tuple of arguments.
                         redefined_class = (
                             redefined_class[args[0]]
                             if len(args) == 1
@@ -2273,7 +2151,6 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
                     event_class_bases = cls._decide_event_class_bases(
                         [value], redefined_bases, base_event_cls
                     )
-
                     # Define event class.
                     event_class = cls._define_event_class(name, event_class_bases, None)
 
@@ -2291,31 +2168,26 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
         for name, decorator in decorators_needing_function_callers.items():
             if decorator.given_event_cls:
                 # Define a decorated function caller.
-                assert base_event_cls is not None
+                event_class_bases = cls._decide_event_class_bases(
+                    [DecoratedFuncCaller, decorator.given_event_cls],
+                    [],  # TODO: redefined_bases,
+                    base_event_cls,
+                )
                 event_cls = cls._define_event_class(
                     name,
-                    (
-                        _fill_id_type(cls, DecoratedFuncCaller),
-                        _fill_id_type(
-                            cls,
-                            cast(
-                                type[HasOriginatorIDVersion[TAggregateID]],
-                                decorator.given_event_cls,
-                            ),
-                        ),
-                        _fill_id_type(cls, base_event_cls),
-                    ),
+                    event_class_bases,
                     None,
                 )
             else:
                 # Define event class from signature of original method.
-                assert base_event_cls is not None
+                event_class_bases = cls._decide_event_class_bases(
+                    [DecoratedFuncCaller],
+                    [],
+                    base_event_cls,
+                )
                 event_cls = cls._define_event_class(
                     name,
-                    (
-                        _fill_id_type(cls, DecoratedFuncCaller),
-                        _fill_id_type(cls, base_event_cls),
-                    ),
+                    event_class_bases,
                     decorator.decorated_func,
                     event_topic=decorator.event_topic,
                 )
@@ -2343,14 +2215,16 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
                 # assert init_method is not None
                 if base_event_cls is None:
                     raise base_event_class_not_defined_error
+                event_class_bases = cls._decide_event_class_bases(
+                    [base_created_event_cls],
+                    [],
+                    base_event_cls,
+                )
                 created_event_class = cast(
                     type[CanInitAggregate[TAggregateID]],
                     cls._define_event_class(
                         created_event_name,
-                        (
-                            _fill_id_type(cls, base_created_event_cls),
-                            _fill_id_type(cls, base_event_cls),
-                        ),
+                        event_class_bases,
                         init_method,
                         event_topic=created_event_topic,
                     ),
@@ -2366,14 +2240,16 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
                     if base_event_cls is None:
                         raise base_event_class_not_defined_error
                     if not issubclass(created_event_class, base_event_cls):
+                        event_class_bases = cls._decide_event_class_bases(
+                            [created_event_class],
+                            [],  # TODO: redefined_bases
+                            base_event_cls,
+                        )
                         created_event_class = cast(
                             type[CanInitAggregate[TAggregateID]],
                             cls._define_event_class(
                                 created_event_class.__name__,
-                                (
-                                    _fill_id_type(cls, created_event_class),
-                                    _fill_id_type(cls, base_event_cls),
-                                ),
+                                event_class_bases,
                                 None,
                                 event_topic=created_event_topic,
                             ),
@@ -2432,6 +2308,80 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
                             f"already registered for {resolve_topic(explicit_topic)}"
                         )
                         raise ProgrammingError(msg) from None
+
+    @classmethod
+    def _decide_event_class_bases(
+        cls,
+        required_bases: list[type[CanMutateAggregate[TAggregateID]]],
+        redefined_bases: list[type[CanMutateAggregate[TAggregateID]]],
+        base_event_cls: type[CanMutateAggregate[TAggregateID]],
+    ) -> tuple[type | GenericAlias, ...]:
+        included = list(required_bases)
+        included.extend(
+            redefined_base
+            for redefined_base in redefined_bases
+            if issubclass(
+                safe_get_origin(redefined_base) or redefined_base,
+                safe_get_origin(base_event_cls) or base_event_cls,
+            )
+        )
+        if len(included) == len(required_bases):
+            assert base_event_cls is not None
+            included.append(base_event_cls)
+        return tuple(_fill_and_validate_id_type(cls, i) for i in included)
+
+    @classmethod
+    def _define_event_class(
+        cls,
+        name: str,
+        bases: tuple[type[CanMutateAggregate[Any]] | GenericAlias, ...],
+        apply_method: CallableType | None,
+        event_topic: str | None = None,
+    ) -> type[CanMutateAggregate[Any]]:
+        # Define annotations for the event class (specs the init method).
+        annotations = {}
+        if apply_method is not None:
+            method_signature = inspect.signature(apply_method)
+            super_annotations = {}
+
+            for b in reversed(bases):
+                actual_base = typing.get_origin(b) or b
+                # Fallback to a tuple of just the base if __mro__ is somehow missing
+                mro = getattr(actual_base, "__mro__", (actual_base,))
+
+                for mro_cls in reversed(mro):
+                    # Safely get the annotations dict for this specific class in the
+                    # chain and update our running dictionary.
+                    super_annotations.update(inspect.get_annotations(mro_cls))
+
+            for param_name, param in list(method_signature.parameters.items())[1:]:
+                # Don't define 'id' on a "created" class.
+                if param_name == "id" and apply_method.__name__ == "__init__":
+                    continue
+                # Don't override super class annotations, unless no default on param.
+                if param_name not in super_annotations or param.default == param.empty:
+                    annotations[param_name] = param.annotation or "typing.Any"
+        event_cls_qualname = f"{cls.__qualname__}.{name}"
+        event_cls_dict = {
+            "__annotations__": annotations,
+            "__module__": cls.__module__,
+            "__qualname__": event_cls_qualname,
+        }
+        if event_topic:
+            event_cls_dict["TOPIC"] = event_topic
+
+        def populate_namespace(ns: dict[str, Any]) -> None:
+            ns.update(event_cls_dict)
+
+        # Create the event class object.
+        try:
+            _new_class = types.new_class(name, bases, exec_body=populate_namespace)
+        except TypeError as e:
+            if "Cannot create a consistent method resolution" in str(e):
+                msg = diagnose_mro_conflict(name, bases)
+                raise TypeError(msg) from e
+            raise
+        return cast("type[CanMutateAggregate[Any]]", _new_class)
 
     def __hash__(self) -> int:
         raise NotImplementedError  # pragma: no cover
