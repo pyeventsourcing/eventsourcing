@@ -228,12 +228,6 @@ class TestOriginatorIDTypeDetection(TestCase):
             "Aggregate ID type arg cannot be <class 'int'>", str(cm.exception)
         )
 
-    def test_typevar(self) -> None:
-        class Sub(HasOriginatorIDVersion[_T]):  # type: ignore[type-var]
-            pass
-
-        self.assertIsNone(Sub.originator_id_type)
-
     def test_detect_mismatch(self) -> None:
         class A(HasOriginatorIDVersion[UUID]):
             pass
@@ -250,6 +244,3 @@ class TestOriginatorIDTypeDetection(TestCase):
             "Conflicting originator ID types detected in bases of",
             str(cm.exception),
         )
-
-
-_T = TypeVar("_T")

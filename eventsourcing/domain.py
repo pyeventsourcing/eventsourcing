@@ -362,7 +362,7 @@ class HasOriginatorIDVersion(AbstractDecision, Generic[TAggregateID]):
             assert len(type_args) == 1, type_args
             originator_id_type = type_args[0]
 
-            if originator_id_type in (UUID, str, None):
+            if unwrap_new_type(originator_id_type) in (UUID, str, None):
                 cls.originator_id_type = originator_id_type
             else:
                 msg = f"Aggregate ID type arg cannot be {originator_id_type}"
@@ -2552,8 +2552,8 @@ class GenericAggregate(BaseAggregate[TAggregateID]):
     class Created(GenericAggregateCreated[TAggregateID], Event[TAggregateID]):
         pass
 
-    # class Snapshot(Event[TAggregateID], GenericSnapshot[TAggregateID]):
-    #     pass
+    class Snapshot(Event[TAggregateID], GenericSnapshot[TAggregateID]):
+        pass
 
 
 class AggregateUuidID(GenericAggregate[UUID]):

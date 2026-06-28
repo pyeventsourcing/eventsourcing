@@ -4,39 +4,20 @@ from unittest import TestCase
 from uuid import UUID, uuid4
 
 from eventsourcing.domain import datetime_now_with_tzinfo, event
-from eventsourcing.msgspec import mutablemodel
 from eventsourcing.msgspec.mapper import MsgspecMapper
-from eventsourcing.msgspec.mutablemodel import (
-    AggregateSnapshotStrID,
-    AggregateSnapshotUuidID,
-    AggregateStrID,
-    AggregateUuidID,
-    GenericAggregate,
-)
+from eventsourcing.msgspec.mutablemodel import Aggregate
 from eventsourcing.persistence import NullTranscoder
 from eventsourcing.utils import get_topic
 
 
 class TestOrigintorIDTypes(TestCase):
     def test(self) -> None:
-        self.assertIs(AggregateSnapshotUuidID.originator_id_type, UUID)
-        self.assertIs(AggregateSnapshotUuidID.originator_id_type, UUID)
-        self.assertIs(AggregateSnapshotStrID.originator_id_type, str)
-        self.assertIs(AggregateSnapshotStrID.originator_id_type, str)
-        self.assertIs(AggregateUuidID.originator_id_type, UUID)
-        self.assertIs(AggregateUuidID.Event.originator_id_type, UUID)
-        self.assertIs(AggregateUuidID.Created.originator_id_type, UUID)
-        self.assertIs(AggregateUuidID.Snapshot.originator_id_type, UUID)
-        self.assertIs(AggregateStrID.originator_id_type, str)
-        self.assertIs(AggregateStrID.Event.originator_id_type, str)
-        self.assertIs(AggregateStrID.Created.originator_id_type, str)
-        self.assertIs(AggregateStrID.Snapshot.originator_id_type, str)
-        self.assertIs(GenericAggregate.originator_id_type, UUID)
-        self.assertIs(GenericAggregate.Event.originator_id_type, UUID)
-        self.assertIs(GenericAggregate.Created.originator_id_type, UUID)
-        self.assertIs(GenericAggregate.Snapshot.originator_id_type, UUID)
+        self.assertIs(Aggregate.originator_id_type, UUID)
+        self.assertIs(Aggregate.Event.originator_id_type, UUID)
+        self.assertIs(Aggregate.Created.originator_id_type, UUID)
+        self.assertIs(Aggregate.Snapshot.originator_id_type, UUID)
 
-        class WithStrID(GenericAggregate[str]):
+        class WithStrID(Aggregate[str]):
             pass
 
         self.assertIs(WithStrID.originator_id_type, str)
@@ -55,13 +36,13 @@ class TestOrigintorIDTypes(TestCase):
         # self.assertIs(GenericAggregate[str].Created[str].originator_id_type, str)
 
 
-class MutableAggregateWithUuidIDAndEventClasses(GenericAggregate[UUID]):
+class MutableAggregateWithUuidIDAndEventClasses(Aggregate[UUID]):
     # class Snapshot(AggregateSnapshot):
     #     state: DogSnapshotState
-    class Event(GenericAggregate.Event[UUID]):
+    class Event(Aggregate.Event[UUID]):
         pass
 
-    class Started(Event, GenericAggregate.Created[UUID]):
+    class Started(Event, Aggregate.Created):
         a: int
 
     class Reset(Event):
@@ -79,7 +60,7 @@ class MutableAggregateWithUuidIDAndEventClasses(GenericAggregate[UUID]):
         self.a = a
 
 
-class MutableAggregateWithUuidIDAndEventNames(mutablemodel.AggregateUuidID):
+class MutableAggregateWithUuidIDAndEventNames(Aggregate[UUID]):
     # class Snapshot(AggregateSnapshot):
     #     state: DogSnapshotState
 
@@ -92,17 +73,20 @@ class MutableAggregateWithUuidIDAndEventNames(mutablemodel.AggregateUuidID):
         self.a = a
 
 
-class MutableAggregateWithStrIDAndEventClasses(mutablemodel.AggregateStrID):
+class MutableAggregateWithStrIDAndEventClasses(Aggregate[str]):
     # class Snapshot(AggregateSnapshot):
     #     state: DogSnapshotState
 
-    class Started(mutablemodel.AggregateStrID.Created):
+    class Event(Aggregate.Event[str]):
+        pass
+
+    class Started(Aggregate.Created[str]):
         a: int
 
-    class Reset(mutablemodel.AggregateStrID.Event):
+    class Reset(Aggregate[str].Event[str]):
         a: int
 
-    class Unused(mutablemodel.AggregateStrID.Event):
+    class Unused(Aggregate[str].Event[str]):
         a: int
 
     @event(Started)
@@ -114,7 +98,7 @@ class MutableAggregateWithStrIDAndEventClasses(mutablemodel.AggregateStrID):
         self.a = a
 
 
-class MutableAggregateWithStrIDAndEventNames(mutablemodel.AggregateStrID):
+class MutableAggregateWithStrIDAndEventNames(Aggregate[str]):
     # class Snapshot(AggregateSnapshot):
     #     state: DogSnapshotState
 
@@ -224,9 +208,12 @@ class TestMutableAggregateWithUuidIDAndEventNames(TestCase):
             originator_version=2,
             timestamp=datetime_now_with_tzinfo(),
         )
+        assert isinstance(event, MutableAggregateWithUuidIDAndEventNames.Event)
+        assert isinstance(event, Aggregate.Event)
         stored = self.mapper.to_stored_event(event)
         copy = self.mapper.to_domain_event(stored)
         assert isinstance(copy, MutableAggregateWithUuidIDAndEventNames.Event)
+        assert isinstance(copy, Aggregate.Event)
         self.assertEqual(copy.originator_id, event.originator_id)
         self.assertIsInstance(copy.originator_id, UUID)
         self.assertEqual(copy.originator_version, event.originator_version)
@@ -245,7 +232,8 @@ class TestMutableAggregateWithUuidIDAndEventNames(TestCase):
         stored = self.mapper.to_stored_event(event)
         copy = self.mapper.to_domain_event(stored)
         assert isinstance(copy, MutableAggregateWithUuidIDAndEventNames.Started)  # type: ignore[attr-defined]
-        assert isinstance(copy, AggregateUuidID.Event)
+        assert isinstance(copy, Aggregate.Created)
+        assert isinstance(copy, Aggregate.Event)
         self.assertEqual(copy.originator_id, event.originator_id)
         self.assertIsInstance(copy.originator_id, UUID)
         self.assertEqual(copy.originator_version, event.originator_version)
@@ -260,11 +248,14 @@ class TestMutableAggregateWithUuidIDAndEventNames(TestCase):
             timestamp=datetime_now_with_tzinfo(),
             a=1,
         )
+        assert isinstance(event, MutableAggregateWithUuidIDAndEventNames.Reset)  # type: ignore[attr-defined]
+        assert isinstance(event, MutableAggregateWithUuidIDAndEventNames.Event)  # type: ignore[attr-defined]
+        assert isinstance(event, Aggregate.Event)
 
         stored = self.mapper.to_stored_event(event)
         copy = self.mapper.to_domain_event(stored)
         assert isinstance(copy, MutableAggregateWithUuidIDAndEventNames.Reset)  # type: ignore[attr-defined]
-        assert isinstance(copy, AggregateUuidID.Event)
+        assert isinstance(copy, Aggregate.Event)
         self.assertEqual(copy.originator_id, event.originator_id)
         self.assertIsInstance(copy.originator_id, UUID)
         self.assertEqual(copy.originator_version, event.originator_version)
@@ -403,7 +394,7 @@ class TestMutableAggregateWithStrIDAndEventNames(TestCase):
         stored = self.mapper.to_stored_event(event)
         copy = self.mapper.to_domain_event(stored)
         assert isinstance(copy, MutableAggregateWithStrIDAndEventNames.Started)  # type: ignore[attr-defined]
-        assert isinstance(copy, AggregateStrID.Event), type(copy)
+        assert isinstance(copy, Aggregate.Event), type(copy)
         self.assertEqual(copy.originator_id, event.originator_id)
         self.assertIsInstance(copy.originator_id, str)
         self.assertEqual(copy.originator_version, event.originator_version)
@@ -422,7 +413,7 @@ class TestMutableAggregateWithStrIDAndEventNames(TestCase):
         stored = self.mapper.to_stored_event(event)
         copy = self.mapper.to_domain_event(stored)
         assert isinstance(copy, MutableAggregateWithStrIDAndEventNames.Reset)  # type: ignore[attr-defined]
-        assert isinstance(copy, AggregateStrID.Event), type(copy)
+        assert isinstance(copy, Aggregate.Event), type(copy)
         self.assertEqual(copy.originator_id, event.originator_id)
         self.assertIsInstance(copy.originator_id, str)
         self.assertEqual(copy.originator_version, event.originator_version)

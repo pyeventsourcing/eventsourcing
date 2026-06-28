@@ -3,8 +3,8 @@ from __future__ import annotations
 from eventsourcing.domain import event
 from eventsourcing.pydantic.immutablemodel import Immutable
 from eventsourcing.pydantic.mutablemodel import (
-    AggregateSnapshotStrID,
-    AggregateStrID,
+    Aggregate,
+    AggregateSnapshot,
     SnapshotState,
 )
 
@@ -18,15 +18,24 @@ class DogSnapshotState(SnapshotState):
     tricks: list[Trick]
 
 
-class Dog(AggregateStrID):
-    class Snapshot(AggregateSnapshotStrID):
+class Dog(Aggregate[str]):
+    class Snapshot(AggregateSnapshot[str]):
         state: DogSnapshotState
 
-    @event("Registered")
+    class Event(Aggregate.Event[str]):
+        pass
+
+    class Registered(Aggregate.Created[str]):
+        name: str
+
+    class TrickAdded(Event):
+        trick: Trick
+
+    @event(Registered)
     def __init__(self, name: str) -> None:
         self.name = name
         self.tricks: list[Trick] = []
 
-    @event("TrickAdded")
+    @event(TrickAdded)
     def add_trick(self, trick: Trick) -> None:
         self.tricks.append(trick)

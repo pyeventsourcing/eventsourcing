@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 from eventsourcing.domain import event
 from eventsourcing.pydantic.immutablemodel import Immutable
 from eventsourcing.pydantic.mutablemodel import (
@@ -18,7 +20,7 @@ class DogSnapshotState(SnapshotState):
     tricks: list[Trick]
 
 
-class Dog(Aggregate):
+class Dog(Aggregate[UUID]):
     class Snapshot(AggregateSnapshot):
         state: DogSnapshotState
 

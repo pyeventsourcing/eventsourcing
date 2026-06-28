@@ -64,21 +64,7 @@ class AggregateSnapshot(DomainEvent[TAggregateID], CanSnapshotAggregate[TAggrega
         return aggregate
 
 
-class AggregateSnapshotUuidID(AggregateSnapshot[UUID]):
-    pass
-
-
-class AggregateSnapshotStrID(AggregateSnapshot[str]):
-    pass
-
-
-class AggregateEvent(DomainEvent[TAggregateID], CanMutateAggregate[TAggregateID]):
-    # class AggregateEvent(DomainEventY):
-    def _as_dict(self) -> dict[str, Any]:
-        return {key: getattr(self, key) for key in self.__struct_fields__}
-
-
-class GenericAggregate(BaseAggregate[TAggregateID]):
+class Aggregate(BaseAggregate[TAggregateID]):
     @classmethod
     def create_id(cls, *_: Any, **__: Any) -> TAggregateID:
         """Returns a new aggregate ID."""
@@ -91,41 +77,12 @@ class GenericAggregate(BaseAggregate[TAggregateID]):
         msg = f"The originator_id_type of {cls} apparently isn't a UUID or str"
         raise TypeError(msg)
 
-    class Event(AggregateEvent[TAggregateID]):
-        pass
+    class Event(DomainEvent[TAggregateID], CanMutateAggregate[TAggregateID]):
+        def _as_dict(self) -> dict[str, Any]:
+            return {key: getattr(self, key) for key in self.__struct_fields__}
 
     class Created(Event[TAggregateID], CanInitAggregate[TAggregateID]):
         originator_topic: str
 
     class Snapshot(Event[TAggregateID], AggregateSnapshot[TAggregateID]):
-        pass
-
-
-class AggregateUuidID(BaseAggregate[UUID]):
-    @classmethod
-    def create_id(cls, *_: Any, **__: Any) -> UUID:
-        return uuid4()
-
-    class Event(AggregateEvent[UUID]):
-        pass
-
-    class Created(Event, CanInitAggregate[UUID]):
-        originator_topic: str
-
-    class Snapshot(Event, AggregateSnapshot[UUID]):
-        pass
-
-
-class AggregateStrID(BaseAggregate[str]):
-    @classmethod
-    def create_id(cls, *_: Any, **__: Any) -> str:
-        return str(uuid4())
-
-    class Event(AggregateEvent[str]):
-        pass
-
-    class Created(Event, CanInitAggregate[str]):
-        originator_topic: str
-
-    class Snapshot(Event, AggregateSnapshot[str]):
         pass
