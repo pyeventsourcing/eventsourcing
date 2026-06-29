@@ -1310,8 +1310,6 @@ def _fill_id_type(
     cls: type[BaseAggregate[Any]],
     event_cls: Any,  # Relaxed to accept type | GenericAlias
 ) -> Any:
-    if cls.__name__ == "B":
-        pass
     # 1. Extract the raw origin class to perform structural checks safely
     origin = safe_get_origin(event_cls)
     is_already_alias = origin is not None
@@ -2366,6 +2364,9 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
             "__annotations__": annotations,
             "__module__": cls.__module__,
             "__qualname__": event_cls_qualname,
+            # FIX: Explicitly inject __orig_bases__ to prevent MRO attribute leakage
+            # from base classes that were previously parameterized.
+            "__orig_bases__": bases,
         }
         if event_topic:
             event_cls_dict["TOPIC"] = event_topic
