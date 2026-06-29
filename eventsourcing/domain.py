@@ -353,6 +353,7 @@ class HasOriginatorIDVersion(AbstractDecision, Generic[TAggregateID]):
                 if id_type is not None and not isinstance(id_type, TypeVar):
                     collected_id_types.add((base, id_type))
 
+        concrete_id_types = {x[1] for x in collected_id_types}
         if len({x[1] for x in collected_id_types}) > 1:
             msg = (
                 f"Conflicting originator ID types detected in bases of "
@@ -362,9 +363,12 @@ class HasOriginatorIDVersion(AbstractDecision, Generic[TAggregateID]):
 
         # 2. RESOLVE AND ASSIGN ID TYPE
         if "originator_id_type" not in cls.__dict__:
-            type_args = resolve_multi_generic_target(cls, HasOriginatorIDVersion)
-            assert len(type_args) == 1, type_args
-            originator_id_type = type_args[0]
+            if concrete_id_types:
+                originator_id_type = next(iter(concrete_id_types))
+            else:
+                type_args = resolve_multi_generic_target(cls, HasOriginatorIDVersion)
+                assert len(type_args) == 1, type_args
+                originator_id_type = type_args[0]
 
             if unwrap_new_type(originator_id_type) in (UUID, str, None):
                 cls.originator_id_type = originator_id_type

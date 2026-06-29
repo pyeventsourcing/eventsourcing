@@ -21,7 +21,7 @@ class TestOrigintorIDTypes(TestCase):
         self.assertIs(Aggregate.originator_id_type, UUID)
         self.assertIs(Aggregate.Event.originator_id_type, UUID)
         self.assertIs(Aggregate.Created.originator_id_type, UUID)
-        # self.assertIs(Aggregate.Snapshot.originator_id_type, UUID)
+        self.assertIs(Aggregate.Snapshot.originator_id_type, UUID)
 
         class WithStrID(Aggregate[str]):
             pass
@@ -29,7 +29,7 @@ class TestOrigintorIDTypes(TestCase):
         self.assertIs(WithStrID.originator_id_type, str)
         self.assertIs(WithStrID.Event.originator_id_type, str)
         self.assertIs(WithStrID.Created.originator_id_type, str)
-        # self.assertIs(WithStrID.Snapshot.originator_id_type, str)
+        self.assertIs(WithStrID.Snapshot.originator_id_type, str)
 
         # TODO: Implement the custom generic alias for BaseAggreate.
         #  - this works (class default) but [str] doesn't (still class default)
@@ -47,8 +47,8 @@ class SnapshotStateWithA(SnapshotState):
 
 
 class MutableAggregateWithUuidIDAndEventClasses(Aggregate[UUID]):
-    # class Snapshot(Aggregate.Snapshot[UUID]):
-    #     state: SnapshotStateWithA
+    class Snapshot(Aggregate.Snapshot[UUID]):
+        state: SnapshotStateWithA
 
     class Started(Aggregate.Created[UUID]):
         a: int
@@ -69,8 +69,8 @@ class MutableAggregateWithUuidIDAndEventClasses(Aggregate[UUID]):
 
 
 class MutableAggregateWithUuidIDAndEventNames(Aggregate[UUID]):
-    # class Snapshot(Aggregate.Snapshot):
-    #     state: SnapshotStateWithA
+    class Snapshot(Aggregate.Snapshot):
+        state: SnapshotStateWithA
 
     @event("Started")
     def __init__(self, a: int) -> None:
@@ -82,8 +82,8 @@ class MutableAggregateWithUuidIDAndEventNames(Aggregate[UUID]):
 
 
 class MutableAggregateWithStrIDAndEventClasses(Aggregate[str]):
-    # class Snapshot(Aggregate.Snapshot[str]):
-    #     state: SnapshotStateWithA
+    class Snapshot(Aggregate.Snapshot[str]):
+        state: SnapshotStateWithA
 
     class Started(Aggregate.Created[str]):
         a: int
@@ -104,8 +104,8 @@ class MutableAggregateWithStrIDAndEventClasses(Aggregate[str]):
 
 
 class MutableAggregateWithStrIDAndEventNames(Aggregate[str]):
-    # class Snapshot(Aggregate.Snapshot[str]):
-    #     state: SnapshotStateWithA
+    class Snapshot(Aggregate.Snapshot[str]):
+        state: SnapshotStateWithA
 
     @event("Started")
     def __init__(self, a: int) -> None:
@@ -240,22 +240,22 @@ class MutableAggregateTestCase(TestCase, Generic[_T, TAggregateID]):
         self.assertEqual(copy.a, agg.a)
         self.assertEqual(copy.version, agg.version)
 
-    # def test_snapshot(self) -> None:
-    #     agg = self.cls_under_test(a=1)
-    #     snapshot = self.cls_under_test.Snapshot.take(agg)
-    #     self.assertEqual(snapshot.originator_id, agg.id)
-    #     self.assertEqual(snapshot.originator_version, agg.version)
-    #     self.assertEqual(snapshot.state.a, agg.a)
-    #
-    #     snapshot_stored = self.mapper.to_stored_event(snapshot)
-    #     snapshot_copy = self.mapper.to_domain_event(snapshot_stored)
-    #
-    #     copy = snapshot_copy.mutate(None)
-    #     assert copy is not None
-    #     self.assertIsInstance(copy, self.cls_under_test)
-    #     self.assertEqual(copy.id, agg.id)
-    #     self.assertEqual(copy.version, agg.version)
-    #     self.assertEqual(copy.a, agg.a)
+    def test_snapshot(self) -> None:
+        agg = self.cls_under_test(a=1)
+        snapshot = self.cls_under_test.Snapshot.take(agg)
+        self.assertEqual(snapshot.originator_id, agg.id)
+        self.assertEqual(snapshot.originator_version, agg.version)
+        self.assertEqual(snapshot.state.a, agg.a)
+
+        snapshot_stored = self.mapper.to_stored_event(snapshot)
+        snapshot_copy = self.mapper.to_domain_event(snapshot_stored)
+
+        copy = snapshot_copy.mutate(None)
+        assert copy is not None
+        self.assertIsInstance(copy, self.cls_under_test)
+        self.assertEqual(copy.id, agg.id)
+        self.assertEqual(copy.version, agg.version)
+        self.assertEqual(copy.a, agg.a)
 
 
 class TestMutableAggregateWithUuidIDAndEventClasses(
